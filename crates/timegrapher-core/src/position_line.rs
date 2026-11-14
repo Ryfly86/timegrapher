@@ -90,8 +90,9 @@ pub struct PositionLine {
     /// averages), for the axis to hold; `None` with nothing to draw.
     pub extent: Option<[f64; 2]>,
     /// The value axis every surface draws: the extent padded
-    /// ([`chart_scale::data_range`]) and snapped to round ends
-    /// ([`chart_scale::round_ends`]), as `[lo, hi, step]`.
+    /// ([`chart_scale::data_range`]), a beat error's from no lower than 0,
+    /// and snapped to round ends ([`chart_scale::round_ends`]), as
+    /// `[lo, hi, step]`.
     pub axis: Option<[f64; 3]>,
 }
 
@@ -202,6 +203,12 @@ pub fn position_line(
     });
     let axis = extent
         .and_then(|[lo, hi]| chart_scale::data_range(&[lo, hi]))
+        // A beat error is a size: its axis starts no lower than 0 (Walter
+        // on #1742).
+        .map(|(lo, hi)| match kind {
+            SeriesKind::BeatError => (lo.max(0.0), hi),
+            _ => (lo, hi),
+        })
         .map(|(lo, hi)| {
             let (lo, hi, step) = chart_scale::round_ends(lo, hi);
             [lo, hi, step]
@@ -316,6 +323,25 @@ mod tests {
         assert_eq!(Some(amp.averages[0].value), st.amplitude_mean);
         let be = position_line(&st, None, SeriesKind::BeatError);
         assert_eq!(Some(be.averages[0].value), st.beat_error_mean);
+        // A beat error is a size: its padded axis stops at 0.
+        let near: Vec<SourcedFigures> = [(Position::CH, 0.01), (Position::H3, 0.4)]
+            .iter()
+            .map(|&(p, b)| {
+                (
+                    p,
+                    Some(1.0),
+                    Some(270.0),
+                    Some(b),
+                    Some(BeatErrorSource::Unlock),
+                )
+            })
+            .collect();
+        let be = position_line(
+            &sourced_indices(Some(0.0), &near),
+            None,
+            SeriesKind::BeatError,
+        );
+        assert_eq!(be.axis.map(|a| a[0]), Some(0.0), "{:?}", be.axis);
     }
 
     /// A 24 h state is set against the full-wind test: each lane carries

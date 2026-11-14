@@ -148,9 +148,115 @@ pub fn steady_ends(
     }
 }
 
+/// One row of names in a lane above a plot, px.
+pub const NAME_ROW_H: f64 = 15.0;
+/// The short gap between a plot and its nearest row of names, so each
+/// line or leader shows outside the plot before it reaches its name.
+pub const NAME_LANE_GAP: f64 = 6.0;
+/// The room kept between two names in a lane above a plot: a word space
+/// and more, so two names side by side never read as one phrase.
+pub const NAME_GAP: f64 = 12.0;
+/// How far an overlap must start or end before a name changes row, so
+/// names don't hop between frames.
+pub const NAME_HYSTERESIS: f64 = 2.0;
+
+/// Where each name in a lane of two rows above a plot goes, the named-lines
+/// rule every surface draws by (the app's `marks::place`, the CLI's report,
+/// held to the MCP view's copy by the same cases): `names` are each one's
+/// centre (its line's x), width and whether it is faint; `was` is the row
+/// each was in before. Strong names are placed first, then faint, each
+/// left to right. Each is centred on its line within `left..right`, and
+/// goes one row further out where it would come within [`NAME_GAP`] of a
+/// name already in the first row; where the second row is taken there
+/// too, it slides right of the name there (drawn with an angled leader).
+/// Each name's left edge and row, in the order given.
+pub fn lane_place(names: &[(f64, f64, bool)], left: f64, right: f64, was: &[u8]) -> Vec<(f64, u8)> {
+    let mut order: Vec<usize> = (0..names.len()).collect();
+    order.sort_by(|&a, &b| {
+        names[a]
+            .2
+            .cmp(&names[b].2)
+            .then(names[a].0.total_cmp(&names[b].0))
+    });
+    let mut rows: [Vec<(f64, f64)>; 2] = Default::default();
+    let mut out = vec![(0.0, 0); names.len()];
+    for i in order {
+        let (x, w, _) = names[i];
+        let last = (right - w).max(left);
+        let at = (x - w / 2.0).clamp(left, last);
+        // The overlap with a name in the first row, the gap between names
+        // included: a name goes out once it overlaps by the hysteresis,
+        // and comes back once it clears by as much.
+        let overlap = rows[0]
+            .iter()
+            .map(|&(a, b)| (b + NAME_GAP - at).min(at + w + NAME_GAP - a))
+            .fold(f64::NEG_INFINITY, f64::max);
+        let out_row = if was.get(i).copied().unwrap_or(0) == 1 {
+            overlap > -NAME_HYSTERESIS
+        } else {
+            overlap > NAME_HYSTERESIS
+        };
+        let (at, row) = if out_row {
+            let mut a = at;
+            while let Some(&(_, e)) = rows[1]
+                .iter()
+                .find(|&&(s, e)| a < e + NAME_GAP && a + w + NAME_GAP > s)
+            {
+                a = e + NAME_GAP;
+            }
+            (a.min(last), 1)
+        } else {
+            (at, 0)
+        };
+        rows[usize::from(row)].push((at, at + w));
+        out[i] = (at, row);
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The lane rule places the cases the app's marks and the MCP view's
+    /// copy are held to (timegrapher-app/src/marks_cases.json) as given.
+    #[test]
+    fn lane_place_places_the_shared_cases() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../timegrapher-app/src/marks_cases.json"
+        );
+        let cases: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(path).expect("marks_cases.json"))
+                .expect("its JSON");
+        let n = |v: &serde_json::Value| v.as_f64().expect("a number");
+        let list = cases["place"].as_array().expect("place");
+        assert!(!list.is_empty());
+        for c in list {
+            let names: Vec<(f64, f64, bool)> = c["names"]
+                .as_array()
+                .expect("names")
+                .iter()
+                .map(|v| (n(&v[0]), n(&v[1]), v[2] == "faint"))
+                .collect();
+            let was: Vec<u8> = c["was"]
+                .as_array()
+                .expect("was")
+                .iter()
+                .map(|r| u8::try_from(r.as_u64().expect("a row")).expect("0 or 1"))
+                .collect();
+            let got = lane_place(&names, n(&c["left"]), n(&c["right"]), &was);
+            let want = c["at"].as_array().expect("at");
+            assert_eq!(got.len(), want.len(), "{}", c["case"]);
+            for (g, w) in got.iter().zip(want) {
+                assert!(
+                    (g.0 - n(&w[0])).abs() < 1e-3 && u64::from(g.1) == w[1],
+                    "{}: {got:?}",
+                    c["case"]
+                );
+            }
+        }
+    }
 
     /// The axis rule, held to the fixture the MCP view's copy is tested
     /// against too.
