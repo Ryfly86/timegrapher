@@ -10,7 +10,8 @@ use timegrapher_core::reading_text::{wind_before_take_words, wind_since_words};
 /// Whether Start on a test that begins at full wind (the Positions Test's
 /// full-wind step, the Power Reserve Test) sets Full Wind Now by itself.
 /// Peter, 14 Nov: "Yes, pressing Start on the full-wind step should set
-/// Full Wind Now by itself."
+/// Full Wind Now by itself." Recorded on #1665:
+/// <https://github.com/peterhudson/timegrapher/issues/1665#issuecomment-6880962654>
 pub(super) const START_SETS_FULL_WIND: bool = true;
 
 /// The wind the card keeps.
