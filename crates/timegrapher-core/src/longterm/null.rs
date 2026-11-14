@@ -262,10 +262,22 @@ pub const WALK_MIX: f64 = 1e12;
 /// the flicker meets it first, or there is no walk.
 pub const FLICKER_ONLY: f64 = 1.0;
 
-/// The flicker axis the table interpolates on: ln(share + 0.001), so the
-/// shares the table draws (0, 0.003 to 0.3 and 1) sit about evenly on it.
+/// The least flicker share the table interpolates on in log share; under
+/// it, down to none, in the share itself (#1219, Norm's ruling).
+const FLICKER_LOG_FROM: f64 = 0.01;
+
+/// The flicker axis the table interpolates on (#1219): ln(share) from
+/// [`FLICKER_LOG_FROM`] to [`FLICKER_ONLY`], so the shares the table
+/// draws (0.01, 0.1 and 1) sit evenly; under it the axis is linear in the
+/// share, one unit from none to [`FLICKER_LOG_FROM`], so a share between
+/// none and 0.01 is read linearly between those two cells.
 fn flicker_axis(flicker: f64) -> f64 {
-    (flicker.min(FLICKER_ONLY) + 0.001).ln()
+    let v = flicker.clamp(0.0, FLICKER_ONLY);
+    if v >= FLICKER_LOG_FROM {
+        v.ln()
+    } else {
+        FLICKER_LOG_FROM.ln() - 1.0 + v / FLICKER_LOG_FROM
+    }
 }
 
 /// The mix axis the table interpolates on: ρ as it is, timing's
@@ -562,8 +574,9 @@ fn solve(m: &[[f64; 3]; 3], r: &[f64; 3], n: usize) -> Option<[f64; 3]> {
         b.swap(col, piv);
         for row in col + 1..n {
             let f = a[row][col] / a[col][col];
-            for k in col..n {
-                a[row][k] -= f * a[col][k];
+            let pivot = a[col];
+            for (x, p) in a[row][col..n].iter_mut().zip(&pivot[col..n]) {
+                *x -= f * p;
             }
             b[row] -= f * b[col];
         }
