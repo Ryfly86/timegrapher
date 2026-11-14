@@ -116,7 +116,9 @@ beat error; the separate raw unlock and drop fields retain their meanings.
 The choice and all measured figures are unchanged.
 
 A drop-derived reading carries `{"code":"beat_error_from_drop"}` in
-`caveats[]`. Library readings and Power Reserve hours now carry the core
+`caveats[]`, with `"why":"unlock_inconsistent"` added when the unlock was
+found but its 2 s windows disagree on its sign, so it is not used (#1439);
+with no `why`, the unlock was not found. Library readings and Power Reserve hours now carry the core
 measurement's caveats as well as its source. Older saved versions of those
 two types can lack these additive fields; they read as a null source and an
 empty caveat list, without guessing provenance for an old value. Withheld
@@ -358,8 +360,12 @@ start, position, `ending` (`stopped`, `by_hand` for a recording that ended
 while the watch still ran, or `limit`), the first and last beats heard,
 `run_s` in true seconds, the silences of 30 s or more inside the run, and
 `hours[]`, each hour measured as `session` measures a stretch, with
-`read_s`, its seconds of whole 10 s readings). Without a FOLDER the folder
-is named by the date and time and "Power Reserve". The `--json` document
+`read_s`, its seconds of whole 10 s readings). Without a FOLDER the test
+is one take in the watch's `takes/`, as the app files one (core
+`library::power_reserve_take_dir`): the recording itself, in a folder named
+by the date and time and "Power Reserve", holding its own `session.toml`
+(`file = "."`, the `session_file`) and `power-reserve.json`, so the app
+opens it on its run. The `--json` document
 adds `power_reserve` with the same contents. `session FOLDER --json` gives
 it too, as `power_reserve`, whenever the folder holds `power-reserve.json`
 (the app's Power Reserve takes do), and leaves the key out otherwise.
