@@ -806,9 +806,10 @@ function positionLineChart(line, id) {
   const W = 480, L = 74, R = 14;
   const plotW = W - L - R;
   const sx = (v) => L + (v - lo) / (hi - lo) * plotW;
-  // The averages' names in the lane of two rows above the plot, joined to
-  // their lines (marks::lane_above, Hugh's named-lines rule).
-  const T = 4 + (line.averages.length ? MARKS.LANE_GAP + 2 * MARKS.ROW_H : 0);
+  // The averages' names in a lane of one row above the plot, joined to
+  // their lines (marks::lane_above_one): three names slide along the row,
+  // so no leader passes another name (Walter on #1742).
+  const T = 4 + (line.averages.length ? MARKS.LANE_GAP + MARKS.ROW_H : 0);
   const groups = [...new Set(line.lanes.map((l) => l.group))];
   const plotH = LANE_H * (groups.length + line.lanes.length);
   const H = T + plotH + 22;
@@ -825,7 +826,7 @@ function positionLineChart(line, id) {
   for (const a of line.averages) {
     g += `<line x1="${sx(a.value)}" x2="${sx(a.value)}" y1="${T}" y2="${T + plotH}" stroke="var(--callout)" stroke-width="${CALL_OUT_W}" stroke-dasharray="${DASH.dashed}"><title>${esc(a.hover)}</title></line>`;
   }
-  g += laneAbove(line.averages.map((a) => ({ x: a.value, name: a.name, rank: "faint", ink: "--callout", hover: a.hover })), sx, L, T, plotW);
+  g += laneAbove(line.averages.map((a) => ({ x: a.value, name: a.name, rank: "faint", ink: "--callout", hover: a.hover })), sx, L, T, plotW, true);
   const color = `var(${(PANE_KINDS.find(([k]) => k === line.series) || [])[1] || "--rate"})`;
   let y = T;
   for (const grp of groups) {
@@ -1369,12 +1370,16 @@ function markText(x, y, name, rank, extra = "") {
 // marks::lane_above: lines down a plot (its frame from L, T, plotW wide),
 // named in a lane of two rows above it, each name joined to its line by a
 // short stroke of the line's colour, with an angled leader where it had
-// to slide. Each line and its name say its hover.
-function laneAbove(lines, sx, L, T, plotW) {
+// to slide. Each line and its name say its hover. With `one`,
+// marks::lane_above_one: a lane of one row, for a plot that names only a
+// few lines, where a name slides along the row (markPlaceRow).
+function laneAbove(lines, sx, L, T, plotW, one) {
   const { ROW_H, LANE_GAP } = MARKS;
   const seen = lines.filter((l) => sx(l.x) >= L && sx(l.x) <= L + plotW);
   const names = seen.map((l) => [sx(l.x), markWidth(l.name, l.rank), l.rank]);
-  const placed = markPlace(names, L + 2, L + plotW - 2, []);
+  const placed = one
+    ? markPlaceRow(names, L + 2, L + plotW - 2).map((a) => [a, 0])
+    : markPlace(names, L + 2, L + plotW - 2, []);
   let strokes = "", boxes = "";
   seen.forEach((l, i) => {
     const [x, w] = names[i], [left, row] = placed[i];

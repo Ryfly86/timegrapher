@@ -108,12 +108,12 @@ fn figure(v: &PositionValue, kind: SeriesKind) -> Option<f64> {
 
 /// A figure with its unit as a screen writes it, a negative one with a
 /// true minus: "−0.5 s/d".
-fn screen(kind: SeriesKind, v: f64) -> String {
+pub fn screen(kind: SeriesKind, v: f64) -> String {
     crate::figure_text::true_minus(&kind.fmt(v))
 }
 
-/// The unit as it follows the axis: degrees as "°".
-fn unit_of(kind: SeriesKind) -> &'static str {
+/// The unit as it follows a chart's axis: degrees as "°".
+pub fn unit_of(kind: SeriesKind) -> &'static str {
     match kind {
         SeriesKind::Amplitude => "°",
         k => k.unit(),

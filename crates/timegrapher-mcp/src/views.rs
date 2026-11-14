@@ -339,6 +339,86 @@ pub fn pm_texts(doc: &Value) -> Option<Value> {
     None
 }
 
+/// The `_meta` key the Power Reserve pane reads its hours from.
+pub const RESERVE_KEY: &str = "timegrapher/reserve";
+
+/// A Power Reserve run's hours as the view's pane draws them (#1729): each
+/// hour's start and length in hours and its Read % (core
+/// `Hour::read_share`), and for each measure its title, unit, value axis
+/// and each hour's figure as a size for the beat error, its words in
+/// core's figure text and whether it is thin (read from too few of its
+/// windows: grey, as the app's table has it). `None` with no hours.
+pub fn reserve_view(doc: &Value) -> Option<Value> {
+    use timegrapher_core::confidence::Figure;
+    use timegrapher_core::figure_text::fixed_text;
+    use timegrapher_core::measure::Caveat;
+    use timegrapher_core::position_line::{screen, unit_of};
+    use timegrapher_core::power_reserve::{Hour, Results};
+    use timegrapher_core::steadiness::SeriesKind;
+    let run: Results = serde_json::from_value(doc.get("power_reserve")?.clone()).ok()?;
+    if run.hours.is_empty() {
+        return None;
+    }
+    let figure = |h: &Hour, k: SeriesKind| {
+        match k {
+            SeriesKind::Rate => h.rate_s_per_day,
+            SeriesKind::Amplitude => h.amplitude_deg,
+            SeriesKind::BeatError => h.beat_error_ms.map(f64::abs),
+        }
+        .filter(|v| v.is_finite())
+    };
+    let thin = |h: &Hour, f: Figure| {
+        h.caveats
+            .iter()
+            .any(|c| matches!(c, Caveat::ReadingWindows { reading, .. } if *reading == f))
+    };
+    let series: Vec<Value> = [
+        (SeriesKind::Rate, Figure::Rate),
+        (SeriesKind::Amplitude, Figure::Amplitude),
+        (SeriesKind::BeatError, Figure::BeatError),
+    ]
+    .into_iter()
+    .map(|(k, f)| {
+        let values: Vec<f64> = run.hours.iter().filter_map(|h| figure(h, k)).collect();
+        let axis = timegrapher_core::chart_scale::data_range(&values).map(|(lo, hi)| {
+            // A beat error is a size: its axis starts no lower than 0.
+            let lo = if k == SeriesKind::BeatError {
+                lo.max(0.0)
+            } else {
+                lo
+            };
+            let (lo, hi, step) = timegrapher_core::chart_scale::round_ends(lo, hi);
+            [lo, hi, step]
+        });
+        let steps: Vec<Value> = run
+            .hours
+            .iter()
+            .map(|h| {
+                let v = figure(h, k);
+                json!({
+                    "value": v,
+                    "text": v.map(|x| screen(k, x)),
+                    "thin": v.is_some() && thin(h, f),
+                })
+            })
+            .collect();
+        json!({ "series": k, "title": k.title(), "unit": unit_of(k), "axis": axis, "steps": steps })
+    })
+    .collect();
+    let hours: Vec<Value> = run
+        .hours
+        .iter()
+        .map(|h| {
+            json!({
+                "hour": h.hour,
+                "span_h": h.span_s / 3600.0,
+                "read": h.read_share().map(|r| format!("{}%", fixed_text(100.0 * r, 0))),
+            })
+        })
+        .collect();
+    Some(json!({ "position": run.position, "hours": hours, "series": series }))
+}
+
 /// The `_meta` that links a tool to the view.
 pub fn tool_meta() -> Value {
     json!({ "ui": { "resourceUri": URI } })
