@@ -39,7 +39,7 @@ pub struct Lane {
     /// The full-wind test's figure at this position, on a later state.
     pub full_wind: Option<f64>,
     /// `value` and `full_wind` as written beside a chart's title and in a
-    /// table, with the unit: "+10.2 s/d".
+    /// table, with the unit and a true minus: "+10.2 s/d", "−0.5 s/d".
     pub text: Option<String>,
     pub full_wind_text: Option<String>,
     /// The hover: the name and this test's figure with its unit,
@@ -64,7 +64,7 @@ pub struct AverageLine {
     /// Its name above the plot: "Average", "Vertical", "Horizontal".
     pub name: &'static str,
     pub value: f64,
-    /// `value` with its unit: "+6.6 s/d".
+    /// `value` with its unit and a true minus: "+6.6 s/d".
     pub text: String,
     /// "Vertical +6.6 s/d".
     pub hover: String,
@@ -105,6 +105,12 @@ fn figure(v: &PositionValue, kind: SeriesKind) -> Option<f64> {
     .filter(|x| x.is_finite())
 }
 
+/// A figure with its unit as a screen writes it, a negative one with a
+/// true minus: "−0.5 s/d".
+fn screen(kind: SeriesKind, v: f64) -> String {
+    crate::figure_text::true_minus(&kind.fmt(v))
+}
+
 /// The unit as it follows the axis: degrees as "°".
 fn unit_of(kind: SeriesKind) -> &'static str {
     match kind {
@@ -135,8 +141,8 @@ pub fn position_line(
                     .and_then(|w| figure(w, kind))
             });
             let name = v.position.display_label();
-            let text = value.map(|x| kind.fmt(x));
-            let full_wind_text = earlier.map(|e| kind.fmt(e));
+            let text = value.map(|x| screen(kind, x));
+            let full_wind_text = earlier.map(|e| screen(kind, e));
             let mut hover = match &text {
                 Some(t) => format!("{name} {t}"),
                 None => name.clone(),
@@ -172,7 +178,7 @@ pub fn position_line(
     .into_iter()
     .filter_map(|(of, name, group)| {
         let value = group_mean(&state.positions, kind, group).filter(|x| x.is_finite())?;
-        let text = kind.fmt(value);
+        let text = screen(kind, value);
         Some(AverageLine {
             of,
             name,
@@ -331,6 +337,8 @@ mod tests {
         assert_eq!(later.extent, Some([-1.0, 10.0]));
         assert!(later.lanes[0].hover.ends_with("(Full wind test +2.0 s/d)"));
         assert_eq!(later.lanes[0].full_wind_text.as_deref(), Some("+2.0 s/d"));
+        assert_eq!(later.lanes[0].text.as_deref(), Some("\u{2212}1.0 s/d"));
+        assert!(later.lanes[0].hover.starts_with("Dial Up (DU) \u{2212}1.0 s/d"));
         // No full-wind test, no comparison.
         let alone = state_lines(&states[1..]);
         assert_eq!(alone[0].rate.key, None);

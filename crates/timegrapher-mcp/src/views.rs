@@ -77,9 +77,7 @@ pub fn page() -> &'static str {
         let no_beat = serde_json::to_string(timegrapher_core::measure::NO_WATCH_TITLE)
             .expect("the no-beat heading as JSON");
         let minus = serde_json::to_string(&true_minus("-")).expect("the minus sign as JSON");
-        let wind_not_given =
-            serde_json::to_string(timegrapher_core::reading_text::WIND_NOT_GIVEN)
-                .expect("the wind-not-given words as JSON");
+        let groups = serde_json::to_string(&group_names()).expect("the group names as JSON");
         HTML.replace("/*PALETTE*/", &css)
             .replace("/*BASE_DIGITS*/null", &base_digits())
             .replace("/*VIRIDIS*/null", &viridis)
@@ -95,7 +93,7 @@ pub fn page() -> &'static str {
             .replace("/*PROBABILITY_MARKS*/null", &marks)
             .replace("/*POSITIONS*/null", &positions)
             .replace("/*NO_BEAT_TITLE*/null", &no_beat)
-            .replace("/*WIND_NOT_GIVEN*/null", &wind_not_given)
+            .replace("/*GROUP_NAMES*/null", &groups)
             .replace("/*MINUS*/null", &minus)
     })
 }
@@ -175,6 +173,19 @@ fn positions() -> Map<String, Value> {
         map.insert(p.common().to_string(), entry);
     }
     map
+}
+
+/// Each position group's name by its JSON name, as core gives them
+/// (`session::PositionGroup::name`), for the test panes' lane groups.
+fn group_names() -> Map<String, Value> {
+    use timegrapher_core::session::PositionGroup;
+    [PositionGroup::Horizontal, PositionGroup::Vertical]
+        .into_iter()
+        .map(|g| {
+            let key = serde_json::to_value(g).expect("a group's JSON name");
+            (key.as_str().unwrap_or_default().to_string(), json!(g.name()))
+        })
+        .collect()
 }
 
 /// Shares labelled up the probability plot, percent, as on probability
@@ -839,12 +850,10 @@ mod tests {
     }
 
     #[test]
-    fn the_page_carries_cores_wind_not_given() {
-        assert!(!page().contains("/*WIND_NOT_GIVEN*/"));
-        assert!(page().contains(&format!(
-            "const WIND_NOT_GIVEN = \"{}\";",
-            timegrapher_core::reading_text::WIND_NOT_GIVEN
-        )));
+    fn the_page_carries_cores_group_names() {
+        assert!(!page().contains("/*GROUP_NAMES*/"));
+        assert!(page()
+            .contains(r#"const GROUP_NAMES = {"horizontal":"Horizontal","vertical":"Vertical"};"#));
     }
 
     #[test]
