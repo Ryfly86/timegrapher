@@ -720,6 +720,24 @@ mod tests {
             .collect()
     }
 
+    /// A take of `run_s` of beats at 28,800 bph, each beat a little early
+    /// or late (a fixed pseudo-random spread of about ±0.5 ms), so its
+    /// rate windows scatter as a watch's do.
+    fn jittered(run_s: f64) -> crate::stream::BeatLog {
+        let mut log = take_of(run_s, 0.0);
+        log.bph = 28_800;
+        log.beats = beats(0.0, run_s, 0.125, 1.0)
+            .into_iter()
+            .map(|mut b| {
+                let x = (b.index as f64 * 12.9898).sin() * 43_758.545_3;
+                b.time += (x - x.floor() - 0.5) * 1e-3;
+                b
+            })
+            .collect();
+        log.duration_s = run_s;
+        log
+    }
+
     /// A take of `run_s` of beats at 18,000 bph from 5 s in, then
     /// `after_s` of silence.
     fn take_of(run_s: f64, after_s: f64) -> crate::stream::BeatLog {
@@ -1158,6 +1176,26 @@ mod tests {
         let back: Hour = serde_json::from_str(&old).unwrap();
         assert_eq!(back.rate_se, None);
         assert_eq!(back.rate_s_per_day, h[0].rate_s_per_day);
+    }
+
+    /// A last part hour too short for its own ± borrows the noise of the
+    /// take around it, as any short stretch does (#1470); one too short
+    /// for even that has none. Either way it is the stretch's own ±.
+    #[test]
+    fn a_short_last_hour_borrows_its_plus_minus_or_has_none() {
+        for (tail_s, has) in [(120.0, true), (30.0, false)] {
+            let log = jittered(3600.0 + tail_s);
+            let last = log.duration_s - 0.2;
+            let h = hours(&log, None, &[], &[], 0.0, last);
+            assert_eq!(h.len(), 2, "{tail_s} s");
+            // The hour starts where the grid's true hour falls in the audio.
+            let a = crate::clean::Cuts::new(None, &[], &[]).audio_time(3600.0, 0.0, last);
+            let m = crate::session::measure_masked(&log, None, &[], &[], a, last);
+            assert!(h[1].rate_s_per_day.is_some(), "{tail_s} s");
+            assert_eq!(h[1].rate_se, m.confidence.and_then(|c| c.rate.se));
+            assert_eq!(h[1].rate_se.is_some(), has, "{tail_s} s: {:?}", h[1]);
+            assert!(h[0].rate_se.is_some(), "a whole hour has its own ±");
+        }
     }
 
     #[test]
