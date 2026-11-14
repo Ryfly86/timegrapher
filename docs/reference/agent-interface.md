@@ -182,8 +182,10 @@ Direct `analyze`, `long` and `series` read the same custom names, aliases and
 wheel overrides as `calibres` from `calibres.json`. A custom entry takes
 precedence over a matching shipped name, following the existing catalogue.
 Each command uses one resolved snapshot. `long` and `series` use the selected
-train for naming periodic components; their `--calibre` does not set BPH or
-lift defaults. Explicit `analyze` flags still win, including an explicit 52°
+train for naming periodic components. On a file outside a take their
+`--calibre` sets the lift angle where `--lift` doesn't, but not the beat
+rate, which `--bph` sets or the sound gives; inside a take the order above
+holds. Explicit `analyze` flags still win, including an explicit 52°
 lift and escape-teeth override. Without `--calibre`, an unreadable user
 catalogue does not affect the command's defaults; with it, catalogue errors
 are reported before reading audio.
