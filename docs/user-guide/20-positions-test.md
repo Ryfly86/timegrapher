@@ -108,6 +108,14 @@ less the Settle at the start of each stretch and any masked time. A
 position needs 10 s before it shows figures ("Under 10 s"), and one never
 marked reads "Not marked". The Average and Largest Difference rows follow
 once two positions have figures.
+
+**Save as CSV…**, **Save as Text…** and **Copy** save this table too, so
+a take opened from the Watches view can be kept or sent as a test's
+results are. As the take had no guided test, they leave out when a test
+began and its settling and measuring times, and list the rows in the
+table's own order. They are greyed ("Nothing measured yet") only while
+the table has no readings.
+
 Under the tables, one line says what to do next, such as "New Test leads
 you through the six positions."; the steps are in the pane's **?**.
 
