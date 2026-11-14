@@ -36,6 +36,23 @@ pub fn mean_name(mean: f64) -> String {
     format!("Mean {}", true_minus(&signed_text(mean, base_digits::RATE)))
 }
 
+/// Each measured upright position of `readings`: (hour at the top in
+/// degrees, rate s/d, its ±), the points a picture draws.
+pub fn points(readings: &[Reading]) -> Vec<(f64, f64, Option<f64>)> {
+    readings
+        .iter()
+        .filter_map(|r| poise::point(r.position, &r.measurement))
+        .map(|p| (p.angle_deg, p.rate_s_per_day, p.rate_se))
+        .collect()
+}
+
+/// The table's Mean over the upright positions of `readings`, s/d (core
+/// `sourced_indices_over`, repeat readings of a position averaged first).
+pub fn mean(readings: &[Reading]) -> Option<f64> {
+    let figures = crate::text_report::figures(readings);
+    crate::session::sourced_indices_over(None, &figures, &Position::UPRIGHT).x
+}
+
 /// The rates a picture must hold: each point with its ±, and the wave.
 pub fn range(points: &[(f64, f64, Option<f64>)], fit: Option<&PoiseFit>) -> Option<(f64, f64)> {
     let mut v: Vec<f64> = Vec::new();
@@ -110,28 +127,20 @@ pub struct Picture {
 
 /// The picture of `readings`' upright positions and their `fit`.
 pub fn picture(readings: &[Reading], fit: Option<&PoiseFit>) -> Picture {
-    let raw: Vec<poise::Point> = readings
+    let raw = points(readings);
+    let (lo, hi, step) = scale(&raw, fit);
+    let dots = raw
         .iter()
-        .filter_map(|r| poise::point(r.position, &r.measurement))
-        .collect();
-    let tuples: Vec<(f64, f64, Option<f64>)> = raw
-        .iter()
-        .map(|p| (p.angle_deg, p.rate_s_per_day, p.rate_se))
-        .collect();
-    let (lo, hi, step) = scale(&tuples, fit);
-    let points = raw
-        .iter()
-        .map(|p| Dot {
-            angle_deg: p.angle_deg,
-            code: poise::hour_code(p.angle_deg),
-            rate_s_per_day: p.rate_s_per_day,
-            rate_se: p.rate_se,
-            text: dot_text(p.rate_s_per_day, p.rate_se),
+        .map(|&(angle_deg, rate, se)| Dot {
+            angle_deg,
+            code: poise::hour_code(angle_deg),
+            rate_s_per_day: rate,
+            rate_se: se,
+            text: dot_text(rate, se),
         })
         .collect();
     let mean = fit.and_then(|_| {
-        let figures = crate::text_report::figures(readings);
-        let x = crate::session::sourced_indices_over(None, &figures, &Position::UPRIGHT).x?;
+        let x = mean(readings)?;
         Some(Named {
             at: x,
             rate_s_per_day: x,
@@ -146,7 +155,7 @@ pub fn picture(readings: &[Reading], fit: Option<&PoiseFit>) -> Picture {
         }
     }
     Picture {
-        points,
+        points: dots,
         wave: fit.map_or_else(Vec::new, |f| {
             f.curve(WAVE_STEPS)
                 .into_iter()

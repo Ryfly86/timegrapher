@@ -346,11 +346,7 @@ fn picture_block(
     bottom: f32,
 ) {
     words(ui, fit, unfitted);
-    let points = readings
-        .iter()
-        .filter_map(|r| poise::point(r.position, &r.measurement))
-        .map(|p| (p.angle_deg, p.rate_s_per_day, p.rate_se))
-        .collect();
+    let points = poise_picture::points(readings);
     let facts = fit.map(|f| {
         let name = match view {
             PoiseView::Plot => "plot",

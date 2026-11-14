@@ -351,7 +351,6 @@ pub const RESERVE_KEY: &str = "timegrapher/reserve";
 pub fn reserve_view(doc: &Value) -> Option<Value> {
     use timegrapher_core::confidence::Figure;
     use timegrapher_core::figure_text::fixed_text;
-    use timegrapher_core::measure::Caveat;
     use timegrapher_core::position_line::{screen, unit_of};
     use timegrapher_core::power_reserve::{Hour, Results};
     use timegrapher_core::steadiness::SeriesKind;
@@ -367,11 +366,6 @@ pub fn reserve_view(doc: &Value) -> Option<Value> {
         }
         .filter(|v| v.is_finite())
     };
-    let thin = |h: &Hour, f: Figure| {
-        h.caveats
-            .iter()
-            .any(|c| matches!(c, Caveat::ReadingWindows { reading, .. } if *reading == f))
-    };
     let series: Vec<Value> = [
         (SeriesKind::Rate, Figure::Rate),
         (SeriesKind::Amplitude, Figure::Amplitude),
@@ -380,16 +374,7 @@ pub fn reserve_view(doc: &Value) -> Option<Value> {
     .into_iter()
     .map(|(k, f)| {
         let values: Vec<f64> = run.hours.iter().filter_map(|h| figure(h, k)).collect();
-        let axis = timegrapher_core::chart_scale::data_range(&values).map(|(lo, hi)| {
-            // A beat error is a size: its axis starts no lower than 0.
-            let lo = if k == SeriesKind::BeatError {
-                lo.max(0.0)
-            } else {
-                lo
-            };
-            let (lo, hi, step) = timegrapher_core::chart_scale::round_ends(lo, hi);
-            [lo, hi, step]
-        });
+        let axis = timegrapher_core::position_line::value_axis(k, &values);
         let steps: Vec<Value> = run
             .hours
             .iter()
@@ -398,7 +383,7 @@ pub fn reserve_view(doc: &Value) -> Option<Value> {
                 json!({
                     "value": v,
                     "text": v.map(|x| screen(k, x)),
-                    "thin": v.is_some() && thin(h, f),
+                    "thin": h.thin(f).is_some(),
                 })
             })
             .collect();

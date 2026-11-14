@@ -616,21 +616,7 @@ pub const THIN_KEY: &str =
 /// cell is dimmed and the caveat is in its hover. Amplitude and beat error
 /// alike, one rule.
 fn thin(h: &power_reserve::Hour, figure: Figure) -> Option<String> {
-    match figure {
-        Figure::Amplitude => h.amplitude_deg?,
-        Figure::BeatError => h.beat_error_ms?,
-        Figure::Rate => h.rate_s_per_day?,
-    };
-    h.caveats
-        .iter()
-        .find(|c| {
-            matches!(
-                c,
-                timegrapher_core::measure::Caveat::ReadingWindows { reading, .. }
-                    if *reading == figure
-            )
-        })
-        .and_then(|c| c.long(None))
+    h.thin(figure).and_then(|c| c.long(None))
 }
 
 /// The hour's beat error's hover and whether it is grey: its source in

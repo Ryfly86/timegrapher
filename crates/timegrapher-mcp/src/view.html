@@ -733,12 +733,14 @@ function sessionView(doc, limits, reserve) {
   lines.forEach((sl, i) => {
     const st = (rep.states || [])[i] || {};
     const inState = (r) => (r.wind_h == null ? null : r.wind_h) === (st.wind_h == null ? null : st.wind_h);
-    html += positionsPane(sl, readings.filter(inState), `s${i}`, lines.length > 1);
+    // Headed in core's words wherever there are several states, or the one
+    // state isn't full wind: a wind not given is never left unsaid (#1665).
+    html += positionsPane(sl, readings.filter(inState), `s${i}`, lines.length > 1 || sl.wind_h !== 0);
   });
   (doc.poise || []).forEach((p, i) => {
     // Named for its state of wind as the Positions panes are, where there are several.
     const sl = lines.find((l) => (l.wind_h == null ? null : l.wind_h) === (p.wind_h == null ? null : p.wind_h));
-    if (p.picture) html += poisePane(p, `p${i}`, lines.length > 1 && sl ? sl.name : null);
+    if (p.picture) html += poisePane(p, `p${i}`, sl && (lines.length > 1 || sl.wind_h !== 0) ? sl.name : null);
   });
   if (reserve) html += reservePane(reserve, "r");
   return html;

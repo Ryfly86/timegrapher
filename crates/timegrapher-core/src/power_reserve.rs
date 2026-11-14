@@ -295,6 +295,22 @@ impl Hour {
         )
     }
 
+    /// The caveat saying its `figure` stands on under the share of its
+    /// windows the readings need (#1429, #1439): the figure is drawn grey
+    /// and the caveat is its hover, on every surface. None where it has no
+    /// such figure or it isn't thin.
+    pub fn thin(&self, figure: crate::confidence::Figure) -> Option<&crate::measure::Caveat> {
+        use crate::confidence::Figure;
+        match figure {
+            Figure::Amplitude => self.amplitude_deg?,
+            Figure::BeatError => self.beat_error_ms?,
+            Figure::Rate => self.rate_s_per_day?,
+        };
+        self.caveats.iter().find(|c| {
+            matches!(c, crate::measure::Caveat::ReadingWindows { reading, .. } if *reading == figure)
+        })
+    }
+
     /// A whole hour, not the run's last part: its span is 3600 s, within
     /// a second for the sums that make it.
     pub fn whole(&self) -> bool {

@@ -2680,7 +2680,7 @@ fn rows_text(readings: &[Reading], kind: Kind, sep: char) -> String {
 /// The Dynamic Poise table's Mean rate, and its name on the picture's
 /// mean line and ring, "Mean +4.0", as the table's Mean row shows it.
 pub fn poise_mean(readings: &[Reading]) -> Option<(f64, String)> {
-    let m = table(readings, Kind::Poise).mean_rate?;
+    let m = timegrapher_core::poise_picture::mean(readings)?;
     Some((m, timegrapher_core::poise_picture::mean_name(m)))
 }
 

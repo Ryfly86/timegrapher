@@ -112,6 +112,20 @@ pub fn screen(kind: SeriesKind, v: f64) -> String {
     crate::figure_text::true_minus(&kind.fmt(v))
 }
 
+/// A measure's value axis, [lo, hi, step], over `values`: their range
+/// rounded to whole steps, a beat error's from no lower than 0, since it
+/// is a size (Walter on #1742). The one axis rule for every chart of a
+/// measure's values. None for no values.
+pub fn value_axis(kind: SeriesKind, values: &[f64]) -> Option<[f64; 3]> {
+    let (lo, hi) = chart_scale::data_range(values)?;
+    let lo = match kind {
+        SeriesKind::BeatError => lo.max(0.0),
+        _ => lo,
+    };
+    let (lo, hi, step) = chart_scale::round_ends(lo, hi);
+    Some([lo, hi, step])
+}
+
 /// The unit as it follows a chart's axis: degrees as "°".
 pub fn unit_of(kind: SeriesKind) -> &'static str {
     match kind {
@@ -201,18 +215,7 @@ pub fn position_line(
             drawn.iter().copied().fold(f64::NEG_INFINITY, f64::max),
         ]
     });
-    let axis = extent
-        .and_then(|[lo, hi]| chart_scale::data_range(&[lo, hi]))
-        // A beat error is a size: its axis starts no lower than 0 (Walter
-        // on #1742).
-        .map(|(lo, hi)| match kind {
-            SeriesKind::BeatError => (lo.max(0.0), hi),
-            _ => (lo, hi),
-        })
-        .map(|(lo, hi)| {
-            let (lo, hi, step) = chart_scale::round_ends(lo, hi);
-            [lo, hi, step]
-        });
+    let axis = extent.and_then(|e| value_axis(kind, &e));
     let compared = lanes.iter().any(|l| l.full_wind.is_some());
     PositionLine {
         series: kind,
