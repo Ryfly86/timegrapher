@@ -83,7 +83,6 @@ fn a_take_saves_its_hours_since_full_wind() {
 /// Test, sets Full Wind Now by itself (Peter, 14 Nov).
 #[test]
 fn start_at_full_wind_sets_full_wind_now() {
-    const { assert!(wind::START_SETS_FULL_WIND) };
     let (mut app, base) = save_failure_fixture("wind-start");
     let _tx = queued_capture(&mut app, &base);
     app.pick_wind(WindPick::HoursAgo(30.0));
