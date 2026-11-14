@@ -75,7 +75,7 @@ gives one command's options. `timegrapher --version` gives the version.
 
 ```text
 $ timegrapher analyze take_part01-001.flac --calibre "Dandong 3235"
-Calibre      Dandong 3235: 28800 bph, lift 55°, as set unless a flag said otherwise
+Calibre      Dandong 3235: 28800 bph, lift 59°, unless a flag or the take's session file says otherwise
 Take         …/session.toml lists this file; `timegrapher session` reads it:
              Dial Up (DU) from 20 to 600 s: rate -0.7 ± 0.5 s/d, amplitude 282 ± 2°, beat error 0.24 ± 0.05 ms
 Whole file   read alone, with no settling, at the take's beat rate and lift angle:
