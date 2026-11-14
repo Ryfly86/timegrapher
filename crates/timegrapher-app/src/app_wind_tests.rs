@@ -169,12 +169,15 @@ fn the_card_shows_the_wind_whole() {
     let want = "Full wind 24.2 h ago";
     for (w, compact, ten) in [
         (130.0, true, false),
+        (POSITION_W, false, false),
+        (POSITION_W, false, true),
         (330.0, false, false),
         (330.0, false, true),
     ] {
         app.ten_positions = ten;
-        let card =
-            egui::Rect::from_min_size(egui::pos2(20.0, 20.0), Vec2::new(w, theme::READINGS_CARD_H));
+        // As tall as the row of cards is, taller at 10.
+        let high = app.readings_card_h(&ctx);
+        let card = egui::Rect::from_min_size(egui::pos2(20.0, 20.0), Vec2::new(w, high));
         let mut out = None;
         for _ in 0..2 {
             out = Some(ctx.run(egui::RawInput::default(), |ctx| {
@@ -207,12 +210,28 @@ fn the_card_shows_the_wind_whole() {
         // the buttons that it would overlap, and over the buttons.
         if !compact {
             let rows = CardRows::of(card);
-            // At 10, 3 pt clear of them (Hugh).
+            // At 10, clear of them, and of the title row, by the gap
+            // between the buttons' two rows (Hugh).
             let buttons = if ten {
-                rows.controls.bottom() - 2.0 * POSITION_ROW_TEN - 6.0
+                rows.controls.bottom()
+                    - 2.0 * POSITION_ROW_TEN
+                    - 2.0 * listen_card::POSITION_TEN_GAP
             } else {
                 rows.controls.top()
             };
+            if ten {
+                for c in &out.shapes {
+                    if let egui::Shape::Text(o) = &c.shape {
+                        let r = o.galley.rect.translate(o.pos.to_vec2());
+                        let below =
+                            r.top() >= rows.title.bottom() + listen_card::POSITION_TEN_GAP - 0.5;
+                        // The title row's own words, the 6 | 10 switch's
+                        // included, whose text runs a little past it.
+                        let in_title = r.center().y < rows.title.bottom();
+                        assert!(below || in_title, "{w}: {:?} {r:?}", o.galley.text());
+                    }
+                }
+            }
             assert!(
                 drawn.bottom() <= buttons + 0.5,
                 "{w} {ten}: {drawn:?} over {buttons}"

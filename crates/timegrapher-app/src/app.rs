@@ -979,10 +979,8 @@ impl CardRows {
             inner,
             title: band(0.0, theme::TITLE_ROW_H),
             figure: band(theme::TITLE_ROW_H + theme::ROW_GAP, theme::FIGURE_ROW_H),
-            controls: band(
-                theme::TITLE_ROW_H + theme::FIGURE_ROW_H + 2.0 * theme::ROW_GAP,
-                theme::CONTROL_H,
-            ),
+            // At the foot, where a taller card puts it (10 positions).
+            controls: band(inner.height() - theme::CONTROL_H, theme::CONTROL_H),
         }
     }
 }

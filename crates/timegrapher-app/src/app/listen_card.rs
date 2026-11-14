@@ -2,6 +2,12 @@
 
 use super::*;
 
+/// The gap between the 10 card's rows: its title, name and wind, and its
+/// two rows of buttons, points (Hugh on #1745).
+pub(super) const POSITION_TEN_GAP: f32 = 3.0;
+/// The size of the 10 card's position name, points.
+pub(super) const POSITION_NAME_TEN_PT: f32 = 15.0;
+
 impl TimegrapherApp {
     /// The controls on the readings' cards, each in the rows its card
     /// left for it.
@@ -63,6 +69,24 @@ impl TimegrapherApp {
             .take_while(|&(t, _)| t <= at + 1e-6)
             .last()
             .map_or(self.position, |(_, p)| p)
+    }
+
+    /// The readings cards' height: [`theme::READINGS_CARD_H`], or taller
+    /// at 10 positions, where the Current Position card's name line and
+    /// wind row need room between its title and its two rows of buttons
+    /// (Hugh on #1745). Every card in the row takes it.
+    pub(super) fn readings_card_h(&self, ctx: &egui::Context) -> f32 {
+        if !self.card_ten() {
+            return theme::READINGS_CARD_H;
+        }
+        let text = ctx
+            .fonts_mut(|f| f.row_height(&theme::semibold(POSITION_NAME_TEN_PT)) + wind::row_h(f));
+        let need = 2.0 * f32::from(theme::CARD_PADDING)
+            + theme::TITLE_ROW_H
+            + text
+            + 2.0 * POSITION_ROW_TEN
+            + 3.0 * POSITION_TEN_GAP;
+        need.max(theme::READINGS_CARD_H)
     }
 
     /// The Current Position card, in `ui`'s rect inside its padding: the
@@ -217,20 +241,22 @@ impl TimegrapherApp {
             )
         };
         let second = row(foot);
-        let first = row(second.top() - 3.0);
+        let first = row(second.top() - POSITION_TEN_GAP);
         // The name and code on one line, and the wind on its own row under
-        // them (#1665, Hugh), centred between the title and the buttons.
+        // them (#1665, Hugh), centred between the title and the buttons
+        // and clear of both by the gap between the buttons' two rows; the
+        // card is tall enough for it ([`Self::readings_card_h`]).
         let left = pic.right() + 10.0;
-        // 3 pt clear of the buttons, as their two rows are of each other
-        // (Hugh).
-        let clear = first.top() - 3.0;
-        let line =
-            egui::Rect::from_x_y_ranges(left..=rows.inner.right(), rows.title.bottom()..=clear);
-        let name_font = theme::semibold(15.0);
+        let (top, clear) = (
+            rows.title.bottom() + POSITION_TEN_GAP,
+            first.top() - POSITION_TEN_GAP,
+        );
+        let line = egui::Rect::from_x_y_ranges(left..=rows.inner.right(), top..=clear);
+        let name_font = theme::semibold(POSITION_NAME_TEN_PT);
         let high = ui.fonts_mut(|f| f.row_height(&name_font) + wind::row_h(f));
         let clip = ui.painter().with_clip_rect(line);
         let name = clip.text(
-            egui::pos2(line.left(), line.center().y - high / 2.0),
+            egui::pos2(line.left(), (line.center().y - high / 2.0).max(top)),
             egui::Align2::LEFT_TOP,
             here.name(),
             name_font,
