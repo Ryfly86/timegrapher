@@ -1460,6 +1460,9 @@ mod tests {
             caveats,
             read_s: 1800.0,
             bph: Some(28_800),
+            rate_se: None,
+            amplitude_se: None,
+            beat_error_se: None,
         };
         let thin = vec![Caveat::ReadingWindows {
             reading: Figure::Rate,
