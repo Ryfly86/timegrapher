@@ -52,9 +52,183 @@ fn mixes(model: NullModel, scale: f64, step: f64) -> Vec<f64> {
     }
 }
 
+/// The flicker shares drawn at each timing mix above white (#1219); one,
+/// none, for readings and white.
+fn flickers(model: NullModel, mix: f64) -> Vec<f64> {
+    match model {
+        NullModel::Timing if mix > 0.0 => vec![0.0, 0.003, 0.01, 0.03, 0.1, 0.3, FLICKER_ONLY],
+        _ => vec![0.0],
+    }
+}
+
+/// A cell's seed parts: model, span, step and mix as before #1219, and
+/// the flicker share only where there is one, so a cell with none draws
+/// the seeds it always drew.
+fn cell_id(model: NullModel, span: f64, step: f64, mix: f64, flicker: f64) -> Vec<u64> {
+    let mi = (mix.min(1e15) * 1000.0).round() as u64;
+    let mut id = vec![model as u64, span as u64, (step * 100.0) as u64, mi];
+    if flicker > 0.0 {
+        id.push(0xf1 ^ (flicker * 1e6).round() as u64);
+    }
+    id
+}
+
+/// A draw's seed: the cell's parts, then the pass and the draw.
+fn draw_seed(id: &[u64], pass: u64, d: usize) -> u64 {
+    let mut parts = id.to_vec();
+    parts.extend([pass, d as u64]);
+    seed_of(&parts)
+}
+
+/// One null series with no flicker ([`null_grid_f`]).
+fn null_grid(model: NullModel, span: f64, step: f64, mix: f64, scale: f64, seed: u64) -> Grid {
+    null_grid_f(model, span, step, mix, 0.0, scale, seed)
+}
+
+/// Flicker of the rate (#1219): `n` steps of a timing whose power is
+/// `c`·u^1.5, u = 1/(4 sin²(πfΔ)), in the units in which a walk whose
+/// steps have variance `a` has power `a`·u and white noise of variance
+/// `b` has `b`. White noise shaped by √(u^1.5) through a Fourier
+/// transform twice the length or more, its first `n` steps kept so the
+/// transform's wrap does not join the ends; nothing at frequency 0.
+fn flicker_fm(n: usize, c: f64, rng: &mut Rng) -> Vec<f64> {
+    use realfft::RealFftPlanner;
+    let l = (2 * n).next_power_of_two();
+    let mut planner = RealFftPlanner::<f64>::new();
+    let (fwd, inv) = (planner.plan_fft_forward(l), planner.plan_fft_inverse(l));
+    let mut buf: Vec<f64> = (0..l).map(|_| rng.normal()).collect();
+    let mut spec = fwd.make_output_vec();
+    fwd.process(&mut buf, &mut spec).expect("forward");
+    for (k, z) in spec.iter_mut().enumerate() {
+        let gain = if k == 0 {
+            0.0
+        } else {
+            let s = (std::f64::consts::PI * k as f64 / l as f64).sin();
+            (4.0 * s * s).powf(-0.75)
+        };
+        *z *= gain;
+    }
+    // The Nyquist bin of a real transform is real.
+    if let Some(z) = spec.last_mut() {
+        z.im = 0.0;
+    }
+    let mut out = inv.make_output_vec();
+    inv.process(&mut spec, &mut out).expect("inverse");
+    out.truncate(n);
+    let k = c.sqrt() / l as f64;
+    out.iter().map(|v| v * k).collect()
+}
+
+/// Norm's condition 1 (#1219): the flicker generator's timing spectrum
+/// falls as f^-3 over two decades, on seeds the table never uses.
+#[test]
+fn flicker_fm_timing_falls_as_the_cube_of_frequency() {
+    use realfft::RealFftPlanner;
+    let n = 1 << 14;
+    let mut planner = RealFftPlanner::<f64>::new();
+    let fwd = planner.plan_fft_forward(n);
+    let mut power = vec![0.0; n / 2 + 1];
+    let draws = 40;
+    for d in 0..draws {
+        let mut rng = Rng::new(seed_of(&[0x5107e, d]));
+        let mut x = flicker_fm(n, 1.0, &mut rng);
+        // A Hann window keeps a steep spectrum's leakage off its tail.
+        for (i, v) in x.iter_mut().enumerate() {
+            let w = (std::f64::consts::PI * i as f64 / n as f64).sin();
+            *v *= w * w;
+        }
+        let mut spec = fwd.make_output_vec();
+        fwd.process(&mut x, &mut spec).expect("forward");
+        for (p, z) in power.iter_mut().zip(&spec) {
+            *p += z.norm_sqr() / draws as f64;
+        }
+    }
+    // Two decades: 1/1000 to 1/10 cycles a sample, fitted on log axes.
+    let (lo, hi) = (n / 1000, n / 10);
+    let pts: Vec<(f64, f64)> = (lo..=hi)
+        .map(|k| ((k as f64 / n as f64).ln(), power[k].ln()))
+        .collect();
+    let m = pts.len() as f64;
+    let (mx, my) = pts
+        .iter()
+        .fold((0.0, 0.0), |a, p| (a.0 + p.0 / m, a.1 + p.1 / m));
+    let (sxy, sxx) = pts.iter().fold((0.0, 0.0), |a, p| {
+        (a.0 + (p.0 - mx) * (p.1 - my), a.1 + (p.0 - mx).powi(2))
+    });
+    let slope = sxy / sxx;
+    eprintln!("flicker FM timing slope over two decades: {slope:.3}");
+    // The gain is (4 sin^2(pi f))^-0.75, so the exact slope bends from -3
+    // by under 0.05 by f = 0.1.
+    assert!((slope + 3.0).abs() < 0.1, "slope {slope}");
+}
+
+/// One null series: AR(1) at ρ `mix`, or a random walk (1 s^-½) plus
+/// white noise with the red-white crossover at `mix / scale`, and, with
+/// `flicker` above 0, flicker of the rate meeting the walk at `flicker`
+/// times that crossover (the Nyquist frequency where there is no floor),
+/// or alone with no walk at [`FLICKER_ONLY`] (#1219). The walk and white
+/// draws are those of a series with no flicker; the flicker has its own.
+fn null_grid_f(
+    model: NullModel,
+    span: f64,
+    step: f64,
+    mix: f64,
+    flicker: f64,
+    scale: f64,
+    seed: u64,
+) -> Grid {
+    if model == NullModel::Timing && flicker > 0.0 && mix > 0.0 {
+        let n = (span / step).round() as usize;
+        let u_at = |f: f64| {
+            let s = (std::f64::consts::PI * f * step).sin();
+            1.0 / (4.0 * s * s)
+        };
+        let nyquist = 0.5 / step;
+        let f_r = if mix >= WALK_MIX {
+            nyquist
+        } else {
+            mix / scale
+        };
+        // The walk's step variance is `step`, as with no flicker.
+        let (a, c) = if flicker >= FLICKER_ONLY {
+            (0.0, step)
+        } else {
+            let u_k = u_at((flicker * f_r).min(0.999 * nyquist));
+            (step, step / u_k.sqrt())
+        };
+        let u_r = u_at(f_r.min(nyquist));
+        let b = if mix >= WALK_MIX {
+            0.0
+        } else {
+            c * u_r.powf(1.5) + a * u_r
+        };
+        let mut rng = Rng::new(seed);
+        let mut fl_rng = Rng::new(seed_of(&[seed, 0xf1]));
+        let fl = flicker_fm(n, c, &mut fl_rng);
+        let (sa, sb) = (a.sqrt(), b.sqrt());
+        let mut x = 0.0;
+        let y = fl
+            .iter()
+            .map(|&f| {
+                x += sa * rng.normal();
+                x + sb * rng.normal() + f
+            })
+            .collect();
+        return Grid { t0: 0.0, step, y };
+    }
+    null_grid_plain(model, span, step, mix, scale, seed)
+}
+
 /// One null series: AR(1) at ρ `mix`, or a random walk (1 s^-½) plus
 /// white noise with the crossover at `mix / scale`.
-fn null_grid(model: NullModel, span: f64, step: f64, mix: f64, scale: f64, seed: u64) -> Grid {
+fn null_grid_plain(
+    model: NullModel,
+    span: f64,
+    step: f64,
+    mix: f64,
+    scale: f64,
+    seed: u64,
+) -> Grid {
     let n = (span / step).round() as usize;
     let mut rng = Rng::new(seed);
     let y = match model {
@@ -109,6 +283,8 @@ struct Raw {
     span_s: f64,
     step_s: f64,
     mix: f64,
+    #[serde(default)]
+    flicker: f64,
     /// The Gumbel's decades per unit of score, and its location less
     /// log10(trials)/slope.
     slope: f64,
@@ -125,16 +301,18 @@ struct Measured {
     cell: Raw,
     fitted_mix: f64,
     smax: Vec<f64>,
-    /// Each maximum's take's fitted mix (timing, as the search looks it
-    /// up); NaN where the table missed it. Empty before the rebinning.
+    /// Each maximum's take's fitted mix and flicker (timing, as the
+    /// search looks them up); NaN where the table missed it. Empty before
+    /// the rebinning.
     #[serde(default)]
-    fitted: Vec<f64>,
-    /// The drawn mix the rebinned tail was fitted to (its shape group).
+    fitted: Vec<[f64; 2]>,
+    /// The drawn mix and flicker the rebinned tail was fitted to (its
+    /// shape group).
     #[serde(default, skip_serializing)]
-    tail_from: Option<f64>,
-    /// Timing: each mean-pass draw's fitted mix and misfit.
+    tail_from: Option<[f64; 2]>,
+    /// Timing: each mean-pass draw's fitted mix, flicker and misfit.
     #[serde(default)]
-    misfit_draws: Vec<(f64, f64)>,
+    misfit_draws: Vec<([f64; 2], f64)>,
     /// Timing: each mean-pass draw's fitted mix and, at each x point,
     /// its whitened power's count, sum and sum of squares, from which
     /// [`rebin_means`] reads each cell's mean and shape by fitted mix.
@@ -185,9 +363,15 @@ fn x_index(x: f64) -> Option<usize> {
 /// gamma shape there, levelled as a take is, by the table's mean at the
 /// mix its own fit reads (so the shape carries that fit's scatter too;
 /// none until the table has means); and the median mix the fit reads.
-fn null_mean(model: NullModel, span: f64, step: f64, mix: f64, draws: usize) -> NullMean {
-    let mi = (mix.min(1e15) * 1000.0).round() as u64;
-    let id = [model as u64, span as u64, (step * 100.0) as u64, mi];
+fn null_mean(
+    model: NullModel,
+    span: f64,
+    step: f64,
+    mix: f64,
+    flicker: f64,
+    draws: usize,
+) -> NullMean {
+    let id = cell_id(model, span, step, mix, flicker);
     let g0 = null_grid(NullModel::Readings, span, step, 0.0, 1.0, 1);
     let w = detrend_window(&g0, DETREND_S).map(|w| w as f64 * step);
     let scale = x_scale(&g0, w);
@@ -197,19 +381,12 @@ fn null_mean(model: NullModel, span: f64, step: f64, mix: f64, draws: usize) -> 
     let mut lev_n = vec![0usize; X_POINTS];
     let mut lev_s = vec![0.0; X_POINTS];
     let mut lev_ss = vec![0.0; X_POINTS];
-    let own = levelling(model, span, step, mix);
+    let own = levelling(model, span, step, mix, flicker);
     let mut fitted = Vec::new();
     let mut misfits = Vec::new();
     let mut per_x = Vec::new();
     for d in 0..draws {
-        let g = null_grid(
-            model,
-            span,
-            step,
-            mix,
-            scale,
-            seed_of(&[id[0], id[1], id[2], id[3], 1, d as u64]),
-        );
+        let g = null_grid_f(model, span, step, mix, flicker, scale, draw_seed(&id, 1, d));
         let det = detrend_as(&g, DETREND_S, slow_for(model));
         let sp = spectrum(&det, w);
         let jmin = ((2.0 / span) / sp.df).ceil().max(1.0) as usize;
@@ -224,18 +401,18 @@ fn null_mean(model: NullModel, span: f64, step: f64, mix: f64, draws: usize) -> 
             }
         }
         let f = match model {
-            NullModel::Readings => sp.rho,
+            NullModel::Readings => [sp.rho, 0.0],
             NullModel::Timing => {
                 let t = fit_of_draw(&sp, w, step, scale);
                 if t.misfit.is_finite() {
-                    misfits.push((t.mix, t.misfit));
+                    misfits.push(([t.mix, t.flicker], t.misfit));
                 }
-                per_x.push((t.mix, std::mem::take(&mut here)));
-                t.mix
+                per_x.push(([t.mix, t.flicker], std::mem::take(&mut here)));
+                [t.mix, t.flicker]
             }
         };
-        fitted.push(f);
-        if let Some(l) = levelling(model, span, step, f).or_else(|| own.clone()) {
+        fitted.push(f[0]);
+        if let Some(l) = levelling(model, span, step, f[0], f[1]).or_else(|| own.clone()) {
             for j in jmin..sp.white.len() {
                 let x = j as f64 * sp.df * scale;
                 if let (Some(k), Some(m)) = (x_index(x), l.at(x)) {
@@ -282,28 +459,30 @@ fn fit_of_draw(sp: &crate::longterm::Spectrum, w: Option<f64>, step: f64, scale:
 
 /// Timing's misfit draws alone, more of them than the mean takes: the
 /// first `draws` are the mean pass's own, so its seeds carry on.
-fn misfit_draws(span: f64, step: f64, mix: f64, draws: usize) -> Vec<(f64, f64)> {
-    let mi = (mix.min(1e15) * 1000.0).round() as u64;
-    let id = [
-        NullModel::Timing as u64,
-        span as u64,
-        (step * 100.0) as u64,
-        mi,
-    ];
+fn misfit_draws(
+    span: f64,
+    step: f64,
+    mix: f64,
+    flicker: f64,
+    draws: usize,
+) -> Vec<([f64; 2], f64)> {
+    let id = cell_id(NullModel::Timing, span, step, mix, flicker);
     let g0 = null_grid(NullModel::Readings, span, step, 0.0, 1.0, 1);
     let w = detrend_window(&g0, DETREND_S).map(|w| w as f64 * step);
     let scale = x_scale(&g0, w);
     (0..draws)
         .filter_map(|d| {
-            let seed = seed_of(&[id[0], id[1], id[2], id[3], 1, d as u64]);
-            let g = null_grid(NullModel::Timing, span, step, mix, scale, seed);
+            let seed = draw_seed(&id, 1, d);
+            let g = null_grid_f(NullModel::Timing, span, step, mix, flicker, scale, seed);
             let t = fit_of_draw(
                 &spectrum(&detrend_as(&g, DETREND_S, slow_for(NullModel::Timing)), w),
                 w,
                 step,
                 scale,
             );
-            t.misfit.is_finite().then_some((t.mix, t.misfit))
+            t.misfit
+                .is_finite()
+                .then_some(([t.mix, t.flicker], t.misfit))
         })
         .collect()
 }
@@ -316,7 +495,7 @@ const MISFIT_DRAWS: usize = 2000;
 /// A timing cell's misfit draws and percentile from `n` draws.
 fn set_misfit(m: &mut Measured, n: usize) {
     let c = &m.cell;
-    m.misfit_draws = misfit_draws(c.span_s, c.step_s, c.mix, n);
+    m.misfit_draws = misfit_draws(c.span_s, c.step_s, c.mix, c.flicker, n);
     m.cell.misfit_p99 = Some(p99(m.misfit_draws.iter().map(|d| d.1)));
 }
 
@@ -335,15 +514,15 @@ struct NullMean {
     fitted_mix: f64,
     /// Timing: the 99th percentile of the draws' misfit.
     misfit_p99: Option<f64>,
-    /// Timing: each draw's fitted mix and misfit.
-    misfit_draws: Vec<(f64, f64)>,
+    /// Timing: each draw's fitted mix and flicker, and misfit.
+    misfit_draws: Vec<([f64; 2], f64)>,
     /// Timing: each draw's fitted mix and whitened power by x point.
     per_x: Vec<PerX>,
 }
 
-/// One draw's fitted mix and, at each x point, the count, sum and sum of
-/// squares of its whitened power.
-type PerX = (f64, Vec<[f64; 3]>);
+/// One draw's fitted mix and flicker and, at each x point, the count, sum
+/// and sum of squares of its whitened power.
+type PerX = ([f64; 2], Vec<[f64; 3]>);
 
 /// The maxima of the same draws as [`measure`]'s, each levelled as a take
 /// is: by the table's levelling at its own fitted mix, so the fit
@@ -356,20 +535,20 @@ fn maxima_as_takes(
     span: f64,
     step: f64,
     mix: f64,
+    flicker: f64,
     draws: usize,
-) -> (Vec<(f64, f64)>, usize) {
-    let mi = (mix.min(1e15) * 1000.0).round() as u64;
-    let id = [model as u64, span as u64, (step * 100.0) as u64, mi];
+) -> (Vec<([f64; 2], f64)>, usize) {
+    let id = cell_id(model, span, step, mix, flicker);
     let g0 = null_grid(NullModel::Readings, span, step, 0.0, 1.0, 1);
     let w = detrend_window(&g0, DETREND_S).map(|w| w as f64 * step);
     let scale = x_scale(&g0, w);
-    let own = levelling(model, span, step, mix).expect("a table cell");
+    let own = levelling(model, span, step, mix, flicker).expect("a table cell");
     let mut missed = 0;
     let smax = (0..draws)
         .map(|d| {
-            let seed = seed_of(&[id[0], id[1], id[2], id[3], 2, d as u64]);
+            let seed = draw_seed(&id, 2, d);
             let det = detrend_as(
-                &null_grid(model, span, step, mix, scale, seed),
+                &null_grid_f(model, span, step, mix, flicker, scale, seed),
                 DETREND_S,
                 slow_for(model),
             );
@@ -383,9 +562,9 @@ fn maxima_as_takes(
             };
             let mut s = search(&det, &band(None), &[]);
             let fitted = if s.null.calibrated {
-                s.null.mix
+                [s.null.mix, s.null.flicker]
             } else {
-                f64::NAN
+                [f64::NAN; 2]
             };
             if !s.null.calibrated {
                 missed += 1;
@@ -397,9 +576,15 @@ fn maxima_as_takes(
     (smax, missed)
 }
 
-fn measure(model: NullModel, span: f64, step: f64, mix: f64, draws: usize) -> Measured {
-    let mi = (mix.min(1e15) * 1000.0).round() as u64;
-    let id = [model as u64, span as u64, (step * 100.0) as u64, mi];
+fn measure(
+    model: NullModel,
+    span: f64,
+    step: f64,
+    mix: f64,
+    flicker: f64,
+    draws: usize,
+) -> Measured {
+    let id = cell_id(model, span, step, mix, flicker);
     let g0 = null_grid(NullModel::Readings, span, step, 0.0, 1.0, 1);
     let w = detrend_window(&g0, DETREND_S).map(|w| w as f64 * step);
     let scale = x_scale(&g0, w);
@@ -411,7 +596,7 @@ fn measure(model: NullModel, span: f64, step: f64, mix: f64, draws: usize) -> Me
         misfit_p99,
         misfit_draws,
         per_x,
-    } = null_mean(model, span, step, mix, draws);
+    } = null_mean(model, span, step, mix, flicker, draws);
     // The plain trials count's tail; the maxima don't depend on it.
     let lev = Levelling {
         mean: mean.clone(),
@@ -426,14 +611,7 @@ fn measure(model: NullModel, span: f64, step: f64, mix: f64, draws: usize) -> Me
     let mut smax = Vec::new();
     let mut log_trials = 0.0;
     for d in 0..draws {
-        let g = null_grid(
-            model,
-            span,
-            step,
-            mix,
-            scale,
-            seed_of(&[id[0], id[1], id[2], id[3], 2, d as u64]),
-        );
+        let g = null_grid_f(model, span, step, mix, flicker, scale, draw_seed(&id, 2, d));
         let det = detrend_as(&g, DETREND_S, slow_for(model));
         let band = Band {
             min_p,
@@ -446,7 +624,7 @@ fn measure(model: NullModel, span: f64, step: f64, mix: f64, draws: usize) -> Me
         let s = search(&det, &band, &[]);
         if !s.null.calibrated {
             let def: Vec<usize> = (0..X_POINTS).filter(|&k| mean[k].is_some()).collect();
-            panic!("{model:?} {span} {step} {mix}: band outside the mean; defined {def:?} scale {scale} min_p {min_p}");
+            panic!("{model:?} {span} {step} {mix} {flicker}: band outside the mean; defined {def:?} scale {scale} min_p {min_p}");
         }
         log_trials = s.trials.log10();
         smax.push(s.score.iter().copied().fold(0.0, f64::max));
@@ -459,6 +637,7 @@ fn measure(model: NullModel, span: f64, step: f64, mix: f64, draws: usize) -> Me
             span_s: span,
             step_s: step,
             mix,
+            flicker,
             slope: (slope * 1e4).round() / 1e4,
             loc0: ((mu - log_trials / slope) * 1e4).round() / 1e4,
             mean,
@@ -494,7 +673,7 @@ struct Run {
 }
 
 impl Run {
-    fn cell(&self, model: NullModel, span: f64, step: f64, mix: f64) -> Measured {
+    fn cell(&self, model: NullModel, span: f64, step: f64, mix: f64, flicker: f64) -> Measured {
         let Run {
             draws,
             cache,
@@ -510,14 +689,15 @@ impl Run {
             .is_some_and(|r| r == "all" || format!("{model:?}") == *r);
         // A cell already measured (the run was cut short) is
         // read back rather than run again.
-        let kept = cache
-            .as_ref()
-            .map(|d| format!("{d}/{model:?}_{span}_{step}_{mix}_{draws}.json"));
+        let kept = cache.as_ref().map(|d| match flicker > 0.0 {
+            false => format!("{d}/{model:?}_{span}_{step}_{mix}_{draws}.json"),
+            true => format!("{d}/{model:?}_{span}_{step}_{mix}_f{flicker}_{draws}.json"),
+        });
         let old = kept.as_ref().and_then(|f| std::fs::read_to_string(f).ok());
         let old = old.and_then(|t| serde_json::from_str::<Measured>(&t).ok());
         let old = match old {
             Some(mut m) if *perx && model == NullModel::Timing && m.per_x.is_empty() => {
-                m.per_x = null_mean(model, span, step, mix, draws).per_x;
+                m.per_x = null_mean(model, span, step, mix, flicker, draws).per_x;
                 if let Some(f) = &kept {
                     std::fs::write(f, serde_json::to_string(&m).unwrap()).unwrap();
                 }
@@ -541,7 +721,7 @@ impl Run {
                 m
             }
             Some(mut m) if remean || (misfit && model == NullModel::Timing) => {
-                let n = null_mean(model, span, step, mix, draws);
+                let n = null_mean(model, span, step, mix, flicker, draws);
                 if remean {
                     (m.cell.mean, m.cell.shape) = (n.mean, n.shape);
                 }
@@ -560,7 +740,7 @@ impl Run {
                     .as_ref()
                     .is_some_and(|r| r == "all" || format!("{model:?}") == *r) =>
             {
-                let (taken, missed) = maxima_as_takes(model, span, step, mix, draws);
+                let (taken, missed) = maxima_as_takes(model, span, step, mix, flicker, draws);
                 (m.fitted, m.smax) = taken.into_iter().unzip();
                 (m.mu, m.sigma) = gumbel_fit(&m.smax);
                 eprintln!("{model:?} span {span} step {step} mix {mix}: refit, {missed} placed at the true mix");
@@ -571,7 +751,7 @@ impl Run {
             }
             Some(m) => m,
             None => {
-                let mut m = measure(model, span, step, mix, draws);
+                let mut m = measure(model, span, step, mix, flicker, draws);
                 if model == NullModel::Timing && misfit_n > draws {
                     set_misfit(&mut m, misfit_n);
                 }
@@ -614,7 +794,9 @@ fn write_period_null_table() {
                 {
                     continue;
                 }
-                jobs.push((model, span, step, mix));
+                for flicker in flickers(model, mix) {
+                    jobs.push((model, span, step, mix, flicker));
+                }
             }
         }
     }
@@ -629,10 +811,10 @@ fn write_period_null_table() {
                     let mut out = Vec::new();
                     loop {
                         let i = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                        let Some(&(model, span, step, mix)) = jobs.get(i) else { break };
-                        let m = run.cell(model, span, step, mix);
+                        let Some(&(model, span, step, mix, flicker)) = jobs.get(i) else { break };
+                        let m = run.cell(model, span, step, mix, flicker);
                         eprintln!(
-                            "{model:?} span {span} step {step} mix {mix}: fitted {:.3} slope {:.3} loc0 {:.3}",
+                            "{model:?} span {span} step {step} mix {mix} flicker {flicker}: fitted {:.3} slope {:.3} loc0 {:.3}",
                             m.fitted_mix, m.cell.slope, m.cell.loc0
                         );
                         out.push(m);
@@ -644,9 +826,16 @@ fn write_period_null_table() {
         hs.into_iter().flat_map(|h| h.join().unwrap()).collect()
     });
     done.sort_by(|a, b| {
-        (a.cell.model as u8, a.cell.step_s, a.cell.span_s, a.cell.mix)
-            .partial_cmp(&(b.cell.model as u8, b.cell.step_s, b.cell.span_s, b.cell.mix))
-            .unwrap()
+        let k = |m: &Measured| {
+            (
+                m.cell.model as u8,
+                m.cell.step_s,
+                m.cell.span_s,
+                m.cell.flicker,
+                m.cell.mix,
+            )
+        };
+        k(a).partial_cmp(&k(b)).unwrap()
     });
     rebin(&mut done);
     let cells = fit_shapes(&done);
@@ -662,8 +851,8 @@ fn write_period_null_table() {
             c01 += usize::from(p < 0.001);
         }
         eprintln!(
-            "tail {:?} {} {} {}: {cn} {c1} {c01}",
-            c.model, c.span_s, c.step_s, c.mix
+            "tail {:?} {} {} {} {}: {cn} {c1} {c01}",
+            c.model, c.span_s, c.step_s, c.mix, c.flicker
         );
         (n, p1, p01) = (n + cn, p1 + c1, p01 + c01);
     }
@@ -802,6 +991,67 @@ fn least_favourable(read: &[(f64, f64, usize)], sources: usize) -> (Vec<f64>, Op
     }
 }
 
+/// A timing row's cells on their grid of mix and flicker (#1219): which
+/// cell a fitted (mix, flicker) reads as, and which cells neighbour it.
+struct RowGrid {
+    mixes: Vec<f64>,
+    flicks: Vec<f64>,
+    /// Each cell's (mix, flicker) grid position, in the row's order.
+    pos: Vec<(usize, usize)>,
+}
+
+impl RowGrid {
+    fn new(done: &[Measured], idx: &[usize]) -> RowGrid {
+        let mut mixes: Vec<f64> = idx
+            .iter()
+            .map(|&i| axis(NullModel::Timing, done[i].cell.mix))
+            .collect();
+        let mut flicks: Vec<f64> = idx
+            .iter()
+            .map(|&i| flicker_axis(done[i].cell.flicker))
+            .collect();
+        for v in [&mut mixes, &mut flicks] {
+            v.sort_by(f64::total_cmp);
+            v.dedup_by(|a, b| (*a - *b).abs() < 1e-12);
+        }
+        let find = |v: &[f64], x: f64| v.iter().position(|&y| (y - x).abs() < 1e-12).unwrap();
+        let pos = idx
+            .iter()
+            .map(|&i| {
+                let c = &done[i].cell;
+                (
+                    find(&mixes, axis(NullModel::Timing, c.mix)),
+                    find(&flicks, flicker_axis(c.flicker)),
+                )
+            })
+            .collect();
+        RowGrid { mixes, flicks, pos }
+    }
+
+    /// The cell a fitted mix and flicker read as: the nearest drawn mix,
+    /// and on it the nearest drawn flicker (white has only none).
+    fn nearest(&self, f: [f64; 2]) -> usize {
+        let near = |v: &[f64], x: f64| {
+            (0..v.len())
+                .min_by(|&a, &b| (v[a] - x).abs().total_cmp(&(v[b] - x).abs()))
+                .unwrap()
+        };
+        let mi = near(&self.mixes, axis(NullModel::Timing, f[0]));
+        let fi = near(&self.flicks, flicker_axis(f[1]));
+        self.pos
+            .iter()
+            .position(|&p| p == (mi, fi))
+            .or_else(|| self.pos.iter().position(|&p| p.0 == mi))
+            .unwrap()
+    }
+
+    /// Whether cells `a` and `b` are the same or neighbours on the grid.
+    fn near(&self, a: usize, b: usize) -> bool {
+        let (p, q) = (self.pos[a], self.pos[b]);
+        p.0.abs_diff(q.0) <= 1 && p.1.abs_diff(q.1) <= 1
+    }
+}
+
 fn rebin_by_fitted_mix(done: &mut [Measured]) {
     let mut rows: Vec<(f64, f64)> = done
         .iter()
@@ -816,11 +1066,8 @@ fn rebin_by_fitted_mix(done: &mut [Measured]) {
                 c.model == NullModel::Timing && c.span_s == span && c.step_s == step
             })
             .collect();
-        let keys: Vec<f64> = idx
-            .iter()
-            .map(|&i| axis(NullModel::Timing, done[i].cell.mix))
-            .collect();
-        let mut all: Vec<(f64, f64, usize)> = Vec::new();
+        let grid = RowGrid::new(done, &idx);
+        let mut all: Vec<(usize, f64, usize)> = Vec::new();
         for (src, &i) in idx.iter().enumerate() {
             let m = &done[i];
             assert_eq!(
@@ -833,42 +1080,46 @@ fn rebin_by_fitted_mix(done: &mut [Measured]) {
                 m.fitted
                     .iter()
                     .zip(&m.smax)
-                    .filter(|(f, _)| f.is_finite())
-                    .map(|(&f, &x)| (axis(NullModel::Timing, f), x, src)),
+                    .filter(|(f, _)| f[0].is_finite() && f[1].is_finite())
+                    .map(|(&f, &x)| (grid.nearest(f), x, src)),
             );
         }
-        let nearest = |u: f64| {
-            (0..keys.len())
-                .min_by(|&a, &b| (keys[a] - u).abs().total_cmp(&(keys[b] - u).abs()))
-                .unwrap()
+        // How far apart two cells sit on the grid, in steps.
+        let apart = |a: usize, b: usize| {
+            let (p, q) = (grid.pos[a], grid.pos[b]);
+            p.0.abs_diff(q.0) + p.1.abs_diff(q.1)
         };
         for (k, &i) in idx.iter().enumerate() {
-            // The draws read as this cell or either neighbour: the lookup
-            // blends a cell with its neighbours, so their drawn mixes reach
-            // its tail too.
-            let near_k = |d: &&(f64, f64, usize)| nearest(d.0).abs_diff(k) <= 1;
-            let mut read: Vec<(f64, f64, usize)> = all.iter().filter(near_k).copied().collect();
-            // A mix the fit seldom reads at this length (short takes read
+            // The draws read as this cell or a neighbour on either axis:
+            // the lookup blends a cell with its neighbours, so their drawn
+            // mixes and flickers reach its tail too.
+            let mut read: Vec<(f64, f64, usize)> = all
+                .iter()
+                .filter(|d| grid.near(d.0, k))
+                .map(|d| (0.0, d.1, d.2))
+                .collect();
+            // A cell the fit seldom reads at this length (short takes read
             // most walks near white) takes the draws read nearest it.
             let own = read.len();
             if own < MIN_BIN {
-                read = all.clone();
-                read.sort_by(|a, b| (a.0 - keys[k]).abs().total_cmp(&(b.0 - keys[k]).abs()));
-                read.truncate(MIN_BIN);
+                let mut by: Vec<&(usize, f64, usize)> = all.iter().collect();
+                by.sort_by_key(|d| apart(d.0, k));
+                read = by.iter().take(MIN_BIN).map(|d| (0.0, d.1, d.2)).collect();
             }
             let (b, worst) = least_favourable(&read, idx.len());
-            let worst = worst.map_or(f64::NAN, |src| done[idx[src]].cell.mix);
+            let worst = worst.map(|src| [done[idx[src]].cell.mix, done[idx[src]].cell.flicker]);
             let m = &mut done[i];
             eprintln!(
-                "rebin Timing {span} {step} {}: {own} maxima read there; least favourable drawn mix {worst}, {} maxima",
+                "rebin Timing {span} {step} {} {}: {own} maxima read there; least favourable drawn {worst:?}, {} maxima",
                 m.cell.mix,
+                m.cell.flicker,
                 b.len()
             );
             (m.mu, m.sigma) = gumbel_fit(&b);
             m.smax = b;
-            m.tail_from = worst.is_finite().then_some(worst);
+            m.tail_from = worst;
         }
-        rebin_misfit(done, &idx, &keys);
+        rebin_misfit(done, &idx, &grid);
     }
 }
 
@@ -917,15 +1168,7 @@ fn rebin_means(done: &mut [Measured]) {
                 c.model == NullModel::Timing && c.span_s == span && c.step_s == step
             })
             .collect();
-        let keys: Vec<f64> = idx
-            .iter()
-            .map(|&i| axis(NullModel::Timing, done[i].cell.mix))
-            .collect();
-        let nearest = |u: f64| {
-            (0..keys.len())
-                .min_by(|&a, &b| (keys[a] - u).abs().total_cmp(&(keys[b] - u).abs()))
-                .unwrap()
-        };
+        let grid = RowGrid::new(done, &idx);
         // Each source's draws, by the cell they read as.
         let read: Vec<Vec<ReadAs>> = idx
             .iter()
@@ -938,8 +1181,8 @@ fn rebin_means(done: &mut [Measured]) {
                 done[i]
                     .per_x
                     .iter()
-                    .filter(|d| d.0.is_finite())
-                    .map(|d| (nearest(axis(NullModel::Timing, d.0)), d.1.as_slice()))
+                    .filter(|d| d.0[0].is_finite() && d.0[1].is_finite())
+                    .map(|d| (grid.nearest(d.0), d.1.as_slice()))
                     .collect()
             })
             .collect();
@@ -948,7 +1191,7 @@ fn rebin_means(done: &mut [Measured]) {
             let mut mean = vec![None::<f64>; X_POINTS];
             let mut shape = vec![None::<f64>; X_POINTS];
             for r in &read {
-                let mine: Vec<_> = r.iter().filter(|d| d.0.abs_diff(k) <= 1).collect();
+                let mine: Vec<_> = r.iter().filter(|d| grid.near(d.0, k)).collect();
                 if mine.len() < MIN_SOURCE {
                     continue;
                 }
@@ -983,7 +1226,10 @@ fn rebin_means(done: &mut [Measured]) {
                     c.shape[x] = round(shape[x]);
                 }
             }
-            eprintln!("means Timing {span} {step} {}: read by fitted mix", c.mix);
+            eprintln!(
+                "means Timing {span} {step} {} {}: read by fitted mix and flicker",
+                c.mix, c.flicker
+            );
         }
     }
 }
@@ -992,20 +1238,15 @@ fn rebin_means(done: &mut [Measured]) {
 /// 99th percentile over the drawn mixes (of those with [`MIN_SOURCE`]
 /// draws there) read as this cell or either neighbour (Norm on #1245).
 /// A cell no drawn mix reads keeps its own.
-fn rebin_misfit(done: &mut [Measured], idx: &[usize], keys: &[f64]) {
-    let nearest = |u: f64| {
-        (0..keys.len())
-            .min_by(|&a, &b| (keys[a] - u).abs().total_cmp(&(keys[b] - u).abs()))
-            .unwrap()
-    };
+fn rebin_misfit(done: &mut [Measured], idx: &[usize], grid: &RowGrid) {
     let read: Vec<Vec<(usize, f64)>> = idx
         .iter()
         .map(|&i| {
             done[i]
                 .misfit_draws
                 .iter()
-                .filter(|d| d.0.is_finite())
-                .map(|&(f, m)| (nearest(axis(NullModel::Timing, f)), m))
+                .filter(|d| d.0[0].is_finite() && d.0[1].is_finite())
+                .map(|&(f, m)| (grid.nearest(f), m))
                 .collect()
         })
         .collect();
@@ -1017,7 +1258,7 @@ fn rebin_misfit(done: &mut [Measured], idx: &[usize], keys: &[f64]) {
             .iter()
             .map(|r| {
                 r.iter()
-                    .filter(|d| d.0.abs_diff(k) <= 1)
+                    .filter(|d| grid.near(d.0, k))
                     .map(|d| d.1)
                     .collect::<Vec<f64>>()
             })
@@ -1027,16 +1268,17 @@ fn rebin_misfit(done: &mut [Measured], idx: &[usize], keys: &[f64]) {
         let c = &mut done[i].cell;
         if worst.is_finite() {
             eprintln!(
-                "misfit Timing {} {} {}: own {:?}, limit {worst}",
-                c.span_s, c.step_s, c.mix, c.misfit_p99
+                "misfit Timing {} {} {} {}: own {:?}, limit {worst}",
+                c.span_s, c.step_s, c.mix, c.flicker, c.misfit_p99
             );
             c.misfit_p99 = Some(worst);
         }
     }
 }
 
-/// A shape group: model, span, step (hundredths of a second), mix.
-type GroupKey = (u8, u64, u64, u64);
+/// A shape group: model, span, step (hundredths of a second), mix, and
+/// flicker (millionths).
+type GroupKey = (u8, u64, u64, u64, u64);
 
 fn fit_shapes(done: &[Measured]) -> Vec<Cell> {
     let round = |v: f64| (v * 1e4).round() / 1e4;
@@ -1051,9 +1293,22 @@ fn fit_shapes(done: &[Measured]) -> Vec<Cell> {
             // A rebinned cell shares the shape of the drawn mix its tail
             // came from: the least favourable mix's tail, shape and all.
             NullModel::Timing if !by_row => {
-                (1, 0, 0, m.tail_from.unwrap_or(c.mix).min(1e15) as u64)
+                let [mix, flicker] = m.tail_from.unwrap_or([c.mix, c.flicker]);
+                (
+                    1,
+                    0,
+                    0,
+                    mix.min(1e15) as u64,
+                    (flicker * 1e6).round() as u64,
+                )
             }
-            _ => (c.model as u8, c.span_s as u64, (c.step_s * 100.0) as u64, 0),
+            _ => (
+                c.model as u8,
+                c.span_s as u64,
+                (c.step_s * 100.0) as u64,
+                0,
+                0,
+            ),
         }
     };
     let mut groups: Vec<(GroupKey, Vec<usize>)> = Vec::new();
@@ -1092,6 +1347,7 @@ fn fit_shapes(done: &[Measured]) -> Vec<Cell> {
                 span_s: c.span_s,
                 step_s: c.step_s,
                 mix: c.mix,
+                flicker: c.flicker,
                 mu: round(mu),
                 sigma: round(sigma),
                 xi: round(xi),
@@ -1129,14 +1385,14 @@ fn levelling_is_none_outside_the_table() {
         (Timing, 1800.0, 0.25, f64::NAN),
     ] {
         assert!(
-            levelling(model, span, step, mix).is_none(),
+            levelling(model, span, step, mix, 0.0).is_none(),
             "{model:?} {span} s at {step} s, mix {mix}"
         );
     }
     // Each side's own edge cells are inside.
-    assert!(levelling(Readings, 1199.0, 2.0, 0.3).is_some());
-    assert!(levelling(Readings, 1200.0, 2.0, 0.3).is_some());
-    assert!(levelling(Readings, 1800.0, 2.0, 0.99).is_some());
+    assert!(levelling(Readings, 1199.0, 2.0, 0.3, 0.0).is_some());
+    assert!(levelling(Readings, 1200.0, 2.0, 0.3, 0.0).is_some());
+    assert!(levelling(Readings, 1800.0, 2.0, 0.99, 0.0).is_some());
 }
 
 /// A lookup on a cell returns that cell; one between two take lengths or
@@ -1153,7 +1409,7 @@ fn a_lookup_between_cells_interpolates() {
             .unwrap_or_else(|| panic!("no cell {span} {mix}"))
     };
     let close = |a: f64, b: f64| (a - b).abs() < 1e-9 * (1.0 + b.abs());
-    let on = levelling(Readings, 1800.0, 2.0, 0.5).unwrap();
+    let on = levelling(Readings, 1800.0, 2.0, 0.5, 0.0).unwrap();
     let c = cell(1800.0, 0.5);
     assert_eq!(
         (on.mu, on.sigma, on.xi, on.log_trials),
@@ -1163,7 +1419,7 @@ fn a_lookup_between_cells_interpolates() {
     assert_eq!(on.shape, c.shape);
     // Halfway in log span between 1800 and 2700 s.
     let (a, b) = (cell(1800.0, 0.5), cell(2700.0, 0.5));
-    let mid = levelling(Readings, (1800.0f64 * 2700.0).sqrt(), 2.0, 0.5).unwrap();
+    let mid = levelling(Readings, (1800.0f64 * 2700.0).sqrt(), 2.0, 0.5, 0.0).unwrap();
     assert!(
         close(mid.mu, (a.mu + b.mu) / 2.0),
         "{} {} {}",
@@ -1188,7 +1444,7 @@ fn a_lookup_between_cells_interpolates() {
     );
     // A quarter of the way from ρ 0.5 to 0.7 at 1800 s.
     let (a, b) = (cell(1800.0, 0.5), cell(1800.0, 0.7));
-    let q = levelling(Readings, 1800.0, 2.0, 0.55).unwrap();
+    let q = levelling(Readings, 1800.0, 2.0, 0.55, 0.0).unwrap();
     assert!(
         close(q.mu, a.mu + (b.mu - a.mu) * 0.25),
         "{} {} {}",
@@ -1266,8 +1522,9 @@ fn fresh_sines_hold_the_misfit() {
                     let rms = (ys.iter().map(|v| v * v).sum::<f64>() / ys.len() as f64).sqrt();
                     if std::env::var("FRESH_NOSINE").is_ok() {
                         let f = fit_of_draw(&spectrum(&det, w), w, c.step_s, scale);
-                        let lim = levelling(NullModel::Timing, c.span_s, c.step_s, f.mix)
-                            .and_then(|l| l.misfit_p99);
+                        let lim =
+                            levelling(NullModel::Timing, c.span_s, c.step_s, f.mix, f.flicker)
+                                .and_then(|l| l.misfit_p99);
                         named += 1;
                         caveats += usize::from(lim.is_some_and(|l| f.misfit > l));
                         continue;
@@ -1339,7 +1596,7 @@ fn fresh_seeds_hold_the_tail() {
                     mi,
                 ];
                 let mut n = [0usize; 5];
-                let own = levelling(c.model, c.span_s, c.step_s, c.mix);
+                let own = levelling(c.model, c.span_s, c.step_s, c.mix, c.flicker);
                 for d in 0..draws {
                     let seed = seed_of(&[id[0], id[1], id[2], id[3], tag, d as u64]);
                     let g = null_grid(c.model, c.span_s, c.step_s, c.mix, scale, seed);
@@ -1486,10 +1743,10 @@ fn a_levellings_tail_at_its_own_trials_is_its_own() {
 /// few ppm off the nominal 2 s.
 #[test]
 fn a_step_a_few_ppm_off_finds_its_cells() {
-    let on = levelling(NullModel::Readings, 1800.0, 2.0, 0.5).unwrap();
-    let off = levelling(NullModel::Readings, 1800.0, 2.0000378, 0.5).unwrap();
+    let on = levelling(NullModel::Readings, 1800.0, 2.0, 0.5, 0.0).unwrap();
+    let off = levelling(NullModel::Readings, 1800.0, 2.0000378, 0.5, 0.0).unwrap();
     assert_eq!(on.mu, off.mu);
-    assert!(levelling(NullModel::Readings, 1800.0, 2.01, 0.5).is_none());
+    assert!(levelling(NullModel::Readings, 1800.0, 2.01, 0.5, 0.0).is_none());
 }
 
 /// The timing's crossover fit on the null itself: about none on white
@@ -1526,7 +1783,7 @@ fn flicker_timing_sits_past_the_nulls_misfit() {
         let sp = spectrum(&detrend_as(g, DETREND_S, slow_for(NullModel::Timing)), w);
         let from = (2.0 / (sp.df * scale)).ceil() as usize;
         let f = timing_fit(&sp.power, sp.df, step, from, scale);
-        let limit = levelling(NullModel::Timing, span, step, f.mix)
+        let limit = levelling(NullModel::Timing, span, step, f.mix, f.flicker)
             .and_then(|l| l.misfit_p99)
             .expect("a covered take");
         (f.misfit, limit)
