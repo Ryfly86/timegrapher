@@ -64,10 +64,11 @@ pub fn sourced_indices_over(
     let all = |_: Position| true;
     let vert = |p: Position| p.is_vertical();
     let hor = |p: Position| !p.is_vertical();
-    let xh = mean_of(rate(&hor).into_iter());
-    let xv = mean_of(rate(&vert).into_iter());
-    let ah = mean_of(amp(&hor).into_iter());
-    let av = mean_of(amp(&vert).into_iter());
+    use crate::steadiness::SeriesKind::{Amplitude, BeatError, Rate};
+    let xh = group_mean(&positions, Rate, Some(PositionGroup::Horizontal));
+    let xv = group_mean(&positions, Rate, Some(PositionGroup::Vertical));
+    let ah = group_mean(&positions, Amplitude, Some(PositionGroup::Horizontal));
+    let av = group_mean(&positions, Amplitude, Some(PositionGroup::Vertical));
     let get = |p: Position| {
         positions
             .iter()
@@ -82,7 +83,7 @@ pub fn sourced_indices_over(
     let beat_errors: Vec<_> = selected.values.iter().map(|(_, value)| *value).collect();
     StateIndices {
         wind_h,
-        x: mean_of(rate(&all).into_iter()),
+        x: group_mean(&positions, Rate, None),
         xh,
         xv,
         d_rate: spread(rate(&all).into_iter()),
@@ -92,13 +93,64 @@ pub fn sourced_indices_over(
         dvh_rate: xv.zip(xh).map(|(v, h)| v - h),
         dvh_amplitude: av.zip(ah).map(|(v, h)| v - h),
         di: get(Position::H6).zip(get(Position::CH)).map(|(a, b)| a - b),
-        amplitude_mean: mean_of(amp(&all).into_iter()),
-        beat_error_mean: mean_of(beat_errors.iter().copied()),
+        amplitude_mean: group_mean(&positions, Amplitude, None),
+        beat_error_mean: group_mean(&positions, BeatError, None),
         d_beat_error: spread(beat_errors.iter().copied()),
         beat_error_source: selected.beat_error_source,
         beat_error_sources: selected.beat_error_sources,
         caveats: source_caveats(&selected, figures.iter()),
         positions,
+    }
+}
+
+/// Horizontal (dial up and down) or vertical (crown or any upright
+/// stop): the split a watchmaker reads a Positions Test by.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PositionGroup {
+    Horizontal,
+    Vertical,
+}
+
+impl PositionGroup {
+    pub fn of(p: Position) -> Self {
+        if p.is_vertical() {
+            PositionGroup::Vertical
+        } else {
+            PositionGroup::Horizontal
+        }
+    }
+
+    /// The group's name as a chart and a table write it.
+    pub fn name(self) -> &'static str {
+        match self {
+            PositionGroup::Horizontal => "Horizontal",
+            PositionGroup::Vertical => "Vertical",
+        }
+    }
+}
+
+/// The mean of the positions' `kind` over `group` (all of them with
+/// `None`): the one place a state's averages are taken, the table's and
+/// the position line's alike (#1729). A beat error's mean is over one
+/// known source, as [`select_beat_errors`] picks it.
+pub fn group_mean(
+    positions: &[PositionValue],
+    kind: crate::steadiness::SeriesKind,
+    group: Option<PositionGroup>,
+) -> Option<f64> {
+    use crate::steadiness::SeriesKind;
+    let kept = positions
+        .iter()
+        .filter(|v| group.is_none_or(|g| PositionGroup::of(v.position) == g));
+    match kind {
+        SeriesKind::Rate => mean_of(kept.filter_map(|v| v.rate_s_per_day)),
+        SeriesKind::Amplitude => mean_of(kept.filter_map(|v| v.amplitude_deg)),
+        SeriesKind::BeatError => {
+            let selected =
+                select_beat_errors(kept.map(|v| v.beat_error_ms.zip(v.beat_error_source)));
+            mean_of(selected.values.iter().map(|(_, value)| *value))
+        }
     }
 }
 

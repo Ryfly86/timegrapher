@@ -6,7 +6,8 @@
 use crate::session_cmd::{opt, signed, wind, Session};
 use std::fmt::Write;
 use timegrapher_core::library::{fixed_text, signed_text};
-use timegrapher_core::session::{Position, Reading, ReferenceClock, StateIndices};
+use timegrapher_core::position_line::{AverageLine, Lane, PositionLine, StateLines};
+use timegrapher_core::session::{Position, PositionGroup, Reading, ReferenceClock, StateIndices};
 use timegrapher_core::twostate;
 
 /// Text put into the page: core's one escaper (#1649).
@@ -17,191 +18,250 @@ fn cell(text: String) -> String {
 }
 
 const W: f64 = 760.0;
-const H: f64 = 230.0;
-const ML: f64 = 56.0;
-const MR: f64 = 16.0;
-const MT: f64 = 14.0;
-const MB: f64 = 44.0;
+/// Room left of the plot for the lanes' names.
+const ML: f64 = 150.0;
+/// Room right of the plot for the last tick and the unit after it.
+const MR: f64 = 64.0;
+/// Each lane's height, and a group heading's.
+const LANE_H: f64 = 22.0;
+/// A row of average names above the plot.
+const NAME_ROW: f64 = 14.0;
+/// The bottom axis' ticks.
+const MB: f64 = 24.0;
+/// About how wide a character of the 11 px labels is.
+const CHAR_W: f64 = 6.2;
 
-struct Series<'a> {
-    class: &'a str,
-    label: &'a str,
-    /// (position, value)
-    points: Vec<(Position, f64)>,
-}
-
-/// Where a value and a position fall on a position chart.
-struct Frame {
-    lo: f64,
-    hi: f64,
-    ph: f64,
-    col: f64,
-}
-
-impl Frame {
-    fn y(&self, v: f64) -> f64 {
-        MT + self.ph * (1.0 - (v - self.lo) / (self.hi - self.lo))
-    }
-
-    fn x(&self, p: Position) -> f64 {
-        let i = Position::ALL.iter().position(|q| *q == p).unwrap_or(0);
-        ML + self.col * (i as f64 + 0.5)
-    }
-}
-
-/// Values per position as dots.
-fn position_chart(unit: &str, series: &[Series], zero: bool) -> String {
-    let vals: Vec<f64> = series
-        .iter()
-        .flat_map(|s| s.points.iter().map(|p| p.1))
-        .chain(zero.then_some(0.0))
-        .collect();
-    if series.iter().all(|s| s.points.is_empty()) {
+/// The position line core gives for one measure (#1729): each position a
+/// dot on its own lane, Horizontal then Vertical; this test's averages as
+/// grey dashed lines named above the plot; on a later state the full-wind
+/// figure hollow, with an arrow to this test's; `refs` (a reference
+/// timegrapher's figures, by position) as diamonds. Positions are never
+/// joined.
+fn position_line_svg(line: &PositionLine, refs: &[(Position, f64)]) -> String {
+    let Some([lo0, hi0, step]) = line.axis else {
         return String::new();
-    }
-    let lo = vals.iter().copied().fold(f64::INFINITY, f64::min);
-    let hi = vals.iter().copied().fold(f64::NEG_INFINITY, f64::max);
-    let pad = ((hi - lo) * 0.08).max(5.0);
-    let (lo, hi) = (lo - pad, hi + pad);
-    let step = timegrapher_core::chart_scale::step_for(hi - lo);
-    let (lo, hi) = ((lo / step).floor() * step, (hi / step).ceil() * step);
-    let pw = W - ML - MR;
-    let f = Frame {
-        lo,
-        hi,
-        ph: H - MT - MB,
-        col: pw / Position::ALL.len() as f64,
     };
+    // The axis also holds the reference figures.
+    let (lo, hi) = refs.iter().fold((lo0, hi0), |(lo, hi), &(_, v)| {
+        (
+            lo.min((v / step).floor() * step),
+            hi.max((v / step).ceil() * step),
+        )
+    });
+    let pw = W - ML - MR;
+    let x = move |v: f64| ML + pw * (v - lo) / (hi - lo);
+    let (placed, name_rows) = average_names(line, &x);
+    let mt = 6.0 + NAME_ROW * name_rows as f64;
+    let groups = [PositionGroup::Horizontal, PositionGroup::Vertical];
+    let rows: usize = groups
+        .iter()
+        .filter(|g| line.lanes.iter().any(|l| l.group == **g))
+        .count()
+        + line.lanes.len();
+    let ph = LANE_H * rows as f64;
+    let h = mt + ph + MB;
     let mut s = String::new();
     let _ = write!(
         s,
-        r#"<svg viewBox="0 0 {W} {H}" role="img" aria-label="{unit} by position">"#
+        r#"<svg viewBox="0 0 {W} {h:.0}" role="img" aria-label="{} by position">"#,
+        esc(line.title)
     );
-    chart_axes(&mut s, &f, step, zero, unit);
-    chart_dots(&mut s, &f, series, unit);
-    s.push_str("</svg>");
-    if series.len() > 1 {
-        chart_legend(&mut s, series);
+    s.push_str(r#"<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 z" class="arrowhead"/></marker></defs>"#);
+    value_axis(&mut s, [lo, hi, step], &x, mt, mt + ph, line.unit);
+    // The averages, under the dots.
+    for a in &line.averages {
+        let _ = write!(
+            s,
+            r#"<line class="average" x1="{0:.1}" x2="{0:.1}" y1="{mt:.1}" y2="{1:.1}"><title>{2}</title></line>"#,
+            x(a.value),
+            mt + ph,
+            esc(&a.hover)
+        );
     }
+    for (ax, row, name) in &placed {
+        let _ = write!(
+            s,
+            r#"<text class="label" x="{ax:.1}" y="{:.1}" text-anchor="middle">{}</text>"#,
+            6.0 + NAME_ROW * (*row as f64 + 1.0) - 3.0,
+            esc(name)
+        );
+    }
+    // The lanes, each group under its heading.
+    let mut y = mt;
+    for g in groups {
+        let lanes: Vec<_> = line.lanes.iter().filter(|l| l.group == g).collect();
+        if lanes.is_empty() {
+            continue;
+        }
+        let _ = write!(
+            s,
+            r#"<text class="group" x="6" y="{:.1}">{}</text>"#,
+            y + LANE_H / 2.0 + 4.0,
+            g.name()
+        );
+        y += LANE_H;
+        for l in lanes {
+            lane_svg(&mut s, l, &x, y + LANE_H / 2.0, refs, line.unit);
+            y += LANE_H;
+        }
+    }
+    s.push_str("</svg>");
+    s.push_str(&position_key(line, refs));
     s
 }
 
-/// A position chart's value grid, its zero line, its position names and
-/// its unit.
-fn chart_axes(s: &mut String, f: &Frame, step: f64, zero: bool, unit: &str) {
-    let (lo, hi, ph) = (f.lo, f.hi, f.ph);
-    let y = |v: f64| f.y(v);
-    let x = |p: Position| f.x(p);
+/// Where each average's name goes above the plot: its x and its row, each
+/// on the first row it fits without touching the name before it; and how
+/// many rows that takes.
+fn average_names(
+    line: &PositionLine,
+    x: &dyn Fn(f64) -> f64,
+) -> (Vec<(f64, usize, &'static str)>, usize) {
+    let mut placed = Vec::new();
+    let mut ends: Vec<f64> = Vec::new();
+    let mut order: Vec<&AverageLine> = line.averages.iter().collect();
+    order.sort_by(|a, b| a.value.total_cmp(&b.value));
+    for a in &order {
+        let w = a.name.len() as f64 * CHAR_W;
+        let left = x(a.value) - w / 2.0;
+        let row = ends
+            .iter()
+            .position(|&e| e + 6.0 < left)
+            .unwrap_or(ends.len());
+        if row == ends.len() {
+            ends.push(f64::NEG_INFINITY);
+        }
+        ends[row] = left + w;
+        placed.push((x(a.value), row, a.name));
+    }
+    let rows = ends.len();
+    (placed, rows)
+}
+
+/// The value grid down the plot from `top` to `bottom`, its ticks, and the
+/// unit after the last tick's figure.
+fn value_axis(
+    s: &mut String,
+    [lo, hi, step]: [f64; 3],
+    x: &dyn Fn(f64) -> f64,
+    top: f64,
+    bottom: f64,
+    unit: &str,
+) {
     let mut t = lo;
-    while t <= hi + 1e-9 {
+    while t <= hi + step * 1e-6 {
         let _ = write!(
             s,
-            r#"<line class="grid" x1="{ML}" x2="{:.1}" y1="{:.1}" y2="{:.1}"/><text class="tick" x="{:.1}" y="{:.1}" text-anchor="end">{}</text>"#,
-            W - MR,
-            y(t),
-            y(t),
-            ML - 6.0,
-            y(t) + 4.0,
-            fixed_text(t, if step < 1.0 { 1 } else { 0 })
+            r#"<line class="grid" x1="{0:.1}" x2="{0:.1}" y1="{top:.1}" y2="{1:.1}"/><text class="tick" x="{0:.1}" y="{2:.1}" text-anchor="middle">{3}</text>"#,
+            x(t),
+            bottom,
+            bottom + 15.0,
+            timegrapher_core::chart_scale::axis_number(t, step)
         );
         t += step;
     }
-    if zero && lo < 0.0 && hi > 0.0 {
-        let _ = write!(
-            s,
-            r#"<line class="axis" x1="{ML}" x2="{:.1}" y1="{:.1}" y2="{:.1}"/>"#,
-            W - MR,
-            y(0.0),
-            y(0.0)
-        );
-    }
-    for p in Position::ALL {
-        let _ = write!(
-            s,
-            r#"<text class="tick" x="{:.1}" y="{:.1}" text-anchor="middle">{}</text><text class="label" x="{:.1}" y="{:.1}" text-anchor="middle">{}</text>"#,
-            x(p),
-            H - MB + 16.0,
-            p.code(),
-            x(p),
-            H - MB + 31.0,
-            p.description()
-        );
-    }
+    // The unit follows the last tick's figure.
+    let last = timegrapher_core::chart_scale::axis_number(hi, step);
     let _ = write!(
         s,
-        r#"<text class="label" transform="translate(14,{:.1}) rotate(-90)" text-anchor="middle">{}</text>"#,
-        MT + ph / 2.0,
+        r#"<text class="label" x="{:.1}" y="{:.1}" text-anchor="start">{}</text>"#,
+        W - MR + last.chars().count() as f64 * CHAR_W / 2.0 + 4.0,
+        bottom + 15.0,
         esc(unit)
     );
 }
 
-/// Each series' values as dots, side by side at each position.
-fn chart_dots(s: &mut String, f: &Frame, series: &[Series], unit: &str) {
-    let y = |v: f64| f.y(v);
-    let x = |p: Position| f.x(p);
-    let n = series.len().max(1) as f64;
-    for (k, ser) in series.iter().enumerate() {
-        let dx = (k as f64 - (n - 1.0) / 2.0) * 14.0;
-        for &(p, v) in &ser.points {
-            let (cx, cy) = (x(p) + dx, y(v));
-            if ser.class == "ref" {
-                let _ = write!(
-                    s,
-                    r#"<path class="ref" d="M{:.1} {:.1} l6 6 l-6 6 l-6 -6 z"><title>{}: {} {}</title></path>"#,
-                    cx,
-                    cy - 6.0,
-                    esc(ser.label),
-                    fixed_text(v, 1),
-                    esc(unit)
-                );
-            } else {
-                let _ = write!(
-                    s,
-                    r#"<circle class="{}" cx="{cx:.1}" cy="{cy:.1}" r="5"><title>{} {p}: {} {}</title></circle>"#,
-                    ser.class,
-                    esc(ser.label),
-                    fixed_text(v, 1),
-                    esc(unit)
-                );
-            }
+/// One lane at height `cy`: its rule and name, the arrow from the full-wind
+/// figure, the hollow full-wind dot, the reference diamond, this test's dot.
+fn lane_svg(
+    s: &mut String,
+    l: &Lane,
+    x: &dyn Fn(f64) -> f64,
+    cy: f64,
+    refs: &[(Position, f64)],
+    unit: &str,
+) {
+    let _ = write!(
+        s,
+        r#"<line class="grid" x1="{ML}" x2="{:.1}" y1="{cy:.1}" y2="{cy:.1}"/><text class="lane" x="{:.1}" y="{:.1}" text-anchor="end">{}</text>"#,
+        W - MR,
+        ML - 8.0,
+        cy + 4.0,
+        esc(&l.name)
+    );
+    if let (Some(e), Some(v)) = (l.full_wind, l.value) {
+        // The arrow stops short of this test's dot.
+        let (x0, x1) = (x(e), x(v));
+        if (x1 - x0).abs() > 12.0 {
+            let x1 = x1 - 7.0 * (x1 - x0).signum();
+            let _ = write!(
+                s,
+                r#"<line class="move" x1="{x0:.1}" x2="{x1:.1}" y1="{cy:.1}" y2="{cy:.1}" marker-end="url(#arrow)"/>"#
+            );
         }
     }
-}
-
-/// The legend naming each series by its mark.
-fn chart_legend(s: &mut String, series: &[Series]) {
-    s.push_str(r#"<p class="legend">"#);
-    for ser in series {
-        let sw = if ser.class == "ref" {
-            r#"<svg width="12" height="12" viewBox="0 0 12 12"><path class="ref" d="M6 0 l6 6 l-6 6 l-6 -6 z"/></svg>"#.to_string()
-        } else {
-            format!(
-                r#"<svg width="12" height="12" viewBox="0 0 12 12"><circle class="{}" cx="6" cy="6" r="5"/></svg>"#,
-                ser.class
-            )
-        };
-        let _ = write!(s, r#"<span>{sw} {}</span>"#, esc(ser.label));
+    if let Some(e) = l.full_wind {
+        let _ = write!(
+            s,
+            r#"<circle class="hollow" cx="{:.1}" cy="{cy:.1}" r="5"><title>{}</title></circle>"#,
+            x(e),
+            esc(&l.hover)
+        );
     }
-    s.push_str("</p>");
+    if let Some(&(_, v)) = refs.iter().find(|(p, _)| p.common() == l.position) {
+        let _ = write!(
+            s,
+            r#"<path class="ref" d="M{:.1} {:.1} l6 6 l-6 6 l-6 -6 z"><title>reference timegrapher: {} {}</title></path>"#,
+            x(v),
+            cy - 6.0,
+            fixed_text(v, 1),
+            esc(unit)
+        );
+    }
+    if let Some(v) = l.value {
+        let _ = write!(
+            s,
+            r#"<circle class="dot" cx="{:.1}" cy="{cy:.1}" r="5"><title>{}</title></circle>"#,
+            x(v),
+            esc(&l.hover)
+        );
+    }
 }
 
-fn charts(st: &StateIndices, readings: &[&Reading]) -> String {
+/// The key under a position line: the solid and the hollow dot on a
+/// comparison, and the reference diamond where there are references.
+fn position_key(line: &PositionLine, refs: &[(Position, f64)]) -> String {
+    let mut key = Vec::new();
+    if let Some([this, full]) = line.key {
+        key.push(format!(
+            r#"<span><svg width="12" height="12" viewBox="0 0 12 12"><circle class="dot" cx="6" cy="6" r="5"/></svg> {this}</span><span><svg width="12" height="12" viewBox="0 0 12 12"><circle class="hollow" cx="6" cy="6" r="4.5"/></svg> {full}</span>"#
+        ));
+    }
+    if !refs.is_empty() {
+        if key.is_empty() {
+            key.push(format!(
+                r#"<span><svg width="12" height="12" viewBox="0 0 12 12"><circle class="dot" cx="6" cy="6" r="5"/></svg> {}</span>"#,
+                timegrapher_core::position_line::THIS_TEST
+            ));
+        }
+        key.push(r#"<span><svg width="12" height="12" viewBox="0 0 12 12"><path class="ref" d="M6 0 l6 6 l-6 6 l-6 -6 z"/></svg> reference timegrapher</span>"#.to_string());
+    }
+    if key.is_empty() {
+        return String::new();
+    }
+    format!(r#"<p class="legend">{}</p>"#, key.join(""))
+}
+
+/// One state of wind's position lines, rate, amplitude and beat error,
+/// with a reference timegrapher's rates and amplitudes where the readings
+/// carry them.
+fn charts(lines: &StateLines, readings: &[&Reading]) -> String {
     let refs = |f: &dyn Fn(&Reading) -> Option<f64>| -> Vec<(Position, f64)> {
         readings
             .iter()
             .filter_map(|r| f(r).map(|v| (r.position, v)))
             .collect()
     };
-    let rate_pts: Vec<(Position, f64)> = st
-        .positions
-        .iter()
-        .filter_map(|v| v.rate_s_per_day.map(|r| (v.position, r)))
-        .collect();
-    let amp_pts: Vec<(Position, f64)> = st
-        .positions
-        .iter()
-        .filter_map(|v| v.amplitude_deg.map(|r| (v.position, r)))
-        .collect();
     // The position aggregates mix every reading at a position, so the
     // reference rates are overlaid only when every reading is on one clock
     // and every reference rate is on that clock too (`Reference::clock`);
@@ -219,39 +279,16 @@ fn charts(st: &StateIndices, readings: &[&Reading]) -> String {
         });
     let omitted = !matched && !rref.is_empty();
     let aref = refs(&|r| r.reference.as_ref()?.amplitude_deg);
-    let mut rs = vec![Series {
-        class: "dot",
-        label: "this recording",
-        points: rate_pts,
-    }];
-    if matched && !rref.is_empty() {
-        rs.push(Series {
-            class: "ref",
-            label: "reference timegrapher",
-            points: rref,
-        });
-    }
-    let mut as_ = vec![Series {
-        class: "dot",
-        label: "this recording",
-        points: amp_pts,
-    }];
-    if !aref.is_empty() {
-        as_.push(Series {
-            class: "ref",
-            label: "reference timegrapher",
-            points: aref,
-        });
-    }
     format!(
-        r#"<h3>Rate by position</h3>{}{}<h3>Amplitude by position</h3>{}"#,
-        position_chart("seconds per day", &rs, true),
+        r#"<h3>Rate by position</h3>{}{}<h3>Amplitude by position</h3>{}<h3>Beat Error by position</h3>{}"#,
+        position_line_svg(&lines.rate, if matched { &rref } else { &[] }),
         if omitted {
             r#"<p class="note">Reference rates are omitted from this rate chart because its readings and the reference rates are not all on one clock (a clock-corrected reading beside a reference whose clock basis is not recorded or is the sound card's, or the other way round). Reference values remain in the table.</p>"#
         } else {
             ""
         },
-        position_chart("deg", &as_, false),
+        position_line_svg(&lines.amplitude, &aref),
+        position_line_svg(&lines.beat_error, &[]),
     )
 }
 
@@ -713,7 +750,7 @@ fn poise_section(sn: &Session) -> String {
 fn state_charts(sn: &Session) -> String {
     let r = &sn.report;
     let mut body = String::new();
-    for st in &r.states {
+    for (st, lines) in r.states.iter().zip(&r.position_lines) {
         if r.states.len() > 1 {
             let _ = write!(
                 body,
@@ -730,7 +767,7 @@ fn state_charts(sn: &Session) -> String {
             .iter()
             .filter(|rd| timegrapher_core::session::in_wind_state(rd.wind_h, st.wind_h))
             .collect();
-        body.push_str(&charts(st, &rs));
+        body.push_str(&charts(lines, &rs));
     }
     body
 }
@@ -780,6 +817,9 @@ svg {{ width: 100%; height: auto; display: block; }}
 .grid {{ stroke: var(--rule); stroke-width: 1; }} .axis {{ stroke: var(--muted); stroke-width: 1; }}
 .tick {{ fill: var(--text2); font-size: 11px; }} .label {{ fill: var(--text2); font-size: 11px; }}
 .dot {{ fill: var(--series); }} .ref {{ fill: none; stroke: var(--ref); stroke-width: 2; }}
+.hollow {{ fill: var(--surface); stroke: var(--series); stroke-width: 1.5; }} .move {{ stroke: var(--text2); stroke-width: 1.2; }} .arrowhead {{ fill: var(--text2); }}
+.average {{ stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 4 3; }}
+.lane {{ fill: var(--text); font-size: 11px; }} .group {{ fill: var(--text2); font-size: 11px; font-weight: 600; }}
 code {{ font-size: 13px; }}
 </style></head><body>
 <h1>{}</h1>
