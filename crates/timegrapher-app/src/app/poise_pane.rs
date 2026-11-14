@@ -79,14 +79,6 @@ struct Picture<'a> {
     facts: Option<FactBox>,
 }
 
-impl Picture<'_> {
-    /// The rates the picture must hold: each point with its ±, and the
-    /// wave.
-    fn range(&self) -> Option<(f64, f64)> {
-        poise_picture::range(&self.points, self.fit)
-    }
-}
-
 impl TimegrapherApp {
     /// The Dynamic Poise test, if that is the guided test on the Bench.
     pub(super) fn poise_test(&self) -> Option<&guided::Test> {
