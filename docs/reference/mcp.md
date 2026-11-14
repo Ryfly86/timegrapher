@@ -309,7 +309,11 @@ the timegrapher app draws them:
   and a chart per measure of the hourly levels as steps, one line broken
   only where an hour has no figure; a figure read from too few of its
   windows is grey. The server gives that pane its figures and words in
-  `_meta["timegrapher/reserve"]`. It sets no limits: the server does not
+  `_meta["timegrapher/reserve"]`. Each state of wind with a Dynamic
+  Poise fit adds a Dynamic Poise pane: the upright positions' rates and
+  the Mean in the table, and core's picture (`poise[].picture`) beside
+  it, along a line or round a watch face as the Plot and Dial buttons
+  choose, with core's words on the fit and the heavy spot. It sets no limits: the server does not
   judge the readings against a tolerance, so `run_session` takes no
   tolerance class.
 - `tick_tock_profile`: the Tick and Tock profiles with the unlock and drop.
