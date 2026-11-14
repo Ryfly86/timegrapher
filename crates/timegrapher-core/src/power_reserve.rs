@@ -39,6 +39,17 @@ pub const LONG_TAKE_S: f64 = 6.0 * 3600.0;
 /// far while listening.
 pub const READ_AGAIN_S: f64 = 60.0;
 
+/// The Power Reserve Test's name, as its pane is headed on every surface.
+pub const TEST_TITLE: &str = "Power Reserve";
+/// The hours table's first column: its name and what it holds.
+pub const HOURS_COLUMN: (&str, &str) = ("Hours", "Hours since the first beat heard");
+/// The hours table's last column: its name, unit and what it holds.
+pub const READ_COLUMN: (&str, &str, &str) = (
+    "Read",
+    "%",
+    "How much of the hour its whole 10 s readings cover",
+);
+
 /// How a run ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -292,6 +303,22 @@ impl Hour {
             (self.beat_error_ms?, None),
             self.bph?,
         )
+    }
+
+    /// The caveat saying its `figure` stands on under the share of its
+    /// windows the readings need (#1429, #1439): the figure is drawn grey
+    /// and the caveat is its hover, on every surface. None where it has no
+    /// such figure or it isn't thin.
+    pub fn thin(&self, figure: crate::confidence::Figure) -> Option<&crate::measure::Caveat> {
+        use crate::confidence::Figure;
+        match figure {
+            Figure::Amplitude => self.amplitude_deg?,
+            Figure::BeatError => self.beat_error_ms?,
+            Figure::Rate => self.rate_s_per_day?,
+        };
+        self.caveats.iter().find(|c| {
+            matches!(c, crate::measure::Caveat::ReadingWindows { reading, .. } if *reading == figure)
+        })
     }
 
     /// A whole hour, not the run's last part: its span is 3600 s, within

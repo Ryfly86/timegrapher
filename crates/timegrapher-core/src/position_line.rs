@@ -39,9 +39,12 @@ pub struct Lane {
     /// The full-wind test's figure at this position, on a later state.
     pub full_wind: Option<f64>,
     /// `value` and `full_wind` as written beside a chart's title and in a
-    /// table, with the unit: "+10.2 s/d".
+    /// table, with the unit and a true minus: "+10.2 s/d", "−0.5 s/d".
     pub text: Option<String>,
     pub full_wind_text: Option<String>,
+    /// `value` bare, as a table cell under its column's unit writes it:
+    /// "+10.2", "−0.5" (the 11-04 units rule).
+    pub figure: Option<String>,
     /// The hover: the name and this test's figure with its unit,
     /// "Crown Up (CU, 3H) +10.2 s/d", and the full-wind figure after it
     /// where there is one.
@@ -64,8 +67,10 @@ pub struct AverageLine {
     /// Its name above the plot: "Average", "Vertical", "Horizontal".
     pub name: &'static str,
     pub value: f64,
-    /// `value` with its unit: "+6.6 s/d".
+    /// `value` with its unit and a true minus: "+6.6 s/d".
     pub text: String,
+    /// `value` bare, for a table cell: "+6.6".
+    pub figure: String,
     /// "Vertical +6.6 s/d".
     pub hover: String,
 }
@@ -106,8 +111,34 @@ fn figure(v: &PositionValue, kind: SeriesKind) -> Option<f64> {
     .filter(|x| x.is_finite())
 }
 
-/// The unit as it follows the axis: degrees as "°".
-fn unit_of(kind: SeriesKind) -> &'static str {
+/// A figure with its unit as a screen writes it, a negative one with a
+/// true minus: "−0.5 s/d".
+pub fn screen(kind: SeriesKind, v: f64) -> String {
+    crate::figure_text::true_minus(&kind.fmt(v))
+}
+
+/// A measure's value axis, [lo, hi, step], over `values`: their range
+/// rounded to whole steps, a beat error's from no lower than 0, since it
+/// is a size (Walter on #1742). The one axis rule for every chart of a
+/// measure's values. None for no values.
+pub fn value_axis(kind: SeriesKind, values: &[f64]) -> Option<[f64; 3]> {
+    let (lo, hi) = chart_scale::data_range(values)?;
+    let lo = match kind {
+        SeriesKind::BeatError => lo.max(0.0),
+        _ => lo,
+    };
+    let (lo, hi, step) = chart_scale::round_ends(lo, hi);
+    Some([lo, hi, step])
+}
+
+/// A figure bare, as a table cell under its column's unit writes it, a
+/// negative one with a true minus: "−0.5".
+pub fn bare(kind: SeriesKind, v: f64) -> String {
+    crate::figure_text::true_minus(&kind.number(v))
+}
+
+/// The unit as it follows a chart's axis: degrees as "°".
+pub fn unit_of(kind: SeriesKind) -> &'static str {
     match kind {
         SeriesKind::Amplitude => "°",
         k => k.unit(),
@@ -121,9 +152,21 @@ pub fn position_line(
     full_wind: Option<&StateIndices>,
     kind: SeriesKind,
 ) -> PositionLine {
+    position_line_over(state, state, full_wind, kind)
+}
+
+/// [`position_line`] with a lane for each position `every` measured, the
+/// ten where a session took them, while the averages stay over `state`'s
+/// positions, the six (Peter, 11-12).
+pub fn position_line_over(
+    state: &StateIndices,
+    every: &StateIndices,
+    full_wind: Option<&StateIndices>,
+    kind: SeriesKind,
+) -> PositionLine {
     let mut lanes = Vec::new();
     for group in [PositionGroup::Horizontal, PositionGroup::Vertical] {
-        for v in state
+        for v in every
             .positions
             .iter()
             .filter(|v| PositionGroup::of(v.position) == group)
@@ -136,8 +179,8 @@ pub fn position_line(
                     .and_then(|w| figure(w, kind))
             });
             let name = v.position.display_label();
-            let text = value.map(|x| kind.fmt(x));
-            let full_wind_text = earlier.map(|e| kind.fmt(e));
+            let text = value.map(|x| screen(kind, x));
+            let full_wind_text = earlier.map(|e| screen(kind, e));
             let mut hover = match &text {
                 Some(t) => format!("{name} {t}"),
                 None => name.clone(),
@@ -153,6 +196,7 @@ pub fn position_line(
                 full_wind: earlier,
                 text,
                 full_wind_text,
+                figure: value.map(|x| bare(kind, x)),
                 hover,
             });
         }
@@ -173,12 +217,13 @@ pub fn position_line(
     .into_iter()
     .filter_map(|(of, name, group)| {
         let value = group_mean(&state.positions, kind, group).filter(|x| x.is_finite())?;
-        let text = kind.fmt(value);
+        let text = screen(kind, value);
         Some(AverageLine {
             of,
             name,
             value,
             hover: format!("{name} {text}"),
+            figure: bare(kind, value),
             text,
         })
     })
@@ -195,18 +240,7 @@ pub fn position_line(
             drawn.iter().copied().fold(f64::NEG_INFINITY, f64::max),
         ]
     });
-    let axis = extent
-        .and_then(|[lo, hi]| chart_scale::data_range(&[lo, hi]))
-        // A beat error is a size: its axis starts no lower than 0 (Walter
-        // on #1742).
-        .map(|(lo, hi)| match kind {
-            SeriesKind::BeatError => (lo.max(0.0), hi),
-            _ => (lo, hi),
-        })
-        .map(|(lo, hi)| {
-            let (lo, hi, step) = chart_scale::round_ends(lo, hi);
-            [lo, hi, step]
-        });
+    let axis = extent.and_then(|e| value_axis(kind, &e));
     let compared = lanes.iter().any(|l| l.full_wind.is_some());
     PositionLine {
         series: kind,
@@ -236,18 +270,29 @@ pub struct StateLines {
 /// are: a later state whose wind was given is compared with the fullest
 /// one, when that is the full-wind test (0 h).
 pub fn state_lines(states: &[StateIndices]) -> Vec<StateLines> {
-    let full = states.first().filter(|s| s.wind_h == Some(0.0));
+    state_lines_over(states, states)
+}
+
+/// [`state_lines`] with a lane for each position in `every`, the same
+/// states over every position measured ([`Position::TEN`]), the averages
+/// over `states`' own.
+///
+/// [`Position::TEN`]: crate::session::Position::TEN
+pub fn state_lines_over(states: &[StateIndices], every: &[StateIndices]) -> Vec<StateLines> {
+    let full = every.first().filter(|s| s.wind_h == Some(0.0));
     states
         .iter()
+        .zip(every)
         .enumerate()
-        .map(|(i, s)| {
+        .map(|(i, (s, e))| {
             let earlier = full.filter(|_| i > 0 && s.wind_h.is_some_and(|h| h > 0.0));
+            let line = |kind| position_line_over(s, e, earlier, kind);
             StateLines {
                 wind_h: s.wind_h,
                 name: crate::reading_text::wind_state_title(s.wind_h),
-                rate: position_line(s, earlier, SeriesKind::Rate),
-                amplitude: position_line(s, earlier, SeriesKind::Amplitude),
-                beat_error: position_line(s, earlier, SeriesKind::BeatError),
+                rate: line(SeriesKind::Rate),
+                amplitude: line(SeriesKind::Amplitude),
+                beat_error: line(SeriesKind::BeatError),
             }
         })
         .collect()
@@ -256,7 +301,9 @@ pub fn state_lines(states: &[StateIndices]) -> Vec<StateLines> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::session::{sourced_indices, BeatErrorSource, Position, SourcedFigures};
+    use crate::session::{
+        sourced_indices, sourced_indices_over, BeatErrorSource, Position, SourcedFigures,
+    };
 
     fn figures(rates: &[(Position, f64, f64)]) -> Vec<SourcedFigures> {
         rates
@@ -357,8 +404,29 @@ mod tests {
         assert_eq!(later.extent, Some([-1.0, 10.0]));
         assert!(later.lanes[0].hover.ends_with("(Full wind test +2.0 s/d)"));
         assert_eq!(later.lanes[0].full_wind_text.as_deref(), Some("+2.0 s/d"));
+        assert_eq!(later.lanes[0].text.as_deref(), Some("\u{2212}1.0 s/d"));
+        assert!(later.lanes[0]
+            .hover
+            .starts_with("Dial Up (DU) \u{2212}1.0 s/d"));
         // No full-wind test, no comparison.
         let alone = state_lines(&states[1..]);
         assert_eq!(alone[0].rate.key, None);
+    }
+
+    /// A session of ten positions draws a lane for each of the ten, its
+    /// averages over the six (Peter, 11-12).
+    #[test]
+    fn ten_positions_draw_ten_lanes_and_average_the_six() {
+        let mut ten = six(0.0);
+        ten.push((Position::H1h30, Some(100.0), Some(250.0), None, None));
+        let six_only = vec![sourced_indices(Some(0.0), &ten)];
+        let every = vec![sourced_indices_over(Some(0.0), &ten, &Position::TEN)];
+        let lines = state_lines_over(&six_only, &every);
+        assert_eq!(lines[0].rate.lanes.len(), 7);
+        assert!(lines[0].rate.lanes.iter().any(|l| l.value == Some(100.0)));
+        assert_eq!(
+            lines[0].rate.averages,
+            state_lines(&six_only)[0].rate.averages
+        );
     }
 }
