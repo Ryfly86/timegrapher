@@ -416,7 +416,15 @@ pub fn reserve_view(doc: &Value) -> Option<Value> {
             })
         })
         .collect();
-    Some(json!({ "position": run.position, "hours": hours, "series": series }))
+    use timegrapher_core::power_reserve::{HOURS_COLUMN, READ_COLUMN, TEST_TITLE};
+    Some(json!({
+        "title": TEST_TITLE,
+        "hours_title": HOURS_COLUMN.0,
+        "read_title": format!("{} {}", READ_COLUMN.0, READ_COLUMN.1),
+        "position": run.position,
+        "hours": hours,
+        "series": series,
+    }))
 }
 
 /// The `_meta` that links a tool to the view.
@@ -1404,5 +1412,62 @@ mod tests {
             now,
             "run with TIMEGRAPHER_BLESS=1 to write the fixture"
         );
+    }
+
+    /// The Power Reserve pane's model: each hour's figures in core's words,
+    /// a thin figure marked, an hour with none left out of the line, Read %
+    /// from the hour's read share, and the titles core gives.
+    #[test]
+    fn the_reserve_view_gives_each_hours_figures() {
+        use timegrapher_core::confidence::Figure;
+        use timegrapher_core::measure::Caveat;
+        use timegrapher_core::power_reserve::{Ending, Hour, Results, SCHEMA};
+        let hour = |hour, rate, caveats| Hour {
+            hour,
+            span_s: 3600.0,
+            rate_s_per_day: rate,
+            amplitude_deg: Some(280.0),
+            beat_error_ms: Some(-0.4),
+            beat_error_source: None,
+            caveats,
+            read_s: 1800.0,
+            bph: Some(28_800),
+        };
+        let thin = vec![Caveat::ReadingWindows {
+            reading: Figure::Rate,
+            windows_used: 3,
+            windows_in_span: 10,
+        }];
+        let run = Results {
+            schema: SCHEMA.into(),
+            started_utc: "2026-11-14T00:00:00Z".into(),
+            position: "DU".into(),
+            sound_kept: false,
+            ending: Ending::Stopped,
+            first_beat_s: 0.0,
+            last_beat_s: 10800.0,
+            run_s: 10800.0,
+            pauses: vec![],
+            hours: vec![
+                hour(0, Some(-1.5), vec![]),
+                hour(1, None, vec![]),
+                hour(2, Some(2.0), thin),
+            ],
+            source: Default::default(),
+        };
+        let v = reserve_view(&json!({ "power_reserve": run })).expect("a model");
+        assert_eq!(v["title"], "Power Reserve");
+        assert_eq!(v["read_title"], "Read %");
+        assert_eq!(v["hours"][0]["read"], "50%");
+        let rate = &v["series"][0];
+        assert_eq!(rate["series"], "rate");
+        assert_eq!(rate["steps"][0]["text"], "\u{2212}1.5 s/d");
+        assert!(rate["steps"][1]["value"].is_null());
+        assert_eq!(rate["steps"][2]["thin"], true);
+        // A beat error is a size, drawn from 0.
+        let be = &v["series"][2];
+        assert_eq!(be["steps"][0]["value"], 0.4);
+        assert!(be["axis"][0].as_f64().unwrap() >= 0.0);
+        assert!(reserve_view(&json!({})).is_none());
     }
 }

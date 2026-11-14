@@ -39,6 +39,17 @@ pub const LONG_TAKE_S: f64 = 6.0 * 3600.0;
 /// far while listening.
 pub const READ_AGAIN_S: f64 = 60.0;
 
+/// The Power Reserve Test's name, as its pane is headed on every surface.
+pub const TEST_TITLE: &str = "Power Reserve";
+/// The hours table's first column: its name and what it holds.
+pub const HOURS_COLUMN: (&str, &str) = ("Hours", "Hours since the first beat heard");
+/// The hours table's last column: its name, unit and what it holds.
+pub const READ_COLUMN: (&str, &str, &str) = (
+    "Read",
+    "%",
+    "How much of the hour its whole 10 s readings cover",
+);
+
 /// How a run ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

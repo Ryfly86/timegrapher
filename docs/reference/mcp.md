@@ -297,13 +297,19 @@ the timegrapher app draws them:
   than 320 px; only the table scrolls. Each chart is core's position line
   for one measure (`report.position_lines`): the value along the axis, a
   lane per position, Horizontal then Vertical, the three averages as grey
-  dashed lines named in a lane above the plot with leaders, and on a
+  dashed lines named in one row above the plot, with leaders, and on a
   later state each position's full-wind figure as a hollow dot with an
   arrow to this test's, keyed "This test" and "Full wind test". No
   position is joined to another. The Rate, Amplitude and Beat Error
   buttons show or hide each chart, all on at first. One hover: a lane in
   any chart or a row of the table rings that position in every chart,
-  outlines its row and gives its figures in each chart's title. It sets no limits: the server does not
+  outlines its row and gives its figures in each chart's title. A
+  session with a Power Reserve run adds a Power Reserve pane in the same
+  layout: the table of each hour's rate, amplitude, beat error and Read %,
+  and a chart per measure of the hourly levels as steps, one line broken
+  only where an hour has no figure; a figure read from too few of its
+  windows is grey. The server gives that pane its figures and words in
+  `_meta["timegrapher/reserve"]`. It sets no limits: the server does not
   judge the readings against a tolerance, so `run_session` takes no
   tolerance class.
 - `tick_tock_profile`: the Tick and Tock profiles with the unlock and drop.

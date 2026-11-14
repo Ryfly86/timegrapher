@@ -698,7 +698,11 @@ pub fn beat_error_hint(lead: &str) -> String {
 /// The table's titles: each name, its unit under it (none for Hours),
 /// and what the column holds (Hugh's ruling on #1086).
 pub(crate) const HOUR_COLUMNS: [(&str, &str, &str); 6] = [
-    ("Hours", "", "Hours since the first beat heard"),
+    (
+        power_reserve::HOURS_COLUMN.0,
+        "",
+        power_reserve::HOURS_COLUMN.1,
+    ),
     (
         "Rate",
         "s/d",
@@ -715,11 +719,7 @@ pub(crate) const HOUR_COLUMNS: [(&str, &str, &str); 6] = [
         ),
     ),
     (be_angle::NAME, "°", be_angle::COLUMN_HINT),
-    (
-        "Read",
-        "%",
-        "How much of the hour its whole 10 s readings cover",
-    ),
+    power_reserve::READ_COLUMN,
 ];
 
 /// A title as drawn: its words, its hover, the cell, and where its name

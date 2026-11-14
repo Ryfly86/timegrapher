@@ -24,7 +24,7 @@ const context = vm.createContext({ NO_BEAT_TITLE: "", POSITIONS: null, GROUP_NAM
   CHAR_W: 6.6, CALL_OUT_W: 1.2, DASH: { dashed: "4 3" } });
 vm.runInContext(["PANE_MIN_CHART", "paneShown", "PANE_KINDS", "LANE_H", "MARKS"].map(constant).join("\n"), context);
 vm.runInContext(["esc", "fixedDigits", "axisLabel", "gridDown", "markOrder", "markPlace", "markPlaceRow", "markWidth", "markText", "laneAbove",
-  "sessionView", "testPane", "paneToggles", "positionsPane", "positionLineChart"].map(definition).join("\n"), context);
+  "sessionView", "testPane", "paneToggles", "positionsPane", "positionLineChart", "valueTick"].map(definition).join("\n"), context);
 
 const lane = (position, group, value, text, full) => ({ position, group, name: `${position} name`, value, text,
   full_wind: full == null ? null : full, full_wind_text: full == null ? null : `+${full}.0 s/d`, hover: `${position} name ${text}` });

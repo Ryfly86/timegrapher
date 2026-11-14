@@ -104,6 +104,7 @@ canvas.map { position: absolute; image-rendering: pixelated; cursor: crosshair; 
 svg .lane .hit { fill: transparent; }
 svg .lane .ring { fill: none; stroke: var(--callout); stroke-width: 1.5; display: none; }
 svg .lane.hot .ring { display: inline; }
+.pane-rows td.thin { color: var(--text3); }
 </style>
 </head>
 <body>
@@ -712,7 +713,7 @@ function takeTiles(readings, pms) {
   }).join("");
 }
 
-function sessionView(doc, limits) {
+function sessionView(doc, limits, reserve) {
   const rep = doc.report || {};
   const readings = doc.readings || [];
   const title = [doc.watch, doc.calibre].filter(Boolean).join(" · ");
@@ -732,6 +733,7 @@ function sessionView(doc, limits) {
     const inState = (r) => (r.wind_h == null ? null : r.wind_h) === (st.wind_h == null ? null : st.wind_h);
     html += positionsPane(sl, readings.filter(inState), `s${i}`, lines.length > 1);
   });
+  if (reserve) html += reservePane(reserve, "r");
   return html;
 }
 
@@ -817,10 +819,7 @@ function positionLineChart(line, id) {
   const ticks = Math.round((hi - lo) / step);
   for (let i = 0; i <= ticks; i++) {
     const v = lo + i * step, x = sx(v);
-    // A rate's ticks carry their sign, as its figures do.
-    const t = axisLabel(v, step, "");
-    const sign = line.series === "rate" && v > 0 && !/^[0.]+$/.test(t) ? "+" : "";
-    g += `${gridDown(x, L, T, plotH)}<text x="${x}" y="${T + plotH + 15}" text-anchor="${i === ticks ? "end" : "middle"}">${esc(sign + t + (i === ticks ? (line.unit.startsWith("°") ? "" : " ") + line.unit : ""))}</text>`;
+    g += `${gridDown(x, L, T, plotH)}<text x="${x}" y="${T + plotH + 15}" text-anchor="${i === ticks ? "end" : "middle"}">${esc(valueTick(line, v, step, i === ticks))}</text>`;
   }
   g += `<line class="axis" x1="${L}" x2="${L}" y1="${T}" y2="${T + plotH}"/><line class="axis" x1="${L}" x2="${L + plotW}" y1="${T + plotH}" y2="${T + plotH}"/>`;
   for (const a of line.averages) {
@@ -856,6 +855,79 @@ function positionLineChart(line, id) {
   return `<div class="chart pl" data-pl="${esc(id)}"><div class="pl-head"><b>${esc(line.title)}</b> <span class="pl-val"></span></div>${key}<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(line.title)}">${defs}${g}</svg></div>`;
 }
 
+// A measure's axis tick: a rate's carries its sign, as its figures do, and
+// the last carries the unit ("°" set close, as core writes it).
+function valueTick(series, v, step, last) {
+  const t = axisLabel(v, step, "");
+  const sign = series.series === "rate" && v > 0 && !/^[0.]+$/.test(t) ? "+" : "";
+  return sign + t + (last ? (series.unit.startsWith("°") ? "" : " ") + series.unit : "");
+}
+
+// The Power Reserve pane (#1729): the table of each hour's figures and
+// Read %, and a chart per measure of the hourly levels as steps, from the
+// server's `timegrapher/reserve` (core's hours and words). A thin figure
+// (read from too few of its windows) is grey, as in the app's table; an
+// hour with no figure breaks the line.
+function reservePane(r, id) {
+  const series = r.series.filter((s) => s.axis);
+  const hourText = (h) => `${h.hour} h`;
+  let table = `<table class="pane-rows"><thead><tr><th>${esc(r.hours_title)}</th>${series.map((s) => `<th>${esc(s.title)}</th>`).join("")}<th>${esc(r.read_title)}</th></tr></thead><tbody>`;
+  r.hours.forEach((h, i) => {
+    table += `<tr data-pos="h${i}"><td>${esc(hourText(h))}</td>${series.map((s) => {
+      const st = s.steps[i];
+      return `<td${st.thin ? ' class="thin"' : ""}>${esc(st.text || "–")}</td>`;
+    }).join("")}<td>${esc(h.read || "–")}</td></tr>`;
+  });
+  table += `</tbody></table>`;
+  const charts = series.filter((s) => paneShown[s.series]).map((s) => stepChart(s, r.hours, `${id}-${s.series}`)).join("");
+  const titles = Object.fromEntries(series.map((s) => [s.series, s.title]));
+  return `<div data-pane="${esc(id)}">${testPane(r.title, table, charts, paneToggles(titles))}</div>`;
+}
+
+// One measure's hourly levels as steps: each hour a level across its span,
+// joined to the next by a riser where both were read, one continuous line
+// broken only where an hour has no figure (Norm's chart rules: steps for
+// hourly values, gaps break lines, no bars). A thin hour's level is grey.
+// The units are on the axes.
+function stepChart(s, hours, id) {
+  const [lo, hi, step] = s.axis;
+  const end = hours.length ? hours[hours.length - 1].hour + hours[hours.length - 1].span_h : 1;
+  const W = 480, L = 52, R = 14, T = 8, plotH = 140;
+  const plotW = W - L - R, H = T + plotH + 22;
+  const sx = (h) => L + h / end * plotW;
+  const sy = (v) => T + (hi - v) / (hi - lo) * plotH;
+  let g = `<rect class="plot" x="${L}" y="${T}" width="${plotW}" height="${plotH}"/>`;
+  const yticks = Math.round((hi - lo) / step);
+  for (let i = 0; i <= yticks; i++) {
+    const v = lo + i * step;
+    g += `${gridAcross(sy(v), L, plotW, T + plotH)}<text x="${L - 6}" y="${sy(v) + 4}" text-anchor="end">${esc(valueTick(s, v, step, i === yticks))}</text>`;
+  }
+  const xs = gridFor(0, end, plotW, 60);
+  for (const h of xs.ticks) {
+    const last = h === xs.ticks[xs.ticks.length - 1];
+    const edge = sx(h) > L + plotW - 16;
+    g += `${gridDown(sx(h), L, T, plotH)}<text x="${sx(h)}" y="${T + plotH + 15}" text-anchor="${edge ? "end" : "middle"}">${esc(axisLabel(h, xs.step, last ? " h" : ""))}</text>`;
+  }
+  g += `<line class="axis" x1="${L}" x2="${L}" y1="${T}" y2="${T + plotH}"/><line class="axis" x1="${L}" x2="${L + plotW}" y1="${T + plotH}" y2="${T + plotH}"/>`;
+  const color = `var(${(PANE_KINDS.find(([k]) => k === s.series) || [])[1] || "--rate"})`;
+  // One path: a level per hour, a riser to the next where it follows on.
+  let d = "", prev = null, thin = "", hits = "";
+  hours.forEach((h, i) => {
+    const v = s.steps[i].value;
+    const x0 = sx(h.hour), x1 = sx(h.hour + h.span_h);
+    if (v == null) { prev = null; } else {
+      const y = sy(v);
+      d += prev && Math.abs(prev - x0) < 0.5 ? ` V${y.toFixed(1)} H${x1.toFixed(1)}` : ` M${x0.toFixed(1)} ${y.toFixed(1)} H${x1.toFixed(1)}`;
+      prev = x1;
+      if (s.steps[i].thin) thin += `<line x1="${x0}" x2="${x1}" y1="${y}" y2="${y}" stroke="var(--text3)" stroke-width="2.5"/>`;
+    }
+    const mid = (x0 + x1) / 2;
+    hits += `<g class="lane" data-pos="h${i}" data-label="${esc(`${h.hour} h`)}" data-val="${esc(s.steps[i].text || "–")}"><rect class="hit" x="${x0}" y="${T}" width="${Math.max(1, x1 - x0)}" height="${plotH}"/><line class="ring" x1="${mid}" x2="${mid}" y1="${T}" y2="${T + plotH}"/></g>`;
+  });
+  g += `<path d="${d.trim()}" fill="none" stroke="${color}" stroke-width="2"/>${thin}${hits}`;
+  return `<div class="chart pl" data-pl="${esc(id)}"><div class="pl-head"><b>${esc(s.title)}</b> <span class="pl-val"></span></div><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(s.title)}">${g}</svg></div>`;
+}
+
 // The one hover across a pane: the position under the pointer, in a chart
 // or the table, ringed in every chart, its row outlined, its figures in
 // each chart's title row; and the series toggles.
@@ -865,7 +937,7 @@ function wirePanes(root) {
       for (const el of pane.querySelectorAll("[data-pos]")) el.classList.toggle("hot", el.dataset.pos === pos);
       for (const c of pane.querySelectorAll(".chart.pl")) {
         const lane = pos && c.querySelector(`.lane[data-pos="${CSS.escape(pos)}"]`);
-        c.querySelector(".pl-val").textContent = lane ? `${pos} ${lane.dataset.val}` : "";
+        c.querySelector(".pl-val").textContent = lane ? `${lane.dataset.label || pos} ${lane.dataset.val}` : "";
       }
     };
     pane.addEventListener("pointerover", (ev) => {
@@ -2375,7 +2447,7 @@ function redraw() {
   } else if (doc.schema.startsWith("timegrapher.analyze/")) {
     html = recordingView(doc, extra, limits, noBeat, last._meta && last._meta["timegrapher/pm"]);
   } else if (doc.schema.startsWith("timegrapher.session/")) {
-    html = sessionView(doc, limits);
+    html = sessionView(doc, limits, last._meta && last._meta["timegrapher/reserve"]);
   } else if (doc.schema.startsWith("timegrapher.profile/")) {
     html = profileView(doc, last._meta && last._meta["timegrapher/profile_facts"]);
   } else if (doc.schema.startsWith("timegrapher.series/")) {
