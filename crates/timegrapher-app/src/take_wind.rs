@@ -7,13 +7,24 @@ use eframe::egui;
 use std::path::Path;
 use timegrapher_core::library::Take;
 
+/// Why Set Wind… is refused on the take the session on the Bench writes.
+pub const HELD: &str = "This take is on the Bench, and its next save there would undo a \
+     change: set its wind once it is no longer on the Bench.";
+
 /// The Set Wind… menu of the take `t` in `dir`, which `changes` says can
-/// be written: Full wind [ ] h before it began, or Not Given. What was
-/// picked, the menu then closed.
-pub fn set_wind_menu(ui: &mut egui::Ui, t: &Take, dir: &Path, changes: bool) -> Option<TakeAction> {
+/// be written, unless it is the take the session on the Bench writes
+/// (`held`), which its next write would undo: Full wind [ ] h before it
+/// began, or Not Given. What was picked, the menu then closed.
+pub fn set_wind_menu(
+    ui: &mut egui::Ui,
+    t: &Take,
+    dir: &Path,
+    (changes, held): (bool, Option<&Path>),
+) -> Option<TakeAction> {
     let mut act = None;
     let id = egui::Id::new(("set wind", dir));
-    ui.add_enabled_ui(changes, |ui| {
+    let held = held == Some(dir);
+    ui.add_enabled_ui(changes && !held, |ui| {
         ui.menu_button("Set Wind…", |ui| {
             let mut typed: String = ui
                 .data_mut(|d| d.get_temp(id))
@@ -45,7 +56,12 @@ pub fn set_wind_menu(ui: &mut egui::Ui, t: &Take, dir: &Path, changes: bool) -> 
             "Give or correct how long before this take began the watch was fully wound. \
              Its readings are grouped by it, and with none given it's never counted as full \
              wind.",
-        );
+        )
+        .on_disabled_hover_text(if held {
+            HELD
+        } else {
+            "This copy of the app can only read your watches"
+        });
     });
     act
 }

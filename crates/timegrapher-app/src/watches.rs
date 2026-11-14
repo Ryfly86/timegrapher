@@ -571,10 +571,11 @@ pub struct TakesContext<'a> {
     pub writable: bool,
     pub keeping: Option<(&'a std::path::Path, f32)>,
     pub unsorted: bool,
-    /// The take picked in the list, and the one on show (open, or
-    /// opening).
+    /// The take picked in the list, the one on show (open, or opening),
+    /// and the one the session on the Bench writes (on show, or recording).
     pub picked: Option<&'a std::path::Path>,
     pub on_show: Option<&'a std::path::Path>,
+    pub held: Option<&'a std::path::Path>,
     /// The takes' own readings, as far as they are worked out.
     pub readings: &'a TakeReadings,
 }
@@ -1297,7 +1298,7 @@ fn take_menu(
     {
         act = Some(TakeAction::Delete(dir.clone()));
     }
-    crate::take_wind::set_wind_menu(ui, t, &dir, changes).or(act)
+    crate::take_wind::set_wind_menu(ui, t, &dir, (changes, cx.held)).or(act)
 }
 
 /// The watch's takes as a table, newest first: a click picks a row, a
@@ -2495,6 +2496,7 @@ mod tests {
             unsorted: true,
             picked: None,
             on_show: None,
+            held: None,
             readings: &readings,
         };
         let ctx = egui::Context::default();
@@ -2773,6 +2775,7 @@ mod tests {
                 unsorted: false,
                 picked: None,
                 on_show: None,
+                held: None,
                 readings: &readings,
             };
             take_hover(&take, &cx, &dir, None, readings.reading(&dir))
@@ -2896,6 +2899,7 @@ mod tests {
                 unsorted: false,
                 picked: None,
                 on_show: None,
+                held: None,
                 readings: &readings,
             };
             let take = Take {

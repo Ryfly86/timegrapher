@@ -375,6 +375,7 @@ impl TimegrapherApp {
             ui.ctx().request_repaint_after(Duration::from_millis(250));
         }
         let on_show = self.take_on_show();
+        let held = self.take_held();
         let picked = self.take_picked.clone();
         // Each take's own reading, as `timegrapher watches` gives it; a
         // test's figures are its own.
@@ -392,6 +393,7 @@ impl TimegrapherApp {
             unsorted: e.watch.id.is_empty(),
             picked: picked.as_deref(),
             on_show: on_show.as_deref(),
+            held: held.as_deref(),
             readings: &self.take_readings,
         };
         let mut act = None;
@@ -1238,6 +1240,13 @@ impl TimegrapherApp {
             session::State::Analysing | session::State::Analysed
         ) && !self.opened_path.is_empty())
         .then(|| PathBuf::from(&self.opened_path))
+    }
+
+    /// The take the session writes, on show or recording into it: Set
+    /// Wind… there would be undone by its next write (Felix on #1745).
+    pub(super) fn take_held(&self) -> Option<PathBuf> {
+        self.take_on_show()
+            .or_else(|| self.session.saved_to().map(Path::to_path_buf))
     }
 
     /// Make the library at its folder when there is none yet.

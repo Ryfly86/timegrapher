@@ -138,6 +138,10 @@ impl TimegrapherApp {
     /// (`wind_h`) or not, written through core, and its row and the card
     /// read again.
     pub(super) fn set_take_wind(&mut self, take: &Path, wind_h: Option<f64>) {
+        // The session's own take: its next save would undo it (Felix).
+        if self.take_held().as_deref() == Some(take) {
+            return self.error(crate::take_wind::HELD.into());
+        }
         if let Err(e) = full_wind::set_take_wind_h(take, wind_h) {
             return self.error(format!("Couldn't set the take's wind: {e}"));
         }

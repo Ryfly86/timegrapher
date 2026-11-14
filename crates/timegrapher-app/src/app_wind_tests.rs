@@ -124,9 +124,25 @@ fn a_take_on_show_shows_its_own_wind() {
     app.session.analyse();
     assert_eq!(app.wind_words(), "Full wind 24.2 h before it began");
     assert!(!app.wind_settable(), "the Set menu's wind is closed");
+    // On show, Set Wind… is refused: its next save would undo it (Felix).
+    let before = std::fs::read_to_string(take.join(MANIFEST)).unwrap();
     app.set_take_wind(&take, None);
-    assert_eq!(app.wind_words(), "Wind not given");
+    assert_eq!(
+        std::fs::read_to_string(take.join(MANIFEST)).unwrap(),
+        before
+    );
+    assert!(app
+        .message
+        .as_ref()
+        .is_some_and(|(m, e)| *e && m.contains("on the Bench")));
+    // Once it isn't, it is written into its session file.
+    app.opened_path.clear();
+    app.set_take_wind(&take, None);
+    assert!(!std::fs::read_to_string(take.join(MANIFEST))
+        .unwrap()
+        .contains("wind_h"));
     app.set_take_wind(&take, Some(1.25));
+    app.opened_path = take.display().to_string();
     assert_eq!(app.wind_words(), "Full wind 1.3 h before it began");
     let _ = std::fs::remove_dir_all(&base);
 }

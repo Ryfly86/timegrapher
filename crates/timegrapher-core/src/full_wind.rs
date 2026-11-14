@@ -50,7 +50,8 @@ pub fn take_wind_h(m: &Manifest) -> Option<f64> {
 /// kept: Set Wind… on a take in Watches.
 pub fn set_take_wind_h(take: &Path, wind_h: Option<f64>) -> Result<(), String> {
     let file = take.join(take::MANIFEST);
-    let text = std::fs::read_to_string(&file).map_err(|e| format!("{}: {e}", file.display()))?;
+    let text =
+        crate::recorder::read_settled(&file).map_err(|e| format!("{}: {e}", file.display()))?;
     let mut doc: toml_edit::DocumentMut = text
         .parse()
         .map_err(|e| format!("{}: {e}", file.display()))?;
