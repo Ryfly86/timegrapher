@@ -465,4 +465,18 @@ Checked and clean: the good-beat rule is one function (`Beat::is_good`); the CUS
 - Any regress value that moves is listed in the PR body.
 - A new Steadiness test or lead keeps the pane's seeded run on steady takes at 95 in 100 or better (R9).
 - A statistic that assumes independent readings uses the one long-run σ (R4).
+- A chart follows section 15: what is joined, what is a step, where a line breaks.
+
+## 15. Charts
+
+Peter asked for these rules (#1729): *"Is it mathematically correct to connect the dots in an hourly average graph like this? ... I think we need to establish rules in the software about this."* A line between two points says the quantity existed, and changed smoothly, at every x between them. Draw one only where that is true and was measured; otherwise draw what was measured.
+
+- **A value over an interval is drawn across it.** An hour's mean (Power Reserve) is a flat step from the hour's start to its end, not a point at its middle joined to the next; a partial last hour is a shorter step. Adjacent steps may meet with vertical risers only where their intervals touch.
+- **A time series is joined only where its values tile the time.** Per-window values whose windows touch or overlap (the strip, the steadiness series) may be drawn as a line; at that density a line and steps look the same.
+- **Gaps break the line.** Every cut, break, mask, change of position, and missing or withheld window or bin ends the line; nothing bridges one (masks cull, never fill).
+- **Categories are never joined.** Positions, wind states and separate tests are separate points, whatever order they are listed in.
+- **A model is a line; its data are points.** Dynamic Poise's stops are points around the dial and the fitted wave is the line; the same for any fit (isochronism, run-down). The line is visibly the model, not a join of the points.
+- **Bars from zero only where zero means something** and the length is the quantity (counts, shares): never for rate (signed) or amplitude (zero is off the scale).
+- **A drawn ± is the table's ±:** a whisker on a point, or a band or middle whisker on a step. A figure with no ± gets none.
+- **How much was read is shown by the coverage rules,** not by line weight or opacity: greyed under `confidence::MIN_WINDOW_COVERAGE` (60%), withheld (a gap) under `confidence::MIN_WINDOW_SHARE` (10%). The share read goes in the tooltip.
 
