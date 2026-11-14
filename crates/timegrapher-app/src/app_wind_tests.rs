@@ -175,11 +175,13 @@ fn the_card_shows_the_wind_whole() {
         (330.0, false, true),
     ] {
         app.ten_positions = ten;
-        // As tall as the row of cards is, taller at 10.
-        let high = app.readings_card_h(&ctx);
-        let card = egui::Rect::from_min_size(egui::pos2(20.0, 20.0), Vec2::new(w, high));
         let mut out = None;
-        for _ in 0..2 {
+        let mut card = egui::Rect::NOTHING;
+        for _ in 0..3 {
+            // As tall as the row of cards is, taller at 10 once its title
+            // row has been drawn.
+            let high = app.readings_card_h(&ctx);
+            card = egui::Rect::from_min_size(egui::pos2(20.0, 20.0), Vec2::new(w, high));
             out = Some(ctx.run(egui::RawInput::default(), |ctx| {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     let inner = card.shrink(f32::from(theme::CARD_PADDING));
@@ -220,17 +222,7 @@ fn the_card_shows_the_wind_whole() {
                 rows.controls.top()
             };
             if ten {
-                for c in &out.shapes {
-                    if let egui::Shape::Text(o) = &c.shape {
-                        let r = o.galley.rect.translate(o.pos.to_vec2());
-                        let below =
-                            r.top() >= rows.title.bottom() + listen_card::POSITION_TEN_GAP - 0.5;
-                        // The title row's own words, the 6 | 10 switch's
-                        // included, whose text runs a little past it.
-                        let in_title = r.center().y < rows.title.bottom();
-                        assert!(below || in_title, "{w}: {:?} {r:?}", o.galley.text());
-                    }
-                }
+                title_clear(&out, app.position_card_title, w);
             }
             assert!(
                 drawn.bottom() <= buttons + 0.5,
@@ -268,6 +260,47 @@ fn the_card_shows_the_wind_whole() {
                 egui::Shape::Text(t) if t.galley.text().starts_with("Full wind"))),
             "{w}: {}",
             painted_text(&out)
+        );
+    }
+}
+
+/// The 10 card's name, codes and wind start 3 pt under the title row as
+/// drawn: under its 6 | 10 switch's frame, which runs past the row, and
+/// its caption (Hugh, Walter's walk of #1745).
+fn title_clear(out: &egui::FullOutput, caption: &str, w: f32) {
+    let texts: Vec<(&str, egui::Rect)> = out
+        .shapes
+        .iter()
+        .filter_map(|c| match &c.shape {
+            egui::Shape::Text(t) => {
+                Some((t.galley.text(), t.galley.rect.translate(t.pos.to_vec2())))
+            }
+            _ => None,
+        })
+        .collect();
+    let at = |name: &str| texts.iter().find(|t| t.0 == name).map(|t| t.1);
+    let ten = at("10").expect("the 6 | 10 switch");
+    // The switch's frame: the filled rects round its "10".
+    let frame = out
+        .shapes
+        .iter()
+        .filter_map(|c| match &c.shape {
+            egui::Shape::Rect(r) if r.rect.contains_rect(ten) && r.rect.height() < 40.0 => {
+                Some(r.rect)
+            }
+            _ => None,
+        })
+        .reduce(|a, b| a.union(b))
+        .expect("the switch's frame");
+    let title = frame.union(at(caption).expect("the caption"));
+    for (text, r) in &texts {
+        // The title row's own words, and the picture's tiny numerals.
+        if ["6", "10", "?", caption].contains(text) || r.width() < 4.0 {
+            continue;
+        }
+        assert!(
+            r.top() >= title.bottom() + listen_card::POSITION_TEN_GAP - 0.5,
+            "{w}: {text:?} {r:?} under {title:?}"
         );
     }
 }

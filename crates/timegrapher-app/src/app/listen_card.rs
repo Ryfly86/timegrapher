@@ -81,8 +81,13 @@ impl TimegrapherApp {
         }
         let text = ctx
             .fonts_mut(|f| f.row_height(&theme::semibold(POSITION_NAME_TEN_PT)) + wind::row_h(f));
+        // The title row as last drawn, its 6 | 10 switch's frame included.
+        let past: f32 = ctx
+            .data(|d| d.get_temp(egui::Id::new(TITLE_PAST)))
+            .unwrap_or(0.0);
         let need = 2.0 * f32::from(theme::CARD_PADDING)
             + theme::TITLE_ROW_H
+            + past
             + text
             + 2.0 * POSITION_ROW_TEN
             + 3.0 * POSITION_TEN_GAP;
@@ -232,7 +237,15 @@ impl TimegrapherApp {
     ) {
         let pal = theme::pal(ui);
         let here = self.shown_position();
-        self.position_caption(ui, rows.title);
+        // The title row as drawn: its 6 | 10 switch's frame runs past it.
+        let title = self.position_caption(ui, rows.title).union(rows.title);
+        // How far, for the card's height ([`Self::readings_card_h`]).
+        let past = (title.bottom() - rows.title.bottom()).max(0.0);
+        let id = egui::Id::new(TITLE_PAST);
+        if ui.data(|d| d.get_temp::<f32>(id)) != Some(past) {
+            ui.data_mut(|d| d.insert_temp(id, past));
+            ui.ctx().request_repaint();
+        }
         let foot = rows.controls.bottom();
         let row = |bottom: f32| {
             egui::Rect::from_min_max(
@@ -248,7 +261,7 @@ impl TimegrapherApp {
         // card is tall enough for it ([`Self::readings_card_h`]).
         let left = pic.right() + 10.0;
         let (top, clear) = (
-            rows.title.bottom() + POSITION_TEN_GAP,
+            title.bottom() + POSITION_TEN_GAP,
             first.top() - POSITION_TEN_GAP,
         );
         let line = egui::Rect::from_x_y_ranges(left..=rows.inner.right(), top..=clear);
@@ -295,7 +308,7 @@ impl TimegrapherApp {
 
     /// The card's caption in `rect`, with its 6 | 10 switch and help at
     /// the right.
-    fn position_caption(&mut self, ui: &mut egui::Ui, rect: egui::Rect) {
+    fn position_caption(&mut self, ui: &mut egui::Ui, rect: egui::Rect) -> egui::Rect {
         let mut ten = self.card_ten();
         let mut switched = false;
         let held = self.shown_position().is_half_hour();
@@ -304,7 +317,7 @@ impl TimegrapherApp {
         } else {
             "The six standard positions"
         };
-        caption_row(ui, rect, self.position_card_title, |ui| {
+        let drawn = caption_row(ui, rect, self.position_card_title, |ui| {
             // Laid right to left from the help, so given 10 first to read
             // 6 | 10.
             switched = theme::segmented_in_title(
@@ -321,6 +334,7 @@ impl TimegrapherApp {
             self.ten_positions = ten;
             self.note_settings();
         }
+        drawn
     }
 
     /// The Current Position card on a compact card: the two-letter code
@@ -1871,14 +1885,19 @@ fn compact_caption(ui: &mut egui::Ui, rect: egui::Rect, caption: &str) {
     caption_row(ui, rect, caption, |_| {});
 }
 
+/// The memory of how far the 10 card's title row, as drawn, runs past
+/// its row, points.
+const TITLE_PAST: &str = "position title past its row";
+
 /// A position card's caption in `rect`: its help at the right, then
-/// `beside` (right to left), then the caption from the left.
+/// `beside` (right to left), then the caption from the left. Gives what
+/// it drew, which may run past `rect`.
 fn caption_row(
     ui: &mut egui::Ui,
     rect: egui::Rect,
     caption: &str,
     beside: impl FnOnce(&mut egui::Ui),
-) {
+) -> egui::Rect {
     let pal = theme::pal(ui);
     let mut child = ui.new_child(
         egui::UiBuilder::new()
@@ -1898,6 +1917,7 @@ fn caption_row(
             .truncate(),
         );
     });
+    child.min_rect()
 }
 
 /// The Listen card's take length, live while listening, and its state,
