@@ -132,24 +132,35 @@ impl PositionGroup {
 
 /// The mean of the positions' `kind` over `group` (all of them with
 /// `None`): the one place a state's averages are taken, the table's and
-/// the position line's alike (#1729). A beat error's mean is over one
-/// known source, as [`select_beat_errors`] picks it.
+/// the position line's alike (#1729). A beat error's mean is over the one
+/// known source [`select_beat_errors`] picks over every position, so the
+/// groups' means are of the same source as the whole one; a group with
+/// no reading from it has no mean, never one from the other source
+/// (Norm on #1742).
 pub fn group_mean(
     positions: &[PositionValue],
     kind: crate::steadiness::SeriesKind,
     group: Option<PositionGroup>,
 ) -> Option<f64> {
     use crate::steadiness::SeriesKind;
-    let kept = positions
-        .iter()
-        .filter(|v| group.is_none_or(|g| PositionGroup::of(v.position) == g));
+    let inside = |v: &PositionValue| group.is_none_or(|g| PositionGroup::of(v.position) == g);
+    let kept = positions.iter().filter(|v| inside(v));
     match kind {
         SeriesKind::Rate => mean_of(kept.filter_map(|v| v.rate_s_per_day)),
         SeriesKind::Amplitude => mean_of(kept.filter_map(|v| v.amplitude_deg)),
         SeriesKind::BeatError => {
-            let selected =
-                select_beat_errors(kept.map(|v| v.beat_error_ms.zip(v.beat_error_source)));
-            mean_of(selected.values.iter().map(|(_, value)| *value))
+            let selected = select_beat_errors(
+                positions
+                    .iter()
+                    .map(|v| v.beat_error_ms.zip(v.beat_error_source)),
+            );
+            mean_of(
+                selected
+                    .values
+                    .iter()
+                    .filter(|(i, _)| inside(&positions[*i]))
+                    .map(|(_, value)| *value),
+            )
         }
     }
 }
@@ -432,6 +443,29 @@ mod tests {
             s.d_beat_error, None,
             "one chosen-source position cannot give a spread"
         );
+    }
+    /// The groups' beat-error means are of the source chosen over every
+    /// position (Norm on #1742): verticals read from the unlock and
+    /// horizontals from the drop alone give the horizontals no mean, not
+    /// one from the drop, and the whole mean is the unlock's.
+    #[test]
+    fn group_beat_error_means_keep_the_whole_source() {
+        use crate::steadiness::SeriesKind::BeatError;
+        let s = sourced_indices(
+            Some(0.0),
+            &[
+                row(Position::H3, 0.2, BeatErrorSource::Unlock),
+                row(Position::H6, 0.4, BeatErrorSource::Unlock),
+                row(Position::CH, 8.0, BeatErrorSource::Drop),
+                row(Position::CB, 9.0, BeatErrorSource::Drop),
+            ],
+        );
+        let mean = |g| group_mean(&s.positions, BeatError, g);
+        assert_eq!(mean(Some(PositionGroup::Horizontal)), None);
+        assert!((mean(Some(PositionGroup::Vertical)).unwrap() - 0.3).abs() < 1e-12);
+        assert!((mean(None).unwrap() - 0.3).abs() < 1e-12);
+        assert_eq!(s.beat_error_mean, mean(None));
+        assert_eq!(s.beat_error_source, Some(BeatErrorSource::Unlock));
     }
     #[test]
     fn drop_only_position_statistics_keep_their_source() {
