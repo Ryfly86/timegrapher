@@ -99,7 +99,8 @@ canvas.map { position: absolute; image-rendering: pixelated; cursor: crosshair; 
 .pane-charts { flex: 1 1 0; }
 .pane-rows tr.hot { outline: 1.5px solid var(--callout); outline-offset: -1.5px; }
 .pane-rows tr.avg td { color: var(--text2); }
-.pl-head { font-size: 12.5px; margin: 8px 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Its height kept when it holds no figure, so a hover never moves the chart under the pointer. */
+.pl-head { font-size: 12.5px; margin: 8px 0 2px; white-space: nowrap; min-height: 1.35em; overflow: hidden; text-overflow: ellipsis; }
 .pl-head .pl-val { color: var(--text2); font-variant-numeric: tabular-nums; }
 svg .lane .hit { fill: transparent; }
 svg .lane .ring { fill: none; stroke: var(--callout); stroke-width: 1.5; display: none; }
@@ -826,9 +827,14 @@ function positionLineChart(line, id) {
   const H = T + plotH + 22;
   let g = `<rect class="plot" x="${L}" y="${T}" width="${plotW}" height="${plotH}"/>`;
   const ticks = Math.round((hi - lo) / step);
+  const shown = tickLabelsShown(Array.from({ length: ticks + 1 }, (_, i) => {
+    const v = lo + i * step;
+    return { x: sx(v), text: valueTick(line, v, step, i === ticks), end: i === ticks };
+  }));
   for (let i = 0; i <= ticks; i++) {
-    const v = lo + i * step, x = sx(v);
-    g += `${gridDown(x, L, T, plotH)}<text x="${x}" y="${T + plotH + 15}" text-anchor="${i === ticks ? "end" : "middle"}">${esc(valueTick(line, v, step, i === ticks))}</text>`;
+    const x = sx(lo + i * step);
+    g += gridDown(x, L, T, plotH);
+    if (shown[i]) g += `<text x="${x}" y="${T + plotH + 15}" text-anchor="${shown[i].end ? "end" : "middle"}">${esc(shown[i].text)}</text>`;
   }
   g += `<line class="axis" x1="${L}" x2="${L}" y1="${T}" y2="${T + plotH}"/><line class="axis" x1="${L}" x2="${L + plotW}" y1="${T + plotH}" y2="${T + plotH}"/>`;
   for (const a of line.averages) {
@@ -916,7 +922,7 @@ function poiseDots(pic, at) {
 // and its fastest hour named once it is clear of the noise.
 function poisePlot(pic) {
   const [lo, hi, step] = pic.axis;
-  const W = 480, L = 46, R = 14, T = 30, plotH = 200, H = T + plotH + 36;
+  const W = 480, L = 58, R = 14, T = 30, plotH = 200, H = T + plotH + 36;
   const plotW = W - L - R;
   const sx = (deg) => L + deg / 360 * plotW, sy = (r) => T + (hi - r) / (hi - lo) * plotH;
   let g = `<rect class="plot" x="${L}" y="${T}" width="${plotW}" height="${plotH}"/>`;
@@ -924,13 +930,15 @@ function poisePlot(pic) {
   for (let i = 0; i <= n; i++) {
     const v = lo + i * step;
     g += `${gridAcross(sy(v), L, plotW, T + plotH)}`;
-    if (pic.points.length) g += `<text x="${L - 6}" y="${sy(v) + 4}" text-anchor="end">${esc(valueTick({ series: "rate", unit: "s/d" }, v, step, false))}</text>`;
+    // No rate's numbers until there is a rate; the unit on the top one.
+    if (pic.points.length) g += `<text x="${L - 6}" y="${sy(v) + 4}" text-anchor="end">${esc(valueTick({ series: "rate", unit: "s/d" }, v, step, i === n))}</text>`;
   }
-  g += `<text x="${L - 6}" y="${T - 10}" text-anchor="end">s/d</text>`;
   [...pic.hours, [360, pic.hours[0][1]]].forEach(([deg, code], i) => {
     const half = i % 2 === 1;
     g += `<line x1="${sx(deg)}" x2="${sx(deg)}" y1="${T}" y2="${T + plotH}" class="grid"${half ? ' stroke-dasharray="2 3"' : ""}/>`;
-    g += `<text x="${sx(deg)}" y="${T + plotH + 15}" text-anchor="middle"${half ? ' style="fill:var(--text3)"' : ""}>${esc(code)}</text>`;
+    // The ends' 12H set inward, clear of the rate's lowest number.
+    const anchor = i === 0 ? "start" : i === pic.hours.length ? "end" : "middle";
+    g += `<text x="${sx(deg)}" y="${T + plotH + 15}" text-anchor="${anchor}"${half ? ' style="fill:var(--text3)"' : ""}>${esc(code)}</text>`;
   });
   g += `<text x="${L + plotW / 2}" y="${H - 2}" text-anchor="middle">${esc(pic.hour_axis)}</text>`;
   if (pic.mean) {
@@ -940,7 +948,9 @@ function poisePlot(pic) {
   if (pic.wave.length) g += `<path d="${pic.wave.map(([d, r], i) => `${i ? "L" : "M"}${sx(d).toFixed(1)} ${sy(r).toFixed(1)}`).join(" ")}" fill="none" stroke="var(--text2)" stroke-width="1.5"/>`;
   if (pic.fastest) {
     const x = sx(pic.fastest.at);
-    g += `<line x1="${x}" x2="${x}" y1="${T}" y2="${sy(pic.fastest.rate_s_per_day)}" stroke="var(--text2)" stroke-width="1.2"/><text x="${x}" y="${T - 4}" text-anchor="middle" style="fill:var(--text)">${esc(pic.fastest.name)}</text>`;
+    // Its name over the line, set off inward near either end of the plot.
+    const anchor = x < L + 40 ? "start" : x > L + plotW - 40 ? "end" : "middle";
+    g += `<line x1="${x}" x2="${x}" y1="${T}" y2="${sy(pic.fastest.rate_s_per_day)}" stroke="var(--text2)" stroke-width="1.2"/><text x="${x}" y="${T - 4}" text-anchor="${anchor}" style="fill:var(--text)">${esc(pic.fastest.name)}</text>`;
   }
   if (pic.mean && pic.slowest_deg != null) g += `<text class="backed" x="${sx(pic.slowest_deg)}" y="${sy(pic.mean.rate_s_per_day) - 4}" text-anchor="middle">${esc(pic.mean.name)}</text>`;
   g += poiseDots(pic, { plot: true, xy: (deg, r) => [sx(deg), sy(r)] });
@@ -971,7 +981,10 @@ function poiseDial(pic) {
       // A ring's number is left out where it would sit on a point or on
       // the mean's name, as on the app's dial.
       const near = (q, w) => Math.abs(x - q[0]) < w && Math.abs(y - q[1]) < 12;
-      if (pic.points.some((d) => near(xy(d.angle_deg, d.rate_s_per_day), 22))) continue;
+      if (pic.points.some((d) => near(xy(d.angle_deg, d.rate_s_per_day), 26))) continue;
+      // Nor on an hour's name round the face.
+      const nameAt = (deg) => { const a = (deg - 90) * Math.PI / 180; return [c + (outer + 16) * Math.cos(a), c + (outer + 16) * Math.sin(a)]; };
+      if (pic.hours.some(([deg]) => near(nameAt(deg), 34))) continue;
       if (pic.mean && pic.slowest_deg != null && near(xy(pic.slowest_deg, pic.mean.rate_s_per_day), 20 + pic.mean.name.length * 3.5)) continue;
       g += `<text x="${x}" y="${y + 4}" text-anchor="middle" style="fill:var(--text3)">${esc(valueTick({ series: "rate", unit: "s/d" }, v, step, false))}</text>`;
     }
@@ -998,6 +1011,21 @@ function poiseKey(pic) {
   if (!pic.key.length) return "";
   return `<div class="legend above">${pic.key.map((k, i) => `<span><svg class="key" width="14" height="12">${i === 0
     ? `<circle cx="7" cy="6" r="4.2" fill="var(--rate)"/>` : `<line x1="0" x2="14" y1="6" y2="6" stroke="var(--text2)" stroke-width="1.5"/>`}</svg>${esc(k)}</span>`).join("")}</div>`;
+}
+
+// Which of an axis's tick labels are drawn: the last always (it carries
+// the unit), then each one before it that clears the next drawn one, so no
+// two labels touch however narrow the steps (Walter on #1747). Each label
+// is {x, text, end}: end-anchored at x when `end`, else centred.
+function tickLabelsShown(labels) {
+  const shown = labels.map(() => null);
+  let left = Infinity;
+  for (let i = labels.length - 1; i >= 0; i--) {
+    const l = labels[i], w = l.text.length * CHAR_W;
+    const [a, b] = l.end ? [l.x - w, l.x] : [l.x - w / 2, l.x + w / 2];
+    if (b + 4 <= left) { shown[i] = l; left = a; }
+  }
+  return shown;
 }
 
 // A measure's axis tick: a rate's carries its sign, as its figures do, and

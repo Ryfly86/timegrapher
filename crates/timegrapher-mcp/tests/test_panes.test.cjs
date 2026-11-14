@@ -24,7 +24,7 @@ const context = vm.createContext({ NO_BEAT_TITLE: "", POSITIONS: null, GROUP_NAM
   CHAR_W: 6.6, CALL_OUT_W: 1.2, DASH: { dashed: "4 3" } });
 vm.runInContext(["PANE_MIN_CHART", "paneShown", "PANE_KINDS", "LANE_H", "MARKS"].map(constant).join("\n"), context);
 vm.runInContext(["esc", "fixedDigits", "axisLabel", "gridDown", "markOrder", "markPlace", "markPlaceRow", "markWidth", "markText", "laneAbove",
-  "sessionView", "testPane", "paneToggles", "positionsPane", "positionLineChart", "valueTick"].map(definition).join("\n"), context);
+  "sessionView", "testPane", "paneToggles", "positionsPane", "positionLineChart", "valueTick", "tickLabelsShown"].map(definition).join("\n"), context);
 
 const lane = (position, group, value, text, full) => ({ position, group, name: `${position} name`, value, text,
   full_wind: full == null ? null : full, full_wind_text: full == null ? null : `+${full}.0 s/d`, hover: `${position} name ${text}` });
@@ -85,4 +85,18 @@ test("a rate's ticks carry their sign and the unit follows the last", () => {
   const chart = context.positionLineChart(doc.report.position_lines[0].rate, "s0-rate");
   const ticks = [...chart.matchAll(/text-anchor="(?:middle|end)">([^<]*)<\/text>/g)].map((m) => m[1]);
   assert.deepEqual(ticks.slice(-5), ["0", "+1", "+2", "+3", "+4 s/d"]);
+});
+
+test("narrow steps never draw two tick labels touching; the last keeps the unit", () => {
+  // A one-position session's axis (Walter on #1747): steps of 0.02 s/d.
+  const l = { ...doc.report.position_lines[0].rate, axis: [-13.0, -12.9, 0.02] };
+  const chart = context.positionLineChart(l, "s0-rate");
+  const xs = [...chart.matchAll(/<text x="([\d.]+)" y="[\d.]+" text-anchor="(middle|end)">([^<]*)<\/text>/g)]
+    .map((m) => ({ x: +m[1], end: m[2] === "end", text: m[3] }));
+  assert.ok(xs[xs.length - 1].text.endsWith(" s/d"), "the last carries the unit");
+  for (let i = 1; i < xs.length; i++) {
+    const right = (t) => (t.end ? t.x : t.x + t.text.length * context.CHAR_W / 2);
+    const left = (t) => (t.end ? t.x - t.text.length * context.CHAR_W : t.x - t.text.length * context.CHAR_W / 2);
+    assert.ok(right(xs[i - 1]) < left(xs[i]), `${xs[i - 1].text} touches ${xs[i].text}`);
+  }
 });
