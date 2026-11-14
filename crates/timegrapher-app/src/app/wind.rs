@@ -134,7 +134,7 @@ impl TimegrapherApp {
         self.wind.shown.as_ref().map(|s| s.1)
     }
 
-    /// Set Wind… on the take `take`: its hours since full wind given
+    /// Set Wind on the take `take`: its hours since full wind given
     /// (`wind_h`) or not, written through core, and its row and the card
     /// read again.
     pub(super) fn set_take_wind(&mut self, take: &Path, wind_h: Option<f64>) {
@@ -177,14 +177,15 @@ impl TimegrapherApp {
         });
     }
 
-    /// The Wind part of a Set menu in `ui`, under a separator: its pick,
-    /// once one is made, and the menu closed.
-    pub(super) fn wind_menu(&mut self, ui: &mut egui::Ui) -> Option<WindPick> {
+    /// The Wind part of a Set menu in `ui`, under a separator when it is
+    /// `below` the positions: its pick, once one is made, and the menu
+    /// closed.
+    pub(super) fn wind_menu(&mut self, ui: &mut egui::Ui, below: bool) -> Option<WindPick> {
         if self.wind.ago.is_empty() {
             let h = self.wind_h_at(guided::unix_now()).unwrap_or(0.0);
             self.wind.ago = fields::plain(h);
         }
-        let picked = wind_choices(ui, &mut self.wind.ago);
+        let picked = wind_choices(ui, &mut self.wind.ago, below);
         if picked.is_some() {
             self.wind.ago.clear();
             ui.close();
@@ -195,7 +196,7 @@ impl TimegrapherApp {
     /// The wind under the code at `pos`, muted, with `align`; on a card
     /// where it can be set, a click opens the Wind menu. Centred under the
     /// compact card's code, it shrinks to fit as the code does, down to
-    /// [`WIND_MIN_SIZE`]; after the codes it is never shrunk. Where it
+    /// [`WIND_MIN_SIZE`]; on its own row on a wide card it is never shrunk. Where it
     /// doesn't fit whole it is in the hover alone, never cut, wrapped or
     /// pushing the codes (Hugh).
     pub(super) fn wind_line(&mut self, ui: &mut egui::Ui, pos: egui::Pos2, align: egui::Align2) {
@@ -232,10 +233,8 @@ impl TimegrapherApp {
         let rect = if shown {
             align.anchor_size(pos, galley.size())
         } else {
-            egui::Rect::from_min_max(
-                egui::pos2(pos.x, pos.y - WIND_SIZE / 2.0),
-                egui::pos2(room.right(), pos.y + WIND_SIZE / 2.0),
-            )
+            let row = align.anchor_size(pos, egui::vec2(0.0, WIND_SIZE));
+            egui::Rect::from_x_y_ranges(pos.x..=room.right(), row.y_range())
         };
         let settable = self.wind_settable();
         let sense = if settable {
@@ -270,7 +269,10 @@ impl TimegrapherApp {
             resp
         };
         let mut picked = None;
-        egui::Popup::menu(&resp).show(|ui| picked = self.wind_menu(ui));
+        egui::Popup::menu(&resp)
+            // Kept open on a click in it, so its hours can be typed.
+            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+            .show(|ui| picked = self.wind_menu(ui, false));
         if let Some(p) = picked {
             self.pick_wind(p);
         }
@@ -279,6 +281,11 @@ impl TimegrapherApp {
 
 /// The wind line's size, points: as a card's secondary lines.
 const WIND_SIZE: f32 = 11.0;
+
+/// The height of the wind line's row, at its full size.
+pub(super) fn row_h(fonts: &mut egui::epaint::FontsView<'_>) -> f32 {
+    fonts.row_height(&egui::FontId::proportional(WIND_SIZE))
+}
 
 /// The smallest the wind line shrinks to on the compact card, points:
 /// smaller isn't readable (Hugh).
@@ -290,13 +297,16 @@ const WIND_HINT: &str = "When the watch was last fully wound. Each take is saved
 
 /// The wind line's hover for a take on show or a test running.
 const WIND_SHOWN_HINT: &str = "When the watch was last fully wound. A take on show keeps its \
-     own: change it with Set Wind… on its row in Watches. A running test sets it.";
+     own: change it with Set Wind on its row in Watches. A running test sets it.";
 
 /// The Wind part of a Set menu: Full Wind Now, Full Wind [ ] h ago with
-/// its hours typed in `ago`, and Not Given; the one picked.
-fn wind_choices(ui: &mut egui::Ui, ago: &mut String) -> Option<WindPick> {
+/// its hours typed in `ago`, and Not Given, under a separator when it is
+/// `below` the positions; the one picked.
+fn wind_choices(ui: &mut egui::Ui, ago: &mut String, below: bool) -> Option<WindPick> {
     let mut picked = None;
-    ui.separator();
+    if below {
+        ui.separator();
+    }
     ui.label(egui::RichText::new("Wind").small().weak());
     if ui.selectable_label(false, "Full Wind Now").clicked() {
         picked = Some(WindPick::Now);

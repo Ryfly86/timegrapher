@@ -60,8 +60,8 @@ pub const CACHE_FILE: &str = ".cache.json";
 /// afresh. Apart from [`FORMAT`]: a new cache never stops an older build
 /// opening the library, which just makes its own cache again. 2: `at_end`
 /// gained `rate_corrected_s_per_day`. 3: a recording's USB lines correct
-/// that rate over its clock log.
-const CACHE_FORMAT: u32 = 3;
+/// that rate over its clock log. 4: a take gained `wind_h` (#1665).
+const CACHE_FORMAT: u32 = 4;
 pub const LOCK_FILE: &str = ".library.lock";
 /// The folder of takes not yet filed under a watch.
 pub const UNSORTED: &str = "Unsorted";

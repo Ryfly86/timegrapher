@@ -1290,15 +1290,14 @@ fn take_menu(
         .on_hover_text(move_hint)
         .on_disabled_hover_text(if cx.others.is_empty() { no_watch } else { why });
     });
-    if ui
+    let wind = crate::take_wind::set_wind_menu(ui, t, &dir, (changes, cx.held));
+    let delete = ui
         .add_enabled(changes, theme::destructive(ui, "Delete…"))
         .on_hover_text("Delete the take and its sound. It asks first.")
         .on_disabled_hover_text(why)
         .clicked()
-    {
-        act = Some(TakeAction::Delete(dir.clone()));
-    }
-    crate::take_wind::set_wind_menu(ui, t, &dir, (changes, cx.held)).or(act)
+        .then(|| TakeAction::Delete(dir.clone()));
+    wind.or(delete).or(act)
 }
 
 /// The watch's takes as a table, newest first: a click picks a row, a

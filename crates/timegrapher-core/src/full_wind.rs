@@ -47,7 +47,7 @@ pub fn take_wind_h(m: &Manifest) -> Option<f64> {
 
 /// Give the take `take` its hours since full wind, `wind_h` (none where
 /// it isn't given), in every entry of its session file, its own wording
-/// kept: Set Wind… on a take in Watches.
+/// kept: Set Wind on a take in Watches.
 pub fn set_take_wind_h(take: &Path, wind_h: Option<f64>) -> Result<(), String> {
     let file = take.join(take::MANIFEST);
     let text =

@@ -106,7 +106,7 @@ fn start_at_full_wind_sets_full_wind_now() {
 
 /// A take on show, a reopened 24 hour half among them, shows its own wind
 /// on the card, which can't be set there (Hugh); a take with none says
-/// so; Set Wind… gives it one, written into its session file.
+/// so; Set Wind gives it one, written into its session file.
 #[test]
 fn a_take_on_show_shows_its_own_wind() {
     let (mut app, base) = with_watch("shown", "Yacht-Master");
@@ -123,7 +123,7 @@ fn a_take_on_show_shows_its_own_wind() {
     app.session.analyse();
     assert_eq!(app.wind_words(), "Full wind 24.2 h before it began");
     assert!(!app.wind_settable(), "the Set menu's wind is closed");
-    // On show, Set Wind… is refused: its next save would undo it (Felix).
+    // On show, Set Wind is refused: its next save would undo it (Felix).
     let before = std::fs::read_to_string(take.join(MANIFEST)).unwrap();
     app.set_take_wind(&take, None);
     assert_eq!(
@@ -158,7 +158,8 @@ fn a_tests_heading_never_calls_an_unset_wind_full_wind() {
 }
 
 /// The card shows the wind whole, under the code on a compact card and
-/// beside the codes on a wide one, at 6 and at 10.
+/// on its own row under the name and codes on a wide one, at 6 and at
+/// 10, clear of the buttons (Hugh).
 #[test]
 fn the_card_shows_the_wind_whole() {
     let ctx = egui::Context::default();
@@ -172,7 +173,8 @@ fn the_card_shows_the_wind_whole() {
         (330.0, false, true),
     ] {
         app.ten_positions = ten;
-        let card = egui::Rect::from_min_size(egui::pos2(20.0, 20.0), Vec2::new(w, 110.0));
+        let card =
+            egui::Rect::from_min_size(egui::pos2(20.0, 20.0), Vec2::new(w, theme::READINGS_CARD_H));
         let mut out = None;
         for _ in 0..2 {
             out = Some(ctx.run(egui::RawInput::default(), |ctx| {
@@ -201,6 +203,32 @@ fn the_card_shows_the_wind_whole() {
             card.contains_rect(drawn),
             "{w} {compact} {ten}: {drawn:?} in {card:?}"
         );
+        // On its own row: under every other line of the card's text above
+        // the buttons that it would overlap, and over the buttons.
+        if !compact {
+            let rows = CardRows::of(card);
+            let buttons = if ten {
+                rows.controls.bottom() - 2.0 * POSITION_ROW_TEN - 3.0
+            } else {
+                rows.controls.top()
+            };
+            assert!(
+                drawn.bottom() <= buttons + 0.5,
+                "{w} {ten}: {drawn:?} over {buttons}"
+            );
+            for c in &out.shapes {
+                if let egui::Shape::Text(o) = &c.shape {
+                    let r = o.galley.rect.translate(o.pos.to_vec2());
+                    let over = r.x_range().intersects(drawn.x_range());
+                    if o.galley.text() != want && over && r.top() < buttons - 0.5 {
+                        assert!(
+                            r.bottom() <= drawn.top() + 0.5,
+                            "{w} {ten}: {r:?} {drawn:?}"
+                        );
+                    }
+                }
+            }
+        }
     }
     // Beside the codes where it doesn't fit whole, and on a compact card
     // too narrow for it at 9 pt, it is in the hover alone: never cut,
