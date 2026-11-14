@@ -98,8 +98,9 @@ which.
   the other way above it (M13). Where any position's amplitude may be
   near it, from about 203° to 239° allowing for its ± and for a lift
   angle a few percent out, the box reads **Not stated** and a grey chip
-  under the line over the picture says why. The wave is still shown, but poise moves the rate least there, and the
-  wave may come mostly from other causes.
+  under the line over the picture says why. The wave is still shown,
+  but poise moves the rate least there, and the wave may come mostly
+  from other causes.
 - **The wave is within its noise.** The fit can't tell its direction
   from the ±.
 - **A position has no amplitude,** or **the readings have no ±.**
