@@ -223,6 +223,7 @@ fn the_card_shows_the_wind_whole() {
             };
             if ten {
                 title_clear(&out, app.position_card_title, w);
+                clock_centred(&out, app.shown_position().name(), drawn, buttons);
             }
             assert!(
                 drawn.bottom() <= buttons + 0.5,
@@ -262,6 +263,36 @@ fn the_card_shows_the_wind_whole() {
             painted_text(&out)
         );
     }
+}
+
+/// The 10 card's clock picture is centred on its name and wind lines,
+/// not high beside them (Hugh, #1745).
+fn clock_centred(out: &egui::FullOutput, name: &str, wind: egui::Rect, buttons: f32) {
+    let name = out
+        .shapes
+        .iter()
+        .find_map(|c| match &c.shape {
+            egui::Shape::Text(t) if t.galley.text() == name => {
+                Some(t.galley.rect.translate(t.pos.to_vec2()))
+            }
+            _ => None,
+        })
+        .expect("the position's name");
+    // The picture: what is drawn left of the name, beside its lines.
+    let pic = out
+        .shapes
+        .iter()
+        .filter(|c| !matches!(c.shape, egui::Shape::Text(_)))
+        .map(|c| c.shape.visual_bounding_rect())
+        .filter(|r| r.is_positive() && r.right() < name.left() && r.top() > name.top() - 30.0)
+        .filter(|r| r.bottom() < buttons)
+        .fold(egui::Rect::NOTHING, |a, r| a.union(r));
+    assert!(pic.is_positive(), "no picture left of {name:?}");
+    let lines = (name.top() + wind.bottom()) / 2.0;
+    assert!(
+        (pic.center().y - lines).abs() <= 1.5,
+        "picture {pic:?} not centred on {name:?}..{wind:?}"
+    );
 }
 
 /// The 10 card's name, codes and wind start 3 pt under the title row as

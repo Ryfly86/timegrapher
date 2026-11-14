@@ -111,7 +111,6 @@ impl TimegrapherApp {
         };
         let pal = theme::pal(ui);
         let here = self.shown_position();
-        let editable = self.position_editable();
         let rows = CardRows::of(ui.max_rect().expand(f32::from(theme::CARD_PADDING)));
         let settle = format!(
             "Each change of position settles for {} s (Settle, on the Positions Test pane), \
@@ -150,20 +149,9 @@ impl TimegrapherApp {
                 Vec2::splat(side),
             )
         };
-        crate::icons::watch(
-            ui.painter(),
-            pic,
-            here.lying(),
-            pal.positions,
-            pal.text,
-            pal.card,
-        );
-        ui.interact(pic, ui.id().with("position picture"), egui::Sense::hover())
-            .on_hover_text(if editable {
-                format!("{}. {POSITION_HINT} {settle}", here.label())
-            } else {
-                format!("{}: {} {settle}", here.label(), self.position_lock_words())
-            });
+        if !ten || compact {
+            self.position_picture(ui, pic, &settle);
+        }
         let painter = ui.painter().clone();
         if compact {
             return self.position_card_compact(ui, &rows, pic, &codes, &settle);
@@ -186,6 +174,27 @@ impl TimegrapherApp {
                 self.change_position(p);
             }
         }
+    }
+
+    /// The watch as it lies, in `pic`, saying on hover where it is and
+    /// how a change settles.
+    fn position_picture(&self, ui: &mut egui::Ui, pic: egui::Rect, settle: &str) {
+        let pal = theme::pal(ui);
+        let here = self.shown_position();
+        crate::icons::watch(
+            ui.painter(),
+            pic,
+            here.lying(),
+            pal.positions,
+            pal.text,
+            pal.card,
+        );
+        ui.interact(pic, ui.id().with("position picture"), egui::Sense::hover())
+            .on_hover_text(if self.position_editable() {
+                format!("{}. {POSITION_HINT} {settle}", here.label())
+            } else {
+                format!("{}: {} {settle}", here.label(), self.position_lock_words())
+            });
     }
 
     /// The Current Position card's name at 6, beside the picture `pic`:
@@ -268,8 +277,19 @@ impl TimegrapherApp {
         let name_font = theme::semibold(POSITION_NAME_TEN_PT);
         let high = ui.fonts_mut(|f| f.row_height(&name_font) + wind::row_h(f));
         let clip = ui.painter().with_clip_rect(line);
+        let name_top = (line.center().y - high / 2.0).max(top);
+        // The picture centred on the name and wind (Hugh), kept clear of
+        // the title and the buttons.
+        let mid = (name_top + high / 2.0)
+            .min(clear - pic.height() / 2.0)
+            .max(top + pic.height() / 2.0);
+        self.position_picture(
+            ui,
+            pic.translate(Vec2::new(0.0, mid - pic.center().y)),
+            settle,
+        );
         let name = clip.text(
-            egui::pos2(line.left(), (line.center().y - high / 2.0).max(top)),
+            egui::pos2(line.left(), name_top),
             egui::Align2::LEFT_TOP,
             here.name(),
             name_font,
