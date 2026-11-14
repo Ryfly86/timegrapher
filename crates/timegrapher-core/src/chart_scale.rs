@@ -160,6 +160,20 @@ pub const NAME_GAP: f64 = 12.0;
 /// names don't hop between frames.
 pub const NAME_HYSTERESIS: f64 = 2.0;
 
+/// The order names in a lane are placed in: strong first, then faint,
+/// each left to right. `names` are each one's centre, width and whether
+/// it is faint.
+pub fn lane_order(names: &[(f64, f64, bool)]) -> Vec<usize> {
+    let mut order: Vec<usize> = (0..names.len()).collect();
+    order.sort_by(|&a, &b| {
+        names[a]
+            .2
+            .cmp(&names[b].2)
+            .then(names[a].0.total_cmp(&names[b].0))
+    });
+    order
+}
+
 /// Where each name in a lane of two rows above a plot goes, the named-lines
 /// rule every surface draws by (the app's `marks::place`, the CLI's report,
 /// held to the MCP view's copy by the same cases): `names` are each one's
@@ -171,13 +185,7 @@ pub const NAME_HYSTERESIS: f64 = 2.0;
 /// too, it slides right of the name there (drawn with an angled leader).
 /// Each name's left edge and row, in the order given.
 pub fn lane_place(names: &[(f64, f64, bool)], left: f64, right: f64, was: &[u8]) -> Vec<(f64, u8)> {
-    let mut order: Vec<usize> = (0..names.len()).collect();
-    order.sort_by(|&a, &b| {
-        names[a]
-            .2
-            .cmp(&names[b].2)
-            .then(names[a].0.total_cmp(&names[b].0))
-    });
+    let order = lane_order(names);
     let mut rows: [Vec<(f64, f64)>; 2] = Default::default();
     let mut out = vec![(0.0, 0); names.len()];
     for i in order {
@@ -222,13 +230,7 @@ pub fn lane_place(names: &[(f64, f64, bool)], left: f64, right: f64, was: &[u8])
 /// where there is room, else to the left. No leader then passes another
 /// name. Each name's left edge, in the order given.
 pub fn lane_place_row(names: &[(f64, f64, bool)], left: f64, right: f64) -> Vec<f64> {
-    let mut order: Vec<usize> = (0..names.len()).collect();
-    order.sort_by(|&a, &b| {
-        names[a]
-            .2
-            .cmp(&names[b].2)
-            .then(names[a].0.total_cmp(&names[b].0))
-    });
+    let order = lane_order(names);
     let mut taken: Vec<(f64, f64)> = Vec::new();
     let mut out = vec![0.0; names.len()];
     for i in order {

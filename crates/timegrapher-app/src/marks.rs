@@ -42,16 +42,18 @@ pub enum Rank {
     Faint,
 }
 
-/// The order names are placed in: strong first, then faint, each left
-/// to right. `names` are each one's line x, width and rank.
+/// The order names are placed in: core's
+/// ([`timegrapher_core::chart_scale::lane_order`]).
 fn order(names: &[(f32, f32, Rank)]) -> Vec<usize> {
-    let mut o: Vec<usize> = (0..names.len()).collect();
-    o.sort_by(|&a, &b| {
-        (names[a].2 == Rank::Faint)
-            .cmp(&(names[b].2 == Rank::Faint))
-            .then(names[a].0.total_cmp(&names[b].0))
-    });
-    o
+    timegrapher_core::chart_scale::lane_order(&core_names(names))
+}
+
+/// Names as core's lane rules take them: centre, width, whether faint.
+fn core_names(names: &[(f32, f32, Rank)]) -> Vec<(f64, f64, bool)> {
+    names
+        .iter()
+        .map(|&(x, w, r)| (f64::from(x), f64::from(w), r == Rank::Faint))
+        .collect()
 }
 
 /// Where each name in a lane goes: `names` are each one's centre (its
@@ -63,10 +65,7 @@ fn order(names: &[(f32, f32, Rank)]) -> Vec<usize> {
 /// each name's left edge and row, in the order given.
 pub fn place(names: &[(f32, f32, Rank)], left: f32, right: f32, was: &[u8]) -> Vec<(f32, u8)> {
     // Core's rule, which the CLI's report draws by too.
-    let names: Vec<(f64, f64, bool)> = names
-        .iter()
-        .map(|&(x, w, r)| (f64::from(x), f64::from(w), r == Rank::Faint))
-        .collect();
+    let names = core_names(names);
     timegrapher_core::chart_scale::lane_place(&names, f64::from(left), f64::from(right), was)
         .into_iter()
         .map(|(a, row)| (a as f32, row))
@@ -81,10 +80,7 @@ pub fn place(names: &[(f32, f32, Rank)], left: f32, right: f32, was: &[u8]) -> V
 /// edge, in the order given.
 pub fn place_row(names: &[(f32, f32, Rank)], left: f32, right: f32) -> Vec<f32> {
     // Core's rule, which the CLI's report draws by too.
-    let names: Vec<(f64, f64, bool)> = names
-        .iter()
-        .map(|&(x, w, r)| (f64::from(x), f64::from(w), r == Rank::Faint))
-        .collect();
+    let names = core_names(names);
     timegrapher_core::chart_scale::lane_place_row(&names, f64::from(left), f64::from(right))
         .into_iter()
         .map(|a| a as f32)
