@@ -116,8 +116,8 @@ fn position_line_svg(line: &PositionLine, refs: &[(Position, f64)], id: &str) ->
 
 /// The averages' names in a lane of one row above the plot from `top`,
 /// placed by core's named-lines rule ([`chart_scale::lane_place_row`], the
-/// app's), each joined to its line by a leader, angled where its name had
-/// to slide, so lines close together are told apart (Walter on #1742).
+/// app's), each joined to its line by one straight leader, angled where
+/// its name had to slide, so lines close together are told apart (Walter on #1742).
 fn average_names(s: &mut String, line: &PositionLine, x: &dyn Fn(f64) -> f64, top: f64) {
     let names: Vec<(f64, f64, bool)> = line
         .averages
@@ -137,11 +137,8 @@ fn average_names(s: &mut String, line: &PositionLine, x: &dyn Fn(f64) -> f64, to
     for (a, (&(lx, w, _), &(left, row))) in line.averages.iter().zip(names.iter().zip(&placed)) {
         let off = LANE_GAP + f64::from(row) * NAME_ROW;
         let centre = left + w / 2.0;
-        let mut pts = vec![(centre, top - off - 1.0)];
-        if (centre - lx).abs() > 1.0 {
-            pts.push((lx, top - LANE_GAP / 2.0));
-        }
-        pts.push((lx, top));
+        // One straight line, angled where the name slid (Hugh on #1747).
+        let pts = [(centre, top - off - 1.0), (lx, top)];
         let pts: Vec<String> = pts
             .iter()
             .map(|(px, py)| format!("{px:.1},{py:.1}"))
@@ -178,7 +175,8 @@ fn value_axis(
     // A rate's ticks carry their sign, as its figures do (Hugh on #1742).
     let signed = line.series == SeriesKind::Rate;
     let tick = |t: f64| {
-        let n = chart_scale::axis_number(t, step);
+        // A negative tick takes a true minus, as the figures do (Hugh).
+        let n = timegrapher_core::figure_text::true_minus(&chart_scale::axis_number(t, step));
         if signed && t > 0.0 && n.chars().any(|c| c.is_ascii_digit() && c != '0') {
             format!("+{n}")
         } else {
