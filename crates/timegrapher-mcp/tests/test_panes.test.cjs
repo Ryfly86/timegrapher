@@ -21,15 +21,15 @@ function constant(name) {
 }
 const context = vm.createContext({ NO_BEAT_TITLE: "", POSITIONS: null, GROUP_NAMES: { horizontal: "Horizontal", vertical: "Vertical" },
   MINUS: "−", tile: () => "", signed: String, num: String, abs: Math.abs, limitsCard: () => "",
-  CHAR_W: 6.6, CALL_OUT_W: 1.2, DASH: { dashed: "4 3" } });
-vm.runInContext(["PANE_MIN_CHART", "paneShown", "PANE_KINDS", "LANE_H", "MARKS"].map(constant).join("\n"), context);
+  CHAR_W: 6.6, CALL_OUT_W: 1.2, DASH: { dashed: "4 3" }, ICONS: null, paneWs: {}, chartWidth: () => 860 });
+vm.runInContext(["PANE_MIN_CHART", "PANE_CHAR_W", "paneShown", "PANE_KINDS", "LANE_H", "MARKS"].map(constant).join("\n"), context);
 vm.runInContext(["esc", "fixedDigits", "axisLabel", "gridDown", "markOrder", "markPlace", "markPlaceRow", "markWidth", "markText", "laneAbove",
-  "sessionView", "testPane", "paneToggles", "positionsPane", "positionLineChart", "valueTick", "tickLabelsShown"].map(definition).join("\n"), context);
+  "sessionView", "testPane", "icon", "columnHead", "paneChartWidth", "plHead", "paneToggles", "positionsPane", "positionLineChart", "valueTick", "tickLabelsShown"].map(definition).join("\n"), context);
 
-const lane = (position, group, value, text, full) => ({ position, group, name: `${position} name`, value, text,
+const lane = (position, group, value, text, full) => ({ position, group, name: `${position} name`, value, text, figure: text.split(" ")[0].replace("°", ""),
   full_wind: full == null ? null : full, full_wind_text: full == null ? null : `+${full}.0 s/d`, hover: `${position} name ${text}` });
 const line = (series, title, unit, lanes, key) => ({ series, title, unit, lanes, key: key || null,
-  averages: [{ of: "all", name: "Average", value: 2, text: "+2.0 s/d", hover: "Average +2.0 s/d" }],
+  averages: [{ of: "all", name: "Average", value: 2, text: "+2.0 s/d", figure: "+2.0", hover: "Average +2.0 s/d" }],
   axis: [0, 4, 1] });
 const state = (wind_h, name, key) => ({ wind_h, name,
   rate: line("rate", "Rate", "s/d", [lane("DU", "horizontal", 1, "+1.0 s/d", key && 3), lane("CU", "vertical", 3, "+3.0 s/d")], key),
@@ -46,11 +46,13 @@ test("each state of wind is a pane of its own, headed in core's words", () => {
   assert.deepEqual(heads, ["Full wind", "24 h after winding", "Wind not given"]);
 });
 
-test("the table gives core's figures for each lane, then the averages", () => {
+test("the table gives core's bare figures for each lane, the units under the titles, then the averages", () => {
   const markup = context.positionsPane(doc.report.position_lines[0], [], "s0", false);
   const row = markup.match(/<tr data-pos="CU">(.*?)<\/tr>/)[1];
-  assert.deepEqual([...row.matchAll(/<td>([^<]*)<\/td>/g)].map((m) => m[1]), ["CU name", "+3.0 s/d", "260°", "0.30 ms"]);
-  assert.ok(/<tr class="avg"><td>Average<\/td>/.test(markup), markup);
+  assert.deepEqual([...row.matchAll(/<td>([^<]*)<\/td>/g)].map((m) => m[1]), ["CU name", "+3.0", "260", "0.30"]);
+  const heads = [...markup.matchAll(/<th>([^<]*)(?:<span class="unit">([^<]*)<\/span>)?<\/th>/g)].map((m) => [m[1], m[2] || ""]);
+  assert.deepEqual(heads, [["Position", ""], ["Rate", "s/d"], ["Amplitude", "°"], ["Beat Error", "ms"]]);
+  assert.ok(/<tr class="avg"><td>Average<\/td><td>\+2\.0<\/td>/.test(markup), markup);
 });
 
 test("a chart per measure, each shown only while its toggle is on", () => {
@@ -95,8 +97,27 @@ test("narrow steps never draw two tick labels touching; the last keeps the unit"
     .map((m) => ({ x: +m[1], end: m[2] === "end", text: m[3] }));
   assert.ok(xs[xs.length - 1].text.endsWith(" s/d"), "the last carries the unit");
   for (let i = 1; i < xs.length; i++) {
-    const right = (t) => (t.end ? t.x : t.x + t.text.length * context.CHAR_W / 2);
-    const left = (t) => (t.end ? t.x - t.text.length * context.CHAR_W : t.x - t.text.length * context.CHAR_W / 2);
+    const cw = context.PANE_CHAR_W;
+    const right = (t) => (t.end ? t.x : t.x + t.text.length * cw / 2);
+    const left = (t) => (t.end ? t.x - t.text.length * cw : t.x - t.text.length * cw / 2);
     assert.ok(right(xs[i - 1]) < left(xs[i]), `${xs[i - 1].text} touches ${xs[i].text}`);
   }
+});
+
+test("the toggles are the series' icons, titled, tinted in their colour", () => {
+  const markup = context.positionsPane(doc.report.position_lines[0], [], "s0", false);
+  const t = [...markup.matchAll(/<button class="icon-toggle" data-series="([a-z_]+)" aria-pressed="(true|false)" title="([^"]*)" aria-label="[^"]*" style="--tint:var\(([^)]*)\)">/g)].map((m) => [m[1], m[3], m[4]]);
+  assert.deepEqual(t, [["rate", "Rate", "--rate"], ["amplitude", "Amplitude", "--amplitude"], ["beat_error", "Beat Error", "--beat-error"]]);
+});
+
+test("a lane hovers its full name, and the value in the series' colour", () => {
+  const chart = context.positionLineChart(doc.report.position_lines[0].rate, "s0-rate");
+  assert.ok(chart.includes('data-label="CU name"'), chart);
+  assert.ok(/<span class="pl-val" style="color:var\(--rate\)">/.test(chart), chart);
+});
+
+test("a pane chart is drawn at its pixel size, so its text stays 12px", () => {
+  const chart = context.positionLineChart(doc.report.position_lines[0].rate, "s0-rate");
+  const m = chart.match(/<svg viewBox="0 0 (\d+) (\d+)" width="(\d+)" height="(\d+)"/);
+  assert.ok(m && m[1] === m[3] && m[2] === m[4], chart);
 });

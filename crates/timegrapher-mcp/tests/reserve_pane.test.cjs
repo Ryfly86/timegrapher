@@ -17,15 +17,15 @@ function constant(name) {
   if (!match) throw new Error(`Missing ${name}`);
   return match[0].replace(/^const /, "var ");
 }
-const context = vm.createContext({ MINUS: "−" });
-vm.runInContext(["PANE_MIN_CHART", "paneShown", "PANE_KINDS"].map(constant).join("\n"), context);
+const context = vm.createContext({ MINUS: "−", CHAR_W: 6.6, ICONS: null, paneWs: {}, chartWidth: () => 860 });
+vm.runInContext(["PANE_MIN_CHART", "PANE_CHAR_W", "paneShown", "PANE_KINDS"].map(constant).join("\n"), context);
 vm.runInContext(["esc", "fixedDigits", "roundStep", "gridFor", "axisLabel", "gridDown", "gridAcross", "valueTick",
-  "testPane", "paneToggles", "reservePane", "stepChart"].map(definition).join("\n"), context);
+  "testPane", "icon", "columnHead", "paneChartWidth", "plHead", "paneToggles", "reservePane", "stepChart", "tickLabelsShown"].map(definition).join("\n"), context);
 
-const step = (value, text, thin) => ({ value, text, thin: !!thin });
+const step = (value, text, thin) => ({ value, text, figure: text && text.split(" ")[0].replace("°", ""), thin: !!thin });
 const reserve = {
-  title: "Power Reserve", hours_title: "Hours", read_title: "Read %", position: "DU",
-  hours: [0, 1, 2, 3].map((hour) => ({ hour, span_h: hour === 3 ? 0.5 : 1, read: hour === 1 ? null : "90%" })),
+  title: "Power Reserve", hours_title: "Hours", read_title: "Read", read_unit: "%", position: "DU",
+  hours: [0, 1, 2, 3].map((hour) => ({ hour, span_h: hour === 3 ? 0.5 : 1, read: hour === 1 ? null : "90" })),
   series: [
     { series: "rate", title: "Rate", unit: "s/d", axis: [-2, 4, 2],
       steps: [step(-1, "−1.0 s/d"), step(null, null), step(2, "+2.0 s/d", true), step(3, "+3.0 s/d")] },
@@ -36,15 +36,15 @@ const reserve = {
   ],
 };
 
-test("the table gives each hour core's figures and its Read %", () => {
+test("the table gives each hour core's bare figures and its Read, the units under the titles", () => {
   const markup = context.reservePane(reserve, "r");
   assert.ok(markup.includes("<h2>Power Reserve</h2>"), markup);
-  const head = [...markup.match(/<thead>(.*?)<\/thead>/)[1].matchAll(/<th>([^<]*)<\/th>/g)].map((m) => m[1]);
-  assert.deepEqual(head, ["Hours", "Rate", "Amplitude", "Read %"]);
+  const head = [...markup.match(/<thead>(.*?)<\/thead>/)[1].matchAll(/<th>([^<]*)(?:<span class="unit">([^<]*)<\/span>)?<\/th>/g)].map((m) => [m[1], m[2] || ""]);
+  assert.deepEqual(head, [["Hours", ""], ["Rate", "s/d"], ["Amplitude", "°"], ["Read", "%"]]);
   const row = (i) => [...markup.match(new RegExp(`<tr data-pos="h${i}">(.*?)</tr>`))[1].matchAll(/<td[^>]*>([^<]*)<\/td>/g)].map((m) => m[1]);
-  assert.deepEqual(row(0), ["0 h", "−1.0 s/d", "290°", "90%"]);
-  assert.deepEqual(row(1), ["1 h", "–", "285°", "–"]);
-  assert.ok(/<td class="thin">\+2\.0 s\/d<\/td>/.test(markup), "a thin figure is grey");
+  assert.deepEqual(row(0), ["0", "−1.0", "290", "90"]);
+  assert.deepEqual(row(1), ["1", "–", "285", "–"]);
+  assert.ok(/<td class="thin">\+2\.0<\/td>/.test(markup), "a thin figure is grey");
 });
 
 test("each measure's hours are one line of steps, broken where an hour has none", () => {
@@ -71,4 +71,24 @@ test("the rate's ticks carry their sign, the unit after the last", () => {
   const chart = context.stepChart(reserve.series[0], reserve.hours, "r-rate");
   const ticks = [...chart.matchAll(/text-anchor="end">([^<]*)<\/text>/g)].map((m) => m[1]);
   assert.deepEqual(ticks.slice(0, 4), ["−2", "0", "+2", "+4 s/d"]);
+});
+
+test("no two hour labels touch, at the narrowest chart", () => {
+  context.chartWidth = () => 380 + 320;
+  try {
+    const hours = Array.from({ length: 5 }, (_, hour) => ({ hour, span_h: hour === 4 ? 0.55 : 1, read: "90" }));
+    const chart = context.stepChart({ ...reserve.series[1], steps: hours.map(() => step(280, "280°")) }, hours, "r-amplitude");
+    // The hours' labels sit under the plot (T 8 + 140 + 15).
+    const xs = [...chart.matchAll(/<text x="([\d.]+)" y="163" text-anchor="(middle|end)">([^<]*)<\/text>/g)]
+      .map((m) => ({ x: +m[1], end: m[2] === "end", text: m[3] }));
+    assert.ok(xs.length >= 2 && xs[xs.length - 1].text.endsWith(" h"), "the last carries the unit");
+    const cw = context.PANE_CHAR_W;
+    for (let i = 1; i < xs.length; i++) {
+      const right = (t) => (t.end ? t.x : t.x + t.text.length * cw / 2);
+      const left = (t) => (t.end ? t.x - t.text.length * cw : t.x - t.text.length * cw / 2);
+      assert.ok(right(xs[i - 1]) < left(xs[i]), `${xs[i - 1].text} touches ${xs[i].text}`);
+    }
+  } finally {
+    context.chartWidth = () => 860;
+  }
 });

@@ -37,6 +37,7 @@ pub mod filter;
 pub mod flac;
 pub mod gappy;
 pub mod histogram;
+pub mod icons;
 pub mod input_domain;
 pub mod joined;
 pub mod keeper;

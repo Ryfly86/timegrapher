@@ -24,9 +24,9 @@ const context = vm.createContext({ MINUS,
 vm.runInContext(["chosenBeatError", "esc", "fixedDigits", "num", "recordingView", "recordView"].map(definition).join("\n"), context);
 // The session view's Positions pane, with what it draws around the table stubbed.
 Object.assign(context, { POSITIONS: { DU: ["DU", "Dial Up"] }, tile: () => "", signed: String, abs: Math.abs, limitsCard: () => "",
-  positionLineChart: () => "", PANE_MIN_CHART: 320, paneShown: { rate: true, amplitude: true, beat_error: true },
+  positionLineChart: () => "", PANE_MIN_CHART: 320, ICONS: null, paneShown: { rate: true, amplitude: true, beat_error: true },
   PANE_KINDS: [["rate", "--rate"], ["amplitude", "--amplitude"], ["beat_error", "--beat-error"]] });
-vm.runInContext(["sessionView", "positionsPane", "testPane", "paneToggles"].map(definition).join("\n"), context);
+vm.runInContext(["sessionView", "positionsPane", "testPane", "icon", "columnHead", "paneToggles"].map(definition).join("\n"), context);
 
 const said = "No regular beat found (too few beats to time). There are no rate, amplitude or beat error readings.";
 

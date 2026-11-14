@@ -17,19 +17,19 @@ function constant(name) {
   if (!match) throw new Error(`Missing ${name}`);
   return match[0].replace(/^(?:const|let) /, "var ");
 }
-const context = vm.createContext({ MINUS: "−" });
+const context = vm.createContext({ MINUS: "−", CHAR_W: 6.6, ICONS: null, paneWs: {}, chartWidth: () => 1240 });
 vm.runInContext(["PANE_MIN_CHART", "poiseShown"].map(constant).join("\n"), context);
 vm.runInContext(["esc", "fixedDigits", "axisLabel", "gridAcross", "valueTick", "testPane",
-  "poisePane", "poiseDots", "poisePlot", "poiseDial", "poiseKey"].map(definition).join("\n"), context);
+  "icon", "columnHead", "paneChartWidth", "plHead", "poisePane", "poiseDots", "poisePlot", "poiseDial", "poiseKey"].map(definition).join("\n"), context);
 
 const hours = [[0, "12H"], [45, "1H30"], [90, "3H"], [135, "4H30"], [180, "6H"], [225, "7H30"], [270, "9H"], [315, "10H30"]];
-const dot = (angle_deg, code, rate) => ({ angle_deg, code, rate_s_per_day: rate, rate_se: 0.2, text: `${rate} s/d` });
+const dot = (angle_deg, code, rate) => ({ angle_deg, code, rate_s_per_day: rate, rate_se: 0.2, text: `${rate} s/d`, figure: `${rate}` });
 const picture = {
   points: [dot(0, "12H", 2), dot(90, "3H", 3), dot(180, "6H", -2), dot(270, "9H", -1), dot(45, "1H30", 3)],
   wave: [[0, 1], [180, -1], [360, 1]],
   fastest: { at: 60, rate_s_per_day: 3, name: "Fastest 2H" },
   slowest_deg: 240,
-  mean: { at: 0.5, rate_s_per_day: 0.5, name: "Mean +0.5" },
+  mean: { at: 0.5, rate_s_per_day: 0.5, name: "Mean +0.5", figure: "+0.5" }, unit: "s/d", mean_title: "Mean",
   axis: [-4, 4, 2], key: ["Upright positions (5)", "Fitted wave"],
   heavy: ["Heavy spot", "8H at the top, 240 ± 20°"], hours,
   title: "Dynamic Poise", hour_axis: "Hour at the top", dial_key: "Further out = faster, s/d",
@@ -39,9 +39,11 @@ const p = { wind_h: 0, fit: { text: "Core words on the fit." }, picture };
 test("the table gives each upright position's rate, then the mean", () => {
   const markup = context.poisePane(p, "p0", null);
   assert.ok(markup.includes("<h2>Dynamic Poise</h2>"), markup);
-  assert.ok(/<tr data-pos="3H"><td>3H<\/td><td>3 s\/d<\/td><\/tr>/.test(markup), markup);
-  assert.ok(markup.includes(">Mean +0.5<"));
-  assert.ok(markup.includes("Core words on the fit.") && markup.includes("8H at the top, 240 ± 20°"));
+  assert.ok(markup.includes('<th>Rate<span class="unit">s/d</span></th>'), markup);
+  assert.ok(/<tr data-pos="3H"><td>3H<\/td><td>3<\/td><\/tr>/.test(markup), markup);
+  assert.ok(markup.includes('<tr class="avg"><td>Mean</td><td>+0.5</td></tr>'), markup);
+  assert.ok(markup.includes("8H at the top, 240 ± 20°"), "the heavy spot stays in view");
+  assert.ok(/<details class="info">[\s\S]*Core words on the fit\.[\s\S]*<\/details>/.test(markup), "core's words behind the i");
 });
 
 test("several states of wind name the pane for its state", () => {
@@ -56,7 +58,7 @@ test("Plot draws 12H at both ends, the wave, the mean and the fastest hour", () 
   assert.equal((svg.match(/data-pos="12H"/g) || []).length, 1, "one lane");
   assert.equal((svg.match(/<g class="lane" data-pos="12H"[\s\S]*?<\/g>/)[0].match(/r="4.2"/g) || []).length, 2, "its point at each end");
   assert.ok(svg.includes(">Fastest 2H<") && svg.includes(">Mean +0.5<") && svg.includes(">Hour at the top<"));
-  assert.ok(svg.includes(">Upright positions (5)<") && svg.includes(">Fitted wave<"));
+  assert.ok(markup.includes(">Upright positions (5)<") && markup.includes(">Fitted wave<"), "the key over both charts");
 });
 
 test("Dial draws the hours round the face, the key, and a dot per position", () => {
@@ -79,6 +81,18 @@ test("Plot and Dial both on draw both", () => {
   try {
     const markup = context.poisePane(p, "p0", null);
     assert.ok(markup.includes(">Hour at the top<") && markup.includes(">Further out = faster, s/d<"));
+  } finally {
+    context.poiseShown.dial = false;
+  }
+});
+
+test("Plot and Dial sit side by side where both fit", () => {
+  context.poiseShown.dial = true;
+  try {
+    const markup = context.poisePane(p, "p0", null);
+    assert.equal((markup.match(/<div class="poise-chart">/g) || []).length, 2);
+    const widths = [...markup.matchAll(/<svg viewBox="0 0 (\d+) \d+" width="(\d+)"/g)].map((m) => +m[2]);
+    assert.ok(widths.every((w) => w <= (1240 - 380 - 12) / 2), widths.join());
   } finally {
     context.poiseShown.dial = false;
   }

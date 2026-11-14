@@ -31,9 +31,15 @@ pub fn fastest_name(deg: f64) -> String {
     format!("Fastest {}", poise::hour_code(deg))
 }
 
-/// The mean's name, as the table's Mean row writes the rate: "Mean +1.2".
+/// The table's Mean row's name, its rate in the cell beside it.
+pub const MEAN: &str = "Mean";
+
+/// The mean's name on the picture, with its rate: "Mean +1.2".
 pub fn mean_name(mean: f64) -> String {
-    format!("Mean {}", true_minus(&signed_text(mean, base_digits::RATE)))
+    format!(
+        "{MEAN} {}",
+        true_minus(&signed_text(mean, base_digits::RATE))
+    )
 }
 
 /// Each measured upright position of `readings`: (hour at the top in
@@ -82,8 +88,10 @@ pub struct Dot {
     pub code: &'static str,
     pub rate_s_per_day: f64,
     pub rate_se: Option<f64>,
-    /// Its rate as the table writes it, with its ± where it has one.
+    /// Its rate with its ± and unit, for a hover: "+2.0 ± 0.3 s/d".
     pub text: String,
+    /// The same bare, for a table cell under the Rate's unit: "+2.0 ± 0.3".
+    pub figure: String,
 }
 
 /// A named line: the mean, or the fastest hour.
@@ -94,6 +102,8 @@ pub struct Named {
     /// The fastest hour's rate, where the line ends; the mean's rate.
     pub rate_s_per_day: f64,
     pub name: String,
+    /// The rate bare, for a table cell under the Rate's unit: "−1.9".
+    pub figure: String,
 }
 
 /// What a surface draws for one state of wind's upright readings.
@@ -109,8 +119,9 @@ pub struct Picture {
     pub slowest_deg: Option<f64>,
     /// The table's Mean over the upright positions, drawn with the wave.
     pub mean: Option<Named>,
-    /// The rate scale: [lo, hi, step], s/d.
+    /// The rate scale: [lo, hi, step], in `unit`.
     pub axis: [f64; 3],
+    pub unit: &'static str,
     /// The key's rows: the points, then the wave once fitted.
     pub key: Vec<String>,
     /// The heavy spot's row for the facts box once there is a fit.
@@ -118,11 +129,12 @@ pub struct Picture {
     /// The upright stops' hours round the face, [deg, code], 45° apart
     /// from 12H.
     pub hours: Vec<(f64, &'static str)>,
-    /// The pane's title ([`TITLE`]), the across axis's name and the
-    /// dial's key.
+    /// The pane's title ([`TITLE`]), the across axis's name, the dial's
+    /// key and the table's Mean row's name ([`MEAN`]).
     pub title: &'static str,
     pub hour_axis: &'static str,
     pub dial_key: &'static str,
+    pub mean_title: &'static str,
 }
 
 /// The picture of `readings`' upright positions and their `fit`.
@@ -137,6 +149,7 @@ pub fn picture(readings: &[Reading], fit: Option<&PoiseFit>) -> Picture {
             rate_s_per_day: rate,
             rate_se: se,
             text: dot_text(rate, se),
+            figure: dot_figure(rate, se),
         })
         .collect();
     let mean = fit.and_then(|_| {
@@ -145,6 +158,7 @@ pub fn picture(readings: &[Reading], fit: Option<&PoiseFit>) -> Picture {
             at: x,
             rate_s_per_day: x,
             name: mean_name(x),
+            figure: true_minus(&signed_text(x, base_digits::RATE)),
         })
     });
     let mut key = Vec::new();
@@ -168,17 +182,20 @@ pub fn picture(readings: &[Reading], fit: Option<&PoiseFit>) -> Picture {
                 at: deg,
                 rate_s_per_day: rate,
                 name: fastest_name(deg),
+                figure: true_minus(&signed_text(rate, base_digits::RATE)),
             }
         }),
         slowest_deg: fit.map(|f| f.slowest().0),
         mean,
         axis: [lo, hi, step],
+        unit: crate::position_line::unit_of(crate::steadiness::SeriesKind::Rate),
         key,
         heavy: fit.map(PoiseFit::heavy_spot_row),
         hours: hours(),
         title: TITLE,
         hour_axis: HOUR_AXIS,
         dial_key: DIAL_KEY,
+        mean_title: MEAN,
     }
 }
 
@@ -193,15 +210,20 @@ pub fn hours() -> Vec<(f64, &'static str)> {
         .collect()
 }
 
-/// A point's rate in the table's words, with its ± where it has one.
+/// A point's rate with its ± where it has one, and its unit.
 fn dot_text(rate: f64, se: Option<f64>) -> String {
+    format!("{} s/d", dot_figure(rate, se))
+}
+
+/// A point's rate bare, with its ± where it has one: "+2.0 ± 0.3".
+fn dot_figure(rate: f64, se: Option<f64>) -> String {
     let r = true_minus(&signed_text(rate, base_digits::RATE));
     match se {
         Some(e) => format!(
-            "{r} ± {} s/d",
+            "{r} ± {}",
             crate::figure_text::fixed_text(e, base_digits::RATE)
         ),
-        None => format!("{r} s/d"),
+        None => r,
     }
 }
 

@@ -78,6 +78,7 @@ pub fn page() -> &'static str {
             .expect("the no-beat heading as JSON");
         let minus = serde_json::to_string(&true_minus("-")).expect("the minus sign as JSON");
         let groups = serde_json::to_string(&group_names()).expect("the group names as JSON");
+        let icons = serde_json::to_string(&icons()).expect("the icons as JSON");
         HTML.replace("/*PALETTE*/", &css)
             .replace("/*BASE_DIGITS*/null", &base_digits())
             .replace("/*VIRIDIS*/null", &viridis)
@@ -94,6 +95,7 @@ pub fn page() -> &'static str {
             .replace("/*POSITIONS*/null", &positions)
             .replace("/*NO_BEAT_TITLE*/null", &no_beat)
             .replace("/*GROUP_NAMES*/null", &groups)
+            .replace("/*ICONS*/null", &icons)
             .replace("/*MINUS*/null", &minus)
     })
 }
@@ -173,6 +175,30 @@ fn positions() -> Map<String, Value> {
         map.insert(p.common().to_string(), entry);
     }
     map
+}
+
+/// The icons the view draws as the app does (core `icons`): each series'
+/// by its JSON name, the "i", and their line width.
+fn icons() -> Value {
+    use timegrapher_core::icons;
+    use timegrapher_core::steadiness::SeriesKind;
+    let mut m: Map<String, Value> = [
+        SeriesKind::Rate,
+        SeriesKind::Amplitude,
+        SeriesKind::BeatError,
+    ]
+    .into_iter()
+    .map(|k| {
+        let key = serde_json::to_value(k).expect("a series' JSON name");
+        (
+            key.as_str().unwrap_or_default().to_string(),
+            json!(icons::of(k)),
+        )
+    })
+    .collect();
+    m.insert("info".into(), json!(icons::INFO));
+    m.insert("width".into(), json!(icons::WIDTH));
+    Value::Object(m)
 }
 
 /// Each position group's name by its JSON name, as core gives them
@@ -351,7 +377,7 @@ pub const RESERVE_KEY: &str = "timegrapher/reserve";
 pub fn reserve_view(doc: &Value) -> Option<Value> {
     use timegrapher_core::confidence::Figure;
     use timegrapher_core::figure_text::fixed_text;
-    use timegrapher_core::position_line::{screen, unit_of};
+    use timegrapher_core::position_line::{bare, screen, unit_of};
     use timegrapher_core::power_reserve::{Hour, Results};
     use timegrapher_core::steadiness::SeriesKind;
     let run: Results = serde_json::from_value(doc.get("power_reserve")?.clone()).ok()?;
@@ -383,6 +409,7 @@ pub fn reserve_view(doc: &Value) -> Option<Value> {
                 json!({
                     "value": v,
                     "text": v.map(|x| screen(k, x)),
+                    "figure": v.map(|x| bare(k, x)),
                     "thin": h.thin(f).is_some(),
                 })
             })
@@ -397,7 +424,7 @@ pub fn reserve_view(doc: &Value) -> Option<Value> {
             json!({
                 "hour": h.hour,
                 "span_h": h.span_s / 3600.0,
-                "read": h.read_share().map(|r| format!("{}%", fixed_text(100.0 * r, 0))),
+                "read": h.read_share().map(|r| fixed_text(100.0 * r, 0)),
             })
         })
         .collect();
@@ -405,7 +432,8 @@ pub fn reserve_view(doc: &Value) -> Option<Value> {
     Some(json!({
         "title": TEST_TITLE,
         "hours_title": HOURS_COLUMN.0,
-        "read_title": format!("{} {}", READ_COLUMN.0, READ_COLUMN.1),
+        "read_title": READ_COLUMN.0,
+        "read_unit": READ_COLUMN.1,
         "position": run.position,
         "hours": hours,
         "series": series,
@@ -932,6 +960,21 @@ mod tests {
             .contains(r#"const GROUP_NAMES = {"horizontal":"Horizontal","vertical":"Vertical"};"#));
     }
 
+    /// The series toggles and the "i" are core's drawings, the app's own.
+    #[test]
+    fn the_page_carries_cores_icons() {
+        assert!(!page().contains("/*ICONS*/"));
+        let at = page().find("const ICONS = ").expect("the icons");
+        let line = &page()[at..page()[at..].find('\n').unwrap() + at];
+        let json = line
+            .trim_start_matches("const ICONS = ")
+            .trim_end_matches(';');
+        let v: Value = serde_json::from_str(json).expect("the icons as JSON");
+        assert_eq!(v["rate"], timegrapher_core::icons::RATE);
+        assert_eq!(v["beat_error"], timegrapher_core::icons::BEAT_ERROR);
+        assert_eq!(v["info"], timegrapher_core::icons::INFO);
+    }
+
     #[test]
     fn the_page_carries_cores_no_beat_heading() {
         assert!(!page().contains("/*NO_BEAT_TITLE*/"));
@@ -1442,11 +1485,13 @@ mod tests {
         };
         let v = reserve_view(&json!({ "power_reserve": run })).expect("a model");
         assert_eq!(v["title"], "Power Reserve");
-        assert_eq!(v["read_title"], "Read %");
-        assert_eq!(v["hours"][0]["read"], "50%");
+        assert_eq!(v["read_title"], "Read");
+        assert_eq!(v["read_unit"], "%");
+        assert_eq!(v["hours"][0]["read"], "50");
         let rate = &v["series"][0];
         assert_eq!(rate["series"], "rate");
         assert_eq!(rate["steps"][0]["text"], "\u{2212}1.5 s/d");
+        assert_eq!(rate["steps"][0]["figure"], "\u{2212}1.5");
         assert!(rate["steps"][1]["value"].is_null());
         assert_eq!(rate["steps"][2]["thin"], true);
         // A beat error is a size, drawn from 0.
