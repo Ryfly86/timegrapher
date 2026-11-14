@@ -1673,6 +1673,9 @@ pub struct SessionReport {
     /// over the positions measured in both, s/d.
     pub ie: Option<f64>,
     pub findings: Vec<Finding>,
+    /// Each state's position lines, as every surface draws the Positions
+    /// Test (#1729).
+    pub position_lines: Vec<crate::position_line::StateLines>,
 }
 
 fn spread(v: impl Iterator<Item = f64>) -> Option<f64> {
@@ -1713,8 +1716,9 @@ fn state(wind_h: Option<f64>, readings: &[&Reading]) -> StateIndices {
 #[path = "session_aggregates.rs"]
 mod session_aggregates;
 pub use session_aggregates::{
-    comparison, position_rows, positions_table, sourced_indices, sourced_indices_over, Comparison,
-    PositionRow, PositionsTable, SourcedFigures, TakeRead, IE_NAME, IM_NAME, POSITION_MIN_S,
+    comparison, group_mean, position_rows, positions_table, sourced_indices, sourced_indices_over,
+    Comparison, PositionGroup, PositionRow, PositionsTable, SourcedFigures, TakeRead, IE_NAME,
+    IM_NAME, POSITION_MIN_S,
 };
 
 fn largest(v: impl Iterator<Item = f64>) -> Option<f64> {
@@ -1843,6 +1847,7 @@ pub fn evaluate_states(states: Vec<StateIndices>, findings: Vec<Finding>) -> Ses
         _ => None,
     };
     SessionReport {
+        position_lines: crate::position_line::state_lines(&states),
         states,
         isochronism,
         im,
