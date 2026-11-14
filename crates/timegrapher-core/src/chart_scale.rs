@@ -214,11 +214,55 @@ pub fn lane_place(names: &[(f64, f64, bool)], left: f64, right: f64, was: &[u8])
     out
 }
 
+/// Where each name in a lane of one row above a plot goes (the app's
+/// `marks::place_row`), for a plot that names only a few lines: `names` as
+/// [`lane_place`] takes them. Each is centred on its line within
+/// `left..right`; one that would come within [`NAME_GAP`] of a name already
+/// placed slides along past it (drawn with an angled leader), to the right
+/// where there is room, else to the left. No leader then passes another
+/// name. Each name's left edge, in the order given.
+pub fn lane_place_row(names: &[(f64, f64, bool)], left: f64, right: f64) -> Vec<f64> {
+    let mut order: Vec<usize> = (0..names.len()).collect();
+    order.sort_by(|&a, &b| {
+        names[a]
+            .2
+            .cmp(&names[b].2)
+            .then(names[a].0.total_cmp(&names[b].0))
+    });
+    let mut taken: Vec<(f64, f64)> = Vec::new();
+    let mut out = vec![0.0; names.len()];
+    for i in order {
+        let (x, w, _) = names[i];
+        let last = (right - w).max(left);
+        let centred = (x - w / 2.0).clamp(left, last);
+        let hit = |a: f64, taken: &[(f64, f64)]| {
+            taken
+                .iter()
+                .find(|&&(s, e)| a < e + NAME_GAP && a + w + NAME_GAP > s)
+                .copied()
+        };
+        let mut at = centred;
+        while let Some((_, e)) = hit(at, &taken) {
+            at = e + NAME_GAP;
+        }
+        if at > last {
+            at = centred;
+            while let Some((s, _)) = hit(at, &taken) {
+                at = s - NAME_GAP - w;
+            }
+            at = at.max(left);
+        }
+        taken.push((at, at + w));
+        out[i] = at;
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// The lane rule places the cases the app's marks and the MCP view's
+    /// The lane rules place the cases the app's marks and the MCP view's
     /// copy are held to (timegrapher-app/src/marks_cases.json) as given.
     #[test]
     fn lane_place_places_the_shared_cases() {
@@ -254,6 +298,22 @@ mod tests {
                     "{}: {got:?}",
                     c["case"]
                 );
+            }
+        }
+        let rows = cases["place_row"].as_array().expect("place_row");
+        assert!(!rows.is_empty());
+        for c in rows {
+            let names: Vec<(f64, f64, bool)> = c["names"]
+                .as_array()
+                .expect("names")
+                .iter()
+                .map(|v| (n(&v[0]), n(&v[1]), v[2] == "faint"))
+                .collect();
+            let got = lane_place_row(&names, n(&c["left"]), n(&c["right"]));
+            let want = c["at"].as_array().expect("at");
+            assert_eq!(got.len(), want.len(), "{}", c["case"]);
+            for (g, w) in got.iter().zip(want) {
+                assert!((g - n(w)).abs() < 1e-3, "{}: {got:?}", c["case"]);
             }
         }
     }
