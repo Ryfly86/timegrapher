@@ -19,7 +19,8 @@ window for the rate.
 d     = each reading less the one before it
 s     = 1.4826 × median distance of d from its median ÷ √2
 r     = lag-one correlation of the readings, after a straight line is
-        taken off (within each stretch, pooled over the stretches)
+        taken off each stretch between cuts (pooled over the stretches;
+        two readings either side of a missing window are not neighbours)
 ρ     = r + 2 × (1 + 3r) ÷ n̄, held between 0 and 0.99
         (n̄ = the stretches' mean length)
 n_eff = n × (1 − ρ) ÷ (1 + ρ)
