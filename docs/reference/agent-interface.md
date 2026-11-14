@@ -360,7 +360,10 @@ start, position, `ending` (`stopped`, `by_hand` for a recording that ended
 while the watch still ran, or `limit`), the first and last beats heard,
 `run_s` in true seconds, the silences of 30 s or more inside the run, and
 `hours[]`, each hour measured as `session` measures a stretch, with
-`read_s`, its seconds of whole 10 s readings). Without a FOLDER the test
+`read_s`, its seconds of whole 10 s readings, and `rate_se`,
+`amplitude_se` and `beat_error_se`, each figure's ±: the standard error in
+its own unit, as a stretch's `confidence` gives it, left out where the hour
+has none and in results saved before them). Without a FOLDER the test
 is one take in the watch's `takes/`, as the app files one (core
 `library::power_reserve_take_dir`): the recording itself, in a folder named
 by the date and time and "Power Reserve", holding its own `session.toml`
