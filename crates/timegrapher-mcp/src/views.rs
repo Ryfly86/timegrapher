@@ -183,7 +183,10 @@ fn group_names() -> Map<String, Value> {
         .into_iter()
         .map(|g| {
             let key = serde_json::to_value(g).expect("a group's JSON name");
-            (key.as_str().unwrap_or_default().to_string(), json!(g.name()))
+            (
+                key.as_str().unwrap_or_default().to_string(),
+                json!(g.name()),
+            )
         })
         .collect()
 }

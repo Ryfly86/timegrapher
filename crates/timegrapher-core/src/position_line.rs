@@ -364,7 +364,9 @@ mod tests {
         assert!(later.lanes[0].hover.ends_with("(Full wind test +2.0 s/d)"));
         assert_eq!(later.lanes[0].full_wind_text.as_deref(), Some("+2.0 s/d"));
         assert_eq!(later.lanes[0].text.as_deref(), Some("\u{2212}1.0 s/d"));
-        assert!(later.lanes[0].hover.starts_with("Dial Up (DU) \u{2212}1.0 s/d"));
+        assert!(later.lanes[0]
+            .hover
+            .starts_with("Dial Up (DU) \u{2212}1.0 s/d"));
         // No full-wind test, no comparison.
         let alone = state_lines(&states[1..]);
         assert_eq!(alone[0].rate.key, None);
