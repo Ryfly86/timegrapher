@@ -80,33 +80,15 @@ pub fn place(names: &[(f32, f32, Rank)], left: f32, right: f32, was: &[u8]) -> V
 /// the right where there is room, else to the left. Each name's left
 /// edge, in the order given.
 pub fn place_row(names: &[(f32, f32, Rank)], left: f32, right: f32) -> Vec<f32> {
-    let mut taken: Vec<(f32, f32)> = Vec::new();
-    let mut out = vec![0.0; names.len()];
-    for i in order(names) {
-        let (x, w, _) = names[i];
-        let last = (right - w).max(left);
-        let centred = (x - w / 2.0).clamp(left, last);
-        let hit = |a: f32, taken: &[(f32, f32)]| {
-            taken
-                .iter()
-                .find(|&&(s, e)| a < e + NAME_GAP && a + w + NAME_GAP > s)
-                .copied()
-        };
-        let mut at = centred;
-        while let Some((_, e)) = hit(at, &taken) {
-            at = e + NAME_GAP;
-        }
-        if at > last {
-            at = centred;
-            while let Some((s, _)) = hit(at, &taken) {
-                at = s - NAME_GAP - w;
-            }
-            at = at.max(left);
-        }
-        taken.push((at, at + w));
-        out[i] = at;
-    }
-    out
+    // Core's rule, which the CLI's report draws by too.
+    let names: Vec<(f64, f64, bool)> = names
+        .iter()
+        .map(|&(x, w, r)| (f64::from(x), f64::from(w), r == Rank::Faint))
+        .collect();
+    timegrapher_core::chart_scale::lane_place_row(&names, f64::from(left), f64::from(right))
+        .into_iter()
+        .map(|a| a as f32)
+        .collect()
 }
 
 /// Where the names go inside a short plot, one row along its top: `names`

@@ -58,7 +58,7 @@ fn position_line_svg(line: &PositionLine, refs: &[(Position, f64)], id: &str) ->
         + if line.averages.is_empty() {
             0.0
         } else {
-            LANE_GAP + 2.0 * NAME_ROW
+            LANE_GAP + NAME_ROW
         };
     let groups = [PositionGroup::Horizontal, PositionGroup::Vertical];
     let rows: usize = groups
@@ -114,8 +114,8 @@ fn position_line_svg(line: &PositionLine, refs: &[(Position, f64)], id: &str) ->
     s
 }
 
-/// The averages' names in a lane of two rows above the plot from `top`,
-/// placed by core's named-lines rule ([`chart_scale::lane_place`], the
+/// The averages' names in a lane of one row above the plot from `top`,
+/// placed by core's named-lines rule ([`chart_scale::lane_place_row`], the
 /// app's), each joined to its line by a leader, angled where its name had
 /// to slide, so lines close together are told apart (Walter on #1742).
 fn average_names(s: &mut String, line: &PositionLine, x: &dyn Fn(f64) -> f64, top: f64) {
@@ -124,7 +124,16 @@ fn average_names(s: &mut String, line: &PositionLine, x: &dyn Fn(f64) -> f64, to
         .iter()
         .map(|a| (x(a.value), a.name.len() as f64 * CHAR_W, false))
         .collect();
-    let placed = chart_scale::lane_place(&names, ML + 2.0, W - MR - 2.0, &[]);
+    // One row: a plot that names only three lines slides a name along
+    // rather than out a row, so no leader passes behind another name
+    // (Walter on #1742).
+    let placed: Vec<(f64, u8)> = chart_scale::lane_place_row(&names, ML + 2.0, W - MR - 2.0)
+        .into_iter()
+        .map(|a| (a, 0))
+        .collect();
+    // The leaders first, then each name on a box of the page's colour, as
+    // the app draws its named lines.
+    let mut boxes = String::new();
     for (a, (&(lx, w, _), &(left, row))) in line.averages.iter().zip(names.iter().zip(&placed)) {
         let off = LANE_GAP + f64::from(row) * NAME_ROW;
         let centre = left + w / 2.0;
@@ -139,13 +148,21 @@ fn average_names(s: &mut String, line: &PositionLine, x: &dyn Fn(f64) -> f64, to
             .collect();
         let _ = write!(
             s,
-            r#"<polyline class="leader" points="{}"/><text class="label" x="{left:.1}" y="{:.1}"><title>{}</title>{}</text>"#,
-            pts.join(" "),
-            top - off - 3.5,
+            r#"<polyline class="leader" points="{}"/>"#,
+            pts.join(" ")
+        );
+        let _ = write!(
+            boxes,
+            r#"<g><title>{}</title><rect class="namebox" x="{:.1}" y="{:.1}" width="{:.1}" height="{NAME_ROW}"/><text class="label" x="{left:.1}" y="{:.1}">{}</text></g>"#,
             esc(&a.hover),
+            left - 2.0,
+            top - off - NAME_ROW,
+            w + 4.0,
+            top - off - 3.5,
             esc(a.name)
         );
     }
+    s.push_str(&boxes);
 }
 
 /// The value grid down the plot from `top` to `bottom`, its ticks, and the
@@ -837,7 +854,7 @@ svg {{ width: 100%; height: auto; display: block; }}
 .tick {{ fill: var(--text2); font-size: 11px; }} .label {{ fill: var(--text2); font-size: 11px; }}
 .dot {{ fill: var(--series); }} .ref {{ fill: none; stroke: var(--ref); stroke-width: 2; }}
 .hollow {{ fill: var(--surface); stroke: var(--series); stroke-width: 1.5; }} .move {{ stroke: var(--text2); stroke-width: 1.2; }} .arrowhead {{ fill: var(--text2); }}
-.average {{ stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 4 3; }} .leader {{ fill: none; stroke: var(--muted); stroke-width: 1; }}
+.average {{ stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 4 3; }} .leader {{ fill: none; stroke: var(--muted); stroke-width: 1; }} .namebox {{ fill: var(--surface); }}
 .lane {{ fill: var(--text); font-size: 11px; }} .group {{ fill: var(--text2); font-size: 11px; font-weight: 600; }}
 code {{ font-size: 13px; }}
 </style></head><body>
