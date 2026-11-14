@@ -5,9 +5,11 @@
 
 use crate::session_cmd::{opt, signed, wind, Session};
 use std::fmt::Write;
+use timegrapher_core::chart_scale;
 use timegrapher_core::library::{fixed_text, signed_text};
-use timegrapher_core::position_line::{AverageLine, Lane, PositionLine, StateLines};
+use timegrapher_core::position_line::{Lane, PositionLine, StateLines};
 use timegrapher_core::session::{Position, PositionGroup, Reading, ReferenceClock, StateIndices};
+use timegrapher_core::steadiness::SeriesKind;
 use timegrapher_core::twostate;
 
 /// Text put into the page: core's one escaper (#1649).
@@ -24,8 +26,9 @@ const ML: f64 = 150.0;
 const MR: f64 = 64.0;
 /// Each lane's height, and a group heading's.
 const LANE_H: f64 = 22.0;
-/// A row of average names above the plot.
-const NAME_ROW: f64 = 14.0;
+/// A row of average names above the plot, and the gap between the plot and
+/// the nearer row: core's, as the app's named lines.
+use chart_scale::{NAME_LANE_GAP as LANE_GAP, NAME_ROW_H as NAME_ROW};
 /// The bottom axis' ticks.
 const MB: f64 = 24.0;
 /// About how wide a character of the 11 px labels is.
@@ -37,7 +40,7 @@ const CHAR_W: f64 = 6.2;
 /// figure hollow, with an arrow to this test's; `refs` (a reference
 /// timegrapher's figures, by position) as diamonds. Positions are never
 /// joined.
-fn position_line_svg(line: &PositionLine, refs: &[(Position, f64)]) -> String {
+fn position_line_svg(line: &PositionLine, refs: &[(Position, f64)], id: &str) -> String {
     let Some([lo0, hi0, step]) = line.axis else {
         return String::new();
     };
@@ -50,8 +53,13 @@ fn position_line_svg(line: &PositionLine, refs: &[(Position, f64)]) -> String {
     });
     let pw = W - ML - MR;
     let x = move |v: f64| ML + pw * (v - lo) / (hi - lo);
-    let (placed, name_rows) = average_names(line, &x);
-    let mt = 6.0 + NAME_ROW * name_rows as f64;
+    // Room above for the averages' names: a lane of two rows.
+    let mt = 6.0
+        + if line.averages.is_empty() {
+            0.0
+        } else {
+            LANE_GAP + 2.0 * NAME_ROW
+        };
     let groups = [PositionGroup::Horizontal, PositionGroup::Vertical];
     let rows: usize = groups
         .iter()
@@ -66,8 +74,11 @@ fn position_line_svg(line: &PositionLine, refs: &[(Position, f64)]) -> String {
         r#"<svg viewBox="0 0 {W} {h:.0}" role="img" aria-label="{} by position">"#,
         esc(line.title)
     );
-    s.push_str(r#"<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 z" class="arrowhead"/></marker></defs>"#);
-    value_axis(&mut s, [lo, hi, step], &x, mt, mt + ph, line.unit);
+    let _ = write!(
+        s,
+        r#"<defs><marker id="arrow-{id}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 z" class="arrowhead"/></marker></defs>"#
+    );
+    value_axis(&mut s, [lo, hi, step], &x, mt, mt + ph, line);
     // The averages, under the dots.
     for a in &line.averages {
         let _ = write!(
@@ -78,14 +89,7 @@ fn position_line_svg(line: &PositionLine, refs: &[(Position, f64)]) -> String {
             esc(&a.hover)
         );
     }
-    for (ax, row, name) in &placed {
-        let _ = write!(
-            s,
-            r#"<text class="label" x="{ax:.1}" y="{:.1}" text-anchor="middle">{}</text>"#,
-            6.0 + NAME_ROW * (*row as f64 + 1.0) - 3.0,
-            esc(name)
-        );
-    }
+    average_names(&mut s, line, &x, mt);
     // The lanes, each group under its heading.
     let mut y = mt;
     for g in groups {
@@ -101,7 +105,7 @@ fn position_line_svg(line: &PositionLine, refs: &[(Position, f64)]) -> String {
         );
         y += LANE_H;
         for l in lanes {
-            lane_svg(&mut s, l, &x, y + LANE_H / 2.0, refs, line.unit);
+            lane_svg(&mut s, l, &x, y + LANE_H / 2.0, refs, (line.unit, id));
             y += LANE_H;
         }
     }
@@ -110,32 +114,38 @@ fn position_line_svg(line: &PositionLine, refs: &[(Position, f64)]) -> String {
     s
 }
 
-/// Where each average's name goes above the plot: its x and its row, each
-/// on the first row it fits without touching the name before it; and how
-/// many rows that takes.
-fn average_names(
-    line: &PositionLine,
-    x: &dyn Fn(f64) -> f64,
-) -> (Vec<(f64, usize, &'static str)>, usize) {
-    let mut placed = Vec::new();
-    let mut ends: Vec<f64> = Vec::new();
-    let mut order: Vec<&AverageLine> = line.averages.iter().collect();
-    order.sort_by(|a, b| a.value.total_cmp(&b.value));
-    for a in &order {
-        let w = a.name.len() as f64 * CHAR_W;
-        let left = x(a.value) - w / 2.0;
-        let row = ends
-            .iter()
-            .position(|&e| e + 6.0 < left)
-            .unwrap_or(ends.len());
-        if row == ends.len() {
-            ends.push(f64::NEG_INFINITY);
+/// The averages' names in a lane of two rows above the plot from `top`,
+/// placed by core's named-lines rule ([`chart_scale::lane_place`], the
+/// app's), each joined to its line by a leader, angled where its name had
+/// to slide, so lines close together are told apart (Walter on #1742).
+fn average_names(s: &mut String, line: &PositionLine, x: &dyn Fn(f64) -> f64, top: f64) {
+    let names: Vec<(f64, f64, bool)> = line
+        .averages
+        .iter()
+        .map(|a| (x(a.value), a.name.len() as f64 * CHAR_W, false))
+        .collect();
+    let placed = chart_scale::lane_place(&names, ML + 2.0, W - MR - 2.0, &[]);
+    for (a, (&(lx, w, _), &(left, row))) in line.averages.iter().zip(names.iter().zip(&placed)) {
+        let off = LANE_GAP + f64::from(row) * NAME_ROW;
+        let centre = left + w / 2.0;
+        let mut pts = vec![(centre, top - off - 1.0)];
+        if (centre - lx).abs() > 1.0 {
+            pts.push((lx, top - LANE_GAP / 2.0));
         }
-        ends[row] = left + w;
-        placed.push((x(a.value), row, a.name));
+        pts.push((lx, top));
+        let pts: Vec<String> = pts
+            .iter()
+            .map(|(px, py)| format!("{px:.1},{py:.1}"))
+            .collect();
+        let _ = write!(
+            s,
+            r#"<polyline class="leader" points="{}"/><text class="label" x="{left:.1}" y="{:.1}"><title>{}</title>{}</text>"#,
+            pts.join(" "),
+            top - off - 3.5,
+            esc(&a.hover),
+            esc(a.name)
+        );
     }
-    let rows = ends.len();
-    (placed, rows)
 }
 
 /// The value grid down the plot from `top` to `bottom`, its ticks, and the
@@ -146,28 +156,41 @@ fn value_axis(
     x: &dyn Fn(f64) -> f64,
     top: f64,
     bottom: f64,
-    unit: &str,
+    line: &PositionLine,
 ) {
-    let mut t = lo;
-    while t <= hi + step * 1e-6 {
+    // A rate's ticks carry their sign, as its figures do (Hugh on #1742).
+    let signed = line.series == SeriesKind::Rate;
+    let tick = |t: f64| {
+        let n = chart_scale::axis_number(t, step);
+        if signed && t > 0.0 && n.chars().any(|c| c.is_ascii_digit() && c != '0') {
+            format!("+{n}")
+        } else {
+            n
+        }
+    };
+    let ticks = ((hi - lo) / step).round() as usize;
+    for i in 0..=ticks {
+        let t = lo + i as f64 * step;
         let _ = write!(
             s,
             r#"<line class="grid" x1="{0:.1}" x2="{0:.1}" y1="{top:.1}" y2="{1:.1}"/><text class="tick" x="{0:.1}" y="{2:.1}" text-anchor="middle">{3}</text>"#,
             x(t),
             bottom,
             bottom + 15.0,
-            timegrapher_core::chart_scale::axis_number(t, step)
+            tick(t)
         );
-        t += step;
     }
     // The unit follows the last tick's figure.
-    let last = timegrapher_core::chart_scale::axis_number(hi, step);
+    let last = tick(hi);
     let _ = write!(
         s,
         r#"<text class="label" x="{:.1}" y="{:.1}" text-anchor="start">{}</text>"#,
-        W - MR + last.chars().count() as f64 * CHAR_W / 2.0 + 4.0,
+        // Degrees touch their figure; other units follow a space.
+        W - MR
+            + last.chars().count() as f64 * CHAR_W / 2.0
+            + if line.unit == "°" { 1.0 } else { 4.0 },
         bottom + 15.0,
-        esc(unit)
+        esc(line.unit)
     );
 }
 
@@ -179,7 +202,7 @@ fn lane_svg(
     x: &dyn Fn(f64) -> f64,
     cy: f64,
     refs: &[(Position, f64)],
-    unit: &str,
+    (unit, id): (&str, &str),
 ) {
     let _ = write!(
         s,
@@ -196,7 +219,7 @@ fn lane_svg(
             let x1 = x1 - 7.0 * (x1 - x0).signum();
             let _ = write!(
                 s,
-                r#"<line class="move" x1="{x0:.1}" x2="{x1:.1}" y1="{cy:.1}" y2="{cy:.1}" marker-end="url(#arrow)"/>"#
+                r#"<line class="move" x1="{x0:.1}" x2="{x1:.1}" y1="{cy:.1}" y2="{cy:.1}" marker-end="url(#arrow-{id})"/>"#
             );
         }
     }
@@ -255,7 +278,7 @@ fn position_key(line: &PositionLine, refs: &[(Position, f64)]) -> String {
 /// One state of wind's position lines, rate, amplitude and beat error,
 /// with a reference timegrapher's rates and amplitudes where the readings
 /// carry them.
-fn charts(lines: &StateLines, readings: &[&Reading]) -> String {
+fn charts(lines: &StateLines, readings: &[&Reading], n: usize) -> String {
     let refs = |f: &dyn Fn(&Reading) -> Option<f64>| -> Vec<(Position, f64)> {
         readings
             .iter()
@@ -281,14 +304,18 @@ fn charts(lines: &StateLines, readings: &[&Reading]) -> String {
     let aref = refs(&|r| r.reference.as_ref()?.amplitude_deg);
     format!(
         r#"<h3>Rate by position</h3>{}{}<h3>Amplitude by position</h3>{}<h3>Beat Error by position</h3>{}"#,
-        position_line_svg(&lines.rate, if matched { &rref } else { &[] }),
+        position_line_svg(
+            &lines.rate,
+            if matched { &rref } else { &[] },
+            &format!("s{n}-rate")
+        ),
         if omitted {
             r#"<p class="note">Reference rates are omitted from this rate chart because its readings and the reference rates are not all on one clock (a clock-corrected reading beside a reference whose clock basis is not recorded or is the sound card's, or the other way round). Reference values remain in the table.</p>"#
         } else {
             ""
         },
-        position_line_svg(&lines.amplitude, &aref),
-        position_line_svg(&lines.beat_error, &[]),
+        position_line_svg(&lines.amplitude, &aref, &format!("s{n}-amplitude")),
+        position_line_svg(&lines.beat_error, &[], &format!("s{n}-beat-error")),
     )
 }
 
@@ -750,7 +777,7 @@ fn poise_section(sn: &Session) -> String {
 fn state_charts(sn: &Session) -> String {
     let r = &sn.report;
     let mut body = String::new();
-    for (st, lines) in r.states.iter().zip(&r.position_lines) {
+    for (n, (st, lines)) in r.states.iter().zip(&r.position_lines).enumerate() {
         if r.states.len() > 1 {
             let _ = write!(body, "<h3>{}</h3>", esc(&lines.name));
         }
@@ -759,7 +786,7 @@ fn state_charts(sn: &Session) -> String {
             .iter()
             .filter(|rd| timegrapher_core::session::in_wind_state(rd.wind_h, st.wind_h))
             .collect();
-        body.push_str(&charts(lines, &rs));
+        body.push_str(&charts(lines, &rs, n));
     }
     body
 }
@@ -810,7 +837,7 @@ svg {{ width: 100%; height: auto; display: block; }}
 .tick {{ fill: var(--text2); font-size: 11px; }} .label {{ fill: var(--text2); font-size: 11px; }}
 .dot {{ fill: var(--series); }} .ref {{ fill: none; stroke: var(--ref); stroke-width: 2; }}
 .hollow {{ fill: var(--surface); stroke: var(--series); stroke-width: 1.5; }} .move {{ stroke: var(--text2); stroke-width: 1.2; }} .arrowhead {{ fill: var(--text2); }}
-.average {{ stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 4 3; }}
+.average {{ stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 4 3; }} .leader {{ fill: none; stroke: var(--muted); stroke-width: 1; }}
 .lane {{ fill: var(--text); font-size: 11px; }} .group {{ fill: var(--text2); font-size: 11px; font-weight: 600; }}
 code {{ font-size: 13px; }}
 </style></head><body>
