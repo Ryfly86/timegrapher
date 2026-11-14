@@ -221,10 +221,11 @@ impl TimegrapherApp {
         // The name and code on one line, and the wind on its own row under
         // them (#1665, Hugh), centred between the title and the buttons.
         let left = pic.right() + 10.0;
-        let line = egui::Rect::from_x_y_ranges(
-            left..=rows.inner.right(),
-            rows.title.bottom()..=first.top(),
-        );
+        // 3 pt clear of the buttons, as their two rows are of each other
+        // (Hugh).
+        let clear = first.top() - 3.0;
+        let line =
+            egui::Rect::from_x_y_ranges(left..=rows.inner.right(), rows.title.bottom()..=clear);
         let name_font = theme::semibold(15.0);
         let high = ui.fonts_mut(|f| f.row_height(&name_font) + wind::row_h(f));
         let clip = ui.painter().with_clip_rect(line);

@@ -121,7 +121,7 @@ fn a_take_on_show_shows_its_own_wind() {
     .unwrap();
     app.opened_path = take.display().to_string();
     app.session.analyse();
-    assert_eq!(app.wind_words(), "Full wind 24.2 h before it began");
+    assert_eq!(app.wind_words(), "24.2 h after full wind");
     assert!(!app.wind_settable(), "the Set menu's wind is closed");
     // On show, Set Wind is refused: its next save would undo it (Felix).
     let before = std::fs::read_to_string(take.join(MANIFEST)).unwrap();
@@ -142,7 +142,7 @@ fn a_take_on_show_shows_its_own_wind() {
         .contains("wind_h"));
     app.set_take_wind(&take, Some(1.25));
     app.opened_path = take.display().to_string();
-    assert_eq!(app.wind_words(), "Full wind 1.3 h before it began");
+    assert_eq!(app.wind_words(), "1.3 h after full wind");
     let _ = std::fs::remove_dir_all(&base);
 }
 
@@ -207,8 +207,9 @@ fn the_card_shows_the_wind_whole() {
         // the buttons that it would overlap, and over the buttons.
         if !compact {
             let rows = CardRows::of(card);
+            // At 10, 3 pt clear of them (Hugh).
             let buttons = if ten {
-                rows.controls.bottom() - 2.0 * POSITION_ROW_TEN - 3.0
+                rows.controls.bottom() - 2.0 * POSITION_ROW_TEN - 6.0
             } else {
                 rows.controls.top()
             };
@@ -250,4 +251,53 @@ fn the_card_shows_the_wind_whole() {
             painted_text(&out)
         );
     }
+}
+
+/// Too wide for its row at its size, the wind shrinks to fit, not under
+/// 9 pt (Walter's walk of #1745): on a 6 card whose row is a little
+/// narrower than the words.
+#[test]
+fn a_row_too_narrow_shrinks_the_wind() {
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    // Its fonts, for measuring.
+    let _ = ctx.run(egui::RawInput::default(), |_| {});
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.pick_wind(WindPick::HoursAgo(24.2));
+    let want = "Full wind 24.2 h ago";
+    let at = |pt: f32| {
+        ctx.fonts_mut(|f| {
+            f.layout_no_wrap(
+                want.into(),
+                egui::FontId::proportional(pt),
+                egui::Color32::WHITE,
+            )
+            .size()
+            .x
+        })
+    };
+    let (w11, w9) = (at(11.0), at(9.0));
+    assert!(w9 + 4.0 < w11);
+    app.ten_positions = false;
+    // The card's padding, the picture and the gap beside it, and a row
+    // between the words' two widths.
+    let w = 2.0 * f32::from(theme::CARD_PADDING) + POSITION_PIC + theme::GAP + (w11 + w9) / 2.0;
+    let card =
+        egui::Rect::from_min_size(egui::pos2(20.0, 20.0), Vec2::new(w, theme::READINGS_CARD_H));
+    let out = ctx.run(egui::RawInput::default(), |ctx| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            let inner = card.shrink(f32::from(theme::CARD_PADDING));
+            let mut child = ui.new_child(egui::UiBuilder::new().max_rect(inner));
+            app.position_card(&mut child, false);
+        });
+    });
+    let t = out
+        .shapes
+        .iter()
+        .find_map(|c| match &c.shape {
+            egui::Shape::Text(t) if t.galley.text() == want => Some(t.galley.rect.width()),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("{want} not drawn at {w}: {}", painted_text(&out)));
+    assert!(t < w11 && t >= w9 - 0.5, "{t} between {w9} and {w11}");
 }

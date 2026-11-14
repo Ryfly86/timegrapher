@@ -5,7 +5,7 @@
 
 use super::*;
 use timegrapher_core::full_wind;
-use timegrapher_core::reading_text::{wind_before_take_words, wind_since_words};
+use timegrapher_core::reading_text::{wind_after_words, wind_before_take_words, wind_since_words};
 
 /// Whether Start on a test that begins at full wind (the Positions Test's
 /// full-wind step, the Power Reserve Test) sets Full Wind Now by itself.
@@ -152,11 +152,11 @@ impl TimegrapherApp {
     }
 
     /// The wind under the Position card's code: a take on show's own
-    /// ("Full wind 24.2 h before it began"), else the watch's now ("Full
-    /// wind 2.0 h ago"), or "Wind not given".
+    /// ("24.2 h after full wind"), else the watch's now ("Full wind 2.0 h
+    /// ago"), or "Wind not given".
     pub(super) fn wind_words(&mut self) -> String {
         match self.shown_wind() {
-            Some(h) => wind_before_take_words(h),
+            Some(h) => wind_after_words(h),
             None => wind_since_words(self.wind_h_at(guided::unix_now())),
         }
     }
@@ -194,11 +194,11 @@ impl TimegrapherApp {
     }
 
     /// The wind under the code at `pos`, muted, with `align`; on a card
-    /// where it can be set, a click opens the Wind menu. Centred under the
-    /// compact card's code, it shrinks to fit as the code does, down to
-    /// [`WIND_MIN_SIZE`]; on its own row on a wide card it is never shrunk. Where it
-    /// doesn't fit whole it is in the hover alone, never cut, wrapped or
-    /// pushing the codes (Hugh).
+    /// where it can be set, a click opens the Wind menu. Where it doesn't
+    /// fit at its size it shrinks to fit, as the compact card's code does,
+    /// down to [`WIND_MIN_SIZE`] (Walter's walk of #1745). Where it
+    /// doesn't fit whole even then, it is in the hover alone, never cut,
+    /// wrapped or pushing the codes (Hugh).
     pub(super) fn wind_line(&mut self, ui: &mut egui::Ui, pos: egui::Pos2, align: egui::Align2) {
         let pal = theme::pal(ui);
         let words = self.wind_words();
@@ -218,12 +218,12 @@ impl TimegrapherApp {
         } else {
             (room.right() - pos.x).min(room.width())
         };
-        let size = if wide > fits && centred {
+        let size = if wide > fits {
             WIND_SIZE * (fits - 1.0) / wide
         } else {
             WIND_SIZE
         };
-        let shown = wide <= fits || (centred && size >= WIND_MIN_SIZE);
+        let shown = wide <= fits || size >= WIND_MIN_SIZE;
         // Laid out only at a size it is drawn at.
         let size = if shown { size } else { WIND_SIZE };
         let font = egui::FontId::proportional(size);
@@ -257,10 +257,12 @@ impl TimegrapherApp {
                 .text(pos, align, &words, font, pal.text_secondary);
         }
         let hint = if settable { WIND_HINT } else { WIND_SHOWN_HINT };
-        let hover = if shown {
-            hint.to_string()
-        } else {
-            format!("{words}. {hint}")
+        // A take on show's wind in full ("Full wind 24.2 h before it
+        // began"), or the words when they aren't shown.
+        let hover = match self.shown_wind().map(wind_before_take_words) {
+            Some(full) => format!("{full}. {hint}"),
+            None if shown => hint.to_string(),
+            None => format!("{words}. {hint}"),
         };
         let resp = resp.on_hover_text(hover);
         let resp = if settable {
