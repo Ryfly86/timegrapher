@@ -752,15 +752,7 @@ fn state_charts(sn: &Session) -> String {
     let mut body = String::new();
     for (st, lines) in r.states.iter().zip(&r.position_lines) {
         if r.states.len() > 1 {
-            let _ = write!(
-                body,
-                "<h3>{}</h3>",
-                match st.wind_h {
-                    Some(w) if w <= 0.0 => "Fully wound".to_string(),
-                    Some(w) => timegrapher_core::reading_text::wind_words(w),
-                    None => "Wind not given".to_string(),
-                }
-            );
+            let _ = write!(body, "<h3>{}</h3>", esc(&lines.name));
         }
         let rs: Vec<&Reading> = sn
             .readings

@@ -38,6 +38,10 @@ pub struct Lane {
     pub value: Option<f64>,
     /// The full-wind test's figure at this position, on a later state.
     pub full_wind: Option<f64>,
+    /// `value` and `full_wind` as written beside a chart's title and in a
+    /// table, with the unit: "+10.2 s/d".
+    pub text: Option<String>,
+    pub full_wind_text: Option<String>,
     /// The hover: the name and this test's figure with its unit,
     /// "Crown Up (CU, 3H) +10.2 s/d", and the full-wind figure after it
     /// where there is one.
@@ -60,6 +64,8 @@ pub struct AverageLine {
     /// Its name above the plot: "Average", "Vertical", "Horizontal".
     pub name: &'static str,
     pub value: f64,
+    /// `value` with its unit: "+6.6 s/d".
+    pub text: String,
     /// "Vertical +6.6 s/d".
     pub hover: String,
 }
@@ -129,12 +135,14 @@ pub fn position_line(
                     .and_then(|w| figure(w, kind))
             });
             let name = v.position.display_label();
-            let mut hover = match value {
-                Some(x) => format!("{name} {}", kind.fmt(x)),
+            let text = value.map(|x| kind.fmt(x));
+            let full_wind_text = earlier.map(|e| kind.fmt(e));
+            let mut hover = match &text {
+                Some(t) => format!("{name} {t}"),
                 None => name.clone(),
             };
-            if let Some(e) = earlier {
-                hover += &format!(" ({FULL_WIND_TEST} {})", kind.fmt(e));
+            if let Some(e) = &full_wind_text {
+                hover += &format!(" ({FULL_WIND_TEST} {e})");
             }
             lanes.push(Lane {
                 position: v.position.common(),
@@ -142,6 +150,8 @@ pub fn position_line(
                 name,
                 value,
                 full_wind: earlier,
+                text,
+                full_wind_text,
                 hover,
             });
         }
@@ -162,11 +172,13 @@ pub fn position_line(
     .into_iter()
     .filter_map(|(of, name, group)| {
         let value = group_mean(&state.positions, kind, group).filter(|x| x.is_finite())?;
+        let text = kind.fmt(value);
         Some(AverageLine {
             of,
             name,
             value,
-            hover: format!("{name} {}", kind.fmt(value)),
+            hover: format!("{name} {text}"),
+            text,
         })
     })
     .collect();
@@ -205,6 +217,9 @@ pub fn position_line(
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct StateLines {
     pub wind_h: Option<f64>,
+    /// The state's heading: "Full wind", "24 h after winding", "Wind not
+    /// given" ([`crate::reading_text::wind_state_title`]).
+    pub name: String,
     pub rate: PositionLine,
     pub amplitude: PositionLine,
     pub beat_error: PositionLine,
@@ -222,6 +237,7 @@ pub fn state_lines(states: &[StateIndices]) -> Vec<StateLines> {
             let earlier = full.filter(|_| i > 0 && s.wind_h.is_some_and(|h| h > 0.0));
             StateLines {
                 wind_h: s.wind_h,
+                name: crate::reading_text::wind_state_title(s.wind_h),
                 rate: position_line(s, earlier, SeriesKind::Rate),
                 amplitude: position_line(s, earlier, SeriesKind::Amplitude),
                 beat_error: position_line(s, earlier, SeriesKind::BeatError),
@@ -271,6 +287,8 @@ mod tests {
         assert_eq!(order, ["DU", "DD", "CD", "CL", "CU", "CR"]);
         assert_eq!(line.lanes[2].group, PositionGroup::Vertical);
         assert_eq!(line.lanes[4].hover, "Crown Up (CU, 3H) +10.0 s/d");
+        assert_eq!(line.lanes[4].text.as_deref(), Some("+10.0 s/d"));
+        assert_eq!(line.averages[1].text, "+7.0 s/d");
         let avg: Vec<(&str, f64)> = line.averages.iter().map(|a| (a.name, a.value)).collect();
         assert_eq!(
             avg,
@@ -304,12 +322,15 @@ mod tests {
         ];
         let lines = state_lines(&states);
         assert_eq!(lines[0].rate.key, None);
+        assert_eq!(lines[0].name, "Full wind");
+        assert_eq!(lines[1].name, "24 h after winding");
         let later = &lines[1].rate;
         assert_eq!(later.key, Some([THIS_TEST, FULL_WIND_TEST]));
         assert_eq!(later.lanes[0].value, Some(-1.0));
         assert_eq!(later.lanes[0].full_wind, Some(2.0));
         assert_eq!(later.extent, Some([-1.0, 10.0]));
         assert!(later.lanes[0].hover.ends_with("(Full wind test +2.0 s/d)"));
+        assert_eq!(later.lanes[0].full_wind_text.as_deref(), Some("+2.0 s/d"));
         // No full-wind test, no comparison.
         let alone = state_lines(&states[1..]);
         assert_eq!(alone[0].rate.key, None);
