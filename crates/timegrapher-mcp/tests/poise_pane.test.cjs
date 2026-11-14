@@ -18,7 +18,7 @@ function constant(name) {
   return match[0].replace(/^(?:const|let) /, "var ");
 }
 const context = vm.createContext({ MINUS: "−" });
-vm.runInContext(["PANE_MIN_CHART", "poiseView"].map(constant).join("\n"), context);
+vm.runInContext(["PANE_MIN_CHART", "poiseShown"].map(constant).join("\n"), context);
 vm.runInContext(["esc", "fixedDigits", "axisLabel", "gridAcross", "valueTick", "testPane",
   "poisePane", "poiseDots", "poisePlot", "poiseDial", "poiseKey"].map(definition).join("\n"), context);
 
@@ -49,7 +49,6 @@ test("several states of wind name the pane for its state", () => {
 });
 
 test("Plot draws 12H at both ends, the wave, the mean and the fastest hour", () => {
-  context.poiseView = "plot";
   const markup = context.poisePane(p, "p0", null);
   assert.ok(markup.includes('data-poise="plot" aria-pressed="true"'));
   const svg = context.poisePlot(picture);
@@ -61,14 +60,26 @@ test("Plot draws 12H at both ends, the wave, the mean and the fastest hour", () 
 });
 
 test("Dial draws the hours round the face, the key, and a dot per position", () => {
-  context.poiseView = "dial";
+  context.poiseShown.plot = false;
+  context.poiseShown.dial = true;
   try {
     const markup = context.poisePane(p, "p0", null);
-    assert.ok(markup.includes('data-poise="dial" aria-pressed="true"'));
+    assert.ok(markup.includes('data-poise="dial" aria-pressed="true"') && markup.includes('data-poise="plot" aria-pressed="false"'));
     assert.ok(markup.includes(">Further out = faster, s/d<"));
     for (const [, code] of hours) assert.ok(markup.includes(`>${code}<`), code);
     assert.equal((markup.match(/<g class="lane"/g) || []).length, 5);
   } finally {
-    context.poiseView = "plot";
+    context.poiseShown.plot = true;
+    context.poiseShown.dial = false;
+  }
+});
+
+test("Plot and Dial both on draw both", () => {
+  context.poiseShown.dial = true;
+  try {
+    const markup = context.poisePane(p, "p0", null);
+    assert.ok(markup.includes(">Hour at the top<") && markup.includes(">Further out = faster, s/d<"));
+  } finally {
+    context.poiseShown.dial = false;
   }
 });

@@ -872,8 +872,9 @@ function positionLineChart(line, id) {
 // words over it. The view works out no scale and writes no words of its
 // own.
 
-// Plot or Dial, kept across redraws; Plot at first, as the app's.
-let poiseView = "plot";
+// Which of the Plot and the Dial are shown, each its own toggle like the
+// panes' series toggles, kept across redraws; the Plot at first, as the app's.
+const poiseShown = { plot: true, dial: false };
 
 function poisePane(p, id, state) {
   const pic = p.picture;
@@ -882,10 +883,10 @@ function poisePane(p, id, state) {
   if (pic.mean) table += `<tr class="avg"><td colspan="2">${esc(pic.mean.name)}</td></tr>`;
   table += `</tbody></table>`;
   const toggle = `<div class="seg poise-seg">${[["plot", "Plot"], ["dial", "Dial"]].map(([k, name]) =>
-    `<button data-poise="${k}" aria-pressed="${poiseView === k}">${name}</button>`).join("")}</div>`;
+    `<button data-poise="${k}" aria-pressed="${poiseShown[k]}">${name}</button>`).join("")}</div>`;
   const words = `<p class="hint">${esc(p.fit.text)}</p>`;
   const heavy = pic.heavy ? `<p class="hint"><b>${esc(pic.heavy[0])}</b> ${esc(pic.heavy[1])}</p>` : "";
-  const chart = poiseView === "dial" ? poiseDial(pic) : poisePlot(pic);
+  const chart = (poiseShown.plot ? poisePlot(pic) : "") + (poiseShown.dial ? poiseDial(pic) : "");
   const title = state ? `${pic.title}, ${state}` : pic.title;
   return `<div data-pane="${esc(id)}">${testPane(title, table, `<div class="chart pl" data-pl="${esc(id)}-poise">${words}${heavy}<div class="pl-head"><span class="pl-val"></span></div>${chart}</div>`, toggle)}</div>`;
 }
@@ -1090,7 +1091,7 @@ function wirePanes(root) {
     });
     pane.addEventListener("pointerleave", () => hot(null));
     for (const b of pane.querySelectorAll(".poise-seg button")) {
-      b.addEventListener("click", () => { poiseView = b.dataset.poise; redraw(); });
+      b.addEventListener("click", () => { poiseShown[b.dataset.poise] = !poiseShown[b.dataset.poise]; redraw(); });
     }
     for (const b of pane.querySelectorAll(".pane-seg button")) {
       b.addEventListener("click", () => { paneShown[b.dataset.series] = !paneShown[b.dataset.series]; redraw(); });
