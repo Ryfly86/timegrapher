@@ -261,6 +261,16 @@ pub struct Hour {
     /// Source of the selected beat error; absent in older saved readings.
     #[serde(default)]
     pub beat_error_source: Option<crate::session::BeatErrorSource>,
+    /// Each figure's ±, its standard error in the figure's own unit, as
+    /// the hour's measurement gives it ([`crate::confidence`], the one ±
+    /// every reading carries; #1729). None where the figure has none, and
+    /// in results saved before it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rate_se: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub amplitude_se: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub beat_error_se: Option<f64>,
     /// Factual conditions carried from the core measurement.
     #[serde(default)]
     pub caveats: Vec<crate::measure::Caveat>,
@@ -446,6 +456,9 @@ pub fn hours_from(
             amplitude_deg: m.as_ref().and_then(|m| m.amplitude_deg),
             beat_error_ms: m.as_ref().and_then(|m| m.beat_error_signed()),
             beat_error_source: m.as_ref().and_then(|m| m.beat_error_source),
+            rate_se: se(m.as_ref(), |c| c.rate.se),
+            amplitude_se: se(m.as_ref(), |c| c.amplitude.se),
+            beat_error_se: se(m.as_ref(), |c| c.beat_error.se),
             caveats: m.as_ref().map(|m| m.caveats.clone()).unwrap_or_default(),
             read_s,
             bph: Some(log.bph),
@@ -453,6 +466,14 @@ pub fn hours_from(
         hour += 1;
     }
     out
+}
+
+/// One figure's ± from an hour's measurement, None where it has none.
+fn se(
+    m: Option<&crate::session::Measurement>,
+    pick: impl Fn(&crate::confidence::Confidence) -> Option<f64>,
+) -> Option<f64> {
+    m.and_then(|m| m.confidence.as_ref()).and_then(pick)
 }
 
 /// The run of a take that wasn't a Power Reserve Test, read as one: its
@@ -1098,6 +1119,47 @@ mod tests {
         assert!(h[0].read_s >= h[0].span_s - 50.0, "{h:?}");
     }
 
+    /// Each hour carries the ± its stretch's measurement gives, the same
+    /// standard errors a reading of that stretch carries (#1729), and an
+    /// hour saved before them reads back without one.
+    #[test]
+    fn each_hour_carries_the_plus_minus_its_stretch_gives() {
+        use crate::synth::{generate, SynthConfig};
+        let cfg = SynthConfig {
+            duration_s: 300.0,
+            rate_s_per_day: 6.0,
+            ..Default::default()
+        };
+        let audio = generate(&cfg, |_| 250.0, |_| 0.2);
+        let log = crate::stream::analyze_samples(
+            &audio.samples,
+            audio.sample_rate,
+            &crate::stream::StreamConfig::default(),
+        );
+        let first = log.beats[0].time;
+        let last = log.beats[log.beats.len() - 1].time;
+        let h = hours(&log, None, &[], &[], first, last);
+        let m = crate::session::measure_masked(&log, None, &[], &[], first, last);
+        let c = m.confidence.expect("a five-minute stretch has a ±");
+        assert_eq!(h[0].rate_se, c.rate.se);
+        assert_eq!(h[0].amplitude_se, c.amplitude.se);
+        assert_eq!(h[0].beat_error_se, c.beat_error.se);
+        assert!(
+            h[0].rate_se.is_some() && h[0].amplitude_se.is_some(),
+            "{h:?}"
+        );
+        let json = serde_json::to_string(&h[0]).unwrap();
+        assert!(json.contains("\"rate_se\""), "{json}");
+        let old = json
+            .split(',')
+            .filter(|f| !f.contains("_se\""))
+            .collect::<Vec<_>>()
+            .join(",");
+        let back: Hour = serde_json::from_str(&old).unwrap();
+        assert_eq!(back.rate_se, None);
+        assert_eq!(back.rate_s_per_day, h[0].rate_s_per_day);
+    }
+
     #[test]
     fn results_keep_true_time_and_read_back() {
         let h = Heard {
@@ -1146,6 +1208,9 @@ mod tests {
             amplitude_deg: None,
             beat_error_ms: None,
             beat_error_source: None,
+            rate_se: None,
+            amplitude_se: None,
+            beat_error_se: None,
             caveats: Vec::new(),
             read_s: 0.0,
             bph: Some(28_800),
@@ -1166,6 +1231,9 @@ mod tests {
             amplitude_deg: None,
             beat_error_ms: None,
             beat_error_source: None,
+            rate_se: None,
+            amplitude_se: None,
+            beat_error_se: None,
             caveats: Vec::new(),
             read_s,
             bph: Some(28_800),
