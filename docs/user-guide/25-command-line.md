@@ -78,7 +78,7 @@ $ timegrapher analyze take_part01-001.flac --calibre "Dandong 3235"
 Calibre      Dandong 3235: 28800 bph, lift 59°, as set unless a flag said otherwise
 Take         …/session.toml lists this file; `timegrapher session` reads it:
              Dial Up (DU) from 20 to 600 s: rate -0.7 ± 0.4 s/d, amplitude 282 ± 1°, beat error 0.24 ± 0.04 ms
-Whole file   read alone, with no settling and none of the take's settings:
+Whole file   read alone, with no settling, at the take's beat rate and lift angle:
 Duration     600.0 s at 48000 Hz
 Beat rate    28800 bph, 4711 beats found (98.1% of those expected)
 Rate         -0.7 ± 0.3 s/d, corrected for the sound card's clock (18.9 ppm slow, …); +0.9 s/d on the card's clock
@@ -92,8 +92,9 @@ Clipping     on 0.0% of beats (0 of 4711, 210 samples), peak 0.0 dBFS
 This is ten minutes of a Dandong 3235, dial up. The file is part of a
 take, so the first lines give the take's own reading, as the app and
 `session` read it, after its 20 s settle. The rest reads the file alone,
-from its first beat and without the take's settings, so its figures can
-differ from the take's; the take's are the ones the app shows. The rate
+from its first beat with no settling, at the take's beat rate and lift
+angle unless a flag sets them, so its figures can differ from the
+take's; the take's are the ones the app shows. The rate
 is corrected
 for the sound card's clock from the USB lines in the recording (M3), and
 gives the uncorrected figure too.
