@@ -966,8 +966,10 @@ mod tests {
         assert!(!page().contains("/*ICONS*/"));
         let at = page().find("const ICONS = ").expect("the icons");
         let line = &page()[at..page()[at..].find('\n').unwrap() + at];
+        // A Windows checkout ends the line "\r\n".
         let json = line
             .trim_start_matches("const ICONS = ")
+            .trim_end()
             .trim_end_matches(';');
         let v: Value = serde_json::from_str(json).expect("the icons as JSON");
         assert_eq!(v["rate"], timegrapher_core::icons::RATE);
