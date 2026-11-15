@@ -2,6 +2,7 @@
 //! card at 10, led through the eight upright stops, kept out of the
 //! Positions Test's pane, and drawn with core's fit.
 
+use super::poise_pane::PoiseView;
 use super::tests::{queued_capture, synthetic_varying, themed};
 use super::*;
 use timegrapher_core::synth::{generate, SynthConfig};
@@ -96,9 +97,9 @@ fn a_poise_test_measures_eight_stops_and_core_fits_the_wave(app: &TimegrapherApp
 #[test]
 fn a_measured_poise_test_passes_each_check() {
     let (mut app, base, tx) = measured("measured-checks");
-    let fresh = (app.poise_view, app.poise_info);
+    let fresh = (app.poise_views, app.poise_info);
     let reset = |app: &mut TimegrapherApp| {
-        app.poise_view = fresh.0;
+        app.poise_views = fresh.0;
         app.poise_info = fresh.1;
     };
     a_poise_test_measures_eight_stops_and_core_fits_the_wave(&app);
@@ -107,6 +108,8 @@ fn a_measured_poise_test_passes_each_check() {
     the_heavy_spot_is_in_a_facts_box_and_the_notes_in_info(&mut app);
     reset(&mut app);
     the_table_tightens_beside_the_picture_then_goes_under_it(&mut app);
+    reset(&mut app);
+    both_views_sit_side_by_side_where_there_is_room(&mut app);
     reset(&mut app);
     the_dial_has_its_watch_case_behind_it(&mut app);
     reset(&mut app);
@@ -359,7 +362,7 @@ fn the_pane_says_the_fit_waits_for_five_stops_in_both_views() {
     let mut app = synthetic_varying(30.0, 0.0, |_| 0.0);
     app.guided = Some(guided::Test::poise().timed(1.0, 5.0));
     for view in [PoiseView::Plot, PoiseView::Dial] {
-        app.poise_view = view;
+        app.poise_views = [view == PoiseView::Plot, view == PoiseView::Dial];
         let drawn = draw(&mut app, Pane::DynamicPoise);
         assert!(drawn.contains(&poise_pending()), "{view:?}: {drawn}");
         for label in ["Crown Down (CD, 9H)", "7:30 Up (7H30)", "10:30 Up (10H30)"] {
@@ -392,7 +395,7 @@ fn the_picture_has_its_key_and_mean_and_info_says_each_fact_once(app: &mut Timeg
         .mean_rate
         .unwrap();
     assert!(mean.starts_with("Mean ") && mean.contains(&format!("{:.1}", row.abs())));
-    app.poise_view = PoiseView::Plot;
+    app.poise_views = [true, false];
     let plot = draw(app, Pane::DynamicPoise);
     for word in ["Upright positions (8)", "Fitted wave", mean.as_str()] {
         assert!(plot.contains(word), "{word}: {plot}");
@@ -401,7 +404,7 @@ fn the_picture_has_its_key_and_mean_and_info_says_each_fact_once(app: &mut Timeg
     // across the plot, apart from the grid's full-width lines.
     let dashes = plot_dashes(app);
     assert!(dashes > 20, "{dashes} dashes");
-    app.poise_view = PoiseView::Dial;
+    app.poise_views = [false, true];
     let dial = draw(app, Pane::DynamicPoise);
     assert!(
         dial.contains(&mean) && dial.contains("Fastest 6H"),
@@ -423,7 +426,7 @@ fn the_heavy_spot_is_in_a_facts_box_and_the_notes_in_info(app: &mut TimegrapherA
     let notes = guided::poise_table_notes(&readings);
     let caveat = fit.caveat_line();
     for view in [PoiseView::Plot, PoiseView::Dial] {
-        app.poise_view = view;
+        app.poise_views = [view == PoiseView::Plot, view == PoiseView::Dial];
         app.poise_info = false;
         let texts = draw_at(app, Pane::DynamicPoise, Vec2::new(1280.0, 820.0));
         let at = |want: &str| texts.iter().find(|(t, _)| t == want).map(|(_, r)| *r);
@@ -456,7 +459,7 @@ fn the_heavy_spot_is_in_a_facts_box_and_the_notes_in_info(app: &mut TimegrapherA
 /// the crown; in both themes, and in a short wide pane as in a tall one.
 fn the_dial_has_its_watch_case_behind_it(app: &mut TimegrapherApp) {
     use timegrapher_core::poise_case;
-    app.poise_view = PoiseView::Dial;
+    app.poise_views = [false, true];
     for (dark, size) in [
         (true, Vec2::new(1280.0, 820.0)),
         (false, Vec2::new(1280.0, 820.0)),
@@ -839,6 +842,13 @@ fn draw_at(app: &mut TimegrapherApp, pane: Pane, size: Vec2) -> Vec<(String, egu
                 _ => None,
             })
             .collect();
+        // A picture of both views for review (#1729).
+        if let (Ok(d), [true, true]) = (std::env::var("SHOT_DIR"), app.poise_views) {
+            let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, size);
+            let back = ctx.style().visuals.window_fill;
+            let svg = crate::export::svg(&out.shapes, screen, back);
+            std::fs::write(format!("{d}/poise-both-{}.svg", size.x), svg).unwrap();
+        }
     }
     drawn
 }
@@ -1245,4 +1255,36 @@ fn a_poise_test_reads_the_same_live_as_reopened() {
     }
     drop(tx);
     let _ = std::fs::remove_dir_all(&base);
+}
+
+/// With Plot and Dial both on (#1729), the two sit side by side where
+/// there is room, the Plot left of the Dial, and one over the other
+/// where there is not.
+fn both_views_sit_side_by_side_where_there_is_room(app: &mut TimegrapherApp) {
+    app.poise_views = [true, true];
+    // The plot names the fastest hour too: the dial's is the other one.
+    let at = |app: &mut TimegrapherApp, w: f32| {
+        let texts = draw_at(app, Pane::DynamicPoise, Vec2::new(w, 820.0));
+        let all = |want: &str| -> Vec<egui::Rect> {
+            texts
+                .iter()
+                .filter(|(t, _)| t.starts_with(want))
+                .map(|(_, r)| *r)
+                .collect()
+        };
+        let hour = *all("Hour at the top").first().expect("the plot");
+        let fastest = all("Fastest 6H");
+        assert_eq!(fastest.len(), 2, "both views at {w}: {fastest:?}");
+        (hour, fastest)
+    };
+    let (plot, fastest) = at(app, 2000.0);
+    assert!(
+        fastest.iter().any(|d| d.left() > plot.right()),
+        "side by side: {plot:?} {fastest:?}"
+    );
+    let (plot, fastest) = at(app, 1100.0);
+    assert!(
+        fastest.iter().any(|d| d.top() > plot.bottom()),
+        "one over the other: {plot:?} {fastest:?}"
+    );
 }
