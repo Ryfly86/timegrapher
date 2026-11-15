@@ -1,6 +1,6 @@
 //! Listening and saving: the microphone, the session and its unsaved state, saving takes and analysis, opening and replaying recordings, the whole-take analysis, and the poll that feeds the live view.
 
-use super::kept_analysis::kept_header;
+use super::kept_analysis::{kept_header, kept_label};
 use super::*;
 pub(super) use timegrapher_core::recording_order::order_warning;
 use timegrapher_core::take_context::{EntryWindow, FilePart};
@@ -2126,7 +2126,7 @@ impl TimegrapherApp {
         self.open_note = parts;
         let (stretches, settles) = self.apply_manifest(&m, &entries, Some(header.duration_s));
         self.watch_fills_in(path, &m);
-        let label = format!("{name} (analysis only)");
+        let label = kept_label(path, &name);
         // Its beats, its own clock log with its USB lines' figure as
         // measured when it was kept, and the breaks its session.json
         // lists, read by core as `timegrapher session` reads such a take.

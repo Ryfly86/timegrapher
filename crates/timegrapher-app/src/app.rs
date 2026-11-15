@@ -2975,19 +2975,9 @@ impl TimegrapherApp {
     /// What the strip shows, for the status line: the take's name, its
     /// watch and its state.
     fn status_words(&self) -> String {
-        let file_name = |p: &Path| {
-            p.file_name()
-                .map_or_else(|| p.display().to_string(), |n| n.to_string_lossy().into())
-        };
         // A take not yet saved or opened, with no watch, is Quick Listen's,
         // as the Calibre card's title says (No Watch (Quick Listen)).
-        let file = if let Some(to) = self.session.saved_to() {
-            Some(file_name(to))
-        } else if self.input == Input::File && !self.opened_path.is_empty() {
-            Some(file_name(Path::new(&self.opened_path)))
-        } else {
-            None
-        };
+        let file = self.take_name();
         let named = self.named_watch().map_or_else(String::new, |w| w.0);
         let quick = self.quick_listen || file.is_none() && named.is_empty();
         let name =

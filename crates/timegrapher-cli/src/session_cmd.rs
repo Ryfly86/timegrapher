@@ -822,7 +822,7 @@ fn long_run_of(
     read: &take::EntryRead,
 ) -> Option<power_reserve::Results> {
     power_reserve::of_take(
-        &c.base.join(&e.file),
+        Some(&c.base.join(&e.file)),
         &read.log,
         read.clock.as_ref(),
         &read.breaks,
@@ -1057,7 +1057,7 @@ fn whole_take_run(c: &Ctx) -> Result<Option<power_reserve::Results>, String> {
     // its first beat.
     let masked = session::with_holes(&ctx.masked, &ctx.holes(c.m));
     Ok(power_reserve::of_take(
-        c.base,
+        Some(c.base),
         &log,
         ctx.clock.as_ref(),
         &breaks,
