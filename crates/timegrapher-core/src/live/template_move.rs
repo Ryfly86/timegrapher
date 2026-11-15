@@ -366,6 +366,14 @@ mod tests {
         l
     }
 
+    /// The same breaks, each within a microsecond: live and a saved read
+    /// time a beat from envelopes cut at other points.
+    fn same_jumps(live: &[f64], saved: &[f64]) {
+        let near =
+            live.len() == saved.len() && live.iter().zip(saved).all(|(a, b)| (a - b).abs() < 1e-6);
+        assert!(near, "live {live:?} saved {saved:?}");
+    }
+
     /// Live builds the template again where a saved read does, at the
     /// start of the chunk the Tock's sound moved in, with the same break,
     /// and reads the beats after on it as the saved read does: 99% within
@@ -398,7 +406,7 @@ mod tests {
             "{close} of {}",
             after.len()
         );
-        assert_eq!(l.jumps(), &saved.jumps[..]);
+        same_jumps(l.jumps(), &saved.jumps);
         let (y, _) = take(false);
         assert!(live(&y, fs).template_moves().is_empty());
     }
@@ -416,6 +424,6 @@ mod tests {
         let saved = analyze_samples(&x, fs, &cfg);
         let l = live(&x, fs);
         assert_eq!(l.template_moves(), &[282.0]);
-        assert_eq!(l.jumps(), &saved.jumps[..]);
+        same_jumps(l.jumps(), &saved.jumps);
     }
 }

@@ -918,7 +918,7 @@ fn run(
         progress(c.core_b);
     }
     // Stops when the amplitude threads have (one panicked).
-    !job.is_some_and(|job| jobs.send((job, c)).is_err())
+    job.is_none_or(|job| jobs.send((job, c)).is_ok())
 }
 
 /// One chunk of the recording with what its sound alone gives: its
