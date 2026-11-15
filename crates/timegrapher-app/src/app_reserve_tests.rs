@@ -26,12 +26,13 @@ fn a_long_runs_two_charts_show_whole_in_a_small_window() {
         let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(w, h));
         // A pass, the wheel turned down over the pane's run if `wheel`.
         let pass = |app: &mut TimegrapherApp, wheel: bool| {
-            let at = egui::pos2(w / 2.0, h - 70.0);
+            // Over the charts, at the pane's right.
+            let at = egui::pos2(w - 120.0, h - 70.0);
             let mut events = vec![egui::Event::PointerMoved(at)];
             if wheel {
                 events.push(egui::Event::MouseWheel {
                     unit: egui::MouseWheelUnit::Point,
-                    delta: egui::vec2(0.0, -150.0),
+                    delta: egui::vec2(0.0, -600.0),
                     modifiers: Default::default(),
                 });
             }
@@ -70,8 +71,8 @@ fn a_long_runs_two_charts_show_whole_in_a_small_window() {
         for _ in 0..4 {
             out = Some(pass(&mut app, false));
         }
-        // Too short for the three beside the table: they head the run,
-        // the Rate chart's title row first, and scroll with the table.
+        // Too short for the three at their least: beside the table, the
+        // Rate chart's first, and their column scrolls (Hugh on #1761).
         let top = shown_of(out.unwrap());
         assert!(top.iter().any(|t| t == "Rate"), "{w}: {top:?}");
         assert!(top.iter().any(|t| t == "s/d"), "{w}: {top:?}");
@@ -170,12 +171,12 @@ fn a_long_runs_charts_read_with_its_take_open_in_a_small_window() {
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(1000.0, 700.0));
     // A pass, the wheel turned down over the pane's run if `wheel`.
     let pass = |app: &mut TimegrapherApp, wheel: bool| {
-        let at = egui::pos2(screen.width() / 2.0, screen.height() - 70.0);
+        let at = egui::pos2(screen.width() - 120.0, screen.height() - 70.0);
         let mut events = vec![egui::Event::PointerMoved(at)];
         if wheel {
             events.push(egui::Event::MouseWheel {
                 unit: egui::MouseWheelUnit::Point,
-                delta: egui::vec2(0.0, -150.0),
+                delta: egui::vec2(0.0, -600.0),
                 modifiers: Default::default(),
             });
         }
@@ -208,13 +209,13 @@ fn a_long_runs_charts_read_with_its_take_open_in_a_small_window() {
         // Then scrolled down to the bottom chart's hours.
         out = Some(pass(&mut app, i == 6));
     }
-    assert!(axis_labels(&top, "") >= 1, "{top:?}");
     let _ = std::fs::remove_dir_all(&dir);
     if let Ok(d) = std::env::var("SHOT_DIR") {
         let o = out.as_ref().unwrap();
         let svg = crate::export::svg(&o.shapes, screen, ctx.style().visuals.window_fill);
         std::fs::write(format!("{d}/open-1000.svg"), svg).unwrap();
     }
+    assert!(axis_labels(&top, "") >= 1, "{top:?}");
     let shown = under_run_line(out.as_ref().unwrap(), screen);
     // Each chart's first and last hour drawn whole, the right one clear
     // of the pane's edge and its scroll bar.
@@ -466,6 +467,7 @@ fn a_runs_table_sits_left_of_its_charts() {
         let at = egui::pos2(hours.left() + 20.0, hours.bottom() + 60.0);
         let whole = |t: &(String, egui::Rect, egui::Rect)| t.2 == t.1;
         let mut moved = false;
+        let mut last = None;
         for step in 0..14 {
             let o = pass(&mut app, Some(at));
             let cut = rows_cut(&o, fill);
@@ -478,8 +480,14 @@ fn a_runs_table_sits_left_of_its_charts() {
             assert!(!rows || titled, "{w}, step {step}: {now:?}");
             assert_eq!(plot_frames(&o, fill, ran), frames, "{w}, step {step}");
             moved |= !now.iter().any(|t| t.0 == "0–1 h" && whole(t));
+            last = Some(o);
         }
         assert!(moved, "{w}: the table never scrolled");
+        // The pointer on a row: the same hour in the charts.
+        if let (Ok(d), Some(o)) = (std::env::var("SHOT_DIR"), last) {
+            let svg = crate::export::svg(&o.shapes, screen, ctx.style().visuals.window_fill);
+            std::fs::write(format!("{d}/table-{w}-hover.svg"), svg).unwrap();
+        }
         pinned_titles_and_hovers(&ctx, &mut app, at, screen);
     }
 }

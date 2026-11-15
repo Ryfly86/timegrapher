@@ -12,8 +12,8 @@ use crate::steady::series_colour;
 use crate::strength::{self, Grid};
 use crate::theme;
 use eframe::egui;
-use timegrapher_core::chart_scale::axis_number;
-use timegrapher_core::figure_text::{figure_with_pm, true_minus};
+use timegrapher_core::chart_scale::{axis_decimals, axis_number};
+use timegrapher_core::figure_text::{figure_with_pm, signed_text, true_minus};
 use timegrapher_core::steadiness::SeriesKind;
 
 /// One hour's figure as drawn: its value, its ± (a standard error), and
@@ -33,11 +33,12 @@ pub struct Chart {
     pub unit: &'static str,
     /// Decimals ([`timegrapher_core::figure_text::base_digits`]).
     pub digits: usize,
-    /// A sign written, and zero across drawn as a zero line: a rate.
+    /// A sign written on its figures and its ticks: a rate.
     pub signed: bool,
-    /// Its scale reaches zero: a rate, and a size such as a beat error,
-    /// which a flat run would otherwise blow up into noise.
-    pub to_zero: bool,
+    /// Its value axis, [lo, hi, step], core's for the run
+    /// ([`timegrapher_core::power_reserve::chart_axis`]): its ticks fall
+    /// on each step, and zero, where it lies inside, is drawn across.
+    pub axis: Option<[f64; 3]>,
 }
 
 /// The hours' spans, `[from, to)` in hours since the run began, one for
@@ -50,12 +51,17 @@ const TITLE_H: f32 = 18.0;
 /// The height under the bottom chart for its hours, points.
 const AXIS_H: f32 = 20.0;
 
-/// The least height of a chart's plot, points.
-pub const PLOT_MIN_H: f32 = 56.0;
+/// The height of the line over each chart's value axis that names its
+/// unit, points.
+const UNIT_H: f32 = 14.0;
 
-/// The height a chart reads well at, its title row included, points:
-/// its least, so three fit where the Power Reserve pane's two did.
-pub const CHART_READ_H: f32 = TITLE_H + PLOT_MIN_H;
+/// The gap between one chart's plot and the next one's title row, clear
+/// of the lowest tick's label, points.
+const CHART_GAP: f32 = 10.0;
+
+/// The least height a chart takes, its title row and unit line included,
+/// points (Hugh on #1761: at least ~90 pt each).
+pub const CHART_READ_H: f32 = 90.0;
 
 /// The steps, in hours, the hour axis goes up in.
 const HOUR_STEPS: [f64; 7] = [1.0, 2.0, 3.0, 6.0, 12.0, 24.0, 48.0];
@@ -76,7 +82,7 @@ fn hour_marks(g: egui_plot::GridInput) -> Vec<egui_plot::GridMark> {
 /// The height `n` charts need to read well, the hours under them
 /// included.
 pub fn read_h(n: usize) -> f32 {
-    n as f32 * CHART_READ_H + AXIS_H
+    n as f32 * CHART_READ_H + n.saturating_sub(1) as f32 * CHART_GAP + AXIS_H
 }
 
 /// The hour of `spans` at `x` hours, if any.
@@ -85,41 +91,80 @@ fn hour_at(spans: &Spans, x: f64) -> Option<usize> {
 }
 
 /// One width of value axis for every chart, so their plots start at the
-/// same x: the least gutter, or the widest label any may draw, read from
-/// each figure's whole-number ends with a decimal to spare.
+/// same x: the least gutter, or the widest tick label any draws.
 fn shared_gutter(ui: &egui::Ui, charts: &[&Chart]) -> f32 {
     let font = egui::TextStyle::Body.resolve(ui.style());
     let mut w = GUTTER;
     for c in charts {
-        for s in c.steps.iter().flatten() {
-            for end in [s.v.floor(), s.v.ceil()] {
-                let t = true_minus(&format!("{end:.1}"));
-                let wide = ui.fonts_mut(|f| {
-                    f.layout_no_wrap(t, font.clone(), egui::Color32::WHITE)
-                        .size()
-                        .x
-                });
-                w = w.max(wide + 8.0);
-            }
+        for m in c
+            .axis
+            .map(|[lo, hi, step]| step_marks(lo, hi, step))
+            .unwrap_or_default()
+        {
+            let t = tick_text(c, m.value, m.step_size);
+            let wide = ui.fonts_mut(|f| {
+                f.layout_no_wrap(t, font.clone(), egui::Color32::WHITE)
+                    .size()
+                    .x
+            });
+            w = w.max(wide + 8.0);
         }
     }
     w
 }
 
-/// The value range a chart shows: its steps and their bands.
-fn y_range(c: &Chart) -> Option<(f64, f64)> {
-    let mut lo = f64::INFINITY;
-    let mut hi = f64::NEG_INFINITY;
-    for s in c.steps.iter().flatten() {
-        let e = s.se.unwrap_or(0.0);
-        lo = lo.min(s.v - e);
-        hi = hi.max(s.v + e);
-    }
-    if c.to_zero {
-        lo = lo.min(0.0);
-        hi = hi.max(0.0);
-    }
-    lo.is_finite().then_some((lo, hi))
+/// A tick's label: bare, a rate's signed so fast or slow reads at a
+/// glance (Hugh on #1761), a minus a true one.
+fn tick_text(c: &Chart, v: f64, step: f64) -> String {
+    let text = if c.signed {
+        signed_text(v, axis_decimals(step))
+    } else {
+        axis_number(v, step)
+    };
+    true_minus(&text)
+}
+
+/// A chart's value marks: core's axis's own step, or a rounder step above
+/// it where that crowds the plot, labels at least
+/// 24 points apart, down to 21 on a short plot: egui_plot names no mark
+/// closer than 20.
+fn value_marks(g: egui_plot::GridInput, axis: Option<[f64; 3]>) -> Vec<egui_plot::GridMark> {
+    let Some([_, _, step]) = axis else {
+        return theme::short_y_grid(g);
+    };
+    // Core's step, then the round steps (1, 2 and 5 times a power of ten)
+    // above it, each the round step at least twice the last, up to the
+    // plot's span.
+    let span = g.bounds.1 - g.bounds.0;
+    let ladder: Vec<f64> = std::iter::successors(Some(step), |&s| {
+        Some(timegrapher_core::chart_scale::round_step(s + s))
+    })
+    .take_while(|&s| s == step || s <= span)
+    .collect();
+    let at = |px: f64| {
+        let again = egui_plot::GridInput {
+            bounds: g.bounds,
+            base_step_size: g.base_step_size,
+        };
+        theme::even_grid(again, px, &ladder)
+    };
+    [24.0, 21.0]
+        .into_iter()
+        .map(at)
+        .find(|m| m.len() >= 2)
+        .unwrap_or_else(|| at(24.0))
+}
+
+/// The marks of an axis from `lo` to `hi` at each `step`.
+fn step_marks(lo: f64, hi: f64, step: f64) -> Vec<egui_plot::GridMark> {
+    let n = ((hi - lo) / step).round() as i64;
+    std::iter::successors(Some(0_i64), |i| Some(i + 1))
+        .take_while(|&i| i <= n)
+        .map(|i| egui_plot::GridMark {
+            value: lo + i as f64 * step + 0.0,
+            step_size: step,
+        })
+        .collect()
 }
 
 /// The charts in `rect`, stacked, sharing its height, over `spans`
@@ -141,24 +186,28 @@ pub fn stack(
     // A 5% margin each side, as egui's own, so 0 h clears the value axis.
     let x_range = (-end * 0.05, end * 1.05);
     let gutter = shared_gutter(ui, charts);
-    // Never so short that one chart runs into the next: what doesn't fit
-    // runs past the pane's foot, where it scrolls.
-    let each = ((rect.height() - AXIS_H) / charts.len() as f32).max(TITLE_H + PLOT_MIN_H);
+    // Never shorter than reads: what doesn't fit runs past the rect's
+    // foot, where it scrolls.
+    let n = charts.len() as f32;
+    let each = ((rect.height() - AXIS_H - (n - 1.0) * CHART_GAP) / n).max(CHART_READ_H);
     let mut under = None;
     let mut bottom_frame = None;
     for (i, c) in charts.iter().enumerate() {
         let last = i + 1 == charts.len();
-        let top = rect.top() + i as f32 * each;
+        let top = rect.top() + i as f32 * (each + CHART_GAP);
         let band = egui::Rect::from_x_y_ranges(rect.x_range(), top..=top + TITLE_H);
-        let plot_h = (each - TITLE_H + if last { AXIS_H } else { 0.0 }).max(PLOT_MIN_H);
+        let unit =
+            egui::Rect::from_x_y_ranges(rect.x_range(), band.bottom()..=band.bottom() + UNIT_H);
+        let plot_h = each - TITLE_H - UNIT_H + if last { AXIS_H } else { 0.0 };
         let plot_rect = egui::Rect::from_min_size(
-            egui::pos2(rect.left(), band.bottom()),
+            egui::pos2(rect.left(), unit.bottom()),
             egui::vec2(rect.width(), plot_h),
         );
         let mut child = ui.new_child(egui::UiBuilder::new().max_rect(plot_rect));
         let (frame, at) = one(&mut child, c, spans, (x_range, gutter, last), hover);
         under = under.or(at);
         title_row(ui, band, frame, c, hover);
+        unit_line(ui, unit, frame, c);
         if last {
             bottom_frame = Some(frame);
         }
@@ -182,10 +231,13 @@ fn one(
     use egui_plot::{Line, Plot, Polygon, VLine};
     let pal = theme::pal(ui);
     let colour = series_colour(c.kind, pal);
-    let mut grid = Grid::new(hour_marks, |g| theme::even_grid(g, 24.0, &[]));
-    if c.signed {
-        grid = grid.zero_y();
-    }
+    let axis = c.axis;
+    let grid = Grid::new(hour_marks, move |g| value_marks(g, axis));
+    // Zero across where it lies inside the axis (Hugh on #1761).
+    let grid = match c.axis {
+        Some([lo, hi, _]) if (lo..=hi).contains(&0.0) => grid.zero_y(),
+        _ => grid,
+    };
     let mut plot = grid
         .on(Plot::new(("hour steps", c.kind.title())))
         .height(ui.available_height())
@@ -200,9 +252,9 @@ fn one(
         .y_axis_min_width(gutter)
         .show_axes([last, true])
         .x_axis_formatter(|m, _| format!("{} h", axis_number(m.value, m.step_size)))
-        .y_axis_formatter(|m, _| true_minus(&axis_number(m.value, m.step_size)));
-    if let Some((lo, hi)) = y_range(c) {
-        plot = plot.include_y(lo).include_y(hi);
+        .y_axis_formatter(|m, _| tick_text(c, m.value, m.step_size));
+    if let Some([lo, hi, _]) = c.axis {
+        plot = plot.default_y_bounds(lo, hi);
     }
     let resp = plot.show(ui, |p| {
         grid.draw(p, pal);
@@ -280,21 +332,13 @@ fn runs(steps: &[Option<Step>], spans: &Spans) -> Vec<(Vec<[f64; 2]>, bool)> {
     out
 }
 
-/// A chart's title row in `band`: its name over the plot's left edge,
-/// its value at the hovered hour after it in its colour, and its unit
-/// over the value axis, which ends at `frame`'s left.
+/// A chart's title row in `band`: its name alone over the plot's left
+/// edge, and its value at the hovered hour after it in its colour.
 fn title_row(ui: &egui::Ui, band: egui::Rect, frame: egui::Rect, c: &Chart, hover: Option<usize>) {
     let pal = theme::pal(ui);
     let painter = ui.painter().with_clip_rect(band);
     let font = egui::TextStyle::Body.resolve(ui.style());
     let y = band.center().y;
-    painter.text(
-        egui::pos2(frame.left() - 6.0, y),
-        egui::Align2::RIGHT_CENTER,
-        c.unit,
-        font.clone(),
-        pal.text_secondary,
-    );
     let name = painter.text(
         egui::pos2(frame.left(), y),
         egui::Align2::LEFT_CENTER,
@@ -327,6 +371,19 @@ fn title_row(ui: &egui::Ui, band: egui::Rect, frame: egui::Rect, c: &Chart, hove
             ink,
         );
     }
+}
+
+/// A chart's unit on its own line in `line`, over its value axis, which
+/// ends at `frame`'s left (Hugh on #1761: the ticks bare).
+fn unit_line(ui: &egui::Ui, line: egui::Rect, frame: egui::Rect, c: &Chart) {
+    let font = egui::TextStyle::Small.resolve(ui.style());
+    ui.painter().with_clip_rect(line).text(
+        egui::pos2(frame.left() - 6.0, line.center().y),
+        egui::Align2::RIGHT_CENTER,
+        c.unit,
+        font,
+        theme::pal(ui).text_secondary,
+    );
 }
 
 /// The hovered hour named under the bottom chart's `frame`, over its hour

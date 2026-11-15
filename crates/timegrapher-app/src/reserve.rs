@@ -22,6 +22,7 @@ use timegrapher_core::library::length_text;
 use timegrapher_core::power_reserve::{self, Ending, Heard, Results};
 use timegrapher_core::recorder::STORED_BITS;
 use timegrapher_core::session::{beat_error_source_label, BeatErrorSource};
+use timegrapher_core::steadiness::SeriesKind;
 
 /// Bytes of sound written an hour at `sample_rate`, one channel, as the
 /// recorder keeps it: at [`STORED_BITS`] whatever the microphone gives.
@@ -419,26 +420,39 @@ fn hour_area(ui: &mut egui::Ui, hours: &[power_reserve::Hour], so_far: bool, sho
     let chart_hover = hover.filter(|&h| h < whole);
     let now = if whole == 0 || charts.is_empty() {
         table_scroll(ui, room, hours, hover)
-    } else if room.width() - table_w - gap >= CHARTS_MIN_W
-        && room.height() >= hour_steps::read_h(charts.len())
-    {
-        // The charts beside the table (#1729), the pane's height.
+    } else if room.width() - table_w - gap >= CHARTS_MIN_W {
+        // The charts beside the table (#1729), the pane's height, or
+        // their least in a column of their own that scrolls when the pane
+        // is shorter (Hugh on #1761).
         let split = room.left() + table_w;
         let table = egui::Rect::from_x_y_ranges(room.left()..=split, room.y_range());
-        let chart = egui::Rect::from_x_y_ranges(split + gap..=room.right(), room.y_range());
+        let column = egui::Rect::from_x_y_ranges(split + gap..=room.right(), room.y_range());
         let now = table_scroll(ui, table, hours, hover);
-        now.or(hour_steps::stack(
-            ui,
-            chart,
-            &charts,
-            &spans,
-            chart_hover,
-            words,
-        ))
+        let high = column.height().max(hour_steps::read_h(charts.len()));
+        let at = ui
+            .scope_builder(egui::UiBuilder::new().max_rect(column), |ui| {
+                egui::ScrollArea::vertical()
+                    .id_salt("reserve charts scroll")
+                    .auto_shrink([false, false])
+                    .max_height(column.height())
+                    .show(ui, |ui| {
+                        // Clear of the scroll bar where there is one.
+                        let bar = if high > column.height() {
+                            ui.spacing().scroll.allocated_width()
+                        } else {
+                            0.0
+                        };
+                        let size = egui::vec2(ui.available_width() - bar, high);
+                        let (chart, _) = ui.allocate_exact_size(size, egui::Sense::hover());
+                        hour_steps::stack(ui, chart, &charts, &spans, chart_hover, words)
+                    })
+                    .inner
+            })
+            .inner;
+        now.or(at)
     } else {
-        // Too narrow or short for both: the charts above the table, at
-        // least half the pane, and the two scrolling together where they
-        // don't fit.
+        // Too narrow for both: the charts above the table, at least half
+        // the pane, and the two scrolling together where they don't fit.
         let high = (room.height() / 2.0).max(hour_steps::read_h(charts.len()));
         ui.scope_builder(egui::UiBuilder::new().max_rect(room), |ui| {
             run_scroll(ui, room)
@@ -519,41 +533,28 @@ fn axis_words(h: &power_reserve::Hour) -> String {
 /// is (#1729).
 fn reserve_charts(hours: &[power_reserve::Hour], shown: [bool; 3]) -> Vec<hour_steps::Chart> {
     use hour_steps::{Chart, Step};
-    use timegrapher_core::steadiness::SeriesKind;
     let step = |k: SeriesKind, h: &power_reserve::Hour| -> Option<Step> {
-        Some(match k {
-            SeriesKind::Rate => Step {
-                v: h.rate_s_per_day?,
-                se: h.rate_se,
-                grey: false,
-            },
-            SeriesKind::Amplitude => Step {
-                v: h.amplitude_deg?,
-                se: h.amplitude_se,
-                grey: thin(h, Figure::Amplitude).is_some(),
-            },
-            SeriesKind::BeatError => Step {
-                v: h.beat_error_ms?.abs(),
-                se: h.beat_error_se,
-                grey: beat_error_hover(h).1,
-            },
+        Some(Step {
+            v: h.value(k)?,
+            se: h.se(k),
+            grey: h.grey(k),
         })
     };
     [
-        (SeriesKind::Rate, "s/d", base_digits::RATE),
-        (SeriesKind::Amplitude, "°", base_digits::AMPLITUDE),
-        (SeriesKind::BeatError, "ms", base_digits::BEAT_ERROR),
+        (SeriesKind::Rate, base_digits::RATE),
+        (SeriesKind::Amplitude, base_digits::AMPLITUDE),
+        (SeriesKind::BeatError, base_digits::BEAT_ERROR),
     ]
     .into_iter()
     .zip(shown)
     .filter(|(_, on)| *on)
-    .map(|((kind, unit, digits), _)| Chart {
+    .map(|((kind, digits), _)| Chart {
         kind,
         steps: hours.iter().map(|h| step(kind, h)).collect(),
-        unit,
+        unit: timegrapher_core::position_line::unit_of(kind),
         digits,
         signed: kind == SeriesKind::Rate,
-        to_zero: kind != SeriesKind::Amplitude,
+        axis: power_reserve::chart_axis(hours, kind),
     })
     .collect()
 }
@@ -654,7 +655,7 @@ fn part_hour_hover(h: &power_reserve::Hour) -> Option<(String, bool)> {
 /// hover: one text for both.
 macro_rules! dim_key {
     () => {
-        "Grey beat errors: from the drop, or source not recorded."
+        timegrapher_core::grey_beat_error_key!()
     };
 }
 
@@ -662,7 +663,7 @@ macro_rules! dim_key {
 /// the drop, or its source not recorded). The one rule for every table
 /// that shows beat errors, Power Reserve and Positions Test (#1076).
 pub fn beat_error_dimmed(source: Option<BeatErrorSource>) -> bool {
-    source != Some(BeatErrorSource::Unlock)
+    BeatErrorSource::greyed(source)
 }
 
 /// The dimming's key, over a table so it is in view with the rows, only
@@ -705,10 +706,8 @@ fn beat_error_hover(h: &power_reserve::Hour) -> (String, bool) {
             })
             .filter_map(|c| c.long(None)),
     );
-    let thin = thin(h, Figure::BeatError);
-    let grey = thin.is_some() || beat_error_dimmed(src);
-    words.extend(thin);
-    (words.join(". "), grey)
+    words.extend(thin(h, Figure::BeatError));
+    (words.join(". "), h.grey(SeriesKind::BeatError))
 }
 
 /// Whether an hour's BE Angle is grey: its beat error or its amplitude
@@ -880,15 +879,18 @@ const COLUMN_GAP: f32 = 18.0;
 fn hour_rows(hours: &[power_reserve::Hour]) -> Vec<[Cell; 6]> {
     // Each cell: its text, and the words of its source with whether it is
     // dimmed, for a beat error not from the unlock.
-    let plain = |t: String| (t, None);
     hours
         .iter()
         .map(|h| {
             [
                 (hour_label(h), part_hour_hover(h)),
-                plain(cell(h.rate_s_per_day, |v| {
-                    true_minus(&figure(v, None, base_digits::RATE, true))
-                })),
+                (
+                    cell(h.rate_s_per_day, |v| {
+                        true_minus(&figure(v, None, base_digits::RATE, true))
+                    }),
+                    // Grey when thin, as the amplitude (Norm on #1761).
+                    thin(h, Figure::Rate).map(|w| (w, true)),
+                ),
                 (
                     cell(h.amplitude_deg, |v| {
                         figure(v, None, base_digits::AMPLITUDE, false)
@@ -1855,8 +1857,8 @@ mod tests {
         let (tall, last) = drawn(760.0);
         // Room enough: the whole table shows.
         assert!(last.is_some_and(|b| b <= 760.0), "{last:?}");
-        // The charts at least half the pane: half of 380 more.
-        assert!(tall > short + 100.0, "{short} {tall}");
+        // The charts at least half the pane, and never under their least.
+        assert!(tall >= 760.0 / 2.0 && tall > short + 50.0, "{short} {tall}");
     }
 
     /// A finished run in a short pane scrolls, by the wheel, to its
@@ -1943,13 +1945,14 @@ mod tests {
         };
         let t = run(5);
         let shown = |texts: &[(String, egui::Rect)], what: &str| texts.iter().any(|t| t.0 == what);
-        // The Rate chart's title row, its unit left of its name, at the
-        // top of what scrolls; the table's titles put the unit under.
+        // The Rate chart's title row, its unit on the line under it over
+        // the value axis, left of the name, at the top of what scrolls;
+        // the table's titles put the unit under the name.
         let rate_scale = |texts: &[(String, egui::Rect)]| {
             texts.iter().filter(|t| t.0 == "Rate").any(|name| {
                 texts.iter().any(|u| {
                     u.0 == "s/d"
-                        && (u.1.center().y - name.1.center().y).abs() < 2.0
+                        && (u.1.top() - name.1.bottom()).abs() < 4.0
                         && u.1.right() <= name.1.left()
                 })
             })

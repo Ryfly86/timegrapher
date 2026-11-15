@@ -372,10 +372,9 @@ pub const RESERVE_KEY: &str = "timegrapher/reserve";
 /// hour's start and length in hours and its Read % (core
 /// `Hour::read_share`), and for each measure its title, unit, value axis
 /// and each hour's figure as a size for the beat error, its words in
-/// core's figure text and whether it is thin (read from too few of its
-/// windows: grey, as the app's table has it). `None` with no hours.
+/// core's figure text and whether core greys it (thin, or a beat error off
+/// the unlock, with `grey_key`), as the app does. `None` with no hours.
 pub fn reserve_view(doc: &Value) -> Option<Value> {
-    use timegrapher_core::confidence::Figure;
     use timegrapher_core::figure_text::fixed_text;
     use timegrapher_core::position_line::{bare, screen, unit_of};
     use timegrapher_core::power_reserve::{Hour, Results};
@@ -384,33 +383,26 @@ pub fn reserve_view(doc: &Value) -> Option<Value> {
     if run.hours.is_empty() {
         return None;
     }
-    let figure = |h: &Hour, k: SeriesKind| {
-        match k {
-            SeriesKind::Rate => h.rate_s_per_day,
-            SeriesKind::Amplitude => h.amplitude_deg,
-            SeriesKind::BeatError => h.beat_error_ms.map(f64::abs),
-        }
-        .filter(|v| v.is_finite())
-    };
+    // Core's rules for the run's charts, the app's too (#1761): each
+    // hour's figure, its grey and the axis.
     let series: Vec<Value> = [
-        (SeriesKind::Rate, Figure::Rate),
-        (SeriesKind::Amplitude, Figure::Amplitude),
-        (SeriesKind::BeatError, Figure::BeatError),
+        SeriesKind::Rate,
+        SeriesKind::Amplitude,
+        SeriesKind::BeatError,
     ]
     .into_iter()
-    .map(|(k, f)| {
-        let values: Vec<f64> = run.hours.iter().filter_map(|h| figure(h, k)).collect();
-        let axis = timegrapher_core::position_line::value_axis(k, &values);
+    .map(|k| {
+        let axis = timegrapher_core::power_reserve::chart_axis(&run.hours, k);
         let steps: Vec<Value> = run
             .hours
             .iter()
             .map(|h| {
-                let v = figure(h, k);
+                let v = h.value(k);
                 json!({
                     "value": v,
                     "text": v.map(|x| screen(k, x)),
                     "figure": v.map(|x| bare(k, x)),
-                    "thin": h.thin(f).is_some(),
+                    "grey": h.grey(k),
                 })
             })
             .collect();
@@ -437,6 +429,12 @@ pub fn reserve_view(doc: &Value) -> Option<Value> {
         "position": run.position,
         "hours": hours,
         "series": series,
+        // Shown wherever a beat error is grey for its source (Norm on #1761).
+        "grey_key": run
+            .hours
+            .iter()
+            .any(Hour::beat_error_off_unlock)
+            .then_some(timegrapher_core::power_reserve::GREY_BEAT_ERROR_KEY),
     }))
 }
 
@@ -1499,7 +1497,7 @@ mod tests {
         assert_eq!(rate["steps"][0]["text"], "\u{2212}1.5 s/d");
         assert_eq!(rate["steps"][0]["figure"], "\u{2212}1.5");
         assert!(rate["steps"][1]["value"].is_null());
-        assert_eq!(rate["steps"][2]["thin"], true);
+        assert_eq!(rate["steps"][2]["grey"], true);
         // A beat error is a size, drawn from 0.
         let be = &v["series"][2];
         assert_eq!(be["steps"][0]["value"], 0.4);
