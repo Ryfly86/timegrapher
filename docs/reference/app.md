@@ -940,9 +940,10 @@ a "Beat error from" column (unlock or drop; empty when not recorded, as
 for a figure not measured) and a "BE Angle (deg)" column. The take
 is kept in the picked watch's history, named by its local start time and
 "Power Reserve", with
-`power-reserve.json` beside the standard files; with Analysis Only it is
-then kept as its analysis alone, as Keep Analysis Only does, and its sound
-deleted. The Watches view lists it as "Power Reserve 46 h 12 min", adding
+`power-reserve.json` beside the standard files; with Analysis Only its
+sound is read as it comes and never written, and the take is kept as its
+analysis alone, written when the test ends and kept on the disk in parts
+every 10 minutes meanwhile ([sessions.md](sessions.md#parts-kept-while-a-take-is-recorded)). The Watches view lists it as "Power Reserve 46 h 12 min", adding
 how it ended when the watch didn't stop it ("Stopped by hand while the
 watch still ran", "Reached the 80 h limit while the watch still ran"),
 and, like a Positions Test's take, without its last window's figures,
@@ -2133,7 +2134,18 @@ copy: the message names the take and offers **Open Take** (the take
 itself, opened where it is), **Delete Copy…** (asking first, and saying
 that only those last seconds are lost) and **Later**. If that take has
 since been moved or deleted, the copy is the only one, and it is offered
-as unsaved sound like any other. A folder
+as unsaved sound like any other. A Power Reserve Test with Analysis Only
+that stopped before its take was written leaves no sound but its
+analysis kept in parts: the next start offers it the same way, "An
+unsaved Power Reserve Test was found (Analysis Only): started …, kept up
+to 41 h 10 min, 3.1 MB", with Open, Move To… (its parts with it),
+Delete… and Later. Opened, it reads to its last part, and the status bar
+says "This take wasn't saved: the app stopped while recording. Its
+analysis was kept up to 41 h 10 min. The watch may have run on after
+that."; the Power Reserve pane reads it as the test, "Power reserve at
+least 41 h 10 min … The recording failed while the watch still ran",
+unless the watch's stop was already heard. Keep Analysis Only… refuses
+such a take: it has no sound to keep. A folder
 another copy of the app is recording into is never offered. The
 microphone's own settings are kept aside while recordings are open and
 come back with the next take on the microphone.
