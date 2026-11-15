@@ -70,11 +70,13 @@ Every layer but the last is in core.
 
 ## 5. One clock everywhere
 
-- Core picks each take's clock once, by the rule in `take::clock_from`: a clock log, its rate set by the USB lines when the take has them; without one, the USB lines, then a known correction; else the sound card.
-- It lives in the context. Every pane and every surface shows it, live and reopened, the big live Rate included.
-- When a correction arrives partway through a listen, the live Rate steps onto it, and the card says which clock it is on. This is wanted: the figure moves onto the true clock. A stored correction applies from the first second.
-- No surface hands a clock to the live engine. Once the context carries the clock, `LiveAnalyzer::set_rate_clock` goes on the app's banned list.
-- One named exception: `regress` reads on the sound card's clock to match its references (`EntrySettings::card_clock`).
+Each rule is marked **implemented** (the code does it today), **partial** (some surfaces do) or **planned** (the code still differs; the code changes, not the rule).
+
+- **Implemented.** Core picks each take's clock once, by the rule in `take::clock_from`: a clock log, its rate set by the USB lines when the take has them; without one, the USB lines, then a known correction; else the sound card.
+- **Partial.** It lives in the context. Every pane and every surface shows it, live and reopened, the big live Rate included. Today a reopened take reads on its own clock everywhere, but while listening the big Rate stays on the sound card's clock and the kept correction shows only in its hover (**True Clock**), as the user guide says (chapter 5, M3). Core's `take::live_clock` (#1722) gives the live reading the clock reopening the take would use; the app takes it up in #1721.
+- **Planned.** When a correction arrives partway through a listen, the live Rate steps onto it, and the card says which clock it is on. This is wanted: the figure moves onto the true clock. A stored correction applies from the first second.
+- **Planned.** No surface hands a clock to the live engine. Once the context carries the clock, `LiveAnalyzer::set_rate_clock` goes on the app's banned list. Today the app (`settings_pane.rs`, `take_io.rs`) and the CLI (`main.rs`) still call it.
+- **Implemented.** One named exception: `regress` reads on the sound card's clock to match its references (`EntrySettings::card_clock`).
 
 ---
 
@@ -194,7 +196,7 @@ A long function is where a second rule hides: of the 23 longest app functions on
 - **A split only moves code.** Existing tests pass unchanged, screenshots match pixel for pixel, and the CLI's JSON is identical. Each move goes in `.git-blame-ignore-revs`.
 - **No new copies of data.** A piece takes only the fields it needs, never the whole app, so nothing is copied to satisfy the borrow checker. A split adds no copy of beats, readings or sound. The strip, chart and Steadiness splits time a frame on a 26 h take before and after.
 - **The PR body gives the numbers:** lines and complexity per function, before and after.
-- A split may reset the saved pane layout once. This is accepted while the app has no public release.
+- A split that would reset the saved pane layout is raised before it is built. Resetting it once was accepted while the app had no public release; v1.0.1 is public, so that acceptance no longer holds.
 
 ### Adjacent hygiene
 
