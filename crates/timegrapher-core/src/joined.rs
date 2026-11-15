@@ -98,7 +98,7 @@ fn beats_between(between: f64, gap: i64) -> i64 {
 /// A log with `log`'s header and no beats, for [`join`] to fill.
 fn empty_like(log: &BeatLog) -> BeatLog {
     BeatLog {
-        lock_template_kept: false,
+        lock_template_kept: log.lock_template_kept,
         sample_rate: log.sample_rate,
         duration_s: 0.0,
         bph: log.bph,
