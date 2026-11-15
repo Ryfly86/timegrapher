@@ -1031,10 +1031,13 @@ take with a clock log; see `clock` in [the agent
 interface](agent-interface.md#clock)), Quartz Correction lists it, and
 the Rate figure's hover gives the rate corrected onto true time,
 labelled True Clock, with the day the clock it uses was kept. A sound card's crystal runs a steady 10 to 50 ppm off,
-which moves every rate read on it by 1 to 4 s/d. While listening, the big
-figure stays on the card's clock, the same clock tg and `timegrapher analyze`
-read, so it compares directly with them; True Clock is in its hover,
-never instead of it. It is looked up by the input's name when a microphone
+which moves every rate read on it by 1 to 4 s/d. While listening, the
+readings, the big figure included, are put on the clock the take would be
+read on if it were saved and opened again (#1721): the kept error, and the
+USB microphone's lines once they are read, which come first; the hover
+says which. With neither, the big figure stays on the card's clock, as tg
+reads it. On a take opened with no clock of its own it stays there too,
+and True Clock is in its hover, never instead of it. The kept error is looked up by the input's name when a microphone
 session starts. A take opened from disk whose session file names a clock
 log (every take the app keeps has `clock.csv`) is read on that log
 instead, fitted as `timegrapher session` fits it: the Positions Test

@@ -137,8 +137,12 @@ pub static RATE: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
      is read on the card's clock alone, as tg reads it."
             .into(),
         "## Reading It".into(),
-        "- The big figure stays on the card's clock, the same clock tg and an analysis of \
-     the recording read, so the two compare directly."
+        "- While listening, the big figure is put on the recording's own clock, as it would \
+     be if the take were saved and opened again: the kept error, then the USB microphone's \
+     lines once they are read. The hover says which."
+            .into(),
+        "- With neither, and on a take opened with no clock of its own, it stays on the card's \
+     clock, as tg reads it."
             .into(),
     ])
 });
