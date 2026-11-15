@@ -357,12 +357,15 @@ fn picture_block(
     bottom: f32,
 ) {
     words(ui, fit, unfitted);
+    let both = shown == [true, true];
     let pic = |ui: &egui::Ui, view: PoiseView| {
         let name = match view {
             PoiseView::Plot => "plot",
             PoiseView::Dial => "dial",
         };
-        let facts = fit.map(|f| {
+        // With both on, the heavy spot's plate once, on the plot (Hugh
+        // on #1794).
+        let facts = fit.filter(|_| !(both && view == PoiseView::Dial)).map(|f| {
             FactBox::plain(
                 ui,
                 "poise facts",
@@ -387,10 +390,10 @@ fn picture_block(
     let room = (bottom - ui.cursor().top()).max(PICTURE_H);
     let gap = test_body::GAP;
     if views.len() == 2 && w >= 2.0 * PICTURE_MIN_W + gap {
-        // The Dial square, the Plot the rest of the width, no taller.
+        // The Dial square, the Plot the rest of the width and the Dial's
+        // height (Hugh on #1794).
         let d = ((w - gap) / 2.0).min(room).max(PICTURE_H);
-        let plot_w = w - gap - d;
-        let plot_h = (plot_w * PLOT_ASPECT).clamp(PICTURE_H, d);
+        let (plot_w, plot_h) = (w - gap - d, d);
         ui.horizontal_top(|ui| {
             let (plot, _) = ui.allocate_exact_size(Vec2::new(plot_w, plot_h), egui::Sense::hover());
             draw_plot(ui, plot, &pic(ui, PoiseView::Plot));
@@ -836,8 +839,11 @@ fn draw_dial(ui: &egui::Ui, rect: egui::Rect, pic: &Picture<'_>) {
     let keep_off = ring_numbers_keep_off(&dial, &pic.points, mean_label.as_ref());
     dial_case(ui, &painter, &dial);
     dial_grid(&painter, &dial, pal, numbers, &keep_off);
+    // The key at the dial's top right, past the 3H name, not the pane's
+    // edge where the dial is narrower than its room (Hugh on #1794).
+    let dial_right = dial.centre.x + outer * wide + label_room;
     painter.text(
-        label_at,
+        egui::pos2(label_at.x.min(dial_right), label_at.y),
         egui::Align2::RIGHT_TOP,
         DIAL_KEY,
         small,
@@ -1224,6 +1230,36 @@ fn clear_of(at: egui::Pos2, size: Vec2, others: &[egui::Rect]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A backed label set past the picture's edge slides back inside it,
+    /// whole: the Mean's name at 12H, the plot's last hour (#1794).
+    #[test]
+    fn a_backed_label_stays_inside_the_picture() {
+        let ctx = egui::Context::default();
+        let picture = egui::Rect::from_min_size(egui::pos2(100.0, 100.0), Vec2::new(300.0, 200.0));
+        let out = ctx.run(egui::RawInput::default(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                let painter = ui.painter_at(picture);
+                let pal = theme::pal(ui);
+                for x in [picture.left(), picture.right()] {
+                    let at = egui::pos2(x, picture.center().y);
+                    backed(&painter, at, egui::Align2::CENTER_BOTTOM, "Mean +4.0", pal);
+                }
+            });
+        });
+        let names: Vec<egui::Rect> = out
+            .shapes
+            .iter()
+            .filter_map(|c| match &c.shape {
+                egui::Shape::Text(t) => Some(t.galley.rect.translate(t.pos.to_vec2())),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(names.len(), 2);
+        for r in names {
+            assert!(picture.contains_rect(r), "{r:?} inside {picture:?}");
+        }
+    }
 
     /// Plot and Dial turn on and off alone, but the last one on stays on
     /// (#1729).

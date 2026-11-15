@@ -111,6 +111,8 @@ fn a_measured_poise_test_passes_each_check() {
     reset(&mut app);
     both_views_sit_side_by_side_where_there_is_room(&mut app);
     reset(&mut app);
+    only_the_table_scrolls_and_a_short_pane_scrolls_the_picture(&mut app);
+    reset(&mut app);
     the_dial_has_its_watch_case_behind_it(&mut app);
     reset(&mut app);
     save_as_text_writes_the_poise_tests_report(app, &base);
@@ -1287,4 +1289,86 @@ fn both_views_sit_side_by_side_where_there_is_room(app: &mut TimegrapherApp) {
         fastest.iter().any(|d| d.top() > plot.bottom()),
         "one over the other: {plot:?} {fastest:?}"
     );
+}
+
+/// The pane at `size` after a wheel turn of `dy` points with the pointer
+/// at `at`: each text and where it is.
+fn wheeled(
+    app: &mut TimegrapherApp,
+    size: Vec2,
+    (at, dy): (egui::Pos2, f32),
+) -> Vec<(String, egui::Rect)> {
+    let ctx = themed();
+    let mut drawn = Vec::new();
+    for frame in 0..5 {
+        let mut events = vec![egui::Event::PointerMoved(at)];
+        if frame == 2 {
+            events.push(egui::Event::MouseWheel {
+                unit: egui::MouseWheelUnit::Point,
+                delta: egui::vec2(0.0, -dy),
+                modifiers: Default::default(),
+            });
+        }
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
+            events,
+            ..Default::default()
+        };
+        let out = ctx.run(input, |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                app.pane_tools(ui, Pane::DynamicPoise);
+                app.poise_pane(ui);
+            });
+        });
+        drawn = out
+            .shapes
+            .iter()
+            .filter_map(|c| match &c.shape {
+                egui::Shape::Text(t) => Some((
+                    t.galley.text().to_string(),
+                    t.galley.rect.translate(t.pos.to_vec2()),
+                )),
+                _ => None,
+            })
+            .collect();
+    }
+    drawn
+}
+
+/// #1729's rule 2: a wheel over the table scrolls the table and leaves
+/// the fit's words and the picture where they were; in a pane too short
+/// for the picture, a wheel over it scrolls it on its own, so none of it
+/// is cut off (Trevor and Hugh on #1794).
+fn only_the_table_scrolls_and_a_short_pane_scrolls_the_picture(app: &mut TimegrapherApp) {
+    let find = |texts: &[(String, egui::Rect)], want: &str| {
+        texts
+            .iter()
+            .find(|(t, _)| t.starts_with(want))
+            .map(|(_, r)| *r)
+    };
+    // Short enough that neither the table nor the picture fits.
+    let size = Vec2::new(1280.0, 250.0);
+    let still = wheeled(app, size, (egui::pos2(-10.0, -10.0), 0.0));
+    let row = find(&still, "Crown Down (CD, 9H)").expect("the first row");
+    let words = find(&still, "Once-round wave").expect("the fit's words");
+    // Over the table.
+    let rolled = wheeled(app, size, (row.center(), 200.0));
+    let row_now = find(&rolled, "Crown Down (CD, 9H)");
+    assert!(
+        row_now.is_none_or(|r| r.top() < row.top() - 20.0),
+        "the table scrolled: {row:?} {row_now:?}"
+    );
+    let words_now = find(&rolled, "Once-round wave").expect("the words stay");
+    assert_eq!(words_now.top(), words.top(), "the words stay put");
+    // The picture's foot is below the short pane until it is scrolled.
+    let hour = find(&still, "Hour at the top");
+    assert!(
+        hour.is_none_or(|r| r.bottom() > size.y),
+        "cut at first: {hour:?}"
+    );
+    let rolled = wheeled(app, size, (words.center() + Vec2::new(0.0, 120.0), 400.0));
+    let hour = find(&rolled, "Hour at the top").expect("the plot's foot");
+    assert!(hour.bottom() <= size.y, "scrolled into view: {hour:?}");
+    let row_now = find(&rolled, "Crown Down (CD, 9H)").expect("the table");
+    assert_eq!(row_now.top(), row.top(), "the table stays put");
 }

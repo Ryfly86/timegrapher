@@ -104,7 +104,15 @@ pub(super) fn test_body(
                         });
                     });
                     ui.add_space(GAP);
-                    ui.vertical(|ui| (parts.result)(ui));
+                    // Fitted to the height, down to its least; shorter than
+                    // that, it scrolls on its own, never cut off (Hugh on
+                    // #1794).
+                    ui.vertical(|ui| {
+                        egui::ScrollArea::vertical()
+                            .id_salt((id, "result"))
+                            .auto_shrink([false, false])
+                            .show(ui, |ui| (parts.result)(ui));
+                    });
                 });
             } else {
                 // The result first (Hugh, #1499), and all of it scrolls.
