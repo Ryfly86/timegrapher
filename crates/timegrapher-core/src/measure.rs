@@ -272,9 +272,9 @@ fn lock_template_kept_text() -> String {
     let chunk_s = crate::stream::StreamConfig::default().chunk_s;
     let lock_s = crate::live::LiveConfig::default().window_s;
     format!(
-        "The beat shape learned from the first {chunk_s:.0} s of sound found amplitude on both \
-         sides in fewer windows than the one learned from its first {lock_s:.0} s, as Live \
-         locks on, so that one was kept. Live and the saved take choose the same way."
+        "This reading used the beat shape from the first {lock_s:.0} s of sound, where Live \
+         locks on. The shape from the first {chunk_s:.0} s found amplitude on both sides in \
+         fewer windows. Live and saved takes choose the same way."
     )
 }
 
@@ -926,8 +926,14 @@ mod tests {
         let chunk_s = crate::stream::StreamConfig::default().chunk_s;
         let lock_s = crate::live::LiveConfig::default().window_s;
         let long = c.long(None).unwrap();
-        assert!(long.contains(&format!("first {chunk_s:.0} s of")), "{long}");
-        assert!(long.contains(&format!("first {lock_s:.0} s,")), "{long}");
+        assert!(
+            long.contains(&format!("first {chunk_s:.0} s found")),
+            "{long}"
+        );
+        assert!(
+            long.contains(&format!("first {lock_s:.0} s of sound")),
+            "{long}"
+        );
     }
 
     /// A beat error from the drop because the unlock was not found writes
