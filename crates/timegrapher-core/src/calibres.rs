@@ -536,6 +536,77 @@ mod tests {
     }
 
     #[test]
+    fn sister_movements_have_their_own_rows_on_one_train() {
+        // Each sister movement is its own row (#1822), with the train,
+        // beat rate and lift of the row it was an alias of.
+        let train = |c: &Calibre| {
+            c.wheels
+                .iter()
+                .map(|w| (w.name.clone(), w.period_s, w.teeth, w.pinion))
+                .collect::<Vec<_>>()
+        };
+        for (base, rows) in [
+            (
+                "Rolex 3135",
+                &[
+                    "Rolex 3130",
+                    "Rolex 3155",
+                    "Rolex 3175",
+                    "Rolex 3185",
+                    "Rolex 3186",
+                    "Rolex 3187",
+                ][..],
+            ),
+            (
+                "Dandong 3135",
+                &["Dandong 3130", "Dandong 3186", "Dandong 3187"][..],
+            ),
+            ("VR3135", &["VR3130", "VR3186", "VR3187"][..]),
+            ("ETA 2824-2", &["ETA 2834-2", "ETA 2836-2"][..]),
+            (
+                "Sellita SW200-1",
+                &["Sellita SW220-1", "Sellita SW240-1"][..],
+            ),
+            ("ETA 2892-A2", &["Sellita SW300-1"][..]),
+        ] {
+            let b = find(base).unwrap();
+            for name in rows {
+                let c = find(name).unwrap_or_else(|| panic!("missing {name}"));
+                assert_eq!(c.calibre, *name);
+                assert_eq!(search(name)[0].calibre, *name);
+                assert_eq!(train(c), train(b), "{name}");
+                assert_eq!(
+                    (c.bph, c.lift_angle_deg),
+                    (b.bph, b.lift_angle_deg),
+                    "{name}"
+                );
+                assert!(
+                    c.sources.iter().any(|s| s.contains("/issues/1822")),
+                    "{name}"
+                );
+            }
+        }
+        for (alias, row) in [
+            ("3186", "Rolex 3186"),
+            ("3155", "Rolex 3155"),
+            ("DD3187", "Dandong 3187"),
+            ("VS3130", "Dandong 3130"),
+            ("VR3186", "VR3186"),
+            ("2836-2", "ETA 2836-2"),
+            ("SW220", "Sellita SW220-1"),
+            ("SW300-1", "Sellita SW300-1"),
+            ("Rolex 31xx", "Rolex 3135"),
+            ("DD31xx", "Dandong 3135"),
+            ("VR31xx", "VR3135"),
+            ("2892-2", "ETA 2892-A2"),
+            ("SW200-1 a", "Sellita SW200-1"),
+        ] {
+            assert_eq!(find(alias).unwrap().calibre, row, "{alias}");
+        }
+        assert_eq!(find("Sellita SW300-1").unwrap().maker, "Sellita");
+    }
+
+    #[test]
     fn counted_32xx_train_does_not_leak_into_vr_sh_or_ambiguous_clones() {
         // Bare clone names cannot safely choose a train manufacturer.
         assert!(find("3235 (clone)").is_none());
@@ -641,7 +712,9 @@ mod tests {
                     .any(|s| s.contains("2824-train-wheel-counts.md"))
             })
             .collect();
-        assert_eq!(covered.len(), 39);
+        // 39 rows, plus the 2834-2, 2836-2, SW220-1 and SW240-1 split from
+        // their sisters' aliases (#1822).
+        assert_eq!(covered.len(), 43);
         for c in covered {
             assert_eq!(c.bph, Some(28800), "{}", c.calibre);
             let wheel = |n: &str| c.wheels.iter().find(|w| w.name == n).unwrap();
@@ -655,7 +728,9 @@ mod tests {
             assert!((wheel("centre wheel").period_s - 46200.0 / 13.0).abs() < 1e-9);
             assert!((wheel("barrel").period_s - 4666200.0 / 221.0).abs() < 1e-9);
             assert_eq!(wheel("escape wheel").pinion, Some(9));
-            if c.calibre != "ETA 2824-2" {
+            // The photographed ETA and its day-date sisters carry the counts
+            // directly; the other makers' rows are transfers.
+            if !["ETA 2824-2", "ETA 2834-2", "ETA 2836-2"].contains(&c.calibre.as_str()) {
                 assert!(third
                     .basis
                     .as_deref()
