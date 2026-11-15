@@ -1506,7 +1506,7 @@ mod tests {
     /// Acceptance, set before the run: every share 2.5% to 7.5%. Run with
     /// `--ignored --nocapture`; seeds 2026111500 on, fixed before the run.
     #[test]
-    #[ignore = "acceptance run for #1609, about a minute"]
+    #[ignore = "acceptance run for #1609, about 26 minutes"]
     fn red_noise_false_alarm_share_by_correlation_and_length() {
         let mut seed = 2_026_111_500u64;
         for rho in [0.0f64, 0.5, 0.9] {
