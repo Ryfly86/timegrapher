@@ -897,8 +897,10 @@ impl TimegrapherApp {
     /// The rate `rate` on the clock kept for the input, for the Rate
     /// figure's hover, while one is kept. Readings on a clock of their
     /// own (a take's, or while listening the clock it would be reopened
-    /// on, #1721) have the big figure on it, so the hover says so; only a
-    /// take opened with no clock of its own stays on the card's.
+    /// on, #1721) have the big figure on it, so the hover says so. True
+    /// Clock is only for the moment before that: listening, a clock kept,
+    /// before the first poll puts the readings on it (a take opened keeps
+    /// no input clock, Walter).
     pub(super) fn true_clock_words(&self, rate: f64) -> Option<String> {
         if let Some(f) = &self.take_clock {
             // What a log measured but doesn't apply, and why, in core's words.
@@ -934,8 +936,7 @@ impl TimegrapherApp {
         let v = true_minus(&format!("{:+.1}", c.correct_rate(rate)));
         Some(format!(
             "True Clock {v} seconds per day, with the clock kept {}: the rate corrected \
-             for this input's own clock. This take has no clock of its own, so the big \
-             figure stays on the card's clock, as tg reads it.",
+             for this input's own clock.",
             day_of(&c.measured_utc)
         ))
     }

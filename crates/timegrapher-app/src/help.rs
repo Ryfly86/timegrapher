@@ -131,7 +131,8 @@ pub static RATE: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
      result is only right if the computer's clock is kept by internet time."
             .into(),
         "- Once the error is kept (by Keep, or from the command line, which can also measure \
-     it from a recording's clock log), the corrected rate is in the big figure's hover."
+     it from a recording's clock log), the readings are put on it while listening (see \
+     Reading It)."
             .into(),
         "- Settings > Microphone > Quartz Correction lists each input's. Until then the rate \
      is read on the card's clock alone, as tg reads it."
@@ -141,8 +142,7 @@ pub static RATE: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
      be if the take were saved and opened again: the kept error, then the USB microphone's \
      lines once they are read. The hover says which."
             .into(),
-        "- With neither, and on a take opened with no clock of its own, it stays on the card's \
-     clock, as tg reads it."
+        "- With neither, it stays on the card's clock, as tg reads it."
             .into(),
     ])
 });
