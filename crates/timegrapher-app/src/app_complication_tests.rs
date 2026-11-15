@@ -158,6 +158,7 @@ fn the_pane_draws_the_table_and_three_plots_amplitude_first() {
     );
     a_hovered_stretch_gives_its_figures_in_each_title(&mut app);
     a_plot_turned_off_gives_the_others_its_room(&mut app);
+    a_short_pane_keeps_each_plot_readable(&mut app);
     drop(tx);
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -229,6 +230,38 @@ fn a_plot_turned_off_gives_the_others_its_room(app: &mut TimegrapherApp) {
     app.complication_series = [true; 3];
 }
 
+/// At 1280×600 each plot keeps its least height, the column scrolling
+/// instead, and no two of the plots' tick labels touch (Hugh on #1799).
+fn a_short_pane_keeps_each_plot_readable(app: &mut TimegrapherApp) {
+    let drawn = draw_at(app, Vec2::new(1280.0, 600.0));
+    let top = |name: &str| {
+        drawn
+            .iter()
+            .rfind(|(t, _)| t == name)
+            .map(|(_, r)| r.top())
+            .unwrap_or_else(|| panic!("{name}"))
+    };
+    let each = top("Rate") - top("Amplitude");
+    assert!(each >= 120.0, "each plot {each} pt");
+    let ticks: Vec<egui::Rect> = drawn
+        .iter()
+        .filter(|(t, r)| {
+            r.left() > 400.0
+                && t.replace('\u{2212}', "-")
+                    .trim_start_matches('+')
+                    .parse::<f64>()
+                    .is_ok()
+        })
+        .map(|(_, r)| *r)
+        .collect();
+    assert!(ticks.len() >= 6, "{drawn:?}");
+    for (i, a) in ticks.iter().enumerate() {
+        for b in &ticks[i + 1..] {
+            assert!(!a.intersects(*b), "tick labels touch: {a:?} {b:?}");
+        }
+    }
+}
+
 /// The pane drawn with the pointer at `at`, a few frames so a hover in
 /// the table reaches the plots.
 fn draw_hovered(app: &mut TimegrapherApp, size: Vec2, at: egui::Pos2) -> Vec<(String, egui::Rect)> {
@@ -270,6 +303,12 @@ fn draw_hovered(app: &mut TimegrapherApp, size: Vec2, at: egui::Pos2) -> Vec<(St
 /// A new lift reads an opened take's Complication stretches again
 /// (#1645): each amplitude the pane shows scales with it.
 fn a_new_lift_rereads_it(again: &mut TimegrapherApp) {
+    // Its toolbar's Series switches and Copy are for the opened take's
+    // test (Walter on #1799).
+    assert!(
+        again.complication_shown().is_some(),
+        "the opened take's test"
+    );
     let amps = |app: &TimegrapherApp| -> Vec<f64> {
         let kept = app.complication_saved.as_ref().expect("its test");
         kept.readings

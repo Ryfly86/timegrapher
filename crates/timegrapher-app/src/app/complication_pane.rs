@@ -19,12 +19,9 @@ const TABLE_W: f32 = 400.0;
 const PLOTS_MIN_W: f32 = 360.0;
 /// The pane width Info needs to sit beside the rest.
 const INFO_BESIDE_W: f32 = 1180.0;
-/// Each plot's least height, the track's over them, and the time axis's
-/// under them, points.
-const PLOT_MIN_H: f32 = 110.0;
-/// Each plot's height over the table on a narrow pane: room to read, and
-/// the table still in view under them (Walter).
-const PLOT_OVER_H: f32 = 150.0;
+/// Each plot's least height to read, under its title and unit (Hugh on
+/// #1799), the track's over them, and the time axis's under them, points.
+const PLOT_MIN_H: f32 = 120.0;
 const TRACK_H: f32 = 16.0;
 const AXIS_H: f32 = 34.0;
 /// A plot's margins: left for its numbers, top for its title and the
@@ -68,6 +65,16 @@ impl TimegrapherApp {
         self.guided
             .as_ref()
             .filter(|t| t.kind == guided::Kind::Complication)
+    }
+
+    /// The test the pane shows: the one on the Bench, else an opened
+    /// take's once read (Walter on #1799).
+    pub(super) fn complication_shown(&self) -> Option<&guided::Test> {
+        self.complication_test().or_else(|| {
+            self.complication_saved
+                .as_ref()
+                .filter(|t| t.readings.is_some())
+        })
     }
 
     /// An opened take's Complication Test from its session file at
@@ -145,7 +152,7 @@ impl TimegrapherApp {
         self.positions_lengths(ui, running, "Each Stretch");
         theme::bar_gap(ui);
         let nothing = self
-            .complication_test()
+            .complication_shown()
             .is_none_or(|t| t.readings_so_far().is_empty())
             .then_some("Nothing measured yet");
         // Each plot on or off, the others sharing the height (#1729), once
@@ -164,7 +171,7 @@ impl TimegrapherApp {
             nothing,
         ) {
             let about = self.guided_about();
-            if let Some(t) = self.complication_test() {
+            if let Some(t) = self.complication_shown() {
                 ui.ctx().copy_text(guided::export_text(t, &about, '\t'));
                 self.info_msg("Copied the Complication table".to_string());
             }
@@ -213,6 +220,7 @@ impl TimegrapherApp {
             (test, phase, live.as_ref()),
             (now, lengths),
             (self.complication_info, self.complication_series),
+            &self.source_label,
         );
         if let (Some(action), Some(now)) = (action, now) {
             self.apply_guided_action(action, now);
@@ -230,13 +238,23 @@ fn complication_body(
     ),
     (now, (settle_s, measure_s)): (Option<f64>, (f64, f64)),
     (info, shown): (bool, [bool; 3]),
+    take: &str,
 ) -> Option<guided::Action> {
     let bottom = ui.available_rect_before_wrap().bottom();
+    // A take not shown here before starts at the top; the same take keeps
+    // its place (Hugh on #1799).
+    let shown_take = egui::Id::new("complication take");
+    let top = ui.data_mut(|d| {
+        let fresh = d.get_temp::<String>(shown_take).as_deref() != Some(take);
+        d.insert_temp(shown_take, take.to_string());
+        fresh
+    });
     let layout = test_body::Layout {
         table_ws: &[TABLE_W],
         result_min_w: PLOTS_MIN_W,
         info_beside_w: INFO_BESIDE_W,
         rule_h: 3.0 * PLOT_MIN_H,
+        top,
     };
     // Over the table, on a narrow pane, the plots take their least height
     // so the table shows under them (Walter).
@@ -331,10 +349,26 @@ fn plots_block(
         .collect();
     let n = kinds.len().max(1) as f32;
     let w = ui.available_width().max(PLOTS_MIN_W);
-    let key_h = key_height(ui, w) + 6.0;
-    let plot_h = bottom.map_or(PLOT_OVER_H, |bottom| {
+    // Whether any stretch shown has a ± bar drawn.
+    let bars = test.is_some_and(|t| {
+        t.readings_so_far().iter().any(|r| {
+            let f = complication::figures(&r.measurement);
+            kinds
+                .iter()
+                .any(|&q| complication::figure(q, &f).is_some_and(|f| f.se.is_some()))
+        })
+    });
+    let key_h = key_height(ui, w, bars) + 6.0;
+    // A plot's title, its unit line and the room under it, besides what
+    // it draws.
+    let chrome = TITLE_H
+        + crate::hour_steps::UNIT_H
+        + ui.text_style_height(&egui::TextStyle::Body) / 2.0
+        + FOOT_H;
+    // Over the table on a narrow pane, each its least.
+    let plot_h = bottom.map_or(PLOT_MIN_H + chrome, |bottom| {
         let room = bottom - ui.cursor().top() - TRACK_H - AXIS_H - key_h;
-        (room / n).max(PLOT_MIN_H)
+        (room / n).max(PLOT_MIN_H + chrome)
     });
     let h = TRACK_H + n * plot_h + AXIS_H;
     let (rect, resp) = ui.allocate_exact_size(Vec2::new(w, h), egui::Sense::hover());
@@ -348,7 +382,7 @@ fn plots_block(
             .map(|m| m.0)
     });
     ui.data_mut(|d| d.insert_temp(plots_hover_id(), at));
-    plot_key(ui);
+    plot_key(ui, bars);
 }
 
 /// The time the plots span, seconds of the session: from the test's start
@@ -439,10 +473,13 @@ fn draw_plots(
         let line = egui::Stroke::new(1.0_f32, pal.text_secondary);
         painter.vline(x(p.t), egui::Rangef::new(plots_top, plots_bottom), line);
     }
+    // The top tick's label clear of the unit line, as the other test
+    // panes leave it (Walter on #1761).
+    let clear = ui.text_style_height(&egui::TextStyle::Body) / 2.0;
     for (i, &q) in kinds.iter().enumerate() {
         let top = plots_top + i as f32 * plot_h;
         let area = egui::Rect::from_min_max(
-            egui::pos2(left, top + TITLE_H),
+            egui::pos2(left, top + TITLE_H + crate::hour_steps::UNIT_H + clear),
             egui::pos2(right, top + plot_h - FOOT_H),
         );
         for &at in &marks {
@@ -579,24 +616,43 @@ fn draw_one(
         painter.hline(area.x_range(), area.bottom(), grid);
         return;
     };
-    let (lo, hi, step) = chart_scale::round_ends(lo, hi);
+    let (lo, hi, base) = chart_scale::round_ends(lo, hi);
+    let mut step = base;
     let y = |v: f64| area.bottom() - ((v - lo) / (hi - lo)) as f32 * area.height();
-    let n = ((hi - lo) / step).round() as i64;
-    for k in 0..=n {
-        let v = lo + k as f64 * step;
+    // A rounder step where the labels would touch: at least two labels'
+    // height apart (Hugh on #1799).
+    let label_h = painter
+        .layout_no_wrap("0".into(), egui::FontId::proportional(11.0), pal.text)
+        .size()
+        .y;
+    while step < hi - lo && (step / (hi - lo)) as f32 * area.height() < 2.0 * label_h {
+        step = chart_scale::round_step(step + step);
+    }
+    let n = ((hi - lo) / base).round() as i64;
+    // The scale's lines at its own step, those on the rounder one kept.
+    let on_step = |v: f64| ((v / step).round() * step - v).abs() < base / 2.0;
+    for v in (0..=n)
+        .map(|k| lo + k as f64 * base)
+        .filter(|&v| on_step(v))
+    {
         painter.hline(area.x_range(), y(v), grid);
-        let mut label = true_minus(&chart_scale::axis_number(v, step));
-        if q == SeriesKind::Rate && v > 0.0 {
-            label = format!("+{label}");
-        }
+        // Bare, as the other test panes' ticks (Hugh on #1761).
         painter.text(
             egui::pos2(area.left() - 6.0, y(v)),
             egui::Align2::RIGHT_CENTER,
-            format!("{label}{}", complication::unit_text(q)),
+            crate::hour_steps::tick_label(q == SeriesKind::Rate, v, step),
             egui::FontId::proportional(11.0),
             pal.text_secondary,
         );
     }
+    // The unit on its own line over the value axis.
+    painter.text(
+        egui::pos2(area.left() - 6.0, area.top() - crate::hour_steps::UNIT_H),
+        egui::Align2::RIGHT_CENTER,
+        complication::unit_head(q),
+        egui::FontId::proportional(11.0),
+        pal.text_secondary,
+    );
     let colour = crate::steady::series_colour(q, pal);
     let quiet = egui::Stroke::new(1.0_f32, pal.text_secondary);
     // The Offs joined, under the points.
@@ -642,10 +698,7 @@ enum KeyMark {
 /// The key's parts, in the order they drop from the end when the row has
 /// no room (Hugh's spec, mock version 8).
 const KEY: [(KeyMark, &str); 4] = [
-    (
-        KeyMark::Dot,
-        "Each stretch (bars: its ±, hover for the figure)",
-    ),
+    (KeyMark::Dot, "Each stretch"),
     (KeyMark::Dash, "Offs joined"),
     (KeyMark::Ring, "Where On would sit with it off"),
     (KeyMark::Bracket, "The difference"),
@@ -669,15 +722,24 @@ fn key_rows(widths: &[f32], room: f32) -> Vec<usize> {
         .collect()
 }
 
-/// The key's words laid out, and the row each part sits on in `room`.
-fn key_layout(ui: &egui::Ui, room: f32) -> (Vec<std::sync::Arc<egui::Galley>>, Vec<usize>) {
+/// The key's words laid out, and the row each part sits on in `room`:
+/// a stretch's words name its bar only where a ± `bars` is drawn (Hugh).
+fn key_layout(
+    ui: &egui::Ui,
+    room: f32,
+    bars: bool,
+) -> (Vec<std::sync::Arc<egui::Galley>>, Vec<usize>) {
     let pal = theme::pal(ui);
     let font = egui::TextStyle::Small.resolve(ui.style());
     let galleys: Vec<_> = KEY
         .iter()
-        .map(|&(_, words)| {
+        .map(|&(mark, words)| {
+            let words = match mark {
+                KeyMark::Dot if bars => format!("{words} (bar: its ±)"),
+                _ => words.to_string(),
+            };
             ui.painter()
-                .layout_no_wrap(words.to_string(), font.clone(), pal.text_secondary)
+                .layout_no_wrap(words, font.clone(), pal.text_secondary)
         })
         .collect();
     let widths: Vec<f32> = galleys.iter().map(|g| KEY_MARK_W + g.size().x).collect();
@@ -686,17 +748,17 @@ fn key_layout(ui: &egui::Ui, room: f32) -> (Vec<std::sync::Arc<egui::Galley>>, V
 }
 
 /// The key's height in `room`: a row for each its parts take.
-fn key_height(ui: &egui::Ui, room: f32) -> f32 {
-    let rows = key_layout(ui, room).1;
+fn key_height(ui: &egui::Ui, room: f32, bars: bool) -> f32 {
+    let rows = key_layout(ui, room, bars).1;
     ui.text_style_height(&egui::TextStyle::Body) * rows.last().map_or(1, |r| r + 1) as f32
 }
 
 /// The key under the plots, for all three, from the plot titles' left
 /// edge: every part whole, onto a second row where one row has no room.
-fn plot_key(ui: &mut egui::Ui) {
+fn plot_key(ui: &mut egui::Ui, bars: bool) {
     let pal = theme::pal(ui);
     let mark_w = KEY_MARK_W;
-    let (galleys, rows) = key_layout(ui, ui.available_width());
+    let (galleys, rows) = key_layout(ui, ui.available_width(), bars);
     let h = ui.text_style_height(&egui::TextStyle::Body);
     let n_rows = rows.last().map_or(1, |r| r + 1);
     let (area, _) = ui.allocate_exact_size(
