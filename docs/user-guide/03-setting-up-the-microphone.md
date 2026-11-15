@@ -234,10 +234,11 @@ every rate by 1 to 4 s/d.
 
 **What it changes:**
 
-- The **Rate** card's big figure stays on the sound card's clock, the
-  same clock other timegraphers and `timegrapher analyze` use.
-- The Rate card's hover adds the rate corrected onto true time, labelled
-  **True Clock**, with the day the correction was kept.
+- The **Rate** card's big figure is corrected with it from the first
+  second you listen, and its hover says by how much and when the
+  correction was kept.
+- With a USB microphone, the recording's own USB lines take over once
+  30 s of sound are in (M3).
 - A saved take is read on its own clock log instead, so a reopened take
   is corrected for the card it was recorded on.
 

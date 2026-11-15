@@ -46,10 +46,13 @@ has, in this order:
   minutes it is a far better reference than the card's crystal.
 - **USB lines need no log,** so a recording made in another app can still
   be corrected, if it came through a USB microphone.
-- **While you listen, the Rate card's big figure stays on the card's
-  clock,** the clock other timegraphers and `timegrapher analyze` read
-  on, so figures can be compared with theirs. The corrected rate is in
-  the hover, as **True Clock**.
+- **While you listen, the Rate card's big figure is on the clock the
+  take will be read on** once saved and opened again, so the figure you
+  watch is the one the take keeps: the correction kept for the input from
+  the first second, then the recording's USB lines once 30 s of sound
+  are in. Until the lines are read, the hover says which clock the
+  figure is on for now. Other timegraphers and `timegrapher analyze`
+  read on the card's clock, as the hover says.
 - **On an opened take with its own clock,** from USB lines, a clock log
   that measured the card well enough, or a correction saved with it, the
   big figure is corrected, and the hover says by how much and from what
@@ -58,7 +61,7 @@ has, in this order:
 ## When You'd Use It
 
 - **Comparing takes from different microphones** or computers: read the
-  True Clock figures, or the error between them can be the cards'.
+  corrected figures, or the error between them can be the cards'.
 - **Long takes and Power Reserve tests,** where hours are counted: they
   are counted on true time.
 - **Checking a watch against a reference:** only a corrected rate is
