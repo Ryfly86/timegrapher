@@ -185,6 +185,16 @@ them (#1820), so a search for 3255 offers the 3255 and the calibre card
 names it. Each carries the same counted train and escapement, and the
 same lift as its maker's 3235 row.
 
+The 31xx sisters are split the same way (#1822). Rolex has its own rows
+for the 3130, 3155, 3175, 3185, 3186 and 3187; Dandong for the 3130, 3186
+and 3187; VR for the 3130, 3186 and 3187. Each carries the train,
+escapement and lift of its maker's 3135 row. Rolex's technical
+information for the 3135, 3155, 3175 and 3185 calls the others "derived
+from calibre 3135". It gives all four the same balance, escapement and
+52° lift, and notes a longer pivot shank on the 3155 and 3185 second
+wheel. The Sellita SW300-1 likewise has its own row beside the ETA
+2892-A2 it copies.
+
 Manufacturer-specific aliases are used for clones. The ambiguous
 `3235 (clone)` alias was removed; saved selections using it need an explicit
 DD/JH/VR/SH designation. The separate VR32xx contribution below supplies
@@ -305,7 +315,9 @@ taken from any other timegrapher program.
 
 See [the evidence and coverage audit](../../../docs/research/2824-train-wheel-counts.md)
 for the 28,800 bph counts, exact fractional second/barrel periods, cannon
-mesh inference, and source-labelled transfers to 39 catalogue rows.
+mesh inference, and source-labelled transfers to 39 catalogue rows. The
+2834-2, 2836-2, SW220-1 and SW240-1, once aliases, have their own rows on
+the same train (#1822), so 43 rows now carry it.
 Three-hertz, Power+ and ambiguous clone identities are excluded.
 
 Peter Hudson gives a 50° lift angle for all 2824-2 movements and their
