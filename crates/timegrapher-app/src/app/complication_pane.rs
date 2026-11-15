@@ -50,8 +50,6 @@ const DASH_GAP: f32 = 4.0;
 const MIN_SPAN_PLACES: f32 = 5.0;
 /// How many marks the time axis wants at most.
 const TIME_MARKS: f32 = 6.0;
-/// How near the pointer must come to a point for its figure, points.
-const HOVER_R: f32 = 8.0;
 /// The gap between the key's parts, and a mark's room before its words,
 /// points.
 const KEY_GAP: f32 = 14.0;
@@ -150,6 +148,12 @@ impl TimegrapherApp {
             .complication_test()
             .is_none_or(|t| t.readings_so_far().is_empty())
             .then_some("Nothing measured yet");
+        // Each plot on or off, the others sharing the height (#1729), once
+        // there is something to plot.
+        if nothing.is_none() {
+            crate::steady::series_switches(ui, &mut self.complication_series);
+            theme::bar_gap(ui);
+        }
         if theme::tool_word_button(
             ui,
             Icon::Copy,
@@ -208,7 +212,7 @@ impl TimegrapherApp {
             ui,
             (test, phase, live.as_ref()),
             (now, lengths),
-            self.complication_info,
+            (self.complication_info, self.complication_series),
         );
         if let (Some(action), Some(now)) = (action, now) {
             self.apply_guided_action(action, now);
@@ -225,7 +229,7 @@ fn complication_body(
         Option<&guided::FreeCell>,
     ),
     (now, (settle_s, measure_s)): (Option<f64>, (f64, f64)),
-    info: bool,
+    (info, shown): (bool, [bool; 3]),
 ) -> Option<guided::Action> {
     let bottom = ui.available_rect_before_wrap().bottom();
     let layout = test_body::Layout {
@@ -239,9 +243,13 @@ fn complication_body(
     let side_w = ui.available_width() - TABLE_W - test_body::GAP;
     let plots = |ui: &mut egui::Ui| {
         let over = ui.available_width() > side_w + 1.0;
-        plots_block(ui, test, now, (!over).then_some(bottom));
+        plots_block(ui, (test, now), (!over).then_some(bottom), shown);
     };
-    test_body::test_body(
+    // The stretch hovered: the table's row under the pointer, else the
+    // plots' (#1729), kept for the next frame's drawing.
+    let (hover_id, table_id) = guided::complication_hover_ids();
+    ui.data_mut(|d| d.insert_temp::<Option<usize>>(table_id, None));
+    let action = test_body::test_body(
         ui,
         ("complication pane", &layout),
         (test, phase, live, None),
@@ -252,7 +260,25 @@ fn complication_body(
             result: &plots,
             info: &info_panel,
         },
-    )
+    );
+    let (was, table, plot) = ui.data(|d| {
+        (
+            d.get_temp::<Option<usize>>(hover_id).flatten(),
+            d.get_temp::<Option<usize>>(table_id).flatten(),
+            d.get_temp::<Option<usize>>(plots_hover_id()).flatten(),
+        )
+    });
+    let now_hover = table.or(plot);
+    if now_hover != was {
+        ui.data_mut(|d| d.insert_temp(hover_id, now_hover));
+        ui.ctx().request_repaint();
+    }
+    action
+}
+
+/// Where the plots keep the stretch under the pointer this frame.
+fn plots_hover_id() -> egui::Id {
+    egui::Id::new("complication plots hover")
 }
 
 /// What the pane says before a test: how the test runs.
@@ -284,33 +310,44 @@ fn info_panel(ui: &mut egui::Ui) {
     }
 }
 
-/// The three plots on one time axis, with the track naming each stretch
-/// over them and the key under them, in the room left above `bottom`.
+/// The plots `shown` on one time axis, with the track naming each
+/// stretch over them and the key under them, in the room left above
+/// `bottom`. The stretch hovered there or in the table has a line down
+/// all of them and its figures in their titles (#1729).
 fn plots_block(
     ui: &mut egui::Ui,
-    test: Option<&guided::Test>,
-    now: Option<f64>,
+    (test, now): (Option<&guided::Test>, Option<f64>),
     bottom: Option<f32>,
+    shown: [bool; 3],
 ) {
+    let kinds: Vec<SeriesKind> = complication::SHOWN
+        .into_iter()
+        .filter(|q| {
+            shown[crate::steady::SERIES
+                .iter()
+                .position(|k| k == q)
+                .unwrap_or(0)]
+        })
+        .collect();
+    let n = kinds.len().max(1) as f32;
     let w = ui.available_width().max(PLOTS_MIN_W);
     let key_h = key_height(ui, w) + 6.0;
     let plot_h = bottom.map_or(PLOT_OVER_H, |bottom| {
         let room = bottom - ui.cursor().top() - TRACK_H - AXIS_H - key_h;
-        (room / 3.0).max(PLOT_MIN_H)
+        (room / n).max(PLOT_MIN_H)
     });
-    let h = TRACK_H + 3.0 * plot_h + AXIS_H;
+    let h = TRACK_H + n * plot_h + AXIS_H;
     let (rect, resp) = ui.allocate_exact_size(Vec2::new(w, h), egui::Sense::hover());
-    let tips = draw_plots(ui, rect, plot_h, test, now);
-    // Each point's figure, on hover, as the key says.
-    if let Some(p) = resp.hover_pos() {
-        let near = tips
+    let hover = ui.data(|d| d.get_temp::<Option<usize>>(guided::complication_hover_ids().0));
+    let middles = draw_plots(ui, rect, (plot_h, &kinds), (test, now), hover.flatten());
+    // The stretch nearest the pointer across the plots.
+    let at = resp.hover_pos().and_then(|p| {
+        middles
             .iter()
-            .filter(|(at, _)| at.distance(p) <= HOVER_R)
-            .min_by(|a, b| a.0.distance(p).total_cmp(&b.0.distance(p)));
-        if let Some((_, text)) = near {
-            resp.on_hover_text_at_pointer(text.as_str());
-        }
-    }
+            .min_by(|a, b| (a.1 - p.x).abs().total_cmp(&(b.1 - p.x).abs()))
+            .map(|m| m.0)
+    });
+    ui.data_mut(|d| d.insert_temp(plots_hover_id(), at));
     plot_key(ui);
 }
 
@@ -344,15 +381,16 @@ fn time_step(span: f64) -> f64 {
         .unwrap_or(span)
 }
 
-/// The three plots, the track over them and the time axis under them;
-/// each point drawn, with its figure for the hover.
+/// The plots of `kinds`, the track over them and the time axis under
+/// them, and the `hover`ed stretch's line down them; each stretch's index
+/// and its middle's x.
 fn draw_plots(
     ui: &egui::Ui,
     rect: egui::Rect,
-    plot_h: f32,
-    test: Option<&guided::Test>,
-    now: Option<f64>,
-) -> Vec<(egui::Pos2, String)> {
+    (plot_h, kinds): (f32, &[SeriesKind]),
+    (test, now): (Option<&guided::Test>, Option<f64>),
+    hover: Option<usize>,
+) -> Vec<(usize, f32)> {
     let pal = theme::pal(ui);
     let painter = ui.painter_at(rect);
     let left = rect.left() + LEFT;
@@ -374,7 +412,7 @@ fn draw_plots(
     let grid = egui::Stroke::new(1.0_f32, pal.separator);
     let step = time_step(t1 - t0);
     let plots_top = rect.top() + TRACK_H;
-    let plots_bottom = plots_top + 3.0 * plot_h;
+    let plots_bottom = plots_top + kinds.len() as f32 * plot_h;
     let mut k = 0.0;
     let mut marks = Vec::new();
     while t0 + k * step <= t1 {
@@ -396,8 +434,12 @@ fn draw_plots(
         egui::FontId::proportional(11.0),
         pal.text_secondary,
     );
-    let mut tips = Vec::new();
-    for (i, q) in complication::SHOWN.into_iter().enumerate() {
+    let hovered = hover.and_then(|i| points.get(i));
+    if let Some(p) = hovered {
+        let line = egui::Stroke::new(1.0_f32, pal.text_secondary);
+        painter.vline(x(p.t), egui::Rangef::new(plots_top, plots_bottom), line);
+    }
+    for (i, &q) in kinds.iter().enumerate() {
         let top = plots_top + i as f32 * plot_h;
         let area = egui::Rect::from_min_max(
             egui::pos2(left, top + TITLE_H),
@@ -407,10 +449,19 @@ fn draw_plots(
             painter.vline(at, area.y_range(), grid);
         }
         let change = complication::change(q, &measurements);
-        plot_title(&painter, egui::pos2(rect.left(), top), q, change, pal);
-        tips.extend(draw_one(&painter, area, (q, &points, change), &x, pal));
+        // The hovered stretch's figure, with its ±, in the title.
+        let value = hovered
+            .and_then(|p| complication::figure(q, &complication::figures(p.m)))
+            .map(|f| true_minus(&complication::figure_text(q, f)));
+        let title = (q, change, value);
+        plot_title(&painter, egui::pos2(rect.left(), top), title, pal);
+        draw_one(&painter, area, (q, &points, change), &x, pal);
     }
-    tips
+    points
+        .iter()
+        .enumerate()
+        .map(|(i, p)| (i, x(p.t)))
+        .collect()
 }
 
 /// The track over the plots: each stretch named, faint while it settles.
@@ -460,13 +511,23 @@ fn draw_track(
 fn plot_title(
     painter: &egui::Painter,
     at: egui::Pos2,
-    q: SeriesKind,
-    change: Option<Change>,
+    (q, change, value): (SeriesKind, Option<Change>, Option<String>),
     pal: &theme::Palette,
 ) {
     let name = painter.layout_no_wrap(q.title().to_string(), theme::semibold(13.0), pal.text);
-    let w = name.size().x;
+    let mut w = name.size().x;
     painter.galley(at, name, pal.text);
+    if let Some(v) = value {
+        let colour = crate::steady::series_colour(q, pal);
+        let r = painter.text(
+            at + Vec2::new(w, 0.0),
+            egui::Align2::LEFT_TOP,
+            format!("  {v}"),
+            egui::FontId::proportional(13.0),
+            colour,
+        );
+        w += r.width();
+    }
     if let Some(c) = change {
         painter.text(
             at + Vec2::new(w, 0.0),
@@ -484,14 +545,14 @@ fn plot_title(
 /// One plot: its scale's lines and numbers, each stretch at its middle
 /// with its ±, the Offs joined dashed, and once all three are in the ring
 /// where On would sit with the complication off and the bracket from it to
-/// On. Gives each point and its figure for the hover.
+/// On.
 fn draw_one(
     painter: &egui::Painter,
     area: egui::Rect,
     (q, points, change): (SeriesKind, &[Point<'_>], Option<Change>),
     x: &dyn Fn(f64) -> f32,
     pal: &theme::Palette,
-) -> Vec<(egui::Pos2, String)> {
+) {
     let figs: Vec<(f64, complication::Figure)> = points
         .iter()
         .filter_map(|p| Some((p.t, complication::figure(q, &complication::figures(p.m))?)))
@@ -516,7 +577,7 @@ fn draw_one(
     }
     let Some((lo, hi)) = chart_scale::data_range(&values) else {
         painter.hline(area.x_range(), area.bottom(), grid);
-        return Vec::new();
+        return;
     };
     let (lo, hi, step) = chart_scale::round_ends(lo, hi);
     let y = |v: f64| area.bottom() - ((v - lo) / (hi - lo)) as f32 * area.height();
@@ -556,10 +617,8 @@ fn draw_one(
         painter.line_segment([egui::pos2(r, a), egui::pos2(r, b)], quiet);
         painter.line_segment([egui::pos2(r - 3.0, b), egui::pos2(r, b)], quiet);
     }
-    let mut tips = Vec::new();
     for &(t, f) in &figs {
         let p = egui::pos2(x(t), y(f.value));
-        tips.push((p, true_minus(&complication::figure_text(q, f))));
         if let Some(e) = f.se {
             let (a, b) = (
                 egui::pos2(p.x, y(f.value + e)),
@@ -569,7 +628,6 @@ fn draw_one(
         }
         painter.circle(p, DOT_R, colour, egui::Stroke::new(1.5_f32, pal.card));
     }
-    tips
 }
 
 /// One part of the key under the plots: its mark and its words.

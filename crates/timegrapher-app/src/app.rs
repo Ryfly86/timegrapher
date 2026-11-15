@@ -107,16 +107,14 @@ struct Readouts {
     calibre_limits: Vec<(String, String)>,
 }
 
-/// The controls the readings' cards carry, each in a strip at its card's
-/// foot.
+/// The controls the readings' cards carry, each in a strip at its card's foot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum Slot {
     /// The six positions.
     Position,
     /// Listen or Stop, Save, and Average Over.
     Listen,
-    /// The Watch line: the Calibre card's title, the watch on the
-    /// microphone, with its menu.
+    /// The Watch line: the Calibre card's title, the watch on the microphone, with its menu.
     WatchLine,
     /// The calibre, on the Calibre card's figure row.
     Calibre,
@@ -286,8 +284,7 @@ const SHEET_INDENT: f32 = 30.0;
 /// The names in the sheet's third step, right-aligned in this width.
 const SHEET_LABEL_W: f32 = 104.0;
 
-/// A step of Set Up the Microphone: its number in a small grey circle,
-/// then its title.
+/// A step of Set Up the Microphone: its number in a small grey circle, then its title.
 fn sheet_step(ui: &mut egui::Ui, n: u8, title: &str) {
     let pal = theme::pal(ui);
     ui.horizontal(|ui| {
@@ -391,8 +388,7 @@ fn scratch_dir() -> PathBuf {
 #[derive(Debug, Clone, PartialEq)]
 struct KeptSound {
     dir: PathBuf,
-    /// "2026-10-21 14.32", from its session.json, in this computer's
-    /// time.
+    /// "2026-10-21 14.32", from its session.json, in this computer's time.
     started: Option<String>,
     duration_s: Option<f64>,
     bytes: u64,
@@ -508,8 +504,7 @@ enum View {
     Watches,
 }
 
-/// The panes below the readings. Tick shape and the periodicity (FFT)
-/// views will join these.
+/// The panes below the readings. Tick shape and the periodicity (FFT) views will join these.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
 )]
@@ -2044,9 +2039,10 @@ pub struct TimegrapherApp {
     chart_series: [bool; 3],
     /// The readings the Distributions pane draws.
     dist_series: [bool; 3],
-    /// The charts the Power Reserve and Positions Test panes draw (#1729).
+    /// The charts the Power Reserve, Positions and Complication panes draw (#1729).
     reserve_series: [bool; 3],
     positions_series: [bool; 3],
+    complication_series: [bool; 3],
     /// The charts drawn last frame: those turned on that had room. The
     /// key names only these.
     charts_drawn: [bool; 3],
@@ -2299,6 +2295,7 @@ impl TimegrapherApp {
             dist_series: self.dist_series,
             reserve_series: self.reserve_series,
             positions_series: self.positions_series,
+            complication_series: self.complication_series,
             hist_cumulative: self.hist_cumulative,
             reserve_info: self.reserve_info,
             positions_info: self.positions_info,
@@ -2362,6 +2359,7 @@ impl TimegrapherApp {
             dist_series,
             reserve_series,
             positions_series,
+            complication_series,
             hist_cumulative,
             reserve_info,
             positions_info,
@@ -2445,7 +2443,7 @@ impl TimegrapherApp {
         self.steady_info = steady::PerPane::new(steady_info_set, steady_info);
         self.set_positions_times(positions_settle_s, positions_measure_s);
         self.steady_series = steady_series_from(steady_shown, steady_series);
-        self.scope_view = scope;
+        (self.complication_series, self.scope_view) = (on(complication_series), scope);
         self.panes = match panes.map(upgraded_layout) {
             Some(p) if layout_is_whole(&p) => {
                 self.panes_dragged = panes_dragged.into_iter().collect();
@@ -2618,6 +2616,7 @@ impl TimegrapherApp {
             dist_series: RATE_ONLY,
             reserve_series: [true; 3],
             positions_series: [true; 3],
+            complication_series: [true; 3],
             charts_drawn: [true; 3],
             pane_need: std::collections::HashMap::new(),
             panes_dragged: std::collections::HashSet::new(),

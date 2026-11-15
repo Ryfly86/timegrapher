@@ -156,8 +156,115 @@ fn the_pane_draws_the_table_and_three_plots_amplitude_first() {
         4,
         "{texts:?}"
     );
+    a_hovered_stretch_gives_its_figures_in_each_title(&mut app);
+    a_plot_turned_off_gives_the_others_its_room(&mut app);
     drop(tx);
     let _ = std::fs::remove_dir_all(&base);
+}
+
+/// #1729's hover: the On row hovered in the table puts On's figure, with
+/// its ±, in each plot's title; the pointer over the plots near On's
+/// middle does the same.
+fn a_hovered_stretch_gives_its_figures_in_each_title(app: &mut TimegrapherApp) {
+    let size = Vec2::new(1280.0, 900.0);
+    let figures = |drawn: &[(String, egui::Rect)]| -> Vec<String> {
+        drawn
+            .iter()
+            .filter(|(t, _)| t.starts_with("  "))
+            .map(|(t, _)| t.trim().to_string())
+            .collect()
+    };
+    let still = draw_at(app, size);
+    assert!(figures(&still).is_empty(), "no hover, no figures");
+    let on = still
+        .iter()
+        .find(|(t, _)| t == "On")
+        .map(|(_, r)| *r)
+        .expect("the On row");
+    let by_row = figures(&draw_hovered(app, size, on.center()));
+    assert_eq!(by_row.len(), 3, "{by_row:?}");
+    assert!(
+        by_row[0].ends_with('°') && by_row[0].contains('±'),
+        "{by_row:?}"
+    );
+    // On's middle on the plots: its name on the track, then down a plot.
+    let track = still
+        .iter()
+        .filter(|(t, _)| t == "On")
+        .map(|(_, r)| *r)
+        .max_by(|a, b| a.left().total_cmp(&b.left()))
+        .expect("the track's On");
+    let amp = still
+        .iter()
+        .rfind(|(t, _)| t == "Amplitude")
+        .map(|(_, r)| *r)
+        .expect("the Amplitude plot");
+    let by_plot = figures(&draw_hovered(
+        app,
+        size,
+        egui::pos2(track.left() + 30.0, amp.bottom() + 40.0),
+    ));
+    assert_eq!(by_plot, by_row, "the same stretch from the plots");
+}
+
+/// The Beat Error switch off: its plot goes, and the two left are taller.
+fn a_plot_turned_off_gives_the_others_its_room(app: &mut TimegrapherApp) {
+    let size = Vec2::new(1280.0, 900.0);
+    let gap = |drawn: &[(String, egui::Rect)]| {
+        let top = |name: &str| {
+            drawn
+                .iter()
+                .rfind(|(t, _)| t == name)
+                .map(|(_, r)| r.top())
+                .unwrap_or_else(|| panic!("{name}"))
+        };
+        top("Rate") - top("Amplitude")
+    };
+    let three = gap(&draw_at(app, size));
+    app.complication_series = [true, true, false];
+    let drawn = draw_at(app, size);
+    let titles = drawn.iter().filter(|(t, _)| t == "Beat Error").count();
+    assert_eq!(titles, 1, "the table's heading alone");
+    assert!(gap(&drawn) > three + 20.0, "{three} then {}", gap(&drawn));
+    app.complication_series = [true; 3];
+}
+
+/// The pane drawn with the pointer at `at`, a few frames so a hover in
+/// the table reaches the plots.
+fn draw_hovered(app: &mut TimegrapherApp, size: Vec2, at: egui::Pos2) -> Vec<(String, egui::Rect)> {
+    let ctx = themed();
+    let mut drawn = Vec::new();
+    for _ in 0..4 {
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
+            events: vec![egui::Event::PointerMoved(at)],
+            ..Default::default()
+        };
+        let out = ctx.run(input, |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                app.pane_tools(ui, Pane::Complication);
+                app.complication_pane(ui);
+            });
+        });
+        drawn = out
+            .shapes
+            .iter()
+            .filter_map(|c| match &c.shape {
+                egui::Shape::Text(t) => Some((
+                    t.galley.text().to_string(),
+                    t.galley.rect.translate(t.pos.to_vec2()),
+                )),
+                _ => None,
+            })
+            .collect();
+        if let Ok(d) = std::env::var("SHOT_DIR") {
+            let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, size);
+            let back = ctx.style().visuals.window_fill;
+            let svg = crate::export::svg(&out.shapes, screen, back);
+            std::fs::write(format!("{d}/complication-hover-{}.svg", at.y as i32), svg).unwrap();
+        }
+    }
+    drawn
 }
 
 /// A new lift reads an opened take's Complication stretches again
