@@ -1277,6 +1277,8 @@ fn both_views_sit_side_by_side_where_there_is_room(app: &mut TimegrapherApp) {
         let hour = *all("Hour at the top").first().expect("the plot");
         let fastest = all("Fastest 6H");
         assert_eq!(fastest.len(), 2, "both views at {w}: {fastest:?}");
+        // The heavy spot's plate once, on the plot (Hugh on #1794).
+        assert_eq!(all("Heavy spot").len(), 1, "one plate at {w}");
         (hour, fastest)
     };
     let (plot, fastest) = at(app, 2000.0);
