@@ -1023,14 +1023,14 @@ fn what_opens_dialog_picks_is_opened_or_asked_about() {
 /// (the calibre edited since, or the file written outside the app) opens
 /// at the file's rate, and the Watch line says the calibre beats at
 /// another: the one way the app reaches that chip (Hugh, #1813). At
-/// 1600 wide the line holds "1 limit" beside the watch's name, where
-/// #1811 left only the bare chip.
+/// 1600 wide the line holds "1 limit" beside the watch's whole name,
+/// where #1811 left only the bare chip.
 #[test]
 fn a_take_at_another_rate_than_its_calibre_says_so_on_the_watch_line() {
     let dir = one_position_take("calibre-rate", 40.0);
     std::fs::write(
         dir.join(MANIFEST),
-        "calibre = 'Unitas 6497-2'\nbph = 28800\nlift = 52.0\n\n\
+        "watch = 'Pepsi'\ncalibre = 'Unitas 6497-2'\nbph = 28800\nlift = 52.0\n\n\
          [[recording]]\nfile = '.'\nposition = 'DU'\n",
     )
     .unwrap();
@@ -1050,6 +1050,9 @@ fn a_take_at_another_rate_than_its_calibre_says_so_on_the_watch_line() {
         };
         text = super::tests::painted_text(&ctx.run(input, |ctx| app.panels(ctx)));
     }
-    assert!(text.lines().any(|l| l == "1 limit"), "{text}");
+    assert!(
+        text.lines().any(|l| l == "1 limit") && text.lines().any(|l| l == "Pepsi ⏷"),
+        "{text}"
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }

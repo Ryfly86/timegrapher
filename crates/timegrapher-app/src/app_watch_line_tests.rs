@@ -1129,18 +1129,19 @@ fn a_refused_pick_is_not_still_said_once_a_pick_works() {
 
 /// The Watch line's limits chip shortens as every card's does (#1810):
 /// widening the card, a bare warning chip, then how many limits, then
-/// the first limit and how many more; at every width a chip, with the
-/// watch's name kept.
+/// the first limit and how many more; at every width a chip. The watch's
+/// name keeps its whole width, and is cut only beside the bare chip
+/// (Hugh, #1813), a short name and a long one alike.
 #[test]
 fn the_watch_lines_chip_shortens_as_the_cards_do() {
-    let (mut app, base) = line_app("chips", &["Pepsi"], None);
-    app.pick_watch(&watch_id(&app, "Pepsi"));
+    let long = "Rolex Submariner Date 41mm";
+    let (mut app, base) = line_app("chips", &["Pepsi", long], None);
     let limits = [
         ("28800 bph heard".to_string(), "Heard.".to_string()),
         ("lift angle not set".to_string(), "Lift.".to_string()),
     ];
     let ctx = themed();
-    let drawn = |app: &mut TimegrapherApp, w: f32| {
+    let drawn = |app: &mut TimegrapherApp, name: &str, w: f32| {
         let mut out = None;
         for _ in 0..2 {
             out = Some(ctx.run(screen(), |ctx| {
@@ -1158,22 +1159,30 @@ fn the_watch_lines_chip_shortens_as_the_cards_do() {
             .shapes
             .iter()
             .any(|c| matches!(&c.shape, egui::Shape::Path(p) if p.closed && p.points.len() == 3));
-        assert!(text.contains("Pepsi"), "{w}: {text}");
-        if text.lines().any(|l| l == "28800 bph Heard +1") {
+        let step = if text.lines().any(|l| l == "28800 bph Heard +1") {
             2
         } else if text.lines().any(|l| l == "2 limits") {
             1
         } else {
             assert!(bare, "no chip at {w}: {text}");
             0
-        }
+        };
+        let whole = text.lines().any(|l| l == format!("{name} ⏷"));
+        assert!(
+            whole || step == 0,
+            "{name} cut beside a worded chip at {w}: {text}"
+        );
+        step
     };
-    let steps: Vec<u8> = (0..=50)
-        .map(|n| drawn(&mut app, 100.0 + 10.0 * n as f32))
-        .collect();
-    assert!(steps.windows(2).all(|p| p[0] <= p[1]), "{steps:?}");
-    for step in 0..=2 {
-        assert!(steps.contains(&step), "{steps:?}");
+    for name in ["Pepsi", long] {
+        app.pick_watch(&watch_id(&app, name));
+        let steps: Vec<u8> = (0..=60)
+            .map(|n| drawn(&mut app, name, 100.0 + 10.0 * n as f32))
+            .collect();
+        assert!(steps.windows(2).all(|p| p[0] <= p[1]), "{name}: {steps:?}");
+        for step in 0..=2 {
+            assert!(steps.contains(&step), "{name}: {steps:?}");
+        }
     }
     drop(app);
     let _ = std::fs::remove_dir_all(&base);

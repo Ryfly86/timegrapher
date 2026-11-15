@@ -908,14 +908,36 @@ impl TimegrapherApp {
         let rates_here = ui.available_width() < TWO_FIELDS_W
             && self.watch_sets_here()
             && !self.bph_set_by_calibre();
+        // The take's own watch where it isn't in Watches, as the status
+        // bar names it (Hugh).
+        let named = self.named_watch();
+        let name = named
+            .as_ref()
+            .map_or_else(|| NO_WATCH.to_string(), |w| w.0.clone());
+        let title = match named {
+            None if narrow => NO_WATCH_SHORT,
+            _ => name.as_str(),
+        };
+        let not_kept = if named.as_ref().is_some_and(|w| !w.1) {
+            "\n\nNamed in this take; not in your Watches"
+        } else {
+            ""
+        };
+        let font = theme::semibold(if narrow { 12.0 } else { 13.0 });
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
             theme::help(ui, "Calibre", &help::CALIBRE);
             if !limits.is_empty() {
                 let sentences: Vec<String> = limits.iter().map(|l| l.1.clone()).collect();
-                // Shortened as every card's limits are (#1810), the watch's
-                // name keeping half the line (#1813).
-                let room = ui.available_width() / 2.0;
+                // Shortened as every card's limits are (#1810), in what the
+                // watch's whole name leaves (Hugh, #1813); the bare chip
+                // where nothing else fits, the name cut only then.
+                let name_w = ui.fonts_mut(|f| {
+                    f.layout_no_wrap(format!("{title} ⏷"), font.clone(), pal.text_secondary)
+                        .size()
+                        .x
+                });
+                let room = ui.available_width() - ui.spacing().item_spacing.x - name_w;
                 let text = readouts::limits_chip_words(limits, |w| theme::chip_w(ui, w) <= room);
                 theme::chip(ui, &text, "Calibre", &sentences, ui.available_width());
             }
@@ -924,23 +946,7 @@ impl TimegrapherApp {
                 // only the title row's height, not a control's.
                 ui.spacing_mut().button_padding = Vec2::new(0.0, 0.0);
                 ui.spacing_mut().interact_size.y = theme::TITLE_ROW_H;
-                // The take's own watch where it isn't in Watches, as the
-                // status bar names it (Hugh).
-                let named = self.named_watch();
-                let name = named
-                    .as_ref()
-                    .map_or_else(|| NO_WATCH.to_string(), |w| w.0.clone());
-                let title = match named {
-                    None if narrow => NO_WATCH_SHORT,
-                    _ => name.as_str(),
-                };
-                let not_kept = if named.as_ref().is_some_and(|w| !w.1) {
-                    "\n\nNamed in this take; not in your Watches"
-                } else {
-                    ""
-                };
                 // The name is cut, never the ⏷.
-                let font = theme::semibold(if narrow { 12.0 } else { 13.0 });
                 let title = elide(ui, title, " ⏷", &font, ui.available_width());
                 let button = ui
                     .add(
