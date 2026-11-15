@@ -361,6 +361,19 @@ impl Hour {
         .filter(|v| v.is_finite())
     }
 
+    /// Its ± band for `kind`, low and high: the table's ± either side of
+    /// the figure, a beat error's floored at 0, as no beat error is below
+    /// it (Norm on #1761).
+    pub fn band(&self, kind: SeriesKind) -> Option<(f64, f64)> {
+        let v = self.value(kind)?;
+        let e = self.se(kind)?;
+        let lo = match kind {
+            SeriesKind::BeatError => (v - e).max(0.0),
+            _ => v - e,
+        };
+        Some((lo, v + e))
+    }
+
     /// Whether its figure for `kind` is drawn grey, in its table cell and
     /// on its chart, on every surface (Norm on #1761): thin (#1429), or a
     /// beat error not taken from the unlock (#1076). The grey beat error
@@ -399,13 +412,21 @@ fn figure_of(kind: SeriesKind) -> crate::confidence::Figure {
 /// when the scale already comes within one step of it, so an hourly swing
 /// of a few s/d is never flattened (Hugh on #1761). None for no figures.
 pub fn chart_axis(hours: &[Hour], kind: SeriesKind) -> Option<[f64; 3]> {
+    // Each figure and its band; a withheld figure adds nothing.
     let values: Vec<f64> = hours
         .iter()
-        .filter_map(|h| Some((h.value(kind)?, h.se(kind).unwrap_or(0.0))))
-        .flat_map(|(v, se)| [v - se, v, v + se])
+        .filter_map(|h| Some((h.value(kind)?, h.band(kind))))
+        .flat_map(|(v, band)| {
+            let (lo, hi) = band.unwrap_or((v, v));
+            [lo, v, hi]
+        })
         .collect();
     let [lo, hi, step] = crate::position_line::value_axis(kind, &values)?;
-    // The figures and their bands within a step of zero: out to it.
+    // The figures and their bands within a step of zero: out to it. Never
+    // for amplitude, whose axis never reaches 0 (Norm on #1761).
+    if kind == SeriesKind::Amplitude {
+        return Some([lo, hi, step]);
+    }
     let least = values.iter().copied().fold(f64::INFINITY, f64::min);
     let most = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
     let lo = if lo.is_sign_positive() && least <= step {
@@ -811,6 +832,14 @@ mod chart_tests {
         let [lo, _, _] = chart_axis(&far, SeriesKind::BeatError).unwrap();
         assert_eq!(lo, 0.0, "a size's band floors at zero");
         assert!(chart_axis(&[], SeriesKind::Rate).is_none());
+        // |−0.4| ± 0.6: the band from 0, not −0.2.
+        assert_eq!(far[0].band(SeriesKind::BeatError), Some((0.0, 1.0)));
+        // Amplitude never out to zero, however near it comes.
+        let mut low = [hour(1.0, None), hour(1.0, None)];
+        low[0].amplitude_deg = Some(20.0);
+        low[1].amplitude_deg = Some(40.0);
+        let [lo, _, _] = chart_axis(&low, SeriesKind::Amplitude).unwrap();
+        assert!(lo > 0.0, "{lo}");
     }
 
     /// A figure is grey where thin, and a beat error also off the unlock,

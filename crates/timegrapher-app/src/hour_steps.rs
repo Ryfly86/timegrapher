@@ -22,6 +22,8 @@ use timegrapher_core::steadiness::SeriesKind;
 pub struct Step {
     pub v: f64,
     pub se: Option<f64>,
+    /// Its ± band, low and high, from core (a beat error's floored at 0).
+    pub band: Option<(f64, f64)>,
     pub grey: bool,
 }
 
@@ -270,16 +272,16 @@ fn one(
         grid.draw(p, pal);
         for (s, &(a, b)) in c.steps.iter().zip(spans) {
             let Some(Step {
-                v,
-                se: Some(e),
+                band: Some((lo, hi)),
                 grey,
+                ..
             }) = *s
             else {
                 continue;
             };
             let ink = if grey { pal.text_tertiary } else { colour };
             p.polygon(
-                Polygon::new("±", vec![[a, v - e], [b, v - e], [b, v + e], [a, v + e]])
+                Polygon::new("±", vec![[a, lo], [b, lo], [b, hi], [a, hi]])
                     .fill_color(ink.gamma_multiply(strength::BAND_FILL))
                     .stroke(egui::Stroke::NONE),
             );
@@ -456,7 +458,12 @@ mod tests {
     use super::*;
 
     fn step(v: f64, grey: bool) -> Option<Step> {
-        Some(Step { v, se: None, grey })
+        Some(Step {
+            v,
+            se: None,
+            band: None,
+            grey,
+        })
     }
 
     /// Hours side by side make one line, level across each and rising

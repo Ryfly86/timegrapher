@@ -537,6 +537,7 @@ fn reserve_charts(hours: &[power_reserve::Hour], shown: [bool; 3]) -> Vec<hour_s
         Some(Step {
             v: h.value(k)?,
             se: h.se(k),
+            band: h.band(k),
             grey: h.grey(k),
         })
     };
