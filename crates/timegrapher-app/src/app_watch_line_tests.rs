@@ -1126,3 +1126,55 @@ fn a_refused_pick_is_not_still_said_once_a_pick_works() {
     drop(app);
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// The Watch line's limits chip shortens as every card's does (#1810):
+/// widening the card, a bare warning chip, then how many limits, then
+/// the first limit and how many more; at every width a chip, with the
+/// watch's name kept.
+#[test]
+fn the_watch_lines_chip_shortens_as_the_cards_do() {
+    let (mut app, base) = line_app("chips", &["Pepsi"], None);
+    app.pick_watch(&watch_id(&app, "Pepsi"));
+    let limits = [
+        ("28800 bph heard".to_string(), "Heard.".to_string()),
+        ("lift angle not set".to_string(), "Lift.".to_string()),
+    ];
+    let ctx = themed();
+    let drawn = |app: &mut TimegrapherApp, w: f32| {
+        let mut out = None;
+        for _ in 0..2 {
+            out = Some(ctx.run(screen(), |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    ui.allocate_ui(Vec2::new(w, theme::TITLE_ROW_H), |ui| {
+                        ui.set_max_width(w);
+                        app.watch_line(ui, &limits);
+                    });
+                });
+            }));
+        }
+        let out = out.expect("drawn");
+        let text = painted_text(&out);
+        let bare = out
+            .shapes
+            .iter()
+            .any(|c| matches!(&c.shape, egui::Shape::Path(p) if p.closed && p.points.len() == 3));
+        assert!(text.contains("Pepsi"), "{w}: {text}");
+        if text.lines().any(|l| l == "28800 bph Heard +1") {
+            2
+        } else if text.lines().any(|l| l == "2 limits") {
+            1
+        } else {
+            assert!(bare, "no chip at {w}: {text}");
+            0
+        }
+    };
+    let steps: Vec<u8> = (0..=50)
+        .map(|n| drawn(&mut app, 160.0 + 10.0 * n as f32))
+        .collect();
+    assert!(steps.windows(2).all(|p| p[0] <= p[1]), "{steps:?}");
+    for step in 0..=2 {
+        assert!(steps.contains(&step), "{steps:?}");
+    }
+    drop(app);
+    let _ = std::fs::remove_dir_all(&base);
+}

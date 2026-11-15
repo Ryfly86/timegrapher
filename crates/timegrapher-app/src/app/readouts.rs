@@ -284,7 +284,7 @@ pub(crate) fn card_title(
         if !limits.is_empty() {
             let room = ui.available_width();
             let words =
-                limits_chip_words(limits, |w| small_w(ui, w) + 14.0 + 4.0 + caption_w <= room);
+                limits_chip_words(limits, |w| theme::chip_w(ui, w) + 4.0 + caption_w <= room);
             let sentences: Vec<String> = limits.iter().map(|l| l.1.clone()).collect();
             theme::chip(ui, &words, caption, &sentences, ui.available_width());
         }

@@ -911,14 +911,12 @@ impl TimegrapherApp {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
             theme::help(ui, "Calibre", &help::CALIBRE);
-            if let Some(first) = limits.first() {
+            if !limits.is_empty() {
                 let sentences: Vec<String> = limits.iter().map(|l| l.1.clone()).collect();
-                // The watch's name keeps the room; the chip says how many.
-                let text = if limits.len() > 1 || ui.available_width() < 180.0 {
-                    limits.len().to_string()
-                } else {
-                    chip_words(&first.0)
-                };
+                // Shortened as every card's limits are (#1810), the watch's
+                // name keeping a narrow title's room.
+                let room = ui.available_width() - NARROW_TITLE_W;
+                let text = readouts::limits_chip_words(limits, |w| theme::chip_w(ui, w) <= room);
                 theme::chip(ui, &text, "Calibre", &sentences, ui.available_width());
             }
             ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {

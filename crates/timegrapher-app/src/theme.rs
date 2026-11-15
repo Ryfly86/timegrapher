@@ -512,6 +512,20 @@ pub fn help_with_key(
     resp
 }
 
+/// How wide [`chip`] draws `text`, its padding included.
+pub fn chip_w(ui: &Ui, text: &str) -> f32 {
+    let w = ui.fonts_mut(|f| {
+        f.layout_no_wrap(
+            text.into(),
+            FontId::proportional(12.0),
+            pal(ui).text_secondary,
+        )
+        .size()
+        .x
+    });
+    w + 14.0
+}
+
 /// A bare warning chip's icon, as wide as it is tall.
 pub const CHIP_ICON: f32 = 12.0;
 
