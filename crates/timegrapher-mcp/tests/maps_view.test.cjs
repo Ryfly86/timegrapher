@@ -35,7 +35,7 @@ const context = vm.createContext({
   VIRIDIS, PERIOD_TICKS, MARK_ROOM_PX, REFERENCE_HOVER, WHEEL_WORDS, ICONS: null, mapPaints: [], mapsLog: false, showWheels: true, showMesh: true, Uint8ClampedArray,
   steadyView: "periods", fftTiming: false,
   chartWidth: () => 600, logTicks: () => [], linTicks: () => [], fmtTime: (t) => `t${t}`, TIME_STEPS: [],
-  plotArea: () => ({ id: "c", svg: "" }), gridDown: () => "", gridAcross: () => "", CHAR_W: 6.6, secs: (t) => `${t} s`, wheelTitle: String,
+  plotArea: () => ({ id: "c", svg: "" }), gridDown: () => "", gridAcross: () => "", CHAR_W: 6.6, secs: (t) => `${t} s`,
 });
 assert.ok(html.includes("const VIRIDIS = /*VIRIDIS*/null;"), "the server fills the table in");
 assert.ok(html.includes("const MARK_ROOM_PX = /*MARK_ROOM_PX*/null;"), "the server fills the mark room in");
@@ -185,6 +185,34 @@ test("wheels are marked in call-out grey dots, else 1 min and 1 h solid and fain
   const teeth = { input: { settings: { wheel_marks: [{ ...mark(60, "wheel", "Escape Wheel (20 Teeth)", "x"), words: ["Escape", "Wheel", "(20 Teeth)"] }] } } };
   assert.deepEqual(plain(context.wheelLines(teeth, [0, 5])[0].words), ["Escape", "Wheel", "(20 Teeth)"]);
   assert.ok(rows(teeth).includes(">(20 Teeth)<"));
+});
+
+// Core's shown_marks: a mesh within 3% of a wheel is left out only while
+// that wheel shows; with Wheel Periods off the view draws core's
+// mesh_marks, every mesh under its own name (Hugh's ruling on #1764).
+test("with Wheel Periods off, a mesh beside a wheel comes back under its own name", () => {
+  const fourth = mark(7.5, "mesh", "Fourth Pinion Mesh", "x");
+  const escape = mark(30, "mesh", "Escape Pinion Mesh", "y");
+  const settings = {
+    wheel_marks: [mark(60, "wheel", "Fourth Wheel", "a"), mark(30.6, "wheel", "Escape Wheel", "b"), mark(15.3, "twice", "Escape Wheel ×2", "c"), fourth],
+    mesh_marks: [fourth, escape],
+  };
+  const names = (doc) => plain(context.wheelLines(doc, [0, 5])).map((l) => l.name);
+  const doc = { input: { settings } };
+  try {
+    context.showWheels = true;
+    assert.deepEqual(names(doc), ["Fourth Wheel", "Escape Wheel", "Escape Wheel ×2", "Fourth Pinion Mesh"]);
+    context.showWheels = false;
+    assert.deepEqual(names(doc), ["Fourth Pinion Mesh", "Escape Pinion Mesh"]);
+    context.showMesh = false;
+    assert.deepEqual(names(doc), []);
+    // A document written before mesh_marks: its meshes as wheel_marks has them.
+    context.showMesh = true;
+    assert.deepEqual(names({ input: { settings: { wheel_marks: settings.wheel_marks } } }), ["Fourth Pinion Mesh"]);
+  } finally {
+    context.showWheels = true;
+    context.showMesh = true;
+  }
 });
 
 test("Wheel Periods sits beside each period view's own switch, with the app's hint", () => {

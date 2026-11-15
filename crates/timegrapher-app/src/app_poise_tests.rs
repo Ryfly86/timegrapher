@@ -2,6 +2,7 @@
 //! card at 10, led through the eight upright stops, kept out of the
 //! Positions Test's pane, and drawn with core's fit.
 
+use super::poise_pane::PoiseView;
 use super::tests::{queued_capture, synthetic_varying, themed};
 use super::*;
 use timegrapher_core::synth::{generate, SynthConfig};
@@ -96,9 +97,9 @@ fn a_poise_test_measures_eight_stops_and_core_fits_the_wave(app: &TimegrapherApp
 #[test]
 fn a_measured_poise_test_passes_each_check() {
     let (mut app, base, tx) = measured("measured-checks");
-    let fresh = (app.poise_view, app.poise_info);
+    let fresh = (app.poise_views, app.poise_info);
     let reset = |app: &mut TimegrapherApp| {
-        app.poise_view = fresh.0;
+        app.poise_views = fresh.0;
         app.poise_info = fresh.1;
     };
     a_poise_test_measures_eight_stops_and_core_fits_the_wave(&app);
@@ -107,6 +108,10 @@ fn a_measured_poise_test_passes_each_check() {
     the_heavy_spot_is_in_a_facts_box_and_the_notes_in_info(&mut app);
     reset(&mut app);
     the_table_tightens_beside_the_picture_then_goes_under_it(&mut app);
+    reset(&mut app);
+    both_views_sit_side_by_side_where_there_is_room(&mut app);
+    reset(&mut app);
+    only_the_table_scrolls_and_a_short_pane_scrolls_the_picture(&mut app);
     reset(&mut app);
     the_dial_has_its_watch_case_behind_it(&mut app);
     reset(&mut app);
@@ -359,7 +364,7 @@ fn the_pane_says_the_fit_waits_for_five_stops_in_both_views() {
     let mut app = synthetic_varying(30.0, 0.0, |_| 0.0);
     app.guided = Some(guided::Test::poise().timed(1.0, 5.0));
     for view in [PoiseView::Plot, PoiseView::Dial] {
-        app.poise_view = view;
+        app.poise_views = [view == PoiseView::Plot, view == PoiseView::Dial];
         let drawn = draw(&mut app, Pane::DynamicPoise);
         assert!(drawn.contains(&poise_pending()), "{view:?}: {drawn}");
         for label in ["Crown Down (CD, 9H)", "7:30 Up (7H30)", "10:30 Up (10H30)"] {
@@ -392,7 +397,7 @@ fn the_picture_has_its_key_and_mean_and_info_says_each_fact_once(app: &mut Timeg
         .mean_rate
         .unwrap();
     assert!(mean.starts_with("Mean ") && mean.contains(&format!("{:.1}", row.abs())));
-    app.poise_view = PoiseView::Plot;
+    app.poise_views = [true, false];
     let plot = draw(app, Pane::DynamicPoise);
     for word in ["Upright positions (8)", "Fitted wave", mean.as_str()] {
         assert!(plot.contains(word), "{word}: {plot}");
@@ -401,7 +406,7 @@ fn the_picture_has_its_key_and_mean_and_info_says_each_fact_once(app: &mut Timeg
     // across the plot, apart from the grid's full-width lines.
     let dashes = plot_dashes(app);
     assert!(dashes > 20, "{dashes} dashes");
-    app.poise_view = PoiseView::Dial;
+    app.poise_views = [false, true];
     let dial = draw(app, Pane::DynamicPoise);
     assert!(
         dial.contains(&mean) && dial.contains("Fastest 6H"),
@@ -423,7 +428,7 @@ fn the_heavy_spot_is_in_a_facts_box_and_the_notes_in_info(app: &mut TimegrapherA
     let notes = guided::poise_table_notes(&readings);
     let caveat = fit.caveat_line();
     for view in [PoiseView::Plot, PoiseView::Dial] {
-        app.poise_view = view;
+        app.poise_views = [view == PoiseView::Plot, view == PoiseView::Dial];
         app.poise_info = false;
         let texts = draw_at(app, Pane::DynamicPoise, Vec2::new(1280.0, 820.0));
         let at = |want: &str| texts.iter().find(|(t, _)| t == want).map(|(_, r)| *r);
@@ -456,7 +461,7 @@ fn the_heavy_spot_is_in_a_facts_box_and_the_notes_in_info(app: &mut TimegrapherA
 /// the crown; in both themes, and in a short wide pane as in a tall one.
 fn the_dial_has_its_watch_case_behind_it(app: &mut TimegrapherApp) {
     use timegrapher_core::poise_case;
-    app.poise_view = PoiseView::Dial;
+    app.poise_views = [false, true];
     for (dark, size) in [
         (true, Vec2::new(1280.0, 820.0)),
         (false, Vec2::new(1280.0, 820.0)),
@@ -504,6 +509,11 @@ fn the_dial_has_its_watch_case_behind_it(app: &mut TimegrapherApp) {
         let ring = f64::from(bezel.radius) / poise_case::RING_TO_BEZEL;
         // Every outline of the case whole inside the dial's room.
         case_uncut(&out, line, screen, (dark, size));
+        let face = colour(palette.case_over(palette.window).0);
+        faces_convex(&out, face);
+        // Each lug filled right up to its straight inner edge, as egui
+        // paints it (Peter, via Hugh on #1772).
+        lugs_filled(&ctx, &out, face, (bezel.center, ring), (dark, size));
         // The 3H name past the crown's end.
         let three = timegrapher_core::poise::hour_code(90.0);
         let name = out
@@ -546,6 +556,146 @@ fn the_dial_has_its_watch_case_behind_it(app: &mut TimegrapherApp) {
             std::fs::write(name, svg).unwrap();
         }
     }
+}
+
+/// Every piece of the case's face, drawn in `face`, convex, as egui fills
+/// only convex shapes (Max on #1772): the lugs filled from core's convex
+/// pieces, not whole.
+fn faces_convex(out: &egui::FullOutput, face: egui::Color32) {
+    let faces: Vec<&Vec<egui::Pos2>> = out
+        .shapes
+        .iter()
+        .filter_map(|c| match &c.shape {
+            egui::Shape::Path(p) if p.closed && p.fill == face => Some(&p.points),
+            _ => None,
+        })
+        .collect();
+    assert!(!faces.is_empty(), "no face");
+    for f in faces {
+        let n = f.len();
+        let turns: Vec<f32> = (0..n)
+            .map(|i| {
+                let (a, b, c) = (f[i], f[(i + 1) % n], f[(i + 2) % n]);
+                (b - a).x * (c - b).y - (b - a).y * (c - b).x
+            })
+            .filter(|t| t.abs() > 1e-3)
+            .collect();
+        let convex = turns.iter().all(|t| *t > 0.0) || turns.iter().all(|t| *t < 0.0);
+        assert!(convex, "a concave fill: {f:?}");
+    }
+}
+
+/// The inside of each of the four lugs filled with the case's `face` as
+/// egui paints it, right up to the lug's straight inner edge and no
+/// further (Peter saw the 1H30 and 7H30 lugs' edges missing; Hugh on
+/// #1772): past the bezel, points 2 px inside each inner edge under a
+/// triangle of the face in egui's own tessellation of the frame, and
+/// points 2 px outside it under none. No face reaches off the case
+/// either. The dial is centred at
+/// `centre`, its outer ring `ring`.
+fn lugs_filled(
+    ctx: &egui::Context,
+    out: &egui::FullOutput,
+    face: egui::Color32,
+    (centre, ring): (egui::Pos2, f64),
+    (dark, size): (bool, egui::Vec2),
+) {
+    let case = timegrapher_core::poise_case::case(ring);
+    let shapes: Vec<Vec<egui::Pos2>> = case
+        .shapes
+        .iter()
+        .map(|s| {
+            s.iter()
+                .map(|p| centre + egui::vec2(p[0] as f32, p[1] as f32))
+                .collect()
+        })
+        .collect();
+    // Within `px` of the case: inside a shape or that near its edge.
+    let near_case = |q: egui::Pos2, px: f32| {
+        shapes.iter().any(|s| {
+            let n = s.len();
+            let mut on = false;
+            for i in 0..n {
+                let (a, b) = (s[i], s[(i + 1) % n]);
+                if (a.y > q.y) != (b.y > q.y) && q.x < a.x + (q.y - a.y) * (b.x - a.x) / (b.y - a.y)
+                {
+                    on = !on;
+                }
+                let t = ((q - a).dot(b - a) / (b - a).length_sq().max(1e-6)).clamp(0.0, 1.0);
+                if (a + t * (b - a)).distance(q) <= px {
+                    return true;
+                }
+            }
+            on
+        })
+    };
+    let mut tris: Vec<[egui::Pos2; 3]> = Vec::new();
+    for p in ctx.tessellate(out.shapes.clone(), 1.0) {
+        let egui::epaint::Primitive::Mesh(m) = &p.primitive else {
+            continue;
+        };
+        for t in m.indices.chunks(3) {
+            let v = [0, 1, 2].map(|i| &m.vertices[t[i] as usize]);
+            if v.iter().all(|v| v.color == face) {
+                tris.push(v.map(|v| v.pos));
+            }
+            // The face's feathered edge stays at the case's edge: a
+            // sliver's needle tip feathered out past it as a hairline
+            // (#1780).
+            if v.iter().any(|v| v.color == face) {
+                for q in v.map(|v| v.pos) {
+                    assert!(
+                        near_case(q, 2.0),
+                        "{dark} {size:?}: the face reaches {q:?}, off the case"
+                    );
+                }
+            }
+        }
+    }
+    let inside = |t: &[egui::Pos2; 3], q: egui::Pos2| {
+        let side = |a: egui::Pos2, b: egui::Pos2| (b - a).x * (q - a).y - (b - a).y * (q - a).x;
+        let s = [side(t[0], t[1]), side(t[1], t[2]), side(t[2], t[0])];
+        s.iter().all(|x| *x >= 0.0) || s.iter().all(|x| *x <= 0.0)
+    };
+    // The body first, then the four lugs; each lug's inner edge runs from
+    // its second point to its third.
+    let mut checked = 0;
+    for lug in &case.shapes[1..5] {
+        let (a, b) = (lug[1], lug[2]);
+        for i in 0..=20 {
+            let t = f64::from(i) / 20.0;
+            // 2 px either side of the edge: the lug's side filled, the
+            // other bare, so the edge's line shows (the old fill spilled
+            // the face over it, from the dial's centre).
+            let at = |off: f64| {
+                let p = [
+                    a[0] + t * (b[0] - a[0]) + a[0].signum() * off,
+                    a[1] + t * (b[1] - a[1]),
+                ];
+                (
+                    p[0].hypot(p[1]),
+                    centre + egui::vec2(p[0] as f32, p[1] as f32),
+                )
+            };
+            let ((r, q), (_, beyond)) = (at(2.0), at(-2.0));
+            if r < case.bezel_r + 3.0 {
+                continue;
+            }
+            assert!(
+                tris.iter().any(|t| inside(t, q)),
+                "{dark} {size:?}: the lug at {q:?} isn't filled to its inner edge"
+            );
+            assert!(
+                !tris.iter().any(|t| inside(t, beyond)),
+                "{dark} {size:?}: the face spills past the lug's inner edge to {beyond:?}"
+            );
+            checked += 1;
+        }
+    }
+    assert!(
+        checked >= 20,
+        "{dark} {size:?}: only {checked} points past the bezel"
+    );
 }
 
 /// Every outline of the dial's case, drawn in `line`, whole inside the
@@ -694,6 +844,13 @@ fn draw_at(app: &mut TimegrapherApp, pane: Pane, size: Vec2) -> Vec<(String, egu
                 _ => None,
             })
             .collect();
+        // A picture of both views for review (#1729).
+        if let (Ok(d), [true, true]) = (std::env::var("SHOT_DIR"), app.poise_views) {
+            let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, size);
+            let back = ctx.style().visuals.window_fill;
+            let svg = crate::export::svg(&out.shapes, screen, back);
+            std::fs::write(format!("{d}/poise-both-{}.svg", size.x), svg).unwrap();
+        }
     }
     drawn
 }
@@ -1100,4 +1257,120 @@ fn a_poise_test_reads_the_same_live_as_reopened() {
     }
     drop(tx);
     let _ = std::fs::remove_dir_all(&base);
+}
+
+/// With Plot and Dial both on (#1729), the two sit side by side where
+/// there is room, the Plot left of the Dial, and one over the other
+/// where there is not.
+fn both_views_sit_side_by_side_where_there_is_room(app: &mut TimegrapherApp) {
+    app.poise_views = [true, true];
+    // The plot names the fastest hour too: the dial's is the other one.
+    let at = |app: &mut TimegrapherApp, w: f32| {
+        let texts = draw_at(app, Pane::DynamicPoise, Vec2::new(w, 820.0));
+        let all = |want: &str| -> Vec<egui::Rect> {
+            texts
+                .iter()
+                .filter(|(t, _)| t.starts_with(want))
+                .map(|(_, r)| *r)
+                .collect()
+        };
+        let hour = *all("Hour at the top").first().expect("the plot");
+        let fastest = all("Fastest 6H");
+        assert_eq!(fastest.len(), 2, "both views at {w}: {fastest:?}");
+        // The heavy spot's plate once, on the plot (Hugh on #1794).
+        assert_eq!(all("Heavy spot").len(), 1, "one plate at {w}");
+        (hour, fastest)
+    };
+    let (plot, fastest) = at(app, 2000.0);
+    assert!(
+        fastest.iter().any(|d| d.left() > plot.right()),
+        "side by side: {plot:?} {fastest:?}"
+    );
+    let (plot, fastest) = at(app, 1100.0);
+    assert!(
+        fastest.iter().any(|d| d.top() > plot.bottom()),
+        "one over the other: {plot:?} {fastest:?}"
+    );
+}
+
+/// The pane at `size` after a wheel turn of `dy` points with the pointer
+/// at `at`: each text and where it is.
+fn wheeled(
+    app: &mut TimegrapherApp,
+    size: Vec2,
+    (at, dy): (egui::Pos2, f32),
+) -> Vec<(String, egui::Rect)> {
+    let ctx = themed();
+    let mut drawn = Vec::new();
+    for frame in 0..5 {
+        let mut events = vec![egui::Event::PointerMoved(at)];
+        if frame == 2 {
+            events.push(egui::Event::MouseWheel {
+                unit: egui::MouseWheelUnit::Point,
+                delta: egui::vec2(0.0, -dy),
+                modifiers: Default::default(),
+            });
+        }
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
+            events,
+            ..Default::default()
+        };
+        let out = ctx.run(input, |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                app.pane_tools(ui, Pane::DynamicPoise);
+                app.poise_pane(ui);
+            });
+        });
+        drawn = out
+            .shapes
+            .iter()
+            .filter_map(|c| match &c.shape {
+                egui::Shape::Text(t) => Some((
+                    t.galley.text().to_string(),
+                    t.galley.rect.translate(t.pos.to_vec2()),
+                )),
+                _ => None,
+            })
+            .collect();
+    }
+    drawn
+}
+
+/// #1729's rule 2: a wheel over the table scrolls the table and leaves
+/// the fit's words and the picture where they were; in a pane too short
+/// for the picture, a wheel over it scrolls it on its own, so none of it
+/// is cut off (Trevor and Hugh on #1794).
+fn only_the_table_scrolls_and_a_short_pane_scrolls_the_picture(app: &mut TimegrapherApp) {
+    let find = |texts: &[(String, egui::Rect)], want: &str| {
+        texts
+            .iter()
+            .find(|(t, _)| t.starts_with(want))
+            .map(|(_, r)| *r)
+    };
+    // Short enough that neither the table nor the picture fits.
+    let size = Vec2::new(1280.0, 250.0);
+    let still = wheeled(app, size, (egui::pos2(-10.0, -10.0), 0.0));
+    let row = find(&still, "Crown Down (CD, 9H)").expect("the first row");
+    let words = find(&still, "Once-round wave").expect("the fit's words");
+    // Over the table.
+    let rolled = wheeled(app, size, (row.center(), 200.0));
+    let row_now = find(&rolled, "Crown Down (CD, 9H)");
+    assert!(
+        row_now.is_none_or(|r| r.top() < row.top() - 20.0),
+        "the table scrolled: {row:?} {row_now:?}"
+    );
+    let words_now = find(&rolled, "Once-round wave").expect("the words stay");
+    assert_eq!(words_now.top(), words.top(), "the words stay put");
+    // The picture's foot is below the short pane until it is scrolled.
+    let hour = find(&still, "Hour at the top");
+    assert!(
+        hour.is_none_or(|r| r.bottom() > size.y),
+        "cut at first: {hour:?}"
+    );
+    let rolled = wheeled(app, size, (words.center() + Vec2::new(0.0, 120.0), 400.0));
+    let hour = find(&rolled, "Hour at the top").expect("the plot's foot");
+    assert!(hour.bottom() <= size.y, "scrolled into view: {hour:?}");
+    let row_now = find(&rolled, "Crown Down (CD, 9H)").expect("the table");
+    assert_eq!(row_now.top(), row.top(), "the table stays put");
 }

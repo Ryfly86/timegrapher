@@ -145,6 +145,7 @@ impl Writer {
             usb_clock: None,
             signal_median: None,
             shape: Vec::new(),
+            lock_template_kept: false,
         };
         Writer {
             dir: w.take.join(DIR),
@@ -270,7 +271,7 @@ impl Writer {
             ),
             (
                 analysis_take::CULLED,
-                windows.iter().filter(|w| w.culled_ms.is_some()).count(),
+                windows.iter().filter(|w| w.has_culled()).count(),
                 gz(analysis_take::culled_csv(&windows).as_bytes())?,
             ),
         ];
@@ -291,6 +292,7 @@ impl Writer {
         h.clipped_samples = seen.clipped_samples;
         h.jumps = seen.jumps.iter().copied().filter(|&t| t < to_s).collect();
         h.sided = seen.sided.iter().copied().filter(|&t| t < to_s).collect();
+        h.lock_template_kept = seen.lock_template_kept;
         h.beats += b.rows;
         h.windows += w.rows;
         h.profiles += p.rows;
@@ -344,6 +346,36 @@ fn invalid(m: String) -> io::Error {
 /// Whether the take folder `take` holds parts kept while it was recorded.
 pub fn exists(take: &Path) -> bool {
     take.join(DIR).join(HEADER).is_file()
+}
+
+/// Whether the take folder `take` is kept as its parts alone: a test
+/// kept as its analysis alone whose save never finished (the app stopped,
+/// the power went), so it holds its parts and no `analysis/` (2c of
+/// #1514). Opened, it reads to its last part ([`read`]).
+pub fn only(take: &Path) -> bool {
+    exists(take) && !analysis_take::is_analysis_only(take)
+}
+
+/// The take `take` kept as its analysis alone, read: from `analysis/`, or
+/// for one kept as its parts alone ([`only`]), to its last part.
+pub fn read_kept(take: &Path) -> io::Result<Stored> {
+    match only(take) {
+        true => read(take).map(|r| r.stored),
+        false => analysis_take::read(take),
+    }
+}
+
+/// Whether `take` is kept as its analysis alone, from `analysis/` or its
+/// parts ([`only`]).
+pub fn is_kept(take: &Path) -> bool {
+    analysis_take::is_analysis_only(take) || only(take)
+}
+
+/// How long the sound the parts of `take` cover is, from `partial.json`
+/// alone: the last part's end, as [`read`] gives it when every part reads.
+pub fn length_s(take: &Path) -> io::Result<f64> {
+    let partial = read_list(&take.join(DIR))?;
+    Ok(partial.parts.last().map_or(0.0, |p| p.to_s))
 }
 
 /// A take read from its parts ([`read`]).
@@ -512,7 +544,7 @@ fn read_part(dir: &Path, i: usize, part: &Part, bph: u32) -> io::Result<Rows> {
     analysis_take::parse_culled(&text(CULLED, &part.culled)?, &mut windows).map_err(bad(CULLED))?;
     let profiles =
         analysis_take::parse_profiles(&load(PROFILES, &part.profiles)?).map_err(bad(PROFILES))?;
-    let culled = windows.iter().filter(|w| w.culled_ms.is_some()).count();
+    let culled = windows.iter().filter(|w| w.has_culled()).count();
     for (kind, want, got) in [
         (BEATS, part.beats.rows, beats.len()),
         (WINDOWS, part.windows.rows, windows.len()),
@@ -564,6 +596,7 @@ mod tests {
             clipped_samples: 0,
             jumps: &[],
             sided: &[],
+            lock_template_kept: false,
         }
     }
 

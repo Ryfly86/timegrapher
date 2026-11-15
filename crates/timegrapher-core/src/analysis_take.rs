@@ -109,6 +109,10 @@ pub struct Header {
     /// The beat shape of each recording in the session file, measured on
     /// the sound when the take was saved.
     pub shape: Vec<StoredShape>,
+    /// The beat log's `lock_template_kept` (#1503): left out when false,
+    /// as every take kept before it was.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub lock_template_kept: bool,
 }
 
 /// [`crate::usbclock::UsbClock`], as kept.
@@ -672,6 +676,7 @@ pub fn from_log(
         usb_clock: None,
         signal_median: None,
         shape: Vec::new(),
+        lock_template_kept: log.lock_template_kept,
     };
     Stored {
         header,
@@ -782,6 +787,7 @@ pub(crate) fn stored_from(
     profiles: Vec<StretchProfiles>,
 ) -> Stored {
     let log = BeatLog {
+        lock_template_kept: header.lock_template_kept,
         sample_rate: header.sample_rate,
         duration_s: header.duration_s,
         bph: header.bph,
@@ -1025,7 +1031,7 @@ pub(crate) fn parse_culled(text: &str, windows: &mut [AmplitudeWindow]) -> Resul
         };
         let i: usize = f[0].parse().map_err(|_| bad())?;
         let w = windows.get_mut(i).ok_or_else(bad)?;
-        if w.culled_ms.is_some() {
+        if w.has_culled() {
             return Err(format!("window {i} is listed twice"));
         }
         let c = [side(f[1], f[2])?, side(f[3], f[4])?];
@@ -1063,7 +1069,8 @@ pub(crate) fn parse_windows(text: &str) -> Result<Vec<AmplitudeWindow>, String> 
                 odd_unlock_ms: opt(f[7])?,
                 even_drop_ms: opt(f[8])?,
                 odd_drop_ms: opt(f[9])?,
-                culled_ms: None,
+                extra: None,
+                sound_1: [f32::NAN; 2],
             };
             let figures = [
                 Some(w.start_s),
@@ -1983,11 +1990,7 @@ mod tests {
         // A take kept before #1333 has no such file: none culled.
         fs::remove_file(dir.join(DIR).join(CULLED)).unwrap();
         let old = read(&dir).unwrap();
-        assert!(old
-            .log
-            .amplitude_windows
-            .iter()
-            .all(|w| w.culled_ms.is_none()));
+        assert!(old.log.amplitude_windows.iter().all(|w| !w.has_culled()));
         // A row with one edge of a side, past the last window, or a window
         // listed twice, is refused.
         for row in [

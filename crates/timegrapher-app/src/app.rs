@@ -34,7 +34,6 @@ use take_reads::{FreeJob, FreeKey, TrendKey, WholeKey, WholeTake};
 use timegrapher_core::beats::STANDARD_BPH;
 use timegrapher_core::breaks::{GapWatch, Live};
 use timegrapher_core::capture::{self, Capture, Event, InputDevice, Level};
-use timegrapher_core::clockstore;
 use timegrapher_core::library;
 use timegrapher_core::library::{length_text, size_text};
 use timegrapher_core::live::{profile_span_s, LiveAnalyzer, LiveConfig, LiveReading, AVERAGES};
@@ -44,11 +43,12 @@ use timegrapher_core::periodicity::Wheel;
 use timegrapher_core::power_reserve;
 use timegrapher_core::profile::TickProfile;
 use timegrapher_core::steadiness::SeriesKind;
+use timegrapher_core::{checkpoint, clockstore};
 
 mod charts;
 use charts::chart_key;
 pub use charts::{lane_text, lane_width, paint_key, LANE_AFTER_TITLE, LANE_GAP};
-pub use poise_pane::PoiseView;
+pub use poise_pane::POISE_VIEWS;
 pub use position::Position;
 mod complication_pane;
 use new_take::{NewTake, NEW_TAKES};
@@ -56,8 +56,14 @@ mod dialogs;
 mod distributions;
 mod dock;
 mod kept_analysis;
+mod unsaved;
+use unsaved::{kept_sounds, move_kept, KeptSound};
 mod library_folder;
 mod listen_card;
+mod revision;
+use revision::Revision;
+mod live_usb;
+use live_usb::reading_clock;
 #[cfg(target_os = "macos")]
 pub(crate) mod mac_menu;
 mod masks;
@@ -107,16 +113,14 @@ struct Readouts {
     calibre_limits: Vec<(String, String)>,
 }
 
-/// The controls the readings' cards carry, each in a strip at its card's
-/// foot.
+/// The controls the readings' cards carry, each in a strip at its card's foot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum Slot {
     /// The six positions.
     Position,
     /// Listen or Stop, Save, and Average Over.
     Listen,
-    /// The Watch line: the Calibre card's title, the watch on the
-    /// microphone, with its menu.
+    /// The Watch line: the Calibre card's title, the watch on the microphone, with its menu.
     WatchLine,
     /// The calibre, on the Calibre card's figure row.
     Calibre,
@@ -286,8 +290,7 @@ const SHEET_INDENT: f32 = 30.0;
 /// The names in the sheet's third step, right-aligned in this width.
 const SHEET_LABEL_W: f32 = 104.0;
 
-/// A step of Set Up the Microphone: its number in a small grey circle,
-/// then its title.
+/// A step of Set Up the Microphone: its number in a small grey circle, then its title.
 fn sheet_step(ui: &mut egui::Ui, n: u8, title: &str) {
     let pal = theme::pal(ui);
     ui.horizontal(|ui| {
@@ -346,8 +349,7 @@ enum Confirm {
     /// while a take is on show: the take is put away.
     PickWatch(Option<String>),
     Quit,
-    /// Start listening to the microphone, over a recording whose masks
-    /// changed.
+    /// Start listening to the microphone, over a recording whose masks changed.
     Microphone,
     /// Quick Listen: a new session on the microphone, with no watch.
     QuickListen,
@@ -386,107 +388,6 @@ fn scratch_dir() -> PathBuf {
     )
 }
 
-/// Sound a session recorded that was never saved or thrown away: the app
-/// quit without asking (on macOS, Cmd+Q and Quit in the app menu or the
-/// Dock), or was stopped (a crash, a logout, a shutdown).
-#[derive(Debug, Clone, PartialEq)]
-struct KeptSound {
-    dir: PathBuf,
-    /// "2026-10-21 14.32", from its session.json, in this computer's
-    /// time.
-    started: Option<String>,
-    duration_s: Option<f64>,
-    bytes: u64,
-    /// The take it was recording into as it went, which holds all of it
-    /// but its last few seconds.
-    streamed_to: Option<PathBuf>,
-}
-
-/// The sound kept in `scratch` from earlier sessions, oldest first,
-/// leaving out any folder another copy of the app is recording into now.
-fn kept_sounds(scratch: &Path) -> Vec<KeptSound> {
-    let mut v: Vec<KeptSound> = std::fs::read_dir(scratch)
-        .into_iter()
-        .flatten()
-        .flatten()
-        .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
-        .map(|e| e.path())
-        .filter(|d| !timegrapher_core::recorder::in_use(d))
-        .filter_map(|dir| {
-            let files: Vec<std::fs::DirEntry> = std::fs::read_dir(&dir).ok()?.flatten().collect();
-            let has_sound = files.iter().any(|f| {
-                let n = f.file_name().to_string_lossy().to_lowercase();
-                n.ends_with(".wav") || n.ends_with(".flac")
-            });
-            if !has_sound {
-                return None;
-            }
-            let bytes = files
-                .iter()
-                .filter_map(|f| f.metadata().ok())
-                .map(|m| m.len())
-                .sum();
-            let about: Option<serde_json::Value> = std::fs::read(dir.join("session.json"))
-                .ok()
-                .and_then(|b| serde_json::from_slice(&b).ok());
-            let started = about
-                .as_ref()
-                .and_then(|a| a["started_utc"].as_str())
-                .map(|u| {
-                    // In this computer's time, as takes are named; as
-                    // written, marked UTC, when it can't be read.
-                    watches::local_minute(u).unwrap_or_else(|| {
-                        let at = u.get(..16).unwrap_or(u).replacen('T', " ", 1);
-                        format!("{} UTC", at.replace(':', "."))
-                    })
-                });
-            let streamed_to = take_io::streamed_to(&dir);
-            Some(KeptSound {
-                started,
-                duration_s: about.as_ref().and_then(|a| a["duration_s"].as_f64()),
-                bytes,
-                dir,
-                streamed_to,
-            })
-        })
-        .collect();
-    v.sort_by(|a, b| a.dir.cmp(&b.dir));
-    v
-}
-
-/// Move the recording folder `dir` into `parent`, under its own name:
-/// renamed, or onto another disk copied, each file written to the disk,
-/// and only then removed. Returns where it went.
-fn move_kept(dir: &Path, parent: &Path) -> Result<PathBuf, String> {
-    let name = dir.file_name().ok_or("The kept sound has no folder name")?;
-    let to = library::unused_dir(parent, &name.to_string_lossy());
-    timegrapher_core::recorder::remove_stale_lock(dir);
-    if std::fs::rename(dir, &to).is_ok() {
-        return Ok(to);
-    }
-    let copied = (|| -> std::io::Result<()> {
-        std::fs::create_dir_all(&to)?;
-        for e in std::fs::read_dir(dir)? {
-            let e = e?;
-            let mut r = std::fs::File::open(e.path())?;
-            let mut w = std::fs::File::create(to.join(e.file_name()))?;
-            std::io::copy(&mut r, &mut w)?;
-            w.sync_all()?;
-        }
-        Ok(())
-    })();
-    match copied {
-        Ok(()) => {
-            let _ = std::fs::remove_dir_all(dir);
-            Ok(to)
-        }
-        Err(e) => {
-            let _ = std::fs::remove_dir_all(&to);
-            Err(format!("Couldn't move it to {}: {e}", parent.display()))
-        }
-    }
-}
-
 /// Keep acquisition and recording failures distinct from their display text.
 enum CaptureFailure {
     Recording(String),
@@ -509,8 +410,7 @@ enum View {
     Watches,
 }
 
-/// The panes below the readings. Tick shape and the periodicity (FFT)
-/// views will join these.
+/// The panes below the readings. Tick shape and the periodicity (FFT) views will join these.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
 )]
@@ -1628,38 +1528,6 @@ fn trend_key(seconds: f64) -> u64 {
     (seconds * 1000.0).round() as u64
 }
 
-/// What the take on show's readings rest on, a counter for each part,
-/// moved only where that part is set: every figure kept for later keys on
-/// the parts it reads, so a change in one place reaches every pane. Moves
-/// to core with #294's one measurement context per take.
-///
-/// Bumped in the put_* setters and in these places only: positions_moved
-/// (breaks; also after the Settle field resettles the take) and
-/// set_position (breaks), calibre_changed when the wheels change
-/// (settings), and new_take from reset_session and show_log (every
-/// part). Any other write to `rev` is a defect.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-struct Revision {
-    /// The lift angle, the calibre and the beat rate.
-    settings: u64,
-    /// The take's own clock and the clock kept for the input.
-    clock: u64,
-    /// The take's breaks and its changes of position.
-    breaks: u64,
-    /// The stretches masked out.
-    masks: u64,
-}
-
-impl Revision {
-    /// A take opened or a new session: every part is new.
-    fn new_take(&mut self) {
-        self.settings += 1;
-        self.clock += 1;
-        self.breaks += 1;
-        self.masks += 1;
-    }
-}
-
 /// What the strip's own readings were worked out for: the window and the
 /// spacing in steps, the averaging time, how much sound there was and
 /// what the readings rest on.
@@ -1891,8 +1759,8 @@ pub struct TimegrapherApp {
     /// The Current Position card offers ten positions, the four 45°
     /// stops too, rather than six (its 6 | 10 switch, kept).
     ten_positions: bool,
-    /// The Dynamic Poise pane's view, and whether its Info panel shows.
-    poise_view: PoiseView,
+    /// The Dynamic Poise pane's Plot and Dial on or off, and its Info.
+    poise_views: [bool; 2],
     poise_info: bool,
     /// Whether the Complication pane's Info panel shows.
     complication_info: bool,
@@ -2000,6 +1868,8 @@ pub struct TimegrapherApp {
     /// Where [`Self::take_clock`] came from, in core's words
     /// (`OpenedEntry::clock_source`), so the Rate's hover names it.
     take_clock_source: Option<String>,
+    /// The USB lines of the sound heard here, read as it comes (#1721).
+    live_usb: Option<live_usb::LiveUsb>,
     /// The take on show's breaks, as core reads them with its beats: the
     /// pauses it lists, its clock's steps and the jumps in its beats.
     /// `None` for a session heard here, whose readings go by the clock
@@ -2045,8 +1915,10 @@ pub struct TimegrapherApp {
     chart_series: [bool; 3],
     /// The readings the Distributions pane draws.
     dist_series: [bool; 3],
-    /// The charts the Power Reserve pane draws (#1729).
+    /// The charts the Power Reserve, Positions and Complication panes draw (#1729).
     reserve_series: [bool; 3],
+    positions_series: [bool; 3],
+    complication_series: [bool; 3],
     /// The charts drawn last frame: those turned on that had room. The
     /// key names only these.
     charts_drawn: [bool; 3],
@@ -2063,12 +1935,10 @@ pub struct TimegrapherApp {
     pane_top: f32,
     /// Show the cumulative share instead of the probability plot.
     hist_cumulative: bool,
-    /// The Power Reserve and Positions Test panes' Info panels open
-    /// (#1528).
+    /// The Power Reserve and Positions Test panes' Info panels open (#1528).
     reserve_info: bool,
     positions_info: bool,
-    /// The histograms count the readings rather than each 2 seconds of
-    /// beats.
+    /// The histograms count the readings rather than each 2 seconds of beats.
     hist_readings: bool,
     iso_view: isochronism::View,
     /// The rate over each 2 seconds of beats, for the rate's distribution.
@@ -2085,8 +1955,8 @@ pub struct TimegrapherApp {
     fft_timing: bool,
     /// Each STFT and Wavelet Map pane's colours in dB.
     maps_db: steady::PerPane,
-    /// The calibre's wheels marked on each pane's period axes.
-    show_wheels: steady::PerPane,
+    /// The calibre's wheels and meshes marked on each pane's period axes.
+    show_marks: steady::MarkSwitches,
     /// Each Steadiness pane's Info panel open.
     steady_info: steady::PerPane,
     scope_view: scope::View,
@@ -2300,6 +2170,8 @@ impl TimegrapherApp {
             chart_series: self.chart_series,
             dist_series: self.dist_series,
             reserve_series: self.reserve_series,
+            positions_series: self.positions_series,
+            complication_series: self.complication_series,
             hist_cumulative: self.hist_cumulative,
             reserve_info: self.reserve_info,
             positions_info: self.positions_info,
@@ -2314,13 +2186,12 @@ impl TimegrapherApp {
             fft_timing: self.fft_timing,
             maps_db: self.maps_db.unset,
             maps_db_set: self.maps_db.saved(),
-            show_wheels: self.show_wheels.unset,
-            show_wheels_set: self.show_wheels.saved(),
+            marks: self.show_marks.saved(),
             steady_info: self.steady_info.unset,
             steady_info_set: self.steady_info.saved(),
             positions_settle_s: self.guided_settle_s,
             ten_positions: self.ten_positions,
-            poise_view: self.poise_view,
+            poise_views: self.poise_views,
             poise_info: self.poise_info,
             complication_info: self.complication_info,
             positions_measure_s: self.guided_measure_s,
@@ -2363,6 +2234,8 @@ impl TimegrapherApp {
             chart_series,
             dist_series,
             reserve_series,
+            positions_series,
+            complication_series,
             hist_cumulative,
             reserve_info,
             positions_info,
@@ -2377,14 +2250,13 @@ impl TimegrapherApp {
             fft_timing,
             maps_db,
             maps_db_set,
-            show_wheels,
-            show_wheels_set,
+            marks,
             steady_info,
             steady_info_set,
             positions_settle_s,
             positions_measure_s,
             ten_positions,
-            poise_view,
+            poise_views,
             poise_info,
             complication_info,
             scope,
@@ -2411,7 +2283,7 @@ impl TimegrapherApp {
         (self.watch_list_shows, self.after_save_command) = (watch_list_shows, after_save_command);
         self.settings_last = Tab::from_key(&settings_section);
         (self.listen_at_open, self.ten_positions) = (listen_at_open, ten_positions);
-        (self.poise_view, self.poise_info) = (poise_view, poise_info);
+        (self.poise_views, self.poise_info) = (poise_views, poise_info);
         (self.complication_info, self.agc_on) = (complication_info, agc_on);
         (self.mic_set_up, self.setup_declined) = (mic_set_up, setup_declined);
         // A layout from before the panes moved starts afresh.
@@ -2434,21 +2306,20 @@ impl TimegrapherApp {
         (self.rate_line, self.rate_guides) = (rate_line, rate_guides);
         (self.overlays, self.follow) = (overlays, follow);
         // One left on is kept: a pane with none shown would be empty.
-        let some = |s: [bool; 3]| if s.contains(&true) { s } else { RATE_ONLY };
-        (self.chart_series, self.dist_series, self.reserve_series) =
-            (some(chart_series), some(dist_series), some(reserve_series));
+        let on = |s: [bool; 3]| if s.contains(&true) { s } else { RATE_ONLY };
+        (self.chart_series, self.dist_series) = (on(chart_series), on(dist_series));
+        (self.reserve_series, self.positions_series) = (on(reserve_series), on(positions_series));
         (self.hist_cumulative, self.reserve_info) = (hist_cumulative, reserve_info);
         (self.positions_info, self.sound_opts) = (positions_info, sound);
         (self.hist_readings, self.iso_view) = (hist_readings, iso_view);
-        self.folded = folded.into_iter().collect();
-        self.theme = theme;
+        (self.folded, self.theme) = (folded.into_iter().collect(), theme);
         (self.periods_db, self.fft_timing) = (periods_db, fft_timing);
         self.maps_db = steady::PerPane::new(maps_db_set, maps_db);
-        self.show_wheels = steady::PerPane::new(show_wheels_set, show_wheels);
+        self.show_marks = steady::MarkSwitches::new(marks);
         self.steady_info = steady::PerPane::new(steady_info_set, steady_info);
         self.set_positions_times(positions_settle_s, positions_measure_s);
         self.steady_series = steady_series_from(steady_shown, steady_series);
-        self.scope_view = scope;
+        (self.complication_series, self.scope_view) = (on(complication_series), scope);
         self.panes = match panes.map(upgraded_layout) {
             Some(p) if layout_is_whole(&p) => {
                 self.panes_dragged = panes_dragged.into_iter().collect();
@@ -2535,7 +2406,7 @@ impl TimegrapherApp {
             stop_test_ask: false,
             guided_settle_s: guided::SETTLE_S,
             ten_positions: false,
-            poise_view: PoiseView::default(),
+            poise_views: POISE_VIEWS,
             poise_info: false,
             complication_info: false,
             guided_measure_s: guided::MEASURE_S,
@@ -2599,6 +2470,7 @@ impl TimegrapherApp {
             pending_recorded: None,
             take_clock: None,
             take_clock_source: None,
+            live_usb: None,
             take_breaks: None,
             take_unlisted: None,
             brush: None,
@@ -2620,6 +2492,8 @@ impl TimegrapherApp {
             chart_series: RATE_ONLY,
             dist_series: RATE_ONLY,
             reserve_series: [true; 3],
+            positions_series: [true; 3],
+            complication_series: [true; 3],
             charts_drawn: [true; 3],
             pane_need: std::collections::HashMap::new(),
             panes_dragged: std::collections::HashSet::new(),
@@ -2632,7 +2506,7 @@ impl TimegrapherApp {
             periods_db: false,
             fft_timing: false,
             maps_db: steady::PerPane::new(Vec::new(), false),
-            show_wheels: steady::PerPane::new(Vec::new(), true),
+            show_marks: steady::MarkSwitches::new(Default::default()),
             steady_info: steady::PerPane::new(Vec::new(), false),
             scope_view: scope::View::default(),
             scope_audio: None,
@@ -3101,19 +2975,9 @@ impl TimegrapherApp {
     /// What the strip shows, for the status line: the take's name, its
     /// watch and its state.
     fn status_words(&self) -> String {
-        let file_name = |p: &Path| {
-            p.file_name()
-                .map_or_else(|| p.display().to_string(), |n| n.to_string_lossy().into())
-        };
         // A take not yet saved or opened, with no watch, is Quick Listen's,
         // as the Calibre card's title says (No Watch (Quick Listen)).
-        let file = if let Some(to) = self.session.saved_to() {
-            Some(file_name(to))
-        } else if self.input == Input::File && !self.opened_path.is_empty() {
-            Some(file_name(Path::new(&self.opened_path)))
-        } else {
-            None
-        };
+        let file = self.take_name();
         let named = self.named_watch().map_or_else(String::new, |w| w.0);
         let quick = self.quick_listen || file.is_none() && named.is_empty();
         let name =
@@ -3695,27 +3559,6 @@ fn settle_hint(s: f64) -> String {
     )
 }
 
-/// The beats the strip draws: `live`'s, or the take's numbered on its
-/// audio seconds (`audio`) while they are the same beats.
-/// The clock readings are put on, for a log `duration_s` long: for a
-/// take opened (`opened`), its own clock as core read it, or none; for a
-/// session heard here, the clock kept for the input (`ppm` fast).
-fn reading_clock(
-    take_clock: Option<&timegrapher_core::clock::ClockFit>,
-    opened: bool,
-    ppm: Option<f64>,
-    duration_s: f64,
-) -> Option<timegrapher_core::clock::ClockFit> {
-    if opened {
-        take_clock.cloned()
-    } else {
-        // The kept correction, as core puts a take with no clock log on it.
-        timegrapher_core::take::clock(None, 0, 0, None, ppm, duration_s)
-            .ok()
-            .flatten()
-    }
-}
-
 /// What core opens to read the take at `path` (core's `TakeContext::open`,
 /// as `series` and `long` open a take): its folder and its session file
 /// `manifest` with only that file's entries for the recording, each
@@ -3916,7 +3759,7 @@ pub(crate) fn natural_order(a: &str, b: &str) -> std::cmp::Ordering {
 /// `timegrapher session` refuses it, sound in it or not.
 fn no_analysis_to_read(path: &Path) -> Option<String> {
     let dir = take_dir(path)?;
-    if analysis_take::is_analysis_only(dir) || !dir.join(MANIFEST).is_file() {
+    if checkpoint::is_kept(dir) || !dir.join(MANIFEST).is_file() {
         return None;
     }
     let m: Manifest = toml::from_str(&std::fs::read_to_string(dir.join(MANIFEST)).ok()?).ok()?;
@@ -3933,7 +3776,7 @@ fn no_analysis_to_read(path: &Path) -> Option<String> {
 /// folder), else the one take folder inside it, which is where the app
 /// saves a take. Several takes inside are named so one can be picked.
 fn take_folder(path: &Path) -> Result<PathBuf, String> {
-    let is_take = |p: &Path| recordings_in(p).is_ok() || analysis_take::is_analysis_only(p);
+    let is_take = |p: &Path| recordings_in(p).is_ok() || checkpoint::is_kept(p);
     if !path.is_dir() || is_take(path) {
         return Ok(path.to_path_buf());
     }
@@ -4375,7 +4218,7 @@ fn shown_on(c: &Caveat, title: &str) -> bool {
         | Caveat::BeatErrorAsSize
         | Caveat::LiftUnknown
         | Caveat::ClockUnknown => false,
-        Caveat::Clipped { .. } => matches!(title, "Amplitude" | "Beat Error"),
+        c if c.is_amplitude_only() => matches!(title, "Amplitude" | "Beat Error"),
         Caveat::SidesByCount { .. } | Caveat::BeatErrorFromDrop { .. } => title == "Beat Error",
         _ => true,
     }

@@ -907,7 +907,9 @@ function positionLineChart(line, id) {
     y += LANE_H;
     for (const l of line.lanes.filter((m) => m.group === grp)) {
       const cy = y + LANE_H / 2;
-      const val = [l.text, l.full_wind_text && `${(line.key || [])[1] || ""} ${l.full_wind_text}`].filter(Boolean).join(" · ");
+      // The hover's figures as core writes them for the app's charts
+      // (Hugh on #1785): this test's, the full-wind test's after it.
+      const val = l.figures;
       g += `<g class="lane" data-pos="${esc(l.position)}" data-label="${esc(l.name)}" data-val="${esc(val)}"><rect class="hit" x="0" y="${y}" width="${W}" height="${LANE_H}"/>`;
       g += `<text x="${L - 8}" y="${cy + 4}" text-anchor="end" style="fill:var(--text)">${esc(l.position)}</text>`;
       if (l.full_wind != null && l.value != null) {
@@ -1128,8 +1130,10 @@ function tickLabelsShown(labels, cw = CHAR_W) {
   return shown;
 }
 
-// A measure's axis tick: a rate's carries its sign, as its figures do, and
-// the last carries the unit ("°" set close, as core writes it).
+// A measure's axis tick, core chart_scale::axis_tick (#1779): a rate's
+// carries its sign, as its figures do, a minus a true one, one that rounds
+// to zero bare; held to core's own cases (axis_ticks.test.cjs). The last
+// carries the unit ("°" set close, as core writes it).
 function valueTick(series, v, step, last) {
   const t = axisLabel(v, step, "");
   const sign = series.series === "rate" && v > 0 && !/^[0.]+$/.test(t) ? "+" : "";
@@ -1340,7 +1344,6 @@ function sig(v) {
   return t.includes(".") ? t.replace(/0+$/, "").replace(/\.$/, "") : t;
 }
 function pText(p) { return p < 1e-300 ? "<1e-300" : p < 0.001 ? p.toExponential(0).replace("e-", "e-") : p.toFixed(3); }
-function wheelTitle(name) { return String(name).split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "); }
 // The app's steady.rs value_text: core's axis_number with the unit, which
 // is axisLabel (#815).
 function stepText(v, step, unit) { return axisLabel(v, step, unit); }
@@ -1880,16 +1883,19 @@ function sideWidth(lines) {
 }
 
 // steady::wheel_lines: the lines to mark on a period axis spanning `span`
-// (log10 s), core's `wheel_marks` as the document carries them
-// (input.settings.wheel_marks: each wheel's turn, its ×2 unless another
-// wheel turns there, each mesh no wheel or ×2 marks, with core's name,
-// words and hover); with no wheel named, the reference periods. Wheel
-// Periods shows the wheels, ×2s and references, Mesh the meshes. Each
-// line's x, turn ("wheel", "twice", "mesh" or "reference"), name, name a
-// word to a line and hover.
+// (log10 s), core's marks as the document carries them, picked as core
+// `shown_marks` picks them: with Wheel Periods on, `wheel_marks` (each
+// wheel's turn, its ×2 unless another wheel turns there, each mesh no
+// wheel or ×2 marks); with it off, `mesh_marks` (every mesh, none left out
+// for a wheel no longer shown: Hugh's ruling on #1764), or `wheel_marks`
+// from a document written before it. Each has core's name, words and
+// hover; with no wheel named, the reference periods. Wheel Periods shows
+// the wheels, ×2s and references, Mesh the meshes. Each line's x, turn
+// ("wheel", "twice", "mesh" or "reference"), name, name a word to a line
+// and hover.
 function wheelLines(doc, span) {
   const settings = (doc.input && doc.input.settings) || {};
-  const marks = settings.wheel_marks || [];
+  const marks = (!showWheels && settings.mesh_marks) || settings.wheel_marks || [];
   const inside = (l) => l.x > span[0] && l.x < span[1];
   const lines = marks.length
     ? marks.map((m) => ({ x: Math.log10(m.period_s), turn: m.turn, name: m.name, words: m.words, hover: m.hover }))
@@ -1974,7 +1980,7 @@ function steadyPlot(s, view, doc) {
           ? close.reduce((a, q) => (q[1] > a[1] ? q : a))
           : pts.reduce((a, q) => (Math.abs(q[0] - x) < Math.abs(a[0] - x) ? q : a), pts[0]);
         marks.push({ x, y: near[1], color });
-        notes.push({ x, y: near[1], text: secs(s.period.period_s) + (s.period.wheel ? `, ${wheelTitle(s.period.wheel)}` : "") });
+        notes.push({ x, y: near[1], text: secs(s.period.period_s) + (s.period.wheel_title ? `, ${s.period.wheel_title}` : "") });
       }
       return xyChart({
         title: "Periods", x: span, y,
@@ -2007,8 +2013,9 @@ function steadyPlot(s, view, doc) {
       const n = f.cycles || rows;
       let label;
       if (f.from === "own") {
-        const w = (s.cycle && s.cycle.wheel) || (s.period && s.period.wheel);
-        label = `${secs(f.period_s)} cycle${w ? `, ${wheelTitle(w)}` : ""}, ${n} cycles folded`;
+        // The wheel as core title-cases it (the server's wheel_title, #1779).
+        const w = (s.cycle && s.cycle.wheel_title) || (s.period && s.period.wheel_title);
+        label = `${secs(f.period_s)} cycle${w ? `, ${w}` : ""}, ${n} cycles folded`;
       } else if (SERIES[f.from]) {
         label = `Folded at the ${SERIES[f.from][0].toLowerCase()}'s ${secs(f.period_s)} cycle, ${n} cycles`;
       } else {

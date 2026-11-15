@@ -1231,13 +1231,14 @@ fn open_sound(
 
 /// The take at `path` kept as its analysis alone, read; `None` for a
 /// take with its sound. Refused when the folder and `audio = false` in
-/// the manifest disagree, or when it holds both.
+/// the manifest disagree, or when it holds both. One kept as its parts
+/// alone, its save never finished, reads to its last part (2c of #1514).
 fn kept_take(
     path: &Path,
     m: &Manifest,
     e: &RecordingEntry,
 ) -> Result<Option<analysis_take::Stored>, String> {
-    if analysis_take::is_analysis_only(path) {
+    if crate::checkpoint::is_kept(path) {
         if m.audio != Some(false) {
             return Err(format!(
                 "{}: it has an {}/ folder, but {MANIFEST} doesn't say audio = false",
@@ -1254,7 +1255,7 @@ fn kept_take(
             ));
         }
         Ok(Some(
-            analysis_take::read(path).map_err(|err| format!("{}: {err}", e.file))?,
+            crate::checkpoint::read_kept(path).map_err(|err| format!("{}: {err}", e.file))?,
         ))
     } else if m.audio == Some(false) {
         Err(format!(
@@ -1666,9 +1667,11 @@ mod tests {
             odd_unlock_ms: None,
             even_drop_ms: None,
             odd_drop_ms: None,
-            culled_ms: None,
+            extra: None,
+            sound_1: [f32::NAN; 2],
         };
         let log = BeatLog {
+            lock_template_kept: false,
             sample_rate: 48000,
             duration_s: 40.0,
             bph: 28800,
@@ -1784,6 +1787,7 @@ mod tests {
     /// nothing else.
     fn bare_log(duration_s: f64, beats: &[f64]) -> BeatLog {
         BeatLog {
+            lock_template_kept: false,
             sample_rate: 48000,
             duration_s,
             bph: 28800,
@@ -1825,7 +1829,8 @@ mod tests {
             odd_unlock_ms: None,
             even_drop_ms: None,
             odd_drop_ms: None,
-            culled_ms: None,
+            extra: None,
+            sound_1: [f32::NAN; 2],
         }];
         log.snippets = [9.5, 10.0, 50.0, 100.0].map(|t| (t, Vec::new())).to_vec();
         let pause = |audio_s| Break {
@@ -2151,7 +2156,8 @@ mod tests {
                 odd_unlock_ms: Some(-6.0),
                 even_drop_ms: Some(0.0),
                 odd_drop_ms: Some(0.0),
-                culled_ms: None,
+                extra: None,
+                sound_1: [f32::NAN; 2],
             };
             if i == 10 {
                 // 398° at 52°, culled; 345° at 45° against its
@@ -2162,6 +2168,7 @@ mod tests {
             w
         };
         let kept = BeatLog {
+            lock_template_kept: false,
             sample_rate: 48000,
             duration_s: 40.0,
             bph: 28800,
@@ -2813,6 +2820,7 @@ mod tests {
         assert_eq!(fit.breaks.len(), 1, "{:?}", fit.breaks);
         let json = serde_json::json!({ "breaks": [{ "audio_s": 30.0, "gap_s": 0.0 }] });
         let mut log = BeatLog {
+            lock_template_kept: false,
             sample_rate: 48_000,
             duration_s: 120.0,
             bph: 28_800,
@@ -2856,6 +2864,7 @@ mod tests {
                 .unwrap();
             let json = serde_json::json!({ "breaks": [{ "audio_s": 60.0, "gap_s": gap_s }] });
             let mut log = BeatLog {
+                lock_template_kept: false,
                 sample_rate: 48_000,
                 duration_s: 120.0,
                 bph: 28_800,

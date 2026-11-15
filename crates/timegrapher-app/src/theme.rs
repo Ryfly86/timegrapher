@@ -512,9 +512,13 @@ pub fn help_with_key(
     resp
 }
 
+/// A bare warning chip's icon, as wide as it is tall.
+pub const CHIP_ICON: f32 = 12.0;
+
 /// A reading's limit in short, in a small rounded chip no wider than
 /// `max_w`: its whole sentences show while the pointer is on it, and stay
-/// open once it's clicked, as the "?" does.
+/// open once it's clicked, as the "?" does. With no `text`, a bare
+/// warning chip: the warning icon alone, with the same hover (#1808).
 pub fn chip(ui: &mut Ui, text: &str, title: &str, sentences: &[String], max_w: f32) -> Response {
     let p = pal(ui);
     let mut job = egui::text::LayoutJob::simple_singleline(
@@ -524,8 +528,12 @@ pub fn chip(ui: &mut Ui, text: &str, title: &str, sentences: &[String], max_w: f
     );
     job.wrap = egui::text::TextWrapping::truncate_at_width((max_w - 14.0).max(8.0));
     let galley = ui.painter().layout_job(job);
-    let (rect, resp) =
-        ui.allocate_exact_size(Vec2::new(galley.size().x + 14.0, 18.0), Sense::click());
+    let inner = if text.is_empty() {
+        CHIP_ICON
+    } else {
+        galley.size().x
+    };
+    let (rect, resp) = ui.allocate_exact_size(Vec2::new(inner + 14.0, 18.0), Sense::click());
     let open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
     let fill = if open {
         p.control_active
@@ -535,11 +543,16 @@ pub fn chip(ui: &mut Ui, text: &str, title: &str, sentences: &[String], max_w: f
         p.control
     };
     ui.painter().rect_filled(rect, CornerRadius::same(9), fill);
-    ui.painter().galley(
-        rect.center() - galley.size() / 2.0,
-        galley,
-        p.text_secondary,
-    );
+    if text.is_empty() {
+        let icon = egui::Rect::from_center_size(rect.center(), Vec2::splat(CHIP_ICON));
+        alert_icon(ui.painter(), icon, Alert::Warning, p);
+    } else {
+        ui.painter().galley(
+            rect.center() - galley.size() / 2.0,
+            galley,
+            p.text_secondary,
+        );
+    }
     let body = |ui: &mut Ui| {
         ui.set_max_width(320.0);
         ui.spacing_mut().item_spacing.y = 8.0;
@@ -2307,6 +2320,7 @@ pub enum Icon {
     Export,
     Bucket,
     Wheel,
+    Mesh,
     Copy,
     SaveTable,
     Calipers,

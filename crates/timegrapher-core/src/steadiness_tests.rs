@@ -1763,9 +1763,11 @@ fn a_window_goes_in_the_cell_its_middle_lies_in() {
         odd_unlock_ms: None,
         even_drop_ms: None,
         odd_drop_ms: None,
-        culled_ms: None,
+        extra: None,
+        sound_1: [f32::NAN; 2],
     };
     let log = BeatLog {
+        lock_template_kept: false,
         sample_rate: 48000,
         duration_s: 10.0,
         bph: 28800,

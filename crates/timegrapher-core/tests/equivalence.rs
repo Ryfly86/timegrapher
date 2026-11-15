@@ -1077,3 +1077,111 @@ mod fixture_validation {
         }
     }
 }
+
+// 4. The faint-side rule, live and saved.
+
+/// A watch whose amplitude swings 140° to 260° inside each 2 s window for
+/// a stretch, which smears those windows' sound 1 so the faint-side rule
+/// withholds some of their sides (#1738), steady at 270° around it.
+fn smeared(seed: u64) -> Audio {
+    let swung = |t: f64| (60.0..150.0).contains(&t);
+    generate(
+        &SynthConfig {
+            duration_s: 240.0,
+            snr_db: 26.0,
+            seed,
+            ..Default::default()
+        },
+        move |t| {
+            if swung(t) {
+                200.0 + 60.0 * (t * 1.7).sin()
+            } else {
+                270.0
+            }
+        },
+        |_| 0.0,
+    )
+}
+
+/// Saved and live judge the amplitude windows alike (Norm on #1800):
+/// read to the end and settled at the stop, live withholds the same sides
+/// as too faint to read, on one chunk grid
+/// ([`timegrapher_core::stream::amplitude_chunk_of`]), and leaves out the
+/// same sides as outliers after that, window for window. Live reads every
+/// window but the last, which waits for a beat's guard of sound after it.
+/// Which sides a window found edges for at all is the read's, not this
+/// judging's, and is not compared here.
+#[test]
+fn saved_and_live_withhold_the_same_faint_sides() {
+    let a = smeared(1738);
+    let path = on_disk(&a, "faint");
+    let saved = stream(&path, 47.0);
+    std::fs::remove_file(&path).ok();
+    let mut live = pushed(&a, 4_800);
+    live.settle();
+    type Judged = (i64, [bool; 2], [bool; 2]);
+    let judged = |ws: &[timegrapher_core::amplitude::AmplitudeWindow]| -> Vec<Judged> {
+        ws.iter()
+            .map(|w| {
+                (
+                    (w.start_s * 1000.0).round() as i64,
+                    w.faint_withheld(),
+                    w.outliers().map(|d| d.is_some()),
+                )
+            })
+            .collect()
+    };
+    let (s, l) = (
+        judged(&saved.amplitude_windows),
+        judged(live.amplitude_windows()),
+    );
+    let faint = |v: &[Judged]| v.iter().filter(|j| j.1.contains(&true)).count();
+    let out = |v: &[Judged]| v.iter().filter(|j| j.2.contains(&true)).count();
+    assert!(faint(&s) > 0, "the smear withholds sides");
+    assert!(out(&s) > 0, "the smear leaves out an outlier");
+    assert_eq!(l.len() + 1, s.len(), "live reads all but the last window");
+    assert_eq!(&s[..l.len()], &l[..]);
+}
+
+/// A live read stopped in the middle of a chunk withholds nothing in it
+/// until [`LiveAnalyzer::settle`], then the same sides as a saved read of
+/// the same sound, whose last chunk is that one (#1738, Trevor on #1800).
+#[test]
+fn settle_judges_the_open_chunk_as_a_saved_read_does() {
+    let whole = smeared(1738);
+    let cut = Audio {
+        samples: whole.samples[..170 * whole.sample_rate as usize].to_vec(),
+        sample_rate: whole.sample_rate,
+    };
+    let path = on_disk(&cut, "faint-cut");
+    let saved = stream(&path, 47.0);
+    std::fs::remove_file(&path).ok();
+    let mut live = pushed(&cut, 4_800);
+    let w = AnalysisConfig::default().amplitude_window_s;
+    let chunk_of = |s: f64| timegrapher_core::stream::amplitude_chunk_of(s, w);
+    let faint = |ws: &[timegrapher_core::amplitude::AmplitudeWindow]| -> Vec<(i64, [bool; 2])> {
+        ws.iter()
+            .filter(|w| w.faint_withheld().contains(&true))
+            .map(|w| ((w.start_s * 1000.0).round() as i64, w.faint_withheld()))
+            .collect()
+    };
+    let open = chunk_of(live.amplitude_windows().last().expect("windows").start_s);
+    let in_open = |v: Vec<(i64, [bool; 2])>| -> Vec<(i64, [bool; 2])> {
+        v.into_iter()
+            .filter(|f| chunk_of(f.0 as f64 / 1000.0) == open)
+            .collect()
+    };
+    assert!(
+        in_open(faint(live.amplitude_windows())).is_empty(),
+        "nothing judged before the stop"
+    );
+    assert!(
+        !in_open(faint(&saved.amplitude_windows)).is_empty(),
+        "the open chunk has a faint side"
+    );
+    live.settle();
+    assert_eq!(
+        faint(live.amplitude_windows()),
+        faint(&saved.amplitude_windows)
+    );
+}

@@ -1320,6 +1320,9 @@ pub fn measure_reading(
         figures.floor_confidence(c);
     }
     m.caveats = a.caveats;
+    if log.lock_template_kept {
+        crate::measure::add(&mut m.caveats, crate::measure::Caveat::LockTemplateKept);
+    }
     if masked_s > 0.0 {
         crate::measure::add(
             &mut m.caveats,
@@ -2301,7 +2304,8 @@ mod manifest_input_tests {
             odd_unlock_ms: None,
             even_drop_ms: None,
             odd_drop_ms: None,
-            culled_ms: None,
+            extra: None,
+            sound_1: [f32::NAN; 2],
         };
         // Midpoint 11 s: in 10..20 and 11..12, not 0..11 or 12..20.
         assert!(window_in(&w(10.0), 10.0, 20.0));
