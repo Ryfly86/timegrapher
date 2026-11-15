@@ -728,9 +728,7 @@ mod tests {
             assert!((wheel("centre wheel").period_s - 46200.0 / 13.0).abs() < 1e-9);
             assert!((wheel("barrel").period_s - 4666200.0 / 221.0).abs() < 1e-9);
             assert_eq!(wheel("escape wheel").pinion, Some(9));
-            // The photographed ETA and its day-date sisters carry the counts
-            // directly; the other makers' rows are transfers.
-            if !["ETA 2824-2", "ETA 2834-2", "ETA 2836-2"].contains(&c.calibre.as_str()) {
+            if c.calibre != "ETA 2824-2" {
                 assert!(third
                     .basis
                     .as_deref()

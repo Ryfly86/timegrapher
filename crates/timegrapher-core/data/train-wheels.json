@@ -90,41 +90,41 @@
         "name": "barrel",
         "period_s": 21114.027149321268,
         "teeth": 101,
-        "basis": "Counted in supplied ETA 2824 photographs; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md."
+        "basis": "INFERRED family transfer under contributor-reported 28,800 bph 2824 applicability; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md."
       },
       {
         "name": "centre wheel",
         "period_s": 3553.846153846154,
         "teeth": 77,
-        "basis": "Counted in supplied ETA 2824 photographs; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md.",
+        "basis": "INFERRED family transfer under contributor-reported 28,800 bph 2824 applicability; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md.",
         "pinion": 17
       },
       {
         "name": "third wheel",
         "period_s": 600.0,
         "teeth": 90,
-        "basis": "Counted in supplied ETA 2824 photographs; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md.",
+        "basis": "INFERRED family transfer under contributor-reported 28,800 bph 2824 applicability; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md.",
         "pinion": 13
       },
       {
         "name": "fourth wheel",
         "period_s": 60.0,
         "teeth": 108,
-        "basis": "Counted in supplied ETA 2824 photographs; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md.",
+        "basis": "INFERRED family transfer under contributor-reported 28,800 bph 2824 applicability; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md.",
         "pinion": 9
       },
       {
         "name": "escape wheel",
         "period_s": 5.0,
         "teeth": 20,
-        "basis": "Counted in supplied ETA 2824 photographs; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md.",
+        "basis": "INFERRED family transfer under contributor-reported 28,800 bph 2824 applicability; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md.",
         "pinion": 9
       },
       {
         "name": "cannon pinion",
         "period_s": 3600.0,
         "teeth": 78,
-        "basis": "Counted in supplied ETA 2824 photographs; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md. 78-tooth driver wheel and 16-leaf cannon pinion share the one-hour arbor; third-to-cannon mesh inferred from exact ratio, not bench-confirmed.",
+        "basis": "INFERRED family transfer under contributor-reported 28,800 bph 2824 applicability; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md. 78-tooth driver wheel and 16-leaf cannon pinion share the one-hour arbor; third-to-cannon mesh inferred from exact ratio, not bench-confirmed.",
         "pinion": 16
       },
       {
@@ -145,7 +145,7 @@
       "https://www.phfactor.net/wtf/ETA/29_ETA2801.2-ETA2836.2.pdf",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
     ],
-    "confidence": "derived from tooth counts",
+    "confidence": "inferred family transfer",
     "notes": "Day and date, the day spelled out at 12. Shares the going train, escapement, beat rate and lift setting of ETA 2824-2, from which it was split on 2026-11-15 (#1822); only the motion works differ. 28,800 bph 2824 base train only. The centre wheel slot denotes the off-centre second/intermediate wheel (77/17), not the one-hour cannon pinion. The third pinion (13) drives the cannon wheel (78): 600 x 78/13 = 3600 s. Barrel running period is 4666200/221 s; this is not power reserve. See the evidence document for applicability and exclusions. Family aliases use contributor-reported applicability."
   },
   {
@@ -164,41 +164,41 @@
         "name": "barrel",
         "period_s": 21114.027149321268,
         "teeth": 101,
-        "basis": "Counted in supplied ETA 2824 photographs; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md."
+        "basis": "INFERRED family transfer under contributor-reported 28,800 bph 2824 applicability; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md."
       },
       {
         "name": "centre wheel",
         "period_s": 3553.846153846154,
         "teeth": 77,
-        "basis": "Counted in supplied ETA 2824 photographs; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md.",
+        "basis": "INFERRED family transfer under contributor-reported 28,800 bph 2824 applicability; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md.",
         "pinion": 17
       },
       {
         "name": "third wheel",
         "period_s": 600.0,
         "teeth": 90,
-        "basis": "Counted in supplied ETA 2824 photographs; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md.",
+        "basis": "INFERRED family transfer under contributor-reported 28,800 bph 2824 applicability; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md.",
         "pinion": 13
       },
       {
         "name": "fourth wheel",
         "period_s": 60.0,
         "teeth": 108,
-        "basis": "Counted in supplied ETA 2824 photographs; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md.",
+        "basis": "INFERRED family transfer under contributor-reported 28,800 bph 2824 applicability; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md.",
         "pinion": 9
       },
       {
         "name": "escape wheel",
         "period_s": 5.0,
         "teeth": 20,
-        "basis": "Counted in supplied ETA 2824 photographs; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md.",
+        "basis": "INFERRED family transfer under contributor-reported 28,800 bph 2824 applicability; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md.",
         "pinion": 9
       },
       {
         "name": "cannon pinion",
         "period_s": 3600.0,
         "teeth": 78,
-        "basis": "Counted in supplied ETA 2824 photographs; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md. 78-tooth driver wheel and 16-leaf cannon pinion share the one-hour arbor; third-to-cannon mesh inferred from exact ratio, not bench-confirmed.",
+        "basis": "INFERRED family transfer under contributor-reported 28,800 bph 2824 applicability; period derived from tooth counts. See docs/research/2824-train-wheel-counts.md. 78-tooth driver wheel and 16-leaf cannon pinion share the one-hour arbor; third-to-cannon mesh inferred from exact ratio, not bench-confirmed.",
         "pinion": 16
       },
       {
@@ -220,7 +220,7 @@
       "https://www.phfactor.net/wtf/ETA/29_ETA2801.2-ETA2836.2.pdf",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
     ],
-    "confidence": "derived from tooth counts",
+    "confidence": "inferred family transfer",
     "notes": "Day and date, the day beside the date at 3. Shares the going train, escapement, beat rate and lift setting of ETA 2824-2, from which it was split on 2026-11-15 (#1822); only the motion works differ. 28,800 bph 2824 base train only. The centre wheel slot denotes the off-centre second/intermediate wheel (77/17), not the one-hour cannon pinion. The third pinion (13) drives the cannon wheel (78): 600 x 78/13 = 3600 s. Barrel running period is 4666200/221 s; this is not power reserve. See the evidence document for applicability and exclusions. Family aliases use contributor-reported applicability."
   },
   {
