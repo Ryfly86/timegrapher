@@ -296,6 +296,9 @@ impl TimegrapherApp {
         self.positions_wind(ui, running);
         theme::bar_gap(ui);
         self.positions_lengths(ui, running, "Each Position");
+        theme::bar_gap(ui);
+        // Each chart on or off, the others sharing the height (#1729).
+        crate::steady::series_switches(ui, &mut self.positions_series);
         self.positions_results(ui);
     }
 
@@ -633,7 +636,11 @@ impl TimegrapherApp {
             self.guided_settle_s,
             self.open_watch().is_some(),
             note.as_deref(),
-            (self.position_card_title, self.positions_info),
+            (
+                self.position_card_title,
+                self.positions_info,
+                self.positions_series,
+            ),
         );
         let Some(action) = action else { return };
         if action == guided::Action::ClearEarlier {
