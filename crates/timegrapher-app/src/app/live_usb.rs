@@ -131,6 +131,18 @@ mod tests {
     use super::*;
     use timegrapher_core::usbclock::UsbClock;
 
+    /// The Positions table's mean rate of the take heard, once read.
+    fn table_rate(app: &TimegrapherApp) -> f64 {
+        let ctx = egui::Context::default();
+        for _ in 0..1000 {
+            if let Some(t) = app.free_table_shown(&ctx) {
+                return t.mean[0].expect("a mean rate");
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        panic!("the table was never read");
+    }
+
     /// Heard here, the readings are on the clock the take would be read on
     /// saved and opened again (#1721): the card's until the USB lines are
     /// read, the Rate saying so meanwhile, then the lines' (19.3 ppm slow,
@@ -147,6 +159,7 @@ mod tests {
             l.reading(app.average_s).rate_s_per_day.expect("a rate")
         };
         let heard = rate(&app);
+        let before = table_rate(&app);
         let lines = UsbClock {
             ppm: -19.3,
             lines: 8,
@@ -166,8 +179,17 @@ mod tests {
             .unwrap();
         let fit = reading_clock(app.take_clock.as_ref(), false, None, d).expect("the lines'");
         assert_eq!(format!("{fit:?}"), format!("{opened:?}"));
+        // A card 19.3 ppm slow reads the watch 1.67 s/d fast: on the lines'
+        // clock the rate falls by that, as in Paul's report (#1720).
         let shift = rate(&app) - heard;
-        let want = timegrapher_core::clock::rate_error_s_per_day(-19.3);
+        let want = -timegrapher_core::clock::rate_error_s_per_day(-19.3).abs();
+        assert!((shift - want).abs() < 0.05, "{heard} then {}", rate(&app));
+        // The table read before is read again on the new clock (Norm).
+        let after = table_rate(&app);
+        assert!(
+            (after - before - want).abs() < 0.05,
+            "{before} then {after}"
+        );
         assert!(
             (shift.abs() - want.abs()).abs() < 0.05,
             "{heard} then {}",
