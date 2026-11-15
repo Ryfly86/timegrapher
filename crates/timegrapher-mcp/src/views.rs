@@ -1608,7 +1608,7 @@ mod tests {
             v["grey_key"],
             timegrapher_core::power_reserve::GREY_BEAT_ERROR_KEY
         );
-        // Off the unlock: neither.
+        // From the unlock: neither.
         let mut unlock = run.clone();
         for h in &mut unlock.hours {
             h.beat_error_source = Some(timegrapher_core::session::BeatErrorSource::Unlock);

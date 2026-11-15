@@ -1779,9 +1779,9 @@ mod tests {
         assert!(texts.iter().any(|t| t.0 == NO_READ_SHARE), "{texts:?}");
     }
 
-    /// After a run, its two charts take the pane's height and nothing is
-    /// cut at its foot: a taller pane gives taller charts, and the hours'
-    /// table ends inside the pane.
+    /// After a run, its charts above the table in a narrow pane take half
+    /// its height, never less than their least, and nothing is cut at its
+    /// foot: the hours' table ends inside the pane.
     #[test]
     fn a_finished_runs_charts_take_the_panes_height() {
         let mut t = Test::new(Position::DialUp, true, String::new(), 0.0);
@@ -1849,7 +1849,7 @@ mod tests {
             let zero: Vec<f32> = texts
                 .iter()
                 .filter(|t| t.0 == "0 h")
-                .map(|t| t.1.center().y)
+                .map(|t| t.1.bottom())
                 .collect();
             // The hours' axis, once, under the bottom chart.
             assert_eq!(zero.len(), 1, "{texts:?}");
@@ -1857,16 +1857,30 @@ mod tests {
             // the table, which scrolls.
             assert!(texts.iter().all(|t| t.1.top() < h), "{texts:?}");
             let last = texts.iter().find(|t| t.0 == "2–3 h").map(|t| t.1.bottom());
-            (zero[0], last)
+            // The stack's top: the first chart's title row; the pane's
+            // margin, the run line's inset.
+            let top = texts
+                .iter()
+                .filter(|t| t.0 == "Rate")
+                .map(|t| t.1.top())
+                .fold(f32::INFINITY, f32::min);
+            let margin = texts
+                .iter()
+                .find(|t| t.0.starts_with("Ran "))
+                .map_or(0.0, |t| t.1.left());
+            (zero[0] - top, h - margin - top, last)
         };
-        let (short, _) = drawn(380.0);
-        let (tall, last) = drawn(760.0);
+        // Too narrow for the charts beside the table: above it, at least
+        // half the pane (Hugh on #1761), the hours' axis at the stack's
+        // foot, within a point.
+        let least = hour_steps::read_h(3);
+        let (short, room, _) = drawn(380.0);
+        assert!((short - least).abs() <= 1.0, "{short} {least} {room}");
+        let (tall, room, last) = drawn(760.0);
+        assert!(room / 2.0 > least, "{room} {least}");
+        assert!((tall - room / 2.0).abs() <= 1.0, "{tall} {room}");
         // Room enough: the whole table shows.
         assert!(last.is_some_and(|b| b <= 760.0), "{last:?}");
-        // The charts at least half the pane, and never under their least
-        // (Hugh on #1761: about 90 pt each, plus half a tick label over the
-        // plot), so a short pane's sit at that least and a tall one's grow.
-        assert!(tall >= 760.0 / 2.0 && tall > short + 20.0, "{short} {tall}");
     }
 
     /// A finished run in a short pane scrolls, by the wheel, to its
