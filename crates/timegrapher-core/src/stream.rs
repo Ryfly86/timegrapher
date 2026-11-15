@@ -13,7 +13,6 @@ use crate::audio::{self, AudioError};
 use crate::beats::{self, Beat};
 use crate::dsp::envelope;
 use crate::profile;
-use crate::template_move::{self, Move};
 use serde::Serialize;
 use std::path::Path;
 
@@ -154,9 +153,6 @@ struct State {
     /// The typical beat's match with `template` at the end of the sound
     /// read so far ([`beats::detect_after`]).
     level: Option<f32>,
-    /// The template was just built again from the chunk being read: its
-    /// first beat is a break ([`State::rebuild_from`], #1819).
-    restart: bool,
     /// Tick and Tock told apart across each jump by their sound, as live
     /// listening tells them.
     sides: beats::SideCheck,
@@ -287,7 +283,7 @@ impl State {
             let t = b.time + off;
             // Seen again from the next chunk: the same jump. Where the
             // watch is first heard after noise, its first beat is one too.
-            let cut = cuts.contains(&k) || ((heard_first || self.restart) && k == anchor);
+            let cut = cuts.contains(&k) || (heard_first && k == anchor);
             if cut && !self.jumps.last().is_some_and(|&j| t - j <= 1.0) {
                 self.jumps.push(t);
                 self.sides.jump(t);
@@ -314,38 +310,9 @@ impl State {
                 swap_sides_from(j - off, &mut numbered, &mut []);
             }
         }
-        self.restart = false;
         self.count_clipping(&c.clipped, off, core_a, core_b, kept_from);
 
         self.amplitude_job(numbered, off, off + x.len() as f64 / fs, core_b, beat)
-    }
-
-    /// The sides of chunk `c` its own template times another sound away
-    /// from the kept template ([`template_move::side_moves`], #1819): None
-    /// where there is no kept template yet or the chunk's own sound is not
-    /// heard as the watch at its rate, which is never compared.
-    fn moves_in(&self, c: &Prepared) -> Option<Vec<Move>> {
-        let t = self.template.as_ref()?;
-        let off = c.x0 as f64 / self.fs;
-        template_move::chunk_moves(
-            &c.env,
-            self.fs,
-            (self.bph, t),
-            c.own.as_ref()?,
-            (c.core_a - off, c.core_b - off),
-            off,
-        )
-    }
-
-    /// The template built again from chunk `c`'s own sound, its first beat
-    /// a break: the kept one has moved to another sound on a side
-    /// ([`in_order`], #1819).
-    fn rebuild_from(&mut self, c: &Prepared) {
-        if let Some(own) = &c.own {
-            self.template = own.template.clone();
-            self.level = own.level;
-            self.restart = true;
-        }
     }
 
     /// The beats of a chunk before a watch has been heard, and whether the
@@ -710,7 +677,7 @@ pub(crate) fn analyze_fed_seen(
     let threads = threads.max(1);
     let fs = sample_rate as f64;
     let mut st = State::new(sample_rate, cfg);
-    let env_cfg = &cfg.analysis;
+    let env_cfg = &cfg.analysis.envelope;
     let queued = QUEUED_PER_THREAD * threads;
     let (cut_tx, cut_rx) = sync_channel::<(usize, Prepared)>(queued);
     let (done_tx, done_rx) = sync_channel::<(usize, Prepared)>(queued);
@@ -790,7 +757,7 @@ fn prepare_all(
     rx: &Shared<(usize, Prepared)>,
     tx: &std::sync::mpsc::SyncSender<(usize, Prepared)>,
     fs: f64,
-    cfg: &AnalysisConfig,
+    cfg: &crate::dsp::EnvelopeConfig,
 ) {
     loop {
         let next = rx.lock().expect("a preparing thread panicked").recv();
@@ -826,11 +793,7 @@ fn amplitude_all(
 /// [`analyze_fed`]'s third stage: the prepared chunks from `rx`, analysed
 /// in the order cut whatever order they come in, each chunk's amplitude
 /// job sent to `jobs` and the windows found taken from `wins` as they
-/// come, and `progress` told each chunk's end but the last. A chunk whose
-/// kept template has moved to another sound on a side is held until the
-/// next is judged: two in a row that agree build the template again from
-/// the first, with a break at its start (#1819,
-/// [`template_move::MOVE_CHUNKS`]).
+/// come, and `progress` told each chunk's end but the last.
 fn in_order(
     st: &mut State,
     (rx, wins): (
@@ -843,82 +806,41 @@ fn in_order(
 ) {
     let mut ready = std::collections::BTreeMap::new();
     let mut next = 0;
-    // A chunk whose kept template moved on a side, held until the next
-    // shows whether the move holds (#1819).
-    let mut held: Option<(Prepared, Vec<Move>)> = None;
     for (i, c) in rx {
         ready.insert(i, c);
         while let Some(c) = ready.remove(&next) {
+            let job = st.chunk(&c);
             next += 1;
-            let beat = 3600.0 / st.bph.max(1) as f64;
-            let mut moves = st.moves_in(&c).unwrap_or_default();
-            if let Some((p, first)) = held.take() {
-                // Two chunks in a row agree: the template is built again
-                // from the first, with a break at its start.
-                let again = template_move::any_agree(&first, &moves, beat);
-                if again {
-                    st.rebuild_from(&p);
-                }
-                if !run(st, p, (wins, jobs), progress, seen) {
-                    return;
-                }
-                // The next chunk is judged on the template it is read with.
-                moves = st.moves_in(&c).unwrap_or_default();
+            while let Ok(found) = wins.try_recv() {
+                st.windows_found(found);
             }
-            if moves.is_empty() {
-                if !run(st, c, (wins, jobs), progress, seen) {
-                    return;
-                }
-            } else {
-                held = Some((c, moves));
+            seen(Seen {
+                x: &c.x,
+                x0: c.x0,
+                core_a: c.core_a,
+                beats: &st.beats,
+                bph: st.bph,
+                swaps: &st.swaps,
+                pending: st.sides.pending_since(),
+                heard: st.template.is_some(),
+                windows: &st.found,
+                windows_to_s: st.amp_found_to_s,
+                clipped_beats: &st.clipped_beats,
+                clipped_samples: st.clipped_samples,
+                jumps: &st.jumps,
+                sided: st.sides.sided(),
+                lock_template_kept: st.lock_template_kept,
+            });
+            // The last chunk's end is reported once, by the caller.
+            if c.core_b.is_finite() {
+                progress(c.core_b);
+            }
+            // Stops when the amplitude threads have (one panicked).
+            if job.is_some_and(|job| jobs.send((job, c)).is_err()) {
+                return;
             }
         }
     }
-    if let Some((p, _)) = held {
-        run(st, p, (wins, jobs), progress, seen);
-    }
-}
-
-/// [`in_order`] for one chunk: analysed, shown to `seen`, its end told to
-/// `progress` and its amplitude job sent. False once the amplitude
-/// threads have stopped (one panicked).
-fn run(
-    st: &mut State,
-    c: Prepared,
-    (wins, jobs): (
-        &std::sync::mpsc::Receiver<Found>,
-        &std::sync::mpsc::SyncSender<(AmpJob, Prepared)>,
-    ),
-    progress: &mut impl FnMut(f64),
-    seen: &mut impl FnMut(Seen),
-) -> bool {
-    let job = st.chunk(&c);
-    while let Ok(found) = wins.try_recv() {
-        st.windows_found(found);
-    }
-    seen(Seen {
-        x: &c.x,
-        x0: c.x0,
-        core_a: c.core_a,
-        beats: &st.beats,
-        bph: st.bph,
-        swaps: &st.swaps,
-        pending: st.sides.pending_since(),
-        heard: st.template.is_some(),
-        windows: &st.found,
-        windows_to_s: st.amp_found_to_s,
-        clipped_beats: &st.clipped_beats,
-        clipped_samples: st.clipped_samples,
-        jumps: &st.jumps,
-        sided: st.sides.sided(),
-        lock_template_kept: st.lock_template_kept,
-    });
-    // The last chunk's end is reported once, by the caller.
-    if c.core_b.is_finite() {
-        progress(c.core_b);
-    }
-    // Stops when the amplitude threads have (one panicked).
-    job.is_none_or(|job| jobs.send((job, c)).is_ok())
 }
 
 /// One chunk of the recording with what its sound alone gives: its
@@ -935,14 +857,10 @@ struct Prepared {
     env: Vec<f32>,
     /// Indices into `x` of its clipped samples.
     clipped: Vec<usize>,
-    /// Its beats on a template built from its own sound, as the first
-    /// chunk's is ([`first_beats_in`]), to tell when the kept template has
-    /// moved to another sound (#1819).
-    own: Option<FirstBeats>,
 }
 
 impl Prepared {
-    fn prepare(&mut self, fs: f64, cfg: &AnalysisConfig) {
+    fn prepare(&mut self, fs: f64, cfg: &crate::dsp::EnvelopeConfig) {
         // A preparing thread's panic, for the test that it comes out of
         // the reading.
         #[cfg(test)]
@@ -950,9 +868,8 @@ impl Prepared {
             !self.x.first().is_some_and(|v| v.is_nan()),
             "test: a chunk failed"
         );
-        self.env = envelope(&self.x, fs, &cfg.envelope);
+        self.env = envelope(&self.x, fs, cfg);
         self.clipped = crate::diagnose::clipped_indices(&self.x, crate::analysis::CLIP_LEVEL);
-        self.own = template_move::own_beats(&self.env, fs, cfg.bph, cfg.amplitude_window_s);
     }
 }
 
@@ -991,7 +908,6 @@ impl Cutter {
             core_b,
             env: Vec::new(),
             clipped: Vec::new(),
-            own: None,
         }
     }
 
@@ -1033,7 +949,6 @@ impl State {
             lock_try: None,
             lock_template_kept: false,
             level: None,
-            restart: false,
             sides: beats::SideCheck::default(),
             jumps: Vec::new(),
             bph: cfg.analysis.bph.unwrap_or(0),
@@ -1409,69 +1324,5 @@ mod tests {
         for t in kept {
             assert!(good.iter().any(|&g| (g - t).abs() < 1e-9), "{t}");
         }
-    }
-
-    /// The sides' median beat times of `log` over `from` to `to` seconds,
-    /// less those of `alone` (the same sound read on its own, shifted by
-    /// `shift` seconds), each beat paired with the nearest within 20 ms.
-    fn side_offsets(log: &BeatLog, alone: &BeatLog, shift: f64, from: f64, to: f64) -> [f64; 2] {
-        let mut d: [Vec<f64>; 2] = [Vec::new(), Vec::new()];
-        for b in log.beats.iter().filter(|b| b.time >= from && b.time < to) {
-            let u = b.time - shift;
-            let near = alone
-                .beats
-                .iter()
-                .map(|a| a.time - u)
-                .filter(|x| x.abs() < 0.02)
-                .min_by(|x, y| x.abs().total_cmp(&y.abs()));
-            if let Some(x) = near {
-                d[b.index.rem_euclid(2) as usize].push(-x);
-            }
-        }
-        d.map(|mut v| crate::dsp::median(&mut v))
-    }
-
-    /// A take whose Tock grows a loud unlock and impulse as its amplitude
-    /// falls from 300° to 150° (as a watch's run-down, #1819) is timed
-    /// after as its own sound times it: the kept template, built at 300°,
-    /// put the Tock 7.6 ms early (without the rule), so it is built again,
-    /// with a break, at the start of the chunk the change falls in. On a
-    /// take whose sound stays put, nothing is rebuilt.
-    #[test]
-    fn a_side_whose_loudest_sound_moves_is_timed_where_its_own_sound_times_it() {
-        let seg = |seed: u64, odd_gains: Option<[f64; 3]>| {
-            generate(
-                &SynthConfig {
-                    duration_s: 300.0,
-                    seed,
-                    odd_gains,
-                    ..Default::default()
-                },
-                move |_| if odd_gains.is_some() { 150.0 } else { 300.0 },
-                |_| 0.3,
-            )
-        };
-        let (a, b) = (seg(1819, None), seg(1820, Some([0.5, 1.0, 0.8])));
-        let mut x = a.samples.clone();
-        x.extend_from_slice(&b.samples);
-        let cfg = StreamConfig {
-            analysis: AnalysisConfig {
-                bph: Some(28800),
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-        let both = analyze_samples(&x, a.sample_rate, &cfg);
-        let alone = analyze_samples(&b.samples, b.sample_rate, &cfg);
-        let off = side_offsets(&both, &alone, 300.0, 450.0, 590.0);
-        assert!(off.iter().all(|o| o.abs() < 1e-4), "{off:?}");
-        // Rebuilt at the start of the chunk the change falls in (282 s).
-        assert!(
-            both.jumps.iter().any(|&j| (282.0..283.0).contains(&j)),
-            "{:?}",
-            both.jumps
-        );
-        let steady = analyze_samples(&a.samples, a.sample_rate, &cfg);
-        assert!(steady.jumps.is_empty(), "{:?}", steady.jumps);
     }
 }

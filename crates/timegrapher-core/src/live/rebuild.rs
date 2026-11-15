@@ -29,39 +29,17 @@ pub(super) struct Rebuild {
 /// The sound gathered read again: a fresh analyzer and the sound it has
 /// still to read.
 #[derive(Debug, Clone)]
-pub(super) struct Shadow {
-    pub(super) live: LiveAnalyzer,
-    pub(super) pending: Vec<f32>,
-    pub(super) at: usize,
-}
-
-impl Shadow {
-    /// Reads up to `n` samples more of the sound pending, in steps of
-    /// `step`, as they came in. True once it has all been read.
-    pub(super) fn read(&mut self, n: usize, step: usize) -> bool {
-        let to = (self.at + n).min(self.pending.len());
-        while self.at < to {
-            let end = (self.at + step).min(to);
-            self.live.push(&self.pending[self.at..end]);
-            self.at = end;
-        }
-        if self.at < self.pending.len() {
-            // Let go of what has been read, now and then.
-            if self.at > self.pending.len() / 2 {
-                self.pending.drain(..self.at);
-                self.at = 0;
-            }
-            return false;
-        }
-        true
-    }
+struct Shadow {
+    live: LiveAnalyzer,
+    pending: Vec<f32>,
+    at: usize,
 }
 
 /// How much faster than it comes in the gathered sound is read again: 47 s
 /// is caught up about 12 s after the template is built, at most this many
 /// times a push's work in any one push, so the screen never waits on all
 /// of it at once.
-pub(super) const CATCH_UP: usize = 4;
+const CATCH_UP: usize = 4;
 
 /// Why the template was not built again when the first chunk's template
 /// read both sides in fewer windows
@@ -115,16 +93,12 @@ impl LiveAnalyzer {
     /// Start again: the next watch heard has its template built again.
     pub(super) fn forget_rebuild(&mut self) {
         self.rebuild = Rebuild::default();
-        self.moves.forget();
     }
 
     /// Stop building the template again: what the caller changed (a new
     /// stretch, a pause, its own breaks) has no place in the sound
     /// gathered. The template stays as first built.
     pub(super) fn give_up_rebuild(&mut self, why: &'static str) {
-        // The chunks watched for a move are another stretch's.
-        self.read_again_now();
-        self.moves.forget();
         // Before the watch is heard nothing is gathered: a pause or breaks
         // then come before the first chunk, which the copy keeps.
         if self.template.is_none() {
@@ -139,18 +113,9 @@ impl LiveAnalyzer {
     }
 
     /// The same change made to the analyzer reading the sound again.
-    pub(super) fn in_shadow(&mut self, f: impl Fn(&mut LiveAnalyzer)) {
+    pub(super) fn in_shadow(&mut self, f: impl FnOnce(&mut LiveAnalyzer)) {
         if let Some(sh) = &mut self.rebuild.shadow {
             f(&mut sh.live);
-        }
-        self.moves.copies().for_each(f);
-    }
-
-    /// Judge the newest chunk's amplitude in the copy reading the first
-    /// chunk again too ([`Self::settle`]).
-    pub(super) fn settle_rebuild_shadow(&mut self) {
-        if let Some(sh) = &mut self.rebuild.shadow {
-            sh.live.settle();
         }
     }
 
@@ -267,7 +232,18 @@ impl LiveAnalyzer {
         let Some(sh) = self.rebuild.shadow.as_mut() else {
             return;
         };
-        if !sh.read(CATCH_UP * n, step) {
+        let to = (sh.at + CATCH_UP * n).min(sh.pending.len());
+        while sh.at < to {
+            let end = (sh.at + step).min(to);
+            sh.live.push(&sh.pending[sh.at..end]);
+            sh.at = end;
+        }
+        if sh.at < sh.pending.len() {
+            // Let go of what has been read, now and then.
+            if sh.at > sh.pending.len() / 2 {
+                sh.pending.drain(..sh.at);
+                sh.at = 0;
+            }
             return;
         }
         let Some(sh) = self.rebuild.shadow.take() else {

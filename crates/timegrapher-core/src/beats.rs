@@ -743,14 +743,14 @@ pub fn detect_after(
 /// lie, for [`keep_sides_on_one_sound`]: about 10 s at 28,800 bph.
 const SIDE_LINE_HALF: usize = 20;
 /// Fewer same-side beats than this in a run, and the run is left as found.
-pub(crate) const SIDE_LINE_MIN: usize = 9;
+const SIDE_LINE_MIN: usize = 9;
 /// A gap in the beats found, in beats, that ends a run: the beats may have
 /// jumped across it.
 const SIDE_RUN_GAP: i64 = 4;
 /// How far off its side's line a beat must be to have landed on another
 /// sound, seconds. A watch's beats sit within a millisecond of their line
 /// (see [`NO_WATCH_JITTER_FRACTION`]); a beat's sounds are a few ms apart.
-pub(crate) const SIDE_SOUND_GAP_S: f64 = 0.003;
+const SIDE_SOUND_GAP_S: f64 = 0.003;
 
 /// Put each beat back on the sound the rest of its side is on.
 ///
