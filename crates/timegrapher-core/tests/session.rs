@@ -1404,7 +1404,8 @@ fn a_hole_is_left_out_and_cut_like_a_mask() {
         odd_unlock_ms: None,
         even_drop_ms: None,
         odd_drop_ms: None,
-        culled_ms: None,
+        extra: None,
+        sound_1: [f32::NAN; 2],
     };
     let mut log = timegrapher_core::stream::BeatLog {
         lock_template_kept: false,

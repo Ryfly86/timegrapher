@@ -26,12 +26,21 @@ pub struct StreamConfig {
     pub margin_s: f64,
 }
 
+/// A chunk's own stretch of the recording by default, seconds
+/// ([`StreamConfig::chunk_s`]), and the grid [`amplitude_chunk_of`] groups
+/// amplitude windows by whatever the chunks read with.
+pub const CHUNK_S: f64 = 47.0;
+
+/// The extra audio on each side of a chunk by default, seconds
+/// ([`StreamConfig::margin_s`]), and in [`amplitude_chunk_of`]'s grid.
+pub const MARGIN_S: f64 = 1.0;
+
 impl Default for StreamConfig {
     fn default() -> Self {
         StreamConfig {
             analysis: AnalysisConfig::default(),
-            chunk_s: 47.0,
-            margin_s: 1.0,
+            chunk_s: CHUNK_S,
+            margin_s: MARGIN_S,
         }
     }
 }
@@ -432,6 +441,20 @@ pub(crate) fn swap_found(w: &mut AmplitudeWindow, k: usize, swaps: &[(usize, f64
     if n % 2 == 1 {
         w.swap_sides();
     }
+}
+
+/// The chunk, counted from 0, that the window of `window_s` starting at
+/// `start_s` falls in on a grid of [`CHUNK_S`] with [`MARGIN_S`]: the
+/// first whose own stretch ends after it starts, with room for the window
+/// in its margin, as a default read's amplitude job takes it
+/// ([`State::amplitude_job`]). The one grid a saved read and live both
+/// group the windows by for [`amplitude::withhold_faint_by_chunk`], from
+/// these constants and not a read's config, so the two can't differ
+/// (#1738).
+pub fn amplitude_chunk_of(start_s: f64, window_s: f64) -> usize {
+    let k = (start_s / CHUNK_S).floor().max(0.0) as usize;
+    let core_b = (k + 1) as f64 * CHUNK_S;
+    k + usize::from(start_s + window_s > core_b + MARGIN_S + 1e-9)
 }
 
 /// The amplitude windows starting in one chunk, from `from_s` to `to_s`
@@ -954,6 +977,8 @@ impl State {
             beats: self.beats,
             amplitude_windows: {
                 let mut amp = self.amp;
+                let w = self.cfg.analysis.amplitude_window_s;
+                amplitude::withhold_faint_by_chunk(&mut amp, |s| amplitude_chunk_of(s, w));
                 amplitude::reject_side_outliers(&mut amp, amplitude::OUTLIER_SPAN_S);
                 amp
             },
@@ -1044,6 +1069,33 @@ mod tests {
         /// The Tick left out of every amplitude window the first chunk's
         /// own template reads, as on Walter's damaged captures (#1503).
         pub(super) static SPOIL_OWN: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    }
+
+    /// The amplitude chunk grid (#1738, Trevor on #1800): a 2 s window that
+    /// starts in a chunk's last 2 s belongs to it while it ends inside the
+    /// chunk's margin, and to the next once it reaches past it.
+    #[test]
+    fn a_window_in_a_chunks_margin_is_that_chunks() {
+        let at = |s: f64| amplitude_chunk_of(s, 2.0);
+        assert_eq!((CHUNK_S, MARGIN_S), (47.0, 1.0));
+        // Chunk 0's own stretch is 0 to 47 s; its margin runs to 48 s.
+        for (start, chunk) in [
+            (0.0, 0),
+            (44.0, 0),
+            // Ends at 47 s, inside the stretch.
+            (45.0, 0),
+            // Ends at 48 s, the margin's end: still chunk 0.
+            (46.0, 0),
+            // Ends at 48.5 s, past the margin.
+            (46.5, 1),
+            (47.0, 1),
+            // Chunk 1's own stretch ends at 94 s, its margin at 95 s.
+            (93.0, 1),
+            (93.5, 2),
+            (94.0, 2),
+        ] {
+            assert_eq!(at(start), chunk, "a window starting at {start} s");
+        }
     }
 
     /// A file's reading keeps the template its first chunk gives on clean

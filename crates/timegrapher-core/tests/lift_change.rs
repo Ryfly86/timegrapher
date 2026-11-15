@@ -49,7 +49,8 @@ fn a_lone_wrong_sound_stays_out_after_a_live_lift_change() {
         odd_unlock_ms: Some(-6.0),
         even_drop_ms: Some(0.0),
         odd_drop_ms: Some(0.0),
-        culled_ms: None,
+        extra: None,
+        sound_1: [f32::NAN; 2],
     };
     let log = BeatLog {
         lock_template_kept: false,
