@@ -98,3 +98,10 @@ test("the first hour's label starts at the axis, clear of the lowest value's", (
   const chart = context.stepChart(reserve.series[0], reserve.hours, "r-rate");
   assert.ok(/<text x="52" y="163" text-anchor="start">0<\/text>/.test(chart), chart);
 });
+
+test("the grey key shows under the table only when core sends it", () => {
+  assert.ok(!context.reservePane(reserve, "r").includes('class="map-key"'));
+  const key = "Grey beat errors: from the drop, or source not recorded.";
+  const markup = context.reservePane({ ...reserve, grey_key: key }, "r");
+  assert.ok(markup.includes(`<div class="map-key">${key}</div>`), markup);
+});

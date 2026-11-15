@@ -139,6 +139,24 @@ fn axis_labels(shown: &[String], unit: &str) -> usize {
         .count()
 }
 
+/// No unit over a chart's axis, right of `table_right`, touches another
+/// text, its top tick's label above all (Walter on #1761); the table's
+/// units, stacked under their titles, aside.
+fn units_clear(texts: &[(String, egui::Rect, egui::Rect)], table_right: f32, w: f32) {
+    for unit in ["s/d", "°", "ms"] {
+        for u in texts
+            .iter()
+            .filter(|t| t.0 == unit && t.1.left() > table_right)
+        {
+            let touching: Vec<_> = texts
+                .iter()
+                .filter(|t| t.0 != unit && t.1.intersects(u.1))
+                .collect();
+            assert!(touching.is_empty(), "{w}: {unit} {touching:?}");
+        }
+    }
+}
+
 /// A 46 h run's take opened with its sound, as from the command line, in
 /// a 1000 x 700 window: the Paper Strip shows the sound's beats and keeps
 /// its least, and the Power Reserve pane's charts, scrolled to, read
@@ -471,6 +489,7 @@ fn a_runs_table_sits_left_of_its_charts() {
         for title in ["Rate", "s/d", "Amplitude", "°", "Beat Error", "ms"] {
             head(&first, title);
         }
+        units_clear(&first, read.right(), w);
         // Scroll the table, a step at a time: rows that show have their
         // titles in view, none shows cut, and the charts stay put.
         let at = egui::pos2(hours.left() + 20.0, hours.bottom() + 60.0);

@@ -1863,8 +1863,10 @@ mod tests {
         let (tall, last) = drawn(760.0);
         // Room enough: the whole table shows.
         assert!(last.is_some_and(|b| b <= 760.0), "{last:?}");
-        // The charts at least half the pane, and never under their least.
-        assert!(tall >= 760.0 / 2.0 && tall > short + 50.0, "{short} {tall}");
+        // The charts at least half the pane, and never under their least
+        // (Hugh on #1761: about 90 pt each, plus half a tick label over the
+        // plot), so a short pane's sit at that least and a tall one's grow.
+        assert!(tall >= 760.0 / 2.0 && tall > short + 20.0, "{short} {tall}");
     }
 
     /// A finished run in a short pane scrolls, by the wheel, to its

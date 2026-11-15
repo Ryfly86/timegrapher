@@ -1602,6 +1602,20 @@ mod tests {
         let be = &v["series"][2];
         assert_eq!(be["steps"][0]["value"], 0.4);
         assert!(be["axis"][0].as_f64().unwrap() >= 0.0);
+        // Every beat error here is from a source not recorded: grey, keyed.
+        assert_eq!(be["steps"][0]["grey"], true);
+        assert_eq!(
+            v["grey_key"],
+            timegrapher_core::power_reserve::GREY_BEAT_ERROR_KEY
+        );
+        // Off the unlock: neither.
+        let mut unlock = run.clone();
+        for h in &mut unlock.hours {
+            h.beat_error_source = Some(timegrapher_core::session::BeatErrorSource::Unlock);
+        }
+        let v = reserve_view(&json!({ "power_reserve": unlock })).expect("a model");
+        assert_eq!(v["series"][2]["steps"][0]["grey"], false);
+        assert!(v["grey_key"].is_null());
         assert!(reserve_view(&json!({})).is_none());
     }
 }

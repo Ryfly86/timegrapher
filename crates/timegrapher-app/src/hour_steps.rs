@@ -62,8 +62,10 @@ const UNIT_H: f32 = 14.0;
 const CHART_GAP: f32 = 10.0;
 
 /// The least height a chart takes, its title row and unit line included,
-/// points (Hugh on #1761: at least ~90 pt each).
-pub const CHART_READ_H: f32 = 90.0;
+/// points (Hugh on #1761: at least ~90 pt each), with half a tick label
+/// more so the top tick's label clears the unit (Walter on #1761) and the
+/// plot keeps its height.
+pub const CHART_READ_H: f32 = 98.0;
 
 /// The steps, in hours, the hour axis goes up in.
 const HOUR_STEPS: [f64; 7] = [1.0, 2.0, 3.0, 6.0, 12.0, 24.0, 48.0];
@@ -207,9 +209,12 @@ pub fn stack(
         let band = egui::Rect::from_x_y_ranges(rect.x_range(), top..=top + TITLE_H);
         let unit =
             egui::Rect::from_x_y_ranges(rect.x_range(), band.bottom()..=band.bottom() + UNIT_H);
-        let plot_h = each - TITLE_H - UNIT_H + if last { AXIS_H } else { 0.0 };
+        // The top tick's label is centred on the plot's top edge: half a
+        // label's height clear of the unit line (Walter on #1761).
+        let clear = ui.text_style_height(&egui::TextStyle::Body) / 2.0;
+        let plot_h = each - TITLE_H - UNIT_H - clear + if last { AXIS_H } else { 0.0 };
         let plot_rect = egui::Rect::from_min_size(
-            egui::pos2(rect.left(), unit.bottom()),
+            egui::pos2(rect.left(), unit.bottom() + clear),
             egui::vec2(rect.width(), plot_h),
         );
         let mut child = ui.new_child(egui::UiBuilder::new().max_rect(plot_rect));
