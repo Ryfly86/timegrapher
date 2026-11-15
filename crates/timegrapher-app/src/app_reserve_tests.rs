@@ -1955,7 +1955,7 @@ fn a_test_whose_save_never_finished_opens_to_its_last_part() {
         again.reserve_from_long_take();
         again
     };
-    let again = open(&crashed);
+    let mut again = open(&crashed);
     let note = |a: &TimegrapherApp| a.message.clone().map(|(m, _)| m).unwrap_or_default();
     // The notice and Open say how much it recorded in one string, never
     // its run, which the pane gives (Hugh and Norm on #1806).
@@ -1984,12 +1984,16 @@ fn a_test_whose_save_never_finished_opens_to_its_last_part() {
     assert!(r.run_words().starts_with("at least"), "{}", r.run_words());
     assert!(r.last_beat_s <= to_s, "{} past {to_s}", r.last_beat_s);
     assert!(!r.sound_kept);
-    // Named by its start, not its folder (Walter on #1806).
+    // Named by its start, not its folder, where the status line names it
+    // too (Walter on #1806 and #1807).
     assert!(
         again.source_label.starts_with("Unsaved Power Reserve Test"),
         "{}",
         again.source_label
     );
+    again.input = Input::File;
+    let status = again.status_words();
+    assert!(status.starts_with("Unsaved Power Reserve Test"), "{status}");
     // Moved into a folder of its own, its parts go with it.
     let mine = base.join("mine");
     std::fs::create_dir_all(&mine).unwrap();

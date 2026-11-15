@@ -398,6 +398,31 @@ pub(super) fn kept_label(path: &Path, name: &str) -> String {
     }
 }
 
+impl TimegrapherApp {
+    /// The name the status line gives the take: the folder it is saved in
+    /// or was opened from, but a test kept in parts by its start
+    /// ([`kept_label`], Walter on #1807); none for a take neither saved
+    /// nor opened.
+    pub(super) fn take_name(&self) -> Option<String> {
+        let file_name = |p: &Path| {
+            p.file_name()
+                .map_or_else(|| p.display().to_string(), |n| n.to_string_lossy().into())
+        };
+        if let Some(to) = self.session.saved_to() {
+            return Some(file_name(to));
+        }
+        if self.input != Input::File || self.opened_path.is_empty() {
+            return None;
+        }
+        let path = Path::new(&self.opened_path);
+        // Only a take kept as its analysis alone is looked in.
+        Some(match self.no_sound.is_some() && checkpoint::only(path) {
+            true => kept_label(path, ""),
+            false => file_name(path),
+        })
+    }
+}
+
 /// The header of the take at `path` kept as its analysis alone, and for
 /// one kept as its parts alone, its save never finished, what Open says
 /// of it (2c of #1514, Hugh's and Norm's words): read to its last part,
