@@ -35,8 +35,9 @@ const DOT_R: f32 = 4.5;
 const RING_R: f32 = 7.5;
 /// The gap between the group names, the codes and the plot, points.
 const NAME_GAP: f32 = 10.0;
-/// The room right of the plot for the unit at the axis's end, points.
-const UNIT_W: f32 = 28.0;
+/// The room right of the plot for the last tick's half label and the
+/// unit after it, points.
+const UNIT_W: f32 = 52.0;
 
 /// Where the pane keeps the hovered position, from the table or a chart,
 /// for the next frame to draw.
@@ -48,6 +49,20 @@ pub fn hover_id() -> egui::Id {
 /// frame.
 pub fn table_hover_id() -> egui::Id {
     egui::Id::new("positions table hover")
+}
+
+/// Where the pane keeps its tables' widest width, for the next frame.
+fn table_w_id() -> egui::Id {
+    egui::Id::new("positions tables width")
+}
+
+/// A table of the pane `w` wide: the pane's body is as wide as its widest
+/// table, so the charts beside it never cut one off.
+pub fn note_table_w(ui: &egui::Ui, w: f32) {
+    ui.data_mut(|d| {
+        let was: f32 = d.get_temp(table_w_id()).unwrap_or_default();
+        d.insert_temp(table_w_id(), was.max(w));
+    });
 }
 
 /// A table's position rows: the hovered position's row outlined (#1729),
@@ -104,7 +119,10 @@ pub fn beside<R>(
     let hover: Option<&'static str> = ui.data(|d| d.get_temp(hover_id())).flatten();
     ui.data_mut(|d| d.insert_temp(table_hover_id(), None::<&'static str>));
     let room = ui.available_rect_before_wrap();
-    let body_w = crate::guided::TABLE_W + ui.spacing().scroll.allocated_width();
+    // As wide as last frame's widest table, then measured again.
+    let widest: f32 = ui.data(|d| d.get_temp(table_w_id())).unwrap_or_default();
+    ui.data_mut(|d| d.insert_temp(table_w_id(), 0.0_f32));
+    let body_w = crate::guided::TABLE_W.max(widest) + ui.spacing().scroll.allocated_width();
     let gap = 2.0 * theme::GAP;
     let (out, at) = if refs.is_empty() {
         (area.show(ui, body).inner, None)
@@ -343,10 +361,19 @@ fn one(
         &named,
         ui.id().with(("position averages", line.title)),
     );
-    title_row(ui, title, frame, line, hover, first);
-    // The unit at the value axis's right end (Hugh's rule 7).
+    title_row(ui, title, line, hover, first);
+    // The unit at the value axis's right end (Hugh's rule 7), clear of
+    // the last tick's label, which is centred on the end.
+    let signed = line.series == timegrapher_core::steadiness::SeriesKind::Rate;
+    let last = crate::hour_steps::tick_label(signed, hi, step);
+    let half = ui
+        .painter()
+        .layout_no_wrap(last, egui::TextStyle::Body.resolve(ui.style()), pal.text)
+        .size()
+        .x
+        / 2.0;
     ui.painter().text(
-        egui::pos2(frame.right() + 8.0, frame.bottom() + AXIS_H / 2.0),
+        egui::pos2(frame.right() + half + 6.0, frame.bottom() + AXIS_H / 2.0),
         egui::Align2::LEFT_CENTER,
         line.unit,
         egui::TextStyle::Small.resolve(ui.style()),
@@ -471,14 +498,13 @@ fn lane_names(
     }
 }
 
-/// A chart's title row in `band`: its name over the plot's left edge,
+/// A chart's title row in `band`: its name over the lanes' names,
 /// the hovered position's figure after it in its colour (named in the
 /// `first` chart), and in the first chart the key at the right where
 /// there is a comparison.
 fn title_row(
     ui: &egui::Ui,
     band: egui::Rect,
-    frame: egui::Rect,
     line: &PositionLine,
     hover: Option<&str>,
     first: bool,
@@ -489,7 +515,7 @@ fn title_row(
     let font = egui::TextStyle::Body.resolve(ui.style());
     let y = band.center().y;
     let name = painter.text(
-        egui::pos2(frame.left(), y),
+        egui::pos2(band.left(), y),
         egui::Align2::LEFT_CENTER,
         line.title,
         font.clone(),
@@ -563,3 +589,7 @@ mod tests {
         assert_eq!(lanes_tall(&line), 4.0 + gap);
     }
 }
+
+#[cfg(test)]
+#[path = "position_lanes_tests.rs"]
+mod pane_tests;

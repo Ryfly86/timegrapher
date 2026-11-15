@@ -1333,6 +1333,7 @@ fn table_grid(
             .map(|p| session::Position::parse(p.code()).map_or(p.code(), |c| c.common()))
             .collect();
         crate::position_lanes::table_rows(ui, (grid.response.rect.x_range(), 5.0), &codes, &tops);
+        crate::position_lanes::note_table_w(ui, grid.response.rect.width());
     }
     (!poise).then(|| table_notes(ui, t));
 }
@@ -1589,7 +1590,7 @@ fn table_notes(ui: &mut egui::Ui, t: &Table) {
 fn comparison_grid(ui: &mut egui::Ui, c: &Comparison) {
     let pal = theme::pal(ui);
     let h = format!("{:.1} h", c.hours);
-    egui::Grid::new("full-wind")
+    let grid = egui::Grid::new("full-wind")
         .num_columns(7)
         .spacing(Vec2::new(16.0, 5.0))
         .min_col_width(LABEL_W.min(FIGURE_W))
@@ -1642,6 +1643,7 @@ fn comparison_grid(ui: &mut egui::Ui, c: &Comparison) {
                 ui.end_row();
             }
         });
+    crate::position_lanes::note_table_w(ui, grid.response.rect.width());
     ui.add_space(4.0);
     ui.label(
         RichText::new(format!(
@@ -2381,6 +2383,7 @@ fn free_grid(ui: &mut egui::Ui, t: &FreeTable) {
         });
     let codes: Vec<_> = card_order().into_iter().map(|p| p.common()).collect();
     crate::position_lanes::table_rows(ui, (grid.response.rect.x_range(), 5.0), &codes, &tops);
+    crate::position_lanes::note_table_w(ui, grid.response.rect.width());
 }
 
 /// A free take's table's Average and Largest Difference rows.
