@@ -202,6 +202,8 @@ pub struct LiveAnalyzer {
     template: Option<Vec<f32>>,
     /// Building the template again from the first chunk (#1327).
     rebuild: rebuild::Rebuild,
+    /// Building it again where it moved to another sound on a side (#1819).
+    moves: template_move::Watch,
     beats: Vec<Beat>,
     /// Times of the settled beats whose sound clipped, oldest first.
     clipped: Vec<f64>,
@@ -300,6 +302,7 @@ impl LiveAnalyzer {
             snippets: VecDeque::new(),
             sample: Default::default(),
             sides: beats::SideCheck::default(),
+            moves: Default::default(),
             snr: None,
             quiet_passes: 0,
             candidates: VecDeque::new(),
@@ -730,6 +733,7 @@ impl LiveAnalyzer {
         let mut ran = false;
         if self.total >= self.next_pass {
             self.pass();
+            self.switch_template();
             self.next_pass = self.total + (self.cfg.update_s * self.fs).round().max(1.0) as u64;
             ran = true;
         }
@@ -739,7 +743,7 @@ impl LiveAnalyzer {
             self.buf.drain(..cut);
             self.buf0 += cut as u64;
         }
-        ran
+        ran | self.moves_after_push(samples)
     }
 
     fn pass(&mut self) {
@@ -792,7 +796,9 @@ impl LiveAnalyzer {
         // the filters settle.
         let guard = (0.6 * beat).max(0.25);
         let from = self.settled_to.max(off + 0.25);
-        let to = end - guard;
+        // A copy reading again settles no beat past where the template
+        // it takes on starts (#1819).
+        let to = (end - guard).min(self.moves.switch_s().unwrap_or(f64::INFINITY));
         if to <= from {
             return;
         }
@@ -825,7 +831,9 @@ impl LiveAnalyzer {
         // stretch too quiet to follow: the watch's phase moved across a
         // hole (a dropout, a knock that cost a beat), so the count is a
         // guess. It is a jump.
-        if self.beats.last().is_some() && (resumed || count_off.abs() > 0.25) {
+        // Where the template was built again, the first beat is one too.
+        let rebuilt = self.moves.take_jump();
+        if self.beats.last().is_some() && (resumed || rebuilt || count_off.abs() > 0.25) {
             self.jump_at(anchor_t, false);
         }
         self.take_beats(x, &env, &numbered[anchor..], off, to, beat);
@@ -1073,6 +1081,7 @@ impl LiveAnalyzer {
     /// then withhold the same faint sides as the take read again
     /// (#1738). Listening on, the chunk is judged again once it closes.
     pub fn settle(&mut self) {
+        self.finish_moves();
         let w = self.cfg.analysis.amplitude_window_s;
         let chunk_of = |s: f64| crate::stream::amplitude_chunk_of(s, w);
         let Some(last) = self.amp.last().map(|x| chunk_of(x.start_s)) else {
@@ -1080,7 +1089,7 @@ impl LiveAnalyzer {
         };
         let from = self.amp.partition_point(|x| chunk_of(x.start_s) < last);
         self.judge_amplitude(from, last + 1);
-        self.in_shadow(LiveAnalyzer::settle);
+        self.settle_rebuild_shadow();
     }
 
     /// The Tick and Tock profiles from the sound kept up to `to`.
@@ -1748,6 +1757,7 @@ fn judged_s(fitted: bool, end_s: f64, window_from: f64, heard_since: f64, holes:
 }
 
 mod rebuild;
+mod template_move;
 
 #[cfg(test)]
 mod jump_tests;
