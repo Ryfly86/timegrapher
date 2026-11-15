@@ -304,7 +304,7 @@ fn one(
     let pal = theme::pal(ui);
     let ink = series_colour(line.series, pal);
     let title = egui::Rect::from_x_y_ranges(area.x_range(), area.top()..=area.top() + TITLE_H);
-    let plot_top = title.bottom() + marks::LANE + marks::LANE_GAP;
+    let plot_top = title.bottom() + marks::ROW_H + marks::LANE_GAP;
     let tall = lanes_tall(line);
     let plot_rect = egui::Rect::from_x_y_ranges(
         area.left() + gutter..=area.right() - UNIT_W,
