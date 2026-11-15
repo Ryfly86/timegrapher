@@ -1084,3 +1084,127 @@ fn a_timed_clocks_figures_are_at_its_place() {
     assert_eq!(timed_clock_text(-20.24, 0.3), "20.2 ± 0.3");
     assert_eq!(timed_clock_text(0.84, 0.0004), "0.8 ± 0.1");
 }
+
+/// A card with limits always shows a chip, shortened in steps where it
+/// doesn't fit and never dropped (Hugh, #1808): the first limit and how
+/// many more, then how many, then a bare warning chip.
+#[test]
+fn a_cards_limits_chip_shortens_and_is_never_dropped() {
+    let two = [
+        (
+            "breaks from the clock log".to_string(),
+            "Breaks.".to_string(),
+        ),
+        ("1 faint side left out".to_string(), "Faint.".to_string()),
+    ];
+    let one = &two[..1];
+    let any = |_: &str| true;
+    assert_eq!(
+        readouts::limits_chip_words(&two, any),
+        "Breaks From the Clock Log +1"
+    );
+    assert_eq!(
+        readouts::limits_chip_words(one, any),
+        "Breaks From the Clock Log"
+    );
+    let short = |w: &str| w.len() <= 8;
+    assert_eq!(readouts::limits_chip_words(&two, short), "2 limits");
+    assert_eq!(readouts::limits_chip_words(one, short), "1 limit");
+    assert_eq!(readouts::limits_chip_words(&two, |_| false), "");
+    // At its narrowest, the bare chip is drawn: the warning's triangle,
+    // and none of the limits' words.
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    let drawn = |limits: &[(String, String)]| {
+        let rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(120.0, 24.0));
+        let out = ctx.run(egui::RawInput::default(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                readouts::card_title(ui, rect, "Amplitude", &["Help."], limits, (None, false));
+            });
+        });
+        let paths = out
+            .shapes
+            .iter()
+            .filter(|c| matches!(&c.shape, egui::Shape::Path(p) if p.closed && p.points.len() == 3))
+            .count();
+        (paths, painted_text(&out))
+    };
+    let (none, _) = drawn(&[]);
+    let (bare, text) = drawn(&two);
+    assert_eq!((none, bare), (0, 1), "{text}");
+    assert!(
+        !text.contains("limit") && !text.contains("Breaks"),
+        "{text}"
+    );
+}
+
+/// At 1600 wide, the Amplitude card's title with Walter's two limits
+/// from #1800 ("breaks from the clock log" and "1 faint side left out")
+/// has no room for the first limit's words, and still shows a chip, its
+/// count (#1808).
+#[test]
+fn two_limits_show_a_chip_at_1600() {
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    let ctx = themed();
+    let input = || egui::RawInput {
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            Vec2::new(1600.0, 900.0),
+        )),
+        ..Default::default()
+    };
+    // The Amplitude card's title row, as the window lays it out: from its
+    // caption to the end of its "?".
+    let mut out = ctx.run(input(), |ctx| app.panels(ctx));
+    for _ in 0..2 {
+        out = ctx.run(input(), |ctx| app.panels(ctx));
+    }
+    let texts: Vec<(String, egui::Rect)> = out
+        .shapes
+        .iter()
+        .filter_map(|c| match &c.shape {
+            egui::Shape::Text(t) => Some((
+                t.galley.text().to_string(),
+                t.galley.rect.translate(t.pos.to_vec2()),
+            )),
+            _ => None,
+        })
+        .collect();
+    let caption = texts
+        .iter()
+        .find(|t| t.0 == "Amplitude")
+        .expect("its caption")
+        .1;
+    let help = texts
+        .iter()
+        .filter(|t| t.0 == "?" && t.1.min.x > caption.max.x)
+        .map(|t| t.1)
+        .min_by(|a, b| a.min.x.total_cmp(&b.min.x))
+        .expect("its ?");
+    let rect = egui::Rect::from_min_max(
+        egui::pos2(caption.min.x, caption.min.y - 4.0),
+        egui::pos2(help.max.x + 4.0, caption.max.y + 4.0),
+    );
+    let limits = [
+        (
+            "breaks from the clock log".to_string(),
+            "Breaks.".to_string(),
+        ),
+        ("1 faint side left out".to_string(), "Faint.".to_string()),
+    ];
+    let title = egui::Context::default();
+    theme::install(&title);
+    let mut text = String::new();
+    for _ in 0..2 {
+        text = painted_text(&title.run(egui::RawInput::default(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                readouts::card_title(ui, rect, "Amplitude", &["Help."], &limits, (None, false));
+            });
+        }));
+    }
+    assert!(
+        !text.contains("Breaks From the Clock Log"),
+        "{rect:?}: {text}"
+    );
+    assert!(text.lines().any(|l| l == "2 limits"), "{rect:?}: {text}");
+}

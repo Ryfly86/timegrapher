@@ -264,7 +264,7 @@ pub(crate) fn card_title(
         ui.spacing_mut().item_spacing.x = title_gap();
         theme::help(ui, caption, help);
         let caption_w = caption_width(ui, caption);
-        let small_w = |ui: &mut egui::Ui, t: &str| {
+        let small_w = |ui: &egui::Ui, t: &str| {
             ui.fonts_mut(|f| {
                 f.layout_no_wrap(t.into(), egui::FontId::proportional(12.0), pal.text)
                     .size()
@@ -279,23 +279,14 @@ pub(crate) fn card_title(
                     .on_hover_text(hover);
             }
         }
-        // Limits with no room for their words beside the whole
-        // caption are in the caption's hover: a bare count says
-        // nothing.
-        let mut caption_hover = None;
-        if let Some(first) = limits.first() {
-            let more = if limits.len() > 1 {
-                format!(" +{}", limits.len() - 1)
-            } else {
-                String::new()
-            };
+        // Limits always show in a chip, shortened to fit beside the whole
+        // caption, never dropped (Hugh, #1808).
+        if !limits.is_empty() {
+            let room = ui.available_width();
+            let words =
+                limits_chip_words(limits, |w| small_w(ui, w) + 14.0 + 4.0 + caption_w <= room);
             let sentences: Vec<String> = limits.iter().map(|l| l.1.clone()).collect();
-            let words = format!("{}{more}", chip_words(&first.0));
-            if small_w(ui, &words) + 14.0 + 4.0 + caption_w <= ui.available_width() {
-                theme::chip(ui, &words, caption, &sentences, ui.available_width());
-            } else {
-                caption_hover = Some(sentences.join("\n\n"));
-            }
+            theme::chip(ui, &words, caption, &sentences, ui.available_width());
         }
         ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
             // Too narrow for the whole caption (800 pt), its short form as
@@ -311,16 +302,34 @@ pub(crate) fn card_title(
                 )
                 .truncate(),
             );
-            let hover = match (short, caption_hover) {
-                (Some(_), Some(h)) => Some(format!("{caption}\n\n{h}")),
-                (Some(_), None) => Some(caption.to_string()),
-                (None, h) => h,
-            };
-            if let Some(h) = hover {
-                r.on_hover_text(h);
+            if short.is_some() {
+                r.on_hover_text(caption);
             }
         });
     });
+}
+
+/// What a card's limits chip says, the first form that `fits` (Hugh,
+/// #1808): the first limit's words and how many more, then how many
+/// limits, then nothing, a bare warning chip. Every card's the same way.
+pub(crate) fn limits_chip_words(
+    limits: &[(String, String)],
+    fits: impl Fn(&str) -> bool,
+) -> String {
+    let n = limits.len();
+    let first = limits.first().map(|l| chip_words(&l.0)).unwrap_or_default();
+    let named = match n {
+        0 | 1 => first,
+        _ => format!("{first} +{}", n - 1),
+    };
+    let count = match n {
+        1 => "1 limit".to_string(),
+        _ => format!("{n} limits"),
+    };
+    [named, count]
+        .into_iter()
+        .find(|w| fits(w))
+        .unwrap_or_default()
 }
 
 /// A card title's caption font.
