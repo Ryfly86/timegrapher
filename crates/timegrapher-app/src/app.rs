@@ -639,7 +639,7 @@ impl Pane {
             Pane::Scope => "Scope",
             Pane::Isochronism => "Isochronism",
             Pane::PositionsTest => "Positions Test",
-            Pane::DynamicPoise => "Dynamic Poise",
+            Pane::DynamicPoise => timegrapher_core::poise_picture::TITLE,
             Pane::Complication => "Complication",
             Pane::PowerReserve => "Power Reserve",
         }
