@@ -94,10 +94,15 @@ impl TimegrapherApp {
             audio: Some(false),
             ..manifest.clone()
         });
-        let named = named.map_err(|e| e.to_string()).and_then(|t| {
-            library::write_atomic(&r.dir().join(MANIFEST), t.as_bytes()).map_err(|e| e.to_string())
-        });
-        if let Err(e) = named.and_then(|()| r.without_sound().map_err(|e| e.to_string())) {
+        let file = r.dir().join(MANIFEST);
+        let named = named
+            .map_err(|e| e.to_string())
+            .and_then(|t| library::write_atomic(&file, t.as_bytes()).map_err(|e| e.to_string()));
+        let without = named.and_then(|()| r.without_sound().map_err(|e| e.to_string()));
+        if let Err(e) = without {
+            // Kept with its sound: no session file saying it has none
+            // (Vernon).
+            let _ = std::fs::remove_file(&file);
             self.error(format!(
                 "The test can't keep its analysis alone ({e}): it keeps its sound."
             ));

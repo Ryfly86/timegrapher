@@ -732,8 +732,8 @@ impl TimegrapherApp {
             // A test kept as its analysis alone: its analysis as far as
             // it was kept (2c of #1514).
             true => format!(
-                "A Power Reserve Test kept as its analysis alone wasn't saved{started}{}, {}. \
-                 Open it, move it into a folder of your own, or delete it?",
+                "An unsaved Power Reserve Test was found (Analysis Only){started}{}, {}. Open \
+                 it, move it to a folder of your own, or delete it?",
                 k.duration_s.map_or(String::new(), |d| format!(
                     ", kept up to {}",
                     power_reserve::run_text(d)

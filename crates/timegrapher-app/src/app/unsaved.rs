@@ -134,7 +134,8 @@ pub(super) fn move_kept(dir: &Path, parent: &Path) -> Result<PathBuf, String> {
     }
 }
 
-/// Copy the folder `from` to `to`, each file written to the disk.
+/// Copy the folder `from` to `to`, each file and folder written to the
+/// disk (Felix).
 pub(super) fn copy_tree(from: &Path, to: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(to)?;
     for e in std::fs::read_dir(from)? {
@@ -148,5 +149,5 @@ pub(super) fn copy_tree(from: &Path, to: &Path) -> std::io::Result<()> {
         std::io::copy(&mut r, &mut w)?;
         w.sync_all()?;
     }
-    Ok(())
+    timegrapher_core::recorder::sync_folder(to)
 }

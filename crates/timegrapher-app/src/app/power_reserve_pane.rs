@@ -449,39 +449,24 @@ impl TimegrapherApp {
         // leaves out only the masks by hand.
         let (by_hand, masked) = (self.masked.clone(), self.engine_masked());
         let (position, sound) = (self.position, self.no_sound.is_none());
-        let parts = self.opened_parts();
+        // The take opened kept as its analysis alone, whose folder says how
+        // (core `power_reserve::of_take`); none for one heard here.
+        let take = match self.no_sound {
+            Some(_) => PathBuf::from(&self.opened_path),
+            None => PathBuf::new(),
+        };
         Some(move || {
             let log = steady::log_masked(&live, &by_hand)?;
             let fit = reading_clock(take_clock.as_ref(), opened, ppm, log.duration_s);
             let breaks = steady::reading_breaks(take_breaks.unwrap_or_default(), &log);
-            let r = match parts {
-                // A test kept in parts whose save never finished: a
-                // test's run to its last part (2c of #1514).
-                true => power_reserve::from_parts(&log, fit.as_ref(), &breaks, &masked, &codes, ""),
-                false => power_reserve::from_long_take(
-                    &log,
-                    fit.as_ref(),
-                    &breaks,
-                    &masked,
-                    &codes,
-                    "",
-                    sound,
-                ),
-            }?;
+            let r =
+                power_reserve::of_take(&take, &log, fit.as_ref(), &breaks, &masked, &codes, sound)?;
             let position = Position::from_name(&r.position).unwrap_or(position);
             let mut t = reserve::Test::new(position, r.sound_kept, String::new(), 0.0);
             t.ending = Some(r.ending);
             t.results = Some(r);
             Some(t)
         })
-    }
-
-    /// Whether the take opened is a Power Reserve Test kept as its parts
-    /// alone, its save never finished ([`timegrapher_core::checkpoint::only`]).
-    fn opened_parts(&self) -> bool {
-        self.no_sound.is_some()
-            && !self.opened_path.is_empty()
-            && timegrapher_core::checkpoint::only(Path::new(&self.opened_path))
     }
 
     /// The test has ended: stop listening, keep the take in the watch's
