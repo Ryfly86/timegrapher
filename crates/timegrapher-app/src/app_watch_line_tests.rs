@@ -1167,6 +1167,13 @@ fn the_watch_lines_chip_shortens_as_the_cards_do() {
             assert!(bare, "no chip at {w}: {text}");
             0
         };
+        // Some of the name, before its ⏷, at every width.
+        let first = &name[..1];
+        assert!(
+            text.lines()
+                .any(|l| l.ends_with(" ⏷") && l.starts_with(first)),
+            "no title at {w}: {text}"
+        );
         let whole = text.lines().any(|l| l == format!("{name} ⏷"));
         assert!(
             whole || step == 0,
