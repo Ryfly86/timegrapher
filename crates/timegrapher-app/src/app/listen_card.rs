@@ -914,8 +914,8 @@ impl TimegrapherApp {
             if !limits.is_empty() {
                 let sentences: Vec<String> = limits.iter().map(|l| l.1.clone()).collect();
                 // Shortened as every card's limits are (#1810), the watch's
-                // name keeping a narrow title's room.
-                let room = ui.available_width() - NARROW_TITLE_W;
+                // name keeping half the line (#1813).
+                let room = ui.available_width() / 2.0;
                 let text = readouts::limits_chip_words(limits, |w| theme::chip_w(ui, w) <= room);
                 theme::chip(ui, &text, "Calibre", &sentences, ui.available_width());
             }

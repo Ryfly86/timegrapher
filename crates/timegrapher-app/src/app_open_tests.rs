@@ -1018,3 +1018,38 @@ fn what_opens_dialog_picks_is_opened_or_asked_about() {
     std::fs::remove_dir_all(take).unwrap();
     std::fs::remove_dir_all(root).unwrap();
 }
+
+/// A take whose session file gives a beat rate other than its calibre's
+/// (the calibre edited since, or the file written outside the app) opens
+/// at the file's rate, and the Watch line says the calibre beats at
+/// another: the one way the app reaches that chip (Hugh, #1813). At
+/// 1600 wide the line holds "1 limit" beside the watch's name, where
+/// #1811 left only the bare chip.
+#[test]
+fn a_take_at_another_rate_than_its_calibre_says_so_on_the_watch_line() {
+    let dir = one_position_take("calibre-rate", 40.0);
+    std::fs::write(
+        dir.join(MANIFEST),
+        "calibre = 'Unitas 6497-2'\nbph = 28800\nlift = 52.0\n\n\
+         [[recording]]\nfile = '.'\nposition = 'DU'\n",
+    )
+    .unwrap();
+    let mut app = reopened(&dir);
+    assert_eq!(app.calibre, "Unitas 6497-2");
+    assert_eq!(app.bph, Some(28800));
+    assert_eq!(app.cal.bph(&app.calibre), Some(21600));
+    let ctx = super::tests::themed();
+    let mut text = String::new();
+    for _ in 0..3 {
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                Vec2::new(1600.0, 900.0),
+            )),
+            ..Default::default()
+        };
+        text = super::tests::painted_text(&ctx.run(input, |ctx| app.panels(ctx)));
+    }
+    assert!(text.lines().any(|l| l == "1 limit"), "{text}");
+    let _ = std::fs::remove_dir_all(&dir);
+}

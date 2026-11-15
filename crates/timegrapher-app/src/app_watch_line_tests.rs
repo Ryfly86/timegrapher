@@ -1169,7 +1169,7 @@ fn the_watch_lines_chip_shortens_as_the_cards_do() {
         }
     };
     let steps: Vec<u8> = (0..=50)
-        .map(|n| drawn(&mut app, 160.0 + 10.0 * n as f32))
+        .map(|n| drawn(&mut app, 100.0 + 10.0 * n as f32))
         .collect();
     assert!(steps.windows(2).all(|p| p[0] <= p[1]), "{steps:?}");
     for step in 0..=2 {
