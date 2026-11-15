@@ -362,6 +362,7 @@ pub fn decode(bytes: &[u8]) -> Option<(BeatLog, f32)> {
         return None;
     }
     let log = BeatLog {
+        lock_template_kept: false,
         sample_rate,
         duration_s,
         bph,
