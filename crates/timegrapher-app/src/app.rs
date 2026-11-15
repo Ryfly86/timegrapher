@@ -58,6 +58,8 @@ mod dock;
 mod kept_analysis;
 mod library_folder;
 mod listen_card;
+mod live_usb;
+use live_usb::reading_clock;
 #[cfg(target_os = "macos")]
 pub(crate) mod mac_menu;
 mod masks;
@@ -1999,6 +2001,8 @@ pub struct TimegrapherApp {
     /// Where [`Self::take_clock`] came from, in core's words
     /// (`OpenedEntry::clock_source`), so the Rate's hover names it.
     take_clock_source: Option<String>,
+    /// The USB lines of the sound heard here, read as it comes (#1721).
+    live_usb: Option<live_usb::LiveUsb>,
     /// The take on show's breaks, as core reads them with its beats: the
     /// pauses it lists, its clock's steps and the jumps in its beats.
     /// `None` for a session heard here, whose readings go by the clock
@@ -2596,6 +2600,7 @@ impl TimegrapherApp {
             pending_recorded: None,
             take_clock: None,
             take_clock_source: None,
+            live_usb: None,
             take_breaks: None,
             take_unlisted: None,
             brush: None,
@@ -3691,27 +3696,6 @@ fn settle_hint(s: f64) -> String {
          the readings, the charts' points, the Distributions and the Steadiness tests. The \
          sound is still kept, and a saved take's positions start after it."
     )
-}
-
-/// The beats the strip draws: `live`'s, or the take's numbered on its
-/// audio seconds (`audio`) while they are the same beats.
-/// The clock readings are put on, for a log `duration_s` long: for a
-/// take opened (`opened`), its own clock as core read it, or none; for a
-/// session heard here, the clock kept for the input (`ppm` fast).
-fn reading_clock(
-    take_clock: Option<&timegrapher_core::clock::ClockFit>,
-    opened: bool,
-    ppm: Option<f64>,
-    duration_s: f64,
-) -> Option<timegrapher_core::clock::ClockFit> {
-    if opened {
-        take_clock.cloned()
-    } else {
-        // The kept correction, as core puts a take with no clock log on it.
-        timegrapher_core::take::clock(None, 0, 0, None, ppm, duration_s)
-            .ok()
-            .flatten()
-    }
 }
 
 /// What core opens to read the take at `path` (core's `TakeContext::open`,
