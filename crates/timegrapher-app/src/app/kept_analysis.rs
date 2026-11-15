@@ -382,6 +382,22 @@ thread_local! {
     pub(super) static EVERY_S: std::cell::Cell<Option<f64>> = const { std::cell::Cell::new(None) };
 }
 
+/// What the take at `path`, named `name`, kept as its analysis alone is
+/// called while open: a test kept in parts by its start, not its folder's
+/// name (Walter on #1806).
+pub(super) fn kept_label(path: &Path, name: &str) -> String {
+    if !checkpoint::only(path) {
+        return format!("{name} (analysis only)");
+    }
+    let about = std::fs::read(path.join(timegrapher_core::take::RECORD))
+        .ok()
+        .and_then(|b| serde_json::from_slice(&b).ok());
+    match super::unsaved::started_of(about.as_ref()) {
+        Some(s) => format!("Unsaved Power Reserve Test, started {s}"),
+        None => "Unsaved Power Reserve Test".to_string(),
+    }
+}
+
 /// The header of the take at `path` kept as its analysis alone, and for
 /// one kept as its parts alone, its save never finished, what Open says
 /// of it (2c of #1514, Hugh's and Norm's words): read to its last part,
@@ -391,9 +407,9 @@ pub(super) fn kept_header(path: &Path) -> Result<(analysis_take::Header, Option<
         let r = checkpoint::read(path).map_err(|e| e.to_string())?;
         let header = r.stored.header;
         let mut note = format!(
-            "This take wasn't saved: the app stopped while recording. Its analysis was \
-             kept up to {}. The watch may have run on after that.",
-            power_reserve::run_text(header.duration_s)
+            "This take wasn't saved: the app stopped while recording. It {}. The watch may \
+             have run on after that.",
+            super::unsaved::recorded_text(header.duration_s)
         );
         if let Some(l) = r.left_out {
             note = format!("{note} {l}");

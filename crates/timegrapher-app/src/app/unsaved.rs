@@ -33,6 +33,35 @@ impl KeptSound {
         }
     }
 
+    /// What the start notice says of it: when it started, how much it
+    /// holds, and what can be done with it.
+    pub(super) fn notice(&self) -> String {
+        let started = self
+            .started
+            .as_ref()
+            .map_or(String::new(), |s| format!(": started {s}"));
+        let size = size_text(self.bytes);
+        if self.parts {
+            // A test kept as its analysis alone: how much it recorded,
+            // never its run (2c of #1514, #1806).
+            let recorded = self
+                .duration_s
+                .map_or(String::new(), |d| format!(", {}", recorded_text(d)));
+            format!(
+                "An unsaved Power Reserve Test was found (Analysis Only){started}{recorded}, \
+                 {size}. Open it, move it to a folder of your own, or delete it?"
+            )
+        } else {
+            let long = self
+                .duration_s
+                .map_or(String::new(), |d| format!(", {} long", length_text(d)));
+            format!(
+                "Sound from an earlier session wasn't saved{started}{long}, {size}. Open it, \
+                 move it into a folder of your own, or delete it?"
+            )
+        }
+    }
+
     /// [`Self::what`] in a title's capitals.
     pub(super) fn what_title(&self) -> &'static str {
         if self.parts {
@@ -67,17 +96,7 @@ pub(super) fn kept_sounds(scratch: &Path) -> Vec<KeptSound> {
             let about: Option<serde_json::Value> = std::fs::read(dir.join("session.json"))
                 .ok()
                 .and_then(|b| serde_json::from_slice(&b).ok());
-            let started = about
-                .as_ref()
-                .and_then(|a| a["started_utc"].as_str())
-                .map(|u| {
-                    // In this computer's time, as takes are named; as
-                    // written, marked UTC, when it can't be read.
-                    watches::local_minute(u).unwrap_or_else(|| {
-                        let at = u.get(..16).unwrap_or(u).replacen('T', " ", 1);
-                        format!("{} UTC", at.replace(':', "."))
-                    })
-                });
+            let started = started_of(about.as_ref());
             // Of a test kept in parts, as far as its parts reach.
             let duration_s = match parts {
                 true => checkpoint::length_s(&dir).ok(),
@@ -96,6 +115,24 @@ pub(super) fn kept_sounds(scratch: &Path) -> Vec<KeptSound> {
         .collect();
     v.sort_by(|a, b| a.dir.cmp(&b.dir));
     v
+}
+
+/// When a recording started, from its `session.json` (`about`), in this
+/// computer's time, as takes are named: "2026-10-21 14.32"; as written,
+/// marked UTC, when it can't be read.
+pub(super) fn started_of(about: Option<&serde_json::Value>) -> Option<String> {
+    let u = about?["started_utc"].as_str()?;
+    Some(watches::local_minute(u).unwrap_or_else(|| {
+        let at = u.get(..16).unwrap_or(u).replacen('T', " ", 1);
+        format!("{} UTC", at.replace(':', "."))
+    }))
+}
+
+/// How much a test kept in parts recorded, as the start notice and Open
+/// say it (Hugh and Norm on #1806): the last part's end, never its run,
+/// which the Power Reserve pane gives.
+pub(super) fn recorded_text(s: f64) -> String {
+    format!("recorded {}", power_reserve::run_text(s))
 }
 
 /// The bytes the files under `dir` take, its folders' included (a test's

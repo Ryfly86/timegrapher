@@ -681,9 +681,10 @@ pub fn from_parts(
 
 /// The run of the take in the folder `take` read whole, as every surface
 /// reads it: one kept as its parts alone, its save never finished, as the
-/// test it was ([`from_parts`]); else as a long take ([`from_long_take`]).
+/// test it was ([`from_parts`]); else, and with no folder (a take heard
+/// here), as a long take ([`from_long_take`]).
 pub fn of_take(
-    take: &std::path::Path,
+    take: Option<&std::path::Path>,
     log: &crate::stream::BeatLog,
     clock: Option<&crate::clock::ClockFit>,
     breaks: &[crate::breaks::Break],
@@ -691,7 +692,7 @@ pub fn of_take(
     positions: &[&str],
     sound_kept: bool,
 ) -> Option<Results> {
-    match crate::checkpoint::only(take) {
+    match take.is_some_and(crate::checkpoint::only) {
         true => from_parts(log, clock, breaks, masked, positions, ""),
         false => from_long_take(log, clock, breaks, masked, positions, "", sound_kept),
     }

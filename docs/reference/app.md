@@ -1724,7 +1724,7 @@ smears the sound aren't caught by it. Then how much sound the session
 holds and whether it is saved, and the latest message. It repeats
 nothing the cards show. On the right are its notices, one short word
 each for what needs you: an error, behind a red failure icon; **Closed Unexpectedly…**
-after a crash; **Unsaved Sound Found…** for sound kept from an earlier
+after a crash; **Unsaved Take Found…** for sound kept from an earlier
 session; **Timegrapher 0.2.0 Available…**. A click opens the whole
 message over the window with its buttons. Nothing ever appears above the
 readings, so the window never moves under the pointer.
@@ -2124,7 +2124,7 @@ the Dock, which can't be held back; on any system, a logout or a
 shutdown) with more than 5 s of unsaved sound other than a Quick Listen
 take's, or is stopped by a crash,
 the sound stays there, and the next start says so in the status bar,
-**Unsaved Sound Found…**, which opens the message with when it started (in this computer's time), its length and
+**Unsaved Take Found…**, which opens the message with when it started (in this computer's time), its length and
 size, and **Open** (analysed here, and offered again next time),
 **Move To…** (the recording's folder moved into one you pick, to open
 with Open Folder…), **Delete…** (asking first) and **Later**. When the
@@ -2137,14 +2137,18 @@ since been moved or deleted, the copy is the only one, and it is offered
 as unsaved sound like any other. A Power Reserve Test with Analysis Only
 that stopped before its take was written leaves no sound but its
 analysis kept in parts: the next start offers it the same way, "An
-unsaved Power Reserve Test was found (Analysis Only): started …, kept up
-to 41 h 10 min, 3.1 MB", with Open, Move To… (its parts with it),
-Delete… and Later. Opened, it reads to its last part, and the status bar
-says "This take wasn't saved: the app stopped while recording. Its
-analysis was kept up to 41 h 10 min. The watch may have run on after
-that."; the Power Reserve pane reads it as the test, "Power reserve at
-least 41 h 10 min … The recording failed while the watch still ran",
-unless the watch's stop was already heard. Keep Analysis Only… refuses
+unsaved Power Reserve Test was found (Analysis Only): started …,
+recorded 41 h 10 min, 3.1 MB" (the button's tip "A Power Reserve Test
+(Analysis Only) was never saved"), with Open, Move To… (its parts with
+it), Delete… and Later. Opened, it reads to its last part, is named
+"Unsaved Power Reserve Test, started …", and the status bar says "This
+take wasn't saved: the app stopped while recording. It recorded 41 h
+10 min. The watch may have run on after that."; the Power Reserve pane
+reads it as the test, "Power reserve at least 41 h 09 min … The
+recording failed while the watch still ran", unless the watch's stop was
+already heard. What was recorded runs to the last part's end; the run,
+from the first beat heard to the last in true time, is a little
+shorter. Keep Analysis Only… refuses
 such a take: it has no sound to keep. A folder
 another copy of the app is recording into is never offered. The
 microphone's own settings are kept aside while recordings are open and

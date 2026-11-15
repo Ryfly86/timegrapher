@@ -38,7 +38,7 @@ the Save menu. Beyond it:
 system doesn't clear. If the app is stopped without asking (a crash, a
 logout, a shutdown), a test's unsaved sound is offered at the next
 start (after a logout or shutdown, only if over 5 s): the status bar
-shows **Unsaved Sound Found…**:
+shows **Unsaved Take Found…**:
 
 | Button | What it does |
 | --- | --- |
@@ -174,7 +174,7 @@ is on each system.
 | --- | --- |
 | A take marked Incomplete | Some of its sound files are missing, often a copy or sync not finished. The app changes nothing in it. |
 | The window naming a file out of date order | A segment named out of its place in the run. |
-| Unsaved Sound Found at start | A test's sound from a run that didn't end normally. |
+| Unsaved Take Found at start | A test's sound from a run that didn't end normally. |
 
 ## What It Can't Tell You
 

@@ -724,30 +724,7 @@ impl TimegrapherApp {
             return self.streamed_notice(ui, &k, &to);
         }
         let (mut open, mut move_to, mut delete, mut later) = (false, false, false, false);
-        let started = k
-            .started
-            .as_ref()
-            .map_or(String::new(), |s| format!(": started {s}"));
-        let what = match k.parts {
-            // A test kept as its analysis alone: its analysis as far as
-            // it was kept (2c of #1514).
-            true => format!(
-                "An unsaved Power Reserve Test was found (Analysis Only){started}{}, {}. Open \
-                 it, move it to a folder of your own, or delete it?",
-                k.duration_s.map_or(String::new(), |d| format!(
-                    ", kept up to {}",
-                    power_reserve::run_text(d)
-                )),
-                size_text(k.bytes),
-            ),
-            false => format!(
-                "Sound from an earlier session wasn't saved{started}{}, {}. Open it, move it \
-                 into a folder of your own, or delete it?",
-                k.duration_s
-                    .map_or(String::new(), |d| format!(", {} long", length_text(d))),
-                size_text(k.bytes),
-            ),
-        };
+        let what = k.notice();
         notice(ui, Some(theme::Alert::Warning), &what, |ui| {
             later = ui
                 .add(egui::Button::new("Later").frame_when_inactive(false))
