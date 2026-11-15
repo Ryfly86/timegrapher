@@ -181,7 +181,12 @@ fn a_hovered_row_names_its_position_in_the_charts() {
         "{want} in {:?}",
         texts.iter().map(|t| &t.0).collect::<Vec<_>>()
     );
-    assert_eq!(find(&texts, "328°").len(), 1, "its amplitude");
+    let amp = "328° (Full wind test 302°)";
+    assert_eq!(
+        find(&texts, amp).len(),
+        1,
+        "its amplitude with the full-wind test"
+    );
     if let Ok(d) = std::env::var("SHOT_DIR") {
         let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, size);
         std::fs::write(
@@ -200,4 +205,43 @@ fn a_narrow_pane_puts_the_charts_over_the_table() {
     let rate = **find(&texts, "Rate").first().expect("rate chart");
     let row = **find(&texts, "Crown Up (CU, 3H)").first().expect("row");
     assert!(rate.bottom() < row.top(), "{rate:?} over {row:?}");
+}
+
+/// The averages' names on every chart, at the narrowest pane that still
+/// puts the charts beside the table (320 pt of chart, about) and at 1280:
+/// no two overlap, where three averages within a name's width of each
+/// other once hid one under another (Hugh on #1785).
+#[test]
+fn the_averages_names_never_overlap() {
+    let saved = halves();
+    let beside = |w: f32| {
+        let (texts, ..) = drawn(&saved, egui::vec2(w, 820.0), None, true);
+        let rate = **find(&texts, "Rate").first().expect("rate chart");
+        let row = **find(&texts, "Crown Up (CU, 3H)").first().expect("row");
+        (rate.left() > row.right(), texts)
+    };
+    // The narrowest width beside, to within 4 px.
+    let (mut lo, mut hi) = (800.0_f32, 1280.0_f32);
+    assert!(beside(hi).0 && !beside(lo).0);
+    while hi - lo > 4.0 {
+        let mid = (lo + hi) / 2.0;
+        if beside(mid).0 {
+            hi = mid;
+        } else {
+            lo = mid;
+        }
+    }
+    for w in [hi, 1280.0] {
+        let (_, texts) = beside(w);
+        let names: Vec<&egui::Rect> = ["Average", "Horizontal", "Vertical"]
+            .iter()
+            .flat_map(|n| find(&texts, n))
+            .collect();
+        assert!(names.len() >= 9, "{w}: {names:?}");
+        for (i, a) in names.iter().enumerate() {
+            for b in &names[i + 1..] {
+                assert!(!a.intersects(**b), "{w}: {a:?} overlaps {b:?}");
+            }
+        }
+    }
 }

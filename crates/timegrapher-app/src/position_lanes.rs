@@ -15,7 +15,7 @@ use crate::steady::series_colour;
 use crate::strength::{self, Grid, Strength};
 use crate::theme;
 use eframe::egui;
-use timegrapher_core::position_line::{position_line_over, PositionLine};
+use timegrapher_core::position_line::{test_lines, PositionLine};
 use timegrapher_core::session::{PositionGroup, SourcedFigures};
 
 /// The height of each chart's title row, points.
@@ -29,7 +29,7 @@ const GROUP_GAP: f32 = 0.8;
 /// The height under each chart for its values, points.
 const AXIS_H: f32 = 20.0;
 /// The gap between one chart's axis and the next one's title row, points.
-const CHART_GAP: f32 = 8.0;
+const CHART_GAP: f32 = 16.0;
 /// A dot's radius, and the hover's ring round it, points.
 const DOT_R: f32 = 4.5;
 const RING_R: f32 = 7.5;
@@ -179,33 +179,20 @@ pub fn beside<R>(
 }
 
 /// The position lines the pane draws, one for each measure `shown` that
-/// has a figure: this test's `figures`, at `wind_h` hours after full wind,
-/// with a lane too for each other position in `more` (the 45° stops a take
-/// marked), though its averages stay over the six (Peter, 11-12); and
-/// beside them, on a later state, the full-wind test's `full` figures.
+/// has a figure: core's [`test_lines`] for this test's `figures` at
+/// `wind_h`, the 45° stops in `more`, and the full-wind test's `full`.
 pub fn lines(
     figures: &[SourcedFigures],
     more: &[SourcedFigures],
     (wind_h, full): (Option<f64>, Option<&[SourcedFigures]>),
     shown: [bool; 3],
 ) -> Vec<PositionLine> {
-    use timegrapher_core::session::{sourced_indices_over, Position};
-    let six = sourced_indices_over(wind_h, figures, &Position::ALL);
-    let every: Vec<SourcedFigures> = figures
-        .iter()
-        .chain(more.iter().filter(|m| figures.iter().all(|f| f.0 != m.0)))
-        .copied()
-        .collect();
-    let every = sourced_indices_over(wind_h, &every, &Position::TEN);
-    let full = full
-        .filter(|_| wind_h.is_some_and(|h| h > 0.0))
-        .map(|f| sourced_indices_over(Some(0.0), f, &Position::ALL));
-    crate::steady::SERIES
+    let all = test_lines(wind_h, figures, more, full);
+    [all.rate, all.amplitude, all.beat_error]
         .into_iter()
         .zip(shown)
-        .filter(|&(_, on)| on)
-        .map(|(k, _)| position_line_over(&six, &every, full.as_ref(), k))
-        .filter(|l| l.axis.is_some())
+        .filter(|(l, on)| *on && l.axis.is_some())
+        .map(|(l, _)| l)
         .collect()
 }
 
@@ -236,7 +223,7 @@ fn lanes_tall(line: &PositionLine) -> f64 {
 /// The height of a chart's parts other than its lanes, points: its title
 /// row, the names over its plot and its values under it.
 fn chrome_h() -> f32 {
-    TITLE_H + marks::LANE + marks::LANE_GAP + AXIS_H
+    TITLE_H + marks::ROW_H + marks::LANE_GAP + AXIS_H
 }
 
 /// The height `lines` need to read well, stacked.
@@ -355,7 +342,7 @@ fn one(
             hover: a.hover.clone(),
         })
         .collect();
-    marks::lane_above(
+    marks::lane_above_stack(
         ui,
         frame,
         &named,
@@ -522,11 +509,8 @@ fn title_row(
         pal.text_secondary,
     );
     if let Some(l) = hover.and_then(|h| line.lanes.iter().find(|l| l.position == h)) {
-        let words = match (first, &l.text) {
-            (true, _) => l.hover.clone(),
-            (false, Some(t)) => t.clone(),
-            (false, None) => "–".to_string(),
-        };
+        // The name once, in the first chart's title (Hugh on #1785).
+        let words = if first { &l.hover } else { &l.figures };
         painter.text(
             egui::pos2(name.right() + 8.0, y),
             egui::Align2::LEFT_CENTER,
