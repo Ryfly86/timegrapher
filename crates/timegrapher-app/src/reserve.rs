@@ -729,7 +729,7 @@ fn any_thin(h: &power_reserve::Hour) -> bool {
 fn hour_key_text(hours: &[power_reserve::Hour]) -> Option<String> {
     let parts: Vec<&str> = [
         (
-            hours.iter().any(|h| beat_error_dimmed(h.beat_error_source)),
+            hours.iter().any(power_reserve::Hour::beat_error_off_unlock),
             dim_key!(),
         ),
         (hours.iter().any(any_thin), THIN_KEY),
@@ -1407,6 +1407,11 @@ mod tests {
         none.beat_error_ms = None;
         assert_eq!(thin(&none, Figure::Amplitude), None);
         assert_eq!(thin(&none, Figure::BeatError), None);
+        // An hour with no beat error and no source greys nothing, so the
+        // key says nothing of beat errors (Norm on #1761).
+        none.beat_error_source = None;
+        none.caveats.clear();
+        assert_eq!(hour_key_text(std::slice::from_ref(&none)), None);
         let ctx = egui::Context::default();
         theme::install(&ctx);
         let mut ink = (egui::Color32::TRANSPARENT, egui::Color32::TRANSPARENT);
