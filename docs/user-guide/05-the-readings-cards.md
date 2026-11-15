@@ -133,7 +133,7 @@ Rest the pointer on a figure to see what stands behind it.
 
 | Card | The hover adds |
 | --- | --- |
-| **Rate** | The sound card's clock (M3). **Listening,** with a correction kept for the input, the big figure stays on the card's clock and the hover adds the corrected rate, labelled **True Clock**. **On an opened take** with its own clock (USB lines, a clock log that measured the card well enough, or a correction saved with it), the big figure is already corrected, and the hover says by how much and from what, as in the picture. Then the beats the readings are fitted to ("79 beats in 10 s"), and the **jitter**. |
+| **Rate** | The sound card's clock (M3). The big figure is on the clock the take is read on: its USB lines, a clock log that measured the card well enough, or a correction kept for the input or saved with the take. The hover says first by how much and from what, as in the picture. **Listening,** a correction kept for the input applies from the first second, and the recording's USB lines once 30 s of sound are in; until then the hover says first which clock the figure is on for now. Then the beats the readings are fitted to ("79 beats in 10 s"), and the **jitter**. |
 | **Amplitude** | The amplitude of the Ticks and of the Tocks, apart. |
 | **Beat Error** | The beat error timed from the drop, beside the big figure's, timed from the unlock. |
 
