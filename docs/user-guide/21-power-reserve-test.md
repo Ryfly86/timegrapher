@@ -64,7 +64,7 @@ cut), the next start offers the run back: "An unsaved Power Reserve Test
 was found (Analysis Only)". **Open** reads it up to the last 10 minutes
 kept, and the run reads "at least", since the watch may have run on
 after that. The notice says how much was recorded; the run, from the
-first beat heard to the last, is a little shorter. **Move To…** puts it in a folder of your own.
+first beat heard to the last, is no longer. **Move To…** puts it in a folder of your own.
 
 ## The Results
 

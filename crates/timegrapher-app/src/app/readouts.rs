@@ -1140,7 +1140,10 @@ impl TimegrapherApp {
         if let Some(k) = self.kept.first() {
             // Named by what the first one offered is (Hugh on #1806).
             let tip = match k.parts {
-                true => "A Power Reserve Test (Analysis Only) was never saved",
+                true => {
+                    "A Power Reserve Test (Analysis Only) was never saved: click to open, move or \
+                     delete it"
+                }
                 false => "Sound from an earlier session was never saved: click to open, move or delete it",
             };
             let resp = status_item(ui, "Unsaved Take Found…", Some(theme::Alert::Warning), tip);

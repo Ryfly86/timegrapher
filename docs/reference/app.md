@@ -2139,7 +2139,7 @@ that stopped before its take was written leaves no sound but its
 analysis kept in parts: the next start offers it the same way, "An
 unsaved Power Reserve Test was found (Analysis Only): started …,
 recorded 41 h 10 min, 3.1 MB" (the button's tip "A Power Reserve Test
-(Analysis Only) was never saved"), with Open, Move To… (its parts with
+(Analysis Only) was never saved: click to open, move or delete it"), with Open, Move To… (its parts with
 it), Delete… and Later. Opened, it reads to its last part, is named
 "Unsaved Power Reserve Test, started …", and the status bar says "This
 take wasn't saved: the app stopped while recording. It recorded 41 h
@@ -2147,8 +2147,7 @@ take wasn't saved: the app stopped while recording. It recorded 41 h
 reads it as the test, "Power reserve at least 41 h 09 min … The
 recording failed while the watch still ran", unless the watch's stop was
 already heard. What was recorded runs to the last part's end; the run,
-from the first beat heard to the last in true time, is a little
-shorter. Keep Analysis Only… refuses
+from the first beat heard to the last in true time, is no longer. Keep Analysis Only… refuses
 such a take: it has no sound to keep. A folder
 another copy of the app is recording into is never offered. The
 microphone's own settings are kept aside while recordings are open and
