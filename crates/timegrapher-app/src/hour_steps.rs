@@ -190,6 +190,13 @@ pub fn stack(
     // foot, where it scrolls.
     let n = charts.len() as f32;
     let each = ((rect.height() - AXIS_H - (n - 1.0) * CHART_GAP) / n).max(CHART_READ_H);
+    // The hour labels the hovered hour's words would cover are left out,
+    // so no label shows half hidden behind them.
+    let words = hover.map(&axis_words);
+    let frame = egui::Rect::from_x_y_ranges(rect.left() + gutter..=rect.right(), rect.y_range());
+    let hide = hover
+        .zip(words.as_deref())
+        .map(|(h, w)| covered_hours(ui, frame, x_range, spans[h], w, end));
     let mut under = None;
     let mut bottom_frame = None;
     for (i, c) in charts.iter().enumerate() {
@@ -204,7 +211,7 @@ pub fn stack(
             egui::vec2(rect.width(), plot_h),
         );
         let mut child = ui.new_child(egui::UiBuilder::new().max_rect(plot_rect));
-        let (frame, at) = one(&mut child, c, spans, (x_range, gutter, last), hover);
+        let (frame, at) = one(&mut child, c, spans, (x_range, gutter, last), (hover, hide));
         under = under.or(at);
         title_row(ui, band, frame, c, hover);
         unit_line(ui, unit, frame, c);
@@ -212,8 +219,8 @@ pub fn stack(
             bottom_frame = Some(frame);
         }
     }
-    if let (Some(h), Some(frame)) = (hover, bottom_frame) {
-        hover_words(ui, frame, x_range, spans[h], &axis_words(h));
+    if let (Some(h), Some(w), Some(frame)) = (hover, words.as_deref(), bottom_frame) {
+        hover_words(ui, frame, x_range, spans[h], w);
     }
     under
 }
@@ -226,7 +233,7 @@ fn one(
     c: &Chart,
     spans: &Spans,
     ((x_lo, x_hi), gutter, last): ((f64, f64), f32, bool),
-    hover: Option<usize>,
+    (hover, hide): (Option<usize>, Option<(f64, f64)>),
 ) -> (egui::Rect, Option<usize>) {
     use egui_plot::{Line, Plot, Polygon, VLine};
     let pal = theme::pal(ui);
@@ -251,7 +258,10 @@ fn one(
         .default_x_bounds(x_lo, x_hi)
         .y_axis_min_width(gutter)
         .show_axes([last, true])
-        .x_axis_formatter(|m, _| format!("{} h", axis_number(m.value, m.step_size)))
+        .x_axis_formatter(move |m, _| match hide {
+            Some((a, b)) if (a..=b).contains(&m.value) => String::new(),
+            _ => format!("{} h", axis_number(m.value, m.step_size)),
+        })
         .y_axis_formatter(|m, _| tick_text(c, m.value, m.step_size));
     if let Some([lo, hi, _]) = c.axis {
         plot = plot.default_y_bounds(lo, hi);
@@ -391,26 +401,54 @@ fn unit_line(ui: &egui::Ui, line: egui::Rect, frame: egui::Rect, c: &Chart) {
 fn hover_words(
     ui: &egui::Ui,
     frame: egui::Rect,
-    (x_lo, x_hi): (f64, f64),
-    (a, b): (f64, f64),
+    x_range: (f64, f64),
+    span: (f64, f64),
     words: &str,
 ) {
     let pal = theme::pal(ui);
-    let t = ((a + b) / 2.0 - x_lo) / (x_hi - x_lo);
-    let x = frame.left() + frame.width() * t as f32;
-    let font = egui::TextStyle::Body.resolve(ui.style());
-    let galley = ui
-        .painter()
-        .layout_no_wrap(words.to_string(), font, pal.text);
+    let galley = body_galley(ui, words);
     let size = galley.size();
-    // Kept inside the plot's width.
-    let left = (x - size.x / 2.0)
-        .max(frame.left())
-        .min(frame.right() - size.x);
+    let left = words_left(frame, x_range, span, size.x);
     let at = egui::pos2(left, frame.bottom() + 3.0);
     let back = egui::Rect::from_min_size(at, size).expand(2.0);
     ui.painter().rect_filled(back, 2.0, pal.card);
     ui.painter().galley(at, galley, pal.text);
+}
+
+/// `words` laid out in the body font, as the hours under the charts are.
+fn body_galley(ui: &egui::Ui, words: &str) -> std::sync::Arc<egui::Galley> {
+    let font = egui::TextStyle::Body.resolve(ui.style());
+    ui.painter()
+        .layout_no_wrap(words.to_string(), font, theme::pal(ui).text)
+}
+
+/// Where words `width` wide start under `frame`: centred on the hour
+/// `(a, b)`, kept inside the plot's width.
+fn words_left(frame: egui::Rect, (x_lo, x_hi): (f64, f64), (a, b): (f64, f64), width: f32) -> f32 {
+    let t = ((a + b) / 2.0 - x_lo) / (x_hi - x_lo);
+    let x = frame.left() + frame.width() * t as f32;
+    (x - width / 2.0)
+        .max(frame.left())
+        .min(frame.right() - width)
+}
+
+/// The hours whose labels the hovered hour's `words` would cover under
+/// `frame`: a label's own width (the widest, at `end`) either side of
+/// them, so a label left beside them keeps half a label's gap.
+fn covered_hours(
+    ui: &egui::Ui,
+    frame: egui::Rect,
+    (x_lo, x_hi): (f64, f64),
+    span: (f64, f64),
+    words: &str,
+    end: f64,
+) -> (f64, f64) {
+    let width = body_galley(ui, words).size().x;
+    let label = body_galley(ui, &format!("{end:.0} h")).size().x;
+    let left = words_left(frame, (x_lo, x_hi), span, width);
+    let per = (x_hi - x_lo) / f64::from(frame.width());
+    let hour = |px: f32| x_lo + f64::from(px - frame.left()) * per;
+    (hour(left - label), hour(left + width + label))
 }
 
 #[cfg(test)]

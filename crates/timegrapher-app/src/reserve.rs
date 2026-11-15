@@ -2319,6 +2319,13 @@ mod tests {
         assert!(outlined(&out, at(&shown, "2–3 h")), "{shown:?}");
         assert!(!outlined(&out, at(&shown, "1–2 h")), "{shown:?}");
         assert!(shown.iter().any(|t| t.0 == "−1.5 s/d"), "{shown:?}");
+        // No hour label shows half hidden behind the hovered hour's words.
+        let words = at(&shown, "2–3 h · read 97%");
+        let crowded: Vec<_> = shown
+            .iter()
+            .filter(|t| t.0.ends_with(" h") && t.1.intersects(words.expand(2.0)))
+            .collect();
+        assert!(crowded.is_empty(), "{crowded:?}");
     }
 
     /// An 8.5 h run's charts start their plots at the same x, though the

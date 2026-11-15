@@ -209,6 +209,15 @@ fn a_long_runs_charts_read_with_its_take_open_in_a_small_window() {
         // Then scrolled down to the bottom chart's hours.
         out = Some(pass(&mut app, i == 6));
     }
+    // The pointer gone, so no hovered hour's words cover the hours.
+    for _ in 0..3 {
+        let input = egui::RawInput {
+            screen_rect: Some(screen),
+            events: vec![egui::Event::PointerGone],
+            ..Default::default()
+        };
+        out = Some(ctx.run(input, |ctx| app.panels(ctx)));
+    }
     let _ = std::fs::remove_dir_all(&dir);
     if let Ok(d) = std::env::var("SHOT_DIR") {
         let o = out.as_ref().unwrap();
@@ -483,6 +492,20 @@ fn a_runs_table_sits_left_of_its_charts() {
             last = Some(o);
         }
         assert!(moved, "{w}: the table never scrolled");
+        // No hour label under the charts shows half hidden behind the
+        // hovered hour's words.
+        let now = last.as_ref().map(clipped_texts).unwrap_or_default();
+        let words = now
+            .iter()
+            .find(|t| t.0.contains(" · read "))
+            .map(|t| t.1)
+            .unwrap_or_else(|| panic!("{w}: no hovered hour's words: {now:?}"));
+        let crowded: Vec<_> = now
+            .iter()
+            .filter(|t| t.0.ends_with(" h") && !t.0.contains('–'))
+            .filter(|t| t.1.intersects(words.expand(2.0)))
+            .collect();
+        assert!(crowded.is_empty(), "{w}: {crowded:?}");
         // The pointer on a row: the same hour in the charts.
         if let (Ok(d), Some(o)) = (std::env::var("SHOT_DIR"), last) {
             let svg = crate::export::svg(&o.shapes, screen, ctx.style().visuals.window_fill);
