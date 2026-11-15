@@ -79,14 +79,20 @@ pub fn page() -> &'static str {
         let minus = serde_json::to_string(&true_minus("-")).expect("the minus sign as JSON");
         let groups = serde_json::to_string(&group_names()).expect("the group names as JSON");
         let icons = serde_json::to_string(&icons()).expect("the icons as JSON");
+        let case = poise_case().to_string();
         HTML.replace("/*PALETTE*/", &css)
             .replace("/*BASE_DIGITS*/null", &base_digits())
             .replace("/*VIRIDIS*/null", &viridis)
             .replace("/*TIME_MAP*/null", &time_map())
             .replace("/*PERIOD_TICKS*/null", &period_ticks)
             .replace("/*REFERENCE_HOVER*/null", &reference_hover())
+            .replace("/*WHEEL_WORDS*/null", &wheel_words().to_string())
             .replace("/*SCORE_WORDS*/null", &score_words())
             .replace("/*WALK_WORDS*/null", &walk_words())
+            .replace(
+                "/*BAND_FILL*/null",
+                &timegrapher_core::palette::BAND_FILL.to_string(),
+            )
             .replace(
                 "/*MARK_ROOM_PX*/null",
                 &timegrapher_core::period_ticks::MARK_ROOM_PX.to_string(),
@@ -96,7 +102,42 @@ pub fn page() -> &'static str {
             .replace("/*NO_BEAT_TITLE*/null", &no_beat)
             .replace("/*GROUP_NAMES*/null", &groups)
             .replace("/*ICONS*/null", &icons)
+            .replace("/*POISE_CASE*/null", &case)
             .replace("/*MINUS*/null", &minus)
+    })
+}
+
+/// The Wheel Periods and Mesh switches' hints, a name's line height in a
+/// narrow lane and how much more a strong name holds its line there, for
+/// the page's `WHEEL_WORDS` (#1764).
+fn wheel_words() -> Value {
+    json!({
+        "wheels_hint": timegrapher_core::steady_views::WHEELS_HINT,
+        "mesh_hint": timegrapher_core::steady_views::MESH_HINT,
+        "name_line_h": timegrapher_core::chart_scale::NAME_LINE_H,
+        "strong_hold": timegrapher_core::chart_scale::STRONG_HOLD,
+        "name_clear": timegrapher_core::chart_scale::NAME_CLEAR,
+        "name_row_out": timegrapher_core::chart_scale::NAME_ROW_OUT,
+    })
+}
+
+/// The watch case behind the poise dial, core's (`poise_case`), at an
+/// outer ring of radius 1 for the view to scale: its shapes, knurl and
+/// bezel, how far it reaches, its line widths, and where each hour name
+/// that would sit on it goes instead (`null`: its own place).
+fn poise_case() -> Value {
+    use timegrapher_core::poise_case as c;
+    let labels: Vec<(f64, Option<f64>)> = timegrapher_core::poise_picture::hours()
+        .iter()
+        .map(|&(deg, _)| (deg, c::label_r(deg, 1.0)))
+        .collect();
+    json!({
+        "case": c::case(1.0),
+        "reach": c::reach(1.0),
+        "labels": labels,
+        "case_line": c::CASE_LINE_PX,
+        "bezel_line": c::BEZEL_LINE_PX,
+        "knurl_line": c::KNURL_LINE_PX,
     })
 }
 
@@ -197,6 +238,7 @@ fn icons() -> Value {
     })
     .collect();
     m.insert("info".into(), json!(icons::INFO));
+    m.insert("mesh".into(), json!(icons::MESH));
     m.insert("width".into(), json!(icons::WIDTH));
     Value::Object(m)
 }
@@ -259,6 +301,9 @@ fn variables(p: &Palette) -> String {
         ("grid", rgba(p.text, p.grid_opacity)),
         ("axis", rgba(p.text, p.axis_opacity)),
         ("callout", p.callout.css()),
+        // The watch case behind the poise dial (#1762), fainter still.
+        ("case-face", p.case_face().css()),
+        ("case-line", p.case_line().css()),
     ]
     .iter()
     .map(|(name, value)| format!("  --{name}: {value};\n"))
@@ -372,45 +417,38 @@ pub const RESERVE_KEY: &str = "timegrapher/reserve";
 /// hour's start and length in hours and its Read % (core
 /// `Hour::read_share`), and for each measure its title, unit, value axis
 /// and each hour's figure as a size for the beat error, its words in
-/// core's figure text and whether it is thin (read from too few of its
-/// windows: grey, as the app's table has it). `None` with no hours.
+/// core's figure text and whether core greys it (thin, or a beat error off
+/// the unlock, with `grey_key`), as the app does. `None` with no hours.
 pub fn reserve_view(doc: &Value) -> Option<Value> {
-    use timegrapher_core::confidence::Figure;
     use timegrapher_core::figure_text::fixed_text;
-    use timegrapher_core::position_line::{bare, screen, unit_of};
+    use timegrapher_core::position_line::{bare, unit_of};
     use timegrapher_core::power_reserve::{Hour, Results};
     use timegrapher_core::steadiness::SeriesKind;
     let run: Results = serde_json::from_value(doc.get("power_reserve")?.clone()).ok()?;
     if run.hours.is_empty() {
         return None;
     }
-    let figure = |h: &Hour, k: SeriesKind| {
-        match k {
-            SeriesKind::Rate => h.rate_s_per_day,
-            SeriesKind::Amplitude => h.amplitude_deg,
-            SeriesKind::BeatError => h.beat_error_ms.map(f64::abs),
-        }
-        .filter(|v| v.is_finite())
-    };
+    // Core's rules for the run's charts, the app's too (#1761): each
+    // hour's figure, its grey and the axis.
     let series: Vec<Value> = [
-        (SeriesKind::Rate, Figure::Rate),
-        (SeriesKind::Amplitude, Figure::Amplitude),
-        (SeriesKind::BeatError, Figure::BeatError),
+        SeriesKind::Rate,
+        SeriesKind::Amplitude,
+        SeriesKind::BeatError,
     ]
     .into_iter()
-    .map(|(k, f)| {
-        let values: Vec<f64> = run.hours.iter().filter_map(|h| figure(h, k)).collect();
-        let axis = timegrapher_core::position_line::value_axis(k, &values);
+    .map(|k| {
+        let axis = timegrapher_core::power_reserve::chart_axis(&run.hours, k);
         let steps: Vec<Value> = run
             .hours
             .iter()
             .map(|h| {
-                let v = figure(h, k);
+                let v = h.value(k);
                 json!({
                     "value": v,
-                    "text": v.map(|x| screen(k, x)),
+                    "text": h.hover_text(k),
                     "figure": v.map(|x| bare(k, x)),
-                    "thin": h.thin(f).is_some(),
+                    "band": h.band(k).map(|(lo, hi)| [lo, hi]),
+                    "grey": h.grey(k),
                 })
             })
             .collect();
@@ -437,6 +475,12 @@ pub fn reserve_view(doc: &Value) -> Option<Value> {
         "position": run.position,
         "hours": hours,
         "series": series,
+        // Shown wherever a beat error is grey for its source (Norm on #1761).
+        "grey_key": run
+            .hours
+            .iter()
+            .any(Hour::beat_error_off_unlock)
+            .then_some(timegrapher_core::power_reserve::GREY_BEAT_ERROR_KEY),
     }))
 }
 
@@ -978,6 +1022,65 @@ mod tests {
         assert_eq!(v["info"], timegrapher_core::icons::INFO);
     }
 
+    /// The Wheel Periods and Mesh switches' hints and a name's line height
+    /// in a narrow lane are core's (#1764).
+    #[test]
+    fn the_page_carries_cores_wheel_words() {
+        assert!(!page().contains("/*WHEEL_WORDS*/"));
+        let at = page().find("const WHEEL_WORDS = ").expect("the words");
+        let line = &page()[at..page()[at..].find('\n').unwrap() + at];
+        let json = line
+            .trim_start_matches("const WHEEL_WORDS = ")
+            .trim_end()
+            .trim_end_matches(';');
+        let v: Value = serde_json::from_str(json).expect("the words as JSON");
+        assert_eq!(
+            v["wheels_hint"],
+            timegrapher_core::steady_views::WHEELS_HINT
+        );
+        assert_eq!(v["mesh_hint"], timegrapher_core::steady_views::MESH_HINT);
+        assert_eq!(v["name_line_h"], timegrapher_core::chart_scale::NAME_LINE_H);
+        assert_eq!(v["strong_hold"], timegrapher_core::chart_scale::STRONG_HOLD);
+        assert_eq!(v["name_clear"], timegrapher_core::chart_scale::NAME_CLEAR);
+        assert_eq!(
+            v["name_row_out"],
+            timegrapher_core::chart_scale::NAME_ROW_OUT
+        );
+    }
+
+    /// The watch case behind the poise dial is core's, at a ring of 1, with
+    /// its colours as the page's (#1762).
+    #[test]
+    fn the_page_carries_cores_poise_case() {
+        assert!(!page().contains("/*POISE_CASE*/"));
+        let at = page().find("const POISE_CASE = ").expect("the case");
+        let line = &page()[at..page()[at..].find('\n').unwrap() + at];
+        let json = line
+            .trim_start_matches("const POISE_CASE = ")
+            .trim_end()
+            .trim_end_matches(';');
+        let v: Value = serde_json::from_str(json).expect("the case as JSON");
+        let case = timegrapher_core::poise_case::case(1.0);
+        // Every number core's, to the last digit the page's JSON keeps.
+        let ours = serde_json::to_value(&case).unwrap();
+        fn numbers(v: &Value, out: &mut Vec<f64>) {
+            match v {
+                Value::Number(n) => out.push(n.as_f64().unwrap()),
+                Value::Array(a) => a.iter().for_each(|x| numbers(x, out)),
+                Value::Object(o) => o.values().for_each(|x| numbers(x, out)),
+                _ => {}
+            }
+        }
+        let (mut a, mut b) = (Vec::new(), Vec::new());
+        numbers(&v["case"], &mut a);
+        numbers(&ours, &mut b);
+        assert_eq!(a.len(), b.len());
+        assert!(a.iter().zip(&b).all(|(x, y)| (x - y).abs() < 1e-12));
+        assert_eq!(v["labels"].as_array().unwrap().len(), 8);
+        let p = timegrapher_core::palette::DARK;
+        assert!(variables(&p).contains(&format!("--case-face: {};", p.case_face().css())));
+    }
+
     #[test]
     fn the_page_carries_cores_no_beat_heading() {
         assert!(!page().contains("/*NO_BEAT_TITLE*/"));
@@ -1489,6 +1592,8 @@ mod tests {
             ],
             source: Default::default(),
         };
+        let mut run = run;
+        run.hours[0].rate_se = Some(0.3);
         let v = reserve_view(&json!({ "power_reserve": run })).expect("a model");
         assert_eq!(v["title"], "Power Reserve");
         assert_eq!(v["read_title"], "Read");
@@ -1496,14 +1601,31 @@ mod tests {
         assert_eq!(v["hours"][0]["read"], "50");
         let rate = &v["series"][0];
         assert_eq!(rate["series"], "rate");
-        assert_eq!(rate["steps"][0]["text"], "\u{2212}1.5 s/d");
+        // The hover's figure with its ± and its band, core's (#1761).
+        assert_eq!(rate["steps"][0]["text"], "\u{2212}1.5 ± 0.3 s/d");
+        assert_eq!(rate["steps"][0]["band"], json!([-1.8, -1.2]));
+        assert!(rate["steps"][2]["band"].is_null(), "no ±, no band");
         assert_eq!(rate["steps"][0]["figure"], "\u{2212}1.5");
         assert!(rate["steps"][1]["value"].is_null());
-        assert_eq!(rate["steps"][2]["thin"], true);
+        assert_eq!(rate["steps"][2]["grey"], true);
         // A beat error is a size, drawn from 0.
         let be = &v["series"][2];
         assert_eq!(be["steps"][0]["value"], 0.4);
         assert!(be["axis"][0].as_f64().unwrap() >= 0.0);
+        // Every beat error here is from a source not recorded: grey, keyed.
+        assert_eq!(be["steps"][0]["grey"], true);
+        assert_eq!(
+            v["grey_key"],
+            timegrapher_core::power_reserve::GREY_BEAT_ERROR_KEY
+        );
+        // From the unlock: neither.
+        let mut unlock = run.clone();
+        for h in &mut unlock.hours {
+            h.beat_error_source = Some(timegrapher_core::session::BeatErrorSource::Unlock);
+        }
+        let v = reserve_view(&json!({ "power_reserve": unlock })).expect("a model");
+        assert_eq!(v["series"][2]["steps"][0]["grey"], false);
+        assert!(v["grey_key"].is_null());
         assert!(reserve_view(&json!({})).is_none());
     }
 }
