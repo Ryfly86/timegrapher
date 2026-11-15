@@ -10,8 +10,8 @@ use timegrapher_core::usbclock::{self, LiveClock};
 pub(super) struct LiveUsb {
     live: usbclock::Live,
     sample_rate: u32,
-    /// A measurement under way.
-    job: Option<Receiver<LiveClock>>,
+    /// A measurement under way, of the first so many seconds.
+    job: Option<(f64, Receiver<LiveClock>)>,
     /// The clock and kept correction the readings were last put on.
     applied: Option<(LiveClock, Option<f64>)>,
 }
@@ -33,15 +33,17 @@ impl LiveUsb {
 
     /// Take a finished measurement in, and start the one due.
     fn follow(&mut self) {
-        if let Some(rx) = &self.job {
+        if let Some((over_s, rx)) = &self.job {
             match rx.try_recv() {
-                Ok(c) => {
-                    self.live.set(c);
-                    self.job = None;
+                Ok(c) => self.live.set(c),
+                // A read that failed found no lines, so it isn't started
+                // again every frame (Percy on #1803).
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    self.live.set(LiveClock::NoLines { over_s: *over_s });
                 }
-                Err(std::sync::mpsc::TryRecvError::Disconnected) => self.job = None,
                 Err(std::sync::mpsc::TryRecvError::Empty) => return,
             }
+            self.job = None;
         }
         if let Some(over_s) = self.live.due() {
             let (x, fs) = (self.live.samples(over_s).to_vec(), self.sample_rate);
@@ -49,7 +51,7 @@ impl LiveUsb {
             std::thread::spawn(move || {
                 let _ = tx.send(usbclock::measure_at(&x, fs, over_s));
             });
-            self.job = Some(rx);
+            self.job = Some((over_s, rx));
         }
     }
 
@@ -141,6 +143,22 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
         panic!("the table was never read");
+    }
+
+    /// A read whose thread ended with no answer is taken as no lines at its
+    /// length, and isn't started again (Percy on #1803, Trevor on #1804).
+    #[test]
+    fn a_read_that_ends_with_no_answer_finds_no_lines() {
+        let mut u = LiveUsb::new(48_000);
+        let (tx, rx) = std::sync::mpsc::channel();
+        drop(tx);
+        let over_s = usbclock::MIN_DURATION_S;
+        u.job = Some((over_s, rx));
+        u.follow();
+        assert_eq!(u.clock(), LiveClock::NoLines { over_s });
+        assert!(u.job.is_none(), "not started again");
+        u.follow();
+        assert!(u.job.is_none(), "nor on the next frame");
     }
 
     /// Heard here, the readings are on the clock the take would be read on
