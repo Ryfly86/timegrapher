@@ -15,7 +15,7 @@ measurement assumes a Swiss lever's unlock and drop.
 
 The [2026-11-03 DD3285 optical study](../../../docs/research/dd32xx-optical-amplitude-validation.md)
 supports a maintainer-selected **59°** default, replacing 55° in `Dandong 3235`
-and `JH3235`. All their existing DD/JH 3230, 3235, 3255, 3285 and 32xx aliases
+and `JH3235`. The DD/JH 3230, 3255 and 3285 rows and the 32xx aliases
 inherit it, including `VS3235` under the Dandong row. Four blind video/audio takes
 measured one DD3285; effective matching settings were roughly 58–59°. Applying
 59° to other DD variants and the JH family is an explicit extrapolation, not
@@ -177,6 +177,13 @@ Peter Hudson contributed the photos and confirmed applicability to all
 genuine Rolex, Dandong and Jinghe 32xx on 2026-10-19. The covered rows,
 including the separate Rolex 53° settings, carry the counted wheel teeth
 and pinion leaves with `confidence` "derived from tooth counts".
+
+The 3230 (time only), 3235 (date), 3255 (day and date) and 3285 (date and
+GMT hand) are separate movements on this one going train; only the motion
+works differ. Rolex, Dandong and Jinghe each have a row for every one of
+them (#1820), so a search for 3255 offers the 3255 and the calibre card
+names it. Each carries the same counted train and escapement, and the
+same lift as its maker's 3235 row.
 
 Manufacturer-specific aliases are used for clones. The ambiguous
 `3235 (clone)` alias was removed; saved selections using it need an explicit

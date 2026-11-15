@@ -395,7 +395,17 @@ mod tests {
             .filter(|c| c.sources.iter().any(|s| s.contains(source)))
             .map(|c| c.calibre.as_str())
             .collect();
-        for name in ["Dandong 3235", "JH3235"] {
+        let dd_jh = [
+            "Dandong 3230",
+            "Dandong 3235",
+            "Dandong 3255",
+            "Dandong 3285",
+            "JH3230",
+            "JH3235",
+            "JH3255",
+            "JH3285",
+        ];
+        for name in dd_jh {
             let c = find(name).unwrap();
             assert_eq!(c.lift_angle_deg, Some(59.0), "{name}");
             assert!(c.sources.iter().any(|s| s.contains(source)), "{name}");
@@ -404,7 +414,7 @@ mod tests {
                 assert_eq!(search(alias)[0].calibre, c.calibre, "{alias}");
             }
         }
-        assert_eq!(covered, ["Dandong 3235", "JH3235"]);
+        assert_eq!(covered, dd_jh);
         for (name, lift) in [
             ("Rolex 3235", Some(55.0)),
             ("Rolex 3235 (53°)", Some(53.0)),
@@ -462,8 +472,8 @@ mod tests {
                     "{name}: {wheel}"
                 );
             }
-            let expected_lift = match c.calibre.as_str() {
-                "Dandong 3235" | "JH3235" => 59.0,
+            let expected_lift = match c.maker.as_str() {
+                "Peacock (Dandong)" | "Shanghai Jinghe (clone)" => 59.0,
                 _ if name.contains("53°") => 53.0,
                 _ => 55.0,
             };
@@ -472,6 +482,56 @@ mod tests {
                 .sources
                 .iter()
                 .any(|s| s.contains("32xx-train-wheel-counts.md")));
+        }
+    }
+
+    #[test]
+    fn each_32xx_movement_has_its_own_row_and_shares_its_makers_train() {
+        // 3230 time only, 3235 date, 3255 day-date, 3285 GMT: separate
+        // movements on one going train (#1820).
+        for (maker, name_of) in [
+            ("Rolex", "Rolex "),
+            ("Peacock (Dandong)", "Dandong "),
+            ("Shanghai Jinghe (clone)", "JH"),
+        ] {
+            let base = find(&format!("{name_of}3235")).unwrap();
+            for number in ["3230", "3235", "3255", "3285"] {
+                let name = format!("{name_of}{number}");
+                let c = find(&name).unwrap_or_else(|| panic!("missing {name}"));
+                assert_eq!(c.calibre, name);
+                assert_eq!(c.maker, maker, "{name}");
+                assert!(c.common, "{name}");
+                assert_eq!(search(&name)[0].calibre, name);
+                assert_eq!(c.lift_angle_deg, base.lift_angle_deg, "{name}");
+                assert_eq!(c.bph, base.bph, "{name}");
+                let train = |c: &Calibre| {
+                    c.wheels
+                        .iter()
+                        .map(|w| (w.name.clone(), w.period_s, w.teeth, w.pinion))
+                        .collect::<Vec<_>>()
+                };
+                assert_eq!(train(c), train(base), "{name}");
+            }
+        }
+        for (alias, row) in [
+            ("DD3255", "Dandong 3255"),
+            ("DD3285", "Dandong 3285"),
+            ("DD3230", "Dandong 3230"),
+            ("Jinghe 3255", "JH3255"),
+            ("3255", "Rolex 3255"),
+            ("3285", "Rolex 3285"),
+            ("3230", "Rolex 3230"),
+            ("DD32xx", "Dandong 3235"),
+            ("VS3235", "Dandong 3235"),
+            ("Rolex 32xx", "Rolex 3235"),
+            ("JH32xx", "JH3235"),
+        ] {
+            assert_eq!(find(alias).unwrap().calibre, row, "{alias}");
+        }
+        // A search for the bare number offers every maker's row of it.
+        let hits: Vec<_> = search("3255").iter().map(|c| c.calibre.as_str()).collect();
+        for row in ["Rolex 3255", "Dandong 3255", "JH3255"] {
+            assert!(hits.contains(&row), "{row}: {hits:?}");
         }
     }
 
