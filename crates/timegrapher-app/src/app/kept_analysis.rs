@@ -87,7 +87,17 @@ impl TimegrapherApp {
         let Some(r) = self.session.recorder.as_mut() else {
             return false;
         };
-        if let Err(e) = r.without_sound() {
+        // Its session file goes in as it starts, saying it has no sound,
+        // so a recording whose save never finishes is a take of its own,
+        // opened to its last part (2c of #1514).
+        let named = toml::to_string_pretty(&Manifest {
+            audio: Some(false),
+            ..manifest.clone()
+        });
+        let named = named.map_err(|e| e.to_string()).and_then(|t| {
+            library::write_atomic(&r.dir().join(MANIFEST), t.as_bytes()).map_err(|e| e.to_string())
+        });
+        if let Err(e) = named.and_then(|()| r.without_sound().map_err(|e| e.to_string())) {
             self.error(format!(
                 "The test can't keep its analysis alone ({e}): it keeps its sound."
             ));
@@ -365,6 +375,38 @@ thread_local! {
     /// How often a test's analysis is kept on the disk, in place of every
     /// 10 minutes, so a short run is kept.
     pub(super) static EVERY_S: std::cell::Cell<Option<f64>> = const { std::cell::Cell::new(None) };
+}
+
+/// The header of the take at `path` kept as its analysis alone, and for
+/// one kept as its parts alone, its save never finished, what Open says
+/// of it (2c of #1514, Hugh's and Norm's words): read to its last part,
+/// any left out said. Why not, when it can't be read.
+pub(super) fn kept_header(path: &Path) -> Result<(analysis_take::Header, Option<String>), String> {
+    if checkpoint::only(path) {
+        let r = checkpoint::read(path).map_err(|e| e.to_string())?;
+        let header = r.stored.header;
+        let mut note = format!(
+            "This take wasn't saved: the app stopped while recording. Its analysis was \
+             kept up to {}. The watch may have run on after that.",
+            power_reserve::run_text(header.duration_s)
+        );
+        if let Some(l) = r.left_out {
+            note = format!("{note} {l}");
+        }
+        return Ok((header, Some(note)));
+    }
+    let header_file = path.join(analysis_take::DIR).join(analysis_take::HEADER);
+    let header = std::fs::read_to_string(&header_file)
+        .ok()
+        .and_then(|t| serde_json::from_str::<analysis_take::Header>(&t).ok())
+        .filter(|h| h.format == analysis_take::FORMAT);
+    match header {
+        Some(h) => Ok((h, None)),
+        None => Err(match analysis_take::read(path) {
+            Err(e) => e.to_string(),
+            Ok(_) => format!("{} can't be read", header_file.display()),
+        }),
+    }
 }
 
 /// How often the analysis is kept on the disk as it goes.
