@@ -988,13 +988,18 @@ fn a_long_take_still_draws_over_a_short_strip() {
     assert!(pts.len() <= kept);
 }
 
-/// The strip's own readings are worked out again once a step of new
-/// sound is in, not for every block of it: while the run is too sparse
-/// to serve (a long take after the watch stops), that was 70 readings
-/// on every frame (#1825).
+/// Listening, the strip's own readings are worked out again once a step
+/// of new sound is in, not for every block of it: while the run is too
+/// sparse to serve (a long take after the watch stops), that was 70
+/// readings on every frame (#1825). Stopped, every bit of sound counts,
+/// so the last heard reads as the saved take does (Trevor on #1828).
 #[test]
 fn the_strips_own_readings_wait_for_a_whole_step_of_sound() {
     let mut app = synthetic(40.0, 20.0);
+    let base = std::env::temp_dir().join(format!("tg-strip-step-{}", std::process::id()));
+    std::fs::create_dir_all(&base).unwrap();
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    assert!(app.running());
     let step = 26_880.0 / timegrapher_core::live::TREND_POINTS;
     let mut t = 0.0;
     let mut thin = Vec::new();
@@ -1023,6 +1028,14 @@ fn the_strips_own_readings_wait_for_a_whole_step_of_sound() {
     let (fresh, _) = app.strip_trend(5.0, 40.0, app.average_s);
     assert_ne!(app.strip_points.as_ref().unwrap().0, key);
     assert_eq!(fresh.len(), pts.len());
+    // Stopped: a block within the step is worked out at once.
+    app.capture = None;
+    let _ = app.strip_trend(5.0, 40.0, app.average_s);
+    let key = app.strip_points.as_ref().unwrap().0;
+    block(&mut app, 1);
+    let _ = app.strip_trend(5.0, 40.0, app.average_s);
+    assert_ne!(app.strip_points.as_ref().unwrap().0, key, "stopped");
+    let _ = std::fs::remove_dir_all(&base);
 }
 
 /// Worked out again while listening (a new Average Over, say), the run
