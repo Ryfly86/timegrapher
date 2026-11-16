@@ -794,8 +794,9 @@ const DROP_POST_S: f64 = 0.003;
 /// drop. That sum shows the side's sounds, and [`side_sounds`] picks the
 /// drop among them as [`drop_offset`] picks it on the template. A beat
 /// whose own match peaks on another of those sounds, within half of
-/// [`SIDE_SOUND_GAP_S`], takes its match's highest peak within that of
-/// the drop instead, and moves by the distance between the two peaks. A
+/// [`SIDE_SOUND_GAP_S`], takes its match's highest peak within
+/// [`DROP_SNAP_S`] of where the sum puts the drop from that sound, and
+/// moves by the distance between the two peaks. A
 /// beat on its drop, or on no sound of the side (as after a jump), is
 /// left as found.
 fn onto_the_drop(env: &[f32], fs: f64, template: &[f32], beats: &mut [Beat], off: f64) {
@@ -818,12 +819,14 @@ fn onto_the_drop(env: &[f32], fs: f64, template: &[f32], beats: &mut [Beat], off
         let c = (t * fs - lead).round();
         (c >= (reach + 1) as f64 && (c as usize) + reach + 1 < corr.len()).then_some(c as usize)
     };
-    // The highest peak of the match within `half` of sample `c`.
-    let peak = |c: usize| {
-        (c.saturating_sub(half).max(1)..(c + half + 1).min(corr.len() - 1))
+    let snap = (DROP_SNAP_S * fs).round() as usize;
+    // The highest peak of the match within `w` of sample `c`.
+    let peak_within = |c: usize, w: usize| {
+        (c.saturating_sub(w).max(1)..(c + w + 1).min(corr.len() - 1))
             .filter(|&j| corr[j] >= corr[j - 1] && corr[j] > corr[j + 1])
             .max_by(|&x, &y| corr[x].total_cmp(&corr[y]))
     };
+    let peak = |c: usize| peak_within(c, half);
     let block = |t: f64| ((t + off) / DROP_BLOCK_S).floor() as i64;
     let mut groups: Vec<((i64, i64), Vec<usize>)> = Vec::new();
     for (j, bt) in beats.iter().enumerate() {
@@ -863,11 +866,24 @@ fn onto_the_drop(env: &[f32], fs: f64, template: &[f32], beats: &mut [Beat], off
             let (Some(c), Some(l)) = (at(bt.time), at(line(bt.index))) else {
                 continue;
             };
-            let (Some(own), Some(to)) = (peak(c), peak(l + drop - reach)) else {
+            let Some(own) = peak(c) else {
                 continue;
             };
-            let off_line = |s: usize| own.abs_diff(l + s - reach) <= half;
-            if to != own && others.iter().copied().any(off_line) {
+            // The other sound of the side the beat is on, if any: the
+            // drop then lies as far from the beat as it does on the sum.
+            let Some(on) = others
+                .iter()
+                .find(|&&s| own.abs_diff(l + s - reach) <= half)
+            else {
+                continue;
+            };
+            let Some(to) = (own + drop)
+                .checked_sub(*on)
+                .and_then(|e| peak_within(e, snap))
+            else {
+                continue;
+            };
+            if to != own {
                 beats[j].time += (parabolic(&corr, to) - parabolic(&corr, own)) / fs;
             }
         }
@@ -880,6 +896,14 @@ fn onto_the_drop(env: &[f32], fs: f64, template: &[f32], beats: &mut [Beat], off
 /// a saved read already share, and short enough for a block to lie whole
 /// in one of live's reads.
 pub const DROP_BLOCK_S: f64 = crate::distribution::STRETCH_S;
+
+/// How near where its side's sum puts it a beat's own drop must peak,
+/// seconds ([`onto_the_drop`]): on the DayDate 36 run-down a drop's match
+/// had a lesser peak about 1.9 ms from it, which a reach of half
+/// [`SIDE_SOUND_GAP_S`] took for the drop in one read and not another,
+/// while a beat's sounds keep their spacing to within a few hundredths of
+/// a ms (#1819).
+const DROP_SNAP_S: f64 = 0.0005;
 
 /// A side's line through `run`, its beats' (index, time): the time a beat
 /// of each index would have, the median step between the beats on and
