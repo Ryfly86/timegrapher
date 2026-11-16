@@ -2084,7 +2084,7 @@ fn timing_mix_recovers_the_crossover() {
 }
 
 /// The table as the generator writes it: every model, span and step row
-/// with its full mix list, a shape on 0 to 0.2, a positive scale, and
+/// with its full mix list and, for timing, each mix's flicker shares, a shape on 0 to 0.2, a positive scale, and
 /// positive means (a truncated or hand-edited table fails here).
 #[test]
 fn the_null_table_has_the_generators_shape() {
@@ -2093,14 +2093,18 @@ fn the_null_table_has_the_generators_shape() {
         for (span, step) in rows(model) {
             let g0 = null_grid(NullModel::Readings, span, step, 0.0, 1.0, 1);
             let w = detrend_window(&g0, DETREND_S).map(|w| w as f64 * step);
-            let want = mixes(model, x_scale(&g0, w), step);
-            let mut got: Vec<f64> = t
+            // Every drawn mix with each of its flicker shares (#1219).
+            let want: Vec<(f64, f64)> = mixes(model, x_scale(&g0, w), step)
+                .into_iter()
+                .flat_map(|m| flickers(model, m).into_iter().map(move |f| (m, f)))
+                .collect();
+            let mut got: Vec<(f64, f64)> = t
                 .cells
                 .iter()
                 .filter(|c| c.model == model && c.span_s == span && c.step_s == step)
-                .map(|c| c.mix)
+                .map(|c| (c.mix, c.flicker))
                 .collect();
-            got.sort_by(f64::total_cmp);
+            got.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.total_cmp(&b.1)));
             assert_eq!(got, want, "{model:?} {span} s at {step} s");
         }
     }
