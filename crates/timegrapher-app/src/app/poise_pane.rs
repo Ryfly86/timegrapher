@@ -150,7 +150,7 @@ impl TimegrapherApp {
             }
             theme::bar_gap(ui);
         }
-        self.positions_lengths(ui, running, "Each Position");
+        self.positions_lengths(ui, running, ("Each Position", guided::Kind::Poise));
         theme::bar_gap(ui);
         // The rows the table shows: the test's, else a reopened take's.
         let kept = self.poise_kept(ui.ctx());

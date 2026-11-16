@@ -1031,7 +1031,8 @@ fn a_masked_stretch_can_be_reshaped() {
 /// its own, so the text leaves out the settling and measuring lines.
 #[test]
 fn an_opened_takes_table_can_be_saved_and_copied() {
-    let (app, base) = super::poise_tests::saved_and_opened("six", guided::Kind::Positions.order());
+    let (mut app, base) =
+        super::poise_tests::saved_and_opened("six", guided::Kind::Positions.order());
     let ctx = egui::Context::default();
     let t = app.free_table(&ctx).expect("a table");
     assert_eq!(t.read, 6, "{t:?}");
@@ -1082,5 +1083,42 @@ fn an_opened_takes_table_can_be_saved_and_copied() {
         !text.contains("Settling") && !text.contains("Measured"),
         "{text}"
     );
+    // The toolbar says how the take was read, as the table beside it
+    // does: greyed, never the app's Each Position (Hugh, #1733; Walter on
+    // #1843). Its stops are 62 s, the first read whole, the rest less the
+    // 20 s settling after each change of position.
+    let read = app.free_table(&ctx).expect("a table");
+    let recorded = app
+        .recorded_lengths(&ctx, guided::Kind::Positions)
+        .expect("a take on show");
+    assert_eq!(recorded, "42 to 62 s");
+    let durations: Vec<f64> = read.six.0.iter().map(|r| r.duration_s).collect();
+    let least = durations.iter().copied().fold(f64::MAX, f64::min);
+    let most = durations.iter().copied().fold(f64::MIN, f64::max);
+    assert_eq!(
+        recorded,
+        fields::duration_range(least.round(), most.round())
+    );
+    assert_ne!(recorded, fields::duration(guided::MEASURE_S));
+    let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
+    let lines: Vec<&str> = drawn.lines().collect();
+    let each = lines.iter().position(|l| *l == "Each Position");
+    let shown = each.and_then(|i| lines.get(i + 1));
+    assert_eq!(shown, Some(&recorded.as_str()), "{drawn}");
     let _ = std::fs::remove_dir_all(&base);
+}
+
+/// The greyed measuring field's hover is in its pane's word: "each
+/// stretch" on the Complication Test (Hugh on #1843).
+#[test]
+fn the_greyed_lengths_hover_names_its_panes_measure() {
+    use super::positions_test::recorded_hint;
+    assert_eq!(
+        recorded_hint("Each Stretch"),
+        "How long each stretch was recorded in this take."
+    );
+    assert_eq!(
+        recorded_hint("Each Position"),
+        "How long each position was recorded in this take."
+    );
 }

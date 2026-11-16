@@ -474,6 +474,7 @@ fn a_saved_complication_take_opened_again_shows_its_results() {
     }
     assert!(again.live.is_some(), "{:?}", again.message);
     assert!(again.guided.is_none(), "no test on the Bench");
+    each_stretch_is_the_takes_own(&mut again);
     let drawn = draw_at(&mut again, Vec2::new(1280.0, 900.0));
     let texts: Vec<&str> = drawn.iter().map(|(t, _)| t.as_str()).collect();
     assert!(texts.contains(&"On less Off"), "{texts:?}");
@@ -501,6 +502,23 @@ fn a_saved_complication_take_opened_again_shows_its_results() {
     }
     a_new_lift_rereads_it(&mut again);
     let _ = std::fs::remove_dir_all(&base);
+}
+
+/// The app set to measure 30 s, the take measured 60 s a stretch: on an
+/// opened take, Each Stretch gives the take's, its stretches one by one,
+/// not the time in its one position (Walter on #1843).
+fn each_stretch_is_the_takes_own(again: &mut TimegrapherApp) {
+    let was = again.guided_measure_s;
+    again.guided_measure_s = 30.0;
+    let drawn = draw_at(again, Vec2::new(1280.0, 900.0));
+    let texts: Vec<&str> = drawn.iter().map(|(t, _)| t.as_str()).collect();
+    let each = texts.iter().position(|t| *t == "Each Stretch");
+    assert_eq!(
+        each.and_then(|i| texts.get(i + 1)),
+        Some(&"1 min"),
+        "{texts:?}"
+    );
+    again.guided_measure_s = was;
 }
 
 /// Between stretches the banner says to turn the complication on, and

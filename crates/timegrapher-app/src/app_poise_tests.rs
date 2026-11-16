@@ -807,7 +807,7 @@ fn poise_pending() -> String {
 }
 
 /// The pane's toolbar and body drawn twice at 1280 by 820, its text.
-fn draw(app: &mut TimegrapherApp, pane: Pane) -> String {
+pub(super) fn draw(app: &mut TimegrapherApp, pane: Pane) -> String {
     draw_at(app, pane, Vec2::new(1280.0, 820.0))
         .into_iter()
         .map(|(t, _)| t)

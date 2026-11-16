@@ -43,6 +43,24 @@ pub fn duration(v: f64) -> String {
     }
 }
 
+/// From `least` to `most` seconds as [`duration`] writes each: one length
+/// where they read the same, else "1 to 2 min", the unit once where both
+/// share it, and "45 s to 1 min" where they don't (Hugh, #1733).
+pub fn duration_range(least: f64, most: f64) -> String {
+    let (a, b) = (duration(least), duration(most));
+    if a == b {
+        return a;
+    }
+    let unit = |t: &str| {
+        t.rsplit_once(' ')
+            .map(|(n, u)| (n.to_string(), u.to_string()))
+    };
+    match (unit(&a), unit(&b)) {
+        (Some((n, u)), Some((_, v))) if u == v => format!("{n} to {b}"),
+        _ => format!("{a} to {b}"),
+    }
+}
+
 /// Read "45", "45 s", "5 min", "5m", "2 h", "1:30" or "1:02:30" as seconds.
 pub fn parse_duration(s: &str) -> Option<f64> {
     let s = s.trim().to_lowercase().replace(',', ".");
@@ -264,6 +282,9 @@ mod tests {
         assert_eq!(duration(90.0), "90 s");
         assert_eq!(duration(7200.0), "2 h");
         assert_eq!(duration(3750.0), "1:02:30");
+        assert_eq!(duration_range(62.0, 62.0), "62 s");
+        assert_eq!(duration_range(60.0, 120.0), "1 to 2 min");
+        assert_eq!(duration_range(45.0, 60.0), "45 s to 1 min");
         assert_eq!(plain(62.5), "62.5");
         assert_eq!(plain(10.0), "10");
     }
