@@ -1143,6 +1143,24 @@ mod tests {
         assert!(find("JH6501").is_none());
     }
 
+    /// The app links a source's address only when the source starts with
+    /// it and a space follows, so an address in the middle of a source, or
+    /// one with a colon stuck to its end, shows as plain text.
+    #[test]
+    fn every_web_source_starts_with_its_address() {
+        for c in all() {
+            for s in &c.sources {
+                if !s.contains("http://") && !s.contains("https://") {
+                    continue;
+                }
+                assert!(s.starts_with("http"), "{}: {s}", c.calibre);
+                let url = s.split(' ').next().unwrap_or_default();
+                assert!(!url.ends_with([':', ';', ',', '.']), "{}: {s}", c.calibre);
+                assert_eq!(url.matches("://").count(), 1, "{}: {s}", c.calibre);
+            }
+        }
+    }
+
     #[test]
     fn seagull_manuals_tongji_and_shanghai_rows_resolve() {
         let manual: Vec<_> = all()
