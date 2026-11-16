@@ -2632,10 +2632,10 @@ impl TimegrapherApp {
         self.trend_key = (self.rev, self.average_s.to_bits());
     }
 
-    /// Read the run of readings again when what it rests on changed
-    /// since: the take's settings, clock, breaks or masks, or Average Over.
+    /// Read the run of readings again when what it rests on changed since: the take's settings,
+    /// clock, breaks or masks, or Average Over. While listening the next frame reads it (#1825).
     fn refresh_trend(&mut self) {
-        if self.trend_key != (self.rev, self.average_s.to_bits()) {
+        if self.trend_key != (self.rev, self.average_s.to_bits()) && !self.running() {
             self.rebuild_trend();
         }
     }

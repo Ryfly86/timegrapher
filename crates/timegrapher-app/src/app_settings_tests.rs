@@ -1052,8 +1052,10 @@ fn listening_the_charts_are_read_again_in_the_background() {
     let ctx = themed();
     app.refresh_trend_shown(&ctx);
     let before = app.trend.clone();
-    app.average_s *= 2.0;
-    // Neither polling nor the frame reads the run here.
+    // Neither the setting, polling nor the frame reads the run here.
+    let average_s = app.average_s;
+    app.set_average(2.0 * average_s);
+    assert_eq!(app.trend, before, "read as Average Over was set");
     app.poll();
     assert_eq!(app.trend, before, "read on the polling thread");
     app.refresh_trend_shown(&ctx);

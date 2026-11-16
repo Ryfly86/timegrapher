@@ -50,8 +50,8 @@ impl TimegrapherApp {
     }
 
     /// A new averaging time, for the readings and every pane: the readings
-    /// over the whole session are worked out again, and the tick and tock
-    /// sound follows it.
+    /// over the whole session are worked out again (while listening, in the
+    /// background), and the tick and tock sound follows it.
     pub(super) fn set_average(&mut self, seconds: f64) {
         self.average_s = seconds;
         let span = self.sound_span();
@@ -60,7 +60,7 @@ impl TimegrapherApp {
         }
         // The sound kept so far covered the old span.
         self.sound_at = None;
-        self.rebuild_trend();
+        self.refresh_trend();
     }
 
     /// Clear every run of readings, for a new session or a change that
