@@ -2022,14 +2022,31 @@ fn a_test_whose_save_never_finished_opens_to_its_last_part() {
 }
 
 /// The cursor shared by the strip and the charts draws again at once when
-/// the pointer moves or leaves, but not when the live strip only moves
-/// under a still pointer: that drew every frame twice while listening.
+/// the pointer moves or leaves, and when a pan or zoom moves it on a take
+/// not listening; but not when the live strip only moves under a still
+/// pointer: that drew every frame twice while listening (Trevor on #1826).
 #[test]
 fn a_still_pointer_over_the_live_strip_draws_nothing_extra() {
     use super::redraw::cursor_redraw;
-    assert!(!cursor_redraw(Some(1.0), Some(1.2), false), "strip moved");
-    assert!(cursor_redraw(Some(1.0), Some(1.2), true), "pointer moved");
-    assert!(cursor_redraw(Some(1.0), None, false), "pointer left");
-    assert!(!cursor_redraw(Some(1.0), Some(1.0), true), "no change");
-    assert!(!cursor_redraw(None, None, false));
+    // Listening.
+    assert!(
+        !cursor_redraw(Some(1.0), Some(1.2), false, true),
+        "strip moved"
+    );
+    assert!(
+        cursor_redraw(Some(1.0), Some(1.2), true, true),
+        "pointer moved"
+    );
+    assert!(cursor_redraw(Some(1.0), None, false, true), "pointer left");
+    assert!(
+        !cursor_redraw(Some(1.0), Some(1.0), true, true),
+        "no change"
+    );
+    assert!(!cursor_redraw(None, None, false, true));
+    // Not listening: a scroll pan or zoom under a still pointer.
+    assert!(cursor_redraw(Some(1.0), Some(1.2), false, false), "panned");
+    assert!(
+        !cursor_redraw(Some(1.0), Some(1.0), false, false),
+        "no change"
+    );
 }

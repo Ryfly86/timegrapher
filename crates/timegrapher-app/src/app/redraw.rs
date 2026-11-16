@@ -14,11 +14,17 @@ const LIVE_EVERY: Duration = Duration::from_millis(100);
 const BEHIND_EVERY: Duration = Duration::from_millis(500);
 
 /// Whether the shared cursor's change from `was` to `next` draws again at
-/// once: when the pointer `moved` or left, not when only the live strip
-/// moved under a still pointer, which drew every frame twice while
-/// listening.
-pub(super) fn cursor_redraw(was: Option<f64>, next: Option<f64>, moved: bool) -> bool {
-    next != was && (next.is_none() || moved)
+/// once: when the pointer `moved` or left, or anything else moved it with
+/// the window not `listening` (a pan or zoom under a still pointer). Not
+/// when only the live strip moved under a still pointer, which drew every
+/// frame twice while listening; the next timed draw shows it.
+pub(super) fn cursor_redraw(
+    was: Option<f64>,
+    next: Option<f64>,
+    moved: bool,
+    listening: bool,
+) -> bool {
+    next != was && (next.is_none() || moved || !listening)
 }
 
 impl TimegrapherApp {
@@ -68,7 +74,7 @@ impl TimegrapherApp {
     pub(super) fn draw_again(&mut self, ctx: &egui::Context, was_working: bool) {
         let next = self.cursor_next.take();
         let moved = ctx.input(|i| i.pointer.delta() != egui::Vec2::ZERO);
-        if cursor_redraw(self.cursor_t, next, moved) {
+        if cursor_redraw(self.cursor_t, next, moved, self.running()) {
             ctx.request_repaint();
         }
         self.cursor_t = next;
