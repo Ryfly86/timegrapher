@@ -4,6 +4,7 @@
 use super::tests::{reopened, synthetic};
 use super::*;
 use timegrapher_core::synth::{generate, SynthConfig};
+use timegrapher_core::walk::IsochronismWalk;
 
 /// A take whose session file names a clock log is read on that log,
 /// as `timegrapher session` reads it: the Positions table's rates and
@@ -312,6 +313,8 @@ fn a_takes_usb_lines_set_its_rate() {
 fn steadiness_now(app: &mut TimegrapherApp, ctx: &egui::Context) -> String {
     let start = Instant::now();
     loop {
+        // As a Steadiness pane shown asks for them.
+        app.bg.shown_pass[0] = Some(ctx.cumulative_pass_nr());
         app.update_steady(ctx);
         if let Some((rev, s)) = &app.steady {
             if *rev == app.rev {
@@ -324,6 +327,91 @@ fn steadiness_now(app: &mut TimegrapherApp, ctx: &egui::Context) -> String {
         );
         std::thread::sleep(Duration::from_millis(20));
     }
+}
+
+/// Only what the panes shown want is read (#1830): an Isochronism pane
+/// alone reads the isochronism alone, as the whole check gives it; a
+/// Steadiness pane the tests without the time-frequency maps; an STFT or
+/// Wavelet pane the maps too.
+#[test]
+fn the_steadiness_job_reads_only_what_the_panes_shown_want() {
+    let ctx = egui::Context::default();
+    let mut app = synthetic(320.0, 12.0);
+    let wait = |app: &mut TimegrapherApp, done: &dyn Fn(&TimegrapherApp) -> bool| {
+        let start = Instant::now();
+        while !done(app) {
+            assert!(start.elapsed() < Duration::from_secs(60), "never read");
+            std::thread::sleep(Duration::from_millis(20));
+            app.update_steady(&ctx);
+        }
+    };
+    // No Steadiness pane shown: the isochronism alone.
+    wait(&mut app, &|a| a.bg.isochronism.is_some());
+    assert!(app.steady.is_none() && app.steady_job.is_none());
+    let alone = &app.bg.isochronism.as_ref().unwrap().1;
+    let alone = (j(&alone.isochronism), j(&alone.walk));
+    // A Steadiness pane: the tests, without the maps; their isochronism
+    // is the one read alone.
+    steadiness_now(&mut app, &ctx);
+    let s = &app.steady.as_ref().expect("the tests ran").1;
+    assert!(s.maps.is_none());
+    assert_eq!(alone, (j(&s.report.isochronism), j(&s.report.walk)));
+    // An STFT or Wavelet pane: the maps too.
+    app.bg.shown_pass[1] = Some(ctx.cumulative_pass_nr());
+    wait(&mut app, &|a| {
+        a.steady.as_ref().is_some_and(|s| s.1.maps.is_some())
+    });
+}
+
+/// A pane counts as shown on the pass that drew it and the next, so the
+/// panes drawn earlier in a pass than it still read what it wants; two
+/// passes on it is closed (#1830).
+#[test]
+fn a_pane_counts_as_shown_for_its_pass_and_the_next() {
+    use steady::Need;
+    let mut app = synthetic(40.0, 12.0);
+    assert_eq!(app.steady_need(10), Need::Isochronism);
+    app.bg.shown_pass = [Some(10), Some(10)];
+    assert_eq!(app.steady_need(10), Need::Maps);
+    assert_eq!(app.steady_need(11), Need::Maps);
+    assert_eq!(app.steady_need(12), Need::Isochronism);
+    app.bg.shown_pass = [Some(11), Some(10)];
+    assert_eq!(app.steady_need(12), Need::Tests);
+    assert_eq!(app.steady_need(13), Need::Isochronism);
+}
+
+/// The Isochronism pane shows the newer of the tests' isochronism and the
+/// one read alone (#1830): the tests' when theirs covers more of the take,
+/// the one read alone when it does.
+#[test]
+fn the_isochronism_pane_shows_the_newer_answer() {
+    let ctx = egui::Context::default();
+    let mut app = synthetic(320.0, 12.0);
+    steadiness_now(&mut app, &ctx);
+    let upto = app.steady.as_ref().expect("the tests ran").1.upto_s;
+    let same = |a: Option<&IsochronismWalk>, b: Option<&IsochronismWalk>| match (a, b) {
+        (Some(a), Some(b)) => std::ptr::eq(a, b),
+        (a, b) => a.is_none() && b.is_none(),
+    };
+    for (alone_upto, tests_shown) in [(upto - 10.0, true), (upto + 10.0, false)] {
+        app.bg.isochronism = Some((
+            app.rev,
+            steady::IsochronismAlone {
+                isochronism: None,
+                walk: Some(IsochronismWalk::default()),
+                upto_s: alone_upto,
+            },
+        ));
+        let (_, walk) = app.isochronism_shown().expect("an answer");
+        let tests = app.steady.as_ref().unwrap().1.report.walk.as_ref();
+        let alone = app.bg.isochronism.as_ref().unwrap().1.walk.as_ref();
+        let want = if tests_shown { tests } else { alone };
+        assert!(same(walk, want), "tests' shown: {tests_shown}");
+    }
+}
+
+fn j(v: &impl serde::Serialize) -> String {
+    serde_json::to_string(v).unwrap()
 }
 
 /// The steadiness job the panes start marks the picked calibre's meshes,

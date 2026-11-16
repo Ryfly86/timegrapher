@@ -233,8 +233,9 @@ pub struct Steadiness {
     /// The periods every series' search covers between them, log10 seconds,
     /// so the three Periods plots share one time axis.
     period_span: Option<(f64, f64)>,
-    /// The STFT and wavelet maps of each series (core `timefreq`).
-    maps: Vec<timegrapher_core::timefreq::TimeFrequency>,
+    /// The STFT and wavelet maps of each series (core `timefreq`): none
+    /// read while no STFT or Wavelet pane is shown, a third of a run (#1830).
+    pub maps: Option<Vec<timegrapher_core::timefreq::TimeFrequency>>,
     /// Seconds of the session the tests covered.
     pub upto_s: f64,
 }
@@ -327,8 +328,58 @@ pub fn compute(log: &BeatLog, wheels: Option<Vec<Wheel>>) -> Steadiness {
         &reading_breaks(Vec::new(), log),
         wheels,
         None,
+        true,
         &std::sync::atomic::AtomicU8::new(0),
     )
+}
+
+/// What the panes shown want read, least first: the isochronism alone
+/// (an Isochronism pane), the tests (any Steadiness pane), or the tests
+/// with the time-frequency maps (an STFT or Wavelet pane) (#1830).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Need {
+    Isochronism,
+    Tests,
+    Maps,
+}
+
+/// The isochronism read alone (core `steadiness::isochronism_alone`).
+pub struct IsochronismAlone {
+    pub isochronism: Option<timegrapher_core::steadiness::IsochronismCurve>,
+    pub walk: Option<timegrapher_core::walk::IsochronismWalk>,
+    /// Seconds of the session it covered.
+    pub upto_s: f64,
+}
+
+/// What a run read, for what was [`Need`]ed.
+pub enum Answer {
+    Tests(Box<Steadiness>),
+    Isochronism(IsochronismAlone),
+}
+
+/// What `need` wants of `log`, as [`compute_with`] reads it; the
+/// isochronism alone without the long-run analysis or the tests.
+pub fn compute_for(
+    need: Need,
+    log: &BeatLog,
+    breaks: &[timegrapher_core::breaks::Break],
+    wheels: Option<Vec<Wheel>>,
+    clock: Option<&timegrapher_core::clock::ClockFit>,
+    stage: &std::sync::atomic::AtomicU8,
+) -> Answer {
+    if need > Need::Isochronism {
+        let maps = need == Need::Maps;
+        return Answer::Tests(Box::new(compute_with(
+            log, breaks, wheels, clock, maps, stage,
+        )));
+    }
+    stage.store(2, std::sync::atomic::Ordering::Relaxed);
+    let (isochronism, walk) = steadiness::isochronism_alone(log, clock, breaks, &Config::default());
+    Answer::Isochronism(IsochronismAlone {
+        isochronism,
+        walk,
+        upto_s: log.duration_s,
+    })
 }
 
 /// What a run of [`compute_with`] is doing, from the step it last stored.
@@ -346,12 +397,13 @@ pub fn stage_text(stage: u8) -> &'static str {
 /// lines) is read on it throughout, its readings drawn as the cards and
 /// `timegrapher series` give them. `breaks` are the cuts the readings
 /// stop at, with the time each gap held ([`reading_breaks`]), as
-/// `series` passes core's.
+/// `series` passes core's. The time-frequency maps are read only `with_maps`.
 pub fn compute_with(
     log: &BeatLog,
     breaks: &[timegrapher_core::breaks::Break],
     wheels: Option<Vec<Wheel>>,
     clock: Option<&timegrapher_core::clock::ClockFit>,
+    with_maps: bool,
     stage: &std::sync::atomic::AtomicU8,
 ) -> Steadiness {
     use std::sync::atomic::Ordering::Relaxed;
@@ -383,7 +435,7 @@ pub fn compute_with(
     });
     let period_span = steady_views::period_span(&searches);
     // With the same clock the long-run analysis above was given.
-    let maps = timegrapher_core::timefreq::for_take(log, clock, &long, &lc);
+    let maps = with_maps.then(|| timegrapher_core::timefreq::for_take(log, clock, &long, &lc));
     Steadiness {
         report,
         grids,
@@ -1690,11 +1742,11 @@ fn map_plot(ui: &mut egui::Ui, r: Row<'_>) {
     } = r;
     let name = series_name(k);
     let method = if view == View::Stft { "stft" } else { "sst" };
-    let Some(m) = s
-        .maps
-        .iter()
-        .find(|m| m.series == name && m.method == method)
-    else {
+    // Not read yet: the pane's spinner says the tests are running.
+    let Some(maps) = &s.maps else {
+        return;
+    };
+    let Some(m) = maps.iter().find(|m| m.series == name && m.method == method) else {
         return note(
             ui,
             if view == View::Stft {
