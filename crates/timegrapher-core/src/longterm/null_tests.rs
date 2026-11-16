@@ -296,6 +296,15 @@ struct Raw {
     misfit_p99: Option<f64>,
 }
 
+/// Pairs written with NaN (as null) read back as NaN, not as an error
+/// that would drop the cell from the cache.
+fn nan_pairs<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<[f64; 2]>, D::Error> {
+    let v: Vec<[Option<f64>; 2]> = Deserialize::deserialize(d)?;
+    Ok(v.into_iter()
+        .map(|p| p.map(|x| x.unwrap_or(f64::NAN)))
+        .collect())
+}
+
 #[derive(Serialize, Deserialize)]
 struct Measured {
     cell: Raw,
@@ -303,8 +312,8 @@ struct Measured {
     smax: Vec<f64>,
     /// Each maximum's take's fitted mix and flicker (timing, as the
     /// search looks them up); NaN where the table missed it. Empty before
-    /// the rebinning.
-    #[serde(default)]
+    /// the rebinning. JSON writes NaN as null, so null reads back as NaN.
+    #[serde(default, deserialize_with = "nan_pairs")]
     fitted: Vec<[f64; 2]>,
     /// The drawn mix and flicker the rebinned tail was fitted to (its
     /// shape group).
@@ -694,7 +703,12 @@ impl Run {
             true => format!("{d}/{model:?}_{span}_{step}_{mix}_f{flicker}_{draws}.json"),
         });
         let old = kept.as_ref().and_then(|f| std::fs::read_to_string(f).ok());
-        let old = old.and_then(|t| serde_json::from_str::<Measured>(&t).ok());
+        // A cached cell that doesn't read back stops the run: measuring it
+        // again would silently drop a pass already made (#1219).
+        let old = old.map(|t| {
+            serde_json::from_str::<Measured>(&t)
+                .unwrap_or_else(|e| panic!("{:?}: {e}", kept.as_deref().unwrap_or("")))
+        });
         let old = match old {
             Some(mut m) if *perx && model == NullModel::Timing && m.per_x.is_empty() => {
                 m.per_x = null_mean(model, span, step, mix, flicker, draws).per_x;
