@@ -106,7 +106,8 @@ impl<K, T: Send + 'static> Job<K, T> {
 #[derive(Default)]
 pub(super) struct Background {
     /// The charts' run of readings.
-    pub(super) trend: Option<Job<TrendKey, Vec<TrendPoint>>>,
+    /// The charts' run, and how much sound it was read on.
+    pub(super) trend: Option<Job<TrendKey, (Vec<TrendPoint>, f64)>>,
     /// A long take's run for the Power reserve pane, once it is wanted:
     /// `Some(None)` until its reading starts (#1014).
     pub(super) reserve: Option<Option<Job<Revision, Option<reserve::Test>>>>,
@@ -436,12 +437,14 @@ impl TimegrapherApp {
     }
 
     /// For the window: the charts' run of readings read again when what
-    /// it rests on changed. While listening, here and now
-    /// ([`Self::refresh_trend`]); for a take on show, in the background,
-    /// the run on show kept until the new one comes.
+    /// it rests on changed, in the background, the run on show kept until
+    /// the new one comes. While listening too: read here, a long take's
+    /// 4,000 readings held the window and the listening (1.6 s at 4 h,
+    /// #1825). The readings heard after the sound it was read on are on
+    /// the new footing already and are kept after it.
     pub(super) fn refresh_trend_shown(&mut self, ctx: &egui::Context) {
         let key: TrendKey = (self.rev, self.average_s.to_bits());
-        if self.running() || self.live.is_none() {
+        if self.live.is_none() {
             self.bg.trend = None;
             self.refresh_trend();
             return;
@@ -456,13 +459,17 @@ impl TimegrapherApp {
         let Some(job) = &self.bg.trend else {
             let (live, average_s) = (self.live.clone(), self.average_s);
             self.bg.trend = Some(Job::start(key, ctx, move || {
-                live.map_or_else(Vec::new, |l| l.trend(average_s))
+                live.map_or_else(
+                    || (Vec::new(), 0.0),
+                    |l| (l.trend(average_s), l.duration_s()),
+                )
             }));
             return;
         };
         match job.done() {
-            Ok(points) => {
+            Ok((mut points, read_to)) => {
                 self.bg.trend = None;
+                points.extend(self.trend.iter().filter(|p| p.t > read_to).copied());
                 self.put_trend(points);
             }
             Err(true) => {}

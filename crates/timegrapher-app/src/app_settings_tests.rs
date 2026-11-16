@@ -1038,6 +1038,42 @@ fn the_strips_own_readings_wait_for_a_whole_step_of_sound() {
     let _ = std::fs::remove_dir_all(&base);
 }
 
+/// Listening, the charts' run is read again off the window's thread when
+/// what it rests on changes: a long take's 4,000 readings held the window
+/// and the listening (#1825). The run on show stays until the new one
+/// comes, and the readings heard after the sound it was read on follow it.
+#[test]
+fn listening_the_charts_are_read_again_in_the_background() {
+    let mut app = synthetic(40.0, 20.0);
+    let base = std::env::temp_dir().join(format!("tg-trend-bg-{}", std::process::id()));
+    std::fs::create_dir_all(&base).unwrap();
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    assert!(app.running());
+    let ctx = themed();
+    app.refresh_trend_shown(&ctx);
+    let before = app.trend.clone();
+    app.average_s *= 2.0;
+    // Neither polling nor the frame reads the run here.
+    app.poll();
+    assert_eq!(app.trend, before, "read on the polling thread");
+    app.refresh_trend_shown(&ctx);
+    assert!(app.bg.trend.is_some());
+    assert_eq!(app.trend, before, "read on the window's thread");
+    // A reading heard meanwhile, after the sound the run is read on.
+    let late = TrendPoint::of(1e6, &app.live.as_ref().unwrap().reading_at(40.0, 1.0));
+    app.trend.push(late);
+    let start = Instant::now();
+    while app.bg.trend.is_some() {
+        assert!(start.elapsed() < Duration::from_secs(60), "never read");
+        std::thread::sleep(Duration::from_millis(10));
+        app.refresh_trend_shown(&ctx);
+    }
+    let fresh = app.live.as_ref().unwrap().trend(app.average_s);
+    assert_eq!(app.trend[..app.trend.len() - 1], fresh[..]);
+    assert_eq!(app.trend.last(), Some(&late));
+    let _ = std::fs::remove_dir_all(&base);
+}
+
 /// Worked out again while listening (a new Average Over, say), the run
 /// is sparse up to then and dense since. Its average spacing looks fine
 /// enough, but the strip still draws the stretch before rather than leave

@@ -2350,11 +2350,8 @@ impl TimegrapherApp {
             self.audio_at = Some(started);
         }
         self.polled_at = started;
-        // While listening the charts are read here; a take on show's in
-        // the background, from the frame ([`Self::refresh_trend_shown`]).
-        if self.running() {
-            self.refresh_trend();
-        }
+        // The charts are read in the background, from the frame
+        // ([`Self::refresh_trend_shown`]), listening too (#1825).
         let (taken, ended, failure) = self.take_blocks(started, budget);
         self.capture_outcome(ended, failure);
 
