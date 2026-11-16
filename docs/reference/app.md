@@ -294,11 +294,14 @@ under it its calibre, beat rate, lift angle and added fields, with
 **Edit…** and **Add Photos…** at the right. Then, in this order:
 
 - **New Take**: **Listen** (the blue one, the default), **Positions
-  Test** and **Power Reserve Test**, three equal buttons, each with a
-  line under it saying what it does. Each switches to the Bench and
+  Test**, **Dynamic Poise Test**, **Power Reserve Test** and **Complication
+  Test**, five equal buttons, each with a line under it saying what it
+  does: in one row where the window is wide enough for every name and
+  line to show whole, else as few to a row as that takes, the rows as
+  even as can be (three then two, or two, two and one). Each switches to the Bench and
   starts a new take on the microphone there, asked about first when
   there is unsaved sound other than a Quick Listen take's, and saved into
-  the watch when it stops. While a take runs on the Bench, the three are
+  the watch when it stops. While a take runs on the Bench, the five are
   greyed out, and the New Take row says "Stop the take on the Bench
   first." at its right; that row is always there, so nothing moves.
 - **Takes**, with the count, and **Open** and **…** at the right of its
@@ -747,11 +750,20 @@ between the columns. **Save as Text…** saves the plain-text report core
 `text_report::positions` writes, the one `timegrapher session` writes as
 `positions-report.txt`: the watch, the Date (the take's start, from its
 name, or the test's own start before the take is saved), calibre, beat
-rate, lift angle (left out when it is the default), settling and
+rate, lift angle (left out only when it is the default and the calibre's
+name already gives it, as "Rolex 3235 (53°)"), settling and
 measuring times and the software, then the table lined up in columns, the
 vertical less horizontal figures and the notes, wrapped at 72 columns. It
 gives no verdict and no pass or fail: the
-figures are for the watchmaker to judge.
+figures are for the watchmaker to judge. With no test on the Bench, the
+three write the take's **This Take** table the same way (#1660): a take
+opened from Watches has no test of its own, so they leave out when a
+test began and its settling and measuring times, and list the rows in
+the table's own order, the card's. On an opened 24 hour half they write
+its saved results as the pane shows them (#1706): the watch, beat rate,
+lift angle, start and times the results keep, the table, and the
+full-wind test against it. They are greyed with
+"Nothing measured yet" only while the pane's table has no readings.
 
 **Full wind against 24 hours.** After a test run just after winding,
 **Save Results for 24 Hours…** saves its results, and saving the session
@@ -826,7 +838,13 @@ once 5 positions are measured". **Info** shows `text`, the fit in full
 with its twice-round terms, the heavy spot or why it is not stated and
 its caveats, core's note on the amplitudes that show the heavy spot,
 then the table's notes and the key to its grey beat errors. Copy writes the watch, the table in the pane's order
-and that sentence. A Dynamic Poise test is not set against a full-wind
+and that sentence. **Save as Text…**, greyed until a position is
+measured, saves the plain-text report core `text_report::poise` writes,
+the one `timegrapher session` writes for a Dynamic Poise take: the watch
+and how it was read, the table in the pane's order, the fit in full and
+the notes. For a take opened again it is the report of the upright
+stops the pane shows, with no Settle or Each Position, as for the
+Positions Test. A Dynamic Poise test is not set against a full-wind
 test and keeps no results for 24 hours after.
 
 **Complication.** The Complication pane (#1576), a hidden tab beside the
@@ -922,9 +940,10 @@ a "Beat error from" column (unlock or drop; empty when not recorded, as
 for a figure not measured) and a "BE Angle (deg)" column. The take
 is kept in the picked watch's history, named by its local start time and
 "Power Reserve", with
-`power-reserve.json` beside the standard files; with Analysis Only it is
-then kept as its analysis alone, as Keep Analysis Only does, and its sound
-deleted. The Watches view lists it as "Power Reserve 46 h 12 min", adding
+`power-reserve.json` beside the standard files; with Analysis Only its
+sound is read as it comes and never written, and the take is kept as its
+analysis alone, written when the test ends and kept on the disk in parts
+every 10 minutes meanwhile ([sessions.md](sessions.md#parts-kept-while-a-take-is-recorded)). The Watches view lists it as "Power Reserve 46 h 12 min", adding
 how it ended when the watch didn't stop it ("Stopped by hand while the
 watch still ran", "Reached the 80 h limit while the watch still ran"),
 and, like a Positions Test's take, without its last window's figures,
@@ -1009,13 +1028,14 @@ timing is only right when the computer's clock is kept by internet time
 (NTP). When the microphone's own clock error has been kept (by **Keep**,
 `timegrapher clock measure --save`, or `clock from-log --save` after a
 take with a clock log; see `clock` in [the agent
-interface](agent-interface.md#clock)), Quartz Correction lists it, and
-the Rate figure's hover gives the rate corrected onto true time,
-labelled True Clock, with the day the clock it uses was kept. A sound card's crystal runs a steady 10 to 50 ppm off,
-which moves every rate read on it by 1 to 4 s/d. While listening, the big
-figure stays on the card's clock, the same clock tg and `timegrapher analyze`
-read, so it compares directly with them; True Clock is in its hover,
-never instead of it. It is looked up by the input's name when a microphone
+interface](agent-interface.md#clock)), Quartz Correction lists it, with
+the day it was kept. A sound card's crystal runs a steady 10 to 50 ppm off,
+which moves every rate read on it by 1 to 4 s/d. While listening, the
+readings, the big figure included, are put on the clock the take would be
+read on if it were saved and opened again (#1721): the kept error, which
+the USB microphone's lines take over from once they are read; the Rate
+figure's hover says which. With neither, the big figure stays on the
+card's clock, as tg reads it. The kept error is looked up by the input's name when a microphone
 session starts. A take opened from disk whose session file names a clock
 log (every take the app keeps has `clock.csv`) is read on that log
 instead, fitted as `timegrapher session` fits it: the Positions Test
@@ -1705,7 +1725,7 @@ smears the sound aren't caught by it. Then how much sound the session
 holds and whether it is saved, and the latest message. It repeats
 nothing the cards show. On the right are its notices, one short word
 each for what needs you: an error, behind a red failure icon; **Closed Unexpectedly…**
-after a crash; **Unsaved Sound Found…** for sound kept from an earlier
+after a crash; **Unsaved Take Found…** for sound kept from an earlier
 session; **Timegrapher 0.2.0 Available…**. A click opens the whole
 message over the window with its buttons. Nothing ever appears above the
 readings, so the window never moves under the pointer.
@@ -2105,7 +2125,7 @@ the Dock, which can't be held back; on any system, a logout or a
 shutdown) with more than 5 s of unsaved sound other than a Quick Listen
 take's, or is stopped by a crash,
 the sound stays there, and the next start says so in the status bar,
-**Unsaved Sound Found…**, which opens the message with when it started (in this computer's time), its length and
+**Unsaved Take Found…**, which opens the message with when it started (in this computer's time), its length and
 size, and **Open** (analysed here, and offered again next time),
 **Move To…** (the recording's folder moved into one you pick, to open
 with Open Folder…), **Delete…** (asking first) and **Later**. When the
@@ -2115,7 +2135,21 @@ copy: the message names the take and offers **Open Take** (the take
 itself, opened where it is), **Delete Copy…** (asking first, and saying
 that only those last seconds are lost) and **Later**. If that take has
 since been moved or deleted, the copy is the only one, and it is offered
-as unsaved sound like any other. A folder
+as unsaved sound like any other. A Power Reserve Test with Analysis Only
+that stopped before its take was written leaves no sound but its
+analysis kept in parts: the next start offers it the same way, "An
+unsaved Power Reserve Test was found (Analysis Only): started …,
+recorded 41 h 10 min, 3.1 MB" (the button's tip "A Power Reserve Test
+(Analysis Only) was never saved: click to open, move or delete it"), with Open, Move To… (its parts with
+it), Delete… and Later. Opened, it reads to its last part, is named
+"Unsaved Power Reserve Test, started …", and the status bar says "This
+take wasn't saved: the app stopped while recording. It recorded 41 h
+10 min. The watch may have run on after that."; the Power Reserve pane
+reads it as the test, "Power reserve at least 41 h 09 min … The
+recording failed while the watch still ran", unless the watch's stop was
+already heard. What was recorded runs to the last part's end; the run,
+from the first beat heard to the last in true time, is no longer. Keep Analysis Only… refuses
+such a take: it has no sound to keep. A folder
 another copy of the app is recording into is never offered. The
 microphone's own settings are kept aside while recordings are open and
 come back with the next take on the microphone.

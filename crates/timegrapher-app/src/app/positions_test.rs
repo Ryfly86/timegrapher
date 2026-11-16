@@ -55,6 +55,10 @@ impl TimegrapherApp {
                 self.change_position(first);
             }
         }
+        // The Positions Test's full-wind step begins at full wind.
+        if kind == guided::Kind::Positions && half.is_none() {
+            self.started_from_full_wind();
+        }
         let test = match (kind, half) {
             (guided::Kind::Poise, _) => guided::Test::poise(),
             (guided::Kind::Complication, _) => guided::Test::complication(self.position),
@@ -291,7 +295,13 @@ impl TimegrapherApp {
         }
         self.positions_wind(ui, running);
         theme::bar_gap(ui);
-        self.positions_lengths(ui, running, "Each Position");
+        self.positions_lengths(ui, running, ("Each Position", guided::Kind::Positions));
+        // Each chart on or off, the others sharing the height (#1729),
+        // once there is something to chart: beside the lengths with no
+        // gap, so the row still fits at 1000 pt.
+        if self.positions_measured(ui.ctx()) {
+            crate::steady::series_switches(ui, &mut self.positions_series);
+        }
         self.positions_results(ui);
     }
 
@@ -332,7 +342,7 @@ impl TimegrapherApp {
             if self.guided_after != was {
                 self.find_full_wind();
             }
-            if self.guided_after && !running {
+            if self.compare_with_shown() {
                 theme::bar_gap(ui);
                 self.compare_with(ui);
             }
@@ -361,31 +371,47 @@ impl TimegrapherApp {
     /// value each, so a change in one pane changes it in all (Peter, #1577).
     /// `each` names the measuring time in this pane: "Each Position", or the
     /// Complication Test's "Each Stretch".
-    pub(super) fn positions_lengths(&mut self, ui: &mut egui::Ui, running: bool, each: &str) {
-        theme::tool_field(
-            ui,
-            "Settle",
+    ///
+    /// With a take on show and no test on the Bench, they say how that
+    /// take was read, never that the app's settings made it (Hugh, #1733):
+    /// Settle stays live, as it reads the take again; the measuring time
+    /// is the take's own, greyed.
+    pub(super) fn positions_lengths(
+        &mut self,
+        ui: &mut egui::Ui,
+        running: bool,
+        (each, kind): (&str, guided::Kind),
+    ) {
+        let recorded = self.recorded_lengths(ui.ctx(), kind);
+        let settle_hint = if self.guided.is_none() && self.take_on_show().is_some() {
+            "How this take is read. Change it to read the take again."
+        } else {
             "Seconds the watch is left to settle after every change of position, in any take \
              and in every guided test, before its beats are read. They show faint on the \
-             strip and are left out of every reading. Every guided test shares it.",
-            |ui| {
-                ui.add_enabled_ui(!running, |ui| {
-                    let mut v = self.guided_settle_s;
-                    let a =
-                        fields::entry(ui, "settle", &mut v, guided::SETTLE_RANGE, &DURATION, 48.0);
-                    let b =
-                        fields::presets(ui, "settle-presets", &mut v, &SETTLES, fields::duration);
-                    if a || b {
-                        self.guided_settle_s = v;
-                        // Every settle band redraws, and the table with it.
-                        self.session.resettle(v);
-                        self.positions_moved(self.position);
-                    }
-                })
-                .response
-                .on_disabled_hover_text(FIXED_IN_TEST);
-            },
-        );
+             strip and are left out of every reading. Every guided test shares it."
+        };
+        theme::tool_field(ui, "Settle", settle_hint, |ui| {
+            ui.add_enabled_ui(!running, |ui| {
+                let mut v = self.guided_settle_s;
+                let a = fields::entry(ui, "settle", &mut v, guided::SETTLE_RANGE, &DURATION, 48.0);
+                let b = fields::presets(ui, "settle-presets", &mut v, &SETTLES, fields::duration);
+                if a || b {
+                    self.guided_settle_s = v;
+                    // Every settle band redraws, and the table with it.
+                    self.session.resettle(v);
+                    self.positions_moved(self.position);
+                }
+            })
+            .response
+            .on_disabled_hover_text(FIXED_IN_TEST);
+        });
+        if let Some(words) = recorded {
+            theme::tool_field(ui, each, &recorded_hint(each), |ui| {
+                let pal = theme::pal(ui);
+                ui.label(RichText::new(words).color(pal.text_secondary));
+            });
+            return;
+        }
         theme::tool_field(
             ui,
             each,
@@ -415,15 +441,67 @@ impl TimegrapherApp {
         );
     }
 
-    /// The Positions Test settings' Save as CSV…, Copy and Save Results for 24
-    /// Hours….
+    /// With a take on show and no test on the Bench, how long each of its
+    /// positions was read, as the `kind` of pane's table gives it, so the
+    /// two never disagree (Walter on #1843): the Complication Test's own
+    /// stretches on its pane, else the This Take table's. One length to
+    /// the second, or "1 to 2 min" where they differ (Hugh, #1733). None
+    /// until the table is read, or with nothing read, the fields then
+    /// staying the app's.
+    pub(super) fn recorded_lengths(
+        &self,
+        ctx: &egui::Context,
+        kind: guided::Kind,
+    ) -> Option<String> {
+        if self.guided.is_some() || self.take_on_show().is_none() {
+            return None;
+        }
+        let lengths: Vec<f64> = if kind == guided::Kind::Complication {
+            let t = self.complication_saved.as_ref()?;
+            t.stretches().iter().map(|s| s.2 - s.1).collect()
+        } else {
+            let t = self.free_table_shown(ctx)?;
+            t.six
+                .0
+                .iter()
+                .chain(&t.upright.0)
+                .map(|r| r.duration_s)
+                .collect()
+        };
+        let least = lengths.iter().map(|l| l.round()).reduce(f64::min)?;
+        let most = lengths.iter().map(|l| l.round()).reduce(f64::max)?;
+        Some(fields::duration_range(least, most))
+    }
+
+    /// The Positions Test settings' Save as CSV…, Save as Text…, Copy and
+    /// Save Results for 24 Hours…. The first three write the table the
+    /// pane shows: the test's, an opened 24 hour half's saved results
+    /// (#1706), or an opened take's This Take (#1660).
+    /// Whether the pane has figures: the test's so far, kept or saved.
+    fn positions_measured(&self, ctx: &egui::Context) -> bool {
+        match self.positions_test() {
+            Some(t) => !t.readings_so_far().is_empty(),
+            None => self.positions_kept(ctx).is_some() || self.positions_saved().is_some(),
+        }
+    }
+
     fn positions_results(&mut self, ui: &mut egui::Ui) {
-        let has = self
-            .positions_test()
-            .is_some_and(|t| !t.readings_so_far().is_empty());
-        let nothing = (!has).then_some("Nothing measured yet");
+        let kept = self.positions_kept(ui.ctx());
+        let saved = self.positions_saved().cloned();
+        let nothing = (!self.positions_measured(ui.ctx())).then_some("Nothing measured yet");
         theme::bar_gap(ui);
         let about = self.guided_about();
+        let text = |t: Option<&guided::Test>, sep: char| match (t, &saved, &kept) {
+            (Some(t), ..) => Some(guided::export_text(t, &about, sep)),
+            (None, Some(s), _) => Some(guided::saved_export_text(s, &about, sep)),
+            (None, None, Some(k)) => Some(guided::kept_rows_text(
+                k,
+                guided::Kind::Positions,
+                &about,
+                sep,
+            )),
+            _ => None,
+        };
         if theme::tool_button(
             ui,
             Icon::SaveTable,
@@ -432,10 +510,7 @@ impl TimegrapherApp {
              file a spreadsheet opens",
             nothing,
         ) {
-            if let Some(text) = self
-                .positions_test()
-                .map(|t| guided::export_text(t, &about, ','))
-            {
+            if let Some(text) = text(self.positions_test(), ',') {
                 let d = guided::csv_dialog(&self.guided_dir());
                 self.save_text_as(d, "the Positions Test", text);
             }
@@ -448,7 +523,12 @@ impl TimegrapherApp {
              report to keep, print or send",
             nothing,
         ) {
-            self.save_test_text(&about);
+            self.save_test_text(
+                &about,
+                guided::Kind::Positions,
+                saved.as_ref(),
+                kept.as_deref(),
+            );
         }
         if theme::tool_word_button(
             ui,
@@ -459,8 +539,8 @@ impl TimegrapherApp {
             false,
             nothing,
         ) {
-            if let Some(t) = self.positions_test() {
-                ui.ctx().copy_text(guided::export_text(t, &about, '\t'));
+            if let Some(text) = text(self.positions_test(), '\t') {
+                ui.ctx().copy_text(text);
                 self.info_msg("Copied the Positions Test table".to_string());
             }
         }
@@ -486,27 +566,67 @@ impl TimegrapherApp {
         }
     }
 
-    /// Save as Text…: the test's plain-text report (core `text_report`),
-    /// to a file the person picks.
-    fn save_test_text(&mut self, about: &guided::About) {
+    /// An opened 24 hour half's saved results, as the pane shows them with
+    /// no test on the Bench (#1706).
+    pub(super) fn positions_saved(&self) -> Option<&guided::FullWind> {
+        self.guided_saved.as_ref().filter(|_| self.guided.is_none())
+    }
+
+    /// An opened take's six positions as the pane's This Take shows them,
+    /// with no test on the Bench and no saved 24 hour half on show: None
+    /// when none was read.
+    pub(super) fn positions_kept(
+        &self,
+        ctx: &egui::Context,
+    ) -> Option<Vec<timegrapher_core::session::Reading>> {
+        if self.guided.is_some() || self.guided_saved.is_some() {
+            return None;
+        }
+        self.free_table_shown(ctx)
+            .map(|t| t.six.0)
+            .filter(|k| !k.is_empty())
+    }
+
+    /// Save as Text…: the plain-text report (core `text_report`) of the
+    /// test of this `kind`, an opened 24 hour half's `saved_test` results,
+    /// or an opened take's `kept` readings, to a file the person picks:
+    /// the Positions Test's and Dynamic Poise's.
+    pub(super) fn save_test_text(
+        &mut self,
+        about: &guided::About,
+        kind: guided::Kind,
+        saved_test: Option<&guided::FullWind>,
+        kept: Option<&[timegrapher_core::session::Reading]>,
+    ) {
         let dir = self.guided_dir();
-        // The take's name, which starts with when it began; before it is
-        // saved, the test's own start, named the same way.
+        // The take's name, which starts with when it began: as saved, or
+        // as opened; before it is saved, the test's own start, named the
+        // same way.
         let saved = self
             .session
             .saved_to()
-            .and_then(Path::file_name)
-            .map(|n| n.to_string_lossy().into_owned());
+            .map(Path::to_path_buf)
+            .or_else(|| self.take_on_show())
+            .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()));
         let lift_known = self.lift_known();
-        let Some((kind, text)) = self.positions_test().and_then(|t| {
-            let take = saved.clone().unwrap_or_else(|| guided::began_name(t));
-            Some((
-                t.kind,
-                guided::report_text(t, about, lift_known, Some(&take))?,
-            ))
-        }) else {
-            return;
+        let test = self.guided.as_ref().filter(|t| t.kind == kind);
+        let text = match (test, saved_test, kept) {
+            (Some(t), ..) => {
+                let take = saved.unwrap_or_else(|| guided::began_name(t));
+                guided::report_text(t, about, lift_known, Some(&take))
+            }
+            (None, Some(s), _) => Some(guided::saved_report_text(
+                s,
+                about,
+                lift_known,
+                saved.as_deref(),
+            )),
+            (None, None, Some(k)) => {
+                guided::kept_report_text(k, kind, about, lift_known, saved.as_deref())
+            }
+            _ => None,
         };
+        let Some(text) = text else { return };
         let d = guided::text_dialog(kind, &about.watch, &dir);
         self.save_text_as(d, "the text report", text);
     }
@@ -571,7 +691,11 @@ impl TimegrapherApp {
             self.guided_settle_s,
             self.open_watch().is_some(),
             note.as_deref(),
-            (self.position_card_title, self.positions_info),
+            (
+                self.position_card_title,
+                self.positions_info,
+                self.positions_series,
+            ),
         );
         let Some(action) = action else { return };
         if action == guided::Action::ClearEarlier {
@@ -610,4 +734,12 @@ impl TimegrapherApp {
         self.guided = Some(test);
         self.mask_engine();
     }
+}
+
+/// The greyed measuring field's hover, in that pane's word: "How long
+/// each stretch was recorded in this take." under Each Stretch (Hugh on
+/// #1843).
+pub(super) fn recorded_hint(each: &str) -> String {
+    let what = each.strip_prefix("Each ").unwrap_or(each).to_lowercase();
+    format!("How long each {what} was recorded in this take.")
 }

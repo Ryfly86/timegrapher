@@ -165,7 +165,7 @@ async fn call(
     let series_charts =
         (tool.name == "check_steadiness").then(|| views::take_series_charts(&mut doc));
     let mut result = json!({
-        "content": text_blocks(&doc, args, tool, &out.stderr),
+        "content": text_blocks(&doc, tool, &out.stderr),
         "structuredContent": doc,
     });
     if recording_view {
@@ -259,13 +259,8 @@ fn failed(command: &str, out: cli::Outcome) -> Value {
 /// that before the numbers; then the same document as the structured
 /// content, for chat apps that show the model only text, with any
 /// warnings from stderr after it.
-fn text_blocks(
-    doc: &Value,
-    args: &Map<String, Value>,
-    tool: &tools::ToolSpec,
-    stderr: &str,
-) -> Vec<Value> {
-    let mut lead: Vec<String> = summary::lead(doc, args).into_iter().collect();
+fn text_blocks(doc: &Value, tool: &tools::ToolSpec, stderr: &str) -> Vec<Value> {
+    let mut lead: Vec<String> = summary::lead(doc).into_iter().collect();
     lead.extend(tools::notes(tool).into_iter().map(|n| format!("Note: {n}")));
     let mut text = serde_json::to_string(doc).unwrap_or_default();
     if !stderr.is_empty() {
@@ -301,6 +296,7 @@ fn view_meta(doc: &Value, result: &mut Value) {
         (views::PM_KEY, views::pm_texts(doc)),
         (caveats::NO_BEAT_KEY, caveats::no_beat(doc).map(Value::from)),
         (caveats::SERIES_KEY, caveats::series_limits(doc)),
+        (views::RESERVE_KEY, views::reserve_view(doc)),
     ];
     for (key, value) in entries {
         if let Some(value) = value {

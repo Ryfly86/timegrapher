@@ -36,9 +36,10 @@ the Save menu. Beyond it:
 
 **Sound not yet saved** waits in a folder of the app's own, which the
 system doesn't clear. If the app is stopped without asking (a crash, a
-logout, a shutdown), a test's unsaved sound is offered at the next
+logout, a shutdown), a test's unsaved sound, or a Power Reserve Test's
+analysis kept with Analysis Only (chapter 21), is offered at the next
 start (after a logout or shutdown, only if over 5 s): the status bar
-shows **Unsaved Sound Found…**:
+shows **Unsaved Take Found…**:
 
 | Button | What it does |
 | --- | --- |
@@ -141,8 +142,8 @@ used only one (`2026-10-20 14.32 Dial Up`):
 At start-up the app keeps as FLAC any hour of a saved take still in WAV,
 in the background ("Keeping saved takes as FLAC: 2 of 5"). An hour an
 older version saved at 24 bits, or as floating point, is rounded to 16
-bits as it is kept, as every take is now; the readings don't change. A
-few unusual sample rates stay WAV.
+bits as it is kept, as every take is now. A few unusual sample rates
+stay WAV.
 
 **The Watches folder** holds every watch and take:
 
@@ -161,13 +162,20 @@ Timegrapher Data/
 Nothing in it records where it is, so it can be moved, synced or backed
 up whole. Chapter 24 gives where it is and how to move it.
 
+Two things are kept in the app's settings folder, not the Watches
+folder: each sound input's stored clock correction (`clocks.json`, M3),
+used for a recording with no clock log of its own, and the calibres you
+added (`calibres.json`, chapter 24). Back up that folder too, and copy
+it with the Watches folder to a new computer. Chapter 27 gives where it
+is on each system.
+
 ## What to Look For
 
 | What you see | What it can mean |
 | --- | --- |
 | A take marked Incomplete | Some of its sound files are missing, often a copy or sync not finished. The app changes nothing in it. |
 | The window naming a file out of date order | A segment named out of its place in the run. |
-| Unsaved Sound Found at start | A test's sound from a run that didn't end normally. |
+| Unsaved Take Found at start | A test's sound, or a Power Reserve Test's analysis with Analysis Only, from a run that didn't end normally. |
 
 ## What It Can't Tell You
 

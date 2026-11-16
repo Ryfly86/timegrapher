@@ -33,8 +33,10 @@ use std::sync::RwLock;
 use std::time::{Duration, SystemTime};
 
 /// The layout's name and version, first in every copy.
-/// Version 2 adds each window's culled sides' edges (#1333).
-pub const FORMAT: &[u8; 16] = b"timegrapher.bc/2";
+/// Version 2 adds each window's culled sides' edges (#1333); 3, whether
+/// the lock-on template was kept (`lock_template_kept`, #1503); 4, each
+/// window's sides withheld as too faint to read (#1738).
+pub const FORMAT: &[u8; 16] = b"timegrapher.bc/4";
 /// Bytes in each span of a sound file read into the key.
 const HEAD_BYTES: usize = 1 << 16;
 /// Spans of each sound file read into the key: the first at its start,
@@ -220,6 +222,7 @@ pub fn encode(log: &BeatLog, peak: f32) -> Vec<u8> {
     f64s(&mut o, &[log.duration_s, log.lift_deg]);
     o.extend_from_slice(&peak.to_le_bytes());
     o.extend_from_slice(&(log.clipped_samples as u64).to_le_bytes());
+    o.push(u8::from(log.lock_template_kept));
     len(&mut o, log.beats.len());
     for b in &log.beats {
         o.extend_from_slice(&b.index.to_le_bytes());
@@ -234,6 +237,20 @@ pub fn encode(log: &BeatLog, peak: f32) -> Vec<u8> {
                 Some(v) => {
                     o.push(1);
                     o.extend_from_slice(&v.to_le_bytes());
+                }
+                None => o.push(0),
+            }
+        }
+        let [e, d] = w.faint_withheld();
+        o.push(u8::from(e) | u8::from(d) << 1);
+        for h in w.sound_1 {
+            o.extend_from_slice(&h.to_le_bytes());
+        }
+        for d in w.outliers() {
+            match d {
+                Some(d) => {
+                    o.push(1);
+                    o.extend_from_slice(&d.to_le_bytes());
                 }
                 None => o.push(0),
             }
@@ -332,6 +349,11 @@ pub fn decode(bytes: &[u8]) -> Option<(BeatLog, f32)> {
     let lift_deg = r.f64()?;
     let peak = r.f32()?;
     let clipped_samples = usize::try_from(u64::from_le_bytes(r.take()?)).ok()?;
+    let lock_template_kept = match r.take::<1>()? {
+        [0] => false,
+        [1] => true,
+        _ => return None,
+    };
     let n = r.len(20)?;
     let beats = (0..n)
         .map(|_| {
@@ -362,6 +384,7 @@ pub fn decode(bytes: &[u8]) -> Option<(BeatLog, f32)> {
         return None;
     }
     let log = BeatLog {
+        lock_template_kept,
         sample_rate,
         duration_s,
         bph,
@@ -391,6 +414,19 @@ fn read_window(r: &mut Bytes) -> Option<AmplitudeWindow> {
     }
     let [even_deg, odd_deg, beat_error_ms, beat_error_unlock_ms, even_unlock_ms, odd_unlock_ms, even_drop_ms, odd_drop_ms, eu, ed, ou, od] =
         v;
+    let faint = r.u8()?;
+    if faint > 3 {
+        return None;
+    }
+    let sound_1 = [r.f32()?, r.f32()?];
+    let mut outliers = [None; 2];
+    for d in &mut outliers {
+        *d = match r.u8()? {
+            0 => None,
+            1 => Some(r.f64()?),
+            _ => return None,
+        };
+    }
     let mut w = AmplitudeWindow {
         start_s,
         end_s,
@@ -402,12 +438,17 @@ fn read_window(r: &mut Bytes) -> Option<AmplitudeWindow> {
         odd_unlock_ms,
         even_drop_ms,
         odd_drop_ms,
-        culled_ms: None,
+        extra: None,
+        sound_1,
     };
-    w.set_culled([
-        eu.zip(ed).map(|(u, d)| [u, d]),
-        ou.zip(od).map(|(u, d)| [u, d]),
-    ]);
+    w.edit_extra(|x| {
+        x.culled_ms = [
+            eu.zip(ed).map(|(u, d)| [u, d]),
+            ou.zip(od).map(|(u, d)| [u, d]),
+        ];
+        x.outlier_deg = outliers;
+        x.faint_withheld = [faint & 1 != 0, faint & 2 != 0];
+    });
     Some(w)
 }
 

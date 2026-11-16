@@ -8,7 +8,7 @@ use eframe::egui::{self, epaint, Color32, Pos2, Rect, Shape, Stroke};
 use std::sync::OnceLock;
 
 /// Every icon, in the order of [`drawing`]'s arms.
-const ALL: [Icon; 85] = [
+const ALL: [Icon; 86] = [
     Icon::Readings,
     Icon::Watch,
     Icon::Strip,
@@ -47,6 +47,7 @@ const ALL: [Icon; 85] = [
     Icon::Export,
     Icon::Bucket,
     Icon::Wheel,
+    Icon::Mesh,
     Icon::Copy,
     Icon::SaveTable,
     Icon::Calipers,
@@ -140,17 +141,11 @@ fn drawing(icon: Icon) -> &'static str {
             r#"<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><rect x="9.5" y="6.5" width="5" height="11" rx="1.5"/><path d="M10.2 12h3.6"/><path d="M10.8 12l-1.4-4.6h5.2L13.2 12" fill="currentColor"/>"#
         }
         // A leaping hare: Gaining or losing: how fast the watch runs.
-        Icon::Rate => {
-            r#"<path d="M4.2 14.2c.4-3.4 3.8-5.6 7.8-5.2 2.4.2 4.2 1.3 5 2.8"/><path d="M16.8 13.4c-.9 1.6-2.6 2.3-4.6 2.3"/><path d="M4.2 14.2c.2 1.8 1.8 3 3.8 3 1.6 0 3-.6 3.8-1.6"/><path d="M7.6 13.6c1.4.4 2.4 1.6 2.4 3.2l-.6 2.2H4.4"/><circle cx="18.4" cy="11.4" r="2.4"/><circle cx="19.2" cy="11" r=".6" fill="currentColor" stroke="none"/><path d="M17.2 9.4c-1.8-2.2-2.6-4.8-2.2-7.2 1.6 1.4 2.8 4 3 6.8"/><path d="M19.2 9.2c.4-2.6 1.4-4.8 3-6 .2 2.2-.4 4.6-1.8 6.6"/><path d="M15.6 15l2.6 2.6M14 15.6l1.8 3"/><circle cx="3.6" cy="12.4" r="1.3" fill="currentColor" stroke="none"/>"#
-        }
+        Icon::Rate => timegrapher_core::icons::RATE,
         // A swing: How far the balance swings, like a child on a swing.
-        Icon::Amplitude => {
-            r#"<path d="M3 3.5h18"/><path d="M10 3.5L6 15M14 3.5L10 16.2"/><path d="M4.6 15.4l6.6 1.4"/><path d="M4.5 19.5a11 11 0 0 0 15 0" stroke-dasharray="1.5 2.4"/>"#
-        }
+        Icon::Amplitude => timegrapher_core::icons::AMPLITUDE,
         // Two children on a seesaw: Tick and tock out of balance: one up, one down.
-        Icon::BeatError => {
-            r#"<path d="M3 13.4l18 5.2"/><path d="M12 16l-2.4 4.6h4.8z"/><circle cx="5" cy="8.8" r="1.6"/><path d="M5 10.4v3.4M5 11.6l1.8.6M5 13.8l1.6 2.6"/><circle cx="19" cy="12.4" r="1.6"/><path d="M19 14v3.8M19 15.2l-1.8.4M19 17.8l-1.4 2.8"/>"#
-        }
+        Icon::BeatError => timegrapher_core::icons::BEAT_ERROR,
         // A camel: The charts plot a course across the take, as a camel crosses a desert.
         Icon::Charts => {
             r#"<path d="M4 10.5C4 8 5.6 7.4 7 6.6 8.2 3 12 3 13 6.6c.6 1.8 1.8 2.2 3 2.6L18.2 6.8c.4-1 1.4-1.6 2.6-1.4l1.2.6-.4 1-1.2.2-1.8 4.2c-.6 1.6-1.8 2.6-3.6 2.6H6.6C5 14 4 12.6 4 10.5z"/><path d="M6.6 14v7.5M8.6 14v7.5M14.2 14v7.5M16.2 13.8v7.7"/><path d="M4 10.4l-1 3.6"/><circle cx="20.4" cy="6.6" r=".5" fill="currentColor" stroke="none"/>"#
@@ -254,6 +249,9 @@ fn drawing(icon: Icon) -> &'static str {
         Icon::Wheel => {
             r#"<circle cx="12" cy="12" r="8.6"/><path stroke-width="1" d="M20.60 12.00L22.60 12.00M20.41 13.79L22.37 14.20M19.86 15.50L21.68 16.31M18.96 17.05L20.58 18.23M17.75 18.39L19.09 19.88M16.30 19.45L17.30 21.18M14.66 20.18L15.28 22.08M12.90 20.55L13.11 22.54M11.10 20.55L10.89 22.54M9.34 20.18L8.72 22.08M7.70 19.45L6.70 21.18M6.25 18.39L4.91 19.88M5.04 17.05L3.42 18.23M4.14 15.50L2.32 16.31M3.59 13.79L1.63 14.20M3.40 12.00L1.40 12.00M3.59 10.21L1.63 9.80M4.14 8.50L2.32 7.69M5.04 6.95L3.42 5.77M6.25 5.61L4.91 4.12M7.70 4.55L6.70 2.82M9.34 3.82L8.72 1.92M11.10 3.45L10.89 1.46M12.90 3.45L13.11 1.46M14.66 3.82L15.28 1.92M16.30 4.55L17.30 2.82M17.75 5.61L19.09 4.12M18.96 6.95L20.58 5.77M19.86 8.50L21.68 7.69M20.41 10.21L22.37 9.80"/><path d="M12.00 9.80L12.00 3.40M14.09 11.32L20.18 9.34M13.29 13.78L17.05 18.96M10.71 13.78L6.95 18.96M9.91 11.32L3.82 9.34"/><circle cx="12" cy="12" r="2.2"/>"#
         }
+        // One wheel tooth going in between two pinion leaves: Mesh, where a
+        // wheel drives a pinion (Peter's pick, A, on #1764).
+        Icon::Mesh => timegrapher_core::icons::MESH,
         // Two sheets, one over the other: Copy.
         Icon::Copy => {
             r#"<rect x="8.5" y="8.5" width="12" height="12.5" rx="2"/><path d="M15.5 8.5V5a2 2 0 0 0-2-2H5.5a2 2 0 0 0-2 2v9.5a2 2 0 0 0 2 2h3"/>"#
@@ -424,14 +422,12 @@ fn drawing(icon: Icon) -> &'static str {
             r#"<path d="M15 3l6 6-8.5 8.5-6-6z"/><path d="M6.5 11.5L5 16l3 3 4.5-1.5"/><path d="M3 21.5h9" stroke-width="2.6"/>"#
         }
         // The standard "i" in a circle: Info, the findings in full.
-        Icon::Info => {
-            r#"<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle cx="12" cy="7.5" r="1.1" fill="currentColor"/>"#
-        }
+        Icon::Info => timegrapher_core::icons::INFO,
     }
 }
 
 /// The line width the drawings were designed with, in grid units.
-const WIDTH: f32 = 1.7;
+const WIDTH: f32 = timegrapher_core::icons::WIDTH;
 
 /// One run of line in a drawing, in grid units.
 #[derive(Debug, Clone, PartialEq)]

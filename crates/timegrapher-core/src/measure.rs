@@ -33,30 +33,38 @@ use serde::{Deserialize, Serialize};
 /// below which a stretch of beats is named `short_span`.
 pub const SHORT_SPAN_S: f64 = 10.0;
 
-/// Whether `listened_s` seconds of sound are enough to assess whether the
-/// beats are regular (see [`SHORT_SPAN_S`]).
-pub fn regularity_assessed(listened_s: f64) -> bool {
+/// Whether a stretch's beats are judged for regularity: it holds
+/// `listened_s` seconds of sound, at least [`SHORT_SPAN_S`], and
+/// `holds_window`, at least one whole scatter window on the take's grid
+/// lies inside it, clear of its cuts ([`crate::session::holds_scatter_window`],
+/// decided from where the windows fall, not from whether they fit). A
+/// stretch that can hold no window gives no scatter to judge, so it is
+/// read as one under [`SHORT_SPAN_S`]: the beat sound decides (Norm on
+/// #1688). One that holds a window whose beats give no fit, such as
+/// noise, is still judged, and still no watch.
+pub fn regularity_assessed(listened_s: f64, holds_window: bool) -> bool {
     // A tolerance, so a 10 s average reached by subtraction counts.
-    listened_s >= SHORT_SPAN_S - 1e-6
+    holds_window && listened_s >= SHORT_SPAN_S - 1e-6
 }
 
-/// False when a regular beat was looked for and not found: with at least
-/// [`SHORT_SPAN_S`] of sound, the beat timing scatter is at or above
-/// [`crate::beats::NO_WATCH_JITTER_FRACTION`] of a beat. With less sound,
-/// regularity is not assessed and this is true. [`no_watch_reason`] also
-/// looks at the beats' sound.
-pub fn watch_heard(jitter_us: Option<f64>, bph: u32, listened_s: f64) -> bool {
-    !regularity_assessed(listened_s) || crate::beats::watch_heard(jitter_us, bph)
+/// False when a regular beat was looked for and not found: where
+/// regularity is `assessed` ([`regularity_assessed`]), the beat timing
+/// scatter is at or above [`crate::beats::NO_WATCH_JITTER_FRACTION`] of a
+/// beat. Where it is not, this is true. [`no_watch_reason`] also looks at
+/// the beats' sound.
+pub fn watch_heard(jitter_us: Option<f64>, bph: u32, assessed: bool) -> bool {
+    !assessed || crate::beats::watch_heard(jitter_us, bph)
 }
 
-/// Whether the beats' averaged sound has a say in [`no_watch_reason`]: on
-/// a stretch under [`SHORT_SPAN_S`], where the timing is not assessed, or
-/// on a longer one whose timing scatter is at or above
-/// [`crate::beats::NOISE_DOUBT_FRACTION`], where noise can still scatter as
-/// little as this (#675). Every reader asks this before working out the
-/// sound ([`stretch_beat_sound`]), so all of them judge a stretch alike.
-pub fn beat_sound_needed(jitter_us: Option<f64>, bph: u32, listened_s: f64) -> bool {
-    !regularity_assessed(listened_s) || in_doubt(jitter_us, bph)
+/// Whether the beats' averaged sound has a say in [`no_watch_reason`]:
+/// where regularity is not `assessed` ([`regularity_assessed`]: under
+/// [`SHORT_SPAN_S`], or no whole scatter window), or where the timing
+/// scatter is at or above [`crate::beats::NOISE_DOUBT_FRACTION`], where
+/// noise can still scatter as little as this (#675). Every reader asks
+/// this before working out the sound ([`stretch_beat_sound`]), so all of
+/// them judge a stretch alike.
+pub fn beat_sound_needed(jitter_us: Option<f64>, bph: u32, assessed: bool) -> bool {
+    !assessed || in_doubt(jitter_us, bph)
 }
 
 /// A timing scatter at or above [`crate::beats::NOISE_DOUBT_FRACTION`].
@@ -68,22 +76,23 @@ fn in_doubt(jitter_us: Option<f64>, bph: u32) -> bool {
 /// Why no regular beat was found, or `None` when one was, from the timing
 /// scatter and the beats' averaged sound (`beat_sound`, from
 /// [`stretch_beat_sound`]: whether either side shows an unlock or a drop):
-/// - under [`SHORT_SPAN_S`], the timing is not assessed, and the sound
-///   decides when it can be judged;
-/// - with more, a scatter at or above [`crate::beats::NO_WATCH_JITTER_FRACTION`]
-///   is no watch;
+/// - where regularity is not `assessed` ([`regularity_assessed`]: under
+///   [`SHORT_SPAN_S`], or no whole scatter window), the timing is not
+///   judged, and the sound decides when it can be judged;
+/// - where it is, a scatter at or above
+///   [`crate::beats::NO_WATCH_JITTER_FRACTION`] is no watch;
 /// - a scatter from [`crate::beats::NOISE_DOUBT_FRACTION`] up to it, where
 ///   noise can still fall (#675) and so can a weak watch about to stop, is
 ///   a watch unless the sound shows none.
 pub fn no_watch_reason(
     jitter_us: Option<f64>,
     bph: u32,
-    listened_s: f64,
+    assessed: bool,
     beat_sound: Option<bool>,
 ) -> Option<NoWatchReason> {
-    if !crate::beats::watch_heard(jitter_us, bph) && regularity_assessed(listened_s) {
+    if !crate::beats::watch_heard(jitter_us, bph) && assessed {
         Some(NoWatchReason::Scatter)
-    } else if beat_sound_needed(jitter_us, bph, listened_s) && beat_sound == Some(false) {
+    } else if beat_sound_needed(jitter_us, bph, assessed) && beat_sound == Some(false) {
         Some(NoWatchReason::NoBeatSound)
     } else {
         None
@@ -256,14 +265,35 @@ impl DropWhy {
     }
 }
 
+/// [`Caveat::FaintSidesWithheld`] as a sentence, for `sides` sides in
+/// `windows` windows (Hugh's words on #1800).
+fn faint_sides_text(sides: usize, windows: usize) -> String {
+    let share = crate::amplitude::FAINT_SOUND_MAX_SHARE;
+    let they = if sides == 1 { "It is" } else { "They are" };
+    let whose = if windows == 1 {
+        "that window's"
+    } else {
+        "those windows'"
+    };
+    format!(
+        "{sides} side{} in {windows} window{} had an unlock sound too faint to tell from \
+         noise: under {share:.2} of that side's usual level nearby. {they} left out of \
+         {whose} amplitude and beat error.",
+        plural(sides),
+        plural(windows),
+    )
+}
+
 /// [`Caveat::LockTemplateKept`] as a sentence, with the first chunk's
-/// length from [`crate::stream::StreamConfig`].
+/// length from [`crate::stream::StreamConfig`] and the lock-on window's
+/// from [`crate::live::LiveConfig`].
 fn lock_template_kept_text() -> String {
     let chunk_s = crate::stream::StreamConfig::default().chunk_s;
+    let lock_s = crate::live::LiveConfig::default().window_s;
     format!(
-        "Live kept the beat shape it learned when it locked on. Learning it again from the \
-         first {chunk_s:.0} s, as the saved take does, found amplitude in fewer windows on \
-         both sides, so the saved take may read differently."
+        "This reading used the beat shape from the first {lock_s:.0} s of sound, where Live \
+         locks on. The shape from the first {chunk_s:.0} s found amplitude on both sides in \
+         fewer windows. Live and saved takes choose the same way."
     )
 }
 
@@ -352,6 +382,11 @@ pub enum Caveat {
         windows_used: usize,
         windows_in_span: usize,
     },
+    /// `sides` window sides, in `windows` windows, were withheld because
+    /// the side's sound 1 was under [`crate::amplitude::FAINT_SOUND_MAX_SHARE`]
+    /// of the same side's in its chunk: too faint to tell its unlock from
+    /// noise (#1738). They give no amplitude and no unlock beat error.
+    FaintSidesWithheld { sides: usize, windows: usize },
     /// Stretches of the take were masked out of the readings by hand;
     /// `seconds` is their total within the stretch.
     Masked { seconds: f64 },
@@ -362,11 +397,12 @@ pub enum Caveat {
     /// heard, and are left out of the readings
     /// ([`crate::session::watch_lead_s`], #844).
     LeadLeftOut { seconds: f64 },
-    /// Live only: the template built again from the first 47 s, as a
-    /// file's reading builds it, read both sides in fewer amplitude windows
-    /// than the one live locked on with, so live kept that one
-    /// ([`crate::live::LiveAnalyzer::kept_lock_template`], #1500). A
-    /// file's reading of the same sound may then differ.
+    /// The template built from the first 47 s read both sides in fewer
+    /// amplitude windows than the one a short window gave, as live locks
+    /// on with, so that one was kept: by live
+    /// ([`crate::live::LiveAnalyzer::kept_lock_template`], #1500) and by a
+    /// file's reading ([`crate::stream::BeatLog::lock_template_kept`],
+    /// #1503) alike.
     LockTemplateKept,
     /// The amplitude's or beat error's period search named a cycle on a
     /// stretch under [`crate::longterm::NOISE_CAVEAT_SPAN_S`] whose 2 s
@@ -395,6 +431,16 @@ pub enum Caveat {
 }
 
 impl Caveat {
+    /// Whether it limits only the amplitude and the beat error, which are
+    /// read from each beat's sounds, and not the rate: clipping, and sides
+    /// too faint to read (#1738).
+    pub fn is_amplitude_only(&self) -> bool {
+        matches!(
+            self,
+            Caveat::Clipped { .. } | Caveat::FaintSidesWithheld { .. }
+        )
+    }
+
     /// The beat error from the drop because the unlock was not found.
     pub const FROM_DROP: Caveat = Caveat::BeatErrorFromDrop {
         why: DropWhy::UnlockNotFound,
@@ -426,6 +472,9 @@ impl Caveat {
                 format!("{readings} beat-error readings with no recorded source left out")
             }
             Caveat::BeatErrorFromDrop { .. } => "beat error from the drop".to_string(),
+            Caveat::FaintSidesWithheld { sides, .. } => {
+                format!("{sides} faint side{} left out", plural(*sides))
+            }
             Caveat::SetRateDisagrees { heard } => format!("{heard} bph heard"),
             Caveat::ShortSpan { span_s } => format!("{span_s:.0} s of beats"),
             Caveat::Clipped { fraction } => format!("{:.0}% clipped", fraction * 100.0),
@@ -480,6 +529,7 @@ impl Caveat {
             Caveat::BeatErrorUnknownSource { readings } =>
                 format!("The beat-error aggregate leaves out {readings} reading{} whose source was not recorded.", plural(*readings)),
             Caveat::BeatErrorFromDrop { why } => why.sentence().to_string(),
+            Caveat::FaintSidesWithheld { sides, windows } => faint_sides_text(*sides, *windows),
             Caveat::SetRateDisagrees { heard } => {
                 format!("The beat rate set differs from the {heard} bph heard.")
             }
@@ -624,6 +674,7 @@ impl Caveat {
             Caveat::BeatErrorSourceReadings { .. } => 18,
             Caveat::BeatErrorUnknownSource { .. } => 19,
             Caveat::ReadingWindows { .. } => 17,
+            Caveat::FaintSidesWithheld { .. } => 17,
             Caveat::PeriodMayBeNoise { .. } => 19,
             Caveat::PeriodSearchUncalibrated { .. } => 19,
             Caveat::TimingModelMisfit { .. } => 19,
@@ -872,6 +923,14 @@ pub fn assess_in(
     if c.beat_error_as_size && c.watch_heard {
         caveats.push(Caveat::BeatErrorAsSize);
     }
+    // Sides withheld as too faint to read, among the measurement's own
+    // windows (#1738).
+    let faint = amplitude_windows.iter().map(|w| w.faint_withheld());
+    let sides = faint.clone().flatten().filter(|&f| f).count();
+    let windows = faint.filter(|f| f.contains(&true)).count();
+    if sides > 0 && c.watch_heard {
+        caveats.push(Caveat::FaintSidesWithheld { sides, windows });
+    }
     let confidence = c.watch_heard.then(|| {
         Confidence::new(
             match c.average_s {
@@ -902,7 +961,42 @@ mod tests {
     use super::*;
 
     /// The kept-template caveat names the first chunk's length from
-    /// `stream`, not a number of its own (#1500).
+    /// `stream` and the lock-on window's from `live`, not numbers of its
+    /// own (#1500, #1503).
+    #[test]
+    fn faint_sides_withheld_is_worded_with_its_count() {
+        let one = Caveat::FaintSidesWithheld {
+            sides: 1,
+            windows: 1,
+        };
+        // Both sides of one window, and one side of another.
+        let three = Caveat::FaintSidesWithheld {
+            sides: 3,
+            windows: 2,
+        };
+        assert_eq!(one.short(52.0, 0).as_deref(), Some("1 faint side left out"));
+        assert_eq!(
+            three.short(52.0, 0).as_deref(),
+            Some("3 faint sides left out")
+        );
+        assert_eq!(
+            one.long(None).as_deref(),
+            Some(
+                "1 side in 1 window had an unlock sound too faint to tell from noise: under \
+                 0.28 of that side's usual level nearby. It is left out of that window's \
+                 amplitude and beat error."
+            )
+        );
+        assert_eq!(
+            three.long(None).as_deref(),
+            Some(
+                "3 sides in 2 windows had an unlock sound too faint to tell from noise: under \
+                 0.28 of that side's usual level nearby. They are left out of those windows' \
+                 amplitude and beat error."
+            )
+        );
+    }
+
     #[test]
     fn the_kept_template_caveat_names_the_first_chunk() {
         let c = Caveat::LockTemplateKept;
@@ -911,8 +1005,16 @@ mod tests {
             Some("beat shape kept from lock-on")
         );
         let chunk_s = crate::stream::StreamConfig::default().chunk_s;
+        let lock_s = crate::live::LiveConfig::default().window_s;
         let long = c.long(None).unwrap();
-        assert!(long.contains(&format!("first {chunk_s:.0} s,")), "{long}");
+        assert!(
+            long.contains(&format!("first {chunk_s:.0} s found")),
+            "{long}"
+        );
+        assert!(
+            long.contains(&format!("first {lock_s:.0} s of sound")),
+            "{long}"
+        );
     }
 
     /// A beat error from the drop because the unlock was not found writes
@@ -951,6 +1053,58 @@ mod tests {
             listened_s: 60.0,
             ..Default::default()
         }
+    }
+
+    /// The faint-sides caveat counts the sides and the windows they sit in
+    /// from the reading's own windows (#1738, Trevor on #1800): one window
+    /// with both sides withheld and one with one side give 3 sides in 2
+    /// windows; a window with none adds nothing.
+    #[test]
+    fn faint_sides_are_counted_by_side_and_by_window() {
+        let window = |i: u32, faint: [bool; 2]| {
+            let mut w = AmplitudeWindow {
+                start_s: 2.0 * f64::from(i),
+                end_s: 2.0 * f64::from(i) + 2.0,
+                even_deg: (!faint[0]).then_some(250.0),
+                odd_deg: (!faint[1]).then_some(250.0),
+                beat_error_ms: Some(0.3),
+                beat_error_unlock_ms: None,
+                even_unlock_ms: None,
+                odd_unlock_ms: None,
+                even_drop_ms: None,
+                odd_drop_ms: None,
+                extra: None,
+                sound_1: [f32::NAN; 2],
+            };
+            w.edit_extra(|x| x.faint_withheld = faint);
+            w
+        };
+        let wins = [
+            window(0, [true, true]),
+            window(1, [false, false]),
+            window(2, [false, true]),
+        ];
+        let refs: Vec<&AmplitudeWindow> = wins.iter().collect();
+        let a = assess(&[], &refs, &heard());
+        let faint: Vec<&Caveat> = a
+            .caveats
+            .iter()
+            .filter(|c| matches!(c, Caveat::FaintSidesWithheld { .. }))
+            .collect();
+        assert_eq!(
+            faint,
+            [&Caveat::FaintSidesWithheld {
+                sides: 3,
+                windows: 2
+            }]
+        );
+        // None withheld: no caveat.
+        let clean = [window(0, [false, false])];
+        let a = assess(&[], &[&clean[0]], &heard());
+        assert!(!a
+            .caveats
+            .iter()
+            .any(|c| matches!(c, Caveat::FaintSidesWithheld { .. })));
     }
 
     #[test]
@@ -1107,18 +1261,22 @@ mod tests {
     /// stay, and the short span is named.
     #[test]
     fn a_stretch_too_short_to_assess_keeps_its_readings() {
-        assert!(!regularity_assessed(8.0));
-        assert!(regularity_assessed(10.0));
+        assert!(!regularity_assessed(8.0, true));
+        assert!(regularity_assessed(10.0, true));
+        // A stretch long enough that holds no whole scatter window is not
+        // assessed either (#1688).
+        assert!(!regularity_assessed(14.0, false));
         // Scatter of 8.6 ms at 21,600 bph: no regular beat over 10 s or
         // more, not assessed under it.
-        assert!(!watch_heard(Some(8600.0), 21_600, 60.0));
-        assert!(watch_heard(Some(8600.0), 21_600, 8.0));
-        assert!(watch_heard(None, 21_600, 8.0));
+        let assessed = |s: f64| regularity_assessed(s, true);
+        assert!(!watch_heard(Some(8600.0), 21_600, assessed(60.0)));
+        assert!(watch_heard(Some(8600.0), 21_600, assessed(8.0)));
+        assert!(watch_heard(None, 21_600, assessed(8.0)));
         let a = assess(
             &[],
             &[],
             &Context {
-                watch_heard: watch_heard(Some(8600.0), 21_600, 8.0),
+                watch_heard: watch_heard(Some(8600.0), 21_600, assessed(8.0)),
                 span_s: 8.0,
                 listened_s: 8.0,
                 ..heard()
@@ -1135,7 +1293,7 @@ mod tests {
     fn in_the_doubt_zone_only_a_silent_beat_sound_is_no_watch() {
         // 1.5% of a beat at 28,800 bph.
         let doubt = Some(0.015 * 125_000.0);
-        let reason = |s, sound| no_watch_reason(doubt, 28_800, s, sound);
+        let reason = |s, sound| no_watch_reason(doubt, 28_800, regularity_assessed(s, true), sound);
         for s in [5.0, 30.0] {
             assert_eq!(reason(s, Some(true)), None);
             assert_eq!(reason(s, None), None);
@@ -1143,7 +1301,7 @@ mod tests {
         }
         // Below the zone the timing alone says a watch, and at the limit
         // no watch, whatever the sound.
-        let at = |f: f64, sound| no_watch_reason(Some(f * 125_000.0), 28_800, 30.0, sound);
+        let at = |f: f64, sound| no_watch_reason(Some(f * 125_000.0), 28_800, true, sound);
         assert_eq!(at(0.005, Some(false)), None);
         assert_eq!(at(0.02, Some(true)), Some(NoWatchReason::Scatter));
     }

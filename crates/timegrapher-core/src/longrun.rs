@@ -255,12 +255,12 @@ fn analyse_read(
     let aw: Vec<f64> = at.iter().map(|&t| to_watch(t)).collect();
     let amp_grid = grid_median(&aw, &av, 0.0, astep, (duration / astep).floor() as usize);
 
-    let timing = longterm::analyse_timing_pieces(&timing_grid, &piece_starts, cfg);
     let amp_cuts: Vec<f64> = cuts.iter().map(|&c| to_watch(c)).collect();
-    let amplitude = longterm::analyse_pieces(
-        &amp_grid,
-        &longterm::piece_starts(&amp_grid, &amp_cuts),
-        cfg,
+    let amp_starts = longterm::piece_starts(&amp_grid, &amp_cuts);
+    // The two searches read nothing of each other: on two cores (#1839).
+    let (amplitude, timing) = crate::cores::both(
+        || longterm::analyse_pieces(&amp_grid, &amp_starts, cfg),
+        || longterm::analyse_timing_pieces(&timing_grid, &piece_starts, cfg),
     );
     let rate_components = timing
         .components
@@ -518,6 +518,7 @@ mod tests {
             })
             .collect();
         let log = BeatLog {
+            lock_template_kept: false,
             sample_rate: 48000,
             duration_s: duration,
             bph: 28800,
@@ -565,6 +566,7 @@ mod tests {
             })
             .collect();
         let log = BeatLog {
+            lock_template_kept: false,
             sample_rate: 48000,
             duration_s: duration,
             bph: 21600,
@@ -643,11 +645,13 @@ mod tests {
                     odd_unlock_ms: None,
                     even_drop_ms: None,
                     odd_drop_ms: None,
-                    culled_ms: None,
+                    extra: None,
+                    sound_1: [f32::NAN; 2],
                 }
             })
             .collect();
         let log = BeatLog {
+            lock_template_kept: false,
             sample_rate: 48000,
             duration_s: 400.0,
             bph: 18000,
@@ -700,26 +704,25 @@ mod tests {
             let amplitude_windows = (0..200)
                 .map(|k| {
                     let start_s = k as f64 * 2.0;
+                    let be = if flip && start_s >= 200.0 { -0.3 } else { 0.3 };
                     crate::amplitude::AmplitudeWindow {
                         start_s,
                         end_s: start_s + 2.0,
                         even_deg: Some(250.0),
                         odd_deg: Some(250.0),
                         beat_error_ms: None,
-                        beat_error_unlock_ms: Some(if flip && start_s >= 200.0 {
-                            -0.3
-                        } else {
-                            0.3
-                        }),
+                        beat_error_unlock_ms: Some(be),
                         even_unlock_ms: None,
                         odd_unlock_ms: None,
                         even_drop_ms: None,
                         odd_drop_ms: None,
-                        culled_ms: None,
+                        extra: None,
+                        sound_1: [f32::NAN; 2],
                     }
                 })
                 .collect();
             BeatLog {
+                lock_template_kept: false,
                 sample_rate: 48000,
                 duration_s: 400.0,
                 bph: 18000,

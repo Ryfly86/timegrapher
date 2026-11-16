@@ -131,14 +131,18 @@ pub static RATE: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
      result is only right if the computer's clock is kept by internet time."
             .into(),
         "- Once the error is kept (by Keep, or from the command line, which can also measure \
-     it from a recording's clock log), the corrected rate is in the big figure's hover."
+     it from a recording's clock log), the readings are put on it while listening (see \
+     Reading It)."
             .into(),
         "- Settings > Microphone > Quartz Correction lists each input's. Until then the rate \
      is read on the card's clock alone, as tg reads it."
             .into(),
         "## Reading It".into(),
-        "- The big figure stays on the card's clock, the same clock tg and an analysis of \
-     the recording read, so the two compare directly."
+        "- While listening, the big figure is put on the recording's own clock, as it would \
+     be if the take were saved and opened again: the kept error, then the USB microphone's \
+     lines once they are read. The hover says which."
+            .into(),
+        "- With neither, it stays on the card's clock, as tg reads it."
             .into(),
     ])
 });
@@ -491,6 +495,12 @@ pub static POSITIONS_TEST: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
         "- Save as Text… writes the same as a plain-text report, lined up to read, print or \
      send."
             .into(),
+        "- With no test on the Bench, all three write an opened take's This Take table, without a \
+     test's start and times."
+            .into(),
+        "- On an opened 24 hour half, all three write its saved table and the full-wind test \
+     it's compared with."
+            .into(),
     ])
 });
 
@@ -542,6 +552,9 @@ pub static DYNAMIC_POISE: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
         "## Saving".into(),
         "- Copy writes the watch, its calibre, the table and the fit in words, with tabs \
      between the columns for a spreadsheet."
+            .into(),
+        "- Save as Text… writes the same as a plain-text report, lined up to read, print or \
+     send."
             .into(),
     ])
 });

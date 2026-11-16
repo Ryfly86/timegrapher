@@ -165,7 +165,8 @@ mod tests {
             odd_unlock_ms: None,
             even_drop_ms: None,
             odd_drop_ms: None,
-            culled_ms: None,
+            extra: None,
+            sound_1: [f32::NAN; 2],
         };
         let windows = [
             window(Some(0.3), Some(8.0)),

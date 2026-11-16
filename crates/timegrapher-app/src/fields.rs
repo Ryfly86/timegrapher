@@ -43,16 +43,36 @@ pub fn duration(v: f64) -> String {
     }
 }
 
+/// From `least` to `most` seconds as [`duration`] writes each: one length
+/// where they read the same, else "1 to 2 min", the unit once where both
+/// share it, and "45 s to 1 min" where they don't (Hugh, #1733).
+pub fn duration_range(least: f64, most: f64) -> String {
+    let (a, b) = (duration(least), duration(most));
+    if a == b {
+        return a;
+    }
+    let unit = |t: &str| {
+        t.rsplit_once(' ')
+            .map(|(n, u)| (n.to_string(), u.to_string()))
+    };
+    match (unit(&a), unit(&b)) {
+        (Some((n, u)), Some((_, v))) if u == v => format!("{n} to {b}"),
+        _ => format!("{a} to {b}"),
+    }
+}
+
 /// Read "45", "45 s", "5 min", "5m", "2 h", "1:30" or "1:02:30" as seconds.
 pub fn parse_duration(s: &str) -> Option<f64> {
     let s = s.trim().to_lowercase().replace(',', ".");
     if s.contains(':') {
         let mut total = 0.0;
         for part in s.split(':') {
-            let v: f64 = part.trim().parse().ok()?;
+            // Each part a number as `parse_number` reads one: "nan" and
+            // "inf" parse as f64 but are no time (#1650).
+            let v: f64 = part.trim().parse().ok().filter(|v: &f64| v.is_finite())?;
             total = total * 60.0 + v;
         }
-        return Some(total);
+        return total.is_finite().then_some(total);
     }
     let v = parse_number(&s)?;
     let unit = s.trim_start_matches(|c: char| c.is_ascii_digit() || c == '.' || c == ' ');
@@ -253,12 +273,18 @@ mod tests {
         assert_eq!(parse_duration("1:30"), Some(90.0));
         assert_eq!(parse_duration("1:02:30"), Some(3750.0));
         assert_eq!(parse_duration("5 fortnights"), None);
+        for bad in ["nan:00", "1:inf", "inf:30", "1e308:0:0"] {
+            assert_eq!(parse_duration(bad), None, "{bad}");
+        }
         assert_eq!(duration(30.0), "30 s");
         assert_eq!(duration(300.0), "5 min");
         assert_eq!(duration(60.0), "1 min");
         assert_eq!(duration(90.0), "90 s");
         assert_eq!(duration(7200.0), "2 h");
         assert_eq!(duration(3750.0), "1:02:30");
+        assert_eq!(duration_range(62.0, 62.0), "62 s");
+        assert_eq!(duration_range(60.0, 120.0), "1 to 2 min");
+        assert_eq!(duration_range(45.0, 60.0), "45 s to 1 min");
         assert_eq!(plain(62.5), "62.5");
         assert_eq!(plain(10.0), "10");
     }

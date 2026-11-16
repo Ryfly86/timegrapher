@@ -65,7 +65,11 @@ fn reader() -> Option<&'static std::sync::mpsc::Sender<Task>> {
 impl<K, T: Send + 'static> Job<K, T> {
     /// Read `read` on the background thread, after those asked for
     /// before; the window is drawn again when it is done.
-    fn start(key: K, ctx: &egui::Context, read: impl FnOnce() -> T + Send + 'static) -> Self {
+    pub(super) fn start(
+        key: K,
+        ctx: &egui::Context,
+        read: impl FnOnce() -> T + Send + 'static,
+    ) -> Self {
         let (tx, rx) = std::sync::mpsc::channel();
         let ctx = ctx.clone();
         let wanted = std::sync::Arc::new(());
@@ -106,7 +110,8 @@ impl<K, T: Send + 'static> Job<K, T> {
 #[derive(Default)]
 pub(super) struct Background {
     /// The charts' run of readings.
-    pub(super) trend: Option<Job<TrendKey, Vec<TrendPoint>>>,
+    /// The charts' run, and how much sound it was read on.
+    pub(super) trend: Option<Job<TrendKey, (Vec<TrendPoint>, f64)>>,
     /// A long take's run for the Power reserve pane, once it is wanted:
     /// `Some(None)` until its reading starts (#1014).
     pub(super) reserve: Option<Option<Job<Revision, Option<reserve::Test>>>>,
@@ -115,6 +120,16 @@ pub(super) struct Background {
     pub(super) reserve_live: Option<Job<f64, Option<reserve::Test>>>,
     /// The take's second the run so far was last asked for at.
     pub(super) reserve_live_s: f64,
+    /// What the run on show from a long take was read from, so it is
+    /// read again when the take, its masks or its settings change after
+    /// it came (#1644).
+    pub(super) reserve_of: Option<Revision>,
+    /// The window's last pass that drew a Steadiness pane, and an STFT or
+    /// Wavelet one: the tests, and their maps, are read only while one is
+    /// shown; an Isochronism pane alone reads the isochronism alone (#1830).
+    pub(super) shown_pass: [Option<u64>; 2],
+    /// The isochronism read alone, and what the readings rested on then.
+    pub(super) isochronism: Option<(Revision, steady::IsochronismAlone)>,
 }
 
 /// A Positions Test table being read in the background, and what from.
@@ -251,7 +266,7 @@ impl TimegrapherApp {
                 clock.as_ref(),
                 &breaks,
                 &masks,
-                &spans,
+                (&spans, &spans),
             )?;
             m.take_doubts(lift_known, unlisted);
             Some(WholeTake { m, span })
@@ -403,7 +418,11 @@ impl TimegrapherApp {
                 &stretches,
                 core_session::POSITION_MIN_S,
             );
-            guided::free_table(&t, guided::upright(&upright, log.bph, bph_set))
+            guided::free_table(
+                &t,
+                guided::take_readings(&guided::card_rows(&t), log.bph, bph_set),
+                guided::take_readings(&upright, log.bph, bph_set),
+            )
         };
         let log = steady::log_of(live);
         let shown = self.free_table.borrow().as_ref().map(|(_, t)| t.clone());
@@ -428,12 +447,14 @@ impl TimegrapherApp {
     }
 
     /// For the window: the charts' run of readings read again when what
-    /// it rests on changed. While listening, here and now
-    /// ([`Self::refresh_trend`]); for a take on show, in the background,
-    /// the run on show kept until the new one comes.
+    /// it rests on changed, in the background, the run on show kept until
+    /// the new one comes. While listening too: read here, a long take's
+    /// 4,000 readings held the window and the listening (1.6 s at 4 h,
+    /// #1825). The readings heard after the sound it was read on are on
+    /// the new footing already and are kept after it.
     pub(super) fn refresh_trend_shown(&mut self, ctx: &egui::Context) {
         let key: TrendKey = (self.rev, self.average_s.to_bits());
-        if self.running() || self.live.is_none() {
+        if self.live.is_none() {
             self.bg.trend = None;
             self.refresh_trend();
             return;
@@ -448,13 +469,17 @@ impl TimegrapherApp {
         let Some(job) = &self.bg.trend else {
             let (live, average_s) = (self.live.clone(), self.average_s);
             self.bg.trend = Some(Job::start(key, ctx, move || {
-                live.map_or_else(Vec::new, |l| l.trend(average_s))
+                live.map_or_else(
+                    || (Vec::new(), 0.0),
+                    |l| (l.trend(average_s), l.duration_s()),
+                )
             }));
             return;
         };
         match job.done() {
-            Ok(points) => {
+            Ok((mut points, read_to)) => {
                 self.bg.trend = None;
+                points.extend(self.trend.iter().filter(|p| p.t > read_to).copied());
                 self.put_trend(points);
             }
             Err(true) => {}
@@ -472,14 +497,15 @@ impl TimegrapherApp {
     /// [`Self::reserve_from_long_take`] for the window, read in the
     /// background once a take has opened, so a take of many hours doesn't
     /// hold the window as it lands (#1014). It is read again if what it
-    /// rests on changes before it comes, and let go when the pane gets a
-    /// test of its own. While listening, the run so far is read once a
+    /// rests on changes before it comes, and again if it changes after
+    /// (#1644), and let go when the pane gets a test of its own. While listening, the run so far is read once a
     /// minute ([`Self::long_reserve_listening`]), and once more where
     /// listening stops.
     fn long_reserve_shown(&mut self, ctx: &egui::Context) {
         if self.reserve_is_test() {
             self.bg.reserve = None;
             self.bg.reserve_live = None;
+            self.bg.reserve_of = None;
             return;
         }
         if self.running() {
@@ -487,14 +513,18 @@ impl TimegrapherApp {
             return;
         }
         self.bg.reserve_live = None;
+        let key = self.rev;
+        if self.bg.reserve.is_none() && self.bg.reserve_of.is_some_and(|of| of != key) {
+            self.bg.reserve = Some(None);
+        }
         let Some(wanted) = &self.bg.reserve else {
             return;
         };
-        let key = self.rev;
         match wanted.as_ref().filter(|j| j.key == key).map(Job::done) {
             Some(Ok(t)) => {
                 self.reserve = t;
                 self.bg.reserve = None;
+                self.bg.reserve_of = Some(key);
             }
             Some(Err(true)) => {}
             Some(Err(false)) => self.bg.reserve = None,

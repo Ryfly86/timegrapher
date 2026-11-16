@@ -16,11 +16,8 @@ const MR: f64 = 16.0;
 const MT: f64 = 14.0;
 const MB: f64 = 40.0;
 
-fn esc(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-}
+/// Text put into the page: core's one escaper (#1649).
+use timegrapher_core::xml::escape as esc;
 
 /// About five round tick values covering `lo..hi`, labelled: core's
 /// grid step (`chart_scale::step_for`), written as every axis writes a
@@ -782,6 +779,7 @@ mod tests {
         use timegrapher_core::beats::Beat;
         use timegrapher_core::stream::BeatLog;
         let log = BeatLog {
+            lock_template_kept: false,
             sample_rate: 48_000,
             duration_s: 600.0,
             bph: 18_000,

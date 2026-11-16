@@ -137,7 +137,7 @@ fn drawn_with(
                     20.0,
                     false,
                     None,
-                    ("Current Position", false),
+                    ("Current Position", false, [true; 3]),
                 );
             });
         });
@@ -378,6 +378,7 @@ fn a_jump_inside_a_position_is_cut() {
     let duration = each * 6.0 + 1.0;
     let period = timegrapher_core::timing::period_s(0.125, 3.0);
     let log = BeatLog {
+        lock_template_kept: false,
         sample_rate: 48000,
         duration_s: duration,
         bph: 28800,
@@ -796,7 +797,7 @@ fn the_table_summary_is_the_session_values() {
         ),
     ];
     let t = table_of(&figures, Vec::new(), Kind::Positions);
-    let ix = session::sourced_indices(0.0, &figures);
+    let ix = session::sourced_indices(None, &figures);
     // Dial Up averages to 15 s/d before the mean and the difference.
     assert_eq!(t.mean_rate, Some(7.5));
     assert_eq!(t.largest_difference, Some(15.0));
@@ -997,7 +998,7 @@ fn drawn_empty(info: bool) -> Vec<String> {
         };
         let out = ctx.run(input, |ctx| {
             egui::CentralPanel::default().show(ctx, |ui| {
-                let card = ("Current Position", info);
+                let card = ("Current Position", info, [true; 3]);
                 pane(
                     ui, None, None, None, None, None, None, 20.0, false, None, card,
                 );
@@ -1171,7 +1172,8 @@ fn six_readings() -> Vec<Reading> {
 /// Save as Text… writes core's report of the test (#1508): the watch
 /// and how it was read, its Date from the take's name, the table as
 /// core writes it, and in the 24 hour half the full-wind test beside
-/// it. The lift angle is left out when it is the default.
+/// it. The lift angle is left out only when it is the default and the
+/// calibre's name gives it (Hugh on #1705).
 #[test]
 fn the_text_report_is_cores() {
     let about = About {
@@ -1195,14 +1197,130 @@ fn the_text_report_is_cores() {
     };
     assert_eq!(text, text_report::positions(&header, &readings, None));
     assert!(text.contains("Date        2026-11-13 19:17\n"), "{text}");
-    let unset = report_text(&t, &about, false, None).unwrap();
+    let named = About {
+        calibre: "Test 2824 (52°)".into(),
+        ..about.clone()
+    };
+    let unset = report_text(&t, &named, false, None).unwrap();
     assert!(
         !unset.contains("Lift Angle") && !unset.contains("Date"),
         "{unset}"
     );
+    // A calibre whose name doesn't give the lift: the lift is in the
+    // heading, as it is in the CSV.
+    let unnamed = report_text(&t, &about, false, None).unwrap();
+    assert!(unnamed.contains("Lift Angle  52°\n"), "{unnamed}");
     // The 24 hour half carries the full-wind test beside it.
     let mut half = Test::after(t.kept(&about).unwrap());
     half.readings = Some(readings);
     let text = report_text(&half, &about, true, None).unwrap();
     assert!(text.contains("Against the Full-Wind Test"), "{text}");
+}
+
+/// An opened 24 hour half's saved results are saved and copied as the
+/// pane shows them (#1706): the CSV holds the pane's table and the
+/// full-wind test against it, as the test's own export did, and the text
+/// report is the test's own down to its notes, which a saved test can't
+/// give the sound's conditions for. The watch and how it was read come
+/// from the results, not the pane.
+#[test]
+fn an_opened_24_hour_halfs_results_are_saved_as_the_pane_shows_them() {
+    let about = About {
+        watch: "Test Watch".into(),
+        calibre: "ETA 2824-2".into(),
+        bph: Some(28800),
+        lift_angle_deg: 52.0,
+    };
+    let readings = six_readings();
+    let mut t = Test::new();
+    t.readings = Some(readings.clone());
+    let mut half = Test::after(t.kept(&about).unwrap());
+    half.readings = Some(readings);
+    let s = half.kept(&about).unwrap();
+    assert!(s.against.is_some() && s.wind_h.is_some(), "{s:?}");
+    let pane = About::default();
+    let csv = saved_export_text(&s, &pane, ',');
+    // The heading as the test's own export gave it, then the pane's table
+    // and the comparison under it.
+    let live = export_text(&half, &about, ',');
+    let heading = |t: &str| t.split("\n\n").next().unwrap_or_default().to_string();
+    assert_eq!(heading(&csv), heading(&live));
+    assert!(csv.contains("\"Settling, s\",20\n"), "{csv}");
+    let table = table_text(&kept_table(&s), ',', Kind::Positions);
+    let c = saved_comparison(&s).expect("the full-wind test against it");
+    assert!(
+        csv.ends_with(&format!("\n{table}\n{}", comparison_text(&c, ','))),
+        "{csv}"
+    );
+    let take = Some("2026-11-13 19.17");
+    let text = saved_report_text(&s, &pane, true, take);
+    let live = report_text(&half, &about, true, take).unwrap();
+    let before_notes = |t: &str| t.split("\nNotes\n").next().unwrap_or_default().to_string();
+    assert_eq!(before_notes(&text), before_notes(&live));
+    // The hours to a tenth, as the pane and the CSV give them.
+    let h = format!("{:.1} h", s.wind_h.unwrap());
+    let against = format!("Against the Full-Wind Test, {h} after winding\n");
+    assert!(text.contains(&against), "{text}");
+    assert!(csv.contains(&format!("Rate at {h}, s/d")), "{csv}");
+    assert!(text.contains("Watch       Test Watch\n"), "{text}");
+}
+
+/// Save as Text… on the Dynamic Poise pane writes core's poise report
+/// (#1509): the table in the pane's order and the fit in full, never the
+/// Positions Test's report of the same readings.
+#[test]
+fn the_poise_text_report_is_cores() {
+    let about = About {
+        watch: "Test Watch".into(),
+        calibre: "ETA 2824-2".into(),
+        bph: Some(28800),
+        lift_angle_deg: 52.0,
+    };
+    let readings = six_readings();
+    let mut t = Test::poise();
+    t.readings = Some(readings.clone());
+    let text = report_text(&t, &about, true, Some("2026-11-13 19.17")).unwrap();
+    let header = text_report::Header {
+        watch: Some("Test Watch".into()),
+        date: Some("2026-11-13 19:17".into()),
+        calibre: Some("ETA 2824-2".into()),
+        bph: Some(28800),
+        lift_angle_deg: Some(52.0),
+        settle_s: Some(t.settle_s),
+        measure_s: Some(t.measure_s),
+    };
+    assert_eq!(text, text_report::poise(&header, &readings));
+    assert_ne!(text, text_report::positions(&header, &readings, None));
+}
+
+/// A saved Dynamic Poise test opened again has no test on the Bench:
+/// Save as Text… writes core's poise report of the stops the pane shows,
+/// with no Settle or Each Position, as `timegrapher session` does (#1509).
+#[test]
+fn a_reopened_poise_take_reports_as_the_cli_does() {
+    let about = About {
+        watch: "Test Watch".into(),
+        calibre: "ETA 2824-2".into(),
+        bph: Some(28800),
+        lift_angle_deg: 52.0,
+    };
+    let readings = six_readings();
+    let text = kept_report_text(
+        &readings,
+        Kind::Poise,
+        &about,
+        true,
+        Some("2026-11-13 19.17"),
+    )
+    .unwrap();
+    let header = text_report::Header {
+        watch: Some("Test Watch".into()),
+        date: Some("2026-11-13 19:17".into()),
+        calibre: Some("ETA 2824-2".into()),
+        bph: Some(28800),
+        lift_angle_deg: Some(52.0),
+        settle_s: None,
+        measure_s: None,
+    };
+    assert_eq!(text, text_report::poise(&header, &readings));
 }

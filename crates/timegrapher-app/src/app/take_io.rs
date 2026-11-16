@@ -1,5 +1,6 @@
 //! Listening and saving: the microphone, the session and its unsaved state, saving takes and analysis, opening and replaying recordings, the whole-take analysis, and the poll that feeds the live view.
 
+use super::kept_analysis::{kept_header, kept_label};
 use super::*;
 pub(super) use timegrapher_core::recording_order::order_warning;
 use timegrapher_core::take_context::{EntryWindow, FilePart};
@@ -49,8 +50,8 @@ impl TimegrapherApp {
     }
 
     /// A new averaging time, for the readings and every pane: the readings
-    /// over the whole session are worked out again, and the tick and tock
-    /// sound follows it.
+    /// over the whole session are worked out again (while listening, in the
+    /// background), and the tick and tock sound follows it.
     pub(super) fn set_average(&mut self, seconds: f64) {
         self.average_s = seconds;
         let span = self.sound_span();
@@ -59,7 +60,7 @@ impl TimegrapherApp {
         }
         // The sound kept so far covered the old span.
         self.sound_at = None;
-        self.rebuild_trend();
+        self.refresh_trend();
     }
 
     /// Clear every run of readings, for a new session or a change that
@@ -89,6 +90,7 @@ impl TimegrapherApp {
         self.session.clear();
         self.put_input_clock(None);
         self.live = Some(LiveAnalyzer::new(sample_rate, self.live_config()));
+        self.live_usb = Some(live_usb::LiveUsb::new(sample_rate));
         self.source_label = label;
         self.gutter_fresh = true;
         self.anchor = None;
@@ -286,8 +288,7 @@ impl TimegrapherApp {
         if self.capture.is_none() {
             return;
         }
-        // The sound the input already sent is the take's too (#873), and so
-        // is the sound core's gap rule still holds.
+        // The sound the input sent, and what core's gap rule holds, is the take's (#873).
         let (queued, failure) = self.queued_blocks();
         let held = self.finish_gaps();
         if let Err(CaptureFailure::Recording(e)) = queued
@@ -298,6 +299,7 @@ impl TimegrapherApp {
             return self.recording_failed(e);
         }
         self.release_capture();
+        self.live.iter_mut().for_each(|l| l.settle());
         if self.session.mic() {
             applog::info("microphone stopped and released");
             let now = self.live.as_ref().map_or(0.0, |l| l.duration_s());
@@ -376,6 +378,7 @@ impl TimegrapherApp {
             && self.session.state() == session::State::Listening
             && self.session.recording_fault().is_none()
             && self.kept_take()
+            && !self.kept_running()
     }
 
     /// A save the user asked for being written: one of a take recording
@@ -833,7 +836,7 @@ impl TimegrapherApp {
         // A Power Reserve Test's take is named as the test names it at
         // its end, so that save lands in the same folder.
         let name = if test {
-            power_reserve_pane::reserve_take_name(&started)
+            library::power_reserve_take_name(&started)
         } else {
             library::take_name(&started, &positions)
         };
@@ -1011,34 +1014,6 @@ impl TimegrapherApp {
         self.close_after_save && self.saving.is_none() && self.after_save.is_empty()
     }
 
-    /// How soon the window draws again with no input: while listening or
-    /// reading a take, and while work on its own thread is under way, so
-    /// what it gives shows (and a take kept as its analysis only lets its
-    /// sound go, #1221) without waiting for the pointer to move.
-    pub(super) fn repaint_every(&self) -> Option<std::time::Duration> {
-        let working = self.sound_job.is_some()
-            || self.scope_job.is_some()
-            || self.steady_job.is_some()
-            || self.saving.is_some()
-            || self.take_keep.is_some()
-            || self.analysis_save.is_some();
-        if self.running() || self.batch.is_some() {
-            Some(std::time::Duration::from_millis(40))
-        } else {
-            working
-                .then_some(std::time::Duration::from_millis(100))
-                .or_else(|| self.reserve_retry_in())
-        }
-    }
-
-    /// When the window draws next: as [`Self::repaint_every`] says, and
-    /// once more at once on the frame the work ended, so what it left (a
-    /// message, the take's files) shows with no input (Walter on #1232).
-    pub(super) fn draw_next(&self, was_working: bool) -> Option<std::time::Duration> {
-        self.repaint_every()
-            .or(was_working.then_some(std::time::Duration::ZERO))
-    }
-
     /// The save being written, once it is done.
     pub(super) fn poll_saving(&mut self) {
         if self.saving.as_ref().is_some_and(|s| s.thread.is_finished()) {
@@ -1157,7 +1132,7 @@ impl TimegrapherApp {
     /// refuse what would throw its sound away or add to it.
     pub(super) fn analysis_save_busy(&mut self) -> bool {
         if self.analysis_save.is_none() {
-            return false;
+            return self.kept_writing_busy();
         }
         self.info_msg(
             "Keeping the analysis of this session: it is reading the session's sound and \
@@ -1368,7 +1343,7 @@ impl TimegrapherApp {
             return None;
         }
         let manifest = read_manifest(&path).ok().flatten();
-        if analysis_take::is_analysis_only(&path) {
+        if checkpoint::is_kept(&path) {
             return Some(report::Source {
                 files: Vec::new(),
                 total_s: 0.0,
@@ -1439,7 +1414,8 @@ impl TimegrapherApp {
             .filter(|m| m[1] > m[0])
             .collect();
         // The positions in the saved sound's own time (the sound leaves
-        // out the pauses the session's clock counts).
+        // out the pauses the session's clock counts), and the wind (#1665).
+        let wind_h = self.entry_wind_h();
         m.recordings = self
             .session
             .take_ranges()
@@ -1447,6 +1423,7 @@ impl TimegrapherApp {
             .map(|(start_s, end_s, code)| RecordingEntry {
                 file: ".".into(),
                 position: Some(code),
+                wind_h,
                 clock: Some("clock.csv".into()),
                 start_s,
                 end_s,
@@ -1458,7 +1435,6 @@ impl TimegrapherApp {
         // A Positions Test's own stretches (after its settling, for its
         // measuring time), so `timegrapher session` reads the seconds its
         // table showed.
-        let wind_h = self.guided.as_ref().and_then(|t| t.wind_h());
         // A Complication Test's stretches say which is Off and which On,
         // so its results come back when the take is opened (#1620).
         let step = |i: usize| {
@@ -1744,7 +1720,7 @@ impl TimegrapherApp {
             return self.open_failed(why);
         }
         if let Ok(inner) = take_folder(path) {
-            if analysis_take::is_analysis_only(&inner) {
+            if checkpoint::is_kept(&inner) {
                 return self.open_failed(format!(
                     "{} has had its sound removed, so it can't be played again. Open shows \
                      its readings.",
@@ -1935,7 +1911,7 @@ impl TimegrapherApp {
         if self.file_path.trim() != path.display().to_string() {
             self.file_path = path.display().to_string();
         }
-        if analysis_take::is_analysis_only(path) {
+        if checkpoint::is_kept(path) {
             return self.open_analysis_only(path, manifest);
         }
         if let Some(why) = no_analysis_to_read(path) {
@@ -2000,7 +1976,7 @@ impl TimegrapherApp {
         self.reset_session(info.sample_rate, label.clone());
         self.load_reserve(path);
         self.session.analyse();
-        self.live = None;
+        (self.live, self.live_usb) = (None, None);
         // Nothing of the take before's clock carries over, whichever
         // way this one is kept; a take that fails to open leaves it.
         self.put_take_clock(None, None);
@@ -2112,24 +2088,16 @@ impl TimegrapherApp {
                 analysis_take::DIR
             ));
         };
-        let header_file = path.join(analysis_take::DIR).join(analysis_take::HEADER);
-        let header = std::fs::read_to_string(&header_file)
-            .ok()
-            .and_then(|t| serde_json::from_str::<analysis_take::Header>(&t).ok())
-            .filter(|h| h.format == analysis_take::FORMAT);
-        let Some(header) = header else {
-            let why = match analysis_take::read(path) {
-                Err(e) => e.to_string(),
-                Ok(_) => format!("{} can't be read", header_file.display()),
-            };
-            return self.open_failed(format!("Can't open {name}: {why}"));
+        let (header, parts) = match kept_header(path) {
+            Ok(h) => h,
+            Err(why) => return self.open_failed(format!("Can't open {name}: {why}")),
         };
         self.keep_mic_setup();
         self.set_watch_setup(WatchSetup::default());
-        self.open_note = None;
+        self.open_note = parts;
         let (stretches, settles) = self.apply_manifest(&m, &entries, Some(header.duration_s));
         self.watch_fills_in(path, &m);
-        let label = format!("{name} (analysis only)");
+        let label = kept_label(path, &name);
         // Its beats, its own clock log with its USB lines' figure as
         // measured when it was kept, and the breaks its session.json
         // lists, read by core as `timegrapher session` reads such a take.
@@ -2157,7 +2125,7 @@ impl TimegrapherApp {
         self.load_reserve(path);
         self.no_sound = Some(Vec::new());
         self.session.analyse();
-        self.live = None;
+        (self.live, self.live_usb) = (None, None);
         // Nothing of the take before's clock carries over, whichever
         // way this one is kept; a take that fails to open leaves it.
         self.put_take_clock(None, None);
@@ -2250,6 +2218,7 @@ impl TimegrapherApp {
     /// Take in whatever audio has arrived.
     pub(super) fn poll(&mut self) {
         self.poll_for(FRAME_BUDGET);
+        self.follow_live_usb();
         self.poll_wav_keep();
         // Asks waiting on a save go ahead on the window's frame, never on
         // the listening thread, which polls too.
@@ -2307,12 +2276,7 @@ impl TimegrapherApp {
                 return Ok(());
             }
         };
-        if let Some(r) = self.session.recorder.as_mut() {
-            // An error stops the queued sound being processed, and no
-            // later input error replaces it.
-            r.write(&b)
-                .map_err(|e| CaptureFailure::Recording(e.to_string()))?;
-        }
+        kept_analysis::keep_block(&mut self.session, &self.kept_live, &b)?;
         if let Some(t) = self.clock_track.as_mut() {
             t.push(b.samples.len(), b.at);
         }
@@ -2324,6 +2288,7 @@ impl TimegrapherApp {
         if l.clipped_fraction > 0.0 {
             self.clipped_at = Some(Instant::now());
         }
+        self.live_usb.iter_mut().for_each(|u| u.push(&b.samples));
         if live.push(&b.samples) {
             // A jump the beats' timing shows is found a second
             // or two after it: the points read since reached
@@ -2337,6 +2302,8 @@ impl TimegrapherApp {
                     .filter(|j| *j > recent && !self.jumps_seen.contains(j))
                     .reduce(f64::min);
                 if let Some(j) = new {
+                    // So does a run read meanwhile, which reaches across it.
+                    self.bg.trend = None;
                     self.trend.retain(|p| p.t <= j);
                     self.sound_history.retain(|h| h.0 <= j);
                 }
@@ -2385,11 +2352,8 @@ impl TimegrapherApp {
             self.audio_at = Some(started);
         }
         self.polled_at = started;
-        // While listening the charts are read here; a take on show's in
-        // the background, from the frame ([`Self::refresh_trend_shown`]).
-        if self.running() {
-            self.refresh_trend();
-        }
+        // The charts are read in the background, from the frame
+        // ([`Self::refresh_trend_shown`]), listening too (#1825).
         let (taken, ended, failure) = self.take_blocks(started, budget);
         self.capture_outcome(ended, failure);
 
@@ -2653,6 +2617,7 @@ impl TimegrapherApp {
         self.refresh_trend();
         self.bg.reserve = None;
         self.reserve_from_long_take();
+        self.bg.reserve_of = Some(self.rev);
     }
 
     /// Show a take's beats, `log`, as an opened take lands whose readings

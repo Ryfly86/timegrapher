@@ -4,6 +4,16 @@
 //! that both live readings and long-horizon analysis (hours to days) read
 //! from the same per-beat log. See `docs/` in the repository.
 
+/// The key every surface shows wherever a beat error is grey for its
+/// source (#1076), as a literal, for `concat!`:
+/// [`power_reserve::GREY_BEAT_ERROR_KEY`].
+#[macro_export]
+macro_rules! grey_beat_error_key {
+    () => {
+        "Grey beat errors: from the drop, or source not recorded."
+    };
+}
+
 pub mod amplitude;
 pub mod amplitude_slope;
 pub mod analysis;
@@ -14,11 +24,14 @@ pub mod audio;
 pub mod be_angle;
 pub mod beat_cache;
 pub mod beats;
+#[cfg(test)]
+mod break_fixture;
 pub mod breaks;
 pub mod calibre_store;
 pub mod calibres;
 pub mod capture;
 pub mod chart_scale;
+pub mod checkpoint;
 pub mod clean;
 pub mod clock;
 pub mod clockstore;
@@ -34,8 +47,10 @@ pub mod excerpt;
 pub mod figure_text;
 pub mod filter;
 pub mod flac;
+pub mod full_wind;
 pub mod gappy;
 pub mod histogram;
+pub mod icons;
 pub mod input_domain;
 pub mod joined;
 pub mod keeper;
@@ -49,6 +64,9 @@ pub mod palette;
 pub mod period_ticks;
 pub mod periodicity;
 pub mod poise;
+pub mod poise_case;
+pub mod poise_picture;
+pub mod position_line;
 pub mod power_reserve;
 pub mod profile;
 pub mod reading_text;
@@ -78,6 +96,7 @@ pub mod usbclock;
 pub mod user_dirs;
 pub mod walk;
 pub mod wheel_lines;
+pub mod xml;
 
 pub use analysis::{analyze, Analysis, AnalysisConfig, Summary};
 pub use audio::{load, Audio};

@@ -98,9 +98,13 @@ impl TimegrapherApp {
             });
             // The position card named by its title at this width.
             let hints =
-                NEW_TAKES.map(|(_, _, hint)| hint.replace("{card}", self.position_card_title));
-            let names = std::array::from_fn(|i| (NEW_TAKES[i].1, hints[i].as_str()));
-            if let Some(i) = watches::new_take_buttons(ui, names, busy) {
+                NEW_TAKES.map(|(_, _, hint, _)| hint.replace("{card}", self.position_card_title));
+            let names: Vec<(&str, &str, &str)> = NEW_TAKES
+                .iter()
+                .zip(&hints)
+                .map(|(t, hint)| (t.1, hint.as_str(), t.3))
+                .collect();
+            if let Some(i) = watches::new_take_buttons(ui, &names, busy) {
                 self.view = View::Bench;
                 self.new_take(NEW_TAKES[i].0, false);
             }
@@ -371,6 +375,7 @@ impl TimegrapherApp {
             ui.ctx().request_repaint_after(Duration::from_millis(250));
         }
         let on_show = self.take_on_show();
+        let held = self.take_held();
         let picked = self.take_picked.clone();
         // Each take's own reading, as `timegrapher watches` gives it; a
         // test's figures are its own.
@@ -388,6 +393,7 @@ impl TimegrapherApp {
             unsorted: e.watch.id.is_empty(),
             picked: picked.as_deref(),
             on_show: on_show.as_deref(),
+            held: held.as_deref(),
             readings: &self.take_readings,
         };
         let mut act = None;
@@ -421,6 +427,7 @@ impl TimegrapherApp {
                     self.error(format!("Couldn't open {}: {err}", dir.display()));
                 }
             }
+            Some(watches::TakeAction::SetWind(take, wind_h)) => self.set_take_wind(&take, wind_h),
             Some(watches::TakeAction::Delete(take)) => {
                 let bytes = folder_size(&take);
                 self.take_ask = Some(watches::Ask::Delete { take, bytes });
@@ -604,19 +611,9 @@ impl TimegrapherApp {
     /// A take moved: the recording opened from it follows, and so does
     /// Save Again.
     pub(super) fn take_moved(&mut self, from: &Path, to: &Path) {
-        // The take being heard: its next save goes into it where it is.
-        if self.session.saved_to() == Some(from) {
-            if let Some(r) = self.session.recorder.as_mut() {
-                r.copy_moved(from, to);
-            }
-        }
-        self.session.saved_moved(from, to);
-        if let Ok(rest) = Path::new(&self.opened_path).strip_prefix(from) {
-            let now = to.join(rest);
-            self.opened_path = now.display().to_string();
-            if Path::new(self.file_path.trim()).starts_with(from) {
-                self.file_path = self.opened_path.clone();
-            }
+        let opened = Path::new(&self.opened_path).starts_with(from);
+        self.paths_moved(from, to);
+        if opened {
             // The take on show is the watch's it went to now: the Bench's
             // card and the status line name that one (#1280).
             let went = match &self.library {
@@ -630,6 +627,31 @@ impl TimegrapherApp {
                 self.unsorted_open = false;
                 self.watch = name;
             }
+        }
+    }
+
+    /// A folder moved, from `from` to `to`: a take, or the whole Watches
+    /// folder (#1646). Every path inside it follows: the take saved into
+    /// it and its next Save Again, every save noted, the recording opened
+    /// and the path typed.
+    pub(super) fn paths_moved(&mut self, from: &Path, to: &Path) {
+        let saved = self.session.saved_to().map(Path::to_path_buf);
+        if let Some((take, rest)) = saved
+            .as_ref()
+            .and_then(|t| Some((t, t.strip_prefix(from).ok()?)))
+        {
+            // Its next save goes into the take where it is now.
+            let now = to.join(rest);
+            if let Some(r) = self.session.recorder.as_mut() {
+                r.copy_moved(take, &now);
+            }
+        }
+        self.session.saved_moved(from, to);
+        if let Ok(rest) = Path::new(&self.opened_path).strip_prefix(from) {
+            self.opened_path = to.join(rest).display().to_string();
+        }
+        if let Ok(rest) = Path::new(self.file_path.trim()).strip_prefix(from) {
+            self.file_path = to.join(rest).display().to_string();
         }
     }
 
@@ -872,6 +894,7 @@ impl TimegrapherApp {
             return;
         }
         self.watch_open = Some(id.to_string());
+        self.forget_quick_wind();
         self.unsorted_open = false;
         // The watch picked shows, not the list left over from before.
         self.list_for = None;
@@ -1219,6 +1242,13 @@ impl TimegrapherApp {
         .then(|| PathBuf::from(&self.opened_path))
     }
 
+    /// The take the session writes, on show or recording into it: Set
+    /// Wind… there would be undone by its next write (Felix on #1745).
+    pub(super) fn take_held(&self) -> Option<PathBuf> {
+        self.take_on_show()
+            .or_else(|| self.session.saved_to().map(Path::to_path_buf))
+    }
+
     /// Make the library at its folder when there is none yet.
     pub(super) fn ensure_library(&mut self) {
         if matches!(self.library, Ok(None)) {
@@ -1366,7 +1396,7 @@ fn file_take_under(
         doc["watch"] = toml_edit::value(w.name.as_str());
     }
     let mut changed = false;
-    if !timegrapher_core::analysis_take::is_analysis_only(take) {
+    if !timegrapher_core::checkpoint::is_kept(take) {
         changed = settings_of(&mut doc, w, cal);
     }
     if doc.to_string() != text {

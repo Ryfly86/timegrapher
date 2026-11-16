@@ -704,7 +704,26 @@ impl LiveAnalyzer {
     }
 
     /// Add audio. Returns true when a pass ran (the readings may have changed).
+    ///
+    /// The passes run at the same points of the sound whatever size of
+    /// block it comes in: a block is cut where a pass is due, so a
+    /// microphone's 100 ms blocks and a file's 20 ms ones find the same
+    /// first template and read the same beats (#1720).
     pub fn push(&mut self, samples: &[f32]) -> bool {
+        let mut ran = false;
+        let mut rest = samples;
+        while !rest.is_empty() {
+            let due = self.next_pass.saturating_sub(self.total).max(1) as usize;
+            let (part, later) = rest.split_at(due.min(rest.len()));
+            ran |= self.push_part(part);
+            rest = later;
+        }
+        ran
+    }
+
+    /// [`Self::push`] for a part of a block that reaches no further than
+    /// the next pass.
+    fn push_part(&mut self, samples: &[f32]) -> bool {
         self.buf.extend_from_slice(samples);
         self.total += samples.len() as u64;
         let keep = (self.cfg.window_s * self.fs).ceil() as usize;
@@ -828,7 +847,7 @@ impl LiveAnalyzer {
                 let (b, t) = beats::detect(env, fs, bph);
                 let heard =
                     heard_over(snr(env, fs, &b), self.cfg.min_snr) || clipped_out(x, fs, &b);
-                if heard && b.len() >= 8 {
+                if heard && b.len() >= crate::stream::LOCK_BEATS {
                     self.template = Some(t);
                     self.bph = Some(bph);
                     self.found_bph = bph_set.is_none();
@@ -974,10 +993,23 @@ impl LiveAnalyzer {
         let fs = self.fs;
         let a = &self.cfg.analysis;
         let w = a.amplitude_window_s;
-        let start = self
-            .next_amp_s
-            .unwrap_or(from)
-            .max(off + beats::PRE_S + 0.01);
+        // On the saved read's grid of windows from the take's start, so
+        // live and saved read the same windows (#1738). The first may
+        // start with the take, as a saved read's does; a later one needs
+        // a beat's guard of the sound kept before it.
+        let floor = if off <= 0.0 {
+            0.0
+        } else {
+            off + beats::PRE_S + 0.01
+        };
+        // A grid not yet started takes the window that holds `from`; one
+        // already running (or restarted at a break) takes the next.
+        let on_grid = |t: f64| (t / w - 1e-9).ceil() * w;
+        let start = match self.next_amp_s {
+            Some(s) => on_grid(s),
+            None => (from / w + 1e-9).floor() * w,
+        }
+        .max(on_grid(floor));
         let mut stop = start;
         while stop + w <= to {
             stop += w;
@@ -993,20 +1025,62 @@ impl LiveAnalyzer {
                 stop - off,
                 &a.amplitude,
             );
+            let new = self.amp.len();
             self.amp.extend(wins.into_iter().map(|mut win| {
                 win.start_s += off;
                 win.end_s += off;
                 win
             }));
-            // A side's edge marked on the wrong sound, as in a whole file;
-            // only the latest windows can change.
-            let span = amplitude::OUTLIER_SPAN_S;
-            let recent = self.amp.partition_point(|w| w.end_s < to - 2.0 * span);
-            amplitude::reject_side_outliers(&mut self.amp[recent..], span);
+            // The newest window's chunk waits for the rest of its windows.
+            let open = crate::stream::amplitude_chunk_of(stop - w, w);
+            self.judge_amplitude(new, open);
             self.next_amp_s = Some(stop);
         } else if self.next_amp_s.is_none() {
             self.next_amp_s = Some(start);
         }
+    }
+
+    /// The amplitude windows from `changed` on, and the chunks before
+    /// `open` they touch, judged as a saved read judges them (#1738): a
+    /// side too faint against the same side's in its chunk withheld
+    /// ([`amplitude::withhold_faint_by_chunk`], on the grid of
+    /// [`crate::stream::amplitude_chunk_of`]) once the chunk is closed, then
+    /// a side's edge marked on the wrong sound left out
+    /// ([`amplitude::reject_side_outliers_from`]) in each window whose
+    /// neighbours changed, scored against them as read. A chunk judged
+    /// again with more windows withholds the sides it did and any more.
+    fn judge_amplitude(&mut self, changed: usize, open: usize) {
+        let w = self.cfg.analysis.amplitude_window_s;
+        let chunk_of = |s: f64| crate::stream::amplitude_chunk_of(s, w);
+        let Some(first) = self.amp.get(changed).map(|x| chunk_of(x.start_s)) else {
+            return;
+        };
+        // The chunk before too: the newest windows may have closed it.
+        let first = first.saturating_sub(1);
+        let lo = self.amp.partition_point(|x| chunk_of(x.start_s) < first);
+        let hi = self.amp.partition_point(|x| chunk_of(x.start_s) < open);
+        amplitude::withhold_faint_by_chunk(&mut self.amp[lo..hi], chunk_of);
+        let from = if hi > lo { changed.min(lo) } else { changed };
+        let span = amplitude::OUTLIER_SPAN_S;
+        let mid = |x: &AmplitudeWindow| (x.start_s + x.end_s) / 2.0;
+        let from_s = mid(&self.amp[from]) - span / 2.0;
+        let context = self.amp.partition_point(|x| mid(x) < from_s - span / 2.0);
+        amplitude::reject_side_outliers_from(&mut self.amp[context..], span, from_s);
+    }
+
+    /// Judge the newest chunk's amplitude windows now, as a saved read of
+    /// the sound so far judges its last chunk: for a stop, so the readings
+    /// then withhold the same faint sides as the take read again
+    /// (#1738). Listening on, the chunk is judged again once it closes.
+    pub fn settle(&mut self) {
+        let w = self.cfg.analysis.amplitude_window_s;
+        let chunk_of = |s: f64| crate::stream::amplitude_chunk_of(s, w);
+        let Some(last) = self.amp.last().map(|x| chunk_of(x.start_s)) else {
+            return;
+        };
+        let from = self.amp.partition_point(|x| chunk_of(x.start_s) < last);
+        self.judge_amplitude(from, last + 1);
+        self.in_shadow(LiveAnalyzer::settle);
     }
 
     /// The Tick and Tock profiles from the sound kept up to `to`.
@@ -1277,9 +1351,7 @@ impl LiveAnalyzer {
         // Within that of a break, before a window can be whole, regularity
         // is not assessed; past it, no whole window is noise.
         let heard_since = self.heard_cuts().stretch_from(end_s).max(0.0);
-        let step = crate::measure::RATE_WINDOW_STEP_S;
-        let look_back = ((end_s - SCATTER_LOOKBACK_S) / step).floor() * step;
-        let scatter_from = window_from.min(look_back).max(heard_since).max(0.0);
+        let scatter_from = crate::session::scatter_look_back(window_from, end_s, heard_since);
         let scatter = bph.map_or_else(Vec::new, |b| {
             crate::session::scatter_windows(
                 holes,
@@ -1292,6 +1364,9 @@ impl LiveAnalyzer {
         });
         let jitter_us = crate::session::scatter_jitter_us(&scatter);
         let judged_s = judged_s(!scatter.is_empty(), end_s, window_from, heard_since, holes);
+        // Its look back always holds a whole window past a cut's first
+        // SCATTER_LOOKBACK_S, before which `judged_s` is 0 (#1688).
+        let assessed = measure::regularity_assessed(judged_s, true);
         let timing_scatter_fraction =
             bph.and_then(|b| crate::beats::timing_scatter_fraction(jitter_us, b));
         // Where the timing can't say, the beats' averaged sound, from the
@@ -1300,7 +1375,7 @@ impl LiveAnalyzer {
         // its stretch's ([`BeatLog::beat_sound`]), not the latest run's.
         let sound_beats = crate::session::stretch_beats(&self.beats, scatter_from, end_s);
         let beat_sound = match (bph, &self.beats[sound_beats]) {
-            (Some(b), [first, .., last]) if measure::beat_sound_needed(jitter_us, b, judged_s) => {
+            (Some(b), [first, .., last]) if measure::beat_sound_needed(jitter_us, b, assessed) => {
                 let snips: Vec<(f64, bool, &[f32])> = self
                     .sample
                     .items()
@@ -1320,8 +1395,10 @@ impl LiveAnalyzer {
             _ => None,
         };
         let no_watch = match bph {
-            Some(b) => measure::no_watch_reason(jitter_us, b, judged_s, beat_sound),
-            None => measure::regularity_assessed(listened_s).then_some(NoWatchReason::Scatter),
+            Some(b) => measure::no_watch_reason(jitter_us, b, assessed, beat_sound),
+            None => {
+                measure::regularity_assessed(listened_s, true).then_some(NoWatchReason::Scatter)
+            }
         };
         Verdict {
             jitter_us,

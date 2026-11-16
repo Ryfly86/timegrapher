@@ -1,6 +1,8 @@
 //! The Steadiness and Isochronism panes: their settings, jobs and drawing.
 
 use super::*;
+use timegrapher_core::steadiness::IsochronismCurve;
+use timegrapher_core::walk::IsochronismWalk;
 
 impl TimegrapherApp {
     /// A Steadiness pane's Rate, Amplitude and Beat Error switches.
@@ -78,17 +80,69 @@ impl TimegrapherApp {
             view,
             steady::View::Periods | steady::View::Fft | steady::View::Stft | steady::View::Wavelet
         ) {
-            let mut wheels = self.show_wheels.on(view);
+            let marks = &mut self.show_marks;
+            let mut wheels = marks.wheels.on(view);
             theme::tool_switch(
                 ui,
                 Icon::Wheel,
                 accent,
                 "Wheel Periods",
                 &mut wheels,
-                steady::WHEELS_HINT,
+                timegrapher_core::steady_views::WHEELS_HINT,
             );
-            self.show_wheels.set(view, wheels);
+            marks.wheels.set(view, wheels);
+            // The meshes, a switch of their own (#1764).
+            let mut meshes = marks.meshes.on(view);
+            theme::tool_switch(
+                ui,
+                Icon::Mesh,
+                accent,
+                "Mesh",
+                &mut meshes,
+                timegrapher_core::steady_views::MESH_HINT,
+            );
+            marks.meshes.set(view, meshes);
         }
+    }
+
+    /// What the panes shown this pass or the last want read (#1830).
+    pub(super) fn steady_need(&self, pass: u64) -> steady::Need {
+        let shown = |k: usize| self.bg.shown_pass[k].is_some_and(|p| p + 1 >= pass);
+        if shown(1) {
+            steady::Need::Maps
+        } else if shown(0) {
+            steady::Need::Tests
+        } else {
+            steady::Need::Isochronism
+        }
+    }
+
+    /// The seconds of the session read so far for `need`: none when
+    /// nothing read answers it.
+    fn steady_upto(&self, need: steady::Need) -> Option<f64> {
+        let tests = self.steady.as_ref().map(|s| &s.1);
+        let tests = tests.filter(|s| need < steady::Need::Maps || s.maps.is_some());
+        let alone = self.bg.isochronism.as_ref().map(|i| i.1.upto_s);
+        let alone = alone.filter(|_| need == steady::Need::Isochronism);
+        tests
+            .map(|s| s.upto_s)
+            .into_iter()
+            .chain(alone)
+            .reduce(f64::max)
+    }
+
+    /// The isochronism on show: the newer of the whole check's and the one
+    /// read alone.
+    pub(super) fn isochronism_shown(
+        &self,
+    ) -> Option<(Option<&IsochronismCurve>, Option<&IsochronismWalk>)> {
+        let tests = self.steady.as_ref().map(|s| (&s.1.report, s.1.upto_s));
+        let alone = self.bg.isochronism.as_ref().map(|i| &i.1);
+        if let Some(a) = alone.filter(|a| tests.is_none_or(|(_, u)| a.upto_s > u)) {
+            return Some((a.isochronism.as_ref(), a.walk.as_ref()));
+        }
+        let (r, _) = tests?;
+        Some((r.isochronism.as_ref(), r.walk.as_ref()))
     }
 
     pub(super) fn update_steady(&mut self, ctx: &egui::Context) -> f64 {
@@ -100,10 +154,22 @@ impl TimegrapherApp {
         if self.steady.as_ref().is_some_and(|s| s.0 != self.rev) {
             self.steady = None;
         }
+        if self
+            .bg
+            .isochronism
+            .as_ref()
+            .is_some_and(|s| s.0 != self.rev)
+        {
+            self.bg.isochronism = None;
+        }
         if let Some((rev, rx)) = &self.steady_job {
             match rx.try_recv() {
-                Ok(s) => {
-                    self.steady = Some((*rev, s));
+                Ok(steady::Answer::Tests(s)) => {
+                    self.steady = Some((*rev, *s));
+                    self.steady_job = None;
+                }
+                Ok(steady::Answer::Isochronism(i)) => {
+                    self.bg.isochronism = Some((*rev, i));
                     self.steady_job = None;
                 }
                 Err(TryRecvError::Disconnected) => self.steady_job = None,
@@ -121,8 +187,8 @@ impl TimegrapherApp {
                 clock.as_ref().filter(|_| joined),
             )
         });
-        let upto = self.steady.as_ref().map(|s| s.1.upto_s);
-        let due = match upto {
+        let need = self.steady_need(ctx.cumulative_pass_nr());
+        let due = match self.steady_upto(need) {
             None => true,
             Some(u) if self.running() => dur - u >= steady::RERUN_S,
             Some(u) => dur - u > 1.0,
@@ -138,9 +204,12 @@ impl TimegrapherApp {
                 let stage = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0));
                 self.steady_work = (stage.clone(), std::time::Instant::now());
                 std::thread::spawn(move || {
-                    let mut s = steady::compute_with(&log, &breaks, wheels, clock.as_ref(), &stage);
-                    s.meshes = meshes;
-                    let _ = tx.send(s);
+                    let mut a =
+                        steady::compute_for(need, &log, &breaks, wheels, clock.as_ref(), &stage);
+                    if let steady::Answer::Tests(s) = &mut a {
+                        s.meshes = meshes;
+                    }
+                    let _ = tx.send(a);
                     ctx.request_repaint();
                 });
                 self.steady_job = Some((self.rev, rx));
@@ -208,15 +277,10 @@ impl TimegrapherApp {
         let dur = self.update_steady(ui.ctx());
         let pal = theme::pal(ui);
         self.steady_working(ui);
-        match &self.steady {
-            Some((_, s)) => {
-                let walk = s
-                    .report
-                    .walk
-                    .as_ref()
-                    .and_then(timegrapher_core::steady_views::walk_view);
-                let view = self.iso_view;
-                isochronism::ui(ui, s.report.isochronism.as_ref(), walk.as_ref(), view);
+        match self.isochronism_shown() {
+            Some((curve, walk)) => {
+                let walk = walk.and_then(timegrapher_core::steady_views::walk_view);
+                isochronism::ui(ui, curve, walk.as_ref(), self.iso_view);
             }
             None if self.steady_job.is_some() => {}
             None => {
@@ -245,6 +309,11 @@ impl TimegrapherApp {
     }
 
     pub(super) fn steady_pane(&mut self, ui: &mut egui::Ui, view: steady::View) {
+        let pass = Some(ui.ctx().cumulative_pass_nr());
+        self.bg.shown_pass[0] = pass;
+        if matches!(view, steady::View::Stft | steady::View::Wavelet) {
+            self.bg.shown_pass[1] = pass;
+        }
         let dur = self.update_steady(ui.ctx());
         let upto = self.steady.as_ref().map(|s| s.1.upto_s);
         let working = self.steady_job.is_some();
@@ -279,7 +348,8 @@ impl TimegrapherApp {
             periods_db: self.periods_db,
             fft_timing: self.fft_timing,
             maps_db: self.maps_db.on(view),
-            wheels: self.show_wheels.on(view),
+            wheels: self.show_marks.wheels.on(view),
+            meshes: self.show_marks.meshes.on(view),
             info: self.steady_info.on(view),
             take_span: self.take_span().filter(|_| !joined),
             joined_in: joined.then(|| self.position.code()),

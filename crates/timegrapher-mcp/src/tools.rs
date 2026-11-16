@@ -506,7 +506,9 @@ pub const TOOLS: &[ToolSpec] = &[
             run_session reads it: rate, whether the rate is `calibrated` on the take's \
             clock, amplitude, signed beat error; the first show of a take reads its sound, which \
             takes a while, about a minute per 9 h of sound, and later shows are immediate), and the readings the app showed when it saved the \
-            take (`at_end`, to be retired). Pass a take's `path` to run_session, long_run or \
+            take (`at_end`, to be retired), and its hours from full wind to its start \
+            (`wind_h`, null where the wind was not given: never take that as full wind). \
+            The watch's `full_wind` is when it was last fully wound, UTC, or null. Pass a take's `path` to run_session, long_run or \
             check_steadiness to analyse it; a take with `audio` false holds only its \
             analysis. It changes nothing in the library.",
         command: &["watches", "show"],
@@ -572,7 +574,8 @@ pub const TOOLS: &[ToolSpec] = &[
                 Arg::Flag("--wind-h"),
                 false,
                 "Hours since the watch was fully wound: 0 for the fully wound half of a \
-                 test, 24 for the run-down half (0 if left out).",
+                 test, 24 for the run-down half. Left out, the wind is not given: its own \
+                 state, never taken as fully wound.",
             ),
             p(
                 "watch",

@@ -18,9 +18,15 @@ function constant(name) {
   if (!match) throw new Error(`Missing ${name}`);
   return match[0];
 }
-const context = vm.createContext({ document: { getElementById: () => ({ clientWidth: 624 }) } });
+// The constants the server fills in from core chart_scale.rs (#1764).
+function chartScale() {
+  const rs = fs.readFileSync(path.join(__dirname, "../../timegrapher-core/src/chart_scale.rs"), "utf8");
+  const num = (name) => +rs.match(new RegExp(`pub const ${name}: f64 = ([\\d.]+);`))[1];
+  return { strong_hold: num("STRONG_HOLD"), name_clear: num("NAME_CLEAR"), name_row_out: num("NAME_ROW_H") + num("NAME_CLEAR") };
+}
+const context = vm.createContext({ document: { getElementById: () => ({ clientWidth: 624 }) }, WHEEL_WORDS: chartScale() });
 vm.runInContext(["CHAR_W", "DASH", "MARKS", "NAME_CLEAR"].map(constant).join("\n") + "\nlet clipCount = 0;\n" +
-  ["esc", "chartWidth", "plotArea", "gridDown", "gridAcross", "xyChart", "markOrder", "markPlace", "markPlaceRow", "markInside", "markStack", "besideSpots", "crosses", "besidePlace", "roomAbove", "markWidth", "markText", "laneAbove", "namesInside", "sideWidth", "laneRight"]
+  ["esc", "chartWidth", "plotArea", "gridDown", "gridAcross", "xyChart", "laneRows", "rowOut", "markOrder", "markPlace", "markPlaceRow", "markInside", "besideSpots", "crosses", "besidePlace", "roomAbove", "markWidth", "markText", "laneAbove", "namesInside", "laneBelow", "sideWidth", "laneRight", "laneRightAt", "markStackNames"]
     .map(definition).join("\n") + "\nthis.MARKS = MARKS;", context);
 
 const plain = (v) => JSON.parse(JSON.stringify(v));
@@ -52,8 +58,22 @@ test("names inside a short plot go where the app's rules put them, or nowhere", 
   }
 });
 
-test("names beside a map go where the app's rules put them", () => {
-  for (const c of cases.stack) close(plain(context.markStack(c.ys, c.top, c.bottom)), c.at, c.case);
+test("names beside a plot keep a clear gap, a word to a line, a strong one on its line (#1764)", () => {
+  context.NAME_LINE_H = +fs.readFileSync(path.join(__dirname, "../../timegrapher-core/src/chart_scale.rs"), "utf8").match(/pub const NAME_LINE_H: f64 = ([\d.]+);/)[1];
+  const ink = "--callout";
+  const lines = [
+    { y: 60, name: "Fourth Wheel", words: ["Fourth", "Wheel"], rank: "strong", ink },
+    { y: 66, name: "Third Pinion Mesh", words: ["Third", "Pinion", "Mesh"], rank: "faint", ink },
+  ];
+  const svg = context.laneRight(lines, 300, 0, 200);
+  const ys = [...svg.matchAll(/<text x="[\d.]+" y="([\d.]+)"[^>]*>([^<]+)</g)].map((m) => [m[2], Number(m[1])]);
+  assert.deepEqual(ys.map(([w]) => w), ["Fourth", "Wheel", "Third", "Pinion", "Mesh"]);
+  // The wheel's name centred on its line; within a name, one line apart.
+  assert.ok(Math.abs(ys[0][1] - (60 - 13 + 9.5)) < 1, `${ys}`);
+  assert.ok(Math.abs(ys[1][1] - ys[0][1] - 13) < 0.1);
+  // Between two names, more than a line clear: the gap reads as a gap.
+  assert.ok(ys[2][1] - ys[1][1] >= 13 + context.WHEEL_WORDS.name_clear - 1e-9, `${ys}`);
+  assert.ok(context.sideWidth(lines) < context.sideWidth([{ name: "Third Pinion Mesh", rank: "faint" }]), "the lane as wide as its longest word");
 });
 
 test("a note beside a point tries the places the app's rules try, in order", () => {
@@ -89,10 +109,14 @@ const plot = (o) => context.xyChart({
 
 test("a plot's lines are dotted and named above it, joined by a stroke of their colour", () => {
   const svg = plot({ names: true });
-  const { LANE, LANE_GAP } = context.MARKS;
-  // The lane's room is kept above the plot, which keeps its height.
-  assert.match(svg, new RegExp(`height="${150 + LANE + LANE_GAP}"`));
-  assert.match(svg, new RegExp(`<rect class="plot" x="[\\d.]+" y="${4 + LANE + LANE_GAP}"`));
+  const { ROW_H, LANE_GAP } = context.MARKS, out = context.WHEEL_WORDS.name_row_out;
+  // The lane's row is kept above the plot, which keeps its height; the
+  // ×2's name can't sit beside the wheel's, so a second row comes, a row
+  // and a clear line out (#1764).
+  assert.match(svg, new RegExp(`height="${150 + ROW_H + LANE_GAP + out}"`));
+  assert.match(svg, new RegExp(`<rect class="plot" x="[\\d.]+" y="${4 + ROW_H + LANE_GAP + out}"`));
+  const one = plot({ names: true, vlines: [line(60, "Fourth Wheel", "strong")] });
+  assert.match(one, new RegExp(`height="${150 + ROW_H + LANE_GAP}"`), "one row where the names fit");
   // Dotted: round dots, 5 px apart for a wheel, 10 for its ×2.
   assert.match(svg, /stroke="var\(--callout\)" stroke-width="1.2" stroke-dasharray="0 5" stroke-linecap="round"/);
   assert.match(svg, /stroke="var\(--callout\)" stroke-width="1" stroke-dasharray="0 10" stroke-linecap="round"/);
@@ -103,7 +127,7 @@ test("a plot's lines are dotted and named above it, joined by a stroke of their 
   assert.match(outside, /<text[^>]*style="fill:var\(--text2\);[^"]*">Fourth Wheel ×2<\/text>/);
   assert.equal((outside.match(/<polyline/g) || []).length, 2);
   // Every name sits above the plot.
-  const top = 4 + LANE + LANE_GAP;
+  const top = 4 + ROW_H + LANE_GAP + out;
   const names = [...outside.matchAll(/<text x="[\d.]+" y="([\d.]+)" style/g)];
   assert.equal(names.length, 2);
   for (const [, y] of names) assert.ok(+y < top, outside);
@@ -197,4 +221,27 @@ test("a y axis' name sits above its top tick, left of the plot, in the ticks' st
   }
   // With no lane above, the plot keeps a row for it.
   assert.ok(+chart(false).match(/<rect class="plot" x="[\d.]+" y="([\d.]+)"/)[1] >= 14);
+});
+
+test("a mesh is named in a lane under the plot's tick labels, its line run on down to it (#1764)", () => {
+  const mesh = line(7.5, "Fourth Pinion Mesh", "faint", { width: 1, dash: "mesh", below: true });
+  const plain = plot({ names: true, vlines: [line(60, "Fourth Wheel", "strong")] });
+  const svg = plot({ names: true, vlines: [line(60, "Fourth Wheel", "strong"), mesh] });
+  const { LANE_GAP, ROW_H } = context.MARKS;
+  // The chart keeps its height; the lane under the plot takes a row of it.
+  const h = (s) => +s.match(/<svg[^>]*height="([\d.]+)"/)[1];
+  assert.equal(h(svg), h(plain));
+  const plotOf = (s) => s.match(/<rect class="plot" x="[\d.]+" y="([\d.]+)" width="[\d.]+" height="([\d.]+)"/).slice(1).map(Number);
+  assert.deepEqual(plotOf(svg), [plotOf(plain)[0], plotOf(plain)[1] - ROW_H - LANE_GAP]);
+  const [top, ph] = plotOf(svg);
+  const outside = svg.split("clip-path")[0];
+  const at = (name) => +outside.match(new RegExp(`<text x="[\\d.]+" y="([\\d.]+)" style="[^"]*">${name}<`))[1];
+  assert.ok(at("Fourth Wheel") < top, "a wheel above");
+  assert.ok(at("Fourth Pinion Mesh") > top + ph + 15, "a mesh under the tick labels");
+  assert.equal((outside.match(/<polyline/g) || []).length, 2, "each name joined to its line");
+});
+
+test("names beside a plot keep their lines' order, a strong one on its line, as core's lane_stack (#1764)", () => {
+  assert.ok(cases.lane_stack.length > 0);
+  for (const c of cases.lane_stack) close(plain(context.markStackNames(c.names, c.top, c.bottom)), c.at, c.case);
 });

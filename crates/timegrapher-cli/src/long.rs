@@ -670,6 +670,8 @@ pub fn run(
         "wheels": wheels,
         "named_wheels": lc.wheels,
         "named_meshes": meshes,
+        "wheel_marks": timegrapher_core::steady_views::wheel_marks(&lc.wheels, &meshes),
+        "mesh_marks": timegrapher_core::steady_views::mesh_marks(&meshes),
         "reference_lines": reference_lines(&lc.wheels),
         "out": out.display().to_string(),
     });

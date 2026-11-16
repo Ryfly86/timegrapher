@@ -316,6 +316,73 @@ fn block(ms: u64) -> Event {
     })
 }
 
+/// A run being read in the background when live's first chunk is read
+/// again with the file's template (#1327) rests on the old template: it is
+/// never shown, and the run is read again from live as it now is (#1825).
+#[test]
+fn a_run_read_before_the_takeover_is_never_shown_after_it() {
+    let (mut app, base) = save_failure_fixture("takeover-bg");
+    let tx = queued_capture(&mut app, &base);
+    let ctx = super::tests::themed();
+    let audio = generate(
+        &SynthConfig {
+            duration_s: 80.0,
+            ..Default::default()
+        },
+        |_| 280.0,
+        |_| 0.0,
+    );
+    let mut planted = None;
+    for (k, c) in audio.samples.chunks(480).enumerate() {
+        tx.send(Event::Audio(timegrapher_core::capture::Block {
+            samples: c.to_vec(),
+            at: std::time::UNIX_EPOCH + Duration::from_millis(2000 + 10 * k as u64),
+        }))
+        .unwrap();
+        if k % 50 == 49 {
+            app.poll();
+            let live = app.live.as_ref().unwrap();
+            if planted.is_none() && live.duration_s() > 20.0 && live.template_switch_s().is_none() {
+                // A new Average Over, its run read on the old template.
+                let stale = TrendPoint::of(0.123, &live.reading_at(20.0, 1.0));
+                app.average_s *= 2.0;
+                let key = (app.rev, app.average_s.to_bits());
+                let job = take_reads::Job::start(key, &ctx, move || (vec![stale], 0.0));
+                app.bg.trend = Some(job);
+                planted = Some(stale);
+            }
+        }
+    }
+    for _ in 0..1000 {
+        app.poll();
+        if app.live.as_ref().unwrap().duration_s() >= 79.9 {
+            break;
+        }
+    }
+    let stale = planted.expect("taken over before a run was asked for");
+    assert!(
+        app.live.as_ref().unwrap().template_switch_s().is_some(),
+        "not taken over"
+    );
+    // The clock's first measurements move the take's footing early in a
+    // capture, which would drop the job by itself; on a long take nothing
+    // else changes, so the job keeps the footing the app has now.
+    if let Some(job) = app.bg.trend.as_mut() {
+        job.key = (app.rev, app.average_s.to_bits());
+    }
+    let start = Instant::now();
+    app.refresh_trend_shown(&ctx);
+    while app.bg.trend.is_some() {
+        assert!(start.elapsed() < Duration::from_secs(60), "never read");
+        std::thread::sleep(Duration::from_millis(10));
+        app.refresh_trend_shown(&ctx);
+    }
+    assert!(!app.trend.contains(&stale), "the old template's run shown");
+    assert!(!app.trend.is_empty());
+    drop(tx);
+    let _ = std::fs::remove_dir_all(base);
+}
+
 /// Live's first chunk read again with the file's template takes over
 /// about a minute in (#1327): the readings carry on with an amplitude, the
 /// charts' points are read again with none past the newest, and the strip's
@@ -371,4 +438,86 @@ fn listening_carries_on_when_the_first_chunk_read_again_takes_over() {
     assert!(moved.abs() < 2e-4, "{moved}");
     drop(tx);
     let _ = std::fs::remove_dir_all(base);
+}
+
+/// While listening, the Scope reads a moment further back than the
+/// engine holds from the take being recorded, at the take's own time
+/// across a break: the sound kept leaves the break's gap out. It once
+/// said "No sound kept" for anything but the last few seconds, though
+/// the take held it.
+#[test]
+fn the_scope_reads_the_take_being_recorded_across_a_break() {
+    let (mut app, base, tx, resumed) = numbered_after_a_break("scope-heard");
+    // Block 250 by the take's time, which runs on across the gap.
+    let lo = resumed + 0.02 * 250.0 + 0.005;
+    let (a, b, sp) = scope_read(&mut app, lo, lo + 0.01).expect("a job to read the take");
+    assert!(a <= lo && b >= lo + 0.01);
+    assert!((block_at(&sp, lo) - 0.25).abs() < 2e-3, "at {lo}");
+    drop(tx);
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// No sound is read for a stretch across a break, or within the break
+/// itself: the sound either side isn't one stretch, and the break holds
+/// none. Near a break, the seconds read either side stop at it, so what
+/// is kept for later looks never holds sound from before it at the
+/// wrong time.
+#[test]
+fn the_scope_reads_nothing_across_a_break_and_stops_its_margin_there() {
+    let (mut app, base, tx, resumed) = numbered_after_a_break("scope-break");
+    let paused = resumed - 1.0;
+    // Across the break: from before it to after it.
+    assert!(scope_read(&mut app, paused - 0.3, resumed + 0.3).is_none());
+    // Within the break: the second the input stalled.
+    assert!(scope_read(&mut app, paused + 0.3, paused + 0.4).is_none());
+    // Half a second after it: read, but not from before the break.
+    let lo = resumed + 0.02 * 25.0 + 0.005;
+    let (a, b, sp) = scope_read(&mut app, lo, lo + 0.01).expect("read after the break");
+    assert!(
+        a >= resumed - 1e-9,
+        "read from {a}, before the break at {resumed}"
+    );
+    assert!(b >= lo + 0.01);
+    assert!((block_at(&sp, lo) - 0.025).abs() < 2e-3, "at {lo}");
+    drop(tx);
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// A take listened to as [`listened`], a second's stall (a break), then
+/// 10 s whose blocks each carry their number over 1000: the app, its
+/// folder, the input's queue and the take's time it carried on at.
+fn numbered_after_a_break(name: &str) -> (TimegrapherApp, PathBuf, Sender<Event>, f64) {
+    let (mut app, base, tx, heard) = listened(name);
+    let woke = 2000 + 20 * 49 + 1000;
+    for k in 0..500u64 {
+        tx.send(Event::Audio(timegrapher_core::capture::Block {
+            samples: vec![k as f32 / 1000.0; 960],
+            at: std::time::UNIX_EPOCH + Duration::from_millis(woke + 20 * k),
+        }))
+        .unwrap();
+    }
+    while app.poll_for(Duration::from_secs(60)) > 0 {}
+    assert_eq!(app.session.recorder.as_ref().unwrap().breaks().len(), 1);
+    assert!(app.session.mic());
+    (app, base, tx, heard + 1.0)
+}
+
+/// What the Scope reads for `lo` to `hi` while listening: the stretch
+/// read and its sound, or none when it reads nothing.
+fn scope_read(app: &mut TimegrapherApp, lo: f64, hi: f64) -> Option<(f64, f64, crate::span::Span)> {
+    app.scope_job = None;
+    if !app.start_scope_job(lo, hi) {
+        return None;
+    }
+    let (a, b, got) = app
+        .scope_job
+        .take()?
+        .recv_timeout(Duration::from_secs(30))
+        .unwrap();
+    Some((a, b, got.unwrap()))
+}
+
+/// The numbered block's value in `sp` at the take's time `t`.
+fn block_at(sp: &crate::span::Span, t: f64) -> f32 {
+    sp.mono[((t - sp.t0) * sp.rate).round() as usize]
 }

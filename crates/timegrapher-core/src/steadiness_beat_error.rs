@@ -24,8 +24,10 @@ fn stretch(
         beat_error_source: selected.beat_error_source,
         beat_error_sources: selected.beat_error_sources,
         caveats: selected.caveats(),
-        from_wind_h: cfg.wind_h + from_s / 3600.0,
-        to_wind_h: cfg.wind_h + to_s / 3600.0,
+        from_h: from_s / 3600.0,
+        to_h: to_s / 3600.0,
+        from_wind_h: super::hours_since_wind(cfg.wind_h, from_s / 3600.0),
+        to_wind_h: super::hours_since_wind(cfg.wind_h, to_s / 3600.0),
         readings: (0..rate.y.len())
             .filter(|&i| rate.time(i) >= from_s && rate.time(i) < to_s && rate.y[i].is_finite())
             .count(),
@@ -36,8 +38,8 @@ fn stretch(
 }
 
 /// The first half hour against the half hour 24 h after full wind, or the
-/// last half hour when the take ends sooner. Needs a take of at least two
-/// hours.
+/// last half hour when the take ends sooner or its wind was not given
+/// (#1665). Needs a take of at least two hours.
 pub(super) fn wind_down_sourced(
     rate: &Grid,
     amp: &Grid,
@@ -75,11 +77,12 @@ fn wind_down_by(
     if t_end - t_start < 2.0 * 3600.0 {
         return None;
     }
-    let at24 = t_start + (24.0 - cfg.wind_h) * 3600.0;
-    let (end_from, at_24h) = if at24 > t_start + WIND_STRETCH_S && at24 + WIND_STRETCH_S <= t_end {
-        (at24, true)
-    } else {
-        (t_end - WIND_STRETCH_S, false)
+    let at24 = cfg.wind_h.map(|w| t_start + (24.0 - w) * 3600.0);
+    let (end_from, at_24h) = match at24 {
+        Some(at24) if at24 > t_start + WIND_STRETCH_S && at24 + WIND_STRETCH_S <= t_end => {
+            (at24, true)
+        }
+        _ => (t_end - WIND_STRETCH_S, false),
     };
     let start = read(t_start);
     let end = read(end_from);
@@ -96,11 +99,11 @@ fn wind_down_by(
         (selected.values.len() == 2).then(|| selected.values[1].1 - selected.values[0].1)
     };
     let hours_apart = (end_from - t_start) / 3600.0;
+    // Hours since full wind only when the wind was given (#1665).
+    let span = super::wind::from_to_words(start.from_h, end.from_h, cfg.wind_h);
     let headline = match (rate_change, amplitude_change) {
         (Some(r), Some(a)) => format!(
-            "From {:.1} h to {:.1} h after full wind the rate moves {:+.1} s/d ({:+.1} to {:+.1}) and the amplitude {:+.0}° ({:.0}° to {:.0}°){}.",
-            start.from_wind_h,
-            end.from_wind_h,
+            "{span} the rate moves {:+.1} s/d ({:+.1} to {:+.1}) and the amplitude {:+.0}° ({:.0}° to {:.0}°){}.",
             r,
             start.rate_s_per_day.unwrap_or(f64::NAN),
             end.rate_s_per_day.unwrap_or(f64::NAN),
@@ -177,6 +180,7 @@ mod tests {
     fn log(n: usize) -> BeatLog {
         use crate::amplitude::AmplitudeWindow;
         BeatLog {
+            lock_template_kept: false,
             sample_rate: 48000,
             duration_s: n as f64 * 2.0,
             bph: 28800,
@@ -200,7 +204,8 @@ mod tests {
                     odd_unlock_ms: None,
                     even_drop_ms: None,
                     odd_drop_ms: None,
-                    culled_ms: None,
+                    extra: None,
+                    sound_1: [f32::NAN; 2],
                 })
                 .collect(),
         }

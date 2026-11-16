@@ -1013,6 +1013,11 @@ impl Session {
     /// they are, for the next start to offer back (the app is quitting
     /// without having asked about them).
     pub fn keep_recording(&mut self) {
+        // One keeping no sound has nothing to offer back: it goes, unless
+        // it holds the analysis of a take not yet written (#1514).
+        if self.recorder.as_ref().is_some_and(|r| !r.keeps_sound()) {
+            return self.discard_recording();
+        }
         if let Some(r) = self.recorder.take() {
             if self.recording_fault.is_some() {
                 drop(r);
@@ -1030,6 +1035,10 @@ impl Session {
                 // Drop closes handles best-effort, without writing a normal
                 // completed session.json or deleting uncertain audio.
                 drop(r);
+            } else if timegrapher_core::checkpoint::exists(r.dir()) {
+                // A take kept as its analysis alone and not yet written:
+                // its folder keeps the analysis kept as it went (#1514).
+                let _ = r.finish(None);
             } else if let Ok(dir) = r.finish(None) {
                 let _ = std::fs::remove_dir_all(dir);
             }
@@ -1046,12 +1055,36 @@ impl Session {
     /// Endpoints beyond the sound kept so far are bounded by its duration.
     pub fn audio_of(&self, t: f64) -> Option<f64> {
         let r = self.recorder.as_ref()?;
-        let audio_s = match self.audio_timeline.iter().rev().find(|a| a.at_s <= t) {
+        let audio_s = match self.anchor_at(t).map(|i| &self.audio_timeline[i]) {
             Some(a) if a.advancing => a.audio_s + (t - a.at_s),
             Some(a) => a.audio_s,
             None => t,
         };
         Some(audio_s.clamp(0.0, r.duration_s()))
+    }
+
+    /// The latest anchor of the recording timeline at or before `t`, by
+    /// index: the stretch of sound `t` falls in, or none before the first.
+    fn anchor_at(&self, t: f64) -> Option<usize> {
+        self.audio_timeline.iter().rposition(|a| a.at_s <= t)
+    }
+
+    /// How far the session's time runs ahead of the sound kept (the
+    /// pauses and breaks before it), when one stretch of sound covers
+    /// `from` to `to`: none across a pause or break, or with no recording.
+    pub fn sound_shift(&self, from: f64, to: f64) -> Option<f64> {
+        self.recorder.as_ref()?;
+        let i = self.anchor_at(from);
+        if self.anchor_at(to) != i {
+            return None;
+        }
+        // The same rule as `audio_of`: an advancing anchor runs on from
+        // its sound time; a paused one holds still.
+        match i.map(|i| &self.audio_timeline[i]) {
+            Some(a) if a.advancing => Some(a.at_s - a.audio_s),
+            Some(_) => None,
+            None => Some(0.0),
+        }
     }
 
     /// The saved take's positions in its sound's own seconds (which leave

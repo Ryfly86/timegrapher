@@ -22,7 +22,10 @@
 //! minutes with none, core `power_reserve`) or 80 hours pass, then keeps
 //! the run's results, hour by hour, in the session folder's
 //! `power-reserve.json`, as the app's Power Reserve pane does. In the
-//! library its folder is named by the date and time and "Power Reserve".
+//! library the test is one take, as the app files it (#1732): the
+//! recording itself, in a folder named by the date and time and "Power
+//! Reserve" ([`library::power_reserve_take_dir`]), with its own session
+//! file and `power-reserve.json`.
 
 use crate::long::Train;
 use crate::output;
@@ -131,6 +134,8 @@ pub(crate) struct Settings {
     pub(crate) bph: Option<u32>,
     pub(crate) lift: f64,
     pub(crate) lift_known: bool,
+    /// Where the lift angle came from (#1648).
+    pub(crate) lift_from: take::SettingFrom,
     /// Seconds `session` skips at the start of each take: the session
     /// file's, none when it gives none ([`take::measured`]'s default).
     pub(crate) settle_s: Option<f64>,
@@ -150,11 +155,18 @@ struct Placed {
     _library: Option<Library>,
     /// The watch it was made under, without a FOLDER.
     watch: Option<String>,
+    /// A Power Reserve Test filed into a library: the local minute it
+    /// started, which names its take. The take is then one folder, as
+    /// the app keeps one ([`library::power_reserve_take_dir`], #1732),
+    /// and the session folder is the watch's `takes/`.
+    reserve_take: Option<String>,
 }
 
-/// The library holding `folder` as one of a watch's takes, if it is one.
+/// The library holding `folder` as one of a watch's takes, if it is one:
+/// where it really is, so a link to the take, its watch or the library
+/// holds the library's lock too (#1641).
 fn library_of(folder: &Path) -> Option<PathBuf> {
-    let abs = std::path::absolute(folder).ok()?;
+    let abs = library::resolved(&std::path::absolute(folder).ok()?);
     let takes = abs.parent()?;
     let root = takes.parent()?.parent()?;
     (takes.file_name()? == library::TAKES && Library::is_library(root)).then(|| root.to_path_buf())
@@ -183,6 +195,7 @@ fn place(o: &mut Options) -> Result<Placed, String> {
         return Ok(Placed {
             _library: held,
             watch: None,
+            reserve_take: None,
         });
     }
     let name = o.watch.clone().ok_or(
@@ -217,16 +230,23 @@ fn place(o: &mut Options) -> Result<Placed, String> {
     }
     o.bph = o.bph.or(w.bph);
     o.lift = o.lift.or(w.lift);
-    let mut started = chrono::Local::now()
+    let started = chrono::Local::now()
         .format(library::TAKE_NAME_TIME)
         .to_string();
-    if o.power_reserve {
-        started.push_str(" Power Reserve");
-    }
-    o.folder = Some(library::unused_dir(&e.dir.join(library::TAKES), &started));
+    let takes = e.dir.join(library::TAKES);
+    // A Power Reserve Test is recorded straight into the watch's takes and
+    // filed as one take, as the app files it; any other test gets a
+    // session folder its positions are added to.
+    let reserve_take = o.power_reserve.then(|| started.clone());
+    o.folder = Some(if o.power_reserve {
+        takes
+    } else {
+        library::unused_dir(&takes, &started)
+    });
     Ok(Placed {
         watch: Some(w.name.clone()),
         _library: Some(lib),
+        reserve_take,
     })
 }
 
@@ -271,13 +291,14 @@ fn record(o: &Options) -> Result<(Options, Report, serde_json::Value), String> {
         ));
     }
     let placed = place(&mut o)?;
-    let (rep, settings) = record_in(&o, placed.watch)?;
+    let (rep, settings) = record_in(&o, placed.watch, placed.reserve_take.as_deref())?;
     Ok((o, rep, settings))
 }
 
 fn record_in(
     o: &Options,
     library_watch: Option<String>,
+    reserve_take: Option<&str>,
 ) -> Result<(Report, serde_json::Value), String> {
     let pos = Position::parse(&o.position).ok_or_else(|| {
         format!(
@@ -300,19 +321,35 @@ fn record_in(
     let dir = rec
         .finish_as_flac(None)
         .map_err(|e| format!("{}: {e}", take.display()))?;
+    // Filed into a library, a Power Reserve Test's recording is its take.
+    let dir = match reserve_take {
+        Some(started) => file_reserve_take(dir, &library::power_reserve_take_dir(o.dir(), started)),
+        None => dir,
+    };
     write_take_manifest(&dir, pos, &set, Some("clock.csv"))?;
+    // The run's results go beside the session file that lists the take:
+    // the take's own when it is the whole test.
+    let results_dir = if reserve_take.is_some() {
+        &dir
+    } else {
+        o.dir()
+    };
     let reserve = if o.power_reserve {
         let ending = ending.unwrap_or(power_reserve::Ending::ByHand);
         let r = reserve_results(&dir, &started, pos, set.bph, ending)?;
-        power_reserve::write(o.dir(), &r)
-            .map_err(|e| format!("{}: {e}", o.dir().join(power_reserve::FILE).display()))?;
+        power_reserve::write(results_dir, &r)
+            .map_err(|e| format!("{}: {e}", results_dir.join(power_reserve::FILE).display()))?;
         Some(r)
     } else {
         None
     };
 
     let check = check(&dir, &set)?;
-    let session_file = add_to_session(o, pos, &set, &dir, &started, &check)?;
+    let session_file = if reserve_take.is_some() {
+        dir.join(MANIFEST)
+    } else {
+        add_to_session(o, pos, &set, &dir, &started, &check)?
+    };
 
     let rep = Report {
         take: dir.display().to_string(),
@@ -328,7 +365,8 @@ fn record_in(
         power_reserve: reserve,
     };
     let settings = json!({
-        "bph": set.bph, "lift_deg": set.lift, "calibre": set.calibre,
+        "bph": set.bph, "lift_deg": set.lift, "lift_known": set.lift_known,
+        "lift_from": set.lift_from, "calibre": set.calibre,
         "device": o.device, "seconds": o.seconds,
     });
     Ok((rep, settings))
@@ -392,6 +430,7 @@ fn settings_with(
             bph,
             lift: lift.unwrap_or(take::DEFAULT_LIFT_DEG),
             lift_known: lift.is_some(),
+            lift_from: take::SettingFrom::of(o.lift, None, table.and_then(|c| c.lift_angle_deg)),
             settle_s: None,
         });
     };
@@ -441,6 +480,7 @@ fn settings_with(
         bph: m.bph.or(bph),
         lift: m.lift.or(lift).unwrap_or(take::DEFAULT_LIFT_DEG),
         lift_known,
+        lift_from: take::SettingFrom::of(o.lift, m.lift, table.and_then(|c| c.lift_angle_deg)),
         settle_s: m.settle_s,
     })
 }
@@ -1005,6 +1045,26 @@ fn header(set: &Settings) -> String {
     t
 }
 
+/// Rename the finished recording `dir` to its Power Reserve take folder
+/// `to`, waiting as every save does for a file another program has open
+/// ([`recorder::rename_settled`]). Should it still be refused, the
+/// recording stays where it is, under its own name, and is the take: its
+/// session file and run are written there all the same, so a run of up to
+/// 80 h is never lost to a rename (Felix on #1734).
+fn file_reserve_take(dir: PathBuf, to: &Path) -> PathBuf {
+    match recorder::rename_settled(&dir, to) {
+        Ok(()) => to.to_path_buf(),
+        Err(e) => {
+            eprintln!(
+                "warning: the take couldn't be renamed to {} ({e}); it is kept as {}",
+                to.display(),
+                dir.display()
+            );
+            dir
+        }
+    }
+}
+
 /// The app's session file inside the take, so the app opens the take with
 /// its watch, position and settings, as a take the app saved, and
 /// `series`, `long` and `session` read it at its own beat rate and lift.
@@ -1235,6 +1295,7 @@ mod tests {
             bph: Some(28800),
             lift: 52.0,
             lift_known: true,
+            lift_from: take::SettingFrom::Given,
             settle_s: None,
         };
         let mut feed = Feed::new(&path, Position::CH, 20.0, 48000, &set);
@@ -1324,6 +1385,7 @@ mod tests {
             bph: Some(28800),
             lift: 52.0,
             lift_known: true,
+            lift_from: take::SettingFrom::Given,
             settle_s: None,
         };
         let text = format!(
@@ -1367,6 +1429,7 @@ mod tests {
                 bph,
                 lift: 52.0,
                 lift_known: true,
+                lift_from: take::SettingFrom::Given,
                 settle_s: Some(0.0),
             };
             let c = check_saved(&dir, &set).unwrap();
@@ -1490,6 +1553,7 @@ mod tests {
             bph: Some(28800),
             lift: 52.0,
             lift_known: true,
+            lift_from: take::SettingFrom::Given,
             settle_s: Some(0.0),
         };
         let c = check_saved(&dir, &set).unwrap();
@@ -1537,6 +1601,7 @@ mod tests {
             bph: Some(28800),
             lift: 52.0,
             lift_known: true,
+            lift_from: take::SettingFrom::Given,
             settle_s: None,
         };
         let c = check_saved(&dir, &set).unwrap();
@@ -1579,6 +1644,7 @@ mod tests {
             bph: Some(28800),
             lift: 52.0,
             lift_known: true,
+            lift_from: take::SettingFrom::Given,
             settle_s: None,
         };
         let check = || Check {
@@ -1761,6 +1827,24 @@ mod tests {
         let _ = fs::remove_dir_all(&base);
     }
 
+    /// A Power Reserve take that can't be renamed stays a take under its
+    /// recording's own name, so its run is still written (#1734).
+    #[test]
+    fn a_reserve_take_that_cant_be_renamed_is_kept_where_it_is() {
+        let base = std::env::temp_dir().join(format!("tg-record-rename-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        let rec = base.join("2026-11-14T17-18-10_YM42_CR");
+        fs::create_dir_all(&rec).unwrap();
+        // A folder that isn't there can't take the recording.
+        let to = base.join("missing").join("2026-11-14 17.18 Power Reserve");
+        assert_eq!(file_reserve_take(rec.clone(), &to), rec);
+        assert!(rec.is_dir());
+        let free = base.join("2026-11-14 17.18 Power Reserve");
+        assert_eq!(file_reserve_take(rec.clone(), &free), free);
+        assert!(free.is_dir() && !rec.exists());
+        let _ = fs::remove_dir_all(&base);
+    }
+
     /// A stop file already there is refused before anything is made.
     #[test]
     fn a_stop_file_already_there_is_refused() {
@@ -1777,6 +1861,35 @@ mod tests {
         assert!(e.contains("already there"), "{e}");
         assert!(!folder.exists());
         let _ = fs::remove_dir_all(&base);
+    }
+
+    /// Where the lift came from, as `record`'s JSON says it (#1648): a
+    /// session file's own, given, a calibre's, or the default.
+    #[test]
+    fn the_lift_says_where_it_came_from() {
+        use timegrapher_core::take::SettingFrom;
+        let user = UserCalibres::default();
+        let mut o = options(PathBuf::from("unused-settings-folder"));
+        let kept = || toml::from_str::<Manifest>("lift = 60\nlift_known = true\n").unwrap();
+        let from = |o: &Options, m: Option<Manifest>| {
+            let s = settings_with(o, m, &user).unwrap();
+            (s.lift, s.lift_known, s.lift_from)
+        };
+        assert_eq!(from(&o, Some(kept())), (60.0, true, SettingFrom::Take));
+        assert_eq!(from(&o, None), (52.0, false, SettingFrom::Default));
+        o.lift = Some(60.0);
+        assert_eq!(from(&o, Some(kept())), (60.0, true, SettingFrom::Given));
+        assert_eq!(from(&o, None), (60.0, true, SettingFrom::Given));
+        o.lift = None;
+        o.calibre = Some("ETA 2824-2".into());
+        assert_eq!(from(&o, None).2, SettingFrom::Calibre);
+        // A second take of an ETA 2824-2 whose session file keeps its own
+        // lift: the take's, though the table gives one too.
+        o.calibre = None;
+        let eta =
+            toml::from_str::<Manifest>("calibre = \"ETA 2824-2\"\nlift = 48\nlift_known = true\n")
+                .unwrap();
+        assert_eq!(from(&o, Some(eta)), (48.0, true, SettingFrom::Take));
     }
 
     #[test]

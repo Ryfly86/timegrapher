@@ -56,7 +56,7 @@ pub const SHAPE_S: f64 = 60.0;
 /// 28 + 180,000 * (12 + 2 * (39 + 3 * 141)). Even one 256-byte window row
 /// per second uses only 92.2 MB. 512 MiB leaves over twice these sizes
 /// while bounding a crafted gzip's allocation.
-const MAX_ANALYSIS_FILE: u64 = 512 << 20;
+pub(crate) const MAX_ANALYSIS_FILE: u64 = 512 << 20;
 
 /// Kept profile points are this far apart, ms (every second point of the
 /// engine's 0.1 ms profile).
@@ -109,6 +109,10 @@ pub struct Header {
     /// The beat shape of each recording in the session file, measured on
     /// the sound when the take was saved.
     pub shape: Vec<StoredShape>,
+    /// The beat log's `lock_template_kept` (#1503): left out when false,
+    /// as every take kept before it was.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub lock_template_kept: bool,
 }
 
 /// [`crate::usbclock::UsbClock`], as kept.
@@ -139,6 +143,18 @@ pub struct StretchProfiles {
     /// The beats' peak over the envelope's median in it.
     pub signal: Option<f32>,
     pub sides: [Option<TickProfile>; 2],
+}
+
+impl StretchProfiles {
+    /// Tick and Tock the other way round, as a side swap names them.
+    pub fn swap_sides(&mut self) {
+        self.sides.swap(0, 1);
+        for (s, side) in self.sides.iter_mut().zip([Side::A, Side::B]) {
+            if let Some(s) = s {
+                s.side = side;
+            }
+        }
+    }
 }
 
 /// Everything an analysis-only take keeps.
@@ -422,7 +438,7 @@ pub fn measure_shape(x: &[f32], fs: f64, bph: u32, from_s: f64) -> Option<ShapeS
 }
 
 /// The analysis settings, as the header lists them.
-fn settings(cfg: &StreamConfig) -> serde_json::Value {
+pub(crate) fn settings(cfg: &StreamConfig) -> serde_json::Value {
     let a = &cfg.analysis;
     serde_json::json!({
         "bph": a.bph,
@@ -444,7 +460,7 @@ fn settings(cfg: &StreamConfig) -> serde_json::Value {
     })
 }
 
-fn invalid(m: String) -> io::Error {
+pub(crate) fn invalid(m: String) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, m)
 }
 
@@ -660,6 +676,7 @@ pub fn from_log(
         usb_clock: None,
         signal_median: None,
         shape: Vec::new(),
+        lock_template_kept: log.lock_template_kept,
     };
     Stored {
         header,
@@ -758,7 +775,19 @@ fn read_with_limit(take: &Path, limit: u64) -> io::Result<Stored> {
             )));
         }
     }
+    Ok(stored_from(header, (beats, clipped), windows, profiles))
+}
+
+/// The take kept with `header`: its beats, those at the `clipped` times
+/// clipped, its amplitude `windows` and its `profiles`.
+pub(crate) fn stored_from(
+    header: Header,
+    (beats, clipped): (Vec<Beat>, Vec<f64>),
+    windows: Vec<AmplitudeWindow>,
+    profiles: Vec<StretchProfiles>,
+) -> Stored {
     let log = BeatLog {
+        lock_template_kept: header.lock_template_kept,
         sample_rate: header.sample_rate,
         duration_s: header.duration_s,
         bph: header.bph,
@@ -772,11 +801,11 @@ fn read_with_limit(take: &Path, limit: u64) -> io::Result<Stored> {
         sided: header.sided.clone(),
         snippets: Vec::new(),
     };
-    Ok(Stored {
+    Stored {
         header,
         log,
         profiles,
-    })
+    }
 }
 
 /// `v` when it is a finite number, else an error naming `what`.
@@ -815,7 +844,7 @@ fn in_order(what: &str, times: &[f64]) -> Result<(), String> {
 /// The header's figures, as a measurement would have written them: a
 /// sample rate, frame size, beat rate, lift and length above 0, and every
 /// other figure a number, with the jumps in order.
-fn check_header(h: &Header) -> Result<(), String> {
+pub(crate) fn check_header(h: &Header) -> Result<(), String> {
     above_0("sample_rate", h.sample_rate as f64)?;
     above_0("bytes_per_frame", h.bytes_per_frame as f64)?;
     above_0("bph", h.bph as f64)?;
@@ -839,7 +868,7 @@ fn check_header(h: &Header) -> Result<(), String> {
     Ok(())
 }
 
-fn gzip(bytes: &[u8]) -> io::Result<Vec<u8>> {
+pub(crate) fn gzip(bytes: &[u8]) -> io::Result<Vec<u8>> {
     let mut e = GzEncoder::new(Vec::new(), flate2::Compression::default());
     e.write_all(bytes)?;
     e.finish()
@@ -855,13 +884,19 @@ fn beat_us(bph: u32) -> i64 {
 /// that many nominal beats put it (from 0 µs for the first), its quality
 /// to 3 decimals, and 1 when it clipped.
 fn beats_csv(log: &BeatLog) -> String {
-    let nominal = beat_us(log.bph);
-    let mut out = String::with_capacity(log.beats.len() * 16 + 64);
+    beats_rows(&log.beats, &log.clipped_beats, log.bph)
+}
+
+/// [`beats_csv`] for `beats` at `bph`, those at the `clipped` times
+/// clipped: from any beat on, its first row's step from 0.
+pub(crate) fn beats_rows(beats: &[Beat], clipped: &[f64], bph: u32) -> String {
+    let nominal = beat_us(bph);
+    let mut out = String::with_capacity(beats.len() * 16 + 64);
     out.push_str(BEATS_COLUMNS);
     out.push('\n');
     let (mut idx, mut us) = (0i64, 0i64);
-    let mut clipped = log.clipped_beats.iter().peekable();
-    for b in &log.beats {
+    let mut clipped = clipped.iter().peekable();
+    for b in beats {
         let t = (b.time * 1e6).round() as i64;
         let step = b.index - idx;
         let residual = t - us - step * nominal;
@@ -878,7 +913,7 @@ fn beats_csv(log: &BeatLog) -> String {
     out
 }
 
-fn parse_beats(text: &str, bph: u32) -> Result<(Vec<Beat>, Vec<f64>), String> {
+pub(crate) fn parse_beats(text: &str, bph: u32) -> Result<(Vec<Beat>, Vec<f64>), String> {
     let nominal = beat_us(bph);
     let mut lines = text.lines();
     if lines.next() != Some(BEATS_COLUMNS) {
@@ -928,7 +963,7 @@ fn parse_beats(text: &str, bph: u32) -> Result<(Vec<Beat>, Vec<f64>), String> {
     Ok((beats, clipped))
 }
 
-fn windows_csv(windows: &[AmplitudeWindow]) -> String {
+pub(crate) fn windows_csv(windows: &[AmplitudeWindow]) -> String {
     let o = |v: Option<f64>| v.map_or(String::new(), |v| v.to_string());
     let mut out = String::from(WINDOWS_COLUMNS);
     out.push('\n');
@@ -952,7 +987,7 @@ fn windows_csv(windows: &[AmplitudeWindow]) -> String {
 
 /// One row per window with a culled side: its index and each side's
 /// unlock and drop, empty for a side not culled.
-fn culled_csv(windows: &[AmplitudeWindow]) -> String {
+pub(crate) fn culled_csv(windows: &[AmplitudeWindow]) -> String {
     let o = |v: Option<[f64; 2]>, i: usize| v.map_or(String::new(), |v| v[i].to_string());
     let mut out = String::from(CULLED_COLUMNS);
     out.push('\n');
@@ -972,7 +1007,7 @@ fn culled_csv(windows: &[AmplitudeWindow]) -> String {
 }
 
 /// Reads [`culled_csv`] onto `windows`.
-fn parse_culled(text: &str, windows: &mut [AmplitudeWindow]) -> Result<(), String> {
+pub(crate) fn parse_culled(text: &str, windows: &mut [AmplitudeWindow]) -> Result<(), String> {
     let mut lines = text.lines();
     if lines.next() != Some(CULLED_COLUMNS) {
         return Err(format!("the first line isn't {CULLED_COLUMNS}"));
@@ -996,7 +1031,7 @@ fn parse_culled(text: &str, windows: &mut [AmplitudeWindow]) -> Result<(), Strin
         };
         let i: usize = f[0].parse().map_err(|_| bad())?;
         let w = windows.get_mut(i).ok_or_else(bad)?;
-        if w.culled_ms.is_some() {
+        if w.has_culled() {
             return Err(format!("window {i} is listed twice"));
         }
         let c = [side(f[1], f[2])?, side(f[3], f[4])?];
@@ -1008,7 +1043,7 @@ fn parse_culled(text: &str, windows: &mut [AmplitudeWindow]) -> Result<(), Strin
     Ok(())
 }
 
-fn parse_windows(text: &str) -> Result<Vec<AmplitudeWindow>, String> {
+pub(crate) fn parse_windows(text: &str) -> Result<Vec<AmplitudeWindow>, String> {
     let mut lines = text.lines();
     if lines.next() != Some(WINDOWS_COLUMNS) {
         return Err(format!("the first line isn't {WINDOWS_COLUMNS}"));
@@ -1034,7 +1069,8 @@ fn parse_windows(text: &str) -> Result<Vec<AmplitudeWindow>, String> {
                 odd_unlock_ms: opt(f[7])?,
                 even_drop_ms: opt(f[8])?,
                 odd_drop_ms: opt(f[9])?,
-                culled_ms: None,
+                extra: None,
+                sound_1: [f32::NAN; 2],
             };
             let figures = [
                 Some(w.start_s),
@@ -1072,7 +1108,7 @@ fn parse_windows(text: &str) -> Result<Vec<AmplitudeWindow>, String> {
 /// (f32, ms or degrees, NaN when none), then the median, 10th and 90th
 /// percentile curves, a byte a point: quarter-dB steps above
 /// [`PROFILE_RANGE_DB`] below the top, 0 for lower.
-fn profiles_bin(profiles: &[StretchProfiles]) -> Vec<u8> {
+pub(crate) fn profiles_bin(profiles: &[StretchProfiles]) -> Vec<u8> {
     let first = profiles
         .iter()
         .flat_map(|p| p.sides.iter().flatten())
@@ -1147,7 +1183,7 @@ fn byte_level(b: u8, top: f32) -> f32 {
     top * 10f64.powf((b as f64 / 4.0 - PROFILE_RANGE_DB) / 20.0) as f32
 }
 
-fn parse_profiles(raw: &[u8]) -> Result<Vec<StretchProfiles>, String> {
+pub(crate) fn parse_profiles(raw: &[u8]) -> Result<Vec<StretchProfiles>, String> {
     let mut at = 0usize;
     let mut take = |n: usize| -> Result<&[u8], String> {
         let s = raw
@@ -1954,11 +1990,7 @@ mod tests {
         // A take kept before #1333 has no such file: none culled.
         fs::remove_file(dir.join(DIR).join(CULLED)).unwrap();
         let old = read(&dir).unwrap();
-        assert!(old
-            .log
-            .amplitude_windows
-            .iter()
-            .all(|w| w.culled_ms.is_none()));
+        assert!(old.log.amplitude_windows.iter().all(|w| !w.has_culled()));
         // A row with one edge of a side, past the last window, or a window
         // listed twice, is refused.
         for row in [
@@ -2080,6 +2112,31 @@ mod tests {
             ..m
         };
         assert_eq!(shape_stretches(&off, 300.0), vec![None, None]);
+    }
+
+    /// Keep Analysis Only removes a take's sound only when its session file
+    /// names the whole folder, as the app writes it (#1731): one naming
+    /// sound files, one mixing the two, and one with no recordings at all
+    /// are refused, with the reason the menu and the CLI show.
+    #[test]
+    fn only_a_session_naming_the_whole_folder_may_lose_its_sound() {
+        let listing = |files: &[&str]| Manifest {
+            recordings: files
+                .iter()
+                .map(|f| session::RecordingEntry {
+                    file: (*f).into(),
+                    ..Default::default()
+                })
+                .collect(),
+            ..Default::default()
+        };
+        assert_eq!(sound_kept_by_name(&listing(&["."])), None);
+        assert_eq!(sound_kept_by_name(&listing(&[".", "."])), None);
+        for files in [&["take.flac"][..], &[".", "b.wav"], &[]] {
+            let why = sound_kept_by_name(&listing(files));
+            let why = why.unwrap_or_else(|| panic!("{files:?} may lose its sound"));
+            assert!(why.contains("by name"), "{why}");
+        }
     }
 }
 

@@ -11,7 +11,8 @@ gives.
 
 **Why you'd use it:** to see the size of every period's swing side by
 side, the strong ones and the weak ones, on one axis. Periods (chapter 11)
-says which periods the readings repeat at, beyond doubt; the FFT says how
+says which periods the readings repeat at, each with the chance that noise
+alone would show it (a false alarm); the FFT says how
 big each one is, whether or not it passes a test. When you know what you
 are looking for (a wheel you have just worked on, a swing you saw on
 another timegrapher), this is where you read its size.
@@ -65,8 +66,9 @@ folds.
   own clock, the rate from the beat timing, the amplitude and beat error
   from their 2 s windows, with the slow change taken off by the same
   30-minute running median.
-- **A sine fitted at each period,** to the samples present, each weighted
-  by a Hann window over the whole take, less their weighted mean. With
+- **A sine fitted at each period,** together with a constant, to the
+  samples present, each weighted by a Hann window over the whole take.
+  A period whose cycle the samples cover too thinly is left out. With
   every sample present this is the ordinary windowed FFT; with some
   missing it is the **Lomb–Scargle** periodogram, so nothing is filled
   in and a line keeps its size as samples go missing.

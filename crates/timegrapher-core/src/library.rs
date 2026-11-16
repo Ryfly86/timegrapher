@@ -60,8 +60,10 @@ pub const CACHE_FILE: &str = ".cache.json";
 /// afresh. Apart from [`FORMAT`]: a new cache never stops an older build
 /// opening the library, which just makes its own cache again. 2: `at_end`
 /// gained `rate_corrected_s_per_day`. 3: a recording's USB lines correct
-/// that rate over its clock log.
-const CACHE_FORMAT: u32 = 3;
+/// that rate over its clock log. 4: a take gained `wind_h` (#1665). 5: a
+/// take kept as its parts alone, its save never finished, reads to its
+/// last part (2c of #1514).
+const CACHE_FORMAT: u32 = 5;
 pub const LOCK_FILE: &str = ".library.lock";
 /// The folder of takes not yet filed under a watch.
 pub const UNSORTED: &str = "Unsorted";
@@ -152,6 +154,11 @@ pub struct Watch {
     /// The fields the user added, in their order.
     #[serde(default, rename = "field", skip_serializing_if = "Vec::is_empty")]
     pub fields: Vec<Field>,
+    /// When it was last fully wound, UTC (`2026-10-08T21:04:05.123Z`), as
+    /// the app's Position card or a test's Start gave it: each take of it
+    /// is saved with its hours since then (#1665). None where not given.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub full_wind: Option<String>,
 }
 
 /// The lift angle and beat rate a watch's calibre gives, each where the
@@ -266,6 +273,7 @@ impl Watch {
             notes: None,
             archived: false,
             fields: Vec::new(),
+            full_wind: None,
         }
     }
 
@@ -308,7 +316,30 @@ fn new_id() -> String {
 /// ([`new_id`]), so two writes at once can't write into each other's,
 /// and one that fails removes only its own (#872).
 pub fn write_atomic(p: &Path, bytes: &[u8]) -> Result<(), String> {
-    use std::io::Write;
+    write_atomic_with(p, bytes, &ON_DISK)
+}
+
+/// [`write_atomic`]'s steps after the new file is made: its bytes, onto
+/// the disk, and into place; a test makes any one fail (#1639).
+pub(crate) struct AtomicSteps {
+    pub write: fn(&mut fs::File, &[u8]) -> std::io::Result<()>,
+    pub sync: fn(&fs::File) -> std::io::Result<()>,
+    pub rename: fn(&Path, &Path) -> std::io::Result<()>,
+}
+
+const ON_DISK: AtomicSteps = AtomicSteps {
+    write: write_all,
+    sync: fs::File::sync_all,
+    rename: crate::recorder::rename_settled,
+};
+
+fn write_all(f: &mut fs::File, bytes: &[u8]) -> std::io::Result<()> {
+    std::io::Write::write_all(f, bytes)
+}
+
+/// [`write_atomic`] with `steps`: whichever fails, `p` is as it was and
+/// the new file is gone.
+pub(crate) fn write_atomic_with(p: &Path, bytes: &[u8], steps: &AtomicSteps) -> Result<(), String> {
     let name = p
         .file_name()
         .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
@@ -319,14 +350,12 @@ pub fn write_atomic(p: &Path, bytes: &[u8]) -> Result<(), String> {
         .create_new(true)
         .open(&tmp)
         .map_err(failed)?;
-    let written = f.write_all(bytes).and_then(|_| f.sync_all());
+    let written = (steps.write)(&mut f, bytes).and_then(|_| (steps.sync)(&f));
     drop(f);
-    written
-        .and_then(|_| crate::recorder::rename_settled(&tmp, p))
-        .map_err(|e| {
-            let _ = fs::remove_file(&tmp);
-            failed(e)
-        })
+    written.and_then(|_| (steps.rename)(&tmp, p)).map_err(|e| {
+        let _ = fs::remove_file(&tmp);
+        failed(e)
+    })
 }
 
 /// A folder name for `name` that every system accepts: the characters
@@ -416,6 +445,22 @@ pub fn take_name(started: &str, positions: &[Position]) -> String {
     }
 }
 
+/// A Power Reserve Test's take folder's name: the date and time it
+/// started and "Power Reserve" (`2026-10-20 14.32 Power Reserve`).
+pub fn power_reserve_take_name(started: &str) -> String {
+    format!("{started} Power Reserve")
+}
+
+/// Where a Power Reserve Test's take is kept among a watch's `takes`: one
+/// folder named by [`power_reserve_take_name`], holding the recording with
+/// its own session file (`file = "."`) and the run's
+/// `power-reserve.json` beside it, so the app opens the take on its run.
+/// The app and `timegrapher record --power-reserve` both file a test here
+/// (#1732).
+pub fn power_reserve_take_dir(takes: &Path, started: &str) -> PathBuf {
+    unused_dir(takes, &power_reserve_take_name(started))
+}
+
 /// The readings `session.json` keeps from the end of a take, as the app
 /// saw them then.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -468,6 +513,10 @@ pub struct Take {
     /// For a Power Reserve Test's take, its run.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub power_reserve: Option<crate::power_reserve::Summary>,
+    /// Hours from full wind to its start, as its session file gives them
+    /// ([`crate::full_wind::take_wind_h`]): none where not given (#1665).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wind_h: Option<f64>,
 }
 
 impl Take {
@@ -1543,9 +1592,7 @@ impl Library {
                 from.display()
             ));
         }
-        if resolved(from).starts_with(resolved(&self.root)) {
-            return Err(format!("{} is already in your watches", from.display()));
-        }
+        self.not_already_in(from)?;
         if from.join(take::MANIFEST).is_file() {
             // A session file that doesn't read would show as a broken take.
             manifest_of(from).map_err(|e| format!("this take's session file doesn't read: {e}"))?;
@@ -1604,6 +1651,24 @@ impl Library {
         Ok((to, left))
     }
 
+    /// The one guard both imports use (#1656), before anything is staged:
+    /// `from` is refused when it is already inside the watches folder, or
+    /// holds it, where the copy would be made inside what it copies and
+    /// copy itself again and again (#1642).
+    fn not_already_in(&self, from: &Path) -> Result<(), String> {
+        let (from_at, root) = (resolved(from), resolved(&self.root));
+        if from_at.starts_with(&root) {
+            return Err(format!("{} is already in your watches", from.display()));
+        }
+        if root.starts_with(&from_at) {
+            return Err(format!(
+                "{} holds your watches folder: add the take's own folder instead",
+                from.display()
+            ));
+        }
+        Ok(())
+    }
+
     /// Add a recording from outside the library that has no session file
     /// (a lone WAV or FLAC file, or a folder of them) to a watch (by its
     /// id), as a new take named `name`: the file, or everything in the
@@ -1618,9 +1683,7 @@ impl Library {
         written: &[(&str, String)],
     ) -> Result<PathBuf, String> {
         self.writable()?;
-        if resolved(from).starts_with(resolved(&self.root)) {
-            return Err(format!("{} is already in your watches", from.display()));
-        }
+        self.not_already_in(from)?;
         let to_watch = self
             .watches
             .iter()
@@ -1702,6 +1765,7 @@ fn unsorted_entry(root: &Path) -> WatchEntry {
             notes: None,
             archived: false,
             fields: Vec::new(),
+            full_wind: None,
         },
         takes: Vec::new(),
         photos: Vec::new(),
@@ -1721,8 +1785,10 @@ fn unsorted_name(name: &str) -> Result<(), String> {
 
 /// `p` with links followed: the nearest folder of it that exists,
 /// resolved, with the rest of `p` after it. A `..` in the part that
-/// doesn't exist is left as it is (no caller passes one).
-fn resolved(p: &Path) -> PathBuf {
+/// doesn't exist is left as it is (no caller passes one). The command
+/// line's `record` decides by it whether a folder is a library's take
+/// (#1641).
+pub fn resolved(p: &Path) -> PathBuf {
     let mut rest = Vec::new();
     let mut at = p;
     loop {
@@ -2119,11 +2185,15 @@ fn sound_length(dir: &Path, m: &Manifest) -> Option<f64> {
 }
 
 /// How long a take kept as its analysis ran, from the analysis's own
-/// header (its sound, which gave the length, is gone).
+/// header (its sound, which gave the length, is gone), or from its parts
+/// when its save never finished.
 fn kept_length(dir: &Path) -> Option<f64> {
-    crate::analysis_take::read_header(dir)
-        .ok()
-        .map(|h| h.duration_s)
+    match crate::checkpoint::only(dir) {
+        true => crate::checkpoint::length_s(dir).ok(),
+        false => crate::analysis_take::read_header(dir)
+            .ok()
+            .map(|h| h.duration_s),
+    }
 }
 
 /// What a take folder says about itself.
@@ -2140,7 +2210,7 @@ fn read_take(dir: &Path, bytes: u64) -> Result<Take, String> {
         .and_then(|b| serde_json::from_slice(&b).ok());
     let audio = manifest.as_ref().and_then(|m| m.audio) != Some(false);
     let incomplete = match &manifest {
-        Some(_) if !audio => !dir.join("analysis").is_dir(),
+        Some(_) if !audio => !dir.join("analysis").is_dir() && !crate::checkpoint::only(dir),
         // An entry naming a folder (`file = "."`, as the app's own takes
         // do) is there when the folder holds sound files.
         Some(m) => m.recordings.iter().any(|r| {
@@ -2208,9 +2278,12 @@ fn read_take(dir: &Path, bytes: u64) -> Result<Take, String> {
         audio,
         incomplete,
         started_utc,
-        duration_s: about
-            .as_ref()
-            .and_then(|a| at(a, "duration_s"))
+        // Of a take kept in parts, as far as its parts reach: its sound
+        // was heard further than its analysis was kept.
+        duration_s: crate::checkpoint::only(dir)
+            .then(|| kept_length(dir))
+            .flatten()
+            .or_else(|| about.as_ref().and_then(|a| at(a, "duration_s")))
             .or_else(|| {
                 let m = manifest.as_ref().filter(|_| audio && !incomplete)?;
                 sound_length(dir, m)
@@ -2222,6 +2295,7 @@ fn read_take(dir: &Path, bytes: u64) -> Result<Take, String> {
             .ok()
             .and_then(|t| crate::power_reserve::Results::from_json(&t).ok())
             .map(|r| r.summary()),
+        wind_h: manifest.as_ref().and_then(crate::full_wind::take_wind_h),
     })
 }
 

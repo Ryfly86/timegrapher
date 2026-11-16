@@ -25,6 +25,25 @@ fn a_spectrum_climbing_at_its_end_labels_its_own_peak_not_the_end() {
     );
 }
 
+/// A size core withheld for thin cover (NaN, #1638) leaves the FFT's line
+/// open there: the runs either side are drawn apart, never bridged, and
+/// no peak is read across the gap (Norm: masks cull, never fill).
+#[test]
+fn a_withheld_size_leaves_a_gap_in_the_spectrum() {
+    let periods = [1000.0, 320.0, 100.0, 10.0, 5.0];
+    let sizes = [1.0, f64::NAN, 2.0, 0.5, 1.0];
+    let runs = super::log_runs(&periods, &sizes);
+    assert_eq!(runs.len(), 2);
+    assert_eq!(runs[0], vec![[3.0, 0.0]]);
+    assert_eq!(runs[1].len(), 3);
+    assert!(runs.concat().iter().all(|q| q[0] != 320f64.log10()));
+    // Unread sizes (0, infinite) are left out without opening a gap.
+    assert_eq!(
+        super::log_runs(&[10.0, 5.0, 4.0], &[1.0, 0.0, 2.0]).len(),
+        1
+    );
+}
+
 #[test]
 fn the_cycle_columns_give_their_quartiles_and_the_line_its_swing() {
     let nan = f64::NAN;
@@ -572,7 +591,9 @@ fn fft_renderer_paints_input_availability_in_both_rate_displays() {
                 "{text}"
             );
             assert_eq!(
-                text.contains("each size is a sine fitted to the samples present"),
+                text.contains(
+                    "each size is a sine and a constant fitted together to the samples present"
+                ),
                 missing && info
             );
         }
@@ -732,6 +753,7 @@ fn a_takes_clock_corrects_the_readings_drawn() {
         &reading_breaks(Vec::new(), &log),
         None,
         Some(&fit),
+        true,
         &std::sync::atomic::AtomicU8::new(0),
     );
     let shift = timegrapher_core::clock::rate_error_s_per_day(20.0);
@@ -744,6 +766,7 @@ fn a_takes_clock_corrects_the_readings_drawn() {
 // Known beat records only: these controls do not run the detector.
 fn context_log() -> BeatLog {
     BeatLog {
+        lock_template_kept: false,
         sample_rate: 48000,
         duration_s: 120.0,
         bph: 28800,
@@ -917,7 +940,8 @@ fn derived_join_keeps_amplitude_sides_on_the_renumbered_beats() {
             odd_unlock_ms: Some(-4.0),
             even_drop_ms: Some(0.1),
             odd_drop_ms: Some(0.5),
-            culled_ms: None,
+            extra: None,
+            sound_1: [f32::NAN; 2],
         };
         log.amplitude_windows = vec![
             window(start - 1.0, start + 1.0),
@@ -999,6 +1023,7 @@ fn views_leave_out_a_rate_reading_over_a_dropout() {
         .filter(|b| !(33.9..36.1).contains(&b.time))
         .collect();
     let log = BeatLog {
+        lock_template_kept: false,
         sample_rate: 48000,
         duration_s: 200.0,
         bph: 28800,
@@ -1098,7 +1123,8 @@ fn the_beat_error_view_gives_sizes_where_its_sign_turns() {
                     odd_unlock_ms: None,
                     even_drop_ms: None,
                     odd_drop_ms: None,
-                    culled_ms: None,
+                    extra: None,
+                    sound_1: [f32::NAN; 2],
                 }
             })
             .collect();
@@ -1211,21 +1237,27 @@ fn a_once_a_minute_swing_reads_periodic_and_every_view_draws(log: &BeatLog, s: S
         all
     };
     let mut s = s;
-    s.maps.clear();
+    // Not read yet (no STFT or Wavelet pane was shown): no note that it
+    // can't be (#1830).
+    s.maps = None;
+    assert!(!drawn(&s, View::Stft).contains("needs"));
+    s.maps = Some(Vec::new());
     assert!(drawn(&s, View::Stft).contains("The STFT Map needs"));
     let nan = f64::NAN;
     for method in ["stft", "sst"] {
-        s.maps.push(timegrapher_core::timefreq::TimeFrequency {
-            series: "rate",
-            method,
-            unit: "ms",
-            step_s: 10.0,
-            window_s: None,
-            hop_s: Some(300.0),
-            period_s: vec![600.0, 120.0, 30.0],
-            t_s: vec![600.0, 900.0],
-            values: vec![vec![0.1, 0.4, nan], vec![0.2, 0.3, 0.1]],
-        });
+        s.maps
+            .get_or_insert_default()
+            .push(timegrapher_core::timefreq::TimeFrequency {
+                series: "rate",
+                method,
+                unit: "ms",
+                step_s: 10.0,
+                window_s: None,
+                hop_s: Some(300.0),
+                period_s: vec![600.0, 120.0, 30.0],
+                t_s: vec![600.0, 900.0],
+                values: vec![vec![0.1, 0.4, nan], vec![0.2, 0.3, 0.1]],
+            });
     }
     for v in [View::Stft, View::Wavelet] {
         let t = drawn(&s, v);
@@ -1250,6 +1282,7 @@ fn a_repeats_note_is_hover_only_on_a_short_plot() {
         })
         .collect();
     let log = BeatLog {
+        lock_template_kept: false,
         sample_rate: 48000,
         duration_s: 1200.0,
         bph: 28800,
@@ -1363,7 +1396,7 @@ fn a_wheels_twice_and_a_reference_are_fainter_call_outs() {
         x: 1.0,
         turn,
         name: String::new(),
-        short: String::new(),
+        side: String::new(),
         hover: String::new(),
     };
     assert_eq!(line(Turn::Wheel).width(), crate::strength::CALL_OUT_W);
@@ -1397,19 +1430,21 @@ fn meshes_are_marked_faintly_unless_a_wheel_marks_their_period() {
     let marks = Marks {
         wheels: &wheels,
         meshes: &meshes,
+        wheels_on: true,
+        meshes_on: true,
     };
     let lines = wheel_lines(Some(marks), (0.0, 5.0));
     let got: Vec<(&str, &str, bool)> = lines
         .iter()
-        .map(|l| (l.name.as_str(), l.short.as_str(), l.turn == Turn::Mesh))
+        .map(|l| (l.name.as_str(), l.side.as_str(), l.turn == Turn::Mesh))
         .collect();
     assert_eq!(
         got,
         [
-            ("Fourth Wheel", "4th Wheel", false),
-            ("Fourth Wheel ×2", "4th Wheel ×2", false),
-            ("Fourth Pinion Mesh", "4th Mesh", true),
-            ("Third Pinion Mesh", "3rd Mesh", true),
+            ("Fourth Wheel", "Fourth\nWheel", false),
+            ("Fourth Wheel ×2", "Fourth\nWheel\n×2", false),
+            ("Fourth Pinion Mesh", "Fourth\nPinion\nMesh", true),
+            ("Third Pinion Mesh", "Third\nPinion\nMesh", true),
         ]
     );
     let line = &lines[2];
@@ -1417,8 +1452,40 @@ fn meshes_are_marked_faintly_unless_a_wheel_marks_their_period() {
     assert_eq!(line.width(), 1.0);
     // Core says what it is (`train::Mesh::line`).
     assert_eq!(line.hover, "Fourth Pinion Mesh: about the fourth pinion.");
-    assert_eq!(crate::marks::mesh_short("centre pinion"), "Centre Mesh");
+    assert_eq!(
+        timegrapher_core::steady_views::mesh_short("centre pinion"),
+        "Centre Mesh"
+    );
     assert!(wheel_lines(None, (0.0, 5.0)).is_empty());
+    // Each switch alone (#1764): Mesh off leaves the wheels; Wheel
+    // Periods off leaves the meshes, with no reference periods in place
+    // of the wheels. The centre pinion's mesh, within 3% of the ×2 at
+    // 30 s, is unmarked while that line shows and marked with its own name
+    // once Wheel Periods is off (Hugh's ruling, Trevor on #1774).
+    let names = |m: Marks<'_>| -> Vec<String> {
+        wheel_lines(Some(m), (0.0, 5.0))
+            .into_iter()
+            .map(|l| l.name)
+            .collect()
+    };
+    let no_meshes = Marks {
+        meshes_on: false,
+        ..marks
+    };
+    assert_eq!(names(no_meshes), ["Fourth Wheel", "Fourth Wheel ×2"]);
+    let no_wheels = Marks {
+        wheels_on: false,
+        ..marks
+    };
+    assert_eq!(
+        names(no_wheels),
+        [
+            "Fourth Pinion Mesh",
+            "Third Pinion Mesh",
+            "Centre Pinion Mesh"
+        ]
+    );
+    assert!(!names(marks).contains(&"Centre Pinion Mesh".to_string()));
 }
 
 /// A trend or a split of levels the headline leaves out says why, in

@@ -77,6 +77,11 @@ pub struct Palette {
     pub grid_opacity: f32,
     pub axis_opacity: f32,
     pub callout: Rgb,
+    /// The watch case behind the Dynamic Poise dial (#1762), fainter than
+    /// the grid: its face and its outline, the text colour at these
+    /// opacities over the pane.
+    pub case_face_opacity: f32,
+    pub case_line_opacity: f32,
 }
 
 const fn rgb(hex: u32) -> Rgb {
@@ -112,6 +117,9 @@ pub const DARK: Palette = Palette {
     grid_opacity: 0.08,
     axis_opacity: 0.27,
     callout: CALLOUT_DARK,
+    // Hugh's #262629 face and #2e2e32 outline on the #232326 pane.
+    case_face_opacity: 0.015,
+    case_line_opacity: 0.052,
 };
 
 pub const LIGHT: Palette = Palette {
@@ -138,7 +146,50 @@ pub const LIGHT: Palette = Palette {
     grid_opacity: 0.09,
     axis_opacity: 0.33,
     callout: CALLOUT_LIGHT,
+    // The same steps from the light pane: the face about a quarter of
+    // the way to the grid, the outline about two thirds.
+    case_face_opacity: 0.022,
+    case_line_opacity: 0.06,
 };
+
+impl Palette {
+    /// The text colour at opacity `a` laid over the pane, as one opaque
+    /// colour: for a shape drawn over another that must hide it.
+    pub fn over_card(&self, a: f32) -> Rgb {
+        self.over(self.card, a)
+    }
+
+    /// The text colour at opacity `a` laid over `back`, as one opaque
+    /// colour.
+    pub fn over(&self, back: Rgb, a: f32) -> Rgb {
+        let mix = |c: u8, t: u8| (f32::from(c) + (f32::from(t) - f32::from(c)) * a).round() as u8;
+        Rgb {
+            r: mix(back.r, self.text.r),
+            g: mix(back.g, self.text.g),
+            b: mix(back.b, self.text.b),
+        }
+    }
+
+    /// The poise dial's case (#1762): its face and its outline, opaque,
+    /// over the card (the MCP view's dial).
+    pub fn case_face(&self) -> Rgb {
+        self.over_card(self.case_face_opacity)
+    }
+
+    pub fn case_line(&self) -> Rgb {
+        self.over_card(self.case_line_opacity)
+    }
+
+    /// The case's face and outline over `back`, the colour actually
+    /// behind the dial (Hugh on #1772: the app's dial is on the window,
+    /// not a card), the same small steps toward the text as over the card.
+    pub fn case_over(&self, back: Rgb) -> (Rgb, Rgb) {
+        (
+            self.over(back, self.case_face_opacity),
+            self.over(back, self.case_line_opacity),
+        )
+    }
+}
 
 pub fn palette(dark: bool) -> &'static Palette {
     if dark {
@@ -147,6 +198,10 @@ pub fn palette(dark: bool) -> &'static Palette {
         &LIGHT
     }
 }
+
+/// How strongly a ± band is filled: a light wash of its line's colour
+/// under the line, on every surface (#1729, #1761).
+pub const BAND_FILL: f64 = 0.2;
 
 /// The time-frequency maps' colours, from the smallest size to the
 /// largest: viridis at 17 evenly spaced points, from matplotlib's table.
@@ -262,6 +317,39 @@ fn from_oklab([l, a, b]: [f64; 3]) -> Rgb {
 
 #[cfg(test)]
 mod tests {
+
+    /// The poise dial's case is Hugh's steps over each pane (#1762): a
+    /// face and an outline fainter than the grid.
+    #[test]
+    fn the_poise_case_is_fainter_than_the_grid() {
+        let near = |a: Rgb, b: Rgb| {
+            [(a.r, b.r), (a.g, b.g), (a.b, b.b)]
+                .iter()
+                .all(|&(x, y)| x.abs_diff(y) <= 1)
+        };
+        assert!(
+            near(DARK.case_face(), Rgb::hex(0x262629)),
+            "{:?}",
+            DARK.case_face()
+        );
+        assert!(
+            near(DARK.case_line(), Rgb::hex(0x2e2e32)),
+            "{:?}",
+            DARK.case_line()
+        );
+        for p in [&DARK, &LIGHT] {
+            assert!(p.case_face_opacity < p.case_line_opacity);
+            assert!(p.case_line_opacity < p.grid_opacity);
+            // Over the window, a step off it toward the text, the outline
+            // nearer the window than the grid's line is.
+            let (face, line) = p.case_over(p.window);
+            let off = |c: Rgb| p.window.r.abs_diff(c.r);
+            assert!(off(face) >= 1 && off(face) < off(line), "{face:?} {line:?}");
+            assert!(off(line) < off(p.separator), "{line:?}");
+            assert_eq!(p.case_over(p.card), (p.case_face(), p.case_line()));
+        }
+    }
+
     use super::*;
 
     #[test]

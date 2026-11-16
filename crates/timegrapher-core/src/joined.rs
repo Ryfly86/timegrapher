@@ -98,6 +98,7 @@ fn beats_between(between: f64, gap: i64) -> i64 {
 /// A log with `log`'s header and no beats, for [`join`] to fill.
 fn empty_like(log: &BeatLog) -> BeatLog {
     BeatLog {
+        lock_template_kept: log.lock_template_kept,
         sample_rate: log.sample_rate,
         duration_s: 0.0,
         bph: log.bph,
@@ -242,6 +243,7 @@ mod tests {
     /// 200 s of an 18,000 bph watch, a beat every 0.2 s.
     fn log() -> BeatLog {
         BeatLog {
+            lock_template_kept: false,
             sample_rate: 48_000,
             duration_s: 200.0,
             bph: 18_000,
@@ -316,7 +318,8 @@ mod tests {
                 odd_unlock_ms: Some(-6.0),
                 even_drop_ms: None,
                 odd_drop_ms: None,
-                culled_ms: None,
+                extra: None,
+                sound_1: [f32::NAN; 2],
             })
             .collect();
         // 10.2 s is beat 51, a Tock; 100.2 s is beat 501, a Tock too, and
@@ -550,7 +553,8 @@ mod tests {
             odd_unlock_ms: Some(-4.0),
             even_drop_ms: Some(0.1),
             odd_drop_ms: Some(0.5),
-            culled_ms: None,
+            extra: None,
+            sound_1: [f32::NAN; 2],
         };
         let mut log = log();
         log.amplitude_windows = vec![window(12.0), window(60.0), window(120.0)];

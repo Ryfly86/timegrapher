@@ -14,6 +14,7 @@
 //! clock correction.
 
 use crate::beats::Beat;
+use crate::steadiness::SeriesKind;
 use serde::{Deserialize, Serialize};
 
 /// The results file's name, in the take's folder.
@@ -38,6 +39,17 @@ pub const LONG_TAKE_S: f64 = 6.0 * 3600.0;
 /// being heard: a running test's hours so far, and a long take's run so
 /// far while listening.
 pub const READ_AGAIN_S: f64 = 60.0;
+
+/// The Power Reserve Test's name, as its pane is headed on every surface.
+pub const TEST_TITLE: &str = "Power Reserve";
+/// The hours table's first column: its name and what it holds.
+pub const HOURS_COLUMN: (&str, &str) = ("Hours", "Hours since the first beat heard");
+/// The hours table's last column: its name, unit and what it holds.
+pub const READ_COLUMN: (&str, &str, &str) = (
+    "Read",
+    "%",
+    "How much of the hour its whole 10 s readings cover",
+);
 
 /// How a run ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -261,6 +273,16 @@ pub struct Hour {
     /// Source of the selected beat error; absent in older saved readings.
     #[serde(default)]
     pub beat_error_source: Option<crate::session::BeatErrorSource>,
+    /// Each figure's ±, its standard error in the figure's own unit, as
+    /// the hour's measurement gives it ([`crate::confidence`], the one ±
+    /// every reading carries; #1729). None where the figure has none, and
+    /// in results saved before it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rate_se: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub amplitude_se: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub beat_error_se: Option<f64>,
     /// Factual conditions carried from the core measurement.
     #[serde(default)]
     pub caveats: Vec<crate::measure::Caveat>,
@@ -284,6 +306,22 @@ impl Hour {
         )
     }
 
+    /// The caveat saying its `figure` stands on under the share of its
+    /// windows the readings need (#1429, #1439): the figure is drawn grey
+    /// and the caveat is its hover, on every surface. None where it has no
+    /// such figure or it isn't thin.
+    pub fn thin(&self, figure: crate::confidence::Figure) -> Option<&crate::measure::Caveat> {
+        use crate::confidence::Figure;
+        match figure {
+            Figure::Amplitude => self.amplitude_deg?,
+            Figure::BeatError => self.beat_error_ms?,
+            Figure::Rate => self.rate_s_per_day?,
+        };
+        self.caveats.iter().find(|c| {
+            matches!(c, crate::measure::Caveat::ReadingWindows { reading, .. } if *reading == figure)
+        })
+    }
+
     /// A whole hour, not the run's last part: its span is 3600 s, within
     /// a second for the sums that make it.
     pub fn whole(&self) -> bool {
@@ -299,6 +337,126 @@ impl Hour {
         (self.span_s > 0.0 && self.read_s >= 0.0 && self.read_s <= self.span_s + 1.0)
             .then(|| (self.read_s / self.span_s).min(1.0))
     }
+
+    /// Its figure for `kind` as its chart and table draw it, the beat
+    /// error as a size; None where it has none.
+    pub fn value(&self, kind: SeriesKind) -> Option<f64> {
+        match kind {
+            SeriesKind::Rate => self.rate_s_per_day,
+            SeriesKind::Amplitude => self.amplitude_deg,
+            SeriesKind::BeatError => self.beat_error_ms.map(f64::abs),
+        }
+        .filter(|v| v.is_finite())
+    }
+
+    /// The ± of its figure for `kind`, the one its table cell prints;
+    /// None where the figure has none or is withheld.
+    pub fn se(&self, kind: SeriesKind) -> Option<f64> {
+        self.value(kind)?;
+        match kind {
+            SeriesKind::Rate => self.rate_se,
+            SeriesKind::Amplitude => self.amplitude_se,
+            SeriesKind::BeatError => self.beat_error_se,
+        }
+        .filter(|v| v.is_finite())
+    }
+
+    /// Its figure for `kind` with its ± and unit, as a chart's hover over
+    /// the hour writes it: "−1.5 ± 0.3 s/d", "280 ± 2°". None where it has
+    /// no figure.
+    pub fn hover_text(&self, kind: SeriesKind) -> Option<String> {
+        let v = self.value(kind)?;
+        let (gap, unit) = crate::steadiness::unit_after(kind.unit());
+        let figure = crate::figure_text::figure_with_pm(
+            v,
+            self.se(kind),
+            kind.digits(),
+            kind == SeriesKind::Rate,
+        );
+        Some(crate::figure_text::true_minus(&format!(
+            "{figure}{gap}{unit}"
+        )))
+    }
+
+    /// Its ± band for `kind`, low and high: the table's ± either side of
+    /// the figure, a beat error's floored at 0, as no beat error is below
+    /// it (Norm on #1761).
+    pub fn band(&self, kind: SeriesKind) -> Option<(f64, f64)> {
+        let v = self.value(kind)?;
+        let e = self.se(kind)?;
+        let lo = match kind {
+            SeriesKind::BeatError => (v - e).max(0.0),
+            _ => v - e,
+        };
+        Some((lo, v + e))
+    }
+
+    /// Whether its figure for `kind` is drawn grey, in its table cell and
+    /// on its chart, on every surface (Norm on #1761): thin (#1429), or a
+    /// beat error not taken from the unlock (#1076). The grey beat error
+    /// always comes with [`GREY_BEAT_ERROR_KEY`].
+    pub fn grey(&self, kind: SeriesKind) -> bool {
+        self.thin(figure_of(kind)).is_some()
+            || (kind == SeriesKind::BeatError && self.beat_error_off_unlock())
+    }
+
+    /// Whether its beat error is from elsewhere than the unlock: the drop,
+    /// or a source not recorded (#1076).
+    pub fn beat_error_off_unlock(&self) -> bool {
+        self.beat_error_ms.is_some()
+            && crate::session::BeatErrorSource::greyed(self.beat_error_source)
+    }
+}
+
+/// The key every surface shows wherever a beat error is grey for its
+/// source (#1076; Norm on #1761: grey with no key would read as thin).
+pub const GREY_BEAT_ERROR_KEY: &str = crate::grey_beat_error_key!();
+
+/// The confidence figure a chart of `kind` shows.
+fn figure_of(kind: SeriesKind) -> crate::confidence::Figure {
+    use crate::confidence::Figure;
+    match kind {
+        SeriesKind::Rate => Figure::Rate,
+        SeriesKind::Amplitude => Figure::Amplitude,
+        SeriesKind::BeatError => Figure::BeatError,
+    }
+}
+
+/// The value axis of a run's chart of `kind`, [lo, hi, step], on every
+/// surface (#1729): [`crate::position_line::value_axis`] over each hour's
+/// figure and its ± band (Norm on #1761: the band is the table's ±, a
+/// beat error's floored at 0), so no band is cut. Zero is taken in only
+/// when the scale already comes within one step of it, so an hourly swing
+/// of a few s/d is never flattened (Hugh on #1761). None for no figures.
+pub fn chart_axis(hours: &[Hour], kind: SeriesKind) -> Option<[f64; 3]> {
+    // Each figure and its band; a withheld figure adds nothing.
+    let values: Vec<f64> = hours
+        .iter()
+        .filter_map(|h| Some((h.value(kind)?, h.band(kind))))
+        .flat_map(|(v, band)| {
+            let (lo, hi) = band.unwrap_or((v, v));
+            [lo, v, hi]
+        })
+        .collect();
+    let [lo, hi, step] = crate::position_line::value_axis(kind, &values)?;
+    // The figures and their bands within a step of zero: out to it. Never
+    // for amplitude, whose axis never reaches 0 (Norm on #1761).
+    if kind == SeriesKind::Amplitude {
+        return Some([lo, hi, step]);
+    }
+    let least = values.iter().copied().fold(f64::INFINITY, f64::min);
+    let most = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    let lo = if lo.is_sign_positive() && least <= step {
+        0.0
+    } else {
+        lo
+    };
+    let hi = if hi.is_sign_negative() && -most <= step {
+        0.0
+    } else {
+        hi
+    };
+    Some([lo, hi, step])
 }
 
 /// A run's results, as `power-reserve.json` keeps them.
@@ -446,6 +604,9 @@ pub fn hours_from(
             amplitude_deg: m.as_ref().and_then(|m| m.amplitude_deg),
             beat_error_ms: m.as_ref().and_then(|m| m.beat_error_signed()),
             beat_error_source: m.as_ref().and_then(|m| m.beat_error_source),
+            rate_se: se(m.as_ref(), |c| c.rate.se),
+            amplitude_se: se(m.as_ref(), |c| c.amplitude.se),
+            beat_error_se: se(m.as_ref(), |c| c.beat_error.se),
             caveats: m.as_ref().map(|m| m.caveats.clone()).unwrap_or_default(),
             read_s,
             bph: Some(log.bph),
@@ -453,6 +614,14 @@ pub fn hours_from(
         hour += 1;
     }
     out
+}
+
+/// One figure's ± from an hour's measurement, None where it has none.
+fn se(
+    m: Option<&crate::session::Measurement>,
+    pick: impl Fn(&crate::confidence::Confidence) -> Option<f64>,
+) -> Option<f64> {
+    m.and_then(|m| m.confidence.as_ref()).and_then(pick)
 }
 
 /// The run of a take that wasn't a Power Reserve Test, read as one: its
@@ -474,6 +643,72 @@ pub fn from_long_take(
     started_utc: &str,
     sound_kept: bool,
 ) -> Option<Results> {
+    let mut r = run_of(
+        log,
+        clock,
+        positions,
+        started_utc,
+        sound_kept,
+        Ending::TakeEnded,
+    )?;
+    if r.run_s < LONG_TAKE_S {
+        return None;
+    }
+    r.source = Source::LongTake;
+    r.hours = hours(log, clock, breaks, masked, r.first_beat_s, r.last_beat_s);
+    Some(r)
+}
+
+/// The run of a Power Reserve Test kept as its analysis alone whose save
+/// never finished, read from its parts (2c of #1514), as
+/// [`from_long_take`] reads a take but for a test of any length: ended
+/// [`Ending::Stopped`] when the parts go on [`STOP_AFTER_S`] past the last
+/// beat, by the rule a test stops by, else [`Ending::RecordingFailed`],
+/// at least as long as heard, never a stop of the watch (Norm).
+pub fn from_parts(
+    log: &crate::stream::BeatLog,
+    clock: Option<&crate::clock::ClockFit>,
+    breaks: &[crate::breaks::Break],
+    masked: &[(f64, f64)],
+    positions: &[&str],
+    started_utc: &str,
+) -> Option<Results> {
+    let unstopped = Ending::RecordingFailed;
+    let mut r = run_of(log, clock, positions, started_utc, false, unstopped)?;
+    r.hours = hours(log, clock, breaks, masked, r.first_beat_s, r.last_beat_s);
+    Some(r)
+}
+
+/// The run of the take in the folder `take` read whole, as every surface
+/// reads it: one kept as its parts alone, its save never finished, as the
+/// test it was ([`from_parts`]); else, and with no folder (a take heard
+/// here), as a long take ([`from_long_take`]).
+pub fn of_take(
+    take: Option<&std::path::Path>,
+    log: &crate::stream::BeatLog,
+    clock: Option<&crate::clock::ClockFit>,
+    breaks: &[crate::breaks::Break],
+    masked: &[(f64, f64)],
+    positions: &[&str],
+    sound_kept: bool,
+) -> Option<Results> {
+    match take.is_some_and(crate::checkpoint::only) {
+        true => from_parts(log, clock, breaks, masked, positions, ""),
+        false => from_long_take(log, clock, breaks, masked, positions, "", sound_kept),
+    }
+}
+
+/// The run of [`from_long_take`] and [`from_parts`] on `clock`, without
+/// its hours, ended `unstopped` when the watch was still heard at the
+/// log's end.
+fn run_of(
+    log: &crate::stream::BeatLog,
+    clock: Option<&crate::clock::ClockFit>,
+    positions: &[&str],
+    started_utc: &str,
+    sound_kept: bool,
+    unstopped: Ending,
+) -> Option<Results> {
     let position = match positions.split_first() {
         None => "",
         Some((p, rest)) if rest.iter().all(|q| q == p) => p,
@@ -483,17 +718,11 @@ pub fn from_long_take(
     let ending = if heard.stopped(log.duration_s) {
         Ending::Stopped
     } else {
-        Ending::TakeEnded
+        unstopped
     };
-    let mut r = Results::of(&heard, ending, started_utc, position, sound_kept, |s| {
+    Results::of(&heard, ending, started_utc, position, sound_kept, |s| {
         clock.map_or(s, |c| c.map(s))
-    })?;
-    if r.run_s < LONG_TAKE_S {
-        return None;
-    }
-    r.source = Source::LongTake;
-    r.hours = hours(log, clock, breaks, masked, r.first_beat_s, r.last_beat_s);
-    Some(r)
+    })
 }
 
 /// A run time in words ([`run_text`] of `run_s`), "at least" for a long
@@ -645,6 +874,91 @@ mod title_tests {
 }
 
 #[cfg(test)]
+mod chart_tests {
+    use super::*;
+
+    fn hour(rate: f64, se: Option<f64>) -> Hour {
+        Hour {
+            hour: 0,
+            span_s: 3600.0,
+            rate_s_per_day: Some(rate),
+            amplitude_deg: Some(280.0),
+            beat_error_ms: Some(-0.4),
+            beat_error_source: Some(crate::session::BeatErrorSource::Unlock),
+            rate_se: se,
+            amplitude_se: None,
+            beat_error_se: Some(0.6),
+            caveats: Vec::new(),
+            read_s: 3500.0,
+            bph: Some(28_800),
+        }
+    }
+
+    /// The axis holds every band, never forces zero, and takes zero in
+    /// only from within a step of it (Hugh on #1761); a beat error's
+    /// floors at zero (Norm).
+    #[test]
+    fn a_runs_chart_axis_holds_its_bands_and_meets_zero_only_near_it() {
+        let far = [hour(3.0, Some(0.5)), hour(7.0, None)];
+        let [lo, hi, step] = chart_axis(&far, SeriesKind::Rate).unwrap();
+        assert!(lo <= 2.5 && hi >= 7.0, "{lo} {hi}");
+        assert!(lo > 0.0, "zero not forced: {lo} {hi} {step}");
+        let near = [hour(0.6, None), hour(4.0, None)];
+        let [lo, _, _] = chart_axis(&near, SeriesKind::Rate).unwrap();
+        assert_eq!(lo, 0.0);
+        let [lo, _, _] = chart_axis(&far, SeriesKind::BeatError).unwrap();
+        assert_eq!(lo, 0.0, "a size's band floors at zero");
+        assert!(chart_axis(&[], SeriesKind::Rate).is_none());
+        // |−0.4| ± 0.6: the band from 0, not −0.2.
+        assert_eq!(far[0].band(SeriesKind::BeatError), Some((0.0, 1.0)));
+        // Amplitude never out to zero, however near it comes.
+        let mut low = [hour(1.0, None), hour(1.0, None)];
+        low[0].amplitude_deg = Some(20.0);
+        low[1].amplitude_deg = Some(40.0);
+        let [lo, _, _] = chart_axis(&low, SeriesKind::Amplitude).unwrap();
+        assert!(lo > 0.0, "{lo}");
+    }
+
+    /// A figure is grey where thin, and a beat error also off the unlock,
+    /// with its key (Norm on #1761).
+    #[test]
+    fn grey_is_thin_or_a_beat_error_off_the_unlock() {
+        let mut h = hour(1.0, None);
+        assert!(!h.grey(SeriesKind::BeatError));
+        h.beat_error_source = Some(crate::session::BeatErrorSource::Drop);
+        assert!(h.grey(SeriesKind::BeatError) && !h.grey(SeriesKind::Rate));
+        h.caveats.push(crate::measure::Caveat::ReadingWindows {
+            reading: crate::confidence::Figure::Rate,
+            windows_used: 1,
+            windows_in_span: 10,
+        });
+        assert!(h.grey(SeriesKind::Rate));
+        assert_eq!(h.value(SeriesKind::BeatError), Some(0.4));
+        assert!(GREY_BEAT_ERROR_KEY.starts_with("Grey beat errors"));
+    }
+
+    /// The hover writes the figure with its ± and unit, degrees closed up
+    /// and the minus a true one; nothing where the hour has no figure.
+    #[test]
+    fn the_hover_gives_the_figure_with_its_pm_and_unit() {
+        let mut h = hour(1.0, None);
+        h.rate_s_per_day = Some(-1.5);
+        h.rate_se = Some(0.3);
+        h.amplitude_deg = Some(280.0);
+        h.amplitude_se = Some(2.0);
+        assert_eq!(
+            h.hover_text(SeriesKind::Rate).unwrap(),
+            "\u{2212}1.5 ± 0.3 s/d"
+        );
+        assert_eq!(h.hover_text(SeriesKind::Amplitude).unwrap(), "280 ± 2°");
+        h.rate_se = None;
+        assert_eq!(h.hover_text(SeriesKind::Rate).unwrap(), "\u{2212}1.5 s/d");
+        h.rate_s_per_day = None;
+        assert_eq!(h.hover_text(SeriesKind::Rate), None);
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -699,10 +1013,29 @@ mod tests {
             .collect()
     }
 
+    /// A take of `run_s` of beats at 28,800 bph, each beat a little early
+    /// or late (a fixed pseudo-random spread of about ±0.5 ms), so its
+    /// rate windows scatter as a watch's do.
+    fn jittered(run_s: f64) -> crate::stream::BeatLog {
+        let mut log = take_of(run_s, 0.0);
+        log.bph = 28_800;
+        log.beats = beats(0.0, run_s, 0.125, 1.0)
+            .into_iter()
+            .map(|mut b| {
+                let x = (b.index as f64 * 12.9898).sin() * 43_758.545_3;
+                b.time += (x - x.floor() - 0.5) * 1e-3;
+                b
+            })
+            .collect();
+        log.duration_s = run_s;
+        log
+    }
+
     /// A take of `run_s` of beats at 18,000 bph from 5 s in, then
     /// `after_s` of silence.
     fn take_of(run_s: f64, after_s: f64) -> crate::stream::BeatLog {
         crate::stream::BeatLog {
+            lock_template_kept: false,
             sample_rate: 48_000,
             duration_s: 5.0 + run_s + after_s,
             bph: 18_000,
@@ -749,6 +1082,40 @@ mod tests {
             from_long_take(&stopped, None, &[], &[], &[], "", true).map(|r| r.position),
             Some(String::new())
         );
+    }
+
+    /// A test kept in parts whose save never finished is read as a test
+    /// of any length to its last part: at least as long as heard, the
+    /// recording ending there, unless the parts hold the watch's stop by
+    /// the rule a test stops by (2c of #1514, Norm).
+    #[test]
+    fn a_test_kept_in_parts_reads_at_least_to_its_last_part() {
+        let run = 3600.0;
+        let r = from_parts(&take_of(run, 60.0), None, &[], &[], &["DU"], "").unwrap();
+        assert_eq!(r.source, Source::Test);
+        assert_eq!(r.ending, Ending::RecordingFailed);
+        assert_eq!(r.run_words(), format!("at least {}", run_text(r.run_s)));
+        assert!(!r.sound_kept);
+        assert_eq!(r.hours.len(), 1);
+        let stopped = from_parts(
+            &take_of(run, STOP_AFTER_S + 1.0),
+            None,
+            &[],
+            &[],
+            &["DU"],
+            "",
+        );
+        assert_eq!(stopped.map(|r| r.ending), Some(Ending::Stopped));
+        // A stop not yet wholly heard by the last part isn't one.
+        let short = from_parts(
+            &take_of(run, STOP_AFTER_S - 1.0),
+            None,
+            &[],
+            &[],
+            &["DU"],
+            "",
+        );
+        assert_eq!(short.map(|r| r.ending), Some(Ending::RecordingFailed));
     }
 
     /// A long take's settling, left out as a mask is
@@ -958,6 +1325,7 @@ mod tests {
     fn hours_are_cut_on_true_time_across_a_pause() {
         let p = 0.125;
         let log = crate::stream::BeatLog {
+            lock_template_kept: false,
             sample_rate: 48_000,
             duration_s: 5400.0,
             bph: 28_800,
@@ -987,6 +1355,7 @@ mod tests {
     /// A run of `duration_s` seconds of beats, every one heard.
     fn steady_log(duration_s: f64) -> crate::stream::BeatLog {
         crate::stream::BeatLog {
+            lock_template_kept: false,
             sample_rate: 48_000,
             duration_s,
             bph: 28_800,
@@ -1098,6 +1467,67 @@ mod tests {
         assert!(h[0].read_s >= h[0].span_s - 50.0, "{h:?}");
     }
 
+    /// Each hour carries the ± its stretch's measurement gives, the same
+    /// standard errors a reading of that stretch carries (#1729), and an
+    /// hour saved before them reads back without one.
+    #[test]
+    fn each_hour_carries_the_plus_minus_its_stretch_gives() {
+        use crate::synth::{generate, SynthConfig};
+        let cfg = SynthConfig {
+            duration_s: 300.0,
+            rate_s_per_day: 6.0,
+            ..Default::default()
+        };
+        let audio = generate(&cfg, |_| 250.0, |_| 0.2);
+        let log = crate::stream::analyze_samples(
+            &audio.samples,
+            audio.sample_rate,
+            &crate::stream::StreamConfig::default(),
+        );
+        let first = log.beats[0].time;
+        let last = log.beats[log.beats.len() - 1].time;
+        let h = hours(&log, None, &[], &[], first, last);
+        let m = crate::session::measure_masked(&log, None, &[], &[], first, last);
+        let c = m.confidence.expect("a five-minute stretch has a ±");
+        assert_eq!(h[0].rate_se, c.rate.se);
+        assert_eq!(h[0].amplitude_se, c.amplitude.se);
+        assert_eq!(h[0].beat_error_se, c.beat_error.se);
+        assert!(
+            h[0].rate_se.is_some() && h[0].amplitude_se.is_some(),
+            "{h:?}"
+        );
+        let json = serde_json::to_string(&h[0]).unwrap();
+        assert!(json.contains("\"rate_se\""), "{json}");
+        let old = json
+            .split(',')
+            .filter(|f| !f.contains("_se\""))
+            .collect::<Vec<_>>()
+            .join(",");
+        let back: Hour = serde_json::from_str(&old).unwrap();
+        assert_eq!(back.rate_se, None);
+        assert_eq!(back.rate_s_per_day, h[0].rate_s_per_day);
+    }
+
+    /// A last part hour too short for its own ± borrows the noise of the
+    /// take around it, as any short stretch does (#1470); one too short
+    /// for even that has none. Either way it is the stretch's own ±.
+    #[test]
+    fn a_short_last_hour_borrows_its_plus_minus_or_has_none() {
+        for (tail_s, has) in [(120.0, true), (30.0, false)] {
+            let log = jittered(3600.0 + tail_s);
+            let last = log.duration_s - 0.2;
+            let h = hours(&log, None, &[], &[], 0.0, last);
+            assert_eq!(h.len(), 2, "{tail_s} s");
+            // The hour starts where the grid's true hour falls in the audio.
+            let a = crate::clean::Cuts::new(None, &[], &[]).audio_time(3600.0, 0.0, last);
+            let m = crate::session::measure_masked(&log, None, &[], &[], a, last);
+            assert!(h[1].rate_s_per_day.is_some(), "{tail_s} s");
+            assert_eq!(h[1].rate_se, m.confidence.and_then(|c| c.rate.se));
+            assert_eq!(h[1].rate_se.is_some(), has, "{tail_s} s: {:?}", h[1]);
+            assert!(h[0].rate_se.is_some(), "a whole hour has its own ±");
+        }
+    }
+
     #[test]
     fn results_keep_true_time_and_read_back() {
         let h = Heard {
@@ -1146,6 +1576,9 @@ mod tests {
             amplitude_deg: None,
             beat_error_ms: None,
             beat_error_source: None,
+            rate_se: None,
+            amplitude_se: None,
+            beat_error_se: None,
             caveats: Vec::new(),
             read_s: 0.0,
             bph: Some(28_800),
@@ -1166,6 +1599,9 @@ mod tests {
             amplitude_deg: None,
             beat_error_ms: None,
             beat_error_source: None,
+            rate_se: None,
+            amplitude_se: None,
+            beat_error_se: None,
             caveats: Vec::new(),
             read_s,
             bph: Some(28_800),

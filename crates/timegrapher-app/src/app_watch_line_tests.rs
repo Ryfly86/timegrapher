@@ -321,6 +321,7 @@ fn the_watch_line_menu_offers_no_watch_the_recent_watches_new_and_find() {
             positions: Vec::new(),
             at_end: None,
             power_reserve: None,
+            wind_h: None,
         };
         for e in &mut l.watches {
             match e.watch.name.as_str() {
@@ -1122,6 +1123,74 @@ fn a_refused_pick_is_not_still_said_once_a_pick_works() {
     app.info_msg("Saved.".into());
     app.pick_watch(&pepsi);
     assert_eq!(said(&app).as_deref(), Some("Saved."));
+    drop(app);
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// The Watch line's limits chip shortens as every card's does (#1810):
+/// widening the card, a bare warning chip, then how many limits, then
+/// the first limit and how many more; at every width a chip. The watch's
+/// name keeps its whole width, and is cut only beside the bare chip
+/// (Hugh, #1813), a short name and a long one alike.
+#[test]
+fn the_watch_lines_chip_shortens_as_the_cards_do() {
+    let long = "Rolex Submariner Date 41mm";
+    let (mut app, base) = line_app("chips", &["Pepsi", long], None);
+    let limits = [
+        ("28800 bph heard".to_string(), "Heard.".to_string()),
+        ("lift angle not set".to_string(), "Lift.".to_string()),
+    ];
+    let ctx = themed();
+    let drawn = |app: &mut TimegrapherApp, name: &str, w: f32| {
+        let mut out = None;
+        for _ in 0..2 {
+            out = Some(ctx.run(screen(), |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    ui.allocate_ui(Vec2::new(w, theme::TITLE_ROW_H), |ui| {
+                        ui.set_max_width(w);
+                        app.watch_line(ui, &limits);
+                    });
+                });
+            }));
+        }
+        let out = out.expect("drawn");
+        let text = painted_text(&out);
+        let bare = out
+            .shapes
+            .iter()
+            .any(|c| matches!(&c.shape, egui::Shape::Path(p) if p.closed && p.points.len() == 3));
+        let step = if text.lines().any(|l| l == "28800 bph Heard +1") {
+            2
+        } else if text.lines().any(|l| l == "2 limits") {
+            1
+        } else {
+            assert!(bare, "no chip at {w}: {text}");
+            0
+        };
+        // Some of the name, before its ⏷, at every width.
+        let first = &name[..1];
+        assert!(
+            text.lines()
+                .any(|l| l.ends_with(" ⏷") && l.starts_with(first)),
+            "no title at {w}: {text}"
+        );
+        let whole = text.lines().any(|l| l == format!("{name} ⏷"));
+        assert!(
+            whole || step == 0,
+            "{name} cut beside a worded chip at {w}: {text}"
+        );
+        step
+    };
+    for name in ["Pepsi", long] {
+        app.pick_watch(&watch_id(&app, name));
+        let steps: Vec<u8> = (0..=60)
+            .map(|n| drawn(&mut app, name, 100.0 + 10.0 * n as f32))
+            .collect();
+        assert!(steps.windows(2).all(|p| p[0] <= p[1]), "{name}: {steps:?}");
+        for step in 0..=2 {
+            assert!(steps.contains(&step), "{name}: {steps:?}");
+        }
+    }
     drop(app);
     let _ = std::fs::remove_dir_all(&base);
 }

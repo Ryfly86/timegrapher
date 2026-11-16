@@ -163,6 +163,15 @@ pub fn pal(ui: &Ui) -> &'static Palette {
     palette(ui.visuals().dark_mode)
 }
 
+/// The Dynamic Poise dial's case (#1762), face and outline, in the theme
+/// `ui` is drawn in: core's steps over the window, the colour behind the
+/// dial (Hugh on #1772).
+pub fn case_colours(ui: &Ui) -> (Color32, Color32) {
+    let p = core_palette::palette(ui.visuals().dark_mode);
+    let (face, line) = p.case_over(p.window);
+    (c(face), c(line))
+}
+
 /// Corner radius of cards and of buttons and fields.
 pub const CARD_RADIUS: u8 = 10;
 pub const CONTROL_RADIUS: u8 = 6;
@@ -503,9 +512,27 @@ pub fn help_with_key(
     resp
 }
 
+/// How wide [`chip`] draws `text`, its padding included.
+pub fn chip_w(ui: &Ui, text: &str) -> f32 {
+    let w = ui.fonts_mut(|f| {
+        f.layout_no_wrap(
+            text.into(),
+            FontId::proportional(12.0),
+            pal(ui).text_secondary,
+        )
+        .size()
+        .x
+    });
+    w + 14.0
+}
+
+/// A bare warning chip's icon, as wide as it is tall.
+pub const CHIP_ICON: f32 = 12.0;
+
 /// A reading's limit in short, in a small rounded chip no wider than
 /// `max_w`: its whole sentences show while the pointer is on it, and stay
-/// open once it's clicked, as the "?" does.
+/// open once it's clicked, as the "?" does. With no `text`, a bare
+/// warning chip: the warning icon alone, with the same hover (#1808).
 pub fn chip(ui: &mut Ui, text: &str, title: &str, sentences: &[String], max_w: f32) -> Response {
     let p = pal(ui);
     let mut job = egui::text::LayoutJob::simple_singleline(
@@ -515,8 +542,12 @@ pub fn chip(ui: &mut Ui, text: &str, title: &str, sentences: &[String], max_w: f
     );
     job.wrap = egui::text::TextWrapping::truncate_at_width((max_w - 14.0).max(8.0));
     let galley = ui.painter().layout_job(job);
-    let (rect, resp) =
-        ui.allocate_exact_size(Vec2::new(galley.size().x + 14.0, 18.0), Sense::click());
+    let inner = if text.is_empty() {
+        CHIP_ICON
+    } else {
+        galley.size().x
+    };
+    let (rect, resp) = ui.allocate_exact_size(Vec2::new(inner + 14.0, 18.0), Sense::click());
     let open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
     let fill = if open {
         p.control_active
@@ -526,11 +557,16 @@ pub fn chip(ui: &mut Ui, text: &str, title: &str, sentences: &[String], max_w: f
         p.control
     };
     ui.painter().rect_filled(rect, CornerRadius::same(9), fill);
-    ui.painter().galley(
-        rect.center() - galley.size() / 2.0,
-        galley,
-        p.text_secondary,
-    );
+    if text.is_empty() {
+        let icon = egui::Rect::from_center_size(rect.center(), Vec2::splat(CHIP_ICON));
+        alert_icon(ui.painter(), icon, Alert::Warning, p);
+    } else {
+        ui.painter().galley(
+            rect.center() - galley.size() / 2.0,
+            galley,
+            p.text_secondary,
+        );
+    }
     let body = |ui: &mut Ui| {
         ui.set_max_width(320.0);
         ui.spacing_mut().item_spacing.y = 8.0;
@@ -1278,6 +1314,37 @@ pub fn dash(ui: &mut Ui, a: Color32, b: Color32) -> Response {
 mod tests {
     use super::*;
 
+    /// A gap that is the first of the "…" menu's folded controls draws no
+    /// line, so the menu opens on a control, never an empty row (Walter,
+    /// #1718); a gap further down still does.
+    #[test]
+    fn a_folded_menu_opens_without_a_line() {
+        let ctx = egui::Context::default();
+        for (folded, lines) in [(vec!["|0", "a"], 0), (vec!["a", "|0"], 1)] {
+            let out = ctx.run(egui::RawInput::default(), |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    set_bar(
+                        ui,
+                        Some(Bar {
+                            title: "t".into(),
+                            menu: Some(()),
+                            folded: folded.iter().map(|s| s.to_string()).collect(),
+                            ..Default::default()
+                        }),
+                    );
+                    bar_gap(ui);
+                    set_bar(ui, None);
+                });
+            });
+            let drawn = out
+                .shapes
+                .iter()
+                .filter(|c| matches!(c.shape, egui::Shape::LineSegment { .. }))
+                .count();
+            assert_eq!(drawn, lines, "{folded:?}");
+        }
+    }
+
     /// The time panes' gutter fits the widest value label drawn, padded,
     /// never under its least, and doesn't narrow again (#1225).
     #[test]
@@ -1887,7 +1954,11 @@ pub fn bar_item<R>(ui: &mut Ui, key: &str, add: impl FnOnce(&mut Ui) -> R) -> Op
 /// follows it.
 pub fn bar_gap(ui: &mut Ui) {
     let n = bar(ui).map_or(0, |b| b.met.len());
-    bar_item(ui, &format!("|{n}"), |ui| {
+    let key = format!("|{n}");
+    // The first of the "…" menu's folded controls: no line above it, an
+    // empty first row (Walter, #1718).
+    let first = bar(ui).is_some_and(|b| b.menu.is_some() && b.folded.first() == Some(&key));
+    bar_item(ui, &key, |ui| {
         if in_toolbar(ui) {
             // As tall as an icon, not the whole pane.
             let (rect, _) = ui.allocate_exact_size(Vec2::new(6.0, 18.0), Sense::hover());
@@ -1896,7 +1967,7 @@ pub fn bar_gap(ui: &mut Ui) {
                 rect.y_range(),
                 Stroke::new(1.0_f32, pal(ui).separator),
             );
-        } else {
+        } else if !first {
             ui.separator();
         }
     });
@@ -2263,6 +2334,7 @@ pub enum Icon {
     Export,
     Bucket,
     Wheel,
+    Mesh,
     Copy,
     SaveTable,
     Calipers,

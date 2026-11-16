@@ -83,8 +83,10 @@ pub struct Config {
     /// Curves in the output are thinned to about this many points.
     pub max_points: usize,
     /// Hours since the watch was last fully wound when the take started,
-    /// for the wind-down comparison.
-    pub wind_h: f64,
+    /// for the wind-down comparison; `None` when not given, never taken
+    /// as full wind (#1665): hours are then from the take's start
+    /// ([`hours_since_wind`]).
+    pub wind_h: Option<f64>,
     /// Length of the stretches the distributions are also counted over,
     /// seconds; 0 counts the whole take only.
     pub stretch_s: f64,
@@ -107,7 +109,7 @@ impl Default for Config {
             acf_alone: true,
             outlier_sigma: 6.0,
             max_points: 600,
-            wind_h: 0.0,
+            wind_h: None,
             stretch_s: 3600.0,
         }
     }
@@ -502,9 +504,12 @@ pub struct AmplitudeBin {
     pub rate_q25: f64,
     pub rate_q75: f64,
     /// When in the take the bin's readings fall: the first and the last,
-    /// hours since full wind.
-    pub from_wind_h: f64,
-    pub to_wind_h: f64,
+    /// hours from the take's start, and hours since full wind, `None`
+    /// when the wind was not given (#1665).
+    pub from_h: f64,
+    pub to_h: f64,
+    pub from_wind_h: Option<f64>,
+    pub to_wind_h: Option<f64>,
 }
 
 /// The isochronism curve: the rate by amplitude over the take, as the
@@ -535,12 +540,15 @@ pub struct IsochronismCurve {
 /// Rate, amplitude and beat error over one stretch of the take.
 #[derive(Debug, Clone, Serialize)]
 pub struct Stretch {
-    /// Hours since full wind at the stretch's start and end.
     pub beat_error_source: Option<crate::session::BeatErrorSource>,
     pub beat_error_sources: crate::session::BeatErrorSources,
     pub caveats: Vec<crate::measure::Caveat>,
-    pub from_wind_h: f64,
-    pub to_wind_h: f64,
+    /// Hours from the take's start at the stretch's start and end, and
+    /// hours since full wind, `None` when the wind was not given (#1665).
+    pub from_h: f64,
+    pub to_h: f64,
+    pub from_wind_h: Option<f64>,
+    pub to_wind_h: Option<f64>,
     pub readings: usize,
     /// Medians of the readings.
     pub rate_s_per_day: Option<f64>,
@@ -559,7 +567,8 @@ pub struct WindDown {
     pub start: Stretch,
     pub end: Stretch,
     /// Hours between the two stretches' middles, and whether the end
-    /// stretch is the one at 24 h.
+    /// stretch is the one at 24 h after full wind: never when the wind
+    /// was not given.
     pub hours_apart: f64,
     pub at_24h: bool,
     /// End minus start.
@@ -632,9 +641,10 @@ fn short_term_sd(y: &[f64]) -> Option<f64> {
     (d.len() >= 2).then(|| (0.5 * d.iter().sum::<f64>() / d.len() as f64).sqrt())
 }
 
-/// Robust σ of neighbour differences: 1.4826·MAD/√2.
+/// Robust σ of neighbour differences: their [`crate::dsp::robust_sd`]
+/// (1.4826·MAD) over √2.
 fn robust_diff_sigma(y: &[f64]) -> Option<f64> {
-    let mut d: Vec<f64> = y
+    let d: Vec<f64> = y
         .windows(2)
         .filter(|w| w[0].is_finite() && w[1].is_finite())
         .map(|w| w[1] - w[0])
@@ -642,9 +652,7 @@ fn robust_diff_sigma(y: &[f64]) -> Option<f64> {
     if d.len() < 4 {
         return None;
     }
-    let m = median(&mut d);
-    let mut a: Vec<f64> = d.iter().map(|x| (x - m).abs()).collect();
-    Some(1.4826 * median(&mut a) / std::f64::consts::SQRT_2)
+    Some(crate::dsp::robust_sd(&d) / std::f64::consts::SQRT_2)
 }
 
 pub(crate) fn ln_gamma(x: f64) -> f64 {
@@ -2230,17 +2238,23 @@ pub fn check(
     long_cfg: &LongConfig,
     cfg: &Config,
 ) -> Report {
-    // The pane names only cycles that meet Holm's (#659); the report
-    // states the setting it ran with.
-    let cfg = &Config {
-        acf_alone: false,
-        ..cfg.clone()
-    };
+    let cfg = &readings::pane_config(cfg);
     let holes = Cuts::new(clock, &long.breaks, &[]);
     let map = |t: f64| holes.true_time(t);
     let r = cfg.rate_reading_s;
-    let wins = rate_windows(log, clock, &long.breaks, r);
-    let rate_grid = rate_grid(&wins, r);
+    let x = readings::series_readings(log, clock, &long.breaks, r);
+    let rate_amplitude = cross_correlation(&x.rate_grid, &x.amp_paired, &x.amp_noise, cfg);
+    let (isochronism, walk) = readings::isochronism_of(&x, cfg);
+    let readings::SeriesReadings {
+        wins,
+        rate_grid,
+        amp_grid,
+        be_grid,
+        selected_be,
+        amp_readings,
+        be_readings,
+        ..
+    } = x;
     let rate_samples: Vec<twostate::Sample> = wins
         .iter()
         .map(|w| twostate::Sample {
@@ -2250,20 +2264,7 @@ pub fn check(
             ..Default::default()
         })
         .collect();
-
-    // Amplitude and beat error windows.
     let aw = &log.amplitude_windows;
-    let amp_grid = windows_grid(log, clock, &long.breaks, &|w| w.mean());
-    let (be_grid, selected_be) = beat_error::grid(log, clock, &long.breaks, None);
-    // The tests read every series at the rate's reading length: the
-    // amplitude and beat error windows are averaged into the rate's
-    // readings, so one reading means the same time for all three. The
-    // short windows are kept for finding cycles.
-    let [amp_readings, be_readings] = into_readings(&rate_grid, &amp_grid, &be_grid, r);
-    let (amp_paired, amp_noise) = pairing_readings(&amp_grid, &amp_readings);
-    let rate_amplitude = cross_correlation(&rate_grid, &amp_paired, &amp_noise, cfg);
-    let isochronism = isochronism_curve(&rate_grid, &amp_paired, &amp_noise, cfg);
-    let walk = crate::walk::walk(&rate_grid, &amp_grid, cfg.wind_h);
     let wind_down = wind_down_sourced(&rate_grid, &amp_readings, log, clock, &long.breaks, cfg);
     let distributions = {
         use distribution::{Input, AMPLITUDE, BEAT_ERROR, RATE};
@@ -2335,7 +2336,11 @@ pub fn check(
         }
     });
     let amp_period = period_of(&long.amplitude, SeriesKind::Amplitude.unit());
-    let be_long = beat_error_long(&be_grid, clock, &long.breaks, long_cfg);
+    // The beat error's search and the amplitude's two-state find, side by side (#1839).
+    let (be_long, amp_two) = crate::cores::both(
+        || beat_error_long(&be_grid, clock, &long.breaks, long_cfg),
+        || twostate::find(&amp_samples, &p),
+    );
     let be_period = period_of(&be_long, SeriesKind::BeatError.unit());
     // The plain spectra of the series the period searches read, with
     // their slow change taken off as the searches take it off.
@@ -2372,7 +2377,7 @@ pub fn check(
                 Some(amp_grid),
                 amp_period,
                 sig(&long.amplitude.components),
-                Some(twostate::find(&amp_samples, &p)),
+                Some(amp_two),
             ),
             (
                 SeriesKind::BeatError,
@@ -2563,13 +2568,31 @@ pub(crate) fn beat_error_long(
     breaks: &[crate::breaks::Break],
     lc: &LongConfig,
 ) -> longterm::SeriesReport {
-    let cuts = Cuts::new(clock, breaks, &[]).piece_cuts();
-    let starts = longterm::piece_starts(be, &cuts);
+    let starts = piece_starts(be, clock, breaks);
     let g = Grid {
         t0: 0.0,
         ..be.clone()
     };
     longterm::analyse_pieces(&g, &starts, lc)
+}
+
+/// `g` (readings about a level, on the take's clock) less its slow change,
+/// each piece between the take's cuts on its own, as the period searches
+/// take it off (#1608): nothing is fitted across a break.
+pub(crate) fn level_by_piece(
+    g: &Grid,
+    clock: Option<&ClockFit>,
+    breaks: &[crate::breaks::Break],
+    lc: &LongConfig,
+) -> Grid {
+    let starts = piece_starts(g, clock, breaks);
+    longterm::detrend_pieces(g, lc.detrend_s, longterm::Slow::Level, &starts)
+}
+
+/// Where each piece of `g` starts, between the take's cuts: found once
+/// here for [`beat_error_long`]'s searches and [`level_by_piece`]'s views.
+fn piece_starts(g: &Grid, clock: Option<&ClockFit>, breaks: &[crate::breaks::Break]) -> Vec<usize> {
+    longterm::piece_starts(g, &Cuts::new(clock, breaks, &[]).piece_cuts())
 }
 
 /// Tick's and Tock's amplitudes, each on the amplitude windows' grid as
@@ -2703,9 +2726,15 @@ pub const ISO_BIN_DEG: f64 = 2.0;
 pub const ISO_MIN_READINGS: usize = 10;
 pub const ISO_MIN_BINS: usize = 3;
 
-/// The 2° bins of `(amplitude, rate, hours from wind)` from `lo` to `hi`
-/// that hold at least [`ISO_MIN_READINGS`] readings.
-fn amplitude_bins(pairs: &[(f64, f64, f64)], lo: f64, hi: f64) -> Vec<AmplitudeBin> {
+/// The 2° bins of `(amplitude, rate, hours from the take's start)` from
+/// `lo` to `hi` that hold at least [`ISO_MIN_READINGS`] readings, each
+/// with its hours since full wind when `wind_h` was given.
+fn amplitude_bins(
+    pairs: &[(f64, f64, f64)],
+    lo: f64,
+    hi: f64,
+    wind_h: Option<f64>,
+) -> Vec<AmplitudeBin> {
     let mut bins: Vec<AmplitudeBin> = Vec::new();
     let first = (lo / ISO_BIN_DEG).floor() as i64;
     let last = (hi / ISO_BIN_DEG).floor() as i64;
@@ -2718,14 +2747,20 @@ fn amplitude_bins(pairs: &[(f64, f64, f64)], lo: f64, hi: f64) -> Vec<AmplitudeB
         let mut r: Vec<f64> = inbin.iter().map(|p| p.1).collect();
         r.sort_by(f64::total_cmp);
         let hours = inbin.iter().map(|p| p.2);
+        let (from_h, to_h) = (
+            hours.clone().fold(f64::INFINITY, f64::min),
+            hours.fold(f64::NEG_INFINITY, f64::max),
+        );
         bins.push(AmplitudeBin {
             amplitude_deg: (a0 + a1) / 2.0,
             readings: inbin.len(),
             rate_s_per_day: quantile(&r, 0.5),
             rate_q25: quantile(&r, 0.25),
             rate_q75: quantile(&r, 0.75),
-            from_wind_h: hours.clone().fold(f64::INFINITY, f64::min),
-            to_wind_h: hours.fold(f64::NEG_INFINITY, f64::max),
+            from_h,
+            to_h,
+            from_wind_h: hours_since_wind(wind_h, from_h),
+            to_wind_h: hours_since_wind(wind_h, to_h),
         });
     }
     bins
@@ -2747,7 +2782,7 @@ fn isochronism_curve(
         .collect();
     let pairs: Vec<(f64, f64, f64)> = kept
         .iter()
-        .map(|&i| (x.y[i], y.y[i], cfg.wind_h + y.time(i) / 3600.0))
+        .map(|&i| (x.y[i], y.y[i], y.time(i) / 3600.0))
         .collect();
     // The slope from every reading, none smoothed, so a short swing of
     // amplitude counts, read off the amplitude's noise (#651).
@@ -2763,7 +2798,7 @@ fn isochronism_curve(
     let mut amps: Vec<f64> = pairs.iter().map(|p| p.0).collect();
     amps.sort_by(f64::total_cmp);
     let (lo, hi) = (quantile(&amps, 0.02), quantile(&amps, 0.98));
-    let bins = amplitude_bins(&pairs, lo, hi);
+    let bins = amplitude_bins(&pairs, lo, hi, cfg.wind_h);
     if bins.len() < ISO_MIN_BINS {
         return None;
     }
@@ -2804,6 +2839,10 @@ fn isochronism_curve(
     })
 }
 
+#[path = "steadiness_wind.rs"]
+mod wind;
+pub use wind::{hours_since_wind, hours_words};
+
 #[path = "steadiness_beat_error.rs"]
 mod beat_error;
 #[cfg(test)]
@@ -2825,10 +2864,14 @@ mod white;
 
 #[path = "steadiness_stats.rs"]
 mod stats;
+
+#[path = "steadiness_readings.rs"]
+mod readings;
 use cycle_search::cycle;
 #[cfg(test)]
 use cycle_search::{refined_candidates, same_peaks_once, strongest_cycle};
 pub use family::{family_long, hold_to_family};
+pub use readings::isochronism_alone;
 
 #[cfg(test)]
 mod window_grid_tests {
@@ -2838,6 +2881,7 @@ mod window_grid_tests {
 
     fn log_of(windows: usize) -> BeatLog {
         BeatLog {
+            lock_template_kept: false,
             sample_rate: 48000,
             duration_s: windows as f64 * 2.0,
             bph: 18000,
@@ -2857,7 +2901,8 @@ mod window_grid_tests {
                         odd_unlock_ms: None,
                         even_drop_ms: None,
                         odd_drop_ms: None,
-                        culled_ms: None,
+                        extra: None,
+                        sound_1: [f32::NAN; 2],
                     }
                 })
                 .collect(),

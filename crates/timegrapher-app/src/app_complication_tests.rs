@@ -156,8 +156,242 @@ fn the_pane_draws_the_table_and_three_plots_amplitude_first() {
         4,
         "{texts:?}"
     );
+    a_hovered_stretch_gives_its_figures_in_each_title(&mut app);
+    a_plot_turned_off_gives_the_others_its_room(&mut app);
+    a_short_pane_keeps_each_plot_readable(&mut app);
+    a_take_opened_again_starts_at_the_top(&mut app);
     drop(tx);
     let _ = std::fs::remove_dir_all(&base);
+}
+
+/// #1729's hover: the On row hovered in the table puts On's figure, with
+/// its ±, in each plot's title; the pointer over the plots near On's
+/// middle does the same.
+fn a_hovered_stretch_gives_its_figures_in_each_title(app: &mut TimegrapherApp) {
+    let size = Vec2::new(1280.0, 900.0);
+    let figures = |drawn: &[(String, egui::Rect)]| -> Vec<String> {
+        drawn
+            .iter()
+            .filter(|(t, _)| t.starts_with("  "))
+            .map(|(t, _)| t.trim().to_string())
+            .collect()
+    };
+    let still = draw_at(app, size);
+    assert!(figures(&still).is_empty(), "no hover, no figures");
+    let on = still
+        .iter()
+        .find(|(t, _)| t == "On")
+        .map(|(_, r)| *r)
+        .expect("the On row");
+    let by_row = figures(&draw_hovered(app, size, on.center()));
+    assert_eq!(by_row.len(), 3, "{by_row:?}");
+    assert!(
+        by_row[0].ends_with('°') && by_row[0].contains('±'),
+        "{by_row:?}"
+    );
+    // On's middle on the plots: its name on the track, then down a plot.
+    let track = still
+        .iter()
+        .filter(|(t, _)| t == "On")
+        .map(|(_, r)| *r)
+        .max_by(|a, b| a.left().total_cmp(&b.left()))
+        .expect("the track's On");
+    let amp = still
+        .iter()
+        .rfind(|(t, _)| t == "Amplitude")
+        .map(|(_, r)| *r)
+        .expect("the Amplitude plot");
+    let by_plot = figures(&draw_hovered(
+        app,
+        size,
+        egui::pos2(track.left() + 30.0, amp.bottom() + 40.0),
+    ));
+    assert_eq!(by_plot, by_row, "the same stretch from the plots");
+}
+
+/// The Beat Error switch off: its plot goes, and the two left are taller.
+fn a_plot_turned_off_gives_the_others_its_room(app: &mut TimegrapherApp) {
+    let size = Vec2::new(1280.0, 900.0);
+    let gap = |drawn: &[(String, egui::Rect)]| {
+        let top = |name: &str| {
+            drawn
+                .iter()
+                .rfind(|(t, _)| t == name)
+                .map(|(_, r)| r.top())
+                .unwrap_or_else(|| panic!("{name}"))
+        };
+        top("Rate") - top("Amplitude")
+    };
+    let three = gap(&draw_at(app, size));
+    app.complication_series = [true, true, false];
+    let drawn = draw_at(app, size);
+    let titles = drawn.iter().filter(|(t, _)| t == "Beat Error").count();
+    assert_eq!(titles, 1, "the table's heading alone");
+    assert!(gap(&drawn) > three + 20.0, "{three} then {}", gap(&drawn));
+    app.complication_series = [true; 3];
+}
+
+/// At 1280×600 each plot keeps its least height, the column scrolling
+/// instead, and no two of the plots' tick labels touch (Hugh on #1799).
+fn a_short_pane_keeps_each_plot_readable(app: &mut TimegrapherApp) {
+    let drawn = draw_at(app, Vec2::new(1280.0, 600.0));
+    let top = |name: &str| {
+        drawn
+            .iter()
+            .rfind(|(t, _)| t == name)
+            .map(|(_, r)| r.top())
+            .unwrap_or_else(|| panic!("{name}"))
+    };
+    let each = top("Rate") - top("Amplitude");
+    assert!(each >= 120.0, "each plot {each} pt");
+    let ticks: Vec<egui::Rect> = drawn
+        .iter()
+        .filter(|(t, r)| {
+            r.left() > 400.0
+                && t.replace('\u{2212}', "-")
+                    .trim_start_matches('+')
+                    .parse::<f64>()
+                    .is_ok()
+        })
+        .map(|(_, r)| *r)
+        .collect();
+    assert!(ticks.len() >= 6, "{drawn:?}");
+    for (i, a) in ticks.iter().enumerate() {
+        for b in &ticks[i + 1..] {
+            assert!(!a.intersects(*b), "tick labels touch: {a:?} {b:?}");
+        }
+    }
+}
+
+/// Scrolled down a short pane keeps its place frame to frame, and a take
+/// opened, the same one again too, starts at the top (Hugh, #1801).
+fn a_take_opened_again_starts_at_the_top(app: &mut TimegrapherApp) {
+    let ctx = themed();
+    let size = Vec2::new(1280.0, 400.0);
+    // A second a frame, so the wheel's eased scroll ends within the frames.
+    let clock = std::cell::Cell::new(0.0);
+    let amplitude_top = |app: &mut TimegrapherApp, wheel: f32| {
+        let mut top = 0.0;
+        for frame in 0..4 {
+            clock.set(clock.get() + 1.0);
+            let mut events = vec![egui::Event::PointerMoved(egui::pos2(900.0, 200.0))];
+            if frame == 1 && wheel != 0.0 {
+                events.push(egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: egui::vec2(0.0, -wheel),
+                    modifiers: Default::default(),
+                });
+            }
+            let input = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
+                events,
+                time: Some(clock.get()),
+                ..Default::default()
+            };
+            let out = ctx.run(input, |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    app.pane_tools(ui, Pane::Complication);
+                    app.complication_pane(ui);
+                });
+            });
+            top = out
+                .shapes
+                .iter()
+                .filter_map(|c| match &c.shape {
+                    // The plot's title, not the table's heading.
+                    egui::Shape::Text(t) if t.galley.text() == "Amplitude" && t.pos.x > 400.0 => {
+                        Some(t.galley.rect.translate(t.pos.to_vec2()).top())
+                    }
+                    _ => None,
+                })
+                .fold(f32::NEG_INFINITY, f32::max);
+        }
+        top
+    };
+    let at_top = amplitude_top(app, 0.0);
+    let scrolled = amplitude_top(app, 300.0);
+    assert!(
+        scrolled < at_top - 50.0,
+        "scrolled: {at_top} then {scrolled}"
+    );
+    let kept = amplitude_top(app, 0.0);
+    assert!(
+        (kept - scrolled).abs() < 1.0,
+        "kept: {scrolled} then {kept}"
+    );
+    app.rev.new_take();
+    let opened = amplitude_top(app, 0.0);
+    assert!(
+        (opened - at_top).abs() < 1.0,
+        "opened: {at_top} then {opened}"
+    );
+}
+
+/// The pane drawn with the pointer at `at`, a few frames so a hover in
+/// the table reaches the plots.
+fn draw_hovered(app: &mut TimegrapherApp, size: Vec2, at: egui::Pos2) -> Vec<(String, egui::Rect)> {
+    let ctx = themed();
+    let mut drawn = Vec::new();
+    for _ in 0..4 {
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
+            events: vec![egui::Event::PointerMoved(at)],
+            ..Default::default()
+        };
+        let out = ctx.run(input, |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                app.pane_tools(ui, Pane::Complication);
+                app.complication_pane(ui);
+            });
+        });
+        drawn = out
+            .shapes
+            .iter()
+            .filter_map(|c| match &c.shape {
+                egui::Shape::Text(t) => Some((
+                    t.galley.text().to_string(),
+                    t.galley.rect.translate(t.pos.to_vec2()),
+                )),
+                _ => None,
+            })
+            .collect();
+        if let Ok(d) = std::env::var("SHOT_DIR") {
+            let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, size);
+            let back = ctx.style().visuals.window_fill;
+            let svg = crate::export::svg(&out.shapes, screen, back);
+            std::fs::write(format!("{d}/complication-hover-{}.svg", at.y as i32), svg).unwrap();
+        }
+    }
+    drawn
+}
+
+/// A new lift reads an opened take's Complication stretches again
+/// (#1645): each amplitude the pane shows scales with it.
+fn a_new_lift_rereads_it(again: &mut TimegrapherApp) {
+    // Its toolbar's Series switches and Copy are for the opened take's
+    // test (Walter on #1799).
+    assert!(
+        again.complication_shown().is_some(),
+        "the opened take's test"
+    );
+    let amps = |app: &TimegrapherApp| -> Vec<f64> {
+        let kept = app.complication_saved.as_ref().expect("its test");
+        kept.readings
+            .as_ref()
+            .expect("read")
+            .iter()
+            .map(|r| r.measurement.amplitude_deg.unwrap())
+            .collect()
+    };
+    let was = amps(again);
+    let k = 60.0 / again.lift_deg;
+    again.set_lift(60.0);
+    draw_at(again, Vec2::new(1280.0, 900.0));
+    let now = amps(again);
+    assert_eq!(now.len(), was.len());
+    for (a, b) in was.iter().zip(&now) {
+        assert!((b - a * k).abs() < 0.05, "{a} then {b}");
+    }
 }
 
 /// A Complication Test saved with its take and the take opened again in
@@ -240,6 +474,7 @@ fn a_saved_complication_take_opened_again_shows_its_results() {
     }
     assert!(again.live.is_some(), "{:?}", again.message);
     assert!(again.guided.is_none(), "no test on the Bench");
+    each_stretch_is_the_takes_own(&mut again);
     let drawn = draw_at(&mut again, Vec2::new(1280.0, 900.0));
     let texts: Vec<&str> = drawn.iter().map(|(t, _)| t.as_str()).collect();
     assert!(texts.contains(&"On less Off"), "{texts:?}");
@@ -265,7 +500,25 @@ fn a_saved_complication_take_opened_again_shows_its_results() {
         );
         assert!((a - b).abs() < 0.05, "{q:?}: {a} then {b}");
     }
+    a_new_lift_rereads_it(&mut again);
     let _ = std::fs::remove_dir_all(&base);
+}
+
+/// The app set to measure 30 s, the take measured 60 s a stretch: on an
+/// opened take, Each Stretch gives the take's, its stretches one by one,
+/// not the time in its one position (Walter on #1843).
+fn each_stretch_is_the_takes_own(again: &mut TimegrapherApp) {
+    let was = again.guided_measure_s;
+    again.guided_measure_s = 30.0;
+    let drawn = draw_at(again, Vec2::new(1280.0, 900.0));
+    let texts: Vec<&str> = drawn.iter().map(|(t, _)| t.as_str()).collect();
+    let each = texts.iter().position(|t| *t == "Each Stretch");
+    assert_eq!(
+        each.and_then(|i| texts.get(i + 1)),
+        Some(&"1 min"),
+        "{texts:?}"
+    );
+    again.guided_measure_s = was;
 }
 
 /// Between stretches the banner says to turn the complication on, and
@@ -311,4 +564,140 @@ fn draw_at(app: &mut TimegrapherApp, size: Vec2) -> Vec<(String, egui::Rect)> {
             .collect();
     }
     drawn
+}
+
+/// The watch page's New Take offers every take, each with its own
+/// caption (#1634): the Complication Test's says off, on, off, and the
+/// Power Reserve Test is still offered. The tests that were there keep
+/// their order; the Complication Test comes last.
+#[test]
+fn new_take_offers_every_take_with_its_own_caption() {
+    let order: Vec<NewTake> = NEW_TAKES.iter().map(|t| t.0).collect();
+    assert_eq!(
+        order,
+        [
+            NewTake::Listen,
+            NewTake::Positions,
+            NewTake::Poise,
+            NewTake::PowerReserve,
+            NewTake::Complication
+        ]
+    );
+    let caption = |k: NewTake| NEW_TAKES.iter().find(|t| t.0 == k).map(|t| t.3);
+    assert_eq!(
+        caption(NewTake::Complication),
+        Some("Off, on, then off again")
+    );
+    assert_eq!(
+        caption(NewTake::PowerReserve),
+        Some("From full wind to a stop")
+    );
+    let names: Vec<(&str, &str, &str)> = NEW_TAKES.iter().map(|t| (t.1, t.2, t.3)).collect();
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    let out = ctx.run(egui::RawInput::default(), |ctx| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            watches::new_take_buttons(ui, &names, None);
+        });
+    });
+    let drawn = format!("{:?}", out.shapes);
+    for (name, _, caption) in &names {
+        assert!(drawn.contains(name), "{name}");
+        assert!(drawn.contains(caption), "{caption}");
+    }
+}
+
+/// Which of New Take's buttons a click on `name` presses, with the page
+/// `width` wide.
+fn new_take_pressed(width: f32, name: &str) -> Option<usize> {
+    let names: Vec<(&str, &str, &str)> = NEW_TAKES.iter().map(|t| (t.1, t.2, t.3)).collect();
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(width, 600.0));
+    let mut pressed = None;
+    let mut frame = |events: Vec<egui::Event>| {
+        let input = egui::RawInput {
+            screen_rect: Some(screen),
+            events,
+            ..Default::default()
+        };
+        ctx.run(input, |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                let spacing = ui.spacing().item_spacing;
+                pressed = pressed.or(watches::new_take_buttons(ui, &names, None));
+                assert_eq!(ui.spacing().item_spacing, spacing, "the page's own spacing");
+            });
+        })
+    };
+    let out = frame(Vec::new());
+    let at = out
+        .shapes
+        .iter()
+        .find_map(|c| match &c.shape {
+            egui::Shape::Text(t) if t.galley.text() == name => {
+                Some(t.visual_bounding_rect().center())
+            }
+            _ => None,
+        })
+        .expect("the button is drawn");
+    let click = |down| egui::Event::PointerButton {
+        pos: at,
+        button: egui::PointerButton::Primary,
+        pressed: down,
+        modifiers: egui::Modifiers::NONE,
+    };
+    frame(vec![egui::Event::PointerMoved(at)]);
+    frame(vec![click(true)]);
+    frame(vec![click(false)]);
+    pressed
+}
+
+/// A click on New Take's last button starts the last take, whether the
+/// five sit in one row or wrap (#1634), and New Take leaves the page's
+/// spacing as it found it.
+#[test]
+fn new_takes_last_button_starts_the_last_take_in_one_row_or_more() {
+    let last = NEW_TAKES.len() - 1;
+    for width in [1400.0, 420.0] {
+        assert_eq!(
+            new_take_pressed(width, NEW_TAKES[last].1),
+            Some(last),
+            "{width}"
+        );
+    }
+    assert_eq!(new_take_pressed(420.0, NEW_TAKES[1].1), Some(1));
+}
+
+/// New Take's names and captions are whole at every width (#1634): at
+/// the app's narrowest, 800, the watch's side has the window to itself
+/// and New Take goes three then two; at 1000, beside the list, three then
+/// two; at 1280, one row. A side too narrow for a third of "Power Reserve
+/// Test" goes two to a row, never cutting it.
+#[test]
+fn new_take_rows_keep_every_name_and_caption_whole() {
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    let names = super::new_take::new_take_names();
+    // The window less its margins and the scroll bar's room; from
+    // WATCHES_SIDE_BY_SIDE on, less the list and its gap too.
+    let side = |window: f32| {
+        let inside = window - 2.0 * 12.0 - 16.0 - 8.0;
+        if window - 2.0 * 12.0 >= WATCHES_SIDE_BY_SIDE {
+            inside - WATCH_LIST_W - 17.0
+        } else {
+            inside
+        }
+    };
+    let tiles = |side: f32| move |n: usize| (side - (n as f32 - 1.0) * 10.0) / n as f32;
+    let row = |ui: &egui::Ui, window: f32| watches::new_take_row(ui, &names, tiles(side(window)));
+    let _ = ctx.run(egui::RawInput::default(), |ctx| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            assert_eq!(row(ui, 1280.0), 5, "1280");
+            assert_eq!(row(ui, 1000.0), 3, "1000");
+            assert_eq!(row(ui, 800.0), 3, "800");
+            // A side too narrow for a third: two to a row.
+            assert_eq!(watches::new_take_row(ui, &names, tiles(450.0)), 2, "450");
+            assert!(!watches::new_take_fits(ui, &names, tiles(450.0)(3)));
+        });
+    });
 }

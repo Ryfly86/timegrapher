@@ -17,14 +17,16 @@ function definition(name) {
 const NO_BEAT_TITLE = fs.readFileSync(path.join(__dirname, "../../timegrapher-core/src/measure.rs"), "utf8")
   .match(/pub const NO_WATCH_TITLE: &str = "([^"]+)";/)[1];
 const context = vm.createContext({ MINUS,
-  NO_BEAT_TITLE,
+  NO_BEAT_TITLE, WIND_NOT_GIVEN: "wind not given",
   fileName: () => "take.flac", timeLabel: String, positionName: String,
   liveStrip: () => "", stripCards: () => "", trendStrip: () => "",
 });
 vm.runInContext(["chosenBeatError", "esc", "fixedDigits", "num", "recordingView", "recordView"].map(definition).join("\n"), context);
-// The session view's Positions table, with what it draws around the row stubbed.
-Object.assign(context, { ORDER: [], POSITIONS: null, tile: () => "", signed: String, abs: Math.abs, limitsCard: () => "", bars: () => "" });
-vm.runInContext(definition("sessionView"), context);
+// The session view's Positions pane, with what it draws around the table stubbed.
+Object.assign(context, { POSITIONS: { DU: ["DU", "Dial Up"] }, tile: () => "", signed: String, abs: Math.abs, limitsCard: () => "",
+  positionLineChart: () => "", PANE_MIN_CHART: 320, ICONS: null, paneShown: { rate: true, amplitude: true, beat_error: true },
+  PANE_KINDS: [["rate", "--rate"], ["amplitude", "--amplitude"], ["beat_error", "--beat-error"]] });
+vm.runInContext(["sessionView", "positionsPane", "testPane", "icon", "columnHead", "paneToggles"].map(definition).join("\n"), context);
 
 const said = "No regular beat found (too few beats to time). There are no rate, amplitude or beat error readings.";
 
@@ -44,7 +46,12 @@ test("the sentence is escaped", () => {
 });
 
 test("a session reading with no regular beat gets core's heading in its row", () => {
-  const markup = context.sessionView({ readings: [{ position: "DU", measurement: { watch_heard: false } }] }, null);
+  const line = (title) => ({ title, lanes: [{ position: "DU", name: "Dial Up (DU)", value: null }], averages: [] });
+  const markup = context.sessionView({
+    readings: [{ position: "DU", wind_h: 0, measurement: { watch_heard: false } }],
+    report: { states: [{ wind_h: 0 }], position_lines: [{ wind_h: 0, name: "Full wind",
+      rate: line("Rate"), amplitude: line("Amplitude"), beat_error: line("Beat Error") }] },
+  }, null);
   assert.ok(markup.includes(`>${NO_BEAT_TITLE}</td>`), markup);
 });
 

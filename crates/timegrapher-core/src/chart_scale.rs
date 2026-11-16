@@ -85,6 +85,21 @@ pub fn axis_number(v: f64, step: f64) -> String {
     crate::library::fixed_text(v, axis_decimals(step))
 }
 
+/// A value axis's tick label at `v` on an axis of `step`: [`axis_number`]
+/// bare, a rate's `signed` with a plus so fast or slow reads at a glance
+/// (Hugh on #1742, #1761; one that rounds to zero bare), a minus a true
+/// one. The one rule every surface writes a value tick by (#1779); the
+/// MCP view's `valueTick`, which can't call Rust, is held to the same
+/// fixture (`tests/fixtures/axis_ticks.json`).
+pub fn axis_tick(v: f64, step: f64, signed: bool) -> String {
+    let text = if signed {
+        crate::figure_text::signed_text(v, axis_decimals(step))
+    } else {
+        axis_number(v, step)
+    };
+    crate::figure_text::true_minus(&text)
+}
+
 /// 1, 2 or 5 times a power of ten, at least `x` (above 0): the step
 /// every grid and axis rounds to, so there is one rule for round numbers.
 /// The MCP view's `roundStep`, which can't call Rust, is held to the same
@@ -148,9 +163,286 @@ pub fn steady_ends(
     }
 }
 
+/// One row of names in a lane above a plot, px.
+pub const NAME_ROW_H: f64 = 15.0;
+/// The short gap between a plot and its nearest row of names, so each
+/// line or leader shows outside the plot before it reaches its name.
+pub const NAME_LANE_GAP: f64 = 6.0;
+/// The room kept between two names side by side in a lane: a word space
+/// and more (Peter on #1764), so two names never read as one phrase.
+/// Names one above another keep [`NAME_CLEAR`].
+pub const NAME_GAP: f64 = 12.0;
+/// The clear space kept between two names one above another, about a
+/// line of a name's type (Hugh's spec on #1764, after Peter), on top of
+/// the [`NAME_LINE_H`] pitch within a name: the gap reads as a gap, never
+/// as the next line of the same name.
+pub const NAME_CLEAR: f64 = 11.0;
+/// The pitch of a lane's second row above a plot, which appears only
+/// where a name can't sit in the first: a row and the clear space.
+pub const NAME_ROW_OUT: f64 = NAME_ROW_H + NAME_CLEAR;
+/// From one line of a name to the next, where a narrow lane breaks a name
+/// a word to a line (#1764): the clear space between two names
+/// ([`NAME_CLEAR`]) comes on top of it, so a name's own lines read as one.
+pub const NAME_LINE_H: f64 = 13.0;
+/// How far an overlap must start or end before a name changes row, so
+/// names don't hop between frames.
+pub const NAME_HYSTERESIS: f64 = 2.0;
+
+/// The order names in a lane are placed in: strong first, then faint,
+/// each left to right. `names` are each one's centre, width and whether
+/// it is faint.
+pub fn lane_order(names: &[(f64, f64, bool)]) -> Vec<usize> {
+    let mut order: Vec<usize> = (0..names.len()).collect();
+    order.sort_by(|&a, &b| {
+        names[a]
+            .2
+            .cmp(&names[b].2)
+            .then(names[a].0.total_cmp(&names[b].0))
+    });
+    order
+}
+
+/// Where each name in a lane of two rows above a plot goes, the named-lines
+/// rule every surface draws by (the app's `marks::place`, the CLI's report,
+/// held to the MCP view's copy by the same cases): `names` are each one's
+/// centre (its line's x), width and whether it is faint; `was` is the row
+/// each was in before. Strong names are placed first, then faint, each
+/// left to right. Each is centred on its line within `left..right`, and
+/// goes one row further out where it would come within [`NAME_GAP`] of a
+/// name already in the first row; where the second row is taken there
+/// too, it slides right of the name there (drawn with an angled leader).
+/// Each name's left edge and row, in the order given.
+pub fn lane_place(names: &[(f64, f64, bool)], left: f64, right: f64, was: &[u8]) -> Vec<(f64, u8)> {
+    let order = lane_order(names);
+    let mut rows: [Vec<(f64, f64)>; 2] = Default::default();
+    let mut out = vec![(0.0, 0); names.len()];
+    for i in order {
+        let (x, w, _) = names[i];
+        let last = (right - w).max(left);
+        let at = (x - w / 2.0).clamp(left, last);
+        // The overlap with a name in the first row, the gap between names
+        // included: a name goes out once it overlaps by the hysteresis,
+        // and comes back once it clears by as much.
+        let overlap = rows[0]
+            .iter()
+            .map(|&(a, b)| (b + NAME_GAP - at).min(at + w + NAME_GAP - a))
+            .fold(f64::NEG_INFINITY, f64::max);
+        let out_row = if was.get(i).copied().unwrap_or(0) == 1 {
+            overlap > -NAME_HYSTERESIS
+        } else {
+            overlap > NAME_HYSTERESIS
+        };
+        let (at, row) = if out_row {
+            let mut a = at;
+            while let Some(&(_, e)) = rows[1]
+                .iter()
+                .find(|&&(s, e)| a < e + NAME_GAP && a + w + NAME_GAP > s)
+            {
+                a = e + NAME_GAP;
+            }
+            (a.min(last), 1)
+        } else {
+            (at, 0)
+        };
+        rows[usize::from(row)].push((at, at + w));
+        out[i] = (at, row);
+    }
+    out
+}
+
+/// Where each name in a lane of one row above a plot goes (the app's
+/// `marks::place_row`), for a plot that names only a few lines: `names` as
+/// [`lane_place`] takes them. Each is centred on its line within
+/// `left..right`; one that would come within [`NAME_GAP`] of a name already
+/// placed slides along past it (drawn with an angled leader), to the right
+/// where there is room, else to the left. No leader then passes another
+/// name. Each name's left edge, in the order given.
+pub fn lane_place_row(names: &[(f64, f64, bool)], left: f64, right: f64) -> Vec<f64> {
+    let order = lane_order(names);
+    let mut taken: Vec<(f64, f64)> = Vec::new();
+    let mut out = vec![0.0; names.len()];
+    for i in order {
+        let (x, w, _) = names[i];
+        let last = (right - w).max(left);
+        let centred = (x - w / 2.0).clamp(left, last);
+        let hit = |a: f64, taken: &[(f64, f64)]| {
+            taken
+                .iter()
+                .find(|&&(s, e)| a < e + NAME_GAP && a + w + NAME_GAP > s)
+                .copied()
+        };
+        let mut at = centred;
+        while let Some((_, e)) = hit(at, &taken) {
+            at = e + NAME_GAP;
+        }
+        if at > last {
+            at = centred;
+            while let Some((s, _)) = hit(at, &taken) {
+                at = s - NAME_GAP - w;
+            }
+            at = at.max(left);
+        }
+        taken.push((at, at + w));
+        out[i] = at;
+    }
+    out
+}
+
+/// How much more a strong name holds to its line than a faint one, in a
+/// column beside a plot: a wheel's name stays on its line and a mesh's or
+/// ×2's makes way (Hugh on #1764).
+pub const STRONG_HOLD: f64 = 100.0;
+
+/// Where each name in a column beside a plot goes, along y (#1764):
+/// `names` are each one's line's y, its height and whether it is faint.
+/// The names keep their lines' order, so no two leaders cross, with
+/// [`NAME_CLEAR`] between any two. Each run of names that would touch
+/// sits where its names are nearest their lines, a strong one holding to
+/// its line far more than a faint one, within `top..bottom`. Each name's
+/// top, in the order given.
+pub fn lane_stack(names: &[(f64, f64, bool)], top: f64, bottom: f64) -> Vec<f64> {
+    let mut o: Vec<usize> = (0..names.len()).collect();
+    o.sort_by(|&a, &b| names[a].0.total_cmp(&names[b].0));
+    let hold = |i: usize| if names[i].2 { 1.0 } else { STRONG_HOLD };
+    // A run, as its first and its count in `o`: its height, and its top
+    // where its names sit nearest their lines, kept within the column.
+    let height = |(s, n): (usize, usize)| {
+        o[s..s + n].iter().map(|&i| names[i].1).sum::<f64>() + (n - 1) as f64 * NAME_CLEAR
+    };
+    let first = |(s, n): (usize, usize)| {
+        let (mut off, mut sum, mut weight) = (0.0, 0.0, 0.0);
+        for &i in &o[s..s + n] {
+            let (y, h, _) = names[i];
+            sum += hold(i) * (y - h / 2.0 - off);
+            weight += hold(i);
+            off += h + NAME_CLEAR;
+        }
+        (sum / weight).min(bottom - height((s, n))).max(top)
+    };
+    let mut runs: Vec<(usize, usize)> = Vec::new();
+    for k in 0..o.len() {
+        let mut run = (k, 1);
+        while let Some(&above) = runs.last() {
+            if first(run) < first(above) + height(above) + NAME_CLEAR {
+                runs.pop();
+                run = (above.0, above.1 + run.1);
+            } else {
+                break;
+            }
+        }
+        runs.push(run);
+    }
+    let mut out = vec![0.0; names.len()];
+    for &run in &runs {
+        let mut at = first(run);
+        for &i in &o[run.0..run.0 + run.1] {
+            out[i] = at;
+            at += names[i].1 + NAME_CLEAR;
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Names beside a plot keep their lines' order with [`NAME_CLEAR`]
+    /// between any two, a strong name holding its line, in the cases the
+    /// MCP view's copy is held to too (marks_cases.json's `lane_stack`).
+    #[test]
+    fn lane_stack_places_the_shared_cases() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../timegrapher-app/src/marks_cases.json"
+        );
+        let cases: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(path).expect("marks_cases.json"))
+                .expect("its JSON");
+        let n = |v: &serde_json::Value| v.as_f64().expect("a number");
+        let list = cases["lane_stack"].as_array().expect("lane_stack");
+        assert!(!list.is_empty());
+        for c in list {
+            let names: Vec<(f64, f64, bool)> = c["names"]
+                .as_array()
+                .expect("names")
+                .iter()
+                .map(|v| (n(&v[0]), n(&v[1]), v[2] == "faint"))
+                .collect();
+            let got = lane_stack(&names, n(&c["top"]), n(&c["bottom"]));
+            let want = c["at"].as_array().expect("at");
+            assert_eq!(got.len(), want.len(), "{}", c["case"]);
+            for (g, w) in got.iter().zip(want) {
+                assert!((g - n(w)).abs() < 1e-3, "{}: {got:?}", c["case"]);
+            }
+            // In their lines' order, a clear line between any two.
+            let mut o: Vec<usize> = (0..names.len()).collect();
+            o.sort_by(|&a, &b| names[a].0.total_cmp(&names[b].0));
+            for w in o.windows(2) {
+                assert!(
+                    got[w[1]] >= got[w[0]] + names[w[0]].1 + NAME_CLEAR - 1e-9,
+                    "{}: {got:?}",
+                    c["case"]
+                );
+            }
+        }
+    }
+
+    /// The lane rules place the cases the app's marks and the MCP view's
+    /// copy are held to (timegrapher-app/src/marks_cases.json) as given.
+    #[test]
+    fn lane_place_places_the_shared_cases() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../timegrapher-app/src/marks_cases.json"
+        );
+        let cases: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(path).expect("marks_cases.json"))
+                .expect("its JSON");
+        let n = |v: &serde_json::Value| v.as_f64().expect("a number");
+        let list = cases["place"].as_array().expect("place");
+        assert!(!list.is_empty());
+        for c in list {
+            let names: Vec<(f64, f64, bool)> = c["names"]
+                .as_array()
+                .expect("names")
+                .iter()
+                .map(|v| (n(&v[0]), n(&v[1]), v[2] == "faint"))
+                .collect();
+            let was: Vec<u8> = c["was"]
+                .as_array()
+                .expect("was")
+                .iter()
+                .map(|r| u8::try_from(r.as_u64().expect("a row")).expect("0 or 1"))
+                .collect();
+            let got = lane_place(&names, n(&c["left"]), n(&c["right"]), &was);
+            let want = c["at"].as_array().expect("at");
+            assert_eq!(got.len(), want.len(), "{}", c["case"]);
+            for (g, w) in got.iter().zip(want) {
+                assert!(
+                    (g.0 - n(&w[0])).abs() < 1e-3 && u64::from(g.1) == w[1],
+                    "{}: {got:?}",
+                    c["case"]
+                );
+            }
+        }
+        let rows = cases["place_row"].as_array().expect("place_row");
+        assert!(!rows.is_empty());
+        for c in rows {
+            let names: Vec<(f64, f64, bool)> = c["names"]
+                .as_array()
+                .expect("names")
+                .iter()
+                .map(|v| (n(&v[0]), n(&v[1]), v[2] == "faint"))
+                .collect();
+            let got = lane_place_row(&names, n(&c["left"]), n(&c["right"]));
+            let want = c["at"].as_array().expect("at");
+            assert_eq!(got.len(), want.len(), "{}", c["case"]);
+            for (g, w) in got.iter().zip(want) {
+                assert!((g - n(w)).abs() < 1e-3, "{}: {got:?}", c["case"]);
+            }
+        }
+    }
 
     /// The axis rule, held to the fixture the MCP view's copy is tested
     /// against too.
@@ -166,6 +458,19 @@ mod tests {
                 c["text"].as_str().unwrap(),
                 "{v} {step}"
             );
+        }
+    }
+
+    #[test]
+    fn a_tick_is_bare_a_rates_signed_and_its_minus_true() {
+        // The MCP view's valueTick reads the same cases (axis_ticks.test.cjs).
+        let cases: Vec<serde_json::Value> =
+            serde_json::from_str(include_str!("../tests/fixtures/axis_ticks.json")).unwrap();
+        assert!(cases.len() > 5);
+        for c in cases {
+            let (v, step) = (c["v"].as_f64().unwrap(), c["step"].as_f64().unwrap());
+            let signed = c["signed"].as_bool().unwrap();
+            assert_eq!(axis_tick(v, step, signed), c["text"], "{c}");
         }
     }
 

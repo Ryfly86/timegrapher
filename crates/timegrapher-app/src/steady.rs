@@ -90,6 +90,32 @@ impl PerPane {
     }
 }
 
+/// The period marks' switches, each pane's own: Wheel Periods and Mesh,
+/// which work apart (#1764).
+pub struct MarkSwitches {
+    pub wheels: PerPane,
+    pub meshes: PerPane,
+}
+
+impl MarkSwitches {
+    pub fn new(s: crate::settings::MarkSettings) -> Self {
+        Self {
+            wheels: PerPane::new(s.show_wheels_set, s.show_wheels),
+            meshes: PerPane::new(s.show_meshes_set, s.show_meshes),
+        }
+    }
+
+    /// The switches as the settings keep them.
+    pub fn saved(&self) -> crate::settings::MarkSettings {
+        crate::settings::MarkSettings {
+            show_wheels: self.wheels.unset,
+            show_wheels_set: self.wheels.saved(),
+            show_meshes: self.meshes.unset,
+            show_meshes_set: self.meshes.saved(),
+        }
+    }
+}
+
 impl View {
     /// The STFT and Wavelet Maps: one map at a time, the choice shared.
     pub fn is_map(self) -> bool {
@@ -207,8 +233,9 @@ pub struct Steadiness {
     /// The periods every series' search covers between them, log10 seconds,
     /// so the three Periods plots share one time axis.
     period_span: Option<(f64, f64)>,
-    /// The STFT and wavelet maps of each series (core `timefreq`).
-    maps: Vec<timegrapher_core::timefreq::TimeFrequency>,
+    /// The STFT and wavelet maps of each series (core `timefreq`): none
+    /// read while no STFT or Wavelet pane is shown, a third of a run (#1830).
+    pub maps: Option<Vec<timegrapher_core::timefreq::TimeFrequency>>,
     /// Seconds of the session the tests covered.
     pub upto_s: f64,
 }
@@ -252,6 +279,7 @@ pub fn log_of_at(live: &LiveAnalyzer, bph: Option<u32>) -> Option<BeatLog> {
 
 fn log_masked_at(live: &LiveAnalyzer, masked: &[(f64, f64)], bph: Option<u32>) -> Option<BeatLog> {
     let mut log = BeatLog {
+        lock_template_kept: false,
         sample_rate: live.sample_rate(),
         duration_s: live.duration_s(),
         bph: bph?,
@@ -300,8 +328,58 @@ pub fn compute(log: &BeatLog, wheels: Option<Vec<Wheel>>) -> Steadiness {
         &reading_breaks(Vec::new(), log),
         wheels,
         None,
+        true,
         &std::sync::atomic::AtomicU8::new(0),
     )
+}
+
+/// What the panes shown want read, least first: the isochronism alone
+/// (an Isochronism pane), the tests (any Steadiness pane), or the tests
+/// with the time-frequency maps (an STFT or Wavelet pane) (#1830).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Need {
+    Isochronism,
+    Tests,
+    Maps,
+}
+
+/// The isochronism read alone (core `steadiness::isochronism_alone`).
+pub struct IsochronismAlone {
+    pub isochronism: Option<timegrapher_core::steadiness::IsochronismCurve>,
+    pub walk: Option<timegrapher_core::walk::IsochronismWalk>,
+    /// Seconds of the session it covered.
+    pub upto_s: f64,
+}
+
+/// What a run read, for what was [`Need`]ed.
+pub enum Answer {
+    Tests(Box<Steadiness>),
+    Isochronism(IsochronismAlone),
+}
+
+/// What `need` wants of `log`, as [`compute_with`] reads it; the
+/// isochronism alone without the long-run analysis or the tests.
+pub fn compute_for(
+    need: Need,
+    log: &BeatLog,
+    breaks: &[timegrapher_core::breaks::Break],
+    wheels: Option<Vec<Wheel>>,
+    clock: Option<&timegrapher_core::clock::ClockFit>,
+    stage: &std::sync::atomic::AtomicU8,
+) -> Answer {
+    if need > Need::Isochronism {
+        let maps = need == Need::Maps;
+        return Answer::Tests(Box::new(compute_with(
+            log, breaks, wheels, clock, maps, stage,
+        )));
+    }
+    stage.store(2, std::sync::atomic::Ordering::Relaxed);
+    let (isochronism, walk) = steadiness::isochronism_alone(log, clock, breaks, &Config::default());
+    Answer::Isochronism(IsochronismAlone {
+        isochronism,
+        walk,
+        upto_s: log.duration_s,
+    })
 }
 
 /// What a run of [`compute_with`] is doing, from the step it last stored.
@@ -319,12 +397,13 @@ pub fn stage_text(stage: u8) -> &'static str {
 /// lines) is read on it throughout, its readings drawn as the cards and
 /// `timegrapher series` give them. `breaks` are the cuts the readings
 /// stop at, with the time each gap held ([`reading_breaks`]), as
-/// `series` passes core's.
+/// `series` passes core's. The time-frequency maps are read only `with_maps`.
 pub fn compute_with(
     log: &BeatLog,
     breaks: &[timegrapher_core::breaks::Break],
     wheels: Option<Vec<Wheel>>,
     clock: Option<&timegrapher_core::clock::ClockFit>,
+    with_maps: bool,
     stage: &std::sync::atomic::AtomicU8,
 ) -> Steadiness {
     use std::sync::atomic::Ordering::Relaxed;
@@ -336,7 +415,12 @@ pub fn compute_with(
     let cfg = Config::default();
     let long = longrun::analyse_with_breaks(log, clock, breaks, &lc);
     stage.store(2, Relaxed);
-    let report = steadiness::check(log, clock, &long, &lc, &cfg);
+    // The maps, with the same clock the long-run analysis above was given,
+    // need nothing of the tests: they are read beside them (#1839).
+    let (maps, report) = timegrapher_core::cores::both(
+        || with_maps.then(|| timegrapher_core::timefreq::for_take(log, clock, &long, &lc)),
+        || steadiness::check(log, clock, &long, &lc, &cfg),
+    );
     stage.store(3, Relaxed);
     // The tests' own grids: a rate reading over a dropout or a jump is left
     // out, and the beat error is given as sizes when its sign turns over
@@ -355,8 +439,6 @@ pub fn compute_with(
         Some(fold)
     });
     let period_span = steady_views::period_span(&searches);
-    // With the same clock the long-run analysis above was given.
-    let maps = timegrapher_core::timefreq::for_take(log, clock, &long, &lc);
     Steadiness {
         report,
         grids,
@@ -416,13 +498,7 @@ fn tallest_peak(pts: &[[f64; 2]]) -> Option<[f64; 2]> {
 
 /// Seconds as a short time: "45 s", "12 min", "2.5 h".
 fn secs(s: f64) -> String {
-    if s < 120.0 {
-        format!("{s:.0} s")
-    } else if s < 7200.0 {
-        format!("{:.0} min", s / 60.0)
-    } else {
-        format!("{:.1} h", s / 3600.0)
-    }
+    timegrapher_core::steady_views::period_words(s)
 }
 
 /// A time on a linear axis: "30 s" under a minute, then "1:30", so ticks
@@ -1258,14 +1334,19 @@ fn periods_plot(ui: &mut egui::Ui, r: Row<'_>) {
     };
     let threshold = y_of(search.threshold);
     let lines = wheel_lines(marked(s, opts), (x_lo, x_hi));
-    let names = WheelNames::reserve(ui, (i, view), opts.wheels);
+    let names = WheelNames::reserve(
+        ui,
+        (i, view),
+        opts.wheels,
+        opts.meshes && !s.meshes.is_empty(),
+    );
     // The period found, its dot and note; the note is hover only on
     // a short plot, where the names are inside it on its top.
     let found = period_found(c, &pts);
     let short = note_short(ui, &names, (i, view));
     let top = if found.is_some() && !short {
         let hi = pts.iter().map(|q| q[1]).fold(y_lo, f64::max);
-        marks::room_above(y_lo, hi, top, ui.available_height() - AXIS_H)
+        marks::room_above(y_lo, hi, top, WheelNames::plot_h(&names, ui) - AXIS_H)
     } else {
         top
     };
@@ -1278,7 +1359,7 @@ fn periods_plot(ui: &mut egui::Ui, r: Row<'_>) {
     };
     let plot = grid
         .on(base)
-        .height(ui.available_height().max(40.0))
+        .height(WheelNames::plot_h(&names, ui))
         .x_axis_formatter(clear_of_edge(plot_w, period_label))
         .default_x_bounds(x_lo, x_hi)
         .default_y_bounds(y_lo, top);
@@ -1301,7 +1382,7 @@ fn periods_plot(ui: &mut egui::Ui, r: Row<'_>) {
         }
     });
     if let Some(n) = &names {
-        n.draw(ui, &resp.transform, &lines, &pts);
+        n.draw(ui, &resp, &lines, &pts);
     }
     if let Some((at, t)) = &found {
         let id = ui.id().with(("point note", i, view));
@@ -1664,11 +1745,11 @@ fn map_plot(ui: &mut egui::Ui, r: Row<'_>) {
     } = r;
     let name = series_name(k);
     let method = if view == View::Stft { "stft" } else { "sst" };
-    let Some(m) = s
-        .maps
-        .iter()
-        .find(|m| m.series == name && m.method == method)
-    else {
+    // Not read yet: the pane's spinner says the tests are running.
+    let Some(maps) = &s.maps else {
+        return;
+    };
+    let Some(m) = maps.iter().find(|m| m.series == name && m.method == method) else {
         return note(
             ui,
             if view == View::Stft {
@@ -1721,13 +1802,22 @@ fn series_name(k: SeriesKind) -> &'static str {
 
 /// Periods and sizes as log points, leaving out any that can't be.
 fn log_points(periods: &[f64], sizes: &[f64]) -> Vec<[f64; 2]> {
-    periods
-        .iter()
-        .zip(sizes)
-        .map(|(&p, &a)| (p, a))
-        .filter(|(p, a)| *p > 0.0 && *a > 0.0 && a.is_finite())
-        .map(|(p, a)| [p.log10(), a.log10()])
-        .collect()
+    log_runs(periods, sizes).concat()
+}
+
+/// [`log_points`] in runs: a size core withheld (NaN, #1638) ends one, so
+/// the line leaves a gap there and never bridges it.
+fn log_runs(periods: &[f64], sizes: &[f64]) -> Vec<Vec<[f64; 2]>> {
+    let mut runs: Vec<Vec<[f64; 2]>> = vec![Vec::new()];
+    for (&p, &a) in periods.iter().zip(sizes) {
+        if a.is_nan() {
+            runs.push(Vec::new());
+        } else if p > 0.0 && a > 0.0 && a.is_finite() {
+            runs.last_mut().expect("a run").push([p.log10(), a.log10()]);
+        }
+    }
+    runs.retain(|r| !r.is_empty());
+    runs
 }
 
 /// The lowest and highest of the points on one axis (0 across, 1 up).
@@ -1776,9 +1866,18 @@ fn fft_plot(ui: &mut egui::Ui, r: Row<'_>) {
         steadiness::unit_after(sp.unit)
     };
     let size = move |v: f64| format!("{}{gap}{unit}", timegrapher_core::timefreq::size_number(v));
-    let peak = tallest_peak(&pts);
+    // A peak is read within a run, never across a withheld gap.
+    let peak = log_runs(periods, sizes)
+        .iter()
+        .filter_map(|r| tallest_peak(r.as_slice()))
+        .max_by(|a, b| a[1].total_cmp(&b[1]));
     let lines = wheel_lines(marked(s, opts), (x_lo, x_hi));
-    let names = WheelNames::reserve(ui, (i, view), opts.wheels);
+    let names = WheelNames::reserve(
+        ui,
+        (i, view),
+        opts.wheels,
+        opts.meshes && !s.meshes.is_empty(),
+    );
     let fill = ui.visuals().extreme_bg_color.gamma_multiply(0.8);
     let tops = pts.clone();
     // The tallest peak's dot and note; the note is hover only on a
@@ -1797,14 +1896,14 @@ fn fft_plot(ui: &mut egui::Ui, r: Row<'_>) {
     let short = note_short(ui, &names, (i, view));
     let top = if tallest.is_some() && !short {
         let hi = pts.iter().map(|q| q[1]).fold(y_lo, f64::max);
-        marks::room_above(y_lo, hi, top, ui.available_height() - AXIS_H)
+        marks::room_above(y_lo, hi, top, WheelNames::plot_h(&names, ui) - AXIS_H)
     } else {
         top
     };
     let grid = strength::Grid::new(period_grid(ui.available_width()), log_grid);
     let resp = grid
         .on(base)
-        .height(ui.available_height().max(40.0))
+        .height(WheelNames::plot_h(&names, ui))
         .x_axis_formatter(clear_of_edge(plot_w, period_label))
         .y_axis_formatter(move |m, r| log_label(m, r, size))
         .default_x_bounds(x_lo, x_hi)
@@ -1815,7 +1914,9 @@ fn fft_plot(ui: &mut egui::Ui, r: Row<'_>) {
             if let Some(n) = &names {
                 n.inside(p, &lines, &tops, fill);
             }
-            p.line(Line::new("spectrum", pts).color(colour).width(DATA_W));
+            for run in log_runs(periods, sizes) {
+                p.line(Line::new("spectrum", run).color(colour).width(DATA_W));
+            }
             if let Some((at, _)) = &tallest {
                 p.points(
                     Points::new("tallest", vec![*at])
@@ -1825,7 +1926,7 @@ fn fft_plot(ui: &mut egui::Ui, r: Row<'_>) {
             }
         });
     if let Some(n) = &names {
-        n.draw(ui, &resp.transform, &lines, &tops);
+        n.draw(ui, &resp, &lines, &tops);
     }
     if let Some((at, t)) = &tallest {
         let id = ui.id().with(("point note", i, view));
@@ -1846,6 +1947,9 @@ pub struct Opts {
     /// The calibre's wheels marked on the period axis, or the reference
     /// periods when no wheel is known.
     pub wheels: bool,
+    /// The calibre's meshes marked on the period axis, a switch of their
+    /// own (#1764).
+    pub meshes: bool,
     /// The Info panel, beside the plots: each pane opens its own.
     pub info: bool,
     /// The take's span when the readings are on its own clock, as the
@@ -1858,27 +1962,26 @@ pub struct Opts {
     pub joined_in: Option<&'static str>,
 }
 
-/// What Wheel Periods does, for its hint.
-pub const WHEELS_HINT: &str = "Mark the period each of the calibre's wheels turns in, in \
-     a grey dotted line named above the plot, and half of it more loosely dotted, where a \
-     wheel that is off centre shows twice a turn. Where the calibre's tooth and leaf counts \
-     give them, each pinion's mesh is marked too, faintly dashed: the time one tooth of the \
-     wheel driving it takes to engage, drive and leave, where amplitude can step. With no calibre picked, or none of its wheels known, one minute and \
-     one hour are marked in grey instead: periods alone, named after no wheel.";
-
 /// What the period axis marks: the calibre's wheels, and its meshes
-/// ([`timegrapher_core::calibre_store::Catalog::meshes`]).
+/// ([`timegrapher_core::calibre_store::Catalog::meshes`]), and which of
+/// the two switches are on; with no wheel known, Wheel Periods marks the
+/// reference periods in their place.
 #[derive(Clone, Copy)]
 pub(crate) struct Marks<'a> {
     pub wheels: &'a [Wheel],
     pub meshes: &'a [timegrapher_core::train::MeshLine],
+    pub wheels_on: bool,
+    pub meshes_on: bool,
 }
 
-/// The wheels and meshes to mark: `None` when the marks are off.
+/// The wheels and meshes to mark, each by its own switch (#1764): `None`
+/// when both are off.
 fn marked(s: &Steadiness, opts: Opts) -> Option<Marks<'_>> {
-    opts.wheels.then_some(Marks {
+    (opts.wheels || opts.meshes).then(|| Marks {
         wheels: &s.wheels,
         meshes: &s.meshes,
+        wheels_on: opts.wheels,
+        meshes_on: opts.meshes,
     })
 }
 
@@ -1894,13 +1997,14 @@ pub(crate) enum Turn {
     Reference,
 }
 
-/// A line on the period axis (log10 seconds), its name, its short name
-/// (for the narrow lane beside a map) and what its hover says.
+/// A line on the period axis (log10 seconds), its name, its name in the
+/// narrow lane beside a map (a word to a line, #1764) and what its hover
+/// says.
 pub(crate) struct WheelLine {
     pub x: f64,
     pub turn: Turn,
     pub name: String,
-    pub short: String,
+    pub side: String,
     pub hover: String,
 }
 
@@ -1931,72 +2035,52 @@ impl WheelLine {
     }
 }
 
-/// The lines to mark on a period axis spanning `span`: each wheel's turn
-/// and half of it ("×2", where a wheel that is off centre shows twice a
-/// turn, unless another wheel turns there), then each mesh where no wheel
-/// or ×2 already marks its period; with no wheels, the reference
-/// periods; with `None` (the marks off), nothing.
+/// The lines to mark on a period axis spanning `span`: core's
+/// ([`timegrapher_core::steady_views::shown_marks`]: each wheel's turn, its
+/// ×2 and each mesh, one line where two periods are within 3% while both
+/// show) inside the axis; with Wheel Periods on and no wheels, the
+/// reference periods; with `None` (the marks off), nothing.
 pub(crate) fn wheel_lines(shown: Option<Marks<'_>>, (x_lo, x_hi): (f64, f64)) -> Vec<WheelLine> {
     let inside = |x: f64| x > x_lo && x < x_hi;
-    let Some(Marks { wheels, meshes }) = shown else {
+    let Some(Marks {
+        wheels,
+        meshes,
+        wheels_on,
+        meshes_on,
+    }) = shown
+    else {
         return Vec::new();
     };
-    if wheels.is_empty() {
+    if wheels_on && wheels.is_empty() {
         return reference_lines()
             .into_iter()
             .map(|r| WheelLine {
                 x: r.period_s.log10(),
                 turn: Turn::Reference,
                 name: r.label.to_string(),
-                short: r.label.to_string(),
+                // A period, not a name: kept whole.
+                side: r.label.to_string(),
                 hover: r.label.to_string(),
             })
             .filter(|l| inside(l.x))
             .collect();
     }
-    let mut out = Vec::new();
-    for w in wheels {
-        let title = marks::title_case(&w.name);
-        let short = marks::wheel_short(&w.name);
-        out.push(WheelLine {
-            x: w.period_s.log10(),
-            turn: Turn::Wheel,
-            name: title.clone(),
-            short: short.clone(),
-            hover: format!("{title}: {}", secs(w.period_s)),
-        });
-        let half = w.period_s / 2.0;
-        if !wheels.iter().any(|o| one_mark(o.period_s, half)) {
-            out.push(WheelLine {
-                x: half.log10(),
-                turn: Turn::Twice,
-                name: format!("{title} ×2"),
-                short: format!("{short} ×2"),
-                hover: format!("{title} ×2: {}", secs(half)),
-            });
-        }
-    }
-    for m in meshes {
-        if out.iter().any(|l| one_mark(10f64.powf(l.x), m.period_s)) {
-            continue;
-        }
-        let title = marks::title_case(&m.name);
-        out.push(WheelLine {
-            x: m.period_s.log10(),
-            turn: Turn::Mesh,
-            name: format!("{title} Mesh"),
-            short: marks::mesh_short(&m.name),
-            hover: format!("{title} Mesh: {}.", m.about),
-        });
-    }
-    out.retain(|l| inside(l.x));
-    out
-}
-
-/// Whether two periods are near enough (3%) to share one line on a period
-/// axis, which keeps the first one marked there.
-fn one_mark(a_s: f64, b_s: f64) -> bool {
-    (a_s / b_s - 1.0).abs() < 0.03
+    use timegrapher_core::steady_views::{self as views, WheelTurn};
+    views::shown_marks(wheels, meshes, wheels_on, meshes_on)
+        .into_iter()
+        .map(|l| WheelLine {
+            x: l.period_s.log10(),
+            turn: match l.turn {
+                WheelTurn::Wheel => Turn::Wheel,
+                WheelTurn::Twice => Turn::Twice,
+                WheelTurn::Mesh => Turn::Mesh,
+            },
+            side: l.words.join("\n"),
+            name: l.name,
+            hover: l.hover,
+        })
+        .filter(|l| inside(l.x))
+        .collect()
 }
 
 /// The lines in the plot, under its trace, all call-outs: a wheel's
@@ -2041,28 +2125,53 @@ fn note_short(ui: &egui::Ui, names: &Option<WheelNames>, id: impl std::hash::Has
 }
 
 /// Where the wheels' names go on a period plot, by the rules every named
-/// line follows ([`marks`]): in a lane of two rows above the plot, or
-/// inside along its top where the plot is short.
+/// line follows ([`marks`]): a wheel's, its ×2's or a reference period's
+/// in a lane above the plot, of one row or two as they took last frame; a
+/// mesh's in a lane of one row under its axis labels (#1764); or all of
+/// them inside along its top where the plot is short.
 struct WheelNames {
     id: egui::Id,
     short: bool,
+    /// The room kept under the plot for the meshes' names.
+    below: f32,
 }
 
 impl WheelNames {
-    /// Room for the names above a plot, kept whenever the marks are on so
-    /// the plot never jumps; on a plot that would be short with it, none,
-    /// the names going inside. Call before the plot is laid out.
-    fn reserve(ui: &mut egui::Ui, id: impl std::hash::Hash, on: bool) -> Option<Self> {
-        if !on {
+    /// Room for the names above a plot (`above`: Wheel Periods on) and
+    /// under it (`below`: Mesh on, with meshes to mark), kept whenever
+    /// they are on so the plot never jumps; on a plot that would be short
+    /// with it, none, the names going inside. Call before the plot is laid
+    /// out.
+    fn reserve(
+        ui: &mut egui::Ui,
+        id: impl std::hash::Hash,
+        above: bool,
+        below: bool,
+    ) -> Option<Self> {
+        if !above && !below {
             return None;
         }
         let id = ui.id().with(("wheel names", id));
-        let room = marks::LANE + marks::LANE_GAP;
-        let short = marks::short(ui, id.with("short"), ui.available_height() - room);
+        let top = if above {
+            marks::lane_h(marks::rows_taken(ui, id)) + marks::LANE_GAP
+        } else {
+            0.0
+        };
+        let under = if below { marks::BELOW } else { 0.0 };
+        let short = marks::short(ui, id.with("short"), ui.available_height() - top - under);
         if !short {
-            ui.add_space(room);
+            ui.add_space(top);
         }
-        Some(Self { id, short })
+        Some(Self {
+            id,
+            short,
+            below: if short { 0.0 } else { under },
+        })
+    }
+
+    /// The height a plot takes, leaving the meshes' lane under it.
+    fn plot_h(names: &Option<Self>, ui: &egui::Ui) -> f32 {
+        (ui.available_height() - names.as_ref().map_or(0.0, |n| n.below)).max(40.0)
     }
 
     /// The names inside a short plot, as an item of it: added after the
@@ -2084,15 +2193,16 @@ impl WheelNames {
         }
     }
 
-    /// The names in the lane, or the hovers of those inside, once the plot
-    /// (`t`) is drawn.
+    /// The names in their lanes, or the hovers of those inside, once the
+    /// plot (`resp`) is drawn.
     fn draw(
         &self,
-        ui: &egui::Ui,
-        t: &egui_plot::PlotTransform,
+        ui: &mut egui::Ui,
+        resp: &egui_plot::PlotResponse<impl Sized>,
         lines: &[WheelLine],
         tops: &[[f64; 2]],
     ) {
+        let t = &resp.transform;
         let frame = *t.frame();
         if self.short {
             let placed = marks::inside_placed(ui, t, &names_of(lines), tops);
@@ -2103,10 +2213,13 @@ impl WheelNames {
                     .map_or_else(String::new, |l| l.hover.clone())
             };
             marks::inside_hovers(ui, frame, &placed, &hover_of, self.id);
-        } else {
-            let pal = theme::pal(ui);
-            let named: Vec<marks::Named> = lines
+            return;
+        }
+        let pal = theme::pal(ui);
+        let named = |mesh: bool| -> Vec<marks::Named> {
+            lines
                 .iter()
+                .filter(|l| (l.turn == Turn::Mesh) == mesh)
                 .map(|l| marks::Named {
                     x: t.position_from_point_x(l.x),
                     name: l.name.clone(),
@@ -2114,8 +2227,17 @@ impl WheelNames {
                     ink: l.ink(pal),
                     hover: l.hover.clone(),
                 })
-                .collect();
-            marks::lane_above(ui, frame, &named, self.id);
+                .collect()
+        };
+        marks::lane_above(ui, frame, &named(false), self.id);
+        if self.below > 0.0 {
+            // Under the time axis's labels, not over them (Hugh, Walter
+            // on #1774): the plot's widget, its labels in it, ends where
+            // the next item would go, less the spacing between items. (The
+            // pane's own rect can reach past it, down to the pane's foot.)
+            let under = ui.cursor().top() - ui.spacing().item_spacing.y;
+            marks::lane_below(ui, frame, under, &named(true), self.id.with("below"));
+            ui.add_space(self.below);
         }
     }
 }

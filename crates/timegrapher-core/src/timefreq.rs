@@ -763,15 +763,24 @@ fn noise_level(
     period_s: &[f64],
     step: f64,
 ) -> Vec<f64> {
-    let ar = stretches.map(|s| {
-        crate::confidence::pooled_lag_one(s.iter().map(Vec::as_slice))
-            .map_or(0.0, |r| r.clamp(0.0, 0.99))
-    });
+    let ar = stretches.map(|s| noise_ar(&s));
     let coi_hi = std::f64::consts::SQRT_2 * OMEGA0 * period_s[0] / std::f64::consts::TAU / step;
     let noise_len = (2 * coi_hi.ceil() as usize + NOISE_INSIDE)
         .min(NOISE_MAX)
         .min(longest);
     red_noise_level(planner, ar, noise_len, period_s, step)
+}
+
+/// The lag-one correlation of one series' `stretches` that its red noise
+/// is drawn with: the one estimator every ± reads
+/// ([`crate::confidence::corrected_lag_one`], #1609), each stretch's line
+/// taken out as the coherence takes it out, with the line's bias downwards
+/// added back and held to 0 ..= [`crate::confidence::MAX_RHO`]. Read raw,
+/// the noise drawn was whiter than the series, so its 95% level sat too low
+/// and noise read as coherence more often than one time in twenty.
+fn noise_ar(stretches: &[Vec<f64>]) -> f64 {
+    let s: Vec<&[f64]> = stretches.iter().map(Vec::as_slice).collect();
+    crate::confidence::corrected_lag_one(&s)
 }
 
 /// Each column's mean coherence and the phase of its mean cross term, in
@@ -992,19 +1001,28 @@ pub fn for_take(
     lc: &crate::longterm::LongConfig,
 ) -> Vec<TimeFrequency> {
     let [_, be] = crate::steadiness::window_grids(log, clock, &long.breaks);
-    let be = crate::longterm::detrend(&be, lc.detrend_s);
+    let be = crate::steadiness::level_by_piece(&be, clock, &long.breaks, lc);
     let inputs = [
         (&long.timing.detrended, "rate", "ms", 1000.0),
         (&long.amplitude.detrended, "amplitude", "deg", 1.0),
         (&be, "beat_error", "ms", 1.0),
     ];
-    let stfts = inputs
-        .iter()
-        .filter_map(|(g, name, unit, k)| stft(g, name, unit, *k, STFT_WINDOW_S, STFT_HOP_S));
-    let ssts = inputs
-        .iter()
-        .filter_map(|(g, name, unit, k)| sst(g, name, unit, *k));
-    stfts.chain(ssts).collect()
+    // Each map on its own, on every core (#1839), in the same order.
+    let maps: Vec<(bool, usize)> = [false, true]
+        .into_iter()
+        .flat_map(|wavelet| (0..inputs.len()).map(move |i| (wavelet, i)))
+        .collect();
+    crate::cores::on_every_core(&maps, |&(wavelet, i)| {
+        let (g, name, unit, k) = inputs[i];
+        if wavelet {
+            sst(g, name, unit, k)
+        } else {
+            stft(g, name, unit, k, STFT_WINDOW_S, STFT_HOP_S)
+        }
+    })
+    .into_iter()
+    .flatten()
+    .collect()
 }
 
 /// The coherence maps of a take: the rate against the amplitude, on the
@@ -1037,7 +1055,7 @@ pub fn kurtograms_for_take(
     lc: &crate::longterm::LongConfig,
 ) -> Vec<Kurtogram> {
     let [_, be] = crate::steadiness::window_grids(log, clock, &long.breaks);
-    let be = crate::longterm::detrend(&be, lc.detrend_s);
+    let be = crate::steadiness::level_by_piece(&be, clock, &long.breaks, lc);
     [
         (&long.timing.detrended, "rate"),
         (&long.amplitude.detrended, "amplitude"),
@@ -1050,6 +1068,41 @@ pub fn kurtograms_for_take(
 
 #[cfg(test)]
 mod tests {
+
+    /// The beat error's maps and kurtogram are read from its windows
+    /// levelled piece by piece between the take's breaks, not across them
+    /// (#1608, #1723).
+    #[test]
+    fn the_beat_errors_maps_and_kurtogram_read_it_by_piece() {
+        fn json<T: serde::Serialize>(v: &T) -> serde_json::Value {
+            serde_json::to_value(v).unwrap()
+        }
+        let (log, long, lc) = crate::break_fixture::a_take_with_a_break();
+        let (by_piece, across) = crate::break_fixture::its_beat_error(&log, &long, &lc);
+        let maps: Vec<TimeFrequency> = for_take(&log, long.clock.as_ref(), &long, &lc)
+            .into_iter()
+            .filter(|m| m.series == "beat_error")
+            .collect();
+        let on = |g: &crate::longterm::Grid| -> Vec<TimeFrequency> {
+            stft(g, "beat_error", "ms", 1.0, STFT_WINDOW_S, STFT_HOP_S)
+                .into_iter()
+                .chain(sst(g, "beat_error", "ms", 1.0))
+                .collect()
+        };
+        assert!(!maps.is_empty());
+        assert_eq!(json(&maps), json(&on(&by_piece)));
+        assert_ne!(json(&maps), json(&on(&across)));
+        let k: Vec<Kurtogram> = kurtograms_for_take(&log, long.clock.as_ref(), &long, &lc)
+            .into_iter()
+            .filter(|k| k.series == "beat_error")
+            .collect();
+        let kon = |g: &crate::longterm::Grid| -> Vec<Kurtogram> {
+            kurtogram(g, "beat_error").into_iter().collect()
+        };
+        assert!(!k.is_empty());
+        assert_eq!(json(&k), json(&kon(&by_piece)));
+        assert_ne!(json(&k), json(&kon(&across)));
+    }
     use super::*;
 
     /// The size rule, held to the fixture the MCP view's copy is tested
@@ -1429,6 +1482,75 @@ mod tests {
         );
         let phase = cells.iter().map(|q| q.1).sum::<f64>() / cells.len() as f64;
         assert!((phase - 90.0).abs() < 15.0, "{phase}");
+    }
+
+    /// The red noise behind the coherence level is drawn at the one
+    /// lag-one estimator every ± reads, bias added back (#1609): on short
+    /// AR(1) stretches it reads above the raw pooled value, by the line's
+    /// bias, never the raw one.
+    #[test]
+    fn the_coherence_noise_is_drawn_at_the_corrected_correlation() {
+        let mut rng = crate::synth::Rng::new(41);
+        let mut v = 0.0;
+        let stretches: Vec<Vec<f64>> = (0..3)
+            .map(|_| {
+                (0..80)
+                    .map(|_| {
+                        v = 0.7 * v + rng.normal();
+                        v
+                    })
+                    .collect()
+            })
+            .collect();
+        let s: Vec<&[f64]> = stretches.iter().map(Vec::as_slice).collect();
+        let raw = crate::confidence::pooled_lag_one(s.iter().copied()).unwrap();
+        let used = noise_ar(&stretches);
+        assert_eq!(used, crate::confidence::corrected_lag_one(&s));
+        assert!(used > raw + 0.03, "{used} {raw}");
+    }
+
+    /// The coherence level's false-alarm share on unrelated red noise
+    /// (#1609): 100 seeded pairs of independent AR(1) series at each lag-one
+    /// correlation and length, the share of cells read above `noise_95`.
+    /// Acceptance, set before the run: every share 2.5% to 7.5%. Run with
+    /// `--ignored --nocapture`; seeds 2026111500 on, fixed before the run.
+    #[test]
+    #[ignore = "acceptance run for #1609, about 26 minutes"]
+    fn red_noise_false_alarm_share_by_correlation_and_length() {
+        let mut seed = 2_026_111_500u64;
+        for rho in [0.0f64, 0.5, 0.9] {
+            for n in [180usize, 720] {
+                let (mut above, mut all) = (0usize, 0usize);
+                for _ in 0..100 {
+                    let ar = |s: u64| {
+                        let mut rng = crate::synth::Rng::new(s);
+                        let mut v = 0.0;
+                        for _ in 0..200 {
+                            v = rho * v + (1.0 - rho * rho).sqrt() * rng.normal();
+                        }
+                        grid(10.0, n, |_| {
+                            v = rho * v + (1.0 - rho * rho).sqrt() * rng.normal();
+                            v
+                        })
+                    };
+                    let (x, y) = (ar(seed), ar(seed + 1));
+                    seed += 2;
+                    let Some(c) = coherence(&x, &y, "x", "y") else {
+                        continue;
+                    };
+                    for col in &c.coherence {
+                        for (r, v) in col.iter().enumerate() {
+                            if v.is_finite() {
+                                all += 1;
+                                above += (*v > c.noise_95[r]) as usize;
+                            }
+                        }
+                    }
+                }
+                let share = above as f64 / all.max(1) as f64;
+                println!("rho {rho} n {n}: {:.2}% of {all} cells", 100.0 * share);
+            }
+        }
     }
 
     #[test]

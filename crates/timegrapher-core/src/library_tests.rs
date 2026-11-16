@@ -169,6 +169,7 @@ fn a_tests_facts_leave_out_its_last_window() {
             rate_corrected_s_per_day: None,
         }),
         power_reserve: None,
+        wind_h: None,
     };
     assert_eq!(
         t.facts(false),
@@ -641,6 +642,7 @@ fn a_take_kept_as_analysis_only_reads_as_such() {
     lib.scan();
     assert_eq!(lib.watches[0].takes[0].duration_s, None);
     let log = crate::stream::BeatLog {
+        lock_template_kept: false,
         sample_rate: 48_000,
         duration_s: 3600.0,
         bph: 28_800,
@@ -1274,6 +1276,7 @@ fn a_takes_facts_read_show_its_own_reading() {
         positions: vec!["DU".into(), "Crown Left at 45°".into()],
         at_end: None,
         power_reserve: None,
+        wind_h: None,
     };
     let reading = Reading {
         position: Some("DU".into()),
@@ -1503,4 +1506,104 @@ fn the_engine_is_this_versions_and_a_short_source_hash() {
     assert_eq!(source.len(), 8, "{source}");
     assert!(source.chars().all(|c| c.is_ascii_hexdigit()), "{source}");
     assert!(super::ENGINE.starts_with(&format!("{version}+{source}")));
+}
+
+/// Whichever step of an atomic write fails (the bytes, onto the disk, or
+/// into place), the file is as it was and no new file is left beside it
+/// (#1639).
+#[test]
+fn a_failed_atomic_write_leaves_the_file_as_it_was() {
+    use super::{write_atomic_with, AtomicSteps};
+    let dir = std::env::temp_dir().join(format!("tg-write-fails-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    let p = dir.join("session.json");
+    write_atomic(&p, b"{\"before\": true}\n").unwrap();
+    let fail_write = AtomicSteps {
+        write: |f, b| {
+            std::io::Write::write_all(f, &b[..b.len() / 2])?;
+            Err(std::io::Error::new(
+                std::io::ErrorKind::FileTooLarge,
+                "full",
+            ))
+        },
+        sync: fs::File::sync_all,
+        rename: crate::recorder::rename_settled,
+    };
+    let fail_sync = AtomicSteps {
+        write: |f, b| std::io::Write::write_all(f, b),
+        sync: |_| Err(std::io::Error::other("no sync")),
+        rename: crate::recorder::rename_settled,
+    };
+    let fail_rename = AtomicSteps {
+        write: |f, b| std::io::Write::write_all(f, b),
+        sync: fs::File::sync_all,
+        rename: |_, _| Err(std::io::Error::other("no rename")),
+    };
+    for (what, steps) in [
+        ("write", &fail_write),
+        ("sync", &fail_sync),
+        ("rename", &fail_rename),
+    ] {
+        let e = write_atomic_with(&p, b"{\"after\": true}\n", steps).unwrap_err();
+        assert!(e.contains("session.json"), "{what}: {e}");
+        assert_eq!(fs::read(&p).unwrap(), b"{\"before\": true}\n", "{what}");
+        let left: Vec<_> = fs::read_dir(&dir)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(left, ["session.json"], "{what}");
+    }
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// A folder that holds the watches folder is refused by both imports
+/// before anything is staged, through a link too: the copy would be made
+/// inside what it copies (#1642). A folder inside it is refused as
+/// before, and the folder is left as it was.
+#[test]
+fn a_folder_holding_the_watches_is_not_added() {
+    let base = scratch("overlap");
+    let outer = base.join("outer");
+    let root = outer.join("Timegrapher Data");
+    let mut lib = Library::create(&root).unwrap();
+    lib.add(&Watch::new("Pepsi")).unwrap();
+    let id = lib.find("Pepsi").unwrap().watch.id.clone();
+    take(&outer, &[("a.wav", "DU")], 1, "2026-10-22T14:30:00Z");
+    let written = [("session.toml", "bph = 28800\n".to_string())];
+    // Both are take folders, so the overlap is what refuses them.
+    take(&base, &[("b.wav", "DD")], 1, "2026-10-22T14:30:00Z");
+    #[cfg_attr(not(unix), allow(unused_mut))]
+    let mut tried = vec![outer.clone(), base.clone()];
+    #[cfg(unix)]
+    {
+        let link = base.join("link");
+        std::os::unix::fs::symlink(&outer, &link).unwrap();
+        tried.push(link);
+    }
+    for from in &tried {
+        let e = lib.add_take(from, &id, true).unwrap_err();
+        assert!(
+            e.contains("holds your watches folder"),
+            "{}: {e}",
+            from.display()
+        );
+        let e = lib.add_recording(from, &id, "x", &written).unwrap_err();
+        assert!(
+            e.contains("holds your watches folder"),
+            "{}: {e}",
+            from.display()
+        );
+    }
+    let pepsi = lib.find("Pepsi").unwrap().dir.clone();
+    let e = lib.add_recording(&pepsi, &id, "x", &written).unwrap_err();
+    assert!(e.contains("already in your watches"), "{e}");
+    let takes = pepsi.join(TAKES);
+    let left: Vec<_> = fs::read_dir(&takes)
+        .map(|d| d.flatten().map(|e| e.file_name()).collect())
+        .unwrap_or_default();
+    assert!(left.is_empty(), "nothing staged: {left:?}");
+    assert!(outer.join("a.wav").is_file());
+    let _ = fs::remove_dir_all(&base);
 }

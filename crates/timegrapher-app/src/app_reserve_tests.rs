@@ -5,11 +5,12 @@ use super::tests::{painted_text, queued_capture};
 use super::*;
 use timegrapher_core::synth::{generate, SynthConfig};
 
-/// A 46 h run in a 1000 x 700 or 800 x 600 window: the Power Reserve pane
-/// takes room enough to show both its charts whole, each naming 0 h on
-/// its hours' axis, the table scrolling under them. The Rate chart's zero
-/// line reads "0 s/d", never "-0 s/d" (#991). At 1000 x 700 the Rate
-/// chart names more than its zero line.
+/// A 46 h run in a 1000 x 700 or 800 x 600 window, too short for its
+/// three charts beside the table: they head the run, the Rate chart's
+/// title row first, and scroll down with the table to the hours' axis
+/// under the bottom one, naming 0 h once (#1729). The Rate chart's zero line reads
+/// "0", never "-0", its unit over its axis, and its values under zero carry
+/// a true minus (#991, #1402).
 #[test]
 fn a_long_runs_two_charts_show_whole_in_a_small_window() {
     for (w, h) in [(1000.0f32, 700.0f32), (800.0, 600.0)] {
@@ -23,15 +24,27 @@ fn a_long_runs_two_charts_show_whole_in_a_small_window() {
         }
         let ctx = super::tests::themed();
         let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(w, h));
-        let pass = |app: &mut TimegrapherApp| {
+        // A pass, the wheel turned down over the pane's run if `wheel`.
+        let pass = |app: &mut TimegrapherApp, wheel: bool| {
+            // Over the charts, at the pane's right.
+            let at = egui::pos2(w - 120.0, h - 70.0);
+            let mut events = vec![egui::Event::PointerMoved(at)];
+            if wheel {
+                events.push(egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: egui::vec2(0.0, -600.0),
+                    modifiers: Default::default(),
+                });
+            }
             let input = egui::RawInput {
                 screen_rect: Some(screen),
+                events,
                 ..Default::default()
             };
             ctx.run(input, |ctx| app.panels(ctx))
         };
         for _ in 0..3 {
-            pass(&mut app);
+            pass(&mut app, false);
         }
         // The run's take opened, as from the Watches view.
         let dir = std::env::temp_dir().join(format!("tg-app-small-{}-{w}", std::process::id()));
@@ -40,51 +53,46 @@ fn a_long_runs_two_charts_show_whole_in_a_small_window() {
         std::fs::write(dir.join(power_reserve::FILE), r.to_json()).unwrap();
         app.load_reserve(&dir);
         let _ = std::fs::remove_dir_all(&dir);
+        // The text shown: inside its clip and the window.
+        let shown_of = |out: egui::FullOutput| -> Vec<String> {
+            out.shapes
+                .iter()
+                .filter_map(|c| match &c.shape {
+                    egui::Shape::Text(t) => {
+                        let r = t.galley.rect.translate(t.pos.to_vec2());
+                        let clip = c.clip_rect.intersect(screen);
+                        (clip.contains_rect(r)).then(|| t.galley.text().to_string())
+                    }
+                    _ => None,
+                })
+                .collect()
+        };
         let mut out = None;
         for _ in 0..4 {
-            out = Some(pass(&mut app));
+            out = Some(pass(&mut app, false));
         }
-        // The text shown: inside its clip and the window.
-        let shown: Vec<String> = out
-            .unwrap()
-            .shapes
-            .iter()
-            .filter_map(|c| match &c.shape {
-                egui::Shape::Text(t) => {
-                    let r = t.galley.rect.translate(t.pos.to_vec2());
-                    let clip = c.clip_rect.intersect(screen);
-                    (clip.contains_rect(r)).then(|| t.galley.text().to_string())
-                }
-                _ => None,
-            })
-            .collect();
+        // Too short for the three at their least: beside the table, the
+        // Rate chart's first, and their column scrolls (Hugh on #1761).
+        let top = shown_of(out.unwrap());
+        assert!(top.iter().any(|t| t == "Rate"), "{w}: {top:?}");
+        assert!(top.iter().any(|t| t == "s/d"), "{w}: {top:?}");
+        assert!(top.iter().any(|t| t == "0"), "{w}: {top:?}");
+        assert!(!top.iter().any(|t| t.starts_with("-0")), "{w}: {top:?}");
+        assert!(axis_labels(&top, "") >= 1, "{w}: {top:?}");
+        assert!(
+            !top.iter()
+                .any(|t| t.starts_with('-') && t[1..].starts_with(|c: char| c.is_ascii_digit())),
+            "{w}: {top:?}"
+        );
+        // Scrolled down: the bottom chart and its hours, 0 h once.
+        let mut out = None;
+        for i in 0..40 {
+            out = Some(pass(&mut app, i == 0));
+        }
+        let shown = shown_of(out.unwrap());
         assert_eq!(
             shown.iter().filter(|t| *t == "0 h").count(),
-            2,
-            "{w}: {shown:?}"
-        );
-        assert!(shown.iter().any(|t| t == "0 s/d"), "{w}: {shown:?}");
-        let rate_labels = shown
-            .iter()
-            .filter(|t| {
-                t.strip_suffix(" s/d")
-                    .is_some_and(|v| !v.contains('.') && v.parse::<i32>().is_ok())
-            })
-            .count();
-        assert!(w < 1000.0 || rate_labels >= 2, "{w}: {shown:?}");
-        assert!(!shown.iter().any(|t| t.starts_with("-0")), "{w}: {shown:?}");
-        // The rate falls below zero: its scale's negative values carry a
-        // true minus, never a hyphen (#1402).
-        assert!(
-            shown
-                .iter()
-                .any(|t| t.starts_with('\u{2212}') && t.ends_with(" s/d")),
-            "{w}: {shown:?}"
-        );
-        assert!(
-            !shown
-                .iter()
-                .any(|t| t.starts_with('-') && t[1..].starts_with(|c: char| c.is_ascii_digit())),
+            1,
             "{w}: {shown:?}"
         );
     }
@@ -122,17 +130,38 @@ fn axis_labels(shown: &[String], unit: &str) -> usize {
     shown
         .iter()
         .filter(|t| {
-            // A screen's minus is the true one (#1402).
+            // A screen's minus is the true one (#1402): a value under zero,
+            // whole, as only an axis writes one.
             t.strip_suffix(unit)
-                .is_some_and(|v| v.replace('\u{2212}', "-").parse::<i32>().is_ok())
+                .and_then(|v| v.strip_prefix('\u{2212}'))
+                .is_some_and(|v| v.parse::<i32>().is_ok())
         })
         .count()
 }
 
+/// No unit over a chart's axis, right of `table_right`, touches another
+/// text, its top tick's label above all (Walter on #1761); the table's
+/// units, stacked under their titles, aside.
+fn units_clear(texts: &[(String, egui::Rect, egui::Rect)], table_right: f32, w: f32) {
+    for unit in ["s/d", "°", "ms"] {
+        for u in texts
+            .iter()
+            .filter(|t| t.0 == unit && t.1.left() > table_right)
+        {
+            let touching: Vec<_> = texts
+                .iter()
+                .filter(|t| t.0 != unit && t.1.intersects(u.1))
+                .collect();
+            assert!(touching.is_empty(), "{w}: {unit} {touching:?}");
+        }
+    }
+}
+
 /// A 46 h run's take opened with its sound, as from the command line, in
 /// a 1000 x 700 window: the Paper Strip shows the sound's beats and keeps
-/// its least, and the Power Reserve pane still shows both charts whole,
-/// each naming at least two values and 0 h (#991, the #1043 walkthrough).
+/// its least, and the Power Reserve pane's charts, scrolled to, read
+/// whole: the bottom one naming 0 h and 48 h once, and the Rate chart a
+/// value under zero (#991, the #1043 walkthrough, #1729).
 #[test]
 fn a_long_runs_charts_read_with_its_take_open_in_a_small_window() {
     let dir = std::env::temp_dir().join(format!("tg-app-run-open-{}", std::process::id()));
@@ -158,16 +187,27 @@ fn a_long_runs_charts_read_with_its_take_open_in_a_small_window() {
     std::fs::write(dir.join(power_reserve::FILE), r.to_json()).unwrap();
     let ctx = super::tests::themed();
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(1000.0, 700.0));
-    let pass = |app: &mut TimegrapherApp| {
+    // A pass, the wheel turned down over the pane's run if `wheel`.
+    let pass = |app: &mut TimegrapherApp, wheel: bool| {
+        let at = egui::pos2(screen.width() - 120.0, screen.height() - 70.0);
+        let mut events = vec![egui::Event::PointerMoved(at)];
+        if wheel {
+            events.push(egui::Event::MouseWheel {
+                unit: egui::MouseWheelUnit::Point,
+                delta: egui::vec2(0.0, -600.0),
+                modifiers: Default::default(),
+            });
+        }
         let input = egui::RawInput {
             screen_rect: Some(screen),
+            events,
             ..Default::default()
         };
         ctx.run(input, |ctx| app.panels(ctx))
     };
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     for _ in 0..3 {
-        pass(&mut app);
+        pass(&mut app, false);
     }
     app.start_batch(&path);
     let t = std::time::Instant::now();
@@ -178,8 +218,23 @@ fn a_long_runs_charts_read_with_its_take_open_in_a_small_window() {
     assert!(app.live.is_some(), "{:?}", app.message);
     assert!(app.reserve.is_some(), "{:?}", app.message);
     let mut out = None;
-    for _ in 0..6 {
-        out = Some(pass(&mut app));
+    let mut top = Vec::new();
+    for i in 0..40 {
+        if i == 6 {
+            // At the top first: the Rate chart, a value under zero.
+            top = under_run_line(out.as_ref().unwrap(), screen);
+        }
+        // Then scrolled down to the bottom chart's hours.
+        out = Some(pass(&mut app, i == 6));
+    }
+    // The pointer gone, so no hovered hour's words cover the hours.
+    for _ in 0..3 {
+        let input = egui::RawInput {
+            screen_rect: Some(screen),
+            events: vec![egui::Event::PointerGone],
+            ..Default::default()
+        };
+        out = Some(ctx.run(input, |ctx| app.panels(ctx)));
     }
     let _ = std::fs::remove_dir_all(&dir);
     if let Ok(d) = std::env::var("SHOT_DIR") {
@@ -187,11 +242,12 @@ fn a_long_runs_charts_read_with_its_take_open_in_a_small_window() {
         let svg = crate::export::svg(&o.shapes, screen, ctx.style().visuals.window_fill);
         std::fs::write(format!("{d}/open-1000.svg"), svg).unwrap();
     }
+    assert!(axis_labels(&top, "") >= 1, "{top:?}");
     let shown = under_run_line(out.as_ref().unwrap(), screen);
     // Each chart's first and last hour drawn whole, the right one clear
     // of the pane's edge and its scroll bar.
     for h in ["0 h", "48 h"] {
-        assert_eq!(shown.iter().filter(|t| *t == h).count(), 2, "{shown:?}");
+        assert_eq!(shown.iter().filter(|t| *t == h).count(), 1, "{shown:?}");
     }
     let last_right = out
         .as_ref()
@@ -207,8 +263,12 @@ fn a_long_runs_charts_read_with_its_take_open_in_a_small_window() {
         .fold(0.0f32, f32::max);
     // The pane's 12 pt edge and its scroll bar, with room to spare.
     assert!(last_right <= screen.right() - 36.0, "{last_right}");
-    assert!(axis_labels(&shown, " s/d") >= 2, "{shown:?}");
-    assert!(axis_labels(&shown, "°") >= 2, "{shown:?}");
+    for unit in ["s/d", "°", "ms"] {
+        assert!(
+            shown.iter().chain(&top).any(|t| t == unit),
+            "{unit}: {top:?} {shown:?}"
+        );
+    }
 }
 
 /// Each text drawn, its rect, and the part of it its clip shows.
@@ -359,13 +419,15 @@ fn open_long_run(app: &mut TimegrapherApp, tag: &str) {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// A 46 h run's table starts at its charts' plot frame, the value labels
-/// alone in the margin to its left, stacked at 2560 x 1440 and side by
-/// side at 1000 x 700 and 800 x 600; its units are in its titles
-/// (Peter's macOS screenshot, 11-04; Hugh's rules).
+/// A 46 h run's table sits at the left at its own width and its three
+/// charts fill the rest, their plots on one left edge, at 2560 x 1440
+/// and 1600 x 1000 (#1729); a smaller window stacks them. Only the
+/// table scrolls: its titles stay in view and no row shows cut, and the
+/// charts don't move. Its units are in its titles (Peter's macOS
+/// screenshot, 11-04; Hugh's rules).
 #[test]
-fn a_runs_table_starts_at_its_charts_plot_edge() {
-    for (w, h) in [(2560.0f32, 1440.0f32), (1000.0, 700.0), (800.0, 600.0)] {
+fn a_runs_table_sits_left_of_its_charts() {
+    for (w, h) in [(2560.0f32, 1440.0f32), (1600.0, 1000.0)] {
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
         let ctx = super::tests::themed();
         let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(w, h));
@@ -399,23 +461,44 @@ fn a_runs_table_starts_at_its_charts_plot_edge() {
             .find(|t| t.0.starts_with("Ran "))
             .map(|t| t.1)
             .unwrap_or_else(|| panic!("{w}: no run line"));
-        let frames = plot_frames(&out, ctx.style().visuals.extreme_bg_color, ran);
-        assert_eq!(frames.len(), 2, "{w}: {frames:?}");
-        let plot_left = frames
-            .iter()
-            .map(|r| r.left())
-            .fold(f32::INFINITY, f32::min);
-        let plot_right = frames.iter().map(|r| r.right()).fold(0.0f32, f32::max);
-        // Scroll the pane down its table, a step at a time, gathering what
-        // shows: under the charts at 1000 and 800.
-        let at = egui::pos2(plot_left + 20.0, frames[0].center().y);
-        // Wherever it is scrolled to, rows that show have their titles in
-        // view, so each figure keeps its unit.
+        let fill = ctx.style().visuals.extreme_bg_color;
+        let frames = plot_frames(&out, fill, ran);
+        assert_eq!(frames.len(), 3, "{w}: {frames:?}");
+        let plot_left = frames[0].left();
+        assert!(
+            frames.iter().all(|r| (r.left() - plot_left).abs() < 1.0),
+            "{w}: {frames:?}"
+        );
+        if let Ok(d) = std::env::var("SHOT_DIR") {
+            let svg = crate::export::svg(&out.shapes, screen, ctx.style().visuals.window_fill);
+            std::fs::write(format!("{d}/table-{w}.svg"), svg).unwrap();
+        }
+        let first = clipped_texts(&out);
+        let head = |texts: &[(String, egui::Rect, egui::Rect)], name: &str| {
+            texts
+                .iter()
+                .find(|t| t.0 == name)
+                .map(|t| t.1)
+                .unwrap_or_else(|| panic!("{w}: no {name}: {texts:?}"))
+        };
+        // The table at the left, wholly clear of the charts' value axis.
+        let hours = head(&first, "Hours");
+        let read = head(&first, "%");
+        assert!(hours.left() < plot_left, "{w}: {hours:?} {plot_left}");
+        assert!(read.right() < plot_left - 30.0, "{w}: {read:?} {plot_left}");
+        for title in ["Rate", "s/d", "Amplitude", "°", "Beat Error", "ms"] {
+            head(&first, title);
+        }
+        units_clear(&first, read.right(), w);
+        // Scroll the table, a step at a time: rows that show have their
+        // titles in view, none shows cut, and the charts stay put.
+        let at = egui::pos2(hours.left() + 20.0, hours.bottom() + 60.0);
         let whole = |t: &(String, egui::Rect, egui::Rect)| t.2 == t.1;
-        let mut shown = clipped_texts(&out);
+        let mut moved = false;
+        let mut last = None;
         for step in 0..14 {
             let o = pass(&mut app, Some(at));
-            let cut = rows_cut(&o, ctx.style().visuals.extreme_bg_color);
+            let cut = rows_cut(&o, fill);
             assert!(cut.is_empty(), "{w}, step {step}: {cut:?}");
             let now = clipped_texts(&o);
             let rows = now
@@ -423,50 +506,31 @@ fn a_runs_table_starts_at_its_charts_plot_edge() {
                 .any(|t| whole(t) && t.0.ends_with(" h") && t.0.contains('–'));
             let titled = now.iter().any(|t| whole(t) && t.0 == "Read");
             assert!(!rows || titled, "{w}, step {step}: {now:?}");
-            shown.extend(now);
+            assert_eq!(plot_frames(&o, fill, ran), frames, "{w}, step {step}");
+            moved |= !now.iter().any(|t| t.0 == "0–1 h" && whole(t));
+            last = Some(o);
+        }
+        assert!(moved, "{w}: the table never scrolled");
+        // No hour label under the charts shows half hidden behind the
+        // hovered hour's words.
+        let now = last.as_ref().map(clipped_texts).unwrap_or_default();
+        let words = now
+            .iter()
+            .find(|t| t.0.contains(" · read "))
+            .map(|t| t.1)
+            .unwrap_or_else(|| panic!("{w}: no hovered hour's words: {now:?}"));
+        let crowded: Vec<_> = now
+            .iter()
+            .filter(|t| t.0.ends_with(" h") && !t.0.contains('–'))
+            .filter(|t| t.1.intersects(words.expand(2.0)))
+            .collect();
+        assert!(crowded.is_empty(), "{w}: {crowded:?}");
+        // The pointer on a row: the same hour in the charts.
+        if let (Ok(d), Some(o)) = (std::env::var("SHOT_DIR"), last) {
+            let svg = crate::export::svg(&o.shapes, screen, ctx.style().visuals.window_fill);
+            std::fs::write(format!("{d}/table-{w}-hover.svg"), svg).unwrap();
         }
         pinned_titles_and_hovers(&ctx, &mut app, at, screen);
-        let head = |name: &str| {
-            shown
-                .iter()
-                .find(|t| t.0 == name)
-                .map(|t| (t.1, t.2))
-                .unwrap_or_else(|| panic!("{w}: no {name}: {shown:?}"))
-        };
-        let hours = head("Hours").0;
-        assert!(
-            (hours.left() - plot_left).abs() < 1.0,
-            "{w}: table at {}, plots at {plot_left}",
-            hours.left()
-        );
-        // Each hour's row starts there too.
-        let rows: Vec<f32> = shown
-            .iter()
-            .filter(|t| t.0.ends_with(" h") && t.0.contains('–'))
-            .map(|t| t.1.left())
-            .collect();
-        assert!(!rows.is_empty(), "{w}: {shown:?}");
-        assert!(
-            rows.iter().all(|x| (x - plot_left).abs() < 1.0),
-            "{w}: {rows:?} {plot_left}"
-        );
-        // No wider than the plots, scrolling sideways when it would be;
-        // units in the titles, not the cells.
-        let read = head("%").1;
-        assert!(
-            read.right() <= plot_right + 1.0,
-            "{w}: {read:?} {plot_right}"
-        );
-        for title in ["Rate", "s/d", "Amplitude", "°", "Beat Error", "ms"] {
-            head(title);
-        }
-        assert!(
-            !shown.iter().any(|t| t.1.top() > ran.bottom()
-                && t.1.left() >= plot_left - 1.0
-                && t.0 != "%"
-                && (t.0.ends_with(" ms") || t.0.ends_with('%'))),
-            "{w}: {shown:?}"
-        );
     }
 }
 
@@ -795,7 +859,14 @@ fn a_power_reserve_test_runs_in_the_cards_position() {
     // And the steps before a run.
     let out = ctx.run(egui::RawInput::default(), |ctx| {
         egui::CentralPanel::default().show(ctx, |ui| {
-            reserve::pane(ui, None, None, (app.position_card_title, ""), true, false);
+            reserve::pane(
+                ui,
+                None,
+                None,
+                (app.position_card_title, ""),
+                true,
+                (false, [true; 3]),
+            );
         });
     });
     assert!(
@@ -815,6 +886,7 @@ fn a_power_reserve_test_runs_in_the_cards_position() {
 fn the_live_hours_match_a_fresh_read_after_each_refresh() {
     use timegrapher_core::{beats::Beat, breaks::Break, stream::BeatLog};
     let log = |duration_s: f64| BeatLog {
+        lock_template_kept: false,
         sample_rate: 48_000,
         duration_s,
         bph: 28_800,
@@ -886,6 +958,7 @@ fn the_live_hours_match_a_fresh_read_after_each_refresh() {
 fn long_log(run_s: f64) -> BeatLog {
     let n = run_s as i64;
     BeatLog {
+        lock_template_kept: false,
         sample_rate: 48000,
         duration_s: run_s + 60.0,
         bph: 3600,
@@ -994,10 +1067,46 @@ fn a_long_take_lands_with_its_run_and_charts_read_in_the_background() {
     assert_eq!(text(&app), text(&here));
 }
 
+/// A long take's run, once it has come, is read again when what it
+/// rests on changes: every beat masked, it goes, as a fresh reading
+/// gives none; unmasked, it comes back (#1644, from an external audit).
+#[test]
+fn a_long_takes_run_is_read_again_when_its_masks_change() {
+    let run = power_reserve::LONG_TAKE_S + 1800.0;
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.land_log(long_log(run), "long".into(), vec![], vec![]);
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    let settle = |app: &mut TimegrapherApp, shown: bool| {
+        let start = Instant::now();
+        loop {
+            app.take_reads_shown(&ctx);
+            if app.bg.reserve.is_none() && app.reserve.is_some() == shown {
+                return;
+            }
+            assert!(start.elapsed() < Duration::from_secs(60), "never came");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    };
+    let text = |a: &TimegrapherApp| {
+        let r = a.reserve.as_ref().and_then(|t| t.results.as_ref()).unwrap();
+        reserve::results_text(r, "", ',')
+    };
+    settle(&mut app, true);
+    let before = text(&app);
+    app.mask(0.0, run + 60.0);
+    assert!(app.long_take_reader().map(|read| read()).unwrap().is_none());
+    settle(&mut app, false);
+    app.set_masked(Vec::new());
+    settle(&mut app, true);
+    assert_eq!(text(&app), before);
+}
+
 /// An idle window draws only when asked; one listening or reading a
-/// batch draws every 40 ms; work on a thread of its own, each kind on its
+/// batch draws every 100 ms; work on a thread of its own, each kind on its
 /// own, every 100 ms, so what it gives shows with no input (Trevor's HOLD
-/// on #1232); and once more on the frame it ended (Walter's).
+/// on #1232); and once more on the frame it ended (Walter's). A window
+/// not in use waits at least 500 ms between draws.
 #[test]
 fn the_window_draws_again_only_while_work_is_under_way() {
     use std::sync::mpsc::channel;
@@ -1005,8 +1114,14 @@ fn the_window_draws_again_only_while_work_is_under_way() {
     let idle = || TimegrapherApp::with_devices(Vec::new(), None);
     assert_eq!(idle().repaint_every(), None, "idle");
     // Once more at once on the frame work ended, then no more.
-    assert_eq!(idle().draw_next(true), Some(Duration::ZERO));
-    assert_eq!(idle().draw_next(false), None);
+    assert_eq!(idle().draw_next(true, true), Some(Duration::ZERO));
+    assert_eq!(idle().draw_next(false, true), None);
+    // Behind another window, or minimised: no sooner than 500 ms.
+    assert_eq!(
+        idle().draw_next(true, false),
+        Some(Duration::from_millis(500))
+    );
+    assert_eq!(idle().draw_next(false, false), None);
     let analysis = || AnalysisSave {
         rx: channel().1,
         progress: Default::default(),
@@ -1055,7 +1170,8 @@ fn the_window_draws_again_only_while_work_is_under_way() {
             Some(Duration::from_millis(100)),
             "{name}"
         );
-        assert_eq!(a.draw_next(true), Some(Duration::from_millis(100)));
+        assert_eq!(a.draw_next(true, true), Some(Duration::from_millis(100)));
+        assert_eq!(a.draw_next(true, false), Some(Duration::from_millis(500)));
     }
     let mut a = idle();
     a.batch = Some(Batch {
@@ -1072,7 +1188,7 @@ fn the_window_draws_again_only_while_work_is_under_way() {
         settles: Vec::new(),
         order_note: None,
     });
-    assert_eq!(a.repaint_every(), Some(Duration::from_millis(40)), "batch");
+    assert_eq!(a.repaint_every(), Some(Duration::from_millis(100)), "batch");
     let base = std::env::temp_dir().join(format!("tg-app-repaint-{}", std::process::id()));
     std::fs::create_dir_all(&base).unwrap();
     let mut a = idle();
@@ -1080,8 +1196,13 @@ fn the_window_draws_again_only_while_work_is_under_way() {
     assert!(a.running());
     assert_eq!(
         a.repaint_every(),
-        Some(Duration::from_millis(40)),
+        Some(Duration::from_millis(100)),
         "listening"
+    );
+    assert_eq!(
+        a.draw_next(false, false),
+        Some(Duration::from_millis(500)),
+        "listening behind another window"
     );
     drop(a);
     let _ = std::fs::remove_dir_all(&base);
@@ -1296,6 +1417,54 @@ fn a_run_on_an_automatic_rate_keeps_its_hours_at_the_stop() {
     assert!(!r.hours.is_empty(), "its hour table");
 }
 
+/// With the window not drawing (minimised, a locked screen), the
+/// listening thread alone ends a Power Reserve Test at the watch's stop:
+/// no frame is drawn, and the test still ends there (#1647, from an
+/// external audit).
+#[test]
+fn the_listening_thread_ends_a_power_reserve_test_without_frames() {
+    let base = std::env::temp_dir().join(format!("tg-app-reserve-pump-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let cfg = SynthConfig {
+        duration_s: 90.0,
+        bph: 21_600,
+        ..Default::default()
+    };
+    let ticks = generate(&cfg, |_| 280.0, |_| 0.0).samples;
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.live = Some(LiveAnalyzer::new(48_000, LiveConfig::default()));
+    let tx = queued_capture(&mut app, &base);
+    app.reserve = Some(reserve::Test::new(
+        Position::DialUp,
+        true,
+        String::new(),
+        0.0,
+    ));
+    app.reserve_read_s = 0.0;
+    let silence = vec![0.0f32; 48_000 * 20];
+    let sound = ticks.chunks(48_000).chain(std::iter::repeat_n(
+        silence.as_slice(),
+        (power_reserve::STOP_AFTER_S / 20.0) as usize + 3,
+    ));
+    for s in sound {
+        app.live.as_mut().unwrap().push(s);
+        // Pushed straight in, so mark it as arrived: otherwise a slow run
+        // finds the input silent for 3 s and stops listening first.
+        app.audio_at = Some(Instant::now());
+        // The listening thread's turn; never a frame's.
+        app.pump();
+        if !app.reserve_running() {
+            break;
+        }
+    }
+    let t = app.reserve.as_ref().unwrap();
+    assert_eq!(t.ending, Some(power_reserve::Ending::Stopped));
+    assert!(t.results.is_some(), "its results");
+    drop(tx);
+    let _ = std::fs::remove_dir_all(&base);
+}
+
 /// While listening, a long take that isn't a test fills the Power Reserve
 /// pane as an opened one does, read in the background and again a
 /// minute of take later, never written into the take or naming it as a
@@ -1402,4 +1571,482 @@ fn the_reserve_info_is_kept_in_the_settings() {
     app.positions_info = true;
     back.apply_settings(app.settings());
     assert!(back.positions_info && !back.reserve_info);
+}
+
+/// A Power Reserve Test with Analysis Only picked, its 28 s of a ticking
+/// watch sent from the microphone, then `end` (Stop, or the recording
+/// failing): the take it keeps in the watch's takes.
+fn analysis_only_run(tag: &str, end: fn(&mut TimegrapherApp)) -> (PathBuf, PathBuf, PathBuf) {
+    let (mut app, base, recording, tx) = analysis_only_heard(tag);
+    end(&mut app);
+    let take = kept_take(&mut app);
+    assert_eq!(app.session.saved_to(), Some(take.as_path()));
+    assert_eq!(app.unsaved_s(), 0.0);
+    // A quit that can't ask leaves no recording behind (Walter's find): it
+    // has no sound to offer back. A failed one stays for recovery.
+    let failed = app.session.recording_fault().is_some();
+    app.session.keep_recording();
+    assert_eq!(recording.exists(), failed);
+    drop(tx);
+    (base, recording, take)
+}
+
+/// A Power Reserve Test with Analysis Only picked in a new library, and
+/// 28 s of a ticking watch heard from the microphone: the app, its
+/// folder, the recording's folder and the microphone.
+fn analysis_only_heard(
+    tag: &str,
+) -> (
+    TimegrapherApp,
+    PathBuf,
+    PathBuf,
+    std::sync::mpsc::Sender<Event>,
+) {
+    analysis_only_heard_with(tag, 28.0, |_| {})
+}
+
+/// [`analysis_only_heard`], `secs` of sound, with `before` done to the
+/// recording's folder before the test starts.
+fn analysis_only_heard_with(
+    tag: &str,
+    secs: f64,
+    before: fn(&Path),
+) -> (
+    TimegrapherApp,
+    PathBuf,
+    PathBuf,
+    std::sync::mpsc::Sender<Event>,
+) {
+    let base = std::env::temp_dir().join(format!("tg-app-reserve-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let root = base.join("Timegrapher Data");
+    let mut lib = library::Library::create(&root).unwrap();
+    lib.add(&library::Watch::new("Pepsi")).unwrap();
+    let pepsi = lib.find("Pepsi").unwrap().watch.id.clone();
+    drop(lib);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.use_library(Some(root.clone()));
+    app.pick_watch(&pepsi);
+    app.reset_session(48000, "test".into());
+    app.session.listen();
+    let info = app.info("", 48000, 16);
+    let r = Recorder::start(&base.join("unsaved"), info).unwrap();
+    let recording = r.dir().to_path_buf();
+    app.session.recorder = Some(r);
+    before(&recording);
+    let tx = queued_capture(&mut app, &base);
+    app.position = Position::CrownLeft;
+    app.reserve_keep_sound = false;
+    app.begin_reserve();
+    assert!(app.kept_running(), "{:?}", app.message);
+    assert!(!app.reserve.as_ref().unwrap().keep_sound);
+    assert!(!app.streams(), "no sound goes into the take's folder");
+    let cfg = SynthConfig {
+        duration_s: secs,
+        ..Default::default()
+    };
+    let ticks = generate(&cfg, |_| 280.0, |_| 0.0).samples;
+    // In the 20 ms blocks a microphone sends.
+    for (k, s) in ticks.chunks(960).enumerate() {
+        tx.send(Event::Audio(timegrapher_core::capture::Block {
+            samples: s.to_vec(),
+            at: std::time::UNIX_EPOCH + std::time::Duration::from_millis(2000 + 20 * k as u64),
+        }))
+        .unwrap();
+    }
+    for _ in 0..3000 {
+        app.poll_for(std::time::Duration::from_millis(200));
+        // The test reads its beats as the window's frames would.
+        app.reserve_follow();
+        if app.heard_s() >= secs - 0.1 {
+            break;
+        }
+    }
+    assert!(
+        app.heard_s() >= secs - 0.1,
+        "{} {:?}",
+        app.heard_s(),
+        app.message
+    );
+    (app, base, recording, tx)
+}
+
+/// The ended test's take, once written.
+fn kept_take(app: &mut TimegrapherApp) -> PathBuf {
+    assert!(
+        app.repaint_every().is_some(),
+        "an idle window draws again to collect the write (Walter's find)"
+    );
+    for _ in 0..3000 {
+        app.reserve_follow();
+        if app.reserve.as_ref().is_some_and(|t| t.saved.is_some()) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    let take = app
+        .reserve
+        .as_ref()
+        .and_then(|t| t.saved.clone())
+        .unwrap_or_else(|| panic!("its take kept, {:?}", app.message));
+    assert!(!app.kept_running());
+    take
+}
+
+/// Every file under `dir` that is sound.
+fn sound_files(dir: &Path) -> Vec<PathBuf> {
+    let mut found = Vec::new();
+    for e in std::fs::read_dir(dir).unwrap() {
+        let p = e.unwrap().path();
+        if p.is_dir() {
+            found.extend(sound_files(&p));
+        } else if timegrapher_core::take::is_sound(&p)
+            || p.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("audio-")
+        {
+            found.push(p);
+        }
+    }
+    found
+}
+
+/// A Power Reserve Test kept as its analysis only reads its sound as it
+/// comes and never writes it: stopped, its take holds its analysis, its
+/// results and a session file saying it keeps no sound, and no sound is
+/// written anywhere; opened again, it brings its run back (#1514).
+#[test]
+fn a_power_reserve_test_kept_as_analysis_only_never_writes_its_sound() {
+    let (base, recording, take) = analysis_only_run("ao-live", TimegrapherApp::stop_listening);
+    assert!(take
+        .join(analysis_take::DIR)
+        .join(analysis_take::HEADER)
+        .is_file());
+    assert!(take.join(power_reserve::FILE).is_file());
+    let manifest = std::fs::read_to_string(take.join(MANIFEST)).unwrap();
+    assert!(manifest.contains("audio = false"), "{manifest}");
+    assert_eq!(sound_files(&take), Vec::<PathBuf>::new());
+    assert!(!recording.exists(), "its recording let go once quit");
+    assert!(!timegrapher_core::checkpoint::exists(&recording));
+    let mut again = TimegrapherApp::with_devices(Vec::new(), None);
+    again.start_batch(&take);
+    let back = again.reserve.as_ref().expect("its results");
+    assert!(!back.results.as_ref().unwrap().sound_kept);
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// A Power Reserve Test kept as its analysis only whose recording fails
+/// still keeps its take as its analysis, read to the failure, not its
+/// sound (#1514).
+#[test]
+fn a_failed_analysis_only_test_still_keeps_its_analysis() {
+    let (base, _, take) = analysis_only_run("ao-fail", |a| {
+        a.recording_failed("No space left on device (os error 28)".into());
+    });
+    assert!(take
+        .join(analysis_take::DIR)
+        .join(analysis_take::HEADER)
+        .is_file());
+    let kept = power_reserve::Results::from_json(
+        &std::fs::read_to_string(take.join(power_reserve::FILE)).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(kept.ending, power_reserve::Ending::RecordingFailed);
+    assert!(!kept.sound_kept);
+    assert_eq!(sound_files(&take), Vec::<PathBuf>::new());
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// A Power Reserve Test kept as its analysis only whose take can't be
+/// written holds it in the app and writes it again; written once a new
+/// session has begun, it leaves the new session's recording alone and
+/// lets its own recording's folder go (#1514, Felix's HOLD).
+#[test]
+fn an_analysis_only_take_written_again_leaves_a_new_session_alone() {
+    let (mut app, base, recording, tx) = analysis_only_heard("ao-again");
+    // Its watch's takes can't be written into.
+    let takes = app.open_watch().unwrap().dir.join(library::TAKES);
+    let _ = std::fs::remove_dir_all(&takes);
+    std::fs::write(&takes, b"").unwrap();
+    app.stop_listening();
+    for _ in 0..3000 {
+        app.reserve_follow();
+        if app.kept_retry_in().is_some() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(app.kept_retry_in().is_some(), "{:?}", app.message);
+    assert!(
+        app.message
+            .as_ref()
+            .is_some_and(|(m, _)| m.ends_with("keep the app open until it's kept.")),
+        "{:?}",
+        app.message
+    );
+    assert!(app.session.saved_to().is_none());
+    // Its recording holds its analysis kept as it went, so New Session
+    // leaves it, and the write lets it go once the take is in place.
+    let parts = recording.join(timegrapher_core::checkpoint::DIR);
+    std::fs::create_dir_all(&parts).unwrap();
+    std::fs::write(parts.join(timegrapher_core::checkpoint::HEADER), b"{}").unwrap();
+    // A new session, recording into a folder of its own.
+    app.new_session();
+    assert!(recording.is_dir(), "kept for its parts");
+    let info = app.info("", 48000, 16);
+    let r = Recorder::start(&base.join("next"), info).unwrap();
+    let next = r.dir().to_path_buf();
+    app.session.recorder = Some(r);
+    std::fs::remove_file(&takes).unwrap();
+    std::fs::create_dir(&takes).unwrap();
+    app.kept_write_now();
+    for _ in 0..3000 {
+        app.reserve_follow();
+        if app.kept_retry_in().is_none() && !app.kept_writing() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    let written: Vec<_> = std::fs::read_dir(&takes)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .collect();
+    assert_eq!(written.len(), 1, "{:?}", app.message);
+    assert!(written[0]
+        .join(analysis_take::DIR)
+        .join(analysis_take::HEADER)
+        .is_file());
+    assert!(
+        app.session.saved_to().is_none(),
+        "the new session isn't saved"
+    );
+    assert!(next.is_dir(), "the new session's recording stays");
+    assert!(!recording.exists(), "the test's own recording goes");
+    drop(tx);
+    app.session.discard_recording();
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// A recording whose folder holds its analysis kept as it went is never
+/// deleted with the session: its take isn't written yet (#1514, Felix).
+#[test]
+fn a_recording_holding_its_analysis_parts_is_never_discarded() {
+    let base = std::env::temp_dir().join(format!("tg-app-reserve-parts-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    let info = app.info("", 48000, 16);
+    let r = Recorder::start(&base.join("unsaved"), info).unwrap();
+    let recording = r.dir().to_path_buf();
+    app.session.recorder = Some(r);
+    let parts = recording.join(timegrapher_core::checkpoint::DIR);
+    std::fs::create_dir_all(&parts).unwrap();
+    std::fs::write(parts.join(timegrapher_core::checkpoint::HEADER), b"{}").unwrap();
+    app.session.discard_recording();
+    assert!(timegrapher_core::checkpoint::exists(&recording));
+    // Without its parts, it goes as before.
+    let info = app.info("", 48000, 16);
+    let r = Recorder::start(&base.join("other"), info).unwrap();
+    let other = r.dir().to_path_buf();
+    app.session.recorder = Some(r);
+    app.session.discard_recording();
+    assert!(!other.exists());
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// New Session waits while an Analysis Only test's take is being written,
+/// and says so (#1514, Trevor's mutant).
+#[test]
+fn new_session_waits_while_an_analysis_only_take_is_written() {
+    let (mut app, base, recording, tx) = analysis_only_heard("ao-busy");
+    app.stop_listening();
+    // Not yet collected: the write is under way.
+    assert!(app.kept_writing());
+    app.new_session();
+    assert_eq!(
+        app.session.recorder.as_ref().map(|r| r.dir().to_path_buf()),
+        Some(recording.clone()),
+        "the session is still the test's"
+    );
+    assert_eq!(
+        app.message.as_ref().map(|(m, _)| m.as_str()),
+        Some("Writing the test's take: wait until it is kept.")
+    );
+    let take = kept_take(&mut app);
+    assert!(take.join(power_reserve::FILE).is_file());
+    drop(tx);
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// An Analysis Only test whose analysis can't be kept on the disk as it
+/// goes says so once and carries on to keep its take (#1514, Trevor's
+/// mutant).
+#[test]
+fn a_failed_checkpoint_is_said_once_and_the_test_carries_on() {
+    // Its analysis kept every 20 s, over 2 min: kept as each of the
+    // reading's chunks ends.
+    super::kept_analysis::EVERY_S.with(|e| e.set(Some(20.0)));
+    let (mut app, base, recording, tx) = analysis_only_heard_with("ao-cp", 120.0, |recording| {
+        // Where its parts go is taken by a file.
+        std::fs::write(recording.join(timegrapher_core::checkpoint::DIR), b"").unwrap();
+    });
+    super::kept_analysis::EVERY_S.with(|e| e.set(None));
+    let said = |m: &Option<(String, bool)>| {
+        m.as_ref()
+            .is_some_and(|(m, _)| m.starts_with("The test's analysis couldn't be kept on the disk"))
+    };
+    // Its parts are written on a thread of their own.
+    for _ in 0..1000 {
+        app.reserve_follow();
+        if said(&app.message) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(said(&app.message), "{:?}", app.message);
+    // Said once: following on doesn't say it again.
+    app.message = None;
+    for _ in 0..20 {
+        app.reserve_follow();
+    }
+    assert!(!said(&app.message), "{:?}", app.message);
+    app.stop_listening();
+    let take = kept_take(&mut app);
+    assert!(take
+        .join(analysis_take::DIR)
+        .join(analysis_take::HEADER)
+        .is_file());
+    drop(tx);
+    let _ = recording;
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// A Power Reserve Test kept as its analysis alone whose save never
+/// finished (the app stopped as it recorded): its recording's folder,
+/// holding its session file and its parts, is offered back at the next
+/// start, and opens as the test to its last part, at least as long as
+/// heard, the recording, not the watch, ending there (2c of #1514, in
+/// Hugh's and Norm's words). Moved into a folder of its own, it opens to
+/// the same part (Felix).
+#[test]
+fn a_test_whose_save_never_finished_opens_to_its_last_part() {
+    super::kept_analysis::EVERY_S.with(|e| e.set(Some(20.0)));
+    let (mut app, base, recording, tx) = analysis_only_heard_with("ao-crash", 120.0, |_| {});
+    super::kept_analysis::EVERY_S.with(|e| e.set(None));
+    let kept_s = || timegrapher_core::checkpoint::length_s(&recording).unwrap_or(0.0);
+    for _ in 0..1000 {
+        app.reserve_follow();
+        if kept_s() >= 40.0 {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    let to_s = kept_s();
+    assert!(to_s >= 40.0, "{to_s} {:?}", app.message);
+    // What the folder holds now is what the app stopping leaves.
+    let left = base.join("left");
+    let crashed = left.join("2026-11-15 10.00");
+    super::unsaved::copy_tree(&recording, &crashed).unwrap();
+    let manifest = std::fs::read_to_string(crashed.join(MANIFEST)).unwrap();
+    assert!(manifest.contains("audio = false"), "{manifest}");
+    let offered = kept_sounds(&left);
+    assert_eq!(offered.len(), 1);
+    let k = &offered[0];
+    assert!(k.parts && k.what() == "analysis");
+    assert_eq!(k.duration_s, Some(to_s));
+    assert!(k.bytes > 1000, "its parts counted: {}", k.bytes);
+    let open = |dir: &Path| {
+        let mut again = TimegrapherApp::with_devices(Vec::new(), None);
+        again.start_batch(dir);
+        let t = std::time::Instant::now();
+        while again.batch.is_some() && t.elapsed().as_secs() < 120 {
+            again.poll();
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        assert!(again.live.is_some(), "{:?}", again.message);
+        again.reserve_from_long_take();
+        again
+    };
+    let mut again = open(&crashed);
+    let note = |a: &TimegrapherApp| a.message.clone().map(|(m, _)| m).unwrap_or_default();
+    // The notice and Open say how much it recorded in one string, never
+    // its run, which the pane gives (Hugh and Norm on #1806).
+    let recorded = super::unsaved::recorded_text(to_s);
+    assert_eq!(
+        recorded,
+        format!("recorded {}", power_reserve::run_text(to_s))
+    );
+    assert!(
+        k.notice().contains(&format!(", {recorded}, ")),
+        "{}",
+        k.notice()
+    );
+    let want = format!(
+        "This take wasn't saved: the app stopped while recording. It {recorded}. The watch \
+         may have run on after that."
+    );
+    assert!(note(&again).starts_with(&want), "{}", note(&again));
+    let r = again
+        .reserve
+        .as_ref()
+        .and_then(|t| t.results.clone())
+        .expect("read as the test");
+    assert!(r.source.is_test(), "a test, though under six hours");
+    assert_eq!(r.ending, power_reserve::Ending::RecordingFailed);
+    assert!(r.run_words().starts_with("at least"), "{}", r.run_words());
+    assert!(r.last_beat_s <= to_s, "{} past {to_s}", r.last_beat_s);
+    assert!(!r.sound_kept);
+    // Named by its start, not its folder, where the status line names it
+    // too (Walter on #1806 and #1807).
+    assert!(
+        again.source_label.starts_with("Unsaved Power Reserve Test"),
+        "{}",
+        again.source_label
+    );
+    again.input = Input::File;
+    let status = again.status_words();
+    assert!(status.starts_with("Unsaved Power Reserve Test"), "{status}");
+    // Moved into a folder of its own, its parts go with it.
+    let mine = base.join("mine");
+    std::fs::create_dir_all(&mine).unwrap();
+    let moved = move_kept(&crashed, &mine).unwrap();
+    assert!(kept_sounds(&left).is_empty());
+    let back = open(&moved);
+    assert!(note(&back).starts_with(&want), "{}", note(&back));
+    assert_eq!(back.reserve.and_then(|t| t.results), Some(r));
+    app.stop_listening();
+    let _ = kept_take(&mut app);
+    drop(tx);
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// The cursor shared by the strip and the charts draws again at once when
+/// the pointer moves or leaves, and when a pan or zoom moves it on a take
+/// not listening; but not when the live strip only moves under a still
+/// pointer: that drew every frame twice while listening (Trevor on #1826).
+#[test]
+fn a_still_pointer_over_the_live_strip_draws_nothing_extra() {
+    use super::redraw::cursor_redraw;
+    // Listening.
+    assert!(
+        !cursor_redraw(Some(1.0), Some(1.2), false, true),
+        "strip moved"
+    );
+    assert!(
+        cursor_redraw(Some(1.0), Some(1.2), true, true),
+        "pointer moved"
+    );
+    assert!(cursor_redraw(Some(1.0), None, false, true), "pointer left");
+    assert!(
+        !cursor_redraw(Some(1.0), Some(1.0), true, true),
+        "no change"
+    );
+    assert!(!cursor_redraw(None, None, false, true));
+    // Not listening: a scroll pan or zoom under a still pointer.
+    assert!(cursor_redraw(Some(1.0), Some(1.2), false, false), "panned");
+    assert!(
+        !cursor_redraw(Some(1.0), Some(1.0), false, false),
+        "no change"
+    );
 }

@@ -41,6 +41,9 @@ pub const CALL_OUT_W: f32 = 1.2;
 /// same grey, thinner.
 pub const FAINT_CALL_OUT_W: f32 = 1.0;
 
+/// How strongly a ± band is filled: core's, as every surface fills it.
+pub const BAND_FILL: f32 = timegrapher_core::palette::BAND_FILL as f32;
+
 /// The length of a dash, points.
 const DASH: f32 = 6.0;
 

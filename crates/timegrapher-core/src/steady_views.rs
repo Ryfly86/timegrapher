@@ -262,13 +262,7 @@ pub fn fold_spread(f: &longterm::Fold, columns: &[Option<[f64; 3]>]) -> Option<(
     if shape.len() < 2 || mids.is_empty() {
         return None;
     }
-    mids.sort_by(f64::total_cmp);
-    let n = mids.len();
-    let middle = if n % 2 == 1 {
-        mids[n / 2]
-    } else {
-        (mids[n / 2 - 1] + mids[n / 2]) / 2.0
-    };
+    let middle = crate::dsp::median(&mut mids);
     let hi = shape.iter().copied().fold(f64::NEG_INFINITY, f64::max);
     let lo = shape.iter().copied().fold(f64::INFINITY, f64::min);
     Some((hi - lo, middle))
@@ -1398,6 +1392,7 @@ mod tests {
     #[test]
     fn derived_rate_grid_cuts_jumps_as_the_tests_do() {
         let mut log = BeatLog {
+            lock_template_kept: false,
             sample_rate: 48000,
             duration_s: 40.0,
             bph: 28800,
@@ -1525,6 +1520,7 @@ mod tests {
             live.push(b);
         }
         let log = BeatLog {
+            lock_template_kept: false,
             sample_rate: live.sample_rate(),
             duration_s: live.duration_s(),
             bph: live.bph().expect("beat rate"),
@@ -1609,6 +1605,7 @@ mod tests {
             live.push(b);
         }
         let mut log = BeatLog {
+            lock_template_kept: false,
             sample_rate: live.sample_rate(),
             duration_s: live.duration_s(),
             bph: live.bph().expect("beat rate"),
@@ -1699,6 +1696,7 @@ mod tests {
             live.push(b);
         }
         let log = BeatLog {
+            lock_template_kept: false,
             sample_rate: live.sample_rate(),
             duration_s: live.duration_s(),
             bph: live.bph().expect("beat rate"),
@@ -1942,7 +1940,7 @@ mod tests {
                 .map(
                     |&(t_s, amplitude_deg, rate_s_per_day, readings)| walk::WalkPoint {
                         t_s,
-                        wind_h: t_s / 3600.0,
+                        wind_h: Some(t_s / 3600.0),
                         rate_s_per_day,
                         amplitude_deg,
                         readings,
@@ -2121,8 +2119,10 @@ mod tests {
             rate_s_per_day: r,
             rate_q25: r - 0.8,
             rate_q75: r + 1.2,
-            from_wind_h: 0.0,
-            to_wind_h: 1.0,
+            from_h: 0.0,
+            to_h: 1.0,
+            from_wind_h: Some(0.0),
+            to_wind_h: Some(1.0),
         };
         let mut c = IsochronismCurve {
             step_s: 10.0,
@@ -2169,5 +2169,319 @@ mod tests {
         c.bins.clear();
         assert_eq!(iso_title(&c), ISO_NO_SLOPE);
         assert!(iso_facts(&c).is_empty());
+    }
+}
+
+/// How near two periods may be (as a share of the second) to share one
+/// line on a period axis, which keeps the first one marked there (#1612,
+/// #1694).
+pub const ONE_MARK_REL: f64 = 0.03;
+
+/// Whether two periods are near enough ([`ONE_MARK_REL`]) to share one
+/// line on a period axis.
+pub fn one_mark(a_s: f64, b_s: f64) -> bool {
+    (a_s / b_s - 1.0).abs() < ONE_MARK_REL
+}
+
+/// What a line across a period axis marks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WheelTurn {
+    /// A wheel's turn.
+    Wheel,
+    /// Half a wheel's turn: a wheel off centre shows twice a turn.
+    Twice,
+    /// A pinion's mesh: one tooth of the wheel driving it passing through.
+    Mesh,
+}
+
+/// One line across a period axis for a named wheel, its ×2 or a mesh, as
+/// the app's Periods, FFT and maps and the MCP view draw it ([`wheel_marks`]).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct WheelMark {
+    pub period_s: f64,
+    pub turn: WheelTurn,
+    /// Its name over the plot: "Fourth Wheel", "Fourth Wheel ×2",
+    /// "Fourth Pinion Mesh".
+    pub name: String,
+    /// Its name in a narrow lane: "4th Wheel", "4th Wheel ×2", "4th Mesh".
+    pub short: String,
+    /// Its name a word to a line, for the narrow lane beside a map (#1764):
+    /// "Fourth / Wheel", "Third / Pinion / Mesh", "Third / Wheel / ×2".
+    pub words: Vec<String>,
+    /// Its hover: the name and the period, or a mesh's own words.
+    pub hover: String,
+}
+
+/// The lines to mark on a period axis for `wheels` and `meshes` (#1694):
+/// each wheel's turn, and half of it (×2) unless a wheel turns within
+/// [`ONE_MARK_REL`] of it; then each mesh where no wheel or ×2 already marks
+/// its period. Every period, whatever the axis shows: each side keeps the
+/// lines inside its own axis, and with no wheel named marks the reference
+/// periods ([`crate::periodicity::reference_lines`]) instead.
+pub fn wheel_marks(
+    wheels: &[crate::periodicity::Wheel],
+    meshes: &[crate::train::MeshLine],
+) -> Vec<WheelMark> {
+    let mut out = Vec::new();
+    for w in wheels {
+        let title = title_case(&w.name);
+        let short = wheel_short(&w.name);
+        out.push(WheelMark {
+            period_s: w.period_s,
+            turn: WheelTurn::Wheel,
+            name: title.clone(),
+            short: short.clone(),
+            words: words(&title),
+            hover: format!("{title}: {}", period_words(w.period_s)),
+        });
+        let half = w.period_s / 2.0;
+        if !wheels.iter().any(|o| one_mark(o.period_s, half)) {
+            out.push(WheelMark {
+                period_s: half,
+                turn: WheelTurn::Twice,
+                name: format!("{title} ×2"),
+                short: format!("{short} ×2"),
+                words: words(&format!("{title} ×2")),
+                hover: format!("{title} ×2: {}", period_words(half)),
+            });
+        }
+    }
+    for m in meshes {
+        if out.iter().any(|l| one_mark(l.period_s, m.period_s)) {
+            continue;
+        }
+        let title = title_case(&m.name);
+        out.push(WheelMark {
+            period_s: m.period_s,
+            turn: WheelTurn::Mesh,
+            name: format!("{title} Mesh"),
+            short: mesh_short(&m.name),
+            words: words(&format!("{title} Mesh")),
+            hover: format!("{title} Mesh: {}.", m.about),
+        });
+    }
+    out
+}
+
+/// The lines to mark with each switch on or off (#1764): Wheel Periods
+/// shows the wheels and ×2s, Mesh the meshes. A mesh within
+/// [`ONE_MARK_REL`] of a wheel or ×2 is left out only while that line
+/// shows; with Wheel Periods off each mesh is marked with its own name
+/// (Hugh's ruling on #1764). The app draws these, and the MCP view the
+/// same from `wheel_marks` and [`mesh_marks`].
+pub fn shown_marks(
+    wheels: &[crate::periodicity::Wheel],
+    meshes: &[crate::train::MeshLine],
+    wheels_on: bool,
+    meshes_on: bool,
+) -> Vec<WheelMark> {
+    let all = if wheels_on {
+        wheel_marks(wheels, meshes)
+    } else {
+        mesh_marks(meshes)
+    };
+    all.into_iter()
+        .filter(|m| {
+            if m.turn == WheelTurn::Mesh {
+                meshes_on
+            } else {
+                wheels_on
+            }
+        })
+        .collect()
+}
+
+/// Every mesh's line, none left out for a wheel: what Mesh shows with
+/// Wheel Periods off ([`shown_marks`]).
+pub fn mesh_marks(meshes: &[crate::train::MeshLine]) -> Vec<WheelMark> {
+    wheel_marks(&[], meshes)
+}
+
+/// A name a word to a line, for a narrow lane (#1764), a part in
+/// brackets kept whole: "Escape / Wheel / (20 Teeth)" (Hugh).
+pub fn words(name: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut open = false;
+    for w in name.split_whitespace() {
+        match out.last_mut() {
+            Some(last) if open => {
+                last.push(' ');
+                last.push_str(w);
+            }
+            _ => out.push(w.to_string()),
+        }
+        open = (open || w.starts_with('(')) && !w.ends_with(')');
+    }
+    out
+}
+
+/// The Wheel Periods switch's hint: the wheels' turns and their ×2, or
+/// the reference periods with no wheel named. The meshes have their own
+/// switch ([`MESH_HINT`], #1764).
+pub const WHEELS_HINT: &str = "Mark the period each of the calibre's wheels turns in, in a \
+     grey dotted line named above the plot, and half of it more loosely dotted, where a wheel \
+     that is off centre shows twice a turn. With no calibre picked, or none of its wheels \
+     known, one minute and one hour are marked in grey instead: periods alone, named after no \
+     wheel.";
+
+/// The Mesh switch's hint (#1764).
+pub const MESH_HINT: &str = "Mark each pinion's mesh, where the calibre's tooth and leaf \
+     counts give it, faintly dashed and named under the plot: the time one tooth of the wheel \
+     driving the pinion takes to engage, drive and leave, where amplitude can step.";
+
+/// A period in a hover's words: whole seconds under two minutes, whole
+/// minutes under two hours, then hours to a tenth.
+pub fn period_words(s: f64) -> String {
+    if s < 120.0 {
+        format!("{s:.0} s")
+    } else if s < 7200.0 {
+        format!("{:.0} min", s / 60.0)
+    } else {
+        format!("{:.1} h", s / 3600.0)
+    }
+}
+
+/// A name in title case: "escape wheel" as "Escape Wheel".
+pub fn title_case(name: &str) -> String {
+    name.split(' ')
+        .map(|w| {
+            let mut c = w.chars();
+            c.next()
+                .map_or(String::new(), |f| f.to_uppercase().chain(c).collect())
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// A wheel's short name, for the narrow lane beside a map: "fourth wheel"
+/// as "4th Wheel". A name with no short form is shown whole.
+pub fn wheel_short(name: &str) -> String {
+    match name {
+        "centre wheel" => "2nd Wheel".into(),
+        "third wheel" => "3rd Wheel".into(),
+        "fourth wheel" => "4th Wheel".into(),
+        "escape wheel" => "Esc Wheel".into(),
+        "seconds wheel" => "Sec Wheel".into(),
+        "intermediate wheel" => "Int Wheel".into(),
+        _ => title_case(name),
+    }
+}
+
+/// A mesh's name in a narrow lane: its pinion by the short name of the
+/// wheel on the same arbor, as [`wheel_short`] gives it ("4th Mesh"),
+/// except the centre pinion, whose "Centre" the plots already say (Hugh,
+/// #1612).
+pub fn mesh_short(pinion: &str) -> String {
+    if pinion == "centre pinion" {
+        return "Centre Mesh".into();
+    }
+    let wheel = pinion.strip_suffix(" pinion").map(|a| format!("{a} wheel"));
+    match wheel.as_deref().map(wheel_short) {
+        Some(w) if w.ends_with(" Wheel") => format!("{} Mesh", w.trim_end_matches(" Wheel")),
+        _ => format!("{} Mesh", title_case(pinion)),
+    }
+}
+
+#[cfg(test)]
+mod wheel_mark_tests {
+    use super::*;
+    use crate::periodicity::Wheel;
+    use crate::train::MeshLine;
+
+    fn wheel(name: &str, period_s: f64) -> Wheel {
+        Wheel {
+            name: name.into(),
+            period_s,
+        }
+    }
+
+    fn mesh(name: &str, period_s: f64) -> MeshLine {
+        MeshLine {
+            name: name.into(),
+            wheel: String::new(),
+            period_s,
+            about: format!("{period_s} s"),
+        }
+    }
+
+    /// Each wheel and its ×2; no ×2 where another wheel turns within 3%;
+    /// a mesh within 3% of a marked line is left out (#1694).
+    #[test]
+    fn the_lines_follow_the_one_mark_rule() {
+        let lines = wheel_marks(
+            &[wheel("fourth wheel", 60.0), wheel("escape wheel", 30.6)],
+            &[mesh("fourth pinion", 7.5), mesh("escape pinion", 30.0)],
+        );
+        let got: Vec<(f64, WheelTurn, &str)> = lines
+            .iter()
+            .map(|l| (l.period_s, l.turn, l.short.as_str()))
+            .collect();
+        assert_eq!(
+            got,
+            vec![
+                (60.0, WheelTurn::Wheel, "4th Wheel"),
+                (30.6, WheelTurn::Wheel, "Esc Wheel"),
+                (15.3, WheelTurn::Twice, "Esc Wheel ×2"),
+                (7.5, WheelTurn::Mesh, "4th Mesh"),
+            ]
+        );
+        assert_eq!(lines[0].hover, "Fourth Wheel: 60 s");
+        assert_eq!(lines[3].name, "Fourth Pinion Mesh");
+        assert_eq!(lines[3].words, ["Fourth", "Pinion", "Mesh"]);
+        assert!(lines.iter().all(|l| l.words.join(" ") == l.name));
+        assert_eq!(
+            words("Escape Wheel (20 Teeth) ×2"),
+            ["Escape", "Wheel", "(20 Teeth)", "×2"]
+        );
+        assert_eq!(words("Escape Wheel (20)"), ["Escape", "Wheel", "(20)"]);
+        assert_eq!(lines[3].hover, "Fourth Pinion Mesh: 7.5 s.");
+        // The 3% is a bound: 2.9% apart share a line, 3.1% don't.
+        assert!(one_mark(103.0 - 0.1, 100.0) && !one_mark(103.1, 100.0));
+    }
+
+    /// A mesh by a wheel shows only with that wheel's line hidden; each
+    /// switch shows only its own lines (Hugh's ruling on #1764).
+    #[test]
+    fn each_switch_shows_its_own_lines() {
+        let wheels = [wheel("fourth wheel", 60.0), wheel("escape wheel", 30.6)];
+        let meshes = [mesh("fourth pinion", 7.5), mesh("escape pinion", 30.0)];
+        let names = |w: bool, m: bool| -> Vec<String> {
+            shown_marks(&wheels, &meshes, w, m)
+                .into_iter()
+                .map(|l| l.name)
+                .collect()
+        };
+        assert_eq!(
+            names(true, true),
+            [
+                "Fourth Wheel",
+                "Escape Wheel",
+                "Escape Wheel ×2",
+                "Fourth Pinion Mesh"
+            ]
+        );
+        assert_eq!(
+            names(true, false),
+            ["Fourth Wheel", "Escape Wheel", "Escape Wheel ×2"]
+        );
+        // The escape pinion's mesh, 2% from the escape wheel, comes back.
+        assert_eq!(
+            names(false, true),
+            ["Fourth Pinion Mesh", "Escape Pinion Mesh"]
+        );
+        assert!(names(false, false).is_empty());
+        assert_eq!(shown_marks(&[], &meshes, false, true), mesh_marks(&meshes));
+    }
+
+    #[test]
+    fn short_names() {
+        assert_eq!(title_case("escape wheel"), "Escape Wheel");
+        assert_eq!(wheel_short("centre wheel"), "2nd Wheel");
+        assert_eq!(wheel_short("barrel"), "Barrel");
+        assert_eq!(mesh_short("centre pinion"), "Centre Mesh");
+        assert_eq!(mesh_short("third pinion"), "3rd Mesh");
+        assert_eq!(mesh_short("odd arbor"), "Odd Arbor Mesh");
+        assert_eq!(period_words(7200.0), "2.0 h");
     }
 }

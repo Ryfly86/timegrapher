@@ -22,6 +22,7 @@ input.settings.escape_teeth
 input.settings.highpass_hz
 input.settings.lift_deg
 input.settings.masked
+input.settings.mesh_marks
 input.settings.named_meshes
 input.settings.named_wheels
 input.settings.notch_hz
@@ -31,6 +32,7 @@ input.settings.reference_lines[].label
 input.settings.reference_lines[].period_s
 input.settings.stretches
 input.settings.take
+input.settings.wheel_marks
 input.settings.wheels
 lift_deg
 overall

@@ -110,6 +110,22 @@ pub fn clock(
     )
 }
 
+/// The clock a live reading is put on (#1721): [`clock`] as opening the
+/// take saved now puts it, with no clock log, the recording's USB lines as
+/// `usb` has measured them (on the first sound, as a saved take reads
+/// them) and the correction kept for the input (`correction_ppm`). Before
+/// the lines are measured it is the kept correction alone, or none, and
+/// [`crate::usbclock::LiveClock::not_yet`] says so beside the rate.
+pub fn live_clock(
+    usb: &crate::usbclock::LiveClock,
+    correction_ppm: Option<f64>,
+    duration_s: f64,
+) -> Option<ClockFit> {
+    clock(None, 0, 0, usb.usb_ppm(), correction_ppm, duration_s)
+        .ok()
+        .flatten()
+}
+
 /// Where a take's clock came from, in words, as `from` ([`clock_from`])
 /// picks it: the USB lines' text (`usb`, as
 /// [`crate::usbclock::UsbClock::correction`] words it), the correction's
@@ -429,6 +445,28 @@ pub fn reading_window(
         from_s,
         to_s,
     })
+}
+
+/// The stretches a test take `m` reads in its recording `file` of
+/// `duration_s`: each of its entries there from its settling's end
+/// ([`reading_window`], `given_settle_s` as that takes it), in time
+/// order: what [`session::measure_reading`] keeps a test's stops to
+/// (#1624). It reads one stretch alone as a plain take.
+pub fn read_stretches(
+    m: &Manifest,
+    file: &str,
+    given_settle_s: Option<f64>,
+    duration_s: f64,
+) -> Vec<(f64, f64)> {
+    let mut read: Vec<(f64, f64)> = m
+        .recordings
+        .iter()
+        .filter(|e| e.file == file)
+        .filter_map(|e| reading_window(e, m, given_settle_s, duration_s).ok())
+        .map(|w| (w.from_s, w.to_s))
+        .collect();
+    read.sort_by(|a, b| a.0.total_cmp(&b.0));
+    read
 }
 
 /// What is opened to read the recording at `path` (a recording or a
@@ -763,6 +801,37 @@ pub fn file_lift_known(m: &Manifest, cal: Option<&Calibre>) -> Option<bool> {
         m.lift_known
             .unwrap_or(lift != DEFAULT_LIFT_DEG || cal.is_some_and(|c| c.lift_angle_deg.is_some())),
     )
+}
+
+/// Where a setting such as the lift angle came from, so a surface can say
+/// so without guessing from its own arguments (#1648): given for this
+/// command, the take's session file, the calibre's table entry, or the
+/// default.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SettingFrom {
+    Given,
+    Take,
+    Calibre,
+    Default,
+}
+
+impl SettingFrom {
+    /// Where a value came from: `given` for this command, else what a
+    /// session file `kept`, else a calibre's `table` figure, else the
+    /// default. A given value a session file also keeps is said as given
+    /// (the two must agree).
+    pub fn of<T>(given: Option<T>, kept: Option<T>, table: Option<T>) -> Self {
+        if given.is_some() {
+            Self::Given
+        } else if kept.is_some() {
+            Self::Take
+        } else if table.is_some() {
+            Self::Calibre
+        } else {
+            Self::Default
+        }
+    }
 }
 
 /// The correction stored for the input `file` was recorded on
@@ -1162,13 +1231,14 @@ fn open_sound(
 
 /// The take at `path` kept as its analysis alone, read; `None` for a
 /// take with its sound. Refused when the folder and `audio = false` in
-/// the manifest disagree, or when it holds both.
+/// the manifest disagree, or when it holds both. One kept as its parts
+/// alone, its save never finished, reads to its last part (2c of #1514).
 fn kept_take(
     path: &Path,
     m: &Manifest,
     e: &RecordingEntry,
 ) -> Result<Option<analysis_take::Stored>, String> {
-    if analysis_take::is_analysis_only(path) {
+    if crate::checkpoint::is_kept(path) {
         if m.audio != Some(false) {
             return Err(format!(
                 "{}: it has an {}/ folder, but {MANIFEST} doesn't say audio = false",
@@ -1185,7 +1255,7 @@ fn kept_take(
             ));
         }
         Ok(Some(
-            analysis_take::read(path).map_err(|err| format!("{}: {err}", e.file))?,
+            crate::checkpoint::read_kept(path).map_err(|err| format!("{}: {err}", e.file))?,
         ))
     } else if m.audio == Some(false) {
         Err(format!(
@@ -1450,13 +1520,14 @@ pub fn measure_opened(
     } = reading_window(e, m, s.settle_s, log.duration_s).map_err(EntryError::NoReading)?;
     // A lead of noise before the watch is left out of the reading (#844).
     let lead = session::lead_s(&log, fit.as_ref(), &breaks, &masked, settle_s, end_s);
-    let mut measurement = session::measure_masked(
+    let read = read_stretches(m, &e.file, s.settle_s, log.duration_s);
+    let mut measurement = session::measure_reading(
         &log,
         fit.as_ref(),
         &breaks,
         &masked,
-        lead.unwrap_or(settle_s),
-        end_s,
+        (lead.unwrap_or(settle_s), end_s),
+        &read,
     );
     if let Some(t) = lead {
         let seconds = t - start_s;
@@ -1543,6 +1614,42 @@ pub fn whole_take(m: &Manifest) -> Result<RecordingEntry, String> {
 
 #[cfg(test)]
 mod tests {
+
+    /// A live reading's clock is the one opening the take saved at that
+    /// moment gives: the measured USB lines over a kept correction, and
+    /// the kept correction alone until the lines are measured (#1721).
+    #[test]
+    fn a_live_reading_takes_the_clock_a_reopened_take_takes() {
+        use crate::usbclock::{LiveClock, UsbClock};
+        let lines = UsbClock {
+            ppm: -19.3,
+            lines: 8,
+            spread_ppm: 0.2,
+        };
+        let measured = LiveClock::Measured {
+            clock: lines,
+            over_s: 60.0,
+        };
+        for kept in [None, Some(-18.0)] {
+            let same =
+                |a: Option<ClockFit>, b: Option<ClockFit>| format!("{a:?}") == format!("{b:?}");
+            assert!(same(
+                live_clock(&measured, kept, 300.0),
+                clock(None, 0, 0, Some(-19.3), kept, 300.0).unwrap()
+            ));
+            for open in [
+                LiveClock::NotMeasured { heard_s: 12.0 },
+                LiveClock::NoLines { over_s: 30.0 },
+            ] {
+                assert!(same(
+                    live_clock(&open, kept, 300.0),
+                    clock(None, 0, 0, None, kept, 300.0).unwrap()
+                ));
+            }
+        }
+        assert!(live_clock(&measured, None, 300.0).is_some());
+        assert!(live_clock(&LiveClock::NotMeasured { heard_s: 1.0 }, None, 300.0).is_none());
+    }
     use super::*;
 
     /// A part of a log takes the reading's amplitude windows: those whose
@@ -1560,9 +1667,11 @@ mod tests {
             odd_unlock_ms: None,
             even_drop_ms: None,
             odd_drop_ms: None,
-            culled_ms: None,
+            extra: None,
+            sound_1: [f32::NAN; 2],
         };
         let log = BeatLog {
+            lock_template_kept: false,
             sample_rate: 48000,
             duration_s: 40.0,
             bph: 28800,
@@ -1678,6 +1787,7 @@ mod tests {
     /// nothing else.
     fn bare_log(duration_s: f64, beats: &[f64]) -> BeatLog {
         BeatLog {
+            lock_template_kept: false,
             sample_rate: 48000,
             duration_s,
             bph: 28800,
@@ -1719,7 +1829,8 @@ mod tests {
             odd_unlock_ms: None,
             even_drop_ms: None,
             odd_drop_ms: None,
-            culled_ms: None,
+            extra: None,
+            sound_1: [f32::NAN; 2],
         }];
         log.snippets = [9.5, 10.0, 50.0, 100.0].map(|t| (t, Vec::new())).to_vec();
         let pause = |audio_s| Break {
@@ -2045,7 +2156,8 @@ mod tests {
                 odd_unlock_ms: Some(-6.0),
                 even_drop_ms: Some(0.0),
                 odd_drop_ms: Some(0.0),
-                culled_ms: None,
+                extra: None,
+                sound_1: [f32::NAN; 2],
             };
             if i == 10 {
                 // 398° at 52°, culled; 345° at 45° against its
@@ -2056,6 +2168,7 @@ mod tests {
             w
         };
         let kept = BeatLog {
+            lock_template_kept: false,
             sample_rate: 48000,
             duration_s: 40.0,
             bph: 28800,
@@ -2707,6 +2820,7 @@ mod tests {
         assert_eq!(fit.breaks.len(), 1, "{:?}", fit.breaks);
         let json = serde_json::json!({ "breaks": [{ "audio_s": 30.0, "gap_s": 0.0 }] });
         let mut log = BeatLog {
+            lock_template_kept: false,
             sample_rate: 48_000,
             duration_s: 120.0,
             bph: 28_800,
@@ -2750,6 +2864,7 @@ mod tests {
                 .unwrap();
             let json = serde_json::json!({ "breaks": [{ "audio_s": 60.0, "gap_s": gap_s }] });
             let mut log = BeatLog {
+                lock_template_kept: false,
                 sample_rate: 48_000,
                 duration_s: 120.0,
                 bph: 28_800,

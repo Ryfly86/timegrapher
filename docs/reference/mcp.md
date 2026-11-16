@@ -133,7 +133,10 @@ user's own.
 worked out once (about a minute for a 9 h take) and kept in the user's
 settings folder; `at_end` is what the app showed when the take was saved,
 to be retired; a take with `audio` false kept only its analysis, which
-its reading is read from.
+its reading is read from. A take's `wind_h` is its hours from full wind
+to its start, null where the wind was not given, which is never taken as
+full wind (#1665); the watch's `full_wind` is when it was last fully
+wound, UTC, or null.
 
 For a multi-position test, the chat app records each position into one
 folder with `record_position` and then reads the folder with `run_session`.
@@ -153,6 +156,14 @@ and `tracks_drift`, or `null` when no correction was applied. Its text lead
 states that same basis. This tool uses the recording's automatic stored/USB
 resolution and exposes no explicit clock-log or card-correction input.
 Older CLI documents without this field keep their existing lead.
+
+`check_steadiness`'s structured result is a compact form of the CLI's
+`series` document: the arrays only the charts draw go to the view, and the
+walk becomes its outline. It keeps the CLI's `schema` and names itself in
+`projection`: `schema` (`timegrapher.mcp.series_compact/1`), `of` (the CLI
+document's schema) and the paths it `removed`, `replaced` and `added`
+(`[]` stands for every item of an array). For the full document, run the
+CLI's `series --views --json`.
 
 `analyze_recording`'s lead and view give the rate the CLI chose: the rate
 in its `clock` block where it applied a correction (stored, given, or the
@@ -280,8 +291,32 @@ the timegrapher app draws them:
   app, no reading reaches across the take's breaks, moves, settling ends
   or masks, and the rates are on the take's clock where it corrects them,
   which the rate chart states.
-- `run_session`: each position's readings, the characteristic values, and
-  rate and amplitude by position. It sets no limits: the server does not
+- `run_session`: the characteristic values, then a Positions Test pane
+  for each state of wind, headed in core's words ("Full wind", "24 h
+  after winding", "Wind not given"), laid out as the app's test panes
+  (#1729): the table on the left (each position's rate, amplitude and
+  beat error, then the Average, Vertical and Horizontal rows) and the
+  charts on the right, or under the table where they would be narrower
+  than 320 px; only the table scrolls. Each chart is core's position line
+  for one measure (`report.position_lines`): the value along the axis, a
+  lane per position, Horizontal then Vertical, the three averages as grey
+  dashed lines named in one row above the plot, with leaders, and on a
+  later state each position's full-wind figure as a hollow dot with an
+  arrow to this test's, keyed "This test" and "Full wind test". No
+  position is joined to another. The Rate, Amplitude and Beat Error
+  buttons show or hide each chart, all on at first. One hover: a lane in
+  any chart or a row of the table rings that position in every chart,
+  outlines its row and gives its figures in each chart's title. A
+  session with a Power Reserve run adds a Power Reserve pane in the same
+  layout: the table of each hour's rate, amplitude, beat error and Read %,
+  and a chart per measure of the hourly levels as steps, one line broken
+  only where an hour has no figure; a figure read from too few of its
+  windows is grey. The server gives that pane its figures and words in
+  `_meta["timegrapher/reserve"]`. Each state of wind with a Dynamic
+  Poise fit adds a Dynamic Poise pane: the upright positions' rates and
+  the Mean in the table, and core's picture (`poise[].picture`) beside
+  it, along a line or round a watch face as the Plot and Dial buttons
+  choose, with core's words on the fit and the heavy spot. It sets no limits: the server does not
   judge the readings against a tolerance, so `run_session` takes no
   tolerance class.
 - `tick_tock_profile`: the Tick and Tock profiles with the unlock and drop.

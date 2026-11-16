@@ -103,15 +103,12 @@ pub(super) fn six_widths(total: f32, gap: f32) -> [f32; 6] {
 /// and each card's three rows, in the order of `widths`.
 fn lay_cards(
     ui: &mut egui::Ui,
-    total: f32,
+    (total, h): (f32, f32),
     widths: [f32; 6],
     gap: f32,
     pal: &theme::Palette,
 ) -> Vec<CardRows> {
-    let (block, _) = ui.allocate_exact_size(
-        Vec2::new(total, theme::READINGS_CARD_H),
-        egui::Sense::hover(),
-    );
+    let (block, _) = ui.allocate_exact_size(Vec2::new(total, h), egui::Sense::hover());
     // Each card's three rows, hung off the same three lines; left to
     // right they read Position, Calibre, Listen, Rate, Amplitude, Beat
     // Error.
@@ -267,7 +264,7 @@ pub(crate) fn card_title(
         ui.spacing_mut().item_spacing.x = title_gap();
         theme::help(ui, caption, help);
         let caption_w = caption_width(ui, caption);
-        let small_w = |ui: &mut egui::Ui, t: &str| {
+        let small_w = |ui: &egui::Ui, t: &str| {
             ui.fonts_mut(|f| {
                 f.layout_no_wrap(t.into(), egui::FontId::proportional(12.0), pal.text)
                     .size()
@@ -282,23 +279,14 @@ pub(crate) fn card_title(
                     .on_hover_text(hover);
             }
         }
-        // Limits with no room for their words beside the whole
-        // caption are in the caption's hover: a bare count says
-        // nothing.
-        let mut caption_hover = None;
-        if let Some(first) = limits.first() {
-            let more = if limits.len() > 1 {
-                format!(" +{}", limits.len() - 1)
-            } else {
-                String::new()
-            };
+        // Limits always show in a chip, shortened to fit beside the whole
+        // caption, never dropped (Hugh, #1808).
+        if !limits.is_empty() {
+            let room = ui.available_width();
+            let words =
+                limits_chip_words(limits, |w| theme::chip_w(ui, w) + 4.0 + caption_w <= room);
             let sentences: Vec<String> = limits.iter().map(|l| l.1.clone()).collect();
-            let words = format!("{}{more}", chip_words(&first.0));
-            if small_w(ui, &words) + 14.0 + 4.0 + caption_w <= ui.available_width() {
-                theme::chip(ui, &words, caption, &sentences, ui.available_width());
-            } else {
-                caption_hover = Some(sentences.join("\n\n"));
-            }
+            theme::chip(ui, &words, caption, &sentences, ui.available_width());
         }
         ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
             // Too narrow for the whole caption (800 pt), its short form as
@@ -314,16 +302,34 @@ pub(crate) fn card_title(
                 )
                 .truncate(),
             );
-            let hover = match (short, caption_hover) {
-                (Some(_), Some(h)) => Some(format!("{caption}\n\n{h}")),
-                (Some(_), None) => Some(caption.to_string()),
-                (None, h) => h,
-            };
-            if let Some(h) = hover {
-                r.on_hover_text(h);
+            if short.is_some() {
+                r.on_hover_text(caption);
             }
         });
     });
+}
+
+/// What a card's limits chip says, the first form that `fits` (Hugh,
+/// #1808): the first limit's words and how many more, then how many
+/// limits, then nothing, a bare warning chip. Every card's the same way.
+pub(crate) fn limits_chip_words(
+    limits: &[(String, String)],
+    fits: impl Fn(&str) -> bool,
+) -> String {
+    let n = limits.len();
+    let first = limits.first().map(|l| chip_words(&l.0)).unwrap_or_default();
+    let named = match n {
+        0 | 1 => first,
+        _ => format!("{first} +{}", n - 1),
+    };
+    let count = match n {
+        1 => "1 limit".to_string(),
+        _ => format!("{n} limits"),
+    };
+    [named, count]
+        .into_iter()
+        .find(|w| fits(w))
+        .unwrap_or_default()
 }
 
 /// A card title's caption font.
@@ -393,7 +399,8 @@ impl TimegrapherApp {
         let position_compact = widths[0] < POSITION_W;
         let listen_compact = widths[1] < LISTEN_W;
         let compact = widths[2] < READING_FULL_W;
-        let cards = lay_cards(ui, total, widths, gap, pal);
+        let h = self.readings_card_h(ui.ctx());
+        let cards = lay_cards(ui, (total, h), widths, gap, pal);
         // A reading whose beats scatter like noise is no watch: no figures
         // then, only a word saying so where the unit goes.
         let heard = heard(r.as_ref());
@@ -569,6 +576,11 @@ impl TimegrapherApp {
             } else {
                 behind + &format!("\n\n{t}")
             };
+        }
+        // Live, before the recording's own clock is read: first, so the
+        // figure isn't taken for the one the take will read (#1721).
+        if let Some(n) = self.live_usb_not_yet() {
+            behind = format!("{n}\n\n{}", behind.trim_start());
         }
         let (fig, spark, place) = sparkline::lay(rows.inner, rows.figure, rows.controls);
         let colour = theme::pal(ui).trace_rate;
@@ -883,8 +895,12 @@ impl TimegrapherApp {
     }
 
     /// The rate `rate` on the clock kept for the input, for the Rate
-    /// figure's hover, while one is kept. A take with its own clock log
-    /// is read on it, the big figure included, so the hover says so.
+    /// figure's hover, while one is kept. Readings on a clock of their
+    /// own (a take's, or while listening the clock it would be reopened
+    /// on, #1721) have the big figure on it, so the hover says so. True
+    /// Clock is only for the moment before that: listening, a clock kept,
+    /// before the first poll puts the readings on it (a take opened keeps
+    /// no input clock, Walter).
     pub(super) fn true_clock_words(&self, rate: f64) -> Option<String> {
         if let Some(f) = &self.take_clock {
             // What a log measured but doesn't apply, and why, in core's words.
@@ -920,8 +936,7 @@ impl TimegrapherApp {
         let v = true_minus(&format!("{:+.1}", c.correct_rate(rate)));
         Some(format!(
             "True Clock {v} seconds per day, with the clock kept {}: the rate corrected \
-             for this input's own clock. The big figure stays on the card's clock, the one \
-             tg and an analysis of the recording read, so the two compare directly.",
+             for this input's own clock.",
             day_of(&c.measured_utc)
         ))
     }
@@ -1134,13 +1149,16 @@ impl TimegrapherApp {
             );
             popover(&resp, &mut |ui| self.update_notice(ui));
         }
-        if !self.kept.is_empty() {
-            let resp = status_item(
-                ui,
-                "Unsaved Sound Found…",
-                Some(theme::Alert::Warning),
-                "Sound from an earlier session was never saved: click to open, move or delete it",
-            );
+        if let Some(k) = self.kept.first() {
+            // Named by what the first one offered is (Hugh on #1806).
+            let tip = match k.parts {
+                true => {
+                    "A Power Reserve Test (Analysis Only) was never saved: click to open, move or \
+                     delete it"
+                }
+                false => "Sound from an earlier session was never saved: click to open, move or delete it",
+            };
+            let resp = status_item(ui, "Unsaved Take Found…", Some(theme::Alert::Warning), tip);
             popover(&resp, &mut |ui| self.kept_notice(ui));
         }
         if self.crash.is_some() {
@@ -1869,4 +1887,9 @@ fn status_item(
 pub(super) fn timed_clock_text(ppm: f64, sd: f64) -> String {
     use timegrapher_core::figure_text::{base_digits, figure_with_pm};
     figure_with_pm(ppm.abs(), Some(sd), base_digits::CLOCK, false)
+}
+
+/// The day of a UTC timestamp kept as text ("2026-10-12T…").
+pub(super) fn day_of(utc: &str) -> &str {
+    utc.get(..10).unwrap_or(utc)
 }
