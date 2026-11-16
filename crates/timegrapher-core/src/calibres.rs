@@ -986,7 +986,8 @@ mod tests {
             .unwrap()
             .contains("INFERRED family transfer"));
         assert_eq!(find("DD324").unwrap().lift_angle_deg, Some(52.0));
-        assert_eq!(find("SL1258").unwrap().lift_angle_deg, None);
+        // Peacock's own SL1258 drawings print 53°; the DD324 keeps its 52° setting.
+        assert_eq!(find("SL1258").unwrap().lift_angle_deg, Some(53.0));
         let covered: Vec<_> = all()
             .iter()
             .filter(|c| {
@@ -1093,6 +1094,34 @@ mod tests {
         assert_eq!(c.lift_angle_deg, Some(53.0));
         assert_eq!(c.escape_teeth, Some(20));
         assert_eq!(lift_bph("HZ6T15"), Some((Some(53.0), Some(28800))));
+    }
+
+    #[test]
+    fn peacock_drawings_give_each_drawn_calibre_its_lift() {
+        let drawn: Vec<_> = all()
+            .iter()
+            .filter(|c| c.sources.iter().any(|s| s.contains("机芯外廓图")))
+            .collect();
+        assert_eq!(drawn.len(), 67);
+        for c in &drawn {
+            assert!(c.calibre.starts_with("Peacock SL"), "{}", c.calibre);
+            assert!(c.lift_angle_deg.is_some(), "{} has no lift", c.calibre);
+        }
+        let lift_bph = |n: &str| find(n).map(|c| (c.lift_angle_deg, c.bph));
+        assert_eq!(lift_bph("SL1701"), Some((Some(51.0), Some(28800))));
+        assert_eq!(lift_bph("SL3032"), Some((Some(51.5), Some(28800))));
+        assert_eq!(lift_bph("SL3511"), Some((Some(52.5), Some(28800))));
+        assert_eq!(lift_bph("SL5003AT"), Some((Some(53.1), Some(21600))));
+        assert_eq!(lift_bph("SL5200"), Some((Some(54.0), Some(21600))));
+        assert_eq!(lift_bph("SL5231P"), Some((Some(54.0), Some(28800))));
+        // The roman-numeral spelling on the drawing finds the same row.
+        assert_eq!(find("SL5720Ⅱ").unwrap().calibre, "Peacock SL5720II");
+        // SL1258 keeps its counted DD324 train and takes the drawing's 53°.
+        let c = find("SL1258").unwrap();
+        assert_eq!(c.lift_angle_deg, Some(53.0));
+        assert_eq!(c.escape_teeth, Some(20));
+        // A calibre with no drawing on the site keeps no lift angle.
+        assert_eq!(find("SL4609").unwrap().lift_angle_deg, None);
     }
 
     #[test]

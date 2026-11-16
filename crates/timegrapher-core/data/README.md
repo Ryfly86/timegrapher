@@ -103,7 +103,9 @@ Rows with `confidence` "maker's page" come from the makers' own
 specification pages, read on 2026-10-13:
 
 - Peacock (Dandong): http://en.cpeacockmovement.com/Movement/2.html to
-  /Movement/8.html and each calibre's page;
+  /Movement/8.html and each calibre's page, and on 2026-11-16 the 80
+  outline drawings (机芯外廓图) linked from its download and movement
+  pages, which cover 67 calibres;
 - Shanghai Jinghe: http://en.jingheshiye.com/jingdianzhizuo/ and its
   other product lists;
 - Tianjin Seagull: https://en.seagullwatch.com/ movement pages;
@@ -113,9 +115,9 @@ specification pages, read on 2026-10-13:
   from its assembly drawing (装机图) and its product page.
 
 Each row cites the page it came from and the beat rate as the page
-wrote it. Only Hangzhou's drawings give a lift angle; the other pages
-give the beat rate, jewels, size and power reserve, so those rows carry
-a beat rate and a balance period and no lift angle. Seagull's pages print
+wrote it. Hangzhou's and Peacock's drawings give a lift angle; the
+other pages give the beat rate, jewels, size and power reserve, so those
+rows carry a beat rate and a balance period and no lift angle. Seagull's pages print
 the beat rate as a bare number ("Frequency: 21600"), read as bph. Pages
 with no figures were left out, and none of the pages says which calibre
 a movement copies.
@@ -132,6 +134,19 @@ Hudson, 2026-11-16). Where a product page and its drawing disagree on
 jewels or power reserve, the row's notes say so. The movement photo
 URLs are kept in docs/research/hangzhou-movement-photos.json; the
 photos are Hangzhou's and are not copied here.
+
+Peacock's drawings print the lift angle (升角) in the title block beside
+the beat rate, jewels, diameter and thickness. They give 51° for the
+SL16xx and SL17xx ultra-thins and the SL1632, 51.5° for most 28,800 bph
+calibres, 52.5° for the SL3511, 53° for the SL1200, SL1258 and the SL70xx
+ladies' calibres, 53.1° for the 30.4 mm tourbillons (SL5003A, SL5003AT,
+SL5005, SL5006) and 54° for the other tourbillons, including the
+28,800 bph SL5231P. Where a calibre has several drawings, its row cites
+each, newest first; they agree on lift and beat rate. Fifteen Peacock
+rows (SL4609, SL48xx, SL5211 and others) have no drawing on the site and
+keep no lift angle. The movement photo URLs are kept in
+docs/research/peacock-movement-photos.json; the photos are Peacock's
+and are not copied here.
 
 Still to do: Beijing (beijingwatch.com) and Guangzhou Five Goats, now
 Dixmont (dixmont.com.cn), publish a drawing per calibre with its lift
@@ -382,7 +397,8 @@ The fourth wheel was subsequently photographed, so its 84/9 counts and
 
 Peacock SL1258 receives a contributor-confirmed family transfer from the
 DD324 specimen. Genuine Patek 324 entries and all other rows are unchanged.
-DD324 retains the existing 52° lift setting; SL1258 remains unspecified.
+DD324 retains the existing 52° lift setting. SL1258 takes the 53° printed
+on Peacock's own SL1258 drawings (2026-11-16).
 
 ## Patek 240 clone photographs
 

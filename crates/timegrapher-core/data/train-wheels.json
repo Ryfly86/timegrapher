@@ -3763,6 +3763,7 @@
     ],
     "common": true,
     "bph": 28800,
+    "lift_angle_deg": 53.0,
     "escape_teeth": 20,
     "seconds": "indirect centre: third-wheel rim drives a separate 9-leaf seconds pinion",
     "wheels": [
@@ -3824,10 +3825,12 @@
       "Project bench notes: like the Dandong 324, with a monolithic bridge",
       "http://en.cpeacockmovement.com/Movement_detail/56.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
       "docs/research/dd324-train-wheel-counts.md — Peter Hudson, eight DD324 microscope photographs and confirmed SL1258 train applicability, 2026-10-21",
-      "Prior bench observations: 5 s rate cycle in peacock1258_DU_30min and a 60.03 s amplitude cycle; the latter does not distinguish fourth wheel from indirect seconds pinion"
+      "Prior bench observations: 5 s rate cycle in peacock1258_DU_30min and a 60.03 s amplitude cycle; the latter does not distinguish fourth wheel from indirect seconds pinion",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL1258-0003, dated 2024-01-18, read on Peacock's site on 2026-11-16: 升角 (lift angle) 53°, 频率 28800次/小时, 32 jewels, φ27 mm, 3.4 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL1258-0003%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE.pdf",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL1258-0003, dated 2023-01-28, read on Peacock's site on 2026-11-16: 升角 (lift angle) 53°, 频率 28800次/小时, 32 jewels, φ27 mm, 3.4 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/a9913012-3e17-4595-8938-d9ea6d68f6c6.pdf"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Full DD324 train counted from eight photographs: barrel 93, second 60/18, third 90 with 10 leaves on both faces, fourth 84/9, escape 20/7. The centre-wheel slot represents the second wheel; indirect seconds uses a separate 9-leaf pinion driven by the third-wheel rim. The 60-tooth cannon wheel is driven by the third wheel’s 10-leaf pinion; its own 28 leaves serve the motion works. Barrel drum period 18600 s (5 h 10 min), not power reserve. Counts are transferred from the DD324 specimen on the contributor’s confirmation that SL1258 and variants retaining this train match; no separate SL1258 wheel set was photographed. Existing bench takes use 52° lift as a setting, not a documented specification; lift angle remains unspecified."
+    "notes": "Full DD324 train counted from eight photographs: barrel 93, second 60/18, third 90 with 10 leaves on both faces, fourth 84/9, escape 20/7. The centre-wheel slot represents the second wheel; indirect seconds uses a separate 9-leaf pinion driven by the third-wheel rim. The 60-tooth cannon wheel is driven by the third wheel’s 10-leaf pinion; its own 28 leaves serve the motion works. Barrel drum period 18600 s (5 h 10 min), not power reserve. Counts are transferred from the DD324 specimen on the contributor’s confirmation that SL1258 and variants retaining this train match; no separate SL1258 wheel set was photographed. Earlier bench takes used 52° as a setting; the maker's drawings give 53°. Lift angle 53° and 28,800 bph from Peacock's own outline drawings (SL1258-0003 2024-01-18, SL1258-0003 2023-01-28). Center Hr/Min/Sec hands; 3H: Date by window/Corrector; Auto & Hand winding; 32 jewels; 27 mm across, 3.4 mm thick; power reserve ≥38 h."
   },
   {
     "calibre": "Agassiz 8 PCV",
@@ -76954,6 +76957,7 @@
       "SL1200"
     ],
     "bph": 28800,
+    "lift_angle_deg": 53.0,
     "wheels": [
       {
         "name": "balance",
@@ -76962,9 +76966,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/100.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/100.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 1200-00003, dated 2026-01-20, read on Peacock's site on 2026-11-16: 升角 (lift angle) 53°, 频率 28800次/小时, 29 jewels, φ27 mm, 2.8 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/1200-00003%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Sec hands; 3H: Date by window/Corrector; Hand winding; 29 jewels; 27 mm across, 2.8 mm thick; power reserve ≥42 h. Lift angle 53° and 28,800 bph from Peacock's own outline drawing (1200-00003 2026-01-20)."
   },
   {
     "calibre": "Peacock SL1632",
@@ -76973,6 +76979,7 @@
       "SL1632"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.0,
     "wheels": [
       {
         "name": "balance",
@@ -76981,9 +76988,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/98.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/98.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL1632-00003, dated 2025-05-20, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51°, 频率 28800次/小时, 24 jewels, φ26 mm, 4.45 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/sl1632-00003%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE6.12.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Sec hands; 3H: Date by window/Corrector; Auto & Hand winding/Stop Sec; 24 jewels; 26 mm across, 4.45 mm thick; power reserve ≥65 h. Lift angle 51° and 28,800 bph from Peacock's own outline drawing (SL1632-00003 2025-05-20)."
   },
   {
     "calibre": "Peacock SL1632A2",
@@ -76992,6 +77001,7 @@
       "SL1632A2"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.0,
     "wheels": [
       {
         "name": "balance",
@@ -77000,9 +77010,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/101.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/101.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL1632-00003, dated 2025-05-20, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51°, 频率 28800次/小时, 24 jewels, φ26 mm, 4.45 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/sl1632-00003%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE6.12%281%29.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Sec hands; 3H: Date by window/Corrector; Auto & Hand winding/Stop Sec; 24 jewels; 26 mm across, 4.45 mm thick; power reserve ≥65 h. Lift angle 51° and 28,800 bph from Peacock's own outline drawing (SL1632-00003 2025-05-20)."
   },
   {
     "calibre": "Peacock SL2208",
@@ -77011,6 +77023,7 @@
       "SL2208"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77019,9 +77032,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/96.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/96.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL2208-0002, dated 2025-05-29, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 27 jewels, φ31×29.1 mm, 4.8 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/sl2208-0002%20%E5%A4%96%E5%BB%93%E5%9B%BE%2025.5.29%28%E6%9C%80%E6%96%B0%E4%BF%AE%E6%94%B9%E6%9C%BA%E5%BF%83%E5%8E%9A%E5%BA%A6%29.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Sec hands; 6H: Skeleton pendulum; Auto & Hand winding/Stop Sec; 27 jewels; 31 × 29.1 mm across, 4.8 mm thick; power reserve ≥40 h. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL2208-0002 2025-05-29)."
   },
   {
     "calibre": "Peacock SL3001",
@@ -77030,6 +77045,7 @@
       "SL3001"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77038,9 +77054,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/22.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/22.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL3001-0005, dated 2024-03-23, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 28 jewels, φ26 mm, 4.8 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL3001-0005%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE%2024.3.23.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Sec hands; 3H: Date by window/Corrector; Auto & Hand winding; Stop Sec; 28 jewels; 26 mm across, 4.8 mm thick; power reserve ≥41 h. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL3001-0005 2024-03-23)."
   },
   {
     "calibre": "Peacock SL3002B",
@@ -77049,6 +77067,7 @@
       "SL3002B"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77057,9 +77076,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/43.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/43.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL3002B-0005, dated 2024-03-23, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 28 jewels, φ26 mm, 4.8 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL3002B-0005%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE%2024.3.23.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Sec hands; Auto & Hand winding; Stop Sec; Skeleton pendulum; 28 jewels; 26 mm across, 4.8 mm thick; power reserve ≥41 h. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL3002B-0005 2024-03-23)."
   },
   {
     "calibre": "Peacock SL3006",
@@ -77068,6 +77089,7 @@
       "SL3006"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77076,9 +77098,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/44.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/44.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL3006-0005, dated 2024-03-23, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 32 jewels, φ26 mm, 5.8 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL3006-0005%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE%2024.3.23.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min hands; 3H: Date by window/Corrector; 6H:Small Sec； Auto & Hand winding; Stop Sec; 32 jewels; 26 mm across, 5.8 mm thick; power reserve ≥41 h. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL3006-0005 2024-03-23)."
   },
   {
     "calibre": "Peacock SL3009",
@@ -77087,6 +77111,7 @@
       "SL3009"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77095,9 +77120,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/45.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/45.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL3009-0005, dated 2024-03-23, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 32 jewels, φ26 mm, 5.8 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL3009-0005%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE%2024.3.23.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min hands; 3H: Date by window/Corrector; 9H:Small Sec； Auto & Hand winding; Stop Sec; 32 jewels; 26 mm across, 5.8 mm thick; power reserve ≥41 h. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL3009-0005 2024-03-23)."
   },
   {
     "calibre": "Peacock SL3011",
@@ -77106,6 +77133,7 @@
       "SL3011"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77114,9 +77142,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/46.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/46.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL3011-0005, dated 2024-03-23, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 28 jewels, φ26 mm, 5.4 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL3011-0005%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE%2024.3.23.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Sec hands; 3H:Day & Date by window; Corrector; Auto & Hand winding; Stop Sec; 28 jewels; 26 mm across, 5.4 mm thick; power reserve ≥41 h. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL3011-0005 2024-03-23)."
   },
   {
     "calibre": "Peacock SL3015",
@@ -77125,6 +77155,7 @@
       "SL3015"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77133,9 +77164,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/47.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/47.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL3015-0005, dated 2024-03-23, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 28 jewels, φ26 mm, 5.9 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL3015-0005%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE%2024.3.23.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Sec hands; 6H: Date by hand/ Day & Night /Corrector; Auto & Hand winding; Stop Sec; 28 jewels; 26 mm across, 5.9 mm thick; power reserve ≥40 h. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL3015-0005 2024-03-23)."
   },
   {
     "calibre": "Peacock SL3032",
@@ -77144,6 +77177,7 @@
       "SL3032"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77152,9 +77186,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/53.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/53.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL3032-0003, dated 2018-04-12, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 28 jewels, φ26 mm, 5.55 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/010525f7-b714-4cd2-87c4-595ec8d6f443.pdf; also at https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL3032-0003%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE%2024.3.9.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Sec Hands/ 24 Hrs GMT; 3H: Date by window/Corrector; Auto & Hand winding; Stop Sec; 28 jewels; 26 mm across, 5.55 mm thick; power reserve ≥40 h. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL3032-0003 2018-04-12)."
   },
   {
     "calibre": "Peacock SL3034",
@@ -77163,6 +77199,7 @@
       "SL3034"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77171,9 +77208,12 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/54.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/54.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL3034-0003, dated 2024-03-23, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 28 jewels, φ29.3 mm, 5.4 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL3034-0003%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE24.3.23.pdf",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL3034-0003, dated 2022-01-18, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 28 jewels, φ29.3 mm, 5.4 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/3bde0bb5-8193-48a0-a452-8b7d289fe78c.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Sec hands; 3H: Date by window/Corrector; 12H: Day by window/Corrector; Auto & Hand winding; Stop Sec; 28 jewels; 29.3 mm across, 5.4 mm thick; power reserve ≥41 h. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawings (SL3034-0003 2024-03-23, SL3034-0003 2022-01-18)."
   },
   {
     "calibre": "Peacock SL3511",
@@ -77182,6 +77222,7 @@
       "SL3511"
     ],
     "bph": 28800,
+    "lift_angle_deg": 52.5,
     "wheels": [
       {
         "name": "balance",
@@ -77190,9 +77231,12 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/55.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/55.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL3511-00003, dated 2024-05-23, read on Peacock's site on 2026-11-16: 升角 (lift angle) 52.5°, 频率 28800次/小时, 30 jewels, φ26.6 mm, 4.90 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/sl3511-00003%E6%9C%BA%E8%8A%AF%E5%A4%96%E5%BB%93%E5%9B%BE2024.05.23.pdf",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL3511-00003, dated 2019-01-22, read on Peacock's site on 2026-11-16: 升角 (lift angle) 52.5°, 频率 28800次/小时, 30 jewels, φ26.6 mm, 4.90 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/7b9598bd-94ef-42ea-b45e-566ef48e72bf.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Sec hands; 6H: Moonphases, Hand-type date; Auto & Hand winding; Stop Sec; 30 jewels; 26.6 mm across, 4.90 mm thick; power reserve ≥40 h. Lift angle 52.5° and 28,800 bph from Peacock's own outline drawings (SL3511-00003 2024-05-23, SL3511-00003 2019-01-22)."
   },
   {
     "calibre": "Peacock SL4601",
@@ -77201,6 +77245,7 @@
       "SL4601"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77209,9 +77254,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/16.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/16.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL4601-0003, dated 2024-02-29, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 28 jewels, φ30.4 mm, 8.1 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL4601%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Chrono Sec hands; 3H: Day& Date by window, Corrector; 6H: Chrono 12 Hrs; 9H: Small Sec; 12H: Chrono 30 Mins; Auto & Hand winding; Stop Sec; 28 jewels; 30.4 mm across, 8.1 mm thick; power reserve ≥45 h. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL4601-0003 2024-02-29)."
   },
   {
     "calibre": "Peacock SL4602",
@@ -77220,6 +77267,7 @@
       "SL4602"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77228,9 +77276,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/17.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/17.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL4602-0003, dated 2024-02-29, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 28 jewels, φ30.4 mm, 8.1 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL4602%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Chrono Sec hands; 3H: Date by window/Corrector; 6H: Chrono 12 Hrs; 9H: Small Sec; 12H: Chrono 30 Mins; Auto & Hand winding; Stop Sec; 28 jewels; 30.4 mm across, 8.1 mm thick; power reserve ≥45 h. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL4602-0003 2024-02-29)."
   },
   {
     "calibre": "Peacock SL4609",
@@ -77258,6 +77308,7 @@
       "SL4612"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77266,9 +77317,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/13.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/13.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL4612-0003, dated 2024-02-29, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 32 jewels, φ30.4 mm, 8.6 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL4612%20%284.5%E7%82%B9%E4%BD%8D%E6%97%A5%E5%8E%86%29%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Chrono Sec hands; 3H: Chrono 30 Mins; 4.5H:Date by window/Corrector; 6H: Chrono 12 Hrs; 9H:Small Sec; Auto & Hand winding; Stop Sec; 32 jewels; 30.4 mm across, 8.6 mm thick; power reserve ≥45 h. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL4612-0003 2024-02-29)."
   },
   {
     "calibre": "Peacock SL4613D",
@@ -77277,6 +77330,7 @@
       "SL4613D"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77285,9 +77339,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/10.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/10.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL4613D-0003, dated 2024-02-29, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 35 jewels, φ30.4 mm, 8.1 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL4613D%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Chrono Sec hands; 3H: Chrono 30 Mins; 6H: Small Sec; 9H: Chrono 12 Hrs; Auto & Hand winding; Stop Sec; 35 jewels; 30.4 mm across, 8.1 mm thick; power reserve ≥42 h. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL4613D-0003 2024-02-29)."
   },
   {
     "calibre": "Peacock SL4615",
@@ -77296,6 +77352,7 @@
       "SL4615"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77304,9 +77361,12 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/34.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/34.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL4615-0003, dated 2024-02-29, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 32 jewels, φ30.4 mm, 8.1 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL4615%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE.pdf",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL4615-0003, dated 2016-08-06, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 32 jewels, φ30.4 mm, 8.1 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/66ccd7ac-3405-4be1-a5bc-acae588cf125.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Chrono Sec hands; 6H: Small Sec; 12H: Chrono 30 Mins; Auto & Hand winding; Stop Sec; 32 jewels; 30.4 mm across, 8.1 mm thick; power reserve ≥45 h. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawings (SL4615-0003 2024-02-29, SL4615-0003 2016-08-06)."
   },
   {
     "calibre": "Peacock SL4617",
@@ -77315,6 +77375,7 @@
       "SL4617"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77323,9 +77384,12 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/36.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/36.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL4617-0003, dated 2024-02-29, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 32 jewels, φ30.4 mm, 8.6 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL4617%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE.pdf",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL4617-0003, dated 2016-08-06, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 32 jewels, φ30.4 mm, 8.6 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/8c2bbe91-81c8-4637-9f63-8da3e1996929.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Chrono Sec hands; 3H: Chrono 30 Mins; 6H: Date by window/Corrector; 9H: Small Sec; Auto & Hand winding; Stop Sec; 32 jewels; 30.4 mm across, 8.6 mm thick; power reserve ≥45 h. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawings (SL4617-0003 2024-02-29, SL4617-0003 2016-08-06)."
   },
   {
     "calibre": "Peacock SL4617II",
@@ -77334,6 +77398,7 @@
       "SL4617II"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77342,9 +77407,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/89.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/89.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL4617Ⅱ-0003, dated 2024-01-12, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 32 jewels, φ30.4 mm, 8.6 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/sl4617%E2%85%B1%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Chrono Sec hands; 3H: Chrono 30 Mins; 9H: Small Sec; Auto & Hand winding; Stop Sec; 32 jewels; 30.4 mm across, 8.6 mm thick; power reserve ≥45 h. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL4617Ⅱ-0003 2024-01-12)."
   },
   {
     "calibre": "Peacock SL4617Ⅲ",
@@ -77353,6 +77420,7 @@
       "SL4617Ⅲ"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77361,9 +77429,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/99.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/99.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL4617Ⅲ-0003, dated 2024-07-01, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 25 jewels, φ30.4 mm, 7.85 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/sl4617%E2%85%B2%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Chrono Sec hands; 3H: Chrono 30 Mins; 9H: Small Sec; Hand winding; Stop Sec; 25 jewels; 30.4 mm across, 7.85 mm thick; power reserve ≥45 h. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL4617Ⅲ-0003 2024-07-01)."
   },
   {
     "calibre": "Peacock SL4619",
@@ -77372,6 +77442,7 @@
       "SL4619"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77380,9 +77451,12 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/37.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/37.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL4619-0003, dated 2024-02-29, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 32 jewels, φ30.4 mm, 8.1 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL4619%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE.pdf",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL4619-0003, dated 2016-08-06, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 32 jewels, φ30.4 mm, 8.1 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/abcebc2c-f83e-4bec-899f-42e559ecdc73.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Chrono Sec hands; 3H: Date by window/Corrector; 6H: Small Sec; 12H:Chrono 30 Mins; Auto & Hand winding; Stop Sec; 32 jewels; 30.4 mm across, 8.1 mm thick; power reserve ≥45 h. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawings (SL4619-0003 2024-02-29, SL4619-0003 2016-08-06)."
   },
   {
     "calibre": "Peacock SL4610D",
@@ -77391,6 +77465,7 @@
       "SL4610D"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77399,9 +77474,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/33.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/33.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL4610D-0003, dated 2024-02-29, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 32 jewels, φ30.4 mm, 7.15 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL4610D%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Chrono Sec hands; 6H:Small Sec; 12H: Chrono 30 Mins; Auto & Hand winding; Stop Sec; 32 jewels; 30.4 mm across, 7.15 mm thick; power reserve ≥45 h. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL4610D-0003 2024-02-29)."
   },
   {
     "calibre": "Peacock SL4644",
@@ -77410,6 +77487,7 @@
       "SL4644"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77418,9 +77496,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/39.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/39.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL4644-0003, dated 2017-04-25, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 42 jewels, φ30.4 mm, 9.1 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/bdda6e5d-7813-48e9-9547-a8ca24b8e9df.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Chronograph: centre hours, minutes and chronograph seconds; small seconds at 3; chronograph minutes at 9; chronograph hours at 6; date window between 4:30 and 6; automatic; 42 jewels; 30.4 mm across, 9.1 mm thick. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL4644-0003 2017-04-25)."
   },
   {
     "calibre": "Peacock SL4801",
@@ -77505,6 +77585,7 @@
       "SL5003A"
     ],
     "bph": 21600,
+    "lift_angle_deg": 53.1,
     "wheels": [
       {
         "name": "balance",
@@ -77513,9 +77594,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/2.html: maker's page, \"Frequency: 21600 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/2.html: maker's page, \"Frequency: 21600 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL5003A-0003, dated 2023-02-07, read on Peacock's site on 2026-11-16: 升角 (lift angle) 53.1°, 频率 21600次/小时, 20 jewels, φ30.4 mm, 5.37 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL5003A-0003%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "2.0mm above Center Hr/Min Hands; 6H: Eccentric Tourbillon/Small Sec; Hand winding; 20 jewels; 30.4 mm across, 5.37 mm thick; power reserve ≥42 h. Lift angle 53.1° and 21,600 bph from Peacock's own outline drawing (SL5003A-0003 2023-02-07)."
   },
   {
     "calibre": "Peacock SL5003AT",
@@ -77524,6 +77607,7 @@
       "SL5003AT"
     ],
     "bph": 21600,
+    "lift_angle_deg": 53.1,
     "wheels": [
       {
         "name": "balance",
@@ -77532,9 +77616,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/15.html: maker's page, \"Frequency: 21600 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/15.html: maker's page, \"Frequency: 21600 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL5003AT-0003, dated 2017-12-01, read on Peacock's site on 2026-11-16: 升角 (lift angle) 53.1°, 频率 21600次/小时, 19 jewels, φ30.4 mm, 5.37 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/ebd6b060-4022-403e-8ab9-d5a28b8674ef.pdf; also at https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL5003AT-0003%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "2.0mm above Center Hr/Min Hands; 6H: Co-axial Tourbillon/Small Sec; Hand winding; 19 jewels; 30.4 mm across, 5.37 mm thick; power reserve ≥42 h. Lift angle 53.1° and 21,600 bph from Peacock's own outline drawing (SL5003AT-0003 2017-12-01)."
   },
   {
     "calibre": "Peacock SL5006",
@@ -77543,6 +77629,7 @@
       "SL5006"
     ],
     "bph": 21600,
+    "lift_angle_deg": 53.1,
     "wheels": [
       {
         "name": "balance",
@@ -77551,9 +77638,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/6.html: maker's page, \"Frequency: 21600 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/6.html: maker's page, \"Frequency: 21600 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL5006-0003, dated 2023-06-03, read on Peacock's site on 2026-11-16: 升角 (lift angle) 53.1°, 频率 21600次/小时, 19 jewels, φ30.4 mm, 6.32 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL5006-0003%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "2.0mm above Center Hr/Min Hands; 3H: Date by hand/ Corrector; 6H: Eccentric Tourbillon/Small Sec; 9H: Day & Night/24 Hrs by Hand; 12H: 160° power reserve; Hand winding; 19 jewels; 30.4 mm across, 6.32 mm thick; power reserve ≥42 h. Lift angle 53.1° and 21,600 bph from Peacock's own outline drawing (SL5006-0003 2023-06-03)."
   },
   {
     "calibre": "Peacock SL5110",
@@ -77562,6 +77651,7 @@
       "SL5110"
     ],
     "bph": 21600,
+    "lift_angle_deg": 54.0,
     "wheels": [
       {
         "name": "balance",
@@ -77570,9 +77660,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/27.html: maker's page, \"Frequency: 21600 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/27.html: maker's page, \"Frequency: 21600 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL5110-0003, dated 2022-09-02, read on Peacock's site on 2026-11-16: 升角 (lift angle) 54°, 频率 21600次/小时, 17 jewels, φ27×21 mm, 4.5 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL5110-0003%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "1.5mm above Center Hr/Min Hands; 6H: Co-Axial Tourbillon /Small Sec; Hand winding; 17 jewels; 27 × 21 mm across, 4.5 mm thick; power reserve ≥40 h. Lift angle 54° and 21,600 bph from Peacock's own outline drawing (SL5110-0003 2022-09-02)."
   },
   {
     "calibre": "Peacock SL5120T",
@@ -77581,6 +77673,7 @@
       "SL5120T"
     ],
     "bph": 21600,
+    "lift_angle_deg": 54.0,
     "wheels": [
       {
         "name": "balance",
@@ -77589,9 +77682,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/30.html: maker's page, \"Frequency: 21600 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/30.html: maker's page, \"Frequency: 21600 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL5120T-0003, dated 2016-08-30, read on Peacock's site on 2026-11-16: 升角 (lift angle) 54°, 频率 21600次/小时, 17 jewels, φ27 mm, 4.8 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/sl5120t-0003%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE%281%29.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "1.8mm above Center Hr/Min Hands; 6H: Co-Axial Tourbillon /Small Sec; Hand winding; 17 jewels; 27 mm across, 4.8 mm thick; power reserve ≥42 h. Lift angle 54° and 21,600 bph from Peacock's own outline drawing (SL5120T-0003 2016-08-30)."
   },
   {
     "calibre": "Peacock SL5200",
@@ -77600,6 +77695,7 @@
       "SL5200"
     ],
     "bph": 21600,
+    "lift_angle_deg": 54.0,
     "wheels": [
       {
         "name": "balance",
@@ -77608,9 +77704,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/31.html: maker's page, \"Frequency: 21600 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/31.html: maker's page, \"Frequency: 21600 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL5200-0003, dated 2025-08-11, read on Peacock's site on 2026-11-16: 升角 (lift angle) 54°, 频率 21600次/小时, 19 jewels, φ33 mm, 5.2 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/sl5200-0003%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE%EF%BC%88%E6%A0%B7%E6%9D%BF%E5%86%8C%EF%BC%89.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min Hands; 6H: Co-Axial Tourbillon/Small Sec; Hand winding; 19 jewels; 33 mm across, 5.2 mm thick; power reserve ≥48 h. Lift angle 54° and 21,600 bph from Peacock's own outline drawing (SL5200-0003 2025-08-11)."
   },
   {
     "calibre": "Peacock SL5207",
@@ -77619,6 +77717,7 @@
       "SL5207"
     ],
     "bph": 21600,
+    "lift_angle_deg": 54.0,
     "wheels": [
       {
         "name": "balance",
@@ -77627,9 +77726,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/90.html: maker's page, \"Frequency: 21600 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/90.html: maker's page, \"Frequency: 21600 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL5207-0003, dated 2024-07-27, read on Peacock's site on 2026-11-16: 升角 (lift angle) 54°, 频率 21600次/小时, 19 jewels, φ33 mm, 5.2 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/sl5207-0003%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE2024.07.27.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min Hands; 7H: Co-Axial Tourbillon/Small Sec; Hand winding; 19 jewels; 33 mm across, 5.2 mm thick; power reserve ≥48 h. Lift angle 54° and 21,600 bph from Peacock's own outline drawing (SL5207-0003 2024-07-27)."
   },
   {
     "calibre": "Peacock SL5210",
@@ -77638,6 +77739,7 @@
       "SL5210"
     ],
     "bph": 21600,
+    "lift_angle_deg": 54.0,
     "wheels": [
       {
         "name": "balance",
@@ -77646,9 +77748,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/65.html: maker's page, \"Frequency: 21600 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/65.html: maker's page, \"Frequency: 21600 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL5210-0003, dated 2017-03-06, read on Peacock's site on 2026-11-16: 升角 (lift angle) 54°, 频率 21600次/小时, 31 jewels, φ33 mm, 6.88 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL5210-0003%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min Hands; 6H: Co-Axial Tourbillon /Small Sec; Auto & Hand winding; 31 jewels; 33 mm across, 6.88 mm thick; power reserve ≥45 h. Lift angle 54° and 21,600 bph from Peacock's own outline drawing (SL5210-0003 2017-03-06)."
   },
   {
     "calibre": "Peacock SL5211",
@@ -77695,6 +77799,7 @@
       "SL5005"
     ],
     "bph": 21600,
+    "lift_angle_deg": 53.1,
     "wheels": [
       {
         "name": "balance",
@@ -77703,9 +77808,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/26.html: maker's page, \"Frequency: 21600 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/26.html: maker's page, \"Frequency: 21600 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL5005-0003, dated 2025-08-11, read on Peacock's site on 2026-11-16: 升角 (lift angle) 53.1°, 频率 21600次/小时, 18 jewels, φ30.4 mm, 5.37 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/sl5005-0003%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE%EF%BC%88%E6%A0%B7%E6%9D%BF%E5%86%8C%EF%BC%89.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "2.0mm above Center Hr/Min Hands; 6H: Eccentric Tourbillon/Small Sec; 12H: 240° power reserve; Hand winding; 18 jewels; 30.4 mm across, 5.37 mm thick; power reserve ≥42 h. Lift angle 53.1° and 21,600 bph from Peacock's own outline drawing (SL5005-0003 2025-08-11)."
   },
   {
     "calibre": "Peacock SL5215",
@@ -77752,6 +77859,7 @@
       "SL5231P"
     ],
     "bph": 28800,
+    "lift_angle_deg": 54.0,
     "wheels": [
       {
         "name": "balance",
@@ -77760,9 +77868,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/14.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/14.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL5231P-00003, dated 2023-07-26, read on Peacock's site on 2026-11-16: 升角 (lift angle) 54°, 频率 28800次/小时, 19 jewels, φ33.5×34.5 mm, 6.6 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/3303dadd-4fee-46ad-9a5f-e681b6b425a4.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Hours and minutes 0.74 mm above centre; tourbillon at 6; skeleton; hand-wound; 19 jewels; 33.5 × 34.5 mm across, 6.6 mm thick. Lift angle 54° and 28,800 bph from Peacock's own outline drawing (SL5231P-00003 2023-07-26)."
   },
   {
     "calibre": "Peacock SL5301",
@@ -77809,6 +77919,7 @@
       "SL5710K"
     ],
     "bph": 21600,
+    "lift_angle_deg": 54.0,
     "wheels": [
       {
         "name": "balance",
@@ -77817,9 +77928,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/80.html: maker's page, \"Frequency: 21600 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/80.html: maker's page, \"Frequency: 21600 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL5710K-0003, dated 2022-03-15, read on Peacock's site on 2026-11-16: 升角 (lift angle) 54°, 频率 21600次/小时, 33 jewels, φ35.6 mm, 5.0 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/161c4cba-a64e-487b-8db2-2cc83eef9e63.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Central tourbillon with small seconds; hours and minutes at 12; globe at 6; 33 jewels; 35.6 mm across, 5.0 mm thick; power reserve ≥120 h on the drawing. Lift angle 54° and 21,600 bph from Peacock's own outline drawing (SL5710K-0003 2022-03-15)."
   },
   {
     "calibre": "Peacock SL5711",
@@ -77847,6 +77960,7 @@
       "SL5120"
     ],
     "bph": 21600,
+    "lift_angle_deg": 54.0,
     "wheels": [
       {
         "name": "balance",
@@ -77855,9 +77969,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/28.html: maker's page, \"Frequency: 21600 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/28.html: maker's page, \"Frequency: 21600 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL5120-0003, dated 2016-08-24, read on Peacock's site on 2026-11-16: 升角 (lift angle) 54°, 频率 21600次/小时, 18 jewels, φ27 mm, 4.8 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL5120-0003%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "1.8mm above Center Hr/Min Hands; 6H: Eccentric Tourbillon/Small Sec; Hand winding; 18 jewels; 27 mm across, 4.8 mm thick; power reserve ≥42 h. Lift angle 54° and 21,600 bph from Peacock's own outline drawing (SL5120-0003 2016-08-24)."
   },
   {
     "calibre": "Peacock SL5620K",
@@ -77923,6 +78039,7 @@
       "SL6601"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51.5,
     "wheels": [
       {
         "name": "balance",
@@ -77931,9 +78048,11 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/4.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/4.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL6601-0003, dated 2023-02-08, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 33 jewels, φ38.6 mm, 7.45 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/ac8f97eb-7710-4a79-8f07-0569a5f60379.pdf; also at https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL6601-0003%20%E6%9C%BA%E5%BF%83%E5%A4%96%E5%BB%93%E5%9B%BE.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min hands; 3H: 300° power reserve; 6H: Date by window/Corrector; 9H: Small Sec; Auto & Hand winding/Stop Sec; 33 jewels; 38.6 mm across, 7.45 mm thick; power reserve ≥70 h. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL6601-0003 2023-02-08)."
   },
   {
     "calibre": "Peacock SL7021",
@@ -77942,6 +78061,7 @@
       "SL7021"
     ],
     "bph": 28800,
+    "lift_angle_deg": 53.0,
     "wheels": [
       {
         "name": "balance",
@@ -77950,9 +78070,12 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/29.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/29.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL7021-00003, dated 2024-03-08, read on Peacock's site on 2026-11-16: 升角 (lift angle) 53°, 频率 28800次/小时, 25 jewels, φ17.5 mm, 4.8 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL7021-00003%20%E5%A4%96%E5%BB%93%E5%9B%BE%20Model%EF%BC%882024.03.08%EF%BC%89.pdf",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL7021-00003, dated 2019-05-03, read on Peacock's site on 2026-11-16: 升角 (lift angle) 53°, 频率 28800次/小时, 25 jewels, φ17.5 mm, 4.8 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/6a81b503-8c41-4e18-907f-8193caebb28c.pdf"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Sec hands; 3H: Date by window/Corrector; Auto & Hand winding/Stop Sec; 25 jewels; 17.5 mm across, 4.8 mm thick; power reserve ≥36 h. Lift angle 53° and 28,800 bph from Peacock's own outline drawings (SL7021-00003 2024-03-08, SL7021-00003 2019-05-03)."
   },
   {
     "calibre": "Peacock SL7020C",
@@ -77961,6 +78084,7 @@
       "SL7020C"
     ],
     "bph": 28800,
+    "lift_angle_deg": 53.0,
     "wheels": [
       {
         "name": "balance",
@@ -77969,9 +78093,582 @@
       }
     ],
     "sources": [
-      "http://en.cpeacockmovement.com/Movement_detail/61.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
+      "http://en.cpeacockmovement.com/Movement_detail/61.html: maker's page, \"Frequency: 28800 Vibrations/Hr\"",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL7020C-00003, dated 2024-01-17, read on Peacock's site on 2026-11-16: 升角 (lift angle) 53°, 频率 28800次/小时, 25 jewels, φ17.5 mm, 4.8 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/SL7020C-00003%20%E5%A4%96%E5%BB%93%E5%9B%BE%20Model%EF%BC%882024.03.08%EF%BC%89.pdf",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL7020C-00003, dated 2022-03-15, read on Peacock's site on 2026-11-16: 升角 (lift angle) 53°, 频率 28800次/小时, 25 jewels, φ17.5 mm, 4.8 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/63e83453-0efc-46ea-bfd5-a3547074f606.pdf; also at https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/0e94bf93-605b-4704-a4a5-b9a6ee7e4874.pdf",
+      "https://en.cpeacockmovement.com/Movement_detail/1004432410315415552.html: maker's page, \"Frequency: 28800 Vibrations/Hr\""
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Center Hr/Min/Sec hands; Auto & Hand winding; Stop Sec; 25 jewels; 17.5 mm across, 4.8 mm thick; power reserve ≥36 h. Lift angle 53° and 28,800 bph from Peacock's own outline drawings (SL7020C-00003 2024-01-17, SL7020C-00003 2022-03-15)."
+  },
+  {
+    "calibre": "Peacock SL1601",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL1601"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.0,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL1601-0005, dated 2023-01-28, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51°, 频率 28800次/小时, 24 jewels, φ30.4 mm, 3.9 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/ee6c8e86-2549-4d03-9383-0a8d3b3de8e0.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre hours, minutes and seconds; automatic; hacking seconds; date at 3 with quickset; 24 jewels; 30.4 mm across, 3.9 mm thick. Lift angle 51° and 28,800 bph from Peacock's own outline drawing (SL1601-0005 2023-01-28)."
+  },
+  {
+    "calibre": "Peacock SL1629",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL1629"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.0,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL1629-0003, dated 2023-01-28, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51°, 频率 28800次/小时, 28 jewels, φ26 mm, 5.5 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/017b9d4a-68fb-46fd-b24a-a0b41a00f198.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre hours and minutes; small seconds at 9; 240° power reserve indicator at 6; automatic with hand winding; hacking seconds; date at 3 with quickset; 28 jewels; 26 mm across, 5.5 mm thick. Lift angle 51° and 28,800 bph from Peacock's own outline drawing (SL1629-0003 2023-01-28)."
+  },
+  {
+    "calibre": "Peacock SL1701",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL1701"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.0,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL1701-0005, dated 2023-01-28, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51°, 频率 28800次/小时, 24 jewels, φ26 mm, 3.9 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/ec6e5f8e-a5e3-486b-b35a-6d9bceade853.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre hours, minutes and seconds; automatic; hacking seconds; date at 3 with quickset; 24 jewels; 26 mm across, 3.9 mm thick. Lift angle 51° and 28,800 bph from Peacock's own outline drawing (SL1701-0005 2023-01-28)."
+  },
+  {
+    "calibre": "Peacock SL1702",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL1702"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.0,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL1702-0005, dated 2023-01-28, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51°, 频率 28800次/小时, 24 jewels, φ26 mm, 3.9 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/cefbec16-d5d0-4779-9aa6-77c867ad9b7c.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre hours, minutes and seconds; automatic; hacking seconds; fine regulator; date at 3 with quickset; 24 jewels; 26 mm across, 3.9 mm thick. Lift angle 51° and 28,800 bph from Peacock's own outline drawing (SL1702-0005 2023-01-28)."
+  },
+  {
+    "calibre": "Peacock SL2201B",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL2201B"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.5,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL2201B-0002, dated 2017-06-15, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 24 jewels, φ28.6 mm, 4.5 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/c2206323-ed7f-42c5-990c-03c9d5220a41.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre hours, minutes and seconds; open balance at 6; hacking seconds; automatic with hand winding; 24 jewels; 28.6 mm across, 4.5 mm thick. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL2201B-0002 2017-06-15)."
+  },
+  {
+    "calibre": "Peacock SL2201C",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL2201C"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.5,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL2201C-0002, dated 2017-06-15, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 24 jewels, φ28.6 mm, 4.5 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/f39f035c-cc7a-4d51-8c96-e641d4621165.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre hours, minutes and seconds; open balance at 6; hacking seconds; automatic with hand winding; 24 jewels; 28.6 mm across, 4.5 mm thick. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL2201C-0002 2017-06-15)."
+  },
+  {
+    "calibre": "Peacock SL2202",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL2202"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.5,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL2202-0002, dated 2023-08-22, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 24 jewels, φ33×31 mm, 4.5 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/5b615bff-4d5b-4830-a23f-917d88ee5f9c.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre hours, minutes and seconds; open balance at 6; hacking seconds; automatic with hand winding; 24 jewels; 33 × 31 mm across, 4.5 mm thick. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL2202-0002 2023-08-22)."
+  },
+  {
+    "calibre": "Peacock SL2203",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL2203"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.5,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL2203-0002, dated 2022-06-15, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 24 jewels, φ33 mm, 4.5 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/dcc42be6-6f99-4f31-bd56-7ee591788206.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre hours, minutes and seconds; open balance at 6; hacking seconds; automatic with hand winding; 24 jewels; 33 mm across, 4.5 mm thick. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL2203-0002 2022-06-15)."
+  },
+  {
+    "calibre": "Peacock SL2204",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL2204"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.5,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL2204-0002, dated 2023-02-07, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 24 jewels, φ33 mm, 4.5 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/16924536-f848-4b8e-9999-4f8e9c93af21.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre hours, minutes and seconds; open balance at 6; hacking seconds; automatic with hand winding; 24 jewels; 33 mm across, 4.5 mm thick. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL2204-0002 2023-02-07)."
+  },
+  {
+    "calibre": "Peacock SL2205",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL2205"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.5,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL2205-0002, dated 2022-09-03, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 24 jewels, φ31×29.1 mm, 4.7 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/c452a046-346f-44df-b3ef-d3ef4d550519.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre hours, minutes and seconds; open balance at 6; hacking seconds; automatic with hand winding; 24 jewels; 31 × 29.1 mm across, 4.7 mm thick. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL2205-0002 2022-09-03)."
+  },
+  {
+    "calibre": "Peacock SL3016",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL3016"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.5,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL3016-0005, dated 2016-08-06, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 32 jewels, φ26 mm, 5.8 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/29b43dc0-a576-45a5-b52b-4b7cb1b96569.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre hours and minutes; small seconds at 6; automatic with hand winding; hacking seconds; moon phase at 12 with quickset; 32 jewels; 26 mm across, 5.8 mm thick. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL3016-0005 2016-08-06)."
+  },
+  {
+    "calibre": "Peacock SL3017",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL3017"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.5,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL3017-0005, dated 2016-08-06, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 29 jewels, φ30.4 mm, 6.8 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/e2fe64f7-a7a9-4afc-aa97-dfec7eda9655.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre hours, minutes and seconds; automatic with hand winding; hacking seconds; big date at 12 with quickset; 140° power reserve hand at 6; 29 jewels; 30.4 mm across, 6.8 mm thick. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL3017-0005 2016-08-06)."
+  },
+  {
+    "calibre": "Peacock SL3020",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL3020"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.5,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL3020-0005, dated 2016-08-08, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 28 jewels, φ27.5 mm, 6.2 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/c61c92e6-7e2d-4b25-adeb-505c32733b94.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre hours, minutes and seconds; date window at 3; 140° power reserve indicator at 6; automatic; 28 jewels; 27.5 mm across, 6.2 mm thick. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL3020-0005 2016-08-08)."
+  },
+  {
+    "calibre": "Peacock SL3026",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL3026"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.5,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL3026-0003, dated 2018-09-12, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 28 jewels, φ27.5 mm, 6.3 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/9cbc20bb-eb35-4f41-853a-86c21ca3e9f6.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre hours, minutes and seconds; automatic with hand winding; hacking seconds; date window at 6 with quickset; day/night and 24-hour indicator; day and month at 12, set by pushers; 28 jewels; 27.5 mm across, 6.3 mm thick. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL3026-0003 2018-09-12)."
+  },
+  {
+    "calibre": "Peacock SL3028",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL3028"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.5,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL3028-0005, dated 2016-08-05, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 32 jewels, φ27.5 mm, 6.2 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/e608c33b-b84b-4c5d-82a1-9f0a5132f0f3.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre hours and minutes; small seconds at 6; automatic with hand winding; hacking seconds; date at 12 with quickset; 32 jewels; 27.5 mm across, 6.2 mm thick. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL3028-0005 2016-08-05)."
+  },
+  {
+    "calibre": "Peacock SL4616",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL4616"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.5,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL4616-0003, dated 2017-03-21, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 32 jewels, φ30.4 mm, 8.1 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/4cb7dae7-15f5-437d-aa92-fc8a305e37e8.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Chronograph: centre hours, minutes and chronograph seconds; small seconds at 9; chronograph minutes at 3; chronograph hours at 6; automatic; 32 jewels; 30.4 mm across, 8.1 mm thick. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL4616-0003 2017-03-21)."
+  },
+  {
+    "calibre": "Peacock SL4629",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL4629"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.5,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL4629-0003, dated 2016-08-06, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 32 jewels, φ30.4 mm, 8.1 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/6cfb4cc8-40b2-4908-9509-e8b3e3130059.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Chronograph: centre hours, minutes and chronograph seconds; small seconds at 6; 60-minute counter at 12; date window at 3; automatic; 32 jewels; 30.4 mm across, 8.1 mm thick. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL4629-0003 2016-08-06)."
+  },
+  {
+    "calibre": "Peacock SL4651",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL4651"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.5,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL4651-0003, dated 2018-07-11, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 28 jewels, φ30.4 mm, 8.1 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/4208116f-590c-4dfc-b0c2-9141774b858f.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Chronograph: centre hours, minutes, chronograph seconds and pointer date; chronograph hours and moon phase at 6; small seconds and 24-hour at 9; chronograph minutes with month and day windows at 12; automatic; hacking seconds; 28 jewels; 30.4 mm across, 8.1 mm thick. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL4651-0003 2018-07-11)."
+  },
+  {
+    "calibre": "Peacock SL4680",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL4680"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.5,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL4680-0003, dated 2016-08-06, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 36 jewels, φ30.4 mm, 8.8 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/0a7a9e3f-c602-4c9d-a0af-9277ae1bcdfc.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Chronograph: centre hours, minutes and chronograph seconds; small seconds at 3; chronograph minutes at 9; chronograph hours at 6; big date at 12; automatic; 36 jewels; 30.4 mm across, 8.8 mm thick. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL4680-0003 2016-08-06)."
+  },
+  {
+    "calibre": "Peacock SL5511",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL5511"
+    ],
+    "bph": 21600,
+    "lift_angle_deg": 54.0,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.3333333333333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL5511-0003, dated 2022-03-02, read on Peacock's site on 2026-11-16: 升角 (lift angle) 54°, 频率 21600次/小时, 33 jewels, φ38.6 mm, 7.45 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/1041ad85-7e94-46dc-b600-e4b7d9526e5b.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre minutes; hours at 12; small seconds at 6; tourbillon at 9; automatic with hand winding; 33 jewels; 38.6 mm across, 7.45 mm thick. Lift angle 54° and 21,600 bph from Peacock's own outline drawing (SL5511-0003 2022-03-02)."
+  },
+  {
+    "calibre": "Peacock SL5512",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL5512"
+    ],
+    "bph": 21600,
+    "lift_angle_deg": 54.0,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.3333333333333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL5512-0003, dated 2022-03-02, read on Peacock's site on 2026-11-16: 升角 (lift angle) 54°, 频率 21600次/小时, 33 jewels, φ38.6 mm, 7.45 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/38d5f219-4936-4b60-ac9b-9ae2349f018f.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre hours and minutes; small seconds at 6; tourbillon at 9; automatic with hand winding; 33 jewels; 38.6 mm across, 7.45 mm thick. Lift angle 54° and 21,600 bph from Peacock's own outline drawing (SL5512-0003 2022-03-02)."
+  },
+  {
+    "calibre": "Peacock SL5522",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL5522"
+    ],
+    "bph": 21600,
+    "lift_angle_deg": 54.0,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.3333333333333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL5522-0003, dated 2022-03-02, read on Peacock's site on 2026-11-16: 升角 (lift angle) 54°, 频率 21600次/小时, 33 jewels, φ38.6 mm, 7.45 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/e4d14af6-22ee-4b51-9e11-e141d468c4f7.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre hours and minutes; 210° power reserve indicator at 3; 135° retrograde date at 7:30; tourbillon at 12; automatic with hand winding; 33 jewels; 38.6 mm across, 7.45 mm thick. Lift angle 54° and 21,600 bph from Peacock's own outline drawing (SL5522-0003 2022-03-02)."
+  },
+  {
+    "calibre": "Peacock SL5720II",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL5720II",
+      "SL5720Ⅱ"
+    ],
+    "bph": 21600,
+    "lift_angle_deg": 54.0,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.3333333333333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL5720Ⅱ-00003, dated 2023-04-11, read on Peacock's site on 2026-11-16: 升角 (lift angle) 54°, 频率 21600次/小时, 20 jewels, φ38.6 mm, 5.2 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/66f6da87-a528-495a-bb98-d9eecda1a0d4.pdf",
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL5720Ⅱ-00003, dated 2022-04-19, read on Peacock's site on 2026-11-16: 升角 (lift angle) 54°, 频率 21600次/小时, 20 jewels, φ38.6 mm, 5.2 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/c4f97c4d-1dfb-4179-9851-6c9346447154.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Hours and minutes at 12; large-cage tourbillon with small seconds at 6; 20 jewels; 38.6 mm across, 5.2 mm thick. Lift angle 54° and 21,600 bph from Peacock's own outline drawings (SL5720Ⅱ-00003 2023-04-11, SL5720Ⅱ-00003 2022-04-19)."
+  },
+  {
+    "calibre": "Peacock SL6444",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL6444"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.5,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL6444-0003, dated 2016-08-06, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 26 jewels, φ30.4 mm, 8.1 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/27cb8eda-422d-406a-a040-e5b35f033794.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre hours, minutes and seconds; date window at 7; automatic; 26 jewels; 30.4 mm across, 8.1 mm thick. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL6444-0003 2016-08-06)."
+  },
+  {
+    "calibre": "Peacock SL6606",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL6606"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.5,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL6606-0003, dated 2022-01-13, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 33 jewels, φ38.6 mm, 7.45 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/d1a09546-8a8e-49e4-a6eb-ceaa089ce054.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Date window at 3, set at the crown's second position; small seconds at 9; hacking seconds; automatic; 33 jewels; 38.6 mm across, 7.45 mm thick. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL6606-0003 2022-01-13)."
+  },
+  {
+    "calibre": "Peacock SL6611",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL6611"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.5,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL6611-0003, dated 2016-10-20, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 36 jewels, φ38.6 mm, 7.95 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/28a56977-96a8-4739-9d6c-3d9b3adac8d5.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre hours and minutes; 300° power reserve indicator at 3; small seconds at 9; hacking seconds; month, date and day windows at 12, set at the crown's second position; automatic; 36 jewels; 38.6 mm across, 7.95 mm thick. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL6611-0003 2016-10-20)."
+  },
+  {
+    "calibre": "Peacock SL6701",
+    "maker": "Peacock (Dandong)",
+    "family": [
+      "SL6701"
+    ],
+    "bph": 28800,
+    "lift_angle_deg": 51.5,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL6701-0003, dated 2017-03-06, read on Peacock's site on 2026-11-16: 升角 (lift angle) 51.5°, 频率 28800次/小时, 32 jewels, φ38.6 mm, 7.45 mm thick; https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/5c5a354e-c640-4264-b369-275374a6cd95.pdf"
+    ],
+    "confidence": "maker's page",
+    "notes": "Centre hours, minutes and seconds; 300° power reserve indicator at 3; date window at 6, set at the crown's second position; hacking seconds; automatic; 32 jewels; 38.6 mm across, 7.45 mm thick. Lift angle 51.5° and 28,800 bph from Peacock's own outline drawing (SL6701-0003 2017-03-06)."
   },
   {
     "calibre": "Jinghe JH8501",
