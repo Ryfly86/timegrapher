@@ -798,7 +798,10 @@ const DROP_POST_S: f64 = 0.003;
 /// [`DROP_SNAP_S`] of where the sum puts the drop from that sound, and
 /// moves by the distance between the two peaks. A
 /// beat on its drop, or on no sound of the side (as after a jump), is
-/// left as found.
+/// left as found, and so is a block with fewer than [`DROP_BLOCK_MIN`] of
+/// the side's beats, or whose beats on the line stray from it by more than
+/// [`DROP_LINE_SCATTER_S`], or whose drop stands under [`DROP_SUM_SNR`]
+/// times the sum's median, as noise taken for beats does.
 fn onto_the_drop(env: &[f32], fs: f64, template: &[f32], beats: &mut [Beat], off: f64) {
     let origin = (PRE_S * fs).round() as usize;
     let a = origin.saturating_sub((DROP_PRE_S * fs).round() as usize);
@@ -861,6 +864,25 @@ fn onto_the_drop(env: &[f32], fs: f64, template: &[f32], beats: &mut [Beat], off
         let Some((drop, others)) = side_sounds(&sum, half) else {
             continue;
         };
+        // A watch's beats on its line keep to it within a tenth of a ms or
+        // so; noise taken for beats doesn't, and is left as found rather
+        // than lined up on a sound of its own.
+        let mut off_line: Vec<f64> = (run.iter())
+            .map(|&(n, t)| (t - line(n)).abs())
+            .filter(|&d| d <= SIDE_SOUND_GAP_S / 2.0)
+            .collect();
+        if run.len() < DROP_BLOCK_MIN
+            || off_line.len() < DROP_LINED_MIN
+            || crate::dsp::median(&mut off_line) > DROP_LINE_SCATTER_S
+        {
+            continue;
+        }
+        // A watch's drop stands far above the rest of the sum; noise
+        // taken for beats sums to peaks not much above its own run.
+        let mut level: Vec<f64> = sum.iter().map(|v| v.abs() as f64).collect();
+        if (sum[drop] as f64) < DROP_SUM_SNR * crate::dsp::median(&mut level) {
+            continue;
+        }
         for &j in &on {
             let bt = &beats[j];
             let (Some(c), Some(l)) = (at(bt.time), at(line(bt.index))) else {
@@ -904,6 +926,33 @@ pub const DROP_BLOCK_S: f64 = crate::distribution::STRETCH_S;
 /// while a beat's sounds keep their spacing to within a few hundredths of
 /// a ms (#1819).
 const DROP_SNAP_S: f64 = 0.0005;
+
+/// How far a block's beats on its side's line may lie from it, as their
+/// median, for the block to be a watch's, whose beats are moved onto their
+/// drop ([`onto_the_drop`]), seconds. A watch's beats keep to their line
+/// within a few hundredths of a ms; beats tracked in noise scatter over
+/// the whole reach of the line, half of [`SIDE_SOUND_GAP_S`] either side
+/// (#1819).
+const DROP_LINE_SCATTER_S: f64 = 0.0002;
+
+/// Fewer of a block's beats than this on its side's line, and the block
+/// is left as found ([`onto_the_drop`]): how far they stray from it is
+/// their median, which needs three.
+const DROP_LINED_MIN: usize = 3;
+
+/// How far a block's drop must stand above the median of its side's
+/// added-up match, as a ratio, for the block to be a watch's
+/// ([`onto_the_drop`]). Measured on 2 s blocks: 30 s of stand noise as
+/// `edge_all_silence` makes it reached 7 at the most, the near-tie
+/// synthetic at 20% noise 12 at the least, and the DayDate 36 run-down
+/// (hour 084) 16.7 at the least (#1819).
+const DROP_SUM_SNR: f64 = 10.0;
+
+/// Fewer of a side's beats than this in a block, and they are left as
+/// found ([`onto_the_drop`]): a line through two or three beats fits
+/// them whatever they are. A block holds 4 or 5 of a side's beats at
+/// 14,400 bph, so slower watches are left as found.
+const DROP_BLOCK_MIN: usize = 4;
 
 /// A side's line through `run`, its beats' (index, time): the time a beat
 /// of each index would have, the median step between the beats on and
