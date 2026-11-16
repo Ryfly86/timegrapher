@@ -240,7 +240,8 @@ impl State {
         let fs = self.fs;
         let (local, heard_first) = match &self.template {
             Some(t) => {
-                let (b, level) = beats::detect_after(env, fs, self.bph, t, self.level);
+                let at = x0 as f64 / fs;
+                let (b, level) = beats::detect_after_at(env, fs, self.bph, t, self.level, at);
                 self.level = level;
                 (b, false)
             }

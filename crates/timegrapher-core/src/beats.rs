@@ -709,6 +709,18 @@ pub fn detect_with_template(env: &[f32], fs: f64, bph: u32, template: &[f32]) ->
     detect_after(env, fs, bph, template, None).0
 }
 
+/// [`detect_with_template`] on sound that starts `off` seconds into the
+/// take ([`detect_after_at`]).
+pub fn detect_with_template_at(
+    env: &[f32],
+    fs: f64,
+    bph: u32,
+    template: &[f32],
+    off: f64,
+) -> Vec<Beat> {
+    detect_after_at(env, fs, bph, template, None, off).0
+}
+
 /// [`detect_with_template`] on sound that follows sound already tracked,
 /// whose typical beat matched the template at `level`: returns the beats
 /// and the level to carry on to the sound after. A stretch heard as
@@ -719,6 +731,21 @@ pub fn detect_after(
     bph: u32,
     template: &[f32],
     level: Option<f32>,
+) -> (Vec<Beat>, Option<f32>) {
+    detect_after_at(env, fs, bph, template, level, 0.0)
+}
+
+/// [`detect_after`] on sound that starts `off` seconds into the take, so
+/// that each beat is put on its drop on the take's own grid of
+/// [`DROP_BLOCK_S`] ([`onto_the_drop`]), the same however the sound is
+/// cut into reads.
+pub fn detect_after_at(
+    env: &[f32],
+    fs: f64,
+    bph: u32,
+    template: &[f32],
+    level: Option<f32>,
+    off: f64,
 ) -> (Vec<Beat>, Option<f32>) {
     let beat = 3600.0 / bph as f64;
     // Pass 2: correlate with the zero-mean template and track its peaks.
@@ -743,7 +770,7 @@ pub fn detect_after(
         });
     }
     keep_sides_on_one_sound(&corr, fs, typical, &mut beats);
-    onto_the_drop(env, fs, template, &mut beats);
+    onto_the_drop(env, fs, template, &mut beats, off);
     (beats, level)
 }
 
@@ -758,16 +785,20 @@ const DROP_POST_S: f64 = 0.003;
 /// grow to match as well, and the beat is then timed on it, a few ms
 /// early. The drop alone ([`DROP_PRE_S`], [`DROP_POST_S`]) is matched over
 /// the sound. One beat's match is too noisy to tell its drop from an
-/// impulse as loud, so the matches of a side's beats, [`SIDE_LINE_HALF`]
-/// either way, that are on the side's line ([`side_line`]) are added up,
-/// [`PRE_S`] either side of it, the template's reach before its drop. That sum shows
-/// the side's sounds, and [`side_sounds`] picks the drop among them as
-/// [`drop_offset`] picks it on the template. A beat whose own match peaks
-/// on another of those sounds, within half of [`SIDE_SOUND_GAP_S`], takes
-/// its match's highest peak within that of the drop instead, and moves by
-/// the distance between the two peaks. A beat on its drop, or on no sound
-/// of the side (as after a jump), is left as found.
-fn onto_the_drop(env: &[f32], fs: f64, template: &[f32], beats: &mut [Beat]) {
+/// impulse as loud, so the beats of a side are taken together, in blocks
+/// of [`DROP_BLOCK_S`] on the take's own clock (the sound starts `off`
+/// seconds into the take): a saved read and live, which cut the sound
+/// into reads differently, take the same beats together. The matches of a
+/// block's beats that are on the side's line there ([`side_line`]) are
+/// added up, [`PRE_S`] either side of it, the template's reach before its
+/// drop. That sum shows the side's sounds, and [`side_sounds`] picks the
+/// drop among them as [`drop_offset`] picks it on the template. A beat
+/// whose own match peaks on another of those sounds, within half of
+/// [`SIDE_SOUND_GAP_S`], takes its match's highest peak within that of
+/// the drop instead, and moves by the distance between the two peaks. A
+/// beat on its drop, or on no sound of the side (as after a jump), is
+/// left as found.
+fn onto_the_drop(env: &[f32], fs: f64, template: &[f32], beats: &mut [Beat], off: f64) {
     let origin = (PRE_S * fs).round() as usize;
     let a = origin.saturating_sub((DROP_PRE_S * fs).round() as usize);
     let b = (origin + (DROP_POST_S * fs).round() as usize).min(template.len());
@@ -793,64 +824,62 @@ fn onto_the_drop(env: &[f32], fs: f64, template: &[f32], beats: &mut [Beat]) {
             .filter(|&j| corr[j] >= corr[j - 1] && corr[j] > corr[j + 1])
             .max_by(|&x, &y| corr[x].total_cmp(&corr[y]))
     };
-    for side in 0..2 {
-        let on: Vec<usize> = (0..beats.len())
-            .filter(|&j| beats[j].index.rem_euclid(2) == side)
+    let block = |t: f64| ((t + off) / DROP_BLOCK_S).floor() as i64;
+    let mut groups: Vec<((i64, i64), Vec<usize>)> = Vec::new();
+    for (j, bt) in beats.iter().enumerate() {
+        let key = (block(bt.time), bt.index.rem_euclid(2));
+        match groups.iter_mut().rev().take(2).find(|g| g.0 == key) {
+            Some(g) => g.1.push(j),
+            None => groups.push((key, vec![j])),
+        }
+    }
+    for (_, on) in groups {
+        let run: Vec<(i64, f64)> = on
+            .iter()
+            .map(|&j| (beats[j].index, beats[j].time))
             .collect();
-        let mut moves = vec![None; on.len()];
-        for m in (0..on.len()).step_by(SIDE_FOLD_STEP) {
-            let lo = m.saturating_sub(SIDE_LINE_HALF);
-            let hi = (m + SIDE_LINE_HALF + 1).min(on.len());
-            let run: Vec<(i64, f64)> = on[lo..hi]
-                .iter()
-                .map(|&j| (beats[j].index, beats[j].time))
-                .collect();
-            let Some(line) = side_line(&run) else {
+        let Some(line) = side_line(&run) else {
+            continue;
+        };
+        // Only beats on the line are added up, so that beats on another
+        // sound, or past a jump, add no sound of their own.
+        let mut sum = vec![0f32; span];
+        for &(n, t) in &run {
+            let (Some(c), Some(l)) = (at(t), at(line(n))) else {
                 continue;
             };
-            // Only beats on the line are added up, so that beats on
-            // another sound, or past a jump, add no sound of their own.
-            let mut sum = vec![0f32; span];
-            for &(n, t) in &run {
-                let (Some(c), Some(l)) = (at(t), at(line(n))) else {
-                    continue;
-                };
-                if peak(c).is_some_and(|p| p.abs_diff(l) <= half) {
-                    let s = l - reach;
-                    sum.iter_mut()
-                        .zip(&corr[s..s + span])
-                        .for_each(|(v, c)| *v += c);
-                }
-            }
-            let Some((drop, others)) = side_sounds(&sum, half) else {
-                continue;
-            };
-            let end = (m + SIDE_FOLD_STEP).min(on.len());
-            for (i, mv) in moves.iter_mut().enumerate().take(end).skip(m) {
-                let bt = &beats[on[i]];
-                let (Some(c), Some(l)) = (at(bt.time), at(line(bt.index))) else {
-                    continue;
-                };
-                let (Some(own), Some(to)) = (peak(c), peak(l + drop - reach)) else {
-                    continue;
-                };
-                let off_line = |s: usize| own.abs_diff(l + s - reach) <= half;
-                if to != own && others.iter().copied().any(off_line) {
-                    *mv = Some((parabolic(&corr, to) - parabolic(&corr, own)) / fs);
-                }
+            if peak(c).is_some_and(|p| p.abs_diff(l) <= half) {
+                let s = l - reach;
+                sum.iter_mut()
+                    .zip(&corr[s..s + span])
+                    .for_each(|(v, c)| *v += c);
             }
         }
-        for (&j, mv) in on.iter().zip(moves) {
-            if let Some(mv) = mv {
-                beats[j].time += mv;
+        let Some((drop, others)) = side_sounds(&sum, half) else {
+            continue;
+        };
+        for &j in &on {
+            let bt = &beats[j];
+            let (Some(c), Some(l)) = (at(bt.time), at(line(bt.index))) else {
+                continue;
+            };
+            let (Some(own), Some(to)) = (peak(c), peak(l + drop - reach)) else {
+                continue;
+            };
+            let off_line = |s: usize| own.abs_diff(l + s - reach) <= half;
+            if to != own && others.iter().copied().any(off_line) {
+                beats[j].time += (parabolic(&corr, to) - parabolic(&corr, own)) / fs;
             }
         }
     }
 }
 
-/// Same-side beats a side's added-up match of its drop serves, for
-/// [`onto_the_drop`]: each sum is made for one beat in this many.
-const SIDE_FOLD_STEP: usize = 8;
+/// The blocks of the take's clock, seconds, in which a side's beats are
+/// taken together to find its drop ([`onto_the_drop`]): the grid of the
+/// amplitude windows ([`crate::distribution::STRETCH_S`]), which live and
+/// a saved read already share, and short enough for a block to lie whole
+/// in one of live's reads.
+pub const DROP_BLOCK_S: f64 = crate::distribution::STRETCH_S;
 
 /// A side's line through `run`, its beats' (index, time): the time a beat
 /// of each index would have, the median step between the beats on and

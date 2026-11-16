@@ -785,7 +785,7 @@ impl LiveAnalyzer {
         let a = &self.cfg.analysis.clone();
         let env = envelope(x, fs, &a.envelope);
 
-        let (bph, local) = self.beats_in(&env, x, a.bph);
+        let (bph, local) = self.beats_in(&env, x, a.bph, off);
         let beat = 3600.0 / bph as f64;
         // Beats near the end of the window may not be complete yet; they
         // settle on a later pass. The start of the window is skipped while
@@ -828,6 +828,7 @@ impl LiveAnalyzer {
         if self.beats.last().is_some() && (resumed || count_off.abs() > 0.25) {
             self.jump_at(anchor_t, false);
         }
+        self.redrop_open_block(&numbered[..anchor], off);
         self.take_beats(x, &env, &numbered[anchor..], off, to, beat);
         self.find_jumps_and_trim();
         self.amplitude_pass(&env, &numbered, off, from, to, beat);
@@ -838,10 +839,16 @@ impl LiveAnalyzer {
     /// The beats in this pass's envelope `env` of samples `x`, at the rate
     /// locked on to, or else at `bph_set` or a guessed rate, locking on to
     /// it when a watch is heard in enough of them.
-    fn beats_in(&mut self, env: &[f32], x: &[f32], bph_set: Option<u32>) -> (u32, Vec<Beat>) {
+    fn beats_in(
+        &mut self,
+        env: &[f32],
+        x: &[f32],
+        bph_set: Option<u32>,
+        off: f64,
+    ) -> (u32, Vec<Beat>) {
         let fs = self.fs;
         match (&self.template, self.bph) {
-            (Some(t), Some(bph)) => (bph, beats::detect_with_template(env, fs, bph, t)),
+            (Some(t), Some(bph)) => (bph, beats::detect_with_template_at(env, fs, bph, t, off)),
             _ => {
                 let bph = bph_set.unwrap_or_else(|| beats::guess_bph(env, fs));
                 let (b, t) = beats::detect(env, fs, bph);
@@ -915,6 +922,29 @@ impl LiveAnalyzer {
         };
         self.doubt
             .is_some_and(|(_, n)| n as f64 * self.cfg.update_s >= RELOCK_S)
+    }
+
+    /// The beats settled already in the block of [`beats::DROP_BLOCK_S`]
+    /// still open, timed again as this pass, which hears more of the
+    /// block, puts them on their drop ([`beats::detect_with_template_at`]).
+    /// A side's beats are put on their drop a block at a time, and a saved
+    /// read hears the whole block, so the beats settle as a saved read
+    /// gives them once the block has closed, up to a block after they were
+    /// first given. Only a pass that heard the block from its start times
+    /// them again.
+    fn redrop_open_block(&mut self, settled: &[Beat], off: f64) {
+        let b = beats::DROP_BLOCK_S;
+        let open = (self.settled_to / b).floor() * b;
+        if open < off + 0.25 {
+            return;
+        }
+        let first = self.beats.partition_point(|x| x.time < open - 0.01);
+        for x in &mut self.beats[first..] {
+            let near = settled.iter().find(|y| y.index == x.index);
+            if let Some(y) = near.filter(|y| (y.time + off - x.time).abs() < beats::PRE_S) {
+                x.time = y.time + off;
+            }
+        }
     }
 
     /// Settles this pass's numbered beats before `to`, noting those that
