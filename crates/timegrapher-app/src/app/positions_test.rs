@@ -295,7 +295,7 @@ impl TimegrapherApp {
         }
         self.positions_wind(ui, running);
         theme::bar_gap(ui);
-        self.positions_lengths(ui, running, "Each Position");
+        self.positions_lengths(ui, running, ("Each Position", guided::Kind::Positions));
         // Each chart on or off, the others sharing the height (#1729),
         // once there is something to chart: beside the lengths with no
         // gap, so the row still fits at 1000 pt.
@@ -376,8 +376,13 @@ impl TimegrapherApp {
     /// take was read, never that the app's settings made it (Hugh, #1733):
     /// Settle stays live, as it reads the take again; the measuring time
     /// is the take's own, greyed.
-    pub(super) fn positions_lengths(&mut self, ui: &mut egui::Ui, running: bool, each: &str) {
-        let recorded = self.recorded_lengths(ui.ctx());
+    pub(super) fn positions_lengths(
+        &mut self,
+        ui: &mut egui::Ui,
+        running: bool,
+        (each, kind): (&str, guided::Kind),
+    ) {
+        let recorded = self.recorded_lengths(ui.ctx(), kind);
         let settle_hint = if self.guided.is_none() && self.take_on_show().is_some() {
             "How this take is read. Change it to read the take again."
         } else {
@@ -437,24 +442,34 @@ impl TimegrapherApp {
     }
 
     /// With a take on show and no test on the Bench, how long each of its
-    /// positions was read, as the table beside it gives it, so the two
-    /// never disagree (Walter on #1843): one length, or "1 to 2 min"
-    /// where they differ (Hugh, #1733). None until the table is read, or
-    /// for a take with no positions read, whose fields stay the app's.
-    pub(super) fn recorded_lengths(&self, ctx: &egui::Context) -> Option<String> {
+    /// positions was read, as the `kind` of pane's table gives it, so the
+    /// two never disagree (Walter on #1843): the Complication Test's own
+    /// stretches on its pane, else the This Take table's. One length to
+    /// the second, or "1 to 2 min" where they differ (Hugh, #1733). None
+    /// until the table is read, or with nothing read, the fields then
+    /// staying the app's.
+    pub(super) fn recorded_lengths(
+        &self,
+        ctx: &egui::Context,
+        kind: guided::Kind,
+    ) -> Option<String> {
         if self.guided.is_some() || self.take_on_show().is_none() {
             return None;
         }
-        let t = self.free_table_shown(ctx)?;
-        let lengths: Vec<f64> = t
-            .six
-            .0
-            .iter()
-            .chain(&t.upright.0)
-            .map(|r| r.duration_s)
-            .collect();
-        let least = lengths.iter().copied().reduce(f64::min)?;
-        let most = lengths.iter().copied().reduce(f64::max)?;
+        let lengths: Vec<f64> = if kind == guided::Kind::Complication {
+            let t = self.complication_saved.as_ref()?;
+            t.stretches().iter().map(|s| s.2 - s.1).collect()
+        } else {
+            let t = self.free_table_shown(ctx)?;
+            t.six
+                .0
+                .iter()
+                .chain(&t.upright.0)
+                .map(|r| r.duration_s)
+                .collect()
+        };
+        let least = lengths.iter().map(|l| l.round()).reduce(f64::min)?;
+        let most = lengths.iter().map(|l| l.round()).reduce(f64::max)?;
         Some(fields::duration_range(least, most))
     }
 

@@ -1088,12 +1088,17 @@ fn an_opened_takes_table_can_be_saved_and_copied() {
     // #1843). Its stops are 62 s, the first read whole, the rest less the
     // 20 s settling after each change of position.
     let read = app.free_table(&ctx).expect("a table");
-    let recorded = app.recorded_lengths(&ctx).expect("a take on show");
+    let recorded = app
+        .recorded_lengths(&ctx, guided::Kind::Positions)
+        .expect("a take on show");
     assert_eq!(recorded, "42 to 62 s");
     let durations: Vec<f64> = read.six.0.iter().map(|r| r.duration_s).collect();
     let least = durations.iter().copied().fold(f64::MAX, f64::min);
     let most = durations.iter().copied().fold(f64::MIN, f64::max);
-    assert_eq!(recorded, fields::duration_range(least, most));
+    assert_eq!(
+        recorded,
+        fields::duration_range(least.round(), most.round())
+    );
     assert_ne!(recorded, fields::duration(guided::MEASURE_S));
     let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
     let lines: Vec<&str> = drawn.lines().collect();

@@ -149,7 +149,7 @@ impl TimegrapherApp {
             }
             theme::bar_gap(ui);
         }
-        self.positions_lengths(ui, running, "Each Stretch");
+        self.positions_lengths(ui, running, ("Each Stretch", guided::Kind::Complication));
         theme::bar_gap(ui);
         let nothing = self
             .complication_shown()
