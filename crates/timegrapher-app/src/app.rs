@@ -2632,24 +2632,24 @@ impl TimegrapherApp {
         self.trend_key = (self.rev, self.average_s.to_bits());
     }
 
-    /// Read the run of readings again when what it rests on changed
-    /// since: the take's settings, clock, breaks or masks, or Average Over.
+    /// Read the run of readings again when what it rests on changed since: the take's settings,
+    /// clock, breaks or masks, or Average Over. While listening the next frame reads it (#1825).
     fn refresh_trend(&mut self) {
-        if self.trend_key != (self.rev, self.average_s.to_bits()) {
+        if self.trend_key != (self.rev, self.average_s.to_bits()) && !self.running() {
             self.rebuild_trend();
         }
     }
 
-    /// Live's first chunk read again with the file's template took over
-    /// (#1327): the charts' points are read again, and the strip's anchor
-    /// moves with the beats, so the view stays where it was. A rebuild
-    /// given up is logged, once.
+    /// Live's first chunk read again with the file's template took over (#1327): the charts'
+    /// points are read again, a run being read in the background on the old one dropped, and
+    /// the strip's anchor moves with the beats, so the view stays. A given-up rebuild is logged.
     fn follow_rebuild(&mut self) {
         let Some(live) = &self.live else {
             return;
         };
         let now = (live.template_switch_s(), live.template_rebuild_given_up());
         if now.0 != self.rebuild_seen.0 {
+            self.bg.trend = None;
             self.trend = live.trend(self.average_s);
             if let (Some(a), Some((dt, di))) = (self.anchor.as_mut(), live.template_shift()) {
                 (a.time, a.index) = (a.time + dt, a.index + di);

@@ -50,8 +50,8 @@ impl TimegrapherApp {
     }
 
     /// A new averaging time, for the readings and every pane: the readings
-    /// over the whole session are worked out again, and the tick and tock
-    /// sound follows it.
+    /// over the whole session are worked out again (while listening, in the
+    /// background), and the tick and tock sound follows it.
     pub(super) fn set_average(&mut self, seconds: f64) {
         self.average_s = seconds;
         let span = self.sound_span();
@@ -60,7 +60,7 @@ impl TimegrapherApp {
         }
         // The sound kept so far covered the old span.
         self.sound_at = None;
-        self.rebuild_trend();
+        self.refresh_trend();
     }
 
     /// Clear every run of readings, for a new session or a change that
@@ -2302,6 +2302,8 @@ impl TimegrapherApp {
                     .filter(|j| *j > recent && !self.jumps_seen.contains(j))
                     .reduce(f64::min);
                 if let Some(j) = new {
+                    // So does a run read meanwhile, which reaches across it.
+                    self.bg.trend = None;
                     self.trend.retain(|p| p.t <= j);
                     self.sound_history.retain(|h| h.0 <= j);
                 }
@@ -2350,11 +2352,8 @@ impl TimegrapherApp {
             self.audio_at = Some(started);
         }
         self.polled_at = started;
-        // While listening the charts are read here; a take on show's in
-        // the background, from the frame ([`Self::refresh_trend_shown`]).
-        if self.running() {
-            self.refresh_trend();
-        }
+        // The charts are read in the background, from the frame
+        // ([`Self::refresh_trend_shown`]), listening too (#1825).
         let (taken, ended, failure) = self.take_blocks(started, budget);
         self.capture_outcome(ended, failure);
 
