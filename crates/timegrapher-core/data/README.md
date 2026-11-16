@@ -108,7 +108,9 @@ specification pages, read on 2026-10-13:
   other product lists;
 - Tianjin Seagull: https://en.seagullwatch.com/ movement pages;
 - Hangzhou: two assembly drawings (HZ8230A, HZ8220A) downloaded from
-  Hangzhou's site.
+  Hangzhou's site, and on 2026-11-16 every movement on
+  https://www.hzwatch.com/ (428 product pages, 418 calibres), each read
+  from its assembly drawing (装机图) and its product page.
 
 Each row cites the page it came from and the beat rate as the page
 wrote it. Only Hangzhou's drawings give a lift angle; the other pages
@@ -118,10 +120,22 @@ the beat rate as a bare number ("Frequency: 21600"), read as bph. Pages
 with no figures were left out, and none of the pages says which calibre
 a movement copies.
 
-Still to do: Hangzhou (hzwatch.com), Beijing (beijingwatch.com) and
-Guangzhou Five Goats, now Dixmont (dixmont.com.cn), publish a
-drawing per calibre with its lift angle, but their sites refuse
-automated readers, so only the two Hangzhou drawings above are in.
+Hangzhou's product names end in a finish letter (A white, B gold,
+C rose gold, D gun-black, E white-gold, as its own pages say) and some
+in a date position (3字位, 6字位); variants that share one drawing share
+one row, named after the drawing, with each product name as a family
+name. The lift angle (全升角) on the drawings is 53° for the 28,800 bph
+calibres and the 21,600 bph 3T tourbillons, 53.2° for the 21,600 bph
+2xxx series and 47.5° for the hand-wound 9xxx series. The 6300 family
+takes the drawings' 53° rather than the 50° ETA 2824-2 figure (Peter
+Hudson, 2026-11-16). Where a product page and its drawing disagree on
+jewels or power reserve, the row's notes say so. The movement photo
+URLs are kept in docs/research/hangzhou-movement-photos.json; the
+photos are Hangzhou's and are not copied here.
+
+Still to do: Beijing (beijingwatch.com) and Guangzhou Five Goats, now
+Dixmont (dixmont.com.cn), publish a drawing per calibre with its lift
+angle, but their sites refuse automated readers.
 Shanghai Watch Co. (shwatch.cn) shows no movement pages. These makers'
 calibres are wanted in the table.
 
