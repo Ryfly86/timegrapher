@@ -33,10 +33,21 @@ pub fn unix_of_utc(s: &str) -> Option<f64> {
     Some((days * 86400 + hour * 3600 + minute * 60) as f64 + second)
 }
 
+/// Hours since full wind `h` in whole tenths of an hour, rounded: the
+/// one step every state of wind is kept, keyed and said to (#1746).
+pub fn tenths(h: f64) -> f64 {
+    (h * 10.0).round()
+}
+
+/// Hours since full wind `h` to the nearest tenth ([`tenths`]).
+pub fn to_tenth(h: f64) -> f64 {
+    tenths(h) / 10.0
+}
+
 /// Hours from full wind at `wound_unix` to `at_unix`, to a tenth: never
 /// less than full wind.
 pub fn hours_since(wound_unix: f64, at_unix: f64) -> f64 {
-    (((at_unix - wound_unix) / 3600.0).max(0.0) * 10.0).round() / 10.0
+    to_tenth(((at_unix - wound_unix) / 3600.0).max(0.0))
 }
 
 /// A take's hours since full wind, as its session file gives them: its
@@ -63,7 +74,7 @@ pub fn set_take_wind_h(take: &Path, wind_h: Option<f64>) -> Result<(), String> {
     for e in entries.iter_mut() {
         match wind_h {
             Some(h) => {
-                e.insert("wind_h", toml_edit::value((h * 10.0).round() / 10.0));
+                e.insert("wind_h", toml_edit::value(to_tenth(h)));
             }
             None => {
                 e.remove("wind_h");
@@ -94,6 +105,13 @@ mod tests {
         assert_eq!(hours_since(0.0, 2.0 * 3600.0 + 170.0), 2.0);
         assert_eq!(hours_since(0.0, 24.24 * 3600.0), 24.2);
         assert_eq!(hours_since(100.0, 50.0), 0.0);
+    }
+
+    #[test]
+    fn the_wind_is_kept_keyed_and_said_to_the_same_tenth() {
+        assert_eq!(tenths(24.24), 242.0);
+        assert_eq!(to_tenth(24.26), 24.3);
+        assert_eq!(to_tenth(0.04), 0.0);
     }
 
     #[test]

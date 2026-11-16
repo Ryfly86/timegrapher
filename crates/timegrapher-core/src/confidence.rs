@@ -224,23 +224,13 @@ impl Confidence {
 /// correlation of two series, `rho` is the product of their lag-one
 /// correlations. ρ is held to ±0.99 and the result to 1 ..= n.
 pub fn effective_readings(n: f64, rho: f64) -> f64 {
-    effective_readings_at(n, rho, 0.0)
-}
-
-/// [`effective_readings`] for the size of a sine `cycles` cycles per
-/// reading fitted to the readings: AR(1) noise holds
-/// (1 − ρ²)/(1 − 2ρ cos 2π·cycles + ρ²) of its variance at that
-/// frequency against white noise's, so the readings are worth n over
-/// that. At 0 cycles it is n(1 − ρ)/(1 + ρ); for a fast line the noise
-/// that follows itself is weaker than white, and the count is held to n.
-pub fn effective_readings_at(n: f64, rho: f64, cycles: f64) -> f64 {
     let r = if rho.is_finite() {
         rho.clamp(-0.99, 0.99)
     } else {
         0.0
     };
-    let c = (std::f64::consts::TAU * cycles).cos();
-    (n * (1.0 - 2.0 * r * c + r * r) / (1.0 - r * r)).clamp(1.0_f64.min(n), n)
+    // n(1 − 2ρ + ρ²)/(1 − ρ²), which is n(1 − ρ)/(1 + ρ).
+    (n * (1.0 - 2.0 * r + r * r) / (1.0 - r * r)).clamp(1.0_f64.min(n), n)
 }
 
 /// Lag-one correlation of values in time order, less their least-squares
@@ -1673,21 +1663,6 @@ mod tests {
         assert_eq!(effective_readings(100.0, 0.99), 1.0);
         assert_eq!(effective_readings(1.0, 0.99), 1.0);
         assert_eq!(effective_readings(100.0, f64::NAN), 100.0);
-    }
-
-    #[test]
-    fn effective_readings_follow_the_noise_at_the_line() {
-        // At zero cycles, the AR(1) count; a line as slow as the readings
-        // allow is near it, and a fast one under noise that follows
-        // itself is held to n (the noise is weaker there than white).
-        for rho in [0.0, 0.5, 0.9] {
-            let flat = effective_readings(500.0, rho);
-            assert!((effective_readings_at(500.0, rho, 0.0) - flat).abs() < 1e-9);
-            assert!((effective_readings_at(500.0, rho, 0.001) - flat).abs() < 0.05 * flat + 1e-9);
-            assert_eq!(effective_readings_at(500.0, rho, 0.25), 500.0);
-        }
-        // Noise that alternates is strongest at the fastest line.
-        assert!(effective_readings_at(500.0, -0.5, 0.5) < 500.0);
     }
 
     #[test]
