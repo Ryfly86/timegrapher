@@ -126,15 +126,22 @@ pub fn screen(kind: SeriesKind, v: f64) -> String {
 
 /// A measure's value axis, [lo, hi, step], over `values`: their range
 /// rounded to whole steps, a beat error's from no lower than 0, since it
-/// is a size (Walter on #1742). The one axis rule for every chart of a
-/// measure's values. None for no values.
+/// is a size (Walter on #1742). The step is never finer than the figure
+/// it frames, 0.1 s/d, 1° or 0.01 ms (#1749): one position, or several
+/// this close, would else step by hundredths of a figure read to tenths.
+/// The one axis rule for every chart of a measure's values. None for no
+/// values.
 pub fn value_axis(kind: SeriesKind, values: &[f64]) -> Option<[f64; 3]> {
     let (lo, hi) = chart_scale::data_range(values)?;
     let lo = match kind {
         SeriesKind::BeatError => lo.max(0.0),
         _ => lo,
     };
-    let (lo, hi, step) = chart_scale::round_ends(lo, hi);
+    let finest = 10f64.powi(-(kind.digits() as i32));
+    let (lo, hi, step) = match chart_scale::round_ends(lo, hi) {
+        (_, _, step) if step < finest => chart_scale::round_ends_at(lo, hi, finest),
+        ends => ends,
+    };
     Some([lo, hi, step])
 }
 
@@ -455,6 +462,31 @@ mod tests {
 
     /// A session of ten positions draws a lane for each of the ten, its
     /// averages over the six (Peter, 11-12).
+    /// One position, or several this close, steps its axis no finer
+    /// than the figure: 0.1 s/d, 1°, 0.01 ms (Walter on #1747, #1749:
+    /// −13.06 to −12.94 s/d in 0.02 steps for a lone −13.0).
+    #[test]
+    fn a_lone_figures_axis_steps_no_finer_than_the_figure() {
+        let cases = [
+            (SeriesKind::Rate, vec![-13.0], 0.1),
+            (SeriesKind::Rate, vec![-13.01, -12.99], 0.1),
+            (SeriesKind::Amplitude, vec![221.8], 1.0),
+            (SeriesKind::BeatError, vec![0.22], 0.01),
+        ];
+        for (kind, values, finest) in cases {
+            let [lo, hi, step] = value_axis(kind, &values).expect("an axis");
+            assert!(step >= finest - 1e-12, "{kind:?} {values:?}: {step}");
+            assert!(values.iter().all(|v| (lo..=hi).contains(v)), "{lo} to {hi}");
+            assert!(hi > lo, "{lo} to {hi}");
+            // Whole steps from end to end.
+            let n = (hi - lo) / step;
+            assert!((n - n.round()).abs() < 1e-6, "{lo} to {hi} by {step}");
+        }
+        // A wide spread keeps its own, coarser step.
+        let [_, _, step] = value_axis(SeriesKind::Rate, &[-10.0, 12.0]).expect("an axis");
+        assert!(step >= 5.0, "{step}");
+    }
+
     #[test]
     fn ten_positions_draw_ten_lanes_and_average_the_six() {
         let mut ten = six(0.0);

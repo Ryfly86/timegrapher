@@ -134,7 +134,12 @@ pub fn round_ends(lo: f64, hi: f64) -> (f64, f64, f64) {
 /// [`round_ends`] with the step the [`round_step`] at least
 /// `1 / steps` of the span, for a scale cut finer than a fifth.
 pub fn round_ends_in(lo: f64, hi: f64, steps: f64) -> (f64, f64, f64) {
-    let step = round_step(((hi - lo) / steps).max(1e-12));
+    round_ends_at(lo, hi, round_step(((hi - lo) / steps).max(1e-12)))
+}
+
+/// `lo` to `hi` snapped out to whole steps of `step`, and that step, as
+/// `(lo, hi, step)`: [`round_ends_in`] once its step is chosen.
+pub fn round_ends_at(lo: f64, hi: f64, step: f64) -> (f64, f64, f64) {
     let lo = (lo / step + 1e-9).floor() * step;
     let hi = (hi / step - 1e-9).ceil() * step;
     // A single value still gets a step of room.
