@@ -1068,6 +1068,34 @@ mod tests {
     }
 
     #[test]
+    fn hangzhou_drawings_give_each_calibre_its_lift_and_beat_rate() {
+        let hz: Vec<_> = all()
+            .iter()
+            .filter(|c| c.maker == "Hangzhou" && c.confidence == "maker's page")
+            .collect();
+        assert!(hz.len() > 390, "{} Hangzhou rows", hz.len());
+        for c in &hz {
+            assert!(c.lift_angle_deg.is_some(), "{} has no lift", c.calibre);
+            assert!(c.bph.is_some(), "{} has no beat rate", c.calibre);
+            assert!(c.sources[0].contains("全升角"), "{}", c.calibre);
+        }
+        // Read off the drawings: three lift angles in use.
+        let lift_bph = |n: &str| find(n).map(|c| (c.lift_angle_deg, c.bph));
+        assert_eq!(lift_bph("HZ1A01D"), Some((Some(53.0), Some(28800))));
+        assert_eq!(lift_bph("HZ2B00"), Some((Some(53.2), Some(21600))));
+        assert_eq!(lift_bph("HZ9011"), Some((Some(47.5), Some(21600))));
+        // One row per calibre: the date positions of a 2B00A share it.
+        assert_eq!(find("HZ2B00").unwrap().calibre, "Hangzhou HZ2B00A");
+        // The 2824-clone 6300 keeps its counted train and takes the
+        // drawing's 53°, not the 50° 2824 family figure (Peter, 2026-11-16).
+        let c = find("HZ6300A").unwrap();
+        assert_eq!(c.calibre, "Hangzhou 6300");
+        assert_eq!(c.lift_angle_deg, Some(53.0));
+        assert_eq!(c.escape_teeth, Some(20));
+        assert_eq!(lift_bph("HZ6T15"), Some((Some(53.0), Some(28800))));
+    }
+
+    #[test]
     fn makers_are_in_the_table_and_their_names_unique() {
         let mut seen = std::collections::HashSet::new();
         for m in makers() {
