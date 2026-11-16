@@ -988,6 +988,43 @@ fn a_long_take_still_draws_over_a_short_strip() {
     assert!(pts.len() <= kept);
 }
 
+/// The strip's own readings are worked out again once a step of new
+/// sound is in, not for every block of it: while the run is too sparse
+/// to serve (a long take after the watch stops), that was 70 readings
+/// on every frame (#1825).
+#[test]
+fn the_strips_own_readings_wait_for_a_whole_step_of_sound() {
+    let mut app = synthetic(40.0, 20.0);
+    let step = 26_880.0 / timegrapher_core::live::TREND_POINTS;
+    let mut t = 0.0;
+    let mut thin = Vec::new();
+    while t <= 40.0 {
+        if let Some(p) = app.trend.iter().find(|p| p.t >= t) {
+            thin.push(*p);
+        }
+        t += step;
+    }
+    app.trend = thin;
+    let block = |app: &mut TimegrapherApp, n: usize| {
+        for _ in 0..n {
+            app.live.as_mut().unwrap().push(&[0.0; 960]);
+        }
+    };
+    let (pts, _) = app.strip_trend(5.0, 40.0, app.average_s);
+    let key = app.strip_points.as_ref().expect("worked out").0;
+    // A block of 20 ms: the same step, the same readings, not worked out.
+    block(&mut app, 1);
+    app.strip_points.as_mut().unwrap().1.clear();
+    let (again, _) = app.strip_trend(5.0, 40.0, app.average_s);
+    assert_eq!(app.strip_points.as_ref().unwrap().0, key);
+    assert!(again.is_empty(), "worked out again within a step");
+    // A whole step more: worked out again, as many readings as before.
+    block(&mut app, 30);
+    let (fresh, _) = app.strip_trend(5.0, 40.0, app.average_s);
+    assert_ne!(app.strip_points.as_ref().unwrap().0, key);
+    assert_eq!(fresh.len(), pts.len());
+}
+
 /// Worked out again while listening (a new Average Over, say), the run
 /// is sparse up to then and dense since. Its average spacing looks fine
 /// enough, but the strip still draws the stretch before rather than leave

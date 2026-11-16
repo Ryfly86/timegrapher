@@ -470,7 +470,14 @@ impl TimegrapherApp {
             (end / step).ceil() as i64,
             trend_key(seconds),
             step.to_bits(),
-            live.duration_s().to_bits(),
+            // In whole steps: the readings lie on steps, so they are
+            // worked out again as each new one comes in, and the newest
+            // catch up with the sound behind them a step later. Keyed on
+            // the sound itself, every block of it worked the window's 70
+            // readings out again on every frame while listening with the
+            // run too sparse to serve, as after the watch stops (30 ms a
+            // frame, #1825).
+            (live.duration_s() / step).floor().to_bits(),
             self.rev,
         );
         if let Some((k, pts)) = &self.strip_points {

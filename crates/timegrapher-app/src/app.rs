@@ -1530,8 +1530,8 @@ fn trend_key(seconds: f64) -> u64 {
 }
 
 /// What the strip's own readings were worked out for: the window and the
-/// spacing in steps, the averaging time, how much sound there was and
-/// what the readings rest on.
+/// spacing in steps, the averaging time, how many whole steps of sound
+/// there were and what the readings rest on.
 type StripKey = (i64, i64, u64, u64, u64, Revision);
 
 /// How far apart the strip's overlay readings should be at most over a
