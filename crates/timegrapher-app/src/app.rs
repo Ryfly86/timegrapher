@@ -50,6 +50,7 @@ use charts::chart_key;
 pub use charts::{lane_text, lane_width, paint_key, LANE_AFTER_TITLE, LANE_GAP};
 pub use poise_pane::POISE_VIEWS;
 pub use position::Position;
+mod compare_take;
 mod complication_pane;
 use new_take::{NewTake, NEW_TAKES};
 mod dialogs;
@@ -1742,6 +1743,9 @@ pub struct TimegrapherApp {
     /// Whether `guided_earlier` was loaded from a file, so it stays when
     /// the watch's takes are searched again.
     guided_earlier_file: bool,
+    /// A take that is no saved Positions Test, being read to compare
+    /// with (#1851).
+    compare_take: Option<compare_take::Reading>,
     /// What `guided_choices` was found for: the watch, the Wind setting,
     /// the minute and the watch's takes folder. Any of them otherwise, it
     /// is searched for again, so a test passing the 12 hour mark, or a
@@ -2309,7 +2313,9 @@ impl TimegrapherApp {
         // One left on is kept: a pane with none shown would be empty.
         let on = |s: [bool; 3]| if s.contains(&true) { s } else { RATE_ONLY };
         (self.chart_series, self.dist_series) = (on(chart_series), on(dist_series));
-        (self.reserve_series, self.positions_series) = (on(reserve_series), on(positions_series));
+        // A test pane's charts may all be off: its table and words stand
+        // alone (#1852).
+        (self.reserve_series, self.positions_series) = (reserve_series, positions_series);
         (self.hist_cumulative, self.reserve_info) = (hist_cumulative, reserve_info);
         (self.positions_info, self.sound_opts) = (positions_info, sound);
         (self.hist_readings, self.iso_view) = (hist_readings, iso_view);
@@ -2320,7 +2326,7 @@ impl TimegrapherApp {
         self.steady_info = steady::PerPane::new(steady_info_set, steady_info);
         self.set_positions_times(positions_settle_s, positions_measure_s);
         self.steady_series = steady_series_from(steady_shown, steady_series);
-        (self.complication_series, self.scope_view) = (on(complication_series), scope);
+        (self.complication_series, self.scope_view) = (complication_series, scope);
         self.panes = match panes.map(upgraded_layout) {
             Some(p) if layout_is_whole(&p) => {
                 self.panes_dragged = panes_dragged.into_iter().collect();
@@ -2401,6 +2407,7 @@ impl TimegrapherApp {
             complication_saved: None,
             guided_choices: Vec::new(),
             guided_earlier_file: false,
+            compare_take: None,
             guided_earlier_for: None,
             guided_after: false,
             test_ready: None,
@@ -2766,14 +2773,7 @@ impl TimegrapherApp {
     /// against, picked each time from the watch's own tests from 12 to 36
     /// hours ago, newest first, or loaded from a file.
     fn compare_with(&mut self, ui: &mut egui::Ui) {
-        let shown = match &self.guided_earlier {
-            Some(e) if self.guided_earlier_file => {
-                format!("{} (from a file)", guided::choice_text(e))
-            }
-            Some(e) => guided::choice_text(e),
-            None if self.guided_choices.is_empty() => "None from 12 to 36 hours ago".to_string(),
-            None => "Pick a full-wind test".to_string(),
-        };
+        let shown = self.compare_with_text(ui);
         let mut picked: Option<usize> = None;
         let mut from_file = false;
         theme::tool_field(

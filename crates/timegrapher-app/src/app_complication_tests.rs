@@ -158,6 +158,7 @@ fn the_pane_draws_the_table_and_three_plots_amplitude_first() {
     );
     a_hovered_stretch_gives_its_figures_in_each_title(&mut app);
     a_plot_turned_off_gives_the_others_its_room(&mut app);
+    every_plot_off_leaves_the_table(&mut app);
     a_short_pane_keeps_each_plot_readable(&mut app);
     a_take_opened_again_starts_at_the_top(&mut app);
     drop(tx);
@@ -228,6 +229,27 @@ fn a_plot_turned_off_gives_the_others_its_room(app: &mut TimegrapherApp) {
     let titles = drawn.iter().filter(|(t, _)| t == "Beat Error").count();
     assert_eq!(titles, 1, "the table's heading alone");
     assert!(gap(&drawn) > three + 20.0, "{three} then {}", gap(&drawn));
+    app.complication_series = [true; 3];
+}
+
+/// Every switch off (#1852): no plot, track or time axis, the table
+/// and its words left; on again, the plots come back.
+fn every_plot_off_leaves_the_table(app: &mut TimegrapherApp) {
+    let size = Vec2::new(1280.0, 900.0);
+    let count = |drawn: &[(String, egui::Rect)], name: &str| {
+        drawn.iter().filter(|(t, _)| t == name).count()
+    };
+    let three = draw_at(app, size);
+    app.complication_series = [false; 3];
+    let none = draw_at(app, size);
+    for name in ["Amplitude", "Rate", "Beat Error"] {
+        assert_eq!(count(&none, name), 1, "{name}: the table's heading alone");
+    }
+    assert!(
+        count(&none, "Off") < count(&three, "Off"),
+        "the track's names go"
+    );
+    assert!(none.iter().any(|(t, _)| t == "On less Off"), "{none:?}");
     app.complication_series = [true; 3];
 }
 

@@ -1374,3 +1374,23 @@ fn only_the_table_scrolls_and_a_short_pane_scrolls_the_picture(app: &mut Timegra
     let row_now = find(&rolled, "Crown Down (CD, 9H)").expect("the table");
     assert_eq!(row_now.top(), row.top(), "the table stays put");
 }
+
+/// Plot and Dial both off (#1852): the table and the wave's words stand
+/// alone, no picture drawn; either on again brings its picture back.
+#[test]
+fn both_views_off_leave_the_table_and_words() {
+    let (mut app, base) = saved_and_opened("views-off", guided::Kind::Poise.order());
+    let axis = timegrapher_core::poise_picture::HOUR_AXIS;
+    let key = timegrapher_core::poise_picture::DIAL_KEY;
+    // The take's table read first, as the pane reads it.
+    app.free_table(&egui::Context::default()).expect("a table");
+    app.poise_views = [false, false];
+    let drawn = draw(&mut app, Pane::DynamicPoise);
+    assert!(!drawn.contains(axis) && !drawn.contains(key), "{drawn}");
+    assert!(drawn.contains("Crown Down (CD, 9H)"), "the table: {drawn}");
+    assert!(drawn.contains("Once-round wave"), "the words: {drawn}");
+    app.poise_views = [false, true];
+    let drawn = draw(&mut app, Pane::DynamicPoise);
+    assert!(drawn.contains(key) && !drawn.contains(axis), "{drawn}");
+    let _ = std::fs::remove_dir_all(base);
+}

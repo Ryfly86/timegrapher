@@ -646,6 +646,17 @@ pub fn series_icon(k: SeriesKind) -> theme::Icon {
 /// readings' icons, each tinted in its colour while shown. At least one
 /// stays on.
 pub fn series_switches(ui: &mut egui::Ui, shown: &mut [bool; 3]) {
+    switches(ui, shown, true);
+}
+
+/// [`series_switches`] for a test pane, whose table and words stand
+/// without a chart: every chart may be off (#1852).
+pub fn chart_switches(ui: &mut egui::Ui, shown: &mut [bool; 3]) {
+    switches(ui, shown, false);
+}
+
+/// The switches, `keep_one` on where the pane is its charts alone.
+fn switches(ui: &mut egui::Ui, shown: &mut [bool; 3], keep_one: bool) {
     let pal = theme::pal(ui);
     let hint = |k| {
         format!(
@@ -667,8 +678,10 @@ pub fn series_switches(ui: &mut egui::Ui, shown: &mut [bool; 3]) {
                 let mut on = shown[i];
                 theme::switch_row(ui, title(k), &mut on, &hint(k))
             };
-            if flip {
+            if flip && keep_one {
                 flip_series(shown, i);
+            } else if flip {
+                shown[i] = !shown[i];
             }
         }
     });

@@ -117,7 +117,7 @@ impl TimegrapherApp {
                         .on_hover_text(hint)
                         .clicked()
                     {
-                        show_one_more(&mut self.poise_views, i);
+                        self.poise_views[i] = !self.poise_views[i];
                     }
                 }
             },
@@ -335,14 +335,6 @@ fn poise_body(
 
 /// Each of the two views, Plot then Dial (#1729).
 const VIEWS: [PoiseView; 2] = [PoiseView::Plot, PoiseView::Dial];
-
-/// Turns view `i` on or off, never the last one off (#1729: at least
-/// one stays on).
-fn show_one_more(shown: &mut [bool; 2], i: usize) {
-    if !shown[i] || shown[1 - i] {
-        shown[i] = !shown[i];
-    }
-}
 
 /// The picture with core's words over it, in the room left above
 /// `bottom`: the views `shown`, side by side with the Dial square where
@@ -1301,19 +1293,6 @@ mod tests {
         for r in names {
             assert!(picture.contains_rect(r), "{r:?} inside {picture:?}");
         }
-    }
-
-    /// Plot and Dial turn on and off alone, but the last one on stays on
-    /// (#1729).
-    #[test]
-    fn one_view_always_stays_on() {
-        let mut shown = [true, false];
-        show_one_more(&mut shown, 1);
-        assert_eq!(shown, [true, true]);
-        show_one_more(&mut shown, 0);
-        assert_eq!(shown, [false, true]);
-        show_one_more(&mut shown, 1);
-        assert_eq!(shown, [false, true], "the last one stays");
     }
 
     /// A ring number that would touch an hour's name is left out (#1530):
