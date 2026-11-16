@@ -65,7 +65,11 @@ fn reader() -> Option<&'static std::sync::mpsc::Sender<Task>> {
 impl<K, T: Send + 'static> Job<K, T> {
     /// Read `read` on the background thread, after those asked for
     /// before; the window is drawn again when it is done.
-    fn start(key: K, ctx: &egui::Context, read: impl FnOnce() -> T + Send + 'static) -> Self {
+    pub(super) fn start(
+        key: K,
+        ctx: &egui::Context,
+        read: impl FnOnce() -> T + Send + 'static,
+    ) -> Self {
         let (tx, rx) = std::sync::mpsc::channel();
         let ctx = ctx.clone();
         let wanted = std::sync::Arc::new(());

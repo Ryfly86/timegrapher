@@ -2302,6 +2302,8 @@ impl TimegrapherApp {
                     .filter(|j| *j > recent && !self.jumps_seen.contains(j))
                     .reduce(f64::min);
                 if let Some(j) = new {
+                    // So does a run read meanwhile, which reaches across it.
+                    self.bg.trend = None;
                     self.trend.retain(|p| p.t <= j);
                     self.sound_history.retain(|h| h.0 <= j);
                 }

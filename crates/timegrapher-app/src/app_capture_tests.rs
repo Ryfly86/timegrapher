@@ -316,6 +316,73 @@ fn block(ms: u64) -> Event {
     })
 }
 
+/// A run being read in the background when live's first chunk is read
+/// again with the file's template (#1327) rests on the old template: it is
+/// never shown, and the run is read again from live as it now is (#1825).
+#[test]
+fn a_run_read_before_the_takeover_is_never_shown_after_it() {
+    let (mut app, base) = save_failure_fixture("takeover-bg");
+    let tx = queued_capture(&mut app, &base);
+    let ctx = super::tests::themed();
+    let audio = generate(
+        &SynthConfig {
+            duration_s: 80.0,
+            ..Default::default()
+        },
+        |_| 280.0,
+        |_| 0.0,
+    );
+    let mut planted = None;
+    for (k, c) in audio.samples.chunks(480).enumerate() {
+        tx.send(Event::Audio(timegrapher_core::capture::Block {
+            samples: c.to_vec(),
+            at: std::time::UNIX_EPOCH + Duration::from_millis(2000 + 10 * k as u64),
+        }))
+        .unwrap();
+        if k % 50 == 49 {
+            app.poll();
+            let live = app.live.as_ref().unwrap();
+            if planted.is_none() && live.duration_s() > 20.0 && live.template_switch_s().is_none() {
+                // A new Average Over, its run read on the old template.
+                let stale = TrendPoint::of(0.123, &live.reading_at(20.0, 1.0));
+                app.average_s *= 2.0;
+                let key = (app.rev, app.average_s.to_bits());
+                let job = take_reads::Job::start(key, &ctx, move || (vec![stale], 0.0));
+                app.bg.trend = Some(job);
+                planted = Some(stale);
+            }
+        }
+    }
+    for _ in 0..1000 {
+        app.poll();
+        if app.live.as_ref().unwrap().duration_s() >= 79.9 {
+            break;
+        }
+    }
+    let stale = planted.expect("taken over before a run was asked for");
+    assert!(
+        app.live.as_ref().unwrap().template_switch_s().is_some(),
+        "not taken over"
+    );
+    // The clock's first measurements move the take's footing early in a
+    // capture, which would drop the job by itself; on a long take nothing
+    // else changes, so the job keeps the footing the app has now.
+    if let Some(job) = app.bg.trend.as_mut() {
+        job.key = (app.rev, app.average_s.to_bits());
+    }
+    let start = Instant::now();
+    app.refresh_trend_shown(&ctx);
+    while app.bg.trend.is_some() {
+        assert!(start.elapsed() < Duration::from_secs(60), "never read");
+        std::thread::sleep(Duration::from_millis(10));
+        app.refresh_trend_shown(&ctx);
+    }
+    assert!(!app.trend.contains(&stale), "the old template's run shown");
+    assert!(!app.trend.is_empty());
+    drop(tx);
+    let _ = std::fs::remove_dir_all(base);
+}
+
 /// Live's first chunk read again with the file's template takes over
 /// about a minute in (#1327): the readings carry on with an amplitude, the
 /// charts' points are read again with none past the newest, and the strip's
