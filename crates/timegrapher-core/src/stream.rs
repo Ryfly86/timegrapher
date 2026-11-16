@@ -1325,4 +1325,59 @@ mod tests {
             assert!(good.iter().any(|&g| (g - t).abs() < 1e-9), "{t}");
         }
     }
+
+    /// A watch whose impulse grows as loud as its drop, 0.8 to 1.2 of it,
+    /// after the template was built while it was quiet (as Peter's DayDate
+    /// 36 run-down's Tick, #1819), at 20% noise, is timed on its drop: in
+    /// 99% of beats or more within 0.1 ms of the same take whose impulse
+    /// stays quiet. Without the move onto the drop, 79% of beats were at
+    /// 1.2, on these seeds.
+    #[test]
+    fn a_beat_whose_impulse_grows_as_loud_as_its_drop_is_timed_on_its_drop() {
+        let read = |impulse: f64, seed: u64| {
+            let seg = |gain: f64, seed: u64| {
+                let mut c = SynthConfig {
+                    duration_s: 240.0,
+                    seed,
+                    snr_db: 20.0 * (1.0 / 0.2f64).log10(),
+                    ..Default::default()
+                };
+                c.sounds[1].gain = gain;
+                generate(&c, |_| 220.0, |_| 0.0)
+            };
+            let (a, b) = (seg(0.25, seed), seg(impulse, seed + 1));
+            let mut x = a.samples;
+            x.extend_from_slice(&b.samples);
+            let cfg = StreamConfig {
+                analysis: AnalysisConfig {
+                    bph: Some(28800),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            analyze_samples(&x, a.sample_rate, &cfg)
+        };
+        for (r, seed) in [(0.8, 181_900), (1.0, 181_902), (1.2, 181_904)] {
+            let (quiet, tie) = (read(0.25, seed), read(r, seed));
+            let late = |l: &BeatLog| -> Vec<f64> {
+                (l.beats.iter())
+                    .filter(|b| b.time >= 250.0)
+                    .map(|b| b.time)
+                    .collect()
+            };
+            let (q, t) = (late(&quiet), late(&tie));
+            let near = (t.iter())
+                .filter(|x| {
+                    let i = q.partition_point(|v| v < x);
+                    [i.checked_sub(1), Some(i)]
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|j| q.get(j))
+                        .any(|v| (v - *x).abs() <= 1e-4)
+                })
+                .count();
+            eprintln!("S {r}: {near} of {}", q.len());
+            assert!(near * 100 >= q.len() * 99, "{r}: {near} of {}", q.len());
+        }
+    }
 }
