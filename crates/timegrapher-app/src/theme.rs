@@ -221,16 +221,23 @@ fn fonts() -> FontDefinitions {
             "inter-display",
             &include_bytes!("../assets/fonts/InterDisplay-SemiBold.ttf")[..],
         ),
+        (
+            "noto-cjk",
+            &include_bytes!("../assets/fonts/NotoSansCJK-Subset.ttf")[..],
+        ),
     ] {
         f.font_data
             .insert(name.into(), Arc::new(FontData::from_static(bytes)));
     }
-    // egui's own fonts stay behind Inter for anything it lacks.
-    let fallback = f
-        .families
-        .get(&FontFamily::Proportional)
-        .cloned()
-        .unwrap_or_default();
+    // The Chinese the calibre sources quote comes next, then egui's own
+    // fonts stay behind Inter for anything else it lacks.
+    let mut fallback = vec!["noto-cjk".to_string()];
+    fallback.extend(
+        f.families
+            .get(&FontFamily::Proportional)
+            .cloned()
+            .unwrap_or_default(),
+    );
     let with = |first: &[&str]| {
         let mut v: Vec<String> = first.iter().map(|s| s.to_string()).collect();
         v.extend(fallback.iter().cloned());
@@ -1435,6 +1442,46 @@ mod tests {
             egui::CentralPanel::default().show(ctx, |ui| {
                 ui.label(RichText::new("+12.3 ±0.5 ms 275° −1").font(display(40.0)));
                 ui.label(RichText::new("Tick 276°").font(semibold(13.0)));
+            });
+        });
+    }
+
+    /// Every character the calibre table shows has a glyph in every text
+    /// family, so none is drawn as a box. A new character fails here:
+    /// rerun assets/fonts/cjk_subset.py.
+    #[test]
+    fn every_character_in_the_calibre_data_has_a_glyph() {
+        let mut text = String::new();
+        for c in timegrapher_core::calibres::all() {
+            for s in [&c.calibre, &c.maker, &c.confidence]
+                .into_iter()
+                .chain(&c.family)
+                .chain(&c.sources)
+                .chain(&c.notes)
+            {
+                text.push_str(s);
+            }
+        }
+        let mut chars: Vec<char> = text.chars().filter(|ch| !ch.is_control()).collect();
+        chars.sort_unstable();
+        chars.dedup();
+        let ctx = egui::Context::default();
+        install(&ctx);
+        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                for font in [
+                    egui::FontId::proportional(13.0),
+                    semibold(13.0),
+                    display(13.0),
+                ] {
+                    let missing: String = ui.fonts_mut(|f| {
+                        chars
+                            .iter()
+                            .filter(|&&ch| !f.has_glyph(&font, ch))
+                            .collect()
+                    });
+                    assert!(missing.is_empty(), "{font:?} has no glyph for {missing}");
+                }
             });
         });
     }
