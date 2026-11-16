@@ -460,8 +460,6 @@ mod tests {
         assert_eq!(alone[0].rate.key, None);
     }
 
-    /// A session of ten positions draws a lane for each of the ten, its
-    /// averages over the six (Peter, 11-12).
     /// One position, or several this close, steps its axis no finer
     /// than the figure: 0.1 s/d, 1°, 0.01 ms (Walter on #1747, #1749:
     /// −13.06 to −12.94 s/d in 0.02 steps for a lone −13.0).
@@ -487,6 +485,8 @@ mod tests {
         assert!(step >= 5.0, "{step}");
     }
 
+    /// A session of ten positions draws a lane for each of the ten, its
+    /// averages over the six (Peter, 11-12).
     #[test]
     fn ten_positions_draw_ten_lanes_and_average_the_six() {
         let mut ten = six(0.0);
