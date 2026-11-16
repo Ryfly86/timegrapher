@@ -178,7 +178,7 @@ impl WindHours {
     /// zero.
     pub fn given(from: f64, to: f64) -> Self {
         // To the tenth the state of wind is keyed to, rounded as it is.
-        let tenth = |h: f64| (h * 10.0).round() / 10.0;
+        let tenth = crate::full_wind::to_tenth;
         let (from, to) = (tenth(from), tenth(to));
         let digits = if from == 0.0 {
             given_digits(to)

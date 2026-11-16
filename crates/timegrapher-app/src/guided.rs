@@ -422,7 +422,7 @@ impl Test {
     /// with the watch neither wound nor worn since.
     pub fn after(full: FullWind) -> Self {
         let mut t = Test::new();
-        let h = (full.hours_ago(t.began_unix) * 10.0).round() / 10.0;
+        let h = timegrapher_core::full_wind::hours_since(full.began_unix, t.began_unix);
         t.full = Some((full, h.max(0.1)));
         t
     }
