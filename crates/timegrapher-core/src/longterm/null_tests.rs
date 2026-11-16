@@ -52,10 +52,15 @@ fn mixes(model: NullModel, scale: f64, step: f64) -> Vec<f64> {
     }
 }
 
-/// The flicker shares drawn at each timing mix above white (#1219); one,
-/// none, for readings and white.
-fn flickers(model: NullModel, mix: f64) -> Vec<f64> {
+/// The flicker shares drawn at each timing mix above white on a row of
+/// `span` at `step` (#1219); one, none, for readings and white. The 2 h
+/// row also draws 0.003 and 0.3: read between its neighbours there, the
+/// mid-cell check fell under its band (Norm, as condition 3 names).
+fn flickers(model: NullModel, span: f64, step: f64, mix: f64) -> Vec<f64> {
     match model {
+        NullModel::Timing if mix > 0.0 && span == 7200.0 && step == 0.25 => {
+            vec![0.0, 0.003, 0.01, 0.1, 0.3, FLICKER_ONLY]
+        }
         NullModel::Timing if mix > 0.0 => vec![0.0, 0.01, 0.1, FLICKER_ONLY],
         _ => vec![0.0],
     }
@@ -812,7 +817,7 @@ fn write_period_null_table() {
                 {
                     continue;
                 }
-                for flicker in flickers(model, mix) {
+                for flicker in flickers(model, span, step, mix) {
                     jobs.push((model, span, step, mix, flicker));
                 }
             }
@@ -1588,6 +1593,15 @@ fn fresh_sines_hold_the_misfit() {
         })
         .collect();
     cells.sort_by(|a, b| (b.span_s / b.step_s).total_cmp(&(a.span_s / a.step_s)));
+    // `FRESH_DONE`: each cell's line is added to it and cells already in
+    // it skipped, so a run cut short carries on.
+    let done_file: Option<String> = std::env::var("FRESH_DONE").ok();
+    let key = |c: &Cell| format!("misfit {} {} {} {}:", c.span_s, c.step_s, c.mix, c.flicker);
+    if let Some(f) = &done_file {
+        let done = std::fs::read_to_string(f).unwrap_or_default();
+        cells.retain(|c| !done.lines().any(|l| l.starts_with(&key(c))));
+    }
+    let lines = std::sync::Mutex::new(());
     let next = AtomicUsize::new(0);
     let workers = std::thread::available_parallelism().map_or(4, |n| n.get());
     std::thread::scope(|sc| {
@@ -1604,16 +1618,23 @@ fn fresh_sines_hold_the_misfit() {
                 let period = 60f64.min(c.span_s / 5.0).max(16.0 * c.step_s);
                 let (mut named, mut caveats) = (0, 0);
                 for d in 0..draws {
-                    let seed = seed_of(&[
-                        1,
-                        c.span_s as u64,
-                        (c.step_s * 100.0) as u64,
-                        mi,
-                        tag,
-                        d as u64,
-                    ]);
-                    let mut g =
-                        null_grid(NullModel::Timing, c.span_s, c.step_s, c.mix, scale, seed);
+                    // The flicker share's own seeds where there is one
+                    // (#1219); none draws the seeds it always drew.
+                    let mut parts = vec![1, c.span_s as u64, (c.step_s * 100.0) as u64, mi];
+                    if c.flicker > 0.0 {
+                        parts.push((c.flicker.min(1e15) * 1e6).round() as u64);
+                    }
+                    parts.extend([tag, d as u64]);
+                    let seed = seed_of(&parts);
+                    let mut g = null_grid_f(
+                        NullModel::Timing,
+                        c.span_s,
+                        c.step_s,
+                        c.mix,
+                        c.flicker,
+                        scale,
+                        seed,
+                    );
                     let det = detrend_as(&g, DETREND_S, slow_for(NullModel::Timing));
                     let ys: Vec<f64> = det.y.iter().copied().filter(|v| v.is_finite()).collect();
                     let rms = (ys.iter().map(|v| v * v).sum::<f64>() / ys.len() as f64).sqrt();
@@ -1640,10 +1661,18 @@ fn fresh_sines_hold_the_misfit() {
                     named += 1;
                     caveats += usize::from(crate::longterm::timing_misfit(&r).is_some());
                 }
-                eprintln!(
-                    "misfit {} {} {}: {draws} {named} {caveats}",
-                    c.span_s, c.step_s, c.mix
-                );
+                let line = format!("{} {draws} {named} {caveats}", key(c));
+                eprintln!("{line}");
+                if let Some(f) = &done_file {
+                    use std::io::Write;
+                    let _l = lines.lock().unwrap();
+                    let mut o = std::fs::OpenOptions::new()
+                        .create(true)
+                        .append(true)
+                        .open(f)
+                        .unwrap();
+                    writeln!(o, "{line}").unwrap();
+                }
             });
         }
     });
@@ -1813,19 +1842,23 @@ fn binomial_band(n: usize, p: f64, alpha: f64) -> (usize, usize) {
 /// fresh seeds, at every drawn timing mix above white on three rows (the
 /// shortest take, 2 h, 96 h), and at 0.03 on the YM42's 65 h, which reads
 /// between rows. Each share and row: the count past p 0.01 over the
-/// mixes, within the binomial band at the 1% level. A share that fails
-/// goes back into the grid for every row. Run once, by hand: `MID_DRAWS`
-/// draws a mix (default 100).
+/// mixes at or under the binomial band's upper edge at the 1% level; under
+/// its lower edge is printed as power lost (Peter, 16 Nov). A share over
+/// the upper edge goes back into the grid. Run once, by hand: `MID_DRAWS`
+/// draws a mix (default 100), `MID_TAG` its seeds.
 #[test]
 #[ignore = "mid-cell check on fresh seeds; run by hand once"]
 fn flicker_between_cells_holds_the_tail() {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Mutex;
     let draws: usize = std::env::var("MID_DRAWS").map_or(100, |s| s.parse().unwrap());
+    // `MID_TAG`: a fresh batch of seeds for a rerun (0x31d the first).
+    let tag: u64 = std::env::var("MID_TAG").map_or(0x31d, |s| s.parse().unwrap());
     let model = NullModel::Timing;
     let checks: [(f64, f64, &[f64]); 4] = [
         (120.0, 0.25, &[0.003, 0.03, 0.3]),
-        (7200.0, 0.25, &[0.003, 0.03, 0.3]),
+        // 2 h draws 0.003 and 0.3 too (Norm): between those, in log share.
+        (7200.0, 0.25, &[0.0055, 0.03, 0.17, 0.55]),
         (345_600.0, 0.5, &[0.003, 0.03, 0.3]),
         (234_000.0, 0.5, &[0.03]),
     ];
@@ -1863,7 +1896,7 @@ fn flicker_between_cells_holds_the_tail() {
                 let Some(&(span, step, mix, v)) = jobs.get(i) else {
                     break;
                 };
-                let n = fresh_counts(model, span, step, mix, v, draws, 0x31d, false);
+                let n = fresh_counts(model, span, step, mix, v, draws, tag, false);
                 eprintln!("mid {span} {step} mix {mix} flicker {v}: {n:?}");
                 let key = (span as u64, (v * 1e6).round() as u64);
                 let mut c = counts.lock().unwrap();
@@ -1878,7 +1911,10 @@ fn flicker_between_cells_holds_the_tail() {
     for ((span, v), t) in counts.into_inner().unwrap() {
         let held = t[0] - t[1];
         let (lo, hi) = binomial_band(held, 0.01, 0.01);
-        let ok = (lo..=hi).contains(&t[2]);
+        // Only the upper edge guards false alarms. The least-favourable
+        // tails run below nominal by design, so a count under the lower
+        // edge is power lost, said, not failed (Peter, 16 Nov, #1219).
+        let ok = t[2] <= hi;
         eprintln!(
             "span {span} flicker {}: {} held of {}; past p 0.01 {} (band {lo} to {hi}), past 0.001 {}{}",
             v as f64 / 1e6,
@@ -1886,7 +1922,13 @@ fn flicker_between_cells_holds_the_tail() {
             t[0],
             t[2],
             t[3],
-            if ok { "" } else { "  FAILS" }
+            if !ok {
+                "  FAILS"
+            } else if t[2] < lo {
+                "  under the band: power, not false alarms"
+            } else {
+                ""
+            }
         );
         if !ok {
             failed.push((span, v as f64 / 1e6));
@@ -2057,6 +2099,7 @@ fn flicker_timing_sits_past_the_nulls_misfit() {
         let (m, limit) = read(&g);
         walks += usize::from(m > limit);
     }
+    eprintln!("misfit: flicker past on {past} of 20, walk plus white on {walks} of 100");
     assert!(walks <= 5, "walk plus white past it on {walks} of 100");
 }
 
@@ -2099,7 +2142,11 @@ fn the_null_table_has_the_generators_shape() {
             // Every drawn mix with each of its flicker shares (#1219).
             let want: Vec<(f64, f64)> = mixes(model, x_scale(&g0, w), step)
                 .into_iter()
-                .flat_map(|m| flickers(model, m).into_iter().map(move |f| (m, f)))
+                .flat_map(|m| {
+                    flickers(model, span, step, m)
+                        .into_iter()
+                        .map(move |f| (m, f))
+                })
                 .collect();
             let mut got: Vec<(f64, f64)> = t
                 .cells
@@ -2225,5 +2272,117 @@ fn the_shipped_timing_table_had_every_pass() {
             );
         }
         assert!(!t.note.contains("Not for release"), "{}", t.note);
+    }
+}
+
+/// Timing power, a report for #1219 with no bar (Norm): on an 8 h take
+/// at 0.25 s, walk plus white (mix 100, no flicker) and YM42-like (mix
+/// 1000, flicker share 0.01), 100 noise draws each with a sine at 300 s
+/// and at 1800 s added, swept in amplitude (in the noise's own first
+/// difference spread); the smallest amplitude whose period is named
+/// (the best score within 5% of it past p 0.01) in at least half the
+/// draws. `POWER_DUMP` writes the noise draws to that folder and
+/// `POWER_LOAD` reads them back, so the same draws can be read on
+/// another table. Run by hand.
+#[test]
+#[ignore = "power report; run by hand"]
+fn timing_power_floor() {
+    let (span, step) = (28800.0, 0.25);
+    let g0 = null_grid(NullModel::Readings, span, step, 0.0, 1.0, 1);
+    let w = detrend_window(&g0, DETREND_S).map(|w| w as f64 * step);
+    let scale = x_scale(&g0, w);
+    let draws = 100;
+    let ks: Vec<f64> = (-16..=8).map(|i| 10f64.powf(i as f64 / 4.0)).collect();
+    for (case, (mix, share)) in [(100.0, 0.0), (1000.0, 0.01)].into_iter().enumerate() {
+        let noise: Vec<Vec<f64>> = (0..draws)
+            .map(|d| {
+                let file = |dir: &str| format!("{dir}/power_{case}_{d}.bin");
+                if let Ok(dir) = std::env::var("POWER_LOAD") {
+                    let b = std::fs::read(file(&dir)).unwrap();
+                    return b
+                        .chunks_exact(8)
+                        .map(|c| f64::from_le_bytes(c.try_into().unwrap()))
+                        .collect();
+                }
+                let g = null_grid_f(
+                    NullModel::Timing,
+                    span,
+                    step,
+                    mix,
+                    share,
+                    scale,
+                    seed_of(&[31, case as u64, d as u64]),
+                );
+                if let Ok(dir) = std::env::var("POWER_DUMP") {
+                    let b: Vec<u8> = g.y.iter().flat_map(|v| v.to_le_bytes()).collect();
+                    std::fs::write(file(&dir), b).unwrap();
+                }
+                g.y
+            })
+            .collect();
+        for period in [300.0, 1800.0] {
+            let named = |k: f64| {
+                std::thread::scope(|sc| {
+                    let hs: Vec<_> = noise
+                        .chunks(draws / 4)
+                        .enumerate()
+                        .map(|(c, part)| {
+                            sc.spawn(move || {
+                                part.iter()
+                                    .enumerate()
+                                    .filter(|(i, y)| {
+                                        let d = c * (draws / 4) + i;
+                                        let sd = (y
+                                            .windows(2)
+                                            .map(|p| (p[1] - p[0]).powi(2))
+                                            .sum::<f64>()
+                                            / (y.len() - 1) as f64
+                                            / 2.0)
+                                            .sqrt();
+                                        let phase = d as f64 * 0.7;
+                                        let y: Vec<f64> = y
+                                            .iter()
+                                            .enumerate()
+                                            .map(|(j, v)| {
+                                                let t = j as f64 * step;
+                                                v + k
+                                                    * sd
+                                                    * (std::f64::consts::TAU * t / period + phase)
+                                                        .sin()
+                                            })
+                                            .collect();
+                                        let g = Grid { t0: 0.0, step, y };
+                                        let det =
+                                            detrend_as(&g, DETREND_S, slow_for(NullModel::Timing));
+                                        let band = Band {
+                                            min_p: 3f64.max(8.0 * step),
+                                            max_p: reach(NullModel::Timing, span / 3.0, w),
+                                            false_alarm: 0.01,
+                                            detrend_w: w,
+                                            model: NullModel::Timing,
+                                            given: None,
+                                            wheels: &[],
+                                        };
+                                        let s = search(&det, &band, &[]);
+                                        let best = s
+                                            .period_s
+                                            .iter()
+                                            .zip(&s.score)
+                                            .filter(|(p, _)| ((*p / period) - 1.0).abs() < 0.05)
+                                            .map(|(_, &sc)| sc)
+                                            .fold(0.0, f64::max);
+                                        s.null.calibrated && s.tail.significance(best) > 2.0
+                                    })
+                                    .count()
+                            })
+                        })
+                        .collect();
+                    hs.into_iter().map(|h| h.join().unwrap()).sum::<usize>()
+                })
+            };
+            let counts: Vec<(f64, usize)> = ks.iter().map(|&k| (k, named(k))).collect();
+            let floor = counts.iter().find(|c| 2 * c.1 >= draws).map(|c| c.0);
+            eprintln!("POWER mix {mix} share {share} period {period}: floor {floor:?}; {counts:?}");
+        }
     }
 }
