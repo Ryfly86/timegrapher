@@ -121,6 +121,11 @@ pub struct Cell {
 pub struct Table {
     /// What the simulation ran, for the record.
     pub note: String,
+    /// The timing passes the table had (`null_tests::TIMING_PASSES`);
+    /// empty in a table made before #1219, and a test refuses a shipped
+    /// table that lacks any.
+    #[serde(default)]
+    pub passes: Vec<String>,
     pub draws_mean: usize,
     pub draws_max: usize,
     pub cells: Vec<Cell>,
