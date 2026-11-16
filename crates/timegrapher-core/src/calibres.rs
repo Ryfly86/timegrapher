@@ -1125,6 +1125,25 @@ mod tests {
     }
 
     #[test]
+    fn peters_jinghe_list_names_movements_without_moving_figures() {
+        let post = "post-12474350";
+        let quoted: Vec<_> = all()
+            .iter()
+            .filter(|c| c.notes.as_deref().is_some_and(|n| n.contains(post)))
+            .map(|c| c.calibre.as_str())
+            .collect();
+        assert_eq!(quoted.len(), 11, "{quoted:?}");
+        // The quote identifies; each row keeps its own figures.
+        assert_eq!(find("SH4130").unwrap().lift_angle_deg, Some(52.0));
+        let jh = find("JH6203").unwrap();
+        assert_eq!(jh.calibre, "Jinghe JH6203");
+        assert_eq!(jh.lift_angle_deg, None);
+        assert_eq!(jh.bph, Some(28800));
+        assert!(jh.notes.as_deref().unwrap().contains("46 jewels"));
+        assert!(find("JH6501").is_none());
+    }
+
+    #[test]
     fn makers_are_in_the_table_and_their_names_unique() {
         let mut seen = std::collections::HashSet::new();
         for m in makers() {

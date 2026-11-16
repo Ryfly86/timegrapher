@@ -107,7 +107,9 @@ specification pages, read on 2026-10-13:
   outline drawings (机芯外廓图) linked from its download and movement
   pages, which cover 67 calibres;
 - Shanghai Jinghe: http://en.jingheshiye.com/jingdianzhizuo/ and its
-  other product lists;
+  other product lists, read again on 2026-11-16 for jewels, size, stem
+  height and power reserve (the pages and the Chinese site print no lift
+  angle, and their manual links are empty);
 - Tianjin Seagull: https://en.seagullwatch.com/ movement pages;
 - Hangzhou: two assembly drawings (HZ8230A, HZ8220A) downloaded from
   Hangzhou's site, and on 2026-11-16 every movement on
@@ -147,6 +149,13 @@ rows (SL4609, SL48xx, SL5211 and others) have no drawing on the site and
 keep no lift angle. The movement photo URLs are kept in
 docs/research/peacock-movement-photos.json; the photos are Peacock's
 and are not copied here.
+
+Peter Hudson's RWI list of which Jinghe calibres are likely clones of
+which movements is quoted word for word, with its link, in the notes of
+the rows it names (the Jinghe JH6203, JH7152, JH7155, JH7156 and JH7301,
+and the VR3130, VR3135, VR3187, VR3235, VR3285 and SH4130). It
+identifies movements only; no figure moves between rows because of it.
+Jinghe's photo URLs are kept in docs/research/jinghe-movement-photos.json.
 
 Still to do: Beijing (beijingwatch.com) and Guangzhou Five Goats, now
 Dixmont (dixmont.com.cn), publish a drawing per calibre with its lift
