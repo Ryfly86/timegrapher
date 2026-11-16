@@ -792,9 +792,11 @@ const DROP_POST_S: f64 = 0.003;
 /// block's beats that are on the side's line there ([`side_line`]) are
 /// added up, [`PRE_S`] either side of it, the template's reach before its
 /// drop. That sum shows the side's sounds, and [`side_sounds`] picks the
-/// drop among them as [`drop_offset`] picks it on the template. A beat
-/// whose own match peaks on another of those sounds, within half of
-/// [`SIDE_SOUND_GAP_S`], takes its match's highest peak within
+/// drop among them as [`drop_offset`] picks it on the template, and the
+/// side's other sounds: those [`SIDE_SOUND_GAP_S`] or more from the drop,
+/// with the sum dipping between them, and not lobes of one lumpy drop. A
+/// beat whose own match peaks within [`DROP_SNAP_S`] of one of those other
+/// sounds, and nearer it than the drop, takes its match's highest peak within
 /// [`DROP_SNAP_S`] of where the sum puts the drop from that sound, and
 /// moves by the distance between the two peaks. A
 /// beat on its drop, or on no sound of the side (as after a jump), is
@@ -861,7 +863,8 @@ fn onto_the_drop(env: &[f32], fs: f64, template: &[f32], beats: &mut [Beat], off
                     .for_each(|(v, c)| *v += c);
             }
         }
-        let Some((drop, others)) = side_sounds(&sum, half) else {
+        let apart = (SIDE_SOUND_GAP_S * fs).round() as usize;
+        let Some((drop, others)) = side_sounds(&sum, half, apart) else {
             continue;
         };
         // A watch's beats on its line keep to it within a tenth of a ms or
@@ -892,10 +895,13 @@ fn onto_the_drop(env: &[f32], fs: f64, template: &[f32], beats: &mut [Beat], off
                 continue;
             };
             // The other sound of the side the beat is on, if any: the
-            // drop then lies as far from the beat as it does on the sum.
+            // sound of the sum nearest the beat, when that is not the
+            // drop. The drop then lies as far from the beat as on the sum.
+            let near = |s: &usize| own.abs_diff(l + s - reach);
             let Some(on) = others
                 .iter()
-                .find(|&&s| own.abs_diff(l + s - reach) <= half)
+                .filter(|s| near(s) <= snap && near(s) < near(&drop))
+                .min_by_key(|s| near(s))
             else {
                 continue;
             };
@@ -980,8 +986,10 @@ fn side_line(run: &[(i64, f64)]) -> Option<impl Fn(i64) -> f64> {
 /// The sounds on `sum`, a side's added-up matches of its drop: its peaks
 /// [`DROP_SHARE`] as high as the highest, each more than `gap` from a
 /// higher one. Of these the drop is the last [`DROP_DIP`] apart from the
-/// highest, or the highest itself; it is returned with the others.
-fn side_sounds(sum: &[f32], gap: usize) -> Option<(usize, Vec<usize>)> {
+/// highest, or the highest itself; it is returned with the sounds that
+/// are another sound of the beat: at least `apart` from the drop and
+/// [`DROP_DIP`] apart from it.
+fn side_sounds(sum: &[f32], gap: usize, apart: usize) -> Option<(usize, Vec<usize>)> {
     let peaks: Vec<(usize, f32)> = (1..sum.len() - 1)
         .filter(|&j| sum[j] > 0.0 && sum[j] >= sum[j - 1] && sum[j] > sum[j + 1])
         .map(|j| (j, sum[j]))
@@ -992,16 +1000,22 @@ fn side_sounds(sum: &[f32], gap: usize) -> Option<(usize, Vec<usize>)> {
         .filter(|p| !peaks.iter().any(|q| q.1 > p.1 && q.0.abs_diff(p.0) <= gap))
         .copied()
         .collect();
-    let dip = |p: &(usize, f32)| {
-        let (a, b) = (p.0.min(top.0), p.0.max(top.0));
+    let dip = |p: &(usize, f32), q: &(usize, f32)| {
+        let (a, b) = (p.0.min(q.0), p.0.max(q.0));
         sum[a..=b].iter().copied().fold(f32::INFINITY, f32::min)
     };
-    let drop = (sounds.iter().rev())
-        .find(|p| p.0 > top.0 && dip(p) <= DROP_DIP * p.1)
-        .unwrap_or(&top)
-        .0;
-    let others = sounds.iter().map(|p| p.0).filter(|&j| j != drop).collect();
-    Some((drop, others))
+    let drop = *(sounds.iter().rev())
+        .find(|p| p.0 > top.0 && dip(p, &top) <= DROP_DIP * p.1)
+        .unwrap_or(&top);
+    // Another sound of the side is one the drop is not part of: as far
+    // from it as two sounds of a beat lie apart, and with the sum falling
+    // between them as [`DROP_DIP`] asks of two sounds, not a lumpy one.
+    let others = (sounds.iter())
+        .filter(|p| p.0 != drop.0 && p.0.abs_diff(drop.0) >= apart)
+        .filter(|p| dip(p, &drop) <= DROP_DIP * p.1.min(drop.1))
+        .map(|p| p.0)
+        .collect();
+    Some((drop.0, others))
 }
 
 /// Same-side beats either way of a beat that set where its side's beats

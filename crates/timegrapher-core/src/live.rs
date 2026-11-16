@@ -828,7 +828,7 @@ impl LiveAnalyzer {
         if self.beats.last().is_some() && (resumed || count_off.abs() > 0.25) {
             self.jump_at(anchor_t, false);
         }
-        self.redrop_open_block(&numbered[..anchor], off);
+        self.redrop_heard_blocks(&numbered[..anchor], off);
         self.take_beats(x, &env, &numbered[anchor..], off, to, beat);
         self.find_jumps_and_trim();
         self.amplitude_pass(&env, &numbered, off, from, to, beat);
@@ -924,21 +924,20 @@ impl LiveAnalyzer {
             .is_some_and(|(_, n)| n as f64 * self.cfg.update_s >= RELOCK_S)
     }
 
-    /// The beats settled already in the block of [`beats::DROP_BLOCK_S`]
-    /// still open, timed again as this pass, which hears more of the
-    /// block, puts them on their drop ([`beats::detect_with_template_at`]).
-    /// A side's beats are put on their drop a block at a time, and a saved
-    /// read hears the whole block, so the beats settle as a saved read
-    /// gives them once the block has closed, up to a block after they were
-    /// first given. Only a pass that heard the block from its start times
-    /// them again.
-    fn redrop_open_block(&mut self, settled: &[Beat], off: f64) {
+    /// The beats settled already in each block of [`beats::DROP_BLOCK_S`]
+    /// this pass heard from its start, timed again as this pass puts them
+    /// on their drop ([`beats::detect_with_template_at`]). A side's beats
+    /// are put on their drop a block at a time, and a saved read hears the
+    /// whole block. A pass that hears only the start of a block can find
+    /// too few of its beats, or a mix of them on two sounds, to tell the
+    /// drop, so each beat is given again by every later pass that heard its
+    /// block from the start; the last of these hears the block whole, with
+    /// sound after it, as a saved read does. A beat so settles up to a
+    /// pass's window after it was first given.
+    fn redrop_heard_blocks(&mut self, settled: &[Beat], off: f64) {
         let b = beats::DROP_BLOCK_S;
-        let open = (self.settled_to / b).floor() * b;
-        if open < off + 0.25 {
-            return;
-        }
-        let first = self.beats.partition_point(|x| x.time < open - 0.01);
+        let start = ((off + 0.25) / b).ceil() * b;
+        let first = self.beats.partition_point(|x| x.time < start - 0.01);
         for x in &mut self.beats[first..] {
             let near = settled.iter().find(|y| y.index == x.index);
             if let Some(y) = near.filter(|y| (y.time + off - x.time).abs() < beats::PRE_S) {
