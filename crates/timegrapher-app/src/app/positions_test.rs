@@ -377,7 +377,7 @@ impl TimegrapherApp {
     /// Settle stays live, as it reads the take again; the measuring time
     /// is the take's own, greyed.
     pub(super) fn positions_lengths(&mut self, ui: &mut egui::Ui, running: bool, each: &str) {
-        let recorded = self.recorded_lengths();
+        let recorded = self.recorded_lengths(ui.ctx());
         let settle_hint = if self.guided.is_none() && self.take_on_show().is_some() {
             "How this take is read. Change it to read the take again."
         } else {
@@ -401,15 +401,10 @@ impl TimegrapherApp {
             .on_disabled_hover_text(FIXED_IN_TEST);
         });
         if let Some(words) = recorded {
-            theme::tool_field(
-                ui,
-                each,
-                "How long each position was recorded in this take.",
-                |ui| {
-                    let pal = theme::pal(ui);
-                    ui.label(RichText::new(words).color(pal.text_secondary));
-                },
-            );
+            theme::tool_field(ui, each, &recorded_hint(each), |ui| {
+                let pal = theme::pal(ui);
+                ui.label(RichText::new(words).color(pal.text_secondary));
+            });
             return;
         }
         theme::tool_field(
@@ -442,19 +437,21 @@ impl TimegrapherApp {
     }
 
     /// With a take on show and no test on the Bench, how long each of its
-    /// positions was recorded, as the toolbar writes it: one length, or
-    /// "1 to 2 min" where they differ (Hugh, #1733). None for a take that
-    /// stayed in one position, whose fields stay the app's.
-    pub(super) fn recorded_lengths(&self) -> Option<String> {
+    /// positions was read, as the table beside it gives it, so the two
+    /// never disagree (Walter on #1843): one length, or "1 to 2 min"
+    /// where they differ (Hugh, #1733). None until the table is read, or
+    /// for a take with no positions read, whose fields stay the app's.
+    pub(super) fn recorded_lengths(&self, ctx: &egui::Context) -> Option<String> {
         if self.guided.is_some() || self.take_on_show().is_none() {
             return None;
         }
-        let lengths: Vec<f64> = self
-            .session
-            .position_spans(self.position)
-            .into_iter()
-            .map(|(a, b, _)| (b - a).round())
-            .filter(|l| l.is_finite())
+        let t = self.free_table_shown(ctx)?;
+        let lengths: Vec<f64> = t
+            .six
+            .0
+            .iter()
+            .chain(&t.upright.0)
+            .map(|r| r.duration_s)
             .collect();
         let least = lengths.iter().copied().reduce(f64::min)?;
         let most = lengths.iter().copied().reduce(f64::max)?;
@@ -722,4 +719,12 @@ impl TimegrapherApp {
         self.guided = Some(test);
         self.mask_engine();
     }
+}
+
+/// The greyed measuring field's hover, in that pane's word: "How long
+/// each stretch was recorded in this take." under Each Stretch (Hugh on
+/// #1843).
+pub(super) fn recorded_hint(each: &str) -> String {
+    let what = each.strip_prefix("Each ").unwrap_or(each).to_lowercase();
+    format!("How long each {what} was recorded in this take.")
 }
