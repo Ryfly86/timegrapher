@@ -79,6 +79,7 @@ mod positions_test;
 mod power_reserve_pane;
 mod readings_strip;
 mod readouts;
+mod redraw;
 mod scope_panes;
 mod session_marks;
 mod settings_pane;
@@ -4000,17 +4001,7 @@ impl eframe::App for TimegrapherApp {
         }
         self.report_save_asked();
         theme::popups_above_dialogs(ctx);
-        // The cursor shared by the strip and the charts follows the pointer;
-        // repaint once more when it leaves so the line goes too.
-        let next = self.cursor_next.take();
-        if next != self.cursor_t {
-            self.cursor_t = next;
-            ctx.request_repaint();
-        }
-
-        if let Some(every) = self.draw_next(was_working) {
-            ctx.request_repaint_after(every);
-        }
+        self.draw_again(ctx, was_working);
     }
 
     /// What shows where no panel paints (the seams between panels): the
