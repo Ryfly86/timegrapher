@@ -1156,7 +1156,11 @@ mod tests {
     #[test]
     fn parts_not_written_say_why_and_the_take_is_kept() {
         let dir = scratch("unwritable");
-        let paths = take(&dir, 40.0, 1);
+        // A part is due only once a chunk's amplitude windows are back,
+        // and they come back on other threads. Fifteen chunks are more
+        // than the queues hold on a four-core runner, so the reading
+        // waits on those threads before its last chunk (#1784).
+        let paths = take(&dir, 180.0, 1);
         let cfg = StreamConfig {
             chunk_s: 12.0,
             ..Default::default()
@@ -1172,9 +1176,14 @@ mod tests {
         let (kept, status) = kept_with_parts(&paths, &cfg, &[], &[4097], parts);
         assert_eq!(kept_files(&kept), kept_files(&plain));
         assert_eq!(status.to_s, 0.0);
-        assert!(status
-            .failed
-            .is_some_and(|e| e.contains("analysis.partial")));
+        assert!(
+            status
+                .failed
+                .as_ref()
+                .is_some_and(|e| e.contains("analysis.partial")),
+            "{:?}",
+            status.failed
+        );
         let _ = std::fs::remove_dir_all(dir);
     }
 
