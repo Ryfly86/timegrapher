@@ -1010,7 +1010,8 @@ fn a_masked_stretch_can_be_reshaped() {
 /// its own, so the text leaves out the settling and measuring lines.
 #[test]
 fn an_opened_takes_table_can_be_saved_and_copied() {
-    let (app, base) = super::poise_tests::saved_and_opened("six", guided::Kind::Positions.order());
+    let (mut app, base) =
+        super::poise_tests::saved_and_opened("six", guided::Kind::Positions.order());
     let ctx = egui::Context::default();
     let t = app.free_table(&ctx).expect("a table");
     assert_eq!(t.read, 6, "{t:?}");
@@ -1061,5 +1062,19 @@ fn an_opened_takes_table_can_be_saved_and_copied() {
         !text.contains("Settling") && !text.contains("Measured"),
         "{text}"
     );
+    // The toolbar says how the take was read: each position's own length,
+    // greyed, never the app's Each Position (Hugh, #1733). Its stops are
+    // 62 s each, the app's 1 min.
+    let recorded = app.recorded_lengths().expect("a take on show");
+    assert_ne!(recorded, fields::duration(guided::MEASURE_S));
+    assert!(
+        recorded.starts_with("62 s") || recorded.contains(" to "),
+        "{recorded}"
+    );
+    let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
+    let lines: Vec<&str> = drawn.lines().collect();
+    let each = lines.iter().position(|l| *l == "Each Position");
+    let shown = each.and_then(|i| lines.get(i + 1));
+    assert_eq!(shown, Some(&recorded.as_str()), "{drawn}");
     let _ = std::fs::remove_dir_all(&base);
 }

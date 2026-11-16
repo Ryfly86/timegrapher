@@ -371,31 +371,47 @@ impl TimegrapherApp {
     /// value each, so a change in one pane changes it in all (Peter, #1577).
     /// `each` names the measuring time in this pane: "Each Position", or the
     /// Complication Test's "Each Stretch".
+    ///
+    /// With a take on show and no test on the Bench, they say how that
+    /// take was read, never that the app's settings made it (Hugh, #1733):
+    /// Settle stays live, as it reads the take again; the measuring time
+    /// is the take's own, greyed.
     pub(super) fn positions_lengths(&mut self, ui: &mut egui::Ui, running: bool, each: &str) {
-        theme::tool_field(
-            ui,
-            "Settle",
+        let recorded = self.recorded_lengths();
+        let settle_hint = if self.guided.is_none() && self.take_on_show().is_some() {
+            "How this take is read. Change it to read the take again."
+        } else {
             "Seconds the watch is left to settle after every change of position, in any take \
              and in every guided test, before its beats are read. They show faint on the \
-             strip and are left out of every reading. Every guided test shares it.",
-            |ui| {
-                ui.add_enabled_ui(!running, |ui| {
-                    let mut v = self.guided_settle_s;
-                    let a =
-                        fields::entry(ui, "settle", &mut v, guided::SETTLE_RANGE, &DURATION, 48.0);
-                    let b =
-                        fields::presets(ui, "settle-presets", &mut v, &SETTLES, fields::duration);
-                    if a || b {
-                        self.guided_settle_s = v;
-                        // Every settle band redraws, and the table with it.
-                        self.session.resettle(v);
-                        self.positions_moved(self.position);
-                    }
-                })
-                .response
-                .on_disabled_hover_text(FIXED_IN_TEST);
-            },
-        );
+             strip and are left out of every reading. Every guided test shares it."
+        };
+        theme::tool_field(ui, "Settle", settle_hint, |ui| {
+            ui.add_enabled_ui(!running, |ui| {
+                let mut v = self.guided_settle_s;
+                let a = fields::entry(ui, "settle", &mut v, guided::SETTLE_RANGE, &DURATION, 48.0);
+                let b = fields::presets(ui, "settle-presets", &mut v, &SETTLES, fields::duration);
+                if a || b {
+                    self.guided_settle_s = v;
+                    // Every settle band redraws, and the table with it.
+                    self.session.resettle(v);
+                    self.positions_moved(self.position);
+                }
+            })
+            .response
+            .on_disabled_hover_text(FIXED_IN_TEST);
+        });
+        if let Some(words) = recorded {
+            theme::tool_field(
+                ui,
+                each,
+                "How long each position was recorded in this take.",
+                |ui| {
+                    let pal = theme::pal(ui);
+                    ui.label(RichText::new(words).color(pal.text_secondary));
+                },
+            );
+            return;
+        }
         theme::tool_field(
             ui,
             each,
@@ -423,6 +439,26 @@ impl TimegrapherApp {
                 .on_disabled_hover_text(FIXED_IN_TEST);
             },
         );
+    }
+
+    /// With a take on show and no test on the Bench, how long each of its
+    /// positions was recorded, as the toolbar writes it: one length, or
+    /// "1 to 2 min" where they differ (Hugh, #1733). None for a take that
+    /// stayed in one position, whose fields stay the app's.
+    pub(super) fn recorded_lengths(&self) -> Option<String> {
+        if self.guided.is_some() || self.take_on_show().is_none() {
+            return None;
+        }
+        let lengths: Vec<f64> = self
+            .session
+            .position_spans(self.position)
+            .into_iter()
+            .map(|(a, b, _)| (b - a).round())
+            .filter(|l| l.is_finite())
+            .collect();
+        let least = lengths.iter().copied().reduce(f64::min)?;
+        let most = lengths.iter().copied().reduce(f64::max)?;
+        Some(fields::duration_range(least, most))
     }
 
     /// The Positions Test settings' Save as CSV…, Save as Text…, Copy and
