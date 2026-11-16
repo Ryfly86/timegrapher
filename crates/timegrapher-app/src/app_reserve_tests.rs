@@ -1103,9 +1103,10 @@ fn a_long_takes_run_is_read_again_when_its_masks_change() {
 }
 
 /// An idle window draws only when asked; one listening or reading a
-/// batch draws every 40 ms; work on a thread of its own, each kind on its
+/// batch draws every 100 ms; work on a thread of its own, each kind on its
 /// own, every 100 ms, so what it gives shows with no input (Trevor's HOLD
-/// on #1232); and once more on the frame it ended (Walter's).
+/// on #1232); and once more on the frame it ended (Walter's). A window
+/// not in use waits at least 500 ms between draws.
 #[test]
 fn the_window_draws_again_only_while_work_is_under_way() {
     use std::sync::mpsc::channel;
@@ -1113,8 +1114,14 @@ fn the_window_draws_again_only_while_work_is_under_way() {
     let idle = || TimegrapherApp::with_devices(Vec::new(), None);
     assert_eq!(idle().repaint_every(), None, "idle");
     // Once more at once on the frame work ended, then no more.
-    assert_eq!(idle().draw_next(true), Some(Duration::ZERO));
-    assert_eq!(idle().draw_next(false), None);
+    assert_eq!(idle().draw_next(true, true), Some(Duration::ZERO));
+    assert_eq!(idle().draw_next(false, true), None);
+    // Behind another window, or minimised: no sooner than 500 ms.
+    assert_eq!(
+        idle().draw_next(true, false),
+        Some(Duration::from_millis(500))
+    );
+    assert_eq!(idle().draw_next(false, false), None);
     let analysis = || AnalysisSave {
         rx: channel().1,
         progress: Default::default(),
@@ -1163,7 +1170,8 @@ fn the_window_draws_again_only_while_work_is_under_way() {
             Some(Duration::from_millis(100)),
             "{name}"
         );
-        assert_eq!(a.draw_next(true), Some(Duration::from_millis(100)));
+        assert_eq!(a.draw_next(true, true), Some(Duration::from_millis(100)));
+        assert_eq!(a.draw_next(true, false), Some(Duration::from_millis(500)));
     }
     let mut a = idle();
     a.batch = Some(Batch {
@@ -1180,7 +1188,7 @@ fn the_window_draws_again_only_while_work_is_under_way() {
         settles: Vec::new(),
         order_note: None,
     });
-    assert_eq!(a.repaint_every(), Some(Duration::from_millis(40)), "batch");
+    assert_eq!(a.repaint_every(), Some(Duration::from_millis(100)), "batch");
     let base = std::env::temp_dir().join(format!("tg-app-repaint-{}", std::process::id()));
     std::fs::create_dir_all(&base).unwrap();
     let mut a = idle();
@@ -1188,8 +1196,13 @@ fn the_window_draws_again_only_while_work_is_under_way() {
     assert!(a.running());
     assert_eq!(
         a.repaint_every(),
-        Some(Duration::from_millis(40)),
+        Some(Duration::from_millis(100)),
         "listening"
+    );
+    assert_eq!(
+        a.draw_next(false, false),
+        Some(Duration::from_millis(500)),
+        "listening behind another window"
     );
     drop(a);
     let _ = std::fs::remove_dir_all(&base);
@@ -2006,4 +2019,17 @@ fn a_test_whose_save_never_finished_opens_to_its_last_part() {
     let _ = kept_take(&mut app);
     drop(tx);
     let _ = std::fs::remove_dir_all(&base);
+}
+
+/// The cursor shared by the strip and the charts draws again at once when
+/// the pointer moves or leaves, but not when the live strip only moves
+/// under a still pointer: that drew every frame twice while listening.
+#[test]
+fn a_still_pointer_over_the_live_strip_draws_nothing_extra() {
+    use super::redraw::cursor_redraw;
+    assert!(!cursor_redraw(Some(1.0), Some(1.2), false), "strip moved");
+    assert!(cursor_redraw(Some(1.0), Some(1.2), true), "pointer moved");
+    assert!(cursor_redraw(Some(1.0), None, false), "pointer left");
+    assert!(!cursor_redraw(Some(1.0), Some(1.0), true), "no change");
+    assert!(!cursor_redraw(None, None, false));
 }

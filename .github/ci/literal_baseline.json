@@ -63,6 +63,12 @@
      "constants": 0,
      "defaults": 0
     },
+    "crates/timegrapher-app/src/app/redraw.rs": {
+     "bounds": 0,
+     "comparisons": 0,
+     "constants": 2,
+     "defaults": 0
+    },
     "crates/timegrapher-app/src/app/scope_panes.rs": {
      "bounds": 1,
      "comparisons": 1,
@@ -259,7 +265,7 @@
    "total": {
     "bounds": 102,
     "comparisons": 93,
-    "constants": 60,
+    "constants": 62,
     "defaults": 2
    }
   },
@@ -375,6 +381,6 @@
   }
  },
  "long_files": {
-  "crates/timegrapher-app/src/app.rs": 4337
+  "crates/timegrapher-app/src/app.rs": 4328
  }
 }
