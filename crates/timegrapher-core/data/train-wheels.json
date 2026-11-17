@@ -77401,7 +77401,8 @@
     "calibre": "Peacock SL4617II",
     "maker": "Peacock (Dandong)",
     "family": [
-      "SL4617II"
+      "SL4617II",
+      "SL4617Ⅱ"
     ],
     "bph": 28800,
     "lift_angle_deg": 51.5,
@@ -77423,7 +77424,8 @@
     "calibre": "Peacock SL4617Ⅲ",
     "maker": "Peacock (Dandong)",
     "family": [
-      "SL4617Ⅲ"
+      "SL4617Ⅲ",
+      "SL4617III"
     ],
     "bph": 28800,
     "lift_angle_deg": 51.5,
