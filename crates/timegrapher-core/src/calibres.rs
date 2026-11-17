@@ -1116,6 +1116,11 @@ mod tests {
         assert_eq!(lift_bph("SL5231P"), Some((Some(54.0), Some(28800))));
         // The roman-numeral spelling on the drawing finds the same row.
         assert_eq!(find("SL5720Ⅱ").unwrap().calibre, "Peacock SL5720II");
+        // Either spelling finds the SL4617 II and III, whichever the row uses.
+        assert_eq!(find("SL4617Ⅱ").unwrap().calibre, "Peacock SL4617II");
+        assert_eq!(find("SL4617II").unwrap().calibre, "Peacock SL4617II");
+        assert_eq!(find("SL4617III").unwrap().calibre, "Peacock SL4617Ⅲ");
+        assert_eq!(find("SL4617Ⅲ").unwrap().calibre, "Peacock SL4617Ⅲ");
         // SL1258 keeps its counted DD324 train and takes the drawing's 53°.
         let c = find("SL1258").unwrap();
         assert_eq!(c.lift_angle_deg, Some(53.0));
