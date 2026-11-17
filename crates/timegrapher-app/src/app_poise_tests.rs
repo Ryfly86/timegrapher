@@ -240,7 +240,19 @@ fn saved_and_opened_each(
     stops: &[Position],
     each: f64,
 ) -> (TimegrapherApp, std::path::PathBuf) {
+    saved_and_opened_after(name, stops, each, |_| {})
+}
+
+/// [`saved_and_opened_each`] with `before` done to the take heard before
+/// it is saved, such as painting a stretch.
+pub(super) fn saved_and_opened_after(
+    name: &str,
+    stops: &[Position],
+    each: f64,
+    before: impl FnOnce(&mut TimegrapherApp),
+) -> (TimegrapherApp, std::path::PathBuf) {
     let (mut app, base) = listened_each(name, stops, each);
+    before(&mut app);
     app.save_into(&base.join("saved"));
     app.wait_for_save();
     let saved = app.session.saved_to().expect("saved").to_path_buf();

@@ -117,17 +117,16 @@ pub(super) fn table_of_take(
         &o.breaks,
         TimegrapherApp::rate_clock(&o.clock),
     );
-    // The positions as the window loads them (`show_engine`).
+    // The positions as the window loads them, and the watch in the first
+    // until they say (`apply_manifest_placed`).
     let mut session = crate::session::Session::default();
-    session.analysed();
-    if stretches.len() > 1 || !settles.is_empty() {
-        session.load(&stretches, &settles);
-    }
-    let now = session
-        .stretches()
-        .last()
-        .or(stretches.first())
-        .map_or(Position::DialUp, |s| s.1);
+    let now = super::take_io::load_positions(
+        &mut session,
+        &stretches,
+        &settles,
+        super::take_io::recorded_of(m),
+        stretches.first().map_or(Position::DialUp, |s| s.1),
+    );
     let end = live
         .beats()
         .last()

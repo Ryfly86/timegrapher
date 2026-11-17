@@ -1133,7 +1133,21 @@ fn the_greyed_lengths_hover_names_its_panes_measure() {
 fn an_ordinary_take_of_the_six_positions_loads_to_compare_with() {
     let mut stops = guided::Kind::Positions.order().to_vec();
     stops.push(stops[0]);
-    let (mut app, base) = super::poise_tests::saved_and_opened("compare1851", &stops);
+    // Crown Up painted over the middle of Dial Down, so what was recorded
+    // is kept under the painting and loaded with the positions (Norm on
+    // #1853): the take's Crown Up is two stretches too.
+    let (mut app, base) =
+        super::poise_tests::saved_and_opened_after("compare1851", &stops, 62.0, |app| {
+            let end = app.latest_s();
+            app.session
+                .paint(85.0, 100.0, Position::CrownUp, app.position, end);
+        });
+    let saved = std::fs::read_to_string(PathBuf::from(&app.opened_path).join("session.toml"))
+        .unwrap_or_default();
+    assert!(
+        saved.contains("[[recorded]]"),
+        "recorded under the painting: {saved}"
+    );
     let file = PathBuf::from(&app.opened_path).join("session.json");
     let dir = super::compare_take::take_dir_of(&file).expect("a take's file");
     app.read_compare_take(dir);
@@ -1155,6 +1169,7 @@ fn an_ordinary_take_of_the_six_positions_loads_to_compare_with() {
     let first = core_session::Position::parse(stops[0].code()).unwrap();
     let held = |p| app.session.settled_spans(app.position, p).len();
     assert_eq!(held(stops[0]), 2, "two stretches in {}", stops[0].code());
+    assert_eq!(held(Position::CrownUp), 2, "painted and recorded");
     let long = |r: &core_session::Reading| r.duration_s;
     let twice = table.six.0.iter().find(|r| r.position == first).unwrap();
     assert!(

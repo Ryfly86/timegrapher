@@ -1631,13 +1631,7 @@ impl TimegrapherApp {
             |(start, from, to, p, carried)| Some((start, from, to, Position::of_core(p)?, carried)),
         ));
         // What was recorded under any painting, loaded with the positions.
-        self.pending_recorded = (!m.recorded.is_empty()).then(|| {
-            timegrapher_core::take::positions_of(m.recorded.iter().filter_map(|r| {
-                let p = Position::from_name(&r.position)?;
-                let start = r.start_s.unwrap_or(0.0);
-                Some((start, start, r.end_s, p, false))
-            }))
-        });
+        self.pending_recorded = recorded_of(m);
         if let Some(&(_, p)) = out.first() {
             self.position = p;
         }
@@ -2648,19 +2642,14 @@ impl TimegrapherApp {
         stretches: Vec<(f64, Position)>,
         settles: Vec<(f64, f64)>,
     ) {
-        self.session.load(&[], &[]);
-        self.session.analysed();
-        // A take of one position settles too, unless its session file
-        // says it was read from its start.
-        if stretches.len() > 1 || !settles.is_empty() {
-            self.session.load(&stretches, &settles);
-        }
-        if let Some(&(_, p)) = self.session.stretches().last() {
-            self.position = p;
-        }
-        if let Some((s, t)) = self.pending_recorded.take() {
-            self.session.load_recorded(&s, &t, self.position);
-        }
+        let recorded = self.pending_recorded.take();
+        self.position = load_positions(
+            &mut self.session,
+            &stretches,
+            &settles,
+            recorded,
+            self.position,
+        );
         self.opened_positions = Some(self.positions_now());
         self.live = Some(live);
         // The opened take's labels, not those drawn while it opened
@@ -2877,6 +2866,50 @@ fn retune(
 /// once the take is open (#1233).
 fn engine_masked(i: &OpenInputs) -> Vec<(f64, f64)> {
     timegrapher_core::session::with_holes(&i.masked, &i.settles)
+}
+
+/// What a take's session file `m` says was recorded under its painting,
+/// as changes and settling; None when nothing was painted.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the positions recorded under painting are the app's own record"
+)]
+pub(super) fn recorded_of(m: &Manifest) -> Option<Positions> {
+    (!m.recorded.is_empty()).then(|| {
+        timegrapher_core::take::positions_of(m.recorded.iter().filter_map(|r| {
+            let p = Position::from_name(&r.position)?;
+            let start = r.start_s.unwrap_or(0.0);
+            Some((start, start, r.end_s, p, false))
+        }))
+    })
+}
+
+/// Load an opened take's positions into `session`: the changes and
+/// settling its session file gives (`stretches`, `settles`), and what was
+/// recorded under its painting (`recorded`), the watch in `now` until
+/// then. The position the watch is in after. The one load for the window
+/// (`show_engine`) and for Compare With reading another take
+/// ([`super::compare_take`]), so both settle the same stretches (Norm on
+/// #1853).
+pub(super) fn load_positions(
+    session: &mut crate::session::Session,
+    stretches: &[(f64, Position)],
+    settles: &[(f64, f64)],
+    recorded: Option<Positions>,
+    now: Position,
+) -> Position {
+    session.load(&[], &[]);
+    session.analysed();
+    // A take of one position settles too, unless its session file
+    // says it was read from its start.
+    if stretches.len() > 1 || !settles.is_empty() {
+        session.load(stretches, settles);
+    }
+    let now = session.stretches().last().map_or(now, |&(_, p)| p);
+    if let Some((s, t)) = recorded {
+        session.load_recorded(&s, &t, now);
+    }
+    now
 }
 
 /// Open the take `opening` ([`take_entry`]) with core's
