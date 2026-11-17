@@ -569,8 +569,9 @@ pub fn least_h(test: Option<&Test>, shown: [bool; 3]) -> Option<f32> {
         Some(r) => !r.hours.is_empty(),
         None => t.so_far.iter().any(|h| h.whole()),
     };
-    let n = shown.iter().filter(|&&on| on).count().max(1);
-    charts.then_some(22.0 + hour_steps::read_h(n) + 12.0)
+    // All of them off, the table and words alone (#1852).
+    let n = shown.iter().filter(|&&on| on).count();
+    (charts && n > 0).then_some(22.0 + hour_steps::read_h(n) + 12.0)
 }
 
 /// A run stopped by hand after `hours` whole hours, for the tests.
@@ -2034,6 +2035,45 @@ mod tests {
             "{texts:?}"
         );
         assert!(shown(&texts, "280") || shown(&texts, "281"), "{texts:?}");
+    }
+
+    /// Every chart off (#1852): the table of hours and the line stand
+    /// alone, no chart drawn, and the pane asks no room for charts.
+    #[test]
+    fn every_chart_off_leaves_the_table_and_line() {
+        let ctx = egui::Context::default();
+        theme::install(&ctx);
+        let t = finished_run(5);
+        let texts = |shown: [bool; 3]| {
+            let mut texts = Vec::new();
+            for _ in 0..2 {
+                let out = ctx.run(egui::RawInput::default(), |ctx| {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        pane(ui, Some(&t), None, ("Position", ""), true, (false, shown));
+                    });
+                });
+                texts = out
+                    .shapes
+                    .iter()
+                    .filter_map(|c| match &c.shape {
+                        egui::Shape::Text(t) => Some(t.galley.text().to_string()),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+            }
+            texts
+        };
+        let rates = |t: &[String]| t.iter().filter(|s| *s == "Rate").count();
+        let all = texts([true; 3]);
+        let none = texts([false; 3]);
+        assert!(
+            rates(&all) >= 2,
+            "the table's heading and the chart's: {all:?}"
+        );
+        assert_eq!(rates(&none), 1, "the table's heading alone: {none:?}");
+        assert!(none.iter().any(|s| s == "0–1 h"), "{none:?}");
+        assert!(least_h(Some(&t), [true; 3]).is_some());
+        assert_eq!(least_h(Some(&t), [false; 3]), None);
     }
 
     /// The pane holds no more height than it shows: one line before a run,

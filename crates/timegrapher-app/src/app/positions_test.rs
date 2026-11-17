@@ -264,6 +264,10 @@ impl TimegrapherApp {
     /// position, and saving or copying the results.
     pub(super) fn positions_settings(&mut self, ui: &mut egui::Ui) {
         let running = self.guided_running();
+        // The quantities first, at the left, always there, as on every
+        // pane that plots them (design guide section 9, #1852): with no
+        // gap after them, so the row still fits at 1000 pt.
+        crate::steady::chart_switches(ui, &mut self.positions_series);
         // While it runs, the step panel and the Listen card carry its
         // buttons; set up, Cancel Test leaves the Bench as it was.
         if !running {
@@ -296,12 +300,6 @@ impl TimegrapherApp {
         self.positions_wind(ui, running);
         theme::bar_gap(ui);
         self.positions_lengths(ui, running, ("Each Position", guided::Kind::Positions));
-        // Each chart on or off, the others sharing the height (#1729),
-        // once there is something to chart: beside the lengths with no
-        // gap, so the row still fits at 1000 pt.
-        if self.positions_measured(ui.ctx()) {
-            crate::steady::series_switches(ui, &mut self.positions_series);
-        }
         self.positions_results(ui);
     }
 

@@ -14,9 +14,11 @@ impl TimegrapherApp {
         let help: Vec<&str> = help.iter().map(String::as_str).collect();
         let mut info = self.reserve_info;
         theme::pane_toolbar_info(ui, title, &help, (&mut info, RESERVE_INFO_HINT), |ui| {
+            // The quantities first, at the left, as on every pane that
+            // plots them; all off leaves the table (#1852).
+            steady::chart_switches(ui, &mut self.reserve_series);
+            theme::bar_gap(ui);
             self.reserve_settings(ui);
-            // Each chart on or off, the others sharing the height (#1729).
-            steady::series_switches(ui, &mut self.reserve_series);
         });
         self.reserve_info = info;
     }
