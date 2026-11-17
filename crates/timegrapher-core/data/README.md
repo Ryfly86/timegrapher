@@ -180,6 +180,23 @@ angle, but their sites refuse automated readers.
 Shanghai Watch Co. (shwatch.cn) shows no movement pages. These makers'
 calibres are wanted in the table.
 
+## Ranfft (2026-11-17)
+
+Ranfft's calibre pages (ranfft.org) were read for the rows that had no beat
+rate or no lift angle. Only exact name matches count, and 107 rows
+cite Ranfft as a source, each with the date it was read:
+
+- 88 rows gain their beat rate (and a balance period derived from it), and
+  9 gain their lift angle.
+- Where Ranfft disagrees with a figure the table already had (Elgin 905,
+  906 and 907 at 18000 bph; Gruen 106 and 107 at 20160 bph; Enicar 1150 and
+  1152 at 52.17° and 52.14°), the figure stays and the note gives Ranfft's.
+- Ranfft limits automated reading. It blocked further reads after about 340
+  pages, so makers from A. Schild to Zodiac are still to be read, by hand
+  or with its owner's permission. The matching script and its results are in
+  peterhudson/timegrapher-calibres (`scripts/ranfft.py`,
+  `research/ranfft.tsv`).
+
 ## What users add
 
 Wheel periods a user enters and calibres they add are not written here:

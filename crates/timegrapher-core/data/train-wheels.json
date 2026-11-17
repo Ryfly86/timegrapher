@@ -685,7 +685,8 @@
       }
     ],
     "sources": [
-      "https://www.watchuseek.com/threads/questions-about-eta-c07-powermatic-80-h-10-etc.5104577/"
+      "https://www.watchuseek.com/threads/questions-about-eta-c07-powermatic-80-h-10-etc.5104577/",
+      "https://ranfft.org/caliber/12742-ETA-C07-111 (Ranfft: ETA C07.111, read 2026-11-17) (21600 bph)"
     ],
     "confidence": "derived from the beat rate",
     "notes": "80 h power reserve from a slimmer barrel arbor with a longer mainspring and a slower beat, on the 2824 architecture. No tooth counts, escape wheel count or lift angle found (the C07.111 uses a synthetic escape wheel and pallet fork, the C07.611 a conventional one)."
@@ -4470,12 +4471,20 @@
   {
     "calibre": "Arogno 151",
     "maker": "Arogno",
+    "bph": 18000,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (AROGNO 151, 49°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Arogno 151, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Arogno 151, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Arogno 151, 49°)",
+      "https://ranfft.org/caliber/398-Arogno-151 (Ranfft: Arogno 151, read 2026-11-17) (18000 bph, 49°)"
     ],
     "confidence": "published list"
   },
@@ -7930,39 +7939,63 @@
   {
     "calibre": "Bifora 49",
     "maker": "Bifora",
+    "bph": 18000,
     "lift_angle_deg": 58.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (BIDLING-MAIER 49, 58°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bidling-Maier 49, 58°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bifora 49, 58°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 49, 58°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 49, 58°)",
+      "https://ranfft.org/caliber/1260-Bifora-49 (Ranfft: Bifora 49, read 2026-11-17) (18000 bph, 58°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Bifora 51",
     "maker": "Bifora",
+    "bph": 18000,
     "lift_angle_deg": 58.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (BIDLING-MAIER 51, 58°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bidling-Maier 51, 58°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bifora 51, 58°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 51, 58°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 51, 58°)",
+      "https://ranfft.org/caliber/1262-Bifora-51 (Ranfft: Bifora 51, read 2026-11-17) (18000 bph, 58°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Bifora 52",
     "maker": "Bifora",
+    "bph": 21600,
     "lift_angle_deg": 58.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (BIDLING-MAIER 52, 58°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bidling-Maier 52, 58°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bifora 52, 58°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 52, 58°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 52, 58°)",
+      "https://ranfft.org/caliber/1264-Bifora-52 (Ranfft: Bifora 52, read 2026-11-17) (21600 bph, 58°)"
     ],
     "confidence": "published list"
   },
@@ -7982,78 +8015,126 @@
   {
     "calibre": "Bifora 103",
     "maker": "Bifora",
+    "bph": 18000,
     "lift_angle_deg": 58.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (BIDLING-MAIER 103, 58°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bidling-Maier 103, 58°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bifora 103, 58°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 103, 58°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 103, 58°)",
+      "https://ranfft.org/caliber/1220-Bifora-103 (Ranfft: Bifora 103, read 2026-11-17) (18000 bph, 58°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Bifora 104",
     "maker": "Bifora",
+    "bph": 18000,
     "lift_angle_deg": 58.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (BIDLING-MAIER 104, 58°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bidling-Maier 104, 58°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bifora 104, 58°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 104, 58°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 104, 58°)",
+      "https://ranfft.org/caliber/1228-Bifora-104 (Ranfft: Bifora 104, read 2026-11-17) (18000 bph, 58°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Bifora 107",
     "maker": "Bifora",
+    "bph": 18000,
     "lift_angle_deg": 58.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (BIDLING-MAIER 107, 58°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bidling-Maier 107, 58°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bifora 107, 58°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 107, 58°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 107, 58°)",
+      "https://ranfft.org/caliber/1229-Bifora-107 (Ranfft: Bifora 107, read 2026-11-17) (18000 bph, 58°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Bifora 111",
     "maker": "Bifora",
+    "bph": 18000,
     "lift_angle_deg": 58.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (BIDLING-MAIER 111, 58°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bidling-Maier 111, 58°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bifora 111, 58°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 111, 58°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 111, 58°)",
+      "https://ranfft.org/caliber/1238-Bifora-111 (Ranfft: Bifora 111, read 2026-11-17) (18000 bph, 58°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Bifora 113",
     "maker": "Bifora",
+    "bph": 18000,
     "lift_angle_deg": 58.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (BIDLING-MAIER 113, 58°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bidling-Maier 113, 58°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bifora 113, 58°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 113, 58°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 113, 58°)",
+      "https://ranfft.org/caliber/1232-Bifora-113 (Ranfft: Bifora 113, read 2026-11-17) (18000 bph, 58°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Bifora 115",
     "maker": "Bifora",
+    "bph": 18000,
     "lift_angle_deg": 58.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (BIDLING-MAIER 115, 58°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bidling-Maier 115, 58°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bifora 115, 58°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 115, 58°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 115, 58°)",
+      "https://ranfft.org/caliber/1236-Bifora-115 (Ranfft: Bifora 115, read 2026-11-17) (18000 bph, 58°)"
     ],
     "confidence": "published list"
   },
@@ -14437,12 +14518,20 @@
   {
     "calibre": "Certina 230",
     "maker": "Certina",
+    "bph": 18000,
     "lift_angle_deg": 53.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (CERTINA 230, 53°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Certina 230, 53°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Certina 230, 53°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Certina 230, 53°)",
+      "https://ranfft.org/caliber/1753-Certina-230 (Ranfft: Certina 230, read 2026-11-17) (18000 bph, 53°)"
     ],
     "confidence": "published list"
   },
@@ -17496,12 +17585,20 @@
   {
     "calibre": "Derby 40",
     "maker": "Derby",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (DERBY 40, 52°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Derby 40, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Derby 40, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Derby 40, 52°)",
+      "https://ranfft.org/caliber/2335-Derby-40 (Ranfft: Derby 40, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
@@ -17535,6 +17632,7 @@
     "calibre": "Doxa 41",
     "maker": "Doxa",
     "bph": 21600,
+    "lift_angle_deg": 0.0,
     "wheels": [
       {
         "name": "balance",
@@ -17543,7 +17641,8 @@
       }
     ],
     "sources": [
-      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (DOXA 41, 21600 vph)"
+      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (DOXA 41, 21600 vph)",
+      "https://ranfft.org/caliber/2378-Doxa-41 (Ranfft: Doxa 41, read 2026-11-17) (21600 bph, 0°)"
     ],
     "confidence": "published list"
   },
@@ -17551,6 +17650,7 @@
     "calibre": "Doxa 42",
     "maker": "Doxa",
     "bph": 21600,
+    "lift_angle_deg": 0.0,
     "wheels": [
       {
         "name": "balance",
@@ -17559,7 +17659,8 @@
       }
     ],
     "sources": [
-      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (DOXA 42, 21600 vph)"
+      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (DOXA 42, 21600 vph)",
+      "https://ranfft.org/caliber/2380-Doxa-42 (Ranfft: Doxa 42, read 2026-11-17) (21600 bph, 0°)"
     ],
     "confidence": "published list"
   },
@@ -17599,6 +17700,7 @@
     "calibre": "Doxa 84",
     "maker": "Doxa",
     "bph": 21600,
+    "lift_angle_deg": 0.0,
     "wheels": [
       {
         "name": "balance",
@@ -17607,7 +17709,8 @@
       }
     ],
     "sources": [
-      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (DOXA 84, 21600 vph)"
+      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (DOXA 84, 21600 vph)",
+      "https://ranfft.org/caliber/11237-Doxa-84 (Ranfft: Doxa 84, read 2026-11-17) (0°)"
     ],
     "confidence": "published list"
   },
@@ -17615,6 +17718,7 @@
     "calibre": "Doxa 87",
     "maker": "Doxa",
     "bph": 21600,
+    "lift_angle_deg": 0.0,
     "wheels": [
       {
         "name": "balance",
@@ -17623,7 +17727,8 @@
       }
     ],
     "sources": [
-      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (DOXA 87, 21600 vph)"
+      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (DOXA 87, 21600 vph)",
+      "https://ranfft.org/caliber/2381-Doxa-87 (Ranfft: Doxa 87, read 2026-11-17) (21600 bph, 0°)"
     ],
     "confidence": "published list"
   },
@@ -17631,6 +17736,7 @@
     "calibre": "Doxa 90",
     "maker": "Doxa",
     "bph": 21600,
+    "lift_angle_deg": 0.0,
     "wheels": [
       {
         "name": "balance",
@@ -17639,7 +17745,8 @@
       }
     ],
     "sources": [
-      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (DOXA 90, 21600 vph)"
+      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (DOXA 90, 21600 vph)",
+      "https://ranfft.org/caliber/2384-Doxa-90 (Ranfft: Doxa 90, read 2026-11-17) (21600 bph, 0°)"
     ],
     "confidence": "published list"
   },
@@ -17647,6 +17754,7 @@
     "calibre": "Doxa 91",
     "maker": "Doxa",
     "bph": 21600,
+    "lift_angle_deg": 0.0,
     "wheels": [
       {
         "name": "balance",
@@ -17655,7 +17763,8 @@
       }
     ],
     "sources": [
-      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (DOXA 91, 21600 vph)"
+      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (DOXA 91, 21600 vph)",
+      "https://ranfft.org/caliber/2385-Doxa-91 (Ranfft: Doxa 91, read 2026-11-17) (21600 bph, 0°)"
     ],
     "confidence": "published list"
   },
@@ -18061,12 +18170,20 @@
   {
     "calibre": "Election 275",
     "maker": "Election",
+    "bph": 18000,
     "lift_angle_deg": 51.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (ELECTION 275, 51°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Election 275, 51°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Election 275, 51°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Election 275, 51°)",
+      "https://ranfft.org/caliber/3236-Election-275 (Ranfft: Election 275, read 2026-11-17) (18000 bph, 51°)"
     ],
     "confidence": "published list"
   },
@@ -18310,6 +18427,7 @@
     "calibre": "Elgin 905",
     "maker": "Elgin",
     "bph": 21600,
+    "lift_angle_deg": 0.0,
     "wheels": [
       {
         "name": "balance",
@@ -18318,14 +18436,17 @@
       }
     ],
     "sources": [
-      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (ELGIN 905, 21600 vph)"
+      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (ELGIN 905, 21600 vph)",
+      "https://ranfft.org/caliber/3537-Elgin-905 (Ranfft: Elgin 905, read 2026-11-17) (18000 bph, 0°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Ranfft gives a beat rate of 18000 bph against the 21600 kept here; the table keeps the figure the other sources give."
   },
   {
     "calibre": "Elgin 906",
     "maker": "Elgin",
     "bph": 21600,
+    "lift_angle_deg": 0.0,
     "wheels": [
       {
         "name": "balance",
@@ -18334,14 +18455,17 @@
       }
     ],
     "sources": [
-      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (ELGIN 906, 21600 vph)"
+      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (ELGIN 906, 21600 vph)",
+      "https://ranfft.org/caliber/3538-Elgin-906 (Ranfft: Elgin 906, read 2026-11-17) (18000 bph, 0°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Ranfft gives a beat rate of 18000 bph against the 21600 kept here; the table keeps the figure the other sources give."
   },
   {
     "calibre": "Elgin 907",
     "maker": "Elgin",
     "bph": 21600,
+    "lift_angle_deg": 0.0,
     "wheels": [
       {
         "name": "balance",
@@ -18350,9 +18474,11 @@
       }
     ],
     "sources": [
-      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (ELGIN 907, 21600 vph)"
+      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (ELGIN 907, 21600 vph)",
+      "https://ranfft.org/caliber/3539-Elgin-907 (Ranfft: Elgin 907, read 2026-11-17) (18000 bph, 0°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Ranfft gives a beat rate of 18000 bph against the 21600 kept here; the table keeps the figure the other sources give."
   },
   {
     "calibre": "Elgin 927",
@@ -18366,7 +18492,8 @@
       }
     ],
     "sources": [
-      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (ELGIN 927, 21600 vph)"
+      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (ELGIN 927, 21600 vph)",
+      "https://ranfft.org/caliber/15622-Elgin-927 (Ranfft: Elgin 927, read 2026-11-17) (21600 bph)"
     ],
     "confidence": "published list"
   },
@@ -22063,12 +22190,20 @@
   {
     "calibre": "Felsa 21",
     "maker": "Felsa",
+    "bph": 18000,
     "lift_angle_deg": 51.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (FELSA 21, 51°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Felsa [F] 21, 51°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 21, 51°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 21, 51°)",
+      "https://ranfft.org/caliber/5012-Felsa-21 (Ranfft: Felsa 21, read 2026-11-17) (18000 bph, 51°)"
     ],
     "confidence": "published list"
   },
@@ -22099,12 +22234,20 @@
   {
     "calibre": "Felsa 1560",
     "maker": "Felsa",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (FELSA 1560, 52°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Felsa [F] 1560, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 1560, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 1560, 52°)",
+      "https://ranfft.org/caliber/4984-Felsa-1560 (Ranfft: Felsa 1560, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
@@ -22729,12 +22872,20 @@
   {
     "calibre": "Felsa 71",
     "maker": "Felsa",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (FELSA 71, 52°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Felsa [F] 71, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 71, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 71, 52°)",
+      "https://ranfft.org/caliber/5193-Felsa-71 (Ranfft: Felsa 71, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
@@ -22760,24 +22911,40 @@
   {
     "calibre": "Felsa 73",
     "maker": "Felsa",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (FELSA 73, 52°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Felsa [F] 73, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 73, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 73, 52°)",
+      "https://ranfft.org/caliber/5203-Felsa-73 (Ranfft: Felsa 73, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Felsa 75",
     "maker": "Felsa",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (FELSA 75, 52°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Felsa [F] 75, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 75, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 75, 52°)",
+      "https://ranfft.org/caliber/5202-Felsa-75 (Ranfft: Felsa 75, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
@@ -26567,9 +26734,11 @@
       }
     ],
     "sources": [
-      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 106, 20222 vph)"
+      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 106, 20222 vph)",
+      "https://ranfft.org/caliber/6058-Gruen-106 (Ranfft: Gruen 106, read 2026-11-17) (20160 bph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Ranfft gives a beat rate of 20160 bph against the 20222 kept here; the table keeps the figure the other sources give."
   },
   {
     "calibre": "Gruen 107",
@@ -26583,9 +26752,11 @@
       }
     ],
     "sources": [
-      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 107, 20222 vph)"
+      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 107, 20222 vph)",
+      "https://ranfft.org/caliber/6059-Gruen-107 (Ranfft: Gruen 107, read 2026-11-17) (20160 bph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Ranfft gives a beat rate of 20160 bph against the 20222 kept here; the table keeps the figure the other sources give."
   },
   {
     "calibre": "Gruen 109",
@@ -26823,7 +26994,8 @@
       }
     ],
     "sources": [
-      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 306, 20160 vph)"
+      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 306, 20160 vph)",
+      "https://ranfft.org/caliber/6097-Gruen-306 (Ranfft: Gruen 306, read 2026-11-17) (20160 bph)"
     ],
     "confidence": "published list"
   },
@@ -54073,12 +54245,20 @@
   {
     "calibre": "Bifora 130",
     "maker": "Bifora",
+    "bph": 18000,
     "lift_angle_deg": 48.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bidling-Maier 130, 48°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bifora 130, 48°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 130, 48°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 130, 48°)",
+      "https://ranfft.org/caliber/1253-Bifora-130 (Ranfft: Bifora 130, read 2026-11-17) (18000 bph, 48°)"
     ],
     "confidence": "published list"
   },
@@ -54109,24 +54289,40 @@
   {
     "calibre": "Bifora 55",
     "maker": "Bifora",
+    "bph": 18000,
     "lift_angle_deg": 51.5,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bidling-Maier 55, 51.5°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bifora 55, 51.5°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 55, 51.5°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 55, 51.5°)",
+      "https://ranfft.org/caliber/1265-Bifora-55 (Ranfft: Bifora 55, read 2026-11-17) (18000 bph, 51.5°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Bifora 68",
     "maker": "Bifora",
+    "bph": 18000,
     "lift_angle_deg": 51.5,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bidling-Maier 68, 51.5°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bifora 68, 51.5°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 68, 51.5°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 68, 51.5°)",
+      "https://ranfft.org/caliber/1268-Bifora-68 (Ranfft: Bifora 68, read 2026-11-17) (18000 bph, 51.5°)"
     ],
     "confidence": "published list"
   },
@@ -54145,36 +54341,60 @@
   {
     "calibre": "Bifora 85",
     "maker": "Bifora",
+    "bph": 18000,
     "lift_angle_deg": 51.5,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bidling-Maier 85, 51.5°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bifora 85, 51.5°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 85, 51.5°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 85, 51.5°)",
+      "https://ranfft.org/caliber/1275-Bifora-85 (Ranfft: Bifora 85, read 2026-11-17) (18000 bph, 51.5°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Bifora 91",
     "maker": "Bifora",
+    "bph": 18000,
     "lift_angle_deg": 51.5,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bidling-Maier 91, 51.5°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bifora 91, 51.5°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 91, 51.5°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 91, 51.5°)",
+      "https://ranfft.org/caliber/1289-Bifora-91 (Ranfft: Bifora 91, read 2026-11-17) (18000 bph, 51.5°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Bifora 934",
     "maker": "Bifora",
+    "bph": 18000,
     "lift_angle_deg": 51.5,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bidling-Maier 934, 51.5°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bifora 934, 51.5°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 934, 51.5°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 934, 51.5°)",
+      "https://ranfft.org/caliber/1294-Bifora-934 (Ranfft: Bifora 934, read 2026-11-17) (18000 bph, 51.5°)"
     ],
     "confidence": "published list"
   },
@@ -54267,11 +54487,19 @@
   {
     "calibre": "Bulova 10 COAC",
     "maker": "Bulova",
+    "bph": 18000,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bulova 10 COAC, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bulova 10 COAC, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bulova 10 COAC, 50°)",
+      "https://ranfft.org/caliber/1428-Bulova-10COAC (Ranfft: Bulova 10COAC, read 2026-11-17) (18000 bph, 50°)"
     ],
     "confidence": "published list"
   },
@@ -54394,33 +54622,57 @@
   {
     "calibre": "Bulova 5 AD",
     "maker": "Bulova",
+    "bph": 18000,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bulova 5 AD, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bulova 5 AD, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bulova 5 AD, 50°)",
+      "https://ranfft.org/caliber/1529-Bulova-5AD (Ranfft: Bulova 5AD, read 2026-11-17) (18000 bph, 50°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Bulova 5 AR",
     "maker": "Bulova",
+    "bph": 18000,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bulova 5 AR, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bulova 5 AR, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bulova 5 AR, 50°)",
+      "https://ranfft.org/caliber/1526-Bulova-5AR (Ranfft: Bulova 5AR, read 2026-11-17) (18000 bph, 50°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Bulova 5 AT",
     "maker": "Bulova",
+    "bph": 18000,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bulova 5 AT, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bulova 5 AT, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bulova 5 AT, 50°)",
+      "https://ranfft.org/caliber/1528-Bulova-5AT (Ranfft: Bulova 5AT, read 2026-11-17) (18000 bph, 50°)"
     ],
     "confidence": "published list"
   },
@@ -55489,22 +55741,38 @@
   {
     "calibre": "Certina 411",
     "maker": "Certina",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Certina 411, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Certina 411, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Certina 411, 52°)",
+      "https://ranfft.org/caliber/1814-Certina-411 (Ranfft: Certina 411, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Certina 414",
     "maker": "Certina",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Certina 414, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Certina 414, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Certina 414, 52°)",
+      "https://ranfft.org/caliber/1815-Certina-414 (Ranfft: Certina 414, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
@@ -55709,10 +55977,18 @@
   {
     "calibre": "Cupillard 233 68",
     "maker": "Cupillard",
+    "bph": 18000,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Cupillard 233 68, 49°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Cupillard 233 68, 49°)",
+      "https://ranfft.org/caliber/2087-Cupillard-233-68 (Ranfft: Cupillard 233-68, read 2026-11-17) (18000 bph)"
     ],
     "confidence": "published list"
   },
@@ -55745,29 +56021,46 @@
     "wheels": [],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Durowe 261, 62°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 261, 62°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 261, 62°)",
+      "https://ranfft.org/caliber/11250-Durowe-261 (Ranfft: Durowe 261, read 2026-11-17) (62°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Durowe 270",
     "maker": "Durowe",
+    "bph": 18000,
     "lift_angle_deg": 62.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Durowe 270, 62°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 270, 62°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 270, 62°)",
+      "https://ranfft.org/caliber/2886-Durowe-270 (Ranfft: Durowe 270, read 2026-11-17) (18000 bph, 62°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Durowe 440",
     "maker": "Durowe",
+    "bph": 18000,
     "lift_angle_deg": 56.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Durowe 440, 56°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 440, 56°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 440, 56°)",
+      "https://ranfft.org/caliber/2913-Durowe-440 (Ranfft: Durowe 440, read 2026-11-17) (18000 bph, 56°)"
     ],
     "confidence": "published list"
   },
@@ -55807,22 +56100,38 @@
   {
     "calibre": "Durowe 542",
     "maker": "Durowe",
+    "bph": 18000,
     "lift_angle_deg": 56.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Durowe 542, 56°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 542, 56°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 542, 56°)",
+      "https://ranfft.org/caliber/2939-Durowe-542 (Ranfft: Durowe 542, read 2026-11-17) (18000 bph, 56°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Durowe 570",
     "maker": "Durowe",
+    "bph": 18000,
     "lift_angle_deg": 56.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Durowe 570, 56°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 570, 56°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 570, 56°)",
+      "https://ranfft.org/caliber/2950-Durowe-570 (Ranfft: Durowe 570, read 2026-11-17) (18000 bph, 56°)"
     ],
     "confidence": "published list"
   },
@@ -55840,22 +56149,38 @@
   {
     "calibre": "Durowe 590",
     "maker": "Durowe",
+    "bph": 18000,
     "lift_angle_deg": 56.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Durowe 590, 56°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 590, 56°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 590, 56°)",
+      "https://ranfft.org/caliber/2951-Durowe-590 (Ranfft: Durowe 590, read 2026-11-17) (18000 bph, 56°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Durowe 600",
     "maker": "Durowe",
+    "bph": 18000,
     "lift_angle_deg": 56.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Durowe 600, 56°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 600, 56°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 600, 56°)",
+      "https://ranfft.org/caliber/2953-Durowe-600 (Ranfft: Durowe 600, read 2026-11-17) (18000 bph, 56°)"
     ],
     "confidence": "published list"
   },
@@ -55884,7 +56209,8 @@
     "wheels": [],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Durowe 605, 56°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 605, 56°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 605, 56°)",
+      "https://ranfft.org/caliber/11244-Durowe-605 (Ranfft: Durowe 605, read 2026-11-17) (56°)"
     ],
     "confidence": "published list"
   },
@@ -55956,33 +56282,57 @@
   {
     "calibre": "Durowe 70",
     "maker": "Durowe",
+    "bph": 18000,
     "lift_angle_deg": 56.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Durowe 70, 56°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 70, 56°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 70, 56°)",
+      "https://ranfft.org/caliber/2965-Durowe-70 (Ranfft: Durowe 70, read 2026-11-17) (18000 bph, 56°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Durowe 72",
     "maker": "Durowe",
+    "bph": 18000,
     "lift_angle_deg": 56.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Durowe 72, 56°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 72, 56°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 72, 56°)",
+      "https://ranfft.org/caliber/2968-Durowe-72 (Ranfft: Durowe 72, read 2026-11-17) (18000 bph, 56°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Durowe 753",
     "maker": "Durowe",
+    "bph": 18000,
     "lift_angle_deg": 56.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Durowe 753, 56°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 753, 56°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 753, 56°)",
+      "https://ranfft.org/caliber/3036-Durowe-753 (Ranfft: Durowe 753, read 2026-11-17) (18000 bph, 56°)"
     ],
     "confidence": "published list"
   },
@@ -56075,44 +56425,76 @@
   {
     "calibre": "ETA 1010",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 1010, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1010, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1010, 52°)",
+      "https://ranfft.org/caliber/3781-ETA-1010 (Ranfft: ETA 1010, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "ETA 1080",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 1080, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1080, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1080, 52°)",
+      "https://ranfft.org/caliber/3812-ETA-1080 (Ranfft: ETA 1080, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "ETA 1100",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 48.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 1100, 48°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1100, 48°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1100, 48°)",
+      "https://ranfft.org/caliber/3820-ETA-1100 (Ranfft: ETA 1100, read 2026-11-17) (18000 bph, 48°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "ETA 1120",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 48.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 1120, 48°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1120, 48°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1120, 48°)",
+      "https://ranfft.org/caliber/3834-ETA-1120 (Ranfft: ETA 1120, read 2026-11-17) (18000 bph, 48°)"
     ],
     "confidence": "published list"
   },
@@ -56130,55 +56512,95 @@
   {
     "calibre": "ETA 1152",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 1152, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1152, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1152, 52°)",
+      "https://ranfft.org/caliber/3856-ETA-1152 (Ranfft: ETA 1152, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "ETA 1170",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 1170, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1170, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1170, 52°)",
+      "https://ranfft.org/caliber/3859-ETA-1170 (Ranfft: ETA 1170, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "ETA 1190",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 1190, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1190, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1190, 52°)",
+      "https://ranfft.org/caliber/3882-ETA-1190 (Ranfft: ETA 1190, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "ETA 1218",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 1218, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1218, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1218, 52°)",
+      "https://ranfft.org/caliber/3898-ETA-1218 (Ranfft: ETA 1218, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "ETA 1220",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 1220, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1220, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1220, 52°)",
+      "https://ranfft.org/caliber/3899-ETA-1220 (Ranfft: ETA 1220, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
@@ -56196,66 +56618,114 @@
   {
     "calibre": "ETA 1256",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 1256, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1256, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1256, 52°)",
+      "https://ranfft.org/caliber/3917-ETA-1256 (Ranfft: ETA 1256, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "ETA 1260",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 1260, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1260, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1260, 52°)",
+      "https://ranfft.org/caliber/3910-ETA-1260 (Ranfft: ETA 1260, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "ETA 1280",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 1280, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1280, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1280, 52°)",
+      "https://ranfft.org/caliber/3932-ETA-1280 (Ranfft: ETA 1280, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "ETA 1311",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 1311, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1311, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1311, 52°)",
+      "https://ranfft.org/caliber/3939-ETA-1311 (Ranfft: ETA 1311, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "ETA 1312",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 1312, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1312, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1312, 52°)",
+      "https://ranfft.org/caliber/3948-ETA-1312 (Ranfft: ETA 1312, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "ETA 1317",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 1317, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1317, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1317, 52°)",
+      "https://ranfft.org/caliber/3949-ETA-1317 (Ranfft: ETA 1317, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
@@ -56353,7 +56823,8 @@
     "lift_angle_deg": 50.0,
     "wheels": [],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2000, 50°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2000, 50°)",
+      "https://ranfft.org/caliber/11393-ETA-2000 (Ranfft: ETA 2000, read 2026-11-17) (50°)"
     ],
     "confidence": "published list"
   },
@@ -56363,40 +56834,65 @@
     "lift_angle_deg": 50.0,
     "wheels": [],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2000-1, 50°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2000-1, 50°)",
+      "https://ranfft.org/caliber/11436-ETA-2000-1 (Ranfft: ETA 2000-1, read 2026-11-17) (50°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "ETA 2094",
     "maker": "ETA",
+    "bph": 28800,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2094, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2094, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2094, 50°)",
+      "https://ranfft.org/caliber/11441-ETA-2094 (Ranfft: ETA 2094, read 2026-11-17) (28800 bph, 50°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "ETA 2325",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2325, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2325, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2325, 52°)",
+      "https://ranfft.org/caliber/3950-ETA-2325 (Ranfft: ETA 2325, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "ETA 2345",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2345, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2345, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2345, 52°)",
+      "https://ranfft.org/caliber/3970-ETA-2345 (Ranfft: ETA 2345, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
@@ -56475,11 +56971,19 @@
   {
     "calibre": "ETA 2367",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 51.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2367, 51°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2367, 51°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2367, 51°)",
+      "https://ranfft.org/caliber/3991-ETA-2367 (Ranfft: ETA 2367, read 2026-11-17) (18000 bph, 51°)"
     ],
     "confidence": "published list"
   },
@@ -56540,11 +57044,19 @@
   {
     "calibre": "ETA 2375",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2375, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2375, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2375, 52°)",
+      "https://ranfft.org/caliber/3994-ETA-2375 (Ranfft: ETA 2375, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
@@ -56555,7 +57067,8 @@
     "wheels": [],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2382, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2382, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2382, 52°)",
+      "https://ranfft.org/caliber/11430-ETA-2382 (Ranfft: ETA 2382, read 2026-11-17) (52°)"
     ],
     "confidence": "published list"
   },
@@ -56634,11 +57147,19 @@
   {
     "calibre": "ETA 2410",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 51.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2410, 51°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2410, 51°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2410, 51°)",
+      "https://ranfft.org/caliber/4019-ETA-2410 (Ranfft: ETA 2410, read 2026-11-17) (18000 bph, 51°)"
     ],
     "confidence": "published list"
   },
@@ -56825,11 +57346,19 @@
   {
     "calibre": "ETA 2480",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 51.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2480, 51°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2480, 51°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2480, 51°)",
+      "https://ranfft.org/caliber/4047-ETA-2480 (Ranfft: ETA 2480, read 2026-11-17) (18000 bph, 51°)"
     ],
     "confidence": "published list"
   },
@@ -59260,10 +59789,18 @@
   {
     "calibre": "ETA 7001",
     "maker": "ETA",
+    "bph": 21600,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 7001, 50°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 7001, 50°)",
+      "https://ranfft.org/caliber/4259-ETA-7001 (Ranfft: ETA 7001, read 2026-11-17) (21600 bph, 50°)"
     ],
     "confidence": "published list"
   },
@@ -59317,22 +59854,38 @@
   {
     "calibre": "ETA 853",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 43.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 853, 43°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 853, 43°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 853, 43°)",
+      "https://ranfft.org/caliber/4343-ETA-853 (Ranfft: ETA 853, read 2026-11-17) (18000 bph, 43°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "ETA 953",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 44.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 953, 44°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 953, 44°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 953, 44°)",
+      "https://ranfft.org/caliber/4384-ETA-953 (Ranfft: ETA 953, read 2026-11-17) (18000 bph, 44°)"
     ],
     "confidence": "published list"
   },
@@ -59368,41 +59921,73 @@
   {
     "calibre": "ETA A07231",
     "maker": "ETA",
+    "bph": 28800,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA A07231, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA A07231, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA A07231, 52°)",
+      "https://ranfft.org/caliber/12377-ETA-A07-231 (Ranfft: ETA A07.231, read 2026-11-17) (28800 bph)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "ETA C01,211",
     "maker": "ETA",
+    "bph": 21600,
     "lift_angle_deg": 48.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (ETA C01,211, 48°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (ETA C01,211, 48°)",
+      "https://ranfft.org/caliber/12387-ETA-C01-211 (Ranfft: ETA C01.211, read 2026-11-17) (21600 bph, 48°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "ETA C07,661",
     "maker": "ETA",
+    "bph": 21600,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (ETA C07,661, 50°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (ETA C07,661, 50°)",
+      "https://ranfft.org/caliber/12591-ETA-C07-661 (Ranfft: ETA C07.661, read 2026-11-17) (21600 bph, 50°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "ETA C07,811",
     "maker": "ETA",
+    "bph": 21600,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (ETA C07,811, 50°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (ETA C07,811, 50°)",
+      "https://ranfft.org/caliber/12590-ETA-C07-811 (Ranfft: ETA C07.811, read 2026-11-17) (21600 bph, 50°)"
     ],
     "confidence": "published list"
   },
@@ -59419,11 +60004,19 @@
   {
     "calibre": "Eterna 12824",
     "maker": "Eterna",
+    "bph": 28800,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Eterna 12824, 52°)",
-      "Peter Hudson, 2026-10-22: lift angle 50° for all ETA 2824-2 movements and their derivatives, clones and variations"
+      "Peter Hudson, 2026-10-22: lift angle 50° for all ETA 2824-2 movements and their derivatives, clones and variations",
+      "https://ranfft.org/caliber/4476-Eterna-12824 (Ranfft: Eterna 12824, read 2026-11-17) (28800 bph, 52°)"
     ],
     "confidence": "published list",
     "notes": "Peter Hudson gives 50° for all 2824-2 movements and their derivatives, clones and variations (2026-10-22); this entry keeps its own source's 52°."
@@ -59606,22 +60199,38 @@
   {
     "calibre": "Felsa 302",
     "maker": "Felsa",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Felsa [F] 302, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 302, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 302, 52°)",
+      "https://ranfft.org/caliber/5053-Felsa-302 (Ranfft: Felsa 302, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Felsa 370",
     "maker": "Felsa",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Felsa [F] 370, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 370, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 370, 52°)",
+      "https://ranfft.org/caliber/5076-Felsa-370 (Ranfft: Felsa 370, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
@@ -59639,44 +60248,76 @@
   {
     "calibre": "Felsa 390",
     "maker": "Felsa",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Felsa [F] 390, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 390, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 390, 52°)",
+      "https://ranfft.org/caliber/5078-Felsa-390 (Ranfft: Felsa 390, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Felsa 4010",
     "maker": "Felsa",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Felsa [F] 4010, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 4010, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 4010, 52°)",
+      "https://ranfft.org/caliber/5097-Felsa-4010 (Ranfft: Felsa 4010, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Felsa 4020",
     "maker": "Felsa",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Felsa [F] 4020, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 4020, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 4020, 52°)",
+      "https://ranfft.org/caliber/5134-Felsa-4020 (Ranfft: Felsa 4020, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Felsa 465",
     "maker": "Felsa",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Felsa [F] 465, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 465, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 465, 52°)",
+      "https://ranfft.org/caliber/5162-Felsa-465 (Ranfft: Felsa 465, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
@@ -59694,22 +60335,38 @@
   {
     "calibre": "Felsa 720",
     "maker": "Felsa",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Felsa [F] 720, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 720, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 720, 52°)",
+      "https://ranfft.org/caliber/5198-Felsa-720 (Ranfft: Felsa 720, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Felsa 780",
     "maker": "Felsa",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Felsa [F] 780, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 780, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 780, 52°)",
+      "https://ranfft.org/caliber/5213-Felsa-780 (Ranfft: Felsa 780, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
@@ -60284,11 +60941,19 @@
   {
     "calibre": "Girard Perregaux 14",
     "maker": "Girard Perregaux",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Girard Perregaux 14, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Girard Perregaux 14, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Girard Perregaux 14, 52°)",
+      "https://ranfft.org/caliber/5918-Girard-Perregaux-14 (Ranfft: Girard-Perregaux 14, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
@@ -60346,55 +61011,95 @@
   {
     "calibre": "Girard Perregaux 19",
     "maker": "Girard Perregaux",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Girard Perregaux 19, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Girard Perregaux 19, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Girard Perregaux 19, 52°)",
+      "https://ranfft.org/caliber/5925-Girard-Perregaux-19 (Ranfft: Girard-Perregaux 19, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Girard Perregaux 20",
     "maker": "Girard Perregaux",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Girard Perregaux 20, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Girard Perregaux 20, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Girard Perregaux 20, 52°)",
+      "https://ranfft.org/caliber/5924-Girard-Perregaux-20 (Ranfft: Girard-Perregaux 20, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Girard Perregaux 21",
     "maker": "Girard Perregaux",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Girard Perregaux 21, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Girard Perregaux 21, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Girard Perregaux 21, 52°)",
+      "https://ranfft.org/caliber/5928-Girard-Perregaux-21 (Ranfft: Girard-Perregaux 21, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Girard Perregaux 22",
     "maker": "Girard Perregaux",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Girard Perregaux 22, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Girard Perregaux 22, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Girard Perregaux 22, 52°)",
+      "https://ranfft.org/caliber/5933-Girard-Perregaux-22 (Ranfft: Girard-Perregaux 22, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Girard Perregaux 23",
     "maker": "Girard Perregaux",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Girard Perregaux 23, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Girard Perregaux 23, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Girard Perregaux 23, 52°)",
+      "https://ranfft.org/caliber/5926-Girard-Perregaux-23 (Ranfft: Girard-Perregaux 23, read 2026-11-17) (18000 bph, 52°)"
     ],
     "confidence": "published list"
   },
@@ -60412,11 +61117,19 @@
   {
     "calibre": "Girard Perregaux 27",
     "maker": "Girard Perregaux",
+    "bph": 18000,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Girard Perregaux 27, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Girard Perregaux 27, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Girard Perregaux 27, 49°)",
+      "https://ranfft.org/caliber/5935-Girard-Perregaux-27 (Ranfft: Girard-Perregaux 27, read 2026-11-17) (18000 bph, 49°)"
     ],
     "confidence": "published list"
   },
@@ -71979,10 +72692,18 @@
   {
     "calibre": "Enicar 1180",
     "maker": "Enicar",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Enicar 1180, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Enicar 1180, 52°)",
+      "https://ranfft.org/caliber/3593-Enicar-1180 (Ranfft: Enicar 1180, read 2026-11-17) (18000 bph)"
     ],
     "confidence": "published list"
   },
@@ -72135,22 +72856,40 @@
   {
     "calibre": "Enicar 1150",
     "maker": "Enicar",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
-    "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Enicar 1150, 52°)"
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
     ],
-    "confidence": "published list"
+    "sources": [
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Enicar 1150, 52°)",
+      "https://ranfft.org/caliber/3578-Enicar-1150 (Ranfft: Enicar 1150, read 2026-11-17) (18000 bph, 52.17°)"
+    ],
+    "confidence": "published list",
+    "notes": "Ranfft gives a lift angle of 52.17° against the 52° kept here; the table keeps the figure the other sources give."
   },
   {
     "calibre": "Enicar 1152",
     "maker": "Enicar",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
-    "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Enicar 1152, 52°)"
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
     ],
-    "confidence": "published list"
+    "sources": [
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Enicar 1152, 52°)",
+      "https://ranfft.org/caliber/3576-Enicar-1152 (Ranfft: Enicar 1152, read 2026-11-17) (18000 bph, 52.14°)"
+    ],
+    "confidence": "published list",
+    "notes": "Ranfft gives a lift angle of 52.14° against the 52° kept here; the table keeps the figure the other sources give."
   },
   {
     "calibre": "Enicar 1170",

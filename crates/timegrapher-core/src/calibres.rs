@@ -1166,6 +1166,47 @@ mod tests {
         }
     }
 
+    /// Each Ranfft source's figures agree with its row, unless the row's
+    /// notes say Ranfft disagrees.
+    #[test]
+    fn ranfft_sources_fill_gaps_and_disagreements_are_noted() {
+        let mut n = 0;
+        for c in all() {
+            for s in c
+                .sources
+                .iter()
+                .filter(|s| s.contains("ranfft.org/caliber/") && s.contains("read 2026-11-17"))
+            {
+                n += 1;
+                let says = s
+                    .rsplit_once(") (")
+                    .map(|(_, r)| r.trim_end_matches(')'))
+                    .unwrap_or_default();
+                let noted = c
+                    .notes
+                    .as_deref()
+                    .is_some_and(|t| t.contains("Ranfft gives"));
+                for part in says.split(", ") {
+                    if let Some(b) = part.strip_suffix(" bph") {
+                        assert!(noted || c.bph == b.parse().ok(), "{}: {s}", c.calibre);
+                    } else if let Some(l) = part.strip_suffix('°') {
+                        assert!(
+                            noted || c.lift_angle_deg == l.parse().ok(),
+                            "{}: {s}",
+                            c.calibre
+                        );
+                    }
+                }
+            }
+        }
+        assert_eq!(n, 107);
+        let bph = |n: &str| find(n).and_then(|c| c.bph);
+        assert_eq!(bph("Arogno 151"), Some(18000));
+        assert_eq!(bph("Bifora 49"), Some(18000));
+        // Ranfft's 18000 is noted, not taken.
+        assert_eq!(bph("Elgin 905"), Some(21600));
+    }
+
     #[test]
     fn seagull_manuals_tongji_and_shanghai_rows_resolve() {
         let manual: Vec<_> = all()
