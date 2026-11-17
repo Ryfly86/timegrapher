@@ -1,7 +1,7 @@
 //! Compare With from an ordinary take (#1851): a take that holds the six
 //! positions, though not saved as a Positions Test, read as the test it
-//! is set against. Each position is measured as an opened take's table
-//! measures it, on the thread of its own a take's reading needs.
+//! is set against. Each position is read as that take's own table reads
+//! it, on the thread of its own a take's reading needs.
 
 use super::*;
 use std::sync::mpsc::{Receiver, TryRecvError};
@@ -27,13 +27,15 @@ pub(super) fn take_dir_of(path: &Path) -> Option<PathBuf> {
 }
 
 /// The take in `dir` read as the results of a Positions Test begun when
-/// the take began: each of the six positions its session file lists,
-/// in the test's order, measured with `settings` as an opened take's
-/// table measures it. A position listed twice is read where it is first.
+/// the take began: each of the six positions its session file lists, in
+/// the test's order, read with `settings` by the one reading of a take's
+/// positions its own This Take table shows when it is opened
+/// ([`table_of_take`]): the same settled stretches, a position
+/// listed twice read as one, the same figures to the bit (Norm on #1853).
 pub(super) fn full_wind_of_take(
     dir: &Path,
     m: &Manifest,
-    settings: &take::EntrySettings,
+    settings: take::EntrySettings,
 ) -> Result<guided::FullWind, String> {
     let about: Option<serde_json::Value> = std::fs::read_to_string(dir.join("session.json"))
         .ok()
@@ -46,31 +48,12 @@ pub(super) fn full_wind_of_take(
         .to_string();
     let began_unix = timegrapher_core::full_wind::unix_of_utc(&began_utc)
         .ok_or_else(|| format!("its start time {began_utc} can't be read"))?;
-    let mut positions = Vec::new();
-    for p in guided::Kind::Positions.order() {
-        let want = timegrapher_core::session::Position::parse(p.code()).map(|q| q.common());
-        let Some(e) = m.recordings.iter().find(|e| {
-            e.position
-                .as_deref()
-                .and_then(timegrapher_core::session::Position::parse)
-                .map(|q| q.common())
-                == want
-        }) else {
-            continue;
-        };
-        let read = take::measure_entry(dir, m, e, settings, take::usb, |first| {
-            take::correction_for(m, first, None, None)
-        })
-        .map_err(|e| e.to_string())?
-        .measurement;
-        positions.push(guided::KeptRow {
-            position: p.code().to_string(),
-            rate_s_per_day: read.rate_s_per_day,
-            amplitude_deg: read.amplitude_deg,
-            beat_error_ms: read.beat_error(),
-            beat_error_source: read.beat_error_source,
-        });
-    }
+    let (bph, lift) = (
+        settings.stream.analysis.bph,
+        settings.stream.analysis.amplitude.lift_deg,
+    );
+    let table = table_of_take(dir, m, settings)?;
+    let positions = kept_rows(&table);
     if positions.is_empty() {
         return Err("it holds none of the six positions".into());
     }
@@ -80,14 +63,114 @@ pub(super) fn full_wind_of_take(
         began_unix,
         watch: m.watch.clone().unwrap_or_default(),
         calibre: m.calibre.clone().unwrap_or_default(),
-        bph: settings.stream.analysis.bph,
-        lift_angle_deg: Some(settings.stream.analysis.amplitude.lift_deg),
+        bph,
+        lift_angle_deg: Some(lift),
         settle_s: m.settle_s,
         measure_s: m.measure_s,
         positions,
         wind_h: None,
         against: None,
     })
+}
+
+/// The take in `base` read for its This Take table, as the window opens
+/// and reads it, off the window's thread: core's `TakeContext::open`
+/// with its masks kept, its engine readied by [`super::take_io::ready_engine`] on the
+/// positions, settling and masks its session file gives, and the table
+/// read by [`take_reads::read_table`] over each position's settled
+/// stretches ([`take_reads::stretches_in`]). For Compare With reading
+/// another take (#1851), so its rows are the bits that take's own table
+/// shows when it is opened.
+pub(super) fn table_of_take(
+    base: &Path,
+    m: &Manifest,
+    settings: timegrapher_core::take::EntrySettings,
+) -> Result<guided::FreeTable, String> {
+    use timegrapher_core::take;
+    let analysis = settings.stream.analysis.clone();
+    let (o, log) = timegrapher_core::take_context::TakeContext::open(
+        base,
+        m,
+        settings,
+        timegrapher_core::take_context::Masks::Kept,
+        take::usb,
+        |first| take::correction_for(m, first, None, None),
+        |_, _| {},
+    )?;
+    let (changes, settles) = o.positions(m);
+    let stretches: Vec<(f64, Position)> = changes
+        .iter()
+        .filter_map(|&(a, p)| Some((a, Position::of_core(p)?)))
+        .collect();
+    let inputs = super::take_io::OpenInputs {
+        bph: analysis.bph,
+        lift_deg: analysis.amplitude.lift_deg,
+        lift_known: analysis.lift_known,
+        average_s: AVERAGES[0],
+        masked: o.masked.clone(),
+        changes: stretches.iter().map(|s| s.0).collect(),
+        settles: settles.clone(),
+    };
+    let live = super::take_io::ready_engine(
+        log,
+        &inputs,
+        &o.breaks,
+        TimegrapherApp::rate_clock(&o.clock),
+    );
+    // The positions as the window loads them (`show_engine`).
+    let mut session = crate::session::Session::default();
+    session.analysed();
+    if stretches.len() > 1 || !settles.is_empty() {
+        session.load(&stretches, &settles);
+    }
+    let now = session
+        .stretches()
+        .last()
+        .or(stretches.first())
+        .map_or(Position::DialUp, |s| s.1);
+    let end = live
+        .beats()
+        .last()
+        .map_or(live.duration_s(), |b| b.time)
+        .max(live.duration_s());
+    let spans = take_reads::clipped(take_reads::stretches_in(&session, now), end);
+    let log = steady::log_of(&live).ok_or("its beat rate isn't known")?;
+    let clock = reading_clock(o.clock.as_ref(), true, None, log.duration_s);
+    let breaks = steady::reading_breaks(o.breaks, &log);
+    // The masks as the window keeps them (`put_masked`) and the table
+    // reads them.
+    let masked = timegrapher_core::session::masked_spans(
+        &o.masked.iter().map(|&(a, b)| [a, b]).collect::<Vec<_>>(),
+    );
+    Ok(take_reads::read_table(
+        &log,
+        clock.as_ref(),
+        &breaks,
+        &masked,
+        &spans,
+        live.config().analysis.bph,
+    ))
+}
+
+/// The six positions of a take's table that were read, in the test's
+/// order, as a saved test keeps them.
+pub(super) fn kept_rows(table: &guided::FreeTable) -> Vec<guided::KeptRow> {
+    guided::Kind::Positions
+        .order()
+        .iter()
+        .filter_map(|p| {
+            let want = timegrapher_core::session::Position::parse(p.code())?;
+            let r = table.six.0.iter().find(|r| r.position == want)?;
+            let m = &r.measurement;
+            Some(guided::KeptRow {
+                position: p.code().to_string(),
+                rate_s_per_day: m.rate_s_per_day,
+                amplitude_deg: m.amplitude_deg,
+                beat_error_ms: m.beat_error(),
+                beat_error_source: m.beat_error_source,
+            })
+        })
+        .collect()
 }
 
 impl TimegrapherApp {
@@ -108,7 +191,7 @@ impl TimegrapherApp {
             .map_or_else(|| dir.display().to_string(), |n| n.to_string_lossy().into());
         let (tx, rx) = std::sync::mpsc::channel();
         std::thread::spawn(move || {
-            let _ = tx.send(full_wind_of_take(&dir, &m, &settings));
+            let _ = tx.send(full_wind_of_take(&dir, &m, settings));
         });
         self.compare_take = Some(Reading { name, rx });
     }

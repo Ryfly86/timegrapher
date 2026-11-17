@@ -2791,15 +2791,15 @@ pub(super) struct Opened {
 /// thread, and again when the take arrives, to check they still hold.
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct OpenInputs {
-    bph: Option<u32>,
-    lift_deg: f64,
-    lift_known: bool,
-    average_s: f64,
-    masked: Vec<(f64, f64)>,
+    pub(super) bph: Option<u32>,
+    pub(super) lift_deg: f64,
+    pub(super) lift_known: bool,
+    pub(super) average_s: f64,
+    pub(super) masked: Vec<(f64, f64)>,
     /// Where each position began, and the settling before each one's
     /// readings.
-    changes: Vec<f64>,
-    settles: Vec<(f64, f64)>,
+    pub(super) changes: Vec<f64>,
+    pub(super) settles: Vec<(f64, f64)>,
 }
 
 /// The engine for settings `i`.
@@ -2821,7 +2821,7 @@ fn config_for(i: &OpenInputs) -> LiveConfig {
 /// across one of the take's breaks, a move or a settling's end (core's
 /// cuts, as the CLI's trend reads them). The same off the window's thread
 /// and on it.
-fn ready_engine(
+pub(super) fn ready_engine(
     log: BeatLog,
     i: &OpenInputs,
     breaks: &[timegrapher_core::breaks::Break],
