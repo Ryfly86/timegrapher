@@ -17632,7 +17632,6 @@
     "calibre": "Doxa 41",
     "maker": "Doxa",
     "bph": 21600,
-    "lift_angle_deg": 0.0,
     "wheels": [
       {
         "name": "balance",
@@ -17642,7 +17641,7 @@
     ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (DOXA 41, 21600 vph)",
-      "https://ranfft.org/caliber/2378-Doxa-41 (Ranfft: Doxa 41, read 2026-11-17) (21600 bph, 0°)"
+      "https://ranfft.org/caliber/2378-Doxa-41 (Ranfft: Doxa 41, read 2026-11-17) (21600 bph)"
     ],
     "confidence": "published list"
   },
@@ -17650,7 +17649,6 @@
     "calibre": "Doxa 42",
     "maker": "Doxa",
     "bph": 21600,
-    "lift_angle_deg": 0.0,
     "wheels": [
       {
         "name": "balance",
@@ -17660,7 +17658,7 @@
     ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (DOXA 42, 21600 vph)",
-      "https://ranfft.org/caliber/2380-Doxa-42 (Ranfft: Doxa 42, read 2026-11-17) (21600 bph, 0°)"
+      "https://ranfft.org/caliber/2380-Doxa-42 (Ranfft: Doxa 42, read 2026-11-17) (21600 bph)"
     ],
     "confidence": "published list"
   },
@@ -17700,7 +17698,6 @@
     "calibre": "Doxa 84",
     "maker": "Doxa",
     "bph": 21600,
-    "lift_angle_deg": 0.0,
     "wheels": [
       {
         "name": "balance",
@@ -17709,8 +17706,7 @@
       }
     ],
     "sources": [
-      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (DOXA 84, 21600 vph)",
-      "https://ranfft.org/caliber/11237-Doxa-84 (Ranfft: Doxa 84, read 2026-11-17) (0°)"
+      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (DOXA 84, 21600 vph)"
     ],
     "confidence": "published list"
   },
@@ -17718,7 +17714,6 @@
     "calibre": "Doxa 87",
     "maker": "Doxa",
     "bph": 21600,
-    "lift_angle_deg": 0.0,
     "wheels": [
       {
         "name": "balance",
@@ -17728,7 +17723,7 @@
     ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (DOXA 87, 21600 vph)",
-      "https://ranfft.org/caliber/2381-Doxa-87 (Ranfft: Doxa 87, read 2026-11-17) (21600 bph, 0°)"
+      "https://ranfft.org/caliber/2381-Doxa-87 (Ranfft: Doxa 87, read 2026-11-17) (21600 bph)"
     ],
     "confidence": "published list"
   },
@@ -17736,7 +17731,6 @@
     "calibre": "Doxa 90",
     "maker": "Doxa",
     "bph": 21600,
-    "lift_angle_deg": 0.0,
     "wheels": [
       {
         "name": "balance",
@@ -17746,7 +17740,7 @@
     ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (DOXA 90, 21600 vph)",
-      "https://ranfft.org/caliber/2384-Doxa-90 (Ranfft: Doxa 90, read 2026-11-17) (21600 bph, 0°)"
+      "https://ranfft.org/caliber/2384-Doxa-90 (Ranfft: Doxa 90, read 2026-11-17) (21600 bph)"
     ],
     "confidence": "published list"
   },
@@ -17754,7 +17748,6 @@
     "calibre": "Doxa 91",
     "maker": "Doxa",
     "bph": 21600,
-    "lift_angle_deg": 0.0,
     "wheels": [
       {
         "name": "balance",
@@ -17764,7 +17757,7 @@
     ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (DOXA 91, 21600 vph)",
-      "https://ranfft.org/caliber/2385-Doxa-91 (Ranfft: Doxa 91, read 2026-11-17) (21600 bph, 0°)"
+      "https://ranfft.org/caliber/2385-Doxa-91 (Ranfft: Doxa 91, read 2026-11-17) (21600 bph)"
     ],
     "confidence": "published list"
   },
@@ -18426,59 +18419,35 @@
   {
     "calibre": "Elgin 905",
     "maker": "Elgin",
-    "bph": 21600,
-    "lift_angle_deg": 0.0,
-    "wheels": [
-      {
-        "name": "balance",
-        "period_s": 0.333333,
-        "basis": "derived from the beat rate"
-      }
-    ],
+    "wheels": [],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (ELGIN 905, 21600 vph)",
-      "https://ranfft.org/caliber/3537-Elgin-905 (Ranfft: Elgin 905, read 2026-11-17) (18000 bph, 0°)"
+      "https://ranfft.org/caliber/3537-Elgin-905 (Ranfft: Elgin 905, read 2026-11-17) (18000 bph)"
     ],
     "confidence": "published list",
-    "notes": "Ranfft gives a beat rate of 18000 bph against the 21600 kept here; the table keeps the figure the other sources give."
+    "notes": "Beat rate left blank: the lift-angle sheet gives 21600 vph and Ranfft 18000 bph, and no third source settles it."
   },
   {
     "calibre": "Elgin 906",
     "maker": "Elgin",
-    "bph": 21600,
-    "lift_angle_deg": 0.0,
-    "wheels": [
-      {
-        "name": "balance",
-        "period_s": 0.333333,
-        "basis": "derived from the beat rate"
-      }
-    ],
+    "wheels": [],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (ELGIN 906, 21600 vph)",
-      "https://ranfft.org/caliber/3538-Elgin-906 (Ranfft: Elgin 906, read 2026-11-17) (18000 bph, 0°)"
+      "https://ranfft.org/caliber/3538-Elgin-906 (Ranfft: Elgin 906, read 2026-11-17) (18000 bph)"
     ],
     "confidence": "published list",
-    "notes": "Ranfft gives a beat rate of 18000 bph against the 21600 kept here; the table keeps the figure the other sources give."
+    "notes": "Beat rate left blank: the lift-angle sheet gives 21600 vph and Ranfft 18000 bph, and no third source settles it."
   },
   {
     "calibre": "Elgin 907",
     "maker": "Elgin",
-    "bph": 21600,
-    "lift_angle_deg": 0.0,
-    "wheels": [
-      {
-        "name": "balance",
-        "period_s": 0.333333,
-        "basis": "derived from the beat rate"
-      }
-    ],
+    "wheels": [],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (ELGIN 907, 21600 vph)",
-      "https://ranfft.org/caliber/3539-Elgin-907 (Ranfft: Elgin 907, read 2026-11-17) (18000 bph, 0°)"
+      "https://ranfft.org/caliber/3539-Elgin-907 (Ranfft: Elgin 907, read 2026-11-17) (18000 bph)"
     ],
     "confidence": "published list",
-    "notes": "Ranfft gives a beat rate of 18000 bph against the 21600 kept here; the table keeps the figure the other sources give."
+    "notes": "Beat rate left blank: the lift-angle sheet gives 21600 vph and Ranfft 18000 bph, and no third source settles it."
   },
   {
     "calibre": "Elgin 927",
@@ -26725,38 +26694,24 @@
   {
     "calibre": "Gruen 106",
     "maker": "Gruen",
-    "bph": 20222,
-    "wheels": [
-      {
-        "name": "balance",
-        "period_s": 0.356048,
-        "basis": "derived from the beat rate"
-      }
-    ],
+    "wheels": [],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 106, 20222 vph)",
       "https://ranfft.org/caliber/6058-Gruen-106 (Ranfft: Gruen 106, read 2026-11-17) (20160 bph)"
     ],
     "confidence": "published list",
-    "notes": "Ranfft gives a beat rate of 20160 bph against the 20222 kept here; the table keeps the figure the other sources give."
+    "notes": "Beat rate left blank: the lift-angle sheet gives 20222 vph and Ranfft 20160 bph, and no third source settles it."
   },
   {
     "calibre": "Gruen 107",
     "maker": "Gruen",
-    "bph": 20222,
-    "wheels": [
-      {
-        "name": "balance",
-        "period_s": 0.356048,
-        "basis": "derived from the beat rate"
-      }
-    ],
+    "wheels": [],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 107, 20222 vph)",
       "https://ranfft.org/caliber/6059-Gruen-107 (Ranfft: Gruen 107, read 2026-11-17) (20160 bph)"
     ],
     "confidence": "published list",
-    "notes": "Ranfft gives a beat rate of 20160 bph against the 20222 kept here; the table keeps the figure the other sources give."
+    "notes": "Beat rate left blank: the lift-angle sheet gives 20222 vph and Ranfft 20160 bph, and no third source settles it."
   },
   {
     "calibre": "Gruen 109",
@@ -72870,7 +72825,7 @@
       "https://ranfft.org/caliber/3578-Enicar-1150 (Ranfft: Enicar 1150, read 2026-11-17) (18000 bph, 52.17°)"
     ],
     "confidence": "published list",
-    "notes": "Ranfft gives a lift angle of 52.17° against the 52° kept here; the table keeps the figure the other sources give."
+    "notes": "Ranfft gives a lift angle of 52.17° against the 52° kept here; the table keeps the figure the published lists give."
   },
   {
     "calibre": "Enicar 1152",
@@ -72889,7 +72844,7 @@
       "https://ranfft.org/caliber/3576-Enicar-1152 (Ranfft: Enicar 1152, read 2026-11-17) (18000 bph, 52.14°)"
     ],
     "confidence": "published list",
-    "notes": "Ranfft gives a lift angle of 52.14° against the 52° kept here; the table keeps the figure the other sources give."
+    "notes": "Ranfft gives a lift angle of 52.14° against the 52° kept here; the table keeps the figure the published lists give."
   },
   {
     "calibre": "Enicar 1170",

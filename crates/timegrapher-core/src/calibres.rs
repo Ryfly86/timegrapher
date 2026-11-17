@@ -1182,10 +1182,7 @@ mod tests {
                     .rsplit_once(") (")
                     .map(|(_, r)| r.trim_end_matches(')'))
                     .unwrap_or_default();
-                let noted = c
-                    .notes
-                    .as_deref()
-                    .is_some_and(|t| t.contains("Ranfft gives"));
+                let noted = c.notes.as_deref().is_some_and(|t| t.contains("Ranfft"));
                 for part in says.split(", ") {
                     if let Some(b) = part.strip_suffix(" bph") {
                         assert!(noted || c.bph == b.parse().ok(), "{}: {s}", c.calibre);
@@ -1199,12 +1196,31 @@ mod tests {
                 }
             }
         }
-        assert_eq!(n, 107);
+        assert_eq!(n, 106);
         let bph = |n: &str| find(n).and_then(|c| c.bph);
         assert_eq!(bph("Arogno 151"), Some(18000));
         assert_eq!(bph("Bifora 49"), Some(18000));
-        // Ranfft's 18000 is noted, not taken.
-        assert_eq!(bph("Elgin 905"), Some(21600));
+        // Where Ranfft and the lift-angle sheet disagree, no beat rate
+        // (Norm, #1869), and no balance period derived from one.
+        assert_eq!(bph("Elgin 905"), None);
+        assert!(find("Elgin 905").unwrap().wheels.is_empty());
+        assert_eq!(bph("Gruen 106"), None);
+        // Ranfft's "0°" is a placeholder, not a lift angle.
+        assert_eq!(find("Doxa 41").unwrap().lift_angle_deg, None);
+    }
+
+    /// Every figure in the table is in a plausible range for a Swiss
+    /// lever: a placeholder such as Ranfft's "0°" never lands as a figure.
+    #[test]
+    fn every_beat_rate_and_lift_angle_is_plausible() {
+        for c in all() {
+            if let Some(b) = c.bph {
+                assert!((3600..=72000).contains(&b), "{}: {b} bph", c.calibre);
+            }
+            if let Some(l) = c.lift_angle_deg {
+                assert!((30.0..=70.0).contains(&l), "{}: {l}°", c.calibre);
+            }
+        }
     }
 
     #[test]
