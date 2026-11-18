@@ -515,7 +515,10 @@ Paper Strip: with the strip moved back off the newest beats, Rate,
 Amplitude and Beat Error and their sparklines are read over Average Over
 ending at the strip's newest edge. The strip's own label says when
 ("at 0:40"), and each figure's hover says it was set by the Paper Strip;
-the status bar stays live. The big amplitude is the average of the two
+the status bar stays live. Under 10 s, amplitude and the unlock beat error
+are read over the last 10 s instead, since a shorter span holds too few
+lift readings; rate and the drop beat error keep the time chosen, and the
+Amplitude and Beat Error hovers say so (#1951). The big amplitude is the average of the two
 swings, in whole degrees, with a ± figure: the standard error of the
 median of its 2 s windows, estimated from successive window differences
 and widened for the windows' lag-one correlation.
