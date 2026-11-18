@@ -290,6 +290,23 @@ pub fn quantile(sorted: &[f64], q: f64) -> f64 {
     quantile_by(sorted.len(), |i| sorted[i], q)
 }
 
+/// Tukey's far fences of `sorted` (ascending): three interquartile
+/// ranges below the lower quartile and above the upper, by [`quantile`].
+/// A value outside them is a lone wild one, not part of the run. The one
+/// fence rule in core: the steadiness views' scale
+/// ([`crate::chart_scale::spread`]), a histogram's
+/// ([`crate::histogram::histogram_with`]) and the unlock beat error's
+/// screen ([`crate::amplitude::screen_unlock_beat_error`]). None when
+/// empty.
+pub fn far_fences(sorted: &[f64]) -> Option<(f64, f64)> {
+    if sorted.is_empty() {
+        return None;
+    }
+    let (q1, q3) = (quantile(sorted, 0.25), quantile(sorted, 0.75));
+    let iqr = q3 - q1;
+    Some((q1 - 3.0 * iqr, q3 + 3.0 * iqr))
+}
+
 /// [`quantile`] of `f32` values, by the same rule.
 pub fn quantile_f32(sorted: &[f32], q: f64) -> f32 {
     quantile_by(sorted.len(), |i| f64::from(sorted[i]), q) as f32
