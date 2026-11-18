@@ -792,7 +792,9 @@ const DROP_POST_S: f64 = 0.003;
 /// block's beats that are on the side's line there ([`side_line`]) are
 /// added up, [`PRE_S`] either side of it, the template's reach before its
 /// drop. That sum shows the side's sounds, and [`side_sounds`] picks the
-/// drop among them as [`drop_offset`] picks it on the template, and the
+/// drop among them with [`DROP_SHARE`] and [`DROP_DIP`], which
+/// [`drop_offset`] also uses on the template, though not in the same way
+/// (see [`side_sounds`]), and the
 /// side's other sounds: those [`SIDE_SOUND_GAP_S`] or more from the drop,
 /// with the sum dipping between them, and not lobes of one lumpy drop. A
 /// beat whose own match peaks within [`DROP_SNAP_S`] of one of those other
@@ -984,9 +986,12 @@ fn side_line(run: &[(i64, f64)]) -> Option<impl Fn(i64) -> f64> {
 }
 
 /// The sounds on `sum`, a side's added-up matches of its drop: its peaks
-/// [`DROP_SHARE`] as high as the highest, each more than `gap` from a
-/// higher one. Of these the drop is the last [`DROP_DIP`] apart from the
-/// highest, or the highest itself; it is returned with the sounds that
+/// [`DROP_SHARE`] as high as the highest, measured from zero with no
+/// floor, leaving out any within `gap` of a higher one. Of these the drop
+/// is the last after the highest with the sum between the two falling to
+/// [`DROP_DIP`] of that peak's own height, or the highest itself. Unlike
+/// [`drop_offset`], each dip is measured from the highest peak, not from
+/// the drop picked so far; it is returned with the sounds that
 /// are another sound of the beat: at least `apart` from the drop and
 /// [`DROP_DIP`] apart from it.
 fn side_sounds(sum: &[f32], gap: usize, apart: usize) -> Option<(usize, Vec<usize>)> {
