@@ -7,6 +7,7 @@
 //! from the file. One [`SecondReading`] does that work for both, so a
 //! take kept while it is recorded is kept exactly as one kept after.
 
+use crate::amplitude::{AmplitudeWindow, UnlockWindow};
 use crate::analysis_take::{
     self, measure_shape, Stored, StoredShape, StoredUsbClock, StretchProfiles, PROFILE_EVERY_S,
 };
@@ -62,6 +63,11 @@ pub(crate) struct SecondReading {
     /// apart: the jump's time, the profile's place and its stretch, and the
     /// stretch's sound from sample `lo`, to read again if they swap.
     held: Option<Held>,
+    /// The amplitude windows found so far, in time order, and the chunks
+    /// they came from: each stretch is cut on the window its latest one
+    /// was read on ([`crate::amplitude::profile_window_at`], #1924).
+    windows: Vec<AmplitudeWindow>,
+    window_chunks: std::collections::BTreeSet<usize>,
 }
 
 /// [`SecondReading::held`].
@@ -71,6 +77,7 @@ struct Held {
     k: usize,
     lo: usize,
     x: Vec<f32>,
+    w: UnlockWindow,
 }
 
 impl SecondReading {
@@ -94,7 +101,29 @@ impl SecondReading {
             profiles: Vec::new(),
             stretches: Vec::new(),
             held: None,
+            windows: Vec::new(),
+            window_chunks: std::collections::BTreeSet::new(),
         }
+    }
+
+    /// Take in the amplitude windows of each chunk in `found` not yet
+    /// taken (a chunk's windows come back whole), keeping time order.
+    pub(crate) fn windows_found(&mut self, found: &[(usize, Vec<AmplitudeWindow>)]) {
+        for (chunk, wins) in found {
+            if !self.window_chunks.insert(*chunk) {
+                continue;
+            }
+            for w in wins {
+                let i = self.windows.partition_point(|x| x.start_s <= w.start_s);
+                self.windows.insert(i, w.clone());
+            }
+        }
+    }
+
+    /// Every amplitude window of the take, read whole beforehand.
+    pub(crate) fn all_windows(&mut self, wins: &[AmplitudeWindow]) {
+        self.windows = wins.to_vec();
+        self.window_chunks.clear();
     }
 
     /// The samples after those read so far.
@@ -136,6 +165,7 @@ impl SecondReading {
             && (self.k + 1) * self.step <= until
         {
             let (k, lo) = (self.k, (self.k * self.step).saturating_sub(self.margin));
+            let w = self.window_of(k, bph);
             let read = self.profile_next(beats, bph, cfg, f64::INFINITY);
             let (from, to) = (self.start_s(k), self.start_s(k + 1));
             if let Some(t) = pending.filter(|&t| read && from <= t && t < to) {
@@ -147,6 +177,7 @@ impl SecondReading {
                     k,
                     lo,
                     x: self.buf[lo - self.buf0..hi - self.buf0].to_vec(),
+                    w,
                 });
             }
             let keep = (self.k * self.step).saturating_sub(self.margin);
@@ -160,6 +191,13 @@ impl SecondReading {
     /// Stretch `k`'s start, seconds.
     fn start_s(&self, k: usize) -> f64 {
         (k * self.step) as f64 / self.fs
+    }
+
+    /// The window stretch `k` is cut on at `bph`: the one its latest
+    /// amplitude window was read on.
+    fn window_of(&self, k: usize, bph: u32) -> UnlockWindow {
+        let osc = 7200.0 / bph.max(1) as f64;
+        crate::amplitude::profile_window_at(&self.windows, self.start_s(k + 1), osc)
     }
 
     /// Stretch `k`'s profiles, its end no later than `duration_s`; then
@@ -182,7 +220,8 @@ impl SecondReading {
         }
         let x = &self.buf[lo - self.buf0..hi - self.buf0];
         let beats = &beats[self.next_beat.min(beats.len())..];
-        let Some(p) = self.stretch(x, lo, k, beats, bph, cfg, duration_s) else {
+        let w = self.window_of(k, bph);
+        let Some(p) = self.stretch(x, (lo, k, w), beats, bph, cfg, duration_s) else {
             return false;
         };
         self.profiles.push(p);
@@ -190,14 +229,13 @@ impl SecondReading {
         true
     }
 
-    /// The profiles of stretch `k`, its sound `x` from sample `lo`, read
-    /// with `beats` from its first on; none when it holds no beat.
-    #[allow(clippy::too_many_arguments)]
+    /// The profiles of stretch `k`, its sound `x` from sample `lo`, cut on
+    /// `w` and read with `beats` from its first on; none when it holds no
+    /// beat.
     fn stretch(
         &self,
         x: &[f32],
-        lo: usize,
-        k: usize,
+        (lo, k, w): (usize, usize, UnlockWindow),
         beats: &[Beat],
         bph: u32,
         cfg: &StreamConfig,
@@ -220,8 +258,16 @@ impl SecondReading {
         let beat_s = 3600.0 / bph.max(1) as f64;
         let env = envelope(x, fs, &cfg.analysis.envelope);
         let amp = &cfg.analysis.amplitude;
-        let w = crate::amplitude::unlock_window(&env, fs, &local, 2.0 * beat_s, amp);
-        let sides = profile::profiles(&env, fs, &local, 2.0 * beat_s, 0.0, x.len() as f64 / fs, amp, w);
+        let sides = profile::profiles(
+            &env,
+            fs,
+            &local,
+            2.0 * beat_s,
+            0.0,
+            x.len() as f64 / fs,
+            amp,
+            w,
+        );
         Some(StretchProfiles {
             end_s: to.min(duration_s),
             signal: crate::live::signal_figure(&env, fs, &local),
@@ -242,7 +288,14 @@ impl SecondReading {
         }
         if let Some(h) = self.held.take_if(|h| h.jump_s == t) {
             let first = beats.partition_point(|b| b.time < self.start_s(h.k));
-            let again = self.stretch(&h.x, h.lo, h.k, &beats[first..], bph, cfg, f64::INFINITY);
+            let again = self.stretch(
+                &h.x,
+                (h.lo, h.k, h.w),
+                &beats[first..],
+                bph,
+                cfg,
+                f64::INFINITY,
+            );
             if let Some(p) = again {
                 self.profiles[h.at] = p;
             }
@@ -266,6 +319,7 @@ impl SecondReading {
         bytes_per_frame: u32,
         software: serde_json::Value,
     ) -> Stored {
+        self.all_windows(&log.amplitude_windows);
         self.profile_until(&log.beats, log.bph, cfg, (usize::MAX, None));
         let n_total = (log.duration_s * self.fs).round() as usize;
         while self.k * self.step < n_total.min(self.buf0 + self.buf.len()) {
@@ -449,7 +503,10 @@ fn keep(
             }
             swaps = seen.swaps.len();
             second.release(seen.pending);
-            let until = profile_bound(seen.core_a, seen.heard, second.read(), fs);
+            second.windows_found(seen.windows);
+            // A stretch waits for the windows up to its end.
+            let found_to = (seen.windows_to_s * fs).max(0.0) as usize;
+            let until = profile_bound(seen.core_a, seen.heard, second.read(), fs).min(found_to);
             second.profile_until(seen.beats, seen.bph, cfg, (until, seen.pending));
             if let Some(parts) = parts.as_mut() {
                 let (profiles, to_s) = second.profiled();
@@ -1212,6 +1269,7 @@ mod tests {
         let cfg = StreamConfig::default();
         let log = stream::analyze_samples(&audio.samples, audio.sample_rate, &cfg);
         let mut r = SecondReading::new(audio.sample_rate, &[]);
+        r.all_windows(&log.amplitude_windows);
         r.audio(&audio.samples);
         r.profile_until(&log.beats, log.bph, &cfg, (usize::MAX, None));
         r.profiles
@@ -1238,10 +1296,19 @@ mod tests {
                     assert!(went_long.is_none(), "back to short at {} s", p.end_s);
                 }
                 let u = s.unlock_ms.expect("an unlock");
-                assert!(u > s.t0_ms + 3.0 && u < 0.0, "{} s: unlock {u} on {}", p.end_s, s.t0_ms);
+                assert!(
+                    u > s.t0_ms + 3.0 && u < 0.0,
+                    "{} s: unlock {u} on {}",
+                    p.end_s,
+                    s.t0_ms
+                );
                 let heard = amp(p.end_s - 1.0);
                 let read = s.amplitude_deg.expect("an amplitude");
-                assert!((read - heard).abs() < 10.0, "{} s: {read}° for {heard}°", p.end_s);
+                assert!(
+                    (read - heard).abs() < 10.0,
+                    "{} s: {read}° for {heard}°",
+                    p.end_s
+                );
             }
         }
         let i = went_long.expect("the profiles went long");

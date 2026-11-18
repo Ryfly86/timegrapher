@@ -452,13 +452,11 @@ impl LiveAnalyzer {
         [at(|w| w.even_unlock_ms), at(|w| w.odd_unlock_ms)]
     }
 
-    /// The template a profile of the sound up to `t` is cut on: where
-    /// the latest amplitude reading put each side's unlock
-    /// ([`Self::profile_guides_at`]), as [`UnlockWindow::of_unlocks`]
-    /// reads it, so the profile goes long where the reading did (#1924).
+    /// The template a profile of the sound up to `t` is cut on: the one
+    /// the latest amplitude window to end by `t` was read on
+    /// ([`amplitude::profile_window_at`], #1924).
     pub fn profile_window_at(&self, t: f64, beat: f64) -> UnlockWindow {
-        let at = self.profile_guides_at(t).map(|g| g.map(|ms| ms / 1000.0));
-        UnlockWindow::of_unlocks(2.0 * beat, at)
+        amplitude::profile_window_at(&self.amp, t, 2.0 * beat)
     }
 
     /// Forget the beats and the template, keeping the audio clock running

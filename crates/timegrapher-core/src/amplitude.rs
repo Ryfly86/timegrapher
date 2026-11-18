@@ -526,6 +526,13 @@ impl AmplitudeWindow {
         self.extra = (x != Extra::default()).then(|| Box::new(x));
     }
 
+    /// Both sides' unlocks as read, seconds from the beat time, when
+    /// both were.
+    fn unlocks_s(&self) -> Option<[Option<f64>; 2]> {
+        let (e, o) = (self.even_unlock_ms?, self.odd_unlock_ms?);
+        Some([Some(e / 1000.0), Some(o / 1000.0)])
+    }
+
     /// Each side withheld as too faint ([`Extra::faint_withheld`]).
     pub fn faint_withheld(&self) -> [bool; 2] {
         self.extra().faint_withheld
@@ -690,7 +697,9 @@ pub fn windows_between(
     let long_l = |g: Option<(Option<f64>, Option<f64>)>| g.and_then(|g| g.0);
     let at = |l: Option<f64>| l.map(|l| (l - long_origin as f64) / fs);
     let long = match (long_l(even_g), long_l(odd_g)) {
-        (Some(e), Some(o)) if UnlockWindow::of_unlocks(osc_period_s, [at(Some(e)), at(Some(o))]).long => {
+        (Some(e), Some(o))
+            if UnlockWindow::of_unlocks(osc_period_s, [at(Some(e)), at(Some(o))]).long =>
+        {
             Some([e, o])
         }
         _ => None,
@@ -735,6 +744,24 @@ pub fn windows_between(
         ));
     }
     out
+}
+
+/// The template a profile of the sound up to `t` seconds is cut on
+/// (#1924): [`UnlockWindow::of_unlocks`] of where the latest of `wins`
+/// (in time order) to end by `t` that read both sides put their unlocks,
+/// or before any has, the first after. The profile goes long where the
+/// amplitude reading found the unlock beyond the short window's reach.
+/// With no such window (none yet, at the start of a take), the short one.
+pub fn profile_window_at(wins: &[AmplitudeWindow], t: f64, osc_period_s: f64) -> UnlockWindow {
+    let by = wins.partition_point(|w| w.end_s <= t + 1e-9);
+    let read = wins[..by]
+        .iter()
+        .rev()
+        .find_map(AmplitudeWindow::unlocks_s)
+        .or_else(|| wins[by..].iter().find_map(AmplitudeWindow::unlocks_s));
+    read.map_or(UnlockWindow::SHORT, |u| {
+        UnlockWindow::of_unlocks(osc_period_s, u)
+    })
 }
 
 /// Withhold, edges and all, each side whose sound 1 stands under
@@ -867,29 +894,6 @@ fn template_unlock(
     trimmed_template_from(env, fs, times, pre_s)
         .and_then(|t| edges(&t, fs, origin, cfg.onset_fraction))
         .map(|e| e.unlock)
-}
-
-/// The template the sides of the good beats in `beats` are read on, as
-/// [`windows_between`] reads a chunk's: each side's unlock on a template
-/// [`template_pre_s`] long, then [`UnlockWindow::of_unlocks`]. Short
-/// where a side has fewer than 3 beats.
-pub fn unlock_window(
-    env: &[f32],
-    fs: f64,
-    beats: &[Beat],
-    osc_period_s: f64,
-    cfg: &AmplitudeConfig,
-) -> UnlockWindow {
-    let long = UnlockWindow::long(osc_period_s);
-    let at = |even: bool| {
-        let times = good_side_times(beats, even);
-        if times.len() < 3 {
-            return None;
-        }
-        let u = template_unlock(env, fs, &times, long.pre_s, cfg)?;
-        Some((u - long.origin(fs) as f64) / fs)
-    };
-    UnlockWindow::of_unlocks(osc_period_s, [at(true), at(false)])
 }
 
 /// One side's unlock and drop in a window, seconds from its beat times, on
@@ -1208,19 +1212,17 @@ mod tests {
             let read = a.summary.amplitude_deg.expect("an amplitude");
             let osc = 7200.0 / bph as f64;
             let env = crate::dsp::envelope(&audio.samples, fs, &cfg.envelope);
-            let span: Vec<Beat> = a
-                .beats
-                .iter()
-                .filter(|b| (10.0..20.0).contains(&b.time))
-                .copied()
-                .collect();
-            let w = unlock_window(&env, fs, &span, osc, &cfg.amplitude);
+            let w = profile_window_at(&a.amplitude_windows, 20.0, osc);
             assert_eq!(w.long, amp < 200.0, "{bph} bph at {amp}°: {w:?}");
-            let sides = crate::profile::profiles(&env, fs, &a.beats, osc, 10.0, 20.0, &cfg.amplitude, w);
+            let sides =
+                crate::profile::profiles(&env, fs, &a.beats, osc, 10.0, 20.0, &cfg.amplitude, w);
             for p in sides {
                 let p = p.expect("a profile");
                 let deg = p.amplitude_deg.expect("a profile amplitude");
-                assert!((deg - read).abs() < 1.0, "{bph} bph at {amp}°: {deg}° against {read}°");
+                assert!(
+                    (deg - read).abs() < 1.0,
+                    "{bph} bph at {amp}°: {deg}° against {read}°"
+                );
                 assert!(p.unlock_ms.expect("an unlock") > p.t0_ms + FLOOR_S * 1000.0);
             }
         }
@@ -1231,10 +1233,14 @@ mod tests {
     #[test]
     fn without_both_sides_unlocks_the_window_is_short() {
         let osc = 0.25;
+        assert_eq!(profile_window_at(&[], 5.0, osc), UnlockWindow::SHORT);
         for at in [[None, None], [Some(-0.025), None], [None, Some(-0.025)]] {
             assert_eq!(UnlockWindow::of_unlocks(osc, at), UnlockWindow::SHORT);
         }
-        assert_eq!(UnlockWindow::of_unlocks(osc, [Some(-0.008); 2]), UnlockWindow::SHORT);
+        assert_eq!(
+            UnlockWindow::of_unlocks(osc, [Some(-0.008); 2]),
+            UnlockWindow::SHORT
+        );
         let long = UnlockWindow::of_unlocks(osc, [Some(-0.025), Some(-0.026)]);
         assert_eq!(long, UnlockWindow::long(osc));
         assert!(long.pre_s > PRE_S);

@@ -417,6 +417,7 @@ pub fn measure_from(
     let first = log.duration_s;
     let fs = log.sample_rate as f64;
     let mut second = crate::keeper::SecondReading::new(log.sample_rate, shapes);
+    second.all_windows(&log.amplitude_windows);
     for path in files {
         audio::stream(path, 1 << 16, |block| {
             second.audio(block);
@@ -2099,7 +2100,10 @@ mod tests {
             let bin = profiles_bin(&[short, s]);
             assert_eq!(&bin[..8], PROFILE_MAGIC_V2);
             let stretches = (bin.len() - profiles_bin(&[]).len()) as u64;
-            assert!(stretches <= 2 * profile_stretch_max_bytes(bph), "{bph}: {stretches}");
+            assert!(
+                stretches <= 2 * profile_stretch_max_bytes(bph),
+                "{bph}: {stretches}"
+            );
         }
         assert!(profile_stretch_max_bytes(28_800) > 936);
     }

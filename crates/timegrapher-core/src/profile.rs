@@ -735,7 +735,8 @@ mod tests {
                 lift_deg,
                 ..AmplitudeConfig::default()
             };
-            let p = from_snippets(&snips, fs, Side::B, osc, &cfg, Some(-8.3), SHORT).expect("a profile");
+            let p = from_snippets(&snips, fs, Side::B, osc, &cfg, Some(-8.3), SHORT)
+                .expect("a profile");
             let t = (p.drop_ms.expect("a drop") - p.unlock_ms.expect("an unlock")) / 1000.0;
             (
                 p.amplitude_deg,
@@ -772,8 +773,14 @@ mod tests {
         let cfg = AnalysisConfig::default();
         let a = analyze(&audio, &cfg);
         let beat = 3600.0 / a.summary.bph as f64;
-        let [pa, pb] =
-            profiles_from_audio(&audio.samples, fs, &a.beats, 2.0 * beat, &cfg, ([None, None], SHORT));
+        let [pa, pb] = profiles_from_audio(
+            &audio.samples,
+            fs,
+            &a.beats,
+            2.0 * beat,
+            &cfg,
+            ([None, None], SHORT),
+        );
         for p in [pa.unwrap(), pb.unwrap()] {
             assert!(p.beats > 20, "{} beats", p.beats);
             assert_eq!(p.median.len(), p.p10.len());
@@ -806,7 +813,16 @@ mod tests {
                 crate::analysis_take::StretchProfiles {
                     end_s,
                     signal: None,
-                    sides: profiles(&env, fs, &a.beats, osc, end_s - 2.0, end_s, &cfg.amplitude, SHORT),
+                    sides: profiles(
+                        &env,
+                        fs,
+                        &a.beats,
+                        osc,
+                        end_s - 2.0,
+                        end_s,
+                        &cfg.amplitude,
+                        SHORT,
+                    ),
                 }
             })
             .collect();

@@ -2040,7 +2040,9 @@ mod tests {
             beats
                 .iter()
                 .filter(|b| (b.index.rem_euclid(2) == 0) == even)
-                .filter_map(|b| crate::profile::snippet(env, fs, b.time, crate::amplitude::UnlockWindow::SHORT))
+                .filter_map(|b| {
+                    crate::profile::snippet(env, fs, b.time, crate::amplitude::UnlockWindow::SHORT)
+                })
                 .collect()
         };
         SideSounds::of(side(true), side(false))
