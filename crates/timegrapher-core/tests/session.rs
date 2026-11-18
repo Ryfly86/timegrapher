@@ -1529,6 +1529,66 @@ fn the_largest_isochronism_leaves_crown_right_out() {
     assert!(close(rep.im_all, 10.0, 1e-9), "{:?}", rep.im_all);
 }
 
+/// Im compares only the changes from the fullest to the least wound
+/// state: a position read at full wind and 12 h but not 24 h keeps its own
+/// row, and its 12 h change is not set beside the others' 24 h ones (#1896).
+#[test]
+fn im_takes_only_the_positions_read_across_the_whole_span() {
+    let at = |p: Position, wind_h: f64, rate: f64| {
+        let mut r = reading(p, wind_h, 2.0, 280.0, 0.1);
+        r.measurement.rate_s_per_day = Some(rate);
+        r
+    };
+    let readings = [
+        at(Position::CH, 0.0, 2.0),
+        at(Position::CH, 24.0, 5.0),
+        at(Position::CB, 0.0, 2.0),
+        at(Position::CB, 12.0, 20.0),
+    ];
+    let rep = evaluate(&readings);
+    let cb = rep.isochronism.iter().find(|i| i.position == Position::CB);
+    let cb = cb.expect("crown down keeps its own row");
+    assert_eq!((cb.from_wind_h, cb.to_wind_h), (0.0, 12.0));
+    assert!(close(rep.im, 3.0, 1e-9), "{:?}", rep.im);
+    assert!(close(rep.im_all, 3.0, 1e-9), "{:?}", rep.im_all);
+}
+
+/// Readings on the sound card's clock beside readings corrected for it
+/// are listed once for the session; all on one clock, nothing (#1896).
+#[test]
+fn readings_on_different_clocks_are_listed() {
+    let a = reading(Position::CH, 0.0, 2.0, 280.0, 0.1);
+    let mut b = reading(Position::CB, 0.0, 2.0, 280.0, 0.1);
+    let codes = |rs: &[Reading]| -> Vec<(&'static str, Option<usize>)> {
+        evaluate(rs)
+            .findings
+            .iter()
+            .filter(|f| f.code == "clocks_differ")
+            .map(|f| (f.code, f.recording))
+            .collect()
+    };
+    // All on one clock, corrected or not: nothing.
+    for on in [false, true] {
+        let (mut a, mut b) = (a.clone(), b.clone());
+        a.measurement.calibrated = on;
+        b.measurement.calibrated = on;
+        assert!(codes(&[a, b]).is_empty(), "all calibrated {on}");
+    }
+    let mut a = a;
+    a.measurement.calibrated = true;
+    b.measurement.calibrated = false;
+    assert_eq!(codes(&[a.clone(), b.clone()]), [("clocks_differ", None)]);
+    // A reading with no watch heard gives no rate, so its clock isn't
+    // counted.
+    let mut unheard = b.clone();
+    unheard.measurement.watch_heard = false;
+    assert!(codes(&[a.clone(), unheard]).is_empty());
+    let f = evaluate(&[a, b]).findings;
+    let f = f.iter().find(|f| f.code == "clocks_differ").unwrap();
+    assert!(f.evidence.contains("1 of the 2 readings"), "{}", f.evidence);
+    assert!(f.evidence.contains("50 ppm is 4.32 s/d"), "{}", f.evidence);
+}
+
 /// The unlock's coverage is listed under 60% of windows, not at 70%.
 #[test]
 fn unlock_coverage_is_listed_under_sixty_percent() {
