@@ -137,7 +137,7 @@ fn drawn_with(
                     20.0,
                     false,
                     None,
-                    ("Current Position", false, [true; 3]),
+                    ("Current Position", false, [true; 3], false),
                 );
             });
         });
@@ -1040,7 +1040,7 @@ fn drawn_empty(info: bool) -> Vec<String> {
         };
         let out = ctx.run(input, |ctx| {
             egui::CentralPanel::default().show(ctx, |ui| {
-                let card = ("Current Position", info, [true; 3]);
+                let card = ("Current Position", info, [true; 3], false);
                 pane(
                     ui, None, None, None, None, None, None, 20.0, false, None, card,
                 );
@@ -1552,4 +1552,23 @@ fn no_word_in_the_step_panel_is_ever_cut() {
             }
         }
     }
+}
+
+/// Set up by New Test, the pane says the next step, Start Test, not how
+/// to set the test up; and no line ends in an ellipsis and a full stop
+/// (#1959).
+#[test]
+fn the_pane_says_the_next_step_once_set_up() {
+    let set_up = about_text(None, None, (true, false, true));
+    assert!(
+        set_up.contains("press Start Test on the Listen card"),
+        "{set_up}"
+    );
+    assert!(!set_up.contains("New Test"), "{set_up}");
+    assert!(about_text(None, None, (true, false, false)).contains("New Test"));
+    let mut test = Test::new();
+    test.readings = Some(six_readings());
+    let keep = about_text(Some(&test), None, (false, false, false));
+    assert!(!keep.is_empty());
+    assert!(!keep.contains("\u{2026}."), "{keep}");
 }

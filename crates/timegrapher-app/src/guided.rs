@@ -1380,7 +1380,9 @@ fn table_grid(
                 ui.end_row();
             }
             tops.push(ui.cursor().top());
-            if !t.rows.is_empty() {
+            // A mean of one position is that position: the Average comes
+            // with the second (#1959).
+            if t.rows.len() >= 2 {
                 ui.label(RichText::new(mean_word).strong().color(pal.text));
                 blank(ui);
                 right_in(ui, fw, signed(t.mean_rate, RATE), true, pal.text);
@@ -1717,7 +1719,7 @@ pub fn pane(
     settle_s: f64,
     watch: bool,
     note: Option<&str>,
-    (card, info, shown): (&str, bool, [bool; 3]),
+    (card, info, shown, ready): (&str, bool, [bool; 3], bool),
 ) -> Option<Action> {
     // When the banner comes or goes (a test starts, stops or finishes),
     // the pane starts again from its top, not where it was scrolled.
@@ -1748,6 +1750,7 @@ pub fn pane(
         watch,
         note,
         card,
+        ready,
     };
     let lines = body.lines(shown);
     let mut action = None;
@@ -1768,6 +1771,8 @@ struct Body<'a> {
     watch: bool,
     note: Option<&'a str>,
     card: &'a str,
+    /// A test set up by New Test, waiting for Start Test.
+    ready: bool,
 }
 
 impl Body<'_> {
@@ -1819,7 +1824,11 @@ impl Body<'_> {
             }
         }
         ui.add_space(10.0);
-        let about = about_text(self.test, self.earlier, (self.watch, self.saved.is_some()));
+        let about = about_text(
+            self.test,
+            self.earlier,
+            (self.watch, self.saved.is_some(), self.ready),
+        );
         if !about.is_empty() {
             ui.add(egui::Label::new(RichText::new(about).color(pal.text_secondary)).wrap());
         }
@@ -2030,13 +2039,17 @@ fn earlier_section(
 /// loaded, what the next test does with them; after a full-wind test, the
 /// test 24 hours after winding. The steps are in its "?" (Hugh, #1528).
 /// None over an opened 24 hour half (`saved`), whose tables have rows.
+/// Set up by New Test (`ready`), the next step: Start Test (#1959).
 fn about_text(
     test: Option<&Test>,
     earlier: Option<&FullWind>,
-    (watch, saved): (bool, bool),
+    (watch, saved, ready): (bool, bool, bool),
 ) -> &'static str {
     match (test, earlier) {
         (None, None) if saved => "",
+        (None, None) if ready => {
+            "Wind the watch, then press Start Test on the Listen card. It begins in Dial Up."
+        }
         (None, None) => "New Test leads you through the six positions.",
         (None, Some(_)) => {
             "Start Test runs the six positions again and sets them against these results."
@@ -2047,7 +2060,7 @@ fn about_text(
         }
         (Some(t), _) if t.readings.iter().any(|r| !r.is_empty()) && t.full.is_none() => {
             "For the same test 24 hours after winding, first keep these results with Save \
-                 Results for 24 Hours\u{2026}. \"?\" has the steps."
+                 Results for 24 Hours\u{2026} on the toolbar. \"?\" has the steps."
         }
         _ => "",
     }

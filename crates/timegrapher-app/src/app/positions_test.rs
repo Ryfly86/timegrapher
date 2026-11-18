@@ -728,6 +728,7 @@ impl TimegrapherApp {
                 self.position_card_title,
                 self.positions_info,
                 self.positions_series,
+                self.ready_test() == Some(NewTake::Positions),
             ),
         );
         let Some(action) = action else { return };
