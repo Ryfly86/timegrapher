@@ -299,12 +299,16 @@ fn whole_into(
         });
     }
     if folder {
-        // The clock log by the name the recorder writes it (#1886).
-        let name = timegrapher_core::take::CLOCK_LOG;
-        if let Ok(t) = std::fs::read_to_string(o.recording[0].join(name)) {
-            parts
-                .entries
-                .push((format!("long/{name}"), red.apply(&t).into_bytes()));
+        // The clock log under any name a take gives it (#1886), kept by
+        // its own name.
+        let log = timegrapher_core::take::clock_log_in(&o.recording[0]);
+        if let Some((log, name)) = log.as_ref().and_then(|p| Some((p, p.file_name()?))) {
+            if let Ok(t) = std::fs::read_to_string(log) {
+                let name = name.to_string_lossy();
+                parts
+                    .entries
+                    .push((format!("long/{name}"), red.apply(&t).into_bytes()));
+            }
         }
     }
     Ok(())
