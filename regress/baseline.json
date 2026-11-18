@@ -1617,7 +1617,7 @@
         "label": "take_part01-001.flac",
         "rate_s_per_day": 11.143634944493641,
         "amplitude_deg": 310.29212564980685,
-        "beat_error_unlock_ms": 0.002252686389581926,
+        "beat_error_unlock_ms": -0.04606094735289981,
         "beat_error_ms": 0.15257857582730175,
         "beats": 4620,
         "provenance": {
@@ -1714,7 +1714,7 @@
         "label": "take_part01-002.flac",
         "rate_s_per_day": 10.830387462690538,
         "amplitude_deg": 317.9785602918906,
-        "beat_error_unlock_ms": -0.13817894495311855,
+        "beat_error_unlock_ms": -0.195712059690898,
         "beat_error_ms": 0.3409598215416819,
         "beats": 4798,
         "provenance": {
