@@ -462,7 +462,8 @@ impl TimegrapherApp {
             self.trend.first().map_or(from, |p| p.t),
             self.trend.last().map_or(end, |p| p.t),
         );
-        if spacing <= 2.0 * step && widest_hole(&kept, from, end, around) <= 2.0 * step {
+        let quiet = super::masks::settlings(&self.session, &self.guided_unused);
+        if spacing <= 2.0 * step && widest_hole(&kept, from, end, around, &quiet) <= 2.0 * step {
             return (kept, spacing);
         }
         let key: StripKey = (
@@ -738,19 +739,54 @@ fn strip_note(guessing: bool, looking_back: bool, end: f64) -> Option<String> {
     }
 }
 
+/// How far apart the strip's overlay readings should be at most over a
+/// window `span_s` long: fine enough to follow a swing of a few seconds
+/// on a short strip, without working out more than a few hundred. Half a
+/// second doubled as often as needed, so a window growing a little (Fit,
+/// while listening) keeps its step and its readings where they were
+/// rather than move every one on each frame (#1937).
+pub(super) fn strip_step(span_s: f64) -> f64 {
+    let doublings = (span_s / 400.0 / 0.5).max(1.0).log2().ceil();
+    0.5 * doublings.exp2()
+}
+
 /// The longest stretch of the window from `from` to `end` that `kept`
 /// (sorted by time) leaves without a reading, counting the window's ends
 /// only within the run they were taken from, `run` (its first and last
-/// times): before a take's first reading there is none to miss.
-fn widest_hole(kept: &[TrendPoint], from: f64, end: f64, run: (f64, f64)) -> f64 {
+/// times): before a take's first reading there is none to miss. Nor is
+/// there in `quiet` (sorted, apart): while the watch settles nothing is
+/// read, so a settling is no hole. Counted as one, every move of a
+/// Positions Test left a hole the run never fills, and the strip worked
+/// its own readings out on every frame of a live take in Fit (#1937).
+fn widest_hole(
+    kept: &[TrendPoint],
+    from: f64,
+    end: f64,
+    run: (f64, f64),
+    quiet: &[(f64, f64)],
+) -> f64 {
     let (Some(first), Some(last)) = (kept.first(), kept.last()) else {
         return f64::INFINITY;
     };
-    let lead = first.t - from.max(run.0);
-    let tail = end.min(run.1) - last.t;
-    kept.windows(2)
-        .map(|w| w[1].t - w[0].t)
-        .fold(lead.max(tail), f64::max)
+    let lead = (from.max(run.0), first.t);
+    let tail = (last.t, end.min(run.1));
+    let gaps = kept.windows(2).map(|w| (w[0].t, w[1].t));
+    [lead, tail]
+        .into_iter()
+        .chain(gaps)
+        .map(|(a, b)| unquiet(a, b, quiet))
+        .fold(0.0, f64::max)
+}
+
+/// The longest part of `a` to `b` outside every one of `quiet` (sorted).
+fn unquiet(a: f64, b: f64, quiet: &[(f64, f64)]) -> f64 {
+    let mut at = a;
+    let mut widest: f64 = 0.0;
+    for &(s, e) in quiet.iter().filter(|q| q.1 > a && q.0 < b) {
+        widest = widest.max(s - at);
+        at = at.max(e);
+    }
+    widest.max(b - at)
 }
 
 /// The readings drawn over the strip, in the toolbar's order: Rate,
@@ -879,10 +915,34 @@ mod tests {
     #[test]
     fn a_hole_at_either_end_counts_only_inside_the_take() {
         let kept = every_half(30.0, 50.0);
-        assert_eq!(widest_hole(&kept, 20.0, 50.0, (0.0, 60.0)), 10.0);
-        assert_eq!(widest_hole(&kept, 30.0, 60.0, (0.0, 60.0)), 10.0);
-        assert_eq!(widest_hole(&kept, 20.0, 60.0, (30.0, 50.0)), 0.5);
-        assert_eq!(widest_hole(&[], 20.0, 60.0, (30.0, 50.0)), f64::INFINITY);
+        assert_eq!(widest_hole(&kept, 20.0, 50.0, (0.0, 60.0), &[]), 10.0);
+        assert_eq!(widest_hole(&kept, 30.0, 60.0, (0.0, 60.0), &[]), 10.0);
+        assert_eq!(widest_hole(&kept, 20.0, 60.0, (30.0, 50.0), &[]), 0.5);
+        assert_eq!(
+            widest_hole(&[], 20.0, 60.0, (30.0, 50.0), &[]),
+            f64::INFINITY
+        );
+    }
+
+    /// While the watch settles nothing is read: a settling is no hole,
+    /// but what of a stretch without readings lies outside one still is
+    /// (#1937).
+    #[test]
+    fn a_settling_is_no_hole() {
+        let mut kept = every_half(20.0, 40.0);
+        kept.extend(every_half(70.0, 90.0));
+        let run = (0.0, 100.0);
+        assert_eq!(widest_hole(&kept, 20.0, 90.0, run, &[]), 30.0);
+        assert_eq!(widest_hole(&kept, 20.0, 90.0, run, &[(40.0, 70.0)]), 0.5);
+        // Two settlings in one gap, apart: the stretch between is a hole.
+        let two = [(40.0, 50.0), (60.0, 70.0)];
+        assert_eq!(widest_hole(&kept, 20.0, 90.0, run, &two), 10.0);
+        // A settling that ends before the readings come back leaves the
+        // rest; one at the window's end covers the tail.
+        assert_eq!(widest_hole(&kept, 20.0, 90.0, run, &[(40.0, 66.0)]), 4.0);
+        let end = [(40.0, 70.0), (89.0, 99.0)];
+        assert_eq!(widest_hole(&kept, 20.0, 95.0, run, &end), 0.5);
+        assert_eq!(widest_hole(&kept, 20.0, 95.0, run, &end[..1]), 5.0);
     }
 
     #[test]

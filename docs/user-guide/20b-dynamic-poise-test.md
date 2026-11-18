@@ -138,6 +138,11 @@ the rate there too, in the same once-round pattern.
   to see whether the difference follows the hour at the top, as poise
   does.
 
+**Good practice:** let the watch down before the test. Poise shows most
+at low amplitude: "The influence of a centre of gravity error is
+greatest at low amplitudes" ([Witschi 2025](https://www.witschi.com/wp-content/uploads/firmwares/8Z1UtLGf/20251118_witschi_testing-methods-for-mechanical-watches_en.pdf), p. 31). M13 says why, and why near
+220° it hides.
+
 ## What It Helps Find
 
 - **A poise error:** a once-round wave clear of its ±, with the heavy

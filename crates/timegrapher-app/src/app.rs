@@ -1532,13 +1532,6 @@ fn trend_key(seconds: f64) -> u64 {
 /// whole steps while listening) and what the readings rest on.
 type StripKey = (i64, i64, u64, u64, u64, Revision);
 
-/// How far apart the strip's overlay readings should be at most over a
-/// window `span_s` long: fine enough to follow a swing of a few seconds
-/// on a short strip, without working out more than a few hundred.
-fn strip_step(span_s: f64) -> f64 {
-    (span_s / 400.0).max(0.5)
-}
-
 /// A reading of a chart over time: core's trend reading.
 type TrendPoint = timegrapher_core::live::TrendReading;
 

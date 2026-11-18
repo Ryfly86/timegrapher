@@ -218,6 +218,12 @@ listening.
   the tick. Hum, knocks, or a holder that smears the sound can still
   give a high figure. Check the Tick Tock Profile as well.
 
+**Good practice:** a clean unlock matters more than a loud tick. The
+amplitude and beat error are timed from it: "It is essential that the
+onset of the first sound (unlocking) is detected reliably" ([Witschi 2025](https://www.witschi.com/wp-content/uploads/firmwares/8Z1UtLGf/20251118_witschi_testing-methods-for-mechanical-watches_en.pdf),
+p. 11). Check that the Tick Tock Profile's Unlock mark sits on a clear
+first sound before you trust the figures (chapter 7).
+
 ## Quartz Correction
 
 **What it is:** the sound card times the sound by its own quartz crystal.
