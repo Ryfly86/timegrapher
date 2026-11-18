@@ -1194,7 +1194,7 @@ const USB_TAKE: &str = "eta2824_holder_DU_30min";
 /// this take. Under it the two pipelines still part on its first minute or
 /// so, on the card's own clock with no clock in it (0.87 s/d apart at 30 s,
 /// 0.32 s/d at 60 s), which is not the clock's doing: the clock is still
-/// checked there.
+/// checked there. #1987 closes that gap and removes this constant.
 const SAME_RATE_FROM_S: f64 = 120.0;
 
 /// Heard live, a real take's readings are on the clock the same take
