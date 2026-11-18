@@ -109,6 +109,9 @@ pub struct Slope {
 pub struct Term {
     pub value: f64,
     pub se: Option<f64>,
+    /// Why `se` is none, where known (#1908).
+    #[serde(skip)]
+    pub no_pm: Option<crate::confidence::NoPm>,
 }
 
 /// A once-round wave: its mean, its size each way from the mean, and the
@@ -540,14 +543,17 @@ fn wave_fit(
         mean: Term {
             value: beta[0],
             se: cov.as_ref().map(|c| c[0][0].max(0.0).sqrt()),
+            no_pm: None,
         },
         size: Term {
             value: size,
             se: size_se,
+            no_pm: None,
         },
         peak_deg: Term {
             value: b.atan2(a).to_degrees().rem_euclid(360.0),
             se: peak_se,
+            no_pm: None,
         },
     })
 }
@@ -585,6 +591,7 @@ fn shape_fit(pts: &[Point], y: &[f64], ses: Option<&[f64]>) -> (Option<Term>, Op
     let term = |k: usize| Term {
         value: beta[k],
         se: cov.as_ref().map(|c| c[k][k].max(0.0).sqrt()),
+        no_pm: None,
     };
     let c2_term = use_c2.then(|| term(3));
     let s2_term = use_s2.then(|| term(3 + usize::from(use_c2)));

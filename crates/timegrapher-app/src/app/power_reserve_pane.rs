@@ -244,7 +244,7 @@ impl TimegrapherApp {
     /// card has now, which it then holds.
     pub(super) fn begin_reserve(&mut self) {
         // A Power Reserve Test begins at full wind.
-        self.started_from_full_wind();
+        self.started_from_full_wind(true);
         let pos = self.position;
         let started = self
             .session

@@ -34,6 +34,8 @@ impl TimegrapherApp {
         // A test is never Quick Listen: its sound is saved or asked about,
         // not let go, even when it follows Quick Listen or runs on from it.
         self.quick_listen = false;
+        // Whether this Start begins the take, or runs on in one listening.
+        let fresh = !self.running() && !self.can_resume();
         if !self.running() {
             if self.can_resume() {
                 self.resume_microphone();
@@ -57,7 +59,7 @@ impl TimegrapherApp {
         }
         // The Positions Test's full-wind step begins at full wind.
         if kind == guided::Kind::Positions && half.is_none() {
-            self.started_from_full_wind();
+            self.started_from_full_wind(fresh);
         }
         let test = match (kind, half) {
             (guided::Kind::Poise, _) => guided::Test::poise(),

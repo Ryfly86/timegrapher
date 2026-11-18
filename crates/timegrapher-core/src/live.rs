@@ -130,6 +130,10 @@ pub struct LiveReading {
     /// recording: precision, not accuracy, since a wrong lift angle moves
     /// every amplitude together.
     pub amplitude_error_deg: Option<f64>,
+    /// Why `amplitude_error_deg` is none, while the watch is heard: none
+    /// whenever there is a ± (#1908). Not saved.
+    #[serde(skip)]
+    pub amplitude_no_pm: Option<crate::confidence::NoPm>,
     pub amplitude_even_deg: Option<f64>,
     pub amplitude_odd_deg: Option<f64>,
     /// Timing scatter of the fit, microseconds.
@@ -168,6 +172,10 @@ pub struct LiveReading {
     /// [`measure::RATE_SE_MIN_S`] of beats, and when no regular beat is
     /// found.
     pub rate_error_s_per_day: Option<f64>,
+    /// Why `rate_error_s_per_day` is none, from `measure::assess`: none
+    /// whenever there is a ± (#1908). Not saved.
+    #[serde(skip)]
+    pub rate_no_pm: Option<crate::confidence::NoPm>,
     /// The rate values the take holds up to the reading to take the rate's
     /// noise from, every other 10 s window, up to the
     /// [`crate::confidence::MIN_NOISE_VALUES`] its ± needs: for a hover
@@ -1261,8 +1269,10 @@ impl LiveAnalyzer {
             .then(|| self.take_rate_windows(&st, bph, run_from, &rate_windows));
         let take_rate = take_rate.as_deref().unwrap_or(&rate_windows);
         let take_amp = self.take_amplitude_windows(&st, end_s);
-        let amplitude_error_deg =
-            crate::confidence::amplitude_windows_se(wins.iter().copied(), &take_amp, |w| w.mean());
+        let amplitude_se =
+            crate::confidence::amplitude_windows_se_or_why(wins.iter().copied(), &take_amp, |w| {
+                w.mean()
+            });
         let Verdict {
             jitter_us,
             timing_scatter_fraction,
@@ -1314,7 +1324,8 @@ impl LiveAnalyzer {
             beat_error_unlock_ms,
             beat_error_source,
             amplitude_deg: heard(figures.amplitude_deg),
-            amplitude_error_deg: heard(amplitude_error_deg),
+            amplitude_error_deg: heard(amplitude_se.ok()),
+            amplitude_no_pm: amplitude_se.err().filter(|_| watch_heard),
             amplitude_even_deg: sided(figures.amplitude_even_deg),
             amplitude_odd_deg: sided(figures.amplitude_odd_deg),
             jitter_us,
@@ -1327,6 +1338,7 @@ impl LiveAnalyzer {
             clipped_fraction,
             watch_heard,
             rate_error_s_per_day: assessment.confidence.and_then(|c| c.rate.se),
+            rate_no_pm: assessment.confidence.and_then(|c| c.rate.no_pm),
             rate_noise_values: crate::confidence::rate_value_count(take_rate.len())
                 .min(crate::confidence::MIN_NOISE_VALUES),
             amplitude_values: wins.iter().filter(|w| w.mean().is_some()).count(),

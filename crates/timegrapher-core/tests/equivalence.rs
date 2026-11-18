@@ -1227,3 +1227,125 @@ fn an_empty_stand_is_no_watch_however_it_is_read() {
         }
     }
 }
+
+/// The take #1721 was found on, in its holder: its USB lines put its card
+/// 19.3 ppm slow, 1.67 s/d.
+const USB_TAKE: &str = "eta2824_holder_DU_30min";
+
+/// From this much sound on, live and the saved take read the same rate on
+/// this take. Under it the two pipelines still part on its first minute or
+/// so, on the card's own clock with no clock in it (0.87 s/d apart at 30 s,
+/// 0.32 s/d at 60 s), which is not the clock's doing: the clock is still
+/// checked there. #1987 closes that gap and removes this constant.
+const SAME_RATE_FROM_S: f64 = 120.0;
+
+/// Heard live, a real take's readings are on the clock the same take
+/// saved and opened at that moment is read on (#1721, #1918), with the
+/// USB lines read from the sound as it comes in, never put in by hand.
+/// Under 30 s the lines aren't read yet, and the rate says so rather than
+/// being compared. At each length a live read is due:
+/// - the lines are the ones a take saved then reads, to the bit, and the
+///   clock is the one it opens on;
+/// - the clock moves the live rate exactly as far as it moves the saved
+///   take's (1.66 s/d here);
+/// - from [`SAME_RATE_FROM_S`], the live rate is the saved take's to
+///   within half its 0.1 s/d digit.
+///
+/// Runs where `TIMEGRAPHER_CORPUS` is set.
+#[test]
+fn a_live_rate_takes_the_usb_lines_a_reopened_real_take_takes() {
+    use timegrapher_core::usbclock::{self, LiveClock};
+    use timegrapher_core::{clock, excerpt, take};
+    let Some(path) = corpus_takes(&[USB_TAKE]).pop() else {
+        return;
+    };
+    let pcm = excerpt::read(&path).unwrap();
+    let a = load(&path).unwrap();
+    let fs = a.sample_rate;
+    let block = fs as usize / 10;
+    let mut l = LiveAnalyzer::new(fs, LiveConfig::default());
+    let mut lines = usbclock::Live::new(fs);
+    // One length before the first read, then each length a read is due.
+    let mut checks = [20.0].into_iter().chain(usbclock::LIVE_READS_S).peekable();
+    let dir = std::env::temp_dir().join(format!("tg-eq-usb-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    for (i, c) in a.samples.chunks(block).enumerate() {
+        // As the app follows them: the lines read when due, and the
+        // readings put on the clock they give.
+        l.push(c);
+        lines.push(c);
+        let heard = lines.measure_due();
+        let fit = take::live_clock(&heard, None, l.duration_s());
+        l.set_rate_clock(fit.as_ref().filter(|f| f.corrects()));
+        let t = ((i + 1) * block) as f64 / f64::from(fs);
+        if checks.next_if(|&at| t >= at).is_none() {
+            continue;
+        }
+        if t < usbclock::MIN_DURATION_S {
+            let said = heard
+                .not_yet(false)
+                .expect("said before the lines are read");
+            assert!(said.contains("USB lines"), "{said}");
+            assert!(fit.is_none(), "{t} s: on the card's clock until then");
+            continue;
+        }
+        assert_eq!(heard.not_yet(false), None, "{t} s");
+        // The take saved now: its sound to this sample, opened again.
+        let saved = dir.join(format!("take-{t:.0}.flac"));
+        let mut part = excerpt::Pcm {
+            samples: pcm.samples[..(t * f64::from(fs)) as usize].to_vec(),
+            ..pcm
+        };
+        part.samples.shrink_to_fit();
+        excerpt::write_flac(&saved, &part).unwrap();
+        let usb = clock::usb_lines(std::slice::from_ref(&saved)).unwrap();
+        let LiveClock::Measured { clock: live, .. } = heard else {
+            panic!("{t} s: live read no lines: {heard:?}");
+        };
+        assert_eq!(Some(live), usb, "{t} s: the lines a saved take reads");
+        let opened = take::clock(None, 0, 0, usb.map(|u| u.ppm), None, t)
+            .unwrap()
+            .expect("the lines' clock");
+        assert_eq!(format!("{fit:?}"), format!("{:?}", Some(&opened)), "{t} s");
+        // Both over the same interval, as `live_matches_analyze_on_real_takes`.
+        let log = stream(&saved, 47.0);
+        let end = l.reading(t).time_s;
+        let last = |v: &[f64]| v.iter().copied().filter(|&b| b < end).fold(0.0, f64::max);
+        let from = last(l.breaks()).max(last(&log.jumps));
+        let rate = |c: Option<&clock::ClockFit>| {
+            let mut x = l.clone();
+            x.set_rate_clock(c);
+            x.reading_at(end, end - from)
+                .rate_s_per_day
+                .expect("a live rate")
+        };
+        let saved_rate = |c: Option<&clock::ClockFit>| {
+            session::measure(&log, c, from, end)
+                .rate_s_per_day
+                .expect("a saved rate")
+        };
+        let (live_on, live_card) = (rate(Some(&opened)), rate(None));
+        let (saved_on, saved_card) = (saved_rate(Some(&opened)), saved_rate(None));
+        eprintln!(
+            "{t} s, {from:.1} to {end:.1} s: lines {:.3} ppm; live {live_on:.3} s/d \
+             ({live_card:.3} on the card), saved {saved_on:.3} ({saved_card:.3})",
+            live.ppm
+        );
+        let moved = |on: f64, card: f64| on - card;
+        assert!(
+            (moved(live_on, live_card) - moved(saved_on, saved_card)).abs() < 1e-3,
+            "{t} s: the clock moved live {:.4} s/d, the saved take {:.4}",
+            moved(live_on, live_card),
+            moved(saved_on, saved_card)
+        );
+        if t >= SAME_RATE_FROM_S {
+            assert!(
+                (live_on - saved_on).abs() < 0.05,
+                "{t} s: live {live_on:.3} s/d against the saved take's {saved_on:.3}"
+            );
+        }
+        std::fs::remove_file(&saved).unwrap();
+    }
+    assert_eq!(checks.next(), None, "every length was heard");
+    std::fs::remove_dir(&dir).unwrap();
+}

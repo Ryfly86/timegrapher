@@ -8,8 +8,8 @@ use std::path::Path;
 use timegrapher_core::library::Take;
 
 /// Why Set Wind is refused on the take the session on the Bench writes.
-pub const HELD: &str = "This take is open on the Bench, and its next save there would \
-     overwrite the change. Set its wind once it's no longer on the Bench.";
+pub const HELD: &str = "This take is on the Bench, and its next save there would \
+     overwrite the change. Set its wind there, in the Listen card's Wind box.";
 
 /// The Set Wind menu of the take `t` in `dir`, which `changes` says can
 /// be written, unless it is the take the session on the Bench writes

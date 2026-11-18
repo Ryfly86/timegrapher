@@ -181,6 +181,32 @@ pub struct FigureCoverage {
 pub struct Reading {
     /// Standard error, in the reading's own unit.
     pub se: Option<f64>,
+    /// Why there is no ±, where `se` is none and core knows (#1908).
+    #[serde(skip)]
+    pub no_pm: Option<NoPm>,
+}
+
+/// Why a figure has no ± (#1908), the one reason every surface words.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NoPm {
+    /// Fewer than [`MIN_VALUES`] values of its own.
+    TooFew,
+    /// Fewer than [`MIN_NOISE_VALUES`] values both of its own and in the
+    /// take near it to read the noise from ([`noise_pool`]).
+    PoolShort,
+    /// Enough values, but more than half of their successive differences
+    /// are exactly 0, so no scatter can be read ([`shown`], #1898).
+    Repeats,
+}
+
+impl NoPm {
+    /// [`NoPm::Repeats`] in full, for a figure's hover and the command
+    /// line and MCP (Hugh on #1908): no count, as more readings won't
+    /// give a ±.
+    pub const REPEATS_TEXT: &'static str =
+        "No ±: most of the readings repeat the one before exactly, so their scatter can't be read.";
+    /// [`NoPm::Repeats`] short, beside a figure (Hugh on #1908).
+    pub const REPEATS_SHORT: &'static str = "no ± (readings repeat exactly)";
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
@@ -210,10 +236,28 @@ impl Confidence {
         amplitude_se: Option<f64>,
         beat_error_se: Option<f64>,
     ) -> Self {
+        let reading = |se| Reading { se, no_pm: None };
         Confidence {
-            rate: Reading { se: rate_se },
-            amplitude: Reading { se: amplitude_se },
-            beat_error: Reading { se: beat_error_se },
+            rate: reading(rate_se),
+            amplitude: reading(amplitude_se),
+            beat_error: reading(beat_error_se),
+        }
+    }
+
+    /// Each figure's ±, or why it has none (#1908).
+    pub fn of(
+        rate_se: Result<f64, NoPm>,
+        amplitude_se: Result<f64, NoPm>,
+        beat_error_se: Result<f64, NoPm>,
+    ) -> Self {
+        let reading = |r: Result<f64, NoPm>| Reading {
+            se: r.ok(),
+            no_pm: r.err(),
+        };
+        Confidence {
+            rate: reading(rate_se),
+            amplitude: reading(amplitude_se),
+            beat_error: reading(beat_error_se),
         }
     }
 }
@@ -528,15 +572,20 @@ pub fn standard_error(values: &[f64]) -> Option<f64> {
 pub fn standard_error_in<'a>(stretches: impl IntoIterator<Item = &'a [f64]>) -> Option<f64> {
     let stretches: Vec<&[f64]> = stretches.into_iter().collect();
     let noise = Noise::of(&stretches, MIN_VALUES)?;
-    shown(noise.standard_error(count(&stretches)))
+    shown(noise.standard_error(count(&stretches))).ok()
 }
 
-/// A ± as given: None in place of 0. The scatter is read as the MAD of
-/// successive differences, which is 0 when more than half of them are
-/// exactly 0, and a ± of 0 would claim the figure is known exactly, so
-/// none is given instead (#1898). Every ± the core gives passes here.
-fn shown(se: f64) -> Option<f64> {
-    (se > 0.0).then_some(se)
+/// A ± as given: [`NoPm::Repeats`] in place of 0. The scatter is read as
+/// the MAD of successive differences, which is 0 when more than half of
+/// them are exactly 0, and a ± of 0 would claim the figure is known
+/// exactly, so none is given instead (#1898, #1908). Every ± the core
+/// gives passes here.
+fn shown(se: f64) -> Result<f64, NoPm> {
+    if se > 0.0 {
+        Ok(se)
+    } else {
+        Err(NoPm::Repeats)
+    }
 }
 
 /// The fewest values a ± takes its noise from (#1470, math-standards
@@ -599,20 +648,21 @@ fn level_count(levels: &[Level]) -> usize {
 /// [`standard_error_in`] of a reading's own `stretches` with its noise
 /// from at least [`MIN_NOISE_VALUES`] values (#1470): its own when it
 /// holds that many, else `pool`'s, the values nearest it in the take
-/// ([`noise_pool`]). `n` and n_eff are always the reading's own. None
-/// with fewer than [`MIN_VALUES`] values of its own, or with neither
-/// holding [`MIN_NOISE_VALUES`].
-pub fn standard_error_borrowing(own: &[Level], pool: &[Level]) -> Option<f64> {
+/// ([`noise_pool`]). `n` and n_eff are always the reading's own.
+/// [`NoPm::TooFew`] with fewer than [`MIN_VALUES`] values of its own,
+/// [`NoPm::PoolShort`] with neither holding [`MIN_NOISE_VALUES`].
+pub fn standard_error_borrowing(own: &[Level], pool: &[Level]) -> Result<f64, NoPm> {
     let n = level_count(own);
     if n < MIN_VALUES {
-        return None;
+        return Err(NoPm::TooFew);
     }
     let noise = if n >= MIN_NOISE_VALUES {
         Noise::of_levels(own, MIN_NOISE_VALUES)
     } else {
         Noise::of_levels(pool, MIN_NOISE_VALUES)
-    }?;
-    Some(noise.standard_error(n))
+    }
+    .ok_or(NoPm::PoolShort)?;
+    Ok(noise.standard_error(n))
 }
 
 /// The first and last of `take`'s windows [`noise_pool`] reads: the
@@ -730,9 +780,18 @@ pub fn amplitude_windows_se<'a>(
     take: &[&AmplitudeWindow],
     value: impl Fn(&AmplitudeWindow) -> Option<f64>,
 ) -> Option<f64> {
+    amplitude_windows_se_or_why(windows, take, value).ok()
+}
+
+/// [`amplitude_windows_se`], or why there is none (#1908).
+pub fn amplitude_windows_se_or_why<'a>(
+    windows: impl IntoIterator<Item = &'a AmplitudeWindow>,
+    take: &[&AmplitudeWindow],
+    value: impl Fn(&AmplitudeWindow) -> Option<f64>,
+) -> Result<f64, NoPm> {
     let own: Vec<&AmplitudeWindow> = windows.into_iter().collect();
     let span = |w: &&AmplitudeWindow| (w.start_s, w.end_s);
-    let (levels, pool) = own_and_pool(&own, take, span, |w| value(w))?;
+    let (levels, pool) = own_and_pool(&own, take, span, |w| value(w)).ok_or(NoPm::TooFew)?;
     let within = standard_error_borrowing(&levels, &pool)?;
     shown(within.hypot(between_levels(&levels)))
 }
@@ -814,6 +873,11 @@ pub fn rate_value_count(windows: usize) -> usize {
 /// windows in time order, where the reading holds fewer than
 /// [`MIN_NOISE_VALUES`] (#1470).
 pub fn rate_se(windows: &[WindowFit], take: &[WindowFit]) -> Option<f64> {
+    rate_se_or_why(windows, take).ok()
+}
+
+/// [`rate_se`], or why there is none (#1908).
+pub fn rate_se_or_why(windows: &[WindowFit], take: &[WindowFit]) -> Result<f64, NoPm> {
     let own: Vec<&WindowFit> = rate_values(windows).collect();
     let take: Vec<&WindowFit> = rate_values(take).collect();
     let (s, pool) = own_and_pool(
@@ -821,7 +885,8 @@ pub fn rate_se(windows: &[WindowFit], take: &[WindowFit]) -> Option<f64> {
         &take,
         |w| (w.start_s, w.end_s),
         |w| Some(w.fit.rate_s_per_day),
-    )?;
+    )
+    .ok_or(NoPm::TooFew)?;
     shown(standard_error_borrowing(&s, &pool)?)
 }
 
@@ -836,7 +901,16 @@ pub fn beat_error_se<'a>(
     take: &[&AmplitudeWindow],
     as_size: bool,
 ) -> Option<f64> {
-    amplitude_windows_se(windows, take, |w| {
+    beat_error_se_or_why(windows, take, as_size).ok()
+}
+
+/// [`beat_error_se`], or why there is none (#1908).
+pub fn beat_error_se_or_why<'a>(
+    windows: impl IntoIterator<Item = &'a AmplitudeWindow>,
+    take: &[&AmplitudeWindow],
+    as_size: bool,
+) -> Result<f64, NoPm> {
+    amplitude_windows_se_or_why(windows, take, |w| {
         w.beat_error_unlock_ms
             .map(|x| if as_size { x.abs() } else { x })
     })
@@ -925,6 +999,40 @@ mod tests {
         let mut rng = Rng::new(1898);
         let rates: Vec<f64> = (0..40).map(|_| rng.normal()).collect();
         assert!(standard_error(&rates).is_some_and(|se| se > 0.0));
+    }
+
+    /// Why there is no ± (#1908): readings that repeat exactly, more than
+    /// half their successive differences 0 with enough of them, give
+    /// [`NoPm::Repeats`] and Hugh's words; fewer than [`MIN_VALUES`] of
+    /// their own give [`NoPm::TooFew`]; a short reading in a short take
+    /// gives [`NoPm::PoolShort`].
+    #[test]
+    fn a_missing_plus_minus_says_why() {
+        // Quantised: steps of 0.1 ms every 10 windows, so 36 of the 39
+        // successive differences are exactly 0.
+        let quantised: Vec<f64> = (0..40).map(|i| 0.2 + 0.1 * ((i / 10) % 2) as f64).collect();
+        assert!(quantised.len() >= MIN_NOISE_VALUES);
+        let w = unlock_windows(&quantised);
+        let why = beat_error_se_or_why(&w, &every(&w), false);
+        assert_eq!(why, Err(NoPm::Repeats));
+        assert_eq!(beat_error_se(&w, &every(&w), false), None, "one rule");
+        assert_eq!(
+            NoPm::REPEATS_TEXT,
+            "No ±: most of the readings repeat the one before exactly, so their scatter \
+             can't be read."
+        );
+        assert_eq!(NoPm::REPEATS_SHORT, "no ± (readings repeat exactly)");
+        // Fewer than MIN_VALUES of its own.
+        let mut rng = Rng::new(1908);
+        let noisy: Vec<f64> = (0..40).map(|_| 0.3 + 0.05 * rng.normal()).collect();
+        let w = unlock_windows(&noisy);
+        let two = beat_error_se_or_why(&w[..2], &every(&w), false);
+        assert_eq!(two, Err(NoPm::TooFew));
+        // A short reading in a take as short: no pool to borrow from.
+        let short = beat_error_se_or_why(&w[..10], &every(&w[..10]), false);
+        assert_eq!(short, Err(NoPm::PoolShort));
+        // And with the take's 40 to borrow from, a ±.
+        assert!(beat_error_se_or_why(&w[..10], &every(&w), false).is_ok_and(|se| se > 0.0));
     }
 
     /// 2 s windows whose unlock beat errors are `values`.

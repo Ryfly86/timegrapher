@@ -840,10 +840,19 @@ pub const RATE_SE_MIN_S: f64 = confidence::MIN_NOISE_VALUES as f64 * RATE_WINDOW
 /// over a shorter time it is wider, since fewer windows went into it. Its
 /// noise is borrowed from `take` as [`confidence::rate_se`]'s.
 pub fn rate_se_over(rate_windows: &[WindowFit], take: &[WindowFit], average_s: f64) -> Option<f64> {
+    rate_se_over_or_why(rate_windows, take, average_s).ok()
+}
+
+/// [`rate_se_over`], or why there is none (#1908).
+pub fn rate_se_over_or_why(
+    rate_windows: &[WindowFit],
+    take: &[WindowFit],
+    average_s: f64,
+) -> Result<f64, confidence::NoPm> {
     let independent = confidence::rate_value_count(rate_windows.len()) as f64;
-    let se = confidence::rate_se(rate_windows, take)?;
+    let se = confidence::rate_se_or_why(rate_windows, take)?;
     let averaged = (average_s / RATE_WINDOW_S).clamp(1.0, independent);
-    Some(se * (independent / averaged).sqrt())
+    Ok(se * (independent / averaged).sqrt())
 }
 
 /// What one measurement rests on.
@@ -946,17 +955,17 @@ pub fn assess_in(
         caveats.push(Caveat::FaintSidesWithheld { sides, windows });
     }
     let confidence = c.watch_heard.then(|| {
-        Confidence::new(
+        Confidence::of(
             match c.average_s {
-                Some(t) => rate_se_over(rate_windows, take.rate, t),
-                None => confidence::rate_se(rate_windows, take.rate),
+                Some(t) => rate_se_over_or_why(rate_windows, take.rate, t),
+                None => confidence::rate_se_or_why(rate_windows, take.rate),
             },
-            confidence::amplitude_windows_se(
+            confidence::amplitude_windows_se_or_why(
                 amplitude_windows.iter().copied(),
                 take.amplitude,
                 |w| w.mean(),
             ),
-            confidence::beat_error_se(
+            confidence::beat_error_se_or_why(
                 amplitude_windows.iter().copied(),
                 take.amplitude,
                 c.beat_error_as_size,
