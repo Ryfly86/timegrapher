@@ -295,7 +295,9 @@ impl State {
                 }
             }
             self.beats.push(Beat { time: t, ..b });
-            if let Some(w) = profile::snippet(env, fs, b.time) {
+            if let Some(w) =
+                profile::snippet(env, fs, b.time, crate::amplitude::UnlockWindow::SHORT)
+            {
                 if b.is_good() {
                     self.snippets
                         .push(t, b.index.rem_euclid(2) == 0, w.to_vec());

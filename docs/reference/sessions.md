@@ -354,6 +354,18 @@ when none), then the median, 10th and 90th percentile curves, a byte a
 point: the level in quarter-dB steps above 63.75 dB below the top (0 for
 anything lower, read back as 0). Stretches with no beats are left out.
 
+That is version 1, the last byte of the 8. At a low amplitude a profile
+is cut on a longer window, starting before the unlock, as amplitude reads
+it (#1924): about −40 ms at 18,000 bph near 110° instead of −20. When
+the stretches of a take are not all on one window, the file is version 2
+(`TGPROF\0\x02`): the same, but each stretch carries its own first point
+(f32 ms) and points in a curve (u16) after its signal figure, and the
+header's are the first stretch's. A take whose stretches share one
+window is written as version 1, byte for byte as before. A file of a
+later version is refused as written by a newer version of the app, not
+as damaged. The Tick Tock Profile averages the stretches on the latest
+one's window and says how many on another it left out.
+
 ### Parts kept while a take is recorded
 
 A take kept as its analysis while it is recorded (#1514) is also kept on

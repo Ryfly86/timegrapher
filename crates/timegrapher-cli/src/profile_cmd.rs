@@ -35,7 +35,9 @@ pub fn run(file: &Path, o: &Options) -> Result<(), String> {
         ));
     }
     let env = timegrapher_core::dsp::envelope(&audio.samples, fs, &o.cfg.envelope);
-    let profiles = profile::profiles(&env, fs, &a.beats, 2.0 * beat, from, to, &o.cfg.amplitude);
+    let amp = &o.cfg.amplitude;
+    let w = timegrapher_core::amplitude::profile_window_at(&a.amplitude_windows, to, 2.0 * beat);
+    let profiles = profile::profiles(&env, fs, &a.beats, 2.0 * beat, from, to, amp, w);
     if let Some(p) = o.svg {
         std::fs::write(p, svg(&profiles, file, from, to, o.cfg.amplitude.lift_deg))
             .map_err(|e| format!("{}: {e}", p.display()))?;

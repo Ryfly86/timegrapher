@@ -134,9 +134,12 @@ pub fn beat_sound_found<'a>(
     cfg: &crate::amplitude::AmplitudeConfig,
 ) -> Option<bool> {
     let (tick, tock): (Vec<_>, Vec<_>) = snippets.into_iter().partition(|s| s.0);
+    // Whether there is a sound at all, not where its unlock lies: the
+    // windows are kept on the short template ([`crate::sound_sample`]).
+    let short = crate::amplitude::UnlockWindow::SHORT;
     let shows = |side: crate::profile::Side, w: Vec<(bool, &[f32])>| {
         let w: Vec<&[f32]> = w.into_iter().map(|s| s.1).collect();
-        crate::profile::from_snippets(&w, fs, side, osc_period_s, cfg, None)
+        crate::profile::from_snippets(&w, fs, side, osc_period_s, cfg, None, short)
             .map(|p| p.unlock_ms.is_some() || p.drop_ms.is_some())
     };
     match (

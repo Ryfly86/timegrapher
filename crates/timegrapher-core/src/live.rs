@@ -10,7 +10,7 @@
 //! seconds of that log, so the live screen and an analysis of the saved
 //! recording read from the same kind of per-beat records.
 
-use crate::amplitude::{self, AmplitudeWindow};
+use crate::amplitude::{self, AmplitudeWindow, UnlockWindow};
 use crate::analysis::{AnalysisConfig, Clipping};
 use crate::beats::{self, Beat};
 use crate::breaks::Break;
@@ -220,8 +220,9 @@ pub struct LiveAnalyzer {
     /// Tick and tock sounds over the latest settled beats.
     profiles: [Option<TickProfile>; 2],
     /// Each settled beat's envelope window for the profiles: time, even
-    /// side, samples. Oldest first.
-    snippets: VecDeque<(f64, bool, Vec<f32>)>,
+    /// side, the template it was cut on ([`Self::profile_window_at`]),
+    /// samples. Oldest first.
+    snippets: VecDeque<(f64, bool, UnlockWindow, Vec<f32>)>,
     /// The take's one sample of beat sound, spread evenly over everything
     /// heard ([`crate::sound_sample`]): each kept beat's time, even side
     /// and window. The watch verdict reads it, as a saved reading does.
@@ -341,7 +342,7 @@ impl LiveAnalyzer {
             if let Some(s) = kept.next_if(|s| (s.0 - b.time).abs() < 1e-9) {
                 let even = b.index.rem_euclid(2) == 0;
                 a.sample.push(s.0, even, s.1.clone());
-                a.snippets.push_back((s.0, even, s.1));
+                a.snippets.push_back((s.0, even, UnlockWindow::SHORT, s.1));
             }
         }
         a.beats = log.beats;
@@ -449,6 +450,13 @@ impl LiveAnalyzer {
                 .or_else(|| self.amp[by..].iter().find_map(side))
         };
         [at(|w| w.even_unlock_ms), at(|w| w.odd_unlock_ms)]
+    }
+
+    /// The template a profile of the sound up to `t` is cut on: the one
+    /// the latest amplitude window to end by `t` was read on
+    /// ([`amplitude::profile_window_at`], #1924).
+    pub fn profile_window_at(&self, t: f64, beat: f64) -> UnlockWindow {
+        amplitude::profile_window_at(&self.amp, t, 2.0 * beat)
     }
 
     /// Forget the beats and the template, keeping the audio clock running
@@ -982,6 +990,7 @@ impl LiveAnalyzer {
         // One scan of the window finds whether anything clipped; only then
         // is each new beat looked at on its own.
         let any_clipped = Clipping::measure(x, fs, &[]).samples > 0;
+        let win = self.profile_window_at(to, beat);
         for b in numbered {
             let t = b.time + off;
             if t >= to {
@@ -998,9 +1007,11 @@ impl LiveAnalyzer {
                 self.clipped.push(t);
             }
             if b.is_good() {
-                if let Some(w) = profile::snippet(env, fs, b.time) {
-                    let even = b.index.rem_euclid(2) == 0;
-                    self.snippets.push_back((t, even, w.to_vec()));
+                let even = b.index.rem_euclid(2) == 0;
+                if let Some(w) = profile::snippet(env, fs, b.time, win) {
+                    self.snippets.push_back((t, even, win, w.to_vec()));
+                }
+                if let Some(w) = profile::snippet(env, fs, b.time, UnlockWindow::SHORT) {
                     self.sample.push(t, even, w.to_vec());
                     self.sides.beat(t, b.index, b.quality, w);
                 }
@@ -1147,17 +1158,19 @@ impl LiveAnalyzer {
         // Until the sides are told apart there is no Tick or Tock to show.
         let sided = self.sides.pending().is_none();
         let guides = self.profile_guides_at(to);
+        let win = self.profile_window_at(to, beat);
         let a = &self.cfg.analysis;
         self.profiles = [Side::A, Side::B].map(|side| {
             let even = side == Side::A;
             let w: Vec<&[f32]> = self
                 .snippets
                 .iter()
-                .filter(|s| s.1 == even)
-                .map(|s| s.2.as_slice())
+                .filter(|s| s.1 == even && s.2 == win)
+                .map(|s| s.3.as_slice())
                 .collect();
             let guide = guides[usize::from(!even)];
-            profile::from_snippets(&w, fs, side, 2.0 * beat, &a.amplitude, guide).filter(|_| sided)
+            profile::from_snippets(&w, fs, side, 2.0 * beat, &a.amplitude, guide, win)
+                .filter(|_| sided)
         });
     }
 
