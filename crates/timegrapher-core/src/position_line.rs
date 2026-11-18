@@ -323,8 +323,8 @@ pub fn state_lines_over(states: &[StateIndices], every: &[StateIndices]) -> Vec<
 /// the full-wind test `full` compared when this test's wind is known
 /// and later than full ([`state_lines_over`]'s rule, which the session
 /// report draws by too). The amplitudes are compared only where `lifts`,
-/// full wind's then this test's, are the same and recorded; else each
-/// lane's hover says why not, as the table does (#1923).
+/// full wind's then this test's, are the same and recorded (#1923): the
+/// table under the lines says why not, the one place it is said.
 pub fn test_lines(
     wind_h: Option<f64>,
     figures: &[SourcedFigures],
@@ -349,17 +349,11 @@ pub fn test_lines(
         .pop()
         .expect("this test's state is always there");
     let compared = lines.amplitude.key.is_some();
-    if let Some(gap) = crate::session::LiftGap::of(lifts).filter(|_| compared) {
+    if compared && crate::session::LiftGap::of(lifts).is_some() {
         let (s, e) = (states.last(), lanes.last());
         let this = "this test's state is always there";
-        let mut amplitude =
+        lines.amplitude =
             position_line_over(s.expect(this), e.expect(this), None, SeriesKind::Amplitude);
-        let h = crate::reading_text::WindHours::measured(wind_h.unwrap_or_default());
-        let note = gap.note(h);
-        for lane in &mut amplitude.lanes {
-            lane.hover = format!("{}\n\n{note}", lane.hover);
-        }
-        lines.amplitude = amplitude;
     }
     lines
 }
@@ -559,9 +553,9 @@ mod tests {
     }
 
     /// A test read at a lift other than the full-wind test's, or at one
-    /// not recorded, draws no full-wind amplitudes, so no arrows, and
-    /// each lane's hover says why, as the table does; its rate and beat
-    /// error are compared all the same (#1923).
+    /// not recorded, draws no full-wind amplitudes, so no arrows, its
+    /// hovers its own figures alone; its rate and beat error are
+    /// compared all the same (#1923).
     #[test]
     fn amplitudes_at_different_lifts_are_not_compared() {
         let same = test_lines(
@@ -577,15 +571,8 @@ mod tests {
             let apart = test_lines(Some(24.0), &six(-3.0), &[], Some(&six(0.0)), lifts);
             assert_eq!(apart.amplitude.key, None, "{lifts:?}");
             assert!(apart.amplitude.lanes.iter().all(|l| l.full_wind.is_none()));
-            assert!(
-                apart.amplitude.lanes[0].hover.ends_with(
-                    &crate::session::LiftGap::of(lifts)
-                        .unwrap()
-                        .note(crate::reading_text::WindHours::measured(24.0))
-                ),
-                "{}",
-                apart.amplitude.lanes[0].hover
-            );
+            let lone = test_lines(Some(24.0), &six(-3.0), &[], None, [None; 2]);
+            assert_eq!(apart.amplitude.lanes, lone.amplitude.lanes, "{lifts:?}");
             assert_eq!(apart.rate, same.rate, "{lifts:?}");
             assert_eq!(apart.beat_error, same.beat_error, "{lifts:?}");
             for (a, b) in apart.amplitude.lanes.iter().zip(&same.amplitude.lanes) {
