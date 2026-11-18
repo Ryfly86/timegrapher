@@ -549,8 +549,11 @@ impl TimegrapherApp {
                 self.info_msg("Copied the Positions Test table".to_string());
             }
         }
-        // Only a full-wind test's results are for the 24 hour half.
-        let kept = self.guided.as_ref().and_then(|t| t.kept(&about));
+        // Only a full-wind test's results are for the 24 hour half, and
+        // only when it read a position (#1911).
+        let kept = (nothing.is_none())
+            .then(|| self.guided.as_ref().and_then(|t| t.kept(&about)))
+            .flatten();
         if let Some(k) = kept.filter(|k| k.wind_h.is_none()) {
             let hint = format!(
                 "Save these results to load when you run the test again 24 hours after winding. \

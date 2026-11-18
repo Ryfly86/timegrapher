@@ -48,6 +48,24 @@ seconds is called Tick. With a beat error nearer zero than 0.1 ms, the
 first beat heard is Tick. A beat error that reads negative later has turned
 over during the take.
 
+**As an angle (BE Angle):** when the escapement's mid point sits a few
+degrees off the balance's centre, one beat is longer and the other
+shorter, each by twice the time the balance takes to cover that offset.
+The beat error, half the difference between the beats, is so twice that
+time. Near its centre the balance swings at its fastest, amplitude × 2π
+× frequency degrees a second, with frequency = beat rate / 7200 Hz.
+Half that speed times the beat error gives the offset as an angle:
+
+BE Angle (°) = amplitude (°) × π × beat rate / 7200 × beat error (s)
+
+At 28,800 bph, 0.46 ms at 302° is 1.7°, and 0.47 ms at 129° is 0.76°.
+It keeps as many significant figures as the fewer of the beat error's
+and the amplitude's, as each is written, and its ± takes their two
+relative ±s together (in quadrature), rounded up at its place:
+0.46 ± 0.05 ms at 302 ± 2° is 1.7 ± 0.2°. The app shows it beside the ms
+in the Beat Error figure's hover (chapter 5) and in the Power Reserve
+hour table (chapter 21), never in place of the ms.
+
 ## Why This Way
 
 - **From the unlock:** the open tg program times the beat error from the
@@ -60,6 +78,12 @@ over during the take.
   so the sign alone says nothing about the watch. A change of sign within
   a take means the two sides' timing turned over, or that Tick and Tock
   swapped names across a break.
+- **An angle beside the ms:** the ms grow as the amplitude falls, even
+  when nothing in the escapement has moved, because the balance passes
+  its centre more slowly. The angle stays the same, so a beat error that
+  grows only in ms over a run down is the amplitude, not the escapement.
+  The angle rests on the lift angle through the amplitude, so a lift
+  angle 7% off makes it 7% off; the ms does not.
 
 ## When You'd Use It
 

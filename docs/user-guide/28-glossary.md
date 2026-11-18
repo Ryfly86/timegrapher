@@ -12,6 +12,7 @@ The words this guide uses, each with where to read more.
 | **Average Over** | The seconds each live reading covers, 10 s unless set. | Chapter 5, M6 |
 | **Beat** | One swing of the balance from one end to the other. Two beats make one oscillation. | Chapter 1 |
 | **Beat error** | Half the difference between the times of the Tick and the Tock halves of the swing, in ms. Shown as a size, without a sign. | Chapter 1, M5 |
+| **BE Angle** | The beat error as an angle of the balance's swing, in degrees: amplitude × π × beat rate / 7200 × beat error. It stays the same as the amplitude falls, where the ms grow. | Chapters 5, 21, M5 |
 | **Beat rate (bph)** | Beats per hour the movement is made to make, such as 28,800 bph. | Chapter 1 |
 | **Bench** | The app's working view: the cards, the Paper Strip and the panes. | Chapter 4 |
 | **Calibre** | The movement's maker and number. It sets the beat rate, the lift angle and the wheels. | Chapters 5, 24 |

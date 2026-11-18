@@ -73,14 +73,14 @@ impl TimegrapherApp {
 
     /// The readings cards' height: [`theme::READINGS_CARD_H`], or taller
     /// at 10 positions, where the Current Position card's name line and
-    /// wind row need room between its title and its two rows of buttons
-    /// (Hugh on #1745). Every card in the row takes it.
+    /// the picture centred on it need room between its title and its two
+    /// rows of buttons (Hugh on #1745). Every card in the row takes it.
     pub(super) fn readings_card_h(&self, ctx: &egui::Context) -> f32 {
         if !self.card_ten() {
             return theme::READINGS_CARD_H;
         }
-        let text = ctx
-            .fonts_mut(|f| f.row_height(&theme::semibold(POSITION_NAME_TEN_PT)) + wind::row_h(f));
+        let name = ctx.fonts_mut(|f| f.row_height(&theme::semibold(POSITION_NAME_TEN_PT)));
+        let text = name.max(POSITION_PIC_TEN);
         // The title row as last drawn, its 6 | 10 switch's frame included.
         let past: f32 = ctx
             .data(|d| d.get_temp(egui::Id::new(TITLE_PAST)))
@@ -132,20 +132,12 @@ impl TimegrapherApp {
                 egui::pos2(rows.inner.left(), rows.title.bottom() + 6.0),
                 Vec2::splat(side),
             )
-        } else if compact {
-            // Raised into the gap above, for the wind under it (#1665).
-            egui::Rect::from_min_size(
-                egui::pos2(
-                    rows.figure.left(),
-                    rows.figure.top() - theme::ROW_GAP * 0.75,
-                ),
-                Vec2::splat(side),
-            )
         } else {
             // Under the title row, which runs the card's width for its
-            // 6 | 10, centred on the figure row.
+            // 6 | 10, centred between it and the buttons.
+            let mid = (rows.title.bottom() + rows.controls.top()) / 2.0;
             egui::Rect::from_min_size(
-                egui::pos2(rows.inner.left(), rows.figure.center().y - side / 2.0),
+                egui::pos2(rows.inner.left(), mid - side / 2.0),
                 Vec2::splat(side),
             )
         };
@@ -197,9 +189,9 @@ impl TimegrapherApp {
             });
     }
 
-    /// The Current Position card's name at 6, beside the picture `pic`:
-    /// both its `codes` under it, and the wind on its own row under them
-    /// (#1665, Hugh), centred between the title and the buttons.
+    /// The Current Position card's name at 6, beside the picture `pic`,
+    /// and both its `codes` under it, centred between the title and the
+    /// buttons.
     fn position_lines(&mut self, ui: &mut egui::Ui, rows: &CardRows, pic: egui::Rect, codes: &str) {
         let pal = theme::pal(ui);
         let x = pic.right() + theme::GAP;
@@ -209,8 +201,7 @@ impl TimegrapherApp {
         );
         let name_font = theme::semibold(17.0);
         let code_font = egui::FontId::proportional(12.0);
-        let high =
-            ui.fonts_mut(|f| f.row_height(&name_font) + f.row_height(&code_font) + wind::row_h(f));
+        let high = ui.fonts_mut(|f| f.row_height(&name_font) + f.row_height(&code_font));
         let clip = ui.painter().with_clip_rect(fig);
         let name = clip.text(
             egui::pos2(fig.left(), fig.center().y - high / 2.0),
@@ -219,17 +210,12 @@ impl TimegrapherApp {
             name_font,
             pal.text,
         );
-        let code = clip.text(
+        clip.text(
             name.left_bottom(),
             egui::Align2::LEFT_TOP,
             codes,
             code_font,
             pal.text_secondary,
-        );
-        self.wind_line(
-            &mut ui.new_child(egui::UiBuilder::new().max_rect(fig)),
-            code.left_bottom(),
-            egui::Align2::LEFT_TOP,
         );
     }
 
@@ -264,10 +250,9 @@ impl TimegrapherApp {
         };
         let second = row(foot);
         let first = row(second.top() - POSITION_TEN_GAP);
-        // The name and code on one line, and the wind on its own row under
-        // them (#1665, Hugh), centred between the title and the buttons
-        // and clear of both by the gap between the buttons' two rows; the
-        // card is tall enough for it ([`Self::readings_card_h`]).
+        // The name and code on one line, centred between the title and the
+        // buttons and clear of both by the gap between the buttons' two
+        // rows; the card is tall enough for it ([`Self::readings_card_h`]).
         let left = pic.right() + 10.0;
         let (top, clear) = (
             title.bottom() + POSITION_TEN_GAP,
@@ -275,11 +260,11 @@ impl TimegrapherApp {
         );
         let line = egui::Rect::from_x_y_ranges(left..=rows.inner.right(), top..=clear);
         let name_font = theme::semibold(POSITION_NAME_TEN_PT);
-        let high = ui.fonts_mut(|f| f.row_height(&name_font) + wind::row_h(f));
+        let high = ui.fonts_mut(|f| f.row_height(&name_font));
         let clip = ui.painter().with_clip_rect(line);
         let name_top = (line.center().y - high / 2.0).max(top);
-        // The picture centred on the name and wind (Hugh), kept clear of
-        // the title and the buttons.
+        // The picture centred on the name (Hugh), kept clear of the title
+        // and the buttons.
         let mid = (name_top + high / 2.0)
             .min(clear - pic.height() / 2.0)
             .max(top + pic.height() / 2.0);
@@ -301,11 +286,6 @@ impl TimegrapherApp {
             codes,
             egui::FontId::proportional(12.0),
             pal.text_secondary,
-        );
-        self.wind_line(
-            &mut ui.new_child(egui::UiBuilder::new().max_rect(line)),
-            name.left_bottom(),
-            egui::Align2::LEFT_TOP,
         );
         for track in [first, second] {
             ui.painter().rect_filled(
@@ -396,16 +376,6 @@ impl TimegrapherApp {
         );
         ui.interact(code, ui.id().with("position code"), egui::Sense::hover())
             .on_hover_text(format!("{} ({codes})", here.name()));
-        // The wind under the picture and code, across the card (#1665).
-        let under = egui::Rect::from_min_max(
-            egui::pos2(rows.inner.left(), pic.bottom()),
-            egui::pos2(rows.inner.right(), rows.controls.top()),
-        );
-        self.wind_line(
-            &mut ui.new_child(egui::UiBuilder::new().max_rect(under)),
-            under.center(),
-            egui::Align2::CENTER_CENTER,
-        );
         // The six or ten in one pop-up; their keys still pick them. Where
         // the position can't be set (a take on show, a test running),
         // no pop-up: the code beside the picture says it all.
@@ -414,8 +384,6 @@ impl TimegrapherApp {
         }
         let mut picked = here;
         let offered = Position::offered(self.card_ten());
-        let settable = self.wind_settable();
-        let mut wind = None;
         let mut child = ui.new_child(
             egui::UiBuilder::new()
                 .id_salt("position menu")
@@ -429,21 +397,14 @@ impl TimegrapherApp {
                 // says what it does instead.
                 // Tall enough for all ten: egui's default height shows six
                 // and hides the 45° stops below a scroll (Walter, #1491).
-                // Open while the wind's hours are typed: a pick closes it.
                 egui::ComboBox::from_id_salt("position")
                     .width(ui.available_width())
                     .height(f32::INFINITY)
                     .selected_text("Set")
-                    .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                     .show_ui(ui, |ui| {
                         for &p in offered {
                             let key = format!("{} ({}) · key {}", p.name(), p.code(), p.key_name());
-                            if ui.selectable_value(&mut picked, p, key).clicked() {
-                                ui.close();
-                            }
-                        }
-                        if settable {
-                            wind = self.wind_menu(ui, true);
+                            ui.selectable_value(&mut picked, p, key);
                         }
                     })
                     .response
@@ -456,9 +417,6 @@ impl TimegrapherApp {
             });
         if picked != here && picked != self.position {
             self.change_position(picked);
-        }
-        if let Some(w) = wind {
-            self.pick_wind(w);
         }
     }
 
@@ -570,9 +528,9 @@ impl TimegrapherApp {
     }
 
     /// The Listen card's rows under its caption: Listen or Stop and Save,
-    /// with the take's length and state beside them, then Average Over. On
-    /// a compact card, the length goes in Listen's hover and Average Over
-    /// loses its label to its hover.
+    /// with the take's length and state beside them, then Average Over and
+    /// Wind side by side (#1915). On a compact card, the length goes in
+    /// Listen's hover.
     pub(super) fn listen_buttons(&mut self, ui: &mut egui::Ui, compact: bool) {
         let area = ui.max_rect();
         let length = length_text(self.live.as_ref().map_or(0.0, |l| l.duration_s()));
@@ -600,7 +558,7 @@ impl TimegrapherApp {
         if !compact {
             listen_length(ui_b, top, &length, state);
         }
-        self.listen_average(ui, foot, compact);
+        self.listen_fields(ui, foot);
     }
 
     /// Whether the take on show is listening, stopped or opened.
@@ -739,43 +697,92 @@ impl TimegrapherApp {
         }
     }
 
-    /// The Listen card's Average Over, in its `foot` row; on a compact
-    /// card without its label.
-    fn listen_average(&mut self, ui: &mut egui::Ui, foot: egui::Rect, compact: bool) {
+    /// The Listen card's foot row: Average Over and Wind side by side
+    /// (Hugh on #1915), in the widest of their forms that fits `foot`
+    /// whole ([`field_forms`]): never cut, nor set smaller. Wind before a
+    /// take is the watch's, set from its menu; from a take's start, and
+    /// for a take opened, the take's own, in the same box, read-only.
+    fn listen_fields(&mut self, ui: &mut egui::Ui, foot: egui::Rect) {
         let pal = theme::pal(ui);
+        let field = self.wind_field();
         let mut row = ui.new_child(
             egui::UiBuilder::new()
-                .id_salt("listen average")
+                .id_salt("listen fields")
                 .max_rect(foot)
                 .layout(egui::Layout::left_to_right(egui::Align::Center)),
         );
         row.spacing_mut().item_spacing.x = 8.0;
         row.spacing_mut().interact_size.y = theme::CONTROL_H;
-        if !compact {
-            row.label(
-                RichText::new("Average Over")
-                    .size(13.0)
+        let avg_now = fields::duration(self.average_s);
+        let form = fit_form(&row, &avg_now, &field.words, foot.width());
+        if !form.arrows {
+            row.spacing_mut().icon_width = 0.0;
+            row.spacing_mut().icon_spacing = 0.0;
+        }
+        let arrows = |b: egui::ComboBox| {
+            if form.arrows {
+                b
+            } else {
+                b.icon(|_, _, _, _| {})
+            }
+        };
+        let label = |ui: &mut egui::Ui, text: &str| {
+            ui.label(
+                RichText::new(text)
+                    .size(FIELD_LABEL_PT)
                     .color(pal.text_secondary),
             );
+        };
+        if form.labels {
+            label(&mut row, AVERAGE_LABEL);
         }
         let mut avg = self.average_s;
-        egui::ComboBox::from_id_salt("card average")
-            .width(row.available_width())
-            // Compact, "Avg" says it isn't a timer.
-            .selected_text(if compact {
-                format!("Avg {}", fields::duration(avg))
-            } else {
-                fields::duration(avg)
-            })
+        let avg_text = form.average(&avg_now);
+        arrows(egui::ComboBox::from_id_salt("card average"))
+            .width(combo_w(&row, &avg_text))
+            .selected_text(avg_text)
             .show_ui(&mut row, |ui| {
                 for a in AVERAGES {
                     ui.selectable_value(&mut avg, a, fields::duration(a));
                 }
             })
             .response
-            .on_hover_text(format!("Average Over: {AVERAGE_REACH}"));
+            .on_hover_text(if form.arrows {
+                format!("Average Over: {AVERAGE_REACH}")
+            } else {
+                // No arrow says it's a menu (Hugh on #1915).
+                format!("Average Over: {avg_now}. Click to change. {AVERAGE_REACH}")
+            });
         if avg != self.average_s {
             self.set_average(avg);
+        }
+        if form.labels {
+            label(&mut row, timegrapher_core::reading_text::WIND_FIELD);
+        }
+        let colour = if field.given {
+            pal.text
+        } else {
+            pal.text_secondary
+        };
+        let mut picked = None;
+        row.add_enabled_ui(field.settable, |ui| {
+            // Open while its hours are typed: a pick closes it.
+            arrows(egui::ComboBox::from_id_salt("card wind"))
+                .width(ui.available_width())
+                .selected_text(RichText::new(form.wind(&field.words)).color(colour))
+                .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+                .show_ui(ui, |ui| picked = self.wind_menu(ui))
+                .response
+        })
+        .inner
+        .on_hover_text(if form.arrows {
+            field.hover.clone()
+        } else {
+            format!("{} {WIND_CLICK}", field.hover)
+        })
+        .on_disabled_hover_text(&field.hover);
+        if let Some(p) = picked {
+            self.pick_wind(p);
         }
     }
 
@@ -1977,6 +1984,150 @@ fn compact_caption(ui: &mut egui::Ui, rect: egui::Rect, caption: &str) {
 /// The memory of how far the 10 card's title row, as drawn, runs past
 /// its row, points.
 const TITLE_PAST: &str = "position title past its row";
+
+/// The arrowless Wind box's hover, saying what a click does.
+const WIND_CLICK: &str = "Click to set the wind.";
+
+/// Average Over's label, in the Listen card's widest form.
+const AVERAGE_LABEL: &str = "Average Over";
+
+/// One form of the Listen card's foot row, widest first (Hugh on #1915).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct FieldForm {
+    /// "Average Over" and "Wind" as labels outside their boxes.
+    pub labels: bool,
+    /// Average Over's box says "Avg" itself.
+    pub avg: bool,
+    /// How much of the wind the Wind box says.
+    pub wind: WindForm,
+    /// The boxes draw their arrows: not in the compact card's last form.
+    pub arrows: bool,
+}
+
+/// How much of the wind the Wind box says.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) enum WindForm {
+    /// Beside its label: "Full 2.0 h ago".
+    Value,
+    /// "Wind: full 2.0 h ago".
+    Labelled,
+    /// "Wind 2.0 h", "Wind —".
+    Short,
+    /// "Wind" alone, the hours in its hover.
+    Name,
+}
+
+/// The foot row's forms, widest first: Hugh's three steps on #1915, then
+/// "Wind" alone and the average without "Avg" for the narrowest cards,
+/// where even the third doesn't fit, and last the same two boxes without
+/// their arrows for the compact card.
+pub(super) const FIELD_FORMS: [FieldForm; 6] = [
+    FieldForm {
+        labels: true,
+        avg: false,
+        wind: WindForm::Value,
+        arrows: true,
+    },
+    FieldForm {
+        labels: false,
+        avg: true,
+        wind: WindForm::Labelled,
+        arrows: true,
+    },
+    FieldForm {
+        labels: false,
+        avg: true,
+        wind: WindForm::Short,
+        arrows: true,
+    },
+    FieldForm {
+        labels: false,
+        avg: true,
+        wind: WindForm::Name,
+        arrows: true,
+    },
+    FieldForm {
+        labels: false,
+        avg: false,
+        wind: WindForm::Name,
+        arrows: true,
+    },
+    FieldForm {
+        labels: false,
+        avg: false,
+        wind: WindForm::Name,
+        arrows: false,
+    },
+];
+
+impl FieldForm {
+    /// Average Over's box's words, for the average `now` ("10 s").
+    pub(super) fn average(self, now: &str) -> String {
+        if self.avg {
+            format!("Avg {now}")
+        } else {
+            now.to_string()
+        }
+    }
+
+    /// The Wind box's words.
+    pub(super) fn wind(self, w: &timegrapher_core::reading_text::WindFieldWords) -> String {
+        match self.wind {
+            WindForm::Value => w.value.clone(),
+            WindForm::Labelled => w.labelled.clone(),
+            WindForm::Short => w.short.clone(),
+            WindForm::Name => timegrapher_core::reading_text::WIND_FIELD.to_string(),
+        }
+    }
+}
+
+/// The widest of [`FIELD_FORMS`] whose row fits `room` whole, measured
+/// in `ui`'s style; the narrowest where none does.
+pub(super) fn fit_form(
+    ui: &egui::Ui,
+    avg_now: &str,
+    wind: &timegrapher_core::reading_text::WindFieldWords,
+    room: f32,
+) -> FieldForm {
+    let gap = ui.spacing().item_spacing.x;
+    let label = |t: &str| text_w(ui, t, egui::FontId::proportional(FIELD_LABEL_PT)) + gap;
+    let need = |f: FieldForm| {
+        let labels = if f.labels {
+            label(AVERAGE_LABEL) + label(timegrapher_core::reading_text::WIND_FIELD)
+        } else {
+            0.0
+        };
+        let arrow = if f.arrows {
+            0.0
+        } else {
+            2.0 * (ui.spacing().icon_width + ui.spacing().icon_spacing)
+        };
+        labels + combo_w(ui, &f.average(avg_now)) + gap + combo_w(ui, &f.wind(wind)) - arrow
+    };
+    FIELD_FORMS
+        .into_iter()
+        .find(|f| need(*f) <= room)
+        .unwrap_or(FIELD_FORMS[FIELD_FORMS.len() - 1])
+}
+
+/// The width of a box saying `text` in `ui`'s style: its words in the
+/// body font, its padding and its arrow.
+fn combo_w(ui: &egui::Ui, text: &str) -> f32 {
+    let s = ui.spacing();
+    let words = text_w(ui, text, egui::TextStyle::Body.resolve(ui.style()));
+    words + 2.0 * s.button_padding.x + s.icon_width + s.icon_spacing
+}
+
+/// `text`'s width in `font`.
+fn text_w(ui: &egui::Ui, text: &str, font: egui::FontId) -> f32 {
+    ui.painter()
+        .layout_no_wrap(text.into(), font, egui::Color32::WHITE)
+        .size()
+        .x
+}
+
+/// The Listen card's fields' labels, points.
+const FIELD_LABEL_PT: f32 = 13.0;
 
 /// A position card's caption in `rect`: its help at the right, then
 /// `beside` (right to left), then the caption from the left. Gives what

@@ -5,9 +5,9 @@ output = "power-reserve-end.png"
 
 actions = [["sleep", 600], ["scroll", 251, 700, 60], ["sleep", 3]]
 
-# 1 the key over the table, 2 the grey amplitudes, 3 the dashes (withheld
+# 1 Info, 2 the grey amplitude and beat error, 3 the dashes (withheld
 # amplitudes) beside grey beat errors.
-marks = [[1, 1114, 213], [2, 510, 696], [3, 510, 750]]
+marks = [[1, 1166, 188], [2, 505, 710], [3, 505, 740]]
 
 layout = "PowerReserve"
 

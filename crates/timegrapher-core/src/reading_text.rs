@@ -87,7 +87,7 @@ pub fn wind_state_title(wind_h: Option<f64>) -> String {
 /// The words for a state of wind that was not given.
 pub const WIND_NOT_GIVEN: &str = "wind not given";
 
-/// The wind on the Position card, to 0.1 h: "Full wind 2.0 h ago", or
+/// The wind in full, in the Wind field's hover, to 0.1 h: "Full wind 2.0 h ago", or
 /// "Wind not given" until it is set (#1665).
 pub fn wind_since_words(wind_h: Option<f64>) -> String {
     wind_h.map_or_else(
@@ -110,15 +110,57 @@ pub fn wind_before_take_words(wind_h: Option<f64>) -> String {
     )
 }
 
-/// A saved take's wind on the Position card, to 0.1 h, short enough for
-/// its row: "24.2 h after full wind", or "Wind not given" (Hugh on #1745).
-/// The whole of it, [`wind_before_take_words`], is in the hover.
-pub fn wind_after_words(wind_h: Option<f64>) -> String {
-    wind_h.map_or_else(
-        || capitalised(WIND_NOT_GIVEN),
-        |h| format!("{} h after full wind", crate::figure_text::fixed_text(h, 1)),
-    )
+/// The Listen card's Wind field in each of its widths (Hugh on #1915),
+/// widest first, to 0.1 h. The whole of it, [`wind_since_words`] or
+/// [`wind_before_take_words`], is in the hover.
+#[derive(Debug, Clone, PartialEq)]
+pub struct WindFieldWords {
+    /// Beside a "Wind" label: "Full 2.0 h ago" before a take, "Began 2.0 h
+    /// after full" from its start, or "Not given".
+    pub value: String,
+    /// With no label: "Wind: full 2.0 h ago", "Wind: 2.0 h at start",
+    /// "Wind: not given".
+    pub labelled: String,
+    /// The hours alone: "Wind 2.0 h", or "Wind \u{2014}" where not given.
+    pub short: String,
 }
+
+/// [`WindFieldWords`] for hours since full wind `wind_h`, where given:
+/// counting up before a take, or fixed at its start where it `began`.
+pub fn wind_field_words(wind_h: Option<f64>, began: bool) -> WindFieldWords {
+    let value = match (wind_h, began) {
+        (None, _) => capitalised(NOT_GIVEN),
+        (Some(h), false) => format!("Full {} h ago", crate::figure_text::fixed_text(h, 1)),
+        (Some(h), true) => format!(
+            "Began {} h after full",
+            crate::figure_text::fixed_text(h, 1)
+        ),
+    };
+    let mut first = value.chars();
+    let lower: String = first
+        .next()
+        .map(|c| c.to_lowercase().chain(first).collect())
+        .unwrap_or_default();
+    let hours = wind_h.map(|h| crate::figure_text::fixed_text(h, 1));
+    WindFieldWords {
+        // From the start, as short as before it (Hugh on #1926).
+        labelled: match (&hours, began) {
+            (Some(h), true) => format!("{WIND_FIELD}: {h} h at start"),
+            _ => format!("{WIND_FIELD}: {lower}"),
+        },
+        short: match wind_h {
+            Some(h) => format!("{WIND_FIELD} {} h", crate::figure_text::fixed_text(h, 1)),
+            None => format!("{WIND_FIELD} \u{2014}"),
+        },
+        value,
+    }
+}
+
+/// The Listen card's Wind field's name, its label and its narrowest form.
+pub const WIND_FIELD: &str = "Wind";
+
+/// A field's words for a wind not given, beside its "Wind" label.
+const NOT_GIVEN: &str = "not given";
 
 fn capitalised(s: &str) -> String {
     let mut c = s.chars();
@@ -242,8 +284,8 @@ mod tests {
         assert_eq!(wind_words(0.0), "full wind");
     }
 
-    /// The card and a take's hover say the wind to 0.1 h, or that it was
-    /// not given (#1665).
+    /// The Listen card and a take's hover say the wind to 0.1 h, or that
+    /// it was not given (#1665).
     #[test]
     fn the_wind_since_full_wind_is_said_to_a_tenth() {
         assert_eq!(wind_since_words(Some(2.0)), "Full wind 2.0 h ago");
@@ -254,8 +296,30 @@ mod tests {
             "Full wind 2.0 h before it began"
         );
         assert_eq!(wind_before_take_words(None), "Wind not given");
-        assert_eq!(wind_after_words(Some(24.24)), "24.2 h after full wind");
-        assert_eq!(wind_after_words(None), "Wind not given");
+        // The Listen card's field in its three widths (Hugh on #1915).
+        let w = |value: &str, labelled: &str, short: &str| WindFieldWords {
+            value: value.into(),
+            labelled: labelled.into(),
+            short: short.into(),
+        };
+        assert_eq!(
+            wind_field_words(Some(2.0), false),
+            w("Full 2.0 h ago", "Wind: full 2.0 h ago", "Wind 2.0 h")
+        );
+        assert_eq!(
+            wind_field_words(Some(24.24), true),
+            w(
+                "Began 24.2 h after full",
+                "Wind: 24.2 h at start",
+                "Wind 24.2 h"
+            )
+        );
+        for began in [false, true] {
+            assert_eq!(
+                wind_field_words(None, began),
+                w("Not given", "Wind: not given", "Wind \u{2014}")
+            );
+        }
     }
 
     #[test]
