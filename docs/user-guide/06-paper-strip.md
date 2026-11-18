@@ -31,6 +31,14 @@ steadily the watch keeps time, beat by beat.
 | A sudden step in both lines | A jump: a knock, or lost sound. The readings skip it. |
 | Faint grey dots | Beats in the settling time, or masked. They aren't read. |
 
+**Good practice:** two parallel lines of dots are the beat error, not a
+fault in the reading: "Occasionally, two parallel lines appear (as in
+Example 2), which indicates a beat error" ([Witschi 2025](https://www.witschi.com/wp-content/uploads/firmwares/8Z1UtLGf/20251118_witschi_testing-methods-for-mechanical-watches_en.pdf), p. 18). Dots strewn
+off the lines call for a better signal (chapter 3) before any
+regulation; Witschi's advice for stray points is to change the signal
+level: "If such points occur frequently above the line, it is advisable
+to reduce the signal amplification" (p. 18).
+
 **A line that runs off one edge comes back on the other,** like paper
 wrapped round a drum. So the strip's **Width** is its zoom.
 

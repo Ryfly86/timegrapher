@@ -63,6 +63,15 @@ readings: "10 s readings in 3000 bands (12000)".
   readings, as the rate is, and look for cycles in the 2 s windows
   (chapter 9).
 
+**Good practice:** judge a watch by how steady its rate is, not only by
+how close it is to zero. A steady offset can be regulated out; a rate
+that wanders can't. Witschi's example watch that runs a constant fast
+rate day after day is the one it prefers: "Very high precision, easy to
+adjust or compensate" ([Witschi 2025](https://www.witschi.com/wp-content/uploads/firmwares/8Z1UtLGf/20251118_witschi_testing-methods-for-mechanical-watches_en.pdf), p. 7). For a rate over several days, wind
+at the same time each day, as the chronometer tests do: "Every day,
+including weekends, the instruments are measured and wound"
+([COSC, Methods of measurement](https://cosc.swiss/en/certification/methods-measurement)).
+
 ---
 
 Previous: [Steadiness](09-steadiness.md) ·
