@@ -458,6 +458,20 @@ fn profile_bound(core_a: f64, heard: bool, read: usize, fs: f64) -> usize {
     behind.min(wait.max(held_to))
 }
 
+/// [`profile_bound`], and no further than the amplitude windows found so
+/// far reach (`windows_to_s`, seconds): a stretch waits for the windows up
+/// to its end, so it is cut on the window it would be cut on after
+/// ([`SecondReading::window_of`], #1924).
+fn profile_bound_found(
+    (core_a, heard): (f64, bool),
+    read: usize,
+    fs: f64,
+    windows_to_s: f64,
+) -> usize {
+    let found_to = (windows_to_s * fs).max(0.0) as usize;
+    profile_bound(core_a, heard, read, fs).min(found_to)
+}
+
 /// The Keeper's reading: the blocks from `rx`, until it closes, read as
 /// one recording.
 fn keep(
@@ -504,9 +518,12 @@ fn keep(
             swaps = seen.swaps.len();
             second.release(seen.pending);
             second.windows_found(seen.windows);
-            // A stretch waits for the windows up to its end.
-            let found_to = (seen.windows_to_s * fs).max(0.0) as usize;
-            let until = profile_bound(seen.core_a, seen.heard, second.read(), fs).min(found_to);
+            let until = profile_bound_found(
+                (seen.core_a, seen.heard),
+                second.read(),
+                fs,
+                seen.windows_to_s,
+            );
             second.profile_until(seen.beats, seen.bph, cfg, (until, seen.pending));
             if let Some(parts) = parts.as_mut() {
                 let (profiles, to_s) = second.profiled();
@@ -667,6 +684,19 @@ mod tests {
         assert_eq!(profile_bound(601.0, false, at(649.0), fs), at(49.0));
         assert_eq!(profile_bound(658.0, false, at(706.0), fs), at(106.0));
         assert_eq!(profile_bound(658.0, false, at(1400.0), fs), at(658.0));
+    }
+
+    /// A stretch also waits for amplitude's windows up to its end
+    /// (#1924): the bound goes no further than the windows found reach.
+    #[test]
+    fn profiles_wait_for_the_amplitude_windows() {
+        let fs = 48_000.0;
+        let at = |s: f64| (s * fs) as usize;
+        let bound = |windows_to_s| profile_bound_found((94.0, true), at(142.0), fs, windows_to_s);
+        assert_eq!(bound(60.0), at(60.0));
+        assert_eq!(bound(0.0), 0);
+        assert_eq!(bound(200.0), at(94.0));
+        assert_eq!(profile_bound_found((94.0, false), at(142.0), fs, 200.0), 0);
     }
 
     /// Kept while it is recorded, a take's analysis is the same, byte for
