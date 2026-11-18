@@ -157,12 +157,13 @@ pub(super) fn rate_pm_words(r: &LiveReading) -> Option<String> {
     Some(match r.rate_error_s_per_day {
         Some(se) => format!(
             "± {} s/d is one standard error ({se:.3}, rounded up). Its scatter comes \
-             from {NEED} rates of 10 s each: {}.",
+             from {}.",
             pm_text(se, base::RATE)?,
             match r.rate_own_values {
-                n if n >= NEED => "this run's own".to_string(),
+                n if n >= NEED => format!("this run's own {n} rates of 10 s each"),
                 n => format!(
-                    "{n} of this run's own and {} nearest in this take",
+                    "{NEED} rates of 10 s each: {n} of this run's own and {} nearest in \
+                     this take",
                     NEED - n
                 ),
             }

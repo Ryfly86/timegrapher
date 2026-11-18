@@ -709,10 +709,10 @@ fn the_rate_hover_says_what_its_plus_minus_waits_for() {
         ),
         "{words}"
     );
-    with.rate_own_values = 30;
+    with.rate_own_values = 42;
     let words = readouts::rate_pm_words(&with).unwrap();
     assert!(
-        words.ends_with("30 rates of 10 s each: this run's own."),
+        words.ends_with("Its scatter comes from this run's own 42 rates of 10 s each."),
         "{words}"
     );
 }
