@@ -164,6 +164,37 @@ fn white_noise_is_steady() {
     assert!(a.slope_short.unwrap() < -0.4);
 }
 
+/// The least scatter is picked only among averaging times judged
+/// ([`Allan::judged`], [`ALLAN_JUDGED_DIFFERENCES`]): on white noise the
+/// deviation keeps falling, so the longest times, on a few differences
+/// each, lie lower still but are not it (Norm on #1985).
+#[test]
+fn the_least_scatter_rests_on_enough_differences() {
+    let mut z = Noise(1);
+    let y: Vec<f64> = (0..2000).map(|_| 250.0 + 3.0 * z.next()).collect();
+    let s = check_series(
+        SeriesKind::Amplitude,
+        grid(y, 2.0),
+        None,
+        None,
+        None,
+        &[],
+        &Config::default(),
+    );
+    let a = s.allan.unwrap();
+    let judged = a.judged();
+    assert!(judged.iter().any(|j| !j), "some on too few: {:?}", a.pairs);
+    let i = a
+        .tau_s
+        .iter()
+        .position(|t| Some(*t) == a.best_tau_s)
+        .unwrap();
+    assert!(judged[i] && a.pairs[i] >= ALLAN_JUDGED_DIFFERENCES);
+    for (j, n) in judged.iter().zip(&a.pairs) {
+        assert_eq!(*j, *n >= ALLAN_JUDGED_DIFFERENCES);
+    }
+}
+
 #[test]
 fn a_step_is_a_shifting_mean() {
     let mut z = Noise(2);

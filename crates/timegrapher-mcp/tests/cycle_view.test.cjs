@@ -102,7 +102,7 @@ test("a long series' readings draw each chunk as a filled band, lowest to highes
   // Whether it is banded, and its key, are core's (steady_views::banded,
   // readings_key), sent with the readings.
   const readings = { t_s: [30, 90], values: [1, 2], lo: [0.5, 1.5], hi: [1.4, 2.6], counts: [6, 6], chunk_s: 60, y_range: [0, 3], step_s: 10,
-    banded: true, key: "10 s readings in 2 bands (12)" };
+    banded: true, key: "10 s readings (12)" };
   context.steadyPlot({ series: "rate", views: { readings } }, "readings", {});
   assert.equal(chart.key.text, readings.key);
   assert.deepEqual(chart.rects, [
@@ -115,4 +115,28 @@ test("a long series' readings draw each chunk as a filled band, lowest to highes
   // Filled at the box opacity, with no outline.
   const svg = context.realChart({ x: [0, 1], y: [0, 1], xTicks: () => [], yTicks: () => [], rects: [{ x0: 0, x1: 1, y0: 0, y1: 1, color: "--rate", fill: 0.6 }] });
   assert.match(svg, /<rect [^>]*fill="var\(--rate\)" fill-opacity="0.6" stroke="none"\/>/);
+});
+
+test("the Allan view draws points on too few differences hollow, from core's number (#1985)", () => {
+  let chart;
+  context.xyChart = (c) => { chart = plain(c); return "<svg/>"; };
+  Object.assign(context, { periodTicks: () => [], logTicks: () => [], sig: String });
+  // Core's judged_differences, never the view's own: with it at 8, the
+  // last two points, on 7 and 3 differences, are hollow.
+  const allan = { tau_s: [10, 20, 40, 80, 160, 320], deviation: [1, 0.8, 0.6, 0.5, 0.3, 0.1], white: [1, 0.7, 0.5, 0.35, 0.25, 0.18],
+    pairs: [200, 60, 20, 8, 7, 3], best_tau_s: 80, best_deviation: 0.5, judged_differences: 8 };
+  context.steadyPlot({ series: "rate", allan }, "allan", {});
+  const log = (t, d) => [Math.log10(t), Math.log10(d)];
+  assert.deepEqual(chart.dots[0].pts, [log(10, 1), log(20, 0.8), log(40, 0.6), log(80, 0.5)]);
+  assert.deepEqual(chart.dots[1].pts, [log(160, 0.3), log(320, 0.1)]);
+  assert.equal(chart.dots[1].hollow, true);
+  assert.deepEqual(chart.lines[2].pts, [log(80, 0.5), log(160, 0.3), log(320, 0.1)], "the faint line runs on from the last filled point");
+  assert.ok(chart.notes.some((n) => n.text === "hollow: too few differences to judge"));
+  // At 3, none is hollow and there is no note.
+  context.steadyPlot({ series: "rate", allan: { ...allan, judged_differences: 3 } }, "allan", {});
+  assert.deepEqual(chart.dots[1].pts, []);
+  assert.ok(!chart.notes.some((n) => n.text.startsWith("hollow")));
+  // A hollow dot is a ring.
+  const svg = context.realChart({ x: [0, 1], y: [0, 1], xTicks: () => [], yTicks: () => [], dots: [{ pts: [[0.5, 0.5]], color: "--rate", r: 2.5, hollow: true }] });
+  assert.match(svg, /<g fill="none" stroke="var\(--rate\)" stroke-width="1.2"><circle/);
 });

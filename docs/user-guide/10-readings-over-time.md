@@ -15,7 +15,7 @@ look past.
 | 1 | A reading | One dot. For the rate, a 10 s reading; for the amplitude and the beat error, a 2 s window. On a long take, as here, a pale band from the lowest to the highest of a few readings, with a dot at their mean (below). |
 | 2 | A stretch's level | A solid line at the mean of a stretch of constant level, from the change finder (chapter 15). Drawn when the tests name a level change, or a slide, which is drawn as its steps. |
 | 3 | A change | Where one stretch ends and the next begins. In the picture the headline names one change: "Rate shifts level 1 time: -46.0 s/d, then -68.0 s/d." |
-| 4 | The key | What a dot is, and how many are drawn: "10 s readings in 3000 bands (4317)". |
+| 4 | The key | What a dot is, and how many readings there are: "10 s readings (4317)". |
 | 5 | The time axis | Time from the take's start. With positions marked, it is time in the position on show, its stretches joined end to end, and the axis says so ("Time in DU"). |
 
 **In the picture** are the first 12 hours of the Dandong 3235 run-down
@@ -37,8 +37,9 @@ taken for two states.
 
 **A long take** has more readings than the plot can show one by one. It
 then draws each stretch of readings as a pale band from its lowest to its
-highest, with a dot at its mean, and the key says how many bands and
-readings: "10 s readings in 3000 bands (12000)".
+highest, with a dot at its mean. The key still counts the readings, "10 s
+readings (12000)", and pointing at a dot says how many it is the mean of,
+and their lowest to highest.
 
 **The scale** fits the readings, with a few stray ones left outside it.
 

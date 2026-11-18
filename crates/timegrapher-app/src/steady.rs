@@ -1102,7 +1102,7 @@ fn readings_plot(
     }
     // What a dot is, and how many are drawn, as Charts' key.
     let read: usize = drawn.iter().map(|d| d.count).sum();
-    let key = steady_views::readings_key(g.step, drawn.len(), read, banded);
+    let key = steady_views::readings_key(g.step, read);
     let width = steady_views::chunk_s(g);
     let resp = plot.show(ui, |p| {
         grid.draw(p, pal);
@@ -1621,6 +1621,28 @@ fn independent_caption_at(white: &[[f64; 2]]) -> Option<[f64; 2]> {
     white.last().copied().filter(|_| white.len() > 1)
 }
 
+/// How strongly the Allan line is drawn through its hollow points.
+const HOLLOW_LINE: f32 = 0.4;
+
+/// The Allan deviation's points as the plot draws them, on log scales:
+/// those resting on enough differences to judge, then the rest, hollow
+/// (core's [`steadiness::Allan::judged`]). The differences fall as the
+/// averaging time grows, so the hollow ones are the longest times.
+fn allan_judged(a: &steadiness::Allan) -> (Vec<[f64; 2]>, Vec<[f64; 2]>) {
+    let mut out = (Vec::new(), Vec::new());
+    for ((t, d), judged) in a.tau_s.iter().zip(&a.deviation).zip(a.judged()) {
+        if *t > 0.0 && *d > 0.0 && d.is_finite() {
+            let at = [t.log10(), d.log10()];
+            if judged {
+                out.0.push(at);
+            } else {
+                out.1.push(at);
+            }
+        }
+    }
+    out
+}
+
 /// The Allan deviation by averaging time, against independent readings.
 fn allan_plot(ui: &mut egui::Ui, r: Row<'_>) {
     let Row {
@@ -1644,8 +1666,11 @@ fn allan_plot(ui: &mut egui::Ui, r: Row<'_>) {
             .map(|(t, d)| [t.log10(), d.log10()])
             .collect()
     };
-    let dev = both(&a.deviation);
     let white = both(&a.white);
+    // The averaging times resting on too few differences to judge, hollow
+    // and their line faint: the least scatter is never one of them, so a
+    // lower one further along is not mistaken for it (Norm, #1985).
+    let (judged, hollow) = allan_judged(a);
     let grid = strength::Grid::new(period_grid(ui.available_width()), log_grid);
     grid.on(base)
         .x_axis_formatter(clear_of_edge(plot_w, period_label))
@@ -1669,16 +1694,40 @@ fn allan_plot(ui: &mut egui::Ui, r: Row<'_>) {
                     false,
                 );
             }
+            // The line runs on through the hollow points, faint there.
+            let faint: Vec<[f64; 2]> = judged.last().into_iter().chain(&hollow).copied().collect();
             p.line(
-                Line::new("deviation", dev.clone())
+                Line::new("deviation", judged.clone())
                     .color(colour)
                     .width(DATA_W),
             );
+            if faint.len() > 1 {
+                p.line(
+                    Line::new("deviation, too few", faint)
+                        .color(colour.gamma_multiply(HOLLOW_LINE))
+                        .width(DATA_W),
+                );
+            }
             p.points(
-                Points::new("deviation points", dev)
+                Points::new("deviation points", judged)
                     .color(colour)
                     .radius(2.0_f32),
             );
+            if let Some(&first) = hollow.first() {
+                p.points(
+                    Points::new("deviation points, too few", hollow)
+                        .color(colour)
+                        .filled(false)
+                        .radius(2.5_f32),
+                );
+                mark_label(
+                    p,
+                    first,
+                    "hollow: too few differences to judge".into(),
+                    pal.text_secondary,
+                    true,
+                );
+            }
             if let (Some(t), Some(d)) = (a.best_tau_s, a.best_deviation) {
                 if t > 0.0 && d > 0.0 {
                     let at = [t.log10(), d.log10()];

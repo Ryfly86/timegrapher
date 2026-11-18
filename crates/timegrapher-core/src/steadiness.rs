@@ -282,25 +282,9 @@ pub struct Autocorrelation {
     pub memory_s: Option<f64>,
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct Allan {
-    /// Averaging time, seconds; the Allan deviation there (the series'
-    /// units); what independent readings would give; differences used.
-    pub tau_s: Vec<f64>,
-    pub deviation: Vec<f64>,
-    pub white: Vec<f64>,
-    pub pairs: Vec<usize>,
-    /// Log-log slope over the short end (−0.5 for independent readings,
-    /// 0 for flicker, +0.5 for a random walk, +1 for drift).
-    pub slope_short: Option<f64>,
-    /// The averaging time with the smallest deviation, and that value:
-    /// how long to average for the most repeatable reading.
-    pub best_tau_s: Option<f64>,
-    pub best_deviation: Option<f64>,
-    /// Largest deviation over the white line among points with at least
-    /// 8 differences: 1 for independent readings.
-    pub max_excess: f64,
-}
+#[path = "steadiness_allan.rs"]
+mod allan;
+pub use allan::{Allan, ALLAN_JUDGED_DIFFERENCES};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Segment {
@@ -1150,12 +1134,12 @@ pub fn check_series(
         });
         let best = ad
             .iter()
-            .filter(|p| p.2 >= 8)
+            .filter(|p| p.2 >= ALLAN_JUDGED_DIFFERENCES)
             .min_by(|a, b| a.1.total_cmp(&b.1));
         let max_excess = ad
             .iter()
             .zip(&white)
-            .filter(|(p, _)| p.2 >= 8)
+            .filter(|(p, _)| p.2 >= ALLAN_JUDGED_DIFFERENCES)
             .map(|(p, w)| p.1 / w)
             .fold(1.0f64, f64::max);
         out.allan = Some(Allan {
@@ -1167,6 +1151,7 @@ pub fn check_series(
             best_tau_s: best.map(|p| p.0),
             best_deviation: best.map(|p| p.1),
             max_excess,
+            judged_differences: ALLAN_JUDGED_DIFFERENCES,
         });
     }
 
