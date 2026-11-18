@@ -382,6 +382,10 @@ pub struct KeepAs {
     /// Where to keep the analysis on the disk as it is recorded, if
     /// anywhere ([`checkpoint`]).
     pub checkpoints: Option<Checkpoints>,
+    /// Each chunk's amplitude windows found before the next chunk is
+    /// read, so a test's parts don't depend on the threads' pace (#1938).
+    #[cfg(test)]
+    pub(crate) in_step: bool,
 }
 
 /// Parts of the analysis kept on the disk as it is recorded
@@ -472,6 +476,18 @@ fn profile_bound_found(
     profile_bound(core_a, heard, read, fs).min(found_to)
 }
 
+/// Whether `how` reads each chunk's amplitude windows before the next
+/// chunk: only ever in a test that asks ([`KeepAs::in_step`]).
+fn in_step(how: &KeepAs) -> bool {
+    #[cfg(test)]
+    return how.in_step;
+    #[cfg(not(test))]
+    {
+        let _ = how;
+        false
+    }
+}
+
 /// The Keeper's reading: the blocks from `rx`, until it closes, read as
 /// one recording.
 fn keep(
@@ -530,6 +546,7 @@ fn keep(
                 parts.after_chunk(&seen, profiles, to_s);
             }
         },
+        in_step(how),
     )?;
     Ok(second.finish(
         log,
@@ -636,6 +653,19 @@ mod tests {
         sizes: &[usize],
         checkpoints: Option<Checkpoints>,
     ) -> (Stored, Checkpointed) {
+        kept_with_parts_paced(paths, (cfg, shapes), sizes, checkpoints, false)
+    }
+
+    /// [`kept_with_parts`], each chunk's amplitude windows found before the
+    /// next chunk is read if `in_step` ([`KeepAs::in_step`]), so its parts
+    /// are the same however fast the threads run.
+    fn kept_with_parts_paced(
+        paths: &[PathBuf],
+        (cfg, shapes): (&StreamConfig, &[Option<(f64, f64)>]),
+        sizes: &[usize],
+        checkpoints: Option<Checkpoints>,
+        in_step: bool,
+    ) -> (Stored, Checkpointed) {
         let info = audio::info(&paths[0]).unwrap();
         let keeper = Keeper::start(KeepAs {
             sample_rate: info.sample_rate,
@@ -644,6 +674,7 @@ mod tests {
             shapes: shapes.to_vec(),
             software: software(),
             checkpoints,
+            in_step,
         });
         let mut sound = Vec::new();
         for p in paths {
@@ -1144,7 +1175,9 @@ mod tests {
             take: dir.clone(),
             every_s: 10.0,
         });
-        let (kept, status) = kept_with_parts(&[path], &cfg, &[], &[48_000], parts);
+        // In step: the parts written before the sides are named don't
+        // depend on how fast the amplitude threads run (#1938).
+        let (kept, status) = kept_with_parts_paced(&[path], (&cfg, &[]), &[48_000], parts, true);
         let partial: checkpoint::Partial = serde_json::from_slice(
             &std::fs::read(dir.join(checkpoint::DIR).join(checkpoint::HEADER)).unwrap(),
         )
@@ -1238,10 +1271,9 @@ mod tests {
     fn parts_not_written_say_why_and_the_take_is_kept() {
         let dir = scratch("unwritable");
         // A part is due only once a chunk's amplitude windows are back,
-        // and they come back on other threads. Fifteen chunks are more
-        // than the queues hold on a four-core runner, so the reading
-        // waits on those threads before its last chunk (#1784).
-        let paths = take(&dir, 180.0, 1);
+        // and they come back on other threads: read in step, so a part
+        // is due whatever their pace (#1784, #1938).
+        let paths = take(&dir, 40.0, 1);
         let cfg = StreamConfig {
             chunk_s: 12.0,
             ..Default::default()
@@ -1254,7 +1286,7 @@ mod tests {
             take: blocked,
             every_s: 12.0,
         });
-        let (kept, status) = kept_with_parts(&paths, &cfg, &[], &[4097], parts);
+        let (kept, status) = kept_with_parts_paced(&paths, (&cfg, &[]), &[4097], parts, true);
         assert_eq!(kept_files(&kept), kept_files(&plain));
         assert_eq!(status.to_s, 0.0);
         assert!(
@@ -1279,6 +1311,7 @@ mod tests {
             shapes: Vec::new(),
             software: software(),
             checkpoints: None,
+            in_step: false,
         };
         let s = Keeper::start(how()).finish().unwrap();
         assert!(s.log.beats.is_empty() && s.profiles.is_empty());
