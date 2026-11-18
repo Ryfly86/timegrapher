@@ -141,7 +141,7 @@ fn col_widths(w: f32, lift_min: f32) -> [f32; 5] {
     let facts = [118.0, 108.0, 44.0];
     let rest = (w - facts.iter().sum::<f32>()).max(160.0);
     let lift = facts[1].max(lift_min);
-    let calibre = (rest * 0.5 - (lift - facts[1])).max(40.0);
+    let calibre = (rest * 0.5 - (lift - facts[1])).max(CALIBRE_MIN_W);
     [rest * 0.5, calibre, facts[0], lift, facts[2]]
 }
 
@@ -159,6 +159,9 @@ fn lift_min_w(ui: &egui::Ui) -> f32 {
         .x;
     tag + NUMBER_PAD + 8.0
 }
+
+/// The least the Calibre column gives up to the Lift Angle column.
+const CALIBRE_MIN_W: f32 = 40.0;
 
 /// The not-supported tag's text size in the table (#1872).
 const TAG_SIZE: f32 = 11.0;
