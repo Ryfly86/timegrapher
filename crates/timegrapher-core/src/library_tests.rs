@@ -13,6 +13,15 @@ fn a_takes_figures_keep_the_cards_decimals() {
         figure_texts(Some(2.0), None, Some(0.06)),
         [Some("+2.0".into()), None, Some("0.06".into())]
     );
+    // With their units, those it has, for every surface that lists them.
+    assert_eq!(
+        figure_words(Some(2.0), None, Some(0.06)),
+        ["+2.0 s/d", "0.06 ms"]
+    );
+    assert_eq!(
+        figure_words(Some(-12.8), Some(220.0), None),
+        ["-12.8 s/d", "220°"]
+    );
 }
 
 /// A take's reading is kept until what it reads changes: a report
