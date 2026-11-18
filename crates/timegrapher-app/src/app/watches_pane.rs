@@ -1263,11 +1263,12 @@ impl TimegrapherApp {
         .then(|| PathBuf::from(&self.opened_path))
     }
 
-    /// The take the session writes, on show or recording into it: Set
-    /// Wind… there would be undone by its next write (Felix on #1745).
+    /// The take the session saved into: Set Wind… there would be undone
+    /// by its next save, written from memory (Felix on #1745). A take
+    /// opened isn't: each write to it edits its file in place (Felix on
+    /// #1947).
     pub(super) fn take_held(&self) -> Option<PathBuf> {
-        self.take_on_show()
-            .or_else(|| self.session.saved_to().map(Path::to_path_buf))
+        self.session.saved_to().map(Path::to_path_buf)
     }
 
     /// Make the library at its folder when there is none yet.

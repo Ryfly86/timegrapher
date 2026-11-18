@@ -50,6 +50,14 @@ pub fn hours_since(wound_unix: f64, at_unix: f64) -> f64 {
     to_tenth(((at_unix - wound_unix) / 3600.0).max(0.0))
 }
 
+/// A take's hours since full wind at its start (`began_unix`), to a
+/// tenth: none for a full wind after the take began, never clamped to
+/// it (Norm on #1935: the readings before it were at some other wind,
+/// unknown, so a clamp would fill one in).
+pub fn wind_h_at_start(wound_unix: f64, began_unix: f64) -> Option<f64> {
+    (wound_unix <= began_unix).then(|| hours_since(wound_unix, began_unix))
+}
+
 /// A take's hours since full wind, as its session file gives them: its
 /// first entry's that has them, or none where the wind wasn't given.
 pub fn take_wind_h(m: &Manifest) -> Option<f64> {
@@ -105,6 +113,13 @@ mod tests {
         assert_eq!(hours_since(0.0, 2.0 * 3600.0 + 170.0), 2.0);
         assert_eq!(hours_since(0.0, 24.24 * 3600.0), 24.2);
         assert_eq!(hours_since(100.0, 50.0), 0.0);
+    }
+
+    #[test]
+    fn a_full_wind_after_the_take_began_gives_the_take_no_wind() {
+        assert_eq!(wind_h_at_start(0.0, 2.0 * 3600.0 + 170.0), Some(2.0));
+        assert_eq!(wind_h_at_start(100.0, 100.0), Some(0.0));
+        assert_eq!(wind_h_at_start(100.5, 100.0), None);
     }
 
     #[test]
