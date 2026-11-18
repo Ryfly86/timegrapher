@@ -1567,10 +1567,22 @@ fn readings_on_different_clocks_are_listed() {
             .map(|f| (f.code, f.recording))
             .collect()
     };
-    b.measurement.calibrated = a.measurement.calibrated;
-    assert!(codes(&[a.clone(), b.clone()]).is_empty());
-    b.measurement.calibrated = !a.measurement.calibrated;
+    // All on one clock, corrected or not: nothing.
+    for on in [false, true] {
+        let (mut a, mut b) = (a.clone(), b.clone());
+        a.measurement.calibrated = on;
+        b.measurement.calibrated = on;
+        assert!(codes(&[a, b]).is_empty(), "all calibrated {on}");
+    }
+    let mut a = a;
+    a.measurement.calibrated = true;
+    b.measurement.calibrated = false;
     assert_eq!(codes(&[a.clone(), b.clone()]), [("clocks_differ", None)]);
+    // A reading with no watch heard gives no rate, so its clock isn't
+    // counted.
+    let mut unheard = b.clone();
+    unheard.measurement.watch_heard = false;
+    assert!(codes(&[a.clone(), unheard]).is_empty());
     let f = evaluate(&[a, b]).findings;
     let f = f.iter().find(|f| f.code == "clocks_differ").unwrap();
     assert!(f.evidence.contains("1 of the 2 readings"), "{}", f.evidence);
