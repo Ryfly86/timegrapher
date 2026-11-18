@@ -86,8 +86,10 @@ pub fn free_table(
         .count();
     let six_of = card_order();
     let marked = |r: &&session::PositionRow| cell_of(r) != FreeCell::NotMarked;
-    let extra = upright_rows
+    // The 45° stops in hour order, as their lanes (Hugh on #1964).
+    let extra = session::Position::HALF_HOURS
         .iter()
+        .filter_map(|p| upright_rows.iter().find(|r| r.position == *p))
         .filter(|r| !six_of.contains(&r.position))
         .filter(marked)
         .map(|r| {

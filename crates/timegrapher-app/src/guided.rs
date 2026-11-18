@@ -1287,7 +1287,7 @@ fn table_grid(
     let be_hint = crate::reserve::beat_error_hint(
         "As a size, from the unlock, or from the drop where the unlock isn't found.",
     );
-    let slots = table_slots(&t.rows, kind.order());
+    let slots = table_slots(&t.rows, kind.order(), poise);
     // The Dynamic Poise table says how long each stop was read, as This
     // Take's does (Peter, 2026-11-18).
     let dur = poise && !t.durations.is_empty();
@@ -1360,17 +1360,34 @@ fn table_grid(
     (!poise).then(|| table_notes(ui, t));
 }
 
-/// A table's rows top to bottom, each with the position it is of: each
-/// position of `order` in its fixed slot, its row where it has one, else
-/// unread; then any row of a position not in `order`. A row is placed by
-/// its position, never by its count or when it was read, so the table
-/// never reorders and lists each position once (#1855: the Dynamic Poise
-/// table listed Crown Up twice and lost 7H30; Hugh and Trevor on #1964).
+/// A table's rows top to bottom, each with the position it is of, placed
+/// by its position, never by its count, so each position is listed once
+/// (#1855: the Dynamic Poise table listed Crown Up twice and lost 7H30).
+/// `fixed` (Dynamic Poise): each position of `order` in its stand slot,
+/// read or not, never reordering (Hugh and Trevor on #1964); then any row
+/// of a position not in `order`. Otherwise (the Positions Test's tables,
+/// which keep the order their rows come in, #1853): every row read, then
+/// each position of `order` with no row.
 pub(crate) fn table_slots(
     rows: &[Row],
     order: &[Position],
+    fixed: bool,
 ) -> Vec<(Option<usize>, Option<Position>)> {
     let row_of = |p: Position| rows.iter().position(|r| position_label(p.core()) == r.0);
+    let of = |label: &str| {
+        order
+            .iter()
+            .copied()
+            .find(|p| position_label(p.core()) == label)
+    };
+    if !fixed {
+        let read = rows.iter().enumerate().map(|(i, r)| (Some(i), of(&r.0)));
+        let unread = order
+            .iter()
+            .filter(|&&p| row_of(p).is_none())
+            .map(|&p| (None, Some(p)));
+        return read.chain(unread).collect();
+    }
     let slotted = order.iter().map(|&p| (row_of(p), Some(p)));
     let others = (0..rows.len())
         .filter(|&i| !order.iter().any(|&p| row_of(p) == Some(i)))

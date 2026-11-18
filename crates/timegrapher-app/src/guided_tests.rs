@@ -1388,7 +1388,7 @@ fn a_table_of_some_stops_lists_each_stop_once() {
         .iter()
         .map(|p| (position_label(p.core()), Some(1.0), None, Some(200.0), None))
         .collect();
-    let slots = table_slots(&rows, Kind::Poise.order());
+    let slots = table_slots(&rows, Kind::Poise.order(), true);
     let shown: Vec<(Option<usize>, Position)> = slots
         .iter()
         .map(|&(i, p)| (i, p.expect("a stop")))
@@ -1411,9 +1411,21 @@ fn a_table_of_some_stops_lists_each_stop_once() {
         .iter()
         .map(|p| (position_label(p.core()), Some(1.0), None, None, None))
         .collect();
-    let slots = table_slots(&all, Kind::Poise.order());
+    let slots = table_slots(&all, Kind::Poise.order(), true);
     assert_eq!(slots.len(), 8);
     assert!(slots.iter().enumerate().all(|(i, s)| s.0 == Some(i)));
+    // The Positions Test's tables keep their rows' own order, so a
+    // kept Full Wind table reads across This Take's (#1853), and list
+    // each position once all the same.
+    let six: Vec<Row> = [Position::CrownLeft, Position::DialUp]
+        .iter()
+        .map(|p| (position_label(p.core()), Some(1.0), None, None, None))
+        .collect();
+    let slots = table_slots(&six, Kind::Positions.order(), false);
+    assert_eq!(slots.len(), 6);
+    assert_eq!(slots[0], (Some(0), Some(Position::CrownLeft)));
+    assert_eq!(slots[1], (Some(1), Some(Position::DialUp)));
+    assert!(slots[2..].iter().all(|s| s.0.is_none()));
 }
 
 /// A Dynamic Poise stop marked under 10 s shows in its own slot as the

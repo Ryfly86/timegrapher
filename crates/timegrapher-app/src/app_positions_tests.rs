@@ -1385,13 +1385,15 @@ fn a_positions_test_stopped_before_the_beat_is_found_stays_ended() {
 #[test]
 fn a_45_degree_stop_gets_its_own_row_outside_the_average() {
     let mut stops = guided::Kind::Positions.order().to_vec();
-    stops.push(Position::Up1h30);
+    // Read 7H30 before 1H30: listed in hour order all the same, as
+    // their lanes (Hugh on #1964).
+    stops.extend([Position::Up7h30, Position::Up1h30]);
     let (mut app, base) = super::poise_tests::saved_and_opened("rows1941", &stops);
     let t = app.free_table(&egui::Context::default()).expect("a table");
     assert_eq!(t.rows.len(), 6, "the six");
     assert_eq!(t.read, 6);
     let codes: Vec<&str> = t.extra.iter().map(|e| e.1).collect();
-    assert_eq!(codes, ["1H30"], "{t:?}");
+    assert_eq!(codes, ["1H30", "7H30"], "{t:?}");
     assert!(matches!(
         t.extra[0].3,
         guided::FreeCell::Read(Some(_), Some(_), _)
