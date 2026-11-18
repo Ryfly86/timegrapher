@@ -1706,6 +1706,10 @@ fn the_beat_rate_found_comes_from_the_reading_shown() {
     }
     app.poll();
     assert_eq!(app.watch_facts().1, "Auto 28800");
+    // A calibre that beats at another rate says so beside a watch heard.
+    app.calibre = "Hangzhou HZ2B00A".into();
+    assert_eq!(app.calibre_chips().len(), 1);
+    app.calibre.clear();
     app.strip_end = Some(15.0);
     let r = app.card_reading().unwrap();
     assert!(!r.watch_heard, "{} s: {:?}", r.time_s, r.caveats);
@@ -1713,4 +1717,6 @@ fn the_beat_rate_found_comes_from_the_reading_shown() {
     assert_eq!(app.live.as_ref().unwrap().bph(), Some(28800));
     assert_eq!(app.bph_heard(), None);
     assert_eq!(app.watch_facts().1, "Auto");
+    app.calibre = "Hangzhou HZ2B00A".into();
+    assert!(app.calibre_chips().is_empty(), "no watch heard to differ");
 }
