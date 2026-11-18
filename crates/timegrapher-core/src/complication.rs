@@ -97,6 +97,8 @@ pub const DIFFERENCE_NAME: &str = "On less Off";
 pub struct Figure {
     pub value: f64,
     pub se: Option<f64>,
+    /// Why `se` is none, where known (#1908).
+    pub no_pm: Option<crate::confidence::NoPm>,
 }
 
 /// One stretch's three figures, each as the guided tests' tables read it:
@@ -112,11 +114,17 @@ pub struct Figures {
 /// them.
 pub fn figures(m: &Measurement) -> Figures {
     let c = m.confidence;
-    let with = |value: Option<f64>, se: Option<f64>| value.map(|value| Figure { value, se });
+    let with = |value: Option<f64>, r: Option<crate::confidence::Reading>| {
+        value.map(|value| Figure {
+            value,
+            se: r.and_then(|r| r.se),
+            no_pm: r.and_then(|r| r.no_pm),
+        })
+    };
     Figures {
-        amplitude: with(m.amplitude_deg, c.and_then(|c| c.amplitude.se)),
-        rate: with(m.rate_s_per_day, c.and_then(|c| c.rate.se)),
-        beat_error: with(m.beat_error(), c.and_then(|c| c.beat_error.se)),
+        amplitude: with(m.amplitude_deg, c.map(|c| c.amplitude)),
+        rate: with(m.rate_s_per_day, c.map(|c| c.rate)),
+        beat_error: with(m.beat_error(), c.map(|c| c.beat_error)),
     }
 }
 
@@ -147,7 +155,11 @@ pub fn off_at(off1: Figure, t1: f64, off2: Figure, t2: f64, t_on: f64) -> Option
         (Some(s1), Some(s2)) => Some((w1 * w1 * s1 * s1 + w2 * w2 * s2 * s2).sqrt()),
         _ => None,
     };
-    Some(Term { value, se })
+    Some(Term {
+        value,
+        se,
+        no_pm: why_no_pm(se, [off1.no_pm, off2.no_pm]),
+    })
 }
 
 /// On less Off for one figure, from the three stretches in order, each
@@ -165,7 +177,27 @@ pub fn difference(stretches: [(Option<Figure>, f64); 3]) -> Option<Term> {
     Some(Term {
         value: b.value - off.value,
         se,
+        no_pm: why_no_pm(se, [off.no_pm, b.no_pm]),
     })
+}
+
+/// Why a difference has no ±, from its parts': none while it has one,
+/// [`NoPm::Repeats`] where any part's readings repeat (more readings
+/// won't give that part a ±), else the first part's reason (#1908).
+///
+/// [`NoPm::Repeats`]: crate::confidence::NoPm::Repeats
+fn why_no_pm(
+    se: Option<f64>,
+    parts: [Option<crate::confidence::NoPm>; 2],
+) -> Option<crate::confidence::NoPm> {
+    use crate::confidence::NoPm;
+    if se.is_some() {
+        return None;
+    }
+    let repeats = parts.contains(&Some(NoPm::Repeats));
+    repeats
+        .then_some(NoPm::Repeats)
+        .or(parts.into_iter().flatten().next())
 }
 
 /// What a run found for one figure: where On would sit with the
@@ -269,11 +301,17 @@ pub fn differs(d: Term) -> bool {
 /// complication on" when the difference stands clear of zero, else "no
 /// clear change, +0.01 ± 0.02 ms" (Norm: "no change" would overclaim).
 /// With no ± to weigh it by, the figure and why there is no verdict:
-/// "-10.0 s/d, no ± yet (too few readings)" (Hugh).
+/// "-10.0 s/d, no ± yet (too few readings)", or where the readings
+/// repeat exactly, "-10.0 s/d, no ± (readings repeat exactly)" (Hugh,
+/// #1908).
 pub fn finding_text(q: SeriesKind, d: Term) -> String {
     let unit = unit_text(q);
     if d.se.is_none() {
-        return format!("{}{unit}, {NO_PM_YET}", difference_text(q, d));
+        let why = match d.no_pm {
+            Some(crate::confidence::NoPm::Repeats) => crate::confidence::NoPm::REPEATS_SHORT,
+            _ => NO_PM_YET,
+        };
+        return format!("{}{unit}, {why}", difference_text(q, d));
     }
     if !differs(d) {
         return format!("no clear change, {}{unit}", difference_text(q, d));
@@ -385,6 +423,7 @@ mod tests {
         Some(Figure {
             value,
             se: Some(se),
+            no_pm: None,
         })
     }
 
@@ -449,6 +488,7 @@ mod tests {
         let no_se = Some(Figure {
             value: 1.0,
             se: None,
+            no_pm: None,
         });
         let d = difference([(f(1.0, 0.1), 1.0), (no_se, 2.0), (f(1.0, 0.1), 3.0)]).unwrap();
         assert_eq!(d.se, None);
@@ -460,6 +500,7 @@ mod tests {
         let amp = Term {
             value: -5.0,
             se: Some(1.0),
+            no_pm: None,
         };
         assert_eq!(
             finding_text(SeriesKind::Amplitude, amp),
@@ -468,6 +509,7 @@ mod tests {
         let rate = Term {
             value: -1.9,
             se: Some(0.5),
+            no_pm: None,
         };
         assert_eq!(
             finding_text(SeriesKind::Rate, rate),
@@ -476,6 +518,7 @@ mod tests {
         let be = Term {
             value: 0.01,
             se: Some(0.02),
+            no_pm: None,
         };
         assert_eq!(
             finding_text(SeriesKind::BeatError, be),
@@ -484,6 +527,7 @@ mod tests {
         let up = Term {
             value: 0.3,
             se: Some(0.1),
+            no_pm: None,
         };
         assert_eq!(
             finding_text(SeriesKind::BeatError, up),
@@ -499,10 +543,54 @@ mod tests {
         let rate = Term {
             value: -10.0,
             se: None,
+            no_pm: None,
         };
         let text = finding_text(SeriesKind::Rate, rate);
         assert_eq!(text, "-10.0 s/d, no ± yet (too few readings)");
         assert!(!text.contains("change"));
+    }
+
+    /// A difference with no ± because a stretch's readings repeat
+    /// exactly says so, not "yet": waiting won't give one (Hugh, #1908).
+    #[test]
+    fn a_difference_whose_readings_repeat_says_so() {
+        use crate::confidence::NoPm;
+        let part = |no_pm| {
+            Some(Figure {
+                value: 1.0,
+                se: None,
+                no_pm,
+            })
+        };
+        let d = difference([
+            (f(1.0, 0.1), 1.0),
+            (part(Some(NoPm::Repeats)), 2.0),
+            (f(1.0, 0.1), 3.0),
+        ])
+        .unwrap();
+        assert_eq!(d.no_pm, Some(NoPm::Repeats));
+        let rate = Term { value: -10.0, ..d };
+        assert_eq!(
+            finding_text(SeriesKind::Rate, rate),
+            "-10.0 s/d, no ± (readings repeat exactly)"
+        );
+        // Too few in one Off, repeats in the On: repeats is said.
+        let d = difference([
+            (part(Some(NoPm::TooFew)), 1.0),
+            (part(Some(NoPm::Repeats)), 2.0),
+            (f(1.0, 0.1), 3.0),
+        ])
+        .unwrap();
+        assert_eq!(d.no_pm, Some(NoPm::Repeats));
+        // Too few alone keeps Hugh's first words.
+        let d = difference([
+            (part(Some(NoPm::TooFew)), 1.0),
+            (f(1.0, 0.1), 2.0),
+            (f(1.0, 0.1), 3.0),
+        ])
+        .unwrap();
+        assert_eq!(d.no_pm, Some(NoPm::TooFew));
+        assert!(finding_text(SeriesKind::Rate, d).ends_with(NO_PM_YET));
     }
 
     /// The Info note says when a change is named in words a reader can
@@ -520,11 +608,13 @@ mod tests {
         let at = Term {
             value: -2.0,
             se: Some(1.0),
+            no_pm: None,
         };
         assert!(!differs(at));
         let past = Term {
             value: -2.01,
             se: Some(1.0),
+            no_pm: None,
         };
         assert!(differs(past));
     }
