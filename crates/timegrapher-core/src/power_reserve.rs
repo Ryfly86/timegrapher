@@ -96,7 +96,7 @@ impl Ending {
             Ending::TakeEnded => "The take ended while the watch still ran".to_string(),
             Ending::Listening => "Still listening, no stop found yet".to_string(),
             Ending::RecordingFailed => "The recording failed while the watch still ran".to_string(),
-            Ending::InputFailed => "The input failed while the watch still ran".to_string(),
+            Ending::InputFailed => "The sound input failed while the watch still ran".to_string(),
         }
     }
 
@@ -1180,7 +1180,7 @@ mod tests {
     fn a_run_whose_input_failed_reads_at_least() {
         assert_eq!(
             sentence(7260.0, Ending::InputFailed, Source::Test, "DU", None),
-            "Power reserve at least 2 h 01 min in DU. The input failed while the watch \
+            "Power reserve at least 2 h 01 min in DU. The sound input failed while the watch \
              still ran."
         );
         assert_eq!(Ending::InputFailed.short(), "input failed");

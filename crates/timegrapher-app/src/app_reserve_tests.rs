@@ -2051,7 +2051,7 @@ fn a_still_pointer_over_the_live_strip_draws_nothing_extra() {
     );
 }
 
-/// A Power Reserve Test whose input fails partway (the microphone
+/// A Power Reserve Test whose sound input fails partway (the microphone
 /// unplugged) ends there with its own ending, at least as long as heard
 /// and never a stop of the watch, and its take is kept with its results,
 /// as Stop keeps it: no test left running with no result (#1882).
@@ -2121,7 +2121,7 @@ fn a_power_reserve_test_whose_input_fails_ends_and_keeps_its_take() {
     let said = results.sentence("CL");
     assert!(said.starts_with("Power reserve at least "), "{said}");
     assert!(
-        said.ends_with("The input failed while the watch still ran."),
+        said.ends_with("The sound input failed while the watch still ran."),
         "{said}"
     );
     assert!(results.run_s > 20.0, "{}", results.run_s);

@@ -2290,9 +2290,9 @@ clears it. Those files may
 contain incomplete audio or clock information. Save and Save Again
 are unavailable for that session so an earlier saved take stays unchanged.
 This is different from an input disconnect alone, after which the take can
-still be saved. A Power Reserve Test whose input fails (unplugged, or no
+still be saved. A Power Reserve Test whose sound input fails (unplugged, or no
 sound arriving) ends there as Stop would end it, its take kept with its
-results: "Power reserve at least … The input failed while the watch still
+results: "Power reserve at least … The sound input failed while the watch still
 ran" (#1882).
 
 Copy the folder shown in the warning to a location outside the app's
