@@ -880,10 +880,13 @@ fn corpus_takes_at(
     for &id in ids {
         let members: Vec<_> = takes.iter().filter(|t| t["id"] == id).collect();
         if members.len() != 1
-            || !matches!(members[0]["tier"].as_str(), Some("referenced" | "paired"))
+            || !matches!(
+                members[0]["tier"].as_str(),
+                Some("referenced" | "paired" | "smoke")
+            )
         {
             return Err(format!(
-                "corpus.json: expected one development reference take {id}"
+                "corpus.json: expected one development reference or smoke take {id}"
             ));
         }
         let entries = members[0]["files"]
@@ -1184,4 +1187,43 @@ fn settle_judges_the_open_chunk_as_a_saved_read_does() {
         faint(live.amplitude_windows()),
         faint(&saved.amplitude_windows)
     );
+}
+
+/// Twenty minutes of an empty stand, cut from the end of a run-down: its
+/// README says "No watch: the stand's noise only".
+const EMPTY_STAND_TAKE: &str = "ym42_DU_65h_excerpt_emptystand";
+
+/// An empty stand is no watch on every path a take is read on (#1965): as
+/// a whole, live as its sound comes in, and opened, where the engine is
+/// built from its beat log. Opened, one 10 s reading at 390 s scattered
+/// 0.78% of a beat at 18,000 bph, under the 0.8% from which the beat sound
+/// was asked, and the stopped take's Rate card showed it: −183.6 s/d and
+/// 0.14 ms. Every reading, every 5 s, at 10, 30 and 60 s averages.
+///
+/// Runs where `TIMEGRAPHER_CORPUS` is set.
+#[test]
+fn an_empty_stand_is_no_watch_however_it_is_read() {
+    let Some(path) = corpus_takes(&[EMPTY_STAND_TAKE]).pop() else {
+        return;
+    };
+    let log = stream(&path, 47.0);
+    assert!(!whole(&log).watch_heard, "the take as a whole");
+    let audio = load(&path).unwrap();
+    let pushed = pushed(&audio, audio.sample_rate as usize / 10);
+    let opened = LiveAnalyzer::from_log(log, LiveConfig::default());
+    for (how, live) in [("live", &pushed), ("opened", &opened)] {
+        let mut t = 10.0;
+        while t <= live.duration_s() {
+            for average_s in [10.0, 30.0, 60.0] {
+                let r = live.reading_at(t, average_s);
+                assert!(
+                    !r.watch_heard && r.rate_s_per_day.is_none(),
+                    "{how}, {average_s} s ending at {t} s: {:?} s/d, scatter {:?}",
+                    r.rate_s_per_day,
+                    r.timing_scatter_fraction
+                );
+            }
+            t += 5.0;
+        }
+    }
 }
