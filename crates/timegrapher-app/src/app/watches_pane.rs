@@ -484,8 +484,15 @@ impl TimegrapherApp {
                     Some(Ok(changed)) => changed,
                     None => false,
                 };
-                // The take on show is read again with its new watch's settings.
-                if read_again && self.take_on_show().as_deref() == Some(to.as_path()) {
+                // The take on show is read again with its new watch's
+                // settings: opened, or the session's own, stopped (#1978).
+                let shown = self.take_on_show().as_deref() == Some(to.as_path())
+                    || (!self.running() && self.session.saved_to() == Some(to.as_path()));
+                if read_again && shown {
+                    // Opened as Open opens it, so the status line names it
+                    // (Walter on #1999).
+                    self.input = Input::File;
+                    self.file_path = to.display().to_string();
                     self.open_recording(&to, false);
                 }
                 if filed {
@@ -557,10 +564,7 @@ impl TimegrapherApp {
             // What is on show is not asked again: its position, its beat
             // rate (set or heard) and its lift angle.
             a.position = a.position.or(Some(self.position));
-            a.bph = a
-                .bph
-                .or(self.bph)
-                .or(self.live.as_ref().and_then(|l| l.bph()));
+            a.bph = a.bph.or(self.bph).or(self.bph_heard());
             a.lift = self.lift_deg;
             a.lift_set = true;
             let need = self.open_need(&a);
@@ -611,7 +615,10 @@ impl TimegrapherApp {
     /// A take moved: the recording opened from it follows, and so does
     /// Save Again.
     pub(super) fn take_moved(&mut self, from: &Path, to: &Path) {
-        let opened = Path::new(&self.opened_path).starts_with(from);
+        // The take on show: opened, or the one the session saved (a Quick
+        // Listen kept, then filed: #1978).
+        let opened = Path::new(&self.opened_path).starts_with(from)
+            || self.session.saved_to().is_some_and(|s| s.starts_with(from));
         self.paths_moved(from, to);
         if opened {
             // The take on show is the watch's it went to now: the Bench's
@@ -879,15 +886,17 @@ impl TimegrapherApp {
         // A take on show from another watch or Unsorted Takes is put away,
         // as Unsorted Takes and the Watch line do: the Bench's card and the
         // status line name the watch picked, so never over a take that
-        // isn't in it (#1303). With marks not yet saved, they are asked
+        // is another's (#1303). With marks not yet saved, they are asked
         // about first, as the Watch line asks, and until then the card
-        // still names the take's own watch (Hugh).
+        // still names the take's own watch (Hugh). A recording opened from
+        // outside the Watches folder stays, as it was measured, to be kept
+        // in the watch picked (#1966).
         let elsewhere = self.take_on_show().is_some_and(|t| {
             let of = match &self.library {
                 Ok(Some(l)) => l.watch_of(&t).map(|e| e.watch.id.clone()),
                 _ => None,
             };
-            of.as_deref() != Some(id)
+            of.as_deref() != Some(id) && !self.shown_outside_watches()
         });
         if elsewhere && self.needs_save_confirmation() {
             self.confirm = Some(Confirm::PickWatch(Some(id.to_string())));
@@ -913,6 +922,19 @@ impl TimegrapherApp {
         }
         self.quick_listen = false;
         self.apply_watch(&w);
+    }
+
+    /// Whether the take on show is a recording opened from outside the
+    /// Watches folder: in no watch and not in Unsorted Takes. Picking or
+    /// adding a watch leaves it as it was measured (#1966).
+    pub(super) fn shown_outside_watches(&self) -> bool {
+        let Some(t) = self.take_on_show() else {
+            return false;
+        };
+        match &self.library {
+            Ok(Some(l)) => l.watch_of(&t).is_none() && !l.is_unsorted(&t),
+            _ => true,
+        }
     }
 
     /// Whether the pane shows the list over what is picked.

@@ -1679,3 +1679,44 @@ fn the_strip_watch_cell_shows_one_tooltip() {
         .count();
     assert_eq!(details, 1, "the full facts once");
 }
+
+/// The beat rate found is that of the reading shown, where it hears a
+/// watch (Norm, #1972): 20 s of the empty stand's noise, then a watch.
+/// The newest reading hears it, "Auto 28800"; the strip moved back into
+/// the noise reads "Auto" alone, though the engine and the reading there
+/// still carry the rate it listens at.
+#[test]
+fn the_beat_rate_found_comes_from_the_reading_shown() {
+    use timegrapher_core::synth::{generate, noise_rms, Rng, SynthConfig, SCALE};
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "stand, then a watch".into());
+    let rms = noise_rms(SynthConfig::default().snr_db) * SCALE;
+    let mut rng = Rng::new(1);
+    let mut sound: Vec<f32> = (0..20 * 48000)
+        .map(|_| (rms * rng.normal()) as f32)
+        .collect();
+    let watch = SynthConfig {
+        duration_s: 40.0,
+        ..Default::default()
+    };
+    sound.extend(generate(&watch, |_| 280.0, |_| 0.0).samples);
+    let live = app.live.as_mut().unwrap();
+    for b in sound.chunks(960) {
+        live.push(b);
+    }
+    app.poll();
+    assert_eq!(app.watch_facts().1, "Auto 28800");
+    // A calibre that beats at another rate says so beside a watch heard.
+    app.calibre = "Hangzhou HZ2B00A".into();
+    assert_eq!(app.calibre_chips().len(), 1);
+    app.calibre.clear();
+    app.strip_end = Some(15.0);
+    let r = app.card_reading().unwrap();
+    assert!(!r.watch_heard, "{} s: {:?}", r.time_s, r.caveats);
+    assert_eq!(r.bph, Some(28800), "the rate listened at");
+    assert_eq!(app.live.as_ref().unwrap().bph(), Some(28800));
+    assert_eq!(app.bph_heard(), None);
+    assert_eq!(app.watch_facts().1, "Auto");
+    app.calibre = "Hangzhou HZ2B00A".into();
+    assert!(app.calibre_chips().is_empty(), "no watch heard to differ");
+}

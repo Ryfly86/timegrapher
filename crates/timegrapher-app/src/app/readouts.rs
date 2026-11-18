@@ -859,10 +859,8 @@ impl TimegrapherApp {
 
     /// A calibre picked that beats at another rate than the one heard, as
     /// a chip on the Calibre card.
-    fn calibre_chips(&self) -> Vec<(String, String)> {
-        self.live
-            .as_ref()
-            .and_then(|l| l.bph())
+    pub(super) fn calibre_chips(&self) -> Vec<(String, String)> {
+        self.bph_heard()
             .zip(self.cal.bph(&self.calibre))
             .filter(|&(b, cb)| b != cb && self.take_shows_rate_and_lift())
             .map(|(b, cb)| {
