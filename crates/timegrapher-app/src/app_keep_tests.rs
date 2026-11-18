@@ -1217,6 +1217,14 @@ fn a_quick_listen_kept_then_filed_takes_the_bench_to_its_watch() {
         std::thread::sleep(Duration::from_millis(20));
     }
     assert_eq!(app.lift_deg, 55.0, "read again with its watch's lift");
+    // The status line names the take by its folder, not New Take
+    // (Walter on #1999).
+    let name = file_name(&kept);
+    assert!(
+        app.status_words().contains(&name) && !app.status_words().contains("New Take"),
+        "{}",
+        app.status_words()
+    );
     drop(app);
     let _ = std::fs::remove_dir_all(&base);
 }

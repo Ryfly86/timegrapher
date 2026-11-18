@@ -489,6 +489,10 @@ impl TimegrapherApp {
                 let shown = self.take_on_show().as_deref() == Some(to.as_path())
                     || (!self.running() && self.session.saved_to() == Some(to.as_path()));
                 if read_again && shown {
+                    // Opened as Open opens it, so the status line names it
+                    // (Walter on #1999).
+                    self.input = Input::File;
+                    self.file_path = to.display().to_string();
                     self.open_recording(&to, false);
                 }
                 if filed {
