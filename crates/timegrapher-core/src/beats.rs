@@ -464,11 +464,16 @@ pub const NO_WATCH_JITTER_FRACTION: f64 = 0.02;
 /// steers to where it expects the next beat, so on a short stretch of
 /// noise its picks scatter less than across the whole window: 1.2% of the
 /// beat at the least over 200 draws of 30 s of stand noise, and 1.8% over
-/// 90 s (#675). A watch in the corpus stays under 0.6%, but one about to
-/// stop can scatter more: up to 1.4% in the last 25 minutes of a recorded
-/// take. From here a beat sound that shows no watch can veto
+/// 90 s (#675). But a reading is judged on 10 s windows, and one 10 s
+/// reading of an empty stand, at 390 s of 20 minutes, scattered 0.78% of a
+/// beat at 18,000 bph (ym42_DU_65h_excerpt_emptystand, opened, #1965),
+/// under the 0.8% this was first. A watch in the corpus stays under 0.6%, so from 0.6% the
+/// sound is asked: none of the corpus's 10 s readings of a watch changed
+/// verdict when it moved to 0.6% (#1965). One about to stop can scatter
+/// more: up to 1.4% in the last 25 minutes of a recorded take. From here a
+/// beat sound that shows no watch can veto
 /// ([`crate::measure::no_watch_reason`]).
-pub const NOISE_DOUBT_FRACTION: f64 = 0.008;
+pub const NOISE_DOUBT_FRACTION: f64 = 0.006;
 
 /// False when a regular beat was looked for and not found: the median
 /// timing scatter in the rate windows (see [`crate::timing::WindowFit`])
