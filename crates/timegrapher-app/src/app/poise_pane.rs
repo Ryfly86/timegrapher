@@ -213,6 +213,17 @@ impl TimegrapherApp {
             .filter(|k| !k.is_empty())
     }
 
+    /// With no test on the Bench, the take's upright stops marked under
+    /// 10 s, too short to read: each label and duration.
+    fn poise_short(&self, ctx: &egui::Context) -> Vec<(String, f64)> {
+        if self.guided.is_some() {
+            return Vec::new();
+        }
+        self.free_table_shown(ctx)
+            .map(|t| t.short)
+            .unwrap_or_default()
+    }
+
     /// The pane's toolbar, with the Info toggle pinned at its right.
     pub(super) fn poise_tools(&mut self, ui: &mut egui::Ui, title: &str) {
         let mut info = self.poise_info;
@@ -255,13 +266,18 @@ impl TimegrapherApp {
                 ))
             });
         let kept = self.poise_kept(ui.ctx());
+        let short = self.poise_short(ui.ctx());
         let info = self.poise_info;
         let view = self.poise_views;
         let settle = (self.guided_settle_s, self.guided_measure_s);
         let action = poise_body(
             ui,
             (self.poise_test(), phase, live.as_ref()),
-            (kept.as_deref(), self.guided.is_none() && !self.running()),
+            (
+                kept.as_deref(),
+                &short,
+                self.guided.is_none() && !self.running(),
+            ),
             amp_now.as_deref(),
             (view, info),
             settle,
@@ -272,6 +288,14 @@ impl TimegrapherApp {
     }
 }
 
+/// A take's stops with no test on the Bench: those read, those marked
+/// under 10 s (label, duration), and whether it is done.
+type Kept<'a> = (
+    Option<&'a [timegrapher_core::session::Reading]>,
+    &'a [(String, f64)],
+    bool,
+);
+
 /// The pane's body under its toolbar; what a banner button asked for.
 fn poise_body(
     ui: &mut egui::Ui,
@@ -280,7 +304,7 @@ fn poise_body(
         Option<guided::Phase>,
         Option<&guided::FreeCell>,
     ),
-    (kept, done): (Option<&[timegrapher_core::session::Reading]>, bool),
+    (kept, short, done): Kept<'_>,
     amp_now: Option<&str>,
     (view, info): ([bool; 2], bool),
     (settle_s, measure_s): (f64, f64),
@@ -316,7 +340,7 @@ fn poise_body(
     };
     let notes = guided::poise_table_notes(readings);
     let info_part = |ui: &mut egui::Ui| info_panel(ui, (fit.as_ref(), &unfitted), &notes);
-    let kept_table = |ui: &mut egui::Ui| guided::poise_table(ui, readings);
+    let kept_table = |ui: &mut egui::Ui| guided::poise_table(ui, readings, short);
     test_body::test_body(
         ui,
         ("poise pane", &layout),
@@ -509,9 +533,13 @@ fn rate_scale(pic: &Picture<'_>) -> (f64, f64, f64) {
 fn draw_plot(ui: &egui::Ui, rect: egui::Rect, pic: &Picture<'_>) {
     let pal = theme::pal(ui);
     let painter = ui.painter_at(rect);
+    // The key in a row under the plot where it can't sit beside the facts
+    // box in the plot's top (Hugh on #1964).
+    let under = key_under(&painter, rect.width() - LEFT - RIGHT, pic, pal);
+    let key_h = if under { KEY_ROW_H } else { 0.0 };
     let area = egui::Rect::from_min_max(
         rect.min + Vec2::new(LEFT, TOP),
-        rect.max - Vec2::new(RIGHT, BOTTOM),
+        rect.max - Vec2::new(RIGHT, BOTTOM + key_h),
     );
     let (lo, hi, step) = rate_scale(pic);
     let x = |deg: f64| area.left() + (deg / 360.0) as f32 * area.width();
@@ -566,7 +594,7 @@ fn draw_plot(ui: &egui::Ui, rect: egui::Rect, pic: &Picture<'_>) {
         );
     }
     painter.text(
-        egui::pos2(area.center().x, rect.bottom() - 2.0),
+        egui::pos2(area.center().x, rect.bottom() - 2.0 - key_h),
         egui::Align2::CENTER_BOTTOM,
         poise_picture::HOUR_AXIS,
         small.clone(),
@@ -598,7 +626,14 @@ fn draw_plot(ui: &egui::Ui, rect: egui::Rect, pic: &Picture<'_>) {
             );
         }
     }
-    let key = plot_key(&painter, area, pic, pal);
+    let key = if under {
+        let row =
+            egui::Rect::from_x_y_ranges(area.x_range(), rect.bottom() - key_h..=rect.bottom());
+        key_row(&painter, row, pic, pal);
+        None
+    } else {
+        plot_key(&painter, area, pic, pal)
+    };
     if let Some(facts) = &pic.facts {
         plot_facts(ui, &painter, (area, key), facts, (wave, (&x, &y), pic));
     }
@@ -674,49 +709,114 @@ fn plot_key(
     pic: &Picture<'_>,
     pal: &theme::Palette,
 ) -> Option<egui::Rect> {
-    if pic.points.is_empty() {
+    let rows = key_rows(pic);
+    if rows.is_empty() {
         return None;
     }
-    let small = egui::FontId::proportional(11.0);
     let row = 16.0;
-    let mut rows = vec![poise_picture::points_key(pic.points.len())];
-    if pic.fit.is_some() {
-        rows.push(poise_picture::WAVE_KEY.to_string());
-    }
-    let widest = rows
-        .iter()
-        .map(|t| {
-            painter
-                .layout_no_wrap(t.clone(), small.clone(), pal.text)
-                .size()
-                .x
-        })
-        .fold(0.0_f32, f32::max);
-    let w = KEY_LINE + 6.0 + widest;
+    let w = key_text_w(painter, &rows, pal)
+        .into_iter()
+        .fold(0.0_f32, f32::max)
+        + KEY_LINE
+        + 6.0;
     let top_left = egui::pos2(area.right() - w - 8.0, area.top() + 6.0);
     let back =
         egui::Rect::from_min_size(top_left, Vec2::new(w, row * rows.len() as f32)).expand(4.0);
     painter.rect_filled(back, 4.0, pal.card);
     for (i, t) in rows.iter().enumerate() {
         let mid = top_left.y + row * (i as f32 + 0.5);
-        let at = |dx: f32| egui::pos2(top_left.x + dx, mid);
-        if i == 0 {
-            painter.circle_filled(at(KEY_LINE / 2.0), DOT_R, pal.trace_rate);
-        } else {
-            painter.line_segment(
-                [at(0.0), at(KEY_LINE)],
-                egui::Stroke::new(1.5_f32, pal.text_secondary),
-            );
-        }
-        painter.text(
-            at(KEY_LINE + 6.0),
-            egui::Align2::LEFT_CENTER,
-            t,
-            small.clone(),
-            pal.text,
-        );
+        key_entry(painter, egui::pos2(top_left.x, mid), (i, t), pal);
     }
     Some(back)
+}
+
+/// The key's entries: the points with their count, and the wave once
+/// fitted; none before a point.
+fn key_rows(pic: &Picture<'_>) -> Vec<String> {
+    if pic.points.is_empty() {
+        return Vec::new();
+    }
+    let mut rows = vec![poise_picture::points_key(pic.points.len())];
+    if pic.fit.is_some() {
+        rows.push(poise_picture::WAVE_KEY.to_string());
+    }
+    rows
+}
+
+/// Each key entry's words' width, points.
+fn key_text_w(painter: &egui::Painter, rows: &[String], pal: &theme::Palette) -> Vec<f32> {
+    let small = egui::FontId::proportional(11.0);
+    rows.iter()
+        .map(|t| {
+            painter
+                .layout_no_wrap(t.clone(), small.clone(), pal.text)
+                .size()
+                .x
+        })
+        .collect()
+}
+
+/// One key entry from `at`, the middle of its left: the point's dot for
+/// the first, the wave's line for the second, then its words.
+fn key_entry(painter: &egui::Painter, at: egui::Pos2, (i, t): (usize, &str), pal: &theme::Palette) {
+    let x = |dx: f32| egui::pos2(at.x + dx, at.y);
+    if i == 0 {
+        painter.circle_filled(x(KEY_LINE / 2.0), DOT_R, pal.trace_rate);
+    } else {
+        painter.line_segment(
+            [x(0.0), x(KEY_LINE)],
+            egui::Stroke::new(1.5_f32, pal.text_secondary),
+        );
+    }
+    painter.text(
+        x(KEY_LINE + 6.0),
+        egui::Align2::LEFT_CENTER,
+        t,
+        egui::FontId::proportional(11.0),
+        pal.text,
+    );
+}
+
+/// The height of the key's row under a plot too narrow for it beside
+/// the facts box, points.
+const KEY_ROW_H: f32 = 18.0;
+
+/// The gap between the key's entries in its row under the plot, points.
+const KEY_ROW_GAP: f32 = 16.0;
+
+/// Whether the plot's key goes in a row under it: where a plot `w` wide
+/// can't hold it beside the facts box, each in its own corner of the
+/// plot's top with room between.
+fn key_under(painter: &egui::Painter, w: f32, pic: &Picture<'_>, pal: &theme::Palette) -> bool {
+    let (Some(facts), rows) = (&pic.facts, key_rows(pic)) else {
+        return false;
+    };
+    if rows.is_empty() {
+        return false;
+    }
+    let key_w = key_text_w(painter, &rows, pal)
+        .into_iter()
+        .fold(0.0_f32, f32::max)
+        + KEY_LINE
+        + 6.0
+        + 8.0
+        + 4.0;
+    facts.size().x + 2.0 * FACT_INSET + key_w + FACT_INSET > w
+}
+
+/// The key in one row, centred in `row` under the plot.
+fn key_row(painter: &egui::Painter, row: egui::Rect, pic: &Picture<'_>, pal: &theme::Palette) {
+    let rows = key_rows(pic);
+    let widths: Vec<f32> = key_text_w(painter, &rows, pal)
+        .into_iter()
+        .map(|w| w + KEY_LINE + 6.0)
+        .collect();
+    let total = widths.iter().sum::<f32>() + KEY_ROW_GAP * (widths.len().max(1) - 1) as f32;
+    let mut x = row.center().x - total / 2.0;
+    for (i, (t, w)) in rows.iter().zip(&widths).enumerate() {
+        key_entry(painter, egui::pos2(x, row.center().y), (i, t), pal);
+        x += w + KEY_ROW_GAP;
+    }
 }
 
 /// Small text on the pane's background, so no line crosses it.
@@ -1263,6 +1363,58 @@ mod tests {
         for offset in [100.0, 200.0, 400.0] {
             assert_eq!(room(offset), top, "{offset}");
         }
+    }
+
+    /// The plot's key never covers the heavy spot's plate: where the plot
+    /// is too narrow for both across its top, the key goes in a row under
+    /// it (Walter's walk and Hugh on #1964: five uprights read, the plate
+    /// saying "Not stated", clashed from about 1100 down to 950 px).
+    #[test]
+    fn the_key_never_covers_the_heavy_spot_plate() {
+        let rows = vec![("Heavy spot".to_string(), "Not stated".to_string())];
+        let key = poise_picture::points_key(5);
+        let mut under = 0;
+        for w in (300..=720).step_by(10) {
+            let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(w as f32, 300.0));
+            let ctx = egui::Context::default();
+            let input = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    Vec2::splat(800.0),
+                )),
+                ..Default::default()
+            };
+            let out = ctx.run(input, |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    let pic = Picture {
+                        points: [270.0, 225.0, 180.0, 135.0, 90.0]
+                            .map(|d| (d, 10.0, None))
+                            .to_vec(),
+                        fit: None,
+                        mean: None,
+                        facts: Some(FactBox::plain(ui, "t", "plot", rows.clone(), Vec::new())),
+                    };
+                    draw_plot(ui, rect, &pic);
+                });
+            });
+            let at = |want: &str| {
+                out.shapes.iter().find_map(|c| match &c.shape {
+                    egui::Shape::Text(t) if t.galley.text() == want => {
+                        Some(t.galley.rect.translate(t.pos.to_vec2()))
+                    }
+                    _ => None,
+                })
+            };
+            let k = at(&key).unwrap_or_else(|| panic!("the key at {w}"));
+            // Its dot too, left of its words.
+            let k = k.with_min_x(k.left() - KEY_LINE - 6.0);
+            under += usize::from(k.top() > rect.bottom() - KEY_ROW_H - 1.0);
+            for name in ["Heavy spot", "Not stated"] {
+                let p = at(name).unwrap_or_else(|| panic!("{name} at {w}"));
+                assert!(!k.intersects(p), "{w}: the key {k:?} over {name} {p:?}");
+            }
+        }
+        assert!(under > 0, "a narrow plot's key is under it");
     }
 
     /// A backed label set past the picture's edge slides back inside it,

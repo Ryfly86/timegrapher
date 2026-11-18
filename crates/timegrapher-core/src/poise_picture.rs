@@ -260,6 +260,19 @@ mod tests {
         assert!(hi - lo >= LEAST_SPAN_S_PER_DAY, "{lo}..{hi}");
         assert!(lo < -33.88 && hi > -33.88, "{lo}..{hi}");
         assert!(step >= 1.0, "a whole s/d step or more: {step}");
+        // Widened about the points' middle, not from one end (Trevor on
+        // #1964): the scale's middle within a step of theirs.
+        for pts in [
+            vec![(90.0, -33.88, Some(0.02))],
+            vec![(0.0, 8.22, None), (180.0, 8.32, None)],
+        ] {
+            let (lo, hi, step) = scale(&pts, None);
+            let mid = pts.iter().map(|p| p.1).sum::<f64>() / pts.len() as f64;
+            assert!(
+                ((lo + hi) / 2.0 - mid).abs() <= step,
+                "{lo}..{hi} about {mid}"
+            );
+        }
         // Spread wider than the least span: its own range, as before.
         let wide = [(0.0, -20.0, None), (180.0, 10.0, None)];
         let (lo, hi, _) = scale(&wide, None);

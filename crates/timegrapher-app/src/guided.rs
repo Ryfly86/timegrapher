@@ -14,6 +14,7 @@ use crate::app::Position;
 use crate::theme;
 use eframe::egui::{self, RichText, Vec2};
 use free_grid::free_grid;
+pub use free_grid::free_table;
 use timegrapher_core::clock::ClockFit;
 use timegrapher_core::figure_text::base_digits::{AMPLITUDE, BEAT_ERROR, RATE};
 use timegrapher_core::figure_text::{fixed_text, signed_text, true_minus};
@@ -1327,7 +1328,8 @@ fn table_grid(
                     }
                     None => {
                         let label = p.map_or_else(String::new, |p| position_label(p.core()));
-                        pending_row(ui, (label, fw, dur), status.take(), live);
+                        let short = t.short.iter().find(|s| s.0 == label).map(|s| s.1);
+                        pending_row(ui, (label, fw, dur, short), status.take(), live);
                     }
                 }
                 ui.end_row();
@@ -1358,39 +1360,32 @@ fn table_grid(
     (!poise).then(|| table_notes(ui, t));
 }
 
-/// A table's rows top to bottom, each with the position it is of: every
-/// row read, in its own order, then each position of `order` with no row,
-/// unread. A row is placed by its position, never by its count, so a take
-/// with only some positions read lists each position once (#1855: the
-/// Dynamic Poise table listed Crown Up twice and lost 7H30).
+/// A table's rows top to bottom, each with the position it is of: each
+/// position of `order` in its fixed slot, its row where it has one, else
+/// unread; then any row of a position not in `order`. A row is placed by
+/// its position, never by its count or when it was read, so the table
+/// never reorders and lists each position once (#1855: the Dynamic Poise
+/// table listed Crown Up twice and lost 7H30; Hugh and Trevor on #1964).
 pub(crate) fn table_slots(
     rows: &[Row],
     order: &[Position],
 ) -> Vec<(Option<usize>, Option<Position>)> {
-    let of = |label: &str| {
-        order
-            .iter()
-            .copied()
-            .find(|p| position_label(p.core()) == label)
-    };
-    let read: Vec<(Option<usize>, Option<Position>)> = rows
-        .iter()
-        .enumerate()
-        .map(|(i, r)| (Some(i), of(&r.0)))
-        .collect();
-    let unread = order
-        .iter()
-        .filter(|p| !read.iter().any(|r| r.1 == Some(**p)))
-        .map(|&p| (None, Some(p)));
-    read.iter().copied().chain(unread).collect()
+    let row_of = |p: Position| rows.iter().position(|r| position_label(p.core()) == r.0);
+    let slotted = order.iter().map(|&p| (row_of(p), Some(p)));
+    let others = (0..rows.len())
+        .filter(|&i| !order.iter().any(|&p| row_of(p) == Some(i)))
+        .map(|i| (Some(i), None));
+    slotted.chain(others).collect()
 }
 
 /// A table row with no reading yet: the one being measured, with its
 /// figures so far once it has 10 s, else the words under way (`status`),
-/// else greyed; a blank Duration cell first when the table has one.
+/// else, marked under 10 s (`short`), its duration and "Under 10 s" as
+/// the Positions table says it (Hugh on #1964), else greyed; a blank
+/// Duration cell first when the table has one.
 fn pending_row(
     ui: &mut egui::Ui,
-    (label, fw, dur): (String, f32, bool),
+    (label, fw, dur, short): (String, f32, bool, Option<f64>),
     status: Option<String>,
     live: Option<&FreeCell>,
 ) {
@@ -1416,6 +1411,22 @@ fn pending_row(
             ui.label(RichText::new(label).strong().color(pal.text));
             blank(ui);
             status_cell(ui, fw, s, pal.accent);
+            for _ in 0..3 {
+                ui.label("");
+            }
+        }
+        (None, _) if short.is_some() => {
+            ui.label(RichText::new(label).color(pal.text));
+            if dur {
+                right_in(
+                    ui,
+                    fw,
+                    table_duration(short.unwrap_or_default()),
+                    false,
+                    pal.text,
+                );
+            }
+            right_in(ui, fw, UNDER_10_S.into(), false, pal.text_secondary);
             for _ in 0..3 {
                 ui.label("");
             }
@@ -2022,14 +2033,10 @@ fn saved_test(ui: &mut egui::Ui, s: &FullWind) {
 
 /// A Dynamic Poise table of a take's `readings` with no test on the
 /// Bench: its upright stops read again (#1619).
-pub(crate) fn poise_table(ui: &mut egui::Ui, readings: &[Reading]) {
-    table_grid(
-        ui,
-        ("poise", Kind::Poise),
-        &table(readings, Kind::Poise),
-        None,
-        None,
-    );
+pub(crate) fn poise_table(ui: &mut egui::Ui, readings: &[Reading], short: &[(String, f64)]) {
+    let mut t = table(readings, Kind::Poise);
+    t.short = short.to_vec();
+    table_grid(ui, ("poise", Kind::Poise), &t, None, None);
 }
 
 /// A test's table, filling in as each position is measured, with a word
@@ -2185,6 +2192,9 @@ pub type Row = (String, Option<f64>, Option<f64>, Option<f64>, Option<f64>);
 /// rate less the mean, amplitude and beat error (a size), then the means.
 pub struct Table {
     pub rows: Vec<Row>,
+    /// The stops marked under 10 s, too short to read: each label and
+    /// duration, shown in its slot as the Positions table shows it.
+    pub short: Vec<(String, f64)>,
     pub beat_error_hovers: Vec<String>,
     /// Each position's beat error dimmed: not from the unlock (from the
     /// drop, or its source not recorded), as in the Power Reserve table.
@@ -2309,6 +2319,7 @@ fn table_of(figures: &[SourcedFigures], mut notes: Vec<String>, kind: Kind) -> T
         dvh_amplitude: ix.dvh_amplitude,
         notes,
         durations: Vec::new(),
+        short: Vec::new(),
     }
 }
 
@@ -2348,6 +2359,9 @@ pub struct FreeTable {
     /// The take's upright stops read the same way, for the Dynamic Poise
     /// pane with no test on the Bench (#1619).
     pub upright: TakeReadings,
+    /// The upright stops marked under 10 s, each label and duration
+    /// (Hugh on #1964).
+    pub short: Vec<(String, f64)>,
 }
 
 /// A take's positions read again, as readings: each position marked long
@@ -2411,65 +2425,8 @@ pub fn card_rows(t: &session::PositionsTable) -> Vec<session::PositionRow> {
         .collect()
 }
 
-/// The free take's table from core's, in the Current Position card's
-/// order, with its `six` positions and the take's `upright` stops as
-/// readings.
-pub fn free_table(
-    t: &session::PositionsTable,
-    six: TakeReadings,
-    upright: TakeReadings,
-) -> FreeTable {
-    let rows: Vec<(String, f64, FreeCell)> = card_rows(t)
-        .into_iter()
-        .map(|r| {
-            let cell = match &r.measurement {
-                Some(m) => match (m.rate_s_per_day, m.amplitude_deg, m.beat_error()) {
-                    (None, None, None) => FreeCell::Unread,
-                    (rate, amp, be) => FreeCell::Read(rate, amp, be),
-                },
-                None if r.duration_s > 0.0 => FreeCell::Short,
-                None => FreeCell::NotMarked,
-            };
-            (position_label(r.position), r.duration_s, cell)
-        })
-        .collect();
-    let read = rows
-        .iter()
-        .filter(|r| matches!(r.2, FreeCell::Read(..)))
-        .count();
-    let six_of = card_order();
-    let extra = upright
-        .0
-        .iter()
-        .filter(|r| !six_of.contains(&r.position))
-        .map(|r| {
-            let m = &r.measurement;
-            (
-                position_label(r.position),
-                r.position.common(),
-                r.duration_s,
-                FreeCell::Read(m.rate_s_per_day, m.amplitude_deg, m.beat_error()),
-            )
-        })
-        .collect();
-    FreeTable {
-        rows,
-        extra,
-        mean: [
-            t.indices.x,
-            t.indices.amplitude_mean,
-            t.indices.beat_error_mean,
-        ],
-        largest: [
-            t.indices.d_rate,
-            t.indices.d_amplitude,
-            t.indices.d_beat_error,
-        ],
-        read,
-        six,
-        upright,
-    }
-}
+/// What a stop marked too short to read says in its row.
+pub(crate) const UNDER_10_S: &str = "Under 10 s";
 
 /// A duration as the table writes it: "35 s", "4 min 10 s", "1 h 5 min".
 pub(crate) fn table_duration(v: f64) -> String {

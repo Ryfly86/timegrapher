@@ -467,6 +467,44 @@ fn the_heavy_spot_is_in_a_facts_box_and_the_notes_in_info(app: &mut TimegrapherA
     }
 }
 
+/// The plot's key and the heavy spot's facts box never cover each
+/// other: where the plot is too narrow for both in its top, the key goes
+/// in a row under it (Walter's walk and Hugh on #1964: they clashed from
+/// about 1100 down to 950 px with five or more uprights read).
+#[test]
+fn the_key_never_covers_the_heavy_spot() {
+    let order = guided::Kind::Poise.order();
+    let (mut app, base) = saved_and_opened("key5", &order[..5]);
+    let app = &mut app;
+    let t = app.free_table(&egui::Context::default()).expect("a table");
+    let readings = &t.upright.0;
+    assert_eq!(readings.len(), 5, "{t:?}");
+    let fit = guided::poise_fit(readings).expect("fitted from five");
+    let (name, value) = fit.heavy_spot_row();
+    let key = [
+        timegrapher_core::poise_picture::points_key(5),
+        timegrapher_core::poise_picture::WAVE_KEY.to_string(),
+    ];
+    app.poise_info = false;
+    for views in [[true, true], [true, false]] {
+        app.poise_views = views;
+        for w in [1600.0, 1400.0, 1100.0, 1050.0, 1000.0, 950.0] {
+            let texts = draw_at(app, Pane::DynamicPoise, Vec2::new(w, 820.0));
+            let at = |want: &str| texts.iter().find(|(t, _)| t == want).map(|(_, r)| *r);
+            let plate = [&name, &value].map(|t| at(t).unwrap_or_else(|| panic!("{t} at {w}")));
+            for k in &key {
+                // Its dot or line too, left of its words.
+                let r = at(k).unwrap_or_else(|| panic!("{k} at {w}"));
+                let r = r.with_min_x(r.left() - 20.0);
+                for p in plate {
+                    assert!(!r.intersects(p), "{k} {r:?} over {p:?} at {w} {views:?}");
+                }
+            }
+        }
+    }
+    let _ = std::fs::remove_dir_all(base);
+}
+
 /// The dial has the watch case behind it (#1762, Peter's version A, from
 /// core's `poise_case`): its bezel just outside the outer ring, the whole
 /// case inside the pane, lugs and crown included, and the 3H name past

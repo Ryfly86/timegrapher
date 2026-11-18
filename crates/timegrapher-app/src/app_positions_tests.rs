@@ -1400,12 +1400,18 @@ fn a_45_degree_stop_gets_its_own_row_outside_the_average() {
     let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
     let lines: Vec<&str> = drawn.lines().collect();
     let at = |s: &str| lines.iter().position(|l| *l == s);
-    let (cr, h130, avg) = (
+    let (cr, h130, avg, largest) = (
         at("Crown Right (CR, 12H)").expect("CR"),
         at("1:30 Up (1H30)").expect("its own row"),
         at("Average").expect("Average"),
+        lines
+            .iter()
+            .position(|l| l.starts_with("Largest"))
+            .expect("Largest Difference"),
     );
-    assert!(cr < h130 && h130 < avg, "{drawn}");
+    // The six's Average and Largest Difference right under them, then
+    // the 45° stop (Hugh on #1964).
+    assert!(cr < avg && avg < largest && largest < h130, "{drawn}");
     assert!(drawn.contains("6 of 6"), "{drawn}");
     let _ = std::fs::remove_dir_all(base);
 }
