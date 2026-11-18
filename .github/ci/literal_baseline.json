@@ -4,7 +4,7 @@
   "timegrapher-app": {
    "files": {
     "crates/timegrapher-app/src/app.rs": {
-     "bounds": 4,
+     "bounds": 3,
      "comparisons": 6,
      "constants": 16,
      "defaults": 0
@@ -269,7 +269,7 @@
     }
    },
    "total": {
-    "bounds": 102,
+    "bounds": 101,
     "comparisons": 91,
     "constants": 62,
     "defaults": 2
@@ -387,6 +387,6 @@
   }
  },
  "long_files": {
-  "crates/timegrapher-app/src/app.rs": 4325
+  "crates/timegrapher-app/src/app.rs": 4318
  }
 }
