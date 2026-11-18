@@ -883,6 +883,8 @@ fn the_table_is_written_for_a_spreadsheet() {
         dvh_rate: None,
         dvh_amplitude: Some(-31.0),
         notes: vec!["Crown Up (CU, 3H): no regular beat found".into()],
+        durations: Vec::new(),
+        short: Vec::new(),
     };
     let csv = table_text(&t, ',', Kind::Positions);
     let lines: Vec<&str> = csv.lines().collect();
@@ -1365,4 +1367,117 @@ fn a_reopened_poise_take_reports_as_the_cli_does() {
         measure_s: None,
     };
     assert_eq!(text, text_report::poise(&header, &readings));
+}
+
+/// A Dynamic Poise table of a Quick Listen read in some stops, out of the
+/// stand's order: each stop is listed once, in its fixed stand slot, read
+/// or unread, never in the order read (#1855; Peter's 41 mm Datejust,
+/// 2026-11-18: CD, CL, CU, 1H30 and CR read, then 1H30 and CR listed
+/// again unread and 7H30 and 4H30 lost; Hugh and Trevor on #1964).
+#[test]
+fn a_table_of_some_stops_lists_each_stop_once() {
+    // Read out of the stand's order.
+    let read = [
+        Position::CrownRight,
+        Position::CrownDown,
+        Position::Up1h30,
+        Position::CrownLeft,
+        Position::CrownUp,
+    ];
+    let rows: Vec<Row> = read
+        .iter()
+        .map(|p| (position_label(p.core()), Some(1.0), None, Some(200.0), None))
+        .collect();
+    let slots = table_slots(&rows, Kind::Poise.order(), true);
+    let shown: Vec<(Option<usize>, Position)> = slots
+        .iter()
+        .map(|&(i, p)| (i, p.expect("a stop")))
+        .collect();
+    assert_eq!(
+        shown,
+        [
+            (Some(1), Position::CrownDown),
+            (None, Position::Up7h30),
+            (Some(3), Position::CrownLeft),
+            (None, Position::Up4h30),
+            (Some(4), Position::CrownUp),
+            (Some(2), Position::Up1h30),
+            (Some(0), Position::CrownRight),
+            (None, Position::Up10h30),
+        ]
+    );
+    // Every stop read in the stand's order: its rows alone, in order.
+    let all: Vec<Row> = POISE_ORDER
+        .iter()
+        .map(|p| (position_label(p.core()), Some(1.0), None, None, None))
+        .collect();
+    let slots = table_slots(&all, Kind::Poise.order(), true);
+    assert_eq!(slots.len(), 8);
+    assert!(slots.iter().enumerate().all(|(i, s)| s.0 == Some(i)));
+    // The Positions Test's tables keep their rows' own order, so a
+    // kept Full Wind table reads across This Take's (#1853), and list
+    // each position once all the same.
+    let six: Vec<Row> = [Position::CrownLeft, Position::DialUp]
+        .iter()
+        .map(|p| (position_label(p.core()), Some(1.0), None, None, None))
+        .collect();
+    let slots = table_slots(&six, Kind::Positions.order(), false);
+    assert_eq!(slots.len(), 6);
+    assert_eq!(slots[0], (Some(0), Some(Position::CrownLeft)));
+    assert_eq!(slots[1], (Some(1), Some(Position::DialUp)));
+    assert!(slots[2..].iter().all(|s| s.0.is_none()));
+}
+
+/// A Dynamic Poise stop marked under 10 s shows in its own slot as the
+/// Positions table shows it: its name in normal ink, its duration and
+/// "Under 10 s", not as a stop still to come (Walter and Hugh on #1964).
+#[test]
+fn a_poise_stop_under_10_s_says_so_in_its_slot() {
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    let cl = position_label(session::Position::parse("CL").expect("CL"));
+    // Wide, and tight beside the picture: its words never run back over
+    // its duration (Walter on #1964: "7 sUnder 10 s" at 1000 px).
+    for w in [1400.0, 950.0, 600.0] {
+        let mut cells = Vec::new();
+        let mut ink = egui::Color32::TRANSPARENT;
+        for _ in 0..2 {
+            let input = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    Vec2::new(w, 600.0),
+                )),
+                ..Default::default()
+            };
+            let out = ctx.run(input, |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    ink = theme::pal(ui).text;
+                    let mut t = table(&[], Kind::Poise);
+                    t.durations = vec![0.0];
+                    t.short = vec![(cl.clone(), 6.0)];
+                    table_grid(ui, ("poise", Kind::Poise), &t, None, None);
+                });
+            });
+            cells = out
+                .shapes
+                .iter()
+                .filter_map(|c| match &c.shape {
+                    egui::Shape::Text(s) => Some((
+                        s.galley.text().to_string(),
+                        s.galley.job.sections.first().map(|f| f.format.color),
+                        s.galley.rect.translate(s.pos.to_vec2()),
+                    )),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+        }
+        let at = |text: &str| cells.iter().find(|c| c.0 == text).cloned();
+        let name = at(&cl).expect("its row");
+        assert_eq!(name.1, Some(ink), "normal ink");
+        let under = at(UNDER_10_S).expect("Under 10 s");
+        let dur = at("6 s").expect("its duration");
+        let y = name.2.center().y;
+        assert!((under.2.center().y - y).abs() < 1.0 && (dur.2.center().y - y).abs() < 1.0);
+        assert!(under.2.left() > dur.2.right(), "{w}: {dur:?} {under:?}");
+    }
 }
