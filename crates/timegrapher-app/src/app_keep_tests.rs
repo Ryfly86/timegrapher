@@ -782,7 +782,16 @@ fn quick_listen_keeps_its_take_in_unsorted_until_filed() {
         .as_ref()
         .is_some_and(|(m, _)| m.contains("Filed") && m.contains("Pepsi")));
     assert_eq!(app.session.saved_to(), Some(filed.as_path()));
-    assert!(app.open_group().unwrap().takes.is_empty());
+    // The Bench and Watches go with it to Pepsi (#1978): Unsorted is left
+    // empty, and Pepsi shows the take.
+    assert_eq!(app.watch, "Pepsi");
+    let e = app.open_group().unwrap();
+    assert_eq!(e.watch.name, "Pepsi");
+    assert!(
+        e.takes.iter().any(|t| e.take_dir(t) == filed),
+        "{:?}",
+        e.takes
+    );
     // Deleted while the stopped session is saved into it: the session
     // lets go of it first, rather than refusing.
     app.answer_take_ask(watches::Ask::Delete {
@@ -1169,6 +1178,57 @@ fn the_take_on_show_filed_from_unsorted_takes_the_bench_to_its_watch() {
     let _ = std::fs::remove_dir_all(&base);
 }
 
+/// A Quick Listen kept in Unsorted Takes, still on the Bench, filed under
+/// a watch: the Bench and the status line follow it to that watch, and it
+/// is read again with the watch's lift (#1978).
+#[test]
+fn a_quick_listen_kept_then_filed_takes_the_bench_to_its_watch() {
+    let (mut app, base) = super::tests::save_failure_fixture("file-kept");
+    let root = base.join("Timegrapher Data");
+    let mut lib = library::Library::create(&root).unwrap();
+    let mut ym = library::Watch::new("Yacht-Master 42");
+    ym.lift = Some(55.0);
+    lib.add(&ym).unwrap();
+    let id = lib.find("Yacht-Master 42").unwrap().watch.id.clone();
+    let unsorted = lib.unsorted_dir().unwrap();
+    drop(lib);
+    app.use_library(Some(root.clone()));
+    app.pick_unsorted();
+    for at in 2..12 {
+        super::tests::append_save_test_second(&mut app, at);
+    }
+    app.save_into(&unsorted);
+    app.wait_for_save();
+    let kept = app.session.saved_to().expect("kept").to_path_buf();
+    assert!(app.take_on_show().is_none(), "the session's own take");
+    app.take_readings.wait();
+    app.move_take(&kept, &id);
+    assert!(!app.unsorted_open, "{:?}", app.message);
+    assert_eq!(app.watch_open.as_deref(), Some(id.as_str()));
+    assert_eq!(app.watch, "Yacht-Master 42");
+    assert!(
+        app.status_words().contains("Yacht-Master 42") && !app.status_words().contains("No watch"),
+        "{}",
+        app.status_words()
+    );
+    let t = Instant::now();
+    while app.batch.is_some() && t.elapsed().as_secs() < 60 {
+        app.poll();
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    assert_eq!(app.lift_deg, 55.0, "read again with its watch's lift");
+    // The status line names the take by its folder, not New Take
+    // (Walter on #1999).
+    let name = file_name(&kept);
+    assert!(
+        app.status_words().contains(&name) && !app.status_words().contains("New Take"),
+        "{}",
+        app.status_words()
+    );
+    drop(app);
+    let _ = std::fs::remove_dir_all(&base);
+}
+
 /// A take moved to a watch takes the calibre, lift angle and beat rate
 /// that watch has set, the calibre's own where the table gives them, and
 /// is read again with them when it is on show; what the watch leaves
@@ -1277,6 +1337,51 @@ fn a_moved_takes_lift_becomes_known_from_its_watch() {
     assert_eq!(doc.get("lift_known").and_then(|i| i.as_bool()), Some(true));
     // Already so: nothing changes, and nothing is read again.
     assert!(!super::watches_pane::settings_of(&mut doc, &w, &cal));
+}
+
+/// A recording opened from outside the Watches folder stays on show, as
+/// it was measured, when a watch is picked in Watches, picked on the
+/// Watch line, or added: to be kept in it next (#1966).
+#[test]
+fn picking_or_adding_a_watch_keeps_a_recording_opened_from_outside() {
+    let base = std::env::temp_dir().join(format!("tg-app-pick-keep-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let root = base.join("Timegrapher Data");
+    let mut lib = library::Library::create(&root).unwrap();
+    lib.add(&library::Watch::new("Pepsi")).unwrap();
+    let pepsi = lib.find("Pepsi").unwrap().watch.id.clone();
+    drop(lib);
+    let file = base.join("outside").join("old take.wav");
+    let mut app = super::tests::opened_recording(file.parent().unwrap(), "old take.wav", 20.0);
+    app.use_library(Some(root.clone()));
+    app.change_position(Position::DialDown);
+    let shown = app.take_on_show().expect("on show");
+    assert!(app.shown_outside_watches());
+    // Picked in Watches.
+    app.pick_watch(&pepsi);
+    assert_eq!(app.take_on_show(), Some(shown.clone()));
+    assert!(app.live.is_some());
+    assert_eq!(app.watch_open.as_deref(), Some(pepsi.as_str()));
+    // Picked on the Watch line: nothing asked, nothing put away, and the
+    // position stays.
+    drop(app);
+    let mut app = super::tests::opened_recording(file.parent().unwrap(), "old take.wav", 20.0);
+    app.use_library(Some(root.clone()));
+    app.change_position(Position::DialDown);
+    app.line_pick(Some(pepsi.clone()), false);
+    assert!(app.confirm.is_none());
+    assert_eq!(app.take_on_show(), Some(shown.clone()));
+    assert_eq!(app.position, Position::DialDown);
+    // Added with New Watch…: picked, and the take stays.
+    let Ok(Some(lib)) = &mut app.library else {
+        panic!("no library");
+    };
+    lib.add(&library::Watch::new("DayDate 36")).unwrap();
+    let daydate = lib.find("DayDate 36").unwrap().watch.id.clone();
+    app.pick_watch(&daydate);
+    assert_eq!(app.take_on_show(), Some(shown));
+    assert_eq!(app.watch_open.as_deref(), Some(daydate.as_str()));
+    let _ = std::fs::remove_dir_all(&base);
 }
 
 /// Picking another watch in the Watches list with a take on show: the

@@ -22,15 +22,21 @@ impl TimegrapherApp {
     /// centre line as it keeps them. The odd stray dot (one beat in a
     /// thousand at each end) is left out of the width, so one bad
     /// detection can't flatten the trace. The view before is kept for the
-    /// next Listen.
+    /// next Listen. So are Rate Line and Parallel Guides, which an opened
+    /// take starts with off: they follow the newest seconds' rate, which
+    /// says little about the take as a whole (Peter, #1968). Either can be
+    /// turned on for the take.
     pub(super) fn fit_take(&mut self) {
-        let before = self.strip;
+        let before = (self.strip, [self.rate_line, self.rate_guides]);
         if self.live_strip.is_none() {
             self.live_fit = self.strip_fit;
         }
         self.fit_view();
-        let live = self.live_strip.map_or(before, |(live, _)| live);
-        self.live_strip = Some((live, self.strip));
+        let (live, rate) = self
+            .live_strip
+            .map_or(before, |(live, _, rate)| (live, rate));
+        self.live_strip = Some((live, self.strip, rate));
+        [self.rate_line, self.rate_guides] = [false; 2];
     }
 
     /// The strip's view a live session goes back to: the person's own
@@ -38,7 +44,7 @@ impl TimegrapherApp {
     /// set it by hand since, which stays (Hugh).
     pub(super) fn live_view(&self) -> StripView {
         let mut v = self.strip;
-        if let Some((live, fitted)) = self.live_strip {
+        if let Some((live, fitted, _)) = self.live_strip {
             if v.half_width_ms == fitted.half_width_ms {
                 v.half_width_ms = live.half_width_ms;
             }
@@ -50,14 +56,24 @@ impl TimegrapherApp {
     }
 
     /// A new take, a test, or listening after an opened take: the strip
-    /// goes back to its live view, and Fit to how it was if the length
-    /// does.
+    /// goes back to its live view and its Rate Line and Parallel Guides,
+    /// and Fit to how it was if the length does.
     pub(super) fn restore_live_strip(&mut self) {
-        if matches!(self.live_strip, Some((_, fitted)) if fitted.span_s == self.strip.span_s) {
+        if matches!(self.live_strip, Some((_, fitted, _)) if fitted.span_s == self.strip.span_s) {
             self.strip_fit = self.live_fit;
+        }
+        if let Some((.., rate)) = self.live_strip {
+            [self.rate_line, self.rate_guides] = rate;
         }
         self.strip = self.live_view();
         self.live_strip = None;
+    }
+
+    /// Rate Line and Parallel Guides as a live session has them: those
+    /// from before an opened take, kept for the next run of the app.
+    pub(super) fn live_rate_marks(&self) -> [bool; 2] {
+        self.live_strip
+            .map_or([self.rate_line, self.rate_guides], |(.., rate)| rate)
     }
 
     /// Fit the strip's length and width to the take on show.
@@ -604,7 +620,7 @@ impl TimegrapherApp {
 
     /// The rate line the strip draws, when Rate Line or Parallel Guides
     /// is on: the guides follow its slope, so it is worked out for either.
-    fn strip_rate_line(&self) -> Option<strip::RateLine> {
+    pub(super) fn strip_rate_line(&self) -> Option<strip::RateLine> {
         (self.rate_line || self.rate_guides)
             .then(|| self.reading_over(self.average_s))
             .flatten()

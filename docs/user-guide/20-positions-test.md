@@ -121,7 +121,9 @@ or full positions test. **Duration** is the time marked in each position,
 less the Settle at the start of each stretch and any masked time. A
 position needs 10 s before it shows figures ("Under 10 s"), and one never
 marked reads "Not marked". The Average and Largest Difference rows follow
-once two positions have figures.
+once two positions have figures. A 45° stop marked in the take, such as
+1:30 Up, gets a row of its own under the Average and Largest Difference,
+past a thin line: those two rows are the six positions' figures alone.
 
 **Save as CSV…**, **Save as Text…** and **Copy** save this table too, so
 a take opened from the Watches view can be kept or sent as a test's

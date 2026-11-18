@@ -776,3 +776,30 @@ fn fit_waits_while_the_paper_is_still() {
         "moving, Fit fits again"
     );
 }
+
+/// An opened take starts with Rate Line and Parallel Guides off: they
+/// follow the newest seconds' rate, a dying watch's −2174 s/d over a 67 h
+/// take (#1968). Either can be turned on for the take. Listening brings
+/// back the live choices, and those are what the app keeps.
+#[test]
+fn an_opened_take_starts_with_the_rate_line_and_guides_off() {
+    let mut app = synthetic(40.0, 0.0);
+    (app.rate_line, app.rate_guides) = (true, true);
+    app.fit_take();
+    assert_eq!((app.rate_line, app.rate_guides), (false, false));
+    assert!(app.strip_rate_line().is_none(), "nothing to draw them from");
+    app.rate_guides = true;
+    assert_eq!(
+        (app.settings().rate_line, app.settings().rate_guides),
+        (true, true)
+    );
+    // A second fit of the same take keeps the live choices.
+    app.fit_take();
+    app.restore_live_strip();
+    assert_eq!((app.rate_line, app.rate_guides), (true, true));
+
+    (app.rate_line, app.rate_guides) = (false, true);
+    app.fit_take();
+    app.restore_live_strip();
+    assert_eq!((app.rate_line, app.rate_guides), (false, true));
+}
