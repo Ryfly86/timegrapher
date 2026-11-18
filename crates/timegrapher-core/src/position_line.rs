@@ -133,6 +133,16 @@ pub fn screen(kind: SeriesKind, v: f64) -> String {
 /// values.
 pub fn value_axis(kind: SeriesKind, values: &[f64]) -> Option<[f64; 3]> {
     let (lo, hi) = chart_scale::data_range(values)?;
+    // Never narrower than a few of the figure, about the values' middle:
+    // one position, or several this close, would else span tenths and
+    // re-centre at each re-read (#1953, as #1943's poise dial).
+    let least = least_span(kind);
+    let (lo, hi) = if hi - lo < least {
+        let mid = (lo + hi) / 2.0;
+        (mid - least / 2.0, mid + least / 2.0)
+    } else {
+        (lo, hi)
+    };
     let lo = match kind {
         SeriesKind::BeatError => lo.max(0.0),
         _ => lo,
@@ -144,6 +154,24 @@ pub fn value_axis(kind: SeriesKind, values: &[f64]) -> Option<[f64; 3]> {
     };
     Some([lo, hi, step])
 }
+
+/// The least span of a measure's value axis: 10 s/d, 10° or 0.2 ms, so a
+/// lone figure sits on a scale of some seconds, degrees or tenths of a
+/// millisecond, as a timegrapher's chart does (#1953).
+pub fn least_span(kind: SeriesKind) -> f64 {
+    match kind {
+        SeriesKind::Rate => LEAST_SPAN_S_PER_DAY,
+        SeriesKind::Amplitude => LEAST_SPAN_DEG,
+        SeriesKind::BeatError => LEAST_SPAN_MS,
+    }
+}
+
+/// [`least_span`] of a rate, s/d.
+pub const LEAST_SPAN_S_PER_DAY: f64 = 10.0;
+/// [`least_span`] of an amplitude, degrees.
+pub const LEAST_SPAN_DEG: f64 = 10.0;
+/// [`least_span`] of a beat error, ms.
+pub const LEAST_SPAN_MS: f64 = 0.2;
 
 /// A figure bare, as a table cell under its column's unit writes it, a
 /// negative one with a true minus: "−0.5".
@@ -494,6 +522,36 @@ mod tests {
         // A wide spread keeps its own, coarser step.
         let [_, _, step] = value_axis(SeriesKind::Rate, &[-10.0, 12.0]).expect("an axis");
         assert!(step >= 5.0, "{step}");
+    }
+
+    /// One position's axis spans at least a few of the figure about it,
+    /// and holds as its figure drifts by tenths at each re-read
+    /// (#1953, the v1.1 shakedown: +17.4 to +17.6 s/d, then +17.8 to
+    /// +18.0, then +17.7 to +17.9).
+    #[test]
+    fn a_lone_figures_axis_is_some_figures_wide_and_holds_still() {
+        for (kind, v, nudge) in [
+            (SeriesKind::Rate, 17.5, 0.1),
+            (SeriesKind::Amplitude, 246.0, 1.0),
+            (SeriesKind::BeatError, 0.28, 0.01),
+        ] {
+            let [lo, hi, step] = value_axis(kind, &[v]).expect("an axis");
+            assert!(hi - lo >= least_span(kind) - 1e-9, "{kind:?}: {lo} to {hi}");
+            // About the figure, not from one end of it.
+            assert!(
+                ((lo + hi) / 2.0 - v).abs() <= step + 1e-9,
+                "{kind:?}: {lo} to {hi}"
+            );
+            // Ten re-reads drifting by a figure's tenth each: the axis
+            // moves at most once, where its middle crosses a step, not
+            // at each (as the 0.2 s/d one did).
+            let mut axes: Vec<[f64; 2]> = (0..10)
+                .map(|k| value_axis(kind, &[v + nudge * f64::from(k) / 10.0]).expect("an axis"))
+                .map(|a| [a[0], a[1]])
+                .collect();
+            axes.dedup();
+            assert!(axes.len() <= 2, "{kind:?}: {axes:?}");
+        }
     }
 
     /// A session of ten positions draws a lane for each of the ten, its

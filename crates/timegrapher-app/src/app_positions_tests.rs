@@ -1162,28 +1162,30 @@ fn an_opened_takes_table_can_be_saved_and_copied() {
         !text.contains("Settling") && !text.contains("Measured"),
         "{text}"
     );
-    // The toolbar says how the take was read, as the table beside it
-    // does: greyed, never the app's Each Position (Hugh, #1733; Walter on
-    // #1843). Its stops are 62 s, the first read whole, the rest less the
-    // 20 s settling after each change of position.
+    // A plain take, no guided test: the toolbar keeps the settings, for
+    // the next test, in normal ink; how long each position was read is
+    // the table's Duration (Hugh on #1969, which replaces #1733's greyed
+    // lengths for a plain take; a 67 h take showed "67:29:10" there).
+    // Its stops are 62 s, the first read whole, the rest less the 20 s
+    // settling after each change of position.
     let read = app.free_table(&ctx).expect("a table");
-    let recorded = app
-        .recorded_lengths(&ctx, guided::Kind::Positions)
-        .expect("a take on show");
-    assert_eq!(recorded, "42 to 62 s");
+    assert_eq!(app.recorded_lengths(&ctx, guided::Kind::Positions), None);
     let durations: Vec<f64> = read.six.0.iter().map(|r| r.duration_s).collect();
     let least = durations.iter().copied().fold(f64::MAX, f64::min);
     let most = durations.iter().copied().fold(f64::MIN, f64::max);
-    assert_eq!(
-        recorded,
-        fields::duration_range(least.round(), most.round())
-    );
-    assert_ne!(recorded, fields::duration(guided::MEASURE_S));
+    assert_eq!((least.round(), most.round()), (42.0, 62.0));
     let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
     let lines: Vec<&str> = drawn.lines().collect();
     let each = lines.iter().position(|l| *l == "Each Position");
     let shown = each.and_then(|i| lines.get(i + 1));
-    assert_eq!(shown, Some(&recorded.as_str()), "{drawn}");
+    assert_eq!(
+        shown,
+        Some(&fields::duration(app.guided_measure_s).as_str()),
+        "{drawn}"
+    );
+    for d in [least, most].map(guided::table_duration) {
+        assert!(lines.contains(&d.as_str()), "{d} in the Duration column: {drawn}");
+    }
     let _ = std::fs::remove_dir_all(&base);
 }
 

@@ -466,8 +466,8 @@ impl TimegrapherApp {
         );
     }
 
-    /// With a take on show and no test on the Bench, how long each of its
-    /// positions was read, as the `kind` of pane's table gives it, so the
+    /// With a guided test's take on show and no test on the Bench, how
+    /// long each of its positions was read, as the `kind` of pane's table gives it, so the
     /// two never disagree (Walter on #1843): the Complication Test's own
     /// stretches on its pane, else the This Take table's. One length to
     /// the second, or "1 to 2 min" where they differ (Hugh, #1733). None
@@ -484,6 +484,11 @@ impl TimegrapherApp {
         let lengths: Vec<f64> = if kind == guided::Kind::Complication {
             let t = self.complication_saved.as_ref()?;
             t.stretches().iter().map(|s| s.2 - s.1).collect()
+        } else if !self.positions_take {
+            // A plain take: the toolbar keeps the settings, for the next
+            // test; its lengths are in the table's Duration (Hugh on
+            // #1969: a 67 h take showed "67:29:10" as Each Position).
+            return None;
         } else {
             let t = self.free_table_shown(ctx)?;
             t.six
