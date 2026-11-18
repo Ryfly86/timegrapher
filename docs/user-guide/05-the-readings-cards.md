@@ -33,6 +33,14 @@ the controls each read in one line across:
 - **Settling:** after each change of position, the first seconds aren't
   read while the watch settles. The button's hover gives the time.
 
+**Good practice:** after you turn the watch, wait until its readings
+steady before you judge them, and give a slow position longer. Witschi
+gives each position "20 s stabilisation time and ≥40 s measurement time
+for stable results" ([Witschi 2025](https://www.witschi.com/wp-content/uploads/firmwares/8Z1UtLGf/20251118_witschi_testing-methods-for-mechanical-watches_en.pdf), p. 33); some watches need far more. On the
+public corpus take `datejust41_3235_multipos_105min`, counting from
+each turn, Crown Left kept moving for about 3 to 4 minutes and Dial
+Down for about 2, well past a settle of 20 or 30 s.
+
 ## The Calibre Card
 
 The Calibre card says which watch is on the microphone, and holds what
@@ -80,6 +88,12 @@ about 5% low.
 - Treat an amplitude on the default as rough until you set the calibre.
 - [M4, Amplitude and Lift Angle](m4-amplitude-and-lift-angle.md) has
   the formula.
+
+**Good practice:** set the calibre, so the amplitude uses the maker's
+lift angle: "To obtain an accurate amplitude reading, the lift angle of
+the movement must be known" ([Witschi 2025](https://www.witschi.com/wp-content/uploads/firmwares/8Z1UtLGf/20251118_witschi_testing-methods-for-mechanical-watches_en.pdf), p. 9). A typical figure is only a
+start: "In most modern movements, the lift angle is approximately 51°"
+(p. 12), and calibres differ: the table gives the Dandong 3235 59°.
 
 ### Why Auto Is Usually Right
 
@@ -150,6 +164,12 @@ for a take opened, or "Wind not given" until it is set.
 These cards have no controls: each is its figure. [Chapter 1](01-what-a-timegrapher-measures.md) says what each measures;
 [M2](m2-rate.md), [M4](m4-amplitude-and-lift-angle.md) and
 [M5](m5-beat-error.md) say how.
+
+**Good practice:** read the amplitude with the watch's history in mind.
+It falls as the oils age: "As lubricants age, the amplitude gradually
+decreases" ([Witschi 2025](https://www.witschi.com/wp-content/uploads/firmwares/8Z1UtLGf/20251118_witschi_testing-methods-for-mechanical-watches_en.pdf), p. 12). Very high readings are a warning too: for
+knocking, or overbanking, Witschi gives "Amplitude is too high
+(> 330°)" (p. 36).
 
 ### What the Hover Shows
 

@@ -32,6 +32,11 @@ View menu.
 
 1. Wind the watch fully and set its position on the Current Position
    card.
+
+   Dial Up is a good choice for a test in one position, as it keeps
+   poise out of the figures: "The testing should preferably be done in
+   the dial up position to eliminate poise errors as much as possible"
+   ([Kleinlein, _Rules and Practice for Adjusting Watches_, 1920](https://archive.org/details/rulespracticefor00klei), p. 14).
 2. **New Test**, then **Start Test** on the Listen card. A new session
    starts in that position.
 3. Leave it. While the test runs, the computer is kept awake, whatever
@@ -170,6 +175,11 @@ the last part hour as the watch stops.
 | The rate moving as the amplitude falls | The watch's isochronism (chapter 19). |
 | Stops on the way | Silences of 30 s or more: the watch stopping and starting, or the sound lost. |
 | A low Read % in an hour | Little of that hour could be read: noise, or a weak sound late in the run. |
+
+**Good practice:** compare the run with the maker's figure for the
+calibre first. Without one, Witschi gives a yardstick: "Standard
+watches (single barrel) 38 – 48 hours" ([Witschi 2025](https://www.witschi.com/wp-content/uploads/firmwares/8Z1UtLGf/20251118_witschi_testing-methods-for-mechanical-watches_en.pdf), p. 34), longer for
+movements built for it.
 
 ## What It Can't Tell You
 

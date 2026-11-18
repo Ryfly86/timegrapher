@@ -90,6 +90,12 @@ folds.
 | A spectrum rising towards long periods | Slow wander or drift. |
 | A spectrum flat across | Noise with no period standing out. |
 
+**Good practice:** expect some peak at the wheels' periods on a healthy
+watch. Each tooth passes the power on a little unevenly: "Each meshing
+produces slight variations in torque — typically around 5 to 10%"
+([Witschi 2025](https://www.witschi.com/wp-content/uploads/firmwares/8Z1UtLGf/20251118_witschi_testing-methods-for-mechanical-watches_en.pdf), p. 24). A peak that stands well above the rest, or one that grows
+from one service to the next, is the one to follow up.
+
 ## What It Can't Tell You
 
 - **Whether a peak is real.** Every spectrum has peaks; noise makes them

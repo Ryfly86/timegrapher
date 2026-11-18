@@ -103,6 +103,16 @@ A take kept as its analysis alone takes only the new watch's name.
 | A row marked Incomplete | Sound files are missing, often a copy or sync not finished. Nothing is changed or repaired. |
 | A blank row | The take is still being read. |
 
+**Good practice:** compare takes only in the same position, state of
+wind and room temperature. Temperature alone moves the rate:
+"Temperature fluctuations Affect spring elasticity and oil viscosity"
+([Witschi 2025](https://www.witschi.com/wp-content/uploads/firmwares/8Z1UtLGf/20251118_witschi_testing-methods-for-mechanical-watches_en.pdf), p. 34), and the chronometer tests time each watch "in five
+positions and at three different temperatures (8°, 23° and 38°C)"
+([COSC, Methods of measurement](https://cosc.swiss/en/certification/methods-measurement)). After a change of temperature, such as straight off the
+wrist, give the watch time to reach the room's, as the old adjusters
+did, "allowing the metals to return to the natural form and tension"
+([Kleinlein, _Rules and Practice for Adjusting Watches_, 1920](https://archive.org/details/rulespracticefor00klei), p. 16).
+
 ## What It Can't Tell You
 
 - **Why two takes differ.** The list sets them side by side; the cause is
