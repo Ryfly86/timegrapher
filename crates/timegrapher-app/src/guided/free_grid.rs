@@ -85,7 +85,7 @@ pub fn free_table(
         .filter(|r| matches!(r.2, FreeCell::Read(..)))
         .count();
     let six_of = card_order();
-    let marked = |r: &&session::PositionRow| r.duration_s > 0.0;
+    let marked = |r: &&session::PositionRow| cell_of(r) != FreeCell::NotMarked;
     let extra = upright_rows
         .iter()
         .filter(|r| !six_of.contains(&r.position))
@@ -150,7 +150,8 @@ fn free_row(
     match cell {
         FreeCell::NotMarked => {
             right(ui, "Not marked".into(), false, pal.text_tertiary);
-            for _ in 0..3 {
+            let figures = 3;
+            for _ in 0..figures {
                 ui.label("");
             }
         }
