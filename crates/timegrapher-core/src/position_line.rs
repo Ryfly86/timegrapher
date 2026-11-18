@@ -351,7 +351,9 @@ pub fn test_lines(
     let compared = lines.amplitude.key.is_some();
     if let Some(gap) = crate::session::LiftGap::of(lifts).filter(|_| compared) {
         let (s, e) = (states.last(), lanes.last());
-        let mut amplitude = position_line_over(s.unwrap(), e.unwrap(), None, SeriesKind::Amplitude);
+        let this = "this test's state is always there";
+        let mut amplitude =
+            position_line_over(s.expect(this), e.expect(this), None, SeriesKind::Amplitude);
         let h = crate::reading_text::WindHours::measured(wind_h.unwrap_or_default());
         let note = gap.note(h);
         for lane in &mut amplitude.lanes {

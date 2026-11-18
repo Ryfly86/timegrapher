@@ -525,7 +525,7 @@ fn six_positions_read_their_own_rates() {
             r
         })
         .collect();
-    let c = comparison(&full, 24.0, &later, full.lift_angle_deg).unwrap();
+    let c = comparison(&full, 24.0, &later, [full.lift_angle_deg; 2]).unwrap();
     assert_eq!(c.rows.len(), 6);
     for (p, v) in &c.rows {
         let label = position_label(*p);
@@ -551,7 +551,25 @@ fn six_positions_read_their_own_rates() {
     // Read at another lift, the amplitudes can't be set against each
     // other: no change, the rest as before, and the lifts said (#1884).
     let full_lift = full.lift_angle_deg.unwrap();
-    let other = comparison(&full, 24.0, &later, Some(full_lift + 3.0)).unwrap();
+    // The test's own pair, as its table and its position lines both
+    // take it (#1923).
+    let mut test = Test::after(full.clone());
+    test.lift_deg = Some(full_lift + 3.0);
+    assert_eq!(test.lifts(), [Some(full_lift), Some(full_lift + 3.0)]);
+    let other = comparison(&full, 24.0, &later, test.lifts()).unwrap();
+    let figs = text_report::figures(&later);
+    let full_figs = kept_figures(&full);
+    let lines = crate::position_lanes::lines(
+        &figs,
+        &[],
+        (Some(24.0), Some(&full_figs), test.lifts()),
+        [true; 3],
+    );
+    assert!(lines[0].key.is_some(), "rate compared");
+    assert!(
+        lines[1].lanes.iter().all(|l| l.full_wind.is_none()),
+        "amplitude not"
+    );
     assert!(other.rows.iter().all(|(_, v)| v[5].is_none()));
     for ((_, x), (_, y)) in c.rows.iter().zip(&other.rows) {
         assert_eq!(x[..5], y[..5]);
@@ -580,7 +598,7 @@ fn six_positions_read_their_own_rates() {
     );
     let saved = FullWind::from_json(&kept.to_json()).unwrap();
     assert_eq!(saved, kept);
-    let run = comparison(&full, h, &later, full.lift_angle_deg).unwrap();
+    let run = comparison(&full, h, &later, [full.lift_angle_deg; 2]).unwrap();
     let again = saved_comparison(&saved).unwrap();
     assert_eq!(
         (again.hours, again.im, again.ie),
