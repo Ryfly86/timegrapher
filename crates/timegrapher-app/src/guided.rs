@@ -2198,7 +2198,7 @@ fn table_of(figures: &[SourcedFigures], mut notes: Vec<String>, kind: Kind) -> T
     let over: Vec<session::Position> = kind.order().iter().map(|p| p.core()).collect();
     let ix = session::sourced_indices_over(None, figures, &over);
     let beat_error_summary = ix.beat_error_summary();
-    notes.push(beat_error_summary.clone());
+    notes.extend((!figures.is_empty()).then(|| beat_error_summary.clone())); // #1911
     Table {
         beat_error_hovers: figures
             .iter()
