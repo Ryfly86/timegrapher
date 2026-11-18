@@ -183,6 +183,12 @@ pub fn draw(
             .filter(|_| short && opt.edges)
             .map(|p| short_edge_names(ui, p, top, scale, dx));
         let resp = plot.show(ui, |pl| {
+            // The time axis follows the curve, whichever window it was cut
+            // on (#1924): the typical stretch shown before there were beats
+            // is not kept once there are.
+            if !empty {
+                pl.set_auto_bounds([true, false]);
+            }
             pl.set_plot_bounds_y(y_lo..=y_hi);
             grid.draw(pl, pal);
             // The noise floor, a call-out under the facts box, which keeps
@@ -222,13 +228,7 @@ pub fn draw(
         if axis {
             time_axis(ui, &resp.transform, foot);
         }
-        // Each plot's height and foot, for the layout's tests.
-        ui.ctx().data_mut(|d| {
-            d.insert_temp(
-                egui::Id::new(("profile plot", k)),
-                (*resp.transform.frame(), foot),
-            )
-        });
+        note_plot(ui, k, &resp.transform, foot);
         if let Some(p) = p {
             let facts = (short, &facts_here);
             label_marks(ui, &resp.transform, p, (&med, &tops), opt, dx, (k, facts));
@@ -350,6 +350,18 @@ fn lanes(ui: &egui::Ui, k: usize, opt: Options, axis: bool) -> (bool, f32, f32) 
         (top_lane, bottom_lane)
     };
     (short, top_lane, bottom_lane)
+}
+
+/// Side `k`'s plot as drawn, for the tests: its height and foot (the
+/// layout's), and the time it shows.
+fn note_plot(ui: &egui::Ui, k: usize, t: &egui_plot::PlotTransform, foot: egui::Rect) {
+    ui.ctx().data_mut(|d| {
+        d.insert_temp(egui::Id::new(("profile plot", k)), (*t.frame(), foot));
+        d.insert_temp(
+            egui::Id::new(("profile plot time", k)),
+            t.bounds().range_x(),
+        );
+    });
 }
 
 /// A side's plot on `grid`, fixed in place: `h` its height for the level
@@ -1280,5 +1292,72 @@ mod tests {
             ..opt
         };
         assert_eq!(offsets(own, Some(-0.97)), [0.0, 0.0]);
+    }
+
+    /// The time axis follows each curve shown, short or long (#1924): a
+    /// profile cut on amplitude's long window, after one on the short
+    /// window, or after none, is drawn whole, its unlock on the plot.
+    #[test]
+    fn the_time_axis_follows_the_profile_onto_the_long_window() {
+        let curve = |t0_ms: f64, n: usize| TickProfile {
+            side: timegrapher_core::profile::Side::A,
+            beats: 40,
+            t0_ms,
+            step_ms: 0.1,
+            median: (0..n).map(|i| (i as f32 * 0.37).sin().abs()).collect(),
+            p10: vec![0.0; n],
+            p90: vec![1.0; n],
+            floor: 0.0,
+            unlock_ms: Some(t0_ms + 2.0),
+            drop_ms: Some(0.0),
+            peak_ms: None,
+            amplitude_deg: Some(150.0),
+            sound1_ms: None,
+            sound2_ms: None,
+            sound3_ms: None,
+        };
+        let both = |p: TickProfile| [Some(p.clone()), Some(p)];
+        let (short, long) = (both(curve(-20.0, 280)), both(curve(-50.0, 580)));
+        let ctx = egui::Context::default();
+        crate::theme::install(&ctx);
+        let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(900.0, 600.0));
+        let time = |ps: &[Option<TickProfile>; 2]| {
+            for _ in 0..2 {
+                let input = egui::RawInput {
+                    screen_rect: Some(screen),
+                    ..Default::default()
+                };
+                let _ = ctx.run(input, |ctx| {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        draw(ui, ps, Options::default(), None, None, "band")
+                    });
+                });
+            }
+            (0..2)
+                .map(|k| {
+                    ctx.data(|d| {
+                        d.get_temp::<std::ops::RangeInclusive<f64>>(egui::Id::new((
+                            "profile plot time",
+                            k,
+                        )))
+                    })
+                    .unwrap()
+                })
+                .collect::<Vec<_>>()
+        };
+        for x in time(&[None, None]) {
+            assert_eq!(x, -20.0..=10.0);
+        }
+        for x in time(&short) {
+            assert!(*x.start() < -20.0 && *x.start() > -25.0, "{x:?}");
+        }
+        for x in time(&long) {
+            assert!(*x.start() < -50.0, "{x:?}");
+        }
+        // None again, then long: long once more.
+        time(&[None, None]);
+        for x in time(&long) {
+            assert!(*x.start() < -50.0, "{x:?}");
+        }
     }
 }

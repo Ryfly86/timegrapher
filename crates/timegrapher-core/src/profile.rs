@@ -7,8 +7,8 @@
 //! [`crate::amplitude`], so the marks are exactly the ones behind the
 //! numbers on screen.
 
-use crate::amplitude::{edges_guided, side_deg, AmplitudeConfig};
-use crate::beats::{Beat, POST_S, PRE_S, TEMPLATE_TRIM};
+use crate::amplitude::{edges_guided, side_deg, AmplitudeConfig, UnlockWindow};
+use crate::beats::{Beat, POST_S, TEMPLATE_TRIM};
 use crate::dsp::envelope;
 use crate::shape::{self, ShapeConfig};
 use serde::Serialize;
@@ -108,8 +108,10 @@ impl TickProfile {
 /// smoothed over 0.2 ms, so nothing is lost).
 const STEP_MS: f64 = 0.1;
 
-/// Profiles of both sides from beats in `[from_s, to_s)` of an envelope.
+/// Profiles of both sides from beats in `[from_s, to_s)` of an envelope,
+/// cut on the template `w` ([`UnlockWindow::at`] the stretch's amplitude).
 /// Beat times and bounds are in the envelope's time base.
+#[allow(clippy::too_many_arguments)]
 pub fn profiles(
     env: &[f32],
     fs: f64,
@@ -118,27 +120,30 @@ pub fn profiles(
     from_s: f64,
     to_s: f64,
     cfg: &AmplitudeConfig,
+    w: UnlockWindow,
 ) -> [Option<TickProfile>; 2] {
-    [Side::A, Side::B].map(|side| profile(env, fs, beats, side, osc_period_s, from_s, to_s, cfg))
+    [Side::A, Side::B]
+        .map(|side| profile(env, fs, beats, side, osc_period_s, (from_s, to_s), cfg, w))
 }
 
 /// Profiles of both sides from raw audio and beats found in it. `beats`
 /// times are seconds from the start of `x`. A few seconds of beats are
-/// guided as [`from_snippets`] says, by `guides`: Tick's and Tock's.
+/// guided as [`from_snippets`] says, by `guides`: Tick's and Tock's, on
+/// the template `w`.
 pub fn profiles_from_audio(
     x: &[f32],
     fs: f64,
     beats: &[Beat],
     osc_period_s: f64,
     cfg: &crate::analysis::AnalysisConfig,
-    guides: [Option<f64>; 2],
+    (guides, w): ([Option<f64>; 2], UnlockWindow),
 ) -> [Option<TickProfile>; 2] {
     let env = envelope(x, fs, &cfg.envelope);
     let to = x.len() as f64 / fs;
     let [a, b] = guides;
     [(Side::A, a), (Side::B, b)].map(|(side, guide)| {
-        let snips = side_snippets(&env, fs, beats, side, 0.0, to);
-        from_snippets(&snips, fs, side, osc_period_s, &cfg.amplitude, guide)
+        let snips = side_snippets(&env, fs, beats, side, (0.0, to), w);
+        from_snippets(&snips, fs, side, osc_period_s, &cfg.amplitude, guide, w)
     })
 }
 
@@ -149,12 +154,12 @@ pub fn profile(
     beats: &[Beat],
     side: Side,
     osc_period_s: f64,
-    from_s: f64,
-    to_s: f64,
+    span: (f64, f64),
     cfg: &AmplitudeConfig,
+    w: UnlockWindow,
 ) -> Option<TickProfile> {
-    let snips = side_snippets(env, fs, beats, side, from_s, to_s);
-    from_snippets(&snips, fs, side, osc_period_s, cfg, None)
+    let snips = side_snippets(env, fs, beats, side, span, w);
+    from_snippets(&snips, fs, side, osc_period_s, cfg, None, w)
 }
 
 /// The windows of one side's good beats in `[from_s, to_s)`.
@@ -163,8 +168,8 @@ fn side_snippets<'a>(
     fs: f64,
     beats: &[Beat],
     side: Side,
-    from_s: f64,
-    to_s: f64,
+    (from_s, to_s): (f64, f64),
+    w: UnlockWindow,
 ) -> Vec<&'a [f32]> {
     let times: Vec<f64> = beats
         .iter()
@@ -176,8 +181,8 @@ fn side_snippets<'a>(
         })
         .map(|b| b.time)
         .collect();
-    let len = template_len(fs);
-    windows(env, fs, &times)
+    let len = template_len(fs, w);
+    windows(env, fs, &times, w)
         .into_iter()
         .map(|w| &env[w..w + len])
         .collect()
@@ -187,21 +192,23 @@ fn side_snippets<'a>(
 /// ([`from_snippets`]); with fewer there is none.
 pub const PROFILE_MIN_BEATS: usize = 3;
 
-/// Samples in one beat's window: `PRE_S` before the beat to `POST_S` after.
-pub fn template_len(fs: f64) -> usize {
-    (PRE_S * fs).round() as usize + (POST_S * fs).round() as usize
+/// Samples in one beat's window on the template `w`: `w.pre_s` before the
+/// beat to `POST_S` after.
+pub fn template_len(fs: f64, w: UnlockWindow) -> usize {
+    w.origin(fs) + (POST_S * fs).round() as usize
 }
 
-/// One beat's envelope window, as [`from_snippets`] takes it, or `None`
-/// when it runs off either end of `env`. `t` is the beat time in `env`'s
-/// time base.
-pub fn snippet(env: &[f32], fs: f64, t: f64) -> Option<&[f32]> {
-    let w = *windows(env, fs, &[t]).first()?;
-    Some(&env[w..w + template_len(fs)])
+/// One beat's envelope window on the template `w`, as [`from_snippets`]
+/// takes it, or `None` when it runs off either end of `env`. `t` is the
+/// beat time in `env`'s time base.
+pub fn snippet(env: &[f32], fs: f64, t: f64, w: UnlockWindow) -> Option<&[f32]> {
+    let c = *windows(env, fs, &[t], w).first()?;
+    Some(&env[c..c + template_len(fs, w)])
 }
 
-/// A profile from beat windows already cut out of the envelope (each
-/// [`template_len`] samples, the beat `PRE_S` in), so a live view can keep
+/// A profile from beat windows already cut out of the envelope on the
+/// template `w` (each [`template_len`] samples, the beat `w.pre_s` in;
+/// others are left out), so a live view can keep
 /// windows from many passes. On a few seconds of beats a bump of noise
 /// before the unlock can pass for sound 1 for a moment; `guide_unlock_ms`,
 /// where this side's latest amplitude reading put its unlock (ms from the
@@ -214,8 +221,9 @@ pub fn from_snippets(
     osc_period_s: f64,
     cfg: &AmplitudeConfig,
     guide_unlock_ms: Option<f64>,
+    w: UnlockWindow,
 ) -> Option<TickProfile> {
-    let len = template_len(fs);
+    let len = template_len(fs, w);
     let snips: Vec<&[f32]> = snips.iter().copied().filter(|w| w.len() == len).collect();
     if snips.len() < PROFILE_MIN_BEATS {
         return None;
@@ -233,7 +241,7 @@ pub fn from_snippets(
     let tmpl: Vec<f32> = (0..len)
         .map(|k| crate::dsp::trimmed_mean_f32(&mut sorted_at(k), TEMPLATE_TRIM))
         .collect();
-    let origin = (PRE_S * fs).round() as usize;
+    let origin = w.origin(fs);
     let to_ms = |s: f64| (s - origin as f64) / fs * 1000.0;
     let guide = guide_unlock_ms.map(|ms| origin as f64 + ms / 1000.0 * fs);
 
@@ -294,11 +302,11 @@ fn mark(
     p.sound3_ms = from_unlock(sh.as_ref().map(|s| s.t3_ms));
 }
 
-/// Start samples of the template windows around `times` that fit in `env`,
-/// as `median_template` takes them.
-fn windows(env: &[f32], fs: f64, times: &[f64]) -> Vec<usize> {
-    let pre = (PRE_S * fs).round() as usize;
-    let len = pre + (POST_S * fs).round() as usize;
+/// Start samples of the windows on the template `w` around `times` that
+/// fit in `env`, as `median_template` takes them.
+fn windows(env: &[f32], fs: f64, times: &[f64], w: UnlockWindow) -> Vec<usize> {
+    let pre = w.origin(fs);
+    let len = template_len(fs, w);
     times
         .iter()
         .filter_map(|&t| {
@@ -430,6 +438,10 @@ pub fn sound_at<'a, T>(
 pub struct SideAverage {
     pub profile: TickProfile,
     pub stretches: usize,
+    /// Stretches in the window cut on another window than the latest
+    /// one's ([`crate::amplitude::UnlockWindow`], #1924), so on another
+    /// time axis, and left out of this average.
+    pub other_window: usize,
     pub from_s: f64,
     pub to_s: f64,
 }
@@ -460,7 +472,8 @@ pub enum ProfileAt {
 /// [`crate::session::masked_spans`] cleans them) or across a break, are
 /// averaged side by side, weighted by their beats, on the time axis they
 /// were kept on (each aligned on its own drop). Stretches whose curves
-/// don't share that axis are left out. With none left, why: as
+/// don't share the latest one's axis (cut on another window, #1924) are
+/// left out, and counted ([`SideAverage::other_window`]). With none left, why: as
 /// [`sound_at`] says it. `osc_period_s` and `cfg` measure the marks, as
 /// [`from_snippets`] does.
 pub fn profile_at(
@@ -510,20 +523,24 @@ pub fn profile_at(
 }
 
 /// One side's profiles averaged as [`profile_at`] says, or `None` with
-/// none to average. Those not on the first's time axis are left out.
+/// none to average. Those not on the latest's time axis are left out and
+/// counted.
 fn averaged(
     kept: &[(f64, &TickProfile)],
     side: Side,
     osc_period_s: f64,
     cfg: &AmplitudeConfig,
 ) -> Option<SideAverage> {
-    let first = kept.first()?.1;
+    let latest = kept.last()?.1;
     let same = |(_, p): &&(f64, &TickProfile)| {
-        p.median.len() == first.median.len()
-            && (p.t0_ms - first.t0_ms).abs() < 1e-9
-            && (p.step_ms - first.step_ms).abs() < 1e-9
+        p.median.len() == latest.median.len()
+            && (p.t0_ms - latest.t0_ms).abs() < 1e-9
+            && (p.step_ms - latest.step_ms).abs() < 1e-9
     };
+    let all = kept.len();
     let kept: Vec<&(f64, &TickProfile)> = kept.iter().filter(same).collect();
+    let other_window = all - kept.len();
+    let first = kept.first()?.1;
     let every = crate::analysis_take::PROFILE_EVERY_S;
     let from_s = kept.first()?.0 - every;
     let to_s = kept.last()?.0;
@@ -570,6 +587,7 @@ fn averaged(
     Some(SideAverage {
         profile: p,
         stretches: each.len(),
+        other_window,
         from_s,
         to_s,
     })
@@ -578,6 +596,7 @@ fn averaged(
 #[cfg(test)]
 mod tests {
     use super::*;
+    const SHORT: UnlockWindow = UnlockWindow::SHORT;
     use crate::amplitude::{MAX_AMPLITUDE_DEG, MIN_AMPLITUDE_DEG};
     use crate::analysis::{analyze, AnalysisConfig};
     use crate::synth::{generate, SynthConfig};
@@ -635,13 +654,13 @@ mod tests {
             .collect();
         let (from, to) = (beats[2].time, beats[7].time);
         let at = |side, idx: &[usize]| {
-            let got: Vec<*const f32> = side_snippets(&env, fs, &beats, side, from, to)
+            let got: Vec<*const f32> = side_snippets(&env, fs, &beats, side, (from, to), SHORT)
                 .iter()
                 .map(|s| s.as_ptr())
                 .collect();
             let want: Vec<*const f32> = idx
                 .iter()
-                .map(|&i| snippet(&env, fs, beats[i].time).unwrap().as_ptr())
+                .map(|&i| snippet(&env, fs, beats[i].time, SHORT).unwrap().as_ptr())
                 .collect();
             assert_eq!(got, want, "{side:?}");
         };
@@ -655,8 +674,8 @@ mod tests {
         // Twelve beats whose envelope has a bump of noise 15 ms before the
         // drop, sound 1 at 8 ms and the drop at the beat time.
         let fs = 48_000.0;
-        let len = template_len(fs);
-        let origin = (PRE_S * fs).round() as usize;
+        let len = template_len(fs, SHORT);
+        let origin = SHORT.origin(fs);
         let pulse = |i: usize, at_ms: f64, h: f32| {
             let d = (i as f64 - origin as f64) / fs * 1000.0 - at_ms;
             h * (-(d / 0.3).powi(2)).exp() as f32
@@ -676,7 +695,7 @@ mod tests {
         let snips: Vec<&[f32]> = snips.iter().map(Vec::as_slice).collect();
         let cfg = AmplitudeConfig::default();
         let unlock = |guide| {
-            from_snippets(&snips, fs, Side::B, 0.25, &cfg, guide)
+            from_snippets(&snips, fs, Side::B, 0.25, &cfg, guide, SHORT)
                 .and_then(|p| p.unlock_ms)
                 .expect("an unlock")
         };
@@ -692,8 +711,8 @@ mod tests {
     #[test]
     fn a_profiles_amplitude_outside_the_gate_is_withheld() {
         let fs = 48_000.0;
-        let len = template_len(fs);
-        let origin = (PRE_S * fs).round() as usize;
+        let len = template_len(fs, SHORT);
+        let origin = SHORT.origin(fs);
         let pulse = |i: usize, at_ms: f64, h: f32| {
             let d = (i as f64 - origin as f64) / fs * 1000.0 - at_ms;
             h * (-(d / 0.3).powi(2)).exp() as f32
@@ -716,7 +735,8 @@ mod tests {
                 lift_deg,
                 ..AmplitudeConfig::default()
             };
-            let p = from_snippets(&snips, fs, Side::B, osc, &cfg, Some(-8.3)).expect("a profile");
+            let p = from_snippets(&snips, fs, Side::B, osc, &cfg, Some(-8.3), SHORT)
+                .expect("a profile");
             let t = (p.drop_ms.expect("a drop") - p.unlock_ms.expect("an unlock")) / 1000.0;
             (
                 p.amplitude_deg,
@@ -753,12 +773,18 @@ mod tests {
         let cfg = AnalysisConfig::default();
         let a = analyze(&audio, &cfg);
         let beat = 3600.0 / a.summary.bph as f64;
-        let [pa, pb] =
-            profiles_from_audio(&audio.samples, fs, &a.beats, 2.0 * beat, &cfg, [None, None]);
+        let [pa, pb] = profiles_from_audio(
+            &audio.samples,
+            fs,
+            &a.beats,
+            2.0 * beat,
+            &cfg,
+            ([None, None], SHORT),
+        );
         for p in [pa.unwrap(), pb.unwrap()] {
             assert!(p.beats > 20, "{} beats", p.beats);
             assert_eq!(p.median.len(), p.p10.len());
-            assert!((p.t0_ms + PRE_S * 1000.0).abs() < 1e-9);
+            assert!((p.t0_ms + SHORT.pre_s * 1000.0).abs() < 1e-9);
             let (u, d) = (p.unlock_ms.unwrap(), p.drop_ms.unwrap());
             assert!(u < d && d.abs() < 1.5, "unlock {u} drop {d}");
             let amp = p.amplitude_deg.unwrap();
@@ -771,6 +797,14 @@ mod tests {
     /// Twenty seconds of a synthetic watch at 280°, kept as an
     /// analysis-only take keeps it: both sides' profiles every 2 s.
     fn kept_stretches() -> (Vec<crate::analysis_take::StretchProfiles>, Vec<Beat>, f64) {
+        kept_stretches_on(|_, _| SHORT)
+    }
+
+    /// As [`kept_stretches`], each stretch cut on the window `w` gives for
+    /// its end and the oscillation period.
+    fn kept_stretches_on(
+        w: impl Fn(f64, f64) -> UnlockWindow,
+    ) -> (Vec<crate::analysis_take::StretchProfiles>, Vec<Beat>, f64) {
         let sc = SynthConfig {
             duration_s: 20.0,
             ..SynthConfig::default()
@@ -787,11 +821,45 @@ mod tests {
                 crate::analysis_take::StretchProfiles {
                     end_s,
                     signal: None,
-                    sides: profiles(&env, fs, &a.beats, osc, end_s - 2.0, end_s, &cfg.amplitude),
+                    sides: profiles(
+                        &env,
+                        fs,
+                        &a.beats,
+                        osc,
+                        end_s - 2.0,
+                        end_s,
+                        &cfg.amplitude,
+                        w(end_s, osc),
+                    ),
                 }
             })
             .collect();
         (kept, a.beats, osc)
+    }
+
+    /// Stretches cut on two windows (#1924) are never averaged together:
+    /// the window averages those on the latest stretch's window, on its
+    /// time axis, and counts the others it leaves out.
+    #[test]
+    fn a_window_averages_the_latest_window_s_stretches_and_counts_the_rest() {
+        let (kept, beats, osc) = kept_stretches_on(|end_s, osc| match end_s > 16.0 {
+            true => UnlockWindow::long(osc),
+            false => SHORT,
+        });
+        let cfg = AmplitudeConfig::default();
+        let ProfileAt::Averaged(sides) =
+            profile_at(&kept, (20.0, 10.0), &[], &[], &beats, osc, &cfg)
+        else {
+            panic!("no profile");
+        };
+        let t0 = |k: usize, i: usize| kept[k].sides[i].as_ref().unwrap().t0_ms;
+        for (i, a) in sides.iter().enumerate() {
+            let a = a.as_ref().expect("both sides");
+            assert!(t0(9, i) < t0(0, i) - 1.0, "the long window starts earlier");
+            assert_eq!((a.stretches, a.other_window), (2, 3));
+            assert_eq!((a.from_s, a.to_s), (16.0, 20.0));
+            assert!((a.profile.t0_ms - t0(9, i)).abs() < 1e-9);
+        }
     }
 
     /// The Average Over window from kept 2 s profiles (#979): the
