@@ -240,7 +240,19 @@ fn saved_and_opened_each(
     stops: &[Position],
     each: f64,
 ) -> (TimegrapherApp, std::path::PathBuf) {
+    saved_and_opened_after(name, stops, each, |_| {})
+}
+
+/// [`saved_and_opened_each`] with `before` done to the take heard before
+/// it is saved, such as painting a stretch.
+pub(super) fn saved_and_opened_after(
+    name: &str,
+    stops: &[Position],
+    each: f64,
+    before: impl FnOnce(&mut TimegrapherApp),
+) -> (TimegrapherApp, std::path::PathBuf) {
     let (mut app, base) = listened_each(name, stops, each);
+    before(&mut app);
     app.save_into(&base.join("saved"));
     app.wait_for_save();
     let saved = app.session.saved_to().expect("saved").to_path_buf();
@@ -1373,4 +1385,24 @@ fn only_the_table_scrolls_and_a_short_pane_scrolls_the_picture(app: &mut Timegra
     assert!(hour.bottom() <= size.y, "scrolled into view: {hour:?}");
     let row_now = find(&rolled, "Crown Down (CD, 9H)").expect("the table");
     assert_eq!(row_now.top(), row.top(), "the table stays put");
+}
+
+/// Plot and Dial both off (#1852): the table and the wave's words stand
+/// alone, no picture drawn; either on again brings its picture back.
+#[test]
+fn both_views_off_leave_the_table_and_words() {
+    let (mut app, base) = saved_and_opened("views-off", guided::Kind::Poise.order());
+    let axis = timegrapher_core::poise_picture::HOUR_AXIS;
+    let key = timegrapher_core::poise_picture::DIAL_KEY;
+    // The take's table read first, as the pane reads it.
+    app.free_table(&egui::Context::default()).expect("a table");
+    app.poise_views = [false, false];
+    let drawn = draw(&mut app, Pane::DynamicPoise);
+    assert!(!drawn.contains(axis) && !drawn.contains(key), "{drawn}");
+    assert!(drawn.contains("Crown Down (CD, 9H)"), "the table: {drawn}");
+    assert!(drawn.contains("Once-round wave"), "the words: {drawn}");
+    app.poise_views = [false, true];
+    let drawn = draw(&mut app, Pane::DynamicPoise);
+    assert!(drawn.contains(key) && !drawn.contains(axis), "{drawn}");
+    let _ = std::fs::remove_dir_all(base);
 }

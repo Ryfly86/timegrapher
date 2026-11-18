@@ -299,22 +299,7 @@ impl TimegrapherApp {
 
     /// Each position's settled stretches, in the table's order.
     fn free_stretches(&self) -> Vec<(core_session::Position, f64, f64)> {
-        // The six, then the upright stops between them, for the Dynamic
-        // Poise pane (#1619).
-        let between = guided::POISE_ORDER
-            .iter()
-            .filter(|p| !guided::ORDER.contains(p));
-        guided::ORDER
-            .iter()
-            .chain(between)
-            .filter_map(|&p| Some((p, core_session::Position::parse(p.code())?)))
-            .flat_map(|(p, sp)| {
-                self.session
-                    .settled_spans(self.position, p)
-                    .into_iter()
-                    .map(move |(a, b)| (sp, a, b))
-            })
-            .collect()
+        stretches_in(&self.session, self.position)
     }
 
     /// The guided test's figures for the position being measured, so far:
@@ -351,11 +336,7 @@ impl TimegrapherApp {
         } else {
             latest.max(live.duration_s())
         };
-        let stretches: Vec<(core_session::Position, f64, f64)> = stretches
-            .into_iter()
-            .map(|(p, a, b)| (p, a.max(0.0), b.min(end)))
-            .filter(|s| s.1 < s.2)
-            .collect();
+        let stretches = clipped(stretches, end);
         let masked = core_session::masked_spans(
             &self.masked.iter().map(|&(a, b)| [a, b]).collect::<Vec<_>>(),
         );
@@ -404,25 +385,7 @@ impl TimegrapherApp {
         let read = move |log: BeatLog| {
             let clock = reading_clock(take_clock.as_ref(), opened.is_some(), ppm, log.duration_s);
             let breaks = steady::reading_breaks(opened.unwrap_or_default(), &log);
-            let t = core_session::positions_table(
-                &log,
-                clock.as_ref(),
-                &breaks,
-                &masked,
-                &stretches,
-                core_session::POSITION_MIN_S,
-            );
-            let upright = core_session::position_rows(
-                &core_session::Position::UPRIGHT,
-                (&log, clock.as_ref(), &breaks, &masked),
-                &stretches,
-                core_session::POSITION_MIN_S,
-            );
-            guided::free_table(
-                &t,
-                guided::take_readings(&guided::card_rows(&t), log.bph, bph_set),
-                guided::take_readings(&upright, log.bph, bph_set),
-            )
+            read_table(&log, clock.as_ref(), &breaks, &masked, &stretches, bph_set)
         };
         let log = steady::log_of(live);
         let shown = self.free_table.borrow().as_ref().map(|(_, t)| t.clone());
@@ -573,4 +536,75 @@ impl TimegrapherApp {
             })
         });
     }
+}
+
+/// Each position's settled stretches in `session`, the watch in `now`,
+/// in the table's order: the six, then the upright stops between them,
+/// for the Dynamic Poise pane (#1619). What the This Take table reads,
+/// and Compare With reads of a take picked there (#1851).
+pub(super) fn stretches_in(
+    session: &crate::session::Session,
+    now: Position,
+) -> Vec<(core_session::Position, f64, f64)> {
+    let between = guided::POISE_ORDER
+        .iter()
+        .filter(|p| !guided::ORDER.contains(p));
+    guided::ORDER
+        .iter()
+        .chain(between)
+        .filter_map(|&p| Some((p, core_session::Position::parse(p.code())?)))
+        .flat_map(|(p, sp)| {
+            session
+                .settled_spans(now, p)
+                .into_iter()
+                .map(move |(a, b)| (sp, a, b))
+        })
+        .collect()
+}
+
+/// `stretches`, each cut at the take's start and at `end`; one with
+/// nothing left is left out.
+pub(super) fn clipped(
+    stretches: Vec<(core_session::Position, f64, f64)>,
+    end: f64,
+) -> Vec<(core_session::Position, f64, f64)> {
+    stretches
+        .into_iter()
+        .map(|(p, a, b)| (p, a.max(0.0), b.min(end)))
+        .filter(|s| s.1 < s.2)
+        .collect()
+}
+
+/// The Positions Test table of `log` over `stretches`, on `clock`, cut
+/// at `breaks`, with `masked` left out: core's table of the six and of
+/// the upright stops, at the beat rate set (`bph_set`). The one reading
+/// of a take's positions, for its This Take table and for Compare With
+/// reading another take (#1851), so the two agree to the bit.
+pub(super) fn read_table(
+    log: &BeatLog,
+    clock: Option<&timegrapher_core::clock::ClockFit>,
+    breaks: &[timegrapher_core::breaks::Break],
+    masked: &[(f64, f64)],
+    stretches: &[(core_session::Position, f64, f64)],
+    bph_set: Option<u32>,
+) -> guided::FreeTable {
+    let t = core_session::positions_table(
+        log,
+        clock,
+        breaks,
+        masked,
+        stretches,
+        core_session::POSITION_MIN_S,
+    );
+    let upright = core_session::position_rows(
+        &core_session::Position::UPRIGHT,
+        (log, clock, breaks, masked),
+        stretches,
+        core_session::POSITION_MIN_S,
+    );
+    guided::free_table(
+        &t,
+        guided::take_readings(&guided::card_rows(&t), log.bph, bph_set),
+        guided::take_readings(&upright, log.bph, bph_set),
+    )
 }

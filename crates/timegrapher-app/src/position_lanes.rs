@@ -194,6 +194,7 @@ pub fn beside<R>(
 /// The position lines the pane draws, one for each measure `shown` that
 /// has a figure: core's [`test_lines`] for this test's `figures` at
 /// `wind_h`, the 45° stops in `more`, and the full-wind test's `full`.
+/// Their lanes go in the tables' order ([`in_card_order`]).
 pub fn lines(
     figures: &[SourcedFigures],
     more: &[SourcedFigures],
@@ -205,8 +206,26 @@ pub fn lines(
         .into_iter()
         .zip(shown)
         .filter(|(l, on)| *on && l.axis.is_some())
-        .map(|(l, _)| l)
+        .map(|(l, _)| in_card_order(l))
         .collect()
+}
+
+/// A line's lanes in the order the pane's tables list their rows, the
+/// card's ([`crate::guided::card_order`]: DU DD CU CD CL CR), each group
+/// kept together, the 45° stops after the six in core's order (Hugh on
+/// #1864).
+fn in_card_order(mut line: PositionLine) -> PositionLine {
+    let card = crate::guided::card_order();
+    let at = |code: &str| card.iter().position(|p| p.common() == code);
+    // A stable sort, so stops not in the card keep core's order.
+    line.lanes.sort_by_key(|l| {
+        (
+            l.group != PositionGroup::Horizontal,
+            at(l.position).is_none(),
+            at(l.position),
+        )
+    });
+    line
 }
 
 /// Each lane's place down the plot, in lanes from the top: the
@@ -567,6 +586,42 @@ mod tests {
             .map(|&(p, r)| (p, Some(r), Some(300.0), Some(0.1), None))
             .collect();
         timegrapher_core::session::sourced_indices_over(None, &figures, &Position::TEN)
+    }
+
+    /// The charts list their lanes in the order the tables beside them
+    /// list their rows, the card's (DU DD CU CD CL CR), not core's Witschi
+    /// order (CD CL CU CR), the 45° stops after the six (Walter, Hugh on
+    /// #1864).
+    #[test]
+    fn the_charts_list_the_positions_as_the_tables_do() {
+        use timegrapher_core::session::Position as P;
+        let figure =
+            |p: P, r: f64| -> SourcedFigures { (p, Some(r), Some(280.0), Some(0.2), None) };
+        // In core's own order, as a take gives them.
+        let six: Vec<SourcedFigures> = P::ALL
+            .iter()
+            .enumerate()
+            .map(|(i, &p)| figure(p, i as f64))
+            .collect();
+        let more: Vec<SourcedFigures> = P::HALF_HOURS.iter().map(|&p| figure(p, 1.0)).collect();
+        let table: Vec<&str> = crate::guided::card_order()
+            .iter()
+            .map(|p| p.common())
+            .collect();
+        assert_eq!(table, ["DU", "DD", "CU", "CD", "CL", "CR"]);
+        for line in lines(&six, &more, (None, None), [true; 3]) {
+            let lanes: Vec<&str> = line.lanes.iter().map(|l| l.position).collect();
+            assert_eq!(lanes[..6], table[..], "{lanes:?}");
+            let stops: Vec<&str> = P::HALF_HOURS.iter().map(|p| p.common()).collect();
+            assert_eq!(lanes[6..], stops[..], "{lanes:?}");
+            // The groups stay whole: Horizontal, then Vertical.
+            assert!(
+                line.lanes
+                    .windows(2)
+                    .all(|w| w[0].group == w[1].group || w[0].group == PositionGroup::Horizontal),
+                "{lanes:?}"
+            );
+        }
     }
 
     /// The lanes go Horizontal then Vertical, with a gap between the

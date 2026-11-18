@@ -1122,3 +1122,124 @@ fn the_greyed_lengths_hover_names_its_panes_measure() {
         "How long each position was recorded in this take."
     );
 }
+
+/// A take of the six positions not saved as a Positions Test, picked in
+/// Compare With by its session.json: the take is read as the test it is
+/// set against, begun when the take began (#1851). Before, it said "not
+/// a saved Positions Test (missing field `format`)". Each row is the
+/// row the take's own This Take table shows, to the bit, a position held
+/// twice read as one, its two settled stretches joined (Norm on #1853).
+#[test]
+fn an_ordinary_take_of_the_six_positions_loads_to_compare_with() {
+    let mut stops = guided::Kind::Positions.order().to_vec();
+    stops.push(stops[0]);
+    // Crown Up painted over the middle of Dial Down, so what was recorded
+    // is kept under the painting and loaded with the positions (Norm on
+    // #1853): the take's Crown Up is two stretches too.
+    let (mut app, base) =
+        super::poise_tests::saved_and_opened_after("compare1851", &stops, 62.0, |app| {
+            let end = app.latest_s();
+            app.session
+                .paint(85.0, 100.0, Position::CrownUp, app.position, end);
+        });
+    let saved = std::fs::read_to_string(PathBuf::from(&app.opened_path).join("session.toml"))
+        .unwrap_or_default();
+    assert!(
+        saved.contains("[[recorded]]"),
+        "recorded under the painting: {saved}"
+    );
+    let file = PathBuf::from(&app.opened_path).join("session.json");
+    let dir = super::compare_take::take_dir_of(&file).expect("a take's file");
+    app.read_compare_take(dir);
+    let t = Instant::now();
+    while app.compare_take.is_some() && t.elapsed().as_secs() < 300 {
+        app.poll_compare_take();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let full = app.guided_earlier.clone().expect("read to compare with");
+    assert!(app.guided_earlier_file);
+    assert_eq!(full.positions.len(), 6, "{full:?}");
+    assert!(full.wind_h.is_none(), "a full-wind test to set against");
+    let about: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
+    assert_eq!(Some(full.began_utc.as_str()), about["started_utc"].as_str());
+    let table = app.free_table(&egui::Context::default()).expect("a table");
+    // The first position is held twice: its two stretches are one row,
+    // longer than any position held once.
+    let first = core_session::Position::parse(stops[0].code()).unwrap();
+    let held = |p| app.session.settled_spans(app.position, p).len();
+    assert_eq!(held(stops[0]), 2, "two stretches in {}", stops[0].code());
+    assert_eq!(held(Position::CrownUp), 2, "painted and recorded");
+    let long = |r: &core_session::Reading| r.duration_s;
+    let twice = table.six.0.iter().find(|r| r.position == first).unwrap();
+    assert!(
+        table
+            .six
+            .0
+            .iter()
+            .filter(|r| r.position != first)
+            .all(|r| long(r) < long(twice)),
+        "{table:?}"
+    );
+    // Every figure the bits the table shows.
+    let bits = |rows: &[guided::KeptRow]| {
+        rows.iter()
+            .map(|r| {
+                (
+                    r.position.clone(),
+                    r.rate_s_per_day.map(f64::to_bits),
+                    r.amplitude_deg.map(f64::to_bits),
+                    r.beat_error_ms.map(f64::to_bits),
+                    r.beat_error_source,
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let shown = super::compare_take::kept_rows(&table);
+    assert_eq!(shown.len(), 6);
+    assert_eq!(bits(&full.positions), bits(&shown));
+    // Kept in the test's order, the Full Wind rows read across This
+    // Take's row by row, in its order (Hugh on #1853).
+    assert_ne!(guided::card_order(), {
+        let p: Vec<_> = full.positions.iter().map(|k| k.position.clone()).collect();
+        p.iter()
+            .filter_map(|c| core_session::Position::parse(c))
+            .collect::<Vec<_>>()
+    });
+    app.positions_series = [false; 3];
+    let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
+    let labels: Vec<String> = guided::card_order()
+        .into_iter()
+        .map(guided::position_label)
+        .collect();
+    let rows: Vec<&str> = drawn
+        .lines()
+        .filter(|l| labels.iter().any(|x| x == l))
+        .collect();
+    assert_eq!(rows.len(), 12, "This Take, then Full Wind: {drawn}");
+    assert_eq!(rows[..6], rows[6..], "{drawn}");
+    assert_eq!(
+        rows[..6],
+        labels.iter().map(String::as_str).collect::<Vec<_>>()[..]
+    );
+    // Its saved results alone still load as before.
+    assert!(super::compare_take::take_dir_of(&base.join("nowhere.json")).is_none());
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// Every chart off in the Positions Test pane (#1852): the table stays,
+/// no chart's Horizontal and Vertical lanes are drawn; on again, they are.
+#[test]
+fn every_chart_off_leaves_the_positions_table() {
+    let (mut app, base) =
+        super::poise_tests::saved_and_opened("charts1852", guided::Kind::Positions.order());
+    app.free_table(&egui::Context::default()).expect("a table");
+    let lanes = |drawn: &str| drawn.lines().filter(|l| *l == "Horizontal").count();
+    let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
+    assert!(lanes(&drawn) > 0, "{drawn}");
+    app.positions_series = [false; 3];
+    let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
+    assert_eq!(lanes(&drawn), 0, "{drawn}");
+    assert!(drawn.contains("Crown Down (CD, 9H)"), "the table: {drawn}");
+    let _ = std::fs::remove_dir_all(base);
+}

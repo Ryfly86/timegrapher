@@ -1116,6 +1116,11 @@ mod tests {
         assert_eq!(lift_bph("SL5231P"), Some((Some(54.0), Some(28800))));
         // The roman-numeral spelling on the drawing finds the same row.
         assert_eq!(find("SL5720Ⅱ").unwrap().calibre, "Peacock SL5720II");
+        // Either spelling finds the SL4617 II and III, whichever the row uses.
+        assert_eq!(find("SL4617Ⅱ").unwrap().calibre, "Peacock SL4617II");
+        assert_eq!(find("SL4617II").unwrap().calibre, "Peacock SL4617II");
+        assert_eq!(find("SL4617III").unwrap().calibre, "Peacock SL4617Ⅲ");
+        assert_eq!(find("SL4617Ⅲ").unwrap().calibre, "Peacock SL4617Ⅲ");
         // SL1258 keeps its counted DD324 train and takes the drawing's 53°.
         let c = find("SL1258").unwrap();
         assert_eq!(c.lift_angle_deg, Some(53.0));
@@ -1141,6 +1146,81 @@ mod tests {
         assert_eq!(jh.bph, Some(28800));
         assert!(jh.notes.as_deref().unwrap().contains("46 jewels"));
         assert!(find("JH6501").is_none());
+    }
+
+    /// The app links a source's address only when the source starts with
+    /// it and a space follows, so an address in the middle of a source, or
+    /// one with a colon stuck to its end, shows as plain text.
+    #[test]
+    fn every_web_source_starts_with_its_address() {
+        for c in all() {
+            for s in &c.sources {
+                if !s.contains("http://") && !s.contains("https://") {
+                    continue;
+                }
+                assert!(s.starts_with("http"), "{}: {s}", c.calibre);
+                let url = s.split(' ').next().unwrap_or_default();
+                assert!(!url.ends_with([':', ';', ',', '.']), "{}: {s}", c.calibre);
+                assert_eq!(url.matches("://").count(), 1, "{}: {s}", c.calibre);
+            }
+        }
+    }
+
+    /// Each Ranfft source's figures agree with its row, unless the row's
+    /// notes say Ranfft disagrees.
+    #[test]
+    fn ranfft_sources_fill_gaps_and_disagreements_are_noted() {
+        let mut n = 0;
+        for c in all() {
+            for s in c
+                .sources
+                .iter()
+                .filter(|s| s.contains("ranfft.org/caliber/") && s.contains("read 2026-11-17"))
+            {
+                n += 1;
+                let says = s
+                    .rsplit_once(") (")
+                    .map(|(_, r)| r.trim_end_matches(')'))
+                    .unwrap_or_default();
+                let noted = c.notes.as_deref().is_some_and(|t| t.contains("Ranfft"));
+                for part in says.split(", ") {
+                    if let Some(b) = part.strip_suffix(" bph") {
+                        assert!(noted || c.bph == b.parse().ok(), "{}: {s}", c.calibre);
+                    } else if let Some(l) = part.strip_suffix('°') {
+                        assert!(
+                            noted || c.lift_angle_deg == l.parse().ok(),
+                            "{}: {s}",
+                            c.calibre
+                        );
+                    }
+                }
+            }
+        }
+        assert_eq!(n, 106);
+        let bph = |n: &str| find(n).and_then(|c| c.bph);
+        assert_eq!(bph("Arogno 151"), Some(18000));
+        assert_eq!(bph("Bifora 49"), Some(18000));
+        // Where Ranfft and the lift-angle sheet disagree, no beat rate
+        // (Norm, #1869), and no balance period derived from one.
+        assert_eq!(bph("Elgin 905"), None);
+        assert!(find("Elgin 905").unwrap().wheels.is_empty());
+        assert_eq!(bph("Gruen 106"), None);
+        // Ranfft's "0°" is a placeholder, not a lift angle.
+        assert_eq!(find("Doxa 41").unwrap().lift_angle_deg, None);
+    }
+
+    /// Every figure in the table is in a plausible range for a Swiss
+    /// lever: a placeholder such as Ranfft's "0°" never lands as a figure.
+    #[test]
+    fn every_beat_rate_and_lift_angle_is_plausible() {
+        for c in all() {
+            if let Some(b) = c.bph {
+                assert!((3600..=72000).contains(&b), "{}: {b} bph", c.calibre);
+            }
+            if let Some(l) = c.lift_angle_deg {
+                assert!((30.0..=70.0).contains(&l), "{}: {l}°", c.calibre);
+            }
+        }
     }
 
     #[test]
