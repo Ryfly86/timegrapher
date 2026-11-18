@@ -552,11 +552,15 @@ amplitude and beat error from the fullest to the least wound reading
 whose wind was given;
 `rate_change`, `amplitude_change` and `beat_error_change` in the JSON),
 Im (the largest, excluding 12H, as in NIHS 93-10), Im\* (over all
-positions), Ie (change in X over the positions measured in both).
+positions), Ie (change in X over the positions measured in both). Im and
+Im\* take only the positions read in both the fullest and the least
+wound state, so each change they compare spans the same hours; a
+position read in only some states keeps its own isochronism row.
 
 ## Findings
 
-The findings are conditions found in the sound of one recording, each
+The findings are conditions found in the sound of one recording (and
+one, `clocks_differ`, about the session), each
 with the figures that show it. None judges the watch: the report has no
 tolerances, limits or advice. Published tolerances (Witschi's, COSC's,
 the movement maker's) and what a figure means for the movement are in
@@ -573,6 +577,7 @@ the watchmaker skill, each with its source.
 | `cycle_other` | Regular amplitude change not tied to a listed wheel | as above, no wheel; the nearest is named |
 | `shape_unlock_loud` | Unlocking as loud as the drop on Tick | the level of sound 1 to sound 3 is 1 or more |
 | `shape_extra_sounds` | Extra sounds around the beat on Tock | sounds before the unlock or after the drop |
+| `clocks_differ` | Readings on different clocks | some readings are corrected for the sound card's clock and some are not, so the differences between them include the card's own error; about the session, not one recording |
 
 Every reading's table row also carries its unlock share and clipped
 share, whether or not they are listed here.
