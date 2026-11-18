@@ -402,12 +402,7 @@ fn kept_words(name: &str, alone: Option<bool>) -> String {
 /// shown; `so_far` while the run goes on, its newest hour still filling.
 fn hour_area(ui: &mut egui::Ui, hours: &[power_reserve::Hour], so_far: bool, shown: [bool; 3]) {
     ui.spacing_mut().scroll = egui::style::ScrollStyle::solid();
-    // While it runs the charts gain an hour as each is whole.
-    let whole = if so_far {
-        hours.iter().take_while(|h| h.whole()).count()
-    } else {
-        hours.len()
-    };
+    let whole = charted_hours(hours, so_far);
     let charts = reserve_charts(&hours[..whole], shown);
     let charts: Vec<&hour_steps::Chart> = charts.iter().collect();
     let spans: Vec<(f64, f64)> = hours[..whole]
@@ -532,9 +527,36 @@ fn axis_words(h: &power_reserve::Hour) -> String {
     }
 }
 
+/// How many of `hours` the charts draw: none before the first whole hour
+/// (app.md, #1961); while the run goes on (`so_far`) its whole hours, as
+/// each is whole; once it has ended, all of them, the last part hour too.
+fn charted_hours(hours: &[power_reserve::Hour], so_far: bool) -> usize {
+    let whole = hours.iter().take_while(|h| h.whole()).count();
+    if so_far || whole == 0 {
+        whole
+    } else {
+        hours.len()
+    }
+}
+
+/// The kinds charted of those `shown`: each with a figure in some hour,
+/// so no chart stands empty on a made-up scale (#1961).
+fn charted_kinds(hours: &[power_reserve::Hour], shown: [bool; 3]) -> Vec<SeriesKind> {
+    [
+        SeriesKind::Rate,
+        SeriesKind::Amplitude,
+        SeriesKind::BeatError,
+    ]
+    .into_iter()
+    .zip(shown)
+    .filter(|&(kind, on)| on && hours.iter().any(|h| h.value(kind).is_some()))
+    .map(|(kind, _)| kind)
+    .collect()
+}
+
 /// The Power Reserve charts `shown` of rate, amplitude and beat error,
 /// each hour's figure and ± as its table row gives it, grey where its cell
-/// is (#1729).
+/// is (#1729); a kind with no figure has none ([`charted_kinds`]).
 fn reserve_charts(hours: &[power_reserve::Hour], shown: [bool; 3]) -> Vec<hour_steps::Chart> {
     use hour_steps::{Chart, Step};
     let step = |k: SeriesKind, h: &power_reserve::Hour| -> Option<Step> {
@@ -545,38 +567,51 @@ fn reserve_charts(hours: &[power_reserve::Hour], shown: [bool; 3]) -> Vec<hour_s
             grey: h.grey(k),
         })
     };
-    [
-        SeriesKind::Rate,
-        SeriesKind::Amplitude,
-        SeriesKind::BeatError,
-    ]
-    .into_iter()
-    .zip(shown)
-    .filter(|(_, on)| *on)
-    .map(|(kind, _)| Chart {
-        kind,
-        steps: hours.iter().map(|h| step(kind, h)).collect(),
-        unit: timegrapher_core::position_line::unit_of(kind),
-        signed: kind == SeriesKind::Rate,
-        axis: power_reserve::chart_axis(hours, kind),
-    })
-    .collect()
+    charted_kinds(hours, shown)
+        .into_iter()
+        .map(|kind| Chart {
+            kind,
+            steps: hours.iter().map(|h| step(kind, h)).collect(),
+            unit: timegrapher_core::position_line::unit_of(kind),
+            signed: kind == SeriesKind::Rate,
+            axis: power_reserve::chart_axis(hours, kind),
+        })
+        .collect()
 }
 
 /// The least height the pane's run needs under its toolbar once it has
-/// charts: its line and the charts `shown` at a height that reads, the
-/// table scrolling beside or under them; none before then. The Paper
+/// hours: its line and the charts it draws at a height that reads, the
+/// table scrolling beside or under them; with no chart (none whole yet,
+/// none with a figure, or all off, #1852), its line and the table's
+/// titles and first rows whole (#1962); none before an hour. The Paper
 /// Strip above gives room for it, down to its own least.
 pub fn least_h(test: Option<&Test>, shown: [bool; 3]) -> Option<f32> {
     let t = test?;
-    let charts = match t.results.as_ref() {
-        Some(r) => !r.hours.is_empty(),
-        None => t.so_far.iter().any(|h| h.whole()),
+    let (hours, so_far) = match t.results.as_ref() {
+        Some(r) => (&r.hours[..], false),
+        None => (&t.so_far[..], true),
     };
-    // All of them off, the table and words alone (#1852).
-    let n = shown.iter().filter(|&&on| on).count();
-    (charts && n > 0).then_some(22.0 + hour_steps::read_h(n) + 12.0)
+    if hours.is_empty() {
+        return None;
+    }
+    let charted = &hours[..charted_hours(hours, so_far)];
+    let n = charted_kinds(charted, shown).len();
+    if n > 0 {
+        return Some(LINE_H + hour_steps::read_h(n) + FOOT_H);
+    }
+    let rows = hours.len().min(TABLE_LEAST_ROWS) as f32;
+    Some(LINE_H + (2.0 + rows) * ROW_H + FOOT_H)
 }
+
+/// The run's line over what [`least_h`] asks for.
+const LINE_H: f32 = 22.0;
+/// Room under the last thing [`least_h`] asks for.
+const FOOT_H: f32 = 12.0;
+/// A table row's height; its titles take two, name over unit.
+const ROW_H: f32 = 22.0;
+/// The table's rows [`least_h`] keeps whole when there is no chart; more
+/// scroll.
+const TABLE_LEAST_ROWS: usize = 3;
 
 /// A run stopped by hand after `hours` whole hours, for the tests.
 #[cfg(test)]
@@ -2076,8 +2111,12 @@ mod tests {
         );
         assert_eq!(rates(&none), 1, "the table's heading alone: {none:?}");
         assert!(none.iter().any(|s| s == "0–1 h"), "{none:?}");
-        assert!(least_h(Some(&t), [true; 3]).is_some());
-        assert_eq!(least_h(Some(&t), [false; 3]), None);
+        // All off, the room asked is the table's alone, under the charts'.
+        let (charts, table) = (least_h(Some(&t), [true; 3]), least_h(Some(&t), [false; 3]));
+        assert!(
+            table.is_some_and(|table| charts.is_some_and(|c| table < c)),
+            "{charts:?} {table:?}"
+        );
     }
 
     /// The pane holds no more height than it shows: one line before a run,
@@ -2204,6 +2243,111 @@ mod tests {
         assert_eq!(shown.iter().filter(|s| *s == "0 h").count(), 1, "{shown:?}");
         assert!(!shown.iter().any(|s| s == "3 h"), "{shown:?}");
         assert!(shown[0].starts_with("32 s · "), "{shown:?}");
+    }
+
+    /// A run stopped before its first whole hour (#1961): the table alone,
+    /// no chart on a scale of its one figure; a kind no hour has a figure
+    /// of draws no chart; and the pane asks room for its table's row,
+    /// which shows whole in it (#1962), running or ended.
+    #[test]
+    fn a_run_without_a_whole_hour_shows_its_table_whole_and_no_chart() {
+        let part = |amplitude: Option<f64>, span_s: f64| power_reserve::Hour {
+            hour: 0,
+            span_s,
+            rate_s_per_day: Some(-165.2),
+            amplitude_deg: amplitude,
+            beat_error_ms: Some(2.45),
+            beat_error_source: None,
+            rate_se: None,
+            amplitude_se: None,
+            beat_error_se: None,
+            caveats: Vec::new(),
+            read_s: span_s - 10.0,
+            bph: Some(28_800),
+        };
+        let ctx = egui::Context::default();
+        theme::install(&ctx);
+        // The texts drawn whole in a pane `h` under the toolbar.
+        let texts = |t: &Test, h: f32| {
+            let mut texts = Vec::new();
+            for _ in 0..2 {
+                let input = egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(900.0, h),
+                    )),
+                    ..Default::default()
+                };
+                let out = ctx.run(input, |ctx| {
+                    egui::CentralPanel::default()
+                        .frame(egui::Frame::NONE)
+                        .show(ctx, |ui| {
+                            pane(
+                                ui,
+                                Some(t),
+                                None,
+                                ("Position", ""),
+                                true,
+                                (false, [true; 3]),
+                            );
+                        });
+                });
+                texts = out
+                    .shapes
+                    .iter()
+                    .filter_map(|c| match &c.shape {
+                        egui::Shape::Text(s) => {
+                            let r = s.galley.rect.translate(s.pos.to_vec2());
+                            (c.clip_rect.contains_rect(r) && r.bottom() <= h)
+                                .then(|| s.galley.text().to_string())
+                        }
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+            }
+            texts
+        };
+        // Running, 1:28 into its first hour.
+        let mut live = Test::new(Position::DialUp, true, String::new(), 0.0);
+        live.update(&beats(0.0, 32.0, 0.2), 0.2, 32.0);
+        live.so_far = vec![part(Some(281.0), 88.0)];
+        // Ended at 2 min, no amplitude read.
+        let mut ended = Test::new(Position::DialUp, true, String::new(), 0.0);
+        ended.update(&beats(0.0, 32.0, 0.2), 0.2, 32.0);
+        ended.stop();
+        ended.finish(|s| s).unwrap();
+        if let Some(r) = ended.results.as_mut() {
+            r.hours = vec![part(None, 120.0)];
+        }
+        for (t, row) in [(&live, "0–0.1 h"), (&ended, "0–0.1 h")] {
+            let least = least_h(Some(t), [true; 3]).expect("room for its row");
+            let shown = texts(t, least);
+            assert!(
+                shown.iter().any(|s| s == row),
+                "{row} whole in {least}: {shown:?}"
+            );
+            assert!(!shown.iter().any(|s| s == "0 h"), "no chart: {shown:?}");
+        }
+        // Whole hours with no amplitude: the Rate and Beat Error charts,
+        // no Amplitude chart; its name once, the table's title.
+        let mut gap = finished_run(3);
+        if let Some(r) = gap.results.as_mut() {
+            for h in &mut r.hours {
+                h.amplitude_deg = None;
+            }
+            let kinds = charted_kinds(&r.hours, [true; 3]);
+            assert_eq!(kinds, [SeriesKind::Rate, SeriesKind::BeatError]);
+        }
+        let shown = texts(&gap, 900.0);
+        assert_eq!(
+            shown.iter().filter(|s| *s == "Amplitude").count(),
+            1,
+            "{shown:?}"
+        );
+        assert!(
+            shown.iter().filter(|s| *s == "Rate").count() >= 2,
+            "{shown:?}"
+        );
     }
 
     /// A run of half a minute charts 0 h to 1 h, each hour named once,
