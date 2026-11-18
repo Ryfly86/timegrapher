@@ -782,7 +782,16 @@ fn quick_listen_keeps_its_take_in_unsorted_until_filed() {
         .as_ref()
         .is_some_and(|(m, _)| m.contains("Filed") && m.contains("Pepsi")));
     assert_eq!(app.session.saved_to(), Some(filed.as_path()));
-    assert!(app.open_group().unwrap().takes.is_empty());
+    // The Bench and Watches go with it to Pepsi (#1978): Unsorted is left
+    // empty, and Pepsi shows the take.
+    assert_eq!(app.watch, "Pepsi");
+    let e = app.open_group().unwrap();
+    assert_eq!(e.watch.name, "Pepsi");
+    assert!(
+        e.takes.iter().any(|t| e.take_dir(t) == filed),
+        "{:?}",
+        e.takes
+    );
     // Deleted while the stopped session is saved into it: the session
     // lets go of it first, rather than refusing.
     app.answer_take_ask(watches::Ask::Delete {
