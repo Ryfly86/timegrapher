@@ -372,14 +372,23 @@ pub enum LiftGap {
 /// or tenth degrees (Norm on #1884).
 const SAME_LIFT_DEG: f64 = 0.05;
 
-impl Comparison {
-    /// Why the amplitude change is not given, where it isn't: the one
-    /// place that says so, for the app's table, its CSV and the text
-    /// report. `later` is the later half's hours as their heads write
+impl LiftGap {
+    /// Two halves' lifts, full wind first, None where one wasn't recorded:
+    /// why their amplitudes don't compare, or None where they do (#1884).
+    pub fn of(lifts: [Option<f64>; 2]) -> Option<Self> {
+        match lifts {
+            [Some(a), Some(b)] => ((a - b).abs() >= SAME_LIFT_DEG).then_some(Self::Differ(a, b)),
+            [a, b] => Some(Self::NotRecorded(a.is_none(), b.is_none())),
+        }
+    }
+
+    /// Why the amplitude change is not given: the one place that says
+    /// so, for the app's table, its CSV, its position line and the text
+    /// report. `later_h` is the later half's hours as their heads write
     /// them (Trevor on #1922).
-    pub fn amplitude_note(&self, later_h: crate::reading_text::WindHours) -> Option<String> {
+    pub fn note(self, later_h: crate::reading_text::WindHours) -> String {
         let h = later_h.short();
-        Some(match self.lifts? {
+        match self {
             // As typed, in whole or tenth degrees: rounded to the degree,
             // two lifts that differ could read the same. Hugh on #1922:
             // "read at 52°" under an amplitude reads as one.
@@ -395,7 +404,14 @@ impl Comparison {
                 };
                 format!("No amplitude change: {whose} recorded.")
             }
-        })
+        }
+    }
+}
+
+impl Comparison {
+    /// [`LiftGap::note`], where the amplitude change is not given.
+    pub fn amplitude_note(&self, later_h: crate::reading_text::WindHours) -> Option<String> {
+        Some(self.lifts?.note(later_h))
     }
 }
 
@@ -419,10 +435,7 @@ pub fn comparison(
     let report = evaluate_states(states, Vec::new());
     let (first, last) = (report.states.first()?, report.states.last()?);
     let change = |x: Option<f64>, y: Option<f64>| y.zip(x).map(|(y, x)| y - x);
-    let lifts = match lifts {
-        [Some(a), Some(b)] => ((a - b).abs() >= SAME_LIFT_DEG).then_some(LiftGap::Differ(a, b)),
-        [a, b] => Some(LiftGap::NotRecorded(a.is_none(), b.is_none())),
-    };
+    let lifts = LiftGap::of(lifts);
     let rows = later
         .iter()
         .filter_map(|f| {

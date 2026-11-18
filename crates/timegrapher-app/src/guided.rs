@@ -1789,16 +1789,33 @@ impl Body<'_> {
         match (self.test, self.saved, self.free) {
             (Some(t), ..) => {
                 let full = t.full.as_ref().map(|(f, _)| kept_figures(f));
-                let wind = (t.wind_h(), full.as_deref());
+                // Each half's lift: amplitudes compare only at one (#1923).
+                let lifts = [
+                    t.full.as_ref().and_then(|(f, _)| f.lift_angle_deg),
+                    t.lift_deg,
+                ];
+                let wind = (t.wind_h(), full.as_deref(), lifts);
                 lines(&read(t.readings_so_far()), &[], wind, shown)
             }
             (None, Some(s), _) => {
                 let full = s.against.as_deref().map(kept_figures);
-                lines(&kept_figures(s), &[], (s.wind_h, full.as_deref()), shown)
+                let lifts = [
+                    s.against.as_deref().and_then(|f| f.lift_angle_deg),
+                    s.lift_angle_deg,
+                ];
+                lines(
+                    &kept_figures(s),
+                    &[],
+                    (s.wind_h, full.as_deref(), lifts),
+                    shown,
+                )
             }
-            (None, None, Some(f)) => {
-                lines(&read(&f.six.0), &read(&f.upright.0), (None, None), shown)
-            }
+            (None, None, Some(f)) => lines(
+                &read(&f.six.0),
+                &read(&f.upright.0),
+                (None, None, [None; 2]),
+                shown,
+            ),
             _ => Vec::new(),
         }
     }
