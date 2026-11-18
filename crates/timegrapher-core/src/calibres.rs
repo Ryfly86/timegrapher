@@ -63,6 +63,89 @@ pub struct Calibre {
     pub confidence: String,
     #[serde(default)]
     pub notes: Option<String>,
+    /// When the calibre was made, from a cited source; never inferred from
+    /// serial numbers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub years: Option<Years>,
+    /// A short factual description, one sourced sentence per entry.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub summary: Vec<Sourced>,
+    /// Faults a cited service document, maker bulletin or named
+    /// watchmaker's write-up reports for this calibre.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub issues: Vec<Sourced>,
+    /// Other calibres this one is related to, stored on the row described
+    /// ("this row … that calibre"). Never carries figures across.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub related: Vec<Related>,
+    /// Makers' files for this calibre kept in the timegrapher-calibres
+    /// repository, by path there (`<maker>/<calibre>/<file>`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub assets: Vec<Asset>,
+}
+
+/// When a calibre was made.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Years {
+    #[serde(default)]
+    pub from: Option<u16>,
+    #[serde(default)]
+    pub to: Option<u16>,
+    /// The source gives the years as approximate ("about 1970").
+    #[serde(default)]
+    pub approx: bool,
+    pub source: String,
+}
+
+/// One sentence and the source it rests on.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Sourced {
+    pub text: String,
+    pub source: String,
+}
+
+/// How this calibre relates to another: "clone of", "based on",
+/// "successor of" or "same base as" (the only symmetric one; the app
+/// shows each relation's inverse on the other row, which is not stored).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Related {
+    /// The other calibre's exact `calibre` name in the table.
+    pub calibre: String,
+    pub relation: String,
+    pub source: String,
+}
+
+/// The relations `Related::relation` may take.
+pub const RELATIONS: [&str; 4] = ["clone of", "based on", "successor of", "same base as"];
+
+/// A maker's file kept in the timegrapher-calibres repository.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Asset {
+    /// Path in that repository, `<maker>/<calibre>/<file>`.
+    pub path: String,
+    pub kind: String,
+}
+
+/// The kinds `Asset::kind` may take.
+pub const ASSET_KINDS: [&str; 6] = [
+    "spec sheet",
+    "drawing",
+    "manual",
+    "photo (dial side)",
+    "photo (balance side)",
+    "photo",
+];
+
+/// The raw address of an asset in the timegrapher-calibres repository.
+pub fn asset_url(a: &Asset) -> String {
+    format!(
+        "https://raw.githubusercontent.com/peterhudson/timegrapher-calibres/main/{}",
+        a.path
+            .split('/')
+            .map(|p| p.replace(' ', "%20"))
+            .collect::<Vec<_>>()
+            .join("/")
+    )
 }
 
 /// One wheel of the train.
@@ -1221,6 +1304,64 @@ mod tests {
                 assert!((30.0..=70.0).contains(&l), "{}: {l}°", c.calibre);
             }
         }
+    }
+
+    /// The metadata fields (#1861) keep their rules: every sentence,
+    /// issue, relation and span of years has a source; relations use the
+    /// fixed list and name a real row; assets use the fixed kinds and sit
+    /// in a maker/calibre folder of the asset repository.
+    #[test]
+    fn calibre_metadata_is_sourced_and_well_formed() {
+        let names: std::collections::HashSet<_> =
+            all().iter().map(|c| c.calibre.as_str()).collect();
+        let mut assets = 0;
+        for c in all() {
+            for s in c.summary.iter().chain(&c.issues) {
+                assert!(!s.text.is_empty() && !s.source.is_empty(), "{}", c.calibre);
+            }
+            if let Some(y) = &c.years {
+                assert!(!y.source.is_empty(), "{}", c.calibre);
+                assert!(y.from.is_some() || y.to.is_some(), "{}", c.calibre);
+            }
+            for r in &c.related {
+                assert!(
+                    RELATIONS.contains(&r.relation.as_str()),
+                    "{}: {}",
+                    c.calibre,
+                    r.relation
+                );
+                assert!(
+                    names.contains(r.calibre.as_str()),
+                    "{}: {}",
+                    c.calibre,
+                    r.calibre
+                );
+                assert_ne!(r.calibre, c.calibre);
+                assert!(!r.source.is_empty(), "{}", c.calibre);
+            }
+            for a in &c.assets {
+                assets += 1;
+                assert!(
+                    ASSET_KINDS.contains(&a.kind.as_str()),
+                    "{}: {}",
+                    c.calibre,
+                    a.kind
+                );
+                assert_eq!(a.path.split('/').count(), 3, "{}: {}", c.calibre, a.path);
+                assert!(
+                    !a.path.starts_with('/') && !a.path.contains(".."),
+                    "{}",
+                    a.path
+                );
+            }
+        }
+        // The makers' files mirrored on 2026-11-17 (timegrapher-calibres#1).
+        assert_eq!(assets, 1402);
+        let hz = find("HZ36K0E").unwrap();
+        assert!(hz.assets.iter().any(|a| a.kind == "spec sheet"));
+        assert!(asset_url(&hz.assets[0]).starts_with(
+            "https://raw.githubusercontent.com/peterhudson/timegrapher-calibres/main/hangzhou/"
+        ));
     }
 
     #[test]
