@@ -1143,7 +1143,7 @@ impl TimegrapherApp {
             );
             return;
         }
-        let heard = self.live.as_ref().and_then(|l| l.bph());
+        let heard = self.bph_heard();
         // The rate Manage Calibres… starts its table at.
         let rate = match self.bph {
             Some(b) => Some((b, "the beat rate set on the Calibre card")),
@@ -1196,7 +1196,7 @@ impl TimegrapherApp {
 
     /// What the beat rate's pop-up is, for its hover.
     fn bph_hint(&self) -> &'static str {
-        let heard = self.live.as_ref().and_then(|l| l.bph());
+        let heard = self.bph_heard();
         match (self.bph, heard) {
             (Some(_), _) => {
                 "Beats per hour, set here, so the readings use it rather than finding it from \
@@ -1212,6 +1212,16 @@ impl TimegrapherApp {
                  rate to set it."
             }
         }
+    }
+
+    /// The beat rate found by listening, as the reading shown has it,
+    /// and only where that reading hears a watch: the verdict that blanks
+    /// its rate blanks its beat rate. With no watch heard, the rate the
+    /// engine last listened at is not a finding (Norm, #1972).
+    pub(super) fn bph_heard(&self) -> Option<u32> {
+        self.card_reading()
+            .filter(|r| r.watch_heard)
+            .and_then(|r| r.bph)
     }
 
     /// The beat rate in the Calibre card's row, in words that say whether
@@ -1258,7 +1268,7 @@ impl TimegrapherApp {
     /// the beat rate), the beat rates in a submenu of the Calibre menu.
     pub(super) fn rate_and_lift(&mut self, ui: &mut egui::Ui) {
         let pal = theme::pal(ui);
-        let heard = self.live.as_ref().and_then(|l| l.bph());
+        let heard = self.bph_heard();
         let both = ui.available_width() >= TWO_FIELDS_W;
         let watch_sets = !self.take_shows_rate_and_lift();
         let calibre = self.calibre.clone();
@@ -1737,7 +1747,7 @@ impl TimegrapherApp {
     /// the lift angle.
     fn calibre_line(&mut self, ui: &mut egui::Ui) {
         let pal = theme::pal(ui);
-        let heard = self.live.as_ref().and_then(|l| l.bph());
+        let heard = self.bph_heard();
         let bph = match (self.bph, heard) {
             (Some(b), _) => format!("{b} bph"),
             (None, Some(b)) => format!("{b} bph, found"),

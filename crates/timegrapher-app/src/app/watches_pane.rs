@@ -564,10 +564,7 @@ impl TimegrapherApp {
             // What is on show is not asked again: its position, its beat
             // rate (set or heard) and its lift angle.
             a.position = a.position.or(Some(self.position));
-            a.bph = a
-                .bph
-                .or(self.bph)
-                .or(self.live.as_ref().and_then(|l| l.bph()));
+            a.bph = a.bph.or(self.bph).or(self.bph_heard());
             a.lift = self.lift_deg;
             a.lift_set = true;
             let need = self.open_need(&a);
