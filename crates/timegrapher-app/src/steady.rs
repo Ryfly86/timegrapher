@@ -427,10 +427,10 @@ pub fn compute_with(
     // across a jump, as the tests beside them and the take's figures give it.
     let grids = match clock {
         // On the take's own clock, as the tests read it.
-        Some(_) => steady_views::check_grids(log, &long, cfg.rate_reading_s),
+        Some(_) => steady_views::check_grids(log, clock, &long, cfg.rate_reading_s),
         None => steady_views::grids_with_breaks(log, cfg.rate_reading_s, breaks),
     };
-    let searches = steady_views::searches(&grids, &long, &lc);
+    let searches = steady_views::searches(&grids, clock, &long, &lc);
     let mut fold_from = [FoldFrom::Own, FoldFrom::Own, FoldFrom::Own];
     let folds = steady_views::folds(&grids, &report, &lc);
     let folds = std::array::from_fn(|i| {

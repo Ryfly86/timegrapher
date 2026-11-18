@@ -120,7 +120,7 @@ pub fn run(o: Options) -> Result<(), String> {
         let lines = timegrapher_core::wheel_lines::lines_for_take(&log, clock, &long, &lc, o.maps);
         doc["wheel_lines"] = serde_json::to_value(lines).map_err(|e| e.to_string())?;
         if o.views {
-            let views = steady_views::views(&log, &rep, &long, &lc, o.check.rate_reading_s);
+            let views = steady_views::views(&log, clock, &rep, &long, &lc, o.check.rate_reading_s);
             if let Some(series) = doc["series"].as_array_mut() {
                 for (s, v) in series.iter_mut().zip(&views.series) {
                     s["views"] = serde_json::to_value(v).map_err(|e| e.to_string())?;

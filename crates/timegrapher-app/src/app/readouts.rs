@@ -151,7 +151,7 @@ pub(super) fn rate_figure(r: &LiveReading) -> Option<String> {
 /// figure's hover (#1470): its exact size before it is rounded up, or how
 /// many of the 10 s rates it needs the take holds so far.
 pub(super) fn rate_pm_words(r: &LiveReading) -> Option<String> {
-    use timegrapher_core::confidence::{MIN_NOISE_VALUES as NEED, MIN_VALUES};
+    use timegrapher_core::confidence::{NoPm, MIN_NOISE_VALUES as NEED, MIN_VALUES};
     use timegrapher_core::measure::{RATE_SE_MIN_S, RATE_WINDOW_S};
     r.rate_s_per_day?;
     Some(match r.rate_error_s_per_day {
@@ -161,6 +161,8 @@ pub(super) fn rate_pm_words(r: &LiveReading) -> Option<String> {
              {NEED} nearest in this take.",
             pm_text(se, base::RATE)?
         ),
+        // Readings that repeat exactly first: more won't give a ± (#1908).
+        None if r.rate_no_pm == Some(NoPm::Repeats) => NoPm::REPEATS_TEXT.to_string(),
         None if r.rate_noise_values < NEED => format!(
             "± after {} of beats: it needs {NEED} rates of 10 s each, and has {}.",
             fields::duration(RATE_SE_MIN_S),
@@ -176,7 +178,7 @@ pub(super) fn rate_pm_words(r: &LiveReading) -> Option<String> {
 /// What the Amplitude figure's ± rests on, or why there is none, for the
 /// figure's hover (#1470), as [`rate_pm_words`] says the rate's.
 pub(super) fn amplitude_pm_words(r: &LiveReading) -> Option<String> {
-    use timegrapher_core::confidence::{MIN_NOISE_VALUES as NEED, MIN_VALUES};
+    use timegrapher_core::confidence::{NoPm, MIN_NOISE_VALUES as NEED, MIN_VALUES};
     r.amplitude_deg?;
     Some(match r.amplitude_error_deg {
         Some(se) => format!(
@@ -185,6 +187,7 @@ pub(super) fn amplitude_pm_words(r: &LiveReading) -> Option<String> {
              the {NEED} nearest in this take.",
             pm_text(se, base::AMPLITUDE)?
         ),
+        None if r.amplitude_no_pm == Some(NoPm::Repeats) => NoPm::REPEATS_TEXT.to_string(),
         None if r.amplitude_noise_values < NEED => format!(
             "± after {} of beats: it needs {NEED} readings of 2 s each, and has {}.",
             fields::duration(NEED as f64 * timegrapher_core::distribution::STRETCH_S),

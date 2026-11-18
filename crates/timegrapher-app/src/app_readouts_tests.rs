@@ -740,6 +740,36 @@ fn the_amplitude_hover_says_why_it_has_no_plus_minus() {
     );
 }
 
+/// Readings that repeat exactly say so in the Rate and Amplitude hovers,
+/// in core's words with no count, before the waiting texts (#1908).
+#[test]
+fn a_figure_whose_readings_repeat_says_so() {
+    use timegrapher_core::confidence::NoPm;
+    let app = synthetic(60.0, 12.0);
+    let r = app.reading().unwrap();
+    let mut rate = r.clone();
+    (rate.rate_error_s_per_day, rate.rate_no_pm) = (None, Some(NoPm::Repeats));
+    assert_eq!(
+        readouts::rate_pm_words(&rate).as_deref(),
+        Some(NoPm::REPEATS_TEXT)
+    );
+    let mut amp = r.clone();
+    (
+        amp.amplitude_error_deg,
+        amp.amplitude_noise_values,
+        amp.amplitude_values,
+        amp.amplitude_no_pm,
+    ) = (None, 30, 30, Some(NoPm::Repeats));
+    assert_eq!(
+        readouts::amplitude_pm_words(&amp).as_deref(),
+        Some(NoPm::REPEATS_TEXT)
+    );
+    // The waiting reasons keep their words.
+    amp.amplitude_no_pm = Some(NoPm::TooFew);
+    assert!(readouts::amplitude_pm_words(&amp)
+        .is_some_and(|w| w.starts_with("No ± now: 30 of the 2 s readings")));
+}
+
 /// Lay out and paint frames without a window, in both strip directions,
 /// with a synthetic watch run through the live engine.
 #[test]
