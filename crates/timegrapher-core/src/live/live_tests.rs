@@ -1584,3 +1584,36 @@ fn live_puts_beats_on_their_drop_as_a_saved_read_does() {
         .count();
     assert!(same * 100 >= s.len() * 95, "{same} of {}", s.len());
 }
+
+/// Live cuts a low amplitude's profile on the long window once its
+/// amplitude reading has gone long (#1924): before any reading the window
+/// is the short one, and after it the profile reads the amplitude heard,
+/// its unlock on its own curve, as the reading does, not the impulse.
+#[test]
+fn live_profiles_go_long_with_their_amplitude_reading() {
+    let audio = generate(
+        &SynthConfig {
+            bph: 18_000,
+            duration_s: 70.0,
+            ..Default::default()
+        },
+        |_| 150.0,
+        |_| 0.0,
+    );
+    let mut a = LiveAnalyzer::new(audio.sample_rate, LiveConfig::default());
+    let beat = 0.2;
+    assert_eq!(a.profile_window_at(0.0, beat), UnlockWindow::SHORT);
+    a.set_profile_span(10.0);
+    feed(&mut a, &audio.samples);
+    let w = a.profile_window_at(70.0, beat);
+    assert_eq!(w, UnlockWindow::long(2.0 * beat));
+    for p in a.tick_profiles() {
+        let p = p.as_ref().expect("profile");
+        let fs = f64::from(audio.sample_rate);
+        let t0 = -(w.origin(fs) as f64) / fs * 1000.0;
+        assert!((p.t0_ms - t0).abs() < 1e-9, "t0 {} on {t0}", p.t0_ms);
+        assert!(p.unlock_ms.expect("unlock") > p.t0_ms + 3.0);
+        let amp = p.amplitude_deg.expect("amplitude");
+        assert!((amp - 150.0).abs() < 10.0, "amplitude {amp}");
+    }
+}

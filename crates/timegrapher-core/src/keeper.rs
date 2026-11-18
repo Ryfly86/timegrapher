@@ -219,15 +219,9 @@ impl SecondReading {
         }
         let beat_s = 3600.0 / bph.max(1) as f64;
         let env = envelope(x, fs, &cfg.analysis.envelope);
-        let sides = profile::profiles(
-            &env,
-            fs,
-            &local,
-            2.0 * beat_s,
-            0.0,
-            x.len() as f64 / fs,
-            &cfg.analysis.amplitude,
-        );
+        let amp = &cfg.analysis.amplitude;
+        let w = crate::amplitude::unlock_window(&env, fs, &local, 2.0 * beat_s, amp);
+        let sides = profile::profiles(&env, fs, &local, 2.0 * beat_s, 0.0, x.len() as f64 / fs, amp, w);
         Some(StretchProfiles {
             end_s: to.min(duration_s),
             signal: crate::live::signal_figure(&env, fs, &local),
@@ -1204,5 +1198,74 @@ mod tests {
         let k = Keeper::start(how());
         assert!(k.push(&[0.0; 4800]));
         drop(k);
+    }
+
+    /// The profiles a second reading keeps of `amp` (degrees at each
+    /// second) at `bph`, 60 s of it, and the reading's log.
+    fn kept_profiles(bph: u32, amp: impl Fn(f64) -> f64) -> Vec<StretchProfiles> {
+        let sc = SynthConfig {
+            duration_s: 60.0,
+            bph,
+            ..SynthConfig::default()
+        };
+        let audio = generate(&sc, amp, |_| 0.0);
+        let cfg = StreamConfig::default();
+        let log = stream::analyze_samples(&audio.samples, audio.sample_rate, &cfg);
+        let mut r = SecondReading::new(audio.sample_rate, &[]);
+        r.audio(&audio.samples);
+        r.profile_until(&log.beats, log.bph, &cfg, (usize::MAX, None));
+        r.profiles
+    }
+
+    /// A run-down from 270° to 110° at 28,800 bph (#1924): its profiles go
+    /// to the long window once the unlock lies beyond the short one's
+    /// reach, as amplitude's do, and stay there; every unlock is marked on
+    /// its own curve, past its floor, and reads the amplitude heard, not
+    /// the impulse's. The take is kept as version 2 and reads back as it
+    /// was written. A steady 270° stays on the short window and version 1.
+    #[test]
+    fn a_run_down_s_profiles_go_long_with_each_mark_on_its_own_curve() {
+        let amp = |t: f64| 270.0 - 160.0 * t / 60.0;
+        let kept = kept_profiles(28_800, amp);
+        let short_t0 = -crate::beats::PRE_S * 1000.0;
+        let mut went_long = None;
+        for (i, p) in kept.iter().enumerate() {
+            for s in p.sides.iter().flatten() {
+                let long = s.t0_ms < short_t0 - 1e-9;
+                if long {
+                    went_long.get_or_insert(i);
+                } else {
+                    assert!(went_long.is_none(), "back to short at {} s", p.end_s);
+                }
+                let u = s.unlock_ms.expect("an unlock");
+                assert!(u > s.t0_ms + 3.0 && u < 0.0, "{} s: unlock {u} on {}", p.end_s, s.t0_ms);
+                let heard = amp(p.end_s - 1.0);
+                let read = s.amplitude_deg.expect("an amplitude");
+                assert!((read - heard).abs() < 10.0, "{} s: {read}° for {heard}°", p.end_s);
+            }
+        }
+        let i = went_long.expect("the profiles went long");
+        assert!(i > 0, "long from the start");
+        let bin = analysis_take::profiles_bin(&kept);
+        assert_eq!(&bin[..8], b"TGPROF\0\x02");
+        let back = analysis_take::parse_profiles(&bin).unwrap();
+        // Written again it is version 2 still. Not byte for byte: the top
+        // was the highest of every point, and only every other is kept.
+        assert_eq!(&analysis_take::profiles_bin(&back)[..8], b"TGPROF\0\x02");
+        assert_eq!(back.len(), kept.len());
+        for (a, b) in kept.iter().zip(&back) {
+            for (x, y) in a.sides.iter().zip(&b.sides) {
+                let (x, y) = (x.as_ref().unwrap(), y.as_ref().unwrap());
+                assert_eq!(x.t0_ms as f32, y.t0_ms as f32);
+                assert_eq!(x.unlock_ms.map(|v| v as f32), y.unlock_ms.map(|v| v as f32));
+            }
+        }
+
+        let steady = kept_profiles(28_800, |_| 270.0);
+        assert!(steady
+            .iter()
+            .flat_map(|p| p.sides.iter().flatten())
+            .all(|s| (s.t0_ms - short_t0).abs() < 1e-9));
+        assert_eq!(&analysis_take::profiles_bin(&steady)[..8], b"TGPROF\0\x01");
     }
 }

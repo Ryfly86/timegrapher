@@ -65,6 +65,10 @@ const PROFILE_POINT_MS: f64 = 0.2;
 /// this many dB; lower is kept as 0.
 const PROFILE_RANGE_DB: f64 = 63.75;
 const PROFILE_MAGIC: &[u8; 8] = b"TGPROF\0\x01";
+/// [`PROFILE_MAGIC`] for a file whose stretches are not all on one time
+/// axis: each carries its own first point and points a curve
+/// ([`profiles_bin`], #1924). Its last byte is the version.
+const PROFILE_MAGIC_V2: &[u8; 8] = b"TGPROF\0\x02";
 const BEATS_COLUMNS: &str = "index_step,residual_us,quality,clipped";
 const WINDOWS_COLUMNS: &str = "start_s,end_s,even_deg,odd_deg,beat_error_ms,\
      beat_error_unlock_ms,even_unlock_ms,odd_unlock_ms,even_drop_ms,odd_drop_ms";
@@ -501,10 +505,19 @@ pub fn for_report(mut s: Stored) -> Stored {
 pub const ATTACHMENT_LIMIT_BYTES: u64 = 25_000_000;
 /// Room a report keeps for its manifest and the zip's own headers.
 const REPORT_OVERHEAD_BYTES: u64 = 100_000;
-/// The most one stretch's profiles take in `profiles.bin` before it is
-/// compressed, bytes: 12 + 2 × (39 + 3 × 141), as [`MAX_ANALYSIS_FILE`]
-/// counts them.
-const PROFILE_STRETCH_MAX_BYTES: u64 = 936;
+/// The most one stretch's profiles of a take at `bph` take in
+/// `profiles.bin` before it is compressed, bytes: its end and signal
+/// figure (12), its own time axis in a version 2 file (6), and per side
+/// 39 bytes and 3 curves of a point each [`PROFILE_POINT_MS`] over the
+/// longest window a profile is cut on, the long one
+/// ([`crate::amplitude::UnlockWindow::long`], #1924), and a point to
+/// spare. At 28,800 bph and over the short window alone it was 936.
+fn profile_stretch_max_bytes(bph: u32) -> u64 {
+    let osc_s = 7200.0 / f64::from(bph.max(1));
+    let pre_s = crate::amplitude::UnlockWindow::long(osc_s).pre_s;
+    let points = ((pre_s + beats::POST_S) * 1000.0 / PROFILE_POINT_MS).ceil() as u64 + 1;
+    12 + 6 + 2 * (39 + 3 * points)
+}
 
 /// Where a problem report's analysis of a take comes from (#400).
 pub enum ReportFrom<'a> {
@@ -562,7 +575,7 @@ pub fn report_analysis(
                 .bytes_per_frame;
             let cut = from_log(*log, cfg, frame, software.clone());
             let stretches = (cut.header.duration_s / PROFILE_EVERY_S).ceil() as u64;
-            if !fits(size(&cut)? + stretches * PROFILE_STRETCH_MAX_BYTES) {
+            if !fits(size(&cut)? + stretches * profile_stretch_max_bytes(cut.log.bph)) {
                 return report_entries(cut, false, redact);
             }
             measure_from(cut.log, sound, cfg, &[], software, |_| {}).map_err(|e| e.to_string())?
@@ -1108,6 +1121,13 @@ pub(crate) fn parse_windows(text: &str) -> Result<Vec<AmplitudeWindow>, String> 
 /// (f32, ms or degrees, NaN when none), then the median, 10th and 90th
 /// percentile curves, a byte a point: quarter-dB steps above
 /// [`PROFILE_RANGE_DB`] below the top, 0 for lower.
+///
+/// That is version 1, written whenever every stretch's profiles share
+/// the first's time axis, byte for byte as before. Where they don't (a
+/// run-down whose profiles went to the long window part way, #1924),
+/// version 2 ([`PROFILE_MAGIC_V2`]): the same, but each stretch carries
+/// its own first point (f32 ms) and points a curve (u16) after its
+/// signal figure; the header's are the first stretch's.
 pub(crate) fn profiles_bin(profiles: &[StretchProfiles]) -> Vec<u8> {
     let first = profiles
         .iter()
@@ -1116,11 +1136,16 @@ pub(crate) fn profiles_bin(profiles: &[StretchProfiles]) -> Vec<u8> {
     let stride = first.map_or(2, |p| {
         (PROFILE_POINT_MS / p.step_ms).round().max(1.0) as usize
     });
+    let axis = |p: &TickProfile| (p.t0_ms, p.median.len().div_ceil(stride));
     let t0 = first.map_or(-beats::PRE_S * 1000.0, |p| p.t0_ms);
     let step = first.map_or(PROFILE_POINT_MS, |p| p.step_ms * stride as f64);
     let points = first.map_or(0, |p| p.median.len().div_ceil(stride));
-    let mut out = Vec::with_capacity(32 + profiles.len() * (13 + 2 * (40 + 3 * points)));
-    out.extend_from_slice(PROFILE_MAGIC);
+    let v2 = profiles
+        .iter()
+        .flat_map(|p| p.sides.iter().flatten())
+        .any(|p| axis(p) != (t0, points));
+    let mut out = Vec::with_capacity(32 + profiles.len() * (19 + 2 * (40 + 3 * points)));
+    out.extend_from_slice(if v2 { PROFILE_MAGIC_V2 } else { PROFILE_MAGIC });
     out.extend_from_slice(&(PROFILE_EVERY_S as f32).to_le_bytes());
     out.extend_from_slice(&(t0 as f32).to_le_bytes());
     out.extend_from_slice(&(step as f32).to_le_bytes());
@@ -1131,6 +1156,12 @@ pub(crate) fn profiles_bin(profiles: &[StretchProfiles]) -> Vec<u8> {
     for p in profiles {
         out.extend_from_slice(&p.end_s.to_le_bytes());
         out.extend_from_slice(&p.signal.unwrap_or(f32::NAN).to_le_bytes());
+        // Both sides of a stretch are cut on one window.
+        let (t0, points) = p.sides.iter().flatten().next().map_or((t0, points), axis);
+        if v2 {
+            out.extend_from_slice(&(t0 as f32).to_le_bytes());
+            out.extend_from_slice(&(points as u16).to_le_bytes());
+        }
         for side in &p.sides {
             let Some(s) = side else {
                 out.push(0);
@@ -1192,14 +1223,21 @@ pub(crate) fn parse_profiles(raw: &[u8]) -> Result<Vec<StretchProfiles>, String>
         at += n;
         Ok(s)
     };
-    if take(8)? != PROFILE_MAGIC {
+    let magic = take(8)?;
+    if magic[..7] != PROFILE_MAGIC[..7] {
         return Err("it doesn't start as a profiles file".into());
     }
+    let v2 = match magic[7] {
+        1 => false,
+        2 => true,
+        _ => return Err("it was written by a newer version of the app".into()),
+    };
     let f32_of = |b: &[u8]| f32::from_le_bytes(b.try_into().expect("4 bytes"));
+    let u16_of = |b: &[u8]| u16::from_le_bytes(b.try_into().expect("2 bytes")) as usize;
     let _every = f32_of(take(4)?);
-    let t0 = finite("the first point", f32_of(take(4)?) as f64)?;
+    let first_t0 = finite("the first point", f32_of(take(4)?) as f64)?;
     let step = above_0("the spacing", f32_of(take(4)?) as f64)?;
-    let points = u16::from_le_bytes(take(2)?.try_into().expect("2 bytes")) as usize;
+    let first_points = u16_of(take(2)?);
     take(2)?;
     let count = u32::from_le_bytes(take(4)?.try_into().expect("4 bytes")) as usize;
     let mut out = Vec::with_capacity(count.min(1 << 20));
@@ -1217,6 +1255,12 @@ pub(crate) fn parse_profiles(raw: &[u8]) -> Result<Vec<StretchProfiles>, String>
             }
         };
         let signal = mark(f32_of(take(4)?))?;
+        let (t0, points) = if v2 {
+            let t0 = finite("a stretch's first point", f32_of(take(4)?) as f64)?;
+            (t0, u16_of(take(2)?))
+        } else {
+            (first_t0, first_points)
+        };
         let mut sides: [Option<TickProfile>; 2] = [None, None];
         for (i, side) in [Side::A, Side::B].into_iter().enumerate() {
             if take(1)?[0] == 0 {
@@ -1939,6 +1983,125 @@ mod tests {
             save(&dest, &companions, &s).unwrap();
         }
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// A profiles file of a later version is refused as newer, not as
+    /// damaged (#1924): a take kept as its analysis alone has no sound
+    /// to read it again from.
+    #[test]
+    fn a_later_profiles_version_is_refused_as_newer() {
+        let mut bin = profiles_bin(&[]);
+        assert_eq!(&bin[..8], PROFILE_MAGIC);
+        assert!(parse_profiles(&bin).unwrap().is_empty());
+        bin[7] = 3;
+        let e = parse_profiles(&bin).unwrap_err();
+        assert!(e.contains("newer"), "{e}");
+        bin[0] = b'X';
+        let e = parse_profiles(&bin).unwrap_err();
+        assert!(e.contains("doesn't start as a profiles file"), "{e}");
+    }
+
+    /// Stretches on one window are written as version 1, read back as
+    /// written; a stretch on another (#1924) makes it version 2, each
+    /// stretch on its own axis, read back as written too.
+    #[test]
+    fn profiles_on_one_window_are_version_1_and_on_two_version_2() {
+        let side = |t0_ms: f64, n: usize, unlock: f64| TickProfile {
+            side: Side::A,
+            beats: 30,
+            t0_ms,
+            step_ms: 0.1,
+            median: (0..n).map(|i| 1.0 + (i % 7) as f32).collect(),
+            p10: vec![0.5; n],
+            p90: vec![9.0; n],
+            floor: 0.25,
+            unlock_ms: Some(unlock),
+            drop_ms: Some(-0.5),
+            peak_ms: Some(0.0),
+            amplitude_deg: Some(150.0),
+            sound1_ms: None,
+            sound2_ms: None,
+            sound3_ms: Some(1.0),
+        };
+        let stretch = |end_s: f64, t0_ms: f64, n: usize, unlock: f64| StretchProfiles {
+            end_s,
+            signal: Some(30.0),
+            sides: [
+                Some(side(t0_ms, n, unlock)),
+                Some(TickProfile {
+                    side: Side::B,
+                    ..side(t0_ms, n, unlock)
+                }),
+            ],
+        };
+        let short = |end_s| stretch(end_s, -20.0, 280, -9.0);
+        let one = vec![short(2.0), short(4.0)];
+        let bin = profiles_bin(&one);
+        assert_eq!(&bin[..8], PROFILE_MAGIC);
+        let back = parse_profiles(&bin).unwrap();
+        assert_eq!(profiles_bin(&back), bin);
+
+        let two = vec![short(2.0), stretch(4.0, -32.5, 405, -21.0), short(6.0)];
+        let bin = profiles_bin(&two);
+        assert_eq!(&bin[..8], PROFILE_MAGIC_V2);
+        let back = parse_profiles(&bin).unwrap();
+        assert_eq!(profiles_bin(&back), bin);
+        for (a, b) in two.iter().zip(&back) {
+            for (x, y) in a.sides.iter().zip(&b.sides) {
+                let (x, y) = (x.as_ref().unwrap(), y.as_ref().unwrap());
+                assert_eq!(x.t0_ms, y.t0_ms);
+                assert_eq!(x.median.len().div_ceil(2), y.median.len());
+                assert_eq!(x.unlock_ms, y.unlock_ms);
+            }
+        }
+    }
+
+    /// The bound a report reckons a stretch's profiles by covers the
+    /// longest window a profile is cut on: at 28,800 bph more than the
+    /// 936 bytes of the short one alone, and more at slower rates.
+    #[test]
+    fn a_stretch_s_profile_bytes_are_bounded_on_the_long_window() {
+        for bph in [12_000, 18_000, 28_800, 36_000] {
+            let osc = 7200.0 / bph as f64;
+            let w = crate::amplitude::UnlockWindow::long(osc);
+            let n = ((w.pre_s + beats::POST_S) / 0.0002).ceil() as usize;
+            let s = StretchProfiles {
+                end_s: 2.0,
+                signal: None,
+                sides: [0, 1].map(|_| {
+                    Some(TickProfile {
+                        side: Side::A,
+                        beats: 1,
+                        t0_ms: -w.pre_s * 1000.0,
+                        step_ms: 0.1,
+                        median: vec![1.0; 2 * n + 1],
+                        p10: vec![1.0; 2 * n + 1],
+                        p90: vec![1.0; 2 * n + 1],
+                        floor: 0.0,
+                        unlock_ms: None,
+                        drop_ms: None,
+                        peak_ms: None,
+                        amplitude_deg: None,
+                        sound1_ms: None,
+                        sound2_ms: None,
+                        sound3_ms: None,
+                    })
+                }),
+            };
+            let mut short = StretchProfiles {
+                end_s: 4.0,
+                ..s.clone()
+            };
+            for p in short.sides.iter_mut().flatten() {
+                p.t0_ms = -20.0;
+            }
+            // Version 2, each stretch with its own axis, past the header.
+            let bin = profiles_bin(&[short, s]);
+            assert_eq!(&bin[..8], PROFILE_MAGIC_V2);
+            let stretches = (bin.len() - profiles_bin(&[]).len()) as u64;
+            assert!(stretches <= 2 * profile_stretch_max_bytes(bph), "{bph}: {stretches}");
+        }
+        assert!(profile_stretch_max_bytes(28_800) > 936);
     }
 
     /// A header from a later layout says so, rather than misreading it.

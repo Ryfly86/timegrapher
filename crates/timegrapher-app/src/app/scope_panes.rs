@@ -306,7 +306,12 @@ impl TimegrapherApp {
                         n => format!("average of {n} 2 s profiles"),
                     };
                     let (a, b) = (length_text(s.from_s), length_text(s.to_s));
-                    format!("{name}: {what}, {a} to {b}")
+                    let other = match s.other_window {
+                        0 => String::new(),
+                        1 => "; 1 on a different window left out".to_string(),
+                        n => format!("; {n} on a different window left out"),
+                    };
+                    format!("{name}: {what}, {a} to {b}{other}")
                 }
                 None => format!("{name}: none kept"),
             })
@@ -576,6 +581,7 @@ impl TimegrapherApp {
         let cfg = live.config().analysis.clone();
         let guides = live.profile_guides_at(end);
         let period = 7200.0 / bph as f64;
+        let win = live.profile_window_at(end, period / 2.0);
         let (tx, rx) = std::sync::mpsc::channel();
         std::thread::spawn(move || {
             // Only this stretch is read, however long the recording; when
@@ -591,7 +597,12 @@ impl TimegrapherApp {
                         })
                         .collect();
                     timegrapher_core::profile::profiles_from_audio(
-                        &sp.mono, sp.rate, &beats, period, &cfg, guides,
+                        &sp.mono,
+                        sp.rate,
+                        &beats,
+                        period,
+                        &cfg,
+                        (guides, win),
                     )
                 }
                 Err(_) => [None, None],

@@ -340,6 +340,56 @@ pub fn template_pre_s(osc_period_s: f64) -> f64 {
     (unlock_s + 0.005).max(PRE_S)
 }
 
+/// Where a side's unlock is read: which template, and how far before the
+/// beat it starts. The one rule behind amplitude's guides and the Tick
+/// and Tock profile (#1924, Norm's ruling): at a low amplitude the unlock
+/// lies beyond what a [`PRE_S`] template's search reaches
+/// ([`short_reach_s`]), where that search finds the impulse instead, and
+/// it is read on a template [`template_pre_s`] long.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct UnlockWindow {
+    /// Whether the unlock is read on the long template.
+    pub long: bool,
+    /// Seconds before the beat the template starts.
+    pub pre_s: f64,
+}
+
+impl UnlockWindow {
+    /// The [`PRE_S`] template, where the unlock lies within its search.
+    pub const SHORT: UnlockWindow = UnlockWindow {
+        long: false,
+        pre_s: PRE_S,
+    };
+
+    /// The template that reaches the unlock down to [`MIN_AMPLITUDE_DEG`]
+    /// at this oscillation period ([`template_pre_s`]).
+    pub fn long(osc_period_s: f64) -> UnlockWindow {
+        UnlockWindow {
+            long: true,
+            pre_s: template_pre_s(osc_period_s),
+        }
+    }
+
+    /// The window for the two sides whose unlocks lie `unlocks_s`
+    /// seconds from their beat times (even, odd; None where not found):
+    /// long when both lie beyond [`short_reach_s`] before it and within
+    /// [`SIDES_UNLOCK_AGREE_SHARE`] of their mean distance of each other.
+    /// The balance swings the same arc each way, so the sides go long
+    /// together or not at all (#1703).
+    pub fn of_unlocks(osc_period_s: f64, unlocks_s: [Option<f64>; 2]) -> UnlockWindow {
+        if sides_go_long(unlocks_s) {
+            UnlockWindow::long(osc_period_s)
+        } else {
+            UnlockWindow::SHORT
+        }
+    }
+
+    /// The beat's sample in a window of this template.
+    pub fn origin(self, fs: f64) -> usize {
+        (self.pre_s * fs).round() as usize
+    }
+}
+
 /// Whether `new`'s windows read both sides in a lower share of its 2 s
 /// windows than `old`'s did over the stretch `new` read, by more than 2
 /// standard errors ([`crate::confidence::share_differs`]): a template
@@ -607,14 +657,10 @@ pub fn windows_between(
     cfg: &AmplitudeConfig,
 ) -> Vec<AmplitudeWindow> {
     let mut out = Vec::new();
-    let long_pre_s = template_pre_s(osc_period_s);
-    let long_origin = (long_pre_s * fs).round() as usize;
-    let side_times = |win: &[Beat], even: bool| -> Vec<f64> {
-        win.iter()
-            .filter(|b| b.is_good() && (b.index.rem_euclid(2) == 0) == even)
-            .map(|b| b.time)
-            .collect()
-    };
+    let long_window = UnlockWindow::long(osc_period_s);
+    let long_pre_s = long_window.pre_s;
+    let long_origin = long_window.origin(fs);
+    let side_times = good_side_times;
     // Where each side's unlock sits on a template of every beat given, as a
     // guide for the short windows: on a few beats a bump of noise well
     // before the unlock can pass for sound 1 (the Daytona read 130–170° in
@@ -627,7 +673,8 @@ pub fn windows_between(
     // templates throughout, as one of PRE_S finds the impulse there
     // instead (#1623). The balance swings the same arc each way, so a
     // stretch whose unlock lies that far out does so on both sides alike:
-    // the sides go long together, when both long unlocks lie beyond the
+    // the sides go long together ([`UnlockWindow::of_unlocks`]), when both
+    // long unlocks lie beyond the
     // reach and within [`SIDES_UNLOCK_AGREE_SHARE`] of their mean distance
     // from the drop of each other, or not at all. A faint sound before one side's unlock reads as a long unlock on
     // that side alone (#1703).
@@ -636,25 +683,15 @@ pub fn windows_between(
         if times.len() < 3 {
             return None;
         }
-        let unlock = |pre_s: f64| {
-            let origin = (pre_s * fs).round() as usize;
-            trimmed_template_from(env, fs, &times, pre_s)
-                .and_then(|t| edges(&t, fs, origin, cfg.onset_fraction))
-                .map(|e| e.unlock)
-        };
-        Some((unlock(long_pre_s), unlock(PRE_S)))
+        let unlock = |pre_s: f64| template_unlock(env, fs, &times, pre_s, cfg);
+        Some((unlock(long_pre_s), unlock(UnlockWindow::SHORT.pre_s)))
     };
     let (even_g, odd_g) = (guide(true), guide(false));
-    let long_s = |g: Option<(Option<f64>, Option<f64>)>| {
-        g.and_then(|g| g.0)
-            .map(|l| (l, (l - long_origin as f64) / fs))
-            .filter(|(_, at)| *at < -short_reach_s())
-    };
-    let long = match (long_s(even_g), long_s(odd_g)) {
-        (Some(e), Some(o))
-            if (e.1 - o.1).abs() <= SIDES_UNLOCK_AGREE_SHARE * (e.1 + o.1).abs() / 2.0 =>
-        {
-            Some([e.0, o.0])
+    let long_l = |g: Option<(Option<f64>, Option<f64>)>| g.and_then(|g| g.0);
+    let at = |l: Option<f64>| l.map(|l| (l - long_origin as f64) / fs);
+    let long = match (long_l(even_g), long_l(odd_g)) {
+        (Some(e), Some(o)) if UnlockWindow::of_unlocks(osc_period_s, [at(Some(e)), at(Some(o))]).long => {
+            Some([e, o])
         }
         _ => None,
     };
@@ -797,6 +834,64 @@ fn short_reach_s() -> f64 {
     PRE_S - FLOOR_S - UNLOCK_SEARCH_S
 }
 
+/// Whether two sides whose unlocks lie `unlocks_s` seconds from their
+/// beat times are read on long templates ([`UnlockWindow::of_unlocks`]).
+fn sides_go_long(unlocks_s: [Option<f64>; 2]) -> bool {
+    let beyond = |u: Option<f64>| u.filter(|at| *at < -short_reach_s());
+    match (beyond(unlocks_s[0]), beyond(unlocks_s[1])) {
+        (Some(e), Some(o)) => (e - o).abs() <= SIDES_UNLOCK_AGREE_SHARE * (e + o).abs() / 2.0,
+        _ => false,
+    }
+}
+
+/// The times of the good beats of one side (even or not) in `beats`.
+fn good_side_times(beats: &[Beat], even: bool) -> Vec<f64> {
+    beats
+        .iter()
+        .filter(|b| b.is_good() && (b.index.rem_euclid(2) == 0) == even)
+        .map(|b| b.time)
+        .collect()
+}
+
+/// The unlock, samples into the template, on a trimmed template of the
+/// beats at `times` starting `pre_s` before them, unguided: how a side's
+/// guide is first read ([`windows_between`]).
+fn template_unlock(
+    env: &[f32],
+    fs: f64,
+    times: &[f64],
+    pre_s: f64,
+    cfg: &AmplitudeConfig,
+) -> Option<f64> {
+    let origin = (pre_s * fs).round() as usize;
+    trimmed_template_from(env, fs, times, pre_s)
+        .and_then(|t| edges(&t, fs, origin, cfg.onset_fraction))
+        .map(|e| e.unlock)
+}
+
+/// The template the sides of the good beats in `beats` are read on, as
+/// [`windows_between`] reads a chunk's: each side's unlock on a template
+/// [`template_pre_s`] long, then [`UnlockWindow::of_unlocks`]. Short
+/// where a side has fewer than 3 beats.
+pub fn unlock_window(
+    env: &[f32],
+    fs: f64,
+    beats: &[Beat],
+    osc_period_s: f64,
+    cfg: &AmplitudeConfig,
+) -> UnlockWindow {
+    let long = UnlockWindow::long(osc_period_s);
+    let at = |even: bool| {
+        let times = good_side_times(beats, even);
+        if times.len() < 3 {
+            return None;
+        }
+        let u = template_unlock(env, fs, &times, long.pre_s, cfg)?;
+        Some((u - long.origin(fs) as f64) / fs)
+    };
+    UnlockWindow::of_unlocks(osc_period_s, [at(true), at(false)])
+}
+
 /// One side's unlock and drop in a window, seconds from its beat times, on
 /// its beats `times`, by its guide: sound 1 from the guide's search, or
 /// an earlier one as loud as [`EARLIER_SOUND_MIN`] of it on a template
@@ -817,11 +912,12 @@ fn side_edges(
     let (tmpl, origin, guide_at) = match guide {
         Some(Guide::Long(g)) => (long.clone()?, long_origin, Some(g)),
         g => {
-            let origin = (PRE_S * fs).round() as usize;
+            let short = UnlockWindow::SHORT;
             let g = g.map(|g| match g {
                 Guide::Short(g) | Guide::Long(g) => g,
             });
-            (trimmed_template_from(env, fs, times, PRE_S)?, origin, g)
+            let tmpl = trimmed_template_from(env, fs, times, short.pre_s)?;
+            (tmpl, short.origin(fs), g)
         }
     };
     let guided = edges_guided(&tmpl, fs, origin, cfg.onset_fraction, guide_at)?;
@@ -1078,6 +1174,74 @@ mod tests {
                 assert!((a - amp).abs() < 8.0, "{bph} bph at {amp}°: {w:?}");
             }
         }
+    }
+
+    /// The Tick and Tock profile reads those same watches as amplitude
+    /// does (#1924): within 1° of the analysis, its unlock on the long
+    /// window where amplitude's was, not the impulse taken for it on a
+    /// 20 ms one (18,000 bph at 180° read 326° there). At 270° it stays
+    /// on the short window.
+    #[test]
+    fn a_low_amplitude_profile_reads_as_amplitude_does() {
+        use crate::analysis::{analyze, AnalysisConfig};
+        use crate::synth::{generate, SynthConfig};
+        for (bph, amp) in [
+            (14_400, 150.0),
+            (18_000, 110.0),
+            (18_000, 180.0),
+            (21_600, 150.0),
+            (28_800, 110.0),
+            (28_800, 270.0),
+        ] {
+            let sc = SynthConfig {
+                duration_s: 30.0,
+                bph,
+                ..Default::default()
+            };
+            let audio = generate(&sc, |_| amp, |_| 0.0);
+            let fs = audio.sample_rate as f64;
+            let cfg = AnalysisConfig {
+                bph: Some(bph),
+                ..Default::default()
+            };
+            let a = analyze(&audio, &cfg);
+            let read = a.summary.amplitude_deg.expect("an amplitude");
+            let osc = 7200.0 / bph as f64;
+            let env = crate::dsp::envelope(&audio.samples, fs, &cfg.envelope);
+            let span: Vec<Beat> = a
+                .beats
+                .iter()
+                .filter(|b| (10.0..20.0).contains(&b.time))
+                .copied()
+                .collect();
+            let w = unlock_window(&env, fs, &span, osc, &cfg.amplitude);
+            assert_eq!(w.long, amp < 200.0, "{bph} bph at {amp}°: {w:?}");
+            let sides = crate::profile::profiles(&env, fs, &a.beats, osc, 10.0, 20.0, &cfg.amplitude, w);
+            for p in sides {
+                let p = p.expect("a profile");
+                let deg = p.amplitude_deg.expect("a profile amplitude");
+                assert!((deg - read).abs() < 1.0, "{bph} bph at {amp}°: {deg}° against {read}°");
+                assert!(p.unlock_ms.expect("an unlock") > p.t0_ms + FLOOR_S * 1000.0);
+            }
+        }
+    }
+
+    /// Without a reading of both sides the window is the short one: none
+    /// yet, at the start of a take, or one side only (#1924).
+    #[test]
+    fn without_both_sides_unlocks_the_window_is_short() {
+        let osc = 0.25;
+        for at in [[None, None], [Some(-0.025), None], [None, Some(-0.025)]] {
+            assert_eq!(UnlockWindow::of_unlocks(osc, at), UnlockWindow::SHORT);
+        }
+        assert_eq!(UnlockWindow::of_unlocks(osc, [Some(-0.008); 2]), UnlockWindow::SHORT);
+        let long = UnlockWindow::of_unlocks(osc, [Some(-0.025), Some(-0.026)]);
+        assert_eq!(long, UnlockWindow::long(osc));
+        assert!(long.pre_s > PRE_S);
+        // Sides far apart are not read long: a faint sound before one
+        // side's unlock (#1703).
+        let apart = UnlockWindow::of_unlocks(osc, [Some(-0.018), Some(-0.026)]);
+        assert_eq!(apart, UnlockWindow::SHORT);
     }
 
     #[test]
