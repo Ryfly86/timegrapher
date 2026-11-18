@@ -117,8 +117,8 @@ fn start_at_full_wind_sets_full_wind_now() {
 }
 
 /// A take on show, a reopened 24 hour half among them, shows its own wind
-/// in the Wind field, which can't be set there (Hugh); a take with none says
-/// so; Set Wind gives it one, written into its session file.
+/// in the Wind field, set there from its start (Hugh on #1947), or by Set
+/// Wind, written into its session file; never while it's being kept.
 #[test]
 fn a_take_on_show_shows_its_own_wind() {
     let (mut app, base) = with_watch("shown", "Yacht-Master");
@@ -138,9 +138,39 @@ fn a_take_on_show_shows_its_own_wind() {
         app.wind_field().settable,
         "set from the card, from Start (Hugh)"
     );
-    // On show, Set Wind in Watches is refused: the card sets it (Felix).
-    let before = std::fs::read_to_string(take.join(MANIFEST)).unwrap();
+    // On show, Set Wind in Watches writes it too: each write to a take
+    // opened edits its file in place (Felix on #1947).
     app.set_take_wind(&take, None);
+    assert!(!std::fs::read_to_string(take.join(MANIFEST))
+        .unwrap()
+        .contains("wind_h"));
+    app.set_take_wind(&take, Some(1.25));
+    assert_eq!(app.wind_field().words.value, "Began 1.3 h after full");
+    // From the card, counted from its start, into its session file.
+    app.pick_wind(WindPick::HoursBefore(30.0));
+    assert_eq!(app.wind_field().words.value, "Began 30.0 h after full");
+    let (m, _) = read_manifest(&take).unwrap().unwrap();
+    assert_eq!(timegrapher_core::full_wind::take_wind_h(&m), Some(30.0));
+    // The take's next write, its masks saved, keeps it (Felix's guard).
+    app.masked = vec![(1.0, 2.0)];
+    app.save_marks();
+    let text = std::fs::read_to_string(take.join(MANIFEST)).unwrap();
+    assert!(text.contains("masked"), "{text}");
+    let (m, _) = read_manifest(&take).unwrap().unwrap();
+    assert_eq!(timegrapher_core::full_wind::take_wind_h(&m), Some(30.0));
+    // While its analysis is being kept, its session file is about to be
+    // replaced: the card's write is refused, as Set Wind's is (Felix).
+    app.take_keep = Some((
+        take.clone(),
+        AnalysisSave {
+            rx: std::sync::mpsc::channel().1,
+            progress: Default::default(),
+            cancel: Default::default(),
+            total_s: 1.0,
+        },
+    ));
+    let before = std::fs::read_to_string(take.join(MANIFEST)).unwrap();
+    app.pick_wind(WindPick::AtStart);
     assert_eq!(
         std::fs::read_to_string(take.join(MANIFEST)).unwrap(),
         before
@@ -148,21 +178,8 @@ fn a_take_on_show_shows_its_own_wind() {
     assert!(app
         .message
         .as_ref()
-        .is_some_and(|(m, e)| *e && m.contains("on the Bench")));
-    // Once it isn't, it is written into its session file.
-    app.opened_path.clear();
-    app.set_take_wind(&take, None);
-    assert!(!std::fs::read_to_string(take.join(MANIFEST))
-        .unwrap()
-        .contains("wind_h"));
-    app.set_take_wind(&take, Some(1.25));
-    app.opened_path = take.display().to_string();
-    assert_eq!(app.wind_field().words.value, "Began 1.3 h after full");
-    // From the card, counted from its start, into its session file.
-    app.pick_wind(WindPick::HoursBefore(30.0));
-    assert_eq!(app.wind_field().words.value, "Began 30.0 h after full");
-    let (m, _) = read_manifest(&take).unwrap().unwrap();
-    assert_eq!(timegrapher_core::full_wind::take_wind_h(&m), Some(30.0));
+        .is_some_and(|(m, e)| *e && m.contains("being removed")));
+    app.take_keep = None;
     let _ = std::fs::remove_dir_all(&base);
 }
 

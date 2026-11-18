@@ -163,11 +163,21 @@ impl TimegrapherApp {
     /// (`wind_h`) or not, written through core, and its row and the card
     /// read again.
     pub(super) fn set_take_wind(&mut self, take: &Path, wind_h: Option<f64>) {
-        // The session's own take: its next save would undo it (Felix).
-        if self.take_held().as_deref() == Some(take) {
-            return self.error(crate::take_wind::HELD.into());
+        if let Some(why) = self.take_wind_refused(take) {
+            return self.error(why);
         }
         self.write_take_wind(take, wind_h);
+    }
+
+    /// Why the wind of `take` can't be written now, from the card or from
+    /// Set Wind (Felix on #1947): the session's own saved take, whose next
+    /// save would undo it, or a take being kept, recorded or read, whose
+    /// session file is about to be replaced.
+    pub(super) fn take_wind_refused(&self, take: &Path) -> Option<String> {
+        if self.take_held().as_deref() == Some(take) {
+            return Some(crate::take_wind::HELD.into());
+        }
+        self.take_busy(take, true)
     }
 
     /// The take `take`'s hours since full wind written into its session
@@ -221,7 +231,7 @@ impl TimegrapherApp {
                 WindPick::HoursAgo(h) | WindPick::HoursBefore(h) => Some(h.max(0.0)),
                 WindPick::NotGiven => None,
             };
-            return self.write_take_wind(&take, h);
+            return self.set_take_wind(&take, h);
         }
         let now = guided::unix_now();
         let began = self.began_unix().unwrap_or(now);

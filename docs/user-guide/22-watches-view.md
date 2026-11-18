@@ -87,8 +87,9 @@ Right-clicking a take, or **…** over the table, opens its menu. Chapter
   readings.
 - **Move to Another Watch**: in Unsorted Takes, **File Under a Watch**.
 - **Set Wind**: the take's hours from full wind to its start, "Full
-  wind [ ] h before it began", or **Not Given**. Not on the take open on
-  the Bench, whose next save would undo it (chapter 5).
+  wind [ ] h before it began", or **Not Given**. Not on a take being
+  recorded or saved on the Bench, whose next save would undo it: set
+  that one in the Listen card's Wind box (chapter 5).
 - **Delete…**: after asking, with its size. It can't be undone.
 
 A take moved or filed takes the new watch's name, calibre, lift angle
