@@ -45,6 +45,11 @@ A JSON array, one object per calibre:
 | `sources` | Where each figure came from. A source with a web address starts with it, then `(what the source is)` and `(what it says)`, so the app can show the address as a link |
 | `confidence` | The best basis in the entry: "derived from tooth counts", "measured" (from this project's recordings), "derived from the beat rate", or "published list" (an imported row, below) |
 | `notes` | What is inferred, where sources disagree, what is missing |
+| `years` | Optional. `from`, `to`, `approx` and `source`: when the calibre was made, from a cited source, never inferred from serial numbers |
+| `summary` | Optional. A list of `text` and `source`: a short factual description, one sourced sentence each; any quote verbatim |
+| `issues` | Optional. A list of `text` and `source`: faults a service document, maker bulletin or named watchmaker's write-up reports; no "common" or "often" unless the source says so |
+| `related` | Optional. A list of `calibre` (an exact row name), `relation` ("clone of", "based on", "successor of" or "same base as", read as "this row … that calibre") and `source`. Stored on the row described; the app shows the inverse on the other row. Never carries figures across |
+| `assets` | Optional. A list of `path` and `kind`: makers' files kept in peterhudson/timegrapher-calibres, linked from the app, never bundled. `kind` is "spec sheet", "drawing", "manual", "photo (dial side)", "photo (balance side)" or "photo" |
 
 ## Makers' other names
 
