@@ -2808,4 +2808,84 @@ mod tests {
             None
         );
     }
+
+    /// A side's beats for [`onto_the_drop`]: each beat a drop with a
+    /// middle sound as loud 5 ms before it, given as `(index, drop time,
+    /// on the middle sound)`. Returns the envelope, a template with its
+    /// drop at its origin, the beats and the middle beats' indices.
+    fn drop_scene(drops: &[(i64, f64, bool)]) -> (Vec<f32>, Vec<f32>, Vec<Beat>, f64) {
+        let fs = 20_000.0;
+        let pulse = |x: &mut [f32], t: f64| {
+            for (i, v) in x.iter_mut().enumerate() {
+                let d = (i as f64 / fs - t) / 0.0003;
+                *v += (-0.5 * d * d).exp() as f32;
+            }
+        };
+        let mut env = vec![0f32; (2.6 * fs) as usize];
+        let mut beats = Vec::new();
+        for &(index, t, middle) in drops {
+            pulse(&mut env, t);
+            pulse(&mut env, t - 0.005);
+            let time = if middle { t - 0.005 } else { t };
+            beats.push(Beat {
+                index,
+                time,
+                quality: 1.0,
+            });
+        }
+        let mut template = vec![0f32; ((PRE_S + POST_S) * fs).round() as usize];
+        pulse(&mut template, PRE_S);
+        (env, template, beats, fs)
+    }
+
+    /// The side's beats at 28,800 bph: `n` of them from 0.1 s, a quarter
+    /// second apart, the one numbered `middle` on its middle sound, each
+    /// drop `jitter(k)` seconds off its line.
+    fn side_beats(n: i64, middle: i64, jitter: impl Fn(i64) -> f64) -> Vec<(i64, f64, bool)> {
+        (0..n)
+            .map(|k| (2 * k, 0.1 + 0.25 * k as f64 + jitter(k), k == middle))
+            .collect()
+    }
+
+    fn moved_by(drops: &[(i64, f64, bool)], off: f64, index: i64) -> f64 {
+        let (env, template, mut beats, fs) = drop_scene(drops);
+        let was = beats.iter().find(|b| b.index == index).unwrap().time;
+        onto_the_drop(&env, fs, &template, &mut beats, off);
+        beats.iter().find(|b| b.index == index).unwrap().time - was
+    }
+
+    /// A block of 8 of a side's beats with one on its middle sound puts
+    /// that one on its drop, 5 ms later; a block of 3 (2 of them on the
+    /// line) is left as found, under [`DROP_BLOCK_MIN`] and
+    /// [`DROP_LINED_MIN`] (#1819).
+    #[test]
+    fn a_block_of_too_few_beats_is_left_as_found() {
+        let moved = moved_by(&side_beats(8, 7, |_| 0.0), 0.0, 14);
+        assert!((moved - 0.005).abs() < 1e-4, "{moved}");
+        let moved = moved_by(&side_beats(3, 2, |_| 0.0), 0.0, 4);
+        assert_eq!(moved, 0.0);
+    }
+
+    /// A block whose beats on the line stray from it by 0.4 ms, more than
+    /// [`DROP_LINE_SCATTER_S`], as noise taken for beats does, is left as
+    /// found, its beat on another sound with it (#1819).
+    #[test]
+    fn a_block_whose_beats_scatter_off_their_line_is_left_as_found() {
+        let jitter = |k: i64| [0.0, 0.0, 0.4, 0.4, -0.4, -0.4, 0.0, 0.0][k as usize] * 1e-3;
+        let moved = moved_by(&side_beats(8, 7, jitter), 0.0, 14);
+        assert_eq!(moved, 0.0);
+    }
+
+    /// Blocks are cut on the take's own clock: the sound starting `off`
+    /// seconds into the take moves where they fall. With the sound 0.3 s
+    /// in, the eighth beat (1.85 s) falls alone in the next block and is
+    /// left as found; at the take's start it shares a block of 8 and is
+    /// put on its drop (#1819).
+    #[test]
+    fn blocks_fall_on_the_take_s_own_clock() {
+        let drops = side_beats(8, 7, |_| 0.0);
+        let moved = moved_by(&drops, 0.0, 14);
+        assert!((moved - 0.005).abs() < 1e-4, "{moved}");
+        assert_eq!(moved_by(&drops, 0.3, 14), 0.0);
+    }
 }
