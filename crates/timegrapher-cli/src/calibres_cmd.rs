@@ -275,6 +275,10 @@ fn print_one(cat: &Catalog, e: Entry) {
     if e.is_custom() {
         println!("Added by you  (not in the shipped table)");
     }
+    // An escapement not measured yet, on its own line (#1872).
+    if let Some(x) = e.escapement() {
+        println!("{}", x.sentence());
+    }
     match e.bph() {
         Some(b) => println!("Beat rate     {b} bph"),
         None => println!("Beat rate     not given"),
