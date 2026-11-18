@@ -1068,6 +1068,52 @@ mod tests {
         assert_eq!(unlock_span_note(30.0), None);
     }
 
+    /// The table of which cards each caveat limits (Norm and Hugh, #1975):
+    /// a caveat with one card is said there, any other for the whole take.
+    #[test]
+    fn each_caveat_limits_the_cards_ruled() {
+        use confidence::Figure;
+        use Scope::{Amplitude, BeatError, Rate, Take};
+        let no_watch = Caveat::NoWatch {
+            reason: NoWatchReason::Scatter,
+        };
+        let set_rate = Caveat::SetRateDisagrees { heard: 28800 };
+        for take in [&no_watch, &set_rate] {
+            assert_eq!(take.scopes(), &[Take], "{take:?}");
+        }
+        let lift_and_sides = [
+            Caveat::LiftUnknown,
+            Caveat::Clipped { fraction: 0.02 },
+            Caveat::FaintSidesWithheld {
+                sides: 1,
+                windows: 1,
+            },
+        ];
+        for c in &lift_and_sides {
+            assert_eq!(c.scopes(), &[Amplitude, BeatError], "{c:?}");
+        }
+        assert_eq!(Caveat::ClockUnknown.scopes(), &[Rate]);
+        assert_eq!(Caveat::FROM_DROP.scopes(), &[BeatError]);
+        for (figure, scope) in [
+            (Figure::Rate, Rate),
+            (Figure::Amplitude, Amplitude),
+            (Figure::BeatError, BeatError),
+        ] {
+            let c = Caveat::ReadingWindows {
+                reading: figure,
+                windows_used: 1,
+                windows_in_span: 4,
+            };
+            assert_eq!(c.scopes(), &[scope]);
+            assert_eq!(c.reading_scope(), Some(scope));
+        }
+        for c in lift_and_sides.iter().chain([&no_watch, &set_rate]) {
+            assert_eq!(c.reading_scope(), None, "{c:?}");
+        }
+        assert_eq!(Caveat::ClockUnknown.reading_scope(), Some(Rate));
+        assert_eq!(Caveat::FROM_DROP.reading_scope(), Some(BeatError));
+    }
+
     use super::*;
 
     /// The kept-template caveat names the first chunk's length from
