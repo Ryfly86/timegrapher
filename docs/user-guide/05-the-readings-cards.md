@@ -127,8 +127,9 @@ the take's start, "Began 54.1 h after full", and can't be set; its hover
 says so. A take opened shows its own, as saved. To give or correct a
 saved take's wind, use **Set Wind** on its row in Watches (chapter 22).
 
-The box's hover always gives the whole of it: "Full wind 2.0 h ago",
-or "Wind not given" until it is set.
+The box's hover always gives the whole of it: "Full wind 2.0 h ago"
+before a take, "Full wind 54.1 h before it began" once one has begun or
+for a take opened, or "Wind not given" until it is set.
 
 ## Rate, Amplitude and Beat Error
 
