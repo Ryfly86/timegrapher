@@ -4,6 +4,7 @@ use super::*;
 use crate::sparkline;
 use timegrapher_core::figure_text::{figure, figure_with_pm as with_pm, true_minus};
 use timegrapher_core::library::{base_digits as base, fixed_text, pm_text, signed_text};
+use timegrapher_core::measure::{self, Scope};
 use timegrapher_core::steady_views;
 
 /// What the reading cards draw from.
@@ -348,6 +349,9 @@ pub(crate) fn limits_chip_words(
         .unwrap_or_default()
 }
 
+/// The heading of the take-wide caveats' hover in the status bar.
+pub(crate) const TAKE_CAVEATS_TITLE: &str = "About the whole take:";
+
 /// A card title's caption font.
 fn caption_font() -> egui::FontId {
     theme::semibold(13.0)
@@ -428,11 +432,7 @@ impl TimegrapherApp {
         );
         let unheard = (!heard).then(|| (unheard_line.clone(), unheard_hover.clone()));
         let r = r.as_ref().filter(|_| heard);
-        // The take's breaks not all its own list's, as session says too.
-        let mut caveats = r.map_or_else(Vec::new, |r| r.caveats.clone());
-        if let (Some(why), Some(_)) = (self.take_unlisted, r) {
-            timegrapher_core::measure::add(&mut caveats, Caveat::BreaksUnlisted { why });
-        }
+        let caveats = self.shown_caveats(r);
         let caveats = &caveats[..];
         // Each reading's ±, as an analysis of the recording gives them
         // (core `measure`).
@@ -522,7 +522,7 @@ impl TimegrapherApp {
         let heard = c.heard;
         let compact = c.compact;
         let rate = r.and_then(|r| r.rate_s_per_day);
-        let rate_facts = reading_limits("Rate", caveats, lift_now, beats);
+        let rate_facts = reading_limits("Rate", caveats, lift_now, beats, false);
         card_title(
             ui,
             rows.title,
@@ -718,6 +718,7 @@ impl TimegrapherApp {
             caveats,
             lift_now,
             beats,
+            r.and_then(|r| r.amplitude_deg).is_none(),
         );
         card_title(
             ui,
@@ -741,6 +742,10 @@ impl TimegrapherApp {
         }) = r
         {
             behind = sides_text(a, b, amp_pm);
+        }
+        // Read over at least 10 s where Average Over is shorter (#1951).
+        if let Some(note) = r.and_then(|_| measure::amplitude_span_note(self.average_s)) {
+            behind += &format!(" {note}");
         }
         if let Some((w, v)) = whole.as_ref().and_then(|w| Some((w, w.m.amplitude_deg?))) {
             let se = w.m.confidence.and_then(|c| c.amplitude.se);
@@ -794,6 +799,7 @@ impl TimegrapherApp {
                 caveats,
                 lift_now,
                 beats,
+                false,
             ),
             (None, c.short),
         );
@@ -812,6 +818,9 @@ impl TimegrapherApp {
             (None, Some(_)) => "From the drop: the unlock couldn't be timed.".into(),
             _ => "From the unlock, the usual reading, as tg shows it.".into(),
         };
+        if let Some(note) = unlock.and_then(|_| measure::unlock_span_note(self.average_s)) {
+            from += &format!(" {note}");
+        }
         if let Some((w, v)) = whole.as_ref().and_then(|w| Some((w, w.m.beat_error()?))) {
             let se = w.m.confidence.and_then(|c| c.beat_error.se);
             let text = format!("{} ms", with_pm(v, se, base::BEAT_ERROR, false));
@@ -1109,6 +1118,37 @@ impl TimegrapherApp {
         }
     }
 
+    /// The caveats on the reading shown, `r` where a watch is heard: its
+    /// own, and the take's breaks not all its own list's, as session says
+    /// too.
+    pub(super) fn shown_caveats(&self, r: Option<&LiveReading>) -> Vec<Caveat> {
+        let mut caveats = r.map_or_else(Vec::new, |r| r.caveats.clone());
+        if let (Some(why), Some(_)) = (self.take_unlisted, r) {
+            timegrapher_core::measure::add(&mut caveats, Caveat::BreaksUnlisted { why });
+        }
+        caveats
+    }
+
+    /// The caveats on the reading shown that bear on more than one card,
+    /// or on the take, once, in the status bar after the take's state: a
+    /// chip in the cards' step-down, each one's sentence on its hover
+    /// (Hugh, #1975).
+    fn take_caveats_chip(&self, ui: &mut egui::Ui) {
+        let r = self.card_reading();
+        let r = r.as_ref().filter(|r| heard(Some(r)));
+        let amplitude_empty = r.and_then(|r| r.amplitude_deg).is_none();
+        let caveats = self.shown_caveats(r);
+        let beats = r.map_or(0, |r| r.beats_used);
+        let limits = take_limits(&caveats, self.lift_deg, beats, amplitude_empty);
+        if limits.is_empty() {
+            return;
+        }
+        let room = ui.available_width();
+        let words = limits_chip_words(&limits, |w| theme::chip_w(ui, w) <= room);
+        let sentences: Vec<String> = limits.into_iter().map(|l| l.1).collect();
+        theme::chip(ui, &words, TAKE_CAVEATS_TITLE, &sentences, room);
+    }
+
     pub(super) fn status_bar(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 12.0;
@@ -1394,6 +1434,7 @@ impl TimegrapherApp {
     /// signal.
     pub(super) fn status_facts(&self, ui: &mut egui::Ui) {
         let pal = theme::pal(ui);
+        self.take_caveats_chip(ui);
         if let Some(b) = &self.batch {
             let done = f64::from_bits(b.progress.load(std::sync::atomic::Ordering::Relaxed));
             let frac = b.duration_s.map_or(0.0, |d| (done / d).clamp(0.0, 1.0));
@@ -1918,4 +1959,94 @@ pub(super) fn timed_clock_text(ppm: f64, sd: f64) -> String {
 /// The day of a UTC timestamp kept as text ("2026-10-12T…").
 pub(super) fn day_of(utc: &str) -> &str {
     utc.get(..10).unwrap_or(utc)
+}
+
+/// What limits a reading, as facts: a short form for the card's caption
+/// and a sentence for its hover, in core's words. Nothing graded: the ±
+/// beside the figure says how far it could be off; these say what the ±
+/// can't show. Only the caveats that bear on the card titled `title`
+/// alone, and, where its figure is `empty`, one that emptied it (#1975).
+pub(super) fn reading_limits(
+    title: &str,
+    caveats: &[Caveat],
+    lift_deg: f64,
+    beats: usize,
+    empty: bool,
+) -> Vec<(String, String)> {
+    let card = card_scope(title);
+    let own: Vec<Caveat> = caveats
+        .iter()
+        .filter(|c| card.is_some() && (c.reading_scope() == card || (empty && empties(c) == card)))
+        .copied()
+        .collect();
+    caveat_facts(&own, lift_deg, beats)
+}
+
+/// The caveats that bear on more than one card, or on the take, as
+/// [`reading_limits`] gives a card's: said once, in the status bar. Not
+/// one said on a card it emptied, the Amplitude card where
+/// `amplitude_empty`.
+pub(super) fn take_limits(
+    caveats: &[Caveat],
+    lift_deg: f64,
+    beats: usize,
+    amplitude_empty: bool,
+) -> Vec<(String, String)> {
+    let take: Vec<Caveat> = caveats
+        .iter()
+        .filter(|c| c.reading_scope().is_none())
+        .filter(|c| !(amplitude_empty && empties(c) == Some(Scope::Amplitude)))
+        .copied()
+        .collect();
+    caveat_facts(&take, lift_deg, beats)
+}
+
+/// The card a caveat leaves without a figure, said there though it bears
+/// on more than that card (Hugh's rule 3 and Norm, #1975): sides too
+/// faint to read, on the Amplitude card.
+fn empties(c: &Caveat) -> Option<Scope> {
+    matches!(c, Caveat::FaintSidesWithheld { .. }).then_some(Scope::Amplitude)
+}
+
+/// Each caveat's short form and sentence, but those said elsewhere.
+pub(super) fn caveat_facts(
+    caveats: &[Caveat],
+    lift_deg: f64,
+    beats: usize,
+) -> Vec<(String, String)> {
+    caveats
+        .iter()
+        .filter(|c| !said_elsewhere(c))
+        .filter_map(|c| {
+            let long = c.long(Some(lift_deg))?;
+            let long = match c {
+                Caveat::Clipped { .. } => format!("{long} {}", help::CLIPPING),
+                _ => long,
+            };
+            Some((c.short(lift_deg, beats)?, long))
+        })
+        .collect()
+}
+
+/// The reading a card titled `title` shows, as a caveat's scope.
+fn card_scope(title: &str) -> Option<Scope> {
+    match title {
+        "Rate" => Some(Scope::Rate),
+        "Amplitude" => Some(Scope::Amplitude),
+        "Beat Error" => Some(Scope::BeatError),
+        _ => None,
+    }
+}
+
+/// Caveats said elsewhere, never in a chip: no regular beat (the status
+/// bar), the clocks disagreeing and the input clock (Rate controls row),
+/// and the lift angle (Calibre card).
+fn said_elsewhere(c: &Caveat) -> bool {
+    matches!(
+        c,
+        Caveat::NoWatch { .. }
+            | Caveat::ClockSourcesDisagree { .. }
+            | Caveat::LiftUnknown
+            | Caveat::ClockUnknown
+    )
 }

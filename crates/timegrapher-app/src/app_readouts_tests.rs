@@ -3,6 +3,7 @@
 
 use super::tests::{frames, painted_text, screen, synthetic, themed};
 use super::*;
+use super::readouts::{reading_limits, take_limits};
 use timegrapher_core::synth::{generate, SynthConfig};
 
 /// An input that hangs as it closes doesn't hang the app: the wait
@@ -98,16 +99,21 @@ fn a_reading_says_what_limits_it_as_facts() {
         Caveat::LiftUnknown,
         Caveat::ClockUnknown,
     ];
-    let amp = reading_limits("Amplitude", &caveats, 52.0, 30);
-    let short: Vec<&str> = amp.iter().map(|f| f.0.as_str()).collect();
+    // A short stretch bears on the whole take: said once, in the status
+    // bar, and on no card (#1975).
+    for title in ["Rate", "Amplitude", "Beat Error"] {
+        assert!(
+            reading_limits(title, &caveats, 52.0, 30, false).is_empty(),
+            "{title}"
+        );
+    }
+    let take = take_limits(&caveats, 52.0, 30, false);
+    let short: Vec<&str> = take.iter().map(|f| f.0.as_str()).collect();
     // The lift angle and the input's clock are said elsewhere.
     assert_eq!(short, ["4 s of beats"]);
-    let rate = reading_limits("Rate", &caveats, 52.0, 30);
-    let short: Vec<&str> = rate.iter().map(|f| f.0.as_str()).collect();
-    assert_eq!(short, ["4 s of beats"]);
-    let missing = reading_limits("Rate", &[Caveat::BeatsMissing { fraction: 0.9 }], 52.0, 90);
+    let missing = take_limits(&[Caveat::BeatsMissing { fraction: 0.9 }], 52.0, 90, false);
     assert_eq!(missing[0].0, "90 of 100 beats");
-    for (_, long) in amp.iter().chain(&rate) {
+    for (_, long) in take.iter().chain(&missing) {
         for word in [
             "Confidence",
             "Low",
@@ -125,45 +131,86 @@ fn a_reading_says_what_limits_it_as_facts() {
 #[test]
 fn a_beat_error_says_where_its_sides_were_named_by_count() {
     let caveats = [Caveat::SidesByCount { count: 2 }];
-    let be = reading_limits("Beat Error", &caveats, 52.0, 30);
+    let be = reading_limits("Beat Error", &caveats, 52.0, 30, false);
     assert_eq!(be.len(), 1);
     assert_eq!(be[0].0, "sides named by count");
     assert!(be[0].1.contains("not told apart by their sound"));
     // It doesn't touch the rate or the amplitude.
-    assert!(reading_limits("Rate", &caveats, 52.0, 30).is_empty());
-    assert!(reading_limits("Amplitude", &caveats, 52.0, 30).is_empty());
+    assert!(reading_limits("Rate", &caveats, 52.0, 30, false).is_empty());
+    assert!(reading_limits("Amplitude", &caveats, 52.0, 30, false).is_empty());
 }
 
 #[test]
 fn a_drop_beat_error_caveat_belongs_only_on_beat_error() {
     let caveats = [Caveat::FROM_DROP];
-    let be = reading_limits("Beat Error", &caveats, 52.0, 30);
+    let be = reading_limits("Beat Error", &caveats, 52.0, 30, false);
     assert_eq!(be.len(), 1);
     assert_eq!(be[0].0, "beat error from the drop");
     assert!(be[0].1.contains("unlock was not found"));
-    assert!(reading_limits("Rate", &caveats, 52.0, 30).is_empty());
-    assert!(reading_limits("Amplitude", &caveats, 52.0, 30).is_empty());
+    assert!(reading_limits("Rate", &caveats, 52.0, 30, false).is_empty());
+    assert!(reading_limits("Amplitude", &caveats, 52.0, 30, false).is_empty());
 }
 
-/// Sides too faint to read are named on the Amplitude and Beat Error
-/// cards, whose figures leave them out, and not on Rate's (#1738).
+/// Sides too faint to read give neither an amplitude nor an unlock beat
+/// error (#1738), so they are said once, in the status bar (Norm,
+/// #1975); but where they leave the Amplitude card without a figure,
+/// they are said there, the reason for its dash, and not again in the
+/// status bar (Hugh's rule 3).
 #[test]
-fn faint_sides_are_named_on_amplitude_and_beat_error_only() {
+fn faint_sides_are_named_where_they_empty_a_card_else_for_the_take() {
     let caveats = [Caveat::FaintSidesWithheld {
         sides: 3,
         windows: 2,
     }];
-    for title in ["Amplitude", "Beat Error"] {
-        let facts = reading_limits(title, &caveats, 52.0, 30);
-        assert_eq!(facts.len(), 1, "{title}");
-        assert_eq!(facts[0].0, "3 faint sides left out");
+    for empty in [false, true] {
+        for title in ["Rate", "Beat Error"] {
+            assert!(
+                reading_limits(title, &caveats, 52.0, 30, empty).is_empty(),
+                "{title}"
+            );
+        }
+    }
+    assert!(reading_limits("Amplitude", &caveats, 52.0, 30, false).is_empty());
+    let take = take_limits(&caveats, 52.0, 30, false);
+    assert_eq!(take.len(), 1);
+    let facts = reading_limits("Amplitude", &caveats, 52.0, 30, true);
+    assert_eq!(facts.len(), 1);
+    assert_eq!(facts[0].0, "3 faint sides left out");
+    assert!(
+        facts[0].1.starts_with("3 sides in 2 windows"),
+        "{}",
+        facts[0].1
+    );
+    assert!(take_limits(&caveats, 52.0, 30, true).is_empty());
+    // A take-wide caveat on an empty card is not its reason: no chip.
+    let short = [Caveat::ShortSpan { span_s: 4.0 }];
+    assert!(reading_limits("Amplitude", &short, 52.0, 30, true).is_empty());
+}
+
+/// A caveat that bears on more than one card, or on the take, is said
+/// once, in the status bar's chip, and on no card: breaks, clipping, a
+/// set rate unlike the one heard (#1975). One that bears on one card
+/// alone is on that card and not in the status bar.
+#[test]
+fn a_take_wide_caveat_is_said_once_for_the_take() {
+    let caveats = [
+        Caveat::Breaks { count: 2 },
+        Caveat::Clipped { fraction: 0.03 },
+        Caveat::SetRateDisagrees { heard: 21600 },
+        Caveat::SidesByCount { count: 1 },
+    ];
+    for title in ["Rate", "Amplitude"] {
         assert!(
-            facts[0].1.starts_with("3 sides in 2 windows"),
-            "{}",
-            facts[0].1
+            reading_limits(title, &caveats, 52.0, 30, false).is_empty(),
+            "{title}"
         );
     }
-    assert!(reading_limits("Rate", &caveats, 52.0, 30).is_empty());
+    let be = reading_limits("Beat Error", &caveats, 52.0, 30, false);
+    assert_eq!(be.len(), 1);
+    assert_eq!(be[0].0, "sides named by count");
+    let take = take_limits(&caveats, 52.0, 30, false);
+    assert_eq!(take.len(), 3, "{take:?}");
+    assert!(take.iter().all(|t| t.0 != "sides named by count"));
 }
 
 /// Words in a reading's place on a narrow card show whole: "No
@@ -902,8 +949,9 @@ fn an_export_that_cannot_be_drawn_gives_up() {
     assert!(matches!(&app.message, Some((_, true))));
 }
 
-/// Clipped sound shows in a chip on the Amplitude and Beat Error cards,
-/// with nothing pushed in over the readings; a stored clock error is
+/// Clipped sound, which bears on the amplitude and the beat error, shows
+/// once, in the status bar's chip (#1975), with nothing pushed in over
+/// the readings; a stored clock error is
 /// in Settings, not on the Rate card, the corrected rate in the Rate
 /// figure's hover.
 #[test]
@@ -949,8 +997,9 @@ fn clipping_shows_in_a_chip_and_the_true_clock_in_the_rate_hover() {
         text = painted_text(&ctx.run(input, |ctx| app.panels(ctx)));
     }
     assert!(!text.contains("Clipping on"), "no banner: {text}");
-    assert!(
-        text.lines().filter(|l| l.ends_with("% Clipped")).count() >= 2,
+    assert_eq!(
+        text.lines().filter(|l| l.contains("% Clipped")).count(),
+        1,
         "{text}"
     );
     // The clock kept is Settings' to show.

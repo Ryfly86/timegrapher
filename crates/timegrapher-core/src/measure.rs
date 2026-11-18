@@ -433,15 +433,88 @@ pub enum Caveat {
     TimingModelMisfit { misfit: f64, limit: f64 },
 }
 
-impl Caveat {
-    /// Whether it limits only the amplitude and the beat error, which are
-    /// read from each beat's sounds, and not the rate: clipping, and sides
-    /// too faint to read (#1738).
-    pub fn is_amplitude_only(&self) -> bool {
-        matches!(
-            self,
-            Caveat::Clipped { .. } | Caveat::FaintSidesWithheld { .. }
+/// The amplitude's hover where Average Over, `average_s`, is under
+/// [`SHORT_SPAN_S`], which it is read over then (Norm, #1951; Hugh's
+/// words): "Over the last 10 s, not 5 s: amplitude needs at least 10 s of
+/// beats." None at [`SHORT_SPAN_S`] and over.
+pub fn amplitude_span_note(average_s: f64) -> Option<String> {
+    span_note("amplitude", average_s)
+}
+
+/// [`amplitude_span_note`] for the beat error from the unlock, read from
+/// the same windows.
+pub fn unlock_span_note(average_s: f64) -> Option<String> {
+    span_note("the unlock", average_s)
+}
+
+fn span_note(what: &str, average_s: f64) -> Option<String> {
+    (average_s < SHORT_SPAN_S).then(|| {
+        format!(
+            "Over the last {SHORT_SPAN_S} s, not {average_s} s: {what} needs at least \
+             {SHORT_SPAN_S} s of beats."
         )
+    })
+}
+
+/// What a caveat bears on: one reading, or the take as a whole (#1975).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Scope {
+    Rate,
+    Amplitude,
+    BeatError,
+    Take,
+}
+
+impl Caveat {
+    /// The readings it bears on (Hugh and Norm, #1975). One reading's
+    /// caveat is said beside that reading; one that bears on more than
+    /// one, or on the take, is said once for the whole take. Clipping
+    /// and a default lift angle move the amplitude and the beat error
+    /// (its angle), not the rate, and sides too faint to read give neither
+    /// an amplitude nor an unlock beat error; a set beat rate unlike the
+    /// one heard moves every reading.
+    pub fn scopes(&self) -> &'static [Scope] {
+        use Scope::{Amplitude, BeatError, Rate, Take};
+        match self {
+            Caveat::ClockUnknown | Caveat::ClockSourcesDisagree { .. } => &[Rate],
+            Caveat::LiftUnknown | Caveat::Clipped { .. } | Caveat::FaintSidesWithheld { .. } => {
+                &[Amplitude, BeatError]
+            }
+            Caveat::SidesByCount { .. }
+            | Caveat::BeatErrorAsSize
+            | Caveat::BeatErrorFromDrop { .. }
+            | Caveat::BeatErrorUnknownSource { .. }
+            | Caveat::BeatErrorSourceReadings { .. } => &[BeatError],
+            Caveat::ReadingWindows { reading, .. } => match reading {
+                confidence::Figure::Rate => &[Rate],
+                confidence::Figure::Amplitude => &[Amplitude],
+                confidence::Figure::BeatError => &[BeatError],
+            },
+            Caveat::NoWatch { .. }
+            | Caveat::SetRateDisagrees { .. }
+            | Caveat::BeatsMissing { .. }
+            | Caveat::ShortSpan { .. }
+            | Caveat::Breaks { .. }
+            | Caveat::BreaksUnlisted { .. }
+            | Caveat::PausesUnseen { .. }
+            | Caveat::Masked { .. }
+            | Caveat::Positions { .. }
+            | Caveat::LeadLeftOut { .. }
+            | Caveat::LockTemplateKept
+            | Caveat::PeriodMayBeNoise { .. }
+            | Caveat::PeriodSearchUncalibrated { .. }
+            | Caveat::TimingModelMisfit { .. } => &[Take],
+        }
+    }
+
+    /// The one reading it bears on, where there is one: the reading it is
+    /// said beside. None for one said for the whole take.
+    pub fn reading_scope(&self) -> Option<Scope> {
+        match self.scopes() {
+            [Scope::Take] => None,
+            [one] => Some(*one),
+            _ => None,
+        }
     }
 
     /// The beat error from the drop because the unlock was not found.
@@ -981,6 +1054,20 @@ pub fn assess_in(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_short_average_says_its_amplitude_is_read_over_ten_seconds() {
+        assert_eq!(
+            amplitude_span_note(5.0).as_deref(),
+            Some("Over the last 10 s, not 5 s: amplitude needs at least 10 s of beats.")
+        );
+        assert_eq!(
+            unlock_span_note(2.0).as_deref(),
+            Some("Over the last 10 s, not 2 s: the unlock needs at least 10 s of beats.")
+        );
+        assert_eq!(amplitude_span_note(SHORT_SPAN_S), None);
+        assert_eq!(unlock_span_note(30.0), None);
+    }
+
     use super::*;
 
     /// The kept-template caveat names the first chunk's length from
