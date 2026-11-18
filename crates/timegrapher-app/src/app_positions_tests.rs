@@ -1340,6 +1340,39 @@ fn a_positions_test_stopped_before_the_beat_is_found_stays_ended() {
             "{case}: not settling again"
         );
         assert_eq!(test.readings_so_far().len(), 0, "{case}: nothing read");
+        // Nothing read: nothing to save for the 24 hour half, and no
+        // beat error whose source to name (#1911).
+        let ctx = themed();
+        let mut drawn = String::new();
+        let mut tools = Vec::new();
+        for _ in 0..2 {
+            let out = ctx.run(egui::RawInput::default(), |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    app.pane_tools(ui, Pane::PositionsTest);
+                    app.positions_pane(ui);
+                });
+            });
+            drawn = super::tests::painted_text(&out);
+            tools = theme::tools_drawn(&ctx);
+        }
+        assert!(
+            tools.iter().any(|k| k.ends_with("/Save as Text…")),
+            "{case}: {tools:?}"
+        );
+        assert!(
+            !tools
+                .iter()
+                .any(|k| k.contains("Save Results for 24 Hours")),
+            "{case}: {tools:?}"
+        );
+        assert!(!drawn.contains("source not recorded"), "{case}: {drawn}");
+        assert!(!drawn.contains("no mean"), "{case}: {drawn}");
+        // Nor the hint that leads on to the 24 hour half (Vernon on #1929).
+        assert!(
+            !drawn.contains("Save Results for 24 Hours"),
+            "{case}: {drawn}"
+        );
+        assert!(!drawn.contains("24 hours after winding"), "{case}: {drawn}");
     }
     let _ = std::fs::remove_dir_all(&base);
 }
