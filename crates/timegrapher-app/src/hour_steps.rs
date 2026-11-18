@@ -81,6 +81,14 @@ fn hour_marks(g: egui_plot::GridInput) -> Vec<egui_plot::GridMark> {
     marks
 }
 
+/// The hour axis's range for `spans`: a 5% margin before 0 h, as egui's
+/// own, so 0 h clears the value axis, and only 1% after the run's end, so
+/// the axis ends where the run does, not hours past it (#1967).
+fn hour_range(spans: &Spans) -> (f64, f64) {
+    let end = spans.iter().map(|s| s.1).fold(1.0, f64::max);
+    (-end * 0.05, end * 1.01)
+}
+
 /// The height `n` charts need to read well, the hours under them
 /// included.
 pub fn read_h(n: usize) -> f32 {
@@ -191,8 +199,7 @@ pub fn stack(
         return None;
     }
     let end = spans.iter().map(|s| s.1).fold(1.0, f64::max);
-    // A 5% margin each side, as egui's own, so 0 h clears the value axis.
-    let x_range = (-end * 0.05, end * 1.05);
+    let x_range = hour_range(spans);
     let gutter = shared_gutter(ui, charts);
     // Never shorter than reads: what doesn't fit runs past the rect's
     // foot, where it scrolls.
@@ -491,6 +498,18 @@ mod tests {
 
     /// A long run's margin left of 0 h, wider than an hour step, marks no
     /// hour before the run.
+    #[test]
+    fn the_hour_axis_ends_where_the_run_does() {
+        // A 67 h 03 min run: no empty hours after it (#1967).
+        let spans: Vec<(f64, f64)> = (0..67)
+            .map(|h| (f64::from(h), f64::from(h + 1)))
+            .chain([(67.0, 67.05)])
+            .collect();
+        let (lo, hi) = hour_range(&spans);
+        assert!(lo < 0.0, "0 h clears the value axis");
+        assert!((67.05..68.0).contains(&hi), "{hi}");
+    }
+
     #[test]
     fn no_hour_is_marked_before_the_run() {
         let marks = hour_marks(egui_plot::GridInput {
