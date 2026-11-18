@@ -134,12 +134,34 @@ const COLS: [(Col, &str, &str); 5] = [
 
 /// The widths of the table's columns in `w`: the facts' columns as wide
 /// as their headings, the Short List's as its star and funnel, maker and
-/// name sharing the rest.
-fn col_widths(w: f32) -> [f32; 5] {
+/// name sharing the rest. The Lift Angle column is at least `lift_min`
+/// wide, for the not-supported tag (#1872), the room taken from the
+/// Calibre column.
+fn col_widths(w: f32, lift_min: f32) -> [f32; 5] {
     let facts = [118.0, 108.0, 44.0];
     let rest = (w - facts.iter().sum::<f32>()).max(160.0);
-    [rest * 0.5, rest * 0.5, facts[0], facts[1], facts[2]]
+    let lift = facts[1].max(lift_min);
+    let calibre = (rest * 0.5 - (lift - facts[1])).max(40.0);
+    [rest * 0.5, calibre, facts[0], lift, facts[2]]
 }
+
+/// The least width of the Lift Angle column: the not-supported tag at its
+/// size, right-aligned under the heading's end, with room at its left.
+fn lift_min_w(ui: &egui::Ui) -> f32 {
+    let tag = ui
+        .painter()
+        .layout_no_wrap(
+            calibres::Escapement::TAG.to_string(),
+            egui::FontId::proportional(TAG_SIZE),
+            egui::Color32::PLACEHOLDER,
+        )
+        .size()
+        .x;
+    tag + NUMBER_PAD + 8.0
+}
+
+/// The not-supported tag's text size in the table (#1872).
+const TAG_SIZE: f32 = 11.0;
 
 /// The least width the selected calibre's details need beside the table, in
 /// their card: room for a wheel's row with Add and Cancel.
@@ -928,7 +950,7 @@ impl Calibres {
         let mut select: Option<String> = None;
         theme::card().fill(pal.card).show(ui, |ui| {
             ui.set_min_size(ui.available_size());
-            let widths = col_widths(ui.available_width());
+            let widths = col_widths(ui.available_width(), lift_min_w(ui));
             self.table_head(ui, &widths);
             ui.separator();
             if rows.is_empty() {
@@ -1952,7 +1974,7 @@ fn number_cell(ui: &egui::Ui, e: Entry<'_>, col: Col, cell: egui::Rect) {
             egui::pos2(cell.right() - NUMBER_PAD, cell.center().y),
             egui::Align2::RIGHT_CENTER,
             calibres::Escapement::TAG,
-            egui::FontId::proportional(11.0),
+            egui::FontId::proportional(TAG_SIZE),
             pal.text_tertiary,
         );
         return;
