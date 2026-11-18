@@ -135,7 +135,7 @@ Rest the pointer on a figure to see what stands behind it.
 | --- | --- |
 | **Rate** | The sound card's clock (M3). The big figure is on the clock the take is read on: its USB lines, a clock log that measured the card well enough, or a correction kept for the input or saved with the take. The hover says first by how much and from what, as in the picture. **Listening,** a correction kept for the input applies from the first second, and the recording's USB lines once 30 s of sound are in; until then the hover says first which clock the figure is on for now. Then the beats the readings are fitted to ("79 beats in 10 s"), and the **jitter**. |
 | **Amplitude** | The amplitude of the Ticks and of the Tocks, apart. |
-| **Beat Error** | The beat error timed from the drop, beside the big figure's, timed from the unlock. |
+| **Beat Error** | First its **BE Angle**, the beat error as an angle of the balance's swing: "That's a BE Angle of 1.7 ± 0.2° of the balance's swing, at 302° amplitude". The ms grow as the amplitude falls; the degrees stay the same (M5). Then the beat error timed from the drop, beside the big figure's, timed from the unlock. |
 
 - **Jitter** is how far single beats land from the steady line the rate
   is fitted to, in microseconds: the spread of the dots across the strip.

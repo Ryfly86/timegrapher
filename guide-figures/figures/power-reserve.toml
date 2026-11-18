@@ -5,11 +5,12 @@ output = "power-reserve.png"
 
 actions = [["sleep", 600]]
 
-# 1 the position, 2 Keep Sound, 3 New Test, 4 Save as CSV, 5 Copy, above
-# the toolbar; 6 the result line, 7 the rate, 8 the amplitude, 9 the
-# hour table.
-marks = [[1, 300, 372], [2, 430, 372], [3, 512, 372], [4, 593, 372], [5, 650, 372],
-         [6, 870, 431], [7, 1000, 572], [8, 1000, 760], [9, 520, 870]]
+# 1 Series, 2 the position, 3 Keep Sound, 4 New Test, 5 Save as CSV,
+# 6 Copy, 7 Info, above the toolbar; 8 the title, 9 the rate, 10 the
+# amplitude, 11 the beat error, 12 the hour table.
+marks = [[1, 196, 370], [2, 342, 370], [3, 538, 370], [4, 620, 370], [5, 702, 370],
+         [6, 763, 370], [7, 1786, 370], [8, 290, 430], [9, 1000, 572], [10, 1000, 760],
+         [11, 1000, 925], [12, 135, 480]]
 
 layout = ["column", [0.18, "Strip"], [0.82, "PowerReserve"]]
 
