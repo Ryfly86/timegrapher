@@ -1289,6 +1289,7 @@ impl LiveAnalyzer {
             jitter_us,
             timing_scatter_fraction,
             no_watch,
+            ..
         } = self.verdict_at(holes, bph, window_from, end_s, st.listened_s);
         let watch_heard = no_watch.is_none();
         let finding_beat = !watch_heard && self.young_regular_run(fit.as_ref(), bph, end_s, holes);
@@ -1416,9 +1417,7 @@ impl LiveAnalyzer {
         }
     }
 
-    /// Whether a watch is heard at `end_s`, and the beats' scatter it is
-    /// judged from.
-    /// Whether the run a reading ending at `end_s` is fitted on is regular
+    /// Whether the run a reading ending at `end_s` is fitted on is heard
     /// on its own and began within [`FINDING_S`]: after a pause in the
     /// beats, or after the take's start, inside that time (#2008).
     fn young_regular_run(
@@ -1434,13 +1433,24 @@ impl LiveAnalyzer {
         let look_from = end_s - FINDING_S;
         let cut = holes.run_cut(&self.beats, look_from, end_s).max(look_from);
         let first = self.beats.partition_point(|x| x.time < cut);
-        let began_after_quiet = self
-            .beats
-            .get(first)
-            .is_some_and(|x| look_from <= 0.0 || x.time - look_from > GAP_S);
-        began_after_quiet && beats::watch_heard(Some(fit.jitter_us), b)
+        let Some(start) = self.beats.get(first).map(|x| x.time) else {
+            return false;
+        };
+        let began_after_quiet = look_from <= 0.0 || start - look_from > GAP_S;
+        // Heard on its own by the rule every reader uses: its scatter, and
+        // from the doubt line up its beats' sound, which can veto (Norm:
+        // stand noise scatters under 2% often, #675). Not yet judged on a
+        // whole window, it says a beat is heard only where its sound says
+        // a watch, not merely where nothing says otherwise (#2014).
+        if !began_after_quiet || !beats::watch_heard(Some(fit.jitter_us), b) {
+            return false;
+        }
+        let v = self.verdict_since(holes, bph, (start, end_s), end_s - start, start);
+        v.no_watch.is_none() && (v.assessed || v.beat_sound == Some(true))
     }
 
+    /// Whether a watch is heard at `end_s`, and the beats' scatter it is
+    /// judged from.
     fn verdict_at(
         &self,
         holes: &Cuts,
@@ -1448,6 +1458,19 @@ impl LiveAnalyzer {
         window_from: f64,
         end_s: f64,
         listened_s: f64,
+    ) -> Verdict {
+        let heard_since = self.heard_cuts().stretch_from(end_s).max(0.0);
+        self.verdict_since(holes, bph, (window_from, end_s), listened_s, heard_since)
+    }
+
+    /// [`Self::verdict_at`] over the sound heard since `heard_since`.
+    fn verdict_since(
+        &self,
+        holes: &Cuts,
+        bph: Option<u32>,
+        (window_from, end_s): (f64, f64),
+        listened_s: f64,
+        heard_since: f64,
     ) -> Verdict {
         // Beats scattered like noise are no regular beat: no readings, as
         // `analyze` gives none. Under 10 s of sound it is not assessed.
@@ -1464,7 +1487,6 @@ impl LiveAnalyzer {
         // the beats gets its own whole window.
         // Within that of a break, before a window can be whole, regularity
         // is not assessed; past it, no whole window is noise.
-        let heard_since = self.heard_cuts().stretch_from(end_s).max(0.0);
         let scatter_from = crate::session::scatter_look_back(window_from, end_s, heard_since);
         let scatter = bph.map_or_else(Vec::new, |b| {
             crate::session::scatter_windows(
@@ -1518,6 +1540,8 @@ impl LiveAnalyzer {
             jitter_us,
             timing_scatter_fraction,
             no_watch,
+            assessed,
+            beat_sound,
         }
     }
 
@@ -1669,6 +1693,10 @@ struct Verdict {
     timing_scatter_fraction: Option<f64>,
     /// Why no watch is heard; none when one is.
     no_watch: Option<NoWatchReason>,
+    /// Whether the scatter was judged: a whole window or more heard.
+    assessed: bool,
+    /// What the beats' averaged sound said, where it was asked.
+    beat_sound: Option<bool>,
 }
 
 /// Whether most of the beats found clipped: a watch far too loud, whose

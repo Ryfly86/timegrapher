@@ -139,13 +139,22 @@ pub fn value_axis(kind: SeriesKind, values: &[f64]) -> Option<[f64; 3]> {
     let least = least_span(kind);
     let (lo, hi) = if hi - lo < least {
         let mid = (lo + hi) / 2.0;
-        (mid - least / 2.0, mid + least / 2.0)
+        match (mid - least / 2.0, mid + least / 2.0) {
+            // Widening never takes the axis across zero the values don't
+            // reach: it grows away from zero instead, from the values' end
+            // nearest it (zero is never forced, Hugh on #1761).
+            (a, _) if a < 0.0 && lo >= 0.0 && kind != SeriesKind::BeatError => (lo, lo + least),
+            (_, b) if b > 0.0 && hi <= 0.0 => (hi - least, hi),
+            ends => ends,
+        }
     } else {
         (lo, hi)
     };
-    let lo = match kind {
-        SeriesKind::BeatError => lo.max(0.0),
-        _ => lo,
+    // A beat error is a size: its axis starts at 0 at the lowest, and a
+    // widened span moves up off 0 whole rather than being cut (Norm).
+    let (lo, hi) = match kind {
+        SeriesKind::BeatError if lo < 0.0 => (0.0, hi - lo),
+        _ => (lo, hi),
     };
     let finest = 10f64.powi(-(kind.digits() as i32));
     let (lo, hi, step) = match chart_scale::round_ends(lo, hi) {
@@ -552,6 +561,9 @@ mod tests {
             axes.dedup();
             assert!(axes.len() <= 2, "{kind:?}: {axes:?}");
         }
+        // A beat error near 0 moves its span up off 0, never cut narrower.
+        let [lo, hi, _] = value_axis(SeriesKind::BeatError, &[0.05]).expect("an axis");
+        assert!(lo >= 0.0 && hi - lo >= LEAST_SPAN_MS - 1e-9, "{lo} to {hi}");
     }
 
     /// A session of ten positions draws a lane for each of the ten, its

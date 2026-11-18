@@ -1228,6 +1228,36 @@ fn an_empty_stand_is_no_watch_however_it_is_read() {
     }
 }
 
+/// An empty stand is never a beat being found (#2008, Norm on #2013):
+/// "Finding the Beat" says a regular beat is heard, so a run of stand
+/// noise after a pause, heard on its own, must fail the rule every reader
+/// uses, the beat sound's veto included. Every second at a 10 s average,
+/// live and opened.
+///
+/// Runs where `TIMEGRAPHER_CORPUS` is set.
+#[test]
+fn an_empty_stand_is_never_a_beat_being_found() {
+    let Some(path) = corpus_takes(&[EMPTY_STAND_TAKE]).pop() else {
+        return;
+    };
+    let log = stream(&path, 47.0);
+    let audio = load(&path).unwrap();
+    let pushed = pushed(&audio, audio.sample_rate as usize / 10);
+    let opened = LiveAnalyzer::from_log(log, LiveConfig::default());
+    for (how, live) in [("live", &pushed), ("opened", &opened)] {
+        let mut t = 1.0;
+        while t <= live.duration_s() {
+            let r = live.reading_at(t, 10.0);
+            assert!(
+                !r.finding_beat,
+                "{how}, ending at {t} s: scatter {:?}",
+                r.timing_scatter_fraction
+            );
+            t += 1.0;
+        }
+    }
+}
+
 /// The take #1721 was found on, in its holder: its USB lines put its card
 /// 19.3 ppm slow, 1.67 s/d.
 const USB_TAKE: &str = "eta2824_holder_DU_30min";

@@ -485,11 +485,6 @@ impl egui_plot::PlotItem for FactBox {
     }
 }
 
-/// Of the bottom corners a facts box keeps clear of the trace, left to
-/// right, the emptiest: the one farthest from the nearest point of
-/// `trace` (screen points), the right one when they're as far (Hugh,
-/// #1626: on the Submariner plot, bottom right). The one rule for a
-/// plot's box and a painted one.
 /// Where no place is clear: the one over the fewest of the trace's
 /// points, the first of those that tie (#1963).
 fn fewest_under(places: impl Iterator<Item = egui::Rect>, trace: &[egui::Pos2]) -> egui::Rect {
@@ -504,6 +499,11 @@ fn covered(r: &egui::Rect, trace: &[egui::Pos2]) -> usize {
     trace.iter().filter(|p| r.expand(2.0).contains(**p)).count()
 }
 
+/// Of the bottom corners a facts box keeps clear of the trace, left to
+/// right, the emptiest: the one farthest from the nearest point of
+/// `trace` (screen points), the right one when they're as far (Hugh,
+/// #1626: on the Submariner plot, bottom right). The one rule for a
+/// plot's box and a painted one.
 fn emptiest<'a, T>(
     clear: &'a [T],
     rect: impl Fn(&T) -> egui::Rect,

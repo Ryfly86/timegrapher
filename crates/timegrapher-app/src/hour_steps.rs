@@ -496,8 +496,8 @@ mod tests {
         assert_eq!(r[2], (vec![[4.0, 3.0], [4.0, 4.0], [4.5, 4.0]], true));
     }
 
-    /// A long run's margin left of 0 h, wider than an hour step, marks no
-    /// hour before the run.
+    /// The axis keeps its margin before 0 h but ends just past the run,
+    /// not hours after it.
     #[test]
     fn the_hour_axis_ends_where_the_run_does() {
         // A 67 h 03 min run: no empty hours after it (#1967).
@@ -510,6 +510,8 @@ mod tests {
         assert!((67.05..68.0).contains(&hi), "{hi}");
     }
 
+    /// A long run's margin left of 0 h, wider than an hour step, marks no
+    /// hour before the run.
     #[test]
     fn no_hour_is_marked_before_the_run() {
         let marks = hour_marks(egui_plot::GridInput {

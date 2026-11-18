@@ -909,10 +909,24 @@ fn a_settle_changed_after_a_test_leaves_the_test_alone() {
     assert!(!app.guided_running(), "ended");
     let settles = app.session.settles();
     assert_eq!(settles.len(), 5, "{settles:?}");
+    // Kept: what it would save now is what was saved.
+    let info = app.info("test", 48000, 16);
+    app.session.recorder =
+        Some(timegrapher_core::recorder::Recorder::start(&base.join("live"), info).unwrap());
+    let snap = app.session.metadata_snapshot(app.save_metadata());
+    app.session.mark_saved(end, base.clone(), snap);
+    assert!(!app.metadata_unsaved());
+    let watch = std::mem::replace(&mut app.watch, "Another".into());
+    assert!(app.metadata_unsaved(), "an edit does show as unsaved");
+    app.watch = watch;
     for s in [30.0, 10.0, 30.0] {
         app.session.resettle(s);
         app.positions_moved(app.position);
         assert_eq!(app.session.settles(), settles, "Settle {s}");
+        assert!(
+            !app.metadata_unsaved(),
+            "Settle {s}: the kept take is still saved"
+        );
     }
     drop(tx);
     let _ = std::fs::remove_dir_all(&base);
