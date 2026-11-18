@@ -2300,8 +2300,10 @@ fn timing_power_floor() {
                 if let Ok(dir) = std::env::var("POWER_LOAD") {
                     let b = std::fs::read(file(&dir)).unwrap();
                     return b
-                        .chunks_exact(8)
-                        .map(|c| f64::from_le_bytes(c.try_into().unwrap()))
+                        .as_chunks::<8>()
+                        .0
+                        .iter()
+                        .map(|c| f64::from_le_bytes(*c))
                         .collect();
                 }
                 let g = null_grid_f(
