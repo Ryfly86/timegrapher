@@ -63,7 +63,7 @@ Settle and Each Position are kept between runs, and shared with the other guided
 - **20 s to settle and 40 s or more to measure is the floor:** "20 s
   stabilisation time and ≥40 s measurement time for stable results"
   (p. 33). If a position's readings are still moving when it is
-  measured, raise **Settle** for that watch (chapter 5).
+  measured, raise **Settle** for that watch.
 - **When you regulate, set the beat error before the rate:** "correct
   the beat error (repère) first, then adjust the rate" (p. 35).
 
