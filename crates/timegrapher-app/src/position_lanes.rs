@@ -198,10 +198,10 @@ pub fn beside<R>(
 pub fn lines(
     figures: &[SourcedFigures],
     more: &[SourcedFigures],
-    (wind_h, full): (Option<f64>, Option<&[SourcedFigures]>),
+    (wind_h, full, lifts): (Option<f64>, Option<&[SourcedFigures]>, [Option<f64>; 2]),
     shown: [bool; 3],
 ) -> Vec<PositionLine> {
-    let all = test_lines(wind_h, figures, more, full);
+    let all = test_lines(wind_h, figures, more, full, lifts);
     [all.rate, all.amplitude, all.beat_error]
         .into_iter()
         .zip(shown)
@@ -609,7 +609,7 @@ mod tests {
             .map(|p| p.common())
             .collect();
         assert_eq!(table, ["DU", "DD", "CU", "CD", "CL", "CR"]);
-        for line in lines(&six, &more, (None, None), [true; 3]) {
+        for line in lines(&six, &more, (None, None, [None; 2]), [true; 3]) {
             let lanes: Vec<&str> = line.lanes.iter().map(|l| l.position).collect();
             assert_eq!(lanes[..6], table[..], "{lanes:?}");
             let stops: Vec<&str> = P::HALF_HOURS.iter().map(|p| p.common()).collect();

@@ -1728,8 +1728,8 @@ fn state(wind_h: Option<f64>, readings: &[&Reading], over: &[Position]) -> State
 mod session_aggregates;
 pub use session_aggregates::{
     comparison, group_mean, position_rows, positions_table, sourced_indices, sourced_indices_over,
-    Comparison, PositionGroup, PositionRow, PositionsTable, SourcedFigures, TakeRead, IE_NAME,
-    IM_NAME, POSITION_MIN_S,
+    Comparison, LiftGap, PositionGroup, PositionRow, PositionsTable, SourcedFigures, TakeRead,
+    IE_NAME, IM_NAME, POSITION_MIN_S,
 };
 
 fn largest(v: impl Iterator<Item = f64>) -> Option<f64> {

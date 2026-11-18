@@ -322,12 +322,15 @@ pub fn state_lines_over(states: &[StateIndices], every: &[StateIndices]) -> Vec<
 /// for the averages, with `more` (the 45° stops) given lanes too, and
 /// the full-wind test `full` compared when this test's wind is known
 /// and later than full ([`state_lines_over`]'s rule, which the session
-/// report draws by too).
+/// report draws by too). The amplitudes are compared only where `lifts`,
+/// full wind's then this test's, are the same and recorded (#1923): the
+/// table under the lines says why not, the one place it is said.
 pub fn test_lines(
     wind_h: Option<f64>,
     figures: &[SourcedFigures],
     more: &[SourcedFigures],
     full: Option<&[SourcedFigures]>,
+    lifts: [Option<f64>; 2],
 ) -> StateLines {
     let every: Vec<SourcedFigures> = figures
         .iter()
@@ -342,9 +345,17 @@ pub fn test_lines(
     }
     states.push(over(wind_h, figures, &Position::ALL));
     lanes.push(over(wind_h, &every, &Position::TEN));
-    state_lines_over(&states, &lanes)
+    let mut lines = state_lines_over(&states, &lanes)
         .pop()
-        .expect("this test's state is always there")
+        .expect("this test's state is always there");
+    let compared = lines.amplitude.key.is_some();
+    if compared && crate::session::LiftGap::of(lifts).is_some() {
+        let (s, e) = (states.last(), lanes.last());
+        let this = "this test's state is always there";
+        lines.amplitude =
+            position_line_over(s.expect(this), e.expect(this), None, SeriesKind::Amplitude);
+    }
+    lines
 }
 
 #[cfg(test)]
@@ -509,7 +520,13 @@ mod tests {
     fn a_test_draws_by_the_session_rule() {
         let mut more = six(9.0);
         more.push((Position::H1h30, Some(100.0), Some(250.0), None, None));
-        let late = test_lines(Some(24.0), &six(-3.0), &more, Some(&six(0.0)));
+        let late = test_lines(
+            Some(24.0),
+            &six(-3.0),
+            &more,
+            Some(&six(0.0)),
+            [Some(52.0); 2],
+        );
         assert_eq!(late.rate.lanes.len(), 7);
         assert_eq!(
             late.rate.lanes[0].value,
@@ -529,9 +546,38 @@ mod tests {
         assert_eq!(late.rate.averages, session[1].rate.averages);
         assert_eq!(late.amplitude.averages, session[1].amplitude.averages);
         for wind in [None, Some(0.0)] {
-            let alone = test_lines(wind, &six(-3.0), &[], Some(&six(0.0)));
+            let alone = test_lines(wind, &six(-3.0), &[], Some(&six(0.0)), [Some(52.0); 2]);
             assert_eq!(alone.rate.key, None, "{wind:?}");
             assert_eq!(alone.rate.lanes[0].full_wind, None, "{wind:?}");
+        }
+    }
+
+    /// A test read at a lift other than the full-wind test's, or at one
+    /// not recorded, draws no full-wind amplitudes, so no arrows, its
+    /// hovers its own figures alone; its rate and beat error are
+    /// compared all the same (#1923).
+    #[test]
+    fn amplitudes_at_different_lifts_are_not_compared() {
+        let same = test_lines(
+            Some(24.0),
+            &six(-3.0),
+            &[],
+            Some(&six(0.0)),
+            [Some(52.0); 2],
+        );
+        assert!(same.amplitude.key.is_some());
+        assert!(same.amplitude.lanes.iter().all(|l| l.full_wind.is_some()));
+        for lifts in [[Some(52.0), Some(55.0)], [None, Some(52.0)]] {
+            let apart = test_lines(Some(24.0), &six(-3.0), &[], Some(&six(0.0)), lifts);
+            assert_eq!(apart.amplitude.key, None, "{lifts:?}");
+            assert!(apart.amplitude.lanes.iter().all(|l| l.full_wind.is_none()));
+            let lone = test_lines(Some(24.0), &six(-3.0), &[], None, [None; 2]);
+            assert_eq!(apart.amplitude.lanes, lone.amplitude.lanes, "{lifts:?}");
+            assert_eq!(apart.rate, same.rate, "{lifts:?}");
+            assert_eq!(apart.beat_error, same.beat_error, "{lifts:?}");
+            for (a, b) in apart.amplitude.lanes.iter().zip(&same.amplitude.lanes) {
+                assert_eq!(a.value, b.value, "each its own amplitude");
+            }
         }
     }
 }
