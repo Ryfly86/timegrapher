@@ -422,7 +422,7 @@ impl Test {
     /// with the watch neither wound nor worn since.
     pub fn after(full: FullWind) -> Self {
         let mut t = Test::new();
-        let h = (full.hours_ago(t.began_unix) * 10.0).round() / 10.0;
+        let h = timegrapher_core::full_wind::hours_since(full.began_unix, t.began_unix);
         t.full = Some((full, h.max(0.1)));
         t
     }
@@ -677,6 +677,12 @@ impl Test {
             .filter_map(|(i, &(_, from, to))| self.reading(i, from, to, log, clock, masked))
             .collect();
         self.readings = Some(readings);
+    }
+
+    /// End the test with no beat to read its stretches by: the positions
+    /// read so far are its readings, so it is finished, not running.
+    pub fn end_unread(&mut self) {
+        self.readings = Some(std::mem::take(&mut self.done));
     }
 
     /// Read every position measured so far again, as when the stretches
@@ -1801,7 +1807,8 @@ impl Body<'_> {
         self.comparison(ui);
         if let Some(full) = self.earlier {
             ui.add_space(10.0);
-            if earlier_section(ui, full, self.phase) {
+            let order = upper_order(self.test, self.saved);
+            if earlier_section(ui, full, &order, self.phase) {
                 action = Some(Action::ClearEarlier);
             }
         }
@@ -1977,7 +1984,12 @@ fn info_lines(settle_s: f64) -> Vec<String> {
 
 /// The full-wind results loaded from earlier, with Remove while no test
 /// runs: whether Remove was pressed.
-fn earlier_section(ui: &mut egui::Ui, full: &FullWind, phase: Option<Phase>) -> bool {
+fn earlier_section(
+    ui: &mut egui::Ui,
+    full: &FullWind,
+    order: &[session::Position],
+    phase: Option<Phase>,
+) -> bool {
     let pal = theme::pal(ui);
     let mut removed = false;
     ui.horizontal(|ui| {
@@ -2004,7 +2016,7 @@ fn earlier_section(ui: &mut egui::Ui, full: &FullWind, phase: Option<Phase>) -> 
     table_grid(
         ui,
         ("earlier", Kind::Positions),
-        &kept_table(full),
+        &kept_table_in(full, order),
         None,
         None,
     );
@@ -2106,6 +2118,27 @@ pub fn table(readings: &[Reading], kind: Kind) -> Table {
 /// The table of an earlier test's saved results.
 pub fn kept_table(full: &FullWind) -> Table {
     table_of(&kept_figures(full), Vec::new(), Kind::Positions)
+}
+
+/// [`kept_table`] with its rows in `order`, the rows of the table it sits
+/// under, so the two read across row by row whatever order the earlier
+/// test was recorded in (Hugh on #1853). A position `order` doesn't hold
+/// comes after, as saved.
+pub fn kept_table_in(full: &FullWind, order: &[session::Position]) -> Table {
+    let mut figures = kept_figures(full);
+    figures.sort_by_key(|f| order.iter().position(|&p| p == f.0).unwrap_or(order.len()));
+    table_of(&figures, Vec::new(), Kind::Positions)
+}
+
+/// The positions of the table shown above the Full Wind section, top to
+/// bottom: a running test's in its order, an opened 24 hour half's as
+/// saved, else This Take's ([`card_order`]).
+fn upper_order(test: Option<&Test>, saved: Option<&FullWind>) -> Vec<session::Position> {
+    match (test, saved) {
+        (Some(t), _) => t.kind.order().iter().map(|p| p.core()).collect(),
+        (None, Some(s)) => kept_figures(s).iter().map(|f| f.0).collect(),
+        (None, None) => card_order(),
+    }
 }
 
 /// A saved test's figures, as core reads them.

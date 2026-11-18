@@ -206,10 +206,15 @@ impl TimegrapherApp {
         } else {
             test.stop(now);
         }
-        if let Some(log) = self.live.as_ref().and_then(steady::log_of) {
-            let clock = self.reading_clock(log.duration_s);
-            test.bph_set = self.live.as_ref().and_then(|l| l.config().analysis.bph);
-            test.finish(&log, clock.as_ref(), &self.masked);
+        match self.live.as_ref().and_then(steady::log_of) {
+            Some(log) => {
+                let clock = self.reading_clock(log.duration_s);
+                test.bph_set = self.live.as_ref().and_then(|l| l.config().analysis.bph);
+                test.finish(&log, clock.as_ref(), &self.masked);
+            }
+            // No beat to read the stretches by: the test ends all the same,
+            // keeping the positions already read (#1888).
+            None => test.end_unread(),
         }
         self.guided_unused = test.unused(now);
         self.guided_measured = test.measured(now);
@@ -264,6 +269,10 @@ impl TimegrapherApp {
     /// position, and saving or copying the results.
     pub(super) fn positions_settings(&mut self, ui: &mut egui::Ui) {
         let running = self.guided_running();
+        // The quantities first, at the left, always there, as on every
+        // pane that plots them (design guide section 9, #1852): with no
+        // gap after them, so the row still fits at 1000 pt.
+        crate::steady::chart_switches(ui, &mut self.positions_series);
         // While it runs, the step panel and the Listen card carry its
         // buttons; set up, Cancel Test leaves the Bench as it was.
         if !running {
@@ -295,13 +304,7 @@ impl TimegrapherApp {
         }
         self.positions_wind(ui, running);
         theme::bar_gap(ui);
-        self.positions_lengths(ui, running, "Each Position");
-        // Each chart on or off, the others sharing the height (#1729),
-        // once there is something to chart: beside the lengths with no
-        // gap, so the row still fits at 1000 pt.
-        if self.positions_measured(ui.ctx()) {
-            crate::steady::series_switches(ui, &mut self.positions_series);
-        }
+        self.positions_lengths(ui, running, ("Each Position", guided::Kind::Positions));
         self.positions_results(ui);
     }
 
@@ -342,7 +345,7 @@ impl TimegrapherApp {
             if self.guided_after != was {
                 self.find_full_wind();
             }
-            if self.guided_after && !running {
+            if self.compare_with_shown() {
                 theme::bar_gap(ui);
                 self.compare_with(ui);
             }
@@ -371,31 +374,47 @@ impl TimegrapherApp {
     /// value each, so a change in one pane changes it in all (Peter, #1577).
     /// `each` names the measuring time in this pane: "Each Position", or the
     /// Complication Test's "Each Stretch".
-    pub(super) fn positions_lengths(&mut self, ui: &mut egui::Ui, running: bool, each: &str) {
-        theme::tool_field(
-            ui,
-            "Settle",
+    ///
+    /// With a take on show and no test on the Bench, they say how that
+    /// take was read, never that the app's settings made it (Hugh, #1733):
+    /// Settle stays live, as it reads the take again; the measuring time
+    /// is the take's own, greyed.
+    pub(super) fn positions_lengths(
+        &mut self,
+        ui: &mut egui::Ui,
+        running: bool,
+        (each, kind): (&str, guided::Kind),
+    ) {
+        let recorded = self.recorded_lengths(ui.ctx(), kind);
+        let settle_hint = if self.guided.is_none() && self.take_on_show().is_some() {
+            "How this take is read. Change it to read the take again."
+        } else {
             "Seconds the watch is left to settle after every change of position, in any take \
              and in every guided test, before its beats are read. They show faint on the \
-             strip and are left out of every reading. Every guided test shares it.",
-            |ui| {
-                ui.add_enabled_ui(!running, |ui| {
-                    let mut v = self.guided_settle_s;
-                    let a =
-                        fields::entry(ui, "settle", &mut v, guided::SETTLE_RANGE, &DURATION, 48.0);
-                    let b =
-                        fields::presets(ui, "settle-presets", &mut v, &SETTLES, fields::duration);
-                    if a || b {
-                        self.guided_settle_s = v;
-                        // Every settle band redraws, and the table with it.
-                        self.session.resettle(v);
-                        self.positions_moved(self.position);
-                    }
-                })
-                .response
-                .on_disabled_hover_text(FIXED_IN_TEST);
-            },
-        );
+             strip and are left out of every reading. Every guided test shares it."
+        };
+        theme::tool_field(ui, "Settle", settle_hint, |ui| {
+            ui.add_enabled_ui(!running, |ui| {
+                let mut v = self.guided_settle_s;
+                let a = fields::entry(ui, "settle", &mut v, guided::SETTLE_RANGE, &DURATION, 48.0);
+                let b = fields::presets(ui, "settle-presets", &mut v, &SETTLES, fields::duration);
+                if a || b {
+                    self.guided_settle_s = v;
+                    // Every settle band redraws, and the table with it.
+                    self.session.resettle(v);
+                    self.positions_moved(self.position);
+                }
+            })
+            .response
+            .on_disabled_hover_text(FIXED_IN_TEST);
+        });
+        if let Some(words) = recorded {
+            theme::tool_field(ui, each, &recorded_hint(each), |ui| {
+                let pal = theme::pal(ui);
+                ui.label(RichText::new(words).color(pal.text_secondary));
+            });
+            return;
+        }
         theme::tool_field(
             ui,
             each,
@@ -423,6 +442,38 @@ impl TimegrapherApp {
                 .on_disabled_hover_text(FIXED_IN_TEST);
             },
         );
+    }
+
+    /// With a take on show and no test on the Bench, how long each of its
+    /// positions was read, as the `kind` of pane's table gives it, so the
+    /// two never disagree (Walter on #1843): the Complication Test's own
+    /// stretches on its pane, else the This Take table's. One length to
+    /// the second, or "1 to 2 min" where they differ (Hugh, #1733). None
+    /// until the table is read, or with nothing read, the fields then
+    /// staying the app's.
+    pub(super) fn recorded_lengths(
+        &self,
+        ctx: &egui::Context,
+        kind: guided::Kind,
+    ) -> Option<String> {
+        if self.guided.is_some() || self.take_on_show().is_none() {
+            return None;
+        }
+        let lengths: Vec<f64> = if kind == guided::Kind::Complication {
+            let t = self.complication_saved.as_ref()?;
+            t.stretches().iter().map(|s| s.2 - s.1).collect()
+        } else {
+            let t = self.free_table_shown(ctx)?;
+            t.six
+                .0
+                .iter()
+                .chain(&t.upright.0)
+                .map(|r| r.duration_s)
+                .collect()
+        };
+        let least = lengths.iter().map(|l| l.round()).reduce(f64::min)?;
+        let most = lengths.iter().map(|l| l.round()).reduce(f64::max)?;
+        Some(fields::duration_range(least, most))
     }
 
     /// The Positions Test settings' Save as CSV…, Save as Text…, Copy and
@@ -686,4 +737,12 @@ impl TimegrapherApp {
         self.guided = Some(test);
         self.mask_engine();
     }
+}
+
+/// The greyed measuring field's hover, in that pane's word: "How long
+/// each stretch was recorded in this take." under Each Stretch (Hugh on
+/// #1843).
+pub(super) fn recorded_hint(each: &str) -> String {
+    let what = each.strip_prefix("Each ").unwrap_or(each).to_lowercase();
+    format!("How long each {what} was recorded in this take.")
 }

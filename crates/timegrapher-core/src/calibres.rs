@@ -63,6 +63,122 @@ pub struct Calibre {
     pub confidence: String,
     #[serde(default)]
     pub notes: Option<String>,
+    /// When the calibre was made, from a cited source; never inferred from
+    /// serial numbers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub years: Option<Years>,
+    /// A short factual description, one sourced sentence per entry.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub summary: Vec<Sourced>,
+    /// Faults a cited service document, maker bulletin or named
+    /// watchmaker's write-up reports for this calibre.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub issues: Vec<Sourced>,
+    /// Other calibres this one is related to, stored on the row described
+    /// ("this row … that calibre"). Never carries figures across.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub related: Vec<Related>,
+    /// Makers' files for this calibre kept in the timegrapher-calibres
+    /// repository, by path there (`<maker>/<calibre>/<file>`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub assets: Vec<Asset>,
+    /// An escapement Timegrapher does not measure yet, from a cited
+    /// source; absent for a Swiss lever (#1872).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub escapement: Option<Escapement>,
+}
+
+/// A calibre's escapement when it is not a Swiss lever (#1872).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Escapement {
+    /// One of [`ESCAPEMENTS`].
+    pub kind: String,
+    pub source: String,
+}
+
+/// The escapements [`Escapement::kind`] may name.
+pub const ESCAPEMENTS: [&str; 3] = ["co-axial", "pin lever", "detent"];
+
+impl Escapement {
+    /// The short tag beside the calibre's name where it is listed (#1872).
+    pub const TAG: &'static str = "Not supported yet";
+
+    /// What the app says of it, in place of the lift angle (#1872).
+    pub fn sentence(&self) -> String {
+        let mut kind = self.kind.chars();
+        let kind = match kind.next() {
+            Some(first) => first.to_uppercase().chain(kind).collect::<String>(),
+            None => String::new(),
+        };
+        format!(
+            "{kind} escapement: not supported yet. Timegrapher measures Swiss lever \
+             escapements only."
+        )
+    }
+}
+
+/// When a calibre was made.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Years {
+    #[serde(default)]
+    pub from: Option<u16>,
+    #[serde(default)]
+    pub to: Option<u16>,
+    /// The source gives the years as approximate ("about 1970").
+    #[serde(default)]
+    pub approx: bool,
+    pub source: String,
+}
+
+/// One sentence and the source it rests on.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Sourced {
+    pub text: String,
+    pub source: String,
+}
+
+/// How this calibre relates to another: "clone of", "based on",
+/// "successor of" or "same base as" (the only symmetric one; the app
+/// shows each relation's inverse on the other row, which is not stored).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Related {
+    /// The other calibre's exact `calibre` name in the table.
+    pub calibre: String,
+    pub relation: String,
+    pub source: String,
+}
+
+/// The relations `Related::relation` may take.
+pub const RELATIONS: [&str; 4] = ["clone of", "based on", "successor of", "same base as"];
+
+/// A maker's file kept in the timegrapher-calibres repository.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Asset {
+    /// Path in that repository, `<maker>/<calibre>/<file>`.
+    pub path: String,
+    pub kind: String,
+}
+
+/// The kinds `Asset::kind` may take.
+pub const ASSET_KINDS: [&str; 6] = [
+    "spec sheet",
+    "drawing",
+    "manual",
+    "photo (dial side)",
+    "photo (balance side)",
+    "photo",
+];
+
+/// The raw address of an asset in the timegrapher-calibres repository.
+pub fn asset_url(a: &Asset) -> String {
+    format!(
+        "https://raw.githubusercontent.com/peterhudson/timegrapher-calibres/main/{}",
+        a.path
+            .split('/')
+            .map(|p| p.replace(' ', "%20"))
+            .collect::<Vec<_>>()
+            .join("/")
+    )
 }
 
 /// One wheel of the train.
@@ -134,19 +250,71 @@ pub fn key(s: &str) -> String {
         .collect()
 }
 
-/// The calibre called `name`: its full name, its name without the
-/// maker, one of its family names or a name it had before.
+/// The calibre called `name`: the best of [`named`].
 pub fn find(name: &str) -> Option<&'static Calibre> {
+    named(name).into_iter().next()
+}
+
+/// Every calibre `name` names, best first (#1878): its full name, then
+/// its name without the maker or one of its family names, then a name it
+/// had before; within each, table order, as the table's first match
+/// was always taken.
+/// So "ETA 2732" is the ETA 2732, not the Cyma ETA 2732 whose name
+/// without its maker is the same.
+pub fn named(name: &str) -> Vec<&'static Calibre> {
     let k = key(name);
     if k.is_empty() {
+        return Vec::new();
+    }
+    let tier = |c: &Calibre| {
+        if key(&c.calibre) == k {
+            Some(0)
+        } else if key(c.calibre.strip_prefix(c.maker.as_str()).unwrap_or("")) == k
+            || c.family.iter().any(|f| key(f) == k)
+        {
+            Some(1)
+        } else if had_name(c, &k) {
+            Some(2)
+        } else {
+            None
+        }
+    };
+    let mut hits: Vec<(u8, &'static Calibre)> = all()
+        .iter()
+        .filter_map(|c| tier(c).map(|t| (t, c)))
+        .collect();
+    // A stable sort keeps table order within a tier.
+    hits.sort_by_key(|h| h.0);
+    hits.into_iter().map(|h| h.1).collect()
+}
+
+/// What to say when `name` is not one calibre's full name and fits
+/// others than the one [`find`] picks: their names, so the pick is never
+/// silent (#1878). None for a full name or a name only one calibre has.
+pub fn also_named_note(name: &str) -> Option<String> {
+    let hits = named(name);
+    let (first, rest) = hits.split_first()?;
+    if rest.is_empty() || key(&first.calibre) == key(name) {
         return None;
     }
-    all().iter().find(|c| {
-        key(&c.calibre) == k
-            || key(c.calibre.strip_prefix(c.maker.as_str()).unwrap_or("")) == k
-            || c.family.iter().any(|f| key(f) == k)
-            || had_name(c, &k)
-    })
+    let shown: Vec<&str> = rest.iter().take(3).map(|c| c.calibre.as_str()).collect();
+    let others = match (shown.as_slice(), rest.len() - shown.len()) {
+        ([one], 0) => (*one).to_string(),
+        (names, 0) => {
+            let (last, before) = names.split_last()?;
+            format!("{} and {last}", before.join(", "))
+        }
+        (names, more) => format!("{} and {more} more", names.join(", ")),
+    };
+    let pick = if rest.len() == 1 {
+        "pick that one"
+    } else {
+        "pick one of those"
+    };
+    Some(format!(
+        "'{name}' is read as {}. It also names {others}. Give the full name to {pick}.",
+        first.calibre
+    ))
 }
 
 /// Whether `c` once went by the name whose [`key`] is `k`, with or without
@@ -245,6 +413,52 @@ impl Calibre {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A full name wins over a name without the maker (#1878), and a
+    /// short name several calibres share says which it picked and the rest.
+    #[test]
+    fn an_exact_name_wins_and_a_shared_one_says_so() {
+        let c = find("ETA 2732").unwrap();
+        assert_eq!(c.calibre, "ETA 2732");
+        assert!(also_named_note("ETA 2732").is_none());
+        let all = named("321");
+        assert!(
+            all.len() > 1,
+            "{:?}",
+            all.iter().map(|c| &c.calibre).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            find("321").map(|c| &c.calibre),
+            all.first().map(|c| &c.calibre)
+        );
+        let note = also_named_note("321").unwrap();
+        // Hugh's words on #1899: no "the", a full stop to each sentence.
+        assert_eq!(
+            note,
+            "'321' is read as Chezard 321. It also names Valjoux 321 and Omega 321. Give the full name to pick one of those."
+        );
+        assert_eq!(
+            also_named_note("9015").unwrap(),
+            "'9015' is read as Miyota 9015. It also names Ronda 9015. Give the full name to pick that one."
+        );
+        // More than three others: the first three, then how many more.
+        let rest = named("520").len() - 1;
+        assert!(rest > 3);
+        let many = also_named_note("520").unwrap();
+        assert!(
+            many.contains(&format!(
+                " and {} more. Give the full name to pick one of those.",
+                rest - 3
+            )),
+            "{many}"
+        );
+        assert!(
+            note.contains(&all[0].calibre) && note.contains(&all[1].calibre),
+            "{note}"
+        );
+        assert!(also_named_note(&all[0].calibre).is_none());
+        assert_eq!(find("2824-2").unwrap().calibre, "ETA 2824-2");
+    }
 
     #[test]
     fn seiko_miyota_research_resolves_variants_without_broad_family_transfers() {
@@ -395,7 +609,17 @@ mod tests {
             .filter(|c| c.sources.iter().any(|s| s.contains(source)))
             .map(|c| c.calibre.as_str())
             .collect();
-        for name in ["Dandong 3235", "JH3235"] {
+        let dd_jh = [
+            "Dandong 3230",
+            "Dandong 3235",
+            "Dandong 3255",
+            "Dandong 3285",
+            "JH3230",
+            "JH3235",
+            "JH3255",
+            "JH3285",
+        ];
+        for name in dd_jh {
             let c = find(name).unwrap();
             assert_eq!(c.lift_angle_deg, Some(59.0), "{name}");
             assert!(c.sources.iter().any(|s| s.contains(source)), "{name}");
@@ -404,7 +628,7 @@ mod tests {
                 assert_eq!(search(alias)[0].calibre, c.calibre, "{alias}");
             }
         }
-        assert_eq!(covered, ["Dandong 3235", "JH3235"]);
+        assert_eq!(covered, dd_jh);
         for (name, lift) in [
             ("Rolex 3235", Some(55.0)),
             ("Rolex 3235 (53°)", Some(53.0)),
@@ -462,8 +686,8 @@ mod tests {
                     "{name}: {wheel}"
                 );
             }
-            let expected_lift = match c.calibre.as_str() {
-                "Dandong 3235" | "JH3235" => 59.0,
+            let expected_lift = match c.maker.as_str() {
+                "Peacock (Dandong)" | "Shanghai Jinghe (clone)" => 59.0,
                 _ if name.contains("53°") => 53.0,
                 _ => 55.0,
             };
@@ -473,6 +697,127 @@ mod tests {
                 .iter()
                 .any(|s| s.contains("32xx-train-wheel-counts.md")));
         }
+    }
+
+    #[test]
+    fn each_32xx_movement_has_its_own_row_and_shares_its_makers_train() {
+        // 3230 time only, 3235 date, 3255 day-date, 3285 GMT: separate
+        // movements on one going train (#1820).
+        for (maker, name_of) in [
+            ("Rolex", "Rolex "),
+            ("Peacock (Dandong)", "Dandong "),
+            ("Shanghai Jinghe (clone)", "JH"),
+        ] {
+            let base = find(&format!("{name_of}3235")).unwrap();
+            for number in ["3230", "3235", "3255", "3285"] {
+                let name = format!("{name_of}{number}");
+                let c = find(&name).unwrap_or_else(|| panic!("missing {name}"));
+                assert_eq!(c.calibre, name);
+                assert_eq!(c.maker, maker, "{name}");
+                assert!(c.common, "{name}");
+                assert_eq!(search(&name)[0].calibre, name);
+                assert_eq!(c.lift_angle_deg, base.lift_angle_deg, "{name}");
+                assert_eq!(c.bph, base.bph, "{name}");
+                let train = |c: &Calibre| {
+                    c.wheels
+                        .iter()
+                        .map(|w| (w.name.clone(), w.period_s, w.teeth, w.pinion))
+                        .collect::<Vec<_>>()
+                };
+                assert_eq!(train(c), train(base), "{name}");
+            }
+        }
+        for (alias, row) in [
+            ("DD3255", "Dandong 3255"),
+            ("DD3285", "Dandong 3285"),
+            ("DD3230", "Dandong 3230"),
+            ("Jinghe 3255", "JH3255"),
+            ("3255", "Rolex 3255"),
+            ("3285", "Rolex 3285"),
+            ("3230", "Rolex 3230"),
+            ("DD32xx", "Dandong 3235"),
+            ("VS3235", "Dandong 3235"),
+            ("Rolex 32xx", "Rolex 3235"),
+            ("JH32xx", "JH3235"),
+        ] {
+            assert_eq!(find(alias).unwrap().calibre, row, "{alias}");
+        }
+        // A search for the bare number offers every maker's row of it.
+        let hits: Vec<_> = search("3255").iter().map(|c| c.calibre.as_str()).collect();
+        for row in ["Rolex 3255", "Dandong 3255", "JH3255"] {
+            assert!(hits.contains(&row), "{row}: {hits:?}");
+        }
+    }
+
+    #[test]
+    fn sister_movements_have_their_own_rows_on_one_train() {
+        // Each sister movement is its own row (#1822), with the train,
+        // beat rate and lift of the row it was an alias of.
+        let train = |c: &Calibre| {
+            c.wheels
+                .iter()
+                .map(|w| (w.name.clone(), w.period_s, w.teeth, w.pinion))
+                .collect::<Vec<_>>()
+        };
+        for (base, rows) in [
+            (
+                "Rolex 3135",
+                &[
+                    "Rolex 3130",
+                    "Rolex 3155",
+                    "Rolex 3175",
+                    "Rolex 3185",
+                    "Rolex 3186",
+                    "Rolex 3187",
+                ][..],
+            ),
+            (
+                "Dandong 3135",
+                &["Dandong 3130", "Dandong 3186", "Dandong 3187"][..],
+            ),
+            ("VR3135", &["VR3130", "VR3186", "VR3187"][..]),
+            ("ETA 2824-2", &["ETA 2834-2", "ETA 2836-2"][..]),
+            (
+                "Sellita SW200-1",
+                &["Sellita SW220-1", "Sellita SW240-1"][..],
+            ),
+            ("ETA 2892-A2", &["Sellita SW300-1"][..]),
+        ] {
+            let b = find(base).unwrap();
+            for name in rows {
+                let c = find(name).unwrap_or_else(|| panic!("missing {name}"));
+                assert_eq!(c.calibre, *name);
+                assert_eq!(search(name)[0].calibre, *name);
+                assert_eq!(train(c), train(b), "{name}");
+                assert_eq!(
+                    (c.bph, c.lift_angle_deg),
+                    (b.bph, b.lift_angle_deg),
+                    "{name}"
+                );
+                assert!(
+                    c.sources.iter().any(|s| s.contains("/issues/1822")),
+                    "{name}"
+                );
+            }
+        }
+        for (alias, row) in [
+            ("3186", "Rolex 3186"),
+            ("3155", "Rolex 3155"),
+            ("DD3187", "Dandong 3187"),
+            ("VS3130", "Dandong 3130"),
+            ("VR3186", "VR3186"),
+            ("2836-2", "ETA 2836-2"),
+            ("SW220", "Sellita SW220-1"),
+            ("SW300-1", "Sellita SW300-1"),
+            ("Rolex 31xx", "Rolex 3135"),
+            ("DD31xx", "Dandong 3135"),
+            ("VR31xx", "VR3135"),
+            ("2892-2", "ETA 2892-A2"),
+            ("SW200-1 a", "Sellita SW200-1"),
+        ] {
+            assert_eq!(find(alias).unwrap().calibre, row, "{alias}");
+        }
+        assert_eq!(find("Sellita SW300-1").unwrap().maker, "Sellita");
     }
 
     #[test]
@@ -581,7 +926,9 @@ mod tests {
                     .any(|s| s.contains("2824-train-wheel-counts.md"))
             })
             .collect();
-        assert_eq!(covered.len(), 39);
+        // 39 rows, plus the 2834-2, 2836-2, SW220-1 and SW240-1 split from
+        // their sisters' aliases (#1822).
+        assert_eq!(covered.len(), 43);
         for c in covered {
             assert_eq!(c.bph, Some(28800), "{}", c.calibre);
             let wheel = |n: &str| c.wheels.iter().find(|w| w.name == n).unwrap();
@@ -853,7 +1200,8 @@ mod tests {
             .unwrap()
             .contains("INFERRED family transfer"));
         assert_eq!(find("DD324").unwrap().lift_angle_deg, Some(52.0));
-        assert_eq!(find("SL1258").unwrap().lift_angle_deg, None);
+        // Peacock's own SL1258 drawings print 53°; the DD324 keeps its 52° setting.
+        assert_eq!(find("SL1258").unwrap().lift_angle_deg, Some(53.0));
         let covered: Vec<_> = all()
             .iter()
             .filter(|c| {
@@ -932,6 +1280,285 @@ mod tests {
         assert_eq!(find("PUW 260").map(|c| c.calibre.as_str()), None);
         assert_eq!(find("PUW 461").map(|c| c.calibre.as_str()), None);
         assert_eq!(search("Pforzheimer 360")[0].calibre, "PUW 360");
+    }
+
+    #[test]
+    fn hangzhou_drawings_give_each_calibre_its_lift_and_beat_rate() {
+        let hz: Vec<_> = all()
+            .iter()
+            .filter(|c| c.maker == "Hangzhou" && c.confidence == "maker's page")
+            .collect();
+        assert!(hz.len() > 390, "{} Hangzhou rows", hz.len());
+        for c in &hz {
+            assert!(c.lift_angle_deg.is_some(), "{} has no lift", c.calibre);
+            assert!(c.bph.is_some(), "{} has no beat rate", c.calibre);
+            assert!(c.sources[0].contains("全升角"), "{}", c.calibre);
+        }
+        // Read off the drawings: three lift angles in use.
+        let lift_bph = |n: &str| find(n).map(|c| (c.lift_angle_deg, c.bph));
+        assert_eq!(lift_bph("HZ1A01D"), Some((Some(53.0), Some(28800))));
+        assert_eq!(lift_bph("HZ2B00"), Some((Some(53.2), Some(21600))));
+        assert_eq!(lift_bph("HZ9011"), Some((Some(47.5), Some(21600))));
+        // One row per calibre: the date positions of a 2B00A share it.
+        assert_eq!(find("HZ2B00").unwrap().calibre, "Hangzhou HZ2B00A");
+        // The 2824-clone 6300 keeps its counted train and takes the
+        // drawing's 53°, not the 50° 2824 family figure (Peter, 2026-11-16).
+        let c = find("HZ6300A").unwrap();
+        assert_eq!(c.calibre, "Hangzhou 6300");
+        assert_eq!(c.lift_angle_deg, Some(53.0));
+        assert_eq!(c.escape_teeth, Some(20));
+        assert_eq!(lift_bph("HZ6T15"), Some((Some(53.0), Some(28800))));
+    }
+
+    #[test]
+    fn peacock_drawings_give_each_drawn_calibre_its_lift() {
+        let drawn: Vec<_> = all()
+            .iter()
+            .filter(|c| c.sources.iter().any(|s| s.contains("机芯外廓图")))
+            .collect();
+        assert_eq!(drawn.len(), 67);
+        for c in &drawn {
+            assert!(c.calibre.starts_with("Peacock SL"), "{}", c.calibre);
+            assert!(c.lift_angle_deg.is_some(), "{} has no lift", c.calibre);
+        }
+        let lift_bph = |n: &str| find(n).map(|c| (c.lift_angle_deg, c.bph));
+        assert_eq!(lift_bph("SL1701"), Some((Some(51.0), Some(28800))));
+        assert_eq!(lift_bph("SL3032"), Some((Some(51.5), Some(28800))));
+        assert_eq!(lift_bph("SL3511"), Some((Some(52.5), Some(28800))));
+        assert_eq!(lift_bph("SL5003AT"), Some((Some(53.1), Some(21600))));
+        assert_eq!(lift_bph("SL5200"), Some((Some(54.0), Some(21600))));
+        assert_eq!(lift_bph("SL5231P"), Some((Some(54.0), Some(28800))));
+        // The roman-numeral spelling on the drawing finds the same row.
+        assert_eq!(find("SL5720Ⅱ").unwrap().calibre, "Peacock SL5720II");
+        // Either spelling finds the SL4617 II and III, whichever the row uses.
+        assert_eq!(find("SL4617Ⅱ").unwrap().calibre, "Peacock SL4617II");
+        assert_eq!(find("SL4617II").unwrap().calibre, "Peacock SL4617II");
+        assert_eq!(find("SL4617III").unwrap().calibre, "Peacock SL4617Ⅲ");
+        assert_eq!(find("SL4617Ⅲ").unwrap().calibre, "Peacock SL4617Ⅲ");
+        // SL1258 keeps its counted DD324 train and takes the drawing's 53°.
+        let c = find("SL1258").unwrap();
+        assert_eq!(c.lift_angle_deg, Some(53.0));
+        assert_eq!(c.escape_teeth, Some(20));
+        // A calibre with no drawing on the site keeps no lift angle.
+        assert_eq!(find("SL4609").unwrap().lift_angle_deg, None);
+    }
+
+    #[test]
+    fn peters_jinghe_list_names_movements_without_moving_figures() {
+        let post = "post-12474350";
+        let quoted: Vec<_> = all()
+            .iter()
+            .filter(|c| c.notes.as_deref().is_some_and(|n| n.contains(post)))
+            .map(|c| c.calibre.as_str())
+            .collect();
+        assert_eq!(quoted.len(), 11, "{quoted:?}");
+        // The quote identifies; each row keeps its own figures.
+        assert_eq!(find("SH4130").unwrap().lift_angle_deg, Some(52.0));
+        let jh = find("JH6203").unwrap();
+        assert_eq!(jh.calibre, "Jinghe JH6203");
+        assert_eq!(jh.lift_angle_deg, None);
+        assert_eq!(jh.bph, Some(28800));
+        assert!(jh.notes.as_deref().unwrap().contains("46 jewels"));
+        assert!(find("JH6501").is_none());
+    }
+
+    /// The app links a source's address only when the source starts with
+    /// it and a space follows, so an address in the middle of a source, or
+    /// one with a colon stuck to its end, shows as plain text.
+    #[test]
+    fn every_web_source_starts_with_its_address() {
+        for c in all() {
+            for s in &c.sources {
+                if !s.contains("http://") && !s.contains("https://") {
+                    continue;
+                }
+                assert!(s.starts_with("http"), "{}: {s}", c.calibre);
+                let url = s.split(' ').next().unwrap_or_default();
+                assert!(!url.ends_with([':', ';', ',', '.']), "{}: {s}", c.calibre);
+                assert_eq!(url.matches("://").count(), 1, "{}: {s}", c.calibre);
+            }
+        }
+    }
+
+    /// Each Ranfft source's figures agree with its row, unless the row's
+    /// notes say Ranfft disagrees.
+    #[test]
+    fn ranfft_sources_fill_gaps_and_disagreements_are_noted() {
+        let mut n = 0;
+        for c in all() {
+            for s in c
+                .sources
+                .iter()
+                .filter(|s| s.contains("ranfft.org/caliber/") && s.contains("read 2026-11-17"))
+            {
+                n += 1;
+                let says = s
+                    .rsplit_once(") (")
+                    .map(|(_, r)| r.trim_end_matches(')'))
+                    .unwrap_or_default();
+                let noted = c.notes.as_deref().is_some_and(|t| t.contains("Ranfft"));
+                for part in says.split(", ") {
+                    if let Some(b) = part.strip_suffix(" bph") {
+                        assert!(noted || c.bph == b.parse().ok(), "{}: {s}", c.calibre);
+                    } else if let Some(l) = part.strip_suffix('°') {
+                        assert!(
+                            noted || c.lift_angle_deg == l.parse().ok(),
+                            "{}: {s}",
+                            c.calibre
+                        );
+                    }
+                }
+            }
+        }
+        assert_eq!(n, 106);
+        let bph = |n: &str| find(n).and_then(|c| c.bph);
+        assert_eq!(bph("Arogno 151"), Some(18000));
+        assert_eq!(bph("Bifora 49"), Some(18000));
+        // Where Ranfft and the lift-angle sheet disagree, no beat rate
+        // (Norm, #1869), and no balance period derived from one.
+        assert_eq!(bph("Elgin 905"), None);
+        assert!(find("Elgin 905").unwrap().wheels.is_empty());
+        assert_eq!(bph("Gruen 106"), None);
+        // Ranfft's "0°" is a placeholder, not a lift angle.
+        assert_eq!(find("Doxa 41").unwrap().lift_angle_deg, None);
+    }
+
+    /// Every figure in the table is in a plausible range for a Swiss
+    /// lever: a placeholder such as Ranfft's "0°" never lands as a figure.
+    #[test]
+    fn every_beat_rate_and_lift_angle_is_plausible() {
+        for c in all() {
+            if let Some(b) = c.bph {
+                assert!((3600..=72000).contains(&b), "{}: {b} bph", c.calibre);
+            }
+            if let Some(l) = c.lift_angle_deg {
+                assert!((30.0..=70.0).contains(&l), "{}: {l}°", c.calibre);
+            }
+        }
+    }
+
+    /// A calibre with an escapement Timegrapher does not measure yet says
+    /// which one, from the fixed list, with a source that starts with its
+    /// address (#1872); the Omega 2500 family is co-axial.
+    #[test]
+    fn non_lever_escapements_are_named_and_sourced() {
+        let mut flagged = 0;
+        for c in all() {
+            let Some(e) = &c.escapement else { continue };
+            flagged += 1;
+            assert!(
+                ESCAPEMENTS.contains(&e.kind.as_str()),
+                "{}: {}",
+                c.calibre,
+                e.kind
+            );
+            assert!(e.source.starts_with("https://"), "{}", c.calibre);
+        }
+        assert_eq!(flagged, 4);
+        for n in ["Omega 2500", "Omega 2500A", "Omega 2500B", "Omega 2500C"] {
+            let e = find(n).unwrap().escapement.as_ref().unwrap();
+            assert_eq!(e.kind, "co-axial", "{n}");
+        }
+        assert!(find("ETA 2824-2").unwrap().escapement.is_none());
+        let e = find("Omega 2500").unwrap().escapement.clone().unwrap();
+        assert_eq!(
+            e.sentence(),
+            "Co-axial escapement: not supported yet. Timegrapher measures Swiss lever \
+             escapements only."
+        );
+    }
+
+    /// The metadata fields (#1861) keep their rules: every sentence,
+    /// issue, relation and span of years has a source; relations use the
+    /// fixed list and name a real row; assets use the fixed kinds and sit
+    /// in a maker/calibre folder of the asset repository.
+    #[test]
+    fn calibre_metadata_is_sourced_and_well_formed() {
+        let names: std::collections::HashSet<_> =
+            all().iter().map(|c| c.calibre.as_str()).collect();
+        let mut assets = 0;
+        for c in all() {
+            for s in c.summary.iter().chain(&c.issues) {
+                assert!(!s.text.is_empty() && !s.source.is_empty(), "{}", c.calibre);
+            }
+            if let Some(y) = &c.years {
+                assert!(!y.source.is_empty(), "{}", c.calibre);
+                assert!(y.from.is_some() || y.to.is_some(), "{}", c.calibre);
+            }
+            for r in &c.related {
+                assert!(
+                    RELATIONS.contains(&r.relation.as_str()),
+                    "{}: {}",
+                    c.calibre,
+                    r.relation
+                );
+                assert!(
+                    names.contains(r.calibre.as_str()),
+                    "{}: {}",
+                    c.calibre,
+                    r.calibre
+                );
+                assert_ne!(r.calibre, c.calibre);
+                assert!(!r.source.is_empty(), "{}", c.calibre);
+            }
+            for a in &c.assets {
+                assets += 1;
+                assert!(
+                    ASSET_KINDS.contains(&a.kind.as_str()),
+                    "{}: {}",
+                    c.calibre,
+                    a.kind
+                );
+                assert_eq!(a.path.split('/').count(), 3, "{}: {}", c.calibre, a.path);
+                assert!(
+                    !a.path.starts_with('/') && !a.path.contains(".."),
+                    "{}",
+                    a.path
+                );
+            }
+        }
+        // The makers' files mirrored on 2026-11-17 (timegrapher-calibres#1).
+        assert_eq!(assets, 1402);
+        let hz = find("HZ36K0E").unwrap();
+        assert!(hz.assets.iter().any(|a| a.kind == "spec sheet"));
+        assert!(asset_url(&hz.assets[0]).starts_with(
+            "https://raw.githubusercontent.com/peterhudson/timegrapher-calibres/main/hangzhou/"
+        ));
+    }
+
+    #[test]
+    fn seagull_manuals_tongji_and_shanghai_rows_resolve() {
+        let manual: Vec<_> = all()
+            .iter()
+            .filter(|c| {
+                c.sources
+                    .iter()
+                    .any(|s| s.contains("Seagull's manual for watch"))
+            })
+            .collect();
+        // 85 rows from the manuals plus five older rows they confirm.
+        assert_eq!(manual.len(), 90);
+        for c in &manual {
+            assert!(c.calibre.starts_with("Seagull ST"), "{}", c.calibre);
+            assert_eq!(c.lift_angle_deg, None, "{}", c.calibre);
+        }
+        let bph = |n: &str| find(n).and_then(|c| c.bph);
+        assert_eq!(bph("ST8083"), Some(21600));
+        assert_eq!(bph("ST9200"), Some(18000));
+        assert_eq!(bph("ST8090"), Some(28800));
+        assert_eq!(bph("ST8080-2"), Some(21600));
+        // Seagull's own manuals disagree, or print an unusual figure.
+        assert_eq!(bph("ST9250"), None);
+        assert_eq!(bph("ST8250"), None);
+        assert_eq!(find("ST2555").unwrap().confidence, "dealer's page");
+        let t = find("Tongji").unwrap();
+        assert_eq!(t.bph, Some(21600));
+        assert_eq!(find("ZB-1").map(|c| &c.calibre), Some(&t.calibre));
+        // The bare 2650 stays with the Swiss rows.
+        assert_ne!(find("2650").map(|c| &c.calibre), Some(&t.calibre));
+        assert_eq!(bph("SS1A"), Some(18000));
+        assert_eq!(bph("SS1K"), Some(21600));
+        assert!(find("SS1").is_none());
     }
 
     #[test]

@@ -988,6 +988,94 @@ fn a_long_take_still_draws_over_a_short_strip() {
     assert!(pts.len() <= kept);
 }
 
+/// Listening, the strip's own readings are worked out again once a step
+/// of new sound is in, not for every block of it: while the run is too
+/// sparse to serve (a long take after the watch stops), that was 70
+/// readings on every frame (#1825). Stopped, every bit of sound counts,
+/// so the last heard reads as the saved take does (Trevor on #1828).
+#[test]
+fn the_strips_own_readings_wait_for_a_whole_step_of_sound() {
+    let mut app = synthetic(40.0, 20.0);
+    let base = std::env::temp_dir().join(format!("tg-strip-step-{}", std::process::id()));
+    std::fs::create_dir_all(&base).unwrap();
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    assert!(app.running());
+    let step = 26_880.0 / timegrapher_core::live::TREND_POINTS;
+    let mut t = 0.0;
+    let mut thin = Vec::new();
+    while t <= 40.0 {
+        if let Some(p) = app.trend.iter().find(|p| p.t >= t) {
+            thin.push(*p);
+        }
+        t += step;
+    }
+    app.trend = thin;
+    let block = |app: &mut TimegrapherApp, n: usize| {
+        for _ in 0..n {
+            app.live.as_mut().unwrap().push(&[0.0; 960]);
+        }
+    };
+    let (pts, _) = app.strip_trend(5.0, 40.0, app.average_s);
+    let key = app.strip_points.as_ref().expect("worked out").0;
+    // A block of 20 ms: the same step, the same readings, not worked out.
+    block(&mut app, 1);
+    app.strip_points.as_mut().unwrap().1.clear();
+    let (again, _) = app.strip_trend(5.0, 40.0, app.average_s);
+    assert_eq!(app.strip_points.as_ref().unwrap().0, key);
+    assert!(again.is_empty(), "worked out again within a step");
+    // A whole step more: worked out again, as many readings as before.
+    block(&mut app, 30);
+    let (fresh, _) = app.strip_trend(5.0, 40.0, app.average_s);
+    assert_ne!(app.strip_points.as_ref().unwrap().0, key);
+    assert_eq!(fresh.len(), pts.len());
+    // Stopped: a block within the step is worked out at once.
+    app.capture = None;
+    let _ = app.strip_trend(5.0, 40.0, app.average_s);
+    let key = app.strip_points.as_ref().unwrap().0;
+    block(&mut app, 1);
+    let _ = app.strip_trend(5.0, 40.0, app.average_s);
+    assert_ne!(app.strip_points.as_ref().unwrap().0, key, "stopped");
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// Listening, the charts' run is read again off the window's thread when
+/// what it rests on changes: a long take's 4,000 readings held the window
+/// and the listening (#1825). The run on show stays until the new one
+/// comes, and the readings heard after the sound it was read on follow it.
+#[test]
+fn listening_the_charts_are_read_again_in_the_background() {
+    let mut app = synthetic(40.0, 20.0);
+    let base = std::env::temp_dir().join(format!("tg-trend-bg-{}", std::process::id()));
+    std::fs::create_dir_all(&base).unwrap();
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    assert!(app.running());
+    let ctx = themed();
+    app.refresh_trend_shown(&ctx);
+    let before = app.trend.clone();
+    // Neither the setting, polling nor the frame reads the run here.
+    let average_s = app.average_s;
+    app.set_average(2.0 * average_s);
+    assert_eq!(app.trend, before, "read as Average Over was set");
+    app.poll();
+    assert_eq!(app.trend, before, "read on the polling thread");
+    app.refresh_trend_shown(&ctx);
+    assert!(app.bg.trend.is_some());
+    assert_eq!(app.trend, before, "read on the window's thread");
+    // A reading heard meanwhile, after the sound the run is read on.
+    let late = TrendPoint::of(1e6, &app.live.as_ref().unwrap().reading_at(40.0, 1.0));
+    app.trend.push(late);
+    let start = Instant::now();
+    while app.bg.trend.is_some() {
+        assert!(start.elapsed() < Duration::from_secs(60), "never read");
+        std::thread::sleep(Duration::from_millis(10));
+        app.refresh_trend_shown(&ctx);
+    }
+    let fresh = app.live.as_ref().unwrap().trend(app.average_s);
+    assert_eq!(app.trend[..app.trend.len() - 1], fresh[..]);
+    assert_eq!(app.trend.last(), Some(&late));
+    let _ = std::fs::remove_dir_all(&base);
+}
+
 /// Worked out again while listening (a new Average Over, say), the run
 /// is sparse up to then and dense since. Its average spacing looks fine
 /// enough, but the strip still draws the stretch before rather than leave

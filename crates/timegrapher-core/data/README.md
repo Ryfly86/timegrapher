@@ -7,15 +7,17 @@ tooth, an eccentric wheel, a rubbing seconds hand) repeats once per turn,
 so a periodic change in rate or amplitude can be named once these periods
 are known. The table is read by `timegrapher_core::calibres`.
 
-Only lever escapements are listed. Co-axial calibres (Omega 8500, 8800
-and their kin) and other non-lever escapements are left out: the
-measurement assumes a Swiss lever's unlock and drop.
+Timegrapher measures Swiss lever escapements only, because the
+measurement assumes a lever's unlock and drop. A calibre with another
+escapement (co-axial, pin lever, detent) stays in the table so it can be
+found, but carries an `escapement` field with a source, and the app and
+CLI say it is not supported yet.
 
 ## DD32xx and JH32xx empirical lift setting
 
 The [2026-11-03 DD3285 optical study](../../../docs/research/dd32xx-optical-amplitude-validation.md)
 supports a maintainer-selected **59°** default, replacing 55° in `Dandong 3235`
-and `JH3235`. All their existing DD/JH 3230, 3235, 3255, 3285 and 32xx aliases
+and `JH3235`. The DD/JH 3230, 3255 and 3285 rows and the 32xx aliases
 inherit it, including `VS3235` under the Dandong row. Four blind video/audio takes
 measured one DD3285; effective matching settings were roughly 58–59°. Applying
 59° to other DD variants and the JH family is an explicit extrapolation, not
@@ -42,9 +44,15 @@ A JSON array, one object per calibre:
 | `lift_angle_deg` | Lift angle, only where a source gives one |
 | `seconds` | Where the seconds hand sits and how it is driven |
 | `wheels` | `name` (lower case), `period_s` (one full turn, seconds), and where known `teeth`, `pinion` (leaves on the same arbor) and `basis` (how the period is known); empty when no wheel's period is known |
-| `sources` | Where each figure came from |
+| `sources` | Where each figure came from. A source with a web address starts with it, then `(what the source is)` and `(what it says)`, so the app can show the address as a link |
 | `confidence` | The best basis in the entry: "derived from tooth counts", "measured" (from this project's recordings), "derived from the beat rate", or "published list" (an imported row, below) |
 | `notes` | What is inferred, where sources disagree, what is missing |
+| `years` | Optional. `from`, `to`, `approx` and `source`: when the calibre was made, from a cited source, never inferred from serial numbers |
+| `summary` | Optional. A list of `text` and `source`: a short factual description, one sourced sentence each; any quote verbatim |
+| `issues` | Optional. A list of `text` and `source`: faults a service document, maker bulletin or named watchmaker's write-up reports; no "common" or "often" unless the source says so |
+| `related` | Optional. A list of `calibre` (an exact row name), `relation` ("clone of", "based on", "successor of" or "same base as", read as "this row … that calibre") and `source`. Stored on the row described; the app shows the inverse on the other row. Never carries figures across |
+| `assets` | Optional. A list of `path` and `kind`: makers' files kept in peterhudson/timegrapher-calibres, linked from the app, never bundled. `kind` is "spec sheet", "drawing", "manual", "photo (dial side)", "photo (balance side)" or "photo" |
+| `escapement` | Optional, and absent for a Swiss lever. `kind` ("co-axial", "pin lever" or "detent") and `source`. A flagged calibre can still be picked; the app says Timegrapher doesn't measure that escapement yet |
 
 ## Makers' other names
 
@@ -103,27 +111,104 @@ Rows with `confidence` "maker's page" come from the makers' own
 specification pages, read on 2026-10-13:
 
 - Peacock (Dandong): http://en.cpeacockmovement.com/Movement/2.html to
-  /Movement/8.html and each calibre's page;
+  /Movement/8.html and each calibre's page, and on 2026-11-16 the 80
+  outline drawings (机芯外廓图) linked from its download and movement
+  pages, which cover 67 calibres;
 - Shanghai Jinghe: http://en.jingheshiye.com/jingdianzhizuo/ and its
-  other product lists;
-- Tianjin Seagull: https://en.seagullwatch.com/ movement pages;
+  other product lists, read again on 2026-11-16 for jewels, size, stem
+  height and power reserve (the pages and the Chinese site print no lift
+  angle, and their manual links are empty);
+- Tianjin Seagull: https://en.seagullwatch.com/ movement pages, and on
+  2026-11-16 the watch manuals on https://www.seagullwatch.com/ebook
+  (1,430 images; each prints the movement (机心型号), winding, beat rate
+  (振频) and jewels). They add 85 Seagull calibres and confirm five
+  rows. Two are left without a beat rate: ST9250, whose two manuals
+  disagree (21,600 and 18,000), and ST8250, whose manual prints 21,800.
+  A Peacock code (SL4510) in one manual is left out. 13 manuals had no
+  readable parameter block. The manual links are kept in
+  `docs/research/seagull-watch-manuals.json`;
 - Hangzhou: two assembly drawings (HZ8230A, HZ8220A) downloaded from
-  Hangzhou's site.
+  Hangzhou's site, and on 2026-11-16 every movement on
+  https://www.hzwatch.com/ (428 product pages, 418 calibres), each read
+  from its assembly drawing (装机图) and its product page.
 
 Each row cites the page it came from and the beat rate as the page
-wrote it. Only Hangzhou's drawings give a lift angle; the other pages
-give the beat rate, jewels, size and power reserve, so those rows carry
-a beat rate and a balance period and no lift angle. Seagull's pages print
+wrote it. Hangzhou's and Peacock's drawings give a lift angle; the
+other pages give the beat rate, jewels, size and power reserve, so those
+rows carry a beat rate and a balance period and no lift angle. Seagull's pages print
 the beat rate as a bare number ("Frequency: 21600"), read as bph. Pages
 with no figures were left out, and none of the pages says which calibre
-a movement copies.
+a movement copies. Seagull ST2555 comes from a dealer's page
+(seagullwatchcompany.com, `confidence` "dealer's page"), since Seagull's
+own pages don't list it.
 
-Still to do: Hangzhou (hzwatch.com), Beijing (beijingwatch.com) and
-Guangzhou Five Goats, now Dixmont (dixmont.com.cn), publish a
-drawing per calibre with its lift angle, but their sites refuse
-automated readers, so only the two Hangzhou drawings above are in.
+The Chinese standard movement (Tongji, 统一机芯) has one row at 21,600
+bph, from Wikipedia and the Chinese Watch Wiki, with its factory names
+(SZ-1, SS7, ZB-1, ZSE) as family names; the 2650 name is left out
+because it would collide with the ETA 2650. The Shanghai Watch
+Factory's earlier SS1 has two rows, SS1A at 18,000 bph and SS1K at
+21,600, from the Chinese Watch Wiki.
+
+Hangzhou's product names end in a finish letter (A white, B gold,
+C rose gold, D gun-black, E white-gold, as its own pages say) and some
+in a date position (3字位, 6字位); variants that share one drawing share
+one row, named after the drawing, with each product name as a family
+name. The lift angle (全升角) on the drawings is 53° for the 28,800 bph
+calibres and the 21,600 bph 3T tourbillons, 53.2° for the 21,600 bph
+2xxx series and 47.5° for the hand-wound 9xxx series. The 6300 family
+takes the drawings' 53° rather than the 50° ETA 2824-2 figure (Peter
+Hudson, 2026-11-16). Where a product page and its drawing disagree on
+jewels or power reserve, the row's notes say so. The movement photo
+URLs are kept in docs/research/hangzhou-movement-photos.json; the
+photos are Hangzhou's and are not copied here.
+
+Peacock's drawings print the lift angle (升角) in the title block beside
+the beat rate, jewels, diameter and thickness. They give 51° for the
+SL16xx and SL17xx ultra-thins and the SL1632, 51.5° for most 28,800 bph
+calibres, 52.5° for the SL3511, 53° for the SL1200, SL1258 and the SL70xx
+ladies' calibres, 53.1° for the 30.4 mm tourbillons (SL5003A, SL5003AT,
+SL5005, SL5006) and 54° for the other tourbillons, including the
+28,800 bph SL5231P. Where a calibre has several drawings, its row cites
+each, newest first; they agree on lift and beat rate. Fifteen Peacock
+rows (SL4609, SL48xx, SL5211 and others) have no drawing on the site and
+keep no lift angle. The movement photo URLs are kept in
+docs/research/peacock-movement-photos.json; the photos are Peacock's
+and are not copied here.
+
+Peter Hudson's RWI list of which Jinghe calibres are likely clones of
+which movements is quoted word for word, with its link, in the notes of
+the rows it names (the Jinghe JH6203, JH7152, JH7155, JH7156 and JH7301,
+and the VR3130, VR3135, VR3187, VR3235, VR3285 and SH4130). It
+identifies movements only; no figure moves between rows because of it.
+Jinghe's photo URLs are kept in docs/research/jinghe-movement-photos.json.
+
+Still to do: Beijing (beijingwatch.com) and Guangzhou Five Goats, now
+Dixmont (dixmont.com.cn), publish a drawing per calibre with its lift
+angle, but their sites refuse automated readers.
 Shanghai Watch Co. (shwatch.cn) shows no movement pages. These makers'
 calibres are wanted in the table.
+
+## Ranfft (2026-11-17)
+
+Ranfft's calibre pages (ranfft.org) were read for the rows that had no beat
+rate or no lift angle. Only exact name matches count, and 106 rows
+cite Ranfft as a source, each with the date it was read:
+
+- 88 rows gain their beat rate, with a balance period derived from it.
+- Ranfft prints "0°" where it has no lift angle. That is a placeholder, not
+  a figure, so no row takes it.
+- Where Ranfft's beat rate disagrees with the only other source (Elgin 905,
+  906 and 907: 18000 against the lift-angle sheet's 21600; Gruen 106 and
+  107: 20160 against 20222), the beat rate is left blank and both are cited,
+  as for the Seagull ST9250, until a third source settles it.
+- Where Ranfft's lift angle differs only in its decimals (Enicar 1150 and
+  1152 at 52.17° and 52.14°), the lists' 52° stays and the note gives
+  Ranfft's.
+- Ranfft limits automated reading. It blocked further reads after about 340
+  pages, so makers from A. Schild to Zodiac are still to be read, by hand
+  or with its owner's permission. The matching script and its results are in
+  peterhudson/timegrapher-calibres (`scripts/ranfft.py`,
+  `research/ranfft.tsv`).
 
 ## What users add
 
@@ -177,6 +262,23 @@ Peter Hudson contributed the photos and confirmed applicability to all
 genuine Rolex, Dandong and Jinghe 32xx on 2026-10-19. The covered rows,
 including the separate Rolex 53° settings, carry the counted wheel teeth
 and pinion leaves with `confidence` "derived from tooth counts".
+
+The 3230 (time only), 3235 (date), 3255 (day and date) and 3285 (date and
+GMT hand) are separate movements on this one going train; only the motion
+works differ. Rolex, Dandong and Jinghe each have a row for every one of
+them (#1820), so a search for 3255 offers the 3255 and the calibre card
+names it. Each carries the same counted train and escapement, and the
+same lift as its maker's 3235 row.
+
+The 31xx sisters are split the same way (#1822). Rolex has its own rows
+for the 3130, 3155, 3175, 3185, 3186 and 3187; Dandong for the 3130, 3186
+and 3187; VR for the 3130, 3186 and 3187. Each carries the train,
+escapement and lift of its maker's 3135 row. Rolex's technical
+information for the 3135, 3155, 3175 and 3185 calls the others "derived
+from calibre 3135". It gives all four the same balance, escapement and
+52° lift, and notes a longer pivot shank on the 3155 and 3185 second
+wheel. The Sellita SW300-1 likewise has its own row beside the ETA
+2892-A2 it copies.
 
 Manufacturer-specific aliases are used for clones. The ambiguous
 `3235 (clone)` alias was removed; saved selections using it need an explicit
@@ -298,7 +400,9 @@ taken from any other timegrapher program.
 
 See [the evidence and coverage audit](../../../docs/research/2824-train-wheel-counts.md)
 for the 28,800 bph counts, exact fractional second/barrel periods, cannon
-mesh inference, and source-labelled transfers to 39 catalogue rows.
+mesh inference, and source-labelled transfers to 39 catalogue rows. The
+2834-2, 2836-2, SW220-1 and SW240-1, once aliases, have their own rows on
+the same train (#1822), so 43 rows now carry it.
 Three-hertz, Power+ and ambiguous clone identities are excluded.
 
 Peter Hudson gives a 50° lift angle for all 2824-2 movements and their
@@ -315,6 +419,42 @@ Eterna 12824 52°, ETA 2824 at 21,600 bph 53°), and their notes give his
 100 / 80:20 / 99:12 / 120:11 train and five-hour barrel. The 20:10 escape pair
 is the contributor-accepted standard specification, supported by both
 comparison families. Its source note records that it was not photographed. VR and SH aliases are separated.
+
+## Modern makers' own pages (2026-11-18)
+
+Rows added on 2026-11-18 with `confidence` "maker's page" quote the
+beat-rate line from the maker's own specification page, manual,
+catalogue or press release:
+
+- Sellita: catalogue 2024. Grades a, b and c share one row, and the
+  M, MP, MPC, BV, BH and S versions are names in its `family`. The
+  SW500 has no row of its own yet, because the Valjoux 7750 row already
+  answers to "SW500".
+- Soprod: its calibre comparison sheet, as hosted by Cousins UK.
+- Seiko and Grand Seiko: the instruction manuals and Grand Seiko's
+  movement comparison. Where a manual prints one beat rate across
+  several calibre columns, the figure is taken for each of them.
+  Grand Seiko's 9SA4, 9SA5 and 9SC5 use a dual impulse escapement, not
+  a Swiss lever, so they are not added.
+- Miyota: its product pages (the 6T15, 6T27 and 6T28; the 8205, 8217,
+  9039 and 90S5 are already names on the 8215 and 9015 rows).
+- Tudor: its press releases and calibre pages.
+- Citizen: The Citizen specification page and the 9051 manual.
+- Ronda: the R150 announcement on fhs.swiss. La Joux-Perret: the G100
+  and L100 announcement on fhs.swiss.
+
+The Ronda R01 has no maker's page here: its beat rate (25,200) comes
+from Worn & Wound's article on its launch, so its `confidence` is
+"press article".
+
+No lift angle is taken from these pages, because none of them prints
+one. Orient does not publish beat rates on its pages, and the Seiko NH
+and NE spec sheets are images, so neither is added here.
+
+Beat rates were also filled on 2026-11-18 for rows that had none:
+35 from watch-wiki.org (its `Halbschwingungen` field): single figures,
+each cited to its page; no text was copied. Another 8 come from Seiko's
+manuals.
 
 ## Seiko and Miyota manufacturer-document research
 
@@ -349,7 +489,8 @@ The fourth wheel was subsequently photographed, so its 84/9 counts and
 
 Peacock SL1258 receives a contributor-confirmed family transfer from the
 DD324 specimen. Genuine Patek 324 entries and all other rows are unchanged.
-DD324 retains the existing 52° lift setting; SL1258 remains unspecified.
+DD324 retains the existing 52° lift setting. SL1258 takes the 53° printed
+on Peacock's own SL1258 drawings (2026-11-16).
 
 ## Patek 240 clone photographs
 

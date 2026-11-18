@@ -1,4 +1,7 @@
 calibres
+calibres[].assets
+calibres[].assets[].kind
+calibres[].assets[].path
 calibres[].bph
 calibres[].calibre
 calibres[].common

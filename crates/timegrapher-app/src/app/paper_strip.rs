@@ -470,7 +470,19 @@ impl TimegrapherApp {
             (end / step).ceil() as i64,
             trend_key(seconds),
             step.to_bits(),
-            live.duration_s().to_bits(),
+            // While listening, in whole steps: the readings lie on steps,
+            // so they are worked out again as each new one comes in, and
+            // the newest catch up with the sound behind them a step later.
+            // Keyed on the sound itself, every block of it worked the
+            // window's 70 readings out again on every frame while
+            // listening with the run too sparse to serve, as after the
+            // watch stops (30 ms a frame, #1825). Stopped or paused, the
+            // sound's own length, so the last sound heard counts (Trevor).
+            if self.running() {
+                (live.duration_s() / step).floor().to_bits()
+            } else {
+                live.duration_s().to_bits()
+            },
             self.rev,
         );
         if let Some((k, pts)) = &self.strip_points {
@@ -556,6 +568,12 @@ impl TimegrapherApp {
             },
             // The clock the rate line's reading is on: the live engine's.
             clock: self.take_rate_clock(),
+            // The peaks heard while guessing are no beats of the log.
+            beats_gen: self
+                .live
+                .as_ref()
+                .filter(|_| !guessing)
+                .map(|l| l.beats_gen()),
         };
         let Some(live) = &self.live else { return };
         let candidates = numbered_candidates(&candidates, period);

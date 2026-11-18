@@ -2238,17 +2238,23 @@ pub fn check(
     long_cfg: &LongConfig,
     cfg: &Config,
 ) -> Report {
-    // The pane names only cycles that meet Holm's (#659); the report
-    // states the setting it ran with.
-    let cfg = &Config {
-        acf_alone: false,
-        ..cfg.clone()
-    };
+    let cfg = &readings::pane_config(cfg);
     let holes = Cuts::new(clock, &long.breaks, &[]);
     let map = |t: f64| holes.true_time(t);
     let r = cfg.rate_reading_s;
-    let wins = rate_windows(log, clock, &long.breaks, r);
-    let rate_grid = rate_grid(&wins, r);
+    let x = readings::series_readings(log, clock, &long.breaks, r);
+    let rate_amplitude = cross_correlation(&x.rate_grid, &x.amp_paired, &x.amp_noise, cfg);
+    let (isochronism, walk) = readings::isochronism_of(&x, cfg);
+    let readings::SeriesReadings {
+        wins,
+        rate_grid,
+        amp_grid,
+        be_grid,
+        selected_be,
+        amp_readings,
+        be_readings,
+        ..
+    } = x;
     let rate_samples: Vec<twostate::Sample> = wins
         .iter()
         .map(|w| twostate::Sample {
@@ -2258,20 +2264,7 @@ pub fn check(
             ..Default::default()
         })
         .collect();
-
-    // Amplitude and beat error windows.
     let aw = &log.amplitude_windows;
-    let amp_grid = windows_grid(log, clock, &long.breaks, &|w| w.mean());
-    let (be_grid, selected_be) = beat_error::grid(log, clock, &long.breaks, None);
-    // The tests read every series at the rate's reading length: the
-    // amplitude and beat error windows are averaged into the rate's
-    // readings, so one reading means the same time for all three. The
-    // short windows are kept for finding cycles.
-    let [amp_readings, be_readings] = into_readings(&rate_grid, &amp_grid, &be_grid, r);
-    let (amp_paired, amp_noise) = pairing_readings(&amp_grid, &amp_readings);
-    let rate_amplitude = cross_correlation(&rate_grid, &amp_paired, &amp_noise, cfg);
-    let isochronism = isochronism_curve(&rate_grid, &amp_paired, &amp_noise, cfg);
-    let walk = crate::walk::walk(&rate_grid, &amp_grid, cfg.wind_h);
     let wind_down = wind_down_sourced(&rate_grid, &amp_readings, log, clock, &long.breaks, cfg);
     let distributions = {
         use distribution::{Input, AMPLITUDE, BEAT_ERROR, RATE};
@@ -2343,7 +2336,11 @@ pub fn check(
         }
     });
     let amp_period = period_of(&long.amplitude, SeriesKind::Amplitude.unit());
-    let be_long = beat_error_long(&be_grid, clock, &long.breaks, long_cfg);
+    // The beat error's search and the amplitude's two-state find, side by side (#1839).
+    let (be_long, amp_two) = crate::cores::both(
+        || beat_error_long(&be_grid, clock, &long.breaks, long_cfg),
+        || twostate::find(&amp_samples, &p),
+    );
     let be_period = period_of(&be_long, SeriesKind::BeatError.unit());
     // The plain spectra of the series the period searches read, with
     // their slow change taken off as the searches take it off.
@@ -2380,7 +2377,7 @@ pub fn check(
                 Some(amp_grid),
                 amp_period,
                 sig(&long.amplitude.components),
-                Some(twostate::find(&amp_samples, &p)),
+                Some(amp_two),
             ),
             (
                 SeriesKind::BeatError,
@@ -2867,10 +2864,14 @@ mod white;
 
 #[path = "steadiness_stats.rs"]
 mod stats;
+
+#[path = "steadiness_readings.rs"]
+mod readings;
 use cycle_search::cycle;
 #[cfg(test)]
 use cycle_search::{refined_candidates, same_peaks_once, strongest_cycle};
 pub use family::{family_long, hold_to_family};
+pub use readings::isochronism_alone;
 
 #[cfg(test)]
 mod window_grid_tests {

@@ -908,14 +908,36 @@ impl TimegrapherApp {
         let rates_here = ui.available_width() < TWO_FIELDS_W
             && self.watch_sets_here()
             && !self.bph_set_by_calibre();
+        // The take's own watch where it isn't in Watches, as the status
+        // bar names it (Hugh).
+        let named = self.named_watch();
+        let name = named
+            .as_ref()
+            .map_or_else(|| NO_WATCH.to_string(), |w| w.0.clone());
+        let title = match named {
+            None if narrow => NO_WATCH_SHORT,
+            _ => name.as_str(),
+        };
+        let not_kept = if named.as_ref().is_some_and(|w| !w.1) {
+            "\n\nNamed in this take; not in your Watches"
+        } else {
+            ""
+        };
+        let font = theme::semibold(if narrow { 12.0 } else { 13.0 });
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
             theme::help(ui, "Calibre", &help::CALIBRE);
             if !limits.is_empty() {
                 let sentences: Vec<String> = limits.iter().map(|l| l.1.clone()).collect();
-                // Shortened as every card's limits are (#1810), the watch's
-                // name keeping a narrow title's room.
-                let room = ui.available_width() - NARROW_TITLE_W;
+                // Shortened as every card's limits are (#1810), in what the
+                // watch's whole name leaves (Hugh, #1813); the bare chip
+                // where nothing else fits, the name cut only then.
+                let name_w = ui.fonts_mut(|f| {
+                    f.layout_no_wrap(format!("{title} ⏷"), font.clone(), pal.text_secondary)
+                        .size()
+                        .x
+                });
+                let room = ui.available_width() - ui.spacing().item_spacing.x - name_w;
                 let text = readouts::limits_chip_words(limits, |w| theme::chip_w(ui, w) <= room);
                 theme::chip(ui, &text, "Calibre", &sentences, ui.available_width());
             }
@@ -924,23 +946,7 @@ impl TimegrapherApp {
                 // only the title row's height, not a control's.
                 ui.spacing_mut().button_padding = Vec2::new(0.0, 0.0);
                 ui.spacing_mut().interact_size.y = theme::TITLE_ROW_H;
-                // The take's own watch where it isn't in Watches, as the
-                // status bar names it (Hugh).
-                let named = self.named_watch();
-                let name = named
-                    .as_ref()
-                    .map_or_else(|| NO_WATCH.to_string(), |w| w.0.clone());
-                let title = match named {
-                    None if narrow => NO_WATCH_SHORT,
-                    _ => name.as_str(),
-                };
-                let not_kept = if named.as_ref().is_some_and(|w| !w.1) {
-                    "\n\nNamed in this take; not in your Watches"
-                } else {
-                    ""
-                };
                 // The name is cut, never the ⏷.
-                let font = theme::semibold(if narrow { 12.0 } else { 13.0 });
                 let title = elide(ui, title, " ⏷", &font, ui.available_width());
                 let button = ui
                     .add(
@@ -1289,34 +1295,19 @@ impl TimegrapherApp {
             Some(e) if self.watch_sets_here() => format!(" Saved to {}.", e.watch.name),
             _ => String::new(),
         };
-        if self.lift_settable() {
-            let mut lift = self.lift_deg;
-            let (resp, changed) = fields::combo(
-                ui,
-                "lift",
-                &mut lift,
-                timegrapher_core::input_domain::LIFT_RANGE_DEG,
-                &DEGREES,
-                &LIFTS,
-                show_degrees,
-                "Lift",
-                lift_w,
-            );
-            let mut hint = if self.lift_known() {
-                "The lift angle: type it, or pick one with ⏷.".to_string()
-            } else {
-                LIFT_HINT.to_string()
-            };
-            hint += &saved_to;
+        // A calibre whose escapement isn't measured yet says so in place
+        // of the lift angle: the short tag, the sentence and its source
+        // in the hover (#1872).
+        if let Some((_, why)) = self.escapement_unsupported() {
+            let tag = timegrapher_core::calibres::Escapement::TAG.to_string();
+            card_fact(ui, "", tag, &why, lift_w);
+        } else if self.lift_settable() {
+            let mut tail = saved_to.clone();
             if !both && !self.bph_set_by_calibre() && self.watch_sets_here() {
-                hint += " Beat Rate is hidden at this width: it heads the menu on the card's \
+                tail += " Beat Rate is hidden at this width: it heads the menu on the card's \
                          title.";
             }
-            resp.on_hover_text(hint);
-            if changed {
-                self.set_lift(lift);
-                self.save_card_to_watch();
-            }
+            self.lift_field(ui, lift_w, &tail);
         } else {
             card_fact(
                 ui,
@@ -1512,7 +1503,9 @@ impl TimegrapherApp {
 
     /// [`Self::find_full_wind`] at `now`, Unix seconds.
     pub(super) fn find_full_wind_at(&mut self, now: f64) {
-        if self.test_ready != Some(NewTake::Positions) {
+        // For a test set up, and wherever Compare With shows, a test done
+        // or none set up yet included (#1714).
+        if self.test_ready != Some(NewTake::Positions) && !self.compare_with_shown() {
             return;
         }
         let dir = self.open_watch().map(|e| e.dir.join(library::TAKES));
@@ -1560,10 +1553,16 @@ impl TimegrapherApp {
     /// reaching its 12 hour mark, or a take added or removed, is seen only
     /// when the mouse moves.
     pub(super) fn full_wind_recheck(&self, now: f64) -> Option<Duration> {
-        (self.ready_test() == Some(NewTake::Positions)
-            && self.guided_after
-            && self.open_watch().is_some())
-        .then(|| Duration::from_secs_f64(60.0 - now.rem_euclid(60.0) + 0.05))
+        (self.ready_test() == Some(NewTake::Positions) || self.compare_with_shown())
+            .then_some(())
+            .filter(|_| self.guided_after && self.open_watch().is_some())
+            .map(|_| Duration::from_secs_f64(60.0 - now.rem_euclid(60.0) + 0.05))
+    }
+
+    /// Whether the Positions Test's toolbar shows Compare With: a watch
+    /// set for 24 Hours After, no Positions Test under way.
+    pub(super) fn compare_with_shown(&self) -> bool {
+        self.guided_after && self.open_watch().is_some() && !self.guided_running()
     }
 
     /// Whether a new take asks first: a take of a watch asks about Quick
@@ -1688,6 +1687,42 @@ impl TimegrapherApp {
         self.open_watch().is_none() || self.cal.find(&self.calibre).is_none()
     }
 
+    /// The lift angle field on the Calibre card, `w` wide, `tail` added to
+    /// its hover: where it is saved, and what the row hides.
+    fn lift_field(&mut self, ui: &mut egui::Ui, w: f32, tail: &str) {
+        let mut lift = self.lift_deg;
+        let (resp, changed) = fields::combo(
+            ui,
+            "lift",
+            &mut lift,
+            timegrapher_core::input_domain::LIFT_RANGE_DEG,
+            &DEGREES,
+            &LIFTS,
+            show_degrees,
+            "Lift",
+            w,
+        );
+        let hint = if self.lift_known() {
+            "The lift angle: type it, or pick one with ⏷.".to_string()
+        } else {
+            lift_hint(&self.calibre)
+        };
+        resp.on_hover_text(format!("{hint}{tail}"));
+        if changed {
+            self.set_lift(lift);
+            self.save_card_to_watch();
+        }
+    }
+
+    /// The calibre's escapement when Timegrapher doesn't measure it yet
+    /// (#1872): the sentence, and with its source for the hover.
+    fn escapement_unsupported(&self) -> Option<(String, String)> {
+        let x = self.cal.find(&self.calibre)?.escapement()?;
+        let sentence = x.sentence();
+        let why = format!("{sentence}\n\nSource: {}", x.source);
+        Some((sentence, why))
+    }
+
     /// One line for a watch's calibre and what it sets: the beat rate and
     /// the lift angle.
     fn calibre_line(&mut self, ui: &mut egui::Ui) {
@@ -1720,6 +1755,9 @@ impl TimegrapherApp {
                 "The {} beats at {cb} bph, but this watch beats at {b}.\n\n{hover}",
                 self.calibre
             );
+        }
+        if let Some((sentence, _)) = self.escapement_unsupported() {
+            hover = format!("{sentence}\n\n{hover}");
         }
         calibre_figure(ui, &line, pal.text).on_hover_text(hover);
     }
@@ -1887,9 +1925,18 @@ impl TimegrapherApp {
         if let Some(l) = self.cal.lift(&self.calibre) {
             self.set_lift(l);
             self.lift_context = (l, true);
-        } else if self.calibre.is_empty() && self.lift_deg != DEFAULT_LIFT_DEG {
-            // No calibre: the default lift angle, as Quick Listen starts.
-            self.set_lift(DEFAULT_LIFT_DEG);
+        } else if self.calibre.is_empty() || self.lift_deg == self.lift_context.0 {
+            // No calibre, or one with no lift of its own: not the last
+            // calibre's lift, kept as if known (#1877). The open watch's
+            // own lift, else the default lift angle, assumed, as Quick
+            // Listen starts. A lift typed by hand differs from the one the
+            // last calibre gave, and stays.
+            let own = self.open_watch().and_then(|e| e.watch.lift);
+            let l = own.unwrap_or(DEFAULT_LIFT_DEG);
+            if self.lift_deg != l {
+                self.set_lift(l);
+            }
+            self.lift_context = (l, own.is_some());
         }
         // In Quick Listen, the calibre's beat rate, else Auto again with
         // none picked; a watch's own beat rate stays the watch's.
@@ -1900,6 +1947,23 @@ impl TimegrapherApp {
         {
             self.change_bph(bph);
         }
+    }
+}
+
+/// The Lift card's hover while the lift is the default, assumed: with no
+/// calibre, or with one the table gives no lift for (Hugh on #1913).
+pub(super) fn lift_hint(calibre: &str) -> String {
+    let d = DEFAULT_LIFT_DEG;
+    if calibre.is_empty() {
+        format!(
+            "No calibre or lift angle is set, so every amplitude is worked out from the default \
+             {d:.0}°. Type the calibre's lift angle, pick one, or pick the calibre above it."
+        )
+    } else {
+        format!(
+            "The table has no lift angle for {calibre}, so every amplitude is worked out from \
+             the default {d:.0}°. Type its lift angle, or pick one."
+        )
     }
 }
 

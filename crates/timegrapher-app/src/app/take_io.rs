@@ -50,8 +50,8 @@ impl TimegrapherApp {
     }
 
     /// A new averaging time, for the readings and every pane: the readings
-    /// over the whole session are worked out again, and the tick and tock
-    /// sound follows it.
+    /// over the whole session are worked out again (while listening, in the
+    /// background), and the tick and tock sound follows it.
     pub(super) fn set_average(&mut self, seconds: f64) {
         self.average_s = seconds;
         let span = self.sound_span();
@@ -60,7 +60,7 @@ impl TimegrapherApp {
         }
         // The sound kept so far covered the old span.
         self.sound_at = None;
-        self.rebuild_trend();
+        self.refresh_trend();
     }
 
     /// Clear every run of readings, for a new session or a change that
@@ -1014,35 +1014,6 @@ impl TimegrapherApp {
         self.close_after_save && self.saving.is_none() && self.after_save.is_empty()
     }
 
-    /// How soon the window draws again with no input: while listening or
-    /// reading a take, and while work on its own thread is under way, so
-    /// what it gives shows (and a take kept as its analysis only lets its
-    /// sound go, #1221) without waiting for the pointer to move.
-    pub(super) fn repaint_every(&self) -> Option<std::time::Duration> {
-        let working = self.sound_job.is_some()
-            || self.scope_job.is_some()
-            || self.steady_job.is_some()
-            || self.saving.is_some()
-            || self.take_keep.is_some()
-            || self.analysis_save.is_some()
-            || self.kept_writing();
-        if self.running() || self.batch.is_some() {
-            Some(std::time::Duration::from_millis(40))
-        } else {
-            working
-                .then_some(std::time::Duration::from_millis(100))
-                .or_else(|| self.reserve_retry_in().or(self.kept_retry_in()))
-        }
-    }
-
-    /// When the window draws next: as [`Self::repaint_every`] says, and
-    /// once more at once on the frame the work ended, so what it left (a
-    /// message, the take's files) shows with no input (Walter on #1232).
-    pub(super) fn draw_next(&self, was_working: bool) -> Option<std::time::Duration> {
-        self.repaint_every()
-            .or(was_working.then_some(std::time::Duration::ZERO))
-    }
-
     /// The save being written, once it is done.
     pub(super) fn poll_saving(&mut self) {
         if self.saving.as_ref().is_some_and(|s| s.thread.is_finished()) {
@@ -1660,13 +1631,7 @@ impl TimegrapherApp {
             |(start, from, to, p, carried)| Some((start, from, to, Position::of_core(p)?, carried)),
         ));
         // What was recorded under any painting, loaded with the positions.
-        self.pending_recorded = (!m.recorded.is_empty()).then(|| {
-            timegrapher_core::take::positions_of(m.recorded.iter().filter_map(|r| {
-                let p = Position::from_name(&r.position)?;
-                let start = r.start_s.unwrap_or(0.0);
-                Some((start, start, r.end_s, p, false))
-            }))
-        });
+        self.pending_recorded = recorded_of(m);
         if let Some(&(_, p)) = out.first() {
             self.position = p;
         }
@@ -2331,6 +2296,8 @@ impl TimegrapherApp {
                     .filter(|j| *j > recent && !self.jumps_seen.contains(j))
                     .reduce(f64::min);
                 if let Some(j) = new {
+                    // So does a run read meanwhile, which reaches across it.
+                    self.bg.trend = None;
                     self.trend.retain(|p| p.t <= j);
                     self.sound_history.retain(|h| h.0 <= j);
                 }
@@ -2379,11 +2346,8 @@ impl TimegrapherApp {
             self.audio_at = Some(started);
         }
         self.polled_at = started;
-        // While listening the charts are read here; a take on show's in
-        // the background, from the frame ([`Self::refresh_trend_shown`]).
-        if self.running() {
-            self.refresh_trend();
-        }
+        // The charts are read in the background, from the frame
+        // ([`Self::refresh_trend_shown`]), listening too (#1825).
         let (taken, ended, failure) = self.take_blocks(started, budget);
         self.capture_outcome(ended, failure);
 
@@ -2544,13 +2508,16 @@ impl TimegrapherApp {
     }
 
     /// Show a recording opened whole once its analysis is done.
-    fn poll_batch(&mut self) {
+    pub(super) fn poll_batch(&mut self) {
         let mut done = None;
         if let Some(b) = &self.batch {
             match b.rx.try_recv() {
                 Ok(r) => done = Some(r),
                 Err(TryRecvError::Empty) => {}
-                Err(TryRecvError::Disconnected) => done = Some(Ok(None)),
+                // The analysis thread ended without an answer: a failure,
+                // not a cancel, so the window isn't left saying Analysing
+                // (#1891).
+                Err(TryRecvError::Disconnected) => done = Some(Err("it stopped part way".into())),
             }
         }
         if let Some(r) = done {
@@ -2678,19 +2645,14 @@ impl TimegrapherApp {
         stretches: Vec<(f64, Position)>,
         settles: Vec<(f64, f64)>,
     ) {
-        self.session.load(&[], &[]);
-        self.session.analysed();
-        // A take of one position settles too, unless its session file
-        // says it was read from its start.
-        if stretches.len() > 1 || !settles.is_empty() {
-            self.session.load(&stretches, &settles);
-        }
-        if let Some(&(_, p)) = self.session.stretches().last() {
-            self.position = p;
-        }
-        if let Some((s, t)) = self.pending_recorded.take() {
-            self.session.load_recorded(&s, &t, self.position);
-        }
+        let recorded = self.pending_recorded.take();
+        self.position = load_positions(
+            &mut self.session,
+            &stretches,
+            &settles,
+            recorded,
+            self.position,
+        );
         self.opened_positions = Some(self.positions_now());
         self.live = Some(live);
         // The opened take's labels, not those drawn while it opened
@@ -2821,15 +2783,15 @@ pub(super) struct Opened {
 /// thread, and again when the take arrives, to check they still hold.
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct OpenInputs {
-    bph: Option<u32>,
-    lift_deg: f64,
-    lift_known: bool,
-    average_s: f64,
-    masked: Vec<(f64, f64)>,
+    pub(super) bph: Option<u32>,
+    pub(super) lift_deg: f64,
+    pub(super) lift_known: bool,
+    pub(super) average_s: f64,
+    pub(super) masked: Vec<(f64, f64)>,
     /// Where each position began, and the settling before each one's
     /// readings.
-    changes: Vec<f64>,
-    settles: Vec<(f64, f64)>,
+    pub(super) changes: Vec<f64>,
+    pub(super) settles: Vec<(f64, f64)>,
 }
 
 /// The engine for settings `i`.
@@ -2851,7 +2813,7 @@ fn config_for(i: &OpenInputs) -> LiveConfig {
 /// across one of the take's breaks, a move or a settling's end (core's
 /// cuts, as the CLI's trend reads them). The same off the window's thread
 /// and on it.
-fn ready_engine(
+pub(super) fn ready_engine(
     log: BeatLog,
     i: &OpenInputs,
     breaks: &[timegrapher_core::breaks::Break],
@@ -2907,6 +2869,50 @@ fn retune(
 /// once the take is open (#1233).
 fn engine_masked(i: &OpenInputs) -> Vec<(f64, f64)> {
     timegrapher_core::session::with_holes(&i.masked, &i.settles)
+}
+
+/// What a take's session file `m` says was recorded under its painting,
+/// as changes and settling; None when nothing was painted.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the positions recorded under painting are the app's own record"
+)]
+pub(super) fn recorded_of(m: &Manifest) -> Option<Positions> {
+    (!m.recorded.is_empty()).then(|| {
+        timegrapher_core::take::positions_of(m.recorded.iter().filter_map(|r| {
+            let p = Position::from_name(&r.position)?;
+            let start = r.start_s.unwrap_or(0.0);
+            Some((start, start, r.end_s, p, false))
+        }))
+    })
+}
+
+/// Load an opened take's positions into `session`: the changes and
+/// settling its session file gives (`stretches`, `settles`), and what was
+/// recorded under its painting (`recorded`), the watch in `now` until
+/// then. The position the watch is in after. The one load for the window
+/// (`show_engine`) and for Compare With reading another take
+/// ([`super::compare_take`]), so both settle the same stretches (Norm on
+/// #1853).
+pub(super) fn load_positions(
+    session: &mut crate::session::Session,
+    stretches: &[(f64, Position)],
+    settles: &[(f64, f64)],
+    recorded: Option<Positions>,
+    now: Position,
+) -> Position {
+    session.load(&[], &[]);
+    session.analysed();
+    // A take of one position settles too, unless its session file
+    // says it was read from its start.
+    if stretches.len() > 1 || !settles.is_empty() {
+        session.load(stretches, settles);
+    }
+    let now = session.stretches().last().map_or(now, |&(_, p)| p);
+    if let Some((s, t)) = recorded {
+        session.load_recorded(&s, &t, now);
+    }
+    now
 }
 
 /// Open the take `opening` ([`take_entry`]) with core's

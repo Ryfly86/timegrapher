@@ -74,14 +74,19 @@ impl TimegrapherApp {
     /// for the next test to be set against.
     pub(super) fn load_earlier(&mut self) {
         let mut d = rfd::FileDialog::new()
-            .set_title("Load the Full-Wind Positions Test's Results")
-            .add_filter("Positions Test Results", &["json"]);
+            .set_title("Load a Full-Wind Positions Test's Results or Take")
+            .add_filter("Positions Test Results or Take", &["json", "toml"]);
         let start = self.save_start();
         if start.is_dir() {
             d = d.set_directory(&start);
         }
         self.pick(Picker::one(d, Pick::File, |a, path| {
-            if let Some(full) = a.read_full_wind(&path) {
+            // Any file of an ordinary take, such as its session.json: the
+            // take read as the test (#1851).
+            let results = path.file_name().is_some_and(|n| n == guided::RESULTS_FILE);
+            if let Some(dir) = super::compare_take::take_dir_of(&path).filter(|_| !results) {
+                a.read_compare_take(dir);
+            } else if let Some(full) = a.read_full_wind(&path) {
                 a.guided_earlier = Some(full);
                 a.guided_earlier_file = true;
             }

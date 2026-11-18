@@ -50,6 +50,7 @@ use charts::chart_key;
 pub use charts::{lane_text, lane_width, paint_key, LANE_AFTER_TITLE, LANE_GAP};
 pub use poise_pane::POISE_VIEWS;
 pub use position::Position;
+mod compare_take;
 mod complication_pane;
 use new_take::{NewTake, NEW_TAKES};
 mod dialogs;
@@ -79,6 +80,7 @@ mod positions_test;
 mod power_reserve_pane;
 mod readings_strip;
 mod readouts;
+mod redraw;
 mod scope_panes;
 mod session_marks;
 mod settings_pane;
@@ -706,9 +708,6 @@ const POSITION_HINT: &str = "The position the watch is in. Changing it while lis
 const SOUND_SETTINGS_HINT: &str = "The app can't set this input's level, so the system \
      does: this opens the system's sound input settings (Sound > Input on a Mac, Sound on \
      Windows), where the input volume is. Watch the Peak meter here as you change it.";
-const LIFT_HINT: &str = "No calibre or lift angle is set, so every amplitude is worked out \
-     from the default 52°. Type the calibre's lift angle, pick one, or pick the calibre above \
-     it.";
 /// The takes a watch's row starts, each saved into the watch.
 /// The Watches view's list column, pt.
 pub(crate) const WATCH_LIST_W: f32 = 280.0;
@@ -1529,8 +1528,8 @@ fn trend_key(seconds: f64) -> u64 {
 }
 
 /// What the strip's own readings were worked out for: the window and the
-/// spacing in steps, the averaging time, how much sound there was and
-/// what the readings rest on.
+/// spacing in steps, the averaging time, how much sound there was (in
+/// whole steps while listening) and what the readings rest on.
 type StripKey = (i64, i64, u64, u64, u64, Revision);
 
 /// How far apart the strip's overlay readings should be at most over a
@@ -1741,6 +1740,9 @@ pub struct TimegrapherApp {
     /// Whether `guided_earlier` was loaded from a file, so it stays when
     /// the watch's takes are searched again.
     guided_earlier_file: bool,
+    /// A take that is no saved Positions Test, being read to compare
+    /// with (#1851).
+    compare_take: Option<compare_take::Reading>,
     /// What `guided_choices` was found for: the watch, the Wind setting,
     /// the minute and the watch's takes folder. Any of them otherwise, it
     /// is searched for again, so a test passing the 12 hour mark, or a
@@ -1970,7 +1972,7 @@ pub struct TimegrapherApp {
     /// The steadiness tests' latest answer over the session, and the run
     /// in the background that will replace it.
     steady: Option<(Revision, Steadiness)>,
-    steady_job: Option<(Revision, std::sync::mpsc::Receiver<Steadiness>)>,
+    steady_job: Option<(Revision, std::sync::mpsc::Receiver<steady::Answer>)>,
     /// The step the steadiness run under way is on, and when it started.
     steady_work: (
         std::sync::Arc<std::sync::atomic::AtomicU8>,
@@ -2308,7 +2310,9 @@ impl TimegrapherApp {
         // One left on is kept: a pane with none shown would be empty.
         let on = |s: [bool; 3]| if s.contains(&true) { s } else { RATE_ONLY };
         (self.chart_series, self.dist_series) = (on(chart_series), on(dist_series));
-        (self.reserve_series, self.positions_series) = (on(reserve_series), on(positions_series));
+        // A test pane's charts may all be off: its table and words stand
+        // alone (#1852).
+        (self.reserve_series, self.positions_series) = (reserve_series, positions_series);
         (self.hist_cumulative, self.reserve_info) = (hist_cumulative, reserve_info);
         (self.positions_info, self.sound_opts) = (positions_info, sound);
         (self.hist_readings, self.iso_view) = (hist_readings, iso_view);
@@ -2319,7 +2323,7 @@ impl TimegrapherApp {
         self.steady_info = steady::PerPane::new(steady_info_set, steady_info);
         self.set_positions_times(positions_settle_s, positions_measure_s);
         self.steady_series = steady_series_from(steady_shown, steady_series);
-        (self.complication_series, self.scope_view) = (on(complication_series), scope);
+        (self.complication_series, self.scope_view) = (complication_series, scope);
         self.panes = match panes.map(upgraded_layout) {
             Some(p) if layout_is_whole(&p) => {
                 self.panes_dragged = panes_dragged.into_iter().collect();
@@ -2400,6 +2404,7 @@ impl TimegrapherApp {
             complication_saved: None,
             guided_choices: Vec::new(),
             guided_earlier_file: false,
+            compare_take: None,
             guided_earlier_for: None,
             guided_after: false,
             test_ready: None,
@@ -2631,24 +2636,24 @@ impl TimegrapherApp {
         self.trend_key = (self.rev, self.average_s.to_bits());
     }
 
-    /// Read the run of readings again when what it rests on changed
-    /// since: the take's settings, clock, breaks or masks, or Average Over.
+    /// Read the run of readings again when what it rests on changed since: the take's settings,
+    /// clock, breaks or masks, or Average Over. While listening the next frame reads it (#1825).
     fn refresh_trend(&mut self) {
-        if self.trend_key != (self.rev, self.average_s.to_bits()) {
+        if self.trend_key != (self.rev, self.average_s.to_bits()) && !self.running() {
             self.rebuild_trend();
         }
     }
 
-    /// Live's first chunk read again with the file's template took over
-    /// (#1327): the charts' points are read again, and the strip's anchor
-    /// moves with the beats, so the view stays where it was. A rebuild
-    /// given up is logged, once.
+    /// Live's first chunk read again with the file's template took over (#1327): the charts'
+    /// points are read again, a run being read in the background on the old one dropped, and
+    /// the strip's anchor moves with the beats, so the view stays. A given-up rebuild is logged.
     fn follow_rebuild(&mut self) {
         let Some(live) = &self.live else {
             return;
         };
         let now = (live.template_switch_s(), live.template_rebuild_given_up());
         if now.0 != self.rebuild_seen.0 {
+            self.bg.trend = None;
             self.trend = live.trend(self.average_s);
             if let (Some(a), Some((dt, di))) = (self.anchor.as_mut(), live.template_shift()) {
                 (a.time, a.index) = (a.time + dt, a.index + di);
@@ -2765,14 +2770,7 @@ impl TimegrapherApp {
     /// against, picked each time from the watch's own tests from 12 to 36
     /// hours ago, newest first, or loaded from a file.
     fn compare_with(&mut self, ui: &mut egui::Ui) {
-        let shown = match &self.guided_earlier {
-            Some(e) if self.guided_earlier_file => {
-                format!("{} (from a file)", guided::choice_text(e))
-            }
-            Some(e) => guided::choice_text(e),
-            None if self.guided_choices.is_empty() => "None from 12 to 36 hours ago".to_string(),
-            None => "Pick a full-wind test".to_string(),
-        };
+        let shown = self.compare_with_text(ui);
         let mut picked: Option<usize> = None;
         let mut from_file = false;
         theme::tool_field(
@@ -4000,17 +3998,7 @@ impl eframe::App for TimegrapherApp {
         }
         self.report_save_asked();
         theme::popups_above_dialogs(ctx);
-        // The cursor shared by the strip and the charts follows the pointer;
-        // repaint once more when it leaves so the line goes too.
-        let next = self.cursor_next.take();
-        if next != self.cursor_t {
-            self.cursor_t = next;
-            ctx.request_repaint();
-        }
-
-        if let Some(every) = self.draw_next(was_working) {
-            ctx.request_repaint_after(every);
-        }
+        self.draw_again(ctx, was_working);
     }
 
     /// What shows where no panel paints (the seams between panels): the

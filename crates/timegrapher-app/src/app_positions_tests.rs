@@ -795,6 +795,27 @@ fn a_ready_tests_full_wind_search_sees_the_time_and_the_takes() {
     assert!(app.start_test_why_not().is_some(), "not yet picked");
     app.pick_full_wind(0);
     assert_eq!(app.start_test_why_not(), None);
+    // No test set up (the last one done, the Bench left as it was) with
+    // Compare With still shown: its list is searched all the same, and
+    // waits on the minute too (#1714).
+    let ready = app.test_ready.take();
+    app.guided_choices.clear();
+    app.guided_earlier_for = None;
+    app.find_full_wind_at(now + 3600.0);
+    assert_eq!(app.guided_choices.len(), 1);
+    assert!(app.full_wind_recheck(at).is_some());
+    // While a test is under way Compare With is hidden: its list is
+    // neither searched nor rechecked.
+    app.guided = Some(guided::Test::new());
+    assert!(app.guided_running());
+    assert!(!app.compare_with_shown());
+    app.guided_choices.clear();
+    app.guided_earlier_for = None;
+    app.find_full_wind_at(now + 3600.0);
+    assert!(app.guided_choices.is_empty());
+    assert!(app.full_wind_recheck(at).is_none());
+    app.guided = None;
+    app.test_ready = ready;
     // The take removed, in the same minute: no longer found, even with
     // the takes folder's time as it was, as Windows can leave it.
     let takes = take.parent().unwrap().to_path_buf();
@@ -1010,7 +1031,8 @@ fn a_masked_stretch_can_be_reshaped() {
 /// its own, so the text leaves out the settling and measuring lines.
 #[test]
 fn an_opened_takes_table_can_be_saved_and_copied() {
-    let (app, base) = super::poise_tests::saved_and_opened("six", guided::Kind::Positions.order());
+    let (mut app, base) =
+        super::poise_tests::saved_and_opened("six", guided::Kind::Positions.order());
     let ctx = egui::Context::default();
     let t = app.free_table(&ctx).expect("a table");
     assert_eq!(t.read, 6, "{t:?}");
@@ -1061,5 +1083,226 @@ fn an_opened_takes_table_can_be_saved_and_copied() {
         !text.contains("Settling") && !text.contains("Measured"),
         "{text}"
     );
+    // The toolbar says how the take was read, as the table beside it
+    // does: greyed, never the app's Each Position (Hugh, #1733; Walter on
+    // #1843). Its stops are 62 s, the first read whole, the rest less the
+    // 20 s settling after each change of position.
+    let read = app.free_table(&ctx).expect("a table");
+    let recorded = app
+        .recorded_lengths(&ctx, guided::Kind::Positions)
+        .expect("a take on show");
+    assert_eq!(recorded, "42 to 62 s");
+    let durations: Vec<f64> = read.six.0.iter().map(|r| r.duration_s).collect();
+    let least = durations.iter().copied().fold(f64::MAX, f64::min);
+    let most = durations.iter().copied().fold(f64::MIN, f64::max);
+    assert_eq!(
+        recorded,
+        fields::duration_range(least.round(), most.round())
+    );
+    assert_ne!(recorded, fields::duration(guided::MEASURE_S));
+    let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
+    let lines: Vec<&str> = drawn.lines().collect();
+    let each = lines.iter().position(|l| *l == "Each Position");
+    let shown = each.and_then(|i| lines.get(i + 1));
+    assert_eq!(shown, Some(&recorded.as_str()), "{drawn}");
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// The greyed measuring field's hover is in its pane's word: "each
+/// stretch" on the Complication Test (Hugh on #1843).
+#[test]
+fn the_greyed_lengths_hover_names_its_panes_measure() {
+    use super::positions_test::recorded_hint;
+    assert_eq!(
+        recorded_hint("Each Stretch"),
+        "How long each stretch was recorded in this take."
+    );
+    assert_eq!(
+        recorded_hint("Each Position"),
+        "How long each position was recorded in this take."
+    );
+}
+
+/// A take of the six positions not saved as a Positions Test, picked in
+/// Compare With by its session.json: the take is read as the test it is
+/// set against, begun when the take began (#1851). Before, it said "not
+/// a saved Positions Test (missing field `format`)". Each row is the
+/// row the take's own This Take table shows, to the bit, a position held
+/// twice read as one, its two settled stretches joined (Norm on #1853).
+#[test]
+fn an_ordinary_take_of_the_six_positions_loads_to_compare_with() {
+    let mut stops = guided::Kind::Positions.order().to_vec();
+    stops.push(stops[0]);
+    // Crown Up painted over the middle of Dial Down, so what was recorded
+    // is kept under the painting and loaded with the positions (Norm on
+    // #1853): the take's Crown Up is two stretches too.
+    let (mut app, base) =
+        super::poise_tests::saved_and_opened_after("compare1851", &stops, 62.0, |app| {
+            let end = app.latest_s();
+            app.session
+                .paint(85.0, 100.0, Position::CrownUp, app.position, end);
+        });
+    let saved = std::fs::read_to_string(PathBuf::from(&app.opened_path).join("session.toml"))
+        .unwrap_or_default();
+    assert!(
+        saved.contains("[[recorded]]"),
+        "recorded under the painting: {saved}"
+    );
+    let file = PathBuf::from(&app.opened_path).join("session.json");
+    let dir = super::compare_take::take_dir_of(&file).expect("a take's file");
+    app.read_compare_take(dir);
+    let t = Instant::now();
+    while app.compare_take.is_some() && t.elapsed().as_secs() < 300 {
+        app.poll_compare_take();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let full = app.guided_earlier.clone().expect("read to compare with");
+    assert!(app.guided_earlier_file);
+    assert_eq!(full.positions.len(), 6, "{full:?}");
+    assert!(full.wind_h.is_none(), "a full-wind test to set against");
+    let about: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
+    assert_eq!(Some(full.began_utc.as_str()), about["started_utc"].as_str());
+    let table = app.free_table(&egui::Context::default()).expect("a table");
+    // The first position is held twice: its two stretches are one row,
+    // longer than any position held once.
+    let first = core_session::Position::parse(stops[0].code()).unwrap();
+    let held = |p| app.session.settled_spans(app.position, p).len();
+    assert_eq!(held(stops[0]), 2, "two stretches in {}", stops[0].code());
+    assert_eq!(held(Position::CrownUp), 2, "painted and recorded");
+    let long = |r: &core_session::Reading| r.duration_s;
+    let twice = table.six.0.iter().find(|r| r.position == first).unwrap();
+    assert!(
+        table
+            .six
+            .0
+            .iter()
+            .filter(|r| r.position != first)
+            .all(|r| long(r) < long(twice)),
+        "{table:?}"
+    );
+    // Every figure the bits the table shows.
+    let bits = |rows: &[guided::KeptRow]| {
+        rows.iter()
+            .map(|r| {
+                (
+                    r.position.clone(),
+                    r.rate_s_per_day.map(f64::to_bits),
+                    r.amplitude_deg.map(f64::to_bits),
+                    r.beat_error_ms.map(f64::to_bits),
+                    r.beat_error_source,
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let shown = super::compare_take::kept_rows(&table);
+    assert_eq!(shown.len(), 6);
+    assert_eq!(bits(&full.positions), bits(&shown));
+    // Kept in the test's order, the Full Wind rows read across This
+    // Take's row by row, in its order (Hugh on #1853).
+    assert_ne!(guided::card_order(), {
+        let p: Vec<_> = full.positions.iter().map(|k| k.position.clone()).collect();
+        p.iter()
+            .filter_map(|c| core_session::Position::parse(c))
+            .collect::<Vec<_>>()
+    });
+    app.positions_series = [false; 3];
+    let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
+    let labels: Vec<String> = guided::card_order()
+        .into_iter()
+        .map(guided::position_label)
+        .collect();
+    let rows: Vec<&str> = drawn
+        .lines()
+        .filter(|l| labels.iter().any(|x| x == l))
+        .collect();
+    assert_eq!(rows.len(), 12, "This Take, then Full Wind: {drawn}");
+    assert_eq!(rows[..6], rows[6..], "{drawn}");
+    assert_eq!(
+        rows[..6],
+        labels.iter().map(String::as_str).collect::<Vec<_>>()[..]
+    );
+    // Its saved results alone still load as before.
+    assert!(super::compare_take::take_dir_of(&base.join("nowhere.json")).is_none());
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// Every chart off in the Positions Test pane (#1852): the table stays,
+/// no chart's Horizontal and Vertical lanes are drawn; on again, they are.
+#[test]
+fn every_chart_off_leaves_the_positions_table() {
+    let (mut app, base) =
+        super::poise_tests::saved_and_opened("charts1852", guided::Kind::Positions.order());
+    app.free_table(&egui::Context::default()).expect("a table");
+    let lanes = |drawn: &str| drawn.lines().filter(|l| *l == "Horizontal").count();
+    let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
+    assert!(lanes(&drawn) > 0, "{drawn}");
+    app.positions_series = [false; 3];
+    let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
+    assert_eq!(lanes(&drawn), 0, "{drawn}");
+    assert!(drawn.contains("Crown Down (CD, 9H)"), "the table: {drawn}");
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// A silent app listening on a queued capture, 5 s heard, its beat never
+/// found, with a Positions Test started at the first second and `then`
+/// done to it at 3 s.
+fn silent_test(
+    base: &Path,
+    then: impl Fn(&mut guided::Test),
+) -> (TimegrapherApp, std::sync::mpsc::Sender<Event>) {
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "silence".into());
+    app.session.listen();
+    let tx = queued_capture(&mut app, base);
+    let live = app.live.as_mut().unwrap();
+    for b in vec![0.0; 5 * 48000].chunks(960) {
+        live.push(b);
+    }
+    assert!(
+        app.live.as_ref().and_then(steady::log_of).is_none(),
+        "no beat"
+    );
+    let mut test = guided::Test::new().timed(1.0, 2.0);
+    test.tick(1.0);
+    then(&mut test);
+    app.guided = Some(test);
+    (app, tx)
+}
+
+/// Stop Test before the beat is found ends the test all the same: it
+/// stays ended at the next frame rather than settling again, and a
+/// paused or redone position ends the same way (#1888).
+#[test]
+fn a_positions_test_stopped_before_the_beat_is_found_stays_ended() {
+    let base = std::env::temp_dir().join(format!("tg-app-guided-unlocked-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    type Then = fn(&mut guided::Test);
+    let cases: [(&str, Then); 4] = [
+        ("settling", |_| {}),
+        ("paused", |t| t.pause(3.0)),
+        ("paused and resumed", |t| {
+            t.pause(2.0);
+            t.resume(3.0);
+        }),
+        ("redone", |t| t.redo(3.0)),
+    ];
+    let ctx = egui::Context::default();
+    for (case, then) in cases {
+        let (mut app, _tx) = silent_test(&base, then);
+        assert!(app.guided_running(), "{case}: under way");
+        app.stop_test();
+        assert!(!app.guided_running(), "{case}: ended");
+        assert!(app.session.paused(), "{case}: listening stopped");
+        app.guided_tick(&ctx);
+        let test = app.guided.as_mut().expect("the table stays");
+        assert_eq!(
+            test.tick(9.0),
+            guided::Phase::Finished,
+            "{case}: not settling again"
+        );
+        assert_eq!(test.readings_so_far().len(), 0, "{case}: nothing read");
+    }
     let _ = std::fs::remove_dir_all(&base);
 }

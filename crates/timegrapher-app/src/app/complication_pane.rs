@@ -123,6 +123,11 @@ impl TimegrapherApp {
     /// Settle and Each Stretch every guided test shares, and Copy.
     fn complication_settings(&mut self, ui: &mut egui::Ui) {
         let running = self.guided_running();
+        // The quantities first, at the left, always there, as on every
+        // pane that plots them; all off leaves the table and words
+        // (design guide section 9, #1852).
+        crate::steady::chart_switches(ui, &mut self.complication_series);
+        theme::bar_gap(ui);
         if !running {
             if self.ready_test() == Some(NewTake::Complication) {
                 if theme::tool_word_button(
@@ -149,18 +154,12 @@ impl TimegrapherApp {
             }
             theme::bar_gap(ui);
         }
-        self.positions_lengths(ui, running, "Each Stretch");
+        self.positions_lengths(ui, running, ("Each Stretch", guided::Kind::Complication));
         theme::bar_gap(ui);
         let nothing = self
             .complication_shown()
             .is_none_or(|t| t.readings_so_far().is_empty())
             .then_some("Nothing measured yet");
-        // Each plot on or off, the others sharing the height (#1729), once
-        // there is something to plot.
-        if nothing.is_none() {
-            crate::steady::series_switches(ui, &mut self.complication_series);
-            theme::bar_gap(ui);
-        }
         if theme::tool_word_button(
             ui,
             Icon::Copy,
@@ -347,7 +346,12 @@ fn plots_block(
                 .unwrap_or(0)]
         })
         .collect();
-    let n = kinds.len().max(1) as f32;
+    // Every plot off: the table and words alone, no track or axis (#1852).
+    if kinds.is_empty() {
+        ui.data_mut(|d| d.insert_temp::<Option<usize>>(plots_hover_id(), None));
+        return;
+    }
+    let n = kinds.len() as f32;
     let w = ui.available_width().max(PLOTS_MIN_W);
     // Whether any stretch shown has a ± bar drawn.
     let bars = test.is_some_and(|t| {

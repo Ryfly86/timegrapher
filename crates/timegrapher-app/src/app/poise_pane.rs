@@ -117,7 +117,7 @@ impl TimegrapherApp {
                         .on_hover_text(hint)
                         .clicked()
                     {
-                        show_one_more(&mut self.poise_views, i);
+                        self.poise_views[i] = !self.poise_views[i];
                     }
                 }
             },
@@ -150,7 +150,7 @@ impl TimegrapherApp {
             }
             theme::bar_gap(ui);
         }
-        self.positions_lengths(ui, running, "Each Position");
+        self.positions_lengths(ui, running, ("Each Position", guided::Kind::Poise));
         theme::bar_gap(ui);
         // The rows the table shows: the test's, else a reopened take's.
         let kept = self.poise_kept(ui.ctx());
@@ -336,14 +336,6 @@ fn poise_body(
 /// Each of the two views, Plot then Dial (#1729).
 const VIEWS: [PoiseView; 2] = [PoiseView::Plot, PoiseView::Dial];
 
-/// Turns view `i` on or off, never the last one off (#1729: at least
-/// one stays on).
-fn show_one_more(shown: &mut [bool; 2], i: usize) {
-    if !shown[i] || shown[1 - i] {
-        shown[i] = !shown[i];
-    }
-}
-
 /// The picture with core's words over it, in the room left above
 /// `bottom`: the views `shown`, side by side with the Dial square where
 /// both are on and there is room, else one over the other.
@@ -388,7 +380,7 @@ fn picture_block(
         .filter_map(|(v, on)| on.then_some(v))
         .collect();
     let w = ui.available_width().max(PICTURE_MIN_W);
-    let room = (bottom - ui.cursor().top()).max(PICTURE_H);
+    let room = picture_room(ui, bottom);
     let gap = test_body::GAP;
     if views.len() == 2 && w >= 2.0 * PICTURE_MIN_W + gap {
         // The Dial square, the Plot the rest of the width and the Dial's
@@ -419,6 +411,16 @@ fn picture_block(
             PoiseView::Dial => draw_dial(ui, rect, &pic(ui, view)),
         }
     }
+}
+
+/// The room above `bottom` from where the picture starts, never under
+/// [`PICTURE_H`], as if its scroll area were at its top: scrolled, the
+/// cursor moves up, and the picture mustn't grow with it (#1777).
+fn picture_room(ui: &egui::Ui, bottom: f32) -> f32 {
+    // A scroll area clips a margin wider than what it shows.
+    let shown_top = ui.clip_rect().top() + ui.visuals().clip_rect_margin;
+    let scrolled = (shown_top - ui.max_rect().top()).max(0.0);
+    (bottom - ui.cursor().top() - scrolled).max(PICTURE_H)
 }
 
 /// What the pane says before a test: how the test runs.
@@ -1232,6 +1234,37 @@ fn clear_of(at: egui::Pos2, size: Vec2, others: &[egui::Rect]) -> bool {
 mod tests {
     use super::*;
 
+    /// The picture's room doesn't depend on how far its pane is scrolled
+    /// (#1777): scrolled down, it is what it was at the top.
+    #[test]
+    fn the_pictures_room_holds_as_the_pane_scrolls() {
+        let ctx = egui::Context::default();
+        let room = |offset: f32| {
+            let mut got = 0.0;
+            for _ in 0..2 {
+                let _ = ctx.run(egui::RawInput::default(), |ctx| {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        let bottom = ui.max_rect().top() + 500.0;
+                        ui.set_max_height(500.0);
+                        egui::ScrollArea::vertical()
+                            .vertical_scroll_offset(offset)
+                            .show(ui, |ui| {
+                                ui.add_space(100.0);
+                                got = picture_room(ui, bottom);
+                                ui.add_space(1000.0);
+                            });
+                    });
+                });
+            }
+            got
+        };
+        let top = room(0.0);
+        assert!(top > PICTURE_H && top < 500.0, "{top}");
+        for offset in [100.0, 200.0, 400.0] {
+            assert_eq!(room(offset), top, "{offset}");
+        }
+    }
+
     /// A backed label set past the picture's edge slides back inside it,
     /// whole: the Mean's name at 12H, the plot's last hour (#1794).
     #[test]
@@ -1260,19 +1293,6 @@ mod tests {
         for r in names {
             assert!(picture.contains_rect(r), "{r:?} inside {picture:?}");
         }
-    }
-
-    /// Plot and Dial turn on and off alone, but the last one on stays on
-    /// (#1729).
-    #[test]
-    fn one_view_always_stays_on() {
-        let mut shown = [true, false];
-        show_one_more(&mut shown, 1);
-        assert_eq!(shown, [true, true]);
-        show_one_more(&mut shown, 0);
-        assert_eq!(shown, [false, true]);
-        show_one_more(&mut shown, 1);
-        assert_eq!(shown, [false, true], "the last one stays");
     }
 
     /// A ring number that would touch an hour's name is left out (#1530):

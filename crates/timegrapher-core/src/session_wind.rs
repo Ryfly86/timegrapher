@@ -9,7 +9,7 @@ use super::Reading;
 /// number (`wind_h = nan`), which would otherwise key to 0.
 pub(crate) fn wind_key(w: Option<f64>) -> Option<i64> {
     w.filter(|w| w.is_finite())
-        .map(|w| (w * 10.0).round() as i64)
+        .map(|w| crate::full_wind::tenths(w) as i64)
 }
 
 /// Whether a reading whose wind is `reading` falls in the state of wind

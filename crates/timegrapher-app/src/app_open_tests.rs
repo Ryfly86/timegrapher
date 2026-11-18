@@ -1018,3 +1018,71 @@ fn what_opens_dialog_picks_is_opened_or_asked_about() {
     std::fs::remove_dir_all(take).unwrap();
     std::fs::remove_dir_all(root).unwrap();
 }
+
+/// A take whose session file gives a beat rate other than its calibre's
+/// (the calibre edited since, or the file written outside the app) opens
+/// at the file's rate, and the Watch line says the calibre beats at
+/// another: the one way the app reaches that chip (Hugh, #1813). At
+/// 1600 wide the line holds "1 limit" beside the watch's whole name,
+/// where #1811 left only the bare chip.
+#[test]
+fn a_take_at_another_rate_than_its_calibre_says_so_on_the_watch_line() {
+    let dir = one_position_take("calibre-rate", 40.0);
+    std::fs::write(
+        dir.join(MANIFEST),
+        "watch = 'Pepsi'\ncalibre = 'Unitas 6497-2'\nbph = 28800\nlift = 52.0\n\n\
+         [[recording]]\nfile = '.'\nposition = 'DU'\n",
+    )
+    .unwrap();
+    let mut app = reopened(&dir);
+    assert_eq!(app.calibre, "Unitas 6497-2");
+    assert_eq!(app.bph, Some(28800));
+    assert_eq!(app.cal.bph(&app.calibre), Some(21600));
+    let ctx = super::tests::themed();
+    let mut text = String::new();
+    for _ in 0..3 {
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                Vec2::new(1600.0, 900.0),
+            )),
+            ..Default::default()
+        };
+        text = super::tests::painted_text(&ctx.run(input, |ctx| app.panels(ctx)));
+    }
+    assert!(
+        text.lines().any(|l| l == "1 limit") && text.lines().any(|l| l == "Pepsi ⏷"),
+        "{text}"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// An analysis whose thread ends without answering is a failure, said in
+/// the status line, not a window left saying Analysing (#1891).
+#[test]
+fn an_analysis_that_stops_without_answering_says_it_failed() {
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    let (tx, rx) = std::sync::mpsc::channel();
+    app.batch = Some(Batch {
+        rx,
+        progress: Default::default(),
+        cancel: Default::default(),
+        duration_s: None,
+        label: String::new(),
+        started: Instant::now(),
+        files: 1,
+        first: String::new(),
+        last: String::new(),
+        stretches: Vec::new(),
+        settles: Vec::new(),
+        order_note: None,
+    });
+    app.poll_batch();
+    assert!(app.batch.is_some(), "still analysing");
+    drop(tx);
+    app.poll_batch();
+    assert!(app.batch.is_none(), "Analysing is down");
+    let (said, bad) = app.message.clone().expect("a message");
+    assert_eq!(said, "Analysis failed: it stopped part way");
+    assert!(bad);
+}

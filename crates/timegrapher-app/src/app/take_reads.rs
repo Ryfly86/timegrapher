@@ -65,7 +65,11 @@ fn reader() -> Option<&'static std::sync::mpsc::Sender<Task>> {
 impl<K, T: Send + 'static> Job<K, T> {
     /// Read `read` on the background thread, after those asked for
     /// before; the window is drawn again when it is done.
-    fn start(key: K, ctx: &egui::Context, read: impl FnOnce() -> T + Send + 'static) -> Self {
+    pub(super) fn start(
+        key: K,
+        ctx: &egui::Context,
+        read: impl FnOnce() -> T + Send + 'static,
+    ) -> Self {
         let (tx, rx) = std::sync::mpsc::channel();
         let ctx = ctx.clone();
         let wanted = std::sync::Arc::new(());
@@ -106,7 +110,8 @@ impl<K, T: Send + 'static> Job<K, T> {
 #[derive(Default)]
 pub(super) struct Background {
     /// The charts' run of readings.
-    pub(super) trend: Option<Job<TrendKey, Vec<TrendPoint>>>,
+    /// The charts' run, and how much sound it was read on.
+    pub(super) trend: Option<Job<TrendKey, (Vec<TrendPoint>, f64)>>,
     /// A long take's run for the Power reserve pane, once it is wanted:
     /// `Some(None)` until its reading starts (#1014).
     pub(super) reserve: Option<Option<Job<Revision, Option<reserve::Test>>>>,
@@ -119,6 +124,12 @@ pub(super) struct Background {
     /// read again when the take, its masks or its settings change after
     /// it came (#1644).
     pub(super) reserve_of: Option<Revision>,
+    /// The window's last pass that drew a Steadiness pane, and an STFT or
+    /// Wavelet one: the tests, and their maps, are read only while one is
+    /// shown; an Isochronism pane alone reads the isochronism alone (#1830).
+    pub(super) shown_pass: [Option<u64>; 2],
+    /// The isochronism read alone, and what the readings rested on then.
+    pub(super) isochronism: Option<(Revision, steady::IsochronismAlone)>,
 }
 
 /// A Positions Test table being read in the background, and what from.
@@ -288,22 +299,7 @@ impl TimegrapherApp {
 
     /// Each position's settled stretches, in the table's order.
     fn free_stretches(&self) -> Vec<(core_session::Position, f64, f64)> {
-        // The six, then the upright stops between them, for the Dynamic
-        // Poise pane (#1619).
-        let between = guided::POISE_ORDER
-            .iter()
-            .filter(|p| !guided::ORDER.contains(p));
-        guided::ORDER
-            .iter()
-            .chain(between)
-            .filter_map(|&p| Some((p, core_session::Position::parse(p.code())?)))
-            .flat_map(|(p, sp)| {
-                self.session
-                    .settled_spans(self.position, p)
-                    .into_iter()
-                    .map(move |(a, b)| (sp, a, b))
-            })
-            .collect()
+        stretches_in(&self.session, self.position)
     }
 
     /// The guided test's figures for the position being measured, so far:
@@ -340,11 +336,7 @@ impl TimegrapherApp {
         } else {
             latest.max(live.duration_s())
         };
-        let stretches: Vec<(core_session::Position, f64, f64)> = stretches
-            .into_iter()
-            .map(|(p, a, b)| (p, a.max(0.0), b.min(end)))
-            .filter(|s| s.1 < s.2)
-            .collect();
+        let stretches = clipped(stretches, end);
         let masked = core_session::masked_spans(
             &self.masked.iter().map(|&(a, b)| [a, b]).collect::<Vec<_>>(),
         );
@@ -393,25 +385,7 @@ impl TimegrapherApp {
         let read = move |log: BeatLog| {
             let clock = reading_clock(take_clock.as_ref(), opened.is_some(), ppm, log.duration_s);
             let breaks = steady::reading_breaks(opened.unwrap_or_default(), &log);
-            let t = core_session::positions_table(
-                &log,
-                clock.as_ref(),
-                &breaks,
-                &masked,
-                &stretches,
-                core_session::POSITION_MIN_S,
-            );
-            let upright = core_session::position_rows(
-                &core_session::Position::UPRIGHT,
-                (&log, clock.as_ref(), &breaks, &masked),
-                &stretches,
-                core_session::POSITION_MIN_S,
-            );
-            guided::free_table(
-                &t,
-                guided::take_readings(&guided::card_rows(&t), log.bph, bph_set),
-                guided::take_readings(&upright, log.bph, bph_set),
-            )
+            read_table(&log, clock.as_ref(), &breaks, &masked, &stretches, bph_set)
         };
         let log = steady::log_of(live);
         let shown = self.free_table.borrow().as_ref().map(|(_, t)| t.clone());
@@ -436,12 +410,14 @@ impl TimegrapherApp {
     }
 
     /// For the window: the charts' run of readings read again when what
-    /// it rests on changed. While listening, here and now
-    /// ([`Self::refresh_trend`]); for a take on show, in the background,
-    /// the run on show kept until the new one comes.
+    /// it rests on changed, in the background, the run on show kept until
+    /// the new one comes. While listening too: read here, a long take's
+    /// 4,000 readings held the window and the listening (1.6 s at 4 h,
+    /// #1825). The readings heard after the sound it was read on are on
+    /// the new footing already and are kept after it.
     pub(super) fn refresh_trend_shown(&mut self, ctx: &egui::Context) {
         let key: TrendKey = (self.rev, self.average_s.to_bits());
-        if self.running() || self.live.is_none() {
+        if self.live.is_none() {
             self.bg.trend = None;
             self.refresh_trend();
             return;
@@ -456,13 +432,17 @@ impl TimegrapherApp {
         let Some(job) = &self.bg.trend else {
             let (live, average_s) = (self.live.clone(), self.average_s);
             self.bg.trend = Some(Job::start(key, ctx, move || {
-                live.map_or_else(Vec::new, |l| l.trend(average_s))
+                live.map_or_else(
+                    || (Vec::new(), 0.0),
+                    |l| (l.trend(average_s), l.duration_s()),
+                )
             }));
             return;
         };
         match job.done() {
-            Ok(points) => {
+            Ok((mut points, read_to)) => {
                 self.bg.trend = None;
+                points.extend(self.trend.iter().filter(|p| p.t > read_to).copied());
                 self.put_trend(points);
             }
             Err(true) => {}
@@ -556,4 +536,75 @@ impl TimegrapherApp {
             })
         });
     }
+}
+
+/// Each position's settled stretches in `session`, the watch in `now`,
+/// in the table's order: the six, then the upright stops between them,
+/// for the Dynamic Poise pane (#1619). What the This Take table reads,
+/// and Compare With reads of a take picked there (#1851).
+pub(super) fn stretches_in(
+    session: &crate::session::Session,
+    now: Position,
+) -> Vec<(core_session::Position, f64, f64)> {
+    let between = guided::POISE_ORDER
+        .iter()
+        .filter(|p| !guided::ORDER.contains(p));
+    guided::ORDER
+        .iter()
+        .chain(between)
+        .filter_map(|&p| Some((p, core_session::Position::parse(p.code())?)))
+        .flat_map(|(p, sp)| {
+            session
+                .settled_spans(now, p)
+                .into_iter()
+                .map(move |(a, b)| (sp, a, b))
+        })
+        .collect()
+}
+
+/// `stretches`, each cut at the take's start and at `end`; one with
+/// nothing left is left out.
+pub(super) fn clipped(
+    stretches: Vec<(core_session::Position, f64, f64)>,
+    end: f64,
+) -> Vec<(core_session::Position, f64, f64)> {
+    stretches
+        .into_iter()
+        .map(|(p, a, b)| (p, a.max(0.0), b.min(end)))
+        .filter(|s| s.1 < s.2)
+        .collect()
+}
+
+/// The Positions Test table of `log` over `stretches`, on `clock`, cut
+/// at `breaks`, with `masked` left out: core's table of the six and of
+/// the upright stops, at the beat rate set (`bph_set`). The one reading
+/// of a take's positions, for its This Take table and for Compare With
+/// reading another take (#1851), so the two agree to the bit.
+pub(super) fn read_table(
+    log: &BeatLog,
+    clock: Option<&timegrapher_core::clock::ClockFit>,
+    breaks: &[timegrapher_core::breaks::Break],
+    masked: &[(f64, f64)],
+    stretches: &[(core_session::Position, f64, f64)],
+    bph_set: Option<u32>,
+) -> guided::FreeTable {
+    let t = core_session::positions_table(
+        log,
+        clock,
+        breaks,
+        masked,
+        stretches,
+        core_session::POSITION_MIN_S,
+    );
+    let upright = core_session::position_rows(
+        &core_session::Position::UPRIGHT,
+        (log, clock, breaks, masked),
+        stretches,
+        core_session::POSITION_MIN_S,
+    );
+    guided::free_table(
+        &t,
+        guided::take_readings(&guided::card_rows(&t), log.bph, bph_set),
+        guided::take_readings(&upright, log.bph, bph_set),
+    )
 }
