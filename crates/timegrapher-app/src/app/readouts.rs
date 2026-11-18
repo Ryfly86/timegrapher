@@ -1513,6 +1513,18 @@ impl TimegrapherApp {
             && live.duration_s() > 6.0
             && !self.trend.iter().any(|p| p.heard)
             && self.reading().is_none_or(|r| !r.watch_heard)
+            && !self.heard_while_settling(live)
+    }
+
+    /// Whether the watch is heard while it settles: nothing is read then,
+    /// but its beats are found, so the strip shows them, not "no regular
+    /// beat" (Peter, 2026-11-18: a 30 s settle at the start said so for
+    /// all 30 s while the Scope and Tick Tock Profile showed the beats).
+    fn heard_while_settling(&self, live: &LiveAnalyzer) -> bool {
+        self.settling_left().is_some()
+            && live
+                .reading_at(live.duration_s(), self.average_s)
+                .watch_heard
     }
 
     pub(super) fn no_watch(&mut self, ui: &mut egui::Ui) {
