@@ -608,10 +608,7 @@ impl Take {
         }
         let test = positions_test || self.power_reserve.is_some();
         if let Some((rate, amplitude, beat_error)) = figures.filter(|_| !test) {
-            let [r, x, b] = figure_texts(rate, amplitude, beat_error);
-            parts.extend(r.map(|r| format!("{r} s/d")));
-            parts.extend(x.map(|x| format!("{x}°")));
-            parts.extend(b.map(|b| format!("{b} ms")));
+            parts.extend(figure_words(rate, amplitude, beat_error));
         }
         if !self.audio {
             parts.push("Analysis Only".into());
@@ -621,6 +618,21 @@ impl Take {
         }
         parts
     }
+}
+
+/// A take's rate, amplitude and beat error as its listed figures with
+/// their units, `+3.5 s/d`, `281°`, `0.40 ms`: [`figure_texts`]' each,
+/// those it has, for a take's facts and the app's hover alike (#1979).
+pub fn figure_words(
+    rate: Option<f64>,
+    amplitude: Option<f64>,
+    beat_error: Option<f64>,
+) -> Vec<String> {
+    let [r, x, b] = figure_texts(rate, amplitude, beat_error);
+    [(r, " s/d"), (x, "°"), (b, " ms")]
+        .into_iter()
+        .filter_map(|(v, unit)| v.map(|v| format!("{v}{unit}")))
+        .collect()
 }
 
 /// A take's rate, amplitude and beat error as its listed figures, without

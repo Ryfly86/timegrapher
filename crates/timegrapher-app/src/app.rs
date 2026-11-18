@@ -2020,10 +2020,9 @@ pub struct TimegrapherApp {
     /// While a take opens: a beat rate its settings change reads nothing
     /// again, the take before least of all (#1241).
     opening: bool,
-    /// The strip's width and length before an opened take was fitted to
-    /// it, and the fitted view: Listen brings the first back, unless the
-    /// strip was changed by hand since.
-    live_strip: Option<(StripView, StripView)>,
+    /// The strip's view and Rate Line and Parallel Guides before an opened
+    /// take was fitted, and the fitted view: Listen brings them back.
+    live_strip: Option<(StripView, StripView, [bool; 2])>,
     /// Fit, on the Paper Strip: while on, the strip's length is the whole
     /// session so far, growing as beats arrive. Any zoom or pan of the
     /// strip's time turns it off.
@@ -2158,8 +2157,8 @@ impl TimegrapherApp {
             device: self.device.clone(),
             average_s: self.average_s,
             strip: self.live_view(),
-            rate_line: self.rate_line,
-            rate_guides: self.rate_guides,
+            rate_line: self.live_rate_marks()[0],
+            rate_guides: self.live_rate_marks()[1],
             overlays: self.overlays,
             follow: self.follow,
             chart_series: self.chart_series,

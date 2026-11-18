@@ -1376,3 +1376,44 @@ fn a_positions_test_stopped_before_the_beat_is_found_stays_ended() {
     }
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// A take of the six and a 45° stop, as a Quick Listen walks them: This
+/// Take lists the 45° stop as a row of its own after the six, outside
+/// their Average and Largest Difference, which stay over the six (Peter,
+/// 2026-11-18, #1941: "We should keep them out of the averages, but we
+/// should at least show them").
+#[test]
+fn a_45_degree_stop_gets_its_own_row_outside_the_average() {
+    let mut stops = guided::Kind::Positions.order().to_vec();
+    // Read 7H30 before 1H30: listed in hour order all the same, as
+    // their lanes (Hugh on #1964).
+    stops.extend([Position::Up7h30, Position::Up1h30]);
+    let (mut app, base) = super::poise_tests::saved_and_opened("rows1941", &stops);
+    let t = app.free_table(&egui::Context::default()).expect("a table");
+    assert_eq!(t.rows.len(), 6, "the six");
+    assert_eq!(t.read, 6);
+    let codes: Vec<&str> = t.extra.iter().map(|e| e.1).collect();
+    assert_eq!(codes, ["1H30", "7H30"], "{t:?}");
+    assert!(matches!(
+        t.extra[0].3,
+        guided::FreeCell::Read(Some(_), Some(_), _)
+    ));
+    app.positions_series = [false; 3];
+    let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
+    let lines: Vec<&str> = drawn.lines().collect();
+    let at = |s: &str| lines.iter().position(|l| *l == s);
+    let (cr, h130, avg, largest) = (
+        at("Crown Right (CR, 12H)").expect("CR"),
+        at("1:30 Up (1H30)").expect("its own row"),
+        at("Average").expect("Average"),
+        lines
+            .iter()
+            .position(|l| l.starts_with("Largest"))
+            .expect("Largest Difference"),
+    );
+    // The six's Average and Largest Difference right under them, then
+    // the 45° stop (Hugh on #1964).
+    assert!(cr < avg && avg < largest && largest < h130, "{drawn}");
+    assert!(drawn.contains("6 of 6"), "{drawn}");
+    let _ = std::fs::remove_dir_all(base);
+}
