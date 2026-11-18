@@ -233,10 +233,11 @@ pub fn heard(beats: &[Beat], beat_s: f64) -> Heard {
 
 /// [`heard`] carried on as the beats come in: each update reads only the
 /// beats after the last one it read, so it costs no more ten hours into
-/// a run than ten seconds in (#1892). It reads them all again whenever the
-/// beats it read are no longer as it read them: the first one gone or
-/// moved (the oldest dropped, the take read again), the last one read
-/// moved, or a new beat rate.
+/// a run than ten seconds in (#1892). It checks three things only, and
+/// reads all the beats again when any has changed: the first beat's time
+/// (the oldest dropped, the take read again), the time of the last beat
+/// it read, and the beat rate. Beats changed between those two go unseen,
+/// as the analyzer only adds beats after its last one.
 #[derive(Debug, Clone, Default)]
 pub struct Hearing {
     beat_s: f64,
@@ -1342,8 +1343,9 @@ mod tests {
 
     /// Beats heard a piece at a time read as one pass over them all, cut
     /// anywhere, through runs, poor beats, a stop on the way and noise;
-    /// and the hearing starts again on beats that are no longer as it
-    /// read them: the oldest dropped, all moved, or a new beat rate (#1892).
+    /// and the hearing starts again on each of the three changes it
+    /// checks: the first beat (the oldest dropped, all moved), the last
+    /// beat read moved, and a new beat rate (#1892).
     #[test]
     fn beats_heard_a_piece_at_a_time_read_as_one_pass() {
         let step = 0.125;
@@ -1380,7 +1382,22 @@ mod tests {
             })
             .collect();
         assert_eq!(h.update(&moved, step), heard(&moved, step), "read again");
-        assert_eq!(h.update(&moved, 0.2), heard(&moved, 0.2), "a new beat rate");
+        // Only the last beat read moves, earlier: the run ends there now.
+        let mut last_moved = moved.clone();
+        last_moved.last_mut().unwrap().time -= 0.05;
+        assert_ne!(heard(&last_moved, step), heard(&moved, step));
+        assert_eq!(
+            h.update(&last_moved, step),
+            heard(&last_moved, step),
+            "last moved"
+        );
+        // Beats 0.2 s apart: no run at 0.125 s a beat (each gap over 1.5
+        // beats), one run at 0.2 s.
+        let slow = beats(0.0, 20.0, 0.2, 1.0);
+        let mut h = Hearing::default();
+        assert_eq!(h.update(&slow, step), Heard::default());
+        assert_ne!(heard(&slow, 0.2), Heard::default());
+        assert_eq!(h.update(&slow, 0.2), heard(&slow, 0.2), "a new beat rate");
     }
 
     #[test]
