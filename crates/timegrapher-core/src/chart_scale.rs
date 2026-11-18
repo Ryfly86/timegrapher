@@ -31,12 +31,11 @@ pub fn spread(values: &[f64]) -> Option<(f64, f64)> {
     v.sort_by(f64::total_cmp);
     // Core's one quantile rule (#512), not a nearest rank of its own.
     let q = crate::dsp::quantile;
-    let (q1, q3) = (q(&v, 0.25), q(&v, 0.75));
-    let fence = 3.0 * (q3 - q1);
+    let (f_lo, f_hi) = crate::dsp::far_fences(&v).unwrap_or_default();
     let kept: Vec<f64> = v
         .iter()
         .copied()
-        .filter(|&x| x >= q1 - fence && x <= q3 + fence)
+        .filter(|&x| x >= f_lo && x <= f_hi)
         .collect();
     // One or two are always lone; more than that, 3% decides.
     let lone = (0.03 * v.len() as f64).max(2.0);

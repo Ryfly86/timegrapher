@@ -125,7 +125,7 @@ pub fn histogram_with(values: &[f64], opt: &Options) -> Option<Histogram> {
     // within three interquartile ranges of the middle half (Tukey's far
     // fences), and count the rest off the scale.
     if trim > 0.0 && iqr > 0.0 {
-        let (f_lo, f_hi) = (q1 - 3.0 * iqr, q3 + 3.0 * iqr);
+        let (f_lo, f_hi) = crate::dsp::far_fences(&v).unwrap_or_default();
         if let Some(&x) = v.iter().find(|&&x| x >= f_lo) {
             lo = lo.max(x);
         }
