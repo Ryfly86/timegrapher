@@ -263,7 +263,9 @@ type SideAt = (Option<f64>, Option<[f64; 2]>, Option<[f64; 2]>);
 /// outlier ([`reject_side_outliers`]: edges kept, no amplitude) is read
 /// again too: the caller screens the log for outliers afresh, as a read
 /// at that lift would ([`crate::take::kept_at_lift`]). The unlock beat
-/// error follows the sides that pass the gate. A
+/// error counts each side found, kept or culled, unless both are culled,
+/// so it moves only where that changes (#1977); [`relift`] screens it
+/// after. A
 /// side with an amplitude but no edges kept (a made-up window) is scaled
 /// by the lifts' ratio and gated the same way.
 pub fn at_lift(w: &mut AmplitudeWindow, osc_period_s: f64, from_lift: f64, to_lift: f64) {
@@ -297,10 +299,18 @@ pub fn at_lift(w: &mut AmplitudeWindow, osc_period_s: f64, from_lift: f64, to_li
     (w.even_unlock_ms, w.even_drop_ms) = (ek.map(|e| e[0]), ek.map(|e| e[1]));
     (w.odd_unlock_ms, w.odd_drop_ms) = (ok.map(|e| e[0]), ok.map(|e| e[1]));
     w.set_culled([ec, oc]);
-    // As at the first read: the unlock beat error needs both sides' edges.
+    // As at the first read: each side found counts, kept or culled,
+    // unless both are culled (#1977). [`relift`] screens it after.
     if changed {
-        w.beat_error_unlock_ms =
-            unlock_beat_error_ms(w.beat_error_ms, ek.map(|e| e[0]), ok.map(|e| e[0]));
+        w.beat_error_unlock_ms = (ek.is_some() || ok.is_some())
+            .then(|| {
+                unlock_beat_error_ms(
+                    w.beat_error_ms,
+                    ek.or(ec).map(|e| e[0]),
+                    ok.or(oc).map(|e| e[0]),
+                )
+            })
+            .flatten();
     }
 }
 
@@ -600,7 +610,69 @@ pub const OUTLIER_SPAN_S: f64 = 60.0;
 /// unlock beat error is a median over windows already. Windows must be in
 /// time order. Returns how many sides were left out.
 pub fn reject_side_outliers(wins: &mut [AmplitudeWindow], span_s: f64) -> usize {
-    reject_side_outliers_from(wins, span_s, f64::NEG_INFINITY)
+    let n = reject_side_outliers_from(wins, span_s, f64::NEG_INFINITY);
+    screen_unlock_beat_error(wins);
+    n
+}
+
+/// Each side's edges as found, kept or culled: its unlock and drop, ms
+/// from the beat time.
+fn edges_found(w: &AmplitudeWindow) -> [Option<[f64; 2]>; 2] {
+    let c = w.culled();
+    [
+        w.even_unlock_ms
+            .zip(w.even_drop_ms)
+            .map(|(u, d)| [u, d])
+            .or(c[0]),
+        w.odd_unlock_ms
+            .zip(w.odd_drop_ms)
+            .map(|(u, d)| [u, d])
+            .or(c[1]),
+    ]
+}
+
+/// The unlock beat error of each window of `wins` with both sides' edges
+/// found, kept or culled, and at least one kept (#1977), read again: from
+/// every such side whose
+/// unlock-to-drop time is within its own side's far fences over `wins`
+/// ([`crate::dsp::far_fences`]), and none in a window where a side is
+/// outside them, an edge marked on the wrong sound. A window with both
+/// sides culled gives none: no unlock was heard in it, and the drop's
+/// beat error stands. Otherwise the amplitude gate plays no part, so a
+/// lift moves it only where a window's last kept side is culled or its
+/// first comes back. Windows without both sides'
+/// edges are left as they are. Returns how many sides were outside.
+pub fn screen_unlock_beat_error(wins: &mut [AmplitudeWindow]) -> usize {
+    let found: Vec<[Option<[f64; 2]>; 2]> = wins.iter().map(edges_found).collect();
+    let fences = [0, 1].map(|k| {
+        let mut v: Vec<f64> = found
+            .iter()
+            .filter_map(|f| f[k].map(|[u, d]| d - u))
+            .filter(|x| x.is_finite())
+            .collect();
+        v.sort_by(f64::total_cmp);
+        crate::dsp::far_fences(&v)
+    });
+    let inside = |k: usize, e: [f64; 2]| {
+        fences[k].is_some_and(|(lo, hi)| (lo..=hi).contains(&(e[1] - e[0])))
+    };
+    let mut n = 0;
+    for (w, f) in wins.iter_mut().zip(found) {
+        let [Some(e), Some(o)] = f else { continue };
+        // Both sides culled: no unlock heard at all, so none (#1977).
+        if w.even_unlock_ms.is_none() && w.odd_unlock_ms.is_none() {
+            w.beat_error_unlock_ms = None;
+            continue;
+        }
+        let ok = [inside(0, e), inside(1, o)];
+        n += ok.iter().filter(|&&k| !k).count();
+        w.beat_error_unlock_ms = if ok == [true, true] {
+            unlock_beat_error_ms(w.beat_error_ms, Some(e[0]), Some(o[0]))
+        } else {
+            None
+        };
+    }
+    n
 }
 
 /// [`reject_side_outliers`] for the windows of `wins` whose middle is at
@@ -824,11 +896,17 @@ fn window_of(
     let kept = |s: Option<(Option<f64>, f64, f64)>| s.and_then(|s| Some((s.0?, s.1, s.2)));
     let (even, odd) = (kept(even_all), kept(odd_all));
     let beat_error_ms = timing::beat_error_ms(win);
-    let beat_error_unlock_ms = unlock_beat_error_ms(
-        beat_error_ms,
-        even.map(|s| s.1 * 1000.0),
-        odd.map(|s| s.1 * 1000.0),
-    );
+    // Each side found counts, kept or culled, unless both are culled
+    // ([`screen_unlock_beat_error`], #1977).
+    let beat_error_unlock_ms = (even.is_some() || odd.is_some())
+        .then(|| {
+            unlock_beat_error_ms(
+                beat_error_ms,
+                even_all.map(|s| s.1 * 1000.0),
+                odd_all.map(|s| s.1 * 1000.0),
+            )
+        })
+        .flatten();
     AmplitudeWindow {
         start_s: span_s.0,
         end_s: span_s.1,
@@ -1383,6 +1461,75 @@ mod tests {
         at_lift(&mut back, osc, 12.0, 52.0);
         assert_eq!(format!("{back:?}"), format!("{w:?}"));
         assert_eq!(back.culled(), w.culled());
+    }
+
+    /// The unlock beat error counts each side whose edges were found,
+    /// kept or culled, so a new lift doesn't move it, even where the gate
+    /// culls a side at one lift and keeps it at another (#1977). A side
+    /// whose unlock-to-drop time is beyond its own side's far fences is
+    /// left out of its window.
+    #[test]
+    fn the_unlock_beat_error_is_the_same_at_every_lift() {
+        let osc = 0.25;
+        let win = |i: usize| {
+            let f = ((i * 7) % 40) as f64 / 40.0;
+            // The odd side reads higher: near 380° at 50°, over it by 58°.
+            let (e, o) = (-(6.6 + 0.3 * f), -(5.45 + 0.5 * f));
+            AmplitudeWindow {
+                start_s: 2.0 * i as f64,
+                end_s: 2.0 * i as f64 + 2.0,
+                even_deg: None,
+                odd_deg: None,
+                beat_error_ms: Some(0.1),
+                beat_error_unlock_ms: None,
+                // The 31st's even unlock marked on the wrong sound.
+                even_unlock_ms: Some(if i == 30 { -27.0 } else { e }),
+                odd_unlock_ms: Some(o),
+                even_drop_ms: Some(0.0),
+                odd_drop_ms: Some(0.0),
+                extra: None,
+                sound_1: [f32::NAN; 2],
+            }
+        };
+        let mut at50: Vec<AmplitudeWindow> = (0..40).map(win).collect();
+        relift(&mut at50, osc, 50.0, 50.0);
+        let be = |w: &[AmplitudeWindow]| -> Vec<Option<u64>> {
+            w.iter()
+                .map(|x| x.beat_error_unlock_ms.map(f64::to_bits))
+                .collect()
+        };
+        assert_eq!(at50[30].beat_error_unlock_ms, None, "the wrong sound");
+        assert!(
+            at50.iter()
+                .filter(|w| w.beat_error_unlock_ms.is_some())
+                .count()
+                == 39
+        );
+        for lift in [52.0, 55.0, 58.0] {
+            let mut w = at50.clone();
+            relift(&mut w, osc, 50.0, lift);
+            assert_eq!(be(&w), be(&at50), "at {lift}°");
+        }
+        // The gate did act: at 58° some odd sides are culled.
+        let mut at58 = at50.clone();
+        relift(&mut at58, osc, 50.0, 58.0);
+        let culled = at58.iter().filter(|w| w.culled()[1].is_some()).count();
+        assert!(culled > 5, "{culled}");
+        // At 50° the wrong sound's window keeps its odd side, so its even
+        // side is screened: the one side outside.
+        let mut again = at50.clone();
+        assert_eq!(screen_unlock_beat_error(&mut again), 1);
+        // With both sides culled, no unlock was heard: none, as the drop's
+        // beat error stands.
+        let mut both = at50[0].clone();
+        both.set_culled(edges_found(&both));
+        (both.even_unlock_ms, both.odd_unlock_ms) = (None, None);
+        (both.even_drop_ms, both.odd_drop_ms) = (None, None);
+        let mut wins = at50.clone();
+        wins[0] = both;
+        screen_unlock_beat_error(&mut wins);
+        assert_eq!(wins[0].beat_error_unlock_ms, None);
+        assert_eq!(be(&wins[1..]), be(&at50[1..]));
     }
 
     /// Swapping Tick and Tock swaps their culled edges too.
