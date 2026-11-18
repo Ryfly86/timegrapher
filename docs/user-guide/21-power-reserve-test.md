@@ -151,7 +151,7 @@ keeps on the wrist depends on how far down it is allowed to run.
 **Scrolled to its end,** the same table shows the watch's last hours.
 The amplitude falls from 179° in the 50–51 h hour to 120° in the 56–57 h
 hour, and the beat error rises from 0.53 to 0.74 ms, while the BE Angle
-holds at 1.1°. From 57 hours the beats grow faint, and the unlock that
+moves only from 1.2° to 1.1°. From 57 hours the beats grow faint, and the unlock that
 the amplitude is timed from is found in fewer of the hour's windows: in
 the 57–58 h hour the amplitude, 102°, and the beat error, 0.82 ms, are
 grey, and their hovers say why. In the last two hours the unlock is
