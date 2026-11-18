@@ -1,4 +1,5 @@
 use super::*;
+use crate::confidence::NoPm;
 use crate::synth::{generate, SynthConfig};
 use crate::timing;
 
@@ -1020,6 +1021,10 @@ fn readings_carry_their_errors_and_caveats() {
         early.caveats
     );
     assert!(early.rate_error_s_per_day.is_none(), "{early:?}");
+    // Each missing ± says why, from core's one rule (#1908): too few 10 s
+    // rates yet, and too short a take to borrow the amplitude's scatter.
+    assert_eq!(early.rate_no_pm, Some(NoPm::TooFew), "{early:?}");
+    assert_eq!(early.amplitude_no_pm, Some(NoPm::PoolShort), "{early:?}");
     // Under 10 s of sound regularity is not assessed: the readings
     // are shown, not withheld.
     assert!(early.watch_heard, "{early:?}");
@@ -1040,6 +1045,9 @@ fn readings_carry_their_errors_and_caveats() {
     );
     assert!(late.beat_error_unlock_error_ms.is_some(), "{late:?}");
     let ten = late.rate_error_s_per_day.expect("rate ±");
+    // With a ±, no reason for its absence.
+    assert!(late.amplitude_error_deg.is_some(), "{late:?}");
+    assert_eq!((late.rate_no_pm, late.amplitude_no_pm), (None, None));
     let sixty = a.reading(60.0).rate_error_s_per_day.unwrap();
     assert!(sixty < ten, "{sixty} against {ten}");
     a.set_known(true, true);
