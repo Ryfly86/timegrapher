@@ -72,10 +72,27 @@ pub fn range(points: &[(f64, f64, Option<f64>)], fit: Option<&PoiseFit>) -> Opti
     crate::chart_scale::data_range(&v)
 }
 
-/// The rate scale, [lo, hi, step]: [`range`] rounded to whole steps, or
-/// ±1 s/d before any rate.
+/// The least span of the rate scale, s/d: one stop, or a few that agree
+/// closely, is drawn on a scale this wide about their middle, not one
+/// blown up around a single rate (Peter, 2026-11-18: one stop drew rings
+/// from −33.82 to −33.94 s/d). A once-round wave worth stating is several
+/// s/d each way, so it still fills the picture.
+pub const LEAST_SPAN_S_PER_DAY: f64 = 10.0;
+
+/// The rate scale, [lo, hi, step]: [`range`] widened about its middle to
+/// at least [`LEAST_SPAN_S_PER_DAY`] and rounded to whole steps; ±1 s/d
+/// before any rate.
 pub fn scale(points: &[(f64, f64, Option<f64>)], fit: Option<&PoiseFit>) -> (f64, f64, f64) {
-    let (lo, hi) = range(points, fit).unwrap_or((-1.0, 1.0));
+    let Some((lo, hi)) = range(points, fit) else {
+        return crate::chart_scale::round_ends(-1.0, 1.0);
+    };
+    let (lo, hi) = if hi - lo < LEAST_SPAN_S_PER_DAY {
+        let mid = (lo + hi) / 2.0;
+        let half = LEAST_SPAN_S_PER_DAY / 2.0;
+        (mid - half, mid + half)
+    } else {
+        (lo, hi)
+    };
     crate::chart_scale::round_ends(lo, hi)
 }
 
@@ -233,6 +250,22 @@ fn dot_figure(rate: f64, se: Option<f64>) -> String {
 
 #[cfg(test)]
 mod tests {
+
+    /// One stop, or a few close together, is drawn on a scale at least
+    /// [`LEAST_SPAN_S_PER_DAY`] wide about them, never a tenth of a second
+    /// a day blown up across the picture (Peter's one stop, 2026-11-18).
+    #[test]
+    fn one_stop_is_drawn_on_a_scale_of_some_seconds() {
+        let (lo, hi, step) = scale(&[(90.0, -33.88, Some(0.02))], None);
+        assert!(hi - lo >= LEAST_SPAN_S_PER_DAY, "{lo}..{hi}");
+        assert!(lo < -33.88 && hi > -33.88, "{lo}..{hi}");
+        assert!(step >= 1.0, "a whole s/d step or more: {step}");
+        // Spread wider than the least span: its own range, as before.
+        let wide = [(0.0, -20.0, None), (180.0, 10.0, None)];
+        let (lo, hi, _) = scale(&wide, None);
+        assert_eq!((lo, hi), (-30.0, 20.0), "its own range, rounded");
+    }
+
     use super::*;
 
     #[test]

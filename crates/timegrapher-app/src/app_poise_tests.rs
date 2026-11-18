@@ -767,7 +767,7 @@ fn the_table_tightens_beside_the_picture_then_goes_under_it(app: &mut Timegraphe
     // Wide: the full table, beside.
     let (row, title, _) = at(app, 1280.0);
     assert!(
-        title.left() > row.left() + guided::TABLE_W,
+        title.left() > row.left() + guided::POISE_TABLE_W,
         "{row:?} {title:?}"
     );
     // Narrower: tight, still beside, and within its width.
@@ -777,7 +777,7 @@ fn the_table_tightens_beside_the_picture_then_goes_under_it(app: &mut Timegraphe
         "{row:?} {title:?}"
     );
     assert!(
-        title.left() < row.left() + guided::TABLE_W,
+        title.left() < row.left() + guided::POISE_TABLE_W,
         "tight: {title:?}"
     );
     assert!(
@@ -1404,5 +1404,39 @@ fn both_views_off_leave_the_table_and_words() {
     app.poise_views = [false, true];
     let drawn = draw(&mut app, Pane::DynamicPoise);
     assert!(drawn.contains(key) && !drawn.contains(axis), "{drawn}");
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// The Dynamic Poise table says how long each stop was read, as This
+/// Take's table does (Peter, 2026-11-18: "We don't show the duration of
+/// each measurement in the dynamic poise test pane grid. We should do
+/// that."); and a take read in some stops only lists each stop once, the
+/// rest unread after them (#1855).
+#[test]
+fn the_poise_table_shows_each_stops_duration_once() {
+    let stops = [
+        Position::CrownDown,
+        Position::CrownLeft,
+        Position::CrownUp,
+        Position::Up1h30,
+        Position::CrownRight,
+    ];
+    let (mut app, base) = saved_and_opened("durations", &stops);
+    let t = app.free_table(&egui::Context::default()).expect("a table");
+    let drawn = draw(&mut app, Pane::DynamicPoise);
+    assert!(drawn.contains("Duration"), "{drawn}");
+    for r in &t.upright.0 {
+        let d = guided::table_duration(r.duration_s);
+        assert!(drawn.contains(&d), "{d}: {drawn}");
+    }
+    for label in [
+        "Crown Right (CR, 12H)",
+        "7:30 Up (7H30)",
+        "4:30 Up (4H30)",
+        "10:30 Up (10H30)",
+    ] {
+        let n = drawn.lines().filter(|l| *l == label).count();
+        assert_eq!(n, 1, "{label} once: {drawn}");
+    }
     let _ = std::fs::remove_dir_all(base);
 }

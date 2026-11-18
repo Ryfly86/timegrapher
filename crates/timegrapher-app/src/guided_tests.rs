@@ -883,6 +883,7 @@ fn the_table_is_written_for_a_spreadsheet() {
         dvh_rate: None,
         dvh_amplitude: Some(-31.0),
         notes: vec!["Crown Up (CU, 3H): no regular beat found".into()],
+        durations: Vec::new(),
     };
     let csv = table_text(&t, ',', Kind::Positions);
     let lines: Vec<&str> = csv.lines().collect();
@@ -1365,4 +1366,50 @@ fn a_reopened_poise_take_reports_as_the_cli_does() {
         measure_s: None,
     };
     assert_eq!(text, text_report::poise(&header, &readings));
+}
+
+/// A Dynamic Poise table of a Quick Listen read in some stops, out of the
+/// stand's order: each stop is listed once, the read ones with their rows
+/// and the rest after them in the stand's order (#1855; Peter's 41 mm
+/// Datejust, 2026-11-18: CD, CL, CU, 1H30 and CR read, then 1H30 and CR
+/// listed again unread and 7H30 and 4H30 lost).
+#[test]
+fn a_table_of_some_stops_lists_each_stop_once() {
+    let read = [
+        Position::CrownDown,
+        Position::CrownLeft,
+        Position::CrownUp,
+        Position::Up1h30,
+        Position::CrownRight,
+    ];
+    let rows: Vec<Row> = read
+        .iter()
+        .map(|p| (position_label(p.core()), Some(1.0), None, Some(200.0), None))
+        .collect();
+    let slots = table_slots(&rows, Kind::Poise.order());
+    let shown: Vec<(Option<usize>, Position)> = slots
+        .iter()
+        .map(|&(i, p)| (i, p.expect("a stop")))
+        .collect();
+    assert_eq!(
+        shown,
+        [
+            (Some(0), Position::CrownDown),
+            (Some(1), Position::CrownLeft),
+            (Some(2), Position::CrownUp),
+            (Some(3), Position::Up1h30),
+            (Some(4), Position::CrownRight),
+            (None, Position::Up7h30),
+            (None, Position::Up4h30),
+            (None, Position::Up10h30),
+        ]
+    );
+    // Every stop read: its rows alone, in their order.
+    let all: Vec<Row> = POISE_ORDER
+        .iter()
+        .map(|p| (position_label(p.core()), Some(1.0), None, None, None))
+        .collect();
+    let slots = table_slots(&all, Kind::Poise.order());
+    assert_eq!(slots.len(), 8);
+    assert!(slots.iter().enumerate().all(|(i, s)| s.0 == Some(i)));
 }

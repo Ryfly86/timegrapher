@@ -293,7 +293,7 @@ fn poise_body(
     let mean = guided::poise_mean(readings);
     let bottom = ui.available_rect_before_wrap().bottom();
     let layout = test_body::Layout {
-        table_ws: &[guided::TABLE_W, guided::TIGHT_TABLE_W],
+        table_ws: &[guided::POISE_TABLE_W, guided::TIGHT_TABLE_W],
         result_min_w: PICTURE_MIN_W,
         info_beside_w: INFO_BESIDE_W,
         rule_h: PICTURE_H,

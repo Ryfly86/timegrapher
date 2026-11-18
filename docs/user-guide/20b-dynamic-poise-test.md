@@ -79,7 +79,7 @@ from its saved positions.
 
 | Mark | Part | What it shows |
 | --- | --- | --- |
-| 2 | The table | The eight positions in the stand's order, each with its **Rate** (s/d), **From Mean** (its rate less the mean), **Amplitude** (°) and **Beat Error** (ms), then a **Mean** row. There is no Largest Difference: that is the six positions' figure (M8). |
+| 2 | The table | The eight positions in the stand's order, each with its **Duration** (the time read, less settling and masked time), **Rate** (s/d), **From Mean** (its rate less the mean), **Amplitude** (°) and **Beat Error** (ms), then a **Mean** row. There is no Largest Difference: that is the six positions' figure (M8). |
 | | The picture | Each rate at the hour that was at the top, with its ± (one standard error), in magenta. In Plot, along a line from 12H to 12H with a mark every 45° ("Hour at the top"). In Dial, round a watch face with 12H at the top, further out when faster. |
 | 6 | The mean | A dotted line in Plot, a dotted ring in Dial, named with its rate. |
 | 5 | The fitted wave | Once five positions are in, the wave the rate makes once round, in grey, with a line to its fastest hour. Until then, while a test runs, the space reads "Fitted once 5 positions are measured". A take opened again with fewer upright positions, such as a Positions Test's four, reads "Needs 5 upright positions to fit; this take has 4". |

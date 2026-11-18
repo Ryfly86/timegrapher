@@ -1229,3 +1229,25 @@ fn two_limits_show_a_chip_at_1600() {
     );
     assert!(text.lines().any(|l| l == "2 limits"), "{rect:?}: {text}");
 }
+
+/// A watch heard while it settles at the start of a take: nothing is read
+/// yet, but the strip shows its beats, not "no regular beat" (Peter,
+/// 2026-11-18, a 30 s settle at the start said so for all 30 s while the
+/// Scope and Tick Tock Profile showed the beats). Noise while settling is
+/// still no watch.
+#[test]
+fn a_watch_heard_while_it_settles_is_no_missing_watch() {
+    let mut app = synthetic(20.0, 0.0);
+    let base = std::env::temp_dir().join(format!("tg-settle-heard-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    // Listening, as the watch settles live.
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    app.session.set_settle_s(30.0);
+    app.session.start_settle(0.0);
+    // Nothing read while settling: no reading kept as heard.
+    app.trend.clear();
+    assert!(app.settling_left().is_some());
+    assert!(app.reading().is_none(), "nothing is read while settling");
+    assert!(!app.no_watch_yet(), "its beats are heard");
+    let _ = std::fs::remove_dir_all(base);
+}
