@@ -1092,7 +1092,10 @@ impl TimegrapherApp {
         if self.behind_save(move |a| a.line_pick(again, asked)) || self.saving_busy() {
             return;
         }
-        if self.live.is_some() || self.session.recorder.is_some() {
+        // A recording opened from outside the Watches folder stays, as it
+        // was measured, to be kept in the watch picked (#1966).
+        let keeps = id.is_some() && self.shown_outside_watches();
+        if !keeps && (self.live.is_some() || self.session.recorder.is_some()) {
             if !asked && self.line_pick_asks() {
                 self.confirm = Some(Confirm::PickWatch(id));
                 return;
