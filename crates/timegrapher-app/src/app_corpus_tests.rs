@@ -261,6 +261,22 @@ fn the_app_reads_each_corpus_take_as_the_command_line_does() {
     );
 }
 
+/// The empty stand opened: no watch heard, so the beat rate shows
+/// "Auto" with no number, not the rate the engine last listened at
+/// (#1972, "Auto 21600"). Needs only `TIMEGRAPHER_CORPUS`.
+#[test]
+fn the_empty_stand_finds_no_beat_rate() {
+    let required = std::env::var_os("TIMEGRAPHER_REQUIRE_CORPUS").is_some();
+    let Some(root) = std::env::var_os("TIMEGRAPHER_CORPUS").map(PathBuf::from) else {
+        assert!(!required, "TIMEGRAPHER_CORPUS is needed");
+        eprintln!("SKIP: set TIMEGRAPHER_CORPUS to open the empty stand");
+        return;
+    };
+    let app = opened(&root.join("takes").join("silence_empty_stand"));
+    assert_eq!(app.bph_heard(), None);
+    assert_eq!(app.watch_facts().1, "Auto");
+}
+
 /// Each synthetic edge take (core's `edge_takes`: short, paused, slept,
 /// silent, unlisted breaks, a drifting card) reads the same on the app's
 /// cards as from `timegrapher session`. Needs only `TIMEGRAPHER_CLI`.
