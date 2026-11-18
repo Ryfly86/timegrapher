@@ -1110,7 +1110,9 @@ impl LiveAnalyzer {
     /// [`crate::stream::amplitude_chunk_of`]) once the chunk is closed, then
     /// a side's edge marked on the wrong sound left out
     /// ([`amplitude::reject_side_outliers_from`]) in each window whose
-    /// neighbours changed, scored against them as read. A chunk judged
+    /// neighbours changed, scored against them as read; then each
+    /// window's unlock beat error screened over the take so far
+    /// ([`amplitude::screen_unlock_beat_error`]). A chunk judged
     /// again with more windows withholds the sides it did and any more.
     fn judge_amplitude(&mut self, changed: usize, open: usize) {
         let w = self.cfg.analysis.amplitude_window_s;
@@ -1129,6 +1131,8 @@ impl LiveAnalyzer {
         let from_s = mid(&self.amp[from]) - span / 2.0;
         let context = self.amp.partition_point(|x| mid(x) < from_s - span / 2.0);
         amplitude::reject_side_outliers_from(&mut self.amp[context..], span, from_s);
+        // Over the whole take so far, as a saved read screens it (#1977).
+        amplitude::screen_unlock_beat_error(&mut self.amp);
     }
 
     /// Judge the newest chunk's amplitude windows now, as a saved read of
