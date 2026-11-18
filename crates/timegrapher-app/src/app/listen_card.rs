@@ -775,7 +775,7 @@ impl TimegrapherApp {
                 .response
         })
         .inner
-        .on_hover_text(if form.arrows {
+        .on_hover_text(if form.arrows || field.says_click {
             field.hover.clone()
         } else {
             format!("{} {WIND_CLICK}", field.hover)
