@@ -147,6 +147,9 @@ pub fn run(name: Option<&str>, search: Option<&str>, json: bool) -> Result<(), S
     if json {
         return print_json(&cat, &list, name, search, path.as_deref(), everything);
     }
+    if let (Some(n), Some(Entry::Table(c))) = (name, list.first()) {
+        crate::long::note_also_named(n, &c.calibre);
+    }
     if name.is_some() {
         print_one(&cat, list[0]);
         return Ok(());
