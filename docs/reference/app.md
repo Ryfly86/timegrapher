@@ -811,8 +811,8 @@ eight upright stops, 45° apart, from 9H at the top: 9H, 7H30, 6H, 4H30,
 **New Test** in its toolbar, or **Dynamic Poise Test** under New Take in
 the Watches view, sets it up at 9H and turns the Current Position card to
 10, where it stays until switched back; Start Test on the Listen card
-starts it. The toolbar has **View** first (**Plot** or **Dial**, kept
-between runs), then Settle and Each Position, the Positions Test's own,
+starts it. The toolbar has **View** first (**Plot**, **Dial**, or
+both lit to show them side by side, kept between runs), then Settle and Each Position, the Positions Test's own,
 then **Copy** and Export…, with **Info** at the right. The banner works as
 the Positions Test's, naming each stop by the hour at the top ("Done:
 Crown Down (1 of 8)", "Turn the watch 45°, to 7:30 Up (7H30) at the top",
@@ -832,7 +832,9 @@ with a line to its fastest hour, and the line over the picture is its
 not stated. The heavy spot is a facts box's one row on the picture,
 core's `heavy_spot_row` ("Heavy spot", "6H at the top, 180 ± 12°", or
 "Not stated"): on the plot in its top left, or its top right under the
-key where the wave or a point runs under the left; on the dial above the
+key where the wave or a point (its dot and a dot's width round it,
+#1963) runs under the left, else a bottom corner; where none is clear,
+the place over the fewest points; on the dial above the
 watch face, at the top left (#1537). Until then the space reads "Fitted
 once 5 positions are measured". **Info** shows `text`, the fit in full
 with its twice-round terms, the heavy spot or why it is not stated and
