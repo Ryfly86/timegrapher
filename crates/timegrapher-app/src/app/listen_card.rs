@@ -1925,9 +1925,18 @@ impl TimegrapherApp {
         if let Some(l) = self.cal.lift(&self.calibre) {
             self.set_lift(l);
             self.lift_context = (l, true);
-        } else if self.calibre.is_empty() && self.lift_deg != DEFAULT_LIFT_DEG {
-            // No calibre: the default lift angle, as Quick Listen starts.
-            self.set_lift(DEFAULT_LIFT_DEG);
+        } else if self.calibre.is_empty() || self.lift_deg == self.lift_context.0 {
+            // No calibre, or one with no lift of its own: not the last
+            // calibre's lift, kept as if known (#1877). The open watch's
+            // own lift, else the default lift angle, assumed, as Quick
+            // Listen starts. A lift typed by hand differs from the one the
+            // last calibre gave, and stays.
+            let own = self.open_watch().and_then(|e| e.watch.lift);
+            let l = own.unwrap_or(DEFAULT_LIFT_DEG);
+            if self.lift_deg != l {
+                self.set_lift(l);
+            }
+            self.lift_context = (l, own.is_some());
         }
         // In Quick Listen, the calibre's beat rate, else Auto again with
         // none picked; a watch's own beat rate stays the watch's.

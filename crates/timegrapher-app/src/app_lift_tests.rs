@@ -18,6 +18,34 @@ fn a_calibre_picked_sets_the_lift_angle() {
     assert!(app.lift_settable());
 }
 
+/// A calibre the table gives no lift for, picked after one it does,
+/// doesn't keep that calibre's lift as if known: the default lift angle,
+/// assumed, as with no calibre. A lift typed by hand stays (#1877).
+#[test]
+fn a_calibre_with_no_lift_leaves_the_last_calibres_lift_behind() {
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    let none = timegrapher_core::calibres::all()
+        .iter()
+        .map(|c| c.calibre.clone())
+        .find(|n| app.cal.lift(n).is_none())
+        .expect("a calibre with no lift in the table");
+    let given = app.cal.lift("ETA 2824-2").expect("ETA's lift");
+    assert_ne!(given, DEFAULT_LIFT_DEG);
+    app.set_calibre("ETA 2824-2".into());
+    assert_eq!(app.lift_deg, given);
+    assert!(app.lift_known());
+    app.set_calibre(none.clone());
+    assert_eq!(app.lift_deg, DEFAULT_LIFT_DEG, "{none}");
+    assert!(!app.lift_known(), "{none}: assumed, not known");
+    // Typed by hand after the calibre set it: kept, as typed.
+    app.set_calibre("ETA 2824-2".into());
+    let typed = given + 3.0;
+    app.set_lift(typed);
+    app.set_calibre(none);
+    assert_eq!(app.lift_deg, typed);
+    assert!(app.lift_known());
+}
+
 /// Lift changed on a stopped take reads every amplitude again at the
 /// new lift: the whole take, the Tick Tock profiles and the Positions
 /// Test table scale with it.
