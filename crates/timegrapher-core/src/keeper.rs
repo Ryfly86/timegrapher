@@ -1209,9 +1209,9 @@ mod tests {
             take: dir.clone(),
             every_s: 8.0,
         });
-        let (_, status) = kept_with_parts(&paths, &cfg, &[], &[4097], parts);
-        // The last chunk read starts 48 s in: 6 parts, or fewer while its
-        // windows were still being found.
+        // In step, so the parts written don't depend on how fast the
+        // amplitude threads run (#1938): a loaded run once wrote fewer.
+        let (_, status) = kept_with_parts_paced(&paths, (&cfg, &[]), &[4097], parts, true);
         assert!(status.to_s >= 24.0, "{}", status.to_s);
         let n = (status.to_s / 8.0) as usize;
         let folder = dir.join(checkpoint::DIR);
