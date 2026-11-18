@@ -1703,9 +1703,9 @@ impl TimegrapherApp {
             w,
         );
         let hint = if self.lift_known() {
-            "The lift angle: type it, or pick one with ⏷."
+            "The lift angle: type it, or pick one with ⏷.".to_string()
         } else {
-            LIFT_HINT
+            lift_hint(&self.calibre)
         };
         resp.on_hover_text(format!("{hint}{tail}"));
         if changed {
@@ -1947,6 +1947,23 @@ impl TimegrapherApp {
         {
             self.change_bph(bph);
         }
+    }
+}
+
+/// The Lift card's hover while the lift is the default, assumed: with no
+/// calibre, or with one the table gives no lift for (Hugh on #1913).
+pub(super) fn lift_hint(calibre: &str) -> String {
+    let d = DEFAULT_LIFT_DEG;
+    if calibre.is_empty() {
+        format!(
+            "No calibre or lift angle is set, so every amplitude is worked out from the default \
+             {d:.0}°. Type the calibre's lift angle, pick one, or pick the calibre above it."
+        )
+    } else {
+        format!(
+            "The table has no lift angle for {calibre}, so every amplitude is worked out from \
+             the default {d:.0}°. Type its lift angle, or pick one."
+        )
     }
 }
 
