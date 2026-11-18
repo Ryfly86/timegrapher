@@ -1836,13 +1836,24 @@ pub fn evaluate_states(states: Vec<StateIndices>, findings: Vec<Finding>) -> Ses
             }
         }
     }
+    // Im over the positions read in both the fullest and the least wound
+    // state, so every change it compares spans the same hours; a position
+    // missing from either keeps its own row, beside it (#1896).
+    let span = given
+        .first()
+        .zip(given.last())
+        .map(|(a, b)| (a.wind_h, b.wind_h));
+    let spanning: Vec<&Isochronism> = isochronism
+        .iter()
+        .filter(|i| span == Some((Some(i.from_wind_h), Some(i.to_wind_h))))
+        .collect();
     let im = largest(
-        isochronism
+        spanning
             .iter()
             .filter(|i| i.position != Position::H12)
             .map(|i| i.rate_change),
     );
-    let im_all = largest(isochronism.iter().map(|i| i.rate_change));
+    let im_all = largest(spanning.iter().map(|i| i.rate_change));
     let ie = match (given.first(), given.last()) {
         (Some(a), Some(b)) if given.len() >= 2 => {
             // The positions with a rate in both states, so each mean is
@@ -2109,7 +2120,34 @@ fn findings(readings: &[Reading]) -> Vec<Finding> {
             }
         }
     }
+    if let Some(f) = clocks_differ(readings) {
+        out.push(f);
+    }
     out
+}
+
+/// The readings heard, when some are corrected for the sound card's clock
+/// and some are not: their rates differ by the card's error as well as by
+/// position, as 50 ppm is 4.32 s/d (#1896). The figures across positions
+/// are only as good as the weaker clock, and the finding says so.
+fn clocks_differ(readings: &[Reading]) -> Option<Finding> {
+    let heard: Vec<&Reading> = readings
+        .iter()
+        .filter(|r| r.measurement.watch_heard)
+        .collect();
+    let corrected = heard.iter().filter(|r| r.measurement.calibrated).count();
+    (corrected > 0 && corrected < heard.len()).then(|| Finding {
+        code: "clocks_differ",
+        recording: None,
+        title: "Readings on different clocks".to_string(),
+        evidence: format!(
+            "{corrected} of the {} readings are corrected for the sound card's clock and the \
+             rest are not, so the differences between them include the card's own error \
+             (50 ppm is {:.2} s/d)",
+            heard.len(),
+            crate::clock::rate_error_s_per_day(50.0).abs(),
+        ),
+    })
 }
 
 /// The message for a session file's old `card_ppm`, ppm slow (#657).

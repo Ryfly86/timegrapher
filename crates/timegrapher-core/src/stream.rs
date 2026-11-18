@@ -295,7 +295,9 @@ impl State {
                 }
             }
             self.beats.push(Beat { time: t, ..b });
-            if let Some(w) = profile::snippet(env, fs, b.time) {
+            if let Some(w) =
+                profile::snippet(env, fs, b.time, crate::amplitude::UnlockWindow::SHORT)
+            {
                 if b.is_good() {
                     self.snippets
                         .push(t, b.index.rem_euclid(2) == 0, w.to_vec());
@@ -624,7 +626,7 @@ fn analyze_fed(
     feed: impl FnOnce(&mut dyn FnMut(&[f32]) -> bool) -> Result<(), AudioError> + Send,
     progress: impl FnMut(f64),
 ) -> Result<BeatLog, AudioError> {
-    analyze_fed_seen(sample_rate, cfg, threads, feed, progress, |_| {})
+    analyze_fed_seen(sample_rate, cfg, threads, feed, progress, |_| {}, false)
 }
 
 /// A chunk just analysed, in order, as [`analyze_fed_seen`] shows it: its
@@ -673,6 +675,7 @@ pub(crate) fn analyze_fed_seen(
     feed: impl FnOnce(&mut dyn FnMut(&[f32]) -> bool) -> Result<(), AudioError> + Send,
     mut progress: impl FnMut(f64),
     mut seen: impl FnMut(Seen),
+    in_step: bool,
 ) -> Result<BeatLog, AudioError> {
     use std::sync::mpsc::sync_channel;
     let threads = threads.max(1);
@@ -709,6 +712,7 @@ pub(crate) fn analyze_fed_seen(
             &job_tx,
             &mut progress,
             &mut seen,
+            in_step,
         );
         drop(job_tx);
         cutter.join().expect("the cutting thread panicked")
@@ -794,7 +798,10 @@ fn amplitude_all(
 /// [`analyze_fed`]'s third stage: the prepared chunks from `rx`, analysed
 /// in the order cut whatever order they come in, each chunk's amplitude
 /// job sent to `jobs` and the windows found taken from `wins` as they
-/// come, and `progress` told each chunk's end but the last.
+/// come, and `progress` told each chunk's end but the last. `in_step`
+/// waits for each chunk's windows before the next chunk is shown, so
+/// what `seen` is shown never depends on how fast the amplitude threads
+/// run: a test's schedule, never a recording's (#1938).
 fn in_order(
     st: &mut State,
     (rx, wins): (
@@ -804,6 +811,7 @@ fn in_order(
     jobs: &std::sync::mpsc::SyncSender<(AmpJob, Prepared)>,
     progress: &mut impl FnMut(f64),
     seen: &mut impl FnMut(Seen),
+    in_step: bool,
 ) {
     let mut ready = std::collections::BTreeMap::new();
     let mut next = 0;
@@ -839,6 +847,10 @@ fn in_order(
             // Stops when the amplitude threads have (one panicked).
             if job.is_some_and(|job| jobs.send((job, c)).is_err()) {
                 return;
+            }
+            while in_step && !st.amp_out.is_empty() {
+                let Ok(found) = wins.recv() else { return };
+                st.windows_found(found);
             }
         }
     }

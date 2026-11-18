@@ -354,6 +354,18 @@ when none), then the median, 10th and 90th percentile curves, a byte a
 point: the level in quarter-dB steps above 63.75 dB below the top (0 for
 anything lower, read back as 0). Stretches with no beats are left out.
 
+That is version 1, the last byte of the 8. At a low amplitude a profile
+is cut on a longer window, starting before the unlock, as amplitude reads
+it (#1924): about −40 ms at 18,000 bph near 110° instead of −20. When
+the stretches of a take are not all on one window, the file is version 2
+(`TGPROF\0\x02`): the same, but each stretch carries its own first point
+(f32 ms) and points in a curve (u16) after its signal figure, and the
+header's are the first stretch's. A take whose stretches share one
+window is written as version 1, byte for byte as before. A file of a
+later version is refused as written by a newer version of the app, not
+as damaged. The Tick Tock Profile averages the stretches on the latest
+one's window and says how many on another it left out.
+
 ### Parts kept while a take is recorded
 
 A take kept as its analysis while it is recorded (#1514) is also kept on
@@ -552,11 +564,15 @@ amplitude and beat error from the fullest to the least wound reading
 whose wind was given;
 `rate_change`, `amplitude_change` and `beat_error_change` in the JSON),
 Im (the largest, excluding 12H, as in NIHS 93-10), Im\* (over all
-positions), Ie (change in X over the positions measured in both).
+positions), Ie (change in X over the positions measured in both). Im and
+Im\* take only the positions read in both the fullest and the least
+wound state, so each change they compare spans the same hours; a
+position read in only some states keeps its own isochronism row.
 
 ## Findings
 
-The findings are conditions found in the sound of one recording, each
+The findings are conditions found in the sound of one recording (and
+one, `clocks_differ`, about the session), each
 with the figures that show it. None judges the watch: the report has no
 tolerances, limits or advice. Published tolerances (Witschi's, COSC's,
 the movement maker's) and what a figure means for the movement are in
@@ -573,6 +589,7 @@ the watchmaker skill, each with its source.
 | `cycle_other` | Regular amplitude change not tied to a listed wheel | as above, no wheel; the nearest is named |
 | `shape_unlock_loud` | Unlocking as loud as the drop on Tick | the level of sound 1 to sound 3 is 1 or more |
 | `shape_extra_sounds` | Extra sounds around the beat on Tock | sounds before the unlock or after the drop |
+| `clocks_differ` | Readings on different clocks | some readings are corrected for the sound card's clock and some are not, so the differences between them include the card's own error; about the session, not one recording |
 
 Every reading's table row also carries its unlock share and clipped
 share, whether or not they are listed here.

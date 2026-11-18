@@ -7,6 +7,7 @@
 //! from the file. One [`SecondReading`] does that work for both, so a
 //! take kept while it is recorded is kept exactly as one kept after.
 
+use crate::amplitude::{AmplitudeWindow, UnlockWindow};
 use crate::analysis_take::{
     self, measure_shape, Stored, StoredShape, StoredUsbClock, StretchProfiles, PROFILE_EVERY_S,
 };
@@ -62,6 +63,11 @@ pub(crate) struct SecondReading {
     /// apart: the jump's time, the profile's place and its stretch, and the
     /// stretch's sound from sample `lo`, to read again if they swap.
     held: Option<Held>,
+    /// The amplitude windows found so far, in time order, and the chunks
+    /// they came from: each stretch is cut on the window its latest one
+    /// was read on ([`crate::amplitude::profile_window_at`], #1924).
+    windows: Vec<AmplitudeWindow>,
+    window_chunks: std::collections::BTreeSet<usize>,
 }
 
 /// [`SecondReading::held`].
@@ -71,6 +77,7 @@ struct Held {
     k: usize,
     lo: usize,
     x: Vec<f32>,
+    w: UnlockWindow,
 }
 
 impl SecondReading {
@@ -94,7 +101,29 @@ impl SecondReading {
             profiles: Vec::new(),
             stretches: Vec::new(),
             held: None,
+            windows: Vec::new(),
+            window_chunks: std::collections::BTreeSet::new(),
         }
+    }
+
+    /// Take in the amplitude windows of each chunk in `found` not yet
+    /// taken (a chunk's windows come back whole), keeping time order.
+    pub(crate) fn windows_found(&mut self, found: &[(usize, Vec<AmplitudeWindow>)]) {
+        for (chunk, wins) in found {
+            if !self.window_chunks.insert(*chunk) {
+                continue;
+            }
+            for w in wins {
+                let i = self.windows.partition_point(|x| x.start_s <= w.start_s);
+                self.windows.insert(i, w.clone());
+            }
+        }
+    }
+
+    /// Every amplitude window of the take, read whole beforehand.
+    pub(crate) fn all_windows(&mut self, wins: &[AmplitudeWindow]) {
+        self.windows = wins.to_vec();
+        self.window_chunks.clear();
     }
 
     /// The samples after those read so far.
@@ -136,6 +165,7 @@ impl SecondReading {
             && (self.k + 1) * self.step <= until
         {
             let (k, lo) = (self.k, (self.k * self.step).saturating_sub(self.margin));
+            let w = self.window_of(k, bph);
             let read = self.profile_next(beats, bph, cfg, f64::INFINITY);
             let (from, to) = (self.start_s(k), self.start_s(k + 1));
             if let Some(t) = pending.filter(|&t| read && from <= t && t < to) {
@@ -147,6 +177,7 @@ impl SecondReading {
                     k,
                     lo,
                     x: self.buf[lo - self.buf0..hi - self.buf0].to_vec(),
+                    w,
                 });
             }
             let keep = (self.k * self.step).saturating_sub(self.margin);
@@ -160,6 +191,13 @@ impl SecondReading {
     /// Stretch `k`'s start, seconds.
     fn start_s(&self, k: usize) -> f64 {
         (k * self.step) as f64 / self.fs
+    }
+
+    /// The window stretch `k` is cut on at `bph`: the one its latest
+    /// amplitude window was read on.
+    fn window_of(&self, k: usize, bph: u32) -> UnlockWindow {
+        let osc = 7200.0 / bph.max(1) as f64;
+        crate::amplitude::profile_window_at(&self.windows, self.start_s(k + 1), osc)
     }
 
     /// Stretch `k`'s profiles, its end no later than `duration_s`; then
@@ -182,7 +220,8 @@ impl SecondReading {
         }
         let x = &self.buf[lo - self.buf0..hi - self.buf0];
         let beats = &beats[self.next_beat.min(beats.len())..];
-        let Some(p) = self.stretch(x, lo, k, beats, bph, cfg, duration_s) else {
+        let w = self.window_of(k, bph);
+        let Some(p) = self.stretch(x, (lo, k, w), beats, bph, cfg, duration_s) else {
             return false;
         };
         self.profiles.push(p);
@@ -190,14 +229,13 @@ impl SecondReading {
         true
     }
 
-    /// The profiles of stretch `k`, its sound `x` from sample `lo`, read
-    /// with `beats` from its first on; none when it holds no beat.
-    #[allow(clippy::too_many_arguments)]
+    /// The profiles of stretch `k`, its sound `x` from sample `lo`, cut on
+    /// `w` and read with `beats` from its first on; none when it holds no
+    /// beat.
     fn stretch(
         &self,
         x: &[f32],
-        lo: usize,
-        k: usize,
+        (lo, k, w): (usize, usize, UnlockWindow),
         beats: &[Beat],
         bph: u32,
         cfg: &StreamConfig,
@@ -219,6 +257,7 @@ impl SecondReading {
         }
         let beat_s = 3600.0 / bph.max(1) as f64;
         let env = envelope(x, fs, &cfg.analysis.envelope);
+        let amp = &cfg.analysis.amplitude;
         let sides = profile::profiles(
             &env,
             fs,
@@ -226,7 +265,8 @@ impl SecondReading {
             2.0 * beat_s,
             0.0,
             x.len() as f64 / fs,
-            &cfg.analysis.amplitude,
+            amp,
+            w,
         );
         Some(StretchProfiles {
             end_s: to.min(duration_s),
@@ -248,7 +288,14 @@ impl SecondReading {
         }
         if let Some(h) = self.held.take_if(|h| h.jump_s == t) {
             let first = beats.partition_point(|b| b.time < self.start_s(h.k));
-            let again = self.stretch(&h.x, h.lo, h.k, &beats[first..], bph, cfg, f64::INFINITY);
+            let again = self.stretch(
+                &h.x,
+                (h.lo, h.k, h.w),
+                &beats[first..],
+                bph,
+                cfg,
+                f64::INFINITY,
+            );
             if let Some(p) = again {
                 self.profiles[h.at] = p;
             }
@@ -272,6 +319,7 @@ impl SecondReading {
         bytes_per_frame: u32,
         software: serde_json::Value,
     ) -> Stored {
+        self.all_windows(&log.amplitude_windows);
         self.profile_until(&log.beats, log.bph, cfg, (usize::MAX, None));
         let n_total = (log.duration_s * self.fs).round() as usize;
         while self.k * self.step < n_total.min(self.buf0 + self.buf.len()) {
@@ -334,6 +382,10 @@ pub struct KeepAs {
     /// Where to keep the analysis on the disk as it is recorded, if
     /// anywhere ([`checkpoint`]).
     pub checkpoints: Option<Checkpoints>,
+    /// Each chunk's amplitude windows found before the next chunk is
+    /// read, so a test's parts don't depend on the threads' pace (#1938).
+    #[cfg(test)]
+    pub(crate) in_step: bool,
 }
 
 /// Parts of the analysis kept on the disk as it is recorded
@@ -410,6 +462,32 @@ fn profile_bound(core_a: f64, heard: bool, read: usize, fs: f64) -> usize {
     behind.min(wait.max(held_to))
 }
 
+/// [`profile_bound`], and no further than the amplitude windows found so
+/// far reach (`windows_to_s`, seconds): a stretch waits for the windows up
+/// to its end, so it is cut on the window it would be cut on after
+/// ([`SecondReading::window_of`], #1924).
+fn profile_bound_found(
+    (core_a, heard): (f64, bool),
+    read: usize,
+    fs: f64,
+    windows_to_s: f64,
+) -> usize {
+    let found_to = (windows_to_s * fs).max(0.0) as usize;
+    profile_bound(core_a, heard, read, fs).min(found_to)
+}
+
+/// Whether `how` reads each chunk's amplitude windows before the next
+/// chunk: only ever in a test that asks ([`KeepAs::in_step`]).
+fn in_step(how: &KeepAs) -> bool {
+    #[cfg(test)]
+    return how.in_step;
+    #[cfg(not(test))]
+    {
+        let _ = how;
+        false
+    }
+}
+
 /// The Keeper's reading: the blocks from `rx`, until it closes, read as
 /// one recording.
 fn keep(
@@ -455,13 +533,20 @@ fn keep(
             }
             swaps = seen.swaps.len();
             second.release(seen.pending);
-            let until = profile_bound(seen.core_a, seen.heard, second.read(), fs);
+            second.windows_found(seen.windows);
+            let until = profile_bound_found(
+                (seen.core_a, seen.heard),
+                second.read(),
+                fs,
+                seen.windows_to_s,
+            );
             second.profile_until(seen.beats, seen.bph, cfg, (until, seen.pending));
             if let Some(parts) = parts.as_mut() {
                 let (profiles, to_s) = second.profiled();
                 parts.after_chunk(&seen, profiles, to_s);
             }
         },
+        in_step(how),
     )?;
     Ok(second.finish(
         log,
@@ -568,6 +653,19 @@ mod tests {
         sizes: &[usize],
         checkpoints: Option<Checkpoints>,
     ) -> (Stored, Checkpointed) {
+        kept_with_parts_paced(paths, (cfg, shapes), sizes, checkpoints, false)
+    }
+
+    /// [`kept_with_parts`], each chunk's amplitude windows found before the
+    /// next chunk is read if `in_step` ([`KeepAs::in_step`]), so its parts
+    /// are the same however fast the threads run.
+    fn kept_with_parts_paced(
+        paths: &[PathBuf],
+        (cfg, shapes): (&StreamConfig, &[Option<(f64, f64)>]),
+        sizes: &[usize],
+        checkpoints: Option<Checkpoints>,
+        in_step: bool,
+    ) -> (Stored, Checkpointed) {
         let info = audio::info(&paths[0]).unwrap();
         let keeper = Keeper::start(KeepAs {
             sample_rate: info.sample_rate,
@@ -576,6 +674,7 @@ mod tests {
             shapes: shapes.to_vec(),
             software: software(),
             checkpoints,
+            in_step,
         });
         let mut sound = Vec::new();
         for p in paths {
@@ -616,6 +715,19 @@ mod tests {
         assert_eq!(profile_bound(601.0, false, at(649.0), fs), at(49.0));
         assert_eq!(profile_bound(658.0, false, at(706.0), fs), at(106.0));
         assert_eq!(profile_bound(658.0, false, at(1400.0), fs), at(658.0));
+    }
+
+    /// A stretch also waits for amplitude's windows up to its end
+    /// (#1924): the bound goes no further than the windows found reach.
+    #[test]
+    fn profiles_wait_for_the_amplitude_windows() {
+        let fs = 48_000.0;
+        let at = |s: f64| (s * fs) as usize;
+        let bound = |windows_to_s| profile_bound_found((94.0, true), at(142.0), fs, windows_to_s);
+        assert_eq!(bound(60.0), at(60.0));
+        assert_eq!(bound(0.0), 0);
+        assert_eq!(bound(200.0), at(94.0));
+        assert_eq!(profile_bound_found((94.0, false), at(142.0), fs, 200.0), 0);
     }
 
     /// Kept while it is recorded, a take's analysis is the same, byte for
@@ -1063,7 +1175,9 @@ mod tests {
             take: dir.clone(),
             every_s: 10.0,
         });
-        let (kept, status) = kept_with_parts(&[path], &cfg, &[], &[48_000], parts);
+        // In step: the parts written before the sides are named don't
+        // depend on how fast the amplitude threads run (#1938).
+        let (kept, status) = kept_with_parts_paced(&[path], (&cfg, &[]), &[48_000], parts, true);
         let partial: checkpoint::Partial = serde_json::from_slice(
             &std::fs::read(dir.join(checkpoint::DIR).join(checkpoint::HEADER)).unwrap(),
         )
@@ -1157,10 +1271,9 @@ mod tests {
     fn parts_not_written_say_why_and_the_take_is_kept() {
         let dir = scratch("unwritable");
         // A part is due only once a chunk's amplitude windows are back,
-        // and they come back on other threads. Fifteen chunks are more
-        // than the queues hold on a four-core runner, so the reading
-        // waits on those threads before its last chunk (#1784).
-        let paths = take(&dir, 180.0, 1);
+        // and they come back on other threads: read in step, so a part
+        // is due whatever their pace (#1784, #1938).
+        let paths = take(&dir, 40.0, 1);
         let cfg = StreamConfig {
             chunk_s: 12.0,
             ..Default::default()
@@ -1173,7 +1286,7 @@ mod tests {
             take: blocked,
             every_s: 12.0,
         });
-        let (kept, status) = kept_with_parts(&paths, &cfg, &[], &[4097], parts);
+        let (kept, status) = kept_with_parts_paced(&paths, (&cfg, &[]), &[4097], parts, true);
         assert_eq!(kept_files(&kept), kept_files(&plain));
         assert_eq!(status.to_s, 0.0);
         assert!(
@@ -1198,11 +1311,132 @@ mod tests {
             shapes: Vec::new(),
             software: software(),
             checkpoints: None,
+            in_step: false,
         };
         let s = Keeper::start(how()).finish().unwrap();
         assert!(s.log.beats.is_empty() && s.profiles.is_empty());
         let k = Keeper::start(how());
         assert!(k.push(&[0.0; 4800]));
         drop(k);
+    }
+
+    /// The profiles a second reading keeps of `amp` (degrees at each
+    /// second) at `bph`, 60 s of it, and the reading's log.
+    fn kept_profiles(bph: u32, amp: impl Fn(f64) -> f64) -> Vec<StretchProfiles> {
+        let sc = SynthConfig {
+            duration_s: 60.0,
+            bph,
+            ..SynthConfig::default()
+        };
+        let audio = generate(&sc, amp, |_| 0.0);
+        let cfg = StreamConfig::default();
+        let log = stream::analyze_samples(&audio.samples, audio.sample_rate, &cfg);
+        let mut r = SecondReading::new(audio.sample_rate, &[]);
+        r.all_windows(&log.amplitude_windows);
+        r.audio(&audio.samples);
+        r.profile_until(&log.beats, log.bph, &cfg, (usize::MAX, None));
+        r.profiles
+    }
+
+    /// A run-down from 270° to 110° at 28,800 bph (#1924): its profiles go
+    /// to the long window once the unlock lies beyond the short one's
+    /// reach, as amplitude's do, and stay there; every unlock is marked on
+    /// its own curve, past its floor, and reads the amplitude heard, not
+    /// the impulse's. The take is kept as version 2 and reads back as it
+    /// was written. A steady 270° stays on the short window and version 1.
+    #[test]
+    fn a_run_down_s_profiles_go_long_with_each_mark_on_its_own_curve() {
+        let amp = |t: f64| 270.0 - 160.0 * t / 60.0;
+        let kept = kept_profiles(28_800, amp);
+        let short_t0 = -crate::beats::PRE_S * 1000.0;
+        let mut went_long = None;
+        for (i, p) in kept.iter().enumerate() {
+            for s in p.sides.iter().flatten() {
+                let long = s.t0_ms < short_t0 - 1e-9;
+                if long {
+                    went_long.get_or_insert(i);
+                } else {
+                    assert!(went_long.is_none(), "back to short at {} s", p.end_s);
+                }
+                let u = s.unlock_ms.expect("an unlock");
+                assert!(
+                    u > s.t0_ms + 3.0 && u < 0.0,
+                    "{} s: unlock {u} on {}",
+                    p.end_s,
+                    s.t0_ms
+                );
+                let heard = amp(p.end_s - 1.0);
+                let read = s.amplitude_deg.expect("an amplitude");
+                assert!(
+                    (read - heard).abs() < 10.0,
+                    "{} s: {read}° for {heard}°",
+                    p.end_s
+                );
+            }
+        }
+        let i = went_long.expect("the profiles went long");
+        assert!(i > 0, "long from the start");
+        let bin = analysis_take::profiles_bin(&kept);
+        assert_eq!(&bin[..8], b"TGPROF\0\x02");
+        let back = analysis_take::parse_profiles(&bin).unwrap();
+        // Written again it is version 2 still. Not byte for byte: the top
+        // was the highest of every point, and only every other is kept.
+        assert_eq!(&analysis_take::profiles_bin(&back)[..8], b"TGPROF\0\x02");
+        assert_eq!(back.len(), kept.len());
+        for (a, b) in kept.iter().zip(&back) {
+            for (x, y) in a.sides.iter().zip(&b.sides) {
+                let (x, y) = (x.as_ref().unwrap(), y.as_ref().unwrap());
+                assert_eq!(x.t0_ms as f32, y.t0_ms as f32);
+                assert_eq!(x.unlock_ms.map(|v| v as f32), y.unlock_ms.map(|v| v as f32));
+            }
+        }
+
+        let steady = kept_profiles(28_800, |_| 270.0);
+        assert!(steady
+            .iter()
+            .flat_map(|p| p.sides.iter().flatten())
+            .all(|s| (s.t0_ms - short_t0).abs() < 1e-9));
+        assert_eq!(&analysis_take::profiles_bin(&steady)[..8], b"TGPROF\0\x01");
+    }
+
+    /// A low-amplitude run-down (#1924) kept from its sound after
+    /// ([`measure`], which re-measures through `measure_from`) cuts its
+    /// profiles on the take's amplitude windows, so they go long as
+    /// amplitude does; kept while it is recorded, where a stretch waits
+    /// for amplitude's windows up to its end, it is the same byte for
+    /// byte.
+    #[test]
+    fn a_low_amplitude_run_down_is_kept_while_recorded_as_after() {
+        let dir = scratch("low-run-down");
+        let audio = generate(
+            &SynthConfig {
+                bph: 28_800,
+                duration_s: 60.0,
+                ..Default::default()
+            },
+            |t| 270.0 - 160.0 * t / 60.0,
+            |_| 0.0,
+        );
+        let path = dir.join("take_part01-001.wav");
+        audio::write_wav(&path, &audio).unwrap();
+        let paths = vec![path];
+        let cfg = StreamConfig {
+            chunk_s: 11.5,
+            ..Default::default()
+        };
+        let after = measure(&[paths[0].as_path()], &cfg, &[], software(), |_| {}).unwrap();
+        let short_t0 = -crate::beats::PRE_S * 1000.0;
+        let long =
+            |p: &StretchProfiles| (p.sides.iter().flatten()).any(|s| s.t0_ms < short_t0 - 1e-9);
+        let n_long = after.profiles.iter().filter(|p| long(p)).count();
+        assert!(n_long >= 5, "{n_long} long of {}", after.profiles.len());
+        assert!(!long(&after.profiles[0]), "long from the start");
+        for sizes in [vec![1, 4097, 333, 150_001, 7], vec![48_000 * 7]] {
+            let live = kept_live(&paths, &cfg, &[], &sizes);
+            for ((name, x), (_, y)) in kept_files(&after).iter().zip(&kept_files(&live)) {
+                assert!(x == y, "{name} differs, blocks {sizes:?}");
+            }
+        }
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

@@ -516,6 +516,40 @@ impl TimegrapherApp {
         }
     }
 
+    /// A failure ends the running test at its last beat heard: the beats
+    /// heard up to it read as a tick reads them, so a stop found there is
+    /// the watch's own, else `ending`, at least that long and never a stop
+    /// of the watch. The one rule for a failed recording and a failed
+    /// input (#1380, #1882).
+    fn reserve_ended_by(&mut self, ending: power_reserve::Ending) {
+        let beat_s = power_reserve::beat_s(self.reserve_bph());
+        let Some(t) = self.reserve.as_mut() else {
+            return;
+        };
+        if let Some(live) = self.live.as_ref() {
+            t.update(live.beats(), beat_s, live.duration_s());
+        }
+        if t.running() {
+            t.ending = Some(ending);
+        }
+    }
+
+    /// The live input ended while a Power Reserve Test ran (a microphone
+    /// unplugged, no sound arriving, or its stream gone; each but the last
+    /// says why as an input failure): the run ends there
+    /// ([`Self::reserve_ended_by`],
+    /// [`power_reserve::Ending::InputFailed`]), and its take is kept with
+    /// its results as Stop keeps it (#1882). Whether it did: not for a
+    /// recording opened (`was_file`), or with no test running.
+    pub(super) fn reserve_input_failed(&mut self, was_file: bool) -> bool {
+        if was_file || !self.reserve_running() {
+            return false;
+        }
+        self.reserve_ended_by(power_reserve::Ending::InputFailed);
+        self.end_reserve();
+        true
+    }
+
     /// The recording failed while a Power Reserve Test ran: the run ends
     /// there, read to its last beat heard, at least that long and never a
     /// stop of the watch ([`power_reserve::Ending::RecordingFailed`]). Its
@@ -526,17 +560,9 @@ impl TimegrapherApp {
         if !self.reserve_running() {
             return;
         }
-        // The beats heard up to the failure, as a tick reads them: a stop
-        // found there is the watch's own.
-        let beat_s = power_reserve::beat_s(self.reserve_bph());
-        if let (Some(live), Some(t)) = (self.live.as_ref(), self.reserve.as_mut()) {
-            t.update(live.beats(), beat_s, live.duration_s());
-        }
+        self.reserve_ended_by(power_reserve::Ending::RecordingFailed);
         let kept = self.kept_running();
         if let Some(t) = self.reserve.as_mut() {
-            if t.running() {
-                t.ending = Some(power_reserve::Ending::RecordingFailed);
-            }
             // Nothing follows to keep it as its analysis alone: the take
             // keeps its sound, and says so; read as it came, its analysis
             // is kept all the same.
