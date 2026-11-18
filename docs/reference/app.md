@@ -2164,7 +2164,10 @@ anything is in them or not. A missing figure is a "—", with what the
 reading waits on in the unit's place, in short words ("Settling, 20 s";
 "Waiting for Beats"; "Before the Move"), the full sentence in the hover.
 With no regular beat, the reading cards say "No Regular Beat" there, with
-the full sentence and the timing scatter in the hover. A figure too wide
+the full sentence and the timing scatter in the hover. A regular beat
+heard after noise or silence, at launch or a New Session, says "Finding
+the Beat" instead, never that verdict, until the last 20 s
+(`live::FINDING_S`) hold the watch alone (#2008). A figure too wide
 for its card is drawn smaller. So the cards, and every pane under them,
 never change height with the readings. No pane is squeezed below 120 points, so the Paper
 Strip keeps room to read on a short window.

@@ -50,6 +50,12 @@ pub const RATE_RUN_S: f64 = 300.0;
 /// 10 s average.
 pub const SCATTER_LOOKBACK_S: f64 = 15.0;
 
+/// How long a regular run of beats is a beat still being found, not a
+/// verdict, when the scatter's look back still reaches before it: the
+/// look back and the step its start is floored to, so past this the look
+/// back holds the run alone and its verdict stands (#2008).
+pub const FINDING_S: f64 = SCATTER_LOOKBACK_S + measure::RATE_WINDOW_STEP_S;
+
 /// The rate windows' length and step, as every reading lays them
 /// ([`measure::RATE_WINDOW_S`], [`measure::RATE_WINDOW_STEP_S`]).
 const RATE_W: f64 = measure::RATE_WINDOW_S;
@@ -163,6 +169,12 @@ pub struct LiveReading {
     /// as `analyze` leaves them out; `jitter_us`,
     /// `timing_scatter_fraction` and `bph` stay.
     pub watch_heard: bool,
+    /// The beats of the latest run are regular on their own, but it began
+    /// within [`FINDING_S`] of the reading, after silence, noise or the
+    /// take's start, which the scatter's look back still holds: no
+    /// figures yet, and no verdict either, until the look back holds the
+    /// watch alone (#2008). Only when `watch_heard` is false.
+    pub finding_beat: bool,
     /// The rate's ±, from `measure::assess` as `analyze` and `session`
     /// give theirs: the scatter of 10 s windows over the run so far,
     /// scaled to the averaging time, its noise from at least
@@ -1279,6 +1291,7 @@ impl LiveAnalyzer {
             no_watch,
         } = self.verdict_at(holes, bph, window_from, end_s, st.listened_s);
         let watch_heard = no_watch.is_none();
+        let finding_beat = !watch_heard && self.young_regular_run(fit.as_ref(), bph, end_s, holes);
         let heard = |v: Option<f64>| v.filter(|_| watch_heard);
         // Figures that name a side wait until the sides are told apart.
         let sided = self.sides_known_at(end_s);
@@ -1337,6 +1350,7 @@ impl LiveAnalyzer {
             clipped_beats: st.clipped_beats,
             clipped_fraction,
             watch_heard,
+            finding_beat,
             rate_error_s_per_day: assessment.confidence.and_then(|c| c.rate.se),
             rate_no_pm: assessment.confidence.and_then(|c| c.rate.no_pm),
             rate_noise_values: crate::confidence::rate_value_count(take_rate.len())
@@ -1404,6 +1418,29 @@ impl LiveAnalyzer {
 
     /// Whether a watch is heard at `end_s`, and the beats' scatter it is
     /// judged from.
+    /// Whether the run a reading ending at `end_s` is fitted on is regular
+    /// on its own and began within [`FINDING_S`]: after a pause in the
+    /// beats, or after the take's start, inside that time (#2008).
+    fn young_regular_run(
+        &self,
+        fit: Option<&crate::timing::TimingFit>,
+        bph: Option<u32>,
+        end_s: f64,
+        holes: &Cuts,
+    ) -> bool {
+        let (Some(fit), Some(b)) = (fit, bph) else {
+            return false;
+        };
+        let look_from = end_s - FINDING_S;
+        let cut = holes.run_cut(&self.beats, look_from, end_s).max(look_from);
+        let first = self.beats.partition_point(|x| x.time < cut);
+        let began_after_quiet = self
+            .beats
+            .get(first)
+            .is_some_and(|x| look_from <= 0.0 || x.time - look_from > GAP_S);
+        began_after_quiet && beats::watch_heard(Some(fit.jitter_us), b)
+    }
+
     fn verdict_at(
         &self,
         holes: &Cuts,

@@ -419,13 +419,25 @@ impl TimegrapherApp {
         let cards = lay_cards(ui, (total, h), widths, gap, pal);
         // A reading whose beats scatter like noise is no watch: no figures
         // then, only a word saying so where the unit goes.
+        // A regular beat just heard after noise or silence is still being
+        // found: a wait, not that verdict (#2008).
         let heard = heard(r.as_ref());
-        let unheard_line = timegrapher_core::measure::NO_WATCH_TITLE.to_string();
-        let unheard_hover = format!(
-            "{}.\n\n{}",
-            r.as_ref().map(no_regular_beat).unwrap_or_default(),
-            *help::NO_REGULAR_BEAT
-        );
+        let finding = r.as_ref().is_some_and(|r| r.finding_beat);
+        let (unheard_line, unheard_hover) = if finding {
+            (
+                timegrapher_core::measure::FINDING_TITLE.to_string(),
+                timegrapher_core::measure::finding_text(),
+            )
+        } else {
+            (
+                timegrapher_core::measure::NO_WATCH_TITLE.to_string(),
+                format!(
+                    "{}.\n\n{}",
+                    r.as_ref().map(no_regular_beat).unwrap_or_default(),
+                    *help::NO_REGULAR_BEAT
+                ),
+            )
+        };
         let unheard = (!heard).then(|| (unheard_line.clone(), unheard_hover.clone()));
         let r = r.as_ref().filter(|_| heard);
         // The take's breaks not all its own list's, as session says too.
@@ -1514,7 +1526,7 @@ impl TimegrapherApp {
         self.batch.is_none()
             && live.duration_s() > 6.0
             && !self.trend.iter().any(|p| p.heard)
-            && self.reading().is_none_or(|r| !r.watch_heard)
+            && self.reading().is_none_or(|r| !r.watch_heard && !r.finding_beat)
             && !self.heard_while_settling(live)
     }
 
