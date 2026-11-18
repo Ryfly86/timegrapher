@@ -890,6 +890,44 @@ pub fn rate_se_or_why(windows: &[WindowFit], take: &[WindowFit]) -> Result<f64, 
     shown(standard_error_borrowing(&s, &pool)?)
 }
 
+/// The rate's ± for a set average of `m` independent values (Average
+/// Over, at least 1): the median of m values' scatter about where the rate
+/// is now, 1.2533 · s / √m, with s the 10 s rates' scatter from their
+/// successive differences, the run's own where it holds
+/// [`MIN_NOISE_VALUES`], else borrowed from `take`'s nearest
+/// ([`noise_pool`]) as [`rate_se_or_why`]'s. No lag-one correlation: a
+/// rate that drifts over minutes, as it does after a move while the watch
+/// settles, is uncertainty about a mean over the run, not about a reading
+/// over the last few seconds, and a drift read as correlation made a 10 s
+/// reading's ± 12 times its scatter (Norm on #1950). [`NoPm::TooFew`] with
+/// fewer than [`MIN_VALUES`] values in the run, as [`rate_se_or_why`].
+pub fn rate_se_of_average_or_why(
+    windows: &[WindowFit],
+    take: &[WindowFit],
+    m: f64,
+) -> Result<f64, NoPm> {
+    let own: Vec<&WindowFit> = rate_values(windows).collect();
+    let take: Vec<&WindowFit> = rate_values(take).collect();
+    let (levels, pool) = own_and_pool(
+        &own,
+        &take,
+        |w| (w.start_s, w.end_s),
+        |w| Some(w.fit.rate_s_per_day),
+    )
+    .ok_or(NoPm::TooFew)?;
+    let n = level_count(&levels);
+    if n < MIN_VALUES {
+        return Err(NoPm::TooFew);
+    }
+    let source = if n >= MIN_NOISE_VALUES {
+        &levels
+    } else {
+        &pool
+    };
+    let noise = Noise::of_levels(source, MIN_NOISE_VALUES).ok_or(NoPm::PoolShort)?;
+    shown(1.2533 * noise.s / m.max(1.0).sqrt())
+}
+
 /// Standard error of the beat error from the unlock, ms: the one rule for
 /// it, which the assessment reads (#641). Of the same quantity as the
 /// figure beside it ([`crate::timing::median_signed`]): of the windows'

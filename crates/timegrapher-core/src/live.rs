@@ -182,6 +182,12 @@ pub struct LiveReading {
     /// that says how near the ± is. Not saved.
     #[serde(skip)]
     pub rate_noise_values: usize,
+    /// How many of those are the run's own (back to a break or a move),
+    /// up to [`crate::confidence::MIN_NOISE_VALUES`]; the rest are
+    /// borrowed from the take nearest it: for the hover (#1950). Not
+    /// saved.
+    #[serde(skip)]
+    pub rate_own_values: usize,
     /// The 2 s windows in the averaging time that read an amplitude, and
     /// those the take holds up to the reading, up to the
     /// [`crate::confidence::MIN_NOISE_VALUES`] its ± takes its scatter
@@ -1340,6 +1346,8 @@ impl LiveAnalyzer {
             rate_error_s_per_day: assessment.confidence.and_then(|c| c.rate.se),
             rate_no_pm: assessment.confidence.and_then(|c| c.rate.no_pm),
             rate_noise_values: crate::confidence::rate_value_count(take_rate.len())
+                .min(crate::confidence::MIN_NOISE_VALUES),
+            rate_own_values: crate::confidence::rate_value_count(rate_windows.len())
                 .min(crate::confidence::MIN_NOISE_VALUES),
             amplitude_values: wins.iter().filter(|w| w.mean().is_some()).count(),
             amplitude_noise_values: take_amp

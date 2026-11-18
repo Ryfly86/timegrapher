@@ -156,10 +156,16 @@ pub(super) fn rate_pm_words(r: &LiveReading) -> Option<String> {
     r.rate_s_per_day?;
     Some(match r.rate_error_s_per_day {
         Some(se) => format!(
-            "± {} s/d is one standard error ({se:.3}, rounded up). It comes from at \
-             least {NEED} rates of 10 s each: this run's, or if it has fewer, the \
-             {NEED} nearest in this take.",
-            pm_text(se, base::RATE)?
+            "± {} s/d is one standard error ({se:.3}, rounded up). Its scatter comes \
+             from {NEED} rates of 10 s each: {}.",
+            pm_text(se, base::RATE)?,
+            match r.rate_own_values {
+                n if n >= NEED => "this run's own".to_string(),
+                n => format!(
+                    "{n} of this run's own and {} nearest in this take",
+                    NEED - n
+                ),
+            }
         ),
         // Readings that repeat exactly first: more won't give a ± (#1908).
         None if r.rate_no_pm == Some(NoPm::Repeats) => NoPm::REPEATS_TEXT.to_string(),
