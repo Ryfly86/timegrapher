@@ -1667,7 +1667,10 @@ fn a_good_watch_after_the_stand_noise_is_found_not_judged() {
             found.push(after);
         }
     }
-    assert!(!found.is_empty(), "the noise still holds the verdict at first");
+    assert!(
+        !found.is_empty(),
+        "the noise still holds the verdict at first"
+    );
     assert!(found.iter().all(|&t| t <= FINDING_S + 1.0), "{found:?}");
     assert!(a.reading(DEFAULT_AVERAGE_S).watch_heard);
 }

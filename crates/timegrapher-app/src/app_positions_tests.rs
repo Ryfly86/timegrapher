@@ -1184,7 +1184,10 @@ fn an_opened_takes_table_can_be_saved_and_copied() {
         "{drawn}"
     );
     for d in [least, most].map(guided::table_duration) {
-        assert!(lines.contains(&d.as_str()), "{d} in the Duration column: {drawn}");
+        assert!(
+            lines.contains(&d.as_str()),
+            "{d} in the Duration column: {drawn}"
+        );
     }
     let _ = std::fs::remove_dir_all(&base);
 }

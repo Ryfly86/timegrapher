@@ -76,8 +76,9 @@ pub fn range(points: &[(f64, f64, Option<f64>)], fit: Option<&PoiseFit>) -> Opti
 /// closely, is drawn on a scale this wide about their middle, not one
 /// blown up around a single rate (Peter, 2026-11-18: one stop drew rings
 /// from −33.82 to −33.94 s/d). A once-round wave worth stating is several
-/// s/d each way, so it still fills the picture.
-pub const LEAST_SPAN_S_PER_DAY: f64 = 10.0;
+/// s/d each way, so it still fills the picture. The same
+/// least span as the Positions plots' rate axis, one source.
+pub const LEAST_SPAN_S_PER_DAY: f64 = crate::position_line::LEAST_SPAN_S_PER_DAY;
 
 /// The rate scale, [lo, hi, step]: [`range`] widened about its middle to
 /// at least [`LEAST_SPAN_S_PER_DAY`] and rounded to whole steps; ±1 s/d
