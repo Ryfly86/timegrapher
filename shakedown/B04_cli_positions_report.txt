@@ -1,0 +1,25 @@
+Positions Test
+
+Date        2026-11-18 19:20
+Beat Rate   28,800 bph
+Lift Angle  55°
+Software    Timegrapher 1.0.0, engine 2d86e351
+
+Position                Rate  From Average  Amplitude  Beat Error
+                         s/d           s/d          °          ms
+-----------------------------------------------------------------
+Dial Up (DU)           +51.6         +31.2        254        0.29
+Dial Down (DD)         +35.4         +15.1        240        0.05
+Crown Down (CD, 9H)    +10.2         -10.1        226        0.08
+Crown Left (CL, 6H)    +62.0         +41.7        234        0.22
+Crown Up (CU, 3H)      -12.4         -32.7        224        0.30
+Crown Right (CR, 12H)  -24.8         -45.1        230        0.19
+-----------------------------------------------------------------
+Average                +20.3                      234        0.19
+Largest Difference      86.8                       30        0.25
+
+Vertical less horizontal rate       -34.7 s/d
+Vertical less horizontal amplitude  -19°
+
+Notes
+- Beat Error from the Unlock: mean of 6 of 6 positions.

@@ -1,0 +1,30 @@
+Dynamic Poise Test
+
+Date        2026-11-18 19:34
+Beat Rate   28,800 bph
+Lift Angle  55°
+Software    Timegrapher 1.0.0, engine 2d86e351
+
+Position                Rate  From Mean  Amplitude  Beat Error
+                         s/d        s/d          °          ms
+--------------------------------------------------------------
+Crown Down (CD, 9H)    +40.5      +19.9        236        0.15
+7:30 Up (7H30)         +35.8      +15.2        236        0.19
+Crown Left (CL, 6H)    +65.9      +45.3        239        0.21
+4:30 Up (4H30)         +75.1      +54.5        237        0.34
+Crown Up (CU, 3H)      -11.1      -31.7        220        0.22
+1:30 Up (1H30)         -12.8      -33.4        223        0.22
+Crown Right (CR, 12H)   -7.2      -27.7        237        0.19
+10:30 Up (10H30)       -21.6      -42.1        231        0.22
+--------------------------------------------------------------
+Mean                   +20.6                   233        0.22
+
+Once-round wave over 8 upright positions: 44.2 s/d each way from the
+mean, with no ±, so no fastest hour. Twice-round terms: cos 2α +7.3 s/d,
+sin 2α -7.6 s/d. At 220–239°, poise barely moves the rate. Heavy spot
+not stated. Amplitude also changes once round, 7 ± 1° each way, so part
+of the wave may be isochronism. Poise moves the rate least at 219.5°
+amplitude, and the other way above it.
+
+Notes
+- Beat Error from the Unlock: mean of 8 of 8 positions.
