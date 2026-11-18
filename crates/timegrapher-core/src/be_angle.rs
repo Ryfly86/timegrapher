@@ -1,13 +1,16 @@
 //! The beat error as an angle of the balance's swing, "BE Angle" (#1576
 //! row 2, Horace's audit, Witschi 2025 p. 8; Peter named it 13 Nov 2026).
 //!
-//! The beat error in ms is the time between the balance passing its
-//! centre and the escapement's mid point, so it grows as the amplitude
-//! falls even when nothing in the escapement has moved. As an angle it
-//! stays put: angle = amplitude × π × (bph / 7200) × beat error (Norm).
-//! The balance swings through its centre at its fastest, amplitude × 2π ×
-//! frequency degrees a second, with frequency = bph / 7200 Hz; one half of
-//! that factor goes because the swing is measured either side of centre.
+//! The beat error in ms, half the difference of the Tick and the Tock
+//! beats, follows from the escapement's mid point sitting off the
+//! balance's centre: one beat is longer and the other shorter by twice
+//! the time the balance takes between the two, so the beat error is twice
+//! that time. It grows as the amplitude falls even when nothing in the
+//! escapement has moved. As an angle it stays put: the balance passes its
+//! centre at its fastest, amplitude × 2π × frequency degrees a second,
+//! with frequency = bph / 7200 Hz, so the mid point lies that speed × half
+//! the beat error off centre: angle = amplitude × π × (bph / 7200) × beat
+//! error (Norm).
 //! It rests on the lift angle through the amplitude, so a lift angle 7%
 //! off makes the angle 7% off; the beat error in ms does not.
 //!
