@@ -2475,7 +2475,7 @@ impl TimegrapherApp {
             self.recording_failed(error);
         } else {
             let was_file = self.capture.as_ref().is_some_and(|c| c.is_file);
-            if ended {
+            if ended && !self.reserve_input_failed(was_file) {
                 self.stop();
                 if was_file {
                     self.info_msg("End of the recording.".into());
