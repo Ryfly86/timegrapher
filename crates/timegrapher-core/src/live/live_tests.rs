@@ -1539,3 +1539,48 @@ fn the_beats_generation_changes_with_the_beats() {
     assert!(a.beats().is_empty());
     assert!(![empty, heard, other.beats_gen()].contains(&a.beats_gen()));
 }
+
+/// Live puts a side's beats on their drop as a saved read does: a watch
+/// whose impulse grows louder than its drop (#1819), heard live, gives
+/// the saved read's beat times. A read that hears only the start of a
+/// 2 s block can't tell the drop, so live times each block's beats again
+/// on every read that heard it from its start (`redrop_heard_blocks`).
+/// Here 377 of 384 beats match the saved read to 1 µs; without the
+/// re-timing, 328 do.
+#[test]
+fn live_puts_beats_on_their_drop_as_a_saved_read_does() {
+    let seg = |gain: f64, seed: u64| {
+        let mut c = SynthConfig {
+            duration_s: 60.0,
+            seed,
+            ..Default::default()
+        };
+        c.sounds[1].gain = gain;
+        generate(&c, |_| 220.0, |_| 0.0)
+    };
+    let mut audio = seg(0.25, 181_910);
+    audio.samples.extend_from_slice(&seg(1.6, 181_911).samples);
+    let cfg = crate::stream::StreamConfig {
+        analysis: crate::analysis::AnalysisConfig {
+            bph: Some(28800),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let saved = crate::stream::analyze_samples(&audio.samples, audio.sample_rate, &cfg);
+    let mut a = LiveAnalyzer::new(audio.sample_rate, LiveConfig::default());
+    feed(&mut a, &audio.samples);
+    let late = |t: f64| (70.0..118.0).contains(&t);
+    let s: Vec<f64> = (saved.beats.iter())
+        .map(|b| b.time)
+        .filter(|&t| late(t))
+        .collect();
+    let same = (a.beats().iter())
+        .filter(|b| late(b.time))
+        .filter(|b| {
+            let i = s.partition_point(|v| *v < b.time - 1e-6);
+            s.get(i).is_some_and(|v| (v - b.time).abs() <= 1e-6)
+        })
+        .count();
+    assert!(same * 100 >= s.len() * 95, "{same} of {}", s.len());
+}
