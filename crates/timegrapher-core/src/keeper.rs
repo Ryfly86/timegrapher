@@ -1209,7 +1209,9 @@ mod tests {
             take: dir.clone(),
             every_s: 8.0,
         });
-        let (_, status) = kept_with_parts(&paths, &cfg, &[], &[4097], parts);
+        // In step: how much is kept doesn't depend on how fast the amplitude
+        // threads run (#1938; seen at 8 s on a Windows runner, #1995).
+        let (_, status) = kept_with_parts_paced(&paths, (&cfg, &[]), &[4097], parts, true);
         // The last chunk read starts 48 s in: 6 parts, or fewer while its
         // windows were still being found.
         assert!(status.to_s >= 24.0, "{}", status.to_s);

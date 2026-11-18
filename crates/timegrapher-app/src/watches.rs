@@ -1566,6 +1566,30 @@ fn engine_line() -> String {
     format!("Read by Timegrapher {version}, engine {source}")
 }
 
+/// A take's own figures as its hover says them, on a line of their own
+/// after its facts: which position they are of, where it has more than
+/// one, and that they are its whole stretch after settling, so they can
+/// differ from the Bench's at Stop (#1979). Empty for a test's take, whose
+/// figures [`figures_hover`] says, or with nothing read.
+fn read_line(t: &Take, test: bool, reading: Option<&Reading>) -> String {
+    let Some(r) = reading.filter(|_| !test && t.power_reserve.is_none()) else {
+        return String::new();
+    };
+    let figures: Vec<String> =
+        timegrapher_core::library::figure_words(r.rate_s_per_day, r.amplitude_deg, r.beat_error_ms)
+            .iter()
+            .map(|w| true_minus(w))
+            .collect();
+    if figures.is_empty() {
+        return String::new();
+    }
+    let of = match r.position.as_deref().and_then(Position::parse) {
+        Some(p) if t.positions.len() > 1 => format!("{}, its whole stretch", p.name()),
+        _ => "The whole take".to_string(),
+    };
+    format!("\n{of} after settling: {}", figures.join(" · "))
+}
+
 /// A take's row as its hover says it: the take, its figures, where its
 /// reading is, and what a click does. `count` is the positions test's
 /// count of positions, where it is one.
@@ -1599,8 +1623,9 @@ fn take_hover(
         (None, None) => "\n\nStart time not recorded.",
     };
     format!(
-        "{}\n{}{start}{figures}\n\n{}",
-        take_line(t, test, reading),
+        "{}{}\n{}{start}{figures}\n\n{}",
+        take_line(t, test, None),
+        read_line(t, test, reading),
         timegrapher_core::reading_text::wind_before_take_words(t.wind_h),
         if on_show {
             "This take is on show on the Bench. Right-click for more."
@@ -2737,205 +2762,6 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    /// A take's hover names the engine that read its kept reading, and
-    /// says nothing of an engine while it is being read or couldn't be
-    /// (#1521, Hugh).
-    #[test]
-    fn a_takes_hover_names_the_engine_that_read_it() {
-        let (version, source) = timegrapher_core::library::engine();
-        let line = format!("Read by Timegrapher {version}, engine {source}");
-        assert_eq!(engine_line(), line);
-        let take = Take {
-            name: "test".into(),
-            bytes: 0,
-            audio: true,
-            incomplete: false,
-            started_utc: None,
-            named_start: None,
-            duration_s: None,
-            positions: Vec::new(),
-            at_end: None,
-            power_reserve: None,
-            wind_h: None,
-        };
-        let dir = PathBuf::from("watch/test");
-        let read = Reading {
-            position: Some("DU".into()),
-            rate_s_per_day: Some(3.5),
-            calibrated: false,
-            amplitude_deg: Some(281.0),
-            beat_error_ms: Some(0.4),
-            beat_error_source: None,
-            caveats: Vec::new(),
-            watch_heard: true,
-        };
-        let hover = |state: TakeReading| {
-            let readings = TakeReadings::known([(dir.clone(), 0, state)]);
-            let cx = TakesContext {
-                others: &[],
-                writable: true,
-                keeping: None,
-                unsorted: false,
-                picked: None,
-                on_show: None,
-                held: None,
-                readings: &readings,
-            };
-            take_hover(&take, &cx, &dir, None, readings.reading(&dir))
-        };
-        let kept = hover(TakeReading::Read(Ok(read.clone())));
-        assert!(kept.contains(&format!("\n\n{line}\n\n")), "{kept}");
-        for state in [
-            TakeReading::Reading,
-            TakeReading::Read(Err("no beats".into())),
-        ] {
-            let h = hover(state);
-            assert!(!h.contains("Read by Timegrapher"), "{h}");
-        }
-    }
-
-    /// The row's hover says how many positions a test's figures are the
-    /// mean of: six only when six were measured.
-    #[test]
-    fn a_tests_hover_counts_the_positions_measured() {
-        assert!(figures_hover(Some(6), false).contains("Mean of the six positions"));
-        assert!(figures_hover(Some(2), false).contains("Mean of the 2 positions measured"));
-        assert!(figures_hover(Some(1), false).contains("the one position measured"));
-        assert!(figures_hover(None, true).contains("hour by hour"));
-        assert_eq!(figures_hover(None, false), "");
-    }
-
-    #[test]
-    fn a_take_line_says_what_it_measured_with_beat_error_as_a_size() {
-        let t = Take {
-            name: "2026-10-20 14.32 Dial Up".into(),
-            bytes: 1_900_000,
-            audio: false,
-            incomplete: true,
-            started_utc: Some("2026-10-20T21:32:00Z".into()),
-            named_start: None,
-            duration_s: Some(120.0),
-            positions: vec!["DU".into(), "CL".into()],
-            at_end: None,
-            power_reserve: None,
-            wind_h: None,
-        };
-        let reading = Reading {
-            position: Some("CL".into()),
-            rate_s_per_day: Some(3.5),
-            calibrated: true,
-            amplitude_deg: Some(281.0),
-            beat_error_ms: Some(-0.4),
-            beat_error_source: None,
-            caveats: Vec::new(),
-            watch_heard: true,
-        };
-        let r = Some(&reading);
-        let line = take_line(&t, false, r);
-        assert!(line.starts_with("Dial Up, Crown Left · "), "{line}");
-        assert!(
-            line.contains("+3.5 s/d · 281° · 0.40 ms · Analysis Only · Incomplete"),
-            "{line}"
-        );
-        // Until the reading is worked out, no figures.
-        let line = take_line(&t, false, None);
-        assert!(!line.contains("s/d") && !line.contains('°'), "{line}");
-        // A Power Reserve take leads with its run, not its length.
-        let r = Take {
-            positions: vec!["CL".into()],
-            power_reserve: Some(timegrapher_core::power_reserve::Summary {
-                run_s: 166_320.0,
-                ending: timegrapher_core::power_reserve::Ending::Stopped,
-                position: "CL".into(),
-            }),
-            ..t.clone()
-        };
-        let line = take_line(&r, false, Some(&reading));
-        assert!(
-            line.starts_with("Power Reserve 46 h 12 min · Crown Left · Analysis Only"),
-            "{line}"
-        );
-        // Nor does a Positions Test's last window stand for the test.
-        let line = take_line(&t, true, Some(&reading));
-        assert!(!line.contains("+3.5") && !line.contains("281°"), "{line}");
-        assert!(local_minute("2026-10-20T21:32:00Z").is_some_and(|m| m.len() == 16));
-        assert_eq!(local_minute("not a time"), None);
-    }
-    #[test]
-    fn positions_take_hover_explains_the_actual_beat_error_mean() {
-        use crate::guided::{FullWind, KeptRow, RESULTS_FILE, RESULTS_FORMAT};
-        use timegrapher_core::session::BeatErrorSource as S;
-        for legacy in [true, false] {
-            let dir = std::env::temp_dir()
-                .join(format!("tg-source-hover-{}-{legacy}", std::process::id()));
-            let _ = std::fs::remove_dir_all(&dir);
-            std::fs::create_dir_all(&dir).unwrap();
-            let full = FullWind {
-                wind_h: None,
-                against: None,
-                format: RESULTS_FORMAT.into(),
-                began_utc: String::new(),
-                began_unix: 0.0,
-                watch: String::new(),
-                calibre: String::new(),
-                bph: None,
-                lift_angle_deg: None,
-                settle_s: None,
-                measure_s: None,
-                positions: [("DU", S::Unlock), ("DD", S::Drop), ("CU", S::Unlock)]
-                    .into_iter()
-                    .map(|(p, source)| KeptRow {
-                        position: p.into(),
-                        rate_s_per_day: Some(1.0),
-                        amplitude_deg: Some(270.0),
-                        beat_error_ms: Some(0.4),
-                        beat_error_source: if legacy { None } else { Some(source) },
-                    })
-                    .collect(),
-            };
-            std::fs::write(dir.join(RESULTS_FILE), full.to_json()).unwrap();
-            let readings = TakeReadings::default();
-            let cx = TakesContext {
-                others: &[],
-                writable: true,
-                keeping: None,
-                unsorted: false,
-                picked: None,
-                on_show: None,
-                held: None,
-                readings: &readings,
-            };
-            let take = Take {
-                name: "test".into(),
-                bytes: 0,
-                audio: false,
-                incomplete: false,
-                started_utc: None,
-                named_start: None,
-                duration_s: None,
-                positions: vec!["DU".into(), "DD".into(), "CU".into()],
-                at_end: None,
-                power_reserve: None,
-                wind_h: None,
-            };
-            let hover = take_hover(&take, &cx, &dir, Some(3), None);
-            assert!(hover.contains("Rate and Amplitude: Mean of the 3 positions measured"));
-            if legacy {
-                assert_eq!(positions_means(&dir).unwrap().1[2], None);
-                assert!(
-                    hover.contains("no mean") && hover.contains("leaves out 3 readings"),
-                    "{hover}"
-                );
-            } else {
-                assert!(
-                    hover.contains("Beat Error from the Unlock: mean of 2 of 3 positions"),
-                    "{hover}"
-                );
-            }
-            let _ = std::fs::remove_dir_all(&dir);
-        }
-    }
-
     /// The list finds a watch by its name, calibre, notes or any field's
     /// value, ignoring case and the search's spaces at either end; Last
     /// Take puts the watch with the newest take first, a watch with none
@@ -3001,3 +2827,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 }
+
+#[cfg(test)]
+#[path = "watches_hover_tests.rs"]
+mod hover_tests;
