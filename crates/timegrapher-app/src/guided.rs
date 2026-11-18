@@ -9,9 +9,12 @@
 //! the charts and a saved session keep the positions as any change of
 //! position does.
 
+mod free_grid;
 use crate::app::Position;
 use crate::theme;
 use eframe::egui::{self, RichText, Vec2};
+use free_grid::free_grid;
+pub use free_grid::free_table;
 use timegrapher_core::clock::ClockFit;
 use timegrapher_core::figure_text::base_digits::{AMPLITUDE, BEAT_ERROR, RATE};
 use timegrapher_core::figure_text::{fixed_text, signed_text, true_minus};
@@ -1246,9 +1249,12 @@ const GAP: f32 = 16.0;
 /// table: each heading still fits, as [`column_head`] keeps it.
 const TIGHT_FIGURE_W: f32 = 54.0;
 const TIGHT_GAP: f32 = 10.0;
-/// The Dynamic Poise table's width at its widths, and tight.
+/// A results table's width at its widths: Position and four figures.
 pub(crate) const TABLE_W: f32 = 590.0;
-pub(crate) const TIGHT_TABLE_W: f32 = 470.0;
+/// The Dynamic Poise table's width at its widths, and tight: a Duration
+/// column more than [`TABLE_W`] (Peter, 2026-11-18).
+pub(crate) const POISE_TABLE_W: f32 = TABLE_W + FIGURE_W + GAP;
+pub(crate) const TIGHT_TABLE_W: f32 = 470.0 + TIGHT_FIGURE_W + TIGHT_GAP;
 /// The comparison's figure columns, whose headings are longer.
 const WIDE_W: f32 = 100.0;
 const LABEL_W: f32 = 150.0;
@@ -1281,20 +1287,33 @@ fn table_grid(
     let be_hint = crate::reserve::beat_error_hint(
         "As a size, from the unlock, or from the drop where the unlock isn't found.",
     );
+    let slots = table_slots(&t.rows, kind.order(), poise);
+    // The Dynamic Poise table says how long each stop was read, as This
+    // Take's does (Peter, 2026-11-18).
+    let dur = poise && !t.durations.is_empty();
+    let blank = |ui: &mut egui::Ui| {
+        if dur {
+            ui.label("");
+        }
+    };
     let mut tops = Vec::new();
     let grid = egui::Grid::new(id)
-        .num_columns(5)
+        .num_columns(5 + usize::from(dur))
         .spacing(Vec2::new(gap, 5.0))
         .min_col_width(LABEL_W.min(fw))
         .striped(true)
         .show(ui, |ui| {
-            head_row(ui, fw, from_word, &be_hint);
+            head_row(ui, (fw, dur), from_word, &be_hint);
             let mut status = status;
-            for (i, p) in kind.order().iter().enumerate() {
+            for &(row, p) in &slots {
                 tops.push(ui.cursor().top());
-                match t.rows.get(i) {
-                    Some((label, rate, from_mean, amp, be)) => {
+                match row.and_then(|i| Some((i, t.rows.get(i)?))) {
+                    Some((i, (label, rate, from_mean, amp, be))) => {
                         ui.label(RichText::new(label).color(pal.text));
+                        if dur {
+                            let d = t.durations.get(i).copied().unwrap_or_default();
+                            right_in(ui, fw, table_duration(d), false, pal.text);
+                        }
                         right_in(ui, fw, signed(*rate, RATE), false, pal.text);
                         right_in(ui, from_w, signed(*from_mean, RATE), false, pal.text);
                         right_in(ui, fw, plain(*amp, AMPLITUDE), false, pal.text);
@@ -1308,34 +1327,9 @@ fn table_grid(
                         );
                     }
                     None => {
-                        let label = position_label(
-                            session::Position::parse(p.code()).unwrap_or(session::Position::CH),
-                        );
-                        match (status.take(), live) {
-                            // Being measured, with 10 s or more: its figures
-                            // so far, in the colour of the words under way.
-                            (Some(_), Some(FreeCell::Read(rate, amp, be))) => {
-                                ui.label(RichText::new(label).strong().color(pal.text))
-                                    .on_hover_text("Being measured: its figures so far");
-                                right_in(ui, fw, signed(*rate, RATE), false, pal.accent);
-                                ui.label("");
-                                right_in(ui, fw, plain(*amp, AMPLITUDE), false, pal.accent);
-                                right_in(ui, fw, plain(*be, BEAT_ERROR), false, pal.accent);
-                            }
-                            (Some(s), _) => {
-                                ui.label(RichText::new(label).strong().color(pal.text));
-                                status_cell(ui, fw, s, pal.accent);
-                                for _ in 0..3 {
-                                    ui.label("");
-                                }
-                            }
-                            (None, _) => {
-                                ui.label(RichText::new(label).color(pal.text_tertiary));
-                                for _ in 0..4 {
-                                    ui.label("");
-                                }
-                            }
-                        }
+                        let label = p.map_or_else(String::new, |p| position_label(p.core()));
+                        let short = t.short.iter().find(|s| s.0 == label).map(|s| s.1);
+                        pending_row(ui, (label, fw, dur, short), status.take(), live);
                     }
                 }
                 ui.end_row();
@@ -1343,6 +1337,7 @@ fn table_grid(
             tops.push(ui.cursor().top());
             if !t.rows.is_empty() {
                 ui.label(RichText::new(mean_word).strong().color(pal.text));
+                blank(ui);
                 right_in(ui, fw, signed(t.mean_rate, RATE), true, pal.text);
                 ui.label("");
                 right_in(ui, fw, plain(t.mean_amplitude, AMPLITUDE), true, pal.text);
@@ -1355,15 +1350,112 @@ fn table_grid(
             }
         });
     if kind == Kind::Positions {
-        let codes: Vec<_> = kind
-            .order()
+        let codes: Vec<_> = slots
             .iter()
-            .map(|p| session::Position::parse(p.code()).map_or(p.code(), |c| c.common()))
+            .map(|(_, p)| p.map_or("", |p| p.core().common()))
             .collect();
         crate::position_lanes::table_rows(ui, (grid.response.rect.x_range(), 5.0), &codes, &tops);
         crate::position_lanes::note_table_w(ui, grid.response.rect.width());
     }
     (!poise).then(|| table_notes(ui, t));
+}
+
+/// A table's rows top to bottom, each with the position it is of, placed
+/// by its position, never by its count, so each position is listed once
+/// (#1855: the Dynamic Poise table listed Crown Up twice and lost 7H30).
+/// `fixed` (Dynamic Poise): each position of `order` in its stand slot,
+/// read or not, never reordering (Hugh and Trevor on #1964); then any row
+/// of a position not in `order`. Otherwise (the Positions Test's tables,
+/// which keep the order their rows come in, #1853): every row read, then
+/// each position of `order` with no row.
+pub(crate) fn table_slots(
+    rows: &[Row],
+    order: &[Position],
+    fixed: bool,
+) -> Vec<(Option<usize>, Option<Position>)> {
+    let row_of = |p: Position| rows.iter().position(|r| position_label(p.core()) == r.0);
+    let of = |label: &str| {
+        order
+            .iter()
+            .copied()
+            .find(|p| position_label(p.core()) == label)
+    };
+    if !fixed {
+        let read = rows.iter().enumerate().map(|(i, r)| (Some(i), of(&r.0)));
+        let unread = order
+            .iter()
+            .filter(|&&p| row_of(p).is_none())
+            .map(|&p| (None, Some(p)));
+        return read.chain(unread).collect();
+    }
+    let slotted = order.iter().map(|&p| (row_of(p), Some(p)));
+    let others = (0..rows.len())
+        .filter(|&i| !order.iter().any(|&p| row_of(p) == Some(i)))
+        .map(|i| (Some(i), None));
+    slotted.chain(others).collect()
+}
+
+/// A table row with no reading yet: the one being measured, with its
+/// figures so far once it has 10 s, else the words under way (`status`),
+/// else, marked under 10 s (`short`), its duration and "Under 10 s" as
+/// the Positions table says it (Hugh on #1964), else greyed; a blank
+/// Duration cell first when the table has one.
+fn pending_row(
+    ui: &mut egui::Ui,
+    (label, fw, dur, short): (String, f32, bool, Option<f64>),
+    status: Option<String>,
+    live: Option<&FreeCell>,
+) {
+    let pal = theme::pal(ui);
+    let blank = |ui: &mut egui::Ui| {
+        if dur {
+            ui.label("");
+        }
+    };
+    match (status, live) {
+        // Being measured, with 10 s or more: its figures
+        // so far, in the colour of the words under way.
+        (Some(_), Some(FreeCell::Read(rate, amp, be))) => {
+            ui.label(RichText::new(label).strong().color(pal.text))
+                .on_hover_text("Being measured: its figures so far");
+            blank(ui);
+            right_in(ui, fw, signed(*rate, RATE), false, pal.accent);
+            ui.label("");
+            right_in(ui, fw, plain(*amp, AMPLITUDE), false, pal.accent);
+            right_in(ui, fw, plain(*be, BEAT_ERROR), false, pal.accent);
+        }
+        (Some(s), _) => {
+            ui.label(RichText::new(label).strong().color(pal.text));
+            blank(ui);
+            status_cell(ui, fw, s, pal.accent);
+            for _ in 0..3 {
+                ui.label("");
+            }
+        }
+        (None, _) if short.is_some() => {
+            ui.label(RichText::new(label).color(pal.text));
+            if dur {
+                right_in(
+                    ui,
+                    fw,
+                    table_duration(short.unwrap_or_default()),
+                    false,
+                    pal.text,
+                );
+            }
+            under_10_s_cell(ui, fw);
+            for _ in 0..3 {
+                ui.label("");
+            }
+        }
+        (None, _) => {
+            ui.label(RichText::new(label).color(pal.text_tertiary));
+            blank(ui);
+            for _ in 0..4 {
+                ui.label("");
+            }
+        }
+    }
 }
 
 /// A Positions Test table's Largest Difference row.
@@ -1575,8 +1667,17 @@ fn status_cell(ui: &mut egui::Ui, fw: f32, s: String, ink: egui::Color32) {
 }
 
 /// The table's headings: Position, then each figure's name and unit.
-fn head_row(ui: &mut egui::Ui, fw: f32, from_word: &str, be_hint: &str) {
+fn head_row(ui: &mut egui::Ui, (fw, duration): (f32, bool), from_word: &str, be_hint: &str) {
     position_head(ui);
+    if duration {
+        column_head(
+            ui,
+            fw,
+            "Duration",
+            "",
+            "Time read in the position, less its settling and masked time",
+        );
+    }
     for (h, unit, hint) in [
         ("Rate", "s/d", "Seconds a day gained (+) or lost (−)"),
         (
@@ -1598,9 +1699,9 @@ fn head_row(ui: &mut egui::Ui, fw: f32, from_word: &str, be_hint: &str) {
 
 /// The figure columns' width, the From column's, and the gap between
 /// columns: tight for the Dynamic Poise table when the pane gives it less
-/// than [`TABLE_W`], so it can stay beside its picture (Hugh, #1499).
+/// than [`POISE_TABLE_W`], so it can stay beside its picture (Hugh, #1499).
 fn widths(ui: &egui::Ui, poise: bool, from_word: &str) -> (f32, f32, f32) {
-    let (fw, gap) = if poise && ui.available_width() < TABLE_W {
+    let (fw, gap) = if poise && ui.available_width() < POISE_TABLE_W {
         (TIGHT_FIGURE_W, TIGHT_GAP)
     } else {
         (FIGURE_W, GAP)
@@ -1949,14 +2050,10 @@ fn saved_test(ui: &mut egui::Ui, s: &FullWind) {
 
 /// A Dynamic Poise table of a take's `readings` with no test on the
 /// Bench: its upright stops read again (#1619).
-pub(crate) fn poise_table(ui: &mut egui::Ui, readings: &[Reading]) {
-    table_grid(
-        ui,
-        ("poise", Kind::Poise),
-        &table(readings, Kind::Poise),
-        None,
-        None,
-    );
+pub(crate) fn poise_table(ui: &mut egui::Ui, readings: &[Reading], short: &[(String, f64)]) {
+    let mut t = table(readings, Kind::Poise);
+    t.short = short.to_vec();
+    table_grid(ui, ("poise", Kind::Poise), &t, None, None);
 }
 
 /// A test's table, filling in as each position is measured, with a word
@@ -2112,6 +2209,9 @@ pub type Row = (String, Option<f64>, Option<f64>, Option<f64>, Option<f64>);
 /// rate less the mean, amplitude and beat error (a size), then the means.
 pub struct Table {
     pub rows: Vec<Row>,
+    /// The stops marked under 10 s, too short to read: each label and
+    /// duration, shown in its slot as the Positions table shows it.
+    pub short: Vec<(String, f64)>,
     pub beat_error_hovers: Vec<String>,
     /// Each position's beat error dimmed: not from the unlock (from the
     /// drop, or its source not recorded), as in the Power Reserve table.
@@ -2133,6 +2233,9 @@ pub struct Table {
     /// Conditions found in a position's sound, one line each: no regular
     /// beat, clipping, a short stretch of beats.
     pub notes: Vec<String>,
+    /// Each row's time read, seconds, when the table is of readings taken
+    /// here; empty for a saved test's results, which keep none.
+    pub durations: Vec<f64>,
 }
 
 /// The table from the readings, with the figures `timegrapher session`
@@ -2145,7 +2248,9 @@ pub fn table(readings: &[Reading], kind: Kind) -> Table {
             text_report::conditions(&position_label(r.position), r.bph_set, &r.measurement)
         })
         .collect();
-    table_of(&figures, notes, kind)
+    let mut t = table_of(&figures, notes, kind);
+    t.durations = readings.iter().map(|r| r.duration_s).collect();
+    t
 }
 
 /// The table of an earlier test's saved results.
@@ -2230,6 +2335,8 @@ fn table_of(figures: &[SourcedFigures], mut notes: Vec<String>, kind: Kind) -> T
         dvh_rate: ix.dvh_rate,
         dvh_amplitude: ix.dvh_amplitude,
         notes,
+        durations: Vec::new(),
+        short: Vec::new(),
     }
 }
 
@@ -2259,12 +2366,19 @@ pub struct FreeTable {
     pub largest: [Option<f64>; 3],
     /// How many positions have readings.
     pub read: usize,
+    /// The 45° stops read in the take, after the six and outside their
+    /// Average and Largest Difference (Peter, 2026-11-18, #1941): each
+    /// stop's label, code, duration and figures.
+    pub extra: Vec<(String, &'static str, f64, FreeCell)>,
     /// The six positions as readings, for the pane's exports with no test
     /// on the Bench (#1660).
     pub six: TakeReadings,
     /// The take's upright stops read the same way, for the Dynamic Poise
     /// pane with no test on the Bench (#1619).
     pub upright: TakeReadings,
+    /// The upright stops marked under 10 s, each label and duration
+    /// (Hugh on #1964).
+    pub short: Vec<(String, f64)>,
 }
 
 /// A take's positions read again, as readings: each position marked long
@@ -2328,52 +2442,20 @@ pub fn card_rows(t: &session::PositionsTable) -> Vec<session::PositionRow> {
         .collect()
 }
 
-/// The free take's table from core's, in the Current Position card's
-/// order, with its `six` positions and the take's `upright` stops as
-/// readings.
-pub fn free_table(
-    t: &session::PositionsTable,
-    six: TakeReadings,
-    upright: TakeReadings,
-) -> FreeTable {
-    let rows: Vec<(String, f64, FreeCell)> = card_rows(t)
-        .into_iter()
-        .map(|r| {
-            let cell = match &r.measurement {
-                Some(m) => match (m.rate_s_per_day, m.amplitude_deg, m.beat_error()) {
-                    (None, None, None) => FreeCell::Unread,
-                    (rate, amp, be) => FreeCell::Read(rate, amp, be),
-                },
-                None if r.duration_s > 0.0 => FreeCell::Short,
-                None => FreeCell::NotMarked,
-            };
-            (position_label(r.position), r.duration_s, cell)
-        })
-        .collect();
-    let read = rows
-        .iter()
-        .filter(|r| matches!(r.2, FreeCell::Read(..)))
-        .count();
-    FreeTable {
-        rows,
-        mean: [
-            t.indices.x,
-            t.indices.amplitude_mean,
-            t.indices.beat_error_mean,
-        ],
-        largest: [
-            t.indices.d_rate,
-            t.indices.d_amplitude,
-            t.indices.d_beat_error,
-        ],
-        read,
-        six,
-        upright,
-    }
+/// A stop marked too short to read, in its Rate cell: from the Rate
+/// column's left in a tight table, as the words under way are, across the
+/// empty figure cells, so it never runs back over the Duration (Walter
+/// and Hugh on #1964). The Positions table and Dynamic Poise share it.
+pub(crate) fn under_10_s_cell(ui: &mut egui::Ui, fw: f32) {
+    let ink = theme::pal(ui).text_secondary;
+    status_cell(ui, fw, UNDER_10_S.into(), ink);
 }
 
+/// What a stop marked too short to read says in its row.
+pub(crate) const UNDER_10_S: &str = "Under 10 s";
+
 /// A duration as the table writes it: "35 s", "4 min 10 s", "1 h 5 min".
-fn table_duration(v: f64) -> String {
+pub(crate) fn table_duration(v: f64) -> String {
     let s = v.round().max(0.0) as u64;
     match (s / 3600, s % 3600 / 60, s % 60) {
         (0, 0, s) => format!("{s} s"),
@@ -2382,113 +2464,6 @@ fn table_duration(v: f64) -> String {
         (h, 0, _) => format!("{h} h"),
         (h, m, _) => format!("{h} h {m} min"),
     }
-}
-
-/// The free take's table: Position, Duration, Rate, Amplitude and Beat
-/// Error, each reading in its own colour, then the mean and the largest
-/// difference once two positions have readings.
-fn free_grid(ui: &mut egui::Ui, t: &FreeTable) {
-    let pal = theme::pal(ui);
-    let mut tops = Vec::new();
-    let grid = egui::Grid::new("free-positions")
-        .num_columns(5)
-        .spacing(Vec2::new(16.0, 5.0))
-        .min_col_width(LABEL_W.min(FIGURE_W))
-        .striped(true)
-        .show(ui, |ui| {
-            position_head(ui);
-            for (h, unit, hint) in [
-                (
-                    "Duration",
-                    "",
-                    "Time marked in the position, less its settling and masked time",
-                ),
-                ("Rate", "s/d", "Seconds a day gained (+) or lost (−)"),
-                (
-                    "Amplitude",
-                    "°",
-                    "The balance's swing, from the lift angle set",
-                ),
-                ("Beat Error", "ms", "From the unlock, as a size"),
-            ] {
-                // Beat error's figures are in the text colour in light
-                // mode: its swatch beside the heading says whose they are.
-                let be = pal.trace_beat_error;
-                let swatch = (h == "Beat Error" && pal.ink(be) != be).then_some(be);
-                column_head_swatch(ui, FIGURE_W, h, unit, hint, swatch);
-            }
-            ui.end_row();
-            for (label, duration, cell) in &t.rows {
-                tops.push(ui.cursor().top());
-                let marked = *cell != FreeCell::NotMarked;
-                let color = if marked { pal.text } else { pal.text_tertiary };
-                ui.label(RichText::new(label).color(color));
-                match cell {
-                    FreeCell::NotMarked => {
-                        right(ui, "Not marked".into(), false, pal.text_tertiary);
-                        for _ in 0..3 {
-                            ui.label("");
-                        }
-                    }
-                    FreeCell::Short => {
-                        right(ui, table_duration(*duration), false, pal.text);
-                        right(ui, "Under 10 s".into(), false, pal.text_secondary);
-                        for _ in 0..2 {
-                            ui.label("");
-                        }
-                    }
-                    FreeCell::Unread => {
-                        right(ui, table_duration(*duration), false, pal.text);
-                        right(ui, "No reading".into(), false, pal.text_secondary);
-                        for _ in 0..2 {
-                            ui.label("");
-                        }
-                    }
-                    FreeCell::Read(rate, amp, be) => {
-                        right(ui, table_duration(*duration), false, pal.text);
-                        right(ui, signed(*rate, RATE), false, pal.trace_rate);
-                        right(ui, plain(*amp, AMPLITUDE), false, pal.trace_amplitude);
-                        right(
-                            ui,
-                            plain(*be, BEAT_ERROR),
-                            false,
-                            pal.ink(pal.trace_beat_error),
-                        );
-                    }
-                }
-                ui.end_row();
-            }
-            tops.push(ui.cursor().top());
-            if t.read >= 2 {
-                free_means(ui, t);
-            }
-        });
-    let codes: Vec<_> = card_order().into_iter().map(|p| p.common()).collect();
-    crate::position_lanes::table_rows(ui, (grid.response.rect.x_range(), 5.0), &codes, &tops);
-    crate::position_lanes::note_table_w(ui, grid.response.rect.width());
-}
-
-/// A free take's table's Average and Largest Difference rows.
-fn free_means(ui: &mut egui::Ui, t: &FreeTable) {
-    let pal = theme::pal(ui);
-    let inks = [
-        pal.trace_rate,
-        pal.trace_amplitude,
-        pal.ink(pal.trace_beat_error),
-    ];
-    ui.label(RichText::new("Average").strong().color(pal.text))
-        .on_hover_text("Over the positions read");
-    right(ui, format!("{} of 6", t.read), false, pal.text_secondary);
-    right(ui, signed(t.mean[0], RATE), true, inks[0]);
-    right(ui, plain(t.mean[1], AMPLITUDE), true, inks[1]);
-    right(ui, plain(t.mean[2], BEAT_ERROR), true, inks[2]);
-    ui.end_row();
-    largest_label(ui);
-    ui.label("");
-    right(ui, plain(t.largest[0], RATE), true, inks[0]);
-    right(ui, plain(t.largest[1], AMPLITUDE), true, inks[1]);
-    right(ui, plain(t.largest[2], BEAT_ERROR), true, inks[2]);
-    ui.end_row();
 }
 
 /// The label of a table's Largest Difference row, with its hover.
