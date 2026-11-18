@@ -2388,3 +2388,94 @@ fn timing_power_floor() {
         }
     }
 }
+
+/// The fitted flicker share recovers the drawn one (#1219), as
+/// [`timing_mix_recovers_the_crossover`] does for the mix: the median of
+/// 21 draws on 2 h at mix 30, where the flicker, the walk and the floor
+/// all show in the bands. No flicker reads as none, and flicker alone
+/// (share 1) reads as flicker only.
+#[test]
+fn timing_flicker_recovers_the_share() {
+    let (span, step, mix) = (7200.0, 0.25, 30.0);
+    let g0 = null_grid(NullModel::Readings, span, step, 0.0, 1.0, 1);
+    let w = detrend_window(&g0, DETREND_S).map(|w| w as f64 * step);
+    let scale = x_scale(&g0, w);
+    let fit = |share: f64| {
+        let mut v: Vec<f64> = (0..21)
+            .map(|d| {
+                let g = null_grid_f(
+                    NullModel::Timing,
+                    span,
+                    step,
+                    mix,
+                    share,
+                    scale,
+                    seed_of(&[9, d]),
+                );
+                let sp = spectrum(&detrend_as(&g, DETREND_S, slow_for(NullModel::Timing)), w);
+                let from = (2.0 / (sp.df * scale)).ceil() as usize;
+                timing_fit(&sp.power, sp.df, step, from, scale).flicker
+            })
+            .collect();
+        v.sort_by(f64::total_cmp);
+        v[10]
+    };
+    assert_eq!(fit(0.0), 0.0);
+    assert_eq!(fit(FLICKER_ONLY), FLICKER_ONLY);
+    for share in [0.01, 0.1] {
+        let got = fit(share);
+        assert!((got / share).ln().abs() < 2f64.ln(), "{share}: {got}");
+    }
+}
+
+/// A timing lookup on a flicker cell returns that cell, and between two
+/// shares it is the blend of the cells either side on the flicker axis:
+/// in log share from 0.01 up, linear in the share from none to 0.01.
+#[test]
+fn a_timing_lookup_between_shares_interpolates() {
+    use NullModel::Timing;
+    let (span, step, mix) = (1800.0, 0.25, 100.0);
+    let cell = |flicker: f64| {
+        table()
+            .cells
+            .iter()
+            .find(|c| {
+                c.model == Timing
+                    && c.span_s == span
+                    && c.step_s == step
+                    && c.mix == mix
+                    && c.flicker == flicker
+            })
+            .unwrap_or_else(|| panic!("no cell at share {flicker}"))
+    };
+    let close = |a: f64, b: f64| (a - b).abs() < 1e-9 * (1.0 + b.abs());
+    let check = |flicker: f64, a: &Cell, b: &Cell, t: f64| {
+        let l = levelling(Timing, span, step, mix, flicker).unwrap();
+        let at = |x: f64, y: f64| x + (y - x) * t;
+        assert!(
+            close(l.mu, at(a.mu, b.mu)),
+            "{flicker}: mu {} {} {}",
+            l.mu,
+            a.mu,
+            b.mu
+        );
+        assert!(close(l.sigma, at(a.sigma, b.sigma)), "{flicker}: sigma");
+        assert!(close(l.xi, at(a.xi, b.xi)), "{flicker}: xi");
+        for k in 0..X_POINTS {
+            match (a.mean[k], b.mean[k], l.mean[k]) {
+                (Some(x), Some(y), Some(m)) => {
+                    assert!(close(m, at(x, y)), "{flicker}: mean at {k}")
+                }
+                (_, _, m) => assert!(m.is_none(), "{flicker}: mean at {k}"),
+            }
+        }
+    };
+    let (none, low, mid) = (cell(0.0), cell(0.01), cell(0.1));
+    assert!(none.mu != low.mu && low.mu != mid.mu, "the cells differ");
+    check(0.01, low, low, 0.0);
+    check(0.1, mid, mid, 0.0);
+    // Halfway in log share between 0.01 and 0.1.
+    check((0.01f64 * 0.1).sqrt(), low, mid, 0.5);
+    // A quarter of the way from none to 0.01, linear in the share.
+    check(0.0025, none, low, 0.25);
+}

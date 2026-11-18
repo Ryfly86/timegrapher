@@ -597,6 +597,12 @@ fn solve(m: &[[f64; 3]; 3], r: &[f64; 3], n: usize) -> Option<[f64; 3]> {
 /// Walk plus flicker plus white fitted to `bands`: of the fits whose
 /// every term is above nothing, the one that sits nearest the bands (the
 /// fullest wins a tie), and from it the mix and the flicker.
+///
+/// The tie rule only makes the choice deterministic; no reading depends
+/// on it. Two fits sit within 1e-12 of each other in misfit only when the
+/// fuller one's extra term is next to nothing (the bands are what the
+/// smaller fit draws), so either one gives the same mix, and a share of
+/// nil or next to it, which reads the no-flicker cell.
 fn fit_bands(bands: &[(f64, f64)], step_s: f64, scale: f64) -> TimingFit {
     let subsets: [[bool; 3]; 7] = [
         [true, true, true],
