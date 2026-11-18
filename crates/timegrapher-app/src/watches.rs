@@ -1575,14 +1575,11 @@ fn read_line(t: &Take, test: bool, reading: Option<&Reading>) -> String {
     let Some(r) = reading.filter(|_| !test && t.power_reserve.is_none()) else {
         return String::new();
     };
-    let [rate, amp, be] =
-        timegrapher_core::library::figure_texts(r.rate_s_per_day, r.amplitude_deg, r.beat_error_ms);
-    let units = [" s/d", "°", " ms"];
-    let figures: Vec<String> = [rate, amp, be]
-        .into_iter()
-        .zip(units)
-        .filter_map(|(v, u)| v.map(|v| format!("{}{u}", true_minus(&v))))
-        .collect();
+    let figures: Vec<String> =
+        timegrapher_core::library::figure_words(r.rate_s_per_day, r.amplitude_deg, r.beat_error_ms)
+            .iter()
+            .map(|w| true_minus(w))
+            .collect();
     if figures.is_empty() {
         return String::new();
     }
