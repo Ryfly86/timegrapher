@@ -663,7 +663,7 @@ fn x_scale(g: &Grid, detrend_w: Option<f64>) -> f64 {
     detrend_w.unwrap_or_else(|| g.span())
 }
 
-/// Timing's mix and misfit (None where too few bands) from the spectrum `sp` of `g`, read from well
+/// Timing's mix, flicker and misfit (None where too few bands) from the spectrum `sp` of `g`, read from well
 /// above the detrend's corner, where it takes no power.
 /// `removed` and `thinned`: the lines already taken out of `g`, Hz, as
 /// [`null::timing_fit_culled`] takes them.
@@ -673,7 +673,7 @@ fn timing_fit_of(
     detrend_w: Option<f64>,
     removed: &[f64],
     thinned: &[f64],
-) -> (f64, Option<f64>) {
+) -> (f64, f64, Option<f64>) {
     let scale = x_scale(g, detrend_w);
     let from_x = if detrend_w.is_some() { 2.0 } else { 6.0 };
     let from = (from_x / (sp.df * scale)).ceil() as usize;
@@ -691,7 +691,7 @@ fn timing_fit_of(
             half,
         },
     );
-    (f.mix, f.misfit.is_finite().then_some(f.misfit))
+    (f.mix, f.flicker, f.misfit.is_finite().then_some(f.misfit))
 }
 
 /// The take's mix and the table's levelling for it, when the table holds
@@ -703,19 +703,20 @@ fn null_for(
     jmax: usize,
 ) -> (NullFit, Option<null::Levelling>) {
     let scale = x_scale(g, band.detrend_w);
-    let (mix, misfit) = match band.model {
-        NullModel::Readings => (sp.rho, None),
+    let (mix, flicker, misfit) = match band.model {
+        NullModel::Readings => (sp.rho, 0.0, None),
         NullModel::Timing => timing_fit_of(g, sp, band.detrend_w, &[], &[]),
     };
     let lev = match band.given {
         Some(l) => Some(l.clone()),
-        None => null::levelling(band.model, g.span(), g.step, mix),
+        None => null::levelling(band.model, g.span(), g.step, mix, flicker),
     };
     let jmin = ((1.0 / band.max_p) / sp.df).ceil().max(1.0) as usize;
     let lev = lev.filter(|l| (jmin..=jmax).all(|j| l.at(j as f64 * sp.df * scale).is_some()));
     let fit = NullFit {
         model: band.model,
         mix,
+        flicker,
         calibrated: lev.is_some(),
         misfit,
         misfit_limit: lev.as_ref().and_then(|l| l.misfit_p99),
@@ -1265,7 +1266,7 @@ fn analyse_as(
             let pick = pick_period(&s, &work, g.step);
             if first.is_none() {
                 if given.is_none() && s.null.calibrated {
-                    kept = null::levelling(model, span, g.step, s.null.mix);
+                    kept = null::levelling(model, span, g.step, s.null.mix, s.null.flicker);
                 }
                 first = Some(s);
             }
@@ -1321,11 +1322,11 @@ fn analyse_as(
     // Its limit is read at the mix fitted there too: the cycle's own line
     // lifts the mix the search fitted.
     if model == NullModel::Timing && !components.is_empty() {
-        let (mix, misfit) = misfit_without(&detrended, &components, cfg);
+        let (mix, flicker, misfit) = misfit_without(&detrended, &components, cfg);
         search.null.misfit = misfit;
         if given.is_none() && search.null.misfit_limit.is_some() {
             search.null.misfit_limit =
-                null::levelling(model, span, g.step, mix).and_then(|l| l.misfit_p99);
+                null::levelling(model, span, g.step, mix, flicker).and_then(|l| l.misfit_p99);
         }
     }
     SeriesReport {
@@ -1350,7 +1351,7 @@ fn misfit_without(
     detrended: &Grid,
     components: &[Component],
     cfg: &LongConfig,
-) -> (f64, Option<f64>) {
+) -> (f64, f64, Option<f64>) {
     let span = detrended.span();
     let kept = |c: &Component| kept_harmonics(c.period_s, c.harmonics, span);
     let removed: Vec<f64> = components
@@ -1680,6 +1681,7 @@ impl Search {
             null: NullFit {
                 model: NullModel::Readings,
                 mix: f64::NAN,
+                flicker: 0.0,
                 calibrated: false,
                 misfit: None,
                 misfit_limit: None,
@@ -1918,11 +1920,14 @@ mod tests {
         let g = Grid { t0: 0.0, step, y };
         let r = analyse_timing(&g, &cfg);
         assert!(!r.components.is_empty());
-        let (mix, _) = misfit_without(&r.detrended, &r.components, &cfg);
-        let at = |m: f64| {
-            null::levelling(NullModel::Timing, g.span(), step, m).and_then(|l| l.misfit_p99)
+        let (mix, flicker, _) = misfit_without(&r.detrended, &r.components, &cfg);
+        let at = |m: f64, f: f64| {
+            null::levelling(NullModel::Timing, g.span(), step, m, f).and_then(|l| l.misfit_p99)
         };
-        let (searched, residual) = (at(r.search.null.mix), at(mix));
+        let (searched, residual) = (
+            at(r.search.null.mix, r.search.null.flicker),
+            at(mix, flicker),
+        );
         assert!(residual.is_some());
         assert_ne!(searched, residual, "mixes {} and {mix}", r.search.null.mix);
         assert_eq!(r.search.null.misfit_limit, residual);

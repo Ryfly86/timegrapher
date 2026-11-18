@@ -737,9 +737,11 @@ mod tests {
     }
 
     /// The caveat that a short take's cycle may be noise goes on the
-    /// amplitude and the beat error only (#916). Seed 135 of 30 min of red
+    /// amplitude and the beat error only (#916). Seed 154 of 30 min of red
     /// noise (seed 35 until the search was calibrated, #1195; 112 until the
-    /// timing's detrend took a local line off first) names a cycle
+    /// timing's detrend took a local line off first; 135 until the timing
+    /// null modelled flicker, #1219, when 154 was the one of seeds 100 to
+    /// 599 to name one) names a cycle
     /// in the rate, whose search read ρ over 0.7, so
     /// the rule would give it one; its series carries none. Seed 37 names
     /// one in the amplitude, which carries it and says so in its headline.
@@ -763,7 +765,7 @@ mod tests {
                 .iter()
                 .any(|c| matches!(c, Caveat::PeriodMayBeNoise { .. }))
         };
-        let (long, r) = pane(135);
+        let (long, r) = pane(154);
         assert!(r.series[0].period.is_some(), "the rate names a cycle");
         assert!(crate::longterm::period_may_be_noise(&long.timing).is_some());
         assert!(!noise(&r.series[0]));
