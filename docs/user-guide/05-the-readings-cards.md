@@ -120,12 +120,17 @@ before a take: each take is then saved with its hours from full wind to
 its start. It is kept with the watch picked in Watches, or for a Quick
 Listen until a watch is picked. **Start Test** on a test that begins at
 full wind, the Positions Test's full-wind half or a Power Reserve Test,
-sets Full Wind Now by itself.
+sets full wind at its take's start by itself.
 
-Once a take has begun, the box is fixed at its hours from full wind to
-the take's start, "Began 54.1 h after full", and can't be set; its hover
-says so. A take opened shows its own, as saved. To give or correct a
-saved take's wind, use **Set Wind** on its row in Watches (chapter 22).
+Once a take has begun, the box shows its hours from full wind to the
+take's start, "Began 54.1 h after full". It can still be set, running or
+stopped, counting from the take's start: **Full Wind at Start**, **Full
+Wind [ ] h before it began**, or **Not Given**. A take already saved has
+the new wind at once. A full wind after the take began can't be given:
+the beats before it were at some other wind (#1935). In a test that sets
+its own wind, the Positions Test or a Power Reserve Test, the box is
+fixed. A take opened shows its own, as saved. To give or correct a saved
+take's wind, use **Set Wind** on its row in Watches (chapter 22).
 
 The box's hover always gives the whole of it: "Full wind 2.0 h ago"
 before a take, "Full wind 54.1 h before it began" once one has begun or
