@@ -516,6 +516,27 @@ impl TimegrapherApp {
         }
     }
 
+    /// The input failed while a Power Reserve Test ran (a microphone
+    /// unplugged, or no sound arriving): the run ends there, read to its
+    /// last beat heard, at least that long and never a stop of the watch
+    /// ([`power_reserve::Ending::InputFailed`]), and its take is kept with
+    /// its results as Stop keeps it (#1882). Whether it did: not for a
+    /// recording opened (`was_file`), or with no test running.
+    pub(super) fn reserve_input_failed(&mut self, was_file: bool) -> bool {
+        if was_file || !self.reserve_running() {
+            return false;
+        }
+        let beat_s = power_reserve::beat_s(self.reserve_bph());
+        if let (Some(live), Some(t)) = (self.live.as_ref(), self.reserve.as_mut()) {
+            t.update(live.beats(), beat_s, live.duration_s());
+            if t.running() {
+                t.ending = Some(power_reserve::Ending::InputFailed);
+            }
+        }
+        self.end_reserve();
+        true
+    }
+
     /// The recording failed while a Power Reserve Test ran: the run ends
     /// there, read to its last beat heard, at least that long and never a
     /// stop of the watch ([`power_reserve::Ending::RecordingFailed`]). Its

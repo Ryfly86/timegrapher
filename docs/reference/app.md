@@ -972,7 +972,8 @@ Watches view, and the pane is not brought forward. `timegrapher session`
 gives the same run in `power_reserve`, with `source` `long_take`.
 
 `power-reserve.json` (`schema` `power-reserve/1`) holds `started_utc`,
-`position`, `sound_kept`, `ending` (`stopped`, `by_hand` or `limit`),
+`position`, `sound_kept`, `ending` (`stopped`, `by_hand`, `limit`, or
+`recording_failed` or `input_failed`, each "at least" as long as heard),
 `first_beat_s` and `last_beat_s` (audio seconds of the take), `run_s`
 (true seconds from the first to the last), `pauses[]` (`from_s`, `to_s`:
 the silences of 30 s or more inside the run) and `hours[]`: `hour` (0,
@@ -2289,7 +2290,10 @@ clears it. Those files may
 contain incomplete audio or clock information. Save and Save Again
 are unavailable for that session so an earlier saved take stays unchanged.
 This is different from an input disconnect alone, after which the take can
-still be saved.
+still be saved. A Power Reserve Test whose input fails (unplugged, or no
+sound arriving) ends there as Stop would end it, its take kept with its
+results: "Power reserve at least … The input failed while the watch still
+ran" (#1882).
 
 Copy the folder shown in the warning to a location outside the app's
 folder for unsaved sound before attempting manual recovery or cleanup; do

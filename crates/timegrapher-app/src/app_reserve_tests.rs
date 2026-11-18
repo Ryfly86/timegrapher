@@ -2050,3 +2050,99 @@ fn a_still_pointer_over_the_live_strip_draws_nothing_extra() {
         "no change"
     );
 }
+
+/// A Power Reserve Test whose input fails partway (the microphone
+/// unplugged) ends there with its own ending, at least as long as heard
+/// and never a stop of the watch, and its take is kept with its results,
+/// as Stop keeps it: no test left running with no result (#1882).
+#[test]
+fn a_power_reserve_test_whose_input_fails_ends_and_keeps_its_take() {
+    let base = std::env::temp_dir().join(format!("tg-app-reserve-input-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let root = base.join("Timegrapher Data");
+    let mut lib = library::Library::create(&root).unwrap();
+    lib.add(&library::Watch::new("Reverso")).unwrap();
+    let reverso = lib.find("Reverso").unwrap().watch.id.clone();
+    drop(lib);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.use_library(Some(root.clone()));
+    app.pick_watch(&reverso);
+    app.session.listen();
+    let info = app.info("", 48000, 16);
+    let mut r = Recorder::start(&base.join("unsaved"), info).unwrap();
+    r.write(&timegrapher_core::capture::Block {
+        samples: vec![0.0; 48000 * 20],
+        at: std::time::SystemTime::now(),
+    })
+    .unwrap();
+    app.session.recorder = Some(r);
+    let tx = queued_capture(&mut app, &base);
+    app.live = Some(timegrapher_core::live::LiveAnalyzer::new(
+        48_000,
+        timegrapher_core::live::LiveConfig::default(),
+    ));
+    app.position = Position::CrownLeft;
+    app.reserve = Some(reserve::Test::new(
+        Position::CrownLeft,
+        true,
+        String::new(),
+        0.0,
+    ));
+    app.reserve_read_s = 0.0;
+    // The watch heard for 30 s, as the listening thread takes it.
+    let cfg = SynthConfig {
+        duration_s: 30.0,
+        bph: 21_600,
+        ..Default::default()
+    };
+    for s in generate(&cfg, |_| 280.0, |_| 0.0).samples.chunks(48_000) {
+        app.live.as_mut().unwrap().push(s);
+        app.audio_at = Some(Instant::now());
+        app.pump();
+    }
+    assert!(app.reserve_running());
+
+    // Partway through, the microphone is unplugged.
+    tx.send(timegrapher_core::capture::Event::Error(
+        "device unplugged".into(),
+    ))
+    .unwrap();
+    app.poll_for(std::time::Duration::from_millis(200));
+    assert!(!app.reserve_running(), "the pane no longer says Running");
+    assert!(app.capture.is_none(), "the input is let go");
+    assert!(app
+        .input_fault
+        .as_deref()
+        .is_some_and(|f| f.starts_with("Input stopped.")));
+    let t = app.reserve.as_ref().unwrap();
+    assert_eq!(t.ending, Some(power_reserve::Ending::InputFailed));
+    let results = t.results.clone().expect("its run so far");
+    let said = results.sentence("CL");
+    assert!(said.starts_with("Power reserve at least "), "{said}");
+    assert!(
+        said.ends_with("The input failed while the watch still ran."),
+        "{said}"
+    );
+    assert!(results.run_s > 20.0, "{}", results.run_s);
+
+    // Kept in the watch's history with its results, as Stop keeps it.
+    for _ in 0..500 {
+        app.poll_saving();
+        app.reserve_saved();
+        if app.saving.is_none() && app.reserve.as_ref().is_some_and(|t| t.saved.is_some()) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    let take = app.reserve.as_ref().and_then(|t| t.saved.clone());
+    let take = take.unwrap_or_else(|| panic!("kept: {:?}", app.message));
+    let kept = power_reserve::Results::from_json(
+        &std::fs::read_to_string(take.join(power_reserve::FILE)).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(kept, results);
+    assert_eq!(kept.ending, power_reserve::Ending::InputFailed);
+    drop(tx);
+    let _ = std::fs::remove_dir_all(&base);
+}

@@ -71,6 +71,10 @@ pub enum Ending {
     /// The recording failed (a full disk, say) while the watch still ran:
     /// the run is at least as long as heard, never a stop of the watch.
     RecordingFailed,
+    /// The input failed (a microphone unplugged, or no sound arriving)
+    /// while the watch still ran: the run is at least as long as heard,
+    /// never a stop of the watch (#1882).
+    InputFailed,
 }
 
 impl Ending {
@@ -92,6 +96,7 @@ impl Ending {
             Ending::TakeEnded => "The take ended while the watch still ran".to_string(),
             Ending::Listening => "Still listening, no stop found yet".to_string(),
             Ending::RecordingFailed => "The recording failed while the watch still ran".to_string(),
+            Ending::InputFailed => "The input failed while the watch still ran".to_string(),
         }
     }
 
@@ -115,6 +120,7 @@ impl Ending {
             Ending::TakeEnded => "take ended".to_string(),
             Ending::Listening => "still listening".to_string(),
             Ending::RecordingFailed => "recording failed".to_string(),
+            Ending::InputFailed => "input failed".to_string(),
         }
     }
 }
@@ -792,11 +798,11 @@ fn run_of(
 
 /// A run time in words ([`run_text`] of `run_s`), "at least" for a long
 /// take that ended, or is still being heard, before the watch stopped, or
-/// a run whose recording failed: "41 h 12 min", "at least 65 h 03 min".
+/// a run whose recording or input failed: "41 h 12 min", "at least 65 h 03 min".
 pub fn run_words(run_s: f64, ending: Ending, source: Source) -> String {
     let run = run_text(run_s);
     if (source == Source::LongTake && matches!(ending, Ending::TakeEnded | Ending::Listening))
-        || ending == Ending::RecordingFailed
+        || matches!(ending, Ending::RecordingFailed | Ending::InputFailed)
     {
         format!("at least {run}")
     } else {
@@ -1166,6 +1172,20 @@ mod tests {
         );
         let v: serde_json::Value = serde_json::to_value(Ending::RecordingFailed).unwrap();
         assert_eq!(v, "recording_failed");
+    }
+
+    /// A run whose input failed is at least as long as heard, and its
+    /// file names how it ended (#1882).
+    #[test]
+    fn a_run_whose_input_failed_reads_at_least() {
+        assert_eq!(
+            sentence(7260.0, Ending::InputFailed, Source::Test, "DU", None),
+            "Power reserve at least 2 h 01 min in DU. The input failed while the watch \
+             still ran."
+        );
+        assert_eq!(Ending::InputFailed.short(), "input failed");
+        let v: serde_json::Value = serde_json::to_value(Ending::InputFailed).unwrap();
+        assert_eq!(v, "input_failed");
     }
 
     fn beats(from: f64, to: f64, step: f64, quality: f32) -> Vec<Beat> {
