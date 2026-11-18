@@ -355,11 +355,7 @@ fn init(paths: &[PathBuf], o: &Options) -> Result<(), String> {
             "# wind_h = 0  # hours since the watch was fully wound (0 = just wound); left out, the wind is not given: its own state, never fully wound\n",
         );
         if f.is_dir() {
-            if let Some(log) = ["clocklog.txt", "clock.csv", "clock.log"]
-                .iter()
-                .map(|n| f.join(n))
-                .find(|p| p.is_file())
-            {
+            if let Some(log) = take::clock_log_in(f) {
                 t.push_str(&format!("clock = \"{}\"\n", rel(&log, &dir)));
             }
         }
