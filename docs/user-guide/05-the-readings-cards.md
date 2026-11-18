@@ -95,6 +95,7 @@ or noisy take. A wrong beat rate gives readings far out, or none.
 | 7 | **Save** | The Save menu: Unsorted Takes, Keep in a Watch, Save in a Folder…. Hidden while a watch's take records into it, and for a test, set up or running. | See [Stop and Save](02-your-first-take.md#stop-and-save). |
 | 8 | Length and state | The take's length, and its state: Not Started, Ready (a test set up, waiting for Start Test), Listening, Stopped, Opening or Opened. | To see how much has been heard. |
 | 9 | **Average Over** | How many seconds of beats each reading covers: 2, 4, 10, 20, 30 or 60 s. 10 s unless changed. | See [Choosing Average Over](#choosing-average-over). |
+| | **Wind** | Beside Average Over: when the watch was last fully wound, as "Full 2.0 h ago", counting up. Its menu sets it: **Full Wind Now**, **Full Wind [ ] h ago**, or **Not Given**. | So each take is saved with its hours since full wind. See [Wind](#wind). |
 
 ### Choosing Average Over
 
@@ -110,6 +111,25 @@ or noisy take. A wrong beat rate gives readings far out, or none.
   card's hover.
 - **No reading reaches across a break**, a change of position, or more
   than 2 s with no beats: the watch may have moved or changed meanwhile.
+
+### Wind
+
+The rate and amplitude move as the mainspring lets down (chapters 19 and
+21), so a reading means most beside its state of wind. Set **Wind**
+before a take: each take is then saved with its hours from full wind to
+its start. It is kept with the watch picked in Watches, or for a Quick
+Listen until a watch is picked. **Start Test** on a test that begins at
+full wind, the Positions Test's full-wind half or a Power Reserve Test,
+sets Full Wind Now by itself.
+
+Once a take has begun, the box is fixed at its hours from full wind to
+the take's start, "Began 54.1 h after full", and can't be set; its hover
+says so. A take opened shows its own, as saved. To give or correct a
+saved take's wind, use **Set Wind** on its row in Watches (chapter 22).
+
+The box's hover always gives the whole of it: "Full wind 2.0 h ago"
+before a take, "Full wind 54.1 h before it began" once one has begun or
+for a take opened, or "Wind not given" until it is set.
 
 ## Rate, Amplitude and Beat Error
 
@@ -135,7 +155,7 @@ Rest the pointer on a figure to see what stands behind it.
 | --- | --- |
 | **Rate** | The sound card's clock (M3). The big figure is on the clock the take is read on: its USB lines, a clock log that measured the card well enough, or a correction kept for the input or saved with the take. The hover says first by how much and from what, as in the picture. **Listening,** a correction kept for the input applies from the first second, and the recording's USB lines once 30 s of sound are in; until then the hover says first which clock the figure is on for now. Then the beats the readings are fitted to ("79 beats in 10 s"), and the **jitter**. |
 | **Amplitude** | The amplitude of the Ticks and of the Tocks, apart. |
-| **Beat Error** | The beat error timed from the drop, beside the big figure's, timed from the unlock. |
+| **Beat Error** | First its **BE Angle**, the beat error as an angle of the balance's swing: "That's a BE Angle of 1.7 ± 0.2° of the balance's swing, at 302° amplitude". The ms grow as the amplitude falls; the degrees stay the same (M5). Then the beat error timed from the drop, beside the big figure's, timed from the unlock. |
 
 - **Jitter** is how far single beats land from the steady line the rate
   is fitted to, in microseconds: the spread of the dots across the strip.
@@ -227,7 +247,10 @@ On a narrow window the cards also take smaller forms by themselves:
   six positions in place of the buttons, all ten when a 45° stop is
   current. The keys still work.
 - **Listen** gives the length beside its caption, and Average Over as
-  **Avg 10 s**.
+  **Avg 10 s**. Wind steps down with the room: "Full 2.0 h ago" beside
+  its label, then "Wind: full 2.0 h ago" ("Wind: 54.1 h at start" once a
+  take has begun), then "Wind 2.0 h", then "Wind" alone. Its hover keeps
+  the whole of it.
 - **Calibre** keeps its pop-up and Lift. On the narrowest windows, the
   beat rate moves into the Calibre pop-up's menu, or for a watch whose
   calibre isn't in the table, into the Watch line's menu.
