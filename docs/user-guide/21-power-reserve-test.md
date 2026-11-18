@@ -89,7 +89,8 @@ ms grows as the amplitude falls, even when nothing in the escapement has
 moved, because the balance passes its centre more slowly; the angle
 stays the same. In the picture the beat error grows from 0.40 ms in the
 first hour to 0.74 ms in the 56–57 h hour while the BE Angle falls only
-from 1.3° to 1.1°: the escapement did not move. The angle rests on the
+from 1.3° to 1.1°: the angle moves far less than the ms, so most of the
+growth is the amplitude, not the escapement. The angle rests on the
 lift angle through the amplitude, so a lift angle 7% off makes it 7%
 off; the ms does not. It is grey where its beat error or amplitude is,
 and a dash where there is no amplitude. [M5](m5-beat-error.md) says

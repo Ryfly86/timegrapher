@@ -48,12 +48,13 @@ seconds is called Tick. With a beat error nearer zero than 0.1 ms, the
 first beat heard is Tick. A beat error that reads negative later has turned
 over during the take.
 
-**As an angle (BE Angle):** the beat error in ms is the time between the
-balance passing its centre and the escapement's mid point. The balance
-passes its centre at its fastest, amplitude × 2π × frequency degrees a
-second, with frequency = beat rate / 7200 Hz; half of that, since the
-amplitude is measured either side of centre, turns the time into an
-angle:
+**As an angle (BE Angle):** when the escapement's mid point sits a few
+degrees off the balance's centre, one beat is longer and the other
+shorter, each by twice the time the balance takes to cover that offset.
+The beat error, half the difference between the beats, is so twice that
+time. Near its centre the balance swings at its fastest, amplitude × 2π
+× frequency degrees a second, with frequency = beat rate / 7200 Hz.
+Half that speed times the beat error gives the offset as an angle:
 
 BE Angle (°) = amplitude (°) × π × beat rate / 7200 × beat error (s)
 
