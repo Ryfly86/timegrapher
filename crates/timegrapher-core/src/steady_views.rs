@@ -323,12 +323,17 @@ pub fn grids_with_breaks(log: &BeatLog, rate_s: f64, breaks: &[crate::breaks::Br
 
 /// The period search behind each series: the long-run analysis's for the
 /// rate and the amplitude, and one over the beat error's readings when it
-/// has at least 30.
-pub fn searches(grids: &[Grid; 3], long: &LongReport, lc: &LongConfig) -> [Option<Search>; 3] {
+/// has at least 30. `clock` is the one the log's times are still to be put
+/// on, as [`check_grids`] takes it.
+pub fn searches(
+    grids: &[Grid; 3],
+    clock: Option<&crate::clock::ClockFit>,
+    long: &LongReport,
+    lc: &LongConfig,
+) -> [Option<Search>; 3] {
     let readings = |g: &Grid| g.y.iter().filter(|v| v.is_finite()).count();
-    let be_search = (readings(&grids[2]) >= 30).then(|| {
-        crate::steadiness::beat_error_long(&grids[2], long.clock.as_ref(), &long.breaks, lc).search
-    });
+    let be_search = (readings(&grids[2]) >= 30)
+        .then(|| crate::steadiness::beat_error_long(&grids[2], clock, &long.breaks, lc).search);
     [
         Some(long.timing.search.clone()),
         Some(long.amplitude.search.clone()),
@@ -342,9 +347,20 @@ pub fn searches(grids: &[Grid; 3], long: &LongReport, lc: &LongConfig) -> [Optio
 /// lacks beats in any of its 2 s stretches.
 /// Built with the tests' own functions, so the views draw, search and fold
 /// the readings the tests were made on.
-pub fn check_grids(log: &BeatLog, long: &LongReport, rate_s: f64) -> [Grid; 3] {
+///
+/// `clock` is the one the log's times are still to be put on, as
+/// `steadiness::check` takes it: the take's clock for a log on audio time,
+/// none for a log already on it ([`crate::joined::join`], a take read in
+/// stretches), whose `long.clock` only names the clock it was read on.
+/// Putting such a log on its clock again counts the correction twice
+/// (#1983).
+pub fn check_grids(
+    log: &BeatLog,
+    clock: Option<&crate::clock::ClockFit>,
+    long: &LongReport,
+    rate_s: f64,
+) -> [Grid; 3] {
     use crate::steadiness::{rate_grid, rate_windows, window_grids};
-    let clock = long.clock.as_ref();
     let rate = rate_grid(&rate_windows(log, clock, &long.breaks, rate_s), rate_s);
     let [amplitude, beat_error] = window_grids(log, clock, &long.breaks);
     [rate, amplitude, beat_error]
@@ -902,25 +918,25 @@ fn spread(n: usize, max: usize) -> Vec<usize> {
 }
 
 /// The views behind each headline in `report`, from the take `log` it was
-/// made on and its long-run analysis `long` under `lc`.
+/// made on and its long-run analysis `long` under `lc`, with `clock` the
+/// one `report` was checked with ([`check_grids`]).
 pub fn views(
     log: &BeatLog,
+    clock: Option<&crate::clock::ClockFit>,
     report: &Report,
     long: &LongReport,
     lc: &LongConfig,
     rate_s: f64,
 ) -> Views {
-    let grids = check_grids(log, long, rate_s);
+    let grids = check_grids(log, clock, long, rate_s);
     // The beat error's search on the grid the tests searched, pauses and
     // all, so its strongest line is the one the label names.
     let readings = grids[2].y.iter().filter(|v| v.is_finite()).count();
     let searches = [
         Some(long.timing.search.clone()),
         Some(long.amplitude.search.clone()),
-        (readings >= 30).then(|| {
-            crate::steadiness::beat_error_long(&grids[2], long.clock.as_ref(), &long.breaks, lc)
-                .search
-        }),
+        (readings >= 30)
+            .then(|| crate::steadiness::beat_error_long(&grids[2], clock, &long.breaks, lc).search),
     ];
     let folds = folds(&grids, report, lc);
     let series = (0..3)
@@ -1578,8 +1594,8 @@ mod tests {
         }];
         let plain = longrun::analyse(&log, None, &lc);
         let paused = longrun::analyse_with_breaks(&log, None, &breaks, &lc);
-        let g0 = check_grids(&log, &plain, 10.0)[2].clone();
-        let g1 = check_grids(&log, &paused, 10.0)[2].clone();
+        let g0 = check_grids(&log, plain.clock.as_ref(), &plain, 10.0)[2].clone();
+        let g1 = check_grids(&log, paused.clock.as_ref(), &paused, 10.0)[2].clone();
         assert_eq!(g1.y.len(), g0.y.len() + 3, "the pause is left empty");
         let k = aw.iter().position(|w| w.start_s > mid).unwrap();
         assert!(g1.y[k..k + 3].iter().all(|v| v.is_nan()));
@@ -1612,7 +1628,7 @@ mod tests {
         // The views draw and fold these readings, on the tests' time: the
         // readings after the pause sit its gap later than the audio puts
         // them, as the tests' grid has them.
-        let v = views(&log, &report, &paused, &lc, 10.0);
+        let v = views(&log, paused.clock.as_ref(), &report, &paused, &lc, 10.0);
         let be = &v.series[2].readings;
         let want: Vec<f64> = (0..g1.y.len())
             .filter(|&j| g1.y[j].is_finite())
@@ -1655,7 +1671,7 @@ mod tests {
         };
         let plain = longrun::analyse(&log, None, &lc);
         // A 30 s pause 3 s into a rate reading, half way through.
-        let g = &check_grids(&log, &plain, 10.0)[0];
+        let g = &check_grids(&log, plain.clock.as_ref(), &plain, 10.0)[0];
         let mid = g.t0 + 15.0 * g.step + 3.0;
         // Beats lost for 3 s, 3 s into reading 5, with no break listed: the
         // tests leave that reading out, so the views must too.
@@ -1673,7 +1689,7 @@ mod tests {
             .iter()
             .find(|d| d.series == "rate" && d.values == "readings")
             .expect("rate readings");
-        let v = views(&log, &report, &paused, &lc, 10.0);
+        let v = views(&log, paused.clock.as_ref(), &report, &paused, &lc, 10.0);
         let r = &v.series[0].readings;
         assert!(r.counts.iter().all(|&c| c == 1), "none thinned");
         assert_eq!(r.t_s.len(), tests.n);
@@ -1705,12 +1721,10 @@ mod tests {
         assert!(wins.len() > tests.n, "{} {}", wins.len(), tests.n);
     }
 
-    /// The app's own test take: ten minutes of a watch whose rate swings
-    /// 20 s/d once a minute (a fourth wheel fault), heard as the app hears
-    /// it. Pins what each view carries, so the app can move its pane onto
-    /// this module and show it draws the same thing.
-    #[test]
-    fn a_once_a_minute_swing_gives_every_view() {
+    /// The app's own test take, heard as the app hears it: ten minutes of
+    /// a watch whose rate swings 20 s/d once a minute (a fourth wheel
+    /// fault).
+    fn swing_take() -> BeatLog {
         let cfg = SynthConfig {
             duration_s: 600.0,
             rate_s_per_day: 5.0,
@@ -1725,7 +1739,7 @@ mod tests {
         for b in audio.samples.chunks(4800) {
             live.push(b);
         }
-        let log = BeatLog {
+        BeatLog {
             lock_template_kept: false,
             sample_rate: live.sample_rate(),
             duration_s: live.duration_s(),
@@ -1739,7 +1753,65 @@ mod tests {
             sided: Vec::new(),
             by_count: Vec::new(),
             snippets: Vec::new(),
+        }
+    }
+
+    /// A take read in stretches is on its clock already, so its views
+    /// draw the readings the same take read whole puts on that clock once,
+    /// never twice (#1983): `series --views` on ym42_DU_2h read 10.82 s/d
+    /// where the app read 12.62.
+    #[test]
+    fn a_take_read_in_stretches_draws_its_readings_on_the_clock_once() {
+        let log = swing_take();
+        let lc = LongConfig {
+            wheels: default_wheels(log.bph),
+            ..Default::default()
         };
+        let check = Config::default();
+        // A card 19.2 ppm slow, 1.66 s/d, as ym42_DU_2h's.
+        let fit = crate::clock::ClockFit::fixed(-19.2, log.duration_s);
+        let median = |v: &Views| {
+            let mut x = v.series[0].readings.values.clone();
+            x.sort_by(f64::total_cmp);
+            x[x.len() / 2]
+        };
+        // Read whole, on audio time: the clock put on once.
+        let long = longrun::analyse_with_breaks(&log, Some(&fit), &[], &lc);
+        let report = steadiness::check(&log, Some(&fit), &long, &lc, &check);
+        let whole = views(&log, Some(&fit), &report, &long, &lc, check.rate_reading_s);
+        // Read in one stretch, as `series --stretch` reads it: joined onto
+        // the clock, so the clock is named but not put on again.
+        let spans = [(0.0, log.duration_s)];
+        let (joined, breaks) = crate::joined::join(&log, &spans, &[], Some(&fit));
+        let jlong = longrun::analyse_on_clock(&joined, Some(&fit), &breaks, &lc);
+        let jreport = steadiness::check(&joined, None, &jlong, &lc, &check);
+        let stretch = views(&joined, None, &jreport, &jlong, &lc, check.rate_reading_s);
+        let (a, b) = (median(&whole), median(&stretch));
+        assert!((a - b).abs() < 0.01, "whole {a}, in stretches {b}");
+        // Put on the clock a second time, the readings move by the
+        // correction again: what the test guards against.
+        let twice = views(
+            &joined,
+            Some(&fit),
+            &jreport,
+            &jlong,
+            &lc,
+            check.rate_reading_s,
+        );
+        let shift = crate::clock::rate_error_s_per_day(-19.2).abs();
+        assert!(
+            (median(&twice) - b).abs() > shift / 2.0,
+            "twice {}, once {b}",
+            median(&twice)
+        );
+    }
+
+    /// The app's own test take ([`swing_take`]). Pins what each view
+    /// carries, so the app can move its pane onto this module and show it
+    /// draws the same thing.
+    #[test]
+    fn a_once_a_minute_swing_gives_every_view() {
+        let log = swing_take();
         let lc = LongConfig {
             wheels: default_wheels(log.bph),
             ..Default::default()
@@ -1752,7 +1824,14 @@ mod tests {
             "{}",
             report.series[0].headline
         );
-        let v = views(&log, &report, &long, &lc, check.rate_reading_s);
+        let v = views(
+            &log,
+            long.clock.as_ref(),
+            &report,
+            &long,
+            &lc,
+            check.rate_reading_s,
+        );
         let names: Vec<&str> = v.series.iter().map(|s| s.series).collect();
         assert_eq!(names, ["rate", "amplitude", "beat_error"]);
 
