@@ -1426,7 +1426,7 @@ fn pending_row(
                     pal.text,
                 );
             }
-            right_in(ui, fw, UNDER_10_S.into(), false, pal.text_secondary);
+            under_10_s_cell(ui, fw);
             for _ in 0..3 {
                 ui.label("");
             }
@@ -2423,6 +2423,15 @@ pub fn card_rows(t: &session::PositionsTable) -> Vec<session::PositionRow> {
         .into_iter()
         .filter_map(|p| t.rows.iter().find(|r| r.position == p).cloned())
         .collect()
+}
+
+/// A stop marked too short to read, in its Rate cell: from the Rate
+/// column's left in a tight table, as the words under way are, across the
+/// empty figure cells, so it never runs back over the Duration (Walter
+/// and Hugh on #1964). The Positions table and Dynamic Poise share it.
+pub(crate) fn under_10_s_cell(ui: &mut egui::Ui, fw: f32) {
+    let ink = theme::pal(ui).text_secondary;
+    status_cell(ui, fw, UNDER_10_S.into(), ink);
 }
 
 /// What a stop marked too short to read says in its row.

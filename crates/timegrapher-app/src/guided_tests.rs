@@ -1424,35 +1424,48 @@ fn a_poise_stop_under_10_s_says_so_in_its_slot() {
     let ctx = egui::Context::default();
     theme::install(&ctx);
     let cl = position_label(session::Position::parse("CL").expect("CL"));
-    let mut cells = Vec::new();
-    let mut ink = egui::Color32::TRANSPARENT;
-    for _ in 0..2 {
-        let out = ctx.run(egui::RawInput::default(), |ctx| {
-            egui::CentralPanel::default().show(ctx, |ui| {
-                ink = theme::pal(ui).text;
-                let mut t = table(&[], Kind::Poise);
-                t.durations = vec![0.0];
-                t.short = vec![(cl.clone(), 6.0)];
-                table_grid(ui, ("poise", Kind::Poise), &t, None, None);
-            });
-        });
-        cells = out
-            .shapes
-            .iter()
-            .filter_map(|c| match &c.shape {
-                egui::Shape::Text(s) => Some((
-                    s.galley.text().to_string(),
-                    s.galley.job.sections.first().map(|f| f.format.color),
-                    s.pos.y,
+    // Wide, and tight beside the picture: its words never run back over
+    // its duration (Walter on #1964: "7 sUnder 10 s" at 1000 px).
+    for w in [1400.0, 950.0, 600.0] {
+        let mut cells = Vec::new();
+        let mut ink = egui::Color32::TRANSPARENT;
+        for _ in 0..2 {
+            let input = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    Vec2::new(w, 600.0),
                 )),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
+                ..Default::default()
+            };
+            let out = ctx.run(input, |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    ink = theme::pal(ui).text;
+                    let mut t = table(&[], Kind::Poise);
+                    t.durations = vec![0.0];
+                    t.short = vec![(cl.clone(), 6.0)];
+                    table_grid(ui, ("poise", Kind::Poise), &t, None, None);
+                });
+            });
+            cells = out
+                .shapes
+                .iter()
+                .filter_map(|c| match &c.shape {
+                    egui::Shape::Text(s) => Some((
+                        s.galley.text().to_string(),
+                        s.galley.job.sections.first().map(|f| f.format.color),
+                        s.galley.rect.translate(s.pos.to_vec2()),
+                    )),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+        }
+        let at = |text: &str| cells.iter().find(|c| c.0 == text).cloned();
+        let name = at(&cl).expect("its row");
+        assert_eq!(name.1, Some(ink), "normal ink");
+        let under = at(UNDER_10_S).expect("Under 10 s");
+        let dur = at("6 s").expect("its duration");
+        let y = name.2.center().y;
+        assert!((under.2.center().y - y).abs() < 1.0 && (dur.2.center().y - y).abs() < 1.0);
+        assert!(under.2.left() > dur.2.right(), "{w}: {dur:?} {under:?}");
     }
-    let at = |text: &str| cells.iter().find(|c| c.0 == text).cloned();
-    let name = at(&cl).expect("its row");
-    assert_eq!(name.1, Some(ink), "normal ink");
-    let under = at(UNDER_10_S).expect("Under 10 s");
-    let dur = at("6 s").expect("its duration");
-    assert!((under.2 - name.2).abs() < 1.0 && (dur.2 - name.2).abs() < 1.0);
 }

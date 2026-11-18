@@ -157,7 +157,7 @@ fn free_row(
         }
         FreeCell::Short => {
             right(ui, table_duration(duration), false, pal.text);
-            right(ui, UNDER_10_S.into(), false, pal.text_secondary);
+            under_10_s_cell(ui, FIGURE_W);
             for _ in 0..2 {
                 ui.label("");
             }
