@@ -1415,7 +1415,8 @@ the strip runs down):
   narrower, in dark text on the teal; the position's name starts after
   it. Hovering the band always says "Settling" and how long. Changing
   **Settle** on the Positions Test pane redraws every band and the
-  table. A change painted with the Position Brush starts at the fade. The plot behind the beats takes the same at a sixth of
+  table, except those in a guided test already run: a test's stretches
+  stay as it read them, and the new Settle is for the next test. A change painted with the Position Brush starts at the fade. The plot behind the beats takes the same at a sixth of
   the strength.
 - Masked stretches are grey hatching over it, named "Masked".
 - Each name sits on a small plate of the card's colour, in the text

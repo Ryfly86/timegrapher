@@ -876,6 +876,48 @@ fn a_positions_test_ends_by_itself_after_the_sixth_position() {
     let _ = std::fs::remove_dir_all(&base);
 }
 
+/// A finished test's stretches are fixed: Settle changed after it is for
+/// the next test, and leaves the test's settling, and so its marks, its
+/// readings and its saved state, as they were (#1956, the v1.1
+/// shakedown).
+#[test]
+fn a_settle_changed_after_a_test_leaves_the_test_alone() {
+    let base = std::env::temp_dir().join(format!("tg-app-guided-settle-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let mut app = synthetic(20.0, 0.0);
+    app.session.listen();
+    app.session.set_settle_s(0.5);
+    let tx = queued_capture(&mut app, &base);
+    let end = app.live.as_ref().unwrap().duration_s();
+    let mut test = guided::Test::new().timed(0.5, 2.0);
+    let mut t = end - 18.0;
+    test.tick(t);
+    for i in 0..guided::ORDER.len() {
+        t += 2.75;
+        assert_eq!(test.tick(t), guided::Phase::Turn, "position {i}");
+        if i + 1 < guided::ORDER.len() {
+            let (old, new) = (guided::ORDER[i], guided::ORDER[i + 1]);
+            app.session.move_to(t, old, new).unwrap();
+            test.advance(t);
+        }
+    }
+    app.guided = Some(test);
+    app.lift_deg = 53.0;
+    let ctx = egui::Context::default();
+    app.guided_tick(&ctx);
+    assert!(!app.guided_running(), "ended");
+    let settles = app.session.settles();
+    assert_eq!(settles.len(), 5, "{settles:?}");
+    for s in [30.0, 10.0, 30.0] {
+        app.session.resettle(s);
+        app.positions_moved(app.position);
+        assert_eq!(app.session.settles(), settles, "Settle {s}");
+    }
+    drop(tx);
+    let _ = std::fs::remove_dir_all(&base);
+}
+
 /// A Positions Test keeps the lift its positions were read at, so its
 /// amplitudes are set against full wind's only at the same lift
 /// (#1884): read as it goes at the lift in use, and read again at a new
