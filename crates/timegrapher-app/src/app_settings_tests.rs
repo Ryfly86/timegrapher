@@ -1,6 +1,7 @@
 //! Settings and the sheets: asking for a microphone, status lines and
 //! row captions, moving the library, the clock store, and recent calibres.
 
+use super::paper_strip::strip_step;
 use super::tests::{
     opened_recording, painted_text, save_failure_fixture, screen, synthetic, themed,
 };
@@ -1123,6 +1124,52 @@ fn a_run_read_again_while_listening_leaves_no_blank_on_the_strip() {
         let _ = app.strip_trend(15.0, 80.0, app.average_s);
         assert_eq!(app.strip_points.is_some(), fresh, "a hole of {hole} s");
     }
+}
+
+/// A Positions Test reads nothing while the watch settles after each
+/// move, so the run read live has a gap there. That is no hole for the
+/// strip to fill: it draws the run as it is, rather than work its own
+/// readings out on every frame of a live take in Fit (#1937).
+#[test]
+fn a_settling_leaves_the_strip_drawing_the_run_read_live() {
+    let mut app = synthetic(80.0, 20.0);
+    app.trend.retain(|p| !(40.0..55.0).contains(&p.t));
+    let _ = app.strip_trend(-5.0, 80.0, app.average_s);
+    assert!(app.strip_points.is_some(), "a gap with no settling");
+    app.strip_points = None;
+    app.session.load(
+        &[(0.0, Position::DialUp), (40.0, Position::DialDown)],
+        &[(40.0, 55.0)],
+    );
+    let _ = app.strip_trend(-5.0, 80.0, app.average_s);
+    assert!(app.strip_points.is_none(), "a settling taken for a hole");
+}
+
+/// In Fit the strip's window grows with the take on every frame. The
+/// readings it works out for itself stay where they were as it does,
+/// rather than move a little each frame and make the lines dance
+/// (#1937); and there are a few hundred of them at any length.
+#[test]
+fn the_strips_own_readings_stay_put_as_fit_grows() {
+    for span in [35.0, 199.0, 201.0, 1000.0, 7200.0, 86_400.0, 3e6] {
+        let n = span / strip_step(span);
+        assert!(
+            (200.0..=400.0).contains(&n) || strip_step(span) == 0.5,
+            "{span}: {n}"
+        );
+        assert_eq!((strip_step(span) / 0.5).log2().fract(), 0.0, "{span}");
+    }
+    let mut app = synthetic(260.0, 20.0);
+    // As sparse as a long take's run opened whole, so the strip works
+    // out its own.
+    app.trend = app.trend.iter().step_by(14).copied().collect();
+    let times = |pts: &[TrendPoint]| pts.iter().map(|p| p.t.to_bits()).collect::<Vec<_>>();
+    let (a, step) = app.strip_trend(-5.0, 250.0, app.average_s);
+    let (b, again) = app.strip_trend(-5.0, 250.4, app.average_s);
+    assert_eq!(step, again);
+    assert!(a.len() > 200, "{} readings", a.len());
+    assert_eq!(times(&a), times(&b[..a.len()]));
+    assert_eq!(a, b[..a.len()]);
 }
 
 /// Recent is the six calibres the app was last set to, by a menu pick,
