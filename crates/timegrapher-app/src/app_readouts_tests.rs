@@ -1,9 +1,9 @@
 //! Inputs and their gain, what the cards and readings say, the profiles,
 //! exporting a pane, and the empty and error states.
 
+use super::readouts::{reading_limits, take_limits};
 use super::tests::{frames, painted_text, screen, synthetic, themed};
 use super::*;
-use super::readouts::{reading_limits, take_limits};
 use timegrapher_core::synth::{generate, SynthConfig};
 
 /// An input that hangs as it closes doesn't hang the app: the wait

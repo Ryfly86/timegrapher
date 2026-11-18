@@ -1,9 +1,9 @@
 //! The Watches view and the watch line: the list beside the watch, the
 //! line's menu, picking a watch over a take, and the card's fields.
 
+use super::readouts::take_limits;
 use super::tests::{painted_text, screen, synthetic, themed};
 use super::*;
-use super::readouts::take_limits;
 use timegrapher_core::synth::{generate, SynthConfig};
 
 /// The Watches view is the Watches view's toolbar and content, moved
