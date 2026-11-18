@@ -16,15 +16,15 @@ A phone or tablet version gets its own interface, designed for touch from the st
 
 ## 3. When
 
-- **2026-11-13:** the web version and the touch apps were both parked until after v1.1.
-- **2026-11-18:** "mobile doesn't belong in 1.3".
+- **2026-11-13:** the web version and the touch apps were both parked until after v1.1 ([decision](https://github.com/peterhudson/timegrapher/issues/1585#issuecomment-6860273162)).
+- **2026-11-18:** "mobile doesn't belong in 1.3" ([Peter](https://github.com/peterhudson/timegrapher/issues/1585#issuecomment-6973220145)).
 
 ## Still open
 
 - **Which platform comes first,** if any.
-- **Where a web version keeps its takes:** the user's own folders, or a sign-in with analysis-only takes on a server. Peter: "Let's put off the decision about where a web version would store its takes until we decide to actually make a web version."
+- **Where a web version keeps its takes:** the user's own folders, or a sign-in with analysis-only takes on a server. Peter: "Let's put off the decision about where a web version would store its takes until we decide to actually make a web version." ([#1585](https://github.com/peterhudson/timegrapher/issues/1585#issuecomment-6860281211))
 
-## What was found (2026-11-13)
+## What was found (2026-11-13, [findings](https://github.com/peterhudson/timegrapher/issues/1585#issuecomment-6860273162))
 
 - Core builds unchanged for wasm32, Android and iOS.
 - Live analysis in headless Chromium ran at 34× real time, against 45× natively, with matching readings.
