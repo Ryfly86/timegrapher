@@ -1281,9 +1281,15 @@ impl LiveAnalyzer {
             jitter_us,
             timing_scatter_fraction,
             no_watch,
+            behind_s,
         } = self.verdict_at(holes, bph, window_from, end_s, st.listened_s);
         let watch_heard = no_watch.is_none();
-        let heard = |v: Option<f64>| v.filter(|_| watch_heard);
+        // Under 10 s of sound behind it, since the start or the latest
+        // break, the timing can't be judged, so the reading gives no
+        // figures: an empty stand's noise read as a rate of over
+        // 100,000 s/d in its first seconds (#2014).
+        let read = watch_heard && behind_s >= measure::SHORT_SPAN_S - 1e-6;
+        let heard = |v: Option<f64>| v.filter(|_| read);
         // Figures that name a side wait until the sides are told apart.
         let sided = self.sides_known_at(end_s);
         let sided = |v: Option<f64>| heard(v).filter(|_| sided);
@@ -1341,7 +1347,7 @@ impl LiveAnalyzer {
             clipped_beats: st.clipped_beats,
             clipped_fraction,
             watch_heard,
-            rate_error_s_per_day: assessment.confidence.and_then(|c| c.rate.se),
+            rate_error_s_per_day: heard(assessment.confidence.and_then(|c| c.rate.se)),
             rate_no_pm: assessment.confidence.and_then(|c| c.rate.no_pm),
             rate_noise_values: crate::confidence::rate_value_count(take_rate.len())
                 .min(crate::confidence::MIN_NOISE_VALUES),
@@ -1485,6 +1491,7 @@ impl LiveAnalyzer {
             jitter_us,
             timing_scatter_fraction,
             no_watch,
+            behind_s: end_s - heard_since,
         }
     }
 
@@ -1636,6 +1643,10 @@ struct Verdict {
     timing_scatter_fraction: Option<f64>,
     /// Why no watch is heard; none when one is.
     no_watch: Option<NoWatchReason>,
+    /// The sound heard behind the reading, seconds: since the start or
+    /// the latest break or mask, whatever the averaging time. Under
+    /// [`measure::SHORT_SPAN_S`] the reading gives no figures (#2014).
+    behind_s: f64,
 }
 
 /// Whether most of the beats found clipped: a watch far too loud, whose
