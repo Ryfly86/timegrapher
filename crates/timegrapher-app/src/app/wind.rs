@@ -92,26 +92,30 @@ impl TimegrapherApp {
         self.wind.wound_at = None;
     }
 
-    /// A test that begins at full wind has started: full wind at its
-    /// take's start (now, before one), where [`START_SETS_FULL_WIND`]. A
-    /// full wind after the take began would give it none (#1935).
-    pub(super) fn started_from_full_wind(&mut self) {
+    /// A test that begins at full wind has started, where
+    /// [`START_SETS_FULL_WIND`]: full wind at its take's start when its
+    /// Start began the take (`fresh`), else now. A test started on a take
+    /// already listening leaves that take no wind, as a full wind after it
+    /// began gives none (Norm on #1935: never moved earlier to fill one).
+    pub(super) fn started_from_full_wind(&mut self, fresh: bool) {
         if START_SETS_FULL_WIND {
-            let at = self.began_unix().unwrap_or_else(guided::unix_now);
-            self.set_wound(Some(at));
+            let now = guided::unix_now();
+            let began = self.recording_began_unix().filter(|_| fresh);
+            self.set_wound(Some(began.unwrap_or(now)));
         }
+    }
+
+    /// When the take's recording began, Unix seconds; none without one.
+    fn recording_began_unix(&self) -> Option<f64> {
+        let r = self.session.recorder.as_ref()?;
+        full_wind::unix_of_utc(r.started_utc())
     }
 
     /// When the take begun began, Unix seconds: its recording's start,
     /// else now while it listens; none before a take.
     pub(super) fn began_unix(&self) -> Option<f64> {
         self.live.as_ref()?;
-        let started = self
-            .session
-            .recorder
-            .as_ref()
-            .and_then(|r| full_wind::unix_of_utc(r.started_utc()));
-        Some(started.unwrap_or_else(guided::unix_now))
+        Some(self.recording_began_unix().unwrap_or_else(guided::unix_now))
     }
 
     /// Hours since full wind at `at_unix`, to a tenth.
@@ -122,12 +126,7 @@ impl TimegrapherApp {
     /// The take's hours since full wind at its start, as it is saved:
     /// none for a full wind after it began ([`full_wind::wind_h_at_start`]).
     pub(super) fn take_wind_h(&self) -> Option<f64> {
-        let started = self
-            .session
-            .recorder
-            .as_ref()
-            .and_then(|r| full_wind::unix_of_utc(r.started_utc()));
-        match started {
+        match self.recording_began_unix() {
             Some(began) => full_wind::wind_h_at_start(self.wound_unix()?, began),
             None => self.wind_h_at(guided::unix_now()),
         }
@@ -168,6 +167,12 @@ impl TimegrapherApp {
         if self.take_held().as_deref() == Some(take) {
             return self.error(crate::take_wind::HELD.into());
         }
+        self.write_take_wind(take, wind_h);
+    }
+
+    /// The take `take`'s hours since full wind written into its session
+    /// file through core, and its row and the card read again.
+    fn write_take_wind(&mut self, take: &Path, wind_h: Option<f64>) {
         if let Err(e) = full_wind::set_take_wind_h(take, wind_h) {
             return self.error(format!("Couldn't set the take's wind: {e}"));
         }
@@ -177,20 +182,24 @@ impl TimegrapherApp {
         }
     }
 
-    /// The Listen card's Wind field (#1915): a take opened shows its own
-    /// wind, which can't be set there. A take begun, running or stopped,
-    /// shows its hours from full wind to its start, set from the field
-    /// counting from its start (#1935), but not for a test that keeps its
-    /// own. Before a take, the watch's wind now, counting up, set from the
-    /// field.
+    /// The Listen card's Wind field (#1915). A take opened, or begun
+    /// (running or stopped), shows its hours from full wind to its start,
+    /// set from the field counting from its start (#1935); a test that
+    /// sets its own wind (Positions, Power Reserve) holds it fixed. Before a take, the watch's wind
+    /// now, counting up, set from the field.
     pub(super) fn wind_field(&mut self) -> WindField {
         if let Some(h) = self.shown_wind() {
-            return WindField::began(h, WIND_SHOWN_HINT, false);
+            return WindField::began(h, true);
         }
         if self.live.is_some() {
-            let own = self.guided.is_some() || self.reserve.is_some();
-            let hint = if own { WIND_TEST_HINT } else { WIND_BEGUN_HINT };
-            return WindField::began(self.entry_wind_h(), hint, !own);
+            // The Positions Test and a Power Reserve Test set their own
+            // wind; a Dynamic Poise or Complication Test doesn't (Gus).
+            let own = self.reserve.is_some()
+                || self
+                    .guided
+                    .as_ref()
+                    .is_some_and(|t| t.kind == guided::Kind::Positions);
+            return WindField::began(self.entry_wind_h(), !own);
         }
         let h = self.wind_h_at(guided::unix_now());
         WindField {
@@ -198,12 +207,22 @@ impl TimegrapherApp {
             hover: format!("{}. {WIND_HINT}", wind_since_words(h)),
             settable: self.position_editable(),
             given: h.is_some(),
+            says_click: false,
         }
     }
 
-    /// Act on a choice in the Wind menu. Once a take has begun, a take
-    /// already saved is given its new wind at once (#1935).
+    /// Act on a choice in the Wind menu. A take opened has it written
+    /// into its session file; once a take has begun, a take already saved
+    /// is given its new wind at once (#1935).
     pub(super) fn pick_wind(&mut self, pick: WindPick) {
+        if let Some(take) = self.take_on_show() {
+            let h = match pick {
+                WindPick::Now | WindPick::AtStart => Some(0.0),
+                WindPick::HoursAgo(h) | WindPick::HoursBefore(h) => Some(h.max(0.0)),
+                WindPick::NotGiven => None,
+            };
+            return self.write_take_wind(&take, h);
+        }
         let now = guided::unix_now();
         let began = self.began_unix().unwrap_or(now);
         self.set_wound(match pick {
@@ -221,26 +240,21 @@ impl TimegrapherApp {
     /// The take begun, saved already: its session file given the wind as
     /// its next save would write it, and its row read again.
     fn resave_take_wind(&mut self) {
-        let Some(take) = self.session.saved_to().map(Path::to_path_buf) else {
-            return;
-        };
-        if let Err(e) = full_wind::set_take_wind_h(&take, self.entry_wind_h()) {
-            return self.error(format!("Couldn't set the take's wind: {e}"));
-        }
-        if let Ok(Some(l)) = &mut self.library {
-            l.scan();
+        if let Some(take) = self.session.saved_to().map(Path::to_path_buf) {
+            self.write_take_wind(&take, self.entry_wind_h());
         }
     }
 
     /// The Wind menu in `ui`: its pick, once one is made, and the menu
     /// closed.
     pub(super) fn wind_menu(&mut self, ui: &mut egui::Ui) -> Option<WindPick> {
-        let begun = self.live.is_some();
+        let shown = self.shown_wind();
+        let begun = shown.is_some() || self.live.is_some();
         if self.wind.ago.is_empty() {
-            let h = if begun {
-                self.entry_wind_h()
-            } else {
-                self.wind_h_at(guided::unix_now())
+            let h = match shown {
+                Some(h) => h,
+                None if begun => self.entry_wind_h(),
+                None => self.wind_h_at(guided::unix_now()),
             };
             self.wind.ago = fields::plain(h.unwrap_or(0.0));
         }
@@ -262,18 +276,28 @@ pub(super) struct WindField {
     pub hover: String,
     /// Whether it opens the Wind menu.
     pub settable: bool,
+    /// Whether its hover already says what a click does.
+    pub says_click: bool,
     /// Whether a wind is given: muted where not.
     pub given: bool,
 }
 
 impl WindField {
-    /// A take's wind, hours from full wind to its start.
-    fn began(h: Option<f64>, hint: &str, settable: bool) -> Self {
+    /// A take's wind, hours from full wind to its start: set from the
+    /// field (`settable`), or fixed by its test (Hugh on #1947).
+    fn began(h: Option<f64>, settable: bool) -> Self {
+        let fact = wind_before_take_words(h);
+        let hover = match (settable, h) {
+            (false, _) => format!("{fact}. {WIND_TEST_HINT}"),
+            (true, Some(_)) => format!("{fact}, saved with the take. {WIND_CHANGE_CLICK}"),
+            (true, None) => format!("{fact}. {WIND_SET_CLICK}"),
+        };
         WindField {
             words: wind_field_words(h, true),
-            hover: format!("{}. {hint}", wind_before_take_words(h)),
+            hover,
             settable,
             given: h.is_some(),
+            says_click: settable,
         }
     }
 }
@@ -283,28 +307,26 @@ const WIND_HINT: &str = "When the watch was last fully wound. Each take is saved
      hours from then to its start. Set it here before a take: Full Wind Now, some hours ago, \
      or Not Given.";
 
-/// The Wind field's hover once a take has begun.
-const WIND_BEGUN_HINT: &str = "Saved with the take. Set it here, counting from when the \
-     take began: Full Wind at Start, some hours before it began, or Not Given.";
+/// What a click on the Wind field of a take with a wind does.
+const WIND_CHANGE_CLICK: &str = "Click to change it, counted from Start.";
+
+/// What a click on the Wind field of a take with none does.
+const WIND_SET_CLICK: &str = "Click to set it, counted from Start.";
 
 /// The Wind field's hover in a test that keeps its own wind.
 const WIND_TEST_HINT: &str = "Set by the test, and saved with its take.";
 
-/// The Wind field's hover for a take opened.
-const WIND_SHOWN_HINT: &str = "Saved with the take: change it with Set Wind on its row in \
-     Watches.";
-
 /// The Wind menu: Full Wind Now, Full Wind [ ] h ago with its hours
 /// typed in `ago`, and Not Given; once a take has begun (`begun`), Full
-/// Wind at Start and Full Wind [ ] h before it began, never after (Norm
-/// on #1935). The one picked.
+/// Wind at Start and Full Wind [ ] h before Start, never after (Norm on
+/// #1935; Hugh's words). The one picked.
 fn wind_choices(ui: &mut egui::Ui, ago: &mut String, begun: bool) -> Option<WindPick> {
     let mut picked = None;
     let (first, hours, unit): (_, fn(f64) -> WindPick, _) = if begun {
         (
             ("Full Wind at Start", WindPick::AtStart),
             WindPick::HoursBefore,
-            "h before it began",
+            "h before Start",
         )
     } else {
         (

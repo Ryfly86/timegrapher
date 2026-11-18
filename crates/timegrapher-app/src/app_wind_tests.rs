@@ -80,15 +80,16 @@ fn a_take_saves_its_hours_since_full_wind() {
 }
 
 /// Start on the Positions Test's full-wind step, and on the Power Reserve
-/// Test, sets Full Wind Now by itself (Peter, 14 Nov).
+/// Test, sets Full Wind Now by itself (Peter, 14 Nov). A Start that
+/// begins its take sets it at the take's start, so the take is saved at
+/// full wind; one on a take already listening leaves that take none
+/// (Norm on #1947: see below).
 #[test]
 fn start_at_full_wind_sets_full_wind_now() {
+    // A Power Reserve Test's Start begins its take.
     let (mut app, base) = save_failure_fixture("wind-start");
-    let _tx = queued_capture(&mut app, &base);
     app.pick_wind(WindPick::HoursAgo(30.0));
-    app.start_guided(None);
-    assert!(app.guided.is_some(), "{:?}", app.message);
-    // Fixed from the take's start, in the Wind field (#1915).
+    app.begin_reserve();
     assert_eq!(app.wind_field().words.value, "Began 0.0 h after full");
     // Its readings are saved at full wind.
     assert!(app
@@ -96,6 +97,16 @@ fn start_at_full_wind_sets_full_wind_now() {
         .recordings
         .iter()
         .all(|r| r.wind_h == Some(0.0)));
+    app.session.discard_recording();
+    let _ = std::fs::remove_dir_all(base);
+
+    // The Positions Test's full-wind step: the watch's full wind is now.
+    let (mut app, base) = save_failure_fixture("wind-start-positions");
+    let _tx = queued_capture(&mut app, &base);
+    app.pick_wind(WindPick::HoursAgo(30.0));
+    app.start_guided(None);
+    assert!(app.guided.is_some(), "{:?}", app.message);
+    assert!(guided::unix_now() - app.wound_unix().unwrap() < 5.0);
     app.session.discard_recording();
     let _ = std::fs::remove_dir_all(base);
 
@@ -123,8 +134,11 @@ fn a_take_on_show_shows_its_own_wind() {
     app.opened_path = take.display().to_string();
     app.session.analyse();
     assert_eq!(app.wind_field().words.value, "Began 24.2 h after full");
-    assert!(!app.wind_field().settable, "the Wind menu is closed");
-    // On show, Set Wind is refused: its next save would undo it (Felix).
+    assert!(
+        app.wind_field().settable,
+        "set from the card, from Start (Hugh)"
+    );
+    // On show, Set Wind in Watches is refused: the card sets it (Felix).
     let before = std::fs::read_to_string(take.join(MANIFEST)).unwrap();
     app.set_take_wind(&take, None);
     assert_eq!(
@@ -144,6 +158,11 @@ fn a_take_on_show_shows_its_own_wind() {
     app.set_take_wind(&take, Some(1.25));
     app.opened_path = take.display().to_string();
     assert_eq!(app.wind_field().words.value, "Began 1.3 h after full");
+    // From the card, counted from its start, into its session file.
+    app.pick_wind(WindPick::HoursBefore(30.0));
+    assert_eq!(app.wind_field().words.value, "Began 30.0 h after full");
+    let (m, _) = read_manifest(&take).unwrap().unwrap();
+    assert_eq!(timegrapher_core::full_wind::take_wind_h(&m), Some(30.0));
     let _ = std::fs::remove_dir_all(&base);
 }
 
@@ -554,9 +573,9 @@ fn the_wind_is_set_from_a_takes_start_once_it_has_begun() {
         "a Quick Listen begun can still be given its wind"
     );
     assert!(
-        during
-            .hover
-            .starts_with("Full wind 2.0 h before it began. Saved with the take. "),
+        during.hover
+            == "Full wind 2.0 h before it began, saved with the take. Click to change it, \
+                counted from Start.",
         "{}",
         during.hover
     );
@@ -568,14 +587,54 @@ fn the_wind_is_set_from_a_takes_start_once_it_has_begun() {
     let none = app.wind_field();
     assert_eq!(none.words.value, "Not given");
     assert!(!none.given, "muted");
-    // A test that keeps its own wind keeps the field fixed.
+    assert_eq!(
+        none.hover,
+        "Wind not given. Click to set it, counted from Start."
+    );
+    // A Complication Test doesn't set the wind: still settable (Gus).
+    app.guided = Some(guided::Test::complication(Position::DialUp));
+    assert!(app.wind_field().settable);
+    app.guided = None;
+    // A test that sets its own wind keeps the field fixed.
     app.reserve = Some(reserve::Test::new(
         Position::CrownLeft,
         true,
         String::new(),
         0.0,
     ));
-    assert!(!app.wind_field().settable);
+    let fixed = app.wind_field();
+    assert!(!fixed.settable);
+    assert_eq!(
+        fixed.hover,
+        "Wind not given. Set by the test, and saved with its take."
+    );
+}
+
+/// Start on the Positions Test's full-wind step, on a take already
+/// listening, sets full wind now and leaves that take no wind: never
+/// moved back to the take's start to fill one in (Norm on #1947).
+#[test]
+fn a_full_wind_test_started_on_a_take_listening_leaves_it_no_wind() {
+    let (mut app, base) = save_failure_fixture("wind-run-on");
+    let _tx = queued_capture(&mut app, &base);
+    app.resume_microphone();
+    assert!(app.running(), "{:?}", app.message);
+    let began = app.began_unix().unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(20));
+    app.start_guided(None);
+    assert!(app.guided.is_some(), "{:?}", app.message);
+    assert!(
+        app.wound_unix().unwrap() > began,
+        "full wind now, not moved back"
+    );
+    assert_eq!(app.take_wind_h(), None);
+    assert!(app
+        .take_manifest()
+        .recordings
+        .iter()
+        .all(|r| r.wind_h.is_none()));
+    app.session.discard_recording();
+    let _ = std::fs::remove_dir_all(base);
 }
 
 /// A take begun and saved already, its wind set late, has it in its
