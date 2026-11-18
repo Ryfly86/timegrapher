@@ -552,6 +552,32 @@ mod tests {
 
     /// A difference with no ± because a stretch's readings repeat
     /// exactly says so, not "yet": waiting won't give one (Hugh, #1908).
+    /// A stretch's figures carry its measurement's reason for a missing
+    /// ±, and none beside a ± (#1908).
+    #[test]
+    fn a_stretchs_figures_carry_why_a_plus_minus_is_missing() {
+        use crate::confidence::{Confidence, NoPm, Reading};
+        let s = crate::scenarios::steady_red(60.0, 0.0, 7);
+        let log = crate::scenarios::beat_log(&s, 7);
+        let mut m = crate::session::measure(&log, None, 0.0, log.duration_s);
+        assert!(m.amplitude_deg.is_some() && m.rate_s_per_day.is_some());
+        let why = |no_pm| Reading { se: None, no_pm };
+        m.confidence = Some(Confidence {
+            rate: why(Some(NoPm::Repeats)),
+            amplitude: why(Some(NoPm::TooFew)),
+            beat_error: Reading {
+                se: Some(0.01),
+                no_pm: None,
+            },
+        });
+        let f = figures(&m);
+        assert_eq!(f.rate.unwrap().no_pm, Some(NoPm::Repeats));
+        assert_eq!(f.amplitude.unwrap().no_pm, Some(NoPm::TooFew));
+        if let Some(b) = f.beat_error {
+            assert_eq!((b.se, b.no_pm), (Some(0.01), None));
+        }
+    }
+
     #[test]
     fn a_difference_whose_readings_repeat_says_so() {
         use crate::confidence::NoPm;
