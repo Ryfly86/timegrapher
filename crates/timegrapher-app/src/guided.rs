@@ -85,9 +85,8 @@ pub fn unix_now() -> f64 {
 }
 
 impl FullWind {
-    /// The lifts this 24 hour half and the full-wind test it was set
-    /// against were read at, full wind first, None where not recorded:
-    /// whether their amplitudes compare (#1884, #1923).
+    /// The lifts of the full-wind test this half was set against and of
+    /// this half, None where not recorded: do amplitudes compare (#1923).
     pub fn lifts(&self) -> [Option<f64>; 2] {
         [
             self.against.as_deref().and_then(|f| f.lift_angle_deg),
@@ -335,9 +334,8 @@ pub struct Test {
 }
 
 impl Test {
-    /// The lifts the full-wind test loaded at the start and this one were
-    /// read at, full wind first, None where not recorded: whether their
-    /// amplitudes compare (#1884, #1923).
+    /// The lifts of the full-wind test loaded at the start and of this
+    /// one, None where not recorded: do amplitudes compare (#1923).
     pub fn lifts(&self) -> [Option<f64>; 2] {
         [
             self.full.as_ref().and_then(|(f, _)| f.lift_angle_deg),
