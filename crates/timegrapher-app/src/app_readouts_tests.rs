@@ -589,6 +589,34 @@ fn noise_shows_its_possible_beats_on_the_strip() {
     assert!(drawn.contains("Circle"), "the possible beats are drawn");
 }
 
+/// Noise while the watch settles is still no watch: the settle hides
+/// nothing heard, so the strip still says no regular beat (#1944).
+#[test]
+fn noise_while_settling_is_still_no_watch() {
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "noise".into());
+    let base = std::env::temp_dir().join(format!("tg-settle-noise-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let mut seed = 54_321_u32;
+    let x: Vec<f32> = (0..48_000 * 20)
+        .map(|_| {
+            seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            (seed >> 8) as f32 / (1 << 24) as f32 * 0.02 - 0.01
+        })
+        .collect();
+    let live = app.live.as_mut().unwrap();
+    for b in x.chunks(960) {
+        live.push(b);
+    }
+    app.session.set_settle_s(30.0);
+    app.session.start_settle(0.0);
+    app.trend.clear();
+    assert!(app.settling_left().is_some());
+    assert!(app.no_watch_yet(), "noise is no watch, settling or not");
+    let _ = std::fs::remove_dir_all(base);
+}
+
 /// A paused session carries on only with the input it was listening to:
 /// another input's clock correction and clock measurement aren't its.
 #[test]
@@ -1234,7 +1262,7 @@ fn two_limits_show_a_chip_at_1600() {
 /// yet, but the strip shows its beats, not "no regular beat" (Peter,
 /// 2026-11-18, a 30 s settle at the start said so for all 30 s while the
 /// Scope and Tick Tock Profile showed the beats). Noise while settling is
-/// still no watch.
+/// still no watch: see [`noise_while_settling_is_still_no_watch`].
 #[test]
 fn a_watch_heard_while_it_settles_is_no_missing_watch() {
     let mut app = synthetic(20.0, 0.0);

@@ -39,11 +39,14 @@ pub(super) fn free_grid(ui: &mut egui::Ui, t: &FreeTable) {
             ui.end_row();
             let six = t.rows.iter().map(|(l, d, c)| (l, d, c));
             let extra = t.extra.iter().map(|(l, _, d, c)| (l, d, c));
-            for (label, duration, cell) in six.chain(extra) {
+            for (i, (label, duration, cell)) in six.chain(extra).enumerate() {
                 tops.push(ui.cursor().top());
                 let marked = *cell != FreeCell::NotMarked;
                 let color = if marked { pal.text } else { pal.text_tertiary };
-                ui.label(RichText::new(label).color(color));
+                let name = ui.label(RichText::new(label).color(color));
+                if i >= t.rows.len() {
+                    name.on_hover_text(FORTY_FIVE_HINT);
+                }
                 match cell {
                     FreeCell::NotMarked => {
                         right(ui, "Not marked".into(), false, pal.text_tertiary);
@@ -90,8 +93,21 @@ pub(super) fn free_grid(ui: &mut egui::Ui, t: &FreeTable) {
         .chain(t.extra.iter().map(|e| e.1))
         .collect();
     crate::position_lanes::table_rows(ui, (grid.response.rect.x_range(), 5.0), &codes, &tops);
+    // A thin rule sets the 45° rows apart from the six they don't join.
+    if let (false, Some(&y)) = (t.extra.is_empty(), tops.get(t.rows.len())) {
+        let y = y - 2.5;
+        ui.painter().hline(
+            grid.response.rect.x_range(),
+            y,
+            egui::Stroke::new(1.0_f32, pal.text_tertiary),
+        );
+    }
     crate::position_lanes::note_table_w(ui, grid.response.rect.width());
 }
+
+/// The hover on a 45° stop's row.
+pub(crate) const FORTY_FIVE_HINT: &str =
+    "Read in a Quick Listen. Not in Average or Largest Difference.";
 
 /// A free take's table's Average and Largest Difference rows.
 fn free_means(ui: &mut egui::Ui, t: &FreeTable) {
