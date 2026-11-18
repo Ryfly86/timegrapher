@@ -704,8 +704,8 @@ fn the_rate_hover_says_what_its_plus_minus_waits_for() {
     let words = readouts::rate_pm_words(&with).unwrap();
     assert!(
         words.ends_with(
-            "Its scatter comes from 30 rates of 10 s each: 4 of this run's own and 26 \
-             nearest in this take."
+            "Its scatter comes from 30 rates of 10 s each: 4 of this run's own and the 26 \
+             nearest it in this take."
         ),
         "{words}"
     );

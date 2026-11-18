@@ -162,8 +162,8 @@ pub(super) fn rate_pm_words(r: &LiveReading) -> Option<String> {
             match r.rate_own_values {
                 n if n >= NEED => format!("this run's own {n} rates of 10 s each"),
                 n => format!(
-                    "{NEED} rates of 10 s each: {n} of this run's own and {} nearest in \
-                     this take",
+                    "{NEED} rates of 10 s each: {n} of this run's own and the {} nearest it \
+                     in this take",
                     NEED - n
                 ),
             }
