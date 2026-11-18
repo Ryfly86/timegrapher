@@ -1562,8 +1562,8 @@ impl Library {
         if !take.exists() && aside.is_dir() {
             // An earlier try left the sound here: it may be the only copy.
             return Err(format!(
-                "The take's sound is in {} from an earlier try; move that folder back to {} \
-                 first",
+                "The take's sound is in {}, left there by an earlier try. Move that folder \
+                 back to {} first.",
                 aside.display(),
                 take.display()
             ));
@@ -1586,9 +1586,9 @@ impl Library {
             return Err(match (steps.rename)(&aside, take) {
                 Ok(()) => format!("Putting the kept take in place: {e}"),
                 Err(back) => format!(
-                    "Putting the kept take in place: {e}. Moving the take back failed too \
-                     ({back}): its sound is safe in {}, and its kept analysis in {}; move {} \
-                     back to {}",
+                    "Putting the kept take in place failed: {e}. Moving the take back failed \
+                     too: {back}. Its sound is safe in {}, and its kept analysis in {}. Move {} \
+                     back to {}.",
                     aside.display(),
                     kept.display(),
                     aside.display(),

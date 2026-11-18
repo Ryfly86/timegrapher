@@ -1696,10 +1696,17 @@ fn a_failed_swap_never_loses_the_sound_or_hides_where_it_is() {
     let e = run(&mut lib, &[2, 3]).unwrap_err();
     assert!(e.contains(&aside.display().to_string()), "{e}");
     assert!(e.contains(&kept.display().to_string()), "{e}");
+    // It ends on the step to take, as a sentence of its own.
+    let step = format!("Move {} back to {}.", aside.display(), t.display());
+    assert!(e.ends_with(&step), "{e}");
     assert!(!t.exists() && sound(&aside) && kept.exists());
     // A retry deletes nothing and names the folder again.
     let e = lib.put_kept(&t, &kept).unwrap_err();
     assert!(e.contains(&aside.display().to_string()), "{e}");
+    assert!(
+        e.ends_with(&format!("Move that folder back to {} first.", t.display())),
+        "{e}"
+    );
     assert!(sound(&aside) && kept.exists());
     // Moved back by hand, the swap goes through.
     fs::rename(&aside, &t).unwrap();
