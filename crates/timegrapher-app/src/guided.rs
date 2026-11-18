@@ -2072,11 +2072,11 @@ fn about_text(
         (None, Some(_)) => {
             "Start Test runs the six positions again and sets them against these results."
         }
-        (Some(t), _) if t.readings.is_some() && t.full.is_none() && watch => {
+        (Some(t), _) if t.readings.iter().any(|r| !r.is_empty()) && t.full.is_none() && watch => {
             "For the same test 24 hours after winding, leave the watch unwound and off \
                  the wrist, then set Wind to 24 Hours After and press New Test."
         }
-        (Some(t), _) if t.readings.is_some() && t.full.is_none() => {
+        (Some(t), _) if t.readings.iter().any(|r| !r.is_empty()) && t.full.is_none() => {
             "For the same test 24 hours after winding, first keep these results with Save \
                  Results for 24 Hours\u{2026}. \"?\" has the steps."
         }

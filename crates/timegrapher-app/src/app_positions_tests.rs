@@ -1367,6 +1367,12 @@ fn a_positions_test_stopped_before_the_beat_is_found_stays_ended() {
         );
         assert!(!drawn.contains("source not recorded"), "{case}: {drawn}");
         assert!(!drawn.contains("no mean"), "{case}: {drawn}");
+        // Nor the hint that leads on to the 24 hour half (Vernon on #1929).
+        assert!(
+            !drawn.contains("Save Results for 24 Hours"),
+            "{case}: {drawn}"
+        );
+        assert!(!drawn.contains("24 hours after winding"), "{case}: {drawn}");
     }
     let _ = std::fs::remove_dir_all(&base);
 }
