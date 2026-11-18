@@ -632,7 +632,13 @@ impl Noise {
     /// The standard error of a median of `n` values with this noise:
     /// 1.2533 × s / √(1 − ρ) / √n_eff ([`effective_readings`]).
     pub fn standard_error(self, n: usize) -> f64 {
-        let n_eff = effective_readings(n as f64, self.rho);
+        self.standard_error_over(n as f64)
+    }
+
+    /// [`Self::standard_error`] of `n` values, n not a whole number: a set
+    /// average's share of the run's values.
+    fn standard_error_over(self, n: f64) -> f64 {
+        let n_eff = effective_readings(n, self.rho);
         1.2533 * self.s / (1.0 - self.rho).sqrt() / n_eff.sqrt()
     }
 }
@@ -652,17 +658,22 @@ fn level_count(levels: &[Level]) -> usize {
 /// [`NoPm::TooFew`] with fewer than [`MIN_VALUES`] values of its own,
 /// [`NoPm::PoolShort`] with neither holding [`MIN_NOISE_VALUES`].
 pub fn standard_error_borrowing(own: &[Level], pool: &[Level]) -> Result<f64, NoPm> {
+    let (noise, n) = noise_borrowing(own, pool)?;
+    Ok(noise.standard_error(n))
+}
+
+/// The noise a ± of the reading's `own` values reads, and how many they
+/// are: their own when they hold [`MIN_NOISE_VALUES`], else `pool`'s
+/// (#1470). The one rule [`standard_error_borrowing`] and a set average's
+/// ± ([`rate_se_of_average_or_why`]) share.
+fn noise_borrowing(own: &[Level], pool: &[Level]) -> Result<(Noise, usize), NoPm> {
     let n = level_count(own);
     if n < MIN_VALUES {
         return Err(NoPm::TooFew);
     }
-    let noise = if n >= MIN_NOISE_VALUES {
-        Noise::of_levels(own, MIN_NOISE_VALUES)
-    } else {
-        Noise::of_levels(pool, MIN_NOISE_VALUES)
-    }
-    .ok_or(NoPm::PoolShort)?;
-    Ok(noise.standard_error(n))
+    let source = if n >= MIN_NOISE_VALUES { own } else { pool };
+    let noise = Noise::of_levels(source, MIN_NOISE_VALUES).ok_or(NoPm::PoolShort)?;
+    Ok((noise, n))
 }
 
 /// The first and last of `take`'s windows [`noise_pool`] reads: the
@@ -915,17 +926,8 @@ pub fn rate_se_of_average_or_why(
         |w| Some(w.fit.rate_s_per_day),
     )
     .ok_or(NoPm::TooFew)?;
-    let n = level_count(&levels);
-    if n < MIN_VALUES {
-        return Err(NoPm::TooFew);
-    }
-    let source = if n >= MIN_NOISE_VALUES {
-        &levels
-    } else {
-        &pool
-    };
-    let noise = Noise::of_levels(source, MIN_NOISE_VALUES).ok_or(NoPm::PoolShort)?;
-    shown(1.2533 * noise.s / m.max(1.0).sqrt())
+    let (noise, _) = noise_borrowing(&levels, &pool)?;
+    shown(Noise { rho: 0.0, ..noise }.standard_error_over(m.max(1.0)))
 }
 
 /// Standard error of the beat error from the unlock, ms: the one rule for
