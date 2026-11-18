@@ -109,6 +109,12 @@ same amplitudes, so a degree stays put when you switch.
 | The rate falling as the amplitude falls | The watch loses at low amplitude. |
 | A walk that doubles back | The amplitude rose again: a wind, or a change in the stand or the watch. |
 
+**Good practice:** compare like with like: the same position, at full
+wind and again a day later. That is how Witschi defines it:
+"Isochronism refers to the difference in rate between 0 hours (fully
+wound) and 24 hours" in the same position ([Witschi 2025](https://www.witschi.com/wp-content/uploads/firmwares/8Z1UtLGf/20251118_witschi_testing-methods-for-mechanical-watches_en.pdf), p. 28). A Positions
+Test's Full Wind against 24 Hours (chapter 20) gives the figures.
+
 ## What It Can't Tell You
 
 - **The cause.** The slope says the rate and the amplitude went together.

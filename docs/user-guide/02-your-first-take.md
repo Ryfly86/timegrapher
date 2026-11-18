@@ -60,6 +60,13 @@ starts listening at once, so you can see the watch as you set it up.
    seconds of beats. They steady as more beats arrive.
 4. **Leave the watch and the table alone.** A knock shows as a jump.
 
+**Good practice:** wind the watch, push the crown in, and let it run
+for some minutes before you judge a reading: "Allow approx. 20 minutes
+of running time before measurement to stabilise the rate", and "Always
+measure with the crown pushed in." On a date watch, avoid the hours
+around midnight: "Date switching may affect measurement accuracy during
+this time." ([Witschi 2025](https://www.witschi.com/wp-content/uploads/firmwares/8Z1UtLGf/20251118_witschi_testing-methods-for-mechanical-watches_en.pdf), p. 33.)
+
 ![A Quick Listen take 40 seconds in, with readings on the cards, the Paper Strip and the Tick Tock Profile](images/quick-listen.png)
 
 ### What to Read First

@@ -53,6 +53,20 @@ Settle and Each Position are kept between runs, and shared with the other guided
 5. After the sixth, the test reads the six together and stops listening,
    as Stop does.
 
+**Good practice:**
+
+- **Demagnetise first** when the rate is far off or erratic: "Use a
+  suitable device (e.g. Witschi Teslascope) to eliminate magnetic
+  interference that can impair rate accuracy" ([Witschi 2025](https://www.witschi.com/wp-content/uploads/firmwares/8Z1UtLGf/20251118_witschi_testing-methods-for-mechanical-watches_en.pdf), p. 33).
+- **The flat positions come first,** as Witschi advises: "Start with
+  horizontal to reduce stabilisation time" (p. 33).
+- **20 s to settle and 40 s or more to measure is the floor:** "20 s
+  stabilisation time and ≥40 s measurement time for stable results"
+  (p. 33). If a position's readings are still moving when it is
+  measured, raise **Settle** for that watch (chapter 5).
+- **When you regulate, set the beat error before the rate:** "correct
+  the beat error (repère) first, then adjust the rate" (p. 35).
+
 | Mark | Part | What it does or shows |
 | --- | --- | --- |
 | 5 | The banner | The position under way and how far through: "Crown Right (6 of 6)", "Measuring, 11 of 20 s". |
@@ -149,6 +163,11 @@ saved figures, and Watches lists it as a Positions Test.
 | A large vertical less horizontal | The pivots and jewels, which rest on their sides in the vertical positions and their ends in the horizontal. |
 | The amplitude much lower in the vertical positions | Usual to a degree; how much is for you to judge. |
 | A large Im or Ie | The rate moves as the mainspring lets down: isochronism (chapter 19, M12). |
+
+**Good practice:** when you regulate, Witschi names three positions to
+regulate in: "Regulation in the three main
+test positions — CH, 9H, and 6H — ensures realistic rate stability"
+([Witschi 2025](https://www.witschi.com/wp-content/uploads/firmwares/8Z1UtLGf/20251118_witschi_testing-methods-for-mechanical-watches_en.pdf), p. 21). CH is Dial Up, 9H Crown Down and 6H Crown Left.
 
 ## What It Can't Tell You
 
