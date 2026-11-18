@@ -205,7 +205,7 @@ fn the_test_buttons_keep_their_places_from_phase_to_phase() {
     }
     // On the title's line, so the step's button is in reach in the
     // shortest pane: never under the progress bar.
-    let title = rect(&turn, "Turn the watch to Dial Down");
+    let title = rect(&turn, "Next: Dial Down (DD)");
     let start = rect(&turn, "Start DD Measurement");
     assert!(
         (start.center().y - title.center().y).abs() < 6.0,
@@ -1479,5 +1479,77 @@ fn a_poise_stop_under_10_s_says_so_in_its_slot() {
         let y = name.2.center().y;
         assert!((under.2.center().y - y).abs() < 1.0 && (dur.2.center().y - y).abs() < 1.0);
         assert!(under.2.left() > dur.2.right(), "{w}: {dur:?} {under:?}");
+    }
+}
+
+/// No word in the step panel is ever cut, at any step of any of the three
+/// tests: the title whole on one line, the buttons under it where it won't
+/// fit beside them, and what happens next wrapped (Hugh on #1955, the v1.1
+/// shakedown: "Turn the watch to Crown ..." beside the comparison plot).
+/// The panel is ~600 pt beside the plot in a wide window, and the pane's
+/// width in a narrow one.
+#[test]
+fn no_word_in_the_step_panel_is_ever_cut() {
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    let tests = [
+        Test::new(),
+        Test::poise(),
+        Test::complication(Position::DialUp),
+    ];
+    for mut test in tests.map(|t| t.timed(10.0, 30.0)) {
+        for step in 0..test.order().len() {
+            test.step = step;
+            let phases = [
+                Phase::Settling(5.0),
+                Phase::Measuring(10.0),
+                Phase::Paused,
+                Phase::Turn,
+            ];
+            for (phase, w) in phases
+                .into_iter()
+                .flat_map(|p| [560.0, 1000.0, 1280.0, 1920.0, 2560.0].map(move |w| (p, w)))
+            {
+                let mut title = String::new();
+                let mut texts = Vec::new();
+                for _ in 0..2 {
+                    let input = egui::RawInput {
+                        screen_rect: Some(egui::Rect::from_min_size(
+                            egui::Pos2::ZERO,
+                            Vec2::new(w, 400.0),
+                        )),
+                        ..Default::default()
+                    };
+                    let out = ctx.run(input, |ctx| {
+                        egui::CentralPanel::default().show(ctx, |ui| {
+                            title = phase_words(&test, phase).0;
+                            banner(ui, &test, phase, None);
+                        });
+                    });
+                    texts = out
+                        .shapes
+                        .iter()
+                        .filter_map(|c| match &c.shape {
+                            egui::Shape::Text(s) => Some((
+                                s.galley.text().to_string(),
+                                s.galley.elided,
+                                s.galley.rows.len(),
+                            )),
+                            _ => None,
+                        })
+                        .collect::<Vec<_>>();
+                }
+                let at = format!("{:?} step {step} {phase:?} at {w}", test.kind);
+                for (t, elided, _) in &texts {
+                    assert!(!elided, "{at}: cut: {t}");
+                }
+                let shown = texts.iter().find(|t| t.0 == title);
+                assert_eq!(
+                    shown.map(|t| t.2),
+                    Some(1),
+                    "{at}: {title} whole on one line: {texts:?}"
+                );
+            }
+        }
     }
 }

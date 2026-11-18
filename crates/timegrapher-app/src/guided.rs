@@ -765,8 +765,13 @@ impl Test {
 /// The title for the position under way: "Dial Up (1 of 6)", and in the
 /// 24 hour half "Dial Up (1 of 6, 24.1 h After Full Wind)".
 fn step_title(test: &Test) -> String {
-    let i = test.step.min(test.order().len() - 1);
-    let (name, n, of) = (test.step_name(i), test.step + 1, test.order().len());
+    step_title_at(test, test.step)
+}
+
+/// [`step_title`] for step `step`.
+fn step_title_at(test: &Test, step: usize) -> String {
+    let i = step.min(test.order().len() - 1);
+    let (name, n, of) = (test.step_name(i), step + 1, test.order().len());
     match test.wind_h() {
         Some(h) => format!("{name} ({n} of {of}, {h:.1} h After Full Wind)"),
         None => format!("{name} ({n} of {of})"),
@@ -795,30 +800,41 @@ pub(crate) fn banner(
             detail = format!("{detail} · {n}");
         }
         let (first_w, restart_w) = slot_widths(ui, test);
-        // The step's buttons on the title's line, in reach in the shortest
-        // pane; the chips and what is happening on the line under it.
+        // The step's buttons on the title's line where every title the
+        // test can show fits beside them, else on a row of their own: the
+        // title is never cut, and the panel keeps one height (#1955).
         let slots_w = first_w + restart_w + 2.0 * ui.spacing().item_spacing.x;
-        ui.horizontal(|ui| {
-            let title_w = (ui.available_width() - slots_w).max(40.0);
-            ui.allocate_ui_with_layout(
-                Vec2::new(title_w, 26.0),
-                egui::Layout::left_to_right(egui::Align::Center),
-                |ui| {
-                    ui.set_width(title_w);
-                    ui.add(
-                        egui::Label::new(
-                            RichText::new(&title)
-                                .font(theme::semibold(15.0))
-                                .color(pal.text),
-                        )
-                        .truncate(),
-                    );
-                },
+        let font = theme::semibold(15.0);
+        let widest = titles(test)
+            .into_iter()
+            .map(|t| ui.fonts_mut(|f| f.layout_no_wrap(t, font.clone(), pal.text).size().x))
+            .fold(0.0_f32, f32::max);
+        let beside = ui.available_width() - slots_w >= widest;
+        let title_label = |ui: &mut egui::Ui| {
+            ui.add(
+                egui::Label::new(RichText::new(&title).font(font.clone()).color(pal.text)).wrap(),
             );
-            action = step_buttons(ui, test, phase, first_w, restart_w);
-        });
-        // One line, whole in its hover: the panel never grows.
-        ui.horizontal(|ui| detail_line(ui, &detail, test));
+        };
+        if beside {
+            ui.horizontal(|ui| {
+                let title_w = ui.available_width() - slots_w;
+                ui.allocate_ui_with_layout(
+                    Vec2::new(title_w, 26.0),
+                    egui::Layout::left_to_right(egui::Align::Center),
+                    |ui| {
+                        ui.set_width(title_w);
+                        title_label(ui);
+                    },
+                );
+                action = step_buttons(ui, test, phase, first_w, restart_w);
+            });
+        } else {
+            title_label(ui);
+            ui.horizontal(|ui| action = step_buttons(ui, test, phase, first_w, restart_w));
+        }
+        // What happens next, wrapped over up to two lines' room, never
+        // cut (Hugh on #1955).
+        detail_line(ui, &detail, test);
         ui.add_space(4.0);
         ui.add(
             egui::ProgressBar::new(frac.clamp(0.0, 1.0))
@@ -827,6 +843,33 @@ pub(crate) fn banner(
         );
     });
     action
+}
+
+/// Every title the step panel can show in `test`: each step's own, each
+/// turn to the next, and the last.
+fn titles(test: &Test) -> Vec<String> {
+    let n = test.order().len();
+    let mut out: Vec<String> = (0..n).map(|i| step_title_at(test, i)).collect();
+    out.extend((0..n).map(|i| turn_title(test, i)));
+    out
+}
+
+/// The title on turning from step `i` to the next: the next position
+/// first (Hugh on #1955), or the end of the test.
+fn turn_title(test: &Test, i: usize) -> String {
+    match (test.order().get(i + 1), test.kind) {
+        (Some(_), Kind::Complication) => {
+            format!(
+                "Turn the complication {}",
+                test.step_code(i + 1).to_lowercase()
+            )
+        }
+        (Some(_), Kind::Poise) => format!("Done: {}", step_title_at(test, i)),
+        (Some(p), Kind::Positions) => format!("Next: {} ({})", p.name(), p.code()),
+        (None, Kind::Positions) => "All six positions measured".to_string(),
+        (None, Kind::Poise) => "All eight positions measured".to_string(),
+        (None, Kind::Complication) => "All three stretches measured".to_string(),
+    }
 }
 
 /// The step panel's title, what is happening, and how far through its
@@ -858,7 +901,7 @@ fn phase_words(test: &Test, phase: Phase) -> (String, String, f32) {
             Some(_) if test.kind == Kind::Complication => {
                 let next = test.step_code(test.step + 1);
                 (
-                    format!("Turn the complication {}", next.to_lowercase()),
+                    turn_title(test, test.step),
                     format!(
                         "then press Start {next} Measurement. Nothing until then is \
                          measured; the strip marks it {}.",
@@ -868,7 +911,7 @@ fn phase_words(test: &Test, phase: Phase) -> (String, String, f32) {
                 )
             }
             Some(p) if test.kind == Kind::Poise => (
-                format!("Done: {}", step_title(test)),
+                turn_title(test, test.step),
                 format!(
                     "Turn the watch 45°, to {} ({}) at the top, then press Start {} \
                      Measurement. Until then the strip marks it Not Used.",
@@ -878,22 +921,18 @@ fn phase_words(test: &Test, phase: Phase) -> (String, String, f32) {
                 ),
                 1.0,
             ),
+            // The position first, whole (Hugh on #1955).
             Some(p) => (
-                format!("Turn the watch to {}", p.name()),
+                turn_title(test, test.step),
                 format!(
-                    "then press Start {} Measurement. Nothing until then is measured; \
-                     the strip marks it Not Used for Positions Test.",
+                    "Turn the watch to it, then press Start {} Measurement. Until then \
+                     the strip marks it Not Used.",
                     p.code()
                 ),
                 1.0,
             ),
             None => (
-                match test.kind {
-                    Kind::Positions => "All six positions measured",
-                    Kind::Poise => "All eight positions measured",
-                    Kind::Complication => "All three stretches measured",
-                }
-                .to_string(),
+                turn_title(test, test.step),
                 "Reading them together and keeping the take…".to_string(),
                 1.0,
             ),
@@ -1039,7 +1078,7 @@ fn step_buttons(
     action
 }
 
-/// What is happening, in one line whole in its hover, and the chips.
+/// What is happening, wrapped in two lines' room or more, and the chips.
 fn detail_line(ui: &mut egui::Ui, detail: &str, test: &Test) {
     let pal = theme::pal(ui);
     let chips_w = test.order().len() as f32 * (chip_w(test.kind) + 4.0) + 8.0;
@@ -1049,19 +1088,22 @@ fn detail_line(ui: &mut egui::Ui, detail: &str, test: &Test) {
     } else {
         room
     };
-    ui.allocate_ui_with_layout(
-        Vec2::new(detail_w, 18.0),
-        egui::Layout::left_to_right(egui::Align::Center),
-        |ui| {
-            ui.set_width(detail_w);
-            ui.add(
-                egui::Label::new(RichText::new(detail).small().color(pal.text_secondary))
-                    .truncate(),
-            )
-            .on_hover_text(detail);
-        },
-    );
-    step_chips(ui, test);
+    let two_lines = 2.0 * ui.text_style_height(&egui::TextStyle::Small) + 4.0;
+    ui.horizontal_top(|ui| {
+        ui.allocate_ui_with_layout(
+            Vec2::new(detail_w, two_lines),
+            egui::Layout::top_down(egui::Align::Min),
+            |ui| {
+                ui.set_width(detail_w);
+                ui.set_min_height(two_lines);
+                ui.add(
+                    egui::Label::new(RichText::new(detail).small().color(pal.text_secondary))
+                        .wrap(),
+                );
+            },
+        );
+        step_chips(ui, test);
+    });
 }
 
 /// The six positions as chips after what the step is doing: done, the one
