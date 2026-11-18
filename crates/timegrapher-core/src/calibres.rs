@@ -265,14 +265,22 @@ pub fn also_named_note(name: &str) -> Option<String> {
         return None;
     }
     let shown: Vec<&str> = rest.iter().take(3).map(|c| c.calibre.as_str()).collect();
-    let more = match rest.len() - shown.len() {
-        0 => String::new(),
-        n => format!(" and {n} more"),
+    let others = match (shown.as_slice(), rest.len() - shown.len()) {
+        ([one], 0) => (*one).to_string(),
+        (names, 0) => {
+            let (last, before) = names.split_last()?;
+            format!("{} and {last}", before.join(", "))
+        }
+        (names, more) => format!("{} and {more} more", names.join(", ")),
+    };
+    let pick = if rest.len() == 1 {
+        "pick that one"
+    } else {
+        "pick one of those"
     };
     Some(format!(
-        "'{name}' is read as the {}; it also names the {}{more}. Give the full name to pick another",
-        first.calibre,
-        shown.join(", the ")
+        "'{name}' is read as {}. It also names {others}. Give the full name to {pick}.",
+        first.calibre
     ))
 }
 
@@ -391,6 +399,26 @@ mod tests {
             all.first().map(|c| &c.calibre)
         );
         let note = also_named_note("321").unwrap();
+        // Hugh's words on #1899: no "the", a full stop to each sentence.
+        assert_eq!(
+            note,
+            "'321' is read as Chezard 321. It also names Valjoux 321 and Omega 321. Give the full name to pick one of those."
+        );
+        assert_eq!(
+            also_named_note("9015").unwrap(),
+            "'9015' is read as Miyota 9015. It also names Ronda 9015. Give the full name to pick that one."
+        );
+        // More than three others: the first three, then how many more.
+        let rest = named("520").len() - 1;
+        assert!(rest > 3);
+        let many = also_named_note("520").unwrap();
+        assert!(
+            many.contains(&format!(
+                " and {} more. Give the full name to pick one of those.",
+                rest - 3
+            )),
+            "{many}"
+        );
         assert!(
             note.contains(&all[0].calibre) && note.contains(&all[1].calibre),
             "{note}"
