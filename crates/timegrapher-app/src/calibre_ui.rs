@@ -1639,10 +1639,25 @@ impl Calibres {
             Col::Maker if e.is_custom() => pal.accent,
             _ => pal.text_secondary,
         };
+        // A calibre whose escapement isn't measured yet: a muted tag at
+        // the cell's right, the name cut short before it (#1872).
+        let mut room = cell.width() - 8.0;
+        if col == Col::Calibre && e.escapement().is_some() {
+            let tag = ui.painter().layout_no_wrap(
+                calibres::Escapement::TAG.to_string(),
+                egui::FontId::proportional(11.0),
+                pal.text_tertiary,
+            );
+            room -= tag.size().x + 8.0;
+            let at = egui::pos2(
+                cell.right() - 4.0 - tag.size().x,
+                cell.center().y - tag.size().y / 2.0,
+            );
+            ui.painter().galley(at, tag, pal.text_tertiary);
+        }
         // Too long for its column: cut at its end with "…",
         // the whole of it in the row's hover.
         let font = egui::FontId::proportional(12.5);
-        let room = cell.width() - 8.0;
         let mut galley = ui.painter().layout_no_wrap(text.clone(), font.clone(), ink);
         let chars: Vec<char> = text.chars().collect();
         let mut keep = chars.len();
@@ -1703,6 +1718,13 @@ impl Calibres {
                         .color(pal.text_tertiary),
                 );
             }
+        }
+        // Its escapement, when Timegrapher doesn't measure it yet, with
+        // where that comes from in the hover (#1872).
+        if let Some(x) = e.escapement() {
+            ui.add_space(6.0);
+            ui.label(RichText::new(x.sentence()).color(pal.text_secondary))
+                .on_hover_text(format!("Source: {}", x.source));
         }
         let share = Catalog::new(&self.user).contribution_url(e, version);
         ui.add_space(10.0);
@@ -2382,6 +2404,12 @@ impl Picked {
 
 /// One calibre in the menu, ticked when it is `current`.
 fn menu_line(ui: &mut egui::Ui, e: Entry<'_>, text: String, current: &str, picked: &Picked) {
+    // A calibre whose escapement isn't measured yet can still be picked,
+    // its tag beside its name (#1872).
+    let text = match e.escapement() {
+        Some(_) => format!("{text}  ·  {}", calibres::Escapement::TAG),
+        None => text,
+    };
     picked.item(ui, e.name() == current, text, &hint(e), e.name());
 }
 
@@ -2513,6 +2541,9 @@ fn short_name<'a>(e: Entry<'a>) -> &'a str {
 fn hint(e: Entry<'_>) -> String {
     // The name first: the table may cut it short.
     let mut t = format!("{}\n{}", e.name(), summary(e));
+    if let Some(x) = e.escapement() {
+        t += &format!("\n{}", x.sentence());
+    }
     if let Entry::Table(c) = e {
         if !c.family.is_empty() {
             t += &format!("\nAlso: {}", c.family.join(", "));

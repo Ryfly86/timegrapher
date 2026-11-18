@@ -82,6 +82,39 @@ pub struct Calibre {
     /// repository, by path there (`<maker>/<calibre>/<file>`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub assets: Vec<Asset>,
+    /// An escapement Timegrapher does not measure yet, from a cited
+    /// source; absent for a Swiss lever (#1872).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub escapement: Option<Escapement>,
+}
+
+/// A calibre's escapement when it is not a Swiss lever (#1872).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Escapement {
+    /// One of [`ESCAPEMENTS`].
+    pub kind: String,
+    pub source: String,
+}
+
+/// The escapements [`Escapement::kind`] may name.
+pub const ESCAPEMENTS: [&str; 3] = ["co-axial", "pin lever", "detent"];
+
+impl Escapement {
+    /// The short tag beside the calibre's name where it is listed (#1872).
+    pub const TAG: &'static str = "Not supported yet";
+
+    /// What the app says of it, in place of the lift angle (#1872).
+    pub fn sentence(&self) -> String {
+        let mut kind = self.kind.chars();
+        let kind = match kind.next() {
+            Some(first) => first.to_uppercase().chain(kind).collect::<String>(),
+            None => String::new(),
+        };
+        format!(
+            "{kind} escapement: not supported yet. Timegrapher measures Swiss lever \
+             escapements only."
+        )
+    }
 }
 
 /// When a calibre was made.
@@ -1304,6 +1337,37 @@ mod tests {
                 assert!((30.0..=70.0).contains(&l), "{}: {l}°", c.calibre);
             }
         }
+    }
+
+    /// A calibre with an escapement Timegrapher does not measure yet says
+    /// which one, from the fixed list, with a source that starts with its
+    /// address (#1872); the Omega 2500 family is co-axial.
+    #[test]
+    fn non_lever_escapements_are_named_and_sourced() {
+        let mut flagged = 0;
+        for c in all() {
+            let Some(e) = &c.escapement else { continue };
+            flagged += 1;
+            assert!(
+                ESCAPEMENTS.contains(&e.kind.as_str()),
+                "{}: {}",
+                c.calibre,
+                e.kind
+            );
+            assert!(e.source.starts_with("https://"), "{}", c.calibre);
+        }
+        assert_eq!(flagged, 4);
+        for n in ["Omega 2500", "Omega 2500A", "Omega 2500B", "Omega 2500C"] {
+            let e = find(n).unwrap().escapement.as_ref().unwrap();
+            assert_eq!(e.kind, "co-axial", "{n}");
+        }
+        assert!(find("ETA 2824-2").unwrap().escapement.is_none());
+        let e = find("Omega 2500").unwrap().escapement.clone().unwrap();
+        assert_eq!(
+            e.sentence(),
+            "Co-axial escapement: not supported yet. Timegrapher measures Swiss lever \
+             escapements only."
+        );
     }
 
     /// The metadata fields (#1861) keep their rules: every sentence,

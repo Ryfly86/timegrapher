@@ -65250,7 +65250,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 2500, 38°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 2500, 38°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "escapement": {
+      "kind": "co-axial",
+      "source": "https://monochrome-watches.com/omega-co-axial-escapement-technical-perspective (Monochrome Watches: Omega's Co-Axial escapement, a technical perspective) (\"The original calibre 2500 was a modified ETA 2892 fitted with a Co-Axial escapement\")"
+    }
   },
   {
     "calibre": "Omega 2500A",
@@ -65261,7 +65265,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 2500A, 38°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 2500A, 38°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "escapement": {
+      "kind": "co-axial",
+      "source": "https://monochrome-watches.com/omega-co-axial-escapement-technical-perspective (Monochrome Watches: Omega's Co-Axial escapement, a technical perspective) (\"The original calibre 2500 was a modified ETA 2892 fitted with a Co-Axial escapement\")"
+    }
   },
   {
     "calibre": "Omega 2500B",
@@ -65272,7 +65280,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 2500B, 38°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 2500B, 38°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "escapement": {
+      "kind": "co-axial",
+      "source": "https://monochrome-watches.com/omega-co-axial-escapement-technical-perspective (Monochrome Watches: Omega's Co-Axial escapement, a technical perspective) (\"The original calibre 2500 was a modified ETA 2892 fitted with a Co-Axial escapement\")"
+    }
   },
   {
     "calibre": "Omega 2500C",
@@ -65283,7 +65295,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 2500C, 38°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 2500C, 38°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "escapement": {
+      "kind": "co-axial",
+      "source": "https://monochrome-watches.com/omega-co-axial-escapement-technical-perspective (Monochrome Watches: Omega's Co-Axial escapement, a technical perspective) (\"The original calibre 2500 was a modified ETA 2892 fitted with a Co-Axial escapement\")"
+    }
   },
   {
     "calibre": "Omega 251",
