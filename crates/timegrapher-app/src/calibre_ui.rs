@@ -1639,25 +1639,10 @@ impl Calibres {
             Col::Maker if e.is_custom() => pal.accent,
             _ => pal.text_secondary,
         };
-        // A calibre whose escapement isn't measured yet: a muted tag at
-        // the cell's right, the name cut short before it (#1872).
-        let mut room = cell.width() - 8.0;
-        if col == Col::Calibre && e.escapement().is_some() {
-            let tag = ui.painter().layout_no_wrap(
-                calibres::Escapement::TAG.to_string(),
-                egui::FontId::proportional(11.0),
-                pal.text_tertiary,
-            );
-            room -= tag.size().x + 8.0;
-            let at = egui::pos2(
-                cell.right() - 4.0 - tag.size().x,
-                cell.center().y - tag.size().y / 2.0,
-            );
-            ui.painter().galley(at, tag, pal.text_tertiary);
-        }
         // Too long for its column: cut at its end with "…",
         // the whole of it in the row's hover.
         let font = egui::FontId::proportional(12.5);
+        let room = cell.width() - 8.0;
         let mut galley = ui.painter().layout_no_wrap(text.clone(), font.clone(), ink);
         let chars: Vec<char> = text.chars().collect();
         let mut keep = chars.len();
@@ -1960,6 +1945,18 @@ pub(crate) fn custom<'a>(
 /// up; a dim dash where the list gives nothing.
 fn number_cell(ui: &egui::Ui, e: Entry<'_>, col: Col, cell: egui::Rect) {
     let pal = theme::pal(ui);
+    // A calibre whose escapement isn't measured yet: the muted tag in
+    // place of its lift angle, which still sorts the column (#1872).
+    if col == Col::LiftAngle && e.escapement().is_some() {
+        ui.painter().with_clip_rect(cell).text(
+            egui::pos2(cell.right() - NUMBER_PAD, cell.center().y),
+            egui::Align2::RIGHT_CENTER,
+            calibres::Escapement::TAG,
+            egui::FontId::proportional(11.0),
+            pal.text_tertiary,
+        );
+        return;
+    }
     let value = match col {
         Col::BeatRate => e.bph().map(|b| b.to_string()),
         _ => e.lift_angle_deg().map(|l| fields::plain(l).to_string()),

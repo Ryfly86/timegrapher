@@ -1296,9 +1296,11 @@ impl TimegrapherApp {
             _ => String::new(),
         };
         // A calibre whose escapement isn't measured yet says so in place
-        // of the lift angle (#1872).
-        if let Some((sentence, why)) = self.escapement_unsupported() {
-            card_fact(ui, "", sentence, &why, lift_w);
+        // of the lift angle: the short tag, the sentence and its source
+        // in the hover (#1872).
+        if let Some((_, why)) = self.escapement_unsupported() {
+            let tag = timegrapher_core::calibres::Escapement::TAG.to_string();
+            card_fact(ui, "", tag, &why, lift_w);
         } else if self.lift_settable() {
             let mut tail = saved_to.clone();
             if !both && !self.bph_set_by_calibre() && self.watch_sets_here() {
