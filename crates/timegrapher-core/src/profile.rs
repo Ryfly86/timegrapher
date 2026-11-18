@@ -797,6 +797,14 @@ mod tests {
     /// Twenty seconds of a synthetic watch at 280°, kept as an
     /// analysis-only take keeps it: both sides' profiles every 2 s.
     fn kept_stretches() -> (Vec<crate::analysis_take::StretchProfiles>, Vec<Beat>, f64) {
+        kept_stretches_on(|_, _| SHORT)
+    }
+
+    /// As [`kept_stretches`], each stretch cut on the window `w` gives for
+    /// its end and the oscillation period.
+    fn kept_stretches_on(
+        w: impl Fn(f64, f64) -> UnlockWindow,
+    ) -> (Vec<crate::analysis_take::StretchProfiles>, Vec<Beat>, f64) {
         let sc = SynthConfig {
             duration_s: 20.0,
             ..SynthConfig::default()
@@ -821,12 +829,37 @@ mod tests {
                         end_s - 2.0,
                         end_s,
                         &cfg.amplitude,
-                        SHORT,
+                        w(end_s, osc),
                     ),
                 }
             })
             .collect();
         (kept, a.beats, osc)
+    }
+
+    /// Stretches cut on two windows (#1924) are never averaged together:
+    /// the window averages those on the latest stretch's window, on its
+    /// time axis, and counts the others it leaves out.
+    #[test]
+    fn a_window_averages_the_latest_window_s_stretches_and_counts_the_rest() {
+        let (kept, beats, osc) = kept_stretches_on(|end_s, osc| match end_s > 16.0 {
+            true => UnlockWindow::long(osc),
+            false => SHORT,
+        });
+        let cfg = AmplitudeConfig::default();
+        let ProfileAt::Averaged(sides) =
+            profile_at(&kept, (20.0, 10.0), &[], &[], &beats, osc, &cfg)
+        else {
+            panic!("no profile");
+        };
+        let t0 = |k: usize, i: usize| kept[k].sides[i].as_ref().unwrap().t0_ms;
+        for (i, a) in sides.iter().enumerate() {
+            let a = a.as_ref().expect("both sides");
+            assert!(t0(9, i) < t0(0, i) - 1.0, "the long window starts earlier");
+            assert_eq!((a.stretches, a.other_window), (2, 3));
+            assert_eq!((a.from_s, a.to_s), (16.0, 20.0));
+            assert!((a.profile.t0_ms - t0(9, i)).abs() < 1e-9);
+        }
     }
 
     /// The Average Over window from kept 2 s profiles (#979): the

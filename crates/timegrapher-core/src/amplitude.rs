@@ -1250,6 +1250,39 @@ mod tests {
         assert_eq!(apart, UnlockWindow::SHORT);
     }
 
+    /// A profile takes the window of the latest amplitude window ending by
+    /// its time that read both sides; before any has, the first after
+    /// (a take's first stretches, on a saved read).
+    #[test]
+    fn before_any_window_ends_a_profile_takes_the_first_after() {
+        let osc = 0.25;
+        let win = |start_s: f64, unlock_ms: Option<f64>| AmplitudeWindow {
+            start_s,
+            end_s: start_s + 2.0,
+            even_deg: None,
+            odd_deg: None,
+            beat_error_ms: None,
+            beat_error_unlock_ms: None,
+            even_unlock_ms: unlock_ms,
+            odd_unlock_ms: unlock_ms,
+            even_drop_ms: None,
+            odd_drop_ms: None,
+            extra: None,
+            sound_1: [f32::NAN; 2],
+        };
+        let wins = [
+            win(10.0, None),
+            win(12.0, Some(-25.0)),
+            win(14.0, Some(-8.0)),
+        ];
+        let long = UnlockWindow::long(osc);
+        // Every window ends after 5 s; the first to read both sides is long.
+        assert_eq!(profile_window_at(&wins, 5.0, osc), long);
+        // By 14 s the long one has ended; by 16 s the short one.
+        assert_eq!(profile_window_at(&wins, 14.0, osc), long);
+        assert_eq!(profile_window_at(&wins, 16.0, osc), UnlockWindow::SHORT);
+    }
+
     #[test]
     fn a_dip_in_amplitude_reads_as_a_dip() {
         // 270° with 10 s at a lower amplitude: the unlock moves earlier than

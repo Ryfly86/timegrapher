@@ -1335,4 +1335,45 @@ mod tests {
             .all(|s| (s.t0_ms - short_t0).abs() < 1e-9));
         assert_eq!(&analysis_take::profiles_bin(&steady)[..8], b"TGPROF\0\x01");
     }
+
+    /// A low-amplitude run-down (#1924) kept from its sound after
+    /// ([`measure`], which re-measures through `measure_from`) cuts its
+    /// profiles on the take's amplitude windows, so they go long as
+    /// amplitude does; kept while it is recorded, where a stretch waits
+    /// for amplitude's windows up to its end, it is the same byte for
+    /// byte.
+    #[test]
+    fn a_low_amplitude_run_down_is_kept_while_recorded_as_after() {
+        let dir = scratch("low-run-down");
+        let audio = generate(
+            &SynthConfig {
+                bph: 28_800,
+                duration_s: 60.0,
+                ..Default::default()
+            },
+            |t| 270.0 - 160.0 * t / 60.0,
+            |_| 0.0,
+        );
+        let path = dir.join("take_part01-001.wav");
+        audio::write_wav(&path, &audio).unwrap();
+        let paths = vec![path];
+        let cfg = StreamConfig {
+            chunk_s: 11.5,
+            ..Default::default()
+        };
+        let after = measure(&[paths[0].as_path()], &cfg, &[], software(), |_| {}).unwrap();
+        let short_t0 = -crate::beats::PRE_S * 1000.0;
+        let long =
+            |p: &StretchProfiles| (p.sides.iter().flatten()).any(|s| s.t0_ms < short_t0 - 1e-9);
+        let n_long = after.profiles.iter().filter(|p| long(p)).count();
+        assert!(n_long >= 5, "{n_long} long of {}", after.profiles.len());
+        assert!(!long(&after.profiles[0]), "long from the start");
+        for sizes in [vec![1, 4097, 333, 150_001, 7], vec![48_000 * 7]] {
+            let live = kept_live(&paths, &cfg, &[], &sizes);
+            for ((name, x), (_, y)) in kept_files(&after).iter().zip(&kept_files(&live)) {
+                assert!(x == y, "{name} differs, blocks {sizes:?}");
+            }
+        }
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }
