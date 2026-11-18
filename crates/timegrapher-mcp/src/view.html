@@ -2109,7 +2109,7 @@ function steadyPlot(s, view, doc) {
       const dev = both(a.deviation), white = both(a.white || []);
       // Points on fewer differences than core judges by, hollow, their
       // line faint (#1985): the least scatter is never one of them.
-      const judged = a.tau_s.map((t, i) => (a.pairs || [])[i] >= a.judged_differences);
+      const judged = a.judged || a.tau_s.map(() => true);
       const firm = both(a.deviation.map((d, i) => (judged[i] ? d : NaN)));
       const hollow = both(a.deviation.map((d, i) => (judged[i] ? NaN : d)));
       const faint = firm.slice(-1).concat(hollow);
@@ -2122,7 +2122,7 @@ function steadyPlot(s, view, doc) {
       if (a.best_tau_s > 0 && a.best_deviation > 0) {
         notes.push({ x: Math.log10(a.best_tau_s), y: Math.log10(a.best_deviation), text: `least scatter at ${secs(a.best_tau_s)}: ${sig(a.best_deviation)}${unit}` });
       }
-      if (hollow.length) notes.push({ x: hollow[0][0], y: hollow[0][1], text: "hollow: too few differences to judge" });
+      if (hollow.length && a.hollow_note) notes.push({ x: hollow[0][0], y: hollow[0][1], text: a.hollow_note });
       return xyChart({
         title: "Allan Deviation", x, y,
         xTicks: periodTicks,

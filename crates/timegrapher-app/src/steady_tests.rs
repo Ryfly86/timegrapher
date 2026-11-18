@@ -1764,18 +1764,21 @@ fn a_short_readout_keeps_the_value_longest() {
 /// though a hollow one further along lies lower (Norm on #1985).
 #[test]
 fn allan_points_on_too_few_differences_are_hollow() {
-    use timegrapher_core::steadiness::{Allan, ALLAN_JUDGED_DIFFERENCES as JUDGED};
+    use timegrapher_core::steadiness::{
+        Allan, ALLAN_HOLLOW_NOTE, ALLAN_JUDGED_DIFFERENCES as JUDGED,
+    };
     let pairs = vec![200, 60, 20, JUDGED, JUDGED - 1, 3];
     let a = Allan {
         tau_s: vec![10.0, 20.0, 40.0, 80.0, 160.0, 320.0],
         deviation: vec![1.0, 0.8, 0.6, 0.5, 0.3, 0.1],
         white: vec![1.0; 6],
+        judged: pairs.iter().map(|&n| n >= JUDGED).collect(),
         pairs,
         slope_short: None,
         best_tau_s: Some(80.0),
         best_deviation: Some(0.5),
         max_excess: 1.0,
-        judged_differences: JUDGED,
+        hollow_note: Some(ALLAN_HOLLOW_NOTE),
     };
     let (judged, hollow) = allan_judged(&a);
     assert_eq!(judged.len(), 4);

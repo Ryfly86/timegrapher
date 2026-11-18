@@ -1626,11 +1626,11 @@ const HOLLOW_LINE: f32 = 0.4;
 
 /// The Allan deviation's points as the plot draws them, on log scales:
 /// those resting on enough differences to judge, then the rest, hollow
-/// (core's [`steadiness::Allan::judged`]). The differences fall as the
+/// (core's `Allan::judged`, so a point is never judged twice). The differences fall as the
 /// averaging time grows, so the hollow ones are the longest times.
 fn allan_judged(a: &steadiness::Allan) -> (Vec<[f64; 2]>, Vec<[f64; 2]>) {
     let mut out = (Vec::new(), Vec::new());
-    for ((t, d), judged) in a.tau_s.iter().zip(&a.deviation).zip(a.judged()) {
+    for ((t, d), &judged) in a.tau_s.iter().zip(&a.deviation).zip(&a.judged) {
         if *t > 0.0 && *d > 0.0 && d.is_finite() {
             let at = [t.log10(), d.log10()];
             if judged {
@@ -1713,20 +1713,14 @@ fn allan_plot(ui: &mut egui::Ui, r: Row<'_>) {
                     .color(colour)
                     .radius(2.0_f32),
             );
-            if let Some(&first) = hollow.first() {
+            if let (Some(&first), Some(note)) = (hollow.first(), a.hollow_note) {
                 p.points(
                     Points::new("deviation points, too few", hollow)
                         .color(colour)
                         .filled(false)
                         .radius(2.5_f32),
                 );
-                mark_label(
-                    p,
-                    first,
-                    "hollow: too few differences to judge".into(),
-                    pal.text_secondary,
-                    true,
-                );
+                mark_label(p, first, note.into(), pal.text_secondary, true);
             }
             if let (Some(t), Some(d)) = (a.best_tau_s, a.best_deviation) {
                 if t > 0.0 && d > 0.0 {

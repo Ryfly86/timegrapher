@@ -22,9 +22,13 @@ pub struct Allan {
     /// Largest deviation over the white line among points with at least
     /// [`ALLAN_JUDGED_DIFFERENCES`]: 1 for independent readings.
     pub max_excess: f64,
-    /// [`ALLAN_JUDGED_DIFFERENCES`], so a view drawing the points on fewer
-    /// hollow takes core's number rather than its own (#1985).
-    pub judged_differences: usize,
+    /// Whether each averaging time rests on at least
+    /// [`ALLAN_JUDGED_DIFFERENCES`]: the plots draw the others hollow,
+    /// their line faint (#1985).
+    pub judged: Vec<bool>,
+    /// The plots' note at the first hollow point, [`ALLAN_HOLLOW_NOTE`];
+    /// None when every point is judged.
+    pub hollow_note: Option<&'static str>,
 }
 
 /// The fewest differences an Allan deviation rests on for it to be
@@ -32,14 +36,42 @@ pub struct Allan {
 /// readings. With 3, a σ estimate is good to roughly ±40% (Norm, #1985).
 pub const ALLAN_JUDGED_DIFFERENCES: usize = 8;
 
+/// The note the Allan plots put once at their first hollow point (Norm's
+/// words, Hugh's wording on #2012).
+pub const ALLAN_HOLLOW_NOTE: &str = "hollow: too few differences to judge";
+
 impl Allan {
-    /// Whether each averaging time rests on enough differences to be
-    /// judged ([`ALLAN_JUDGED_DIFFERENCES`]); the plot draws the others
-    /// hollow.
-    pub fn judged(&self) -> Vec<bool> {
-        self.pairs
+    /// The Allan deviation from `ad`, each averaging time with its
+    /// deviation and the differences it rests on, against `white`, what
+    /// independent readings would give, with the short end's log-log
+    /// `slope`: the least scatter and the largest excess over `white` are
+    /// taken only among the times judged.
+    pub(super) fn of(ad: &[(f64, f64, usize)], white: Vec<f64>, slope: Option<f64>) -> Self {
+        let judged: Vec<bool> = ad.iter().map(|p| p.2 >= ALLAN_JUDGED_DIFFERENCES).collect();
+        let best = ad
             .iter()
-            .map(|&n| n >= ALLAN_JUDGED_DIFFERENCES)
-            .collect()
+            .zip(&judged)
+            .filter(|(_, j)| **j)
+            .map(|(p, _)| p)
+            .min_by(|a, b| a.1.total_cmp(&b.1));
+        let max_excess = ad
+            .iter()
+            .zip(&white)
+            .zip(&judged)
+            .filter(|(_, j)| **j)
+            .map(|((p, w), _)| p.1 / w)
+            .fold(1.0f64, f64::max);
+        Self {
+            tau_s: ad.iter().map(|p| p.0).collect(),
+            deviation: ad.iter().map(|p| p.1).collect(),
+            white,
+            pairs: ad.iter().map(|p| p.2).collect(),
+            slope_short: slope,
+            best_tau_s: best.map(|p| p.0),
+            best_deviation: best.map(|p| p.1),
+            max_excess,
+            hollow_note: judged.contains(&false).then_some(ALLAN_HOLLOW_NOTE),
+            judged,
+        }
     }
 }
