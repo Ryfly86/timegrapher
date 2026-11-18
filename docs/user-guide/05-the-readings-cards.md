@@ -37,8 +37,9 @@ the controls each read in one line across:
 steady before you judge them, and give a slow position longer. Witschi
 gives each position "20 s stabilisation time and ≥40 s measurement time
 for stable results" ([Witschi 2025](https://www.witschi.com/wp-content/uploads/firmwares/8Z1UtLGf/20251118_witschi_testing-methods-for-mechanical-watches_en.pdf), p. 33); some watches need far more. On the
-public corpus take `datejust41_3235_multipos_105min`, Crown Left took
-about 3 minutes to steady and Dial Down about 1 minute.
+public corpus take `datejust41_3235_multipos_105min`, counting from
+each turn, Crown Left kept moving for about 3 to 4 minutes and Dial
+Down for about 2, well past a settle of 20 or 30 s.
 
 ## The Calibre Card
 
