@@ -187,7 +187,9 @@ beside them) where they are narrower. Then Listen, Current Position and
 Calibre take compact forms in turn, down to the 800-point minimum, the
 reading cards always keeping room for their captions whole: at the
 narrowest they go without their "?", and the caption carries the same
-help, opening on hover and kept open by a click. The three figures share
+help, opening on hover and kept open by a click; a card's limits chip
+moves to the right end of its trend row, under the figure, on all three
+cards alike. The three figures share
 one size, the largest at which every card's figure and unit fit whole. Compact,
 Current Position is captioned **Position**, with a smaller picture, the
 position's two-letter code beside it ("CR"; the name is in its hover),

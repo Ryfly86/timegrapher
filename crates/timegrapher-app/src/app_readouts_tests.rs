@@ -1336,6 +1336,18 @@ struct CardRow {
     figures: Vec<f32>,
     /// The right edge of the rate's unit, "s/d", whole.
     rate_unit_right: Option<f32>,
+    /// Where limits chips are drawn: rounded plates 18 pt tall.
+    chips: Vec<egui::Rect>,
+    /// Where each trend line's last point is drawn.
+    last_points: Vec<egui::Pos2>,
+}
+
+/// Every shape in `shape`, those in a list one by one.
+fn flat(shape: &egui::Shape, into: &mut Vec<egui::Shape>) {
+    match shape {
+        egui::Shape::Vec(v) => v.iter().for_each(|s| flat(s, into)),
+        s => into.push(s.clone()),
+    }
 }
 
 /// Draws the bench, its readings pinned, `w` wide, after `pointer` (if
@@ -1407,12 +1419,38 @@ fn card_row(
         .iter()
         .find(|t| t.0 == "s/d" && t.1.top() < 120.0)
         .map(|t| t.1.right());
+    let mut shapes = Vec::new();
+    out.shapes.iter().for_each(|c| flat(&c.shape, &mut shapes));
+    let chips = shapes
+        .iter()
+        .filter_map(|s| match s {
+            egui::Shape::Rect(r)
+                if (r.rect.height() - 18.0).abs() < 0.5
+                    && r.corner_radius == egui::CornerRadius::same(9)
+                    && r.rect.top() < 160.0 =>
+            {
+                Some(r.rect)
+            }
+            _ => None,
+        })
+        .collect();
+    let last_points = shapes
+        .iter()
+        .filter_map(|s| match s {
+            egui::Shape::Circle(c) if (c.radius - 2.5).abs() < 0.01 && c.center.y < 160.0 => {
+                Some(c.center)
+            }
+            _ => None,
+        })
+        .collect();
     (
         CardRow {
             captions,
             marks,
             figures,
             rate_unit_right,
+            chips,
+            last_points,
         },
         painted_text(&out),
     )
@@ -1452,6 +1490,60 @@ fn at_800_the_reading_cards_captions_are_whole_and_carry_the_help() {
     // With room, the "?"s are back.
     let (wide, _) = card_row(&mut app, &ctx, 1000.0, None);
     assert_eq!(wide.marks, 3);
+}
+
+/// At 800 a reading card's limits chip sits at the right end of its trend
+/// row, under the figure, so its caption stays whole: inside the card,
+/// clear of the trend's last point, in the same place on every card
+/// (Hugh on #2026; Walter found "B.E." with a caveat on a stopped watch).
+#[test]
+fn at_800_a_caveat_leaves_the_reading_cards_captions_whole() {
+    let mut app = synthetic(120.0, 20.0);
+    app.readings_pinned = true;
+    // A caveat every reading card names, Beat Error's among them.
+    app.take_unlisted = Some(timegrapher_core::breaks::Unlisted::Unreadable);
+    let ctx = themed();
+    let (row, text) = card_row(&mut app, &ctx, 800.0, None);
+    let names: Vec<&str> = row.captions.iter().map(|c| c.0.as_str()).collect();
+    assert_eq!(names, ["Rate", "Amplitude", "Beat Error"], "{text}");
+    assert_eq!(row.chips.len(), 3, "a chip on each card: {:?}", row.chips);
+    let inner = readouts::six_widths(800.0 - 24.0 - 52.0, theme::GAP)[2] - 2.0 * 16.0;
+    let mut offsets = Vec::new();
+    for (caption, rect) in &row.captions {
+        let card = rect.left()..=rect.left() + inner + 0.5;
+        let chip = row
+            .chips
+            .iter()
+            .find(|c| card.contains(&c.left()))
+            .unwrap_or_else(|| panic!("{caption}: no chip in its card {:?}", row.chips));
+        assert!(
+            card.contains(&chip.right()),
+            "{caption}: chip {chip:?} leaves the card"
+        );
+        assert!(
+            chip.top() > rect.bottom(),
+            "{caption}: chip in the title row"
+        );
+        for p in row.last_points.iter().filter(|p| card.contains(&p.x)) {
+            assert!(
+                !chip.expand(2.5).contains(*p),
+                "{caption}: chip {chip:?} on the trend's last point {p:?}"
+            );
+        }
+        offsets.push((chip.right() - rect.left(), chip.top() - rect.top()));
+    }
+    assert!(
+        offsets
+            .windows(2)
+            .all(|o| (o[0].0 - o[1].0).abs() < 1.0 && (o[0].1 - o[1].1).abs() < 1.0),
+        "the same place on every card: {offsets:?}"
+    );
+    assert_eq!(
+        row.last_points.len(),
+        3,
+        "each trend drawn: {:?}",
+        row.last_points
+    );
 }
 
 /// The three reading figures share one size at every width, the largest

@@ -309,8 +309,9 @@ pub(crate) fn card_title(
             }
         }
         // Limits always show in a chip, shortened to fit beside the whole
-        // caption, never dropped (Hugh, #1808).
-        if !limits.is_empty() {
+        // caption, never dropped (Hugh, #1808); on a bare card, at the
+        // trend row's end instead ([`trend_chip`]), the caption whole.
+        if !limits.is_empty() && !bare {
             let room = ui.available_width();
             let words =
                 limits_chip_words(limits, |w| theme::chip_w(ui, w) + 4.0 + caption_w <= room);
@@ -338,6 +339,41 @@ pub(crate) fn card_title(
             }
         });
     });
+}
+
+/// On a bare reading card (the narrowest step), its limits chip at the
+/// right end of its trend row `spark`, under the figure, where the title
+/// row has no room for it beside the whole caption: the same chip, hover
+/// and click, in the same place on all three cards (Hugh on #2026). The
+/// room left for the trend, the whole row when there is no chip.
+pub(crate) fn trend_chip(
+    ui: &mut egui::Ui,
+    spark: egui::Rect,
+    caption: &str,
+    limits: &[(String, String)],
+    bare: bool,
+) -> egui::Rect {
+    if !bare || limits.is_empty() {
+        return spark;
+    }
+    let words = limits_chip_words(limits, |w| theme::chip_w(ui, w) <= spark.width() / 2.0);
+    let w = if words.is_empty() {
+        theme::CHIP_ICON + 14.0
+    } else {
+        theme::chip_w(ui, &words)
+    };
+    let at = egui::Rect::from_min_max(egui::pos2(spark.right() - w, spark.top()), spark.max);
+    let mut child = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(at)
+            .layout(egui::Layout::right_to_left(egui::Align::Center)),
+    );
+    let sentences: Vec<String> = limits.iter().map(|l| l.1.clone()).collect();
+    theme::chip(&mut child, &words, caption, &sentences, w);
+    egui::Rect::from_min_max(
+        spark.min,
+        egui::pos2(spark.right() - w - title_gap(), spark.bottom()),
+    )
 }
 
 /// What a card's limits chip says, the first form that `fits` (Hugh,
@@ -614,6 +650,7 @@ impl TimegrapherApp {
             behind = format!("{n}\n\n{}", behind.trim_start());
         }
         let (fig, spark, place) = sparkline::lay(rows.inner, rows.figure, rows.controls);
+        let spark = trend_chip(ui, spark, "Rate", &rate_facts, c.short);
         let colour = theme::pal(ui).trace_rate;
         sparkline::draw(ui, spark, place, &c.spark, &sparkline::RATE, colour);
         figure_row(
@@ -774,6 +811,8 @@ impl TimegrapherApp {
             behind += &format!("\n\n{t}");
         }
         let (fig, spark, place) = sparkline::lay(rows.inner, rows.figure, rows.controls);
+        let caption = steady::title(SeriesKind::Amplitude);
+        let spark = trend_chip(ui, spark, caption, &facts, c.short);
         let colour = theme::pal(ui).trace_amplitude;
         sparkline::draw(ui, spark, place, &c.spark, &sparkline::AMPLITUDE, colour);
         figure_row(
@@ -799,17 +838,14 @@ impl TimegrapherApp {
         let compact = c.compact;
         let unlock = r.and_then(|r| r.beat_error_unlock_ms);
         let drop = r.and_then(|r| r.beat_error_ms);
+        let caption = steady::title(SeriesKind::BeatError);
+        let be_facts = reading_limits(caption, caveats, lift_now, beats);
         card_title(
             ui,
             rows.title,
-            steady::title(SeriesKind::BeatError),
+            caption,
             help::BEAT_ERROR,
-            &reading_limits(
-                steady::title(SeriesKind::BeatError),
-                caveats,
-                lift_now,
-                beats,
-            ),
+            &be_facts,
             (None, c.short),
         );
         let be_pm = be_pm.filter(|_| unlock.is_some());
@@ -847,6 +883,7 @@ impl TimegrapherApp {
             from = format!("{words}\n\n{from}");
         }
         let (fig, spark, place) = sparkline::lay(rows.inner, rows.figure, rows.controls);
+        let spark = trend_chip(ui, spark, caption, &be_facts, c.short);
         let colour = theme::pal(ui).trace_beat_error;
         sparkline::draw(ui, spark, place, &c.spark, &sparkline::BEAT_ERROR, colour);
         figure_row(
