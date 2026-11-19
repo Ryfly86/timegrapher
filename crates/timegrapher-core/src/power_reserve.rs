@@ -509,7 +509,7 @@ pub fn chart_axis(hours: &[Hour], kind: SeriesKind) -> Option<[f64; 3]> {
             [lo, v, hi]
         })
         .collect();
-    let [lo, hi, step] = least_span(kind, crate::position_line::value_axis(kind, &values)?);
+    let [lo, hi, step] = crate::position_line::value_axis(kind, &values)?;
     // The figures and their bands within a step of zero: out to it. Never
     // for amplitude, whose axis never reaches 0 (Norm on #1761).
     if kind == SeriesKind::Amplitude {
@@ -528,43 +528,6 @@ pub fn chart_axis(hours: &[Hour], kind: SeriesKind) -> Option<[f64; 3]> {
         hi
     };
     Some([lo, hi, step])
-}
-
-/// The least span of a Power Reserve chart's axis for `kind`, in its unit:
-/// one hour, or a few that agree, is drawn on a scale of some size, never
-/// a tenth of a second a day across the chart (#1961, as the poise scale
-/// does, [`crate::poise_picture::LEAST_SPAN_S_PER_DAY`]). Rate 10 s/d,
-/// amplitude 10°, beat error 0.1 ms.
-pub fn least_axis_span(kind: SeriesKind) -> f64 {
-    match kind {
-        SeriesKind::Rate => crate::poise_picture::LEAST_SPAN_S_PER_DAY,
-        SeriesKind::Amplitude => LEAST_SPAN_DEG,
-        SeriesKind::BeatError => LEAST_SPAN_MS,
-    }
-}
-
-/// [`least_axis_span`] of amplitude, degrees.
-pub const LEAST_SPAN_DEG: f64 = 10.0;
-/// [`least_axis_span`] of beat error, ms.
-pub const LEAST_SPAN_MS: f64 = 0.1;
-
-/// `axis` widened about its middle to [`least_axis_span`] where it is
-/// narrower, rounded to whole steps. Widening never carries an axis over
-/// zero: one wholly above it starts at 0, one wholly below ends there.
-fn least_span(kind: SeriesKind, axis: [f64; 3]) -> [f64; 3] {
-    let [lo, hi, _] = axis;
-    let least = least_axis_span(kind);
-    if hi - lo >= least {
-        return axis;
-    }
-    let mid = (lo + hi) / 2.0;
-    let (a, b) = match (mid - least / 2.0, mid + least / 2.0) {
-        (a, _) if lo >= 0.0 && a < 0.0 => (0.0, least),
-        (_, b) if hi <= 0.0 && b > 0.0 => (-least, 0.0),
-        ends => ends,
-    };
-    let (a, b, step) = crate::chart_scale::round_ends(a, b);
-    [a, b, step]
 }
 
 /// A run's results, as `power-reserve.json` keeps them.
@@ -1062,10 +1025,9 @@ mod chart_tests {
     /// floors at zero (Norm).
     #[test]
     fn a_runs_chart_axis_holds_its_bands_and_meets_zero_only_near_it() {
-        // Far from zero by more than the least span (#1961): 12.5 to 17.
-        let far = [hour(13.0, Some(0.5)), hour(17.0, None)];
+        let far = [hour(3.0, Some(0.5)), hour(7.0, None)];
         let [lo, hi, step] = chart_axis(&far, SeriesKind::Rate).unwrap();
-        assert!(lo <= 12.5 && hi >= 17.0, "{lo} {hi}");
+        assert!(lo <= 2.5 && hi >= 7.0, "{lo} {hi}");
         assert!(lo > 0.0, "zero not forced: {lo} {hi} {step}");
         let near = [hour(0.6, None), hour(4.0, None)];
         let [lo, _, _] = chart_axis(&near, SeriesKind::Rate).unwrap();
@@ -1081,40 +1043,6 @@ mod chart_tests {
         low[1].amplitude_deg = Some(40.0);
         let [lo, _, _] = chart_axis(&low, SeriesKind::Amplitude).unwrap();
         assert!(lo > 0.0, "{lo}");
-    }
-
-    /// One hour, or hours that agree, are drawn on a scale of some size
-    /// (#1961): at least the least span of each kind, about the figures,
-    /// and never carried over zero by the widening.
-    #[test]
-    fn one_hour_is_charted_on_a_scale_of_some_size() {
-        let one = [hour(-33.88, Some(0.02))];
-        for kind in [
-            SeriesKind::Rate,
-            SeriesKind::Amplitude,
-            SeriesKind::BeatError,
-        ] {
-            let [lo, hi, step] = chart_axis(&one, kind).unwrap();
-            let v = one[0].value(kind).unwrap();
-            assert!(hi - lo >= least_axis_span(kind), "{kind:?} {lo}..{hi}");
-            assert!(lo <= v && hi >= v, "{kind:?} {v} in {lo}..{hi}");
-            assert!(step > 0.0, "{kind:?}");
-        }
-        // About the figures: the scale's middle within a step of theirs.
-        let [lo, hi, step] = chart_axis(&one, SeriesKind::Rate).unwrap();
-        assert!(((lo + hi) / 2.0 + 33.88).abs() <= step, "{lo}..{hi}");
-        // Small positive rates start at 0, not below it.
-        let small = [hour(1.0, None), hour(1.4, None)];
-        let [lo, hi, _] = chart_axis(&small, SeriesKind::Rate).unwrap();
-        assert_eq!(lo, 0.0, "{lo}..{hi}");
-        assert!(
-            hi >= crate::poise_picture::LEAST_SPAN_S_PER_DAY,
-            "{lo}..{hi}"
-        );
-        // A wide swing keeps the scale it had.
-        let wide = [hour(-20.0, None), hour(15.0, None)];
-        let own = crate::position_line::value_axis(SeriesKind::Rate, &[-20.0, 15.0]);
-        assert_eq!(chart_axis(&wide, SeriesKind::Rate), own);
     }
 
     /// A figure is grey where thin, and a beat error also off the unlock,

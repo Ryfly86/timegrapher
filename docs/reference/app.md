@@ -911,7 +911,7 @@ beats stand, with the count of stops on the way, and under it the hours so
 far as at the end: about once a minute the hour in progress is measured
 again and the table gains a row as each hour starts, the hour in progress
 read like a finished run's last ("2–2.4 h", its hover "A part hour: 26:28 past 2 h"); the charts gain a point as
-each hour is whole and show from the first whole hour, ended or not; a run with none shows its table alone, the pane keeping room for its rows. A figure no hour has (no amplitude read) draws no chart, and a chart's scale spans at least 10 s/d, 10° or 0.1 ms about its figures (core `power_reserve::least_axis_span`, as the poise picture's), so a spread of a fraction of a second a day never fills the chart (#1961). At the end it shows one line,
+each hour is whole and show from the first whole hour, ended or not; a run with none shows its table alone, the pane keeping room for its rows. A figure no hour has (no amplitude read) draws no chart (#1961). At the end it shows one line,
 such as "Ran 41 h 12 min · No beat heard since 17 Nov 22:42, in Dial Up (DU) · Kept in Pepsi",
 the run time in true time (through the input's clock as measured
 while listening, else its stored correction), then, scrolling in the rest
