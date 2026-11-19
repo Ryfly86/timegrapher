@@ -237,7 +237,7 @@ pub fn pane(
 
 /// The run's title line (#1528): while it runs, the run so far and how
 /// the beats stand ("4 h 12 min · Running"); once it ends, core's
-/// [`power_reserve::title`] ("Ran 9 h 46 min · no beat heard").
+/// [`power_reserve::title`] ("Ran 9 h 46 min · No beat heard").
 fn run_title(t: &Test) -> String {
     let restarts = t.heard.pauses.len();
     if t.running() {
@@ -1671,7 +1671,7 @@ mod tests {
     #[test]
     fn the_run_line_moves_into_its_homes() {
         let mut t = finished_run(2);
-        assert_eq!(run_title(&t), "Ran 31 s \u{b7} stopped by hand");
+        assert_eq!(run_title(&t), "Ran 31 s \u{b7} Stopped by hand");
         if let Some(r) = t.results.as_mut() {
             r.source = power_reserve::Source::LongTake;
             r.hours[1].beat_error_source = Some(BeatErrorSource::Drop);
@@ -1682,7 +1682,7 @@ mod tests {
         });
         assert_eq!(
             run_title(&t),
-            "Ran 31 s \u{b7} stopped by hand \u{b7} restarted once"
+            "Ran 31 s \u{b7} Stopped by hand \u{b7} Restarted once"
         );
         let hours = t.results.as_ref().unwrap().hours.clone();
         let lines = info_lines(&t, "Pepsi", &hours);
@@ -1765,7 +1765,7 @@ mod tests {
             to_s: 20.0,
         });
         assert!(
-            run_title(&t).ends_with(" \u{b7} Running \u{b7} restarted once"),
+            run_title(&t).ends_with(" \u{b7} Running \u{b7} Restarted once"),
             "{}",
             run_title(&t)
         );

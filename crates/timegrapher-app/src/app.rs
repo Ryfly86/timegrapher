@@ -2963,50 +2963,6 @@ impl TimegrapherApp {
             .or_else(|| (!self.watch.is_empty()).then(|| (self.watch.clone(), false)))
     }
 
-    /// What the strip shows, for the status line: the take's name, its
-    /// watch and its state.
-    fn status_words(&self) -> String {
-        // A take not yet saved or opened, with no watch, is Quick Listen's,
-        // as the Calibre card's title says (No Watch (Quick Listen)).
-        let file = self.take_name();
-        let named = self.named_watch().map_or_else(String::new, |w| w.0);
-        let quick = self.quick_listen || file.is_none() && named.is_empty();
-        let name =
-            file.unwrap_or_else(|| if quick { "Quick Listen" } else { "New Take" }.to_string());
-        let watch = if !named.is_empty() {
-            named.clone()
-        } else if quick {
-            "No watch".to_string()
-        } else {
-            "No watch picked".to_string()
-        };
-        // A test set up or under way is named, with how it stands.
-        let test = if let Some(kind) = self.ready_test() {
-            Some((kind, self.state_words().to_string()))
-        } else if self.reserve_running() {
-            Some((NewTake::PowerReserve, self.state_words().to_string()))
-        } else if let Some(t) = self.guided.as_ref().filter(|_| self.test_listening()) {
-            let of = t.order().len();
-            let step = (t.step + 1).min(of);
-            Some((
-                NewTake::of(t.kind),
-                format!("{}, {step} of {of}", t.step_code(t.step.min(of - 1))),
-            ))
-        } else {
-            None
-        };
-        if let Some((kind, state)) = test {
-            let name = kind.name();
-            let watch = if named.is_empty() {
-                "No watch picked".to_string()
-            } else {
-                named
-            };
-            return format!("{name} · {watch} · {state}");
-        }
-        format!("{name} · {watch} · {}", self.state_words())
-    }
-
     /// A button for each pane, its icon pressed while the pane shows.
     /// The icon bar: the pane icons under their groups' names, then the
     /// Settings gear. With `shown` false (the Watches view) the pane icons

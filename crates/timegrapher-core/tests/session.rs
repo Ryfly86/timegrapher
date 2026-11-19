@@ -1815,3 +1815,76 @@ fn a_report_is_set_only_against_full_wind() {
     assert_eq!((shown.len(), shown[0].wind_h), (1, Some(24.0)));
     assert!(against.is_none());
 }
+
+/// Eight upright stops of `stop_s` each, 10 s apart, on a synthetic watch
+/// whose rate runs 30 s/d each way round the dial, read as the Dynamic
+/// Poise pane and `session` read them ([`session::position_rows`] over
+/// [`Position::UPRIGHT`], then [`poise::shown_fit`]).
+fn poise_of_stops(stop_s: f64) -> timegrapher_core::poise::PoiseFit {
+    let gap = 10.0;
+    let cfg = SynthConfig {
+        duration_s: 8.0 * (stop_s + gap) + gap,
+        rate_s_per_day: 10.0,
+        snr_db: 26.0,
+        ..Default::default()
+    };
+    let at = |t: f64| ((t - gap) / (stop_s + gap)).floor().clamp(0.0, 7.0) as usize;
+    let angle = |i: usize| Position::UPRIGHT[i].top_deg().unwrap();
+    let faster = move |t: f64| 30.0 * angle(at(t)).to_radians().cos();
+    let path = temp_wav("poise-stops");
+    write_wav(&path, &generate(&cfg, |_| 280.0, faster)).unwrap();
+    let log = analyze_file(&path, &StreamConfig::default(), |_| {}).unwrap();
+    std::fs::remove_file(&path).ok();
+    let stops: Vec<(Position, f64, f64)> = (0..8)
+        .map(|i| {
+            let from = gap + i as f64 * (stop_s + gap);
+            (Position::UPRIGHT[i], from, from + stop_s)
+        })
+        .collect();
+    let rows = session::position_rows(
+        &Position::UPRIGHT,
+        (&log, None, &[], &[]),
+        &stops,
+        session::POSITION_MIN_S,
+    );
+    timegrapher_core::poise::shown_fit(
+        rows.iter()
+            .filter_map(|r| Some((r.position, r.measurement.as_ref()?))),
+    )
+    .expect("eight stops fit")
+}
+
+/// Eight 30 s stops hold too few rate readings together for a ± (24 of
+/// the 30 one needs): the wave is stated with no ±, and the words say why
+/// and what stop length would give one (Norm on #1960). Sixty-second
+/// stops, the app's Each Position, have their ± and their fastest hour.
+#[test]
+fn poise_stops_too_short_for_a_rate_pm_say_why() {
+    use timegrapher_core::confidence::NoPm;
+    let short = poise_of_stops(30.0);
+    assert_eq!(short.wave.size.se, None, "{}", short.text);
+    assert_eq!(short.wave.size.no_pm, Some(NoPm::PoolShort));
+    let pool = short.rate_pool.expect("the reason");
+    assert_eq!((pool.values, pool.needed, pool.stops), (24, 30, 8));
+    assert_eq!(pool.stop_s, 45.0);
+    assert!(
+        short.text.contains(
+            "with no ±, so no fastest hour: the 8 stops hold 24 rate readings, and a ± \
+             needs 30, which stops of 45 s each give."
+        ),
+        "{}",
+        short.text
+    );
+    assert!((short.wave.size.value - 30.0).abs() < 3.0, "{}", short.text);
+    // The stop length the words give is enough.
+    let enough = poise_of_stops(pool.stop_s);
+    assert!(enough.wave.size.se.is_some(), "{}", enough.text);
+    let long = poise_of_stops(60.0);
+    assert!(long.wave.size.se.is_some(), "{}", long.text);
+    assert_eq!(long.rate_pool, None);
+    assert!(
+        long.wave_clear && long.text.contains("fastest at"),
+        "{}",
+        long.text
+    );
+}

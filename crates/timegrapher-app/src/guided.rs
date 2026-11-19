@@ -903,12 +903,14 @@ fn phase_words(test: &Test, phase: Phase) -> (String, String, f32) {
         Phase::Turn => match test.next_position() {
             Some(_) if test.kind == Kind::Complication => {
                 let next = test.step_code(test.step + 1);
+                // A whole sentence of its own, as the other tests' are
+                // (#2003): never a lower-case end to the title's.
                 (
                     turn_title(test, test.step),
                     format!(
-                        "then press Start {next} Measurement. Nothing until then is \
-                         measured; the strip marks it {}.",
-                        test.kind.not_used()
+                        "Turn it {}, then press Start {next} Measurement. Until then \
+                         the strip marks it Not Used.",
+                        next.to_lowercase()
                     ),
                     1.0,
                 )

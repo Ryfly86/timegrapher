@@ -736,15 +736,18 @@ fn the_corpus_ym42_verticals_state_the_wave_and_withhold_the_heavy_spot() {
 }
 
 /// In the band the words say each fact once (Hugh, #1499): the range in
-/// the heavy spot's line only, its caveat apart from it for a pane's
-/// chip, and beside the band's note no second word on 219.5°.
+/// the amplitude's sentence only, the heavy spot's line naming the stop
+/// nearest 219.5° that put the take in the band, not the range (#1960),
+/// its caveat apart from it for a pane's chip, and beside the band's note
+/// no second word on 219.5°.
 #[test]
 fn in_the_band_each_fact_is_said_once() {
     let f = fit(&ym42_verticals(), None).unwrap();
     let (spot, caveat) = (f.heavy_spot_line(), f.caveat_line());
     assert_eq!(
         spot,
-        "At 224–237°, poise barely moves the rate. Heavy spot not stated."
+        "At 3H the amplitude is 224°, near 219.5°, where poise barely moves the rate. \
+         Heavy spot not stated."
     );
     assert_eq!(
         f.heavy_spot_row(),

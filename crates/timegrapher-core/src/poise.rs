@@ -128,7 +128,8 @@ pub struct Wave {
 #[serde(tag = "why", rename_all = "snake_case")]
 pub enum Withheld {
     /// A position's amplitude is within reach of 219.5°, where poise
-    /// barely moves the rate: the first such, its angle and amplitude.
+    /// barely moves the rate: of those, the one nearest 219.5°, its angle
+    /// and amplitude.
     NullBand { angle_deg: f64, amplitude_deg: f64 },
     /// A position has no amplitude.
     NoAmplitude,
@@ -184,6 +185,63 @@ pub struct PoiseFit {
     pub short_text: String,
     /// The heavy spot's line ([`PoiseFit::heavy_line`]).
     pub heavy_text: String,
+    /// Why the stops' rates have no ±, where it is that the test's stops
+    /// hold too few rate readings together (#1960); the words say it.
+    #[serde(skip)]
+    pub rate_pool: Option<ShortPool>,
+}
+
+/// A test's stops holding too few rate readings to read a ± from
+/// ([`crate::confidence::NoPm::PoolShort`]): how many they hold, how many
+/// a ± needs, and the stop length that would give that many (#1960).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ShortPool {
+    pub values: usize,
+    pub needed: usize,
+    pub stops: usize,
+    pub stop_s: f64,
+}
+
+impl ShortPool {
+    /// For `measurements` of a test's stops, each of whose rate has no ±
+    /// or [`NoPm::PoolShort`](crate::confidence::NoPm::PoolShort) for its
+    /// reason: the readings they hold, counted as the rate's ± counts them
+    /// ([`crate::confidence::rate_value_count`]). None where a rate lacks
+    /// its ± for another reason, or none lacks one.
+    pub fn of<'a>(
+        measurements: impl IntoIterator<Item = &'a crate::session::Measurement>,
+    ) -> Option<Self> {
+        use crate::confidence::{rate_span_for, rate_value_count, NoPm, MIN_NOISE_VALUES};
+        let (mut values, mut stops, mut short) = (0, 0, false);
+        for m in measurements {
+            let rate = m.confidence.map(|c| c.rate);
+            match rate.map(|r| (r.se, r.no_pm)) {
+                Some((Some(_), _)) => {}
+                Some((None, Some(NoPm::PoolShort))) => short = true,
+                _ => return None,
+            }
+            values += rate_value_count(m.coverage.rate.windows_used);
+            stops += 1;
+        }
+        (short && stops > 0).then(|| ShortPool {
+            values,
+            needed: MIN_NOISE_VALUES,
+            stops,
+            stop_s: rate_span_for(MIN_NOISE_VALUES.div_ceil(stops)),
+        })
+    }
+
+    /// Why there is no ±, in words: "the 8 stops hold 24 rate readings,
+    /// and a ± needs 30, which stops of 45 s each give".
+    pub fn text(&self) -> String {
+        format!(
+            "the {} stops hold {} rate readings, and a ± needs {}, which stops of {} s each give",
+            self.stops,
+            self.values,
+            self.needed,
+            fixed_text(self.stop_s, 0)
+        )
+    }
 }
 
 /// f(θ) = 2·J1(θ)/θ of an amplitude in degrees: how much of a small
@@ -288,14 +346,27 @@ pub fn point(position: crate::session::Position, m: &crate::session::Measurement
 pub fn shown_fit<'a>(
     readings: impl IntoIterator<Item = (crate::session::Position, &'a crate::session::Measurement)>,
 ) -> Option<PoiseFit> {
-    let points: Vec<Point> = readings
+    let (points, stops): (Vec<Point>, Vec<&crate::session::Measurement>) = readings
         .into_iter()
-        .filter_map(|(p, m)| point(p, m))
-        .collect();
+        .filter_map(|(p, m)| Some((point(p, m)?, m)))
+        .unzip();
     if points.len() < MIN_SHOWN {
         return None;
     }
-    fit(&points, None)
+    let mut f = fit(&points, None)?;
+    // A wave with no ± because the stops together hold too few rate
+    // readings says so, with what would give one (Norm on #1960).
+    if let (None, Some(pool)) = (f.wave.size.se, ShortPool::of(stops)) {
+        let why = Some(crate::confidence::NoPm::PoolShort);
+        for t in [&mut f.wave.mean, &mut f.wave.size, &mut f.wave.peak_deg] {
+            t.no_pm = why;
+        }
+        f.rate_pool = Some(pool);
+        f.text = f.sentence();
+        f.short_text = f.short();
+        f.heavy_text = f.heavy_line();
+    }
+    Some(f)
 }
 
 /// The poise fit of one state of wind in a session ([`by_state`]).
@@ -400,6 +471,7 @@ pub fn fit(points: &[Point], slope: Option<Slope>) -> Option<PoiseFit> {
         text: String::new(),
         short_text: String::new(),
         heavy_text: String::new(),
+        rate_pool: None,
     };
     out.text = out.sentence();
     out.short_text = out.short();
@@ -416,10 +488,17 @@ fn heavy_fit(
     slope: Option<Slope>,
     caveats: &mut Vec<Caveat>,
 ) -> (Option<Wave>, Option<Withheld>) {
+    // The stop nearest 219.5° among those in reach of it names the band
+    // (#1960): never the take's whole range, whose far end may be well
+    // clear of it.
     if let Some((p, &a)) = pts
         .iter()
         .zip(amps)
-        .find(|(p, &a)| in_null_band(a, p.amplitude_se))
+        .filter(|(p, &a)| in_null_band(a, p.amplitude_se))
+        .min_by(|x, y| {
+            let off = |a: f64| (a - NULL_AMPLITUDE_DEG).abs();
+            off(*x.1).total_cmp(&off(*y.1))
+        })
     {
         let why = Withheld::NullBand {
             angle_deg: p.angle_deg,
@@ -666,7 +745,10 @@ impl PoiseFit {
                 hour_code(w.peak_deg.value),
             ),
             (false, true) => ", not clear of the noise, so no fastest hour.".into(),
-            (false, false) => ", with no ±, so no fastest hour.".into(),
+            (false, false) => match &self.rate_pool {
+                Some(p) => format!(", with no ±, so no fastest hour: {}.", p.text()),
+                None => ", with no ±, so no fastest hour.".into(),
+            },
         });
         let shape: Vec<String> = [
             ("cos 2α", &self.shape_cos2_s_per_day),
@@ -678,9 +760,7 @@ impl PoiseFit {
         if !shape.is_empty() {
             s.push_str(&format!(" Twice-round terms: {}.", shape.join(", ")));
         }
-        // In the band the heavy spot's line opens with the range.
-        let band = matches!(self.withheld, Some(Withheld::NullBand { .. }));
-        if let Some(range) = self.amplitude_range().filter(|_| !band) {
+        if let Some(range) = self.amplitude_range() {
             s.push_str(&format!(" Amplitude {range}°."));
         }
         s.push(' ');
@@ -719,9 +799,18 @@ impl PoiseFit {
                 let (hour, deg) = spot_at(h);
                 format!("Heavy spot hangs lowest with {hour} at the top ({deg}°).")
             }
-            (None, Some(Withheld::NullBand { .. })) => format!(
-                "At {}°, poise barely moves the rate. Heavy spot not stated.",
-                self.amplitude_range().unwrap_or_default()
+            (
+                None,
+                Some(Withheld::NullBand {
+                    angle_deg,
+                    amplitude_deg,
+                }),
+            ) => format!(
+                "At {} the amplitude is {}°, near {}°, where poise barely moves the rate. \
+                 Heavy spot not stated.",
+                hour_code(angle_deg),
+                fixed_text(amplitude_deg, base_digits::AMPLITUDE),
+                fixed_text(NULL_AMPLITUDE_DEG, 1),
             ),
             (None, Some(Withheld::NoAmplitude)) => {
                 "Heavy spot not stated: a position has no amplitude.".into()

@@ -876,6 +876,16 @@ pub fn rate_value_count(windows: usize) -> usize {
     windows.div_ceil(RATE_WINDOW_STRIDE)
 }
 
+/// The shortest stretch, s, whose rate windows hold `values` independent
+/// values ([`rate_value_count`]) wherever it falls on the windows' grid
+/// (`clean::nominal_windows`): its first window may start up to a step
+/// after it begins, so it needs `(values − 1)·2 + 1` windows laid after
+/// that (#1960).
+pub fn rate_span_for(values: usize) -> f64 {
+    let windows = (values.max(1) - 1) * RATE_WINDOW_STRIDE + 1;
+    crate::measure::RATE_WINDOW_S + windows as f64 * crate::measure::RATE_WINDOW_STEP_S
+}
+
 /// Estimated standard error of the rate from the 10 s windows. Taking every
 /// other available window removes ordinary half-window overlap; the
 /// correlation left between the windows taken is allowed for by
@@ -959,6 +969,36 @@ pub fn beat_error_se_or_why<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// [`rate_span_for`] is the shortest whole-second stretch whose
+    /// windows give that many rate values wherever it falls on the grid:
+    /// it does at every offset, and a second less doesn't at some (#1960).
+    #[test]
+    fn the_span_for_rate_values_holds_them_at_any_offset() {
+        let values_in = |from: f64, len: f64| {
+            let windows = crate::clean::nominal_windows(
+                from,
+                from + len,
+                crate::measure::RATE_WINDOW_S,
+                crate::measure::RATE_WINDOW_STEP_S,
+            )
+            .count();
+            rate_value_count(windows)
+        };
+        let offsets: Vec<f64> = (0..50).map(|i| 100.0 + f64::from(i) * 0.1 + 0.01).collect();
+        for k in 1..=10 {
+            let span = rate_span_for(k);
+            assert!(
+                offsets.iter().all(|&o| values_in(o, span) >= k),
+                "{k}: {span}"
+            );
+            assert!(
+                offsets.iter().any(|&o| values_in(o, span - 1.0) < k),
+                "{k}: {span}"
+            );
+        }
+        assert_eq!(rate_span_for(4), 45.0);
+    }
     use crate::synth::Rng;
 
     /// Every window, as a take's ± borrows from.

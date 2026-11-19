@@ -461,6 +461,13 @@ fn about_text(settle_s: f64, measure_s: f64) -> String {
     )
 }
 
+/// Core's words as the screen shows them: a figure's minus a true minus
+/// sign (core `figure_text::figure_minus`), "−7.6 s/d", never "-7.6"
+/// (#1960).
+fn screen(words: &str) -> String {
+    timegrapher_core::figure_text::figure_minus(words)
+}
+
 /// The title line over the picture (core's short sentence, measured
 /// facts) and, where the amplitude is near 220°, a grey chip under it;
 /// or core's words for a fit still to come, or one a take lacks. The heavy spot is in the
@@ -476,7 +483,7 @@ fn words(ui: &mut egui::Ui, fit: Option<&PoiseFit>, unfitted: &str) {
             ui.label(RichText::new(unfitted).color(pal.text_secondary));
             return;
         };
-        ui.add(egui::Label::new(RichText::new(&f.short_text).color(pal.text)).wrap());
+        ui.add(egui::Label::new(RichText::new(screen(&f.short_text)).color(pal.text)).wrap());
         let band = matches!(f.withheld, Some(poise::Withheld::NullBand { .. }));
         if band {
             // The chip holds the band's fact.
@@ -487,7 +494,9 @@ fn words(ui: &mut egui::Ui, fit: Option<&PoiseFit>, unfitted: &str) {
                 .show(ui, |ui| {
                     ui.add(
                         egui::Label::new(
-                            RichText::new(f.heavy_spot_line()).small().color(pal.text),
+                            RichText::new(screen(&f.heavy_spot_line()))
+                                .small()
+                                .color(pal.text),
                         )
                         .wrap(),
                     )
@@ -511,7 +520,7 @@ fn info_panel(ui: &mut egui::Ui, (fit, unfitted): (Option<&PoiseFit>, &str), not
     };
     ui.label(theme::caption(poise_picture::TITLE).color(pal.text_secondary));
     match fit {
-        Some(f) => ui.add(text(&f.sentence_beside_note(), pal.text)),
+        Some(f) => ui.add(text(&screen(&f.sentence_beside_note()), pal.text)),
         None => ui.add(text(unfitted, pal.text_secondary)),
     };
     ui.add_space(6.0);
@@ -1340,6 +1349,70 @@ fn clear_of(at: egui::Pos2, size: Vec2, others: &[egui::Rect]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The words over the picture and in Info show core's figures with a
+    /// true minus, the twice-round terms' too, and the band's chip names
+    /// the stop nearest 219.5° (#1960, Shane's eight-stop take: 234 to
+    /// 250°, with a twice-round term of −7.6 s/d).
+    #[test]
+    fn the_words_take_a_true_minus_and_the_chip_names_its_stop() {
+        // A wave 44 s/d each way, fastest near 7H30, and a twice-round
+        // term of −7.6 s/d.
+        let rate = |a: f64| {
+            20.0 + 44.0 * (a - 225.0).to_radians().cos() - 7.6 * (2.0 * a).to_radians().cos()
+        };
+        let amps = [250.0, 245.0, 240.0, 236.0, 234.0, 239.0, 244.0, 248.0];
+        let points: Vec<poise::Point> = (0..8)
+            .map(|i| poise::Point {
+                angle_deg: 45.0 * i as f64,
+                rate_s_per_day: rate(45.0 * i as f64),
+                rate_se: Some(0.5),
+                amplitude_deg: Some(amps[i]),
+                amplitude_se: Some(1.0),
+            })
+            .collect();
+        let fit = poise::fit(&points, None).expect("a fit");
+        assert!(
+            fit.text.contains("-"),
+            "core's own text keeps ASCII: {}",
+            fit.text
+        );
+        let ctx = egui::Context::default();
+        crate::theme::install(&ctx);
+        let mut shown = String::new();
+        for _ in 0..2 {
+            let out = ctx.run(egui::RawInput::default(), |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    words(ui, Some(&fit), "");
+                    info_panel(ui, (Some(&fit), ""), &[]);
+                });
+            });
+            shown = out
+                .shapes
+                .iter()
+                .filter_map(|c| match &c.shape {
+                    egui::Shape::Text(t) => Some(t.galley.text().to_string()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+        }
+        assert!(
+            shown.contains("Twice-round terms: cos 2α \u{2212}"),
+            "{shown}"
+        );
+        let ascii = shown
+            .as_bytes()
+            .windows(2)
+            .any(|w| w[0] == b'-' && w[1].is_ascii_digit());
+        assert!(!ascii, "{shown}");
+        assert!(
+            shown.contains(
+                "At 6H the amplitude is 234°, near 219.5°, where poise barely moves the rate."
+            ),
+            "{shown}"
+        );
+    }
 
     /// The picture's room doesn't depend on how far its pane is scrolled
     /// (#1777): scrolled down, it is what it was at the top.
