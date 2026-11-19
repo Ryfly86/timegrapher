@@ -377,13 +377,16 @@ impl TimegrapherApp {
         }
         let on_show = self.take_on_show();
         let held = self.take_held();
+        let writing = self.live.is_some() || self.session.recorder.is_some();
         let picked = self.take_picked.clone();
         // Each take's own reading, as `timegrapher watches` gives it; a
         // test's figures are its own.
         self.take_readings.poll();
         for t in &e.takes {
             let dir = e.take_dir(t);
-            if watches::TakeReadings::read_for(t, &dir) {
+            // A take still being recorded is read once it stops (#2027).
+            let growing = writing && held.as_deref() == Some(dir.as_path());
+            if watches::TakeReadings::read_for(t, &dir) && !growing {
                 self.take_readings.want(&dir, t.bytes, ui.ctx());
             }
         }
@@ -395,6 +398,7 @@ impl TimegrapherApp {
             picked: picked.as_deref(),
             on_show: on_show.as_deref(),
             held: held.as_deref(),
+            writing,
             readings: &self.take_readings,
         };
         let mut act = None;
