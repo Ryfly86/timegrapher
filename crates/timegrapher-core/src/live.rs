@@ -300,6 +300,10 @@ pub struct LiveAnalyzer {
     /// still listening at its own rate, so going back brings every beat
     /// back (#1949; [`held::Held`]).
     held: held::Held,
+    /// Until the template is built again (#1327), the figures come from
+    /// everything heard read again as a file reads it (#1987;
+    /// [`as_file::AsFile`]).
+    as_file: as_file::AsFile,
 }
 
 /// Good beats looked at for a step in their timing ([`beats::jumps`]) on
@@ -344,6 +348,7 @@ impl LiveAnalyzer {
             template: None,
             rebuild: Default::default(),
             held: Default::default(),
+            as_file: Default::default(),
             beats: Vec::new(),
             beats_gen: fresh_gen(),
             clipped: Vec::new(),
@@ -451,6 +456,7 @@ impl LiveAnalyzer {
     pub fn set_profile_span(&mut self, seconds: f64) {
         self.cfg.profile_s = seconds;
         self.in_shadow(|l| l.set_profile_span(seconds));
+        self.in_view(|l| l.set_profile_span(seconds));
         self.in_held(|l| l.set_profile_span(seconds));
     }
 
@@ -513,6 +519,7 @@ impl LiveAnalyzer {
     fn start_again(&mut self) {
         self.template = None;
         self.forget_rebuild();
+        self.stop_reading_as_file();
         self.bph = self.cfg.analysis.bph;
         self.found_bph = false;
         self.doubt = None;
@@ -541,6 +548,7 @@ impl LiveAnalyzer {
     pub fn new_stretch(&mut self) {
         self.in_held(LiveAnalyzer::new_stretch);
         self.give_up_rebuild("a new stretch began first");
+        self.stop_reading_as_file();
         let now = self.duration_s();
         self.breaks.push(now);
         // The count across the handling is a guess: the sides are checked
@@ -643,6 +651,7 @@ impl LiveAnalyzer {
     /// a position boundary is not evidence that a nearby jump is the same cut.
     pub fn set_breaks(&mut self, mut breaks: Vec<f64>) {
         self.in_held(|l| l.set_breaks(breaks.clone()));
+        self.in_view(|l| l.set_breaks(breaks.clone()));
         self.give_up_rebuild("breaks were set first");
         breaks.extend_from_slice(&self.intrinsic_breaks);
         breaks.sort_by(f64::total_cmp);
@@ -662,6 +671,7 @@ impl LiveAnalyzer {
         let pairs: Vec<[f64; 2]> = spans.iter().map(|&(a, b)| [a, b]).collect();
         self.masked = crate::session::masked_spans(&pairs);
         self.in_shadow(|l| l.set_masked(spans));
+        self.in_view(|l| l.set_masked(spans));
         self.in_held(|l| l.set_masked(spans));
     }
 
@@ -674,6 +684,7 @@ impl LiveAnalyzer {
         self.let_go_held_at(self.total + n);
         self.in_held(|l| l.skip(seconds));
         self.give_up_rebuild("listening paused first");
+        self.stop_reading_as_file();
         self.total += n;
         self.buf.clear();
         self.buf0 = self.total;
@@ -718,6 +729,7 @@ impl LiveAnalyzer {
         self.cfg.analysis.lift_known = lift_known;
         self.clock_known = clock_known;
         self.in_shadow(|l| l.set_known(lift_known, clock_known));
+        self.in_view(|l| l.set_known(lift_known, clock_known));
         self.in_held(|l| l.set_known(lift_known, clock_known));
     }
 
@@ -741,6 +753,7 @@ impl LiveAnalyzer {
             _ => self.rate_clock = clock.cloned(),
         }
         self.in_shadow(|l| l.set_rate_clock(clock));
+        self.in_view(|l| l.set_rate_clock(clock));
         self.in_held(|l| l.set_rate_clock(clock));
     }
 
@@ -770,6 +783,7 @@ impl LiveAnalyzer {
             self.cfg.analysis.amplitude.lift_deg = lift_deg;
         }
         self.in_shadow(|l| l.set_lift(lift_deg));
+        self.in_view(|l| l.set_lift(lift_deg));
         self.in_held(|l| l.set_lift(lift_deg));
     }
 
@@ -777,6 +791,7 @@ impl LiveAnalyzer {
     pub fn set_max_beats(&mut self, n: usize) {
         self.cfg.max_beats = n;
         self.in_shadow(|l| l.set_max_beats(n));
+        self.in_view(|l| l.set_max_beats(n));
         self.in_held(|l| l.set_max_beats(n));
     }
 
@@ -810,7 +825,7 @@ impl LiveAnalyzer {
             ran |= self.push_part(part);
             rest = later;
         }
-        ran
+        ran | self.as_file_after_push(samples)
     }
 
     /// [`Self::push`] for a part of a block that reaches no further than
@@ -978,6 +993,7 @@ impl LiveAnalyzer {
     fn let_go_of_guess(&mut self) {
         self.template = None;
         self.forget_rebuild();
+        self.stop_reading_as_file();
         self.bph = None;
         self.found_bph = false;
         self.doubt = None;
@@ -1203,6 +1219,7 @@ impl LiveAnalyzer {
     /// then withhold the same faint sides as the take read again
     /// (#1738). Listening on, the chunk is judged again once it closes.
     pub fn settle(&mut self) {
+        self.read_as_file_now();
         let w = self.cfg.analysis.amplitude_window_s;
         let chunk_of = |s: f64| crate::stream::amplitude_chunk_of(s, w);
         let Some(last) = self.amp.last().map(|x| chunk_of(x.start_s)) else {
@@ -1244,6 +1261,10 @@ impl LiveAnalyzer {
 
     /// Readings over the last `average_s` seconds of settled beats.
     pub fn reading(&self, average_s: f64) -> LiveReading {
+        // Read as a file, to the end of the sound the newest read covered.
+        if let Some(r) = self.reading_as_file(f64::INFINITY, average_s) {
+            return r;
+        }
         self.reading_at(self.settled_to, average_s)
     }
 
@@ -1324,6 +1345,9 @@ impl LiveAnalyzer {
 
     /// Readings over the `average_s` seconds before `end_s`.
     pub fn reading_at(&self, end_s: f64, average_s: f64) -> LiveReading {
+        if let Some(r) = self.reading_as_file(end_s, average_s) {
+            return r;
+        }
         let window_from = end_s - average_s;
         let masked_s = crate::session::masked_within(&self.masked, window_from, end_s);
         let st = self.stretch_at(window_from, end_s);
@@ -1973,6 +1997,9 @@ impl LiveAnalyzer {
     /// The readings over the whole of what has been heard, each averaged
     /// over `average_s` ([`Self::reading_at`]), at [`trend_times`].
     pub fn trend(&self, average_s: f64) -> Vec<TrendReading> {
+        if let Some(t) = self.trend_as_file(average_s) {
+            return t;
+        }
         trend_times(self.duration_s())
             .into_iter()
             .map(|t| TrendReading::of(t, &self.reading_at(t, average_s)))
@@ -1995,6 +2022,7 @@ fn judged_s(fitted: bool, end_s: f64, window_from: f64, heard_since: f64, holes:
     }
 }
 
+mod as_file;
 mod held;
 mod rebuild;
 

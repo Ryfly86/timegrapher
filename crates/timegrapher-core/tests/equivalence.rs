@@ -1334,10 +1334,9 @@ fn an_empty_stand_is_never_a_beat_being_found() {
 const USB_TAKE: &str = "eta2824_holder_DU_30min";
 
 /// From this much sound on, live and the saved take read the same rate on
-/// this take. Under it the two pipelines still part on its first minute or
-/// so, on the card's own clock with no clock in it (0.87 s/d apart at 30 s,
-/// 0.32 s/d at 60 s), which is not the clock's doing: the clock is still
-/// checked there. #1987 closes that gap and removes this constant.
+/// this take to within half its digit. Before the template is built again
+/// (#1327) live's figures are the saved take's to the bit (#1987); between
+/// that and this, none of the lengths checked falls.
 const SAME_RATE_FROM_S: f64 = 120.0;
 
 /// Heard live, a real take's readings are on the clock the same take
@@ -1349,6 +1348,9 @@ const SAME_RATE_FROM_S: f64 = 120.0;
 ///   clock is the one it opens on;
 /// - the clock moves the live rate exactly as far as it moves the saved
 ///   take's (1.66 s/d here);
+/// - stopped there, while live's figures are read as a file (before the
+///   template is built again), the live rate is the saved take's to the
+///   bit, on the clock and on the card's (#1987);
 /// - from [`SAME_RATE_FROM_S`], the live rate is the saved take's to
 ///   within half its 0.1 s/d digit.
 ///
@@ -1364,7 +1366,7 @@ fn a_live_rate_takes_the_usb_lines_a_reopened_real_take_takes() {
     let a = load(&path).unwrap();
     let fs = a.sample_rate;
     let block = fs as usize / 10;
-    let mut l = LiveAnalyzer::new(fs, LiveConfig::default());
+    let mut l = LiveAnalyzer::new(fs, LiveConfig::default()).with_figures_as_file();
     let mut lines = usbclock::Live::new(fs);
     // One length before the first read, then each length a read is due.
     let mut checks = [20.0].into_iter().chain(usbclock::LIVE_READS_S).peekable();
@@ -1410,11 +1412,15 @@ fn a_live_rate_takes_the_usb_lines_a_reopened_real_take_takes() {
         assert_eq!(format!("{fit:?}"), format!("{:?}", Some(&opened)), "{t} s");
         // Both over the same interval, as `live_matches_analyze_on_real_takes`.
         let log = stream(&saved, 47.0);
-        let end = l.reading(t).time_s;
+        // Stopped now: what was heard read as a file once more.
+        let mut stopped = l.clone();
+        stopped.read_as_file_now();
+        let as_file = stopped.reads_as_file();
+        let end = stopped.reading(t).time_s;
         let last = |v: &[f64]| v.iter().copied().filter(|&b| b < end).fold(0.0, f64::max);
-        let from = last(l.breaks()).max(last(&log.jumps));
+        let from = last(stopped.breaks()).max(last(&log.jumps));
         let rate = |c: Option<&clock::ClockFit>| {
-            let mut x = l.clone();
+            let mut x = stopped.clone();
             x.set_rate_clock(c);
             x.reading_at(end, end - from)
                 .rate_s_per_day
@@ -1439,7 +1445,23 @@ fn a_live_rate_takes_the_usb_lines_a_reopened_real_take_takes() {
             moved(live_on, live_card),
             moved(saved_on, saved_card)
         );
-        if t >= SAME_RATE_FROM_S {
+        if as_file {
+            // The saved take opened in the app, on the same clock.
+            let opened_rate = |c: Option<&clock::ClockFit>| {
+                let mut x = LiveAnalyzer::from_log(log.clone(), LiveConfig::default());
+                x.set_rate_clock(c);
+                x.reading_at(end, end - from).rate_s_per_day
+            };
+            assert_eq!(
+                (Some(live_on), Some(live_card)),
+                (opened_rate(Some(&opened)), opened_rate(None)),
+                "{t} s: read as a file, live is the saved take opened"
+            );
+            // A report puts the clock on the beat times, live on the rate:
+            // the same to the last few bits.
+            assert_eq!(live_card.to_bits(), saved_card.to_bits(), "{t} s");
+            assert!((live_on - saved_on).abs() < 1e-9, "{t} s");
+        } else if t >= SAME_RATE_FROM_S {
             assert!(
                 (live_on - saved_on).abs() < 0.05,
                 "{t} s: live {live_on:.3} s/d against the saved take's {saved_on:.3}"
@@ -1448,5 +1470,95 @@ fn a_live_rate_takes_the_usb_lines_a_reopened_real_take_takes() {
         std::fs::remove_file(&saved).unwrap();
     }
     assert_eq!(checks.next(), None, "every length was heard");
+    std::fs::remove_dir(&dir).unwrap();
+}
+
+/// Before live builds its template again (#1327), every figure it shows is
+/// the saved take's of the sound its reading states (#1987): listening
+/// on, the newest read of what was heard, read as a file reads it; and
+/// stopped, everything heard, at 10, 20, 30 and 46 s. The stop's read and
+/// the lag of the figures behind the sound are timed and printed: about
+/// twice a read of the most heard before the template is built again.
+///
+/// Runs where `TIMEGRAPHER_CORPUS` is set.
+#[test]
+fn live_figures_before_the_template_is_built_again_are_the_saved_takes() {
+    use std::time::Instant;
+    use timegrapher_core::excerpt;
+    let Some(path) = corpus_takes(&[USB_TAKE]).pop() else {
+        return;
+    };
+    let pcm = excerpt::read(&path).unwrap();
+    let a = load(&path).unwrap();
+    let fs = a.sample_rate;
+    let block = fs as usize / 10;
+    let dir = std::env::temp_dir().join(format!("tg-eq-as-file-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    // The first `n` samples saved as a take and opened in the app.
+    let opened = |n: usize| {
+        let saved = dir.join(format!("take-{n}.flac"));
+        let part = excerpt::Pcm {
+            samples: pcm.samples[..n].to_vec(),
+            ..pcm
+        };
+        excerpt::write_flac(&saved, &part).unwrap();
+        let log = stream(&saved, 47.0);
+        std::fs::remove_file(&saved).unwrap();
+        LiveAnalyzer::from_log(log, LiveConfig::default())
+    };
+    let same = |live: &LiveAnalyzer, saved: &LiveAnalyzer, what: &str| {
+        for average_s in [10.0, 60.0] {
+            assert_eq!(
+                format!("{:?}", live.reading(average_s)),
+                format!("{:?}", saved.reading(average_s)),
+                "{what}, over {average_s} s"
+            );
+        }
+        assert_eq!(
+            format!("{:?}", live.trend(10.0)),
+            format!("{:?}", saved.trend(10.0)),
+            "{what}, the trend"
+        );
+    };
+    let mut l = LiveAnalyzer::new(fs, LiveConfig::default()).with_figures_as_file();
+    let mut stops = [10.0, 20.0, 30.0, 46.0].into_iter().peekable();
+    let (mut listening, mut heard_most) = (0, 0);
+    for (i, c) in a.samples.chunks(block).enumerate() {
+        l.push(c);
+        let n = (i * block + c.len()).min(a.samples.len());
+        if l.template_switch_s().is_some() {
+            break;
+        }
+        heard_most = n;
+        if stops.next_if(|&at| n as f64 >= at * f64::from(fs)).is_none() {
+            continue;
+        }
+        let t = n as f64 / f64::from(fs);
+        assert!(l.reads_as_file(), "{t} s");
+        if let Some(to) = l.read_as_file_to() {
+            assert_eq!(l.reading(10.0).time_s, to, "{t} s: states its sound");
+            let m = (to * f64::from(fs)).round() as usize;
+            same(&l, &opened(m), &format!("listening at {t} s, read to {to} s"));
+            listening += 1;
+        }
+        let mut stopped = l.clone();
+        let t0 = Instant::now();
+        stopped.settle();
+        eprintln!("stopped at {t} s: read in {:.3} s", t0.elapsed().as_secs_f64());
+        same(&stopped, &opened(n), &format!("stopped at {t} s"));
+    }
+    assert_eq!(stops.next(), None, "every stop came before the switch");
+    assert!(listening > 0, "a read finished while listening");
+    // The longest read: the most heard before the switch.
+    let cfg = StreamConfig::default();
+    let t0 = Instant::now();
+    let _ = timegrapher_core::stream::analyze_samples(&a.samples[..heard_most], fs, &cfg);
+    let read = t0.elapsed().as_secs_f64();
+    eprintln!(
+        "switch after {:.1} s heard: its read {read:.3} s, so the figures lag the sound by \
+         {:.3} s at most",
+        heard_most as f64 / f64::from(fs),
+        2.0 * read
+    );
     std::fs::remove_dir(&dir).unwrap();
 }

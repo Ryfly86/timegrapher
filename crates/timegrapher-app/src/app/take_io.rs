@@ -89,7 +89,7 @@ impl TimegrapherApp {
         self.session.discard_recording();
         self.session.clear();
         self.put_input_clock(None);
-        self.live = Some(LiveAnalyzer::new(sample_rate, self.live_config()));
+        self.live = Some(LiveAnalyzer::new(sample_rate, self.live_config()).with_figures_as_file());
         self.live_usb = Some(live_usb::LiveUsb::new(sample_rate));
         self.source_label = label;
         self.gutter_fresh = true;

@@ -728,7 +728,7 @@ impl Feed {
             path: path.to_path_buf(),
             position: pos.common(),
             seconds,
-            live: LiveAnalyzer::new(fs_hz, cfg),
+            live: LiveAnalyzer::new(fs_hz, cfg).with_figures_as_file(),
             anchor: None,
             trend: Vec::new(),
             next_s: 1.0,
