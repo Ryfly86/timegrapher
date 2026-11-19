@@ -1421,3 +1421,52 @@ fn a_take_deleted_with_its_hours_while_recorded_into_cant_be_saved() {
     assert!(app.message.is_none(), "not refused every frame");
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// Hugh 4 and Trevor on #2060: saved into another folder after an hour
+/// went to the first take alone, the first take deleted leaves the sound
+/// whole where it was saved last: "Saved", and saved again there with no
+/// refusal.
+#[test]
+fn deleting_an_earlier_take_leaves_the_one_saved_last_saved() {
+    let (mut app, base, first, _tx) = recording_into_its_take("saved-elsewhere", |r| {
+        r.write(&silence(2, 100)).unwrap();
+        r.pause().unwrap();
+        r.resume("test");
+    });
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while app.session.recorder.as_ref().unwrap().releasing() {
+        assert!(std::time::Instant::now() < until, "let go in time");
+        let r = app.session.recorder.as_mut().unwrap();
+        r.write(&silence(1, 200)).unwrap();
+        app.stream_tick();
+        app.wait_for_save();
+        app.tidy_recording();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    // Save As… into a folder of the user's own.
+    let other = base.join("mine");
+    std::fs::create_dir_all(&other).unwrap();
+    app.save_into(&other);
+    app.wait_for_save();
+    let second = app.session.saved_to().unwrap().to_path_buf();
+    assert!(second.starts_with(&other));
+    std::fs::remove_dir_all(&first).unwrap();
+    window_back(&mut app);
+    assert!(app.saved_hours_reachable());
+    assert_eq!(status_now(&app).0, "Saved");
+    // Saved again there, with nothing refused.
+    let r = app.session.recorder.as_mut().unwrap();
+    r.write(&silence(2, 300)).unwrap();
+    app.message = None;
+    app.save_again();
+    assert!(app.saving.is_some(), "{:?}", app.message);
+    app.wait_for_save();
+    assert!(
+        app.message.as_ref().is_none_or(|m| !m.1),
+        "{:?}",
+        app.message
+    );
+    assert_eq!(app.session.saved_to(), Some(second.as_path()));
+    assert_eq!(status_now(&app).0, "Saved");
+    let _ = std::fs::remove_dir_all(&base);
+}
