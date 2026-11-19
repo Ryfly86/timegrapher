@@ -1130,3 +1130,61 @@ fn the_last_charts_time_labels_stay_inside_the_pane() {
         assert!(lowest.0 <= inner + 0.5, "{w}x{h}: {lowest:?} below {inner}");
     }
 }
+
+/// No scales with nothing behind them (#1973): before anything is open,
+/// while a take opens and before a take's first reading, the Charts pane
+/// draws one line in place of its charts, and no "0:00.0" or "0.0°".
+#[test]
+fn the_charts_draw_no_scales_before_there_is_a_reading() {
+    let ctx = themed();
+    let draw = |app: &mut TimegrapherApp| {
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                Vec2::new(1280.0, 700.0),
+            )),
+            ..Default::default()
+        };
+        let out = ctx.run(input, |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| app.charts_pane(ui));
+        });
+        painted_text(&out)
+    };
+    let scales = |text: &str| text.contains("0:00") || text.contains('°') || text.contains("s/d");
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    let text = draw(&mut app);
+    assert!(
+        text.contains("Listen to a watch or open a recording"),
+        "{text}"
+    );
+    assert!(!scales(&text), "{text}");
+    // Opening a take.
+    let (_tx, rx) = std::sync::mpsc::channel();
+    app.batch = Some(Batch {
+        rx,
+        progress: Default::default(),
+        cancel: Default::default(),
+        duration_s: None,
+        label: String::new(),
+        started: Instant::now(),
+        files: 14,
+        first: String::new(),
+        last: String::new(),
+        stretches: Vec::new(),
+        settles: Vec::new(),
+        order_note: None,
+    });
+    let text = draw(&mut app);
+    assert!(text.contains("Opening the take"), "{text}");
+    assert!(!scales(&text), "{text}");
+    // A take with no reading yet, then with its readings.
+    let mut app = synthetic(60.0, 20.0);
+    let trend = std::mem::take(&mut app.trend);
+    let text = draw(&mut app);
+    assert!(text.contains("begin with the first reading"), "{text}");
+    assert!(!scales(&text), "{text}");
+    app.trend = trend;
+    let text = draw(&mut app);
+    assert!(app.charts_waiting().is_none());
+    assert!(scales(&text), "{text}");
+}

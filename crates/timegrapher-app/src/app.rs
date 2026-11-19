@@ -80,6 +80,7 @@ mod positions_test;
 mod power_reserve_pane;
 mod readings_strip;
 mod readouts;
+use readouts::caveat_facts;
 mod redraw;
 mod scope_panes;
 mod session_marks;
@@ -4148,54 +4149,14 @@ fn cut_caveats_text(caveats: &[Caveat]) -> String {
     };
     let breaks = picked(Caveat::is_about_breaks);
     let sides = picked(|c| matches!(c, Caveat::SidesByCount { .. }));
-    reading_limits("", &breaks, 0.0, 0)
+    caveat_facts(&breaks, 0.0, 0)
         .into_iter()
-        .chain(reading_limits("Beat Error", &sides, 0.0, 0))
+        .chain(caveat_facts(&sides, 0.0, 0))
         .map(|(_, hover)| format!(" {hover}"))
         .collect()
 }
 
 const WHOLE_AS_SIZES: &str = "whole take is given as a size: its sign differs either side of a cut";
-
-/// What limits a reading, as facts: a short form for the card's caption
-/// and a sentence for its hover, in core's words. Nothing graded: the ±
-/// beside the figure says how far it could be off; these say what the ±
-/// can't show.
-fn reading_limits(
-    title: &str,
-    caveats: &[Caveat],
-    lift_deg: f64,
-    beats: usize,
-) -> Vec<(String, String)> {
-    caveats
-        .iter()
-        .filter(|c| shown_on(c, title))
-        .filter_map(|c| {
-            let long = c.long(Some(lift_deg))?;
-            let long = match c {
-                Caveat::Clipped { .. } => format!("{long} {}", help::CLIPPING),
-                _ => long,
-            };
-            Some((c.short(lift_deg, beats)?, long))
-        })
-        .collect()
-}
-
-/// Whether a card titled `title` names caveat `c` beside its figure.
-/// No regular beat, clock disagreement and beat error as a size are said elsewhere;
-/// so are the lift angle (Calibre card) and input clock (Rate controls row).
-fn shown_on(c: &Caveat, title: &str) -> bool {
-    match c {
-        Caveat::NoWatch { .. }
-        | Caveat::ClockSourcesDisagree { .. }
-        | Caveat::BeatErrorAsSize
-        | Caveat::LiftUnknown
-        | Caveat::ClockUnknown => false,
-        c if c.is_amplitude_only() => matches!(title, "Amplitude" | "Beat Error"),
-        Caveat::SidesByCount { .. } | Caveat::BeatErrorFromDrop { .. } => title == "Beat Error",
-        _ => true,
-    }
-}
 
 /// How long closing an input may take before the app carries on.
 const RELEASE_WAIT: Duration = Duration::from_secs(2);
