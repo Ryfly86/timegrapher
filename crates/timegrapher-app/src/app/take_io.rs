@@ -430,6 +430,8 @@ impl TimegrapherApp {
         }
         self.stream_wait = None;
         self.save_again_as(Streamed::Yes);
+        // Refused (its take's hours gone, say): tried again later, not every frame.
+        self.stream_wait = self.saving.is_none().then(Instant::now);
     }
 
     /// Carry on listening after a pause, in the same session.

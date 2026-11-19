@@ -238,7 +238,9 @@ while the take holds the sound saved into it. The app looks at the take
 again when its window comes back to the front, after a save, after a
 take is moved and when a save is refused (#2052). Once the take no
 longer holds its sound, the status bar says "Not saved", and its hover
-says Save keeps it again. If the earlier part the take held alone is
+says Save keeps it again. While the take is still recorded into, Save is
+dimmed, and the hover says instead that the next few seconds of sound
+save it whole again: the take's next write puts it all back. If the earlier part the take held alone is
 gone too, it says "Can't be saved", and its hover gives the refusal's
 reason. Stop and quitting
 add the last seconds and close the take with no question. A save that

@@ -1291,3 +1291,133 @@ fn the_command_set_runs_once_listening_stops_not_on_saves_as_it_goes() {
     );
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// A kept Quick Listen recording into its take, 3 s heard, `before`
+/// done to its recording first; and its take.
+fn recording_into_its_take(
+    name: &str,
+    before: impl FnOnce(&mut Recorder),
+) -> (
+    TimegrapherApp,
+    std::path::PathBuf,
+    std::path::PathBuf,
+    impl Sized,
+) {
+    let base = std::env::temp_dir().join(format!("tg-app-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let root = base.join("Timegrapher Data");
+    drop(library::Library::create(&root).unwrap());
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.use_library(Some(root.clone()));
+    assert!(app.quick_listen_ready(true));
+    app.session.listen();
+    let info = app.info("", 48000, 16);
+    let mut r = Recorder::start(&base.join("unsaved"), info).unwrap();
+    r.keep_saved_hours_in_copy();
+    before(&mut r);
+    r.write(&silence(3, 0)).unwrap();
+    app.session.recorder = Some(r);
+    let tx = queued_capture(&mut app, &base);
+    app.save_again();
+    app.wait_for_save();
+    let take = app.session.saved_to().expect("kept").to_path_buf();
+    assert!(app.streams());
+    app.message = None;
+    (app, base, take, tx)
+}
+
+/// The status bar's words and hover now.
+fn status_now(app: &TimegrapherApp) -> (String, String) {
+    let r = app.session.recorder.as_ref().unwrap();
+    let (text, _, hover) = app.recording_state(r, &theme::LIGHT);
+    (text, hover)
+}
+
+/// The window back in front.
+fn window_back(app: &mut TimegrapherApp) {
+    let ctx = egui::Context::default();
+    let back = egui::RawInput {
+        events: vec![egui::Event::WindowFocused(true)],
+        ..Default::default()
+    };
+    let _ = ctx.run(back, |ctx| app.reread_library_on_focus(ctx));
+}
+
+/// Hugh 4 on #2060: a take deleted outside the app while it is still
+/// recorded into. Save is dimmed then, so the status bar doesn't send the
+/// user to it: the take's next write puts it back whole, and then it is
+/// "Saved" again, truly.
+#[test]
+fn a_take_deleted_while_recorded_into_is_put_back_by_its_next_write() {
+    let (mut app, base, take, _tx) = recording_into_its_take("stream-gone", |_| {});
+    assert_eq!(status_now(&app).0, "Saved");
+    std::fs::remove_dir_all(&take).unwrap();
+    window_back(&mut app);
+    let (text, hover) = status_now(&app);
+    assert_eq!(text, "Not saved");
+    let again = "The take this sound is being saved in no longer holds it. The next few \
+                 seconds of sound save it whole again.";
+    assert_eq!(hover, again);
+    assert!(
+        !app.menu_enabled(menus::MenuCommand::Save),
+        "Save is dimmed"
+    );
+    // The next write puts the whole take back: "Saved", and so it is.
+    let r = app.session.recorder.as_mut().unwrap();
+    r.write(&silence(6, 3)).unwrap();
+    app.stream_tick();
+    app.wait_for_save();
+    assert!(app.message.is_none(), "{:?}", app.message);
+    assert_eq!(status_now(&app).0, "Saved");
+    let wav = take.join("audio-001.wav");
+    let heard = timegrapher_core::audio::load(&wav).unwrap().samples.len();
+    assert_eq!(heard, 9 * 48000, "the whole sound, from its start");
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// The same with an hour the take held alone: its next write is refused
+/// rather than putting back part of it, the status bar says it can't be
+/// saved, and the refusal isn't tried again every frame (#2060).
+#[test]
+fn a_take_deleted_with_its_hours_while_recorded_into_cant_be_saved() {
+    let (mut app, base, take, _tx) = recording_into_its_take("stream-gone-hours", |r| {
+        // An hour closed before the save: the take holds it alone after.
+        r.write(&silence(2, 100)).unwrap();
+        r.pause().unwrap();
+        r.resume("test");
+    });
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while app.session.recorder.as_ref().unwrap().releasing() {
+        assert!(std::time::Instant::now() < until, "let go in time");
+        let r = app.session.recorder.as_mut().unwrap();
+        r.write(&silence(1, 200)).unwrap();
+        app.stream_tick();
+        app.wait_for_save();
+        app.tidy_recording();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    assert!(app.saved_hours_reachable());
+    std::fs::remove_dir_all(&take).unwrap();
+    let r = app.session.recorder.as_mut().unwrap();
+    r.write(&silence(6, 300)).unwrap();
+    app.message = None;
+    app.stream_tick();
+    assert!(
+        app.saving.is_none() && app.stream_wait.is_some(),
+        "refused, then waits"
+    );
+    let why = "This sound can't be saved\nIts earlier part was kept only in its take, \
+               and the take no longer holds it.";
+    assert_eq!(app.message.as_ref().map(|m| m.0.as_str()), Some(why));
+    let (text, hover) = status_now(&app);
+    assert_eq!(text, "Can't be saved");
+    let reason = "Its earlier part was kept only in its take, and the take no longer \
+                  holds it.";
+    assert_eq!(hover, reason);
+    // Not again the next frame.
+    app.message = None;
+    app.stream_tick();
+    assert!(app.message.is_none(), "not refused every frame");
+    let _ = std::fs::remove_dir_all(&base);
+}

@@ -1591,7 +1591,7 @@ impl TimegrapherApp {
                 fault.description(),
             )
         } else if r.saved_copy_gone() {
-            saved_copy_gone(self.saved_hours_reachable(), pal)
+            saved_copy_gone(self.saved_hours_reachable(), self.streams(), pal)
         } else if self.streams() {
             // Recording into its folder: nothing waits on a Save Again.
             (
@@ -2364,13 +2364,24 @@ pub(super) fn error_short(m: &str) -> String {
 
 /// The recording's state once the take it was saved in was found no
 /// longer to hold its sound (#2052): never "Saved". `reachable`: the hours
-/// it held alone are still there, so a save can keep the sound again.
-fn saved_copy_gone(reachable: bool, pal: &theme::Palette) -> (String, Color32, String) {
+/// it held alone are still there, so a save can keep the sound again: by
+/// itself while the take is recorded into (`streams`), its next write
+/// putting the whole take back (Hugh 4 on #2060), else by Save.
+fn saved_copy_gone(
+    reachable: bool,
+    streams: bool,
+    pal: &theme::Palette,
+) -> (String, Color32, String) {
     if reachable {
+        let hover = if streams {
+            SAVED_COPY_GONE_STREAMING
+        } else {
+            SAVED_COPY_GONE
+        };
         (
             "Not saved".to_string(),
             pal.text_secondary,
-            SAVED_COPY_GONE.to_string(),
+            hover.to_string(),
         )
     } else {
         (
@@ -2383,5 +2394,9 @@ fn saved_copy_gone(reachable: bool, pal: &theme::Palette) -> (String, Color32, S
 
 /// The hover of a session whose take no longer holds its sound, when a
 /// save can keep it again.
-pub(super) const SAVED_COPY_GONE: &str =
+const SAVED_COPY_GONE: &str =
     "The take this sound was saved in no longer holds it. Save keeps it again.";
+
+/// The same while the take is recorded into, which Save isn't for.
+const SAVED_COPY_GONE_STREAMING: &str = "The take this sound is being saved in no longer holds \
+     it. The next few seconds of sound save it whole again.";
