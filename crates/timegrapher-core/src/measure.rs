@@ -1207,8 +1207,9 @@ pub fn assess_in(
     if sides > 0 && c.watch_heard {
         caveats.push(Caveat::FaintSidesWithheld { sides, windows });
     }
-    let confidence = c.watch_heard.then(|| {
-        Confidence::of(
+    let confidence = c.watch_heard.then(|| Confidence {
+        rate_pool_values: confidence::rate_pool_values(take.rate),
+        ..Confidence::of(
             match c.average_s {
                 Some(t) => rate_se_over_or_why(rate_windows, take.rate, t),
                 None => confidence::rate_se_or_why(rate_windows, take.rate),

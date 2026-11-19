@@ -28,6 +28,29 @@ pub fn fixed_text(x: f64, digits: usize) -> String {
     }
 }
 
+/// A number with up to one decimal, a whole one without: `45`, `2.5`.
+pub fn plain_text(v: f64) -> String {
+    let s = format!("{v:.1}");
+    s.strip_suffix(".0").map(str::to_string).unwrap_or(s)
+}
+
+/// A length of time as the guided tests' Measure field shows it: `45 s`,
+/// `90 s`, `1 min`, `5 min`, `2 h`, else `1:15:30` (the one rule, for the
+/// field and for words that name a length to set, Hugh on #1960).
+pub fn duration_text(v: f64) -> String {
+    let s = v.round().max(0.0) as u64;
+    // A whole minute reads as one, "1 min" beside "5 min", never "60 s".
+    if s < 60 || (s < 120 && !s.is_multiple_of(60)) {
+        format!("{} s", plain_text(v))
+    } else if s.is_multiple_of(3600) {
+        format!("{} h", s / 3600)
+    } else if s.is_multiple_of(60) && s < 7200 {
+        format!("{} min", s / 60)
+    } else {
+        crate::library::length_text(v)
+    }
+}
+
 /// Text as a screen shows it: every hyphen-minus set as a true minus
 /// sign (U+2212), `−1.2 s/d` rather than `-1.2 s/d`. The one place that
 /// does it; text meant for a file or a pipe (CSV, JSON, the command
