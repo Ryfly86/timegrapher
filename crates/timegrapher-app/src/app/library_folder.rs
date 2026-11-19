@@ -49,9 +49,9 @@ const RECORDING_INSIDE: &str = "The Watches folder can't move while a take is be
 /// Move Watches… while a take is copied into a watch, or a take's sound
 /// removed, on a thread of its own: the old folder would be deleted under
 /// it (Trevor on #2020).
-const COPYING_INSIDE: &str = "The Watches folder can't move while a take is being copied into \
-     a watch or its sound removed. Wait for it to finish, or press Cancel, then choose Move \
-     Watches… again.";
+const COPYING_INSIDE: &str = "The Watches folder can't move while a take is still being \
+     copied in or having its sound removed. Wait for that to finish, then choose Move Watches… \
+     again.";
 
 /// Move Library… while saved takes are being kept as FLAC.
 pub(super) const WAV_KEEP_WAIT: &str =

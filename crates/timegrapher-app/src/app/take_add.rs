@@ -299,7 +299,7 @@ mod tests {
         app.move_library(root.clone(), base.join("Elsewhere"));
         let m = app.message.clone().unwrap().0;
         assert!(
-            m.starts_with("The Watches folder can't move while a take is being copied"),
+            m.starts_with("The Watches folder can't move while a take is still being copied in"),
             "{m}"
         );
         assert!(root.is_dir() && !base.join("Elsewhere").exists());
