@@ -392,12 +392,20 @@ fn hover_and_paint(
     id: egui::Id,
     named: Vec<(&Named, egui::Rect, Arc<egui::Galley>)>,
 ) {
+    // A name and its line are two targets, not the box round both, which
+    // reached over the next name in a lane of two rows; over a name only
+    // its own hover shows (#1986).
+    let on_name = ui
+        .ctx()
+        .pointer_hover_pos()
+        .is_some_and(|p| named.iter().any(|(_, r, _)| r.contains(p)));
     for (l, rect, _) in &named {
-        let hit = rect.union(egui::Rect::from_x_y_ranges(
-            l.x - 3.0..=l.x + 3.0,
-            frame.top()..=frame.bottom(),
-        ));
-        hover(ui, id.with(("line", &l.name)), hit, &l.hover);
+        if !on_name {
+            let line =
+                egui::Rect::from_x_y_ranges(l.x - 3.0..=l.x + 3.0, frame.top()..=frame.bottom());
+            hover(ui, id.with(("line", &l.name)), line, &l.hover);
+        }
+        hover(ui, id.with(("name", &l.name)), *rect, &l.hover);
     }
     for (_, rect, g) in named {
         paint_lane_name(ui, painter, rect, g);
@@ -507,7 +515,9 @@ pub fn inside_placed(
 
 /// The hovers of lines named inside a short plot (`placed` as
 /// [`inside_placed`] gives them): each line, and its name where it has
-/// one, says `hover` for its name.
+/// one, says `hover` for its name. A name and its line are two targets,
+/// not the box round both, and over a name only that name's hover shows,
+/// never a line's that runs through it too (#1986).
 pub fn inside_hovers(
     ui: &egui::Ui,
     frame: egui::Rect,
@@ -515,10 +525,22 @@ pub fn inside_hovers(
     hover_of: &dyn Fn(&str) -> String,
     id: egui::Id,
 ) {
-    for (x, name, at, g) in placed {
-        let line = egui::Rect::from_x_y_ranges(x - 3.0..=x + 3.0, frame.top()..=frame.bottom());
-        let hit = at.map_or(line, |a| line.union(inside_rect(frame, a, g.size().x)));
-        hover(ui, id.with(("line", name)), hit, hover_of(name));
+    let names: Vec<(egui::Rect, &String)> = placed
+        .iter()
+        .filter_map(|(_, name, at, g)| at.map(|a| (inside_rect(frame, a, g.size().x), name)))
+        .collect();
+    let on_name = ui
+        .ctx()
+        .pointer_hover_pos()
+        .is_some_and(|p| names.iter().any(|(r, _)| r.contains(p)));
+    if !on_name {
+        for (x, name, _, _) in placed {
+            let line = egui::Rect::from_x_y_ranges(x - 3.0..=x + 3.0, frame.top()..=frame.bottom());
+            hover(ui, id.with(("line", name)), line, hover_of(name));
+        }
+    }
+    for (r, name) in names {
+        hover(ui, id.with(("name", name)), r, hover_of(name));
     }
 }
 
