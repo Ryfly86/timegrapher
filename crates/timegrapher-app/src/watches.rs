@@ -349,8 +349,20 @@ fn list_size(bytes: u64) -> String {
     }
 }
 
+/// A watch's size in the list: a dash while the Bench records a take
+/// into it, as the take's row has (#2032), since the library holds only
+/// that take's first write until it stops (#2034).
+pub fn watch_size(e: &WatchEntry, writing: Option<&Path>) -> String {
+    if writing.is_some_and(|w| w.starts_with(&e.dir)) {
+        "—".to_string()
+    } else {
+        list_size(e.bytes())
+    }
+}
+
 /// The list: one row per watch, led by its first photo when any watch
-/// listed has one. The id of the watch clicked, if any.
+/// listed has one. The id of the watch clicked, if any. `writing` is the
+/// take the Bench is recording into.
 pub fn list(
     ui: &mut egui::Ui,
     watches: &[&WatchEntry],
@@ -358,6 +370,7 @@ pub fn list(
     thumbs: &mut Thumbs,
     shows: Option<&str>,
     search: &str,
+    writing: Option<&Path>,
 ) -> Option<String> {
     let key = search.trim();
     let mut picked = None;
@@ -397,7 +410,7 @@ pub fn list(
             marked == Some(w.id.as_str()),
             lead,
             &w.name,
-            &list_size(e.bytes()),
+            &watch_size(e, writing),
             &below,
             "Show this watch's details and takes",
             key,
@@ -411,8 +424,15 @@ pub fn list(
 }
 
 /// Unsorted's row, at the top of the list (led by a tile when the
-/// watches' rows have photos): whether it was clicked.
-pub fn unsorted_row(ui: &mut egui::Ui, e: &WatchEntry, tiled: bool, marked: bool) -> bool {
+/// watches' rows have photos): whether it was clicked. `writing` is the
+/// take the Bench is recording into.
+pub fn unsorted_row(
+    ui: &mut egui::Ui,
+    e: &WatchEntry,
+    tiled: bool,
+    marked: bool,
+    writing: Option<&Path>,
+) -> bool {
     row(
         ui,
         marked,
@@ -422,7 +442,7 @@ pub fn unsorted_row(ui: &mut egui::Ui, e: &WatchEntry, tiled: bool, marked: bool
             Lead::None
         },
         UNSORTED_TAKES,
-        &list_size(e.bytes()),
+        &watch_size(e, writing),
         &[
             "Quick Listen, no watch".to_string(),
             count(e.takes.len(), "take", "takes"),

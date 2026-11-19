@@ -175,6 +175,7 @@ impl TimegrapherApp {
         let pal = theme::pal(ui);
         let shows = self.list_shows().map(str::to_string);
         let mut show_unsorted = false;
+        let writing = self.take_writing();
         let picked = match &self.library {
             Ok(Some(l)) => {
                 let shown = watches::shown(l, &self.watch_search, self.watch_sort);
@@ -186,6 +187,7 @@ impl TimegrapherApp {
                     &l.unsorted,
                     tiled,
                     marked.is_none() && self.unsorted_open,
+                    writing.as_deref(),
                 ) {
                     show_unsorted = true;
                 }
@@ -209,6 +211,7 @@ impl TimegrapherApp {
                     &mut self.thumbs,
                     shows.as_deref(),
                     &self.watch_search,
+                    writing.as_deref(),
                 );
                 // How many the search hid.
                 if !self.watch_search.trim().is_empty() && !l.watches.is_empty() {

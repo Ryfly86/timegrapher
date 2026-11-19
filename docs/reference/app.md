@@ -261,7 +261,8 @@ its initial while it has none, or one that can't be read), its name, its
 calibre (or, with **List Shows** in the toolbar, one of the fields added
 to the watches, such as Customer; the choice is kept between runs, and
 shows the calibre while no watch has that field), how many takes it has and the date of the last, and the space
-they use once it is 1 MB or more. The row picked is marked. While a search is typed, a line under the
+they use once it is 1 MB or more; a "—" while the Bench records a take
+into it, as that take's row has, until it stops (#2034). The row picked is marked. While a search is typed, a line under the
 list says how many it shows of how many, "1 of 4 watches", and what it
 found in each row's name and the line under it is in the accent blue.
 Picking a watch while a Quick Listen is listening asks about its unsaved

@@ -390,3 +390,35 @@ fn a_take_still_being_recorded_shows_no_first_write_figures() {
     assert!(!dim);
     assert_eq!((cells[2].as_str(), cells[3].as_str()), ("0:05", "+5.4"));
 }
+
+/// A watch's size in the list is a dash while the Bench records into
+/// one of its takes, as that take's row is: the library holds only the
+/// take's first write until it stops. Another watch's, or once it stops,
+/// its size (Walter 2 on #2032, #2034).
+#[test]
+fn a_watchs_size_waits_while_a_take_records_into_it() {
+    let take = Take {
+        name: "2026-11-19 05.40".into(),
+        bytes: 3_900_000,
+        audio: true,
+        incomplete: false,
+        started_utc: None,
+        named_start: None,
+        duration_s: Some(5.0),
+        positions: vec!["DU".into()],
+        at_end: None,
+        power_reserve: None,
+        wind_h: None,
+    };
+    let e = WatchEntry {
+        dir: "/nowhere/Pepsi".into(),
+        watch: timegrapher_core::library::Watch::new("Pepsi"),
+        takes: vec![take.clone()],
+        photos: Vec::new(),
+    };
+    let dir = e.take_dir(&take);
+    assert_eq!(watch_size(&e, Some(dir.as_path())), "—");
+    let other = std::path::Path::new("/nowhere/Pepsi 2/takes/2026-11-19 05.40");
+    assert_eq!(watch_size(&e, Some(other)), "3.9 MB");
+    assert_eq!(watch_size(&e, None), "3.9 MB");
+}
