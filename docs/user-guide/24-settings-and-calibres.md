@@ -31,7 +31,7 @@ click outside closes it. The Microphone page is in chapter 3.
 | Mark | Part | What it does | Why you'd use it |
 | --- | --- | --- | --- |
 | 1 | **Location** | Where the Watches folder is (`Timegrapher Data` in your home folder unless you chose another), with **Show in File Manager** (**Show in Finder** on a Mac, **Show in Explorer** on Windows). | To back it up or look inside (chapter 23). |
-| 2 | What it holds | How many watches and takes, and their size. | To see how much space the takes use. |
+| 2 | What it holds | How many watches and takes, and their size: "—" while a take is being recorded into it, until it stops. | To see how much space the takes use. |
 | 3 | **Move Watches…** | Moves the whole folder into one you pick, after asking. Onto another disk it is copied, checked, and only then removed. It is refused while takes are still being kept as FLAC. | To move the takes to a larger disk. |
 | 4 | **Choose Another…** | Uses a Watches folder elsewhere, or starts a new one in an empty folder; nothing is moved. **Use the Default** then goes back. | A folder kept in sync with another computer, or a second bench. |
 

@@ -440,6 +440,7 @@ impl TimegrapherApp {
                             &self.library,
                             self.library_moving.as_ref().map(|(to, _)| to.as_path()),
                             self.library_dir.is_some(),
+                            self.take_writing().as_deref(),
                         );
                         if let Some(act) = act {
                             self.library_action(act);

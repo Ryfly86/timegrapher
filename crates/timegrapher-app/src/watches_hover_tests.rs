@@ -419,7 +419,7 @@ fn a_watchs_size_waits_while_a_take_records_into_it() {
     let dir = e.take_dir(&take);
     let what = "Show this watch's details and takes.";
     assert_eq!(
-        size_and_hover(&e, Some(dir.as_path()), what),
+        crate::size_wait::size_or_wait(&e.dir, Some(dir.as_path()), what, || list_size(e.bytes())),
         (
             "—".to_string(),
             "Show this watch's details and takes. Its size is given once the take being \
@@ -429,8 +429,14 @@ fn a_watchs_size_waits_while_a_take_records_into_it() {
     );
     let other = std::path::Path::new("/nowhere/Pepsi 2/takes/2026-11-19 05.40");
     let shown = ("3.9 MB".to_string(), what.to_string());
-    assert_eq!(size_and_hover(&e, Some(other), what), shown);
-    assert_eq!(size_and_hover(&e, None, what), shown);
+    assert_eq!(
+        crate::size_wait::size_or_wait(&e.dir, Some(other), what, || list_size(e.bytes())),
+        shown
+    );
+    assert_eq!(
+        crate::size_wait::size_or_wait(&e.dir, None, what, || list_size(e.bytes())),
+        shown
+    );
 }
 
 /// Open greyed out says the real reason first: with no takes, that
