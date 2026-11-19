@@ -208,6 +208,23 @@ impl Recorder {
         !known(&self.released) && !known(&self.releasing)
     }
 
+    /// A save wrote `written` (#2052): the hours the copy saved last holds,
+    /// looked for there from now on. An hour kept in an earlier copy alone
+    /// is read from this one if it holds it too (a save into another
+    /// folder copies it there, from the earlier copy): the sound is in the
+    /// copy saved last, so that one going is what makes it unreachable,
+    /// not the earlier one (Trevor on #2060).
+    pub(super) fn saved_into(&mut self, written: &[HeldWhole]) {
+        for h in &mut self.released {
+            let name = h.at.file_name();
+            if let Some(w) = written.iter().find(|w| w.at.file_name() == name) {
+                h.at = w.at.clone();
+                h.len = w.len;
+            }
+        }
+        self.saved_hours = SavedHours::new(written.to_vec());
+    }
+
     /// The copy moved from `from` to `to`: the hours it holds alone are
     /// read from there.
     pub(super) fn released_moved(&mut self, from: &Path, to: &Path) {
@@ -244,16 +261,16 @@ impl Recorder {
     }
 
     /// Look again at whether the copy saved last still holds the sound it
-    /// was saved with (#2052): each closed hour it wrote at its length,
-    /// the hour still being written at least as long as it was left, and
-    /// every hour kept there alone. Stat only: for now and then (the
-    /// window back in front, a save done), never every frame.
+    /// was saved with (#2052): each closed hour it wrote at its length, and
+    /// the hour still being written at least as long as it was left. The
+    /// hours kept in a copy alone are among them (see `saved_into`).
+    /// Stat only: for now and then (the window back in front, a refusal),
+    /// never every frame; a save itself starts afresh.
     pub fn look_at_saved_copy(&mut self) {
         let open = |(at, len): &(PathBuf, u64)| regular_file(at).is_ok_and(|m| m.len() >= *len);
         self.saved_hours.gone = self.saved_name.is_some()
             && !(self.saved_hours.hours.iter().all(HeldWhole::there)
-                && self.grown.as_ref().is_none_or(open)
-                && self.hours_reachable());
+                && self.grown.as_ref().is_none_or(open));
     }
 
     /// Whether the copy saved last was found, when last looked at, no
