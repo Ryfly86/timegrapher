@@ -18,13 +18,13 @@ pub use free_grid::free_table;
 use timegrapher_core::clock::ClockFit;
 use timegrapher_core::figure_text::base_digits::{AMPLITUDE, BEAT_ERROR, RATE};
 use timegrapher_core::figure_text::{fixed_text, signed_text, true_minus};
+use timegrapher_core::library::TakeTest;
 use timegrapher_core::reading_text::WindHours;
 use timegrapher_core::session::{self, Measurement, Reading, SourcedFigures};
 use timegrapher_core::steadiness::SeriesKind;
 use timegrapher_core::stream::BeatLog;
 use timegrapher_core::{complication, poise, text_report};
 
-use timegrapher_core::library::TakeTest;
 /// The file a finished test just after winding is saved to, from the
 /// pane or beside a saved take, for the same six positions 24
 /// hours later.

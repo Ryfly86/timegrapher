@@ -145,7 +145,11 @@ fn a_tests_hover_counts_the_positions_measured() {
     assert!(figures_hover(Some(6), false).contains("Mean of the six positions"));
     assert!(figures_hover(Some(2), false).contains("Mean of the 2 positions measured"));
     assert!(figures_hover(Some(1), false).contains("the one position measured"));
-    assert!(figures_hover(None, true).contains("hour by hour"));
+    assert_eq!(
+        figures_hover(None, true),
+        "\n\nRate, Amplitude and Beat Error are given hour by hour in the take: open it to \
+         see them."
+    );
     assert_eq!(figures_hover(None, false), "");
 }
 

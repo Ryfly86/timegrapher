@@ -286,13 +286,14 @@ fn a_painted_take_in_a_watch_shows_what_was_saved() {
         _ => panic!("no library"),
     };
     assert_eq!(positions(&app), ["DU"]);
-    // Painted past the settle, so the stretch reads and is one of the
-    // take's positions (Norm on #1980: one no longer reads nothing).
     app.brush = Some(Position::CrownUp);
-    app.paint_position(10.04, 70.0);
+    app.paint_position(10.04, 40.0);
     app.save_marks();
     assert!(!app.marks_unsaved(), "{:?}", app.message);
-    assert_eq!(positions(&app), ["DU", "CU"]);
+    // The take now starts in CU: the Dial Up entry before it is empty
+    // (10.0 to 10.0), reads nothing and is not one of its positions; Dial
+    // Up comes back after 40 s (Norm on #1980, Vernon on #2021).
+    assert_eq!(positions(&app), ["CU", "DU"]);
     let _ = std::fs::remove_dir_all(&base);
 }
 

@@ -128,10 +128,12 @@ anything else, a take moved or renamed included, reads the sound again.
 
 ## What Is in a Take
 
-Each take is a folder, named by when it started (`2026-10-20 14.32`). Its
-positions are in its row in Watches, not its name: a take can change
-position as it goes, and its folder is never renamed. A recording added as
-a take has its one position in its name (`2026-10-20 14.32 Dial Up`).
+Each take is a folder, named by when it started (`2026-10-20 14.32`), with
+"Power Reserve" after it for a Power Reserve Test's take (`2026-10-27
+16.27 Power Reserve`). Its positions are in its row in Watches, not its
+name: a take can change position as it goes, and its folder is never
+renamed. A recording added as a take has its one position in its name
+(`2026-10-20 14.32 Dial Up`).
 
 | File | What it holds |
 | --- | --- |

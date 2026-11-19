@@ -1012,10 +1012,12 @@ pub fn positions_means(dir: &std::path::Path) -> Option<(usize, [Option<f64>; 3]
     positions_summary(dir).map(|m| (m.0, m.1))
 }
 
-/// Whether a test's row shows a dash for its figures, as its own are part
-/// by part in the take: a Dynamic Poise Test's (#2002).
-fn dashed(test: Option<(TakeTest, [Option<f64>; 3])>) -> bool {
-    matches!(test, Some((TakeTest::Poise, _)))
+/// Whether a take's row shows a dim dash for its figures, as they are
+/// part by part in the take: a Power Reserve Test's hour by hour, a
+/// Dynamic Poise Test's stop by stop (#2002). One rule for its cells and
+/// their dimming (Vernon on #2021).
+fn dashed(t: &Take, test: Option<(TakeTest, [Option<f64>; 3])>) -> bool {
+    t.power_reserve.is_some() || matches!(test, Some((TakeTest::Poise, _)))
 }
 
 /// The guided test a take's row names, with the figures it shows: a
@@ -1073,7 +1075,7 @@ pub fn take_cells(
     test: Option<(TakeTest, [Option<f64>; 3])>,
     reading: Option<&Reading>,
 ) -> [String; 7] {
-    let dash = t.power_reserve.is_some() || dashed(test);
+    let dash = dashed(t, test);
     let codes: Vec<String> = t
         .positions
         .iter()
@@ -1140,11 +1142,16 @@ fn figures_hover(count: Option<usize>, reserve: bool) -> String {
             };
             format!("\n\nRate and Amplitude: Mean of the {of}.")
         }
-        None if reserve => {
-            "\n\nRate, Amplitude and Beat Error: hour by hour in the take: open it.".into()
-        }
+        None if reserve => in_the_take("hour by hour"),
         None => String::new(),
     }
+}
+
+/// The hover's words for a test whose figures are part by part in its
+/// take, `by` ("hour by hour", "stop by stop"): one format for each
+/// (Hugh on #2021).
+fn in_the_take(by: &str) -> String {
+    format!("\n\nRate, Amplitude and Beat Error are given {by} in the take: open it to see them.")
 }
 
 /// The takes table's headings, in [`take_cells`]' order: each name and
@@ -1376,7 +1383,7 @@ pub fn takes_table(
             }
             let reading = cx.readings.reading(&dir);
             let mut cells = take_cells(t, test, reading);
-            let dim = t.power_reserve.is_some() || dashed(test);
+            let dim = dashed(t, test);
             // Date and tags share Started's room, never the columns after
             // it: the date, which tells takes apart, comes first, cut short
             // with "…" only when it alone doesn't fit; the tags take what
@@ -1621,10 +1628,13 @@ fn take_hover(
 ) -> String {
     let reserve = t.power_reserve.is_some();
     let on_show = cx.on_bench(dir);
-    let test = timegrapher_core::library::take_test(dir);
+    // `count` comes only with a Positions Test's results, read already.
+    let test = count
+        .map(|_| TakeTest::Positions)
+        .or_else(|| timegrapher_core::library::take_test(dir));
     let mut figures = figures_hover(count, reserve);
     if test == Some(TakeTest::Poise) {
-        figures.push_str("\n\nRate, Amplitude and Beat Error: stop by stop in the take: open it.");
+        figures.push_str(&in_the_take("stop by stop"));
     }
     if let Some((_, _, summary)) = positions_summary(dir) {
         figures.push_str(&format!("\n\n{summary}"));

@@ -22,21 +22,15 @@ pub fn cut_from_one(e: &RecordingEntry, m: &Manifest) -> bool {
 }
 
 /// Whether entry `e` of the take `m` reads nothing as its session file
-/// lists it, read with no settling given: [`reads_nothing`], or a stretch
-/// with both ends listed that [`settles_through`] with no settling of its
-/// own or carried on. Its position is then not one of the take's.
+/// lists it, read with no settling given: [`reading_window`] over the
+/// entry's listed end says [`NoReading::Nothing`] ([`reads_nothing`], or a
+/// stretch that [`settles_through`]). Its position is then not one of the
+/// take's. An entry with no end listed runs to its sound's end, unknown
+/// here, so it counts (Vernon on #2021: one settle rule, not two).
 pub fn listed_unread(e: &RecordingEntry, m: &Manifest) -> bool {
-    if reads_nothing(e) {
-        return true;
-    }
-    let (Some(a), Some(b)) = (e.start_s, e.end_s) else {
-        return false;
-    };
-    let settle = e
-        .settle_s
-        .or(continues_position(e, m).then_some(0.0))
-        .or(entry_times(e, m).0);
-    settle.is_none() && settles_through(e, m, b - a)
+    reads_nothing(e)
+        || e.end_s
+            .is_some_and(|end| matches!(reading_window(e, m, None, end), Err(NoReading::Nothing)))
 }
 
 #[cfg(test)]
@@ -77,6 +71,19 @@ mod tests {
             ..Default::default()
         };
         assert!(listed_unread(&at(SETTLE_S).recordings[0], &at(SETTLE_S)));
+        // A first stretch with no start listed starts at 0, as it reads.
+        let no_start = Manifest {
+            recordings: vec![
+                RecordingEntry {
+                    start_s: None,
+                    ..entry("DU", 0.0, Some(5.0))
+                },
+                entry("CU", 5.0, None),
+            ],
+            ..Default::default()
+        };
+        assert!(listed_unread(&no_start.recordings[0], &no_start));
+        assert!(!listed_unread(&no_start.recordings[1], &no_start));
         let m = at(SETTLE_S + 11.0);
         let w = reading_window(&m.recordings[0], &m, None, 600.0).unwrap();
         assert_eq!((w.from_s, w.to_s), (SETTLE_S, SETTLE_S + 11.0));
