@@ -1318,7 +1318,29 @@ fn a_watch_heard_while_it_settles_is_no_missing_watch() {
 fn the_cards_say_listening_until_ten_seconds_are_heard() {
     use timegrapher_core::measure::{listening_text, HeardSince, LISTENING_TITLE};
     let ctx = themed();
+    // A watch's beats opened with no snippets: their sound can't be
+    // judged, so under 10 s of sound there is no verdict yet.
     let mut app = synthetic(30.0, 20.0);
+    let live = app.live.as_ref().expect("live");
+    let log = timegrapher_core::stream::BeatLog {
+        lock_template_kept: false,
+        sample_rate: 48_000,
+        duration_s: live.duration_s(),
+        bph: live.bph().expect("bph"),
+        lift_deg: 52.0,
+        beats: live.beats().to_vec(),
+        amplitude_windows: Vec::new(),
+        clipped_beats: Vec::new(),
+        clipped_samples: 0,
+        jumps: Vec::new(),
+        sided: Vec::new(),
+        by_count: Vec::new(),
+        snippets: Vec::new(),
+    };
+    app.live = Some(timegrapher_core::live::LiveAnalyzer::from_log(
+        log,
+        timegrapher_core::live::LiveConfig::default(),
+    ));
     let cards = |app: &TimegrapherApp| {
         let out = ctx.run(screen(), |ctx| {
             egui::CentralPanel::default().show(ctx, |ui| {
