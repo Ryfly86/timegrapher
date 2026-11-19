@@ -533,12 +533,19 @@ impl TimegrapherApp {
 
     /// Why the cards have no reading, or a reading with no beat at all:
     /// the watch settling after a move, a test waiting for its Start, a
-    /// recording being read, or no beat heard yet (#2007). The same words
-    /// on every reading card.
+    /// recording being read, no beat heard yet while listening, or
+    /// nothing listened to at all, as after New Session while stopped
+    /// (#2007; Hugh on #2036). The same words on
+    /// every reading card.
     pub(super) fn waiting(&self, r: Option<&LiveReading>) -> Option<(String, String)> {
         use measure::Wait;
+        let quiet = if self.running() {
+            Wait::NoBeats
+        } else {
+            Wait::NotListening
+        };
         if let Some(r) = r {
-            return r.bph.is_none().then(|| wait_words(Wait::NoBeats));
+            return r.bph.is_none().then(|| wait_words(quiet));
         }
         // At the moment the cards show: the strip's newest edge when it
         // is moved back, as `card_reading` reads it.
@@ -552,7 +559,7 @@ impl TimegrapherApp {
             } else if self.batch.is_some() {
                 Wait::Analysing
             } else {
-                Wait::NoBeats
+                quiet
             };
             return Some(wait_words(w));
         };
@@ -2002,6 +2009,14 @@ pub(super) fn figure_row(
         .size()
         .x;
     let no_dash = value.is_none() && status.is_some() && figure_w + 6.0 + side_w > rect.width();
+    // A wait too wide at its size steps down to its shorter words first
+    // (Hugh on #2036), and only then is made smaller.
+    let short = status.and_then(|s| measure::wait_short_title(&s.0));
+    if let Some(short) = short.filter(|_| no_dash && side_w > rect.width()) {
+        lines = side_lines(short, true, compact);
+        side = lay_side(&side_font, &lines);
+        side_w = side.iter().map(|g| g.size().x).fold(0.0, f32::max);
+    }
     if no_dash && side_w > rect.width() {
         side_font.size = (side_font.size * rect.width() / side_w).floor().max(9.0);
         side = lay_side(&side_font, &lines);

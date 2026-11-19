@@ -1787,7 +1787,7 @@ fn every_reading_card_counts_the_settle_down_and_the_signal_stays() {
 /// The status bar keeps "signal" in its place with a "—".
 #[test]
 fn silence_waits_for_beats_on_every_card() {
-    use timegrapher_core::measure::{Wait, WAITING_FOR_BEATS};
+    use timegrapher_core::measure::WAITING_FOR_BEATS;
     let ctx = themed();
     let base = std::env::temp_dir().join(format!("tg-silence-wait-{}", std::process::id()));
     let _ = std::fs::create_dir_all(&base);
@@ -1807,7 +1807,7 @@ fn silence_waits_for_beats_on_every_card() {
     assert_eq!(painted(&text, tail), 3, "{text}");
     // Why, in the hover: no beat at all, not a figure short of beats.
     let why = app.waiting(Some(&r)).expect("a wait").1;
-    assert_eq!(why, Wait::NoBeats.text());
+    assert_eq!(why, "The figures need a watch's beats: none are heard yet.");
     let out = ctx.run(screen(), |ctx| {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.horizontal(|ui| app.status_facts(ui));
@@ -1834,10 +1834,14 @@ fn a_test_set_up_waits_for_its_start_on_every_card() {
     assert!(app.ready_test().is_some());
     let text = cards_text(&app, &ctx);
     let title = Wait::TestStart.title();
-    let (head, tail) = title.split_once(' ').expect("words");
-    assert_eq!(painted(&text, head), 3, "{text}");
-    assert_eq!(painted(&text, tail), 3, "{text}");
+    assert_eq!(title, "Waiting for Start");
+    assert_eq!(painted(&text, "Waiting"), 3, "{text}");
+    assert_eq!(painted(&text, "for Start"), 3, "{text}");
     assert!(!text.contains("Beats"), "{text}");
+    assert_eq!(
+        app.waiting(None).expect("a wait").1,
+        "The figures need the test started: Start Test on the Listen card starts it."
+    );
 }
 
 /// A card whose figure hasn't come yet on a stretch still short of beats
@@ -1871,4 +1875,132 @@ fn a_card_waits_for_more_beats_only_on_a_short_stretch() {
         card_wait(Some(&shared), Some(&r), true, false),
         Some(shared)
     );
+}
+
+/// After New Session while stopped nothing is listened to: every reading
+/// card says "Not Listening", with why in its hover, never that it waits
+/// for beats. Once Listen runs on silence, they say "Waiting for Beats"
+/// (Hugh on #2036).
+#[test]
+fn after_new_session_while_stopped_the_cards_say_not_listening() {
+    let ctx = themed();
+    let mut app = synthetic(30.0, 5.0);
+    assert!(!app.running());
+    app.new_session();
+    assert!(app.live.is_none() && !app.running());
+    let text = cards_text(&app, &ctx);
+    // "Not" over "Listening" on each of the three cards.
+    assert_eq!(painted(&text, "Not"), 3, "{text}");
+    assert_eq!(painted(&text, "Listening"), 3, "{text}");
+    assert!(!text.contains("Beats"), "{text}");
+    let why = app.waiting(app.card_reading().as_ref()).expect("a wait");
+    assert_eq!(
+        why,
+        (
+            "Not Listening".to_string(),
+            "The figures need sound: nothing is being listened to.".to_string()
+        )
+    );
+    let base = std::env::temp_dir().join(format!("tg-idle-wait-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    app.reset_session(48000, "silence".into());
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    assert!(app.running());
+    let quiet = vec![0.0_f32; 960];
+    for _ in 0..15 * 50 {
+        app.live.as_mut().expect("live").push(&quiet);
+    }
+    let text = cards_text(&app, &ctx);
+    assert_eq!(painted(&text, "Waiting"), 3, "{text}");
+    assert_eq!(painted(&text, "for Beats"), 3, "{text}");
+    drop(_tx);
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// "Waiting for More Beats" in a reading card's figure place at 800, 1000
+/// and 1920 wide: drawn whole at the card's own size, or as "More Beats"
+/// where the whole words don't fit, never cut or made smaller (Hugh on
+/// #2036).
+#[test]
+fn waiting_for_more_beats_shows_whole_at_every_width() {
+    use timegrapher_core::measure::{Wait, WAITING_FOR_MORE_BEATS};
+    let mut app = synthetic(30.0, 5.0);
+    let ctx = themed();
+    for w in [800.0_f32, 1000.0, 1920.0] {
+        let input = || egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                Vec2::new(w, 800.0),
+            )),
+            ..Default::default()
+        };
+        // Where the Amplitude and Beat Error cards are, as drawn.
+        let at = |name: &str, out: &egui::FullOutput| {
+            out.shapes.iter().find_map(|c| match &c.shape {
+                egui::Shape::Text(t) if t.galley.text() == name => Some(t.pos),
+                _ => None,
+            })
+        };
+        let mut out = ctx.run(input(), |ctx| app.panels(ctx));
+        for _ in 0..2 {
+            out = ctx.run(input(), |ctx| app.panels(ctx));
+        }
+        let a = at("Amplitude", &out).expect("Amplitude");
+        let b = at("Beat Error", &out).expect("Beat Error");
+        let pad = f32::from(theme::CARD_PADDING);
+        let card_w = b.x - a.x - theme::GAP;
+        let h = app.readings_card_h(&ctx);
+        let card = egui::Rect::from_min_size(egui::pos2(a.x - pad, 0.0), Vec2::new(card_w, h));
+        let rows = CardRows::of(card);
+        let (fig, _, _) = crate::sparkline::lay(rows.inner, rows.figure, rows.controls);
+        let compact = card_w < READING_FULL_W;
+        let wait = Wait::MoreBeats;
+        let status = (wait.title(), wait.text());
+        let out = ctx.run(input(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                super::readouts::figure_row(
+                    ui,
+                    fig,
+                    None,
+                    "°",
+                    Some(&status),
+                    "",
+                    (compact, Some(1)),
+                );
+            });
+        });
+        let mut words = Vec::new();
+        for c in &out.shapes {
+            if let egui::Shape::Text(t) = &c.shape {
+                if t.galley.text() == "—" {
+                    continue;
+                }
+                let size = t.galley.job.sections[0].format.font_id.size;
+                assert_eq!(size, if compact { 12.0 } else { 15.0 }, "{w}");
+                words.push(t.galley.rows.iter().map(|r| r.text()).collect::<String>());
+            }
+        }
+        let shown = words.join(" ");
+        assert!(
+            shown == WAITING_FOR_MORE_BEATS || shown == "More Beats",
+            "{w}: {shown:?}"
+        );
+    }
+    // Too narrow for the whole words at its size: the shorter words, at
+    // that size, before any smaller font.
+    let status = (Wait::MoreBeats.title(), Wait::MoreBeats.text());
+    let out = ctx.run(screen(), |ctx| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            let fig = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), Vec2::new(55.0, 40.0));
+            super::readouts::figure_row(ui, fig, None, "°", Some(&status), "", (true, Some(1)));
+        });
+    });
+    let mut words = Vec::new();
+    for c in &out.shapes {
+        if let egui::Shape::Text(t) = &c.shape {
+            assert_eq!(t.galley.job.sections[0].format.font_id.size, 12.0);
+            words.push(t.galley.text().to_string());
+        }
+    }
+    assert_eq!(words.join(" "), "More Beats");
 }

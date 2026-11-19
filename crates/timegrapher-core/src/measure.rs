@@ -241,19 +241,34 @@ pub enum Wait {
     TestStart,
     /// A recording is being read.
     Analysing,
+    /// Nothing is listened to and no recording is open (Hugh on #2036).
+    NotListening,
 }
 
-/// The heading of [`Wait::NoBeats`] and [`Wait::MoreBeats`].
+/// The heading of [`Wait::NoBeats`].
 pub const WAITING_FOR_BEATS: &str = "Waiting for Beats";
+
+/// The heading of [`Wait::MoreBeats`]: beats are heard, so not
+/// [`WAITING_FOR_BEATS`] (Hugh on #2036).
+pub const WAITING_FOR_MORE_BEATS: &str = "Waiting for More Beats";
+
+/// A wait's shorter words, where its title is too wide for the figure's
+/// place at its own size: "More Beats" for [`WAITING_FOR_MORE_BEATS`]
+/// (Hugh on #2036). None for a title with no shorter form.
+pub fn wait_short_title(title: &str) -> Option<&'static str> {
+    (title == WAITING_FOR_MORE_BEATS).then_some("More Beats")
+}
 
 impl Wait {
     /// The short words in the figure's place.
     pub fn title(self) -> String {
         match self {
             Wait::Settling { left_s } => format!("Settling, {:.0} s", left_s.ceil()),
-            Wait::NoBeats | Wait::MoreBeats => WAITING_FOR_BEATS.into(),
+            Wait::NoBeats => WAITING_FOR_BEATS.into(),
+            Wait::MoreBeats => WAITING_FOR_MORE_BEATS.into(),
             Wait::TestStart => "Waiting for Start".into(),
             Wait::Analysing => "Analysing".into(),
+            Wait::NotListening => "Not Listening".into(),
         }
     }
 
@@ -262,22 +277,21 @@ impl Wait {
     pub fn text(self) -> String {
         match self {
             Wait::Settling { left_s } => format!(
-                "The figures need the watch settled in its new position: they appear in \
+                "The figures need the watch settled in its new position: reading starts in \
                  {:.0} s.",
                 left_s.ceil()
             ),
-            Wait::NoBeats => "The figures need a watch's beats: none are heard yet. Put the \
-                              watch on the stand, by the microphone."
-                .into(),
+            Wait::NoBeats => "The figures need a watch's beats: none are heard yet.".into(),
             Wait::MoreBeats => "This figure needs more beats than the stretch holds yet: it \
                                 appears once they have been heard."
                 .into(),
-            Wait::TestStart => "The figures need the test started: they appear once Start \
-                                Test on the Listen card begins it."
-                .into(),
+            Wait::TestStart => {
+                "The figures need the test started: Start Test on the Listen card starts it.".into()
+            }
             Wait::Analysing => "The figures need the recording read: they appear once \
                                 Analysing is done."
                 .into(),
+            Wait::NotListening => "The figures need sound: nothing is being listened to.".into(),
         }
     }
 }
@@ -1189,21 +1203,52 @@ mod tests {
     #[test]
     fn every_wait_says_what_the_figures_need() {
         use super::Wait;
-        assert_eq!(Wait::Settling { left_s: 15.2 }.title(), "Settling, 16 s");
+        let says = |w: Wait| (w.title(), w.text());
+        let pair = |a: &str, b: &str| (a.to_string(), b.to_string());
+        assert_eq!(
+            says(Wait::Settling { left_s: 15.2 }),
+            pair(
+                "Settling, 16 s",
+                "The figures need the watch settled in its new position: reading starts in 16 s."
+            )
+        );
         assert_eq!(Wait::Settling { left_s: 0.3 }.title(), "Settling, 1 s");
-        assert!(Wait::Settling { left_s: 15.2 }.text().contains("in 16 s"));
-        for w in [
-            Wait::Settling { left_s: 3.0 },
-            Wait::NoBeats,
-            Wait::MoreBeats,
-            Wait::TestStart,
-            Wait::Analysing,
-        ] {
-            let t = w.text();
-            assert!(t.contains(" needs ") || t.contains(" need "), "{t}");
-            assert!(t.ends_with('.'), "{t}");
-        }
-        assert_eq!(Wait::NoBeats.title(), Wait::MoreBeats.title());
+        assert_eq!(
+            says(Wait::NoBeats),
+            pair(
+                "Waiting for Beats",
+                "The figures need a watch's beats: none are heard yet."
+            )
+        );
+        assert_eq!(
+            says(Wait::MoreBeats),
+            pair(
+                "Waiting for More Beats",
+                "This figure needs more beats than the stretch holds yet: it appears once they \
+                 have been heard."
+            )
+        );
+        assert_eq!(
+            says(Wait::TestStart),
+            pair(
+                "Waiting for Start",
+                "The figures need the test started: Start Test on the Listen card starts it."
+            )
+        );
+        assert_eq!(
+            says(Wait::Analysing),
+            pair(
+                "Analysing",
+                "The figures need the recording read: they appear once Analysing is done."
+            )
+        );
+        assert_eq!(
+            says(Wait::NotListening),
+            pair(
+                "Not Listening",
+                "The figures need sound: nothing is being listened to."
+            )
+        );
     }
 
     #[test]
