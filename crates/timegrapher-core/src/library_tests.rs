@@ -1869,7 +1869,7 @@ fn a_copy_left_part_way_is_cleared_when_stale() {
     let mine = made("Dial Up");
     let then = std::time::SystemTime::now() - std::time::Duration::from_secs(STALE_ADD_S + 60);
     for p in [&old.join("take_part01-001.flac"), &old, &mine] {
-        fs::File::open(p).unwrap().set_modified(then).unwrap();
+        last_changed(p, then);
     }
     // Read only, a second copy of the app clears nothing.
     drop(Library::open(&root).unwrap());
@@ -1880,4 +1880,20 @@ fn a_copy_left_part_way_is_cleared_when_stale() {
     assert!(fresh.is_dir() && mine.is_dir());
     drop(lib);
     let _ = fs::remove_dir_all(&root);
+}
+
+/// Set when the file or folder `p` last changed. Windows opens a folder
+/// only with backup semantics, and sets a time only through a handle that
+/// may write attributes.
+fn last_changed(p: &Path, t: std::time::SystemTime) {
+    let mut o = fs::OpenOptions::new();
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        // FILE_FLAG_BACKUP_SEMANTICS
+        o.write(true).custom_flags(0x0200_0000);
+    }
+    #[cfg(not(windows))]
+    o.read(true);
+    o.open(p).unwrap().set_modified(t).unwrap();
 }
