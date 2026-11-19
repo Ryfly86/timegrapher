@@ -84,6 +84,10 @@ pub struct Test {
     /// in the silence after the watch stops, so its hours are still read
     /// at it (#1394).
     pub bph: Option<u32>,
+    /// Its take's hours since full wind at its start, fixed when it
+    /// began: a stop found later lets the watch's wind go, never the
+    /// take's (#2001).
+    pub wind_h: Option<f64>,
 }
 
 impl Test {
@@ -103,6 +107,7 @@ impl Test {
             saving: false,
             unwritten: None,
             bph: None,
+            wind_h: None,
         }
     }
 

@@ -748,3 +748,59 @@ fn a_buttons_code_clears_its_bar() {
         }
     }
 }
+
+/// A Power Reserve Test that finds the watch stopped lets its wind go:
+/// the field says Not given, and so do the takes after, while the test's
+/// own take keeps its full wind at its start (Shane, #2001).
+#[test]
+fn a_power_reserve_test_that_runs_down_lets_the_wind_go() {
+    let (mut app, base) = save_failure_fixture("wind-run-down");
+    app.pick_wind(WindPick::HoursAgo(30.0));
+    app.begin_reserve();
+    app.reserve.as_mut().unwrap().ending = Some(power_reserve::Ending::Stopped);
+    app.end_reserve();
+    assert_eq!(app.wound_unix(), None);
+    assert!(app
+        .take_manifest()
+        .recordings
+        .iter()
+        .all(|r| r.wind_h == Some(0.0)));
+    // Thrown away, the stop still stands.
+    app.new_session();
+    assert_eq!(app.wind_field().words.value, "Not given");
+    app.session.discard_recording();
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// A test ended with the watch still running and then thrown away keeps
+/// the wind its Start gave, counting on from it: the watch was wound
+/// then. Thrown away from the Keep question or discarded by New Take, the
+/// field says the same (Hugh on #2031).
+#[test]
+fn a_test_thrown_away_keeps_its_starts_wind() {
+    let field_after = |by_new_take: bool| {
+        let (mut app, base) = save_failure_fixture(if by_new_take {
+            "wind-discard-new"
+        } else {
+            "wind-discard-keep"
+        });
+        app.pick_wind(WindPick::HoursAgo(5.0));
+        app.begin_reserve();
+        if by_new_take {
+            // Left running, its sound discarded for a new take.
+            app.new_session();
+        } else {
+            app.reserve.as_mut().unwrap().ending = Some(power_reserve::Ending::ByHand);
+            app.end_reserve();
+            // Throw Away on the Keep question.
+            app.test_keep = None;
+            app.new_session();
+        }
+        let words = app.wind_field().words.value;
+        app.session.discard_recording();
+        let _ = std::fs::remove_dir_all(base);
+        words
+    };
+    assert_eq!(field_after(false), "Full 0.0 h ago");
+    assert_eq!(field_after(true), "Full 0.0 h ago");
+}
