@@ -1859,6 +1859,7 @@ pub fn pane(
     let lines = body.lines(shown);
     let mut action = None;
     theme::with_info(ui, info, egui::Id::new("positions info"), panel, |ui| {
+        saved_read_line(ui, test, phase);
         action = crate::position_lanes::beside(ui, area, &lines, |ui| body.show(ui));
     });
     action
@@ -2073,11 +2074,16 @@ pub(crate) fn test_table(
             live,
         );
     }
-    // Under every test's table, the Dynamic Poise one's too, whose other
-    // notes are in Info: its saved take analysed again, or that it
-    // couldn't be (#1958, Gus 8 on #2067).
-    if let Some(n) = t.saved_read_note() {
+}
+
+/// A finished test's saved take being analysed again, or that it couldn't
+/// be, as a plain line at the top of the pane, outside its scrolling, where
+/// the banner was while the test ran (#1958, Hugh 5 on #2067).
+pub(crate) fn saved_read_line(ui: &mut egui::Ui, t: Option<&Test>, phase: Option<Phase>) {
+    let finished = phase.is_none_or(|p| p == Phase::Finished);
+    if let Some(n) = t.filter(|_| finished).and_then(Test::saved_read_note) {
         ui.label(RichText::new(n).color(theme::pal(ui).text));
+        ui.add_space(6.0);
     }
 }
 

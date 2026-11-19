@@ -840,12 +840,14 @@ heard while listening, not the saved take's (below).
 (not a take recording into its folder as it goes), the app analyses the
 test again from that saved sound in the background, through the same
 core path as `timegrapher session` (#1958). When it is done, the test's
-table shows those figures and its results files are written into the
-take again, each file whole, wherever the take is by then. A Save Again
-while it runs starts it over on what that save wrote. While it runs the
-table says "Analysing the saved take: these figures may change
-slightly."; if it fails, the table keeps the listening's figures and says
-"These are the figures heard while listening: the saved take couldn't be
+table shows those figures, its results files are written into the
+take again, each file whole, wherever the take is by then, and the status
+bar says "Analysed the saved take again: the test's figures are
+updated." A Save Again while it runs starts it over on what that save
+wrote. While it runs, a plain line at the top of the test's pane, where
+the banner was, outside the table's scrolling, says "Analysing the saved
+take: these figures may change slightly."; if it fails, the table keeps
+the listening's figures and that line says "These are the figures heard while listening: the saved take couldn't be
 analysed again (why). Opened again, the take may read slightly
 differently.", and `positions-test.json` says `listened: true`. A take
 kept by Save Analysis Only is not read again: its figures stay the

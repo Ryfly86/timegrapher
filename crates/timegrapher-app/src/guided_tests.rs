@@ -1610,8 +1610,9 @@ fn the_step_panel_and_the_cards_count_the_settle_alike() {
     }
 }
 
-/// Every guided test's table says its saved take is being analysed
-/// again, the Complication Test's too (#1958, Gus 8 on #2067).
+/// Every guided test's pane says its saved take is being analysed again,
+/// the Complication Test's too (#1958, Gus 8 on #2067), once, at its top
+/// (Hugh 5).
 #[test]
 fn every_tests_table_says_its_saved_take_is_analysed_again() {
     for mut t in [

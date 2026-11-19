@@ -1402,6 +1402,10 @@ fn poise_test_saved(
     assert!(app.poise_test().and_then(|t| t.readings.as_ref()).is_some());
     app.save_into(&base.join("saved"));
     app.wait_for_save();
+    // The window draws again unprompted while it is read, so the reading
+    // lands with no input (Walter 16 on #2067).
+    assert!(app.bg.test_read.is_some());
+    assert!(app.repaint_every().is_some());
     // Saved again while it is read: it reads what that save wrote.
     if again {
         app.save_again();
@@ -1435,6 +1439,7 @@ fn a_finished_test_reads_as_session_reads_its_saved_take() {
         let t = app.poise_test().expect("the test");
         assert_eq!(t.saved_read, guided::SavedRead::Read, "block {block}");
         assert_eq!(t.saved_read_note(), None);
+        assert_eq!(app.repaint_every(), None, "nothing left to draw for");
         let readings = t.readings.clone().expect("finished");
         assert_eq!(readings.len(), 8);
         let dir = app.session.saved_to().expect("saved").to_path_buf();
@@ -1729,4 +1734,26 @@ fn a_test_read_again_says_so_in_its_table() {
              again (it stopped part way). Opened again, the take may read slightly differently."
         )
     );
+}
+
+/// A finished test's note sits at the top of the pane, over its table and
+/// outside its scrolling, where the banner was while it ran; once the read
+/// lands, the status bar says the figures are updated (Hugh 5 on #2067).
+#[test]
+fn a_finished_tests_note_is_at_the_top_of_its_pane() {
+    let base = std::env::temp_dir().join(format!("tg-app-2067-top-{}", std::process::id()));
+    let mut app = poise_test_saved(&base, 4093, (5.0, 30.0, 0.0), false);
+    assert_eq!(
+        app.message.as_ref().map(|m| m.0.as_str()),
+        Some(super::test_read::SAVED_READ_DONE)
+    );
+    app.reveal_pane(Pane::DynamicPoise);
+    let note = "Analysing the saved take: these figures may change slightly.";
+    app.guided.as_mut().unwrap().saved_read = guided::SavedRead::Reading;
+    let drawn = draw_at(&mut app, Pane::DynamicPoise, Vec2::new(1920.0, 1080.0));
+    let at = |s: &str| drawn.iter().find(|(t, _)| t == s).map(|(_, r)| *r);
+    let (line, head) = (at(note).expect("the note"), at("Rate").expect("the table"));
+    assert!(line.bottom() <= head.top(), "{line:?} {head:?}");
+    assert_eq!(drawn.iter().filter(|(t, _)| t == note).count(), 1);
+    let _ = std::fs::remove_dir_all(&base);
 }

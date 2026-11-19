@@ -16,6 +16,11 @@ use timegrapher_core::test_marks::{self, Mark, Marked, TestMarks};
 /// its seconds measured, beat rate and measurement; or why it failed.
 type Saved = Result<Vec<(f64, u32, Measurement)>, String>;
 
+/// The status bar once a finished test's saved take is analysed again
+/// (Hugh 5 on #2067).
+pub(super) const SAVED_READ_DONE: &str =
+    "Analysed the saved take again: the test's figures are updated.";
+
 /// A finished test's read again from its saved take, under way off the
 /// window's thread.
 pub(super) struct TestRead {
@@ -120,8 +125,9 @@ impl TimegrapherApp {
                 "its session file lists other stretches than the test measured".into()
             })
         });
-        if let Err(why) = read {
-            t.saved_read = guided::SavedRead::Failed(why);
+        match read {
+            Ok(()) => self.info_msg(SAVED_READ_DONE.into()),
+            Err(why) => t.saved_read = guided::SavedRead::Failed(why),
         }
         let dir = self.results_dir(dir);
         self.write_results_into(&dir);
