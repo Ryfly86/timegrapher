@@ -2057,7 +2057,63 @@ fn a_still_pointer_over_the_live_strip_draws_nothing_extra() {
 /// as Stop keeps it: no test left running with no result (#1882).
 #[test]
 fn a_power_reserve_test_whose_input_fails_ends_and_keeps_its_take() {
-    let base = std::env::temp_dir().join(format!("tg-app-reserve-input-{}", std::process::id()));
+    let (mut app, base, tx) = reserve_heard("input");
+
+    // Partway through, the microphone is unplugged.
+    tx.send(timegrapher_core::capture::Event::Error(
+        "device unplugged".into(),
+    ))
+    .unwrap();
+    app.poll_for(std::time::Duration::from_millis(200));
+    assert!(!app.reserve_running(), "the pane no longer says Running");
+    assert!(app.capture.is_none(), "the input is let go");
+    assert!(app
+        .input_fault
+        .as_deref()
+        .is_some_and(|f| f.starts_with("Input stopped.")));
+    let t = app.reserve.as_ref().unwrap();
+    assert_eq!(t.ending, Some(power_reserve::Ending::InputFailed));
+    let results = t.results.clone().expect("its run so far");
+    let said = results.sentence("CL");
+    assert!(said.starts_with("Power reserve at least "), "{said}");
+    assert!(
+        said.ends_with("The sound input failed while the watch still ran."),
+        "{said}"
+    );
+    assert!(results.run_s > 20.0, "{}", results.run_s);
+
+    // Kept in the watch's history with its results, as Stop keeps it.
+    for _ in 0..500 {
+        app.poll_saving();
+        app.reserve_saved();
+        if app.saving.is_none() && app.reserve.as_ref().is_some_and(|t| t.saved.is_some()) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    let take = app.reserve.as_ref().and_then(|t| t.saved.clone());
+    let take = take.unwrap_or_else(|| panic!("kept: {:?}", app.message));
+    let kept = power_reserve::Results::from_json(
+        &std::fs::read_to_string(take.join(power_reserve::FILE)).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(kept, results);
+    assert_eq!(kept.ending, power_reserve::Ending::InputFailed);
+    drop(tx);
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// A Power Reserve Test running into a take of Reverso's, the watch heard
+/// for 30 s as the listening thread takes it: the app, its folder and the
+/// input's queue.
+fn reserve_heard(
+    name: &str,
+) -> (
+    TimegrapherApp,
+    PathBuf,
+    std::sync::mpsc::Sender<timegrapher_core::capture::Event>,
+) {
+    let base = std::env::temp_dir().join(format!("tg-app-reserve-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&base);
     std::fs::create_dir_all(&base).unwrap();
     let root = base.join("Timegrapher Data");
@@ -2102,47 +2158,70 @@ fn a_power_reserve_test_whose_input_fails_ends_and_keeps_its_take() {
         app.pump();
     }
     assert!(app.reserve_running());
+    (app, base, tx)
+}
 
-    // Partway through, the microphone is unplugged.
-    tx.send(timegrapher_core::capture::Event::Error(
-        "device unplugged".into(),
-    ))
-    .unwrap();
-    app.poll_for(std::time::Duration::from_millis(200));
-    assert!(!app.reserve_running(), "the pane no longer says Running");
-    assert!(app.capture.is_none(), "the input is let go");
-    assert!(app
-        .input_fault
-        .as_deref()
-        .is_some_and(|f| f.starts_with("Input stopped.")));
+/// A Power Reserve Test whose input sends nothing for a while, a stall
+/// (the computer busy, a USB hiccup), waits it out and says so, for as
+/// long as a watch is given without a beat; only past that does it end as
+/// Input failed. One stall never ends a run of days (#2004).
+#[test]
+fn a_power_reserve_test_waits_out_an_input_stall() {
+    use std::time::Duration;
+    let (mut app, base, tx) = reserve_heard("stall");
+    app.audio_at = Some(Instant::now() - Duration::from_secs(30));
+    app.poll_for(Duration::from_millis(200));
+    assert!(app.reserve_running(), "{:?}", app.message);
+    assert!(app.capture.is_some() && app.input_fault.is_none());
+    let (m, error) = app.message.clone().unwrap();
+    assert!(!error && m.starts_with("No sound is arriving"), "{m}");
+    let stall = m.clone();
+    assert!(m.ends_with("if none comes for 10 min."), "{m}");
+    // Sound arriving again, a late backlog with nothing lost, takes the
+    // message away (Felix on #2018).
+    app.audio_at = Some(Instant::now());
+    app.poll_for(Duration::from_millis(200));
+    assert!(app.reserve_running());
+    assert!(
+        app.message.as_ref().is_none_or(|m| m.0 != stall),
+        "{:?}",
+        app.message
+    );
+    // Past a watch's own wait, the input has failed.
+    let past = power_reserve::STOP_AFTER_S + 1.0;
+    app.audio_at = Some(Instant::now() - Duration::from_secs_f64(past));
+    app.poll_for(Duration::from_millis(200));
+    assert!(!app.reserve_running());
     let t = app.reserve.as_ref().unwrap();
     assert_eq!(t.ending, Some(power_reserve::Ending::InputFailed));
-    let results = t.results.clone().expect("its run so far");
-    let said = results.sentence("CL");
-    assert!(said.starts_with("Power reserve at least "), "{said}");
-    assert!(
-        said.ends_with("The sound input failed while the watch still ran."),
-        "{said}"
-    );
-    assert!(results.run_s > 20.0, "{}", results.run_s);
+    drop(tx);
+    let _ = std::fs::remove_dir_all(&base);
+}
 
-    // Kept in the watch's history with its results, as Stop keeps it.
-    for _ in 0..500 {
-        app.poll_saving();
-        app.reserve_saved();
-        if app.saving.is_none() && app.reserve.as_ref().is_some_and(|t| t.saved.is_some()) {
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
-    let take = app.reserve.as_ref().and_then(|t| t.saved.clone());
-    let take = take.unwrap_or_else(|| panic!("kept: {:?}", app.message));
-    let kept = power_reserve::Results::from_json(
-        &std::fs::read_to_string(take.join(power_reserve::FILE)).unwrap(),
-    )
-    .unwrap();
-    assert_eq!(kept, results);
-    assert_eq!(kept.ending, power_reserve::Ending::InputFailed);
+/// An ordinary live take, no Power Reserve Test running, whose microphone
+/// sends nothing for over 3 s fails there as before: only a reserve waits
+/// a stall out, and nothing else says it does (Trevor on #2018).
+#[test]
+fn an_ordinary_take_still_fails_when_its_input_sends_nothing() {
+    use std::time::Duration;
+    let (mut app, base, tx) = reserve_heard("stall-ordinary");
+    app.reserve = None;
+    assert!(!app.reserve_running() && app.running());
+    app.audio_at = Some(Instant::now() - Duration::from_secs(5));
+    app.poll_for(Duration::from_millis(200));
+    assert!(!app.running(), "{:?}", app.message);
+    let fault = app.input_fault.clone().unwrap_or_default();
+    assert!(
+        fault.contains("No sound is arriving from this input."),
+        "{fault}"
+    );
+    assert!(
+        app.message
+            .as_ref()
+            .is_none_or(|m| !m.0.contains("The test carries on")),
+        "{:?}",
+        app.message
+    );
     drop(tx);
     let _ = std::fs::remove_dir_all(&base);
 }
