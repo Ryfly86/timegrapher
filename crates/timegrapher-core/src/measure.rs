@@ -73,6 +73,21 @@ fn in_doubt(jitter_us: Option<f64>, bph: u32) -> bool {
         .is_some_and(|f| f >= crate::beats::NOISE_DOUBT_FRACTION)
 }
 
+/// Whether a reading waits for its verdict: under [`SHORT_SPAN_S`] of
+/// sound has been heard since the start or the latest break, its masked
+/// seconds left out (`heard_s`; a mask does not restart the count, Norm
+/// on #2017), and the beats' averaged sound can't be judged
+/// (`beat_sound` None). Then no scatter can be judged, and a watch is
+/// heard only where the sound positively shows one, so there is no
+/// verdict either way and no figures: an empty stand's first seconds
+/// read as a rate of over 100,000 s/d when the timing's "watch" stood
+/// (Norm on #2014). A short average over longer sound is not waiting:
+/// what is heard does not depend on how it is averaged. Every reader
+/// asks this beside [`no_watch_reason`], so they withhold alike.
+pub fn awaiting_verdict(heard_s: f64, beat_sound: Option<bool>) -> bool {
+    heard_s < SHORT_SPAN_S && beat_sound.is_none()
+}
+
 /// Why no regular beat was found, or `None` when one was, from the timing
 /// scatter and the beats' averaged sound (`beat_sound`, from
 /// [`stretch_beat_sound`]: whether either side shows an unlock or a drop):
@@ -162,6 +177,49 @@ pub fn no_watch_reason_in(caveats: &[Caveat]) -> Option<NoWatchReason> {
 /// The heading every surface gives a reading with no regular beat, over
 /// [`no_watch_text`]'s sentence or in the figures' place (#510).
 pub const NO_WATCH_TITLE: &str = "No Regular Beat";
+
+/// What the sound behind a reading is heard since: where the
+/// [`SHORT_SPAN_S`] a reading's figures wait for is counted from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HeardSince {
+    /// Listen started (or the take's start, opened).
+    Start,
+    /// The latest break, such as a move to a new position.
+    Break,
+}
+
+/// The heading every surface gives a reading still waiting for
+/// [`SHORT_SPAN_S`] of sound, in the figures' place (#2014, Hugh).
+pub const LISTENING_TITLE: &str = "Listening";
+
+/// The sentence under [`LISTENING_TITLE`]: what the figures wait for, and
+/// since when it is counted.
+pub fn listening_text(since: HeardSince) -> String {
+    let from = match since {
+        HeardSince::Start => "Listen started",
+        HeardSince::Break => "the break",
+    };
+    format!(
+        "The figures need {s:.0} s of sound: they appear once {s:.0} s have been heard \
+         since {from}.",
+        s = SHORT_SPAN_S
+    )
+}
+
+/// What a reading says in place of [`NO_WATCH_TITLE`] while a regular
+/// beat just heard is still being found (`live::LiveReading::finding_beat`,
+/// #2008): a wait, not a verdict.
+pub const FINDING_TITLE: &str = "Finding the Beat";
+
+/// Why a reading waits while the beat is being found, for a hover.
+pub fn finding_text() -> String {
+    format!(
+        "A regular beat is heard. The figures wait until the last {:.0} s \
+         hold the watch alone, so the sound before it isn't counted against it.",
+        crate::live::FINDING_S
+    )
+}
 
 /// The sentence for no regular beat found, as every surface states it:
 /// with the timing scatter, as [`crate::beats::no_regular_beat_text`]
@@ -433,15 +491,97 @@ pub enum Caveat {
     TimingModelMisfit { misfit: f64, limit: f64 },
 }
 
-impl Caveat {
-    /// Whether it limits only the amplitude and the beat error, which are
-    /// read from each beat's sounds, and not the rate: clipping, and sides
-    /// too faint to read (#1738).
-    pub fn is_amplitude_only(&self) -> bool {
-        matches!(
-            self,
-            Caveat::Clipped { .. } | Caveat::FaintSidesWithheld { .. }
+/// The amplitude's hover where Average Over, `average_s`, is under
+/// [`SHORT_SPAN_S`], which it is read over then (Norm, #1951; Hugh's
+/// words): "Over the last 10 s, not 5 s: amplitude needs at least 10 s of
+/// beats." None at [`SHORT_SPAN_S`] and over.
+pub fn amplitude_span_note(average_s: f64) -> Option<String> {
+    span_note("amplitude", average_s)
+}
+
+/// [`amplitude_span_note`] for the beat error from the unlock, read from
+/// the same windows.
+pub fn unlock_span_note(average_s: f64) -> Option<String> {
+    span_note("the unlock", average_s)
+}
+
+fn span_note(what: &str, average_s: f64) -> Option<String> {
+    amplitude_span_s(average_s).map(|span| {
+        format!(
+            "Over the last {span} s, not {average_s} s: {what} needs at least \
+             {span} s of beats."
         )
+    })
+}
+
+/// The span the amplitude and the unlock beat error are read over where
+/// Average Over, `average_s`, is shorter than they need: [`SHORT_SPAN_S`]
+/// (Norm, #1951). None where they are read over the average itself. The
+/// one place that floor is decided; live readings and every hover that
+/// names it read it here.
+pub fn amplitude_span_s(average_s: f64) -> Option<f64> {
+    (average_s < SHORT_SPAN_S).then_some(SHORT_SPAN_S)
+}
+
+/// What a caveat bears on: one reading, or the take as a whole (#1975).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Scope {
+    Rate,
+    Amplitude,
+    BeatError,
+    Take,
+}
+
+impl Caveat {
+    /// The readings it bears on (Hugh and Norm, #1975). One reading's
+    /// caveat is said beside that reading; one that bears on more than
+    /// one, or on the take, is said once for the whole take. Clipping
+    /// and a default lift angle move the amplitude and the beat error
+    /// (its angle), not the rate, and sides too faint to read give neither
+    /// an amplitude nor an unlock beat error; a set beat rate unlike the
+    /// one heard moves every reading.
+    pub fn scopes(&self) -> &'static [Scope] {
+        use Scope::{Amplitude, BeatError, Rate, Take};
+        match self {
+            Caveat::ClockUnknown | Caveat::ClockSourcesDisagree { .. } => &[Rate],
+            Caveat::LiftUnknown | Caveat::Clipped { .. } | Caveat::FaintSidesWithheld { .. } => {
+                &[Amplitude, BeatError]
+            }
+            Caveat::SidesByCount { .. }
+            | Caveat::BeatErrorAsSize
+            | Caveat::BeatErrorFromDrop { .. }
+            | Caveat::BeatErrorUnknownSource { .. }
+            | Caveat::BeatErrorSourceReadings { .. } => &[BeatError],
+            Caveat::ReadingWindows { reading, .. } => match reading {
+                confidence::Figure::Rate => &[Rate],
+                confidence::Figure::Amplitude => &[Amplitude],
+                confidence::Figure::BeatError => &[BeatError],
+            },
+            Caveat::NoWatch { .. }
+            | Caveat::SetRateDisagrees { .. }
+            | Caveat::BeatsMissing { .. }
+            | Caveat::ShortSpan { .. }
+            | Caveat::Breaks { .. }
+            | Caveat::BreaksUnlisted { .. }
+            | Caveat::PausesUnseen { .. }
+            | Caveat::Masked { .. }
+            | Caveat::Positions { .. }
+            | Caveat::LeadLeftOut { .. }
+            | Caveat::LockTemplateKept
+            | Caveat::PeriodMayBeNoise { .. }
+            | Caveat::PeriodSearchUncalibrated { .. }
+            | Caveat::TimingModelMisfit { .. } => &[Take],
+        }
+    }
+
+    /// The one reading it bears on, where there is one: the reading it is
+    /// said beside. None for one said for the whole take.
+    pub fn reading_scope(&self) -> Option<Scope> {
+        match self.scopes() {
+            [Scope::Take] => None,
+            [one] => Some(*one),
+            _ => None,
+        }
     }
 
     /// The beat error from the drop because the unlock was not found.
@@ -982,6 +1122,66 @@ pub fn assess_in(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_short_average_says_its_amplitude_is_read_over_ten_seconds() {
+        assert_eq!(
+            amplitude_span_note(5.0).as_deref(),
+            Some("Over the last 10 s, not 5 s: amplitude needs at least 10 s of beats.")
+        );
+        assert_eq!(
+            unlock_span_note(2.0).as_deref(),
+            Some("Over the last 10 s, not 2 s: the unlock needs at least 10 s of beats.")
+        );
+        assert_eq!(amplitude_span_note(SHORT_SPAN_S), None);
+        assert_eq!(unlock_span_note(30.0), None);
+    }
+
+    /// The table of which cards each caveat limits (Norm and Hugh, #1975):
+    /// a caveat with one card is said there, any other for the whole take.
+    #[test]
+    fn each_caveat_limits_the_cards_ruled() {
+        use confidence::Figure;
+        use Scope::{Amplitude, BeatError, Rate, Take};
+        let no_watch = Caveat::NoWatch {
+            reason: NoWatchReason::Scatter,
+        };
+        let set_rate = Caveat::SetRateDisagrees { heard: 28800 };
+        for take in [&no_watch, &set_rate] {
+            assert_eq!(take.scopes(), &[Take], "{take:?}");
+        }
+        let lift_and_sides = [
+            Caveat::LiftUnknown,
+            Caveat::Clipped { fraction: 0.02 },
+            Caveat::FaintSidesWithheld {
+                sides: 1,
+                windows: 1,
+            },
+        ];
+        for c in &lift_and_sides {
+            assert_eq!(c.scopes(), &[Amplitude, BeatError], "{c:?}");
+        }
+        assert_eq!(Caveat::ClockUnknown.scopes(), &[Rate]);
+        assert_eq!(Caveat::FROM_DROP.scopes(), &[BeatError]);
+        for (figure, scope) in [
+            (Figure::Rate, Rate),
+            (Figure::Amplitude, Amplitude),
+            (Figure::BeatError, BeatError),
+        ] {
+            let c = Caveat::ReadingWindows {
+                reading: figure,
+                windows_used: 1,
+                windows_in_span: 4,
+            };
+            assert_eq!(c.scopes(), &[scope]);
+            assert_eq!(c.reading_scope(), Some(scope));
+        }
+        for c in lift_and_sides.iter().chain([&no_watch, &set_rate]) {
+            assert_eq!(c.reading_scope(), None, "{c:?}");
+        }
+        assert_eq!(Caveat::ClockUnknown.reading_scope(), Some(Rate));
+        assert_eq!(Caveat::FROM_DROP.reading_scope(), Some(BeatError));
+    }
+
     use super::*;
 
     /// The kept-template caveat names the first chunk's length from

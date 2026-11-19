@@ -814,19 +814,11 @@ impl TimegrapherApp {
     }
 
     /// Save the session as a new take in a watch's `takes`, named by when
-    /// it started (in this computer's time) and its one position, if it
-    /// used only one.
+    /// it started (in this computer's time). Not by its position: the
+    /// folder is named at its first save, and a take kept live may go on
+    /// into others; it is never renamed under a sync tool (Felix on
+    /// #1980). Its positions are in its session file and its row.
     fn save_into_watch(&mut self, takes: &Path, streamed: Streamed) {
-        let positions: Vec<timegrapher_core::session::Position> = self
-            .take_manifest()
-            .recordings
-            .iter()
-            .filter_map(|r| {
-                r.position
-                    .as_deref()
-                    .and_then(timegrapher_core::session::Position::parse)
-            })
-            .collect();
         let test = self.reserve_is_test();
         let Some(r) = self.session.recorder.as_mut() else {
             return;
@@ -838,7 +830,7 @@ impl TimegrapherApp {
         let name = if test {
             library::power_reserve_take_name(&started)
         } else {
-            library::take_name(&started, &positions)
+            started
         };
         let dir = library::unused_dir(takes, &name);
         if let Some(name) = dir.file_name() {
@@ -945,8 +937,8 @@ impl TimegrapherApp {
     }
 
     /// The take's results files, written beside its session.toml by both
-    /// Save… and Save Analysis Only…: the positions test's and the power
-    /// reserve test's, when there are.
+    /// Save… and Save Analysis Only…: the positions test's, the Dynamic
+    /// Poise Test's mark and the power reserve test's, when there are.
     pub(super) fn results_files(&self) -> Result<Vec<(&'static str, Vec<u8>)>, String> {
         let about = self.guided_about();
         let mut files = Vec::new();
@@ -954,6 +946,12 @@ impl TimegrapherApp {
             let text = serde_json::to_string_pretty(&k)
                 .map_err(|e| format!("Couldn't prepare {}: {e}", guided::RESULTS_FILE))?;
             files.push((guided::RESULTS_FILE, (text + "\n").into_bytes()));
+        }
+        // A Dynamic Poise Test's take is marked as one, so its row names the
+        // test and never one stop's figures (#2002).
+        let poise = |t: &guided::Test| t.kind == guided::Kind::Poise && t.readings.is_some();
+        if self.guided.as_ref().is_some_and(poise) {
+            files.push((library::POISE_TEST_FILE, library::POISE_TEST_TEXT.into()));
         }
         // A long take's run read as one is never written into the take.
         if let Some(r) = self
@@ -1530,16 +1528,12 @@ impl TimegrapherApp {
         let mut t = reserve::Test::new(position, r.sound_kept, r.started_utc.clone(), 0.0);
         t.ending = Some(r.ending);
         t.saved = Some(dir.to_path_buf());
-        let hours = r.hours.len();
+        let h = reserve::run_h(&r.hours, false, self.reserve_series);
         t.results = Some(r);
         self.reserve = Some(t);
         self.reveal_pane(Pane::PowerReserve);
         // The run's charts and table, not the line before a test.
-        grow_row(
-            &mut self.panes.tiles,
-            Pane::PowerReserve,
-            reserve::run_h(hours),
-        );
+        grow_row(&mut self.panes.tiles, Pane::PowerReserve, h);
     }
 
     /// Take what a session file says about a recording: the watch, its
@@ -2457,14 +2451,11 @@ impl TimegrapherApp {
             }
         }
         // A microphone that opened but sends nothing.
-        if let Some(cap) = &self.capture {
-            let quiet = self.audio_at.unwrap_or(self.opened_at).elapsed();
-            if !cap.is_file && quiet.as_secs_f64() > 3.0 && failure.is_none() {
-                failure = Some(CaptureFailure::Input(
-                    "No sound is arriving from this input.".to_string(),
-                ));
-                ended = true;
-            }
+        if failure.is_none() && self.mic_stalled() {
+            failure = Some(CaptureFailure::Input(
+                "No sound is arriving from this input.".to_string(),
+            ));
+            ended = true;
         }
         (taken, ended, failure)
     }
@@ -2991,8 +2982,8 @@ fn break_text(gap: f64, dropped: bool) -> String {
     } else {
         format!(
             "The sound's timestamps jumped by {}, as they do when the \
-             computer sleeps. The jump is left out of the take as a \
-             break, and listening carries on.",
+             computer sleeps or the input stalls. The jump is left out of \
+             the take as a break, and listening carries on.",
             fields::duration(gap.round())
         )
     }

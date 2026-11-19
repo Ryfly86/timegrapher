@@ -245,6 +245,7 @@ impl TimegrapherApp {
     pub(super) fn begin_reserve(&mut self) {
         // A Power Reserve Test begins at full wind.
         self.started_from_full_wind(true);
+        let wind_h = self.take_wind_h();
         let pos = self.position;
         let started = self
             .session
@@ -259,7 +260,9 @@ impl TimegrapherApp {
         // Analysis Only reads the sound as it comes and never writes it
         // (#1514); when it can't, the sound is kept, and that is said.
         let keep_sound = self.reserve_keep_sound || !self.start_kept();
-        self.reserve = Some(reserve::Test::new(pos, keep_sound, started, now));
+        let mut t = reserve::Test::new(pos, keep_sound, started, now);
+        t.wind_h = wind_h;
+        self.reserve = Some(t);
         self.reserve_read_s = now;
         self.reserve_hours_s = f64::NEG_INFINITY;
         applog::info(&format!(
@@ -349,8 +352,10 @@ impl TimegrapherApp {
             first_chart = whole == 0 && t.so_far.iter().any(|h| h.whole());
         }
         if first_chart {
-            let n = self.reserve.as_ref().map_or(0, |t| t.so_far.len());
-            grow_row(&mut self.panes.tiles, Pane::PowerReserve, reserve::run_h(n));
+            let h = self.reserve.as_ref().map_or(0.0, |t| {
+                reserve::run_h(&t.so_far, true, self.reserve_series)
+            });
+            grow_row(&mut self.panes.tiles, Pane::PowerReserve, h);
         }
     }
 
@@ -404,7 +409,11 @@ impl TimegrapherApp {
     pub(super) fn fit_reserve_row(&mut self) {
         let pane = Pane::PowerReserve;
         match self.reserve.as_ref().and_then(|t| t.results.as_ref()) {
-            Some(r) => grow_row(&mut self.panes.tiles, pane, reserve::run_h(r.hours.len())),
+            Some(r) => grow_row(
+                &mut self.panes.tiles,
+                pane,
+                reserve::run_h(&r.hours, false, self.reserve_series),
+            ),
             None => fit_row(&mut self.panes.tiles, pane, MIN_PANE_H),
         }
     }
@@ -507,12 +516,21 @@ impl TimegrapherApp {
         if let Some(r) = results.as_mut() {
             r.hours = self.reserve_hours(r.first_beat_s, r.last_beat_s, 0);
         }
-        let hours = results.as_ref().map(|r| r.hours.len());
+        let h = results
+            .as_ref()
+            .map(|r| reserve::run_h(&r.hours, false, self.reserve_series));
+        let mut stopped = false;
         if let Some(t) = self.reserve.as_mut() {
+            stopped = [results.as_ref().map(|r| r.ending), t.ending]
+                .contains(&Some(power_reserve::Ending::Stopped));
             t.results = results;
         }
-        if let Some(n) = hours {
-            grow_row(&mut self.panes.tiles, Pane::PowerReserve, reserve::run_h(n));
+        if let Some(h) = h {
+            grow_row(&mut self.panes.tiles, Pane::PowerReserve, h);
+        }
+        // The watch ran down: its wind no longer holds (#2001).
+        if stopped {
+            self.wind_let_down();
         }
     }
 
@@ -532,6 +550,42 @@ impl TimegrapherApp {
         if t.running() {
             t.ending = Some(ending);
         }
+    }
+
+    /// Whether the live microphone has sent nothing for over 3 s and so has
+    /// failed: a Power Reserve Test waits a stall out first
+    /// ([`Self::reserve_waits_out`], #2004). Once sound arrives again, the
+    /// stall's message goes, as core gives no break for a late backlog
+    /// with nothing lost (Felix on #2018).
+    pub(super) fn mic_stalled(&mut self) -> bool {
+        let quiet = self.audio_at.unwrap_or(self.opened_at).elapsed();
+        let mic = self.capture.as_ref().is_some_and(|c| !c.is_file);
+        if quiet.as_secs_f64() <= 3.0 {
+            if self.message.as_ref().is_some_and(|m| m.0 == stall_words()) {
+                self.message = None;
+            }
+            return false;
+        }
+        mic && !self.reserve_waits_out(quiet.as_secs_f64())
+    }
+
+    /// Whether a Power Reserve Test waits out an input that has sent
+    /// nothing for `quiet_s`: a stall (the computer busy, a USB hiccup)
+    /// for as long as a watch is given without a beat
+    /// ([`power_reserve::STOP_AFTER_S`]), saying so, so one stall never
+    /// ends a run of days. Any time lost is a break, as after a sleep; a
+    /// late backlog is read as it is. The run ends as Input failed only
+    /// past that (#2004).
+    pub(super) fn reserve_waits_out(&mut self, quiet_s: f64) -> bool {
+        if !self.reserve_running() || quiet_s > power_reserve::STOP_AFTER_S {
+            return false;
+        }
+        let words = stall_words();
+        if self.message.as_ref().map(|m| &m.0) != Some(&words) {
+            applog::warn(&words);
+            self.message = Some((words, false));
+        }
+        true
     }
 
     /// The live input ended while a Power Reserve Test ran (a microphone
@@ -716,4 +770,14 @@ impl TimegrapherApp {
             (self.reserve_info, shown),
         );
     }
+}
+
+/// What the status line says while a Power Reserve Test waits out a stall
+/// ([`TimegrapherApp::reserve_waits_out`]).
+fn stall_words() -> String {
+    format!(
+        "No sound is arriving from this input. The test carries on, and ends if \
+         none comes for {}.",
+        fields::duration(power_reserve::STOP_AFTER_S)
+    )
 }

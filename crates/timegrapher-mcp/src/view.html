@@ -1511,13 +1511,15 @@ function xyChart(o) {
       d += `${pen ? "L" : "M"}${sx(x).toFixed(1)},${sy(y).toFixed(1)}`;
       pen = true;
     }
-    return `<path d="${d}" fill="none" stroke="var(${l.color})" stroke-width="${l.width || 1.5}"${dash(l.dash)} stroke-linejoin="round"/>`;
+    return `<path d="${d}" fill="none" stroke="var(${l.color})" stroke-width="${l.width || 1.5}"${dash(l.dash)}${l.opacity ? ` opacity="${l.opacity}"` : ""} stroke-linejoin="round"/>`;
   };
   // Lines that join dots go under them.
   for (const l of o.joins || []) inside += path(l);
   for (const d of o.dots || []) {
     // A dot with a hover says it on its own.
-    inside += `<g fill="${d.rgb || `var(${d.color})`}">${d.pts.map((p, i) => [p, d.hovers && d.hovers[i]])
+    // A hollow dot (Allan's on too few differences, #1985) is a ring.
+    const ink = d.rgb || `var(${d.color})`;
+    inside += `<g ${d.hollow ? `fill="none" stroke="${ink}" stroke-width="1.2"` : `fill="${ink}"`}>${d.pts.map((p, i) => [p, d.hovers && d.hovers[i]])
       .filter(([[x, y]]) => Number.isFinite(x) && Number.isFinite(y))
       .map(([[x, y], h]) => `<circle cx="${sx(x).toFixed(1)}" cy="${sy(y).toFixed(1)}" r="${d.r}">${h ? `<title>${esc(h)}</title>` : ""}</circle>`).join("")}</g>`;
   }
@@ -1534,6 +1536,12 @@ function xyChart(o) {
   if (o.corner && o.corner.top) {
     const w = String(o.corner.text).split("\n")[0].length * CHAR_W;
     avoid.push([L + plotW - 6 - w, T + 2, L + plotW - 6, T + 17]);
+  }
+  // And the notes beside a point (steady::mark_label's), as drawn below.
+  for (const n of o.notes || []) {
+    const right = n.x > (x0 + x1) / 2, w = n.text.length * CHAR_W;
+    const a = sx(n.x) + (right ? -8 - w : 8), base = sy(n.y) + (n.above ? -6 : 14);
+    avoid.push([a, base - 11, a + w, base + 3]);
   }
   for (const n of o.beside || []) {
     const dot = [sx(n.x), sy(n.y)];
@@ -2121,6 +2129,12 @@ function steadyPlot(s, view, doc) {
       if (!a || !a.tau_s) return steadyNote("Too few readings for the Allan deviation.");
       const both = (vals) => a.tau_s.map((t, i) => [t, vals[i]]).filter(([t, d]) => t > 0 && d > 0 && Number.isFinite(d)).map(([t, d]) => [Math.log10(t), Math.log10(d)]);
       const dev = both(a.deviation), white = both(a.white || []);
+      // Points on fewer differences than core judges by, hollow, their
+      // line faint (#1985): the least scatter is never one of them.
+      const judged = a.judged || a.tau_s.map(() => true);
+      const firm = both(a.deviation.map((d, i) => (judged[i] ? d : NaN)));
+      const hollow = both(a.deviation.map((d, i) => (judged[i] ? NaN : d)));
+      const faint = firm.slice(-1).concat(hollow);
       const all = dev.concat(white);
       if (!dev.length) return steadyNote("Too few readings for the Allan deviation.");
       const pad = (lo, hi) => { const p = Math.max((hi - lo) * 0.05, 0.05); return [lo - p, hi + p]; };
@@ -2130,12 +2144,15 @@ function steadyPlot(s, view, doc) {
       if (a.best_tau_s > 0 && a.best_deviation > 0) {
         notes.push({ x: Math.log10(a.best_tau_s), y: Math.log10(a.best_deviation), text: `least scatter at ${secs(a.best_tau_s)}: ${sig(a.best_deviation)}${unit}` });
       }
+      // The hollow points' note on a plate clear of the trace and of the
+      // least scatter's (Walter on #2012).
+      const beside = hollow.length && a.hollow_note ? [{ x: hollow[0][0], y: hollow[0][1], text: a.hollow_note }] : [];
       return xyChart({
         title: "Allan Deviation", x, y,
         xTicks: periodTicks,
         yTicks: (p, q) => logTicks(p, q, (d) => sig(d) + unit),
-        lines: [{ pts: white, color: "--callout", width: CALL_OUT_W, dash: "loose" }, { pts: dev, color, width: 1.5 }],
-        dots: [{ pts: dev, color, r: 2 }], notes,
+        lines: [{ pts: white, color: "--callout", width: CALL_OUT_W, dash: "loose" }, { pts: firm, color, width: 1.5 }, { pts: faint, color, width: 1.5, opacity: 0.4 }],
+        dots: [{ pts: firm, color, r: 2 }, { pts: hollow, color, r: 2.5, hollow: true }], notes, beside,
       });
     }
     case "cusum": {

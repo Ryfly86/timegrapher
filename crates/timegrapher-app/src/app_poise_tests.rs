@@ -103,6 +103,7 @@ fn a_measured_poise_test_passes_each_check() {
         app.poise_info = fresh.1;
     };
     a_poise_test_measures_eight_stops_and_core_fits_the_wave(&app);
+    a_measured_poise_tests_take_is_marked_as_one(&app);
     the_picture_has_its_key_and_mean_and_info_says_each_fact_once(&mut app);
     reset(&mut app);
     the_heavy_spot_is_in_a_facts_box_and_the_notes_in_info(&mut app);
@@ -118,6 +119,20 @@ fn a_measured_poise_test_passes_each_check() {
     save_as_text_writes_the_poise_tests_report(app, &base);
     drop(tx);
     let _ = std::fs::remove_dir_all(&base);
+}
+
+/// A measured Dynamic Poise Test's take, saved or kept as its analysis
+/// alone (both write [`TimegrapherApp::results_files`]), is marked as one,
+/// so its Watches row names the test (#2002); no Positions Test results.
+fn a_measured_poise_tests_take_is_marked_as_one(app: &TimegrapherApp) {
+    use timegrapher_core::library::{POISE_TEST_FILE, POISE_TEST_TEXT};
+    let files = app.results_files().unwrap();
+    let mark = files
+        .iter()
+        .find(|f| f.0 == POISE_TEST_FILE)
+        .expect("marked");
+    assert_eq!(mark.1, POISE_TEST_TEXT.as_bytes());
+    assert!(!files.iter().any(|f| f.0 == guided::RESULTS_FILE));
 }
 
 /// The checks of a take of the eight upright stops saved and opened

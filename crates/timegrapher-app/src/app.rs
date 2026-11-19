@@ -80,11 +80,13 @@ mod positions_test;
 mod power_reserve_pane;
 mod readings_strip;
 mod readouts;
+use readouts::caveat_facts;
 mod redraw;
 mod scope_panes;
 mod session_marks;
 mod settings_pane;
 mod steadiness_panes;
+mod take_add;
 mod take_io;
 mod take_reads;
 mod test_body;
@@ -1690,6 +1692,8 @@ pub struct TimegrapherApp {
     /// one it keeps into, put back if its question is cancelled.
     keep_back: Option<(Option<String>, bool)>,
     take_keep: Option<(PathBuf, AnalysisSave)>,
+    /// A take being copied into a watch by Keep in a Watch… (#1970).
+    take_add: Option<take_add::TakeAdd>,
     /// The takes' own readings the Watches list shows, worked out on a
     /// thread of their own.
     take_readings: watches::TakeReadings,
@@ -2456,6 +2460,7 @@ impl TimegrapherApp {
             take_ask: None,
             keep_back: None,
             take_keep: None,
+            take_add: None,
             take_readings: watches::TakeReadings::default(),
             thumbs: Default::default(),
             strip_points: None,
@@ -2948,18 +2953,6 @@ impl TimegrapherApp {
             _ => return false,
         }
         true
-    }
-
-    /// The watch the take is of, as the Calibre card's title and the
-    /// status bar name it: the one open in Watches, else the one the take
-    /// names itself (its session file's), which isn't in Watches (false);
-    /// none for No Watch.
-    fn named_watch(&self) -> Option<(String, bool)> {
-        self.open_watch()
-            .map(|e| e.watch.name.clone())
-            .filter(|n| !n.is_empty())
-            .map(|n| (n, true))
-            .or_else(|| (!self.watch.is_empty()).then(|| (self.watch.clone(), false)))
     }
 
     /// What the strip shows, for the status line: the take's name, its
@@ -3491,8 +3484,8 @@ fn no_room_short(what: &str) -> String {
 const STACKED_NOTE_H: f32 = 18.0;
 /// The least height of the Paper Strip under its toolbar: its lane, at
 /// least 100 pt of dots and the time axis, the amplitude scale's labels
-/// apart. The strip keeps it whatever pane is opened under it; only a
-/// divider dragged by hand takes it lower.
+/// apart. The strip keeps it whatever pane is opened under it, and no
+/// divider dragged by hand takes it lower (#1976).
 const STRIP_MIN_H: f32 = STRIP_MIN_PLOT_H + 39.0;
 /// The least height of the Paper Strip's dots.
 const STRIP_MIN_PLOT_H: f32 = 100.0;
@@ -3984,6 +3977,7 @@ impl eframe::App for TimegrapherApp {
         self.setup_sheet_dialog(ctx);
         self.take_ask_dialog(ctx);
         self.poll_take_keep();
+        self.poll_take_add();
         self.reread_library_on_focus(ctx);
         if let Some(m) = self.report.ui(ctx) {
             self.info_msg(m);
@@ -4155,54 +4149,14 @@ fn cut_caveats_text(caveats: &[Caveat]) -> String {
     };
     let breaks = picked(Caveat::is_about_breaks);
     let sides = picked(|c| matches!(c, Caveat::SidesByCount { .. }));
-    reading_limits("", &breaks, 0.0, 0)
+    caveat_facts(&breaks, 0.0, 0)
         .into_iter()
-        .chain(reading_limits("Beat Error", &sides, 0.0, 0))
+        .chain(caveat_facts(&sides, 0.0, 0))
         .map(|(_, hover)| format!(" {hover}"))
         .collect()
 }
 
 const WHOLE_AS_SIZES: &str = "whole take is given as a size: its sign differs either side of a cut";
-
-/// What limits a reading, as facts: a short form for the card's caption
-/// and a sentence for its hover, in core's words. Nothing graded: the ±
-/// beside the figure says how far it could be off; these say what the ±
-/// can't show.
-fn reading_limits(
-    title: &str,
-    caveats: &[Caveat],
-    lift_deg: f64,
-    beats: usize,
-) -> Vec<(String, String)> {
-    caveats
-        .iter()
-        .filter(|c| shown_on(c, title))
-        .filter_map(|c| {
-            let long = c.long(Some(lift_deg))?;
-            let long = match c {
-                Caveat::Clipped { .. } => format!("{long} {}", help::CLIPPING),
-                _ => long,
-            };
-            Some((c.short(lift_deg, beats)?, long))
-        })
-        .collect()
-}
-
-/// Whether a card titled `title` names caveat `c` beside its figure.
-/// No regular beat, clock disagreement and beat error as a size are said elsewhere;
-/// so are the lift angle (Calibre card) and input clock (Rate controls row).
-fn shown_on(c: &Caveat, title: &str) -> bool {
-    match c {
-        Caveat::NoWatch { .. }
-        | Caveat::ClockSourcesDisagree { .. }
-        | Caveat::BeatErrorAsSize
-        | Caveat::LiftUnknown
-        | Caveat::ClockUnknown => false,
-        c if c.is_amplitude_only() => matches!(title, "Amplitude" | "Beat Error"),
-        Caveat::SidesByCount { .. } | Caveat::BeatErrorFromDrop { .. } => title == "Beat Error",
-        _ => true,
-    }
-}
 
 /// How long closing an input may take before the app carries on.
 const RELEASE_WAIT: Duration = Duration::from_secs(2);

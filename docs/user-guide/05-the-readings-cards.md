@@ -249,6 +249,15 @@ the first and how many more ("12 s of Beats +1").
 | **Amplitude Read From 4 of 15 Windows** | Under 60% of the short readings in the stretch could be used. | Treat the figure as resting on less than its span. |
 | **First 12 s Left Out** | Noise before the watch was heard is left out of a whole take's reading. | Nothing. |
 
+### Listening
+
+In the first 10 s after Listen starts, and after a break, the timing
+can't yet tell a watch from the stand's noise. Masked seconds don't
+count toward the 10 s. The
+figures show there only when the beats' sound already shows a watch.
+When it can't tell yet, the cards show no figures, only **Listening**.
+Where a settle is running, the cards say **Settling** instead.
+
 ### No Regular Beat Found
 
 When the beats found don't come at regular intervals, the cards show no
@@ -260,6 +269,12 @@ example "(timing scatter 8.6 ms, 5.2% of a beat)".
 - **What to check:** that the watch is running and on the microphone,
   the input, and the level.
 - No reading is graded. The app never says whether a figure is good.
+
+When you put a watch on the stand after the app has been listening to
+the room, its first seconds are judged together with the noise before
+them. So while a regular beat is first heard, the cards say **Finding
+the Beat**, not No regular beat found, for up to 20 s, until the time
+they judge holds only the watch.
 
 ## Compact Readings
 

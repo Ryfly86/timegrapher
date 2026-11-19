@@ -1,6 +1,7 @@
 //! Inputs and their gain, what the cards and readings say, the profiles,
 //! exporting a pane, and the empty and error states.
 
+use super::readouts::{reading_limits, take_limits};
 use super::tests::{frames, painted_text, screen, synthetic, themed};
 use super::*;
 use timegrapher_core::synth::{generate, SynthConfig};
@@ -98,16 +99,21 @@ fn a_reading_says_what_limits_it_as_facts() {
         Caveat::LiftUnknown,
         Caveat::ClockUnknown,
     ];
-    let amp = reading_limits("Amplitude", &caveats, 52.0, 30);
-    let short: Vec<&str> = amp.iter().map(|f| f.0.as_str()).collect();
+    // A short stretch bears on every card of the reading shown: said once,
+    // in the status bar, and on no card (#1975).
+    for title in ["Rate", "Amplitude", "Beat Error"] {
+        assert!(
+            reading_limits(title, &caveats, 52.0, 30, false).is_empty(),
+            "{title}"
+        );
+    }
+    let take = take_limits(&caveats, 52.0, 30, false);
+    let short: Vec<&str> = take.iter().map(|f| f.0.as_str()).collect();
     // The lift angle and the input's clock are said elsewhere.
     assert_eq!(short, ["4 s of beats"]);
-    let rate = reading_limits("Rate", &caveats, 52.0, 30);
-    let short: Vec<&str> = rate.iter().map(|f| f.0.as_str()).collect();
-    assert_eq!(short, ["4 s of beats"]);
-    let missing = reading_limits("Rate", &[Caveat::BeatsMissing { fraction: 0.9 }], 52.0, 90);
+    let missing = take_limits(&[Caveat::BeatsMissing { fraction: 0.9 }], 52.0, 90, false);
     assert_eq!(missing[0].0, "90 of 100 beats");
-    for (_, long) in amp.iter().chain(&rate) {
+    for (_, long) in take.iter().chain(&missing) {
         for word in [
             "Confidence",
             "Low",
@@ -125,45 +131,86 @@ fn a_reading_says_what_limits_it_as_facts() {
 #[test]
 fn a_beat_error_says_where_its_sides_were_named_by_count() {
     let caveats = [Caveat::SidesByCount { count: 2 }];
-    let be = reading_limits("Beat Error", &caveats, 52.0, 30);
+    let be = reading_limits("Beat Error", &caveats, 52.0, 30, false);
     assert_eq!(be.len(), 1);
     assert_eq!(be[0].0, "sides named by count");
     assert!(be[0].1.contains("not told apart by their sound"));
     // It doesn't touch the rate or the amplitude.
-    assert!(reading_limits("Rate", &caveats, 52.0, 30).is_empty());
-    assert!(reading_limits("Amplitude", &caveats, 52.0, 30).is_empty());
+    assert!(reading_limits("Rate", &caveats, 52.0, 30, false).is_empty());
+    assert!(reading_limits("Amplitude", &caveats, 52.0, 30, false).is_empty());
 }
 
 #[test]
 fn a_drop_beat_error_caveat_belongs_only_on_beat_error() {
     let caveats = [Caveat::FROM_DROP];
-    let be = reading_limits("Beat Error", &caveats, 52.0, 30);
+    let be = reading_limits("Beat Error", &caveats, 52.0, 30, false);
     assert_eq!(be.len(), 1);
     assert_eq!(be[0].0, "beat error from the drop");
     assert!(be[0].1.contains("unlock was not found"));
-    assert!(reading_limits("Rate", &caveats, 52.0, 30).is_empty());
-    assert!(reading_limits("Amplitude", &caveats, 52.0, 30).is_empty());
+    assert!(reading_limits("Rate", &caveats, 52.0, 30, false).is_empty());
+    assert!(reading_limits("Amplitude", &caveats, 52.0, 30, false).is_empty());
 }
 
-/// Sides too faint to read are named on the Amplitude and Beat Error
-/// cards, whose figures leave them out, and not on Rate's (#1738).
+/// Sides too faint to read give neither an amplitude nor an unlock beat
+/// error (#1738), so they are said once, in the status bar (Norm,
+/// #1975); but where they leave the Amplitude card without a figure,
+/// they are said there, the reason for its dash, and not again in the
+/// status bar (Hugh's rule 3).
 #[test]
-fn faint_sides_are_named_on_amplitude_and_beat_error_only() {
+fn faint_sides_are_named_where_they_empty_a_card_else_for_the_take() {
     let caveats = [Caveat::FaintSidesWithheld {
         sides: 3,
         windows: 2,
     }];
-    for title in ["Amplitude", "Beat Error"] {
-        let facts = reading_limits(title, &caveats, 52.0, 30);
-        assert_eq!(facts.len(), 1, "{title}");
-        assert_eq!(facts[0].0, "3 faint sides left out");
+    for empty in [false, true] {
+        for title in ["Rate", "Beat Error"] {
+            assert!(
+                reading_limits(title, &caveats, 52.0, 30, empty).is_empty(),
+                "{title}"
+            );
+        }
+    }
+    assert!(reading_limits("Amplitude", &caveats, 52.0, 30, false).is_empty());
+    let take = take_limits(&caveats, 52.0, 30, false);
+    assert_eq!(take.len(), 1);
+    let facts = reading_limits("Amplitude", &caveats, 52.0, 30, true);
+    assert_eq!(facts.len(), 1);
+    assert_eq!(facts[0].0, "3 faint sides left out");
+    assert!(
+        facts[0].1.starts_with("3 sides in 2 windows"),
+        "{}",
+        facts[0].1
+    );
+    assert!(take_limits(&caveats, 52.0, 30, true).is_empty());
+    // A take-wide caveat on an empty card is not its reason: no chip.
+    let short = [Caveat::ShortSpan { span_s: 4.0 }];
+    assert!(reading_limits("Amplitude", &short, 52.0, 30, true).is_empty());
+}
+
+/// A caveat that bears on more than one card, or on the take, is said
+/// once, in the status bar's chip, and on no card: breaks, clipping, a
+/// set rate unlike the one heard (#1975). One that bears on one card
+/// alone is on that card and not in the status bar.
+#[test]
+fn a_take_wide_caveat_is_said_once_for_the_take() {
+    let caveats = [
+        Caveat::Breaks { count: 2 },
+        Caveat::Clipped { fraction: 0.03 },
+        Caveat::SetRateDisagrees { heard: 21600 },
+        Caveat::SidesByCount { count: 1 },
+    ];
+    for title in ["Rate", "Amplitude"] {
         assert!(
-            facts[0].1.starts_with("3 sides in 2 windows"),
-            "{}",
-            facts[0].1
+            reading_limits(title, &caveats, 52.0, 30, false).is_empty(),
+            "{title}"
         );
     }
-    assert!(reading_limits("Rate", &caveats, 52.0, 30).is_empty());
+    let be = reading_limits("Beat Error", &caveats, 52.0, 30, false);
+    assert_eq!(be.len(), 1);
+    assert_eq!(be[0].0, "sides named by count");
+    let take = take_limits(&caveats, 52.0, 30, false);
+    assert_eq!(take.len(), 3, "{take:?}");
+    assert!(take.iter().all(|t| t.0 != "sides named by count"));
 }
 
 /// Words in a reading's place on a narrow card show whole: "No
@@ -179,7 +226,7 @@ fn a_narrow_cards_words_show_whole() {
         for _ in 0..2 {
             let out = ctx.run(egui::RawInput::default(), |ctx| {
                 egui::CentralPanel::default().show(ctx, |ui| {
-                    readouts::figure_row(ui, rect, None, "s/d", Some(&status), "", compact);
+                    readouts::figure_row(ui, rect, None, "s/d", Some(&status), "", (compact, None));
                 });
             });
             texts = out
@@ -207,9 +254,11 @@ fn a_narrow_cards_words_show_whole() {
     }
 }
 
-/// A card too narrow for its caption (800 pt) names its reading by the
-/// short form the axes use, the whole caption on a hover, never a cut
-/// "Ampli…" (#1061); with room, the whole caption.
+/// A card too narrow for its caption with its "?" (800 pt) goes without
+/// the "?" and keeps its whole caption (Hugh on #1954); narrower still,
+/// than the window can be made, it names its reading by the short form
+/// the axes use, never a cut "Ampli…" (#1061); with room, the whole
+/// caption and its "?".
 #[test]
 fn a_narrow_cards_title_is_short_not_cut() {
     let ctx = egui::Context::default();
@@ -231,28 +280,28 @@ fn a_narrow_cards_title_is_short_not_cut() {
                     egui::Shape::Text(t) => Some(t.galley.text().to_string()),
                     _ => None,
                 })
-                .filter(|t| t != "?")
                 .collect::<Vec<_>>();
         }
         texts
     };
-    // A card's title row at 800 pt, as Walter walked it.
-    for (caption, short) in [
-        ("Amplitude", "Amp."),
-        ("Beat Error", "B.E."),
-        ("Rate", "Rate"),
-    ] {
-        assert_eq!(title(caption, 76.0), [short], "{caption}");
-        assert_eq!(title(caption, 300.0), [caption]);
+    // A card's title row at 800 pt, as Walter walked it, and narrower.
+    // "Rate" fits beside its "?" even there.
+    assert_eq!(title("Rate", 76.0), ["?", "Rate"]);
+    assert_eq!(title("Rate", 300.0), ["?", "Rate"]);
+    for (caption, short) in [("Amplitude", "Amp."), ("Beat Error", "B.E.")] {
+        assert_eq!(title(caption, 76.0), [caption], "{caption}");
+        assert_eq!(title(caption, 40.0), [short], "{caption}");
+        assert_eq!(title(caption, 300.0), ["?", caption]);
     }
 }
 
-/// The readings cards switch to their short names together (Hugh, #1061):
-/// one too narrow for its caption takes the others with it, so a row
-/// never mixes "Amplitude" with "B.E."; widened again, they are whole on
-/// the very next pass, with nothing held over (Vernon).
+/// The readings cards go without their "?" together (Hugh, #1061 and
+/// #1954): one too narrow for its caption beside its "?" takes the
+/// others with it, so a row never mixes a "?" on one card with none on
+/// the next; widened again, they have it back on the very next pass, with
+/// nothing held over (Vernon).
 #[test]
-fn the_cards_name_their_readings_short_together() {
+fn the_cards_go_without_their_help_marks_together() {
     let ctx = egui::Context::default();
     theme::install(&ctx);
     let rect = |x: f32, w: f32| egui::Rect::from_min_size(egui::pos2(x, 10.0), egui::vec2(w, 24.0));
@@ -275,13 +324,12 @@ fn the_cards_name_their_readings_short_together() {
                 egui::Shape::Text(t) => Some(t.galley.text().to_string()),
                 _ => None,
             })
-            .filter(|t| t != "?")
             .collect::<Vec<_>>()
     };
     for _ in 0..3 {
-        assert_eq!(row(76.0), ["Amp.", "B.E."]);
+        assert_eq!(row(76.0), ["Amplitude", "Beat Error"]);
     }
-    assert_eq!(row(300.0), ["Amplitude", "Beat Error"]);
+    assert_eq!(row(300.0), ["?", "Amplitude", "?", "Beat Error"]);
 }
 
 /// The texts a readings card's figure row paints in `rect`, and where.
@@ -297,7 +345,7 @@ fn figure_texts(
     for _ in 0..2 {
         let out = ctx.run(egui::RawInput::default(), |ctx| {
             egui::CentralPanel::default().show(ctx, |ui| {
-                readouts::figure_row(ui, rect, Some(value), unit, None, "", compact);
+                readouts::figure_row(ui, rect, Some(value), unit, None, "", (compact, None));
             });
         });
         texts = out
@@ -726,7 +774,7 @@ fn the_amplitude_hover_says_why_it_has_no_plus_minus() {
     let mut early = r.clone();
     (early.amplitude_error_deg, early.amplitude_noise_values) = (None, 12);
     assert_eq!(
-        readouts::amplitude_pm_words(&early).as_deref(),
+        readouts::amplitude_pm_words(&early, 10.0).as_deref(),
         Some("± after 1 min of beats: it needs 30 readings of 2 s each, and has 12.")
     );
     let mut few = r.clone();
@@ -736,15 +784,18 @@ fn the_amplitude_hover_says_why_it_has_no_plus_minus() {
         few.amplitude_values,
     ) = (None, 30, 2);
     assert_eq!(
-        readouts::amplitude_pm_words(&few).as_deref(),
+        readouts::amplitude_pm_words(&few, 10.0).as_deref(),
         Some(
             "No ± now: 2 of the 2 s readings in this average found the amplitude, \
              and a ± needs 3."
         )
     );
+    // Under 10 s the readings are the last 10 s's, as the figure's (#1951).
+    assert!(readouts::amplitude_pm_words(&few, 2.0)
+        .is_some_and(|w| w.starts_with("No ± now: 2 of the 2 s readings in the last 10 s")));
     let mut with = r.clone();
     with.amplitude_error_deg = Some(12.4);
-    let words = readouts::amplitude_pm_words(&with).unwrap();
+    let words = readouts::amplitude_pm_words(&with, 10.0).unwrap();
     assert!(
         words.starts_with("± 13° is one standard error (12.40, rounded up)."),
         "{words}"
@@ -777,12 +828,12 @@ fn a_figure_whose_readings_repeat_says_so() {
         amp.amplitude_no_pm,
     ) = (None, 30, 30, Some(NoPm::Repeats));
     assert_eq!(
-        readouts::amplitude_pm_words(&amp).as_deref(),
+        readouts::amplitude_pm_words(&amp, 10.0).as_deref(),
         Some(NoPm::REPEATS_TEXT)
     );
     // The waiting reasons keep their words.
     amp.amplitude_no_pm = Some(NoPm::TooFew);
-    assert!(readouts::amplitude_pm_words(&amp)
+    assert!(readouts::amplitude_pm_words(&amp, 10.0)
         .is_some_and(|w| w.starts_with("No ± now: 30 of the 2 s readings")));
 }
 
@@ -918,8 +969,9 @@ fn an_export_that_cannot_be_drawn_gives_up() {
     assert!(matches!(&app.message, Some((_, true))));
 }
 
-/// Clipped sound shows in a chip on the Amplitude and Beat Error cards,
-/// with nothing pushed in over the readings; a stored clock error is
+/// Clipped sound, which bears on the amplitude and the beat error, shows
+/// once, in the status bar's chip (#1975), with nothing pushed in over
+/// the readings; a stored clock error is
 /// in Settings, not on the Rate card, the corrected rate in the Rate
 /// figure's hover.
 #[test]
@@ -965,8 +1017,9 @@ fn clipping_shows_in_a_chip_and_the_true_clock_in_the_rate_hover() {
         text = painted_text(&ctx.run(input, |ctx| app.panels(ctx)));
     }
     assert!(!text.contains("Clipping on"), "no banner: {text}");
-    assert!(
-        text.lines().filter(|l| l.ends_with("% Clipped")).count() >= 2,
+    assert_eq!(
+        text.lines().filter(|l| l.contains("% Clipped")).count(),
+        1,
         "{text}"
     );
     // The clock kept is Settings' to show.
@@ -1324,4 +1377,323 @@ fn a_watch_heard_while_it_settles_is_no_missing_watch() {
     assert!(app.reading().is_none(), "nothing is read while settling");
     assert!(!app.no_watch_yet(), "its beats are heard");
     let _ = std::fs::remove_dir_all(base);
+}
+
+/// The reading cards' title rows and figures across a window `w` wide:
+/// each caption's text, where it is drawn and the "?"s right of the first
+/// reading card's left edge; and each figure's size.
+struct CardRow {
+    captions: Vec<(String, egui::Rect)>,
+    marks: usize,
+    figures: Vec<f32>,
+    /// The right edge of the rate's unit, "s/d", whole.
+    rate_unit_right: Option<f32>,
+    /// Where limits chips are drawn: rounded plates 18 pt tall.
+    chips: Vec<egui::Rect>,
+    /// Where each trend line's last point is drawn.
+    last_points: Vec<egui::Pos2>,
+}
+
+/// Every shape in `shape`, those in a list one by one.
+fn flat(shape: &egui::Shape, into: &mut Vec<egui::Shape>) {
+    match shape {
+        egui::Shape::Vec(v) => v.iter().for_each(|s| flat(s, into)),
+        s => into.push(s.clone()),
+    }
+}
+
+/// Draws the bench, its readings pinned, `w` wide, after `pointer` (if
+/// any) has rested on a spot.
+fn card_row(
+    app: &mut TimegrapherApp,
+    ctx: &egui::Context,
+    w: f32,
+    pointer: Option<egui::Pos2>,
+) -> (CardRow, String) {
+    let r = app.reading().expect("a reading");
+    // The figures there are (a watch with no unlock gives no amplitude).
+    let figures: Vec<String> = [
+        readouts::rate_figure(&r),
+        readouts::amplitude_figure(&r),
+        readouts::beat_error_figure(&r),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(w, 800.0));
+    let mut out = None;
+    for pass in 0..4 {
+        let input = egui::RawInput {
+            screen_rect: Some(screen),
+            events: pointer
+                .filter(|_| pass > 0)
+                .map(egui::Event::PointerMoved)
+                .into_iter()
+                .collect(),
+            ..Default::default()
+        };
+        out = Some(ctx.run(input, |ctx| app.panels(ctx)));
+    }
+    let out = out.expect("drawn");
+    let mut texts = Vec::new();
+    for c in &out.shapes {
+        if let egui::Shape::Text(t) = &c.shape {
+            let size = t
+                .galley
+                .job
+                .sections
+                .first()
+                .map_or(0.0, |s| s.format.font_id.size);
+            texts.push((
+                t.galley.text().to_string(),
+                t.galley.rect.translate(t.pos.to_vec2()),
+                size,
+            ));
+        }
+    }
+    let captions: Vec<(String, egui::Rect)> = ["Rate", "Amplitude", "Beat Error", "Amp.", "B.E."]
+        .iter()
+        .filter_map(|c| texts.iter().find(|t| t.0 == *c && t.1.top() < 120.0))
+        .map(|t| (t.0.clone(), t.1))
+        .collect();
+    let left = captions.first().map_or(f32::MAX, |c| c.1.left()) - 1.0;
+    let marks = texts
+        .iter()
+        .filter(|t| t.0 == "?" && t.1.left() > left && t.1.top() < 120.0)
+        .count();
+    let figures = figures
+        .iter()
+        .map(|f| {
+            texts
+                .iter()
+                .find(|t| t.0.contains(f.trim_start_matches(['-', '+', '−'])))
+                .unwrap_or_else(|| panic!("{w}: no {f} drawn in {texts:?}"))
+                .2
+        })
+        .collect();
+    let rate_unit_right = texts
+        .iter()
+        .find(|t| t.0 == "s/d" && t.1.top() < 120.0)
+        .map(|t| t.1.right());
+    let mut shapes = Vec::new();
+    out.shapes.iter().for_each(|c| flat(&c.shape, &mut shapes));
+    let chips = shapes
+        .iter()
+        .filter_map(|s| match s {
+            egui::Shape::Rect(r)
+                if (r.rect.height() - 18.0).abs() < 0.5
+                    && r.corner_radius == egui::CornerRadius::same(9)
+                    && r.rect.top() < 160.0 =>
+            {
+                Some(r.rect)
+            }
+            _ => None,
+        })
+        .collect();
+    let last_points = shapes
+        .iter()
+        .filter_map(|s| match s {
+            egui::Shape::Circle(c) if (c.radius - 2.5).abs() < 0.01 && c.center.y < 160.0 => {
+                Some(c.center)
+            }
+            _ => None,
+        })
+        .collect();
+    (
+        CardRow {
+            captions,
+            marks,
+            figures,
+            rate_unit_right,
+            chips,
+            last_points,
+        },
+        painted_text(&out),
+    )
+}
+
+/// At 800 the reading cards go without their "?": each caption is whole
+/// and carries the help the "?" gave, on a hover (Hugh on #1954).
+#[test]
+fn at_800_the_reading_cards_captions_are_whole_and_carry_the_help() {
+    let mut app = synthetic(60.0, 20.0);
+    app.readings_pinned = true;
+    let ctx = themed();
+    ctx.style_mut(|s| {
+        s.interaction.tooltip_delay = 0.0;
+        s.interaction.show_tooltips_only_when_still = false;
+    });
+    let (row, _) = card_row(&mut app, &ctx, 800.0, None);
+    let names: Vec<&str> = row.captions.iter().map(|c| c.0.as_str()).collect();
+    assert_eq!(names, ["Rate", "Amplitude", "Beat Error"]);
+    assert_eq!(row.marks, 0, "no \"?\" on the reading cards");
+    for (caption, help) in [
+        ("Rate", help::RATE[0]),
+        ("Amplitude", help::AMPLITUDE[0]),
+        ("Beat Error", help::BEAT_ERROR[0]),
+    ] {
+        let at = row
+            .captions
+            .iter()
+            .find(|c| c.0 == caption)
+            .expect("drawn")
+            .1
+            .center();
+        let (_, shown) = card_row(&mut app, &ctx, 800.0, Some(at));
+        let start: String = help.chars().take(40).collect();
+        assert!(shown.contains(&start), "{caption}'s hover: {shown}");
+    }
+    // With room, the "?"s are back.
+    let (wide, _) = card_row(&mut app, &ctx, 1000.0, None);
+    assert_eq!(wide.marks, 3);
+}
+
+/// At 800 a reading card's limits chip sits at the right end of its trend
+/// row, under the figure, so its caption stays whole: inside the card and
+/// clear of the trend's last point (Hugh on #2026; Walter found "B.E."
+/// with a caveat on a stopped watch). Every reading card places it by the
+/// one `readouts::trend_chip`.
+#[test]
+fn at_800_a_caveat_leaves_the_reading_cards_captions_whole() {
+    // A watch whose unlock makes no sound: its beat error is timed from
+    // the drop, a caveat on the Beat Error card alone.
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "syn".into());
+    let mut cfg = SynthConfig {
+        duration_s: 120.0,
+        rate_s_per_day: 20.0,
+        ..Default::default()
+    };
+    cfg.sounds[0].gain = 0.0;
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let live = app.live.as_mut().unwrap();
+    for b in audio.samples.chunks(960) {
+        if live.push(b) {
+            let r = live.reading(app.average_s);
+            app.trend.push(TrendPoint::of(r.time_s, &r));
+        }
+    }
+    app.poll();
+    app.refresh_trend();
+    app.readings_pinned = true;
+    let caveats = app.reading().expect("a reading").caveats;
+    assert!(
+        reading_limits("Rate", &caveats, 52.0, 30, false).is_empty()
+            && !reading_limits("Beat Error", &caveats, 52.0, 30, false).is_empty(),
+        "a Beat Error caveat alone: {caveats:?}"
+    );
+    let ctx = themed();
+    let (row, text) = card_row(&mut app, &ctx, 800.0, None);
+    let names: Vec<&str> = row.captions.iter().map(|c| c.0.as_str()).collect();
+    assert_eq!(names, ["Rate", "Amplitude", "Beat Error"], "{text}");
+    assert_eq!(
+        row.chips.len(),
+        1,
+        "Beat Error's chip alone: {:?}",
+        row.chips
+    );
+    let inner = readouts::six_widths(800.0 - 24.0 - 52.0, theme::GAP)[2] - 2.0 * 16.0;
+    let rect = row.captions[2].1;
+    let card = rect.left()..=rect.left() + inner + 0.5;
+    let chip = row.chips[0];
+    assert!(
+        card.contains(&chip.left()) && card.contains(&chip.right()),
+        "the chip {chip:?} inside Beat Error's card {card:?}"
+    );
+    assert!(chip.top() > rect.bottom(), "the chip in the title row");
+    let last = row
+        .last_points
+        .iter()
+        .find(|p| card.contains(&p.x))
+        .expect("Beat Error's trend drawn");
+    assert!(
+        !chip.expand(2.5).contains(*last),
+        "the chip {chip:?} on the trend's last point {last:?}"
+    );
+}
+
+/// The three reading figures share one size at every width, the largest
+/// at which each card's figure and unit fit whole; a long rate takes the
+/// others down with it rather than its unit being cut (Hugh on #1976).
+#[test]
+fn the_reading_figures_share_one_size() {
+    for rate in [20.0, -2174.4] {
+        let mut app = synthetic(60.0, rate);
+        app.readings_pinned = true;
+        let ctx = themed();
+        for w in [800.0, 1000.0, 1920.0] {
+            let (row, _) = card_row(&mut app, &ctx, w, None);
+            let f = &row.figures;
+            assert!(
+                f.len() == 3 && f[0] > 0.0 && f.iter().all(|s| *s == f[0]),
+                "{rate} at {w}: {f:?}"
+            );
+            // The unit whole, inside the rate card: left of the next
+            // card's caption less the gap between cards.
+            let next = row.captions[1].1.left() - theme::GAP - 16.0;
+            let unit = row.rate_unit_right.expect("the unit drawn whole");
+            assert!(
+                unit <= next + 8.0,
+                "{rate} at {w}: s/d ends at {unit}, the card at {next}"
+            );
+        }
+    }
+}
+
+/// With under 10 s of sound behind the reading, the cards show no figure,
+/// and say "Listening" with what they wait for in its place: not empty,
+/// and never a rate read from the stand's noise (#2014, Hugh). From 10 s
+/// the figures are back.
+#[test]
+fn the_cards_say_listening_until_ten_seconds_are_heard() {
+    use timegrapher_core::measure::{listening_text, HeardSince, LISTENING_TITLE};
+    let ctx = themed();
+    // A watch's beats opened with no snippets: their sound can't be
+    // judged, so under 10 s of sound there is no verdict yet.
+    let mut app = synthetic(30.0, 20.0);
+    let live = app.live.as_ref().expect("live");
+    let log = timegrapher_core::stream::BeatLog {
+        lock_template_kept: false,
+        sample_rate: 48_000,
+        duration_s: live.duration_s(),
+        bph: live.bph().expect("bph"),
+        lift_deg: 52.0,
+        beats: live.beats().to_vec(),
+        amplitude_windows: Vec::new(),
+        clipped_beats: Vec::new(),
+        clipped_samples: 0,
+        jumps: Vec::new(),
+        sided: Vec::new(),
+        by_count: Vec::new(),
+        snippets: Vec::new(),
+    };
+    app.live = Some(timegrapher_core::live::LiveAnalyzer::from_log(
+        log,
+        timegrapher_core::live::LiveConfig::default(),
+    ));
+    let cards = |app: &TimegrapherApp| {
+        let out = ctx.run(screen(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                let _ = app.readouts(ui);
+            });
+        });
+        painted_text(&out)
+    };
+    app.strip_end = Some(6.0);
+    let r = app.card_reading().expect("a reading");
+    assert_eq!(r.listening, Some(HeardSince::Start), "{r:?}");
+    assert_eq!(r.rate_s_per_day, None);
+    let early = cards(&app);
+    assert!(early.contains(LISTENING_TITLE), "{early}");
+    assert!(!early.contains("s/d"), "{early}");
+    assert!(
+        listening_text(HeardSince::Start).contains("since Listen started"),
+        "{}",
+        listening_text(HeardSince::Start)
+    );
+    app.strip_end = Some(25.0);
+    let r = app.card_reading().expect("a reading");
+    assert_eq!(r.listening, None);
+    assert!(r.rate_s_per_day.is_some(), "{r:?}");
+    assert!(!cards(&app).contains(LISTENING_TITLE));
 }

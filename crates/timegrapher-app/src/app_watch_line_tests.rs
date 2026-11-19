@@ -1,6 +1,7 @@
 //! The Watches view and the watch line: the list beside the watch, the
 //! line's menu, picking a watch over a take, and the card's fields.
 
+use super::readouts::take_limits;
 use super::tests::{painted_text, screen, synthetic, themed};
 use super::*;
 use timegrapher_core::synth::{generate, SynthConfig};
@@ -807,28 +808,30 @@ fn the_calibre_controls_fit_a_narrow_card() {
     }
 }
 
-/// A card's limits show in a chip in its title row, in Title Case, the
-/// first of them with how many more; the whole sentences are its
-/// hover. Where the words would push the card's caption off it, the
-/// chip gives how many limits there are.
+/// Limits show in a chip, in Title Case, the first of them with how many
+/// more; the whole sentences are its hover. Ones that bear on the take,
+/// as a short stretch does, show once, in the status bar, and on no card
+/// (#1975). Where the words would push a card's caption off it, the chip
+/// gives how many limits there are.
 #[test]
-fn a_cards_limits_show_in_a_chip_with_the_whole_in_its_hover() {
+fn a_takes_limits_show_once_in_a_chip_with_the_whole_in_its_hover() {
     assert_eq!(chip_words("9 s of beats"), "9 s of Beats");
     assert_eq!(chip_words("3% clipped"), "3% Clipped");
     assert_eq!(chip_words("28800 bph heard"), "28800 bph Heard");
     assert_eq!(chip_words("sides named by count"), "Sides Named by Count");
     let ctx = themed();
     // Fewer seconds of beats than an analysis asks for: a limit on
-    // every reading.
-    let noise = synthetic(6.0, 0.0);
+    // every reading, said once for the take.
+    let mut noise = synthetic(6.0, 0.0);
     let r = noise.reading().expect("a reading");
-    let limits = reading_limits("Beat Error", &r.caveats, noise.lift_deg, r.beats_used);
+    let empty = r.amplitude_deg.is_none();
+    let limits = take_limits(&r.caveats, noise.lift_deg, r.beats_used, empty);
     assert!(!limits.is_empty(), "{:?}", r.caveats);
     let chip = match limits.len() {
         1 => chip_words(&limits[0].0),
         n => format!("{} +{}", chip_words(&limits[0].0), n - 1),
     };
-    let drawn = |w: f32| {
+    let mut drawn = |w: f32| {
         let mut texts = Vec::new();
         for _ in 0..2 {
             let out = ctx.run(
@@ -840,6 +843,9 @@ fn a_cards_limits_show_in_a_chip_with_the_whole_in_its_hover() {
                     ..Default::default()
                 },
                 |ctx| {
+                    egui::TopBottomPanel::bottom("status").show(ctx, |ui| {
+                        noise.status_bar(ui);
+                    });
                     egui::CentralPanel::default().show(ctx, |ui| {
                         let _ = noise.readouts(ui);
                     });
@@ -857,7 +863,8 @@ fn a_cards_limits_show_in_a_chip_with_the_whole_in_its_hover() {
         texts
     };
     let wide = drawn(1610.0);
-    assert!(wide.contains(&chip), "{chip}: {wide:?}");
+    let shown = wide.iter().filter(|t| **t == chip).count();
+    assert_eq!(shown, 1, "{chip}: {wide:?}");
     for caption in ["Rate", "Amplitude", "Beat Error"] {
         assert!(wide.iter().any(|t| t == caption), "{caption}: {wide:?}");
     }
@@ -1193,4 +1200,53 @@ fn the_watch_lines_chip_shortens_as_the_cards_do() {
     }
     drop(app);
     let _ = std::fs::remove_dir_all(&base);
+}
+
+/// The take the Bench records into is the one being written only while
+/// its microphone runs: its row says Recording and its reading waits.
+/// Stopped, the take is on show as any other, and its reading is asked
+/// for (Trevor on #2032, #2027).
+#[test]
+fn a_take_is_recording_only_while_its_microphone_runs() {
+    let (mut app, base) = super::tests::save_failure_fixture("recording-row");
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let dir = base
+        .join("Pepsi")
+        .join(library::TAKES)
+        .join("2026-11-19 05.40");
+    let metadata = app.session.metadata_snapshot(app.save_metadata());
+    app.session.mark_saved(1.0, dir.clone(), metadata);
+    let take = library::Take {
+        name: "2026-11-19 05.40".into(),
+        bytes: 96_000,
+        audio: true,
+        incomplete: false,
+        started_utc: None,
+        named_start: None,
+        duration_s: Some(1.0),
+        positions: vec!["DU".into()],
+        at_end: None,
+        power_reserve: None,
+        wind_h: None,
+    };
+    let e = library::WatchEntry {
+        dir: base.join("Pepsi"),
+        watch: library::Watch::new("Pepsi"),
+        takes: vec![take.clone()],
+        photos: Vec::new(),
+    };
+    assert_eq!(e.take_dir(&take), dir);
+    let ctx = egui::Context::default();
+    assert_eq!(app.take_writing(), Some(dir.clone()));
+    app.want_take_readings(&e, &ctx);
+    assert_eq!(app.take_readings.of(&dir), None);
+
+    app.stop();
+    assert!(app.session.paused());
+    assert_eq!(app.take_held(), Some(dir.clone()));
+    assert_eq!(app.take_writing(), None);
+    app.want_take_readings(&e, &ctx);
+    assert!(app.take_readings.of(&dir).is_some());
+    app.session.discard_recording();
+    let _ = std::fs::remove_dir_all(base);
 }

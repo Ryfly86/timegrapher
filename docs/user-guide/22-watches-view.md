@@ -25,7 +25,7 @@ type in. The picture holds two watches and one unsorted take.
 | 3 | **Sort** | By **Name**, **Last Take** or **Size**. | Last Take for the watches on the bench now; Size to find what fills the disk. |
 | 4 | **List Shows** | What the line under each name gives: the calibre, or one of the fields added to the watches, such as Customer. Kept between runs. | To see whose watch each one is at a glance. |
 | 5 | **Unsorted Takes** | Always first: the Quick Listen takes kept but not yet filed under a watch. Picking it goes back to Quick Listen (no watch, no calibre, 52°). | To file takes made before the watch was added. |
-| 6 | A watch's row | Its first photo or its initial (when any watch in the list has a photo), its name, its calibre, how many takes and the date of the last, and the space they use from 1 MB (megabyte). The row picked is shaded. | Pick a watch to see its takes. |
+| 6 | A watch's row | Its first photo or its initial (when any watch in the list has a photo), its name, its calibre, how many takes and the date of the last, and the space they use from 1 MB (megabyte), or "—" while a take is being recorded into it. The row picked is shaded. | Pick a watch to see its takes. |
 
 With the view under 900 points wide the list and the watch take turns:
 picking a watch shows it, and **‹ All Watches** goes back. While a watch's
@@ -41,8 +41,8 @@ it stops.
 | 9 | **Add Photos…** | Copies the photos picked into the watch (JPEG, PNG, TIFF or HEIC), each kept as it is. | The dial, the movement or a part, as it came in. |
 | 10 | **New Take** | **Listen**, **Positions Test**, **Dynamic Poise Test** (eight upright, 45° apart), **Complication Test** or **Power Reserve Test**. Each goes to the Bench and saves into this watch when it stops. Listen starts on the microphone at once; a test is set up and waits for **Start Test** on the Listen card. Greyed out while a take runs on the Bench. | To add to the watch's history. |
 | 11 | **Takes**, **Open** and **…** | How many takes; Open and the take menu act on the take picked. | Open takes it to the Bench, read whole. |
-| 12 | A take | Click to pick it; double-click to open it. **Analysis Only**, **Incomplete** or **On Show** follows the date when it is one. | |
-| 13 | The columns | **Started**, **Position** (DU; DU, CU; All 6; or Positions Test or Power Reserve), **Length**, **Rate** (s/d), **Amplitude** (°), **Beat Error** (ms, as a size) and **Size** (MB). | To compare takes without opening each one. |
+| 12 | A take | Click to pick it; double-click to open it. **Analysis Only**, **Incomplete** or **On Show** follows the date when it is one. A take still being recorded shows **Recording**, with a dim "—" for its position, length, figures and size until it stops. | |
+| 13 | The columns | **Started**, **Position** (DU; DU, CU; All 6; or Positions Test, Dynamic Poise Test or Power Reserve), **Length**, **Rate** (s/d), **Amplitude** (°), **Beat Error** (ms, as a size) and **Size** (kB, MB or GB, as fits). | To compare takes without opening each one. |
 | 14 | **Details** | The added fields and the notes. | |
 | 15 | **Photos** | The photos as thumbnails. Click one to open it in the computer's viewer; right-click to show it in its folder or delete it. | |
 
@@ -50,10 +50,11 @@ it stops.
 its sound on the take's clock, as the command line's `timegrapher
 session` reads it. A take is read the first time the list shows it
 (about a minute for 9 hours of sound), its row blank until then, and the
-figures are then kept. A Positions Test's row gives the mean of its
+figures are then kept. A take still being recorded is read once it stops. A Positions Test's row gives the mean of its
 positions, as its table does. A Power Reserve Test's gives its run time
 as its Length and a dim "—" for the figures, which are hour by hour in
-the take.
+the take. A Dynamic Poise Test's shows a dim "—" too: its figures are stop
+by stop in the take, and its hover names the stops, 9H to 10H30.
 
 **In the picture,** the four takes are one watch in four positions, on
 four days, before its service: the rate ranges from +16.5 s/d dial up to

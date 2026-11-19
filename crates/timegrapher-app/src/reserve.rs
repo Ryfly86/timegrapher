@@ -35,38 +35,8 @@ pub fn bytes_needed(sample_rate: u32) -> u64 {
     bytes_per_hour(sample_rate) * (power_reserve::LIMIT_S / 3600.0) as u64
 }
 
-/// Bytes free to this user on the disk holding `dir`.
-#[cfg(unix)]
-pub fn free_bytes(dir: &std::path::Path) -> Option<u64> {
-    use std::os::unix::ffi::OsStrExt;
-    let path = std::ffi::CString::new(dir.as_os_str().as_bytes()).ok()?;
-    let mut st: libc::statvfs = unsafe { std::mem::zeroed() };
-    // SAFETY: `path` is a valid C string and `st` a place for the answer.
-    if unsafe { libc::statvfs(path.as_ptr(), &mut st) } != 0 {
-        return None;
-    }
-    #[allow(clippy::unnecessary_cast, clippy::useless_conversion)]
-    Some(u64::from(st.f_bavail as u64) * u64::from(st.f_frsize as u64))
-}
-
-/// Bytes free to this user on the disk holding `dir`.
-#[cfg(windows)]
-pub fn free_bytes(dir: &std::path::Path) -> Option<u64> {
-    use std::os::windows::ffi::OsStrExt;
-    use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
-    let wide: Vec<u16> = dir.as_os_str().encode_wide().chain([0]).collect();
-    let mut free = 0u64;
-    // SAFETY: `wide` ends in a nul; the other answers aren't asked for.
-    let ok = unsafe {
-        GetDiskFreeSpaceExW(
-            wide.as_ptr(),
-            &mut free,
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-        )
-    };
-    (ok != 0).then_some(free)
-}
+/// Bytes free to this user on the disk holding `dir` (core's one source).
+pub use timegrapher_core::library::free_bytes;
 
 /// A size in GB, one decimal: "17.3 GB".
 pub fn gb(bytes: u64) -> String {
@@ -114,6 +84,10 @@ pub struct Test {
     /// in the silence after the watch stops, so its hours are still read
     /// at it (#1394).
     pub bph: Option<u32>,
+    /// Its take's hours since full wind at its start, fixed when it
+    /// began: a stop found later lets the watch's wind go, never the
+    /// take's (#2001).
+    pub wind_h: Option<f64>,
 }
 
 impl Test {
@@ -133,6 +107,7 @@ impl Test {
             saving: false,
             unwritten: None,
             bph: None,
+            wind_h: None,
         }
     }
 
@@ -402,12 +377,7 @@ fn kept_words(name: &str, alone: Option<bool>) -> String {
 /// shown; `so_far` while the run goes on, its newest hour still filling.
 fn hour_area(ui: &mut egui::Ui, hours: &[power_reserve::Hour], so_far: bool, shown: [bool; 3]) {
     ui.spacing_mut().scroll = egui::style::ScrollStyle::solid();
-    // While it runs the charts gain an hour as each is whole.
-    let whole = if so_far {
-        hours.iter().take_while(|h| h.whole()).count()
-    } else {
-        hours.len()
-    };
+    let whole = charted_hours(hours, so_far);
     let charts = reserve_charts(&hours[..whole], shown);
     let charts: Vec<&hour_steps::Chart> = charts.iter().collect();
     let spans: Vec<(f64, f64)> = hours[..whole]
@@ -532,9 +502,36 @@ fn axis_words(h: &power_reserve::Hour) -> String {
     }
 }
 
+/// How many of `hours` the charts draw: none before the first whole hour
+/// (app.md, #1961); while the run goes on (`so_far`) its whole hours, as
+/// each is whole; once it has ended, all of them, the last part hour too.
+fn charted_hours(hours: &[power_reserve::Hour], so_far: bool) -> usize {
+    let whole = hours.iter().take_while(|h| h.whole()).count();
+    if so_far || whole == 0 {
+        whole
+    } else {
+        hours.len()
+    }
+}
+
+/// The kinds charted of those `shown`: each with a figure in some hour,
+/// so no chart stands empty on a made-up scale (#1961).
+fn charted_kinds(hours: &[power_reserve::Hour], shown: [bool; 3]) -> Vec<SeriesKind> {
+    [
+        SeriesKind::Rate,
+        SeriesKind::Amplitude,
+        SeriesKind::BeatError,
+    ]
+    .into_iter()
+    .zip(shown)
+    .filter(|&(kind, on)| on && hours.iter().any(|h| h.value(kind).is_some()))
+    .map(|(kind, _)| kind)
+    .collect()
+}
+
 /// The Power Reserve charts `shown` of rate, amplitude and beat error,
 /// each hour's figure and ± as its table row gives it, grey where its cell
-/// is (#1729).
+/// is (#1729); a kind with no figure has none ([`charted_kinds`]).
 fn reserve_charts(hours: &[power_reserve::Hour], shown: [bool; 3]) -> Vec<hour_steps::Chart> {
     use hour_steps::{Chart, Step};
     let step = |k: SeriesKind, h: &power_reserve::Hour| -> Option<Step> {
@@ -545,37 +542,42 @@ fn reserve_charts(hours: &[power_reserve::Hour], shown: [bool; 3]) -> Vec<hour_s
             grey: h.grey(k),
         })
     };
-    [
-        SeriesKind::Rate,
-        SeriesKind::Amplitude,
-        SeriesKind::BeatError,
-    ]
-    .into_iter()
-    .zip(shown)
-    .filter(|(_, on)| *on)
-    .map(|(kind, _)| Chart {
-        kind,
-        steps: hours.iter().map(|h| step(kind, h)).collect(),
-        unit: timegrapher_core::position_line::unit_of(kind),
-        signed: kind == SeriesKind::Rate,
-        axis: power_reserve::chart_axis(hours, kind),
-    })
-    .collect()
+    charted_kinds(hours, shown)
+        .into_iter()
+        .map(|kind| Chart {
+            kind,
+            steps: hours.iter().map(|h| step(kind, h)).collect(),
+            unit: timegrapher_core::position_line::unit_of(kind),
+            signed: kind == SeriesKind::Rate,
+            axis: power_reserve::chart_axis(hours, kind),
+        })
+        .collect()
 }
 
 /// The least height the pane's run needs under its toolbar once it has
-/// charts: its line and the charts `shown` at a height that reads, the
-/// table scrolling beside or under them; none before then. The Paper
+/// hours: its line and the charts it draws at a height that reads, the
+/// table scrolling beside or under them; with no chart (none whole yet,
+/// none with a figure, or all off, #1852), its line and the table's
+/// titles and first row whole (#1962); none before an hour. The Paper
 /// Strip above gives room for it, down to its own least.
 pub fn least_h(test: Option<&Test>, shown: [bool; 3]) -> Option<f32> {
     let t = test?;
-    let charts = match t.results.as_ref() {
-        Some(r) => !r.hours.is_empty(),
-        None => t.so_far.iter().any(|h| h.whole()),
+    let (hours, so_far) = match t.results.as_ref() {
+        Some(r) => (&r.hours[..], false),
+        None => (&t.so_far[..], true),
     };
-    // All of them off, the table and words alone (#1852).
-    let n = shown.iter().filter(|&&on| on).count();
-    (charts && n > 0).then_some(22.0 + hour_steps::read_h(n) + 12.0)
+    if hours.is_empty() {
+        return None;
+    }
+    let charted = &hours[..charted_hours(hours, so_far)];
+    let n = charted_kinds(charted, shown).len();
+    // The line 22 over it, 12 under it.
+    if n > 0 {
+        return Some(22.0 + hour_steps::read_h(n) + 12.0);
+    }
+    // The titles two rows of 22, name over unit, then the first row
+    // whole; the rest scroll.
+    Some(22.0 + 3.0 * 22.0 + 12.0)
 }
 
 /// A run stopped by hand after `hours` whole hours, for the tests.
@@ -613,11 +615,20 @@ pub fn finished_run(hours: u32) -> Test {
     t
 }
 
-/// The height a run of `hours` rows reads well in: the toolbar and the
-/// run's line, two charts of a readable height, and the table.
-pub fn run_h(hours: usize) -> f32 {
+/// The height a run of `hours` reads well in: the toolbar and the run's
+/// line, two charts of a readable height when it draws any of those
+/// `shown` ([`charted_hours`], [`charted_kinds`]), and the table; with no
+/// chart, the line and the table alone, so no room stands empty under it
+/// (#1962). `so_far` while the run goes on.
+pub fn run_h(hours: &[power_reserve::Hour], so_far: bool, shown: [bool; 3]) -> f32 {
     let row_h = 22.0;
-    60.0 + 2.0 * 160.0 + 8.0 + (hours as f32 + 2.0) * row_h
+    let charted = &hours[..charted_hours(hours, so_far)];
+    let charts = if charted_kinds(charted, shown).is_empty() {
+        0.0
+    } else {
+        2.0 * 160.0
+    };
+    60.0 + charts + 8.0 + (hours.len() as f32 + 2.0) * row_h
 }
 
 /// A value written by core's figure rule `text`, or a dash; its unit is
@@ -887,6 +898,9 @@ fn hour_rows(hours: &[power_reserve::Hour]) -> Vec<[Cell; 6]> {
     hours
         .iter()
         .map(|h| {
+            if let Some(row) = unread_row(h) {
+                return row;
+            }
             [
                 (hour_label(h), part_hour_hover(h)),
                 (
@@ -927,6 +941,48 @@ fn hour_rows(hours: &[power_reserve::Hour]) -> Vec<[Cell; 6]> {
         })
         .collect()
 }
+
+/// The row of an hour that was heard but has no figure, saying why in
+/// place of a row of dashes: its beats too irregular for a regular beat,
+/// as every surface says it (#1967, the end of a run-down). None for an
+/// hour with a figure, or with nothing heard.
+fn unread_row(h: &power_reserve::Hour) -> Option<[Cell; 6]> {
+    use timegrapher_core::measure::{no_watch_reason_in, no_watch_text, NO_WATCH_TITLE};
+    let none = h.rate_s_per_day.is_none() && h.amplitude_deg.is_none();
+    if !none || h.beat_error_ms.is_some() || h.read_s <= 0.0 {
+        return None;
+    }
+    let (head, why) = match no_watch_reason_in(&h.caveats) {
+        Some(r) => (
+            NO_WATCH_TITLE.to_string(),
+            format!(
+                "{}. {}",
+                no_watch_text(r, None, h.bph).trim_end_matches('.'),
+                timegrapher_core::session::NO_READINGS
+            ),
+        ),
+        None => ("–".to_string(), UNREAD_HOUR.to_string()),
+    };
+    let dash = || ("–".to_string(), Some((why.clone(), true)));
+    Some([
+        (hour_label(h), part_hour_hover(h)),
+        (head, Some((why.clone(), true))),
+        dash(),
+        dash(),
+        dash(),
+        (
+            cell(h.read_share(), |v| fixed_text(100.0 * v, 0)),
+            h.read_share()
+                .is_none()
+                .then(|| (NO_READ_SHARE.into(), false)),
+        ),
+    ])
+}
+
+/// Why an hour heard has no figure, where its beats were not judged
+/// irregular: none of its stretches held enough to read.
+const UNREAD_HOUR: &str =
+    "Heard, but too little of this hour held together to read a rate, amplitude or beat error.";
 
 /// The width of the table of `hours`, its stripes' edges included.
 fn table_width(ui: &egui::Ui, hours: &[power_reserve::Hour]) -> f32 {
@@ -1285,6 +1341,35 @@ mod tests {
             "Kept as \"2026-10-25 23.17 Power Reserve\", with its beats and readings only (the \
              sound was deleted). Every pane reads it like any other take"
         );
+    }
+
+    /// The last hours of a run-down, heard but too irregular for a
+    /// regular beat, say so in the Rate column and every dash's hover,
+    /// not dashes alone (#1967, the v1.1 shakedown).
+    #[test]
+    fn an_hour_heard_with_no_regular_beat_says_so() {
+        use timegrapher_core::measure::{Caveat, NoWatchReason, NO_WATCH_TITLE};
+        let mut t = finished_run(3);
+        if let Some(r) = t.results.as_mut() {
+            let h = &mut r.hours[2];
+            h.rate_s_per_day = None;
+            h.amplitude_deg = None;
+            h.beat_error_ms = None;
+            h.caveats = vec![Caveat::NoWatch {
+                reason: NoWatchReason::Scatter,
+            }];
+        }
+        let hours = t.results.unwrap().hours;
+        let rows = hour_rows(&hours);
+        assert_ne!(rows[1][1].0, NO_WATCH_TITLE, "an hour read is read");
+        let last = &rows[2];
+        assert_eq!(last[1].0, NO_WATCH_TITLE);
+        for c in &last[1..5] {
+            let why = &c.1.as_ref().expect("a hover").0;
+            assert!(why.starts_with("No regular beat found"), "{why}");
+            assert!(why.contains("no rate, amplitude or beat error"), "{why}");
+        }
+        assert_ne!(last[5].0, "–", "its Read (%) stays");
     }
 
     /// A run's hours whose beat error came from the drop: in the table
@@ -2076,8 +2161,12 @@ mod tests {
         );
         assert_eq!(rates(&none), 1, "the table's heading alone: {none:?}");
         assert!(none.iter().any(|s| s == "0–1 h"), "{none:?}");
-        assert!(least_h(Some(&t), [true; 3]).is_some());
-        assert_eq!(least_h(Some(&t), [false; 3]), None);
+        // All off, the room asked is the table's alone, under the charts'.
+        let (charts, table) = (least_h(Some(&t), [true; 3]), least_h(Some(&t), [false; 3]));
+        assert!(
+            table.is_some_and(|table| charts.is_some_and(|c| table < c)),
+            "{charts:?} {table:?}"
+        );
     }
 
     /// The pane holds no more height than it shows: one line before a run,
@@ -2204,6 +2293,136 @@ mod tests {
         assert_eq!(shown.iter().filter(|s| *s == "0 h").count(), 1, "{shown:?}");
         assert!(!shown.iter().any(|s| s == "3 h"), "{shown:?}");
         assert!(shown[0].starts_with("32 s · "), "{shown:?}");
+    }
+
+    /// A run stopped before its first whole hour (#1961): the table alone,
+    /// no chart on a scale of its one figure; a kind no hour has a figure
+    /// of draws no chart; and the pane asks room for its table's row,
+    /// which shows whole in it (#1962), running or ended.
+    #[test]
+    fn a_run_without_a_whole_hour_shows_its_table_whole_and_no_chart() {
+        let part = |amplitude: Option<f64>, span_s: f64| power_reserve::Hour {
+            hour: 0,
+            span_s,
+            rate_s_per_day: Some(-165.2),
+            amplitude_deg: amplitude,
+            beat_error_ms: Some(2.45),
+            beat_error_source: None,
+            rate_se: None,
+            amplitude_se: None,
+            beat_error_se: None,
+            caveats: Vec::new(),
+            read_s: span_s - 10.0,
+            bph: Some(28_800),
+        };
+        let ctx = egui::Context::default();
+        theme::install(&ctx);
+        // The texts drawn whole in a pane `h` under the toolbar.
+        let texts = |t: &Test, h: f32| {
+            let mut texts = Vec::new();
+            for _ in 0..2 {
+                let input = egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(900.0, h),
+                    )),
+                    ..Default::default()
+                };
+                let out = ctx.run(input, |ctx| {
+                    egui::CentralPanel::default()
+                        .frame(egui::Frame::NONE)
+                        .show(ctx, |ui| {
+                            pane(
+                                ui,
+                                Some(t),
+                                None,
+                                ("Position", ""),
+                                true,
+                                (false, [true; 3]),
+                            );
+                        });
+                });
+                texts = out
+                    .shapes
+                    .iter()
+                    .filter_map(|c| match &c.shape {
+                        egui::Shape::Text(s) => {
+                            let r = s.galley.rect.translate(s.pos.to_vec2());
+                            (c.clip_rect.contains_rect(r) && r.bottom() <= h)
+                                .then(|| s.galley.text().to_string())
+                        }
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+            }
+            texts
+        };
+        // Running, 1:28 into its first hour.
+        let mut live = Test::new(Position::DialUp, true, String::new(), 0.0);
+        live.update(&beats(0.0, 32.0, 0.2), 0.2, 32.0);
+        live.so_far = vec![part(Some(281.0), 88.0)];
+        // Ended at 2 min, no amplitude read.
+        let mut ended = Test::new(Position::DialUp, true, String::new(), 0.0);
+        ended.update(&beats(0.0, 32.0, 0.2), 0.2, 32.0);
+        ended.stop();
+        ended.finish(|s| s).unwrap();
+        if let Some(r) = ended.results.as_mut() {
+            r.hours = vec![part(None, 120.0)];
+        }
+        for (t, row) in [(&live, "0–0.1 h"), (&ended, "0–0.1 h")] {
+            let least = least_h(Some(t), [true; 3]).expect("room for its row");
+            let shown = texts(t, least);
+            assert!(
+                shown.iter().any(|s| s == row),
+                "{row} whole in {least}: {shown:?}"
+            );
+            assert!(!shown.iter().any(|s| s == "0 h"), "no chart: {shown:?}");
+        }
+        // Whole hours with no amplitude: the Rate and Beat Error charts,
+        // no Amplitude chart; its name once, the table's title.
+        let mut gap = finished_run(3);
+        if let Some(r) = gap.results.as_mut() {
+            for h in &mut r.hours {
+                h.amplitude_deg = None;
+            }
+            let kinds = charted_kinds(&r.hours, [true; 3]);
+            assert_eq!(kinds, [SeriesKind::Rate, SeriesKind::BeatError]);
+        }
+        let shown = texts(&gap, 900.0);
+        assert_eq!(
+            shown.iter().filter(|s| *s == "Amplitude").count(),
+            1,
+            "{shown:?}"
+        );
+        assert!(
+            shown.iter().filter(|s| *s == "Rate").count() >= 2,
+            "{shown:?}"
+        );
+    }
+
+    /// The room the pane grows to as a run ends, opens or first shows
+    /// (Walter on #2019): the charts' only where it draws one, else its
+    /// line and table alone, nothing empty under them.
+    #[test]
+    fn the_pane_grows_for_charts_only_where_it_draws_one() {
+        let table_alone = |h: &[power_reserve::Hour]| run_h(h, false, [false; 3]);
+        let mut run = finished_run(3);
+        let hours = &mut run.results.as_mut().expect("run").hours;
+        assert!(run_h(hours, false, [true; 3]) > table_alone(hours));
+        // No amplitude read: the Amplitude chart alone draws nothing.
+        for h in hours.iter_mut() {
+            h.amplitude_deg = None;
+        }
+        assert_eq!(
+            run_h(hours, false, [false, true, false]),
+            table_alone(hours)
+        );
+        // Ended inside its first hour, or running in it: no chart.
+        hours.truncate(1);
+        hours[0].span_s = 120.0;
+        assert!(!hours[0].whole());
+        assert_eq!(run_h(hours, false, [true; 3]), table_alone(hours));
+        assert_eq!(run_h(hours, true, [true; 3]), table_alone(hours));
     }
 
     /// A run of half a minute charts 0 h to 1 h, each hour named once,

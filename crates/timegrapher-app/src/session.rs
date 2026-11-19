@@ -188,6 +188,9 @@ pub struct Session {
     recording_fault: Option<RecordingFault>,
     /// Loaded history is immutable while replaying; position choices filter it.
     imported_context: bool,
+    /// Each guided test's stretch of the session, start and end seconds:
+    /// a changed Settle never redraws the settling in one (#1956).
+    tests: Vec<(f64, f64)>,
 }
 
 impl Session {
@@ -208,6 +211,16 @@ impl Session {
         self.audio_timeline.clear();
         self.saved_metadata = None;
         self.notes_revision = 0;
+        self.tests.clear();
+    }
+
+    /// A guided test runs from `from` to `to`, seconds of the session: one
+    /// already noted from `from` grows to `to`.
+    pub fn note_test(&mut self, from: f64, to: f64) {
+        match self.tests.iter_mut().find(|t| t.0 == from) {
+            Some(t) => t.1 = to,
+            None => self.tests.push((from, to)),
+        }
     }
 
     pub fn state(&self) -> State {
@@ -388,16 +401,18 @@ impl Session {
 
     /// Settle set to `s` on the Positions Test pane: from the next change
     /// on, and every settling already marked redrawn to it, each still
-    /// ending by the next change of position.
+    /// ending by the next change of position. A guided test's settling
+    /// stays as the test read it: its table is fixed (#1956).
     pub fn resettle(&mut self, s: f64) {
         self.set_settle_s(s);
         let under_way = self.settle_to.is_some();
+        let tests = self.tests.clone();
         match self.recorded.as_mut() {
             Some(r) => {
-                redraw_settles(r, s);
+                redraw_settles(r, s, &tests);
                 self.compose();
             }
-            None => redraw_settles(&mut self.events, s),
+            None => redraw_settles(&mut self.events, s, &tests),
         }
         // A settling under way ends where its band now does.
         if under_way {
@@ -1238,10 +1253,14 @@ fn record_settle(events: &mut Vec<Event>, t: f64, len: f64) {
 
 /// Every settling in `events` redrawn `s` long, each still ending by the
 /// next change of position.
-fn redraw_settles(events: &mut [Event], s: f64) {
+fn redraw_settles(events: &mut [Event], s: f64, tests: &[(f64, f64)]) {
     let changes: Vec<f64> = changes_in(events).iter().map(|c| c.0).collect();
+    let in_test = |t: f64| tests.iter().any(|&(a, b)| t >= a && t < b);
     for e in events.iter_mut() {
         if let Event::Settle { from_s, to_s } = e {
+            if in_test(*from_s) {
+                continue;
+            }
             let next = changes
                 .iter()
                 .copied()
@@ -1299,6 +1318,26 @@ mod tests {
         s.resettle(45.0);
         assert_eq!(s.settles(), [(30.0, 60.0), (60.0, 105.0)]);
         assert_eq!(s.settle_len(), 45.0);
+    }
+
+    /// A guided test's settling is as the test read it: a Settle changed
+    /// after it redraws only the settling outside the test (#1956).
+    #[test]
+    fn a_new_settle_leaves_a_tests_settling_alone() {
+        let mut s = Session::default();
+        s.listen();
+        s.move_to(30.0, Position::DialUp, Position::DialDown)
+            .unwrap();
+        s.note_test(55.0, 90.0);
+        s.move_to(60.0, Position::DialDown, Position::CrownUp)
+            .unwrap();
+        s.move_to(100.0, Position::CrownUp, Position::CrownDown)
+            .unwrap();
+        assert_eq!(s.settles(), [(30.0, 50.0), (60.0, 80.0), (100.0, 120.0)]);
+        s.resettle(10.0);
+        assert_eq!(s.settles(), [(30.0, 40.0), (60.0, 80.0), (100.0, 110.0)]);
+        s.resettle(20.0);
+        assert_eq!(s.settles(), [(30.0, 50.0), (60.0, 80.0), (100.0, 120.0)]);
     }
 
     /// The Position Brush: a stretch painted in the middle of a take

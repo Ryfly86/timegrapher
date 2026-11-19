@@ -4,6 +4,7 @@ use super::*;
 use crate::sparkline;
 use timegrapher_core::figure_text::{figure, figure_with_pm as with_pm, true_minus};
 use timegrapher_core::library::{base_digits as base, fixed_text, pm_text, signed_text};
+use timegrapher_core::measure::{self, Scope};
 use timegrapher_core::steady_views;
 
 /// What the reading cards draw from.
@@ -25,7 +26,7 @@ struct CardCtx<'a> {
     /// "at hh:mm:ss, set by the Paper Strip", for the figures' hovers,
     /// when the strip is moved back: the strip's own label says it.
     moment: Option<String>,
-    /// The readings cards name their readings short ([`cards_short`]).
+    /// The reading cards go without their "?" ([`cards_short`]).
     short: bool,
 }
 
@@ -184,14 +185,15 @@ pub(super) fn rate_pm_words(r: &LiveReading) -> Option<String> {
 
 /// What the Amplitude figure's ± rests on, or why there is none, for the
 /// figure's hover (#1470), as [`rate_pm_words`] says the rate's.
-pub(super) fn amplitude_pm_words(r: &LiveReading) -> Option<String> {
+pub(super) fn amplitude_pm_words(r: &LiveReading, average_s: f64) -> Option<String> {
     use timegrapher_core::confidence::{NoPm, MIN_NOISE_VALUES as NEED, MIN_VALUES};
     r.amplitude_deg?;
+    let stretch = floored_stretch(average_s).unwrap_or_else(|| "this average".into());
     Some(match r.amplitude_error_deg {
         Some(se) => format!(
             "± {}° is one standard error ({se:.2}, rounded up). It comes from at \
-             least {NEED} readings of 2 s each: this average's, or if it has fewer, \
-             the {NEED} nearest in this take.",
+             least {NEED} readings of 2 s each: those in {stretch}, or if it has \
+             fewer, the {NEED} nearest in this take.",
             pm_text(se, base::AMPLITUDE)?
         ),
         None if r.amplitude_no_pm == Some(NoPm::Repeats) => NoPm::REPEATS_TEXT.to_string(),
@@ -201,7 +203,7 @@ pub(super) fn amplitude_pm_words(r: &LiveReading) -> Option<String> {
             r.amplitude_noise_values
         ),
         None => format!(
-            "No ± now: {} of the 2 s readings in this average found the amplitude, \
+            "No ± now: {} of the 2 s readings in {stretch} found the amplitude, \
              and a ± needs {MIN_VALUES}.",
             r.amplitude_values
         ),
@@ -271,21 +273,27 @@ fn card_row(ui: &mut egui::Ui, rect: egui::Rect, salt: &str) -> egui::Ui {
 }
 
 /// The title row: the caption, its limits in a chip, and the "?" in
-/// the corner. The caption is cut short before the chip is.
+/// the corner. With `bare`, where a reading card has no room for its
+/// whole caption beside a "?" ([`cards_short`]), there is no "?": the
+/// caption carries its help, on a hover and kept open by a click, so the
+/// caption stays whole (Hugh on #1954). The caption is cut short before
+/// the chip is.
 pub(crate) fn card_title(
     ui: &mut egui::Ui,
     rect: egui::Rect,
     caption: &str,
     help: &[&str],
     limits: &[(String, String)],
-    (note, short): (Option<&(String, String)>, bool),
+    (note, bare): (Option<&(String, String)>, bool),
 ) {
     let pal = theme::pal(ui);
     let mut child = card_row(ui, rect, caption);
     child.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
         // Tight, so a reading card's caption stays whole at 800.
         ui.spacing_mut().item_spacing.x = title_gap();
-        theme::help(ui, caption, help);
+        if !bare {
+            theme::help(ui, caption, help);
+        }
         let caption_w = caption_width(ui, caption);
         let small_w = |ui: &egui::Ui, t: &str| {
             ui.fonts_mut(|f| {
@@ -303,8 +311,9 @@ pub(crate) fn card_title(
             }
         }
         // Limits always show in a chip, shortened to fit beside the whole
-        // caption, never dropped (Hugh, #1808).
-        if !limits.is_empty() {
+        // caption, never dropped (Hugh, #1808); on a bare card, at the
+        // trend row's end instead ([`trend_chip`]), the caption whole.
+        if !limits.is_empty() && !bare {
             let room = ui.available_width();
             let words =
                 limits_chip_words(limits, |w| theme::chip_w(ui, w) + 4.0 + caption_w <= room);
@@ -312,24 +321,61 @@ pub(crate) fn card_title(
             theme::chip(ui, &words, caption, &sentences, ui.available_width());
         }
         ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-            // Too narrow for the whole caption (800 pt), its short form as
-            // the axes have it, the whole one on a hover, rather than a
-            // cut "Ampli…" that names nothing (#1061); all the cards
-            // together, as [`cards_short`] says.
-            let short = steady_views::short_name(caption).filter(|_| short);
-            let r = ui.add(
-                egui::Label::new(
-                    RichText::new(short.unwrap_or(caption))
-                        .font(caption_font())
-                        .color(pal.text_secondary),
-                )
-                .truncate(),
-            );
-            if short.is_some() {
-                r.on_hover_text(caption);
+            // Too narrow for the whole caption even with no "?" (narrower
+            // than the window can be made), its short form as the axes
+            // have it rather than a cut "Ampli…" that names nothing
+            // (#1061).
+            let short = steady_views::short_name(caption)
+                .filter(|_| bare && caption_w > ui.available_width());
+            let label = egui::Label::new(
+                RichText::new(short.unwrap_or(caption))
+                    .font(caption_font())
+                    .color(pal.text_secondary),
+            )
+            .truncate();
+            if bare {
+                let r = ui.add(label.sense(egui::Sense::click()));
+                theme::help_on(ui, r, (caption, help, &[]), caption);
+            } else {
+                ui.add(label);
             }
         });
     });
+}
+
+/// On a bare reading card (the narrowest step), its limits chip at the
+/// right end of its trend row `spark`, under the figure, where the title
+/// row has no room for it beside the whole caption: the same chip, hover
+/// and click, in the same place on all three cards (Hugh on #2026). The
+/// room left for the trend, the whole row when there is no chip.
+pub(crate) fn trend_chip(
+    ui: &mut egui::Ui,
+    spark: egui::Rect,
+    caption: &str,
+    limits: &[(String, String)],
+    bare: bool,
+) -> egui::Rect {
+    if !bare || limits.is_empty() {
+        return spark;
+    }
+    let words = limits_chip_words(limits, |w| theme::chip_w(ui, w) <= spark.width() / 2.0);
+    let w = if words.is_empty() {
+        theme::CHIP_ICON + 14.0
+    } else {
+        theme::chip_w(ui, &words)
+    };
+    let at = egui::Rect::from_min_max(egui::pos2(spark.right() - w, spark.top()), spark.max);
+    let mut child = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(at)
+            .layout(egui::Layout::right_to_left(egui::Align::Center)),
+    );
+    let sentences: Vec<String> = limits.iter().map(|l| l.1.clone()).collect();
+    theme::chip(&mut child, &words, caption, &sentences, w);
+    egui::Rect::from_min_max(
+        spark.min,
+        egui::pos2(spark.right() - w - title_gap(), spark.bottom()),
+    )
 }
 
 /// What a card's limits chip says, the first form that `fits` (Hugh,
@@ -355,6 +401,10 @@ pub(crate) fn limits_chip_words(
         .unwrap_or_default()
 }
 
+/// The heading of the status bar hover on the caveats that limit more
+/// than one card of the reading shown (Walter, #2015).
+pub(crate) const SHOWN_CAVEATS_TITLE: &str = "About the readings shown:";
+
 /// A card title's caption font.
 fn caption_font() -> egui::FontId {
     theme::semibold(13.0)
@@ -374,10 +424,10 @@ fn caption_width(ui: &egui::Ui, caption: &str) -> f32 {
     })
 }
 
-/// Whether the readings cards name their readings short: where any of
-/// them, in its title row, has no room for its whole caption beside its
-/// "?", all of them do, so a row never mixes "Amplitude" with "B.E."
-/// (Hugh, #1061). Worked out from the rows alone, each pass.
+/// Whether the readings cards go without their "?" ([`card_title`]'s
+/// `bare`): where any of them, in its title row, has no room for its
+/// whole caption beside its "?", all of them do, so the row stays alike
+/// (Hugh, #1061, #1954). Worked out from the rows alone, each pass.
 pub(crate) fn cards_short(ui: &egui::Ui, titles: &[(egui::Rect, &str)]) -> bool {
     titles.iter().any(|&(rect, caption)| {
         // Beside the "?" and the gap to it, as `card_title` lays them.
@@ -396,18 +446,55 @@ fn with_moment(moment: Option<&str>, hover: &str) -> String {
     }
 }
 
-/// The whole take's reading, for a figure's hover.
-fn whole_text(whole_breaks: &str, figure: String, spread: Option<String>, span: f64) -> String {
+/// Where the amplitude and the unlock beat error are read when Average
+/// Over is shorter than they need: "the last 10 s", from core's floor
+/// (#1951). None where they are read over the average.
+fn floored_stretch(average_s: f64) -> Option<String> {
+    measure::amplitude_span_s(average_s).map(|s| format!("the last {} s", fields::plain(s)))
+}
+
+/// The whole take's figure for a card's hover, after the big figure's
+/// own stretch, `big`: "the stretch of Average Over", or for a figure
+/// read over at least 10 s, "the last 10 s" (#1951).
+fn whole_text(
+    whole_breaks: &str,
+    figure: String,
+    spread: Option<String>,
+    (span, big): (f64, &str),
+) -> String {
     let spread = spread.map_or_else(String::new, |s| format!(", {s}"));
     format!(
-        "\n\nWhole take {figure}{spread} over {}. The big figure is the stretch of \
-         Average Over ending at the strip's newest edge; this is the take in this position, settling left out, read \
+        "\n\nWhole take {figure}{spread} over {}. The big figure is {big} \
+         ending at the strip's newest edge; this is the take in this position, settling left out, read \
          as the command line reads it.{whole_breaks}",
         length_text(span)
     )
 }
 
+/// The big figure's stretch, as [`whole_text`] names it: the amplitude's
+/// and the unlock's, `floored`, are [`floored_stretch`] (#1951).
+fn big_stretch(average_s: f64, floored: bool) -> String {
+    floored
+        .then(|| floored_stretch(average_s))
+        .flatten()
+        .unwrap_or_else(|| "the stretch of Average Over".into())
+}
+
 impl TimegrapherApp {
+    /// Under 10 s of sound since Listen started or the latest break, no
+    /// figures yet: a word saying what they wait for, and its hover
+    /// (#2014, Hugh). A settle's own state wins.
+    fn listening(&self, r: Option<&LiveReading>) -> Option<(String, String)> {
+        r.and_then(|r| r.listening)
+            .filter(|_| heard(r) && self.settling_left().is_none())
+            .map(|since| {
+                (
+                    timegrapher_core::measure::LISTENING_TITLE.to_string(),
+                    timegrapher_core::measure::listening_text(since),
+                )
+            })
+    }
+
     /// The reading cards across the top: Current Position, Listen, then
     /// Rate, Amplitude, Beat Error and Beat Rate. Every card is the same
     /// three rows (title, figure, controls) and one height at every width;
@@ -426,20 +513,30 @@ impl TimegrapherApp {
         let cards = lay_cards(ui, (total, h), widths, gap, pal);
         // A reading whose beats scatter like noise is no watch: no figures
         // then, only a word saying so where the unit goes.
+        // A regular beat just heard after noise or silence is still being
+        // found: a wait, not that verdict (#2008).
         let heard = heard(r.as_ref());
-        let unheard_line = timegrapher_core::measure::NO_WATCH_TITLE.to_string();
-        let unheard_hover = format!(
-            "{}.\n\n{}",
-            r.as_ref().map(no_regular_beat).unwrap_or_default(),
-            *help::NO_REGULAR_BEAT
-        );
-        let unheard = (!heard).then(|| (unheard_line.clone(), unheard_hover.clone()));
+        let finding = r.as_ref().is_some_and(|r| r.finding_beat);
+        let (unheard_line, unheard_hover) = if finding {
+            (
+                timegrapher_core::measure::FINDING_TITLE.to_string(),
+                timegrapher_core::measure::finding_text(),
+            )
+        } else {
+            (
+                timegrapher_core::measure::NO_WATCH_TITLE.to_string(),
+                format!(
+                    "{}.\n\n{}",
+                    r.as_ref().map(no_regular_beat).unwrap_or_default(),
+                    *help::NO_REGULAR_BEAT
+                ),
+            )
+        };
+        let unheard = (!heard)
+            .then(|| (unheard_line.clone(), unheard_hover.clone()))
+            .or_else(|| self.listening(r.as_ref()));
         let r = r.as_ref().filter(|_| heard);
-        // The take's breaks not all its own list's, as session says too.
-        let mut caveats = r.map_or_else(Vec::new, |r| r.caveats.clone());
-        if let (Some(why), Some(_)) = (self.take_unlisted, r) {
-            timegrapher_core::measure::add(&mut caveats, Caveat::BreaksUnlisted { why });
-        }
+        let caveats = self.shown_caveats(r);
         let caveats = &caveats[..];
         // Each reading's ±, as an analysis of the recording gives them
         // (core `measure`).
@@ -529,7 +626,7 @@ impl TimegrapherApp {
         let heard = c.heard;
         let compact = c.compact;
         let rate = r.and_then(|r| r.rate_s_per_day);
-        let rate_facts = reading_limits("Rate", caveats, lift_now, beats);
+        let rate_facts = reading_limits("Rate", caveats, lift_now, beats, false);
         card_title(
             ui,
             rows.title,
@@ -557,7 +654,7 @@ impl TimegrapherApp {
                 &c.whole_breaks,
                 true_minus(&format!("{} s/d", with_pm(v, se, base::RATE, true))),
                 spread,
-                w.span,
+                (w.span, &big_stretch(self.average_s, false)),
             );
         }
         // In the unit's place: what the reading waits on, or why it is
@@ -577,6 +674,8 @@ impl TimegrapherApp {
             } else {
                 unheard.clone()
             }
+        } else if let Some(listening) = unheard.clone() {
+            Some(listening)
         } else {
             self.stopped_in_settle().map(|at| {
                 (
@@ -606,6 +705,7 @@ impl TimegrapherApp {
             behind = format!("{n}\n\n{}", behind.trim_start());
         }
         let (fig, spark, place) = sparkline::lay(rows.inner, rows.figure, rows.controls);
+        let spark = trend_chip(ui, spark, "Rate", &rate_facts, c.short);
         let colour = theme::pal(ui).trace_rate;
         sparkline::draw(ui, spark, place, &c.spark, &sparkline::RATE, colour);
         figure_row(
@@ -615,7 +715,7 @@ impl TimegrapherApp {
             &unit,
             status.as_ref(),
             &with_moment(c.moment.as_deref(), behind.trim_start()),
-            compact,
+            (compact, Some(0)),
         );
     }
 
@@ -725,6 +825,7 @@ impl TimegrapherApp {
             caveats,
             lift_now,
             beats,
+            r.and_then(|r| r.amplitude_deg).is_none(),
         );
         card_title(
             ui,
@@ -749,6 +850,10 @@ impl TimegrapherApp {
         {
             behind = sides_text(a, b, amp_pm);
         }
+        // Read over at least 10 s where Average Over is shorter (#1951).
+        if let Some(note) = r.and_then(|_| measure::amplitude_span_note(self.average_s)) {
+            behind += &format!(" {note}");
+        }
         if let Some((w, v)) = whole.as_ref().and_then(|w| Some((w, w.m.amplitude_deg?))) {
             let se = w.m.confidence.and_then(|c| c.amplitude.se);
             let spread = w.m.amplitude_p05.zip(w.m.amplitude_p95).map(|(a, b)| {
@@ -756,16 +861,22 @@ impl TimegrapherApp {
                 format!("2 s windows {}° to {}°", deg(a), deg(b))
             });
             let text = format!("{}°", with_pm(v, se, base::AMPLITUDE, false));
-            behind += &whole_text(&c.whole_breaks, text, spread, w.span);
+            let big = big_stretch(self.average_s, true);
+            behind += &whole_text(&c.whole_breaks, text, spread, (w.span, &big));
         }
         behind += &format!(
             " Worked out with a lift angle of {}°, on the Calibre card.",
             fields::plain(lift_now)
         );
-        if let Some(t) = r.filter(|_| c.heard).and_then(amplitude_pm_words) {
+        if let Some(t) = r
+            .filter(|_| c.heard)
+            .and_then(|r| amplitude_pm_words(r, self.average_s))
+        {
             behind += &format!("\n\n{t}");
         }
         let (fig, spark, place) = sparkline::lay(rows.inner, rows.figure, rows.controls);
+        let caption = steady::title(SeriesKind::Amplitude);
+        let spark = trend_chip(ui, spark, caption, &facts, c.short);
         let colour = theme::pal(ui).trace_amplitude;
         sparkline::draw(ui, spark, place, &c.spark, &sparkline::AMPLITUDE, colour);
         figure_row(
@@ -775,7 +886,7 @@ impl TimegrapherApp {
             &unit,
             unheard.as_ref(),
             &with_moment(c.moment.as_deref(), behind.trim_start()),
-            compact,
+            (compact, Some(1)),
         );
     }
 
@@ -791,17 +902,14 @@ impl TimegrapherApp {
         let compact = c.compact;
         let unlock = r.and_then(|r| r.beat_error_unlock_ms);
         let drop = r.and_then(|r| r.beat_error_ms);
+        let caption = steady::title(SeriesKind::BeatError);
+        let be_facts = reading_limits(caption, caveats, lift_now, beats, false);
         card_title(
             ui,
             rows.title,
-            steady::title(SeriesKind::BeatError),
+            caption,
             help::BEAT_ERROR,
-            &reading_limits(
-                steady::title(SeriesKind::BeatError),
-                caveats,
-                lift_now,
-                beats,
-            ),
+            &be_facts,
             (None, c.short),
         );
         let be_pm = be_pm.filter(|_| unlock.is_some());
@@ -819,10 +927,15 @@ impl TimegrapherApp {
             (None, Some(_)) => "From the drop: the unlock couldn't be timed.".into(),
             _ => "From the unlock, the usual reading, as tg shows it.".into(),
         };
+        if let Some(note) = unlock.and_then(|_| measure::unlock_span_note(self.average_s)) {
+            from += &format!(" {note}");
+        }
         if let Some((w, v)) = whole.as_ref().and_then(|w| Some((w, w.m.beat_error()?))) {
             let se = w.m.confidence.and_then(|c| c.beat_error.se);
             let text = format!("{} ms", with_pm(v, se, base::BEAT_ERROR, false));
-            from += &whole_text(&c.whole_breaks, text, None, w.span);
+            // The unlock's stretch where it gives the figure (#1951).
+            let big = big_stretch(self.average_s, unlock.is_some());
+            from += &whole_text(&c.whole_breaks, text, None, (w.span, &big));
             if w.m.caveats.contains(&Caveat::BeatErrorAsSize) {
                 from += &format!(
                     " The {WHOLE_AS_SIZES}, so the sizes either side are combined \
@@ -839,6 +952,7 @@ impl TimegrapherApp {
             from = format!("{words}\n\n{from}");
         }
         let (fig, spark, place) = sparkline::lay(rows.inner, rows.figure, rows.controls);
+        let spark = trend_chip(ui, spark, caption, &be_facts, c.short);
         let colour = theme::pal(ui).trace_beat_error;
         sparkline::draw(ui, spark, place, &c.spark, &sparkline::BEAT_ERROR, colour);
         figure_row(
@@ -848,7 +962,7 @@ impl TimegrapherApp {
             &unit,
             unheard.as_ref(),
             &with_moment(c.moment.as_deref(), &from),
-            compact,
+            (compact, Some(2)),
         );
     }
 
@@ -1114,6 +1228,37 @@ impl TimegrapherApp {
             }
             Err(e) => self.error(format!("The input's clock couldn't be kept: {e}")),
         }
+    }
+
+    /// The caveats on the reading shown, `r` where a watch is heard: its
+    /// own, and the take's breaks not all its own list's, as session says
+    /// too.
+    pub(super) fn shown_caveats(&self, r: Option<&LiveReading>) -> Vec<Caveat> {
+        let mut caveats = r.map_or_else(Vec::new, |r| r.caveats.clone());
+        if let (Some(why), Some(_)) = (self.take_unlisted, r) {
+            timegrapher_core::measure::add(&mut caveats, Caveat::BreaksUnlisted { why });
+        }
+        caveats
+    }
+
+    /// The caveats on the reading shown that bear on more than one card,
+    /// or on the take, once, in the status bar after the take's state: a
+    /// chip in the cards' step-down, each one's sentence on its hover
+    /// (Hugh, #1975).
+    fn shown_caveats_chip(&self, ui: &mut egui::Ui) {
+        let r = self.card_reading();
+        let r = r.as_ref().filter(|r| heard(Some(r)));
+        let amplitude_empty = r.and_then(|r| r.amplitude_deg).is_none();
+        let caveats = self.shown_caveats(r);
+        let beats = r.map_or(0, |r| r.beats_used);
+        let limits = take_limits(&caveats, self.lift_deg, beats, amplitude_empty);
+        if limits.is_empty() {
+            return;
+        }
+        let room = ui.available_width();
+        let words = limits_chip_words(&limits, |w| theme::chip_w(ui, w) <= room);
+        let sentences: Vec<String> = limits.into_iter().map(|l| l.1).collect();
+        theme::chip(ui, &words, SHOWN_CAVEATS_TITLE, &sentences, room);
     }
 
     pub(super) fn status_bar(&mut self, ui: &mut egui::Ui) {
@@ -1401,6 +1546,7 @@ impl TimegrapherApp {
     /// signal.
     pub(super) fn status_facts(&self, ui: &mut egui::Ui) {
         let pal = theme::pal(ui);
+        self.shown_caveats_chip(ui);
         if let Some(b) = &self.batch {
             let done = f64::from_bits(b.progress.load(std::sync::atomic::Ordering::Relaxed));
             let frac = b.duration_s.map_or(0.0, |d| (done / d).clamp(0.0, 1.0));
@@ -1519,7 +1665,9 @@ impl TimegrapherApp {
         self.batch.is_none()
             && live.duration_s() > 6.0
             && !self.trend.iter().any(|p| p.heard)
-            && self.reading().is_none_or(|r| !r.watch_heard)
+            && self
+                .reading()
+                .is_none_or(|r| !r.watch_heard && !r.finding_beat)
             && !self.heard_while_settling(live)
     }
 
@@ -1676,6 +1824,65 @@ fn baseline(g: &egui::Galley) -> f32 {
 /// and unit; past it the ± stacks, then leaves the card (#825).
 const FIGURE_LEAST_PT: f32 = 12.0;
 
+/// The size, points, below which a card's figure is not made smaller to
+/// keep its unit whole: past [`FIGURE_LEAST_PT`] only for a figure of
+/// thousands on the narrowest window (#1976).
+const FIGURE_FLOOR_PT: f32 = 8.0;
+
+/// The reading cards' one figure size: card `card`'s own, `own`, kept
+/// for the frame, and the least of the three cards' (Hugh on #1954 and
+/// #1976: no figure smaller than its neighbours). A card drawn before the
+/// others reads their last frame's, and a change draws again.
+fn shared_figure_pt(ctx: &egui::Context, card: usize, own: f32) -> f32 {
+    let id = egui::Id::new("reading card figure sizes");
+    let mut sizes: [f32; 3] = ctx.data(|d| d.get_temp(id)).unwrap_or([f32::INFINITY; 3]);
+    let was = sizes;
+    if let Some(s) = sizes.get_mut(card) {
+        *s = own;
+    }
+    if sizes != was {
+        ctx.data_mut(|d| d.insert_temp(id, sizes));
+        ctx.request_repaint();
+    }
+    sizes.into_iter().fold(own, f32::min)
+}
+
+/// The figure `text` laid out at the largest size up to `full` at which
+/// it and its unit fit whole in `room`: never a unit cut to "s/c"
+/// (#1976), the figure going below its least size first; on reading card
+/// `card`, at the three cards' one size, the largest at which every one
+/// fits (Hugh on #1954, #1976). A dash (`is_figure` false) keeps `full`.
+fn fitted_figure(
+    ui: &egui::Ui,
+    (text, colour): (&str, Color32),
+    (full, room): (f32, f32),
+    is_figure: bool,
+    card: Option<usize>,
+) -> std::sync::Arc<egui::Galley> {
+    let lay = |size: f32| {
+        ui.painter()
+            .layout_no_wrap(text.to_string(), theme::display(size), colour)
+    };
+    let mut pt = full;
+    let mut big = lay(pt);
+    if is_figure {
+        while big.size().x > room && pt > FIGURE_FLOOR_PT {
+            pt = (pt * room / big.size().x)
+                .floor()
+                .min(pt - 1.0)
+                .max(FIGURE_FLOOR_PT);
+            big = lay(pt);
+        }
+    }
+    if let Some(i) = card {
+        let shared = shared_figure_pt(ui.ctx(), i, if is_figure { pt } else { full });
+        if shared < pt {
+            big = lay(shared);
+        }
+    }
+    big
+}
+
 /// A readings card's figure row: the big figure ("—" while there is none),
 /// then its ± and unit on the figure's baseline, or what the reading waits
 /// on in their place. On a compact card the figure is smaller and the ±
@@ -1688,7 +1895,7 @@ pub(super) fn figure_row(
     unit: &str,
     status: Option<&(String, String)>,
     hover: &str,
-    compact: bool,
+    (compact, card): (bool, Option<usize>),
 ) {
     let pal = theme::pal(ui);
     let (text, colour) = match value {
@@ -1763,14 +1970,7 @@ pub(super) fn figure_row(
     } else {
         theme::FIGURE_PT
     };
-    let lay = |size: f32| {
-        ui.painter()
-            .layout_no_wrap(text.clone(), theme::display(size), colour)
-    };
-    let mut big = lay(full);
-    if big.size().x > room && value.is_some() {
-        big = lay((full * room / big.size().x).floor().max(FIGURE_LEAST_PT));
-    }
+    let big = fitted_figure(ui, (&text, colour), (full, room), value.is_some(), card);
     let top = rect.center().y - big.size().y / 2.0;
     let base = top + baseline(&big);
     let painter = ui.painter().with_clip_rect(rect.expand(2.0));
@@ -1925,4 +2125,94 @@ pub(super) fn timed_clock_text(ppm: f64, sd: f64) -> String {
 /// The day of a UTC timestamp kept as text ("2026-10-12T…").
 pub(super) fn day_of(utc: &str) -> &str {
     utc.get(..10).unwrap_or(utc)
+}
+
+/// What limits a reading, as facts: a short form for the card's caption
+/// and a sentence for its hover, in core's words. Nothing graded: the ±
+/// beside the figure says how far it could be off; these say what the ±
+/// can't show. Only the caveats that bear on the card titled `title`
+/// alone, and, where its figure is `empty`, one that emptied it (#1975).
+pub(super) fn reading_limits(
+    title: &str,
+    caveats: &[Caveat],
+    lift_deg: f64,
+    beats: usize,
+    empty: bool,
+) -> Vec<(String, String)> {
+    let card = card_scope(title);
+    let own: Vec<Caveat> = caveats
+        .iter()
+        .filter(|c| card.is_some() && (c.reading_scope() == card || (empty && empties(c) == card)))
+        .copied()
+        .collect();
+    caveat_facts(&own, lift_deg, beats)
+}
+
+/// The caveats that bear on more than one card, or on the take, as
+/// [`reading_limits`] gives a card's: said once, in the status bar. Not
+/// one said on a card it emptied, the Amplitude card where
+/// `amplitude_empty`.
+pub(super) fn take_limits(
+    caveats: &[Caveat],
+    lift_deg: f64,
+    beats: usize,
+    amplitude_empty: bool,
+) -> Vec<(String, String)> {
+    let take: Vec<Caveat> = caveats
+        .iter()
+        .filter(|c| c.reading_scope().is_none())
+        .filter(|c| !(amplitude_empty && empties(c) == Some(Scope::Amplitude)))
+        .copied()
+        .collect();
+    caveat_facts(&take, lift_deg, beats)
+}
+
+/// The card a caveat leaves without a figure, said there though it bears
+/// on more than that card (Hugh's rule 3 and Norm, #1975): sides too
+/// faint to read, on the Amplitude card.
+fn empties(c: &Caveat) -> Option<Scope> {
+    matches!(c, Caveat::FaintSidesWithheld { .. }).then_some(Scope::Amplitude)
+}
+
+/// Each caveat's short form and sentence, but those said elsewhere.
+pub(super) fn caveat_facts(
+    caveats: &[Caveat],
+    lift_deg: f64,
+    beats: usize,
+) -> Vec<(String, String)> {
+    caveats
+        .iter()
+        .filter(|c| !said_elsewhere(c))
+        .filter_map(|c| {
+            let long = c.long(Some(lift_deg))?;
+            let long = match c {
+                Caveat::Clipped { .. } => format!("{long} {}", help::CLIPPING),
+                _ => long,
+            };
+            Some((c.short(lift_deg, beats)?, long))
+        })
+        .collect()
+}
+
+/// The reading a card titled `title` shows, as a caveat's scope.
+fn card_scope(title: &str) -> Option<Scope> {
+    match title {
+        "Rate" => Some(Scope::Rate),
+        "Amplitude" => Some(Scope::Amplitude),
+        "Beat Error" => Some(Scope::BeatError),
+        _ => None,
+    }
+}
+
+/// Caveats said elsewhere, never in a chip: no regular beat (the status
+/// bar), the clocks disagreeing and the input clock (Rate controls row),
+/// and the lift angle (Calibre card).
+fn said_elsewhere(c: &Caveat) -> bool {
+    matches!(
+        c,
+        Caveat::NoWatch { .. }
+            | Caveat::ClockSourcesDisagree { .. }
+            | Caveat::LiftUnknown
+            | Caveat::ClockUnknown
+    )
 }

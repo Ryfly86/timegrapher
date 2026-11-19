@@ -51,8 +51,12 @@ Two rules cover them all:
   A window short of a beat or two is made from the beats it has.
 
 **Settling.** After each change of position, the first seconds aren't
-read while the balance settles: 20 s by default, but never more than half
-the position's time. A settling time you set is used as it is.
+read while the balance settles: 20 s by default. A position that is a
+recording of its own never settles for more than half its time. A
+position you turned to while one recording kept running settles the full
+20 s; if you left it within 20 s, it reads nothing and isn't one of the
+take's positions, because the watch was being handled. A settling time
+you set is used as it is.
 
 **Short stretches.** A stretch between cuts whose beats span under 10 s
 gives no rate: a few seconds of beats give a rate several s/d out.
