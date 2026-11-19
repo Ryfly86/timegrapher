@@ -195,6 +195,11 @@ pub struct LiveReading {
     pub beat_error_unlock_error_ms: Option<f64>,
     /// What limits the readings, in `measure`'s order.
     pub caveats: Vec<Caveat>,
+    /// Where a regular beat isn't ruled out but under
+    /// [`measure::SHORT_SPAN_S`] of sound is behind the reading, so it
+    /// gives no figures yet: what that sound is counted since
+    /// ([`measure::LISTENING_TITLE`], #2014). None otherwise.
+    pub listening: Option<measure::HeardSince>,
 }
 
 #[derive(Debug, Clone)]
@@ -1208,6 +1213,19 @@ impl LiveAnalyzer {
     /// The cuts in the sound itself: every break that is not a jump in
     /// the beats, and every masked stretch. The watch verdict looks back
     /// to the latest of them.
+    /// What the sound heard up to `end_s` is heard since: the take's
+    /// start, or the latest break or mask ([`Self::heard_cuts`]).
+    fn heard_since_kind(&self, end_s: f64) -> measure::HeardSince {
+        let since = self.heard_cuts().stretch_from(end_s);
+        if since == f64::NEG_INFINITY || since <= 0.0 {
+            measure::HeardSince::Start
+        } else if Cuts::new(None, &[], &self.masked).stretch_from(end_s) >= since {
+            measure::HeardSince::Mask
+        } else {
+            measure::HeardSince::Break
+        }
+    }
+
     fn heard_cuts(&self) -> Cuts<'static> {
         let breaks: Vec<Break> = self
             .breaks
@@ -1288,7 +1306,9 @@ impl LiveAnalyzer {
         // break, the timing can't be judged, so the reading gives no
         // figures: an empty stand's noise read as a rate of over
         // 100,000 s/d in its first seconds (#2014).
-        let read = watch_heard && behind_s >= measure::SHORT_SPAN_S - 1e-6;
+        let listening = (watch_heard && behind_s < measure::SHORT_SPAN_S - 1e-6)
+            .then(|| self.heard_since_kind(end_s));
+        let read = watch_heard && listening.is_none();
         let heard = |v: Option<f64>| v.filter(|_| read);
         // Figures that name a side wait until the sides are told apart.
         let sided = self.sides_known_at(end_s);
@@ -1359,6 +1379,7 @@ impl LiveAnalyzer {
                 .min(crate::confidence::MIN_NOISE_VALUES),
             beat_error_unlock_error_ms: sided(assessment.confidence.and_then(|c| c.beat_error.se)),
             caveats,
+            listening,
         }
     }
 

@@ -1625,3 +1625,35 @@ fn live_profiles_go_long_with_their_amplitude_reading() {
         assert!((amp - 150.0).abs() < 10.0, "amplitude {amp}");
     }
 }
+
+/// Under 10 s of sound behind a reading it gives no figures and says what
+/// that sound is counted since: Listen's start, the latest break, or the
+/// latest mask (#2014, Hugh's words). From 10 s on, the figures.
+#[test]
+fn a_reading_listens_for_ten_seconds_since_the_start_a_break_or_a_mask() {
+    use measure::HeardSince;
+    let cfg = SynthConfig {
+        duration_s: 60.0,
+        rate_s_per_day: 5.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let mut a = LiveAnalyzer::new(48000, LiveConfig::default());
+    feed(&mut a, &audio.samples);
+    let at = |a: &LiveAnalyzer, t: f64| {
+        let r = a.reading_at(t, 10.0);
+        assert!(r.watch_heard, "{t} s: {r:?}");
+        (r.listening, r.rate_s_per_day.is_some())
+    };
+    assert_eq!(at(&a, 6.0), (Some(HeardSince::Start), false));
+    assert_eq!(at(&a, 12.0), (None, true));
+    a.set_breaks(vec![20.0]);
+    assert_eq!(at(&a, 25.0), (Some(HeardSince::Break), false));
+    assert_eq!(at(&a, 31.0), (None, true));
+    a.set_masked(&[(38.0, 40.0)]);
+    assert_eq!(at(&a, 45.0), (Some(HeardSince::Mask), false));
+    assert_eq!(at(&a, 51.0), (None, true));
+    let text = measure::listening_text(HeardSince::Mask);
+    assert!(text.ends_with("since the mask."), "{text}");
+    assert!(text.starts_with("The figures need 10 s of sound"), "{text}");
+}

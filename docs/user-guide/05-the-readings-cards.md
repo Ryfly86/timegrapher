@@ -249,6 +249,13 @@ the first and how many more ("12 s of Beats +1").
 | **Amplitude Read From 4 of 15 Windows** | Under 60% of the short readings in the stretch could be used. | Treat the figure as resting on less than its span. |
 | **First 12 s Left Out** | Noise before the watch was heard is left out of a whole take's reading. | Nothing. |
 
+### Listening
+
+For the first 10 s after Listen starts, and after a break or a masked
+stretch, the cards show no figures, only **Listening**. Under 10 s the
+timing can't tell a watch from the stand's noise, so no figure is given
+yet. Where a settle is running, the cards say **Settling** instead.
+
 ### No Regular Beat Found
 
 When the beats found don't come at regular intervals, the cards show no

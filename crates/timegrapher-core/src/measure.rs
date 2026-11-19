@@ -163,6 +163,38 @@ pub fn no_watch_reason_in(caveats: &[Caveat]) -> Option<NoWatchReason> {
 /// [`no_watch_text`]'s sentence or in the figures' place (#510).
 pub const NO_WATCH_TITLE: &str = "No Regular Beat";
 
+/// What the sound behind a reading is heard since: where the
+/// [`SHORT_SPAN_S`] a reading's figures wait for is counted from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HeardSince {
+    /// Listen started (or the take's start, opened).
+    Start,
+    /// The latest break, such as a move to a new position.
+    Break,
+    /// The latest masked stretch.
+    Mask,
+}
+
+/// The heading every surface gives a reading still waiting for
+/// [`SHORT_SPAN_S`] of sound, in the figures' place (#2014, Hugh).
+pub const LISTENING_TITLE: &str = "Listening";
+
+/// The sentence under [`LISTENING_TITLE`]: what the figures wait for, and
+/// since when it is counted.
+pub fn listening_text(since: HeardSince) -> String {
+    let from = match since {
+        HeardSince::Start => "Listen started",
+        HeardSince::Break => "the break",
+        HeardSince::Mask => "the mask",
+    };
+    format!(
+        "The figures need {s:.0} s of sound: they appear once {s:.0} s have been heard \
+         since {from}.",
+        s = SHORT_SPAN_S
+    )
+}
+
 /// The sentence for no regular beat found, as every surface states it:
 /// with the timing scatter, as [`crate::beats::no_regular_beat_text`]
 /// gives it, or that the beats' sound shows no unlock and no drop.

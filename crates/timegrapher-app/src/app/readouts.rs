@@ -426,7 +426,22 @@ impl TimegrapherApp {
             r.as_ref().map(no_regular_beat).unwrap_or_default(),
             *help::NO_REGULAR_BEAT
         );
-        let unheard = (!heard).then(|| (unheard_line.clone(), unheard_hover.clone()));
+        // Under 10 s of sound since Listen started or the latest break or
+        // mask, no figures yet: a word saying what they wait for (#2014,
+        // Hugh). A settle's own state wins.
+        let listening = r
+            .as_ref()
+            .and_then(|r| r.listening)
+            .filter(|_| heard && self.settling_left().is_none())
+            .map(|since| {
+                (
+                    timegrapher_core::measure::LISTENING_TITLE.to_string(),
+                    timegrapher_core::measure::listening_text(since),
+                )
+            });
+        let unheard = (!heard)
+            .then(|| (unheard_line.clone(), unheard_hover.clone()))
+            .or(listening);
         let r = r.as_ref().filter(|_| heard);
         // The take's breaks not all its own list's, as session says too.
         let mut caveats = r.map_or_else(Vec::new, |r| r.caveats.clone());
@@ -570,6 +585,8 @@ impl TimegrapherApp {
             } else {
                 unheard.clone()
             }
+        } else if let Some(listening) = unheard.clone() {
+            Some(listening)
         } else {
             self.stopped_in_settle().map(|at| {
                 (

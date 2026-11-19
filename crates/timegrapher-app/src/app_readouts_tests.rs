@@ -1309,3 +1309,39 @@ fn a_watch_heard_while_it_settles_is_no_missing_watch() {
     assert!(!app.no_watch_yet(), "its beats are heard");
     let _ = std::fs::remove_dir_all(base);
 }
+
+/// With under 10 s of sound behind the reading, the cards show no figure,
+/// and say "Listening" with what they wait for in its place: not empty,
+/// and never a rate read from the stand's noise (#2014, Hugh). From 10 s
+/// the figures are back.
+#[test]
+fn the_cards_say_listening_until_ten_seconds_are_heard() {
+    use timegrapher_core::measure::{listening_text, HeardSince, LISTENING_TITLE};
+    let ctx = themed();
+    let mut app = synthetic(30.0, 20.0);
+    let cards = |app: &TimegrapherApp| {
+        let out = ctx.run(screen(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                let _ = app.readouts(ui);
+            });
+        });
+        painted_text(&out)
+    };
+    app.strip_end = Some(6.0);
+    let r = app.card_reading().expect("a reading");
+    assert_eq!(r.listening, Some(HeardSince::Start), "{r:?}");
+    assert_eq!(r.rate_s_per_day, None);
+    let early = cards(&app);
+    assert!(early.contains(LISTENING_TITLE), "{early}");
+    assert!(!early.contains("s/d"), "{early}");
+    assert!(
+        listening_text(HeardSince::Start).contains("since Listen started"),
+        "{}",
+        listening_text(HeardSince::Start)
+    );
+    app.strip_end = Some(25.0);
+    let r = app.card_reading().expect("a reading");
+    assert_eq!(r.listening, None);
+    assert!(r.rate_s_per_day.is_some(), "{r:?}");
+    assert!(!cards(&app).contains(LISTENING_TITLE));
+}
