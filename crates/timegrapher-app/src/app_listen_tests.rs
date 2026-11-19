@@ -1398,7 +1398,8 @@ fn a_take_deleted_with_its_hours_while_recorded_into_cant_be_saved() {
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     assert!(app.saved_hours_reachable());
-    std::fs::remove_dir_all(&take).unwrap();
+    let aside = base.join("aside");
+    std::fs::rename(&take, &aside).unwrap();
     let r = app.session.recorder.as_mut().unwrap();
     r.write(&silence(6, 300)).unwrap();
     app.message = None;
@@ -1415,9 +1416,27 @@ fn a_take_deleted_with_its_hours_while_recorded_into_cant_be_saved() {
     let reason = "Its earlier part was kept only in its take, and the take no longer \
                   holds it.";
     assert_eq!(hover, reason);
-    // Not again the next frame.
+    // Not again the next frame, nor once dismissed a minute on (#2061):
+    // said once, the status bar saying it meanwhile.
     app.message = None;
     app.stream_tick();
     assert!(app.message.is_none(), "not refused every frame");
+    let long_ago = std::time::Instant::now().checked_sub(2 * STREAM_RETRY);
+    app.stream_wait = Some(long_ago.unwrap());
+    app.stream_tick();
+    assert!(app.message.is_none(), "not refused again a minute on");
+    assert_eq!(status_now(&app).0, "Can't be saved");
+    // The take put back, and the window in front: written into again.
+    std::fs::rename(&aside, &take).unwrap();
+    window_back(&mut app);
+    app.stream_wait = Some(long_ago.unwrap());
+    app.stream_tick();
+    assert!(
+        app.saving.is_some(),
+        "the take holds it again: written into"
+    );
+    app.wait_for_save();
+    assert!(app.message.is_none(), "{:?}", app.message);
+    assert_eq!(status_now(&app).0, "Saved");
     let _ = std::fs::remove_dir_all(&base);
 }
