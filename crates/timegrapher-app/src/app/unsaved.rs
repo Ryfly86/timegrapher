@@ -111,6 +111,17 @@ impl TimegrapherApp {
         true
     }
 
+    /// Keep in a Watch > New Watch…: the form, and the keep once it is
+    /// done, unless the keep would be refused, which is said before the
+    /// form is filled in for nothing (Walter 11 on #2057, #2058).
+    pub(super) fn keep_in_new_watch(&mut self) {
+        if self.refuse_hours_gone() {
+            return;
+        }
+        self.open_new_watch_form();
+        self.keep_after_form = true;
+    }
+
     /// Whether every hour the session keeps in its take alone is still
     /// there (#2040). One gone with its take (deleted, or its sound
     /// removed) means the take can't be carried on whole, so Listen
