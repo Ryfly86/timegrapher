@@ -82,6 +82,11 @@ impl KeptSound {
     }
 }
 
+/// Why the sound can't be saved once the hours its take held alone are
+/// gone: the refusal's second line, and the status bar's hover (#2052).
+pub(super) const HOURS_GONE: &str =
+    "Its earlier part was kept only in its take, and the take no longer holds it.";
+
 impl TimegrapherApp {
     /// Let go of the session's own copy of each hour its take holds
     /// whole, once that copy is kept as FLAC (#2040): listening does it as
@@ -103,11 +108,11 @@ impl TimegrapherApp {
         if self.saved_hours_reachable() {
             return false;
         }
-        self.error(
-            "This sound can't be saved\nIts earlier part was kept only in its take, and the \
-             take no longer holds it."
-                .into(),
-        );
+        // The status bar says so too, not "Saved" beside it (#2052).
+        if let Some(r) = self.session.recorder.as_mut() {
+            r.look_at_saved_copy();
+        }
+        self.error(format!("This sound can't be saved\n{HOURS_GONE}"));
         true
     }
 
