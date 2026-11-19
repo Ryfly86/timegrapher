@@ -1640,6 +1640,27 @@ pub fn jumps_among_good(beats: &[Beat], before: &[Beat]) -> Vec<usize> {
     jumps(&found, &before).into_iter().map(|p| at[p]).collect()
 }
 
+/// The watch's last beat, seconds: the end of the latest run of good beats
+/// ([`Beat::is_good`]) with no gap over [`crate::clean::GAP_S`] between
+/// them, lasting at least [`crate::timing::MIN_PIECE_S`], the run the
+/// timing fit would keep. A stray good beat in a quiet stand's hiss is a
+/// run too short to count. `None` when no run is that long. The one rule
+/// for where a stopped take's readings end (Norm on #2081).
+pub fn last_watch_beat_s(beats: &[Beat]) -> Option<f64> {
+    let mut good = beats.iter().rev().filter(|b| b.is_good()).map(|b| b.time);
+    let mut end = good.next()?;
+    let mut start = end;
+    for t in good {
+        if start - t > crate::clean::GAP_S {
+            end = t;
+        } else if end - t >= crate::timing::MIN_PIECE_S {
+            return Some(end);
+        }
+        start = t;
+    }
+    (end - start >= crate::timing::MIN_PIECE_S).then_some(end)
+}
+
 /// Beats kept so far that the jump search looks back through for the good
 /// beats before a jump ([`good_tail`]): about four minutes at 28,800 bph,
 /// longer than the tracker follows noise after a dropout. The one reach for
@@ -1810,6 +1831,57 @@ fn pearson(a: &[f32], b: &[f32]) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The watch's last beat is the end of the latest run of good beats
+    /// long enough to keep: stray beats after it, a short run, a gap and a
+    /// poor beat don't move it (#2081).
+    #[test]
+    fn the_watchs_last_beat_ends_the_latest_long_run_of_good_beats() {
+        let run = |from: f64, to: f64, step: f64| {
+            let n = ((to - from) / step).round() as i64;
+            (0..=n).map(move |k| from + k as f64 * step)
+        };
+        let at = |times: Vec<f64>| -> Vec<Beat> {
+            times
+                .into_iter()
+                .enumerate()
+                .map(|(k, time)| Beat {
+                    index: k as i64,
+                    time,
+                    quality: 1.0,
+                })
+                .collect()
+        };
+        let watch: Vec<f64> = run(0.0, 30.0, 0.125).collect();
+        assert_eq!(last_watch_beat_s(&at(watch.clone())), Some(30.0));
+        // Stray beats in the hiss after it, each a run too short to count.
+        let mut stray = watch.clone();
+        stray.extend([33.0, 37.5, 37.9, 46.97]);
+        assert_eq!(last_watch_beat_s(&at(stray)), Some(30.0));
+        // A poor beat after the run is not a beat of it.
+        let mut poor = at(watch.clone());
+        poor.push(Beat {
+            index: 999,
+            time: 30.125,
+            quality: 0.0,
+        });
+        assert_eq!(last_watch_beat_s(&poor), Some(30.0));
+        // A run just under MIN_PIECE_S after a gap doesn't count; the one
+        // before it does. Exactly MIN_PIECE_S long does.
+        let mut short: Vec<f64> = run(0.0, 20.0, 0.125).collect();
+        short.extend(run(23.0, 32.875, 0.125));
+        assert_eq!(last_watch_beat_s(&at(short)), Some(20.0));
+        let mut long: Vec<f64> = run(0.0, 20.0, 0.125).collect();
+        long.extend(run(23.0, 33.0, 0.125));
+        assert_eq!(last_watch_beat_s(&at(long)), Some(33.0));
+        // A gap of exactly GAP_S keeps the run whole.
+        let mut joined: Vec<f64> = run(0.0, 6.0, 0.125).collect();
+        joined.extend(run(8.0, 12.0, 0.125));
+        assert_eq!(last_watch_beat_s(&at(joined)), Some(12.0));
+        // No run long enough, or no beats.
+        assert_eq!(last_watch_beat_s(&at(run(0.0, 9.0, 0.125).collect())), None);
+        assert_eq!(last_watch_beat_s(&[]), None);
+    }
 
     /// Where no beat's window fits in the sound, or there are no beats,
     /// there is no template: None, not a template of NaN, and `detect`

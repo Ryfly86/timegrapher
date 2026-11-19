@@ -215,31 +215,24 @@ impl TimegrapherApp {
         self.take_breaks.is_some().then(|| live.duration_s())
     }
 
-    /// A stopped take's reading over `average` seconds: an opened take's
-    /// at its end ([`Self::opened_end_s`]), as its whole reading gives it
-    /// where that is the same stretch (core's `LiveReading::at_whole_end`),
-    /// where a watch is heard there with a verdict given (as `reading_at`
-    /// reads figures) and beats in its stretch (as the cards' "No Beats
-    /// Heard" asks); else, as for a take not opened, at its last beat with
-    /// a watch heard, so the silence after the watch is taken off the
-    /// stand doesn't blank the cards: not when that silence came after a
-    /// break and still awaits its verdict, nor when it is just under
-    /// Average Over and the verdict still hears the watch before it
-    /// (Vernon and Walter 15 on #2075).
+    /// A stopped take's reading over `average` seconds (Norm on #2081):
+    /// an opened take's at its end ([`Self::opened_end_s`]) as its whole
+    /// reading gives it, where Average Over holds that whole stretch (core's
+    /// `LiveReading::at_whole_end`, #2075); else, opened or just stopped, at
+    /// the watch's last beat (core's `beats::last_watch_beat_s`), never at
+    /// a later point whose look-back still hears the watch over a quiet
+    /// stand's hiss; with no run of beats long enough for that, at the
+    /// last beat with a watch heard, as before.
     pub(super) fn stopped_reading(&self, live: &LiveAnalyzer, average: f64) -> LiveReading {
-        let heard = || live.reading_at(self.latest_s().min(self.last_heard_s()), average);
-        let Some(end) = self.opened_end_s() else {
-            return heard();
-        };
-        let r = match self.whole_read() {
-            Some(Ok(Some(w))) => live.reading_at(end, average).at_whole_end(&w.m, average),
-            _ => live.reading_at(end, average),
-        };
-        if r.watch_heard && r.listening.is_none() && !super::readouts::no_beat(&r) {
-            r
-        } else {
-            heard()
+        if let (Some(end), Some(Ok(Some(w)))) = (self.opened_end_s(), self.whole_read()) {
+            let r = live.reading_at(end, average).at_whole_end(&w.m, average);
+            if r.whole_take {
+                return r;
+            }
         }
+        let at = timegrapher_core::beats::last_watch_beat_s(live.beats())
+            .unwrap_or_else(|| self.latest_s().min(self.last_heard_s()));
+        live.reading_at(at, average)
     }
 
     /// What the whole reading on show is of, in words, as a take's row

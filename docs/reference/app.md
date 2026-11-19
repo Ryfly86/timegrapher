@@ -336,9 +336,13 @@ under it its calibre, beat rate, lift angle and added fields, with
   blank until then, its hover saying it is being read), then kept. The
   take opened shows the same reading on its cards at its end, to the last
   bit, where the Average Over holds the whole stretch it reads and a
-  watch is heard there (core's `LiveReading::at_whole_end`, #2073); with
-  the watch off the stand at the end, the cards read the last stretch
-  with a watch heard. The row's hover says, on the line after its
+  watch is heard there (core's `LiveReading::at_whole_end`, #2073).
+  Otherwise a stopped take's cards, opened or just stopped, read the
+  stretch ending at the watch's last beat: the end of the latest run of
+  good beats with no gap over 2 s, at least 10 s long (core's
+  `beats::last_watch_beat_s`, #2081), so a quiet stand after the watch
+  is lifted, and any stray beat in its hiss, moves nothing. The row's
+  hover says, on the line after its
   figures, that the cards at Stop can differ a little. A test's last
   window never stands for the test: a Positions Test's row shows its Mean row, the
   figures its table shows ("Mean of the six positions" in the row's hover),
