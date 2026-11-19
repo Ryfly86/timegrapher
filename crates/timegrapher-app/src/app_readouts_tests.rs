@@ -633,13 +633,9 @@ fn noise_shows_its_possible_beats_on_the_strip() {
         egui::CentralPanel::default().show(ctx, |ui| app.strip_pane(ui));
     });
     let drawn = format!("{:?}", out.shapes);
-    // Led by the cards' own wait where no beat is found at all (#2044).
-    let r = app.reading().expect("a reading");
-    let lead = app
-        .waiting(Some(&r))
-        .map_or("No regular beat found yet".to_string(), |w| w.0);
-    let note = format!("{lead}. The faint dots are sounds that might be beats.");
-    assert!(drawn.contains(&note), "{note} in {drawn}");
+    // Led by the cards' own wait, as no beat is found at all (#2044).
+    let note = "No Beats Heard. The faint dots are sounds that might be beats.";
+    assert!(drawn.contains(note), "{note} in {drawn}");
     assert!(drawn.contains("Circle"), "the possible beats are drawn");
 }
 
