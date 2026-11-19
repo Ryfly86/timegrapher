@@ -580,7 +580,7 @@ mod source_tests {
     #[test]
     fn a_short_box_flows_into_two_columns_then_sheds() {
         let v: Vec<f64> = (0..400)
-            .map(|i| f64::from(i % 50) * 0.1 + if i % 97 == 0 { 40.0 } else { 0.0 })
+            .map(|i| f64::from(i % 50) * 0.1 + if i % 250 == 0 { 40.0 } else { 0.0 })
             .collect();
         let d = timegrapher_core::distribution::distribution(
             &v,
@@ -634,7 +634,7 @@ mod source_tests {
     fn every_series_flows_before_it_sheds() {
         use timegrapher_core::distribution::{self as dist, Distribution};
         let v: Vec<f64> = (0..400)
-            .map(|i| f64::from(i % 50) * 0.1 + if i % 97 == 0 { 40.0 } else { 0.0 })
+            .map(|i| f64::from(i % 50) * 0.1 + if i % 250 == 0 { 40.0 } else { 0.0 })
             .collect();
         let ctx = egui::Context::default();
         crate::theme::install(&ctx);
