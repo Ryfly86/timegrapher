@@ -35,38 +35,8 @@ pub fn bytes_needed(sample_rate: u32) -> u64 {
     bytes_per_hour(sample_rate) * (power_reserve::LIMIT_S / 3600.0) as u64
 }
 
-/// Bytes free to this user on the disk holding `dir`.
-#[cfg(unix)]
-pub fn free_bytes(dir: &std::path::Path) -> Option<u64> {
-    use std::os::unix::ffi::OsStrExt;
-    let path = std::ffi::CString::new(dir.as_os_str().as_bytes()).ok()?;
-    let mut st: libc::statvfs = unsafe { std::mem::zeroed() };
-    // SAFETY: `path` is a valid C string and `st` a place for the answer.
-    if unsafe { libc::statvfs(path.as_ptr(), &mut st) } != 0 {
-        return None;
-    }
-    #[allow(clippy::unnecessary_cast, clippy::useless_conversion)]
-    Some(u64::from(st.f_bavail as u64) * u64::from(st.f_frsize as u64))
-}
-
-/// Bytes free to this user on the disk holding `dir`.
-#[cfg(windows)]
-pub fn free_bytes(dir: &std::path::Path) -> Option<u64> {
-    use std::os::windows::ffi::OsStrExt;
-    use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
-    let wide: Vec<u16> = dir.as_os_str().encode_wide().chain([0]).collect();
-    let mut free = 0u64;
-    // SAFETY: `wide` ends in a nul; the other answers aren't asked for.
-    let ok = unsafe {
-        GetDiskFreeSpaceExW(
-            wide.as_ptr(),
-            &mut free,
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-        )
-    };
-    (ok != 0).then_some(free)
-}
+/// Bytes free to this user on the disk holding `dir` (core's one source).
+pub use timegrapher_core::library::free_bytes;
 
 /// A size in GB, one decimal: "17.3 GB".
 pub fn gb(bytes: u64) -> String {

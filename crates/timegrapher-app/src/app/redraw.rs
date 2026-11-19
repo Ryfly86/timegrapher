@@ -38,6 +38,7 @@ impl TimegrapherApp {
             || self.steady_job.is_some()
             || self.saving.is_some()
             || self.take_keep.is_some()
+            || self.take_add.is_some()
             || self.analysis_save.is_some()
             || self.kept_writing();
         if self.running() || self.batch.is_some() {

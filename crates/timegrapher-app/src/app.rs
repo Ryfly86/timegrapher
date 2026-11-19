@@ -85,6 +85,7 @@ mod scope_panes;
 mod session_marks;
 mod settings_pane;
 mod steadiness_panes;
+mod take_add;
 mod take_io;
 mod take_reads;
 mod test_body;
@@ -1690,6 +1691,8 @@ pub struct TimegrapherApp {
     /// one it keeps into, put back if its question is cancelled.
     keep_back: Option<(Option<String>, bool)>,
     take_keep: Option<(PathBuf, AnalysisSave)>,
+    /// A take being copied into a watch by Keep in a Watch… (#1970).
+    take_add: Option<take_add::TakeAdd>,
     /// The takes' own readings the Watches list shows, worked out on a
     /// thread of their own.
     take_readings: watches::TakeReadings,
@@ -2456,6 +2459,7 @@ impl TimegrapherApp {
             take_ask: None,
             keep_back: None,
             take_keep: None,
+            take_add: None,
             take_readings: watches::TakeReadings::default(),
             thumbs: Default::default(),
             strip_points: None,
@@ -2948,18 +2952,6 @@ impl TimegrapherApp {
             _ => return false,
         }
         true
-    }
-
-    /// The watch the take is of, as the Calibre card's title and the
-    /// status bar name it: the one open in Watches, else the one the take
-    /// names itself (its session file's), which isn't in Watches (false);
-    /// none for No Watch.
-    fn named_watch(&self) -> Option<(String, bool)> {
-        self.open_watch()
-            .map(|e| e.watch.name.clone())
-            .filter(|n| !n.is_empty())
-            .map(|n| (n, true))
-            .or_else(|| (!self.watch.is_empty()).then(|| (self.watch.clone(), false)))
     }
 
     /// What the strip shows, for the status line: the take's name, its
@@ -3984,6 +3976,7 @@ impl eframe::App for TimegrapherApp {
         self.setup_sheet_dialog(ctx);
         self.take_ask_dialog(ctx);
         self.poll_take_keep();
+        self.poll_take_add();
         self.reread_library_on_focus(ctx);
         if let Some(m) = self.report.ui(ctx) {
             self.info_msg(m);
