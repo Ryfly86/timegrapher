@@ -1045,10 +1045,15 @@ pub fn positions_means(dir: &std::path::Path) -> Option<(usize, [Option<f64>; 3]
 
 /// Whether a take's row shows a dim dash for its figures, as they are
 /// part by part in the take: a Power Reserve Test's hour by hour, a
-/// Dynamic Poise Test's stop by stop (#2002). One rule for its cells and
-/// their dimming (Vernon on #2021).
+/// Dynamic Poise Test's stop by stop (#2002); and a Positions Test
+/// stopped before any position was measured, which has none, not blanks
+/// (#2007). One rule for its cells and their dimming (Vernon on #2021).
 fn dashed(t: &Take, test: Option<(TakeTest, [Option<f64>; 3])>) -> bool {
-    t.power_reserve.is_some() || matches!(test, Some((TakeTest::Poise, _)))
+    t.power_reserve.is_some()
+        || matches!(
+            test,
+            Some((TakeTest::Poise, _)) | Some((TakeTest::Positions, [None, None, None]))
+        )
 }
 
 /// The guided test a take's row names, with the figures it shows: a
@@ -1202,46 +1207,6 @@ pub fn picked_take<'a>(e: &'a WatchEntry, cx: &TakesContext) -> Option<&'a Take>
     e.takes
         .iter()
         .find(|t| cx.picked == Some(e.take_dir(t).as_path()))
-}
-
-/// The Takes title row's Open and "…", acting on the picked take: Open
-/// greyed out while `busy` says why (a take running on the Bench) or none
-/// is picked.
-pub fn takes_buttons(
-    ui: &mut egui::Ui,
-    e: &WatchEntry,
-    cx: &TakesContext,
-    busy: Option<&str>,
-) -> Option<TakeAction> {
-    let mut act = None;
-    let picked = picked_take(e, cx);
-    let r = ui.add_enabled(picked.is_some(), theme::secondary(ui, "…"));
-    let r = r
-        .on_hover_text("More for the picked take: Show in the folder, Keep Analysis Only…, move it, or delete it")
-        .on_disabled_hover_text("Pick a take first");
-    if let Some(t) = picked {
-        egui::Popup::menu(&r)
-            .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
-            .show(|ui| {
-                if let Some(a) = take_menu(ui, e, t, cx, busy) {
-                    act = Some(a);
-                }
-            });
-    }
-    let why = busy.or(picked.is_none().then_some("Pick a take first"));
-    if ui
-        .add_enabled(why.is_none(), theme::secondary(ui, "Open"))
-        .on_hover_text(
-            "Analyse the whole picked take on the Bench; a long take takes a while to read",
-        )
-        .on_disabled_hover_text(why.unwrap_or_default())
-        .clicked()
-    {
-        if let Some(t) = picked {
-            act = Some(TakeAction::Open(e.take_dir(t)));
-        }
-    }
-    act
 }
 
 /// Why the take `t` in `dir` isn't offered Keep Analysis Only, or none
@@ -1624,11 +1589,20 @@ fn engine_line() -> String {
     format!("Read by Timegrapher {version}, engine {source}")
 }
 
+/// Why the cards' figures at Stop can differ from a take's own, on the
+/// line after them (#2073; Norm's ruling 3, Hugh 5's words): they read the
+/// stretch of Average Over ending at Stop, as the sound came in, where the
+/// take's are its whole stretch read afterwards. An opened take's cards at
+/// its end give the take's own.
+pub(crate) const AT_STOP_LINE: &str = "The cards at Stop can differ a little: they read the \
+     stretch of Average Over ending there, as the sound came in.";
+
 /// A take's own figures as its hover says them, on a line of their own
 /// after its facts: which position they are of, where it has more than
 /// one, and that they are its whole stretch after settling, so they can
-/// differ from the Bench's at Stop (#1979). Empty for a test's take, whose
-/// figures [`figures_hover`] says, or with nothing read.
+/// differ from the Bench's at Stop, which the line after says for a take
+/// listened to (#1979, #2073). Empty for a test's take, whose figures [`figures_hover`] says,
+/// or with nothing read.
 fn read_line(t: &Take, test: Option<TakeTest>, reading: Option<&Reading>) -> String {
     let Some(r) = reading.filter(|_| test.is_none() && t.power_reserve.is_none()) else {
         return String::new();
@@ -1641,11 +1615,35 @@ fn read_line(t: &Take, test: Option<TakeTest>, reading: Option<&Reading>) -> Str
     if figures.is_empty() {
         return String::new();
     }
-    let of = match r.position.as_deref().and_then(Position::parse) {
-        Some(p) if t.positions.len() > 1 => format!("{}, its whole stretch", p.name()),
-        _ => "The whole take".to_string(),
+    let of = whole_named(
+        r.position.as_deref().and_then(Position::parse),
+        t.positions.len(),
+    );
+    let mut of = of.chars();
+    let of: String = of
+        .next()
+        .map(|c| c.to_uppercase().chain(of).collect())
+        .unwrap_or_default();
+    // Only a take listened to has figures shown live at Stop: its sound
+    // was kept by the recorder, whose session.json gives its start (Hugh 5
+    // on #2075).
+    let at_stop = if t.started_utc.is_some() {
+        format!("\n{AT_STOP_LINE}")
+    } else {
+        String::new()
     };
-    format!("\n{of} after settling: {}", figures.join(" · "))
+    format!("\n{of} after settling: {}{at_stop}", figures.join(" · "))
+}
+
+/// What a take's whole reading is of, in words: "the whole take", or
+/// "Crown Up, its whole stretch" for `position` where the take has more
+/// than one of its `positions`. The one naming for a take's row and its
+/// cards' hover (#1979, #2075).
+pub(crate) fn whole_named(position: Option<Position>, positions: usize) -> String {
+    match position {
+        Some(p) if positions > 1 => format!("{}, its whole stretch", p.name()),
+        _ => "the whole take".to_string(),
+    }
 }
 
 /// A take's row as its hover says it: the take, its figures, where its
@@ -1824,7 +1822,7 @@ pub fn ask_dialog(
     watches: &[(String, String)],
 ) -> Option<bool> {
     let mut answer = None;
-    let modal = egui::Modal::new(egui::Id::new("take question")).show(ctx, |ui| {
+    let modal = theme::sheet(egui::Id::new("take question")).show(ctx, |ui| {
         ui.set_width(420.0);
         let (go, ready, red) = match ask {
             Ask::Delete { take, bytes } => {
@@ -2004,7 +2002,7 @@ fn remove_button(ui: &mut egui::Ui, what: &str) -> bool {
 /// The form for a watch's details, in a window of its own.
 pub fn form(ctx: &egui::Context, f: &mut Form, cal: &mut Calibres) -> Option<FormAction> {
     let mut act = None;
-    let modal = egui::Modal::new(egui::Id::new("watch form")).show(ctx, |ui| {
+    let modal = theme::sheet(egui::Id::new("watch form")).show(ctx, |ui| {
         ui.set_width(440.0);
         ui.label(
             RichText::new(if f.new { "New Watch" } else { "Edit Watch" })
@@ -2897,6 +2895,7 @@ mod tests {
         let full = crate::guided::FullWind {
             wind_h: None,
             against: None,
+            listened: false,
             format: crate::guided::RESULTS_FORMAT.into(),
             began_utc: String::new(),
             began_unix: 0.0,
@@ -2983,6 +2982,13 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 }
+
+/// The Takes title row's Open and "…", split from this file by concern.
+#[path = "watches_buttons.rs"]
+mod buttons;
+pub use buttons::takes_buttons;
+#[cfg(test)]
+use buttons::{open_why, NO_TAKES};
 
 #[cfg(test)]
 #[path = "watches_hover_tests.rs"]

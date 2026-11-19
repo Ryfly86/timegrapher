@@ -72,7 +72,7 @@ pub(super) fn refined_candidates(
     }
     if let Some(p) = &s.period {
         for &q in std::iter::once(&p.period_s).chain(&p.other_periods_s) {
-            cands.push((q, 0.01, CycleSource::PeriodSearch));
+            cands.push((q, super::SEARCH_REFINE_SHARE, CycleSource::PeriodSearch));
         }
     }
     let refined = crate::cores::on_every_core(&cands, |&(p, rel, src)| {

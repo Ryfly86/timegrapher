@@ -147,7 +147,7 @@ impl TimegrapherApp {
             (format!("Stop the {name}?"), format!("{what}{kept}."))
         };
         let mut choice = None;
-        egui::Modal::new(egui::Id::new("stop test")).show(ctx, |ui| {
+        theme::sheet(egui::Id::new("stop test")).show(ctx, |ui| {
             ui.set_width(360.0);
             ui.label(RichText::new(title).font(theme::semibold(15.0)));
             ui.add_space(4.0);
@@ -231,6 +231,9 @@ impl TimegrapherApp {
                 test.bph_set = self.live.as_ref().and_then(|l| l.config().analysis.bph);
                 test.lift_deg = Some(self.lift_deg);
                 test.finish(&log, clock.as_ref(), &self.masked);
+                // Read again from its sound as saved, as `timegrapher
+                // session` reads it, once its take is saved (#1958).
+                test.saved_read = guided::SavedRead::Pending;
             }
             // No beat to read the stretches by: the test ends all the same,
             // keeping the positions already read (#1888).
@@ -256,13 +259,15 @@ impl TimegrapherApp {
         }
     }
 
-    /// A Positions Test's take opened from `dir`: a 24 hour half's saved
-    /// results, so its pane shows the run's table and comparison again.
+    /// A guided test's take opened from `dir`: a 24 hour half's saved
+    /// results, so its pane shows the run's table and comparison again,
+    /// and the test's marks, so its strip shows it as it ran (#1957).
     pub(super) fn load_saved_test(&mut self, dir: &Path) {
         self.guided_saved = std::fs::read_to_string(dir.join(guided::RESULTS_FILE))
             .ok()
             .and_then(|t| guided::FullWind::from_json(&t).ok())
             .filter(|f| f.against.is_some());
+        self.load_test_marks(dir);
     }
 
     /// The Positions Test, if that is the guided test on the Bench.
@@ -687,6 +692,7 @@ impl TimegrapherApp {
             (Some(t), Some(now)) => Some(t.tick(now)),
             _ => None,
         };
+        let phase = self.shown_phase(phase);
         let free = if self.guided.is_none() {
             self.free_table_shown(ui.ctx())
         } else {

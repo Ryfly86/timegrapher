@@ -218,7 +218,10 @@ impl TimegrapherApp {
                 // point; it is thrown away with a new session unless saved.
                 let info = self.info(&c.label, c.sample_rate, c.bits);
                 match Recorder::start(&scratch_dir(), info) {
-                    Ok(r) => self.session.recorder = Some(r),
+                    Ok(mut r) => {
+                        r.keep_saved_hours_in_copy(); // #2040
+                        self.session.recorder = Some(r);
+                    }
                     Err(e) => self.error(format!(
                         "Can't keep the sound for saving later: {e}. The readings still work."
                     )),
@@ -244,7 +247,10 @@ impl TimegrapherApp {
 
     /// A microphone session that is paused and can carry on.
     pub(super) fn can_resume(&self) -> bool {
-        self.session.allows(Action::Resume) && self.live.is_some() && !self.running()
+        self.session.allows(Action::Resume)
+            && self.live.is_some()
+            && !self.running()
+            && self.saved_hours_reachable()
     }
 
     /// Let go of the input. Done on a thread of its own with a short
@@ -408,22 +414,6 @@ impl TimegrapherApp {
             ),
             None => String::new(),
         }
-    }
-
-    /// While a kept take is heard, add its sound since the last save to
-    /// its folder every [`STREAM_EVERY_S`] of sound, quietly, so a crash
-    /// or a power cut costs only seconds. A save that fails says so, and
-    /// the next is tried a minute later.
-    pub(super) fn stream_tick(&mut self) {
-        if self.saving.is_some()
-            || self.stream_wait.is_some_and(|t| t.elapsed() < STREAM_RETRY)
-            || !self.streams()
-            || self.session.unsaved_s() < STREAM_EVERY_S
-        {
-            return;
-        }
-        self.stream_wait = None;
-        self.save_again_as(Streamed::Yes);
     }
 
     /// Carry on listening after a pause, in the same session.
@@ -789,7 +779,7 @@ impl TimegrapherApp {
 
     /// [`TimegrapherApp::save_again`], or a save of a take recording into
     /// its folder as it goes, which says nothing when it is done.
-    fn save_again_as(&mut self, streamed: Streamed) {
+    pub(super) fn save_again_as(&mut self, streamed: Streamed) {
         if self.behind_save(move |a| a.save_again_as(streamed)) {
             return;
         }
@@ -870,7 +860,7 @@ impl TimegrapherApp {
     }
 
     fn save_into_as(&mut self, parent: &Path, streamed: Streamed) {
-        if self.refuse_faulted_recording() || self.saving_busy() {
+        if self.refuse_faulted_recording() || self.refuse_hours_gone() || self.saving_busy() {
             return;
         }
         let metadata = self.session.metadata_snapshot(self.save_metadata());
@@ -962,6 +952,7 @@ impl TimegrapherApp {
         {
             files.push((power_reserve::FILE, r.to_json().into_bytes()));
         }
+        files.extend(self.test_marks_file());
         Ok(files)
     }
 
@@ -1050,6 +1041,7 @@ impl TimegrapherApp {
                 if s.streamed == Streamed::No && !self.running() {
                     self.run_after_save_command(&copy.dir);
                 }
+                self.read_test_again(&copy.dir, s.streamed);
                 self.session.mark_saved(s.secs, copy.dir, s.metadata);
                 if s.rescan {
                     if let Ok(Some(l)) = &mut self.library {
@@ -1092,7 +1084,7 @@ impl TimegrapherApp {
     /// waiting its turn holds all its sound, so it alone answers for the
     /// take and the quit: the pause can take the hour from under a copy
     /// still under way (#1230).
-    fn save_failed(&mut self, streamed: Streamed, dest: &Path, e: String) {
+    pub(super) fn save_failed(&mut self, streamed: Streamed, dest: &Path, e: String) {
         if streamed == Streamed::Yes && !self.running() && !self.after_save.is_empty() {
             return applog::info(&format!(
                 "a save into {} failed after the Stop, whose save follows: {e}",
@@ -1118,12 +1110,6 @@ impl TimegrapherApp {
             ));
         }
         self.error(format!("Saving the recording failed: {e}"))
-    }
-
-    /// [`Self::save_failed`] of a save into the take's folder, for tests.
-    #[cfg(test)]
-    pub(super) fn save_failed_for_test(&mut self, dest: &Path, e: String) {
-        self.save_failed(Streamed::Yes, dest, e);
     }
 
     /// While the session is being kept as its analysis alone, say so and
@@ -1153,7 +1139,8 @@ impl TimegrapherApp {
     /// Keep the session as its analysis alone, in a new folder inside one
     /// the user picks.
     pub(super) fn save_analysis_only(&mut self) {
-        if self.refuse_faulted_recording() || !self.can_save_analysis() {
+        if self.refuse_faulted_recording() || self.refuse_hours_gone() || !self.can_save_analysis()
+        {
             return;
         }
         let mut d = rfd::FileDialog::new()
@@ -1286,6 +1273,7 @@ impl TimegrapherApp {
                     size_text(size)
                 ));
                 self.analysis_kept_to = Some((dir, job.total_s));
+                self.test_kept_without_sound();
             }
             Err(e) => self.error(format!("Keeping the analysis failed: {e}")),
         }
@@ -2208,6 +2196,7 @@ impl TimegrapherApp {
         self.poll_for(FRAME_BUDGET);
         self.follow_live_usb();
         self.poll_wav_keep();
+        self.poll_test_read();
         // Asks waiting on a save go ahead on the window's frame, never on
         // the listening thread, which polls too.
         self.run_after_save();
@@ -2349,6 +2338,7 @@ impl TimegrapherApp {
 
         self.poll_analysis_save();
         self.poll_saving();
+        self.tidy_recording();
         self.stream_tick();
         self.poll_batch();
 

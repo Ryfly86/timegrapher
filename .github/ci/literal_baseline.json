@@ -282,7 +282,7 @@
    },
    "total": {
     "bounds": 99,
-    "comparisons": 91,
+    "comparisons": 88,
     "constants": 62,
     "defaults": 2
    }
@@ -399,6 +399,6 @@
   }
  },
  "long_files": {
-  "crates/timegrapher-app/src/app.rs": 4271
+  "crates/timegrapher-app/src/app.rs": 4225
  }
 }

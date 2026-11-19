@@ -2,7 +2,6 @@
 //! Enter or by clicking away, with a short list of common values beside it.
 
 use eframe::egui;
-use timegrapher_core::library::length_text;
 
 /// How a field shows and reads its value.
 pub struct Format {
@@ -12,8 +11,7 @@ pub struct Format {
 
 /// Plain number with up to one decimal, and an optional unit after it.
 pub fn plain(v: f64) -> String {
-    let s = format!("{v:.1}");
-    s.strip_suffix(".0").map(str::to_string).unwrap_or(s)
+    timegrapher_core::figure_text::plain_text(v)
 }
 
 /// Read a number, allowing a decimal comma and a trailing unit such as
@@ -30,17 +28,7 @@ pub fn parse_number(s: &str) -> Option<f64> {
 
 /// Seconds shown as "30 s", "5 min", "2 h" or "1:30:00".
 pub fn duration(v: f64) -> String {
-    let s = v.round().max(0.0) as u64;
-    // A whole minute reads as one, "1 min" beside "5 min", never "60 s".
-    if s < 60 || (s < 120 && !s.is_multiple_of(60)) {
-        format!("{} s", plain(v))
-    } else if s.is_multiple_of(3600) {
-        format!("{} h", s / 3600)
-    } else if s.is_multiple_of(60) && s < 7200 {
-        format!("{} min", s / 60)
-    } else {
-        length_text(v)
-    }
+    timegrapher_core::figure_text::duration_text(v)
 }
 
 /// From `least` to `most` seconds as [`duration`] writes each: one length

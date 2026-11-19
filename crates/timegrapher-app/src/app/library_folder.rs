@@ -228,7 +228,8 @@ impl TimegrapherApp {
     /// front, so a take another program added while the app was open
     /// (`timegrapher watches add-take`, a sync) is listed without a
     /// restart. Its cache keeps this quick: only a take whose files
-    /// changed is read again.
+    /// changed is read again. The take the session was saved in is looked
+    /// at again too.
     pub(super) fn reread_library_on_focus(&mut self, ctx: &egui::Context) {
         let back = ctx.input(|i| {
             i.events
@@ -237,6 +238,10 @@ impl TimegrapherApp {
         });
         if let (true, Ok(Some(l))) = (back, &mut self.library) {
             l.scan();
+        }
+        // Nor "Saved" for a take deleted meanwhile (#2052).
+        if let (true, Some(r)) = (back, self.session.recorder.as_mut()) {
+            r.look_at_saved_copy();
         }
     }
 
@@ -258,7 +263,7 @@ impl TimegrapherApp {
             _ => "Everything in it is moved there,".to_string(),
         };
         let mut choice = None;
-        let modal = egui::Modal::new(egui::Id::new("move library")).show(ctx, |ui| {
+        let modal = theme::sheet(egui::Id::new("move library")).show(ctx, |ui| {
             ui.set_width(420.0);
             ui.label(
                 RichText::new(format!("Move your watches to {}?", to.display()))

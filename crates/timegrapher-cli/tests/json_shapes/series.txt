@@ -88,6 +88,7 @@ series[].caveats
 series[].changes
 series[].cusum
 series[].cycle
+series[].cycle_off_search_s
 series[].headline
 series[].long_run_sd
 series[].median
@@ -100,6 +101,8 @@ series[].null.model
 series[].outliers
 series[].period
 series[].readings
+series[].repeat_mark
+series[].screen_cycle_size
 series[].screen_headline
 series[].screen_stats
 series[].screen_summary

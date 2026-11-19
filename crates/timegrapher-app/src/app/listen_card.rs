@@ -887,8 +887,7 @@ impl TimegrapherApp {
             self.save_again();
         }
         if new {
-            self.open_new_watch_form();
-            self.keep_after_form = true;
+            self.keep_in_new_watch();
         }
         if folder {
             // Save Again into the folder saved to before; else ask where.
@@ -1623,6 +1622,11 @@ impl TimegrapherApp {
         if heard && !self.quick_listen {
             return;
         }
+        // Its earlier hours gone with its take: nothing can be kept, so the
+        // session isn't made the watch's either (Walter 7 on #2046).
+        if self.refuse_hours_gone() {
+            return;
+        }
         let Some(name) = (match &self.library {
             Ok(Some(l)) => l.watches.iter().find(|e| e.watch.id == id),
             _ => None,
@@ -1826,9 +1830,12 @@ impl TimegrapherApp {
         }
     }
 
-    /// Seconds of settling still to come now.
+    /// Seconds of settling still to come now: after a move, or in a
+    /// guided test's opening settle, which no move starts. One answer for
+    /// the readings, the cards, the signal and the strip (Trevor on
+    /// #2036).
     pub(super) fn settling_left(&self) -> Option<f64> {
-        self.session.settling_left(self.latest_s())
+        self.settle_left_at(self.latest_s())
     }
 
     /// When stopped inside the settle after a move: when that move was,

@@ -160,7 +160,22 @@ impl TimegrapherApp {
     /// two overlap: what is shaded as settling is not read, and what is
     /// culled is shaded (Hugh).
     pub(super) fn strip_settles(&self) -> Vec<(f64, f64, &'static str)> {
-        let settling = super::masks::settlings(&self.session, &self.guided_unused);
+        let mut settling = super::masks::settlings(&self.session, &self.guided_unused);
+        // A test's take opened: its marks say what each stretch was, so
+        // the gaps the session file leaves between its entries are
+        // settling only where the test settled (#1957).
+        if self.marks_opened() {
+            let marked: Vec<(f64, f64)> = self
+                .guided_unused
+                .iter()
+                .filter(|s| s.2 != guided::SETTLING)
+                .map(|&(a, b, _)| (a, b))
+                .collect();
+            settling = settling
+                .iter()
+                .flat_map(|&(a, b)| crate::strip::showing(a, b, marked.iter().copied()))
+                .collect();
+        }
         let rest = self
             .guided_unused
             .iter()
@@ -551,7 +566,17 @@ impl TimegrapherApp {
         }
         let end = self.strip_end_s();
         let looking_back = self.strip_end.is_some() && end < self.latest_s() - 0.5;
-        let note = strip_note(guessing, looking_back, end);
+        // With no beat at all, the cards' wait leads the note, so the strip
+        // and the cards say one verdict (#2044).
+        let wait = guessing
+            .then(|| self.reading())
+            .flatten()
+            .and_then(|r| self.waiting(Some(&r)))
+            .map(|(title, _)| title);
+        // The faint dots in view, so the note says what is drawn: on pure
+        // silence only the peak as the microphone opens (#2053).
+        let dots = dots_in_view(&candidates, end - self.strip.span_s, end);
+        let note = strip_note(guessing, (wait.as_deref(), dots), looking_back, end);
         let from = end - self.strip.span_s - 5.0;
         let (trend, _) = self.strip_trend(from, end, self.average_s);
         let Some(live) = &self.live else { return };
@@ -748,13 +773,32 @@ fn round_span(s: f64) -> f64 {
 /// The position track along the strip: (from s, to s, label, code).
 type StripTrack = Vec<(f64, f64, &'static str, &'static str)>;
 
+/// How many of the faint dots fall in the strip's view, from `shown` to
+/// `end` seconds (#2053).
+fn dots_in_view(candidates: &[timegrapher_core::beats::Beat], shown: f64, end: f64) -> usize {
+    candidates
+        .iter()
+        .filter(|b| (shown..=end).contains(&b.time))
+        .count()
+}
+
 /// The line over the strip: what the faint dots are while no regular beat
-/// is found, or where the view is when looking back.
-fn strip_note(guessing: bool, looking_back: bool, end: f64) -> Option<String> {
+/// is found, led by the cards' wait where there is no beat at all and
+/// saying as many dots as are in view, or where the view is when looking
+/// back.
+fn strip_note(
+    guessing: bool,
+    (wait, dots): (Option<&str>, usize),
+    looking_back: bool,
+    end: f64,
+) -> Option<String> {
     if guessing {
-        Some(
-            "No regular beat found yet. The faint dots are sounds that might be beats.".to_string(),
-        )
+        let lead = wait.unwrap_or("No regular beat found yet");
+        Some(match dots {
+            0 => format!("{lead}."),
+            1 => format!("{lead}. The faint dot is a sound that might be a beat."),
+            _ => format!("{lead}. The faint dots are sounds that might be beats."),
+        })
     } else {
         looking_back.then(|| format!("at {}, double-click for the newest beats", length_text(end)))
     }
@@ -992,5 +1036,39 @@ mod tests {
         assert_eq!(overlays[1].points[1], [1.0, 0.8]);
         assert!(overlays[1].points[0][1].is_nan());
         assert!(overlays[1].points[2][1].is_nan());
+    }
+
+    /// Only the dots in the strip's view count: the 0:00 peak scrolled
+    /// off, or dots after the strip's newest edge moved back, don't (Trevor
+    /// on #2066).
+    #[test]
+    fn only_the_dots_in_view_are_counted() {
+        let at = |time| timegrapher_core::beats::Beat {
+            index: 0,
+            time,
+            quality: 1.0,
+        };
+        let dots = [at(0.0), at(12.0), at(14.0), at(30.0)];
+        assert_eq!(dots_in_view(&dots, 10.0, 20.0), 2);
+        assert_eq!(dots_in_view(&dots, 20.0, 29.0), 0);
+        assert_eq!(dots_in_view(&dots, 0.0, 12.0), 2, "both ends in view");
+        assert_eq!(dots_in_view(&dots, 25.0, 40.0), 1);
+    }
+
+    /// The note says as many faint dots as are in view: none, the one
+    /// peak on pure silence, or several (#2053).
+    #[test]
+    fn the_strip_note_says_the_dots_in_view() {
+        let note = |wait, dots| strip_note(true, (wait, dots), false, 10.0);
+        let w = Some("Waiting for Beats");
+        assert_eq!(note(w, 0).as_deref(), Some("Waiting for Beats."));
+        assert_eq!(
+            note(w, 1).as_deref(),
+            Some("Waiting for Beats. The faint dot is a sound that might be a beat.")
+        );
+        assert_eq!(
+            note(None, 5).as_deref(),
+            Some("No regular beat found yet. The faint dots are sounds that might be beats.")
+        );
     }
 }

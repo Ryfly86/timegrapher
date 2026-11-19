@@ -304,7 +304,38 @@ pub fn far_fences(sorted: &[f64]) -> Option<(f64, f64)> {
     }
     let (q1, q3) = (quantile(sorted, 0.25), quantile(sorted, 0.75));
     let iqr = q3 - q1;
-    Some((q1 - 3.0 * iqr, q3 + 3.0 * iqr))
+    Some((q1 - FAR_FENCE_IQR * iqr, q3 + FAR_FENCE_IQR * iqr))
+}
+
+/// The reach of Tukey's far fences, in interquartile ranges; also the gap
+/// that parts a value beyond them from the body in [`joined_range`]
+/// (#1971, Norm).
+pub const FAR_FENCE_IQR: f64 = 3.0;
+
+/// The span of `sorted` (ascending) joined to its body: the values inside
+/// [`far_fences`], then, walking outward from the last of them each way,
+/// each next value while it is less than [`FAR_FENCE_IQR`] interquartile
+/// ranges past the one before. The first gap that wide ends it, so a
+/// run-down's tail, its readings following on from one another, stays
+/// joined, and a cluster of glitches across an empty stretch does not, at
+/// any count (Norm, #1971). None when empty or with no spread between the
+/// quartiles.
+pub fn joined_range(sorted: &[f64]) -> Option<(f64, f64)> {
+    let (f_lo, f_hi) = far_fences(sorted)?;
+    let iqr = quantile(sorted, 0.75) - quantile(sorted, 0.25);
+    if iqr <= 0.0 {
+        return None;
+    }
+    let gap = FAR_FENCE_IQR * iqr;
+    let mut hi = sorted.iter().rposition(|&x| x <= f_hi)?;
+    while hi + 1 < sorted.len() && sorted[hi + 1] - sorted[hi] < gap {
+        hi += 1;
+    }
+    let mut lo = sorted.iter().position(|&x| x >= f_lo)?;
+    while lo > 0 && sorted[lo] - sorted[lo - 1] < gap {
+        lo -= 1;
+    }
+    Some((sorted[lo], sorted[hi]))
 }
 
 /// [`quantile`] of `f32` values, by the same rule.
@@ -488,6 +519,48 @@ fn normal_equations<const N: usize>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A body of 1000 values over 0 to 99.9 and `tail` past it, sorted,
+    /// with the body's interquartile range. Values past the upper quartile
+    /// move no quartile, so the range is the body's at any tail.
+    fn with_tail(tail: &[f64]) -> (Vec<f64>, f64) {
+        let mut v: Vec<f64> = (0..1000).map(|i| f64::from(i) / 10.0).collect();
+        v.extend_from_slice(tail);
+        v.sort_by(f64::total_cmp);
+        let iqr = quantile(&v, 0.75) - quantile(&v, 0.25);
+        (v, iqr)
+    }
+
+    /// A tail joined above the body stays in the range to its end, and
+    /// the mirror below (Trevor on #2038): each next value is two
+    /// interquartile ranges past the one before, under the 3 that part.
+    #[test]
+    fn a_joined_tail_stays_in_the_range_above_and_below() {
+        let (_, iqr) = with_tail(&[]);
+        let (_, f_hi) = far_fences(&with_tail(&[]).0).unwrap();
+        let up: Vec<f64> = (0..4).map(|k| f_hi + f64::from(k) * 2.0 * iqr).collect();
+        let (v, _) = with_tail(&up);
+        assert_eq!(joined_range(&v), Some((0.0, up[3])));
+        let down: Vec<f64> = (0..4).map(|k| -f64::from(k + 1) * 2.0 * iqr).collect();
+        let (v, _) = with_tail(&down);
+        assert_eq!(joined_range(&v), Some((down[3], 99.9)));
+    }
+
+    /// The gap that parts a value from the body is the fences' reach,
+    /// `FAR_FENCE_IQR` interquartile ranges: a hundredth under it the
+    /// value is joined, a hundredth over it the range ends (Trevor on
+    /// #2038).
+    #[test]
+    fn the_parting_gap_is_three_interquartile_ranges() {
+        let (_, iqr) = with_tail(&[]);
+        let (_, f_hi) = far_fences(&with_tail(&[]).0).unwrap();
+        let last = f_hi - 1.0;
+        let gap = FAR_FENCE_IQR * iqr;
+        let (v, _) = with_tail(&[last, last + gap * 0.99]);
+        assert_eq!(joined_range(&v).unwrap().1, last + gap * 0.99);
+        let (v, _) = with_tail(&[last, last + gap * 1.01]);
+        assert_eq!(joined_range(&v).unwrap().1, last);
+    }
 
     /// The covariance is the inverse of the normal matrix, and the fit is
     /// [`least_squares`]'s.

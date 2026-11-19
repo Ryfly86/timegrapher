@@ -633,7 +633,9 @@ fn noise_shows_its_possible_beats_on_the_strip() {
         egui::CentralPanel::default().show(ctx, |ui| app.strip_pane(ui));
     });
     let drawn = format!("{:?}", out.shapes);
-    assert!(drawn.contains("No regular beat found yet"), "{drawn}");
+    // Led by the cards' own wait, as no beat is found at all (#2044).
+    let note = "No Beats Heard. The faint dots are sounds that might be beats.";
+    assert!(drawn.contains(note), "{note} in {drawn}");
     assert!(drawn.contains("Circle"), "the possible beats are drawn");
 }
 
@@ -1696,4 +1698,747 @@ fn the_cards_say_listening_until_ten_seconds_are_heard() {
     assert_eq!(r.listening, None);
     assert!(r.rate_s_per_day.is_some(), "{r:?}");
     assert!(!cards(&app).contains(LISTENING_TITLE));
+}
+
+/// The reading cards' painted text, as one string.
+fn cards_text(app: &TimegrapherApp, ctx: &egui::Context) -> String {
+    let out = ctx.run(screen(), |ctx| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            let _ = app.readouts(ui);
+        });
+    });
+    painted_text(&out)
+}
+
+/// How many times `word` is painted in `text`, one shape a line.
+fn painted(text: &str, word: &str) -> usize {
+    text.lines().filter(|l| *l == word).count()
+}
+
+/// While the watch settles after a move, the Rate, Amplitude and Beat
+/// Error cards wait alike: each counts the settle down in the figure's
+/// place, not a bare "—" on two of them. The signal stays in the status
+/// bar all the while (#2007).
+#[test]
+fn every_reading_card_counts_the_settle_down_and_the_signal_stays() {
+    use timegrapher_core::measure::Wait;
+    let ctx = themed();
+    let base = std::env::temp_dir().join(format!("tg-settle-wait-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "settle".into());
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let cfg = SynthConfig {
+        duration_s: 52.0,
+        rate_s_per_day: 5.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let (before, after) = audio.samples.split_at(30 * 48_000);
+    let (during, rest) = after.split_at(5 * 48_000);
+    let push = |app: &mut TimegrapherApp, x: &[f32]| {
+        let live = app.live.as_mut().expect("live");
+        x.chunks(960).for_each(|b| {
+            live.push(b);
+        });
+    };
+    push(&mut app, before);
+    app.session.set_settle_s(20.0);
+    app.live.as_mut().expect("live").new_stretch();
+    app.session.start_settle(30.0);
+    push(&mut app, during);
+    let left = app.settling_left().expect("settling");
+    assert!(app.reading().is_none(), "nothing is read while settling");
+    let text = cards_text(&app, &ctx);
+    // "Settling," over "15 s", on each of the three cards.
+    let title = Wait::Settling { left_s: left }.title();
+    let (head, secs) = title.split_once(' ').expect("two words");
+    assert_eq!(painted(&text, head), 3, "{text}");
+    assert_eq!(painted(&text, secs), 3, "{text}");
+    let why = app.waiting(None).expect("a wait").1;
+    assert!(
+        why.starts_with(&Wait::Settling { left_s: left }.text()),
+        "{why}"
+    );
+    // The signal is the sound's own, not withheld with the readings.
+    assert!(app.signal().is_some(), "signal while settling");
+    let out = ctx.run(screen(), |ctx| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.horizontal(|ui| app.status_facts(ui));
+        });
+    });
+    assert!(
+        painted_text(&out)
+            .lines()
+            .any(|l| l.starts_with("signal ") && l.ends_with('×')),
+        "{}",
+        painted_text(&out)
+    );
+    // Settled: the figures, and no settle words.
+    push(&mut app, rest);
+    assert!(app.settling_left().is_none());
+    let text = cards_text(&app, &ctx);
+    assert_eq!(painted(&text, head), 0, "{text}");
+    assert!(text.contains("s/d"), "{text}");
+    drop(_tx);
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// Listening to silence past the first 10 s, every reading card says
+/// "Waiting for Beats", with why in its hover, never a bare "—" (#2007).
+/// The status bar keeps "signal" in its place with a "—". Stopped, they
+/// say "No Beats Heard" instead.
+#[test]
+fn silence_waits_for_beats_on_every_card() {
+    use timegrapher_core::measure::WAITING_FOR_BEATS;
+    let ctx = themed();
+    let base = std::env::temp_dir().join(format!("tg-silence-wait-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "silence".into());
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let quiet = vec![0.0_f32; 960];
+    for _ in 0..15 * 50 {
+        app.live.as_mut().expect("live").push(&quiet);
+    }
+    let r = app.reading().expect("a reading");
+    assert!(r.bph.is_none() && r.listening.is_none(), "{r:?}");
+    let text = cards_text(&app, &ctx);
+    // "Waiting" over "for Beats" on each of the three cards.
+    let (head, tail) = WAITING_FOR_BEATS.split_once(' ').expect("words");
+    assert_eq!(painted(&text, head), 3, "{text}");
+    assert_eq!(painted(&text, tail), 3, "{text}");
+    // Why, in the hover: no beat at all, not a figure short of beats.
+    let why = app.waiting(Some(&r)).expect("a wait").1;
+    assert_eq!(why, "The figures need a watch's beats: none are heard yet.");
+    let out = ctx.run(screen(), |ctx| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.horizontal(|ui| app.status_facts(ui));
+        });
+    });
+    assert!(
+        painted_text(&out).lines().any(|l| l.starts_with("signal ")),
+        "{}",
+        painted_text(&out)
+    );
+    // Stopped after the silence: a fact, not a wait (Hugh on #2036).
+    app.stop();
+    assert!(!app.running() && app.live.is_some());
+    let r = app.card_reading().expect("a reading");
+    assert!(r.bph.is_none(), "{r:?}");
+    let text = cards_text(&app, &ctx);
+    assert_eq!(painted(&text, "No Beats"), 3, "{text}");
+    assert_eq!(painted(&text, "Heard"), 3, "{text}");
+    assert!(!text.contains("Waiting") && !text.contains("Not"), "{text}");
+    assert_eq!(
+        app.waiting(Some(&r)).expect("a wait"),
+        (
+            "No Beats Heard".to_string(),
+            "The figures need a watch's beats: none were heard in this stretch.".to_string()
+        )
+    );
+    drop(_tx);
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// A test set up and waiting for Start Test: every reading card says it
+/// waits for the Start, not for beats no one is listening for (#2007).
+#[test]
+fn a_test_set_up_waits_for_its_start_on_every_card() {
+    use timegrapher_core::measure::Wait;
+    let ctx = themed();
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.live = None;
+    app.test_ready = Some(NewTake::Positions);
+    assert!(app.ready_test().is_some());
+    let text = cards_text(&app, &ctx);
+    let title = Wait::TestStart.title();
+    assert_eq!(title, "Waiting for Start");
+    assert_eq!(painted(&text, "Waiting"), 3, "{text}");
+    assert_eq!(painted(&text, "for Start"), 3, "{text}");
+    assert!(!text.contains("Beats"), "{text}");
+    assert_eq!(
+        app.waiting(None).expect("a wait").1,
+        "The figures need the test started: Start Test on the Listen card starts it."
+    );
+}
+
+/// A card whose figure hasn't come yet on a stretch still short of beats
+/// waits for more beats; on a long enough stretch, or where its own limit
+/// says why it is empty, it doesn't claim more beats will bring it. The
+/// cards' shared wait comes first (#2007).
+#[test]
+fn a_card_waits_for_more_beats_only_on_a_short_stretch() {
+    use super::readouts::card_wait;
+    use timegrapher_core::measure::Wait;
+    let app = synthetic(30.0, 5.0);
+    let mut r = app.reading().expect("a reading");
+    let more = Some((Wait::MoreBeats.title(), Wait::MoreBeats.text()));
+    r.caveats = vec![Caveat::ShortSpan { span_s: 6.0 }];
+    assert_eq!(card_wait(None, Some(&r), false, false), more);
+    assert_eq!(
+        card_wait(None, Some(&r), true, false),
+        None,
+        "its figure is in"
+    );
+    assert_eq!(
+        card_wait(None, Some(&r), false, true),
+        None,
+        "said on the card"
+    );
+    assert_eq!(card_wait(None, None, false, false), None);
+    r.caveats.clear();
+    assert_eq!(card_wait(None, Some(&r), false, false), None, "long enough");
+    let shared = ("Listening".to_string(), "why".to_string());
+    assert_eq!(
+        card_wait(Some(&shared), Some(&r), true, false),
+        Some(shared)
+    );
+}
+
+/// After New Session while stopped nothing is listened to: every reading
+/// card says "Not Listening", with why in its hover, never that it waits
+/// for beats. Once Listen runs on silence, they say "Waiting for Beats"
+/// (Hugh on #2036).
+#[test]
+fn after_new_session_while_stopped_the_cards_say_not_listening() {
+    let ctx = themed();
+    let mut app = synthetic(30.0, 5.0);
+    assert!(!app.running());
+    app.new_session();
+    assert!(app.live.is_none() && !app.running());
+    let text = cards_text(&app, &ctx);
+    // "Not" over "Listening" on each of the three cards.
+    assert_eq!(painted(&text, "Not"), 3, "{text}");
+    assert_eq!(painted(&text, "Listening"), 3, "{text}");
+    assert!(!text.contains("Beats"), "{text}");
+    let why = app.waiting(app.card_reading().as_ref()).expect("a wait");
+    assert_eq!(
+        why,
+        (
+            "Not Listening".to_string(),
+            "The figures need sound: nothing is being listened to.".to_string()
+        )
+    );
+    let base = std::env::temp_dir().join(format!("tg-idle-wait-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    app.reset_session(48000, "silence".into());
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    assert!(app.running());
+    let quiet = vec![0.0_f32; 960];
+    for _ in 0..15 * 50 {
+        app.live.as_mut().expect("live").push(&quiet);
+    }
+    let text = cards_text(&app, &ctx);
+    assert_eq!(painted(&text, "Waiting"), 3, "{text}");
+    assert_eq!(painted(&text, "for Beats"), 3, "{text}");
+    drop(_tx);
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// "Waiting for More Beats" in a reading card's figure place at 800, 1000
+/// and 1920 wide: drawn whole at the card's own size, or as "More Beats"
+/// where the whole words don't fit, never cut or made smaller (Hugh on
+/// #2036).
+#[test]
+fn waiting_for_more_beats_shows_whole_at_every_width() {
+    use timegrapher_core::measure::{Wait, WAITING_FOR_MORE_BEATS};
+    let mut app = synthetic(30.0, 5.0);
+    let ctx = themed();
+    for w in [800.0_f32, 1000.0, 1920.0] {
+        let input = || egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                Vec2::new(w, 800.0),
+            )),
+            ..Default::default()
+        };
+        // Where the Amplitude and Beat Error cards are, as drawn.
+        let at = |name: &str, out: &egui::FullOutput| {
+            out.shapes.iter().find_map(|c| match &c.shape {
+                egui::Shape::Text(t) if t.galley.text() == name => Some(t.pos),
+                _ => None,
+            })
+        };
+        let mut out = ctx.run(input(), |ctx| app.panels(ctx));
+        for _ in 0..2 {
+            out = ctx.run(input(), |ctx| app.panels(ctx));
+        }
+        let a = at("Amplitude", &out).expect("Amplitude");
+        let b = at("Beat Error", &out).expect("Beat Error");
+        let pad = f32::from(theme::CARD_PADDING);
+        let card_w = b.x - a.x - theme::GAP;
+        let h = app.readings_card_h(&ctx);
+        let card = egui::Rect::from_min_size(egui::pos2(a.x - pad, 0.0), Vec2::new(card_w, h));
+        let rows = CardRows::of(card);
+        let (fig, _, _) = crate::sparkline::lay(rows.inner, rows.figure, rows.controls);
+        let compact = card_w < READING_FULL_W;
+        let wait = Wait::MoreBeats;
+        let status = (wait.title(), wait.text());
+        let out = ctx.run(input(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                super::readouts::figure_row(
+                    ui,
+                    fig,
+                    None,
+                    "°",
+                    Some(&status),
+                    "",
+                    (compact, Some(1)),
+                );
+            });
+        });
+        let mut words = Vec::new();
+        for c in &out.shapes {
+            if let egui::Shape::Text(t) = &c.shape {
+                if t.galley.text() == "—" {
+                    continue;
+                }
+                let size = t.galley.job.sections[0].format.font_id.size;
+                assert_eq!(size, if compact { 12.0 } else { 15.0 }, "{w}");
+                words.push(t.galley.rows.iter().map(|r| r.text()).collect::<String>());
+            }
+        }
+        let shown = words.join(" ");
+        assert!(
+            shown == WAITING_FOR_MORE_BEATS || shown == "More Beats",
+            "{w}: {shown:?}"
+        );
+    }
+    // Too narrow for the whole words at its size: the shorter words, at
+    // that size, before any smaller font.
+    let status = (Wait::MoreBeats.title(), Wait::MoreBeats.text());
+    let out = ctx.run(screen(), |ctx| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            let fig = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), Vec2::new(55.0, 40.0));
+            super::readouts::figure_row(ui, fig, None, "°", Some(&status), "", (true, Some(1)));
+        });
+    });
+    let mut words = Vec::new();
+    for c in &out.shapes {
+        if let egui::Shape::Text(t) = &c.shape {
+            assert_eq!(t.galley.job.sections[0].format.font_id.size, 12.0);
+            words.push(t.galley.text().to_string());
+        }
+    }
+    assert_eq!(words.join(" "), "More Beats");
+}
+
+/// A Positions Test's opening settle, in its first position, which no
+/// move starts: every reading card counts it down as a move's settle,
+/// not "Listening", and shows no figure in it (Walter on #2036).
+#[test]
+fn a_tests_opening_settle_counts_down_on_every_card() {
+    let ctx = themed();
+    let base = std::env::temp_dir().join(format!("tg-open-settle-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "opening".into());
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let cfg = SynthConfig {
+        duration_s: 17.0,
+        rate_s_per_day: 5.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let live = app.live.as_mut().expect("live");
+    audio.samples.chunks(960).for_each(|b| {
+        live.push(b);
+    });
+    // Started at 2 s with a 20 s settle, which ends at 22 s.
+    let mut test = guided::Test::new().timed(20.0, 60.0);
+    test.tick(2.0);
+    app.guided = Some(test);
+    let now = app.latest_s();
+    assert!(app.session.settling_left(now).is_none(), "no move");
+    let left = app.test_settle_left(now).expect("settling");
+    assert!((left - (22.0 - now)).abs() < 1e-9, "{left} at {now}");
+    let title = timegrapher_core::measure::Wait::Settling { left_s: left }.title();
+    let (head, secs) = title.split_once(' ').expect("two words");
+    let text = cards_text(&app, &ctx);
+    assert_eq!(painted(&text, head), 3, "{text}");
+    assert_eq!(painted(&text, secs), 3, "{text}");
+    assert!(
+        !text.contains("Listening") && !text.contains("s/d"),
+        "{text}"
+    );
+    // From 22 s the test measures: its settle is over.
+    assert!(app.test_settle_left(22.0).is_none());
+    // Not listening, a test's settle says nothing to the cards.
+    app.stop();
+    assert!(app.test_settle_left(now).is_none());
+    drop(_tx);
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// Paused inside a test's opening settle, nothing settles: the cards
+/// stop counting and `settling_left()` agrees. Resume settles again
+/// from the start, its whole length (Trevor on #2036).
+#[test]
+fn pausing_in_a_tests_opening_settle_stops_its_count() {
+    let ctx = themed();
+    let base = std::env::temp_dir().join(format!("tg-pause-settle-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "pause".into());
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let cfg = SynthConfig {
+        duration_s: 17.0,
+        rate_s_per_day: 5.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let live = app.live.as_mut().expect("live");
+    audio.samples.chunks(960).for_each(|b| {
+        live.push(b);
+    });
+    let mut test = guided::Test::new().timed(20.0, 60.0);
+    test.tick(2.0);
+    app.guided = Some(test);
+    let now = app.latest_s();
+    assert!(app.settling_left().is_some(), "settling before the pause");
+    app.guided.as_mut().expect("test").pause(now - 1.0);
+    assert!(app
+        .guided
+        .as_ref()
+        .expect("test")
+        .settling_left(now)
+        .is_none());
+    assert!(app.settling_left().is_none(), "paused, nothing settles");
+    let text = cards_text(&app, &ctx);
+    assert!(!text.contains("Settling"), "{text}");
+    app.guided.as_mut().expect("test").resume(now);
+    let left = app.settling_left().expect("settling again");
+    assert!((left - 20.0).abs() < 1e-9, "{left}");
+    drop(_tx);
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// A guided test's pane counts its settle in the cards' seconds, from the
+/// one `settling_left`, though the test moves on with the sound's length
+/// and the cards read to the last beat (Walter on #2051).
+#[test]
+fn a_tests_pane_counts_the_settle_as_the_cards_do() {
+    let base = std::env::temp_dir().join(format!("tg-pane-settle-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "pane".into());
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let cfg = SynthConfig {
+        duration_s: 17.0,
+        rate_s_per_day: 5.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let live = app.live.as_mut().expect("live");
+    audio.samples.chunks(960).for_each(|b| {
+        live.push(b);
+    });
+    let mut test = guided::Test::new().timed(20.0, 60.0);
+    test.tick(2.0);
+    app.guided = Some(test);
+    let sound = app.live.as_ref().expect("live").duration_s();
+    assert!(sound > app.latest_s(), "{sound} after the last beat");
+    let ticked = app.guided.as_mut().expect("test").tick(sound);
+    let cards = app.settling_left().expect("settling");
+    assert_eq!(ticked, guided::Phase::Settling(22.0 - sound));
+    assert_eq!(
+        app.shown_phase(Some(ticked)),
+        Some(guided::Phase::Settling(cards))
+    );
+    drop(_tx);
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// An opened recording with no beat in it says "No Beats Heard" on every
+/// card, not "No Regular Beat", which is about beats that are there
+/// (Walter on #2036).
+#[test]
+fn an_opened_recording_of_silence_says_no_beats_heard() {
+    let ctx = themed();
+    let mut app = synthetic(30.0, 5.0);
+    let log = timegrapher_core::stream::BeatLog {
+        lock_template_kept: false,
+        sample_rate: 48_000,
+        duration_s: 60.0,
+        bph: 21_600,
+        lift_deg: 52.0,
+        beats: Vec::new(),
+        amplitude_windows: Vec::new(),
+        clipped_beats: Vec::new(),
+        clipped_samples: 0,
+        jumps: Vec::new(),
+        sided: Vec::new(),
+        by_count: Vec::new(),
+        snippets: Vec::new(),
+    };
+    app.live = Some(timegrapher_core::live::LiveAnalyzer::from_log(
+        log,
+        timegrapher_core::live::LiveConfig::default(),
+    ));
+    app.strip_end = Some(40.0);
+    assert!(!app.running());
+    let r = app.card_reading().expect("a reading");
+    assert_eq!(r.beats_used, 0, "{r:?}");
+    let text = cards_text(&app, &ctx);
+    assert_eq!(painted(&text, "No Beats"), 3, "{text}");
+    assert_eq!(painted(&text, "Heard"), 3, "{text}");
+    assert!(!text.contains("Regular"), "{text}");
+}
+
+/// After New Session no figure is shown, so the sound card's clock line
+/// a cleared take left behind isn't in the Rate card's hover; with a
+/// figure it is (Walter on #2036, #1721).
+#[test]
+fn a_wait_carries_no_clock_line() {
+    let mut app = synthetic(30.0, 5.0);
+    app.new_session();
+    app.live_usb = Some(super::live_usb::LiveUsb::new(48_000));
+    assert!(app.live_usb_not_yet().is_some());
+    assert_eq!(app.clock_not_yet(None), None);
+    assert_eq!(app.clock_not_yet(Some(5.0)), app.live_usb_not_yet());
+}
+
+/// The strip's words in its place when no regular beat is drawn: the
+/// whole pane with `whole`, else its no-watch card alone.
+fn strip_text(app: &mut TimegrapherApp, ctx: &egui::Context, whole: bool) -> String {
+    let out = ctx.run(screen(), |ctx| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            if whole {
+                app.strip_pane(ui);
+            } else {
+                app.no_watch(ui);
+            }
+        });
+    });
+    painted_text(&out).replace('\n', " ")
+}
+
+/// Silence gives the strip the cards' own verdict in the cards' own
+/// words, never "No regular beat found" beside them: "Waiting for Beats"
+/// while listening, and "No Beats Heard" on an opened recording of
+/// silence (Walter on #2036). The Rate hover says nothing of beats behind
+/// a figure there is none of (#2044).
+#[test]
+fn silence_gives_the_strip_and_the_cards_one_verdict() {
+    use timegrapher_core::measure::Wait;
+    let ctx = themed();
+    let base = std::env::temp_dir().join(format!("tg-silence-strip-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "silence".into());
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let quiet = vec![0.0_f32; 960];
+    for _ in 0..15 * 50 {
+        app.live.as_mut().expect("live").push(&quiet);
+    }
+    assert!(app.no_watch_yet());
+    let r = app.reading().expect("a reading");
+    assert_eq!(app.rate_beats_behind(Some(&r)), "");
+    let said = |text: &str, wait: Wait| {
+        assert!(text.contains(&wait.title()), "{text}");
+        assert!(text.contains(&wait.text()), "{text}");
+        assert!(!text.contains("regular"), "{text}");
+    };
+    said(&strip_text(&mut app, &ctx, false), Wait::NoBeats);
+    // With the one faint dot (the peak as the microphone opens), the
+    // strip's note leads with the same wait, listening and once stopped
+    // (Walter on #2051), and says one dot (#2053).
+    let note = |wait: Wait| {
+        format!(
+            "{}. The faint dot is a sound that might be a beat.",
+            wait.title()
+        )
+    };
+    let whole = strip_text(&mut app, &ctx, true);
+    assert!(whole.contains(&note(Wait::NoBeats)), "{whole}");
+    assert!(!whole.contains("regular"), "{whole}");
+    app.stop();
+    let whole = strip_text(&mut app, &ctx, true);
+    assert!(whole.contains(&note(Wait::NoBeatsHeard)), "{whole}");
+    assert!(!whole.contains("regular"), "{whole}");
+    let _ = std::fs::remove_dir_all(base);
+    // An opened recording of silence, as Walter opened it.
+    let mut app = synthetic(30.0, 5.0);
+    let log = timegrapher_core::stream::BeatLog {
+        lock_template_kept: false,
+        sample_rate: 48_000,
+        duration_s: 60.0,
+        bph: 21_600,
+        lift_deg: 52.0,
+        beats: Vec::new(),
+        amplitude_windows: Vec::new(),
+        clipped_beats: Vec::new(),
+        clipped_samples: 0,
+        jumps: Vec::new(),
+        sided: Vec::new(),
+        by_count: Vec::new(),
+        snippets: Vec::new(),
+    };
+    app.live = Some(timegrapher_core::live::LiveAnalyzer::from_log(
+        log,
+        timegrapher_core::live::LiveConfig::default(),
+    ));
+    app.trend.clear();
+    assert!(app.no_watch_yet());
+    said(&strip_text(&mut app, &ctx, true), Wait::NoBeatsHeard);
+}
+
+/// The Rate hover of an opened take's whole reading at its end, shorter
+/// than Average Over: its beats are the whole take's after settling, each
+/// side of a break fitted apart, not the latest run's (Hugh 5 and Norm on
+/// #2075).
+#[test]
+fn a_whole_readings_rate_hover_says_its_beats_are_the_whole_takes() {
+    let mut app = synthetic(30.0, 5.0);
+    app.average_s = 60.0;
+    let mut r = app.reading().expect("a reading");
+    r.whole_take = true;
+    let said = app.rate_beats_behind(Some(&r));
+    let first = said.split("\n\n").next().expect("a line");
+    assert_eq!(
+        first,
+        format!(
+            "{} beats in {} of 1 min: the beats the readings are fitted to, fewer seconds \
+             than Average Over asks for. They are the whole take after settling, fitted \
+             apart at each break, masked stretch or gap of more than 2 s with no beats, \
+             with any piece under 10 s left out.",
+            r.beats_used,
+            crate::fields::duration(r.span_s.round())
+        )
+    );
+}
+
+/// A short stretch's Rate hover, whole, as Hugh ruled it on #2044: the
+/// beats the readings are fitted to, and every cause that cuts the
+/// stretch, the gap's seconds from core's `clean::GAP_S`.
+#[test]
+fn a_short_stretch_says_which_beats_the_readings_are_fitted_to() {
+    let mut app = synthetic(30.0, 5.0);
+    app.average_s = 60.0;
+    let r = app.reading().expect("a reading");
+    assert!(r.span_s + 1.0 < app.average_s, "{r:?}");
+    let gap = crate::fields::duration(timegrapher_core::clean::GAP_S);
+    assert_eq!(gap, "2 s");
+    let said = app.rate_beats_behind(Some(&r));
+    let first = said.split("\n\n").next().expect("a line");
+    assert_eq!(
+        first,
+        format!(
+            "{} beats in {} of 1 min: the beats the readings are fitted to, fewer seconds \
+             than Average Over asks for. They are every beat since the sound began, or \
+             since the latest break, masked stretch or gap of more than 2 s with no beats.",
+            r.beats_used,
+            crate::fields::duration(r.span_s.round())
+        )
+    );
+}
+
+/// A listen stopped before 10 s with nothing heard is no longer
+/// listening: every card says "No Beats Heard", as the status bar says
+/// Stopped, not "Listening" (Walter on #2053).
+#[test]
+fn a_listen_stopped_early_on_silence_says_no_beats_heard() {
+    use timegrapher_core::measure::Wait;
+    let ctx = themed();
+    let base = std::env::temp_dir().join(format!("tg-stop-early-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "early".into());
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let quiet = vec![0.0_f32; 960];
+    for _ in 0..6 * 50 {
+        app.live.as_mut().expect("live").push(&quiet);
+    }
+    let text = cards_text(&app, &ctx);
+    assert_eq!(painted(&text, "Listening"), 3, "listening first: {text}");
+    app.stop();
+    let text = cards_text(&app, &ctx);
+    assert!(!text.contains("Listening"), "{text}");
+    assert_eq!(painted(&text, "No Beats"), 3, "{text}");
+    assert_eq!(painted(&text, "Heard"), 3, "{text}");
+    let r = app.card_reading();
+    assert_eq!(
+        app.waiting(r.as_ref()),
+        Some((Wait::NoBeatsHeard.title(), Wait::NoBeatsHeard.text()))
+    );
+    drop(_tx);
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// A watch heard for under 10 s, its beats' sound not to be judged, and
+/// the sound over (stopped, or an opened take at its newest moment): the
+/// figures are still held, and no more will come, so every card says
+/// "Under 10 s Heard", the fact, not "Listening" or "Waiting for More
+/// Beats" (Trevor and Hugh on #2066).
+#[test]
+fn under_ten_seconds_heard_and_over_says_so_on_every_card() {
+    use timegrapher_core::measure::{HeardSince, Wait};
+    let ctx = themed();
+    let app = synthetic(30.0, 20.0);
+    let live = app.live.as_ref().expect("live");
+    let log = timegrapher_core::stream::BeatLog {
+        lock_template_kept: false,
+        sample_rate: 48_000,
+        duration_s: 6.0,
+        bph: live.bph().expect("bph"),
+        lift_deg: 52.0,
+        beats: live
+            .beats()
+            .iter()
+            .filter(|b| b.time <= 6.0)
+            .cloned()
+            .collect(),
+        amplitude_windows: Vec::new(),
+        clipped_beats: Vec::new(),
+        clipped_samples: 0,
+        jumps: Vec::new(),
+        sided: Vec::new(),
+        by_count: Vec::new(),
+        snippets: Vec::new(),
+    };
+    let mut app = synthetic(30.0, 20.0);
+    app.live = Some(timegrapher_core::live::LiveAnalyzer::from_log(
+        log,
+        timegrapher_core::live::LiveConfig::default(),
+    ));
+    app.strip_end = None;
+    assert!(!app.running());
+    let r = app.card_reading().expect("a reading");
+    assert_eq!(r.listening, Some(HeardSince::Start), "{r:?}");
+    let text = cards_text(&app, &ctx);
+    let title = Wait::ShortHeard {
+        since: HeardSince::Start,
+    }
+    .title();
+    assert_eq!(title, "Under 10 s Heard");
+    let (head, tail) = title.rsplit_once(' ').expect("words");
+    assert_eq!(painted(&text, head), 3, "{text}");
+    assert_eq!(painted(&text, tail), 3, "{text}");
+    assert!(
+        !text.contains("Listening") && !text.contains("More") && !text.contains("Waiting"),
+        "{text}"
+    );
+    let says = |since| {
+        let mut r = r.clone();
+        r.listening = Some(since);
+        app.listening(Some(&r)).expect("a word")
+    };
+    assert_eq!(
+        says(HeardSince::Start),
+        (
+            "Under 10 s Heard".to_string(),
+            "The figures need 10 s of sound: less than 10 s was heard since the start.".to_string()
+        )
+    );
+    assert_eq!(
+        says(HeardSince::Break),
+        (
+            "Under 10 s Heard".to_string(),
+            "The figures need 10 s of sound: less than 10 s was heard since the break.".to_string()
+        )
+    );
+    // Moved back into it, the take goes on past there: still Listening.
+    app.strip_end = Some(5.0);
+    assert!(cards_text(&app, &ctx).contains("Listening"));
 }

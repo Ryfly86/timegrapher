@@ -745,6 +745,19 @@ fn kept_while_recorded_matches_kept_after_where_the_beats_jump() {
         after.profiles.len()
     );
     assert!(after.header.jumps.len() >= 5, "{:?}", after.header.jumps);
+    // Every beat of the kept beat sound finds its beat across the jumps,
+    // and reads back in place (#2069, Norm).
+    let dir = std::env::temp_dir().join(format!("tg-eq-kept-dying-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    timegrapher_core::analysis_take::write(&dir, &after).unwrap();
+    let back = timegrapher_core::analysis_take::read(&dir).unwrap();
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(!after.log.snippets.is_empty());
+    assert_eq!(back.log.snippets.len(), after.log.snippets.len());
+    for (a, b) in after.log.snippets.iter().zip(&back.log.snippets) {
+        assert!((a.0 - b.0).abs() <= 0.5e-6 + 1e-9, "{} {}", a.0, b.0);
+        assert!(a.1 == b.1, "the window at {} s", a.0);
+    }
     let (a, b) = (files(&after).unwrap(), files(&live).unwrap());
     assert_eq!(a.len(), b.len());
     for ((name, x), (_, y)) in a.iter().zip(&b) {
@@ -1231,6 +1244,58 @@ fn an_empty_stand_is_no_watch_however_it_is_read() {
             }
             t += if t < 10.0 { 1.0 } else { 5.0 };
         }
+    }
+}
+
+/// Kept as its analysis alone, an empty stand still reads no watch, with
+/// no figures in its first seconds (#2014), now that the beats' sound the
+/// verdict reads is kept with it (#2069): as opened with its sound, every
+/// second up to 10 s and every 5 s after, at 10, 30 and 60 s averages.
+/// The beat sound kept stays within its budget, whatever the length.
+///
+/// Runs where `TIMEGRAPHER_CORPUS` is set.
+#[test]
+fn an_empty_stand_kept_as_its_analysis_is_still_no_watch() {
+    use timegrapher_core::analysis_take::{measure, read, write};
+    let Some(path) = corpus_takes(&[EMPTY_STAND_TAKE]).pop() else {
+        return;
+    };
+    let cfg = StreamConfig::default();
+    let software = serde_json::json!({"name": "timegrapher", "version": "test"});
+    let s = measure(&[path.as_path()], &cfg, &[], software, |_| {}).unwrap();
+    let dir = std::env::temp_dir().join(format!("tg-eq-kept-stand-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    write(&dir, &s).unwrap();
+    let kept = read(&dir).unwrap().log;
+    std::fs::remove_dir_all(&dir).ok();
+    let budget = timegrapher_core::sound_sample::SOUND_SAMPLE_BEATS;
+    let len = timegrapher_core::profile::template_len(
+        kept.sample_rate as f64,
+        timegrapher_core::amplitude::UnlockWindow::SHORT,
+    );
+    assert!(!kept.snippets.is_empty() && kept.snippets.len() <= budget);
+    assert!(kept.snippets.iter().all(|w| w.1.len() == len));
+    assert_eq!(kept.snippets.len(), s.log.snippets.len());
+    assert!(!whole(&kept).watch_heard, "the kept take as a whole");
+    let sound = LiveAnalyzer::from_log(stream(&path, 47.0), LiveConfig::default());
+    let opened = LiveAnalyzer::from_log(kept, LiveConfig::default());
+    let mut t = 1.0;
+    while t <= opened.duration_s() {
+        for average_s in [10.0, 30.0, 60.0] {
+            let (a, r) = (
+                sound.reading_at(t, average_s),
+                opened.reading_at(t, average_s),
+            );
+            let figures = [r.rate_s_per_day, r.amplitude_deg, r.beat_error_ms];
+            assert!(
+                (t < 10.0 || !r.watch_heard) && figures == [None; 3],
+                "kept, {average_s} s ending at {t} s: {:?} s/d",
+                r.rate_s_per_day
+            );
+            assert_eq!(r.watch_heard, a.watch_heard, "{average_s} s at {t} s");
+            assert_eq!(r.listening, a.listening, "{average_s} s at {t} s");
+        }
+        t += if t < 10.0 { 1.0 } else { 5.0 };
     }
 }
 

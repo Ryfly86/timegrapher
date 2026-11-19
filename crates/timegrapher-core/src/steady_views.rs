@@ -198,6 +198,15 @@ pub struct FoldView {
     /// (another series' cycle), or "wheel" (a wheel's turn, `wheel`).
     pub from: &'static str,
     pub wheel: Option<String>,
+    /// Whether the fold is at the headline cycle's own period
+    /// ([`crate::steadiness::SeriesCheck::is_cycle_period`]), so its note
+    /// states the cycle's one size (#1984).
+    pub at_cycle: bool,
+    /// Folded at the period search's sized line that isn't the headline's
+    /// cycle: that line's sine peak to peak, as the headline writes it
+    /// ([`crate::steadiness::SeriesCheck::search_line_size_text`]), which
+    /// the note states in place of the median line's swing (#1984).
+    pub sine_size: Option<String>,
     /// Median of the detrended readings in each phase bin; NaN as null.
     pub profile: Vec<f64>,
     /// Cycles folded, and up to [`MAX_CYCLES`] of them, evenly spread, one
@@ -268,7 +277,11 @@ pub fn fold_spread(f: &longterm::Fold, columns: &[Option<[f64; 3]>]) -> Option<(
 /// A fold as its view gives it: up to [`MAX_CYCLES`] of its cycles kept
 /// for drawing, its columns and spread over every cycle, and its scale
 /// ([`fold_range`]).
-fn fold_view(f: &longterm::Fold, from: &'static str, wheel: Option<String>) -> FoldView {
+fn fold_view(
+    f: &longterm::Fold,
+    (from, wheel): (&'static str, Option<String>),
+    at_cycle: bool,
+) -> FoldView {
     let columns = fold_columns(f);
     let spread_of = fold_spread(f, &columns);
     let raster: Vec<Vec<f64>> = spread(f.raster.len(), MAX_CYCLES)
@@ -279,6 +292,8 @@ fn fold_view(f: &longterm::Fold, from: &'static str, wheel: Option<String>) -> F
         period_s: f.period_s,
         from,
         wheel,
+        at_cycle,
+        sine_size: None,
         profile: f.profile.clone(),
         cycles: f.raster.len(),
         raster,
@@ -955,7 +970,11 @@ pub fn views(
                     FoldFrom::Series(j) => (NAMES[*j], None),
                     FoldFrom::Wheel(w) => ("wheel", Some(w.clone())),
                 };
-                fold_view(f, from, wheel)
+                let c = &report.series[i];
+                FoldView {
+                    sine_size: c.search_line_size_text(f.period_s),
+                    ..fold_view(f, (from, wheel), c.is_cycle_period(f.period_s))
+                }
             });
             SeriesViews {
                 beat_error_source: report.series[i].beat_error_source,
@@ -1926,7 +1945,7 @@ mod tests {
         assert_eq!(fold_range(&f), chart_scale::spread(&all));
         // The view keeps 200 cycles to draw, and its scale is still every
         // cycle's.
-        let v = fold_view(&f, "own", None);
+        let v = fold_view(&f, ("own", None), false);
         assert!(
             v.raster.len() < v.cycles,
             "{} of {}",

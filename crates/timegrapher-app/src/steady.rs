@@ -1294,6 +1294,25 @@ fn period_found(c: &SeriesCheck, pts: &[[f64; 2]]) -> Option<([f64; 2], String)>
 }
 
 /// The period search's scores, with the threshold, the wheels' periods and the period found.
+/// The Periods plot's mark for the headline's cycle where the search's
+/// top is another line (#1984): on the score line at its period, named as
+/// the headline's.
+fn headline_mark(cy: &timegrapher_core::steadiness::Cycle, pts: &[[f64; 2]]) -> ([f64; 2], String) {
+    let x = cy.period_s.log10();
+    let y = pts
+        .iter()
+        .min_by(|a, b| (a[0] - x).abs().total_cmp(&(b[0] - x).abs()))
+        .map_or(0.0, |q| q[1]);
+    let w = cy
+        .wheel
+        .as_ref()
+        .map_or(String::new(), |w| format!(", {}", marks::title_case(w)));
+    (
+        [x, y],
+        format!("the headline's cycle, {}{w}", secs(cy.period_s)),
+    )
+}
+
 fn periods_plot(ui: &mut egui::Ui, r: Row<'_>) {
     let db = r.opts.periods_db;
     let Row {
@@ -1356,6 +1375,9 @@ fn periods_plot(ui: &mut egui::Ui, r: Row<'_>) {
     // The period found, its dot and note; the note is hover only on
     // a short plot, where the names are inside it on its top.
     let found = period_found(c, &pts);
+    // The headline's cycle, where the fold chose another line than the
+    // search's top (#1984): marked as the headline's.
+    let headline = c.cycle_off_search().map(|cy| headline_mark(cy, &pts));
     let short = note_short(ui, &names, (i, view));
     let top = if found.is_some() && !short {
         let hi = pts.iter().map(|q| q[1]).fold(y_lo, f64::max);
@@ -1390,15 +1412,15 @@ fn periods_plot(ui: &mut egui::Ui, r: Row<'_>) {
             n.inside(p, &lines, &pts, fill);
         }
         p.line(Line::new("score", pts.clone()).color(colour).width(DATA_W));
-        if let Some((at, _)) = &found {
+        for (at, _) in found.iter().chain(&headline) {
             p.points(Points::new("peak", vec![*at]).color(colour).radius(3.5_f32));
         }
     });
     if let Some(n) = &names {
         n.draw(ui, &resp, &lines, &pts);
     }
-    if let Some((at, t)) = &found {
-        let id = ui.id().with(("point note", i, view));
+    for (k, (at, t)) in found.iter().chain(&headline).enumerate() {
+        let id = ui.id().with(("point note", i, view, k));
         marks::beside(ui, &resp.transform, *at, t, &pts, &[], fill, short, id);
     }
 }
@@ -1443,13 +1465,28 @@ fn cycle_label(
             f.raster.len()
         ),
     };
-    match steady_views::fold_spread(f, boxes) {
-        Some((swing, middle)) => format!(
-            "{label}\nThe median line swings {}; the boxes' median height is {}",
+    // Folded at the headline's cycle (core's `at_cycle`, the same test):
+    // the size stated is the cycle's one size, the headline's (Norm,
+    // #1984), not the fold's swing.
+    // At the search's sized line instead, that line's sine size; and
+    // elsewhere the median line's swing, its noise included (core's
+    // `sine_size`).
+    let own = c.is_cycle_period(f.period_s);
+    let size = match own.then(|| c.cycle_size_text()).flatten() {
+        Some(s) => Some(format!("{s} peak to peak")),
+        None => (c.search_line_size_text(f.period_s)).map(|s| format!("{s} sine peak to peak")),
+    };
+    match (steady_views::fold_spread(f, boxes), size) {
+        (Some((_, middle)), Some(size)) => format!(
+            "{label}\n{size}; the boxes' median height is {}",
+            value_text(k, middle, middle.abs() / 10.0),
+        ),
+        (Some((swing, middle)), None) => format!(
+            "{label}\nThe median line swings {}, its noise included; the boxes' median height is {}",
             value_text(k, swing, swing.abs().min(middle.abs()) / 10.0),
             value_text(k, middle, swing.abs().min(middle.abs()) / 10.0),
         ),
-        None => label,
+        (None, _) => label,
     }
 }
 
@@ -1587,7 +1624,7 @@ fn autocorrelation_plot(ui: &mut egui::Ui, r: Row<'_>) {
                 p.hline(call_out(HLine::new("band", b), dashed, pal));
             }
             p.line(Line::new("r", pts.clone()).color(colour).width(DATA_W));
-            if let (Some(l), Some(r)) = (a.repeat_lag_s, a.repeat_r) {
+            if let Some([l, r]) = c.repeat_mark {
                 p.points(
                     Points::new("repeat", vec![[l, r]])
                         .color(colour)
@@ -1600,7 +1637,7 @@ fn autocorrelation_plot(ui: &mut egui::Ui, r: Row<'_>) {
                     .anchor(egui::Align2::RIGHT_TOP),
             );
         });
-    if let (Some(l), Some(r)) = (a.repeat_lag_s, a.repeat_r) {
+    if let Some([l, r]) = c.repeat_mark {
         // The Ljung–Box note's place, kept clear of the repeat's.
         let t = &resp.transform;
         let font = egui::TextStyle::Small.resolve(ui.style());
@@ -1951,15 +1988,16 @@ fn fft_plot(ui: &mut egui::Ui, r: Row<'_>) {
     // The tallest peak's dot and note; the note is hover only on a
     // short plot, where the names are inside it on its top.
     let tallest = peak.map(|peak| {
-        (
-            peak,
-            format!(
-                "tallest peak at {}: {}{}",
-                secs(10f64.powf(peak[0])),
-                size(10f64.powf(peak[1])),
-                if as_rate { " peak to peak" } else { "" }
-            ),
-        )
+        (peak, {
+            let (at, of) = (secs(10f64.powf(peak[0])), size(10f64.powf(peak[1])));
+            // Any other size reads as a sine's amplitude, half its
+            // peak to peak (Norm, #1984), said before the size.
+            if as_rate {
+                format!("tallest peak at {at}: {of} peak to peak")
+            } else {
+                format!("tallest peak at {at}, a sine's amplitude (half its peak to peak): {of}")
+            }
+        })
     });
     let short = note_short(ui, &names, (i, view));
     let top = if tallest.is_some() && !short {

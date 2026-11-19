@@ -233,9 +233,21 @@ so does a watch's own take: every 5 s of sound is added to the take with
 no Save Again, so a crash or a power cut costs only seconds. Meanwhile the
 Save icon is lit, its menu and hover say "Saving to" the watch, Unsorted
 Takes or the folder, and it has no Save Again. File ▸ Save is dimmed
-for the same reason, and the status bar says "Saved". Stop and quitting
+for the same reason, and the status bar says "Saved". "Saved" is shown only
+while the take holds the sound saved into it. The app looks at the take
+again when its window comes back to the front, after a save and when a
+save is refused (#2052). Once the take no
+longer holds its sound, the status bar says "Not saved", and its hover
+says Save keeps it again. While the take is still recorded into, Save is
+dimmed, and the hover says instead that the next few seconds of sound
+save it whole again. If the earlier part the take held alone is
+gone too, it says "Can't be saved", and its hover gives the refusal's
+reason. Stop and quitting
 add the last seconds and close the take with no question. A save that
-fails says so, and the next is tried a minute later. Only the new
+fails says so, and the next is tried a minute later. A write refused
+because the take no longer holds the sound is said once, not every
+minute, and the status bar says "Can't be saved" until the take holds it
+again (#2061). Only the new
 sound is written each time. After a crash, the next start says the take
 holds all but its last few seconds, and offers **Open Take** or **Delete
 Copy…** for the copy left on this computer with those seconds. A Positions or Power Reserve Test of a watch
@@ -312,15 +324,27 @@ under it its calibre, beat rate, lift angle and added fields, with
   greyed out, and the New Take row says "Stop the take on the Bench
   first." at its right; that row is always there, so nothing moves.
 - **Takes**, with the count, and **Open** and **…** at the right of its
-  title, acting on the take picked; then the takes as a table, newest
+  title, acting on the take picked (greyed out, their hover says the
+  real reason first: "There are no takes here yet", then "Pick a take
+  first", then the Bench's, #2007); then the takes as a table, newest
   first: Started, Position (such as DU, or DU, CU, or All 6; Power Reserve,
   Positions Test or Dynamic Poise Test for those tests, a test's positions in the row's hover), Length, Rate (s/d), Amplitude (°), Beat Error (ms, its size) and
   Size (MB), each unit on its own line under its title. The figures are the take's own reading, as `timegrapher
   session` reads its last position on the take's clock, the same one
   `timegrapher watches` gives: worked out from the take's sound the first
   time the list shows it (about a minute for a 9 hour take, the row
-  blank until then, its hover saying it is being read), then kept. A test's last window never
-  stands for the test: a Positions Test's row shows its Mean row, the
+  blank until then, its hover saying it is being read), then kept. The
+  take opened shows the same reading on its cards at its end, to the last
+  bit, where the Average Over holds the whole stretch it reads and a
+  watch is heard there (core's `LiveReading::at_whole_end`, #2073).
+  Otherwise a stopped take's cards, opened or just stopped, read the
+  stretch ending at the watch's last beat: the end of the latest run of
+  good beats with no gap over 2 s, at least 10 s long (core's
+  `beats::last_watch_beat_s`, #2081), so a quiet stand after the watch
+  is lifted, and any stray beat in its hiss, moves nothing. The row's
+  hover says, on the line after its
+  figures, that the cards at Stop can differ a little. A test's last
+  window never stands for the test: a Positions Test's row shows its Mean row, the
   figures its table shows ("Mean of the six positions" in the row's hover),
   and a Power Reserve Test's shows its run time as its Length and a dim
   "—" for the figures, which are hour by hour in the take ("open it", the
@@ -334,7 +358,9 @@ under it its calibre, beat rate, lift angle and added fields, with
   says they come once it stops, and it is read then (#2027). Nothing is inserted
   between rows. Clicking a row picks it; double-clicking opens it as
   Open does, and the take on show is not read again. Open is greyed out
-  while a take runs on the Bench.
+  while a take runs on the Bench. A Positions Test stopped before any
+  position was measured shows a dim "—" for its figures, as it has none
+  (#2007).
 - **Details**: the fields added to the watch and its notes.
 - **Photos**: a strip of thumbnails (clicking one opens it in the
   computer's own viewer; right-clicking offers **Open**, **Show in
@@ -525,8 +551,8 @@ readings use: found from the beats while its beat rate is Auto ("Auto
 fit over the last few seconds of beats (10 s by default, or 2, 4, 20, 30
 or 60 s; the setting is Average Over, on the Listen card). Early in a session, or after a break in listening or a gap of
 more than 2 s with no beats, there are fewer seconds of beats than asked
-for: the readings use what there is and say so in the rate's hover
-("190 beats in 24 s of 180 s"); they never fit across a break or gap, since the watch may have
+for: the readings are fitted to the beats there are, and the rate's hover says so
+("190 beats in 24 s of 1 min"); they never fit across a break or gap, since the watch may have
 been moved or have drifted meanwhile. Average Over is one setting for the
 whole app: the panes that average (the Paper Strip's Rate Line, guides
 and overlays, the Tick Tock Profile, Charts and Distributions) all
@@ -829,7 +855,38 @@ CR, as in `session.toml`), `rate_s_per_day`, `amplitude_deg` and
 A 24 hours after test's file adds `wind_h` (the hours since the
 full-wind test began, to a tenth) and `against` (the full-wind test's
 results it was set against, in this same form); a full-wind test's file
-has neither.
+has neither. `listened: true` is there only when the figures are the ones
+heard while listening, not the saved take's (below).
+
+**A test's saved take.** When a finished guided test's take is saved
+(not a take recording into its folder as it goes), the app analyses the
+test again from that saved sound in the background, through the same
+core path as `timegrapher session` (#1958). When it is done, the test's
+table shows those figures, its results files are written into the
+take again, each file whole, wherever the take is by then, and the status
+bar says "Analysed the saved take again: the test's figures are
+updated." A Save Again while it runs starts it over on what that save
+wrote. While it runs, a plain line at the top of the test's pane, where
+the banner was, outside the table's scrolling, says "Analysing the saved
+take: these figures may change slightly."; if it fails, the table keeps
+the listening's figures and that line says "These are the figures heard while listening: the saved take couldn't be
+analysed again (why). Opened again, the take may read slightly
+differently.", and `positions-test.json` says `listened: true`. A take
+kept by Save Analysis Only is not read again: its figures stay the
+listening's, the line at the top of the pane says "These are the figures heard while
+listening: the take was saved without its sound, so it couldn't be
+analysed again. Opened again, the take may read slightly differently.",
+and its file says `listened: true` too.
+
+The take also keeps the test's marks in `test-marks.json` (format
+`timegrapher.test-marks/1`; #1957): `format`, `test` (`positions`,
+`dynamic_poise` or `complication`), `marks` (each `start_s`, `end_s`, in
+seconds of the saved sound, and `mark`: `before_test`, `settling` or
+`not_used`) and `measured` (the `[start_s, end_s]` stretches the test
+measured). Opened again, the strip shows Before Test, Settling and the
+test's own Not Used words where the test put them, and the gaps
+`session.toml` leaves between its entries read as settling only where the
+test settled. A take without the file opens as before.
 
 **Dynamic Poise.** The Dynamic Poise pane (#1474), a hidden tab beside
 the Positions Test to begin with, runs the same guided test through the
@@ -856,7 +913,16 @@ the top, further out when faster, and the mean as a dotted ring. Once
 five stops are in, core's `poise::fit` draws the once-round wave in grey
 with a line to its fastest hour, and the line over the picture is its
 `short_text`, with, near 219.5°, a grey chip saying why the heavy spot is
-not stated. The heavy spot is a facts box's one row on the picture,
+not stated: the stop nearest 219.5° among those within reach of it, and its
+amplitude ("At 6H the amplitude is 234°, near 219.5°, …"), never the take's
+whole range (#1960). Core's words are shown with a true minus sign. Where the
+stops' rates have no ±, because together they hold fewer rate readings than
+a ± needs, Info says so in a sentence of its own, with the count and the
+time measured at each position that would give one ("The 8 positions hold
+20 rate readings, and a ± needs 30, which 50 s measured at each position
+would give."); where a position holds fewer than its own least, it names
+the fewest too ("… as few as 2 at one position. A ± needs 3 at each
+position and 30 in all, which 50 s …"). The heavy spot is a facts box's one row on the picture,
 core's `heavy_spot_row` ("Heavy spot", "6H at the top, 180 ± 12°", or
 "Not stated"): on the plot in its top left, or its top right under the
 key where the wave or a point (its dot and a dot's width round it,
@@ -936,11 +1002,20 @@ pane shows one line, the run time from the first beat heard and how the
 beats stand, with the count of stops on the way, and under it the hours so
 far as at the end: about once a minute the hour in progress is measured
 again and the table gains a row as each hour starts, the hour in progress
-read like a finished run's last ("2–2.4 h", its hover "A part hour: 26:28 past 2 h"); the charts gain a point as
-each hour is whole and show from the first whole hour, ended or not; a run with none shows its table alone, the pane keeping room for its rows. A figure no hour has (no amplitude read) draws no chart (#1961). At the end it shows one line,
-such as "Ran 41 h 12 min · No beat heard since 17 Nov 22:42, in Dial Up (DU) · Kept in Pepsi",
+read like a finished run's last: a part hour is labelled as a range whose end
+is in tenths of an hour, "2–2.4 h", never 2.0 or the next whole hour (Hugh on
+#1086), and its hover gives its exact length ("A part hour: 26:28 past 2 h");
+the charts gain a point as each hour is whole and show from the first whole
+hour, ended or not; a run with none shows its table alone, the pane keeping
+room for its rows. A figure no hour has (no amplitude read) draws no chart
+(#1961). At the end its title
+line says the run and how it ended, in short, such as "Ran 41 h 12 min · No
+beat heard" (with "· Restarted 2 times" when the beats came back on the way),
 the run time in true time (through the input's clock as measured
-while listening, else its stored correction), then, scrolling in the rest
+while listening, else its stored correction). The Info panel gives the run in
+full, with its position and when the last beat was heard ("No beat heard since
+17 Nov 22:42"), and where its take is kept ("Kept in Pepsi"), as Hugh placed
+them (#1528). Then, scrolling in the rest
 of the pane, the rate and amplitude against hours since the first beat, and a table
 of each hour (the last as long as is left): its rate, median amplitude
 and beat error from the unlock (from the drop in an hour where the unlock
@@ -1753,7 +1828,8 @@ take with none) and its state
 (Not Started, Listening, Stopped, Opening or Opened), such as "Quick
 Listen · No watch · Listening", "New Take · Pepsi · Not Started" or
 "w.wav · No watch picked · Opened". Then, while listening, the input;
-the signal, "signal 12×", how far the typical
+the signal, "signal 12×" ("signal —" before there is one; it stays
+through a settle, as it is the sound's own, #2007), how far the typical
 beat's peak stands above the typical level between beats (noise alone
 reads about 2×, and below 4× no beats are logged). It measures
 loudness, not the shape of the tick, so hum, knocks or a holder that
@@ -2169,11 +2245,26 @@ size, and **Open** (analysed here, and offered again next time),
 with Open Folder…), **Delete…** (asking first) and **Later**. When the
 sound was from a take recording into its own folder as it went, that take
 already holds all of it but its last few seconds, so what is kept is a
-copy: the message names the take and offers **Open Take** (the take
+copy, and not of all of it: each closed hour the take holds whole is deleted
+from the app's folder once it is checked in the take on the disk (byte
+for byte, or sample for sample), so a take kept while it is heard takes
+its room once, not twice; only the hour still being written is in both
+(#2040). Carried on after a Stop, a take reads those hours from its
+folder. If the take no longer holds them (deleted, its sound removed,
+or moved or changed outside the app), Listen starts a new take, and
+Save…, Save As…, Save Again, Keep Analysis Only and Keep in a Watch… are
+refused. The status bar reads "This sound can't be saved…", and a click
+on it shows the reason under that line: "Its earlier part was kept only
+in its take, and the take no longer holds it." Keep in a Watch… > New Watch…
+refuses before its form opens, not after it is filled in. The message names the take and offers **Open Take** (the take
 itself, opened where it is), **Delete Copy…** (asking first, and saying
 that only those last seconds are lost) and **Later**. If that take has
-since been moved or deleted, the copy is the only one, and it is offered
-as unsaved sound like any other. A Power Reserve Test with Analysis Only
+since been moved or deleted, what is left of the copy is the only one, and it is offered
+as unsaved sound like any other. Where the take held its earlier hours
+alone, the message gives no length and says "Only its last part is here:
+the take it was recording into held the rest, and has since been moved
+or deleted", Delete… says that last part can't be got back, and Open
+reads the part that is there. A Power Reserve Test with Analysis Only
 that stopped before its take was written leaves no sound but its
 analysis kept in parts: the next start offers it the same way, "An
 unsaved Power Reserve Test was found (Analysis Only): started …,
@@ -2197,8 +2288,25 @@ from before the move and says so.
 **The cards keep their height.** Every card is 134 points tall at every
 window width, whatever it shows: its three rows have their places whether
 anything is in them or not. A missing figure is a "—", with what the
-reading waits on in the unit's place, in short words ("Settling, 20 s";
-"Waiting for Beats"; "Before the Move"), the full sentence in the hover.
+reading waits on in the unit's place, in short words, the same on the
+Rate, Amplitude and Beat Error cards (core `measure::Wait`, #2007), and
+the full sentence in the hover, saying what the figures need and, where
+it can, when reading starts: "Settling, 20 s" counting down while the watch settles
+after a move, or in a guided test's first position (no figure is shown
+in either); "Waiting for Beats" while listening with no beat heard at
+all; "Waiting for More Beats" on a card whose figure needs more beats
+than a short stretch holds yet ("More Beats" where those words don't
+fit at the card's size); "Waiting for Start" while a test is set up;
+"Analysing" while a recording is read; "Not Listening" when nothing is
+listened to and no recording is open, as after New Session while
+stopped; and "No Beats Heard", a fact rather than a wait, for a stopped
+take or an opened recording with no beat in the stretch read (not "No
+Regular Beat", which is about beats that are there). The settle's
+seconds are core's `measure::settle_seconds`, rounded up, so the
+cards and the Positions pane's "Letting the watch settle, N s" count
+alike; with no beat at all, the strip's place says the cards' wait in
+the same words, not "No regular beat found" (#2044).
+Stopped during a settle, the Rate card says "Before the Move".
 With no regular beat, the reading cards say "No Regular Beat" there, with
 the full sentence and the timing scatter in the hover. A regular beat
 heard after noise or silence, at launch or a New Session, says "Finding
@@ -2228,6 +2336,7 @@ when. It holds:
 | `session.toml` | The session file `timegrapher session` reads: watch, calibre (with the wheels of a custom one), lift angle, beat rate, and one `[[recording]]` per stretch in one position with its `start_s` and `end_s` (for a take saved during a Positions Test, the test's own measured stretches, after each settling and for its measuring time, so `timegrapher session` reads the seconds its table did, with `wind_h` in the 24 hour half) |
 | `poise-test.json` | Only for a Dynamic Poise Test's take: marks it as one, so the Watches list names the test (format `timegrapher.poise-test/1`, and the test's name; no figures, which are the take's own stops) |
 | `positions-test.json` | Only for a finished Positions Test: run just after winding, its results, to load for the test 24 hours later; run 24 hours after, its results with the full-wind ones it was set against (the format is under Full wind against 24 hours) |
+| `test-marks.json` | Only for a guided test's take (Positions, Dynamic Poise or Complication): what the test marked each stretch, so the strip shows it again when the take is opened (format below, under A test's saved take). Optional: a take without it opens as before, and builds without it ignore it |
 
 At start-up the app keeps as FLAC, in the background, any hour of a take
 in the Watches folder that is still a WAV (saved before hours were kept
@@ -2267,8 +2376,8 @@ them, then for the Tick Tock profiles of each 2 seconds, the signal
 figure, the clock error the USB lines show and each position's beat
 shape. It then writes a new folder, named as a saved take with
 `_analysis` on the end, holding `session.toml` (with `audio = false`),
-`session.json`, `clock.csv`, `positions-test.json` or `poise-test.json`
-when there is one, and an `analysis/` folder, and no sound; the message says how much space it
+`session.json`, `clock.csv`, `positions-test.json`, `poise-test.json` or
+`test-marks.json` when there is one, and an `analysis/` folder, and no sound; the message says how much space it
 takes. A folder already there is never written over. While it works, a
 progress bar in the status bar shows how far it has read, with Cancel,
 which leaves nothing written; listening, New Session and opening a

@@ -221,6 +221,118 @@ pub fn finding_text() -> String {
     )
 }
 
+/// Why a reading card has no figure yet, as every card says it in the
+/// figure's place: one waiting language for the Rate, Amplitude and Beat
+/// Error cards, saying what the figures wait for and roughly how long
+/// (#2007). [`LISTENING_TITLE`] and [`FINDING_TITLE`] are the waits the
+/// reading itself gives; these are the rest.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Wait {
+    /// The watch settles after a move, `left_s` seconds still to come:
+    /// nothing is read while it does.
+    Settling { left_s: f64 },
+    /// No beat heard at all yet: no watch on the stand, or none the
+    /// microphone hears.
+    NoBeats,
+    /// Beats are heard, but this card's figure needs more of them than
+    /// the stretch holds yet.
+    MoreBeats,
+    /// Beats heard, but under [`SHORT_SPAN_S`] of sound since `since`, and
+    /// the sound is over (stopped, or an opened take at its newest
+    /// moment), so the figures are still held: a fact, in the
+    /// [`Wait::NoBeatsHeard`] family (Hugh on #2066).
+    ShortHeard { since: HeardSince },
+    /// A test is set up and waits for its Start.
+    TestStart,
+    /// A recording is being read.
+    Analysing,
+    /// Nothing is listened to and no recording is open (Hugh on #2036).
+    NotListening,
+    /// A stopped take or an opened recording with no beat in the stretch
+    /// read: a fact, not a wait (Hugh on #2036).
+    NoBeatsHeard,
+}
+
+/// The heading of [`Wait::NoBeats`].
+pub const WAITING_FOR_BEATS: &str = "Waiting for Beats";
+
+/// The heading of [`Wait::MoreBeats`]: beats are heard, so not
+/// [`WAITING_FOR_BEATS`] (Hugh on #2036).
+pub const WAITING_FOR_MORE_BEATS: &str = "Waiting for More Beats";
+
+/// A wait's shorter words, where its title is too wide for the figure's
+/// place at its own size: "More Beats" for [`WAITING_FOR_MORE_BEATS`]
+/// (Hugh on #2036), "Under 10 s" for [`Wait::ShortHeard`] (Hugh on
+/// #2066). None for a title with no shorter form.
+pub fn wait_short_title(title: &str) -> Option<String> {
+    if title == WAITING_FOR_MORE_BEATS {
+        return Some("More Beats".into());
+    }
+    let under = format!("Under {SHORT_SPAN_S:.0} s");
+    (title == format!("{under} Heard")).then_some(under)
+}
+
+/// The whole seconds of a settle still to come, as every countdown says
+/// them: rounded up, so it reads 1 s until the settle is over, never 0 s
+/// (#2044: the cards and the Positions pane said the same settle 1 s
+/// apart).
+pub fn settle_seconds(left_s: f64) -> f64 {
+    left_s.ceil()
+}
+
+impl Wait {
+    /// The short words in the figure's place.
+    pub fn title(self) -> String {
+        match self {
+            Wait::Settling { left_s } => format!("Settling, {:.0} s", settle_seconds(left_s)),
+            Wait::NoBeats => WAITING_FOR_BEATS.into(),
+            Wait::MoreBeats => WAITING_FOR_MORE_BEATS.into(),
+            Wait::ShortHeard { .. } => format!("Under {SHORT_SPAN_S:.0} s Heard"),
+            Wait::TestStart => "Waiting for Start".into(),
+            Wait::Analysing => "Analysing".into(),
+            Wait::NotListening => "Not Listening".into(),
+            Wait::NoBeatsHeard => "No Beats Heard".into(),
+        }
+    }
+
+    /// The sentence for the figure's hover, in the style of
+    /// [`listening_text`]: what the figures need, and when they appear.
+    pub fn text(self) -> String {
+        match self {
+            Wait::Settling { left_s } => format!(
+                "The figures need the watch settled in its new position: reading starts in \
+                 {:.0} s.",
+                settle_seconds(left_s)
+            ),
+            Wait::NoBeats => "The figures need a watch's beats: none are heard yet.".into(),
+            Wait::ShortHeard { since } => {
+                let from = match since {
+                    HeardSince::Start => "the start",
+                    HeardSince::Break => "the break",
+                };
+                format!(
+                    "The figures need {s:.0} s of sound: less than {s:.0} s was heard since \
+                     {from}.",
+                    s = SHORT_SPAN_S
+                )
+            }
+            Wait::MoreBeats => "This figure needs more beats than the stretch holds yet: it \
+                                appears once they have been heard."
+                .into(),
+            Wait::TestStart => {
+                "The figures need the test started: Start Test on the Listen card starts it.".into()
+            }
+            Wait::Analysing => "The figures need the recording read: they appear once \
+                                Analysing is done."
+                .into(),
+            Wait::NotListening => "The figures need sound: nothing is being listened to.".into(),
+            Wait::NoBeatsHeard => {
+                "The figures need a watch's beats: none were heard in this stretch.".into()
+            }
+        }
+    }
+}
+
 /// The sentence for no regular beat found, as every surface states it:
 /// with the timing scatter, as [`crate::beats::no_regular_beat_text`]
 /// gives it, or that the beats' sound shows no unlock and no drop.
@@ -1095,8 +1207,9 @@ pub fn assess_in(
     if sides > 0 && c.watch_heard {
         caveats.push(Caveat::FaintSidesWithheld { sides, windows });
     }
-    let confidence = c.watch_heard.then(|| {
-        Confidence::of(
+    let confidence = c.watch_heard.then(|| Confidence {
+        rate_pool_values: confidence::rate_pool_values(take.rate),
+        ..Confidence::of(
             match c.average_s {
                 Some(t) => rate_se_over_or_why(rate_windows, take.rate, t),
                 None => confidence::rate_se_or_why(rate_windows, take.rate),
@@ -1122,6 +1235,88 @@ pub fn assess_in(
 
 #[cfg(test)]
 mod tests {
+    /// Each wait has its short words and a sentence saying what the
+    /// figures need; a settle counts whole seconds up, so "0 s" never
+    /// shows while something is still left (#2007).
+    #[test]
+    fn every_wait_says_what_the_figures_need() {
+        use super::Wait;
+        let says = |w: Wait| (w.title(), w.text());
+        let pair = |a: &str, b: &str| (a.to_string(), b.to_string());
+        assert_eq!(
+            says(Wait::Settling { left_s: 15.2 }),
+            pair(
+                "Settling, 16 s",
+                "The figures need the watch settled in its new position: reading starts in 16 s."
+            )
+        );
+        assert_eq!(Wait::Settling { left_s: 0.3 }.title(), "Settling, 1 s");
+        assert_eq!(
+            says(Wait::NoBeats),
+            pair(
+                "Waiting for Beats",
+                "The figures need a watch's beats: none are heard yet."
+            )
+        );
+        assert_eq!(
+            says(Wait::MoreBeats),
+            pair(
+                "Waiting for More Beats",
+                "This figure needs more beats than the stretch holds yet: it appears once they \
+                 have been heard."
+            )
+        );
+        assert_eq!(
+            says(Wait::ShortHeard {
+                since: HeardSince::Start
+            }),
+            pair(
+                "Under 10 s Heard",
+                "The figures need 10 s of sound: less than 10 s was heard since the start."
+            )
+        );
+        assert_eq!(
+            says(Wait::ShortHeard {
+                since: HeardSince::Break
+            })
+            .1,
+            "The figures need 10 s of sound: less than 10 s was heard since the break."
+        );
+        assert_eq!(
+            wait_short_title("Under 10 s Heard").as_deref(),
+            Some("Under 10 s")
+        );
+        assert_eq!(wait_short_title("No Beats Heard"), None);
+        assert_eq!(
+            says(Wait::TestStart),
+            pair(
+                "Waiting for Start",
+                "The figures need the test started: Start Test on the Listen card starts it."
+            )
+        );
+        assert_eq!(
+            says(Wait::Analysing),
+            pair(
+                "Analysing",
+                "The figures need the recording read: they appear once Analysing is done."
+            )
+        );
+        assert_eq!(
+            says(Wait::NoBeatsHeard),
+            pair(
+                "No Beats Heard",
+                "The figures need a watch's beats: none were heard in this stretch."
+            )
+        );
+        assert_eq!(
+            says(Wait::NotListening),
+            pair(
+                "Not Listening",
+                "The figures need sound: nothing is being listened to."
+            )
+        );
+    }
+
     #[test]
     fn a_short_average_says_its_amplitude_is_read_over_ten_seconds() {
         assert_eq!(

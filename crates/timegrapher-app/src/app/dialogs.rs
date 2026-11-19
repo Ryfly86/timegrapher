@@ -35,7 +35,7 @@ impl TimegrapherApp {
         let metadata = self.metadata_unsaved();
         let masks = self.marks_unsaved();
         let fault = self.session.recording_fault().map(|f| f.description());
-        egui::Modal::new(egui::Id::new("confirm")).show(ctx, |ui| {
+        theme::sheet(egui::Id::new("confirm")).show(ctx, |ui| {
             ui.set_width(360.0);
             ui.label(RichText::new(confirm_title(&what)).font(theme::semibold(15.0)));
             ui.add_space(4.0);
@@ -128,7 +128,7 @@ impl TimegrapherApp {
     /// written.
     fn confirm_saving_dialog(&mut self, ctx: &egui::Context) {
         let mut cancel = false;
-        egui::Modal::new(egui::Id::new("confirm")).show(ctx, |ui| {
+        theme::sheet(egui::Id::new("confirm")).show(ctx, |ui| {
             ui.set_width(360.0);
             ui.horizontal(|ui| {
                 ui.add(egui::Spinner::new().size(14.0));
@@ -239,7 +239,7 @@ impl TimegrapherApp {
         self.refresh_gain();
         let before = self.device.clone();
         let (mut done, mut later) = (false, false);
-        let modal = egui::Modal::new(egui::Id::new("set up the microphone")).show(ctx, |ui| {
+        let modal = theme::sheet(egui::Id::new("set up the microphone")).show(ctx, |ui| {
             ui.set_width(SHEET_W);
             let pal = theme::pal(ui);
             ui.spacing_mut().item_spacing.y = 6.0;
@@ -428,8 +428,7 @@ impl TimegrapherApp {
                 }
             });
         if new {
-            self.open_new_watch_form();
-            self.keep_after_form = true;
+            self.keep_in_new_watch();
             return;
         }
         match answer {
@@ -484,7 +483,7 @@ impl TimegrapherApp {
         let started = parse_local_minute(&a.started);
         let ready = Self::open_ready(&a, need);
         let mut answer = None;
-        let modal = egui::Modal::new(egui::Id::new("open question")).show(ctx, |ui| {
+        let modal = theme::sheet(egui::Id::new("open question")).show(ctx, |ui| {
             ui.set_width(440.0);
             let pal = theme::pal(ui);
             let title = if a.keeping {
@@ -658,7 +657,7 @@ impl TimegrapherApp {
         if self.update_dialog.is_none() {
             return;
         }
-        let modal = egui::Modal::new(egui::Id::new("check for updates")).show(ctx, |ui| {
+        let modal = theme::sheet(egui::Id::new("check for updates")).show(ctx, |ui| {
             ui.set_width(360.0);
             ui.shrink_height_to_current();
             match &self.update_dialog {
@@ -829,7 +828,7 @@ impl TimegrapherApp {
             return;
         };
         let mut choice = None;
-        let modal = egui::Modal::new(egui::Id::new("delete kept sound")).show(ctx, |ui| {
+        let modal = theme::sheet(egui::Id::new("delete kept sound")).show(ctx, |ui| {
             ui.set_width(380.0);
             let what = self
                 .kept
@@ -841,12 +840,13 @@ impl TimegrapherApp {
             ui.add_space(4.0);
             // A copy of a take recording into its folder: the take keeps
             // all but its last few seconds. One rule, the notice's.
-            let copy = self
-                .kept
-                .iter()
-                .any(|k| k.dir == dir && k.streamed_to.is_some());
+            let kept = self.kept.iter().find(|k| k.dir == dir);
+            let copy = kept.is_some_and(|k| k.streamed_to.is_some());
+            let partial = kept.is_some_and(|k| k.partial);
             ui.label(if copy {
                 "Its take keeps all of it but the last few seconds, which can't be got back."
+            } else if partial {
+                "This last part was never saved anywhere else, so it can't be got back."
             } else {
                 "It was never saved anywhere else, so it can't be got back."
             });
