@@ -348,8 +348,11 @@ impl SecondReading {
             });
         let mut signals: Vec<f32> = self.profiles.iter().filter_map(|p| p.signal).collect();
         let signal_median = (!signals.is_empty()).then(|| crate::dsp::median_f32(&mut signals));
-        // The beats' header, with what the second reading found.
+        // The beats' header, with what the second reading found, and the
+        // beats' sound the watch verdict reads (#2069).
+        let snippets = log.snippets.clone();
         let mut stored = analysis_take::from_log(log, cfg, bytes_per_frame, software);
+        stored.log.snippets = snippets;
         stored.header.profiles = self.profiles.len();
         stored.header.usb_clock = usb_clock;
         stored.header.signal_median = signal_median;
