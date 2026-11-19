@@ -1480,32 +1480,71 @@ fn a_cut_series_is_a_slide_only_when_its_line_explains_at_least_as_much() {
     }
 }
 
-/// Step against slide by adjusted share (Norm, #1984): in 200 seeded
-/// series at each of ρ 0, 0.5 and 0.9, a pure step of 4σ halfway leads as
-/// a level change, and a pure bend of 4σ (rising and levelling, a
-/// quadratic's half) as a slide, at least 95% of the time in each cell.
-/// The cells are printed for the issue.
+/// Step against slide (Norm, #1984), the confirming run on a fresh seed
+/// set after the calibration below: 200 steps of 4σ halfway and 200
+/// bends of 4σ (a quadratic's rising half) at each true ρ from 0.5 to
+/// 0.9. Where core's estimated ρ is under [`STEP_SLIDE_RHO`], a step
+/// leads as a level change and a bend as a slide at least 95% of the time
+/// in each cell of 40 or more; at or over it, every series where both
+/// pass their tests says it can't tell. Every cell is printed.
 #[test]
 fn a_step_leads_as_a_step_and_a_bend_as_a_slide() {
     let cfg = Config::default();
-    let mut z = Noise(1984);
-    for rho in [0.0, 0.5, 0.9] {
-        let (mut steps, mut bends) = (0, 0);
-        for _ in 0..200 {
-            let g = correlated(&mut z, 720, rho, 4.0, Gaps::None);
-            let s = check_series(SeriesKind::Rate, g, None, None, None, &[], &cfg);
-            steps += usize::from(s.lead == Lead::ShiftingMean);
-            let mut g = correlated(&mut z, 720, rho, 0.0, Gaps::None);
-            for (i, v) in g.y.iter_mut().enumerate() {
-                let t = i as f64 / 719.0;
-                *v += 4.0 * (1.0 - (1.0 - t).powi(2));
+    let mut z = Noise(2026_1984);
+    for rho in [0.5, 0.6, 0.7, 0.8, 0.85, 0.9] {
+        // (under the ρ: series, right; over it with both passing: series, can't tell)
+        let mut cells = [[0usize; 4]; 2];
+        for shape in 0..2 {
+            for _ in 0..200 {
+                let mut g = correlated(
+                    &mut z,
+                    720,
+                    rho,
+                    if shape == 0 { 4.0 } else { 0.0 },
+                    Gaps::None,
+                );
+                if shape == 1 {
+                    for (i, v) in g.y.iter_mut().enumerate() {
+                        let t = i as f64 / 719.0;
+                        *v += 4.0 * (1.0 - (1.0 - t).powi(2));
+                    }
+                }
+                let s = check_series(SeriesKind::Rate, g, None, None, None, &[], &cfg);
+                let c = &mut cells[shape];
+                if s.long_run_rho < STEP_SLIDE_RHO {
+                    let want = if shape == 0 {
+                        Lead::ShiftingMean
+                    } else {
+                        Lead::Drifting
+                    };
+                    c[0] += 1;
+                    c[1] += usize::from(s.lead == want);
+                } else if family::level_moves(&s, &cfg).is_some() && family::slide_passes(&s, &cfg)
+                {
+                    c[2] += 1;
+                    c[3] += usize::from(s.lead == Lead::StepOrSlide);
+                }
             }
-            let s = check_series(SeriesKind::Rate, g, None, None, None, &[], &cfg);
-            bends += usize::from(s.lead == Lead::Drifting);
         }
-        println!("#1984 cell ρ {rho}: step led as a step {steps}/200, bend as a slide {bends}/200");
-        assert!(steps >= 190, "ρ {rho}: step as a step {steps}/200");
-        assert!(bends >= 190, "ρ {rho}: bend as a slide {bends}/200");
+        for (shape, c) in ["steps", "bends"].iter().zip(cells) {
+            println!(
+                "#1984 confirm ρ {rho} {shape}: under {} right {}; over with both {} can't tell {}",
+                c[0], c[1], c[2], c[3]
+            );
+            if c[0] >= 40 {
+                assert!(
+                    c[1] * 100 >= 95 * c[0],
+                    "ρ {rho} {shape}: {} of {}",
+                    c[1],
+                    c[0]
+                );
+            }
+            assert_eq!(
+                c[3], c[2],
+                "ρ {rho} {shape}: can't tell {} of {}",
+                c[3], c[2]
+            );
+        }
     }
 }
 

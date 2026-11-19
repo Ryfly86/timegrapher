@@ -226,6 +226,21 @@ pub(super) fn adjusted_shares(s: &SeriesCheck, ch: &super::Changes) -> Option<(f
     Some((slide, adjusted_explained(ch.explained, k, n)?))
 }
 
+/// Core's estimated ρ from which a step and a slide that both pass their
+/// tests are not told apart (Norm, #1984). Set from a seeded run of 200
+/// bends and 200 steps at each true ρ from 0.5 to 0.9: bends first fell
+/// under 95% right at true ρ 0.85, where core's estimate reads about 0.02
+/// high; 0.83 is that estimate's 5th percentile there.
+pub const STEP_SLIDE_RHO: f64 = 0.83;
+
+/// Whether the slide passes its own test and explains enough to name.
+pub(super) fn slide_passes(s: &SeriesCheck, cfg: &Config) -> bool {
+    trend_holds(s, cfg)
+        && s.trend
+            .as_ref()
+            .is_some_and(|t| t.explained.max(t.curve_explained) >= cfg.min_explained)
+}
+
 /// Within a tenth: a runner-up is named beside the lead only when its
 /// adjusted share is at least this share of the leader's, as "about as
 /// much" says (Norm, #1984). Never moved to pass a case.
@@ -241,14 +256,7 @@ pub(super) fn runner_up<'a>(s: &'a SeriesCheck, cfg: &Config) -> Option<(&'a Cha
     let (slide, steps) = adjusted_shares(s, ch)?;
     let (second, first) = match s.lead {
         Lead::Drifting => (steps, slide),
-        Lead::ShiftingMean
-            if trend_holds(s, cfg)
-                && s.trend
-                    .as_ref()
-                    .is_some_and(|t| t.explained.max(t.curve_explained) >= cfg.min_explained) =>
-        {
-            (slide, steps)
-        }
+        Lead::ShiftingMean if slide_passes(s, cfg) => (slide, steps),
         _ => return None,
     };
     (second >= RUNNER_UP_SHARE * first).then_some((ch, second, first))
@@ -288,7 +296,7 @@ fn not_significant(p: f64, bar: f64, what: &str) -> String {
 /// can say so.
 pub(super) fn mark_named(s: &mut SeriesCheck, cfg: &Config) {
     let significant = trend_holds(s, cfg);
-    let drifting = s.lead == Lead::Drifting;
+    let drifting = matches!(s.lead, Lead::Drifting | Lead::StepOrSlide);
     let levels = level_change(s, cfg).is_some() || (drifting && level_moves(s, cfg).is_some());
     let level_ok = level_holds(s, cfg);
     let bar = |x: f64, what: &str| {

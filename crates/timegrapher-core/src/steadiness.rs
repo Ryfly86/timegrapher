@@ -249,6 +249,10 @@ enum Lead {
     /// A steady slide, such as amplitude falling as the mainspring lets
     /// down.
     Drifting,
+    /// A step and a slide both pass their tests, but the readings move
+    /// together too much (ρ at least [`family::STEP_SLIDE_RHO`]) to tell
+    /// which (Norm, #1984): neither leads, and both shares are given.
+    StepOrSlide,
     /// Readings that remember the last ones without steps, a cycle or a
     /// trend: slow, irregular wander.
     Wandering,
@@ -468,6 +472,9 @@ pub struct SeriesCheck {
     /// slide are weighed on when they compete for the lead (#1984).
     #[serde(skip)]
     effective_readings: f64,
+    /// The ρ that count is worked from, core's estimate.
+    #[serde(skip)]
+    long_run_rho: f64,
     /// Null, like the other tests, when there are too few readings to
     /// search (the headline says how many).
     pub autocorrelation: Option<Autocorrelation>,
@@ -1117,6 +1124,7 @@ pub fn check_series(
         short_term_sd: short_term_sd(y),
         long_run_sd: None,
         effective_readings: n as f64,
+        long_run_rho: 0.0,
         autocorrelation: None,
         repeat_mark: None,
         screen_cycle_size: None,
@@ -1197,8 +1205,8 @@ pub fn check_series(
     // out (#647).
     let lr = confidence::long_run_sd(y, sst, Slow::ChosenStep);
     out.long_run_sd = Some(lr);
-    out.effective_readings =
-        confidence::effective_readings(nf, confidence::long_run_rho(y, Slow::ChosenStep));
+    out.long_run_rho = confidence::long_run_rho(y, Slow::ChosenStep);
+    out.effective_readings = confidence::effective_readings(nf, out.long_run_rho);
     let mut walk = None;
     if lr > 0.0 {
         let scale = lr * nf.sqrt();
@@ -1402,7 +1410,10 @@ fn also(s: &SeriesCheck, cfg: &Config) -> Option<String> {
             k.fmt_size(c.peak_to_peak)
         ));
     }
-    let moves = !matches!(s.lead, Lead::ShiftingMean | Lead::Drifting);
+    let moves = !matches!(
+        s.lead,
+        Lead::ShiftingMean | Lead::Drifting | Lead::StepOrSlide
+    );
     if let Some(ch) = family::level_change(s, cfg).filter(|_| moves) {
         let lo = ch
             .segments
@@ -1424,6 +1435,44 @@ fn also(s: &SeriesCheck, cfg: &Config) -> Option<String> {
         out.push(t);
     }
     (!out.is_empty()).then(|| out.join(" "))
+}
+
+/// The headline where neither a step nor a slide leads (Hugh, #1984):
+/// both adjusted shares, the larger first.
+fn step_or_slide_text(s: &SeriesCheck, cap: &str) -> String {
+    let fallback = format!("{cap} shifts level or slides.");
+    let Some(ch) = s.changes.as_ref() else {
+        return fallback;
+    };
+    let Some((slide, steps)) = family::adjusted_shares(s, ch) else {
+        return fallback;
+    };
+    let at: Vec<String> = ch
+        .segments
+        .iter()
+        .skip(1)
+        .map(|g| every_text(g.start_s))
+        .collect();
+    let shift = if at.len() == 1 {
+        format!("a shift at {}", at[0])
+    } else {
+        format!("shifts at {}", at.join(", "))
+    };
+    let pct = |v: f64| format!("{:.1}%", 100.0 * v);
+    let (first, second) = if slide >= steps {
+        (
+            format!("a slide explains {}", pct(slide)),
+            format!("{shift} {}", pct(steps)),
+        )
+    } else {
+        (
+            format!("{shift} explains {}", pct(steps)),
+            format!("a slide {}", pct(slide)),
+        )
+    };
+    format!(
+        "{cap} shifts level or slides, but its readings move together too much to tell which: {first}, {second}."
+    )
 }
 
 /// The other of a slide and a level change, when its own test names it
@@ -1808,6 +1857,11 @@ fn lead(s: &SeriesCheck, cfg: &Config) -> Lead {
         // weighed by their adjusted explained shares on the readings'
         // effective count, each paying for its parameters, and a tie goes
         // to the level change the levels test names (Norm, #1984).
+        // Too correlated to tell the two apart, when both pass their
+        // tests: neither leads (Norm, #1984).
+        if family::slide_passes(s, cfg) && s.long_run_rho >= family::STEP_SLIDE_RHO {
+            return Lead::StepOrSlide;
+        }
         return if family::slide_outweighs_steps(s, ch) && family::trend_holds(s, cfg) {
             Lead::Drifting
         } else {
@@ -1945,6 +1999,7 @@ fn lead_summary(s: &SeriesCheck) -> String {
             }
         }
         Lead::ShiftingMean => shifts_text(s),
+        Lead::StepOrSlide => "shifts level or slides".to_string(),
         Lead::Drifting => {
             let t = s.trend.as_ref().unwrap();
             if let Some((_, v)) = t.turn.filter(|_| t.curve_explained > t.explained + 0.05) {
@@ -2050,6 +2105,7 @@ fn lead_text(s: &SeriesCheck, mean: f64) -> String {
             }
         }
         Lead::ShiftingMean => format!("{cap} {}.", shifts_text(s)),
+        Lead::StepOrSlide => step_or_slide_text(s, &cap),
         Lead::Drifting => {
             let t = s.trend.as_ref().unwrap();
             if let Some((at, v)) = t.turn.filter(|_| t.curve_explained > t.explained + 0.05) {
@@ -2215,6 +2271,10 @@ fn findings(s: &SeriesCheck) -> Option<Finding> {
             format!("The {name} changes level during the take"),
         ),
         Lead::Drifting => ("drifting", format!("The {name} slides through the take")),
+        Lead::StepOrSlide => (
+            "step_or_slide",
+            format!("The {name} shifts level or slides; its readings move together too much to tell which"),
+        ),
         Lead::Wandering => (
             "wandering",
             format!("Successive {name} readings are correlated"),
@@ -2973,7 +3033,7 @@ mod readings;
 use cycle_search::cycle;
 #[cfg(test)]
 use cycle_search::{refined_candidates, same_peaks_once, strongest_cycle};
-pub use family::{family_long, hold_to_family, RUNNER_UP_SHARE};
+pub use family::{family_long, hold_to_family, RUNNER_UP_SHARE, STEP_SLIDE_RHO};
 pub use readings::isochronism_alone;
 
 #[cfg(test)]
