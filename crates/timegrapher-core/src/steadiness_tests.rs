@@ -1494,7 +1494,7 @@ fn a_step_leads_as_a_step_and_a_bend_as_a_slide() {
     for rho in [0.5, 0.6, 0.7, 0.8, 0.85, 0.9] {
         // (under the ρ: series, right; over it with both passing: series, can't tell)
         let mut cells = [[0usize; 4]; 2];
-        for shape in 0..2 {
+        for (shape, c) in cells.iter_mut().enumerate() {
             for _ in 0..200 {
                 let mut g = correlated(
                     &mut z,
@@ -1510,7 +1510,6 @@ fn a_step_leads_as_a_step_and_a_bend_as_a_slide() {
                     }
                 }
                 let s = check_series(SeriesKind::Rate, g, None, None, None, &[], &cfg);
-                let c = &mut cells[shape];
                 if s.long_run_rho < STEP_SLIDE_RHO {
                     let want = if shape == 0 {
                         Lead::ShiftingMean

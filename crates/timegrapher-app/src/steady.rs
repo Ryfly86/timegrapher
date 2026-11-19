@@ -1294,6 +1294,25 @@ fn period_found(c: &SeriesCheck, pts: &[[f64; 2]]) -> Option<([f64; 2], String)>
 }
 
 /// The period search's scores, with the threshold, the wheels' periods and the period found.
+/// The Periods plot's mark for the headline's cycle where the search's
+/// top is another line (#1984): on the score line at its period, named as
+/// the headline's.
+fn headline_mark(cy: &timegrapher_core::steadiness::Cycle, pts: &[[f64; 2]]) -> ([f64; 2], String) {
+    let x = cy.period_s.log10();
+    let y = pts
+        .iter()
+        .min_by(|a, b| (a[0] - x).abs().total_cmp(&(b[0] - x).abs()))
+        .map_or(0.0, |q| q[1]);
+    let w = cy
+        .wheel
+        .as_ref()
+        .map_or(String::new(), |w| format!(", {}", marks::title_case(w)));
+    (
+        [x, y],
+        format!("the headline's cycle, {}{w}", secs(cy.period_s)),
+    )
+}
+
 fn periods_plot(ui: &mut egui::Ui, r: Row<'_>) {
     let db = r.opts.periods_db;
     let Row {
@@ -1358,21 +1377,7 @@ fn periods_plot(ui: &mut egui::Ui, r: Row<'_>) {
     let found = period_found(c, &pts);
     // The headline's cycle, where the fold chose another line than the
     // search's top (#1984): marked as the headline's.
-    let headline = c.cycle_off_search().map(|cy| {
-        let x = cy.period_s.log10();
-        let y = pts
-            .iter()
-            .min_by(|a, b| (a[0] - x).abs().total_cmp(&(b[0] - x).abs()))
-            .map_or(0.0, |q| q[1]);
-        let w = cy
-            .wheel
-            .as_ref()
-            .map_or(String::new(), |w| format!(", {}", marks::title_case(w)));
-        (
-            [x, y],
-            format!("the headline's cycle, {}{w}", secs(cy.period_s)),
-        )
-    });
+    let headline = c.cycle_off_search().map(|cy| headline_mark(cy, &pts));
     let short = note_short(ui, &names, (i, view));
     let top = if found.is_some() && !short {
         let hi = pts.iter().map(|q| q[1]).fold(y_lo, f64::max);
@@ -1462,10 +1467,7 @@ fn cycle_label(
     };
     // Folded at the headline's own cycle: the size stated is the cycle's
     // one size, the headline's (Norm, #1984), not the fold's swing.
-    let own = matches!(s.fold_from[i], FoldFrom::Own)
-        && c.cycle
-            .as_ref()
-            .is_some_and(|cy| (cy.period_s - f.period_s).abs() <= 1e-6 * f.period_s);
+    let own = matches!(s.fold_from[i], FoldFrom::Own) && c.is_cycle_period(f.period_s);
     match (
         steady_views::fold_spread(f, boxes),
         own.then(|| c.cycle_size_text()).flatten(),
