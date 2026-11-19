@@ -34,7 +34,6 @@ pub(super) struct AsFile {
     view: Option<Box<LiveAnalyzer>>,
 }
 
-
 /// A copy keeps the newest read and what was heard; a read in flight
 /// stays with the original.
 impl Clone for AsFile {
@@ -158,10 +157,7 @@ impl LiveAnalyzer {
 
     /// Samples the newest read covered.
     fn view_len(&self) -> usize {
-        self.as_file
-            .view
-            .as_ref()
-            .map_or(0, |v| v.total as usize)
+        self.as_file.view.as_ref().map_or(0, |v| v.total as usize)
     }
 
     fn start_read(&mut self) {

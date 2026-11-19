@@ -1395,9 +1395,12 @@ impl LiveAnalyzer {
 
     /// Readings over the `average_s` seconds before `end_s`.
     pub fn reading_at(&self, end_s: f64, average_s: f64) -> LiveReading {
-        if let Some(r) = self.reading_as_file(end_s, average_s) {
-            return r;
-        }
+        (self.reading_as_file(end_s, average_s))
+            .unwrap_or_else(|| self.own_reading_at(end_s, average_s))
+    }
+
+    /// [`Self::reading_at`] from this analyzer's own beats.
+    fn own_reading_at(&self, end_s: f64, average_s: f64) -> LiveReading {
         let window_from = end_s - average_s;
         let masked_s = crate::session::masked_within(&self.masked, window_from, end_s);
         let st = self.stretch_at(window_from, end_s);

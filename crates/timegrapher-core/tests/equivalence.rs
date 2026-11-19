@@ -1333,11 +1333,33 @@ fn an_empty_stand_is_never_a_beat_being_found() {
 /// 19.3 ppm slow, 1.67 s/d.
 const USB_TAKE: &str = "eta2824_holder_DU_30min";
 
-/// From this much sound on, live and the saved take read the same rate on
-/// this take to within half its digit. Before the template is built again
-/// (#1327) live's figures are the saved take's to the bit (#1987); between
-/// that and this, none of the lengths checked falls.
-const SAME_RATE_FROM_S: f64 = 120.0;
+/// At `t`, live's rate on the clock and on the card against the saved
+/// take's report and the saved take opened in the app: read as a file,
+/// the saved take opened to the bit, the report's to its last few bits
+/// (it puts the clock on the beat times, live on the rate); after, within
+/// half the 0.1 s/d digit.
+fn live_is_saved(
+    t: f64,
+    as_file: bool,
+    (live_on, live_card): (f64, f64),
+    (saved_on, saved_card): (f64, f64),
+    opened: (Option<f64>, Option<f64>),
+) {
+    if as_file {
+        assert_eq!(
+            (Some(live_on), Some(live_card)),
+            opened,
+            "{t} s: read as a file, live is the saved take opened"
+        );
+        assert_eq!(live_card.to_bits(), saved_card.to_bits(), "{t} s");
+        assert!((live_on - saved_on).abs() < 1e-9, "{t} s");
+    } else {
+        assert!(
+            (live_on - saved_on).abs() < 0.05,
+            "{t} s: live {live_on:.3} s/d against the saved take's {saved_on:.3}"
+        );
+    }
+}
 
 /// Heard live, a real take's readings are on the clock the same take
 /// saved and opened at that moment is read on (#1721, #1918), with the
@@ -1351,8 +1373,8 @@ const SAME_RATE_FROM_S: f64 = 120.0;
 /// - stopped there, while live's figures are read as a file (before the
 ///   template is built again), the live rate is the saved take's to the
 ///   bit, on the clock and on the card's (#1987);
-/// - from [`SAME_RATE_FROM_S`], the live rate is the saved take's to
-///   within half its 0.1 s/d digit.
+/// - after, the live rate is the saved take's to within half its 0.1 s/d
+///   digit, at every length (#1987 took away the first minute's gap).
 ///
 /// Runs where `TIMEGRAPHER_CORPUS` is set.
 #[test]
@@ -1445,28 +1467,19 @@ fn a_live_rate_takes_the_usb_lines_a_reopened_real_take_takes() {
             moved(live_on, live_card),
             moved(saved_on, saved_card)
         );
-        if as_file {
-            // The saved take opened in the app, on the same clock.
-            let opened_rate = |c: Option<&clock::ClockFit>| {
-                let mut x = LiveAnalyzer::from_log(log.clone(), LiveConfig::default());
-                x.set_rate_clock(c);
-                x.reading_at(end, end - from).rate_s_per_day
-            };
-            assert_eq!(
-                (Some(live_on), Some(live_card)),
-                (opened_rate(Some(&opened)), opened_rate(None)),
-                "{t} s: read as a file, live is the saved take opened"
-            );
-            // A report puts the clock on the beat times, live on the rate:
-            // the same to the last few bits.
-            assert_eq!(live_card.to_bits(), saved_card.to_bits(), "{t} s");
-            assert!((live_on - saved_on).abs() < 1e-9, "{t} s");
-        } else if t >= SAME_RATE_FROM_S {
-            assert!(
-                (live_on - saved_on).abs() < 0.05,
-                "{t} s: live {live_on:.3} s/d against the saved take's {saved_on:.3}"
-            );
-        }
+        let opened_rate = |c: Option<&timegrapher_core::clock::ClockFit>| {
+            let mut x = LiveAnalyzer::from_log(log.clone(), LiveConfig::default());
+            x.set_rate_clock(c);
+            x.reading_at(end, end - from).rate_s_per_day
+        };
+        let opened_rates = (opened_rate(Some(&opened)), opened_rate(None));
+        live_is_saved(
+            t,
+            as_file,
+            (live_on, live_card),
+            (saved_on, saved_card),
+            opened_rates,
+        );
         std::fs::remove_file(&saved).unwrap();
     }
     assert_eq!(checks.next(), None, "every length was heard");
@@ -1530,7 +1543,10 @@ fn live_figures_before_the_template_is_built_again_are_the_saved_takes() {
             break;
         }
         heard_most = n;
-        if stops.next_if(|&at| n as f64 >= at * f64::from(fs)).is_none() {
+        if stops
+            .next_if(|&at| n as f64 >= at * f64::from(fs))
+            .is_none()
+        {
             continue;
         }
         let t = n as f64 / f64::from(fs);
@@ -1538,13 +1554,20 @@ fn live_figures_before_the_template_is_built_again_are_the_saved_takes() {
         if let Some(to) = l.read_as_file_to() {
             assert_eq!(l.reading(10.0).time_s, to, "{t} s: states its sound");
             let m = (to * f64::from(fs)).round() as usize;
-            same(&l, &opened(m), &format!("listening at {t} s, read to {to} s"));
+            same(
+                &l,
+                &opened(m),
+                &format!("listening at {t} s, read to {to} s"),
+            );
             listening += 1;
         }
         let mut stopped = l.clone();
         let t0 = Instant::now();
         stopped.settle();
-        eprintln!("stopped at {t} s: read in {:.3} s", t0.elapsed().as_secs_f64());
+        eprintln!(
+            "stopped at {t} s: read in {:.3} s",
+            t0.elapsed().as_secs_f64()
+        );
         same(&stopped, &opened(n), &format!("stopped at {t} s"));
     }
     assert_eq!(stops.next(), None, "every stop came before the switch");

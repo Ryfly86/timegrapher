@@ -162,6 +162,26 @@ faster than sound comes in. Once the re-read catches up, it takes over: the
 first 47 s of readings change once, then, and there is no cut. The gathered
 sound is then let go; `memory_budget` checks that.
 
+Until that takeover, live's own beats are timed on its first template, which
+parted live's first-minute figures from the saved take's: on the ETA 2824
+holder take, 11.882 s/d live against 11.008 saved at 30 s (#1987). So until
+then, on a screen showing a watch heard live (`with_figures_as_file`: the app,
+and `record`'s live feed), every figure (the readings, the trend) comes from
+everything heard read again as a file reads it (`stream::analyze_samples`),
+back to back on one background thread, the newest finished read giving them,
+and each reading states the end of the sound that read covered. Live's own
+beats still draw the strip. A stop reads everything heard once more, so the
+stopped figures are the saved take's. After the takeover, or once 94 s are
+heard, or once the take is paused, restarted, split into a new stretch or its
+rate changed, the figures are live's own as before.
+`live_figures_before_the_template_is_built_again_are_the_saved_takes` checks
+on that take that every reading listening on, and stopped at 10, 20, 30 and
+46 s, is the saved take's to the bit, and prints the read times: about 0.5 s
+for the 62.6 s heard before the takeover, so the figures lag the sound by
+about 1 s at most. `a_live_rate_takes_the_usb_lines_a_reopened_real_take_takes`
+holds every length, on the clock and on the card, to the saved take: to the bit
+before the takeover, within half the 0.1 s/d digit after.
+
 The re-read does not take over when it reads both sides in a share of its
 2 s windows lower, by more than 2 standard errors, than live's first template
 did over the same stretch (`confidence::share_differs`, the test #1423 uses for
