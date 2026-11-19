@@ -349,23 +349,6 @@ fn list_size(bytes: u64) -> String {
     }
 }
 
-/// Whether a folder's size is a dash: the Bench is recording a take into
-/// it, of which the library holds only a first write (#2034, #2039).
-pub fn size_waits(dir: &Path, writing: Option<&Path>) -> bool {
-    writing.is_some_and(|w| w.starts_with(dir))
-}
-
-/// What a size that waits adds to its hover (Hugh on #2037).
-pub const SIZE_WAITS: &str = "Its size is given once the take being recorded stops.";
-
-/// A list row's size and its hover `what`, as [`size_waits`] says.
-pub fn size_and_hover(e: &WatchEntry, writing: Option<&Path>, what: &str) -> (String, String) {
-    match size_waits(&e.dir, writing) {
-        true => ("—".into(), format!("{what} {SIZE_WAITS}")),
-        false => (list_size(e.bytes()), what.to_string()),
-    }
-}
-
 /// The list: one row per watch, led by its first photo when any watch
 /// listed has one. The id of the watch clicked, if any. `writing` is the
 /// take the Bench is recording into.
@@ -411,7 +394,12 @@ pub fn list(
         if let Some(t) = last_take(e).and_then(timegrapher_core::library::date_text) {
             below.push(format!("last {t}"));
         }
-        let (size, hover) = size_and_hover(e, writing, "Show this watch's details and takes.");
+        let (size, hover) = crate::size_wait::size_or_wait(
+            &e.dir,
+            writing,
+            "Show this watch's details and takes.",
+            || list_size(e.bytes()),
+        );
         if found_row(
             ui,
             marked == Some(w.id.as_str()),
@@ -440,11 +428,12 @@ pub fn unsorted_row(
     marked: bool,
     writing: Option<&Path>,
 ) -> bool {
-    let (size, hover) = size_and_hover(
-        e,
+    let (size, hover) = crate::size_wait::size_or_wait(
+        &e.dir,
         writing,
         "Quick Listen again: no watch, no calibre, the default lift angle and the beat rate \
          found from the beats. Shows the takes not yet filed under a watch.",
+        || list_size(e.bytes()),
     );
     row(
         ui,

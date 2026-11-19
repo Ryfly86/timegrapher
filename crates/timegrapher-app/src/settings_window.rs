@@ -269,22 +269,15 @@ pub fn library_section(
     act
 }
 
-/// What the Watches folder `l` holds, and the folders in it that can't be
-/// read.
 /// What the Watches folder holds, "2 watches, 5 takes, 7.8 MB", and the
 /// row's hover: its size a dash, and the hover saying why, while a take
-/// records into it ([`crate::watches::size_waits`], #2039).
+/// records into it ([`crate::size_wait::size_or_wait`], #2039).
 fn held_words(l: &Library, writing: Option<&Path>) -> (String, String) {
     let takes = l.watches.iter().map(|w| w.takes.len()).sum::<usize>() + l.unsorted.takes.len();
-    let what = "What the Watches folder holds";
-    let (size, hover) = if crate::watches::size_waits(&l.root, writing) {
-        (
-            "—".into(),
-            format!("{what}. {}", crate::watches::SIZE_WAITS),
-        )
-    } else {
-        (size_text(l.bytes()), what.to_string())
-    };
+    let (size, hover) =
+        crate::size_wait::size_or_wait(&l.root, writing, "What the Watches folder holds.", || {
+            size_text(l.bytes())
+        });
     let held = format!(
         "{}, {}, {size}",
         count(l.watches.len(), "watch", "watches"),
@@ -293,6 +286,8 @@ fn held_words(l: &Library, writing: Option<&Path>) -> (String, String) {
     (held, hover)
 }
 
+/// What the Watches folder `l` holds, and the folders in it that can't be
+/// read.
 fn held_rows(g: &mut theme::Group<'_>, l: &Library, moving: Option<&Path>, writing: Option<&Path>) {
     let (held, hover) = held_words(l, writing);
     let why = match (&l.read_only, moving) {
@@ -597,7 +592,7 @@ mod tests {
         for writing in [None, Some(elsewhere.as_path())] {
             let (held, hover) = held_words(&l, writing);
             assert_eq!(held, format!("1 watch, 0 takes, {}", size_text(l.bytes())));
-            assert_eq!(hover, "What the Watches folder holds");
+            assert_eq!(hover, "What the Watches folder holds.");
         }
         drop(l);
         let _ = std::fs::remove_dir_all(&root);
