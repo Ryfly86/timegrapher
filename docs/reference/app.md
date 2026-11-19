@@ -233,9 +233,21 @@ so does a watch's own take: every 5 s of sound is added to the take with
 no Save Again, so a crash or a power cut costs only seconds. Meanwhile the
 Save icon is lit, its menu and hover say "Saving to" the watch, Unsorted
 Takes or the folder, and it has no Save Again. File ▸ Save is dimmed
-for the same reason, and the status bar says "Saved". Stop and quitting
+for the same reason, and the status bar says "Saved". "Saved" is shown only
+while the take holds the sound saved into it. The app looks at the take
+again when its window comes back to the front, after a save and when a
+save is refused (#2052). Once the take no
+longer holds its sound, the status bar says "Not saved", and its hover
+says Save keeps it again. While the take is still recorded into, Save is
+dimmed, and the hover says instead that the next few seconds of sound
+save it whole again. If the earlier part the take held alone is
+gone too, it says "Can't be saved", and its hover gives the refusal's
+reason. Stop and quitting
 add the last seconds and close the take with no question. A save that
-fails says so, and the next is tried a minute later. Only the new
+fails says so, and the next is tried a minute later. A write refused
+because the take no longer holds the sound is said once, not every
+minute, and the status bar says "Can't be saved" until the take holds it
+again (#2061). Only the new
 sound is written each time. After a crash, the next start says the take
 holds all but its last few seconds, and offers **Open Take** or **Delete
 Copy…** for the copy left on this computer with those seconds. A Positions or Power Reserve Test of a watch
@@ -321,8 +333,18 @@ under it its calibre, beat rate, lift angle and added fields, with
   session` reads its last position on the take's clock, the same one
   `timegrapher watches` gives: worked out from the take's sound the first
   time the list shows it (about a minute for a 9 hour take, the row
-  blank until then, its hover saying it is being read), then kept. A test's last window never
-  stands for the test: a Positions Test's row shows its Mean row, the
+  blank until then, its hover saying it is being read), then kept. The
+  take opened shows the same reading on its cards at its end, to the last
+  bit, where the Average Over holds the whole stretch it reads and a
+  watch is heard there (core's `LiveReading::at_whole_end`, #2073).
+  Otherwise a stopped take's cards, opened or just stopped, read the
+  stretch ending at the watch's last beat: the end of the latest run of
+  good beats with no gap over 2 s, at least 10 s long (core's
+  `beats::last_watch_beat_s`, #2081), so a quiet stand after the watch
+  is lifted, and any stray beat in its hiss, moves nothing. The row's
+  hover says, on the line after its
+  figures, that the cards at Stop can differ a little. A test's last
+  window never stands for the test: a Positions Test's row shows its Mean row, the
   figures its table shows ("Mean of the six positions" in the row's hover),
   and a Power Reserve Test's shows its run time as its Length and a dim
   "—" for the figures, which are hour by hour in the take ("open it", the
@@ -851,7 +873,10 @@ the listening's figures and that line says "These are the figures heard while li
 analysed again (why). Opened again, the take may read slightly
 differently.", and `positions-test.json` says `listened: true`. A take
 kept by Save Analysis Only is not read again: its figures stay the
-listening's, and its file says `listened: true` too.
+listening's, the line at the top of the pane says "These are the figures heard while
+listening: the take was saved without its sound, so it couldn't be
+analysed again. Opened again, the take may read slightly differently.",
+and its file says `listened: true` too.
 
 The take also keeps the test's marks in `test-marks.json` (format
 `timegrapher.test-marks/1`; #1957): `format`, `test` (`positions`,

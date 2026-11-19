@@ -223,6 +223,56 @@ pub struct LiveReading {
     /// sound is counted since ([`measure::LISTENING_TITLE`], #2014). None
     /// otherwise.
     pub listening: Option<measure::HeardSince>,
+    /// Whether this is the take's whole reading, given at its end by
+    /// [`LiveReading::at_whole_end`], rather than the engine's last
+    /// averaging time: its beats and span are then the whole stretch's,
+    /// each side of a break fitted apart. Not saved.
+    #[serde(skip)]
+    pub whole_take: bool,
+}
+
+impl LiveReading {
+    /// This reading, at a take's end, as the take's whole reading `whole`
+    /// (`session`'s, [`crate::session::measure_together`]) gives it, where
+    /// `whole` ends where this reading does and the averaging time
+    /// `average_s` holds the whole stretch it reads: there the last
+    /// `average_s` and the whole take are one fact, so its figures, their
+    /// ±s, why one has none, the caveats, and the beats and span they rest
+    /// on (across any pause, not the latest unbroken run) are `whole`'s
+    /// alone, and a
+    /// take's cards at its end give what its Watches row gives, to the last
+    /// bit (#2073, Norm). The engine corrects a rate fitted on the sound's
+    /// time by the clock's slope, where `session` fits it on the clock's
+    /// time: the same rate, but not the same float. With a shorter
+    /// averaging time, or no watch heard in either, this reading stands.
+    #[must_use]
+    pub fn at_whole_end(self, whole: &crate::session::Measurement, average_s: f64) -> Self {
+        let holds = whole.end_s == self.time_s && whole.start_s >= self.time_s - average_s;
+        if !holds || !self.watch_heard || !whole.watch_heard || self.listening.is_some() {
+            return self;
+        }
+        let c = whole.confidence;
+        Self {
+            rate_s_per_day: whole.rate_s_per_day,
+            rate_error_s_per_day: c.and_then(|c| c.rate.se),
+            rate_no_pm: c.and_then(|c| c.rate.no_pm),
+            amplitude_deg: whole.amplitude_deg,
+            amplitude_error_deg: c.and_then(|c| c.amplitude.se),
+            amplitude_no_pm: c.and_then(|c| c.amplitude.no_pm),
+            amplitude_even_deg: whole.amplitude_even_deg,
+            amplitude_odd_deg: whole.amplitude_odd_deg,
+            beat_error_ms: whole.beat_error_ms,
+            beat_error_unlock_ms: whole.beat_error_unlock_ms,
+            beat_error_source: whole.beat_error_source,
+            beat_error_unlock_error_ms: c.and_then(|c| c.beat_error.se),
+            jitter_us: whole.jitter_us,
+            beats_used: whole.beats_fitted,
+            span_s: whole.end_s - whole.start_s - whole.masked_s,
+            caveats: whole.caveats.clone(),
+            whole_take: true,
+            ..self
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1450,6 +1500,7 @@ impl LiveAnalyzer {
             beat_error_unlock_error_ms: sided(assessment.confidence.and_then(|c| c.beat_error.se)),
             caveats,
             listening,
+            whole_take: false,
         }
     }
 

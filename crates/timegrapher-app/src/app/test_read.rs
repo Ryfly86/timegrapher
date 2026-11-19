@@ -55,7 +55,8 @@ impl TimegrapherApp {
     /// test whose figures are still the listening's is read again from
     /// that sound as saved, in the background. A save again while it is
     /// read starts the reading over on what that save wrote (Vernon on
-    /// #2067).
+    /// #2067), and a full save after Save Analysis Only reads it from the
+    /// sound that one keeps (Hugh 5 on #2080).
     pub(super) fn read_test_again(&mut self, dir: &Path, streamed: super::Streamed) {
         if streamed != super::Streamed::No {
             return;
@@ -67,7 +68,9 @@ impl TimegrapherApp {
         let Some(t) = self.guided.as_mut().filter(|t| {
             matches!(
                 t.saved_read,
-                guided::SavedRead::Pending | guided::SavedRead::Reading
+                guided::SavedRead::Pending
+                    | guided::SavedRead::Reading
+                    | guided::SavedRead::NoSound
             )
         }) else {
             return;
@@ -131,6 +134,19 @@ impl TimegrapherApp {
         }
         let dir = self.results_dir(dir);
         self.write_results_into(&dir);
+    }
+
+    /// A finished test's take kept by Save Analysis Only: with no sound to
+    /// read it again from, its table says its figures are the listening's
+    /// (#2070). One read again already, or under way, is left as it is.
+    pub(super) fn test_kept_without_sound(&mut self) {
+        if let Some(t) = self
+            .guided
+            .as_mut()
+            .filter(|t| t.saved_read == guided::SavedRead::Pending)
+        {
+            t.saved_read = guided::SavedRead::NoSound;
+        }
     }
 
     /// Where a test read again from the take saved in `read` writes its

@@ -107,6 +107,20 @@ fn a_takes_hover_names_the_position_its_figures_are_of() {
         take_hover(t, &cx, &dir, None, readings.reading(&dir))
     };
     let h = hover(&take);
+    // A take not listened to (no session.json start) had no figures live
+    // at Stop, so says nothing of them (Hugh 5 on #2075).
+    assert!(!h.contains(super::AT_STOP_LINE), "{h}");
+    // One listened to says why the cards at Stop can differ, on the line
+    // after its figures (#2073).
+    let listened = Take {
+        started_utc: Some("2026-11-19T16:00:00Z".into()),
+        ..take.clone()
+    };
+    let said = hover(&listened);
+    assert!(
+        said.contains(&format!(" 0.03 ms\n{}", super::AT_STOP_LINE)),
+        "{said}"
+    );
     let first = h.lines().next().unwrap();
     assert!(!first.contains("s/d"), "{h}");
     assert!(

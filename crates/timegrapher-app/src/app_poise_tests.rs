@@ -1438,8 +1438,11 @@ fn a_finished_test_reads_as_session_reads_its_saved_take() {
         );
         let t = app.poise_test().expect("the test");
         assert_eq!(t.saved_read, guided::SavedRead::Read, "block {block}");
+        // A full save is read again: never the note of a take kept
+        // without its sound (#2070), nor any other.
         assert_eq!(t.saved_read_note(), None);
         assert_eq!(app.repaint_every(), None, "nothing left to draw for");
+        assert!(!t.listened());
         let readings = t.readings.clone().expect("finished");
         assert_eq!(readings.len(), 8);
         let dir = app.session.saved_to().expect("saved").to_path_buf();

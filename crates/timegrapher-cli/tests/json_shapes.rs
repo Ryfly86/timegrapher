@@ -387,6 +387,39 @@ fn long_and_series_keep_their_fields() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// `series --views` keeps its fields, a fold's among them, on a watch
+/// whose amplitude swings once a minute: the fold says whether it is at
+/// the headline's cycle (core's `at_cycle`, Norm on #1984).
+#[test]
+fn series_views_keep_their_fields() {
+    let dir = scratch("series_views");
+    let wav = dir.join("watch.wav");
+    let audio = generate(
+        &SynthConfig {
+            duration_s: 600.0,
+            rate_s_per_day: 6.0,
+            beat_error_ms: 0.4,
+            ..Default::default()
+        },
+        |t| 275.0 + 10.0 * (std::f64::consts::TAU * t / 60.0).sin(),
+        |_| 0.0,
+    );
+    timegrapher_core::audio::write_wav(&wav, &audio).unwrap();
+    let config = dir.join("config");
+    let doc = json(
+        &config,
+        &["series", wav.to_str().unwrap(), "--views", "--json"],
+    );
+    check("series_views", &doc);
+    let mut fields = BTreeSet::new();
+    paths(&doc, "", &mut fields);
+    assert!(
+        fields.iter().any(|f| f.ends_with("fold.at_cycle")),
+        "no fold drawn"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 fn watches_keep_their_fields() {
     use timegrapher_core::library::{Library, Watch};

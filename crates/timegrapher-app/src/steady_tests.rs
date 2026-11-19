@@ -1151,6 +1151,35 @@ fn the_beat_error_view_gives_sizes_where_its_sign_turns() {
     assert!(finite(&both_slow).iter().any(|&v| v < 0.0));
 }
 
+/// Each Cycle note gives one size (Norm, #1984): the rate's own cycle
+/// its size peak to peak, the amplitude off its own cycle the search's
+/// sine size at a search line, and elsewhere the swing, noise and all.
+fn each_cycle_note_gives_one_size(s: &Steadiness) {
+    let note = |i: usize| {
+        let f = s.folds[i].as_ref().expect("a fold");
+        let c = &s.report.series[i];
+        (
+            cycle_label(s, i, c, f, &steady_views::fold_columns(f)),
+            c,
+            f.period_s,
+        )
+    };
+    let (rate_note, c, _) = note(0);
+    let size = c.cycle_size_text().expect("the cycle's size");
+    assert!(
+        rate_note.contains(&format!("\n{size} peak to peak; ")),
+        "{rate_note}"
+    );
+    let (amp_note, c, at) = note(1);
+    match c.search_line_size_text(at) {
+        Some(t) => assert!(
+            amp_note.contains(&format!("\n{t} sine peak to peak; ")),
+            "{amp_note}"
+        ),
+        None => assert!(amp_note.contains(", its noise included; "), "{amp_note}"),
+    }
+}
+
 /// A watch whose rate swings once a minute (a fourth wheel fault) is
 /// found periodic, and every view draws.
 fn a_once_a_minute_swing_reads_periodic_and_every_view_draws(log: &BeatLog, s: Steadiness) {
@@ -1162,6 +1191,7 @@ fn a_once_a_minute_swing_reads_periodic_and_every_view_draws(log: &BeatLog, s: S
     // rate's cycle (or a wheel's turn if the rate's didn't fit).
     assert!(s.folds[1].is_some());
     assert_ne!(s.fold_from[1], FoldFrom::Own);
+    each_cycle_note_gives_one_size(&s);
 
     // A picked calibre's train names the cycle instead.
     let named = compute(

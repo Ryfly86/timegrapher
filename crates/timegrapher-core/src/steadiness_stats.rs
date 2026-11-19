@@ -1,11 +1,22 @@
 //! The statistics behind a series' headline on one line, for the app's
 //! Steadiness Info and the MCP view alike (one text, #1470).
 
-use super::{p_text, unit_after, SeriesCheck};
+use super::{p_text, unit_after, Cycle, SeriesCheck};
 use crate::figure_text::fixed_text;
 use crate::steady_views::readings_kind;
 
 impl SeriesCheck {
+    /// The headline's cycle when it is not the period search's top line
+    /// and that line is one the readings can show: the fold's explained
+    /// share chose it, not the search's score (#1984). The Periods view
+    /// marks it as the headline's, and the statistics line says why.
+    pub fn cycle_off_search(&self) -> Option<&Cycle> {
+        let p = self.period.as_ref()?;
+        self.cycle.as_ref().filter(|c| {
+            self.faster_than_readings().is_none() && !self.same_search_line(c.period_s, p.period_s)
+        })
+    }
+
     /// The statistics behind the headline, on one line: readings, median,
     /// spread, scatter from one reading to the next, lag-1 correlation and
     /// Ljung–Box p, the trend and the stretches of one level (each with why
@@ -63,6 +74,18 @@ impl SeriesCheck {
         }
         if let Some(p) = &self.period {
             parts.push(format!("period {:.0} s", p.period_s));
+            // The headline's cycle off the search's top: which measure
+            // picked it, in core's figures (Norm, #1984).
+            if let Some(c) = self.cycle_off_search() {
+                parts.push(format!(
+                    "the headline's {:.0} s cycle explains {:.0}% of the {} when folded, the period search's {:.0} s {:.0}%",
+                    c.period_s,
+                    100.0 * c.explained,
+                    self.series.name(),
+                    p.period_s,
+                    100.0 * p.explained
+                ));
+            }
         }
         parts.join(" · ")
     }
