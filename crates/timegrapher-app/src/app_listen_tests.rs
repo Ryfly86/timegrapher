@@ -490,6 +490,20 @@ fn a_kept_quick_listen_stopped_keeps_its_sound_in_its_take_alone() {
     std::fs::remove_dir_all(&take).unwrap();
     assert!(!app.saved_hours_reachable());
     assert!(!app.can_resume());
+    // Desmond on #2046: nor can it be saved anywhere, which says why.
+    let other = base.join("elsewhere");
+    std::fs::create_dir_all(&other).unwrap();
+    for save in [
+        (|a: &mut TimegrapherApp, p: &std::path::Path| a.save_into(p)) as fn(&mut _, &_),
+        |a, _| a.save_again(),
+    ] {
+        app.message = None;
+        save(&mut app, &other);
+        assert!(app.saving.is_none());
+        let said = format!("{:?}", app.message);
+        assert!(said.contains("can't be saved"), "{said}");
+    }
+    assert_eq!(std::fs::read_dir(&other).unwrap().count(), 0);
     let _ = std::fs::remove_dir_all(&base);
 }
 

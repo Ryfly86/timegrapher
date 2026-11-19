@@ -876,7 +876,7 @@ impl TimegrapherApp {
     }
 
     fn save_into_as(&mut self, parent: &Path, streamed: Streamed) {
-        if self.refuse_faulted_recording() || self.saving_busy() {
+        if self.refuse_faulted_recording() || self.refuse_hours_gone() || self.saving_busy() {
             return;
         }
         let metadata = self.session.metadata_snapshot(self.save_metadata());
@@ -1159,7 +1159,8 @@ impl TimegrapherApp {
     /// Keep the session as its analysis alone, in a new folder inside one
     /// the user picks.
     pub(super) fn save_analysis_only(&mut self) {
-        if self.refuse_faulted_recording() || !self.can_save_analysis() {
+        if self.refuse_faulted_recording() || self.refuse_hours_gone() || !self.can_save_analysis()
+        {
             return;
         }
         let mut d = rfd::FileDialog::new()

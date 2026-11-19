@@ -95,6 +95,21 @@ impl TimegrapherApp {
         }
     }
 
+    /// Refuse a save, saying why, when hours the session kept in its take
+    /// alone are gone with it (Desmond on #2046): it can't be saved whole
+    /// anywhere, and a save would fail part way.
+    pub(super) fn refuse_hours_gone(&mut self) -> bool {
+        if self.saved_hours_reachable() {
+            return false;
+        }
+        self.error(
+            "This sound can't be saved: its earlier part was kept only in its take, which has \
+             since been deleted or had its sound removed."
+                .into(),
+        );
+        true
+    }
+
     /// Whether every hour the session keeps in its take alone is still
     /// there (#2040). One gone with its take (deleted, or its sound
     /// removed) means the take can't be carried on whole, so Listen
