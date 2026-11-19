@@ -2683,5 +2683,13 @@ fn a_test_kept_without_its_sound_says_its_figures_are_the_listenings() {
              differently."
         )
     );
+    // Saved in full after: read again from the sound that save keeps, so
+    // the note goes (Hugh 5 on #2080).
+    app.save_into(&base.join("full"));
+    app.wait_for_save();
+    assert!(app.session.saved_to().is_some());
+    let t = app.guided.as_ref().unwrap();
+    assert_ne!(t.saved_read, guided::SavedRead::NoSound);
+    assert_ne!(t.saved_read, guided::SavedRead::Pending);
     let _ = std::fs::remove_dir_all(&base);
 }

@@ -55,7 +55,8 @@ impl TimegrapherApp {
     /// test whose figures are still the listening's is read again from
     /// that sound as saved, in the background. A save again while it is
     /// read starts the reading over on what that save wrote (Vernon on
-    /// #2067).
+    /// #2067), and a full save after Save Analysis Only reads it from the
+    /// sound that one keeps (Hugh 5 on #2080).
     pub(super) fn read_test_again(&mut self, dir: &Path, streamed: super::Streamed) {
         if streamed != super::Streamed::No {
             return;
@@ -67,7 +68,9 @@ impl TimegrapherApp {
         let Some(t) = self.guided.as_mut().filter(|t| {
             matches!(
                 t.saved_read,
-                guided::SavedRead::Pending | guided::SavedRead::Reading
+                guided::SavedRead::Pending
+                    | guided::SavedRead::Reading
+                    | guided::SavedRead::NoSound
             )
         }) else {
             return;
