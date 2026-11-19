@@ -1609,3 +1609,24 @@ fn the_step_panel_and_the_cards_count_the_settle_alike() {
         assert_eq!(detail, format!("Letting the watch settle, {n}"), "{left}");
     }
 }
+
+/// Every guided test's table says its saved take is being analysed
+/// again, the Complication Test's too (#1958, Gus 8 on #2067).
+#[test]
+fn every_tests_table_says_its_saved_take_is_analysed_again() {
+    for mut t in [
+        Test::new(),
+        Test::poise(),
+        Test::complication(Position::DialUp),
+    ] {
+        t.saved_read = SavedRead::Reading;
+        let texts = drawn_with(Some(&t), None, None, None);
+        assert!(
+            texts
+                .iter()
+                .any(|(s, _)| s == "Analysing the saved take: these figures may change slightly."),
+            "{:?}: {texts:?}",
+            t.kind
+        );
+    }
+}

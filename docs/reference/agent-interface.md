@@ -300,9 +300,10 @@ copy saved after a finished Positions Test also holds
 `positions-test.json` (format `timegrapher.positions-test/1`): run just
 after winding, that test's results for the same test 24 hours later; run
 24 hours after, its results with `wind_h` and the full-wind results it
-was set against (`against`), and `listened: true` only where its figures
-are the ones heard while listening because the saved take couldn't be
-analysed again. A guided test's app copy also holds `test-marks.json`
+was set against (`against`). Either half's file holds `listened: true`
+when its figures are the ones heard while listening, not read again from
+the saved take: the read failed, never finished, or never ran (a take
+kept by Save Analysis Only); see [app.md](app.md). A guided test's app copy also holds `test-marks.json`
 (format `timegrapher.test-marks/1`), the test's marks for the strip;
 `session` and `record` neither read nor write it. `record` never writes
 `positions-test.json`. Its keys, among them the watch, calibre, beat rate, lift angle and

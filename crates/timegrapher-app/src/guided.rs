@@ -2060,11 +2060,25 @@ pub(crate) fn test_table(
     let id = match t.kind {
         Kind::Positions => "positions",
         Kind::Poise => "poise",
-        Kind::Complication => return complication_grid(ui, t, status, live),
+        Kind::Complication => "complication",
     };
-    let mut shown = table(t.readings_so_far(), t.kind);
-    shown.notes.extend(t.saved_read_note());
-    table_grid(ui, (id, t.kind), &shown, status, live);
+    if t.kind == Kind::Complication {
+        complication_grid(ui, t, status, live);
+    } else {
+        table_grid(
+            ui,
+            (id, t.kind),
+            &table(t.readings_so_far(), t.kind),
+            status,
+            live,
+        );
+    }
+    // Under every test's table, the Dynamic Poise one's too, whose other
+    // notes are in Info: its saved take analysed again, or that it
+    // couldn't be (#1958, Gus 8 on #2067).
+    if let Some(n) = t.saved_read_note() {
+        ui.label(RichText::new(n).color(theme::pal(ui).text));
+    }
 }
 
 /// This take's positions, as marked on the card, with what the table

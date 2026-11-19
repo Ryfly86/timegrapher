@@ -847,7 +847,9 @@ table says "Analysing the saved take: these figures may change
 slightly."; if it fails, the table keeps the listening's figures and says
 "These are the figures heard while listening: the saved take couldn't be
 analysed again (why). Opened again, the take may read slightly
-differently.", and `positions-test.json` says `listened: true`.
+differently.", and `positions-test.json` says `listened: true`. A take
+kept by Save Analysis Only is not read again: its figures stay the
+listening's, and its file says `listened: true` too.
 
 The take also keeps the test's marks in `test-marks.json` (format
 `timegrapher.test-marks/1`; #1957): `format`, `test` (`positions`,
