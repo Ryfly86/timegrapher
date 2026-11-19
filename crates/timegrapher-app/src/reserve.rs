@@ -583,7 +583,7 @@ fn reserve_charts(hours: &[power_reserve::Hour], shown: [bool; 3]) -> Vec<hour_s
 /// hours: its line and the charts it draws at a height that reads, the
 /// table scrolling beside or under them; with no chart (none whole yet,
 /// none with a figure, or all off, #1852), its line and the table's
-/// titles and first rows whole (#1962); none before an hour. The Paper
+/// titles and first row whole (#1962); none before an hour. The Paper
 /// Strip above gives room for it, down to its own least.
 pub fn least_h(test: Option<&Test>, shown: [bool; 3]) -> Option<f32> {
     let t = test?;
@@ -596,22 +596,14 @@ pub fn least_h(test: Option<&Test>, shown: [bool; 3]) -> Option<f32> {
     }
     let charted = &hours[..charted_hours(hours, so_far)];
     let n = charted_kinds(charted, shown).len();
+    // The line 22 over it, 12 under it.
     if n > 0 {
-        return Some(LINE_H + hour_steps::read_h(n) + FOOT_H);
+        return Some(22.0 + hour_steps::read_h(n) + 12.0);
     }
-    let rows = hours.len().min(TABLE_LEAST_ROWS) as f32;
-    Some(LINE_H + (2.0 + rows) * ROW_H + FOOT_H)
+    // The titles two rows of 22, name over unit, then the first row
+    // whole; the rest scroll.
+    Some(22.0 + 3.0 * 22.0 + 12.0)
 }
-
-/// The run's line over what [`least_h`] asks for.
-const LINE_H: f32 = 22.0;
-/// Room under the last thing [`least_h`] asks for.
-const FOOT_H: f32 = 12.0;
-/// A table row's height; its titles take two, name over unit.
-const ROW_H: f32 = 22.0;
-/// The table's rows [`least_h`] keeps whole when there is no chart; more
-/// scroll.
-const TABLE_LEAST_ROWS: usize = 3;
 
 /// A run stopped by hand after `hours` whole hours, for the tests.
 #[cfg(test)]
