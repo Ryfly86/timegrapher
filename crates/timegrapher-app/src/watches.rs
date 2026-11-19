@@ -349,16 +349,19 @@ fn list_size(bytes: u64) -> String {
     }
 }
 
-/// A list row's size and its hover `what`: a dash while the Bench
-/// records a take into `e` (`writing`), as that take's row has, since the
-/// library holds only its first write until it stops (#2034); the hover
-/// says why (Hugh on #2037).
+/// Whether a folder's size is a dash: the Bench is recording a take into
+/// it, of which the library holds only a first write (#2034, #2039).
+pub fn size_waits(dir: &Path, writing: Option<&Path>) -> bool {
+    writing.is_some_and(|w| w.starts_with(dir))
+}
+
+/// What a size that waits adds to its hover (Hugh on #2037).
+pub const SIZE_WAITS: &str = "Its size is given once the take being recorded stops.";
+
+/// A list row's size and its hover `what`, as [`size_waits`] says.
 pub fn size_and_hover(e: &WatchEntry, writing: Option<&Path>, what: &str) -> (String, String) {
-    match writing.is_some_and(|w| w.starts_with(&e.dir)) {
-        true => (
-            "—".into(),
-            format!("{what} Its size is given once the take being recorded stops."),
-        ),
+    match size_waits(&e.dir, writing) {
+        true => ("—".into(), format!("{what} {SIZE_WAITS}")),
         false => (list_size(e.bytes()), what.to_string()),
     }
 }

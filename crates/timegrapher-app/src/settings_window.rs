@@ -179,13 +179,15 @@ fn count(n: usize, one: &str, many: &str) -> String {
 /// ways to move it or use another. `lib` is the library as last read:
 /// `Ok(None)` when none is at `root` yet. `moving` names where it is being
 /// moved to, while it is. `chosen` is true when the user picked the
-/// location (not the default).
+/// location (not the default). `writing` is the take the Bench is
+/// recording into.
 pub fn library_section(
     ui: &mut egui::Ui,
     root: Option<&Path>,
     lib: &Result<Option<Library>, String>,
     moving: Option<&Path>,
     chosen: bool,
+    writing: Option<&Path>,
 ) -> Option<LibraryAction> {
     let pal = theme::pal(ui);
     let mut act = None;
@@ -231,7 +233,7 @@ pub fn library_section(
         );
         match lib {
             Ok(Some(l)) => {
-                held_rows(g, l, moving);
+                held_rows(g, l, moving, writing);
             }
             Ok(None) => {
                 g.whole(|ui| {
@@ -269,24 +271,35 @@ pub fn library_section(
 
 /// What the Watches folder `l` holds, and the folders in it that can't be
 /// read.
-fn held_rows(g: &mut theme::Group<'_>, l: &Library, moving: Option<&Path>) {
+/// What the Watches folder holds, "2 watches, 5 takes, 7.8 MB", and the
+/// row's hover: its size a dash, and the hover saying why, while a take
+/// records into it ([`crate::watches::size_waits`], #2039).
+fn held_words(l: &Library, writing: Option<&Path>) -> (String, String) {
     let takes = l.watches.iter().map(|w| w.takes.len()).sum::<usize>() + l.unsorted.takes.len();
+    let what = "What the Watches folder holds";
+    let (size, hover) = if crate::watches::size_waits(&l.root, writing) {
+        (
+            "—".into(),
+            format!("{what}. {}", crate::watches::SIZE_WAITS),
+        )
+    } else {
+        (size_text(l.bytes()), what.to_string())
+    };
     let held = format!(
-        "{}, {}, {}",
+        "{}, {}, {size}",
         count(l.watches.len(), "watch", "watches"),
         count(takes, "take", "takes"),
-        size_text(l.bytes())
     );
+    (held, hover)
+}
+
+fn held_rows(g: &mut theme::Group<'_>, l: &Library, moving: Option<&Path>, writing: Option<&Path>) {
+    let (held, hover) = held_words(l, writing);
     let why = match (&l.read_only, moving) {
         (Some(why), None) => format!("{why}."),
         _ => "Every watch, its photos and its takes.".to_string(),
     };
-    g.row(
-        &held,
-        theme::Caption::Text(&why),
-        "What the Watches folder holds",
-        |_| {},
-    );
+    g.row(&held, theme::Caption::Text(&why), &hover, |_| {});
     if !l.unreadable.is_empty() {
         g.whole(|ui| {
             theme::alert_label(
@@ -561,6 +574,34 @@ fn kept_row(g: &mut theme::Group<'_>, c: &DeviceClock, current: Option<&str>) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// What the Watches folder holds gives its size a dash while a take
+    /// records into it, as the watch's list row does, and its hover says
+    /// why; recording elsewhere, or stopped, its size (Walter 4, #2039).
+    #[test]
+    fn the_folders_size_waits_while_a_take_records_into_it() {
+        let root = std::env::temp_dir().join(format!("tg-held-words-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let mut l = Library::create(&root).unwrap();
+        l.add(&timegrapher_core::library::Watch::new("Pepsi"))
+            .unwrap();
+        let into = root.join("Pepsi").join("takes").join("2026-11-19 06.50");
+        let (held, hover) = held_words(&l, Some(into.as_path()));
+        assert_eq!(held, "1 watch, 0 takes, —");
+        assert_eq!(
+            hover,
+            "What the Watches folder holds. Its size is given once the take being recorded \
+             stops."
+        );
+        let elsewhere = std::env::temp_dir().join("tg-elsewhere/take");
+        for writing in [None, Some(elsewhere.as_path())] {
+            let (held, hover) = held_words(&l, writing);
+            assert_eq!(held, format!("1 watch, 0 takes, {}", size_text(l.bytes())));
+            assert_eq!(hover, "What the Watches folder holds");
+        }
+        drop(l);
+        let _ = std::fs::remove_dir_all(&root);
+    }
 
     /// Quartz Correction times the input listening: how much sound it has
     /// heard until it is timed, then the error with Keep, which it returns
