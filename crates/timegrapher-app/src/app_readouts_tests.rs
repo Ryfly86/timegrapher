@@ -2069,6 +2069,49 @@ fn a_tests_opening_settle_counts_down_on_every_card() {
     let _ = std::fs::remove_dir_all(base);
 }
 
+/// Paused inside a test's opening settle, nothing settles: the cards
+/// stop counting and `settling_left()` agrees. Resume settles again
+/// from the start, its whole length (Trevor on #2036).
+#[test]
+fn pausing_in_a_tests_opening_settle_stops_its_count() {
+    let ctx = themed();
+    let base = std::env::temp_dir().join(format!("tg-pause-settle-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "pause".into());
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let cfg = SynthConfig {
+        duration_s: 17.0,
+        rate_s_per_day: 5.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let live = app.live.as_mut().expect("live");
+    audio.samples.chunks(960).for_each(|b| {
+        live.push(b);
+    });
+    let mut test = guided::Test::new().timed(20.0, 60.0);
+    test.tick(2.0);
+    app.guided = Some(test);
+    let now = app.latest_s();
+    assert!(app.settling_left().is_some(), "settling before the pause");
+    app.guided.as_mut().expect("test").pause(now - 1.0);
+    assert!(app
+        .guided
+        .as_ref()
+        .expect("test")
+        .settling_left(now)
+        .is_none());
+    assert!(app.settling_left().is_none(), "paused, nothing settles");
+    let text = cards_text(&app, &ctx);
+    assert!(!text.contains("Settling"), "{text}");
+    app.guided.as_mut().expect("test").resume(now);
+    let left = app.settling_left().expect("settling again");
+    assert!((left - 20.0).abs() < 1e-9, "{left}");
+    drop(_tx);
+    let _ = std::fs::remove_dir_all(base);
+}
+
 /// An opened recording with no beat in it says "No Beats Heard" on every
 /// card, not "No Regular Beat", which is about beats that are there
 /// (Walter on #2036).

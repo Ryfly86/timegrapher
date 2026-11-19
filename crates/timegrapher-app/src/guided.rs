@@ -525,9 +525,10 @@ impl Test {
     /// Seconds of this step's settle still to come at `now`, as
     /// [`Test::tick`] finds them, without moving the test on: the cards
     /// show the test's opening settle as they do a move's (Walter on
-    /// #2036).
+    /// #2036). Paused, nothing settles: `pause` clears `start` until
+    /// Resume starts the settle again.
     pub fn settling_left(&self, now: f64) -> Option<f64> {
-        if self.readings.is_some() || self.paused.is_some() {
+        if self.readings.is_some() {
             return None;
         }
         let (from, _) = self.window(self.start?);
