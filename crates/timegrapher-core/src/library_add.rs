@@ -87,8 +87,9 @@ pub fn no_room(bytes: u64, free: Option<u64>) -> Option<String> {
     let free = free?;
     (free < bytes.saturating_add(ADD_SPARE_BYTES)).then(|| {
         format!(
-            "there isn't room for it: it needs {} and the disk has {} free, and {} is kept \
-             spare. Make room on the disk first, or move the take in rather than copy it",
+            "there isn't room for it. It needs {}, and the disk has {} free with {} kept \
+             spare. Make room on the disk first, or, if the take is already on that disk, \
+             move it in rather than copy it.",
             size_text(bytes),
             size_text(free),
             size_text(ADD_SPARE_BYTES)

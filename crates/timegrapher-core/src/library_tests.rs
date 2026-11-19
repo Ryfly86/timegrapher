@@ -1786,7 +1786,12 @@ fn a_take_is_copied_in_only_where_there_is_room() {
     assert_eq!(no_room(gb, Some(2 * gb)), None);
     let why = no_room(11_219_200_000, Some(5 * gb)).unwrap();
     assert!(why.contains("11.2 GB") && why.contains("5.0 GB"), "{why}");
-    assert!(why.contains("move the take in"), "{why}");
+    assert_eq!(
+        why,
+        "there isn't room for it. It needs 11.2 GB, and the disk has 5.0 GB free with 1.0 GB \
+         kept spare. Make room on the disk first, or, if the take is already on that disk, \
+         move it in rather than copy it."
+    );
     assert!(no_room(u64::MAX, Some(u64::MAX - 1)).is_some());
     assert!(free_bytes(&std::env::temp_dir()).is_some_and(|b| b > 0));
 }
