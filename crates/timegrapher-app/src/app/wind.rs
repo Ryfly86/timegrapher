@@ -268,6 +268,9 @@ impl TimegrapherApp {
         }
         let now = guided::unix_now();
         let began = self.began_unix().unwrap_or(now);
+        // A wind given by hand is newer than any a test's Start overwrote:
+        // a test thrown away after it puts nothing back (Vernon on #2031).
+        self.wind.before_test = None;
         self.set_wound(match pick {
             WindPick::Now => Some(now),
             WindPick::HoursAgo(h) => Some(now - h.max(0.0) * 3600.0),

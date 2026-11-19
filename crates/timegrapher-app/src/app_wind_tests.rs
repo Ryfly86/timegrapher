@@ -805,6 +805,11 @@ fn a_test_thrown_away_puts_the_wind_back() {
     app.pick_wind(WindPick::HoursAgo(2.0));
     app.test_thrown_away();
     assert_eq!(app.wind_field().words.value, "Full 2.0 h ago");
+    // A wind given by hand during a test stands when it is thrown away.
+    app.begin_reserve();
+    app.pick_wind(WindPick::HoursAgo(3.0));
+    app.test_thrown_away();
+    assert_eq!(app.wind_field().words.value, "Full 3.0 h ago");
     app.begin_reserve();
     app.started_without_full_wind();
     app.test_thrown_away();
