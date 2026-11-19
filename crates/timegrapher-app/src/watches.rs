@@ -1014,10 +1014,15 @@ pub fn positions_means(dir: &std::path::Path) -> Option<(usize, [Option<f64>; 3]
 
 /// Whether a take's row shows a dim dash for its figures, as they are
 /// part by part in the take: a Power Reserve Test's hour by hour, a
-/// Dynamic Poise Test's stop by stop (#2002). One rule for its cells and
-/// their dimming (Vernon on #2021).
+/// Dynamic Poise Test's stop by stop (#2002); and a Positions Test
+/// stopped before any position was measured, which has none, not blanks
+/// (#2007). One rule for its cells and their dimming (Vernon on #2021).
 fn dashed(t: &Take, test: Option<(TakeTest, [Option<f64>; 3])>) -> bool {
-    t.power_reserve.is_some() || matches!(test, Some((TakeTest::Poise, _)))
+    t.power_reserve.is_some()
+        || matches!(
+            test,
+            Some((TakeTest::Poise, _)) | Some((TakeTest::Positions, [None, None, None]))
+        )
 }
 
 /// The guided test a take's row names, with the figures it shows: a
@@ -1173,6 +1178,25 @@ pub fn picked_take<'a>(e: &'a WatchEntry, cx: &TakesContext) -> Option<&'a Take>
         .find(|t| cx.picked == Some(e.take_dir(t).as_path()))
 }
 
+/// Why Open has nothing to act on in a watch, or Unsorted, with no takes.
+pub const NO_TAKES: &str = "There are no takes here yet";
+
+/// Why the Takes row's Open is greyed out, the real reason first:
+/// nothing to pick, then none picked, and only then the Bench `busy`
+/// (#2007).
+fn open_why<'a>(e: &WatchEntry, picked: bool, busy: Option<&'a str>) -> Option<&'a str> {
+    let none = if e.takes.is_empty() {
+        NO_TAKES
+    } else {
+        "Pick a take first"
+    };
+    if picked {
+        busy
+    } else {
+        Some(none)
+    }
+}
+
 /// The Takes title row's Open and "…", acting on the picked take: Open
 /// greyed out while `busy` says why (a take running on the Bench) or none
 /// is picked.
@@ -1187,7 +1211,7 @@ pub fn takes_buttons(
     let r = ui.add_enabled(picked.is_some(), theme::secondary(ui, "…"));
     let r = r
         .on_hover_text("More for the picked take: Show in the folder, Keep Analysis Only…, move it, or delete it")
-        .on_disabled_hover_text("Pick a take first");
+        .on_disabled_hover_text(open_why(e, false, None).unwrap_or_default());
     if let Some(t) = picked {
         egui::Popup::menu(&r)
             .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
@@ -1197,7 +1221,7 @@ pub fn takes_buttons(
                 }
             });
     }
-    let why = busy.or(picked.is_none().then_some("Pick a take first"));
+    let why = open_why(e, picked.is_some(), busy);
     if ui
         .add_enabled(why.is_none(), theme::secondary(ui, "Open"))
         .on_hover_text(

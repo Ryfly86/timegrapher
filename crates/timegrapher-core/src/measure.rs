@@ -221,6 +221,67 @@ pub fn finding_text() -> String {
     )
 }
 
+/// Why a reading card has no figure yet, as every card says it in the
+/// figure's place: one waiting language for the Rate, Amplitude and Beat
+/// Error cards, saying what the figures wait for and roughly how long
+/// (#2007). [`LISTENING_TITLE`] and [`FINDING_TITLE`] are the waits the
+/// reading itself gives; these are the rest.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Wait {
+    /// The watch settles after a move, `left_s` seconds still to come:
+    /// nothing is read while it does.
+    Settling { left_s: f64 },
+    /// No beat heard at all yet: no watch on the stand, or none the
+    /// microphone hears.
+    NoBeats,
+    /// Beats are heard, but this card's figure needs more of them than
+    /// the stretch holds yet.
+    MoreBeats,
+    /// A test is set up and waits for its Start.
+    TestStart,
+    /// A recording is being read.
+    Analysing,
+}
+
+/// The heading of [`Wait::NoBeats`] and [`Wait::MoreBeats`].
+pub const WAITING_FOR_BEATS: &str = "Waiting for Beats";
+
+impl Wait {
+    /// The short words in the figure's place.
+    pub fn title(self) -> String {
+        match self {
+            Wait::Settling { left_s } => format!("Settling, {:.0} s", left_s.ceil()),
+            Wait::NoBeats | Wait::MoreBeats => WAITING_FOR_BEATS.into(),
+            Wait::TestStart => "Waiting for Start".into(),
+            Wait::Analysing => "Analysing".into(),
+        }
+    }
+
+    /// The sentence for the figure's hover, in the style of
+    /// [`listening_text`]: what the figures need, and when they appear.
+    pub fn text(self) -> String {
+        match self {
+            Wait::Settling { left_s } => format!(
+                "The figures need the watch settled in its new position: they appear in \
+                 {:.0} s.",
+                left_s.ceil()
+            ),
+            Wait::NoBeats => "The figures need a watch's beats: none are heard yet. Put the \
+                              watch on the stand, by the microphone."
+                .into(),
+            Wait::MoreBeats => "This figure needs more beats than the stretch holds yet: it \
+                                appears once they have been heard."
+                .into(),
+            Wait::TestStart => "The figures need the test started: they appear once Start \
+                                Test on the Listen card begins it."
+                .into(),
+            Wait::Analysing => "The figures need the recording read: they appear once \
+                                Analysing is done."
+                .into(),
+        }
+    }
+}
+
 /// The sentence for no regular beat found, as every surface states it:
 /// with the timing scatter, as [`crate::beats::no_regular_beat_text`]
 /// gives it, or that the beats' sound shows no unlock and no drop.
@@ -1122,6 +1183,29 @@ pub fn assess_in(
 
 #[cfg(test)]
 mod tests {
+    /// Each wait has its short words and a sentence saying what the
+    /// figures need; a settle counts whole seconds up, so "0 s" never
+    /// shows while something is still left (#2007).
+    #[test]
+    fn every_wait_says_what_the_figures_need() {
+        use super::Wait;
+        assert_eq!(Wait::Settling { left_s: 15.2 }.title(), "Settling, 16 s");
+        assert_eq!(Wait::Settling { left_s: 0.3 }.title(), "Settling, 1 s");
+        assert!(Wait::Settling { left_s: 15.2 }.text().contains("in 16 s"));
+        for w in [
+            Wait::Settling { left_s: 3.0 },
+            Wait::NoBeats,
+            Wait::MoreBeats,
+            Wait::TestStart,
+            Wait::Analysing,
+        ] {
+            let t = w.text();
+            assert!(t.contains(" needs ") || t.contains(" need "), "{t}");
+            assert!(t.ends_with('.'), "{t}");
+        }
+        assert_eq!(Wait::NoBeats.title(), Wait::MoreBeats.title());
+    }
+
     #[test]
     fn a_short_average_says_its_amplitude_is_read_over_ten_seconds() {
         assert_eq!(

@@ -18,6 +18,8 @@ struct CardCtx<'a> {
     whole: &'a Option<WholeTake>,
     whole_breaks: String,
     heard: bool,
+    /// What every reading card says in its figure's place while the
+    /// reading waits or hears no watch, and its hover (#2007).
     unheard: Option<(String, String)>,
     compact: bool,
     /// The cards' figures each second over the last minute, for their
@@ -28,6 +30,40 @@ struct CardCtx<'a> {
     moment: Option<String>,
     /// The reading cards go without their "?" ([`cards_short`]).
     short: bool,
+}
+
+impl CardCtx<'_> {
+    /// What a card says in its figure's place ([`card_wait`]).
+    fn wait(&self, figure: bool, said: bool) -> Option<(String, String)> {
+        card_wait(self.unheard.as_ref(), self.r, figure, said)
+    }
+}
+
+/// What a reading card says in its figure's place: the cards' shared
+/// wait, `unheard`, or, with a reading `r` of a stretch still short of
+/// beats but not yet this card's `figure`, that it waits for more of
+/// them (#2007). Not where a limit on the card already says why it is
+/// empty (`said`), as faint sides do on the Amplitude card, and not on a
+/// stretch long enough, where more beats wouldn't bring the figure.
+pub(super) fn card_wait(
+    unheard: Option<&(String, String)>,
+    r: Option<&LiveReading>,
+    figure: bool,
+    said: bool,
+) -> Option<(String, String)> {
+    unheard.cloned().or_else(|| {
+        let short = r.is_some_and(|r| {
+            r.caveats
+                .iter()
+                .any(|c| matches!(c, Caveat::ShortSpan { .. }))
+        });
+        (short && !figure && !said).then(|| wait_words(measure::Wait::MoreBeats))
+    })
+}
+
+/// A wait's short words and its hover sentence, as core gives them.
+fn wait_words(w: measure::Wait) -> (String, String) {
+    (w.title(), w.text())
 }
 
 /// The Listen card where the reading cards keep their full width beside
@@ -495,6 +531,38 @@ impl TimegrapherApp {
             })
     }
 
+    /// Why the cards have no reading, or a reading with no beat at all:
+    /// the watch settling after a move, a test waiting for its Start, a
+    /// recording being read, or no beat heard yet (#2007). The same words
+    /// on every reading card.
+    pub(super) fn waiting(&self, r: Option<&LiveReading>) -> Option<(String, String)> {
+        use measure::Wait;
+        if let Some(r) = r {
+            return r.bph.is_none().then(|| wait_words(Wait::NoBeats));
+        }
+        // At the moment the cards show: the strip's newest edge when it
+        // is moved back, as `card_reading` reads it.
+        let at = match self.strip_end {
+            Some(_) => self.strip_end_s(),
+            None => self.latest_s(),
+        };
+        let Some(left_s) = self.session.settling_left(at) else {
+            let w = if self.ready_test().is_some() {
+                Wait::TestStart
+            } else if self.batch.is_some() {
+                Wait::Analysing
+            } else {
+                Wait::NoBeats
+            };
+            return Some(wait_words(w));
+        };
+        let (title, text) = wait_words(Wait::Settling { left_s });
+        Some((
+            title,
+            format!("{text}\n\n{}", settle_hint(self.session.settle_len())),
+        ))
+    }
+
     /// The reading cards across the top: Current Position, Listen, then
     /// Rate, Amplitude, Beat Error and Beat Rate. Every card is the same
     /// three rows (title, figure, controls) and one height at every width;
@@ -534,7 +602,8 @@ impl TimegrapherApp {
         };
         let unheard = (!heard)
             .then(|| (unheard_line.clone(), unheard_hover.clone()))
-            .or_else(|| self.listening(r.as_ref()));
+            .or_else(|| self.listening(r.as_ref()))
+            .or_else(|| self.waiting(r.as_ref()));
         let r = r.as_ref().filter(|_| heard);
         let caveats = self.shown_caveats(r);
         let caveats = &caveats[..];
@@ -616,7 +685,6 @@ impl TimegrapherApp {
 
     /// The Rate card's title and figure: the reading, its ±, what it waits on, and the beats and whole take behind it.
     fn rate_card(&self, ui: &mut egui::Ui, rows: &CardRows, c: &CardCtx<'_>) {
-        let unheard = &c.unheard;
         let r = c.r;
         let caveats = c.caveats;
         let lift_now = c.lift_now;
@@ -657,26 +725,9 @@ impl TimegrapherApp {
                 (w.span, &big_stretch(self.average_s, false)),
             );
         }
-        // In the unit's place: what the reading waits on, or why it is
-        // the position before.
-        let status: Option<(String, String)> = if r.is_none() {
-            if let Some(left) = self.settling_left() {
-                Some((
-                    format!("Settling, {:.0} s", left.ceil()),
-                    format!(
-                        "Settling in the new position for {:.0} s more.\n\n{}",
-                        left.ceil(),
-                        settle_hint(self.session.settle_len())
-                    ),
-                ))
-            } else if heard {
-                Some(("Waiting for Beats".into(), String::new()))
-            } else {
-                unheard.clone()
-            }
-        } else if let Some(listening) = unheard.clone() {
-            Some(listening)
-        } else {
+        // In the unit's place: what the reading waits on, as every card
+        // says it, or why it is the position before.
+        let status = c.wait(rate.is_some(), false).or_else(|| {
             self.stopped_in_settle().map(|at| {
                 (
                     "Before the Move".to_string(),
@@ -688,7 +739,7 @@ impl TimegrapherApp {
                     ),
                 )
             })
-        };
+        });
         // While a clock is kept, the rate on it in the figure's hover:
         // first when the figure itself is corrected, as it says what
         // the figure is.
@@ -813,7 +864,6 @@ impl TimegrapherApp {
 
     /// The Amplitude card's title and figure. Its lift angle is on the Calibre card, which says when it is the default, so that isn't said again in a chip.
     fn amplitude_card(&self, ui: &mut egui::Ui, rows: &CardRows, c: &CardCtx<'_>) {
-        let unheard = &c.unheard;
         let r = c.r;
         let caveats = c.caveats;
         let lift_now = c.lift_now;
@@ -874,6 +924,9 @@ impl TimegrapherApp {
         {
             behind += &format!("\n\n{t}");
         }
+        let amplitude = r.and_then(amplitude_figure);
+        // Faint sides say why it is empty, in the card's own chip.
+        let faint = caveats.iter().any(|c| empties(c) == Some(Scope::Amplitude));
         let (fig, spark, place) = sparkline::lay(rows.inner, rows.figure, rows.controls);
         let caption = steady::title(SeriesKind::Amplitude);
         let spark = trend_chip(ui, spark, caption, &facts, c.short);
@@ -882,9 +935,9 @@ impl TimegrapherApp {
         figure_row(
             ui,
             fig,
-            r.and_then(amplitude_figure).as_deref(),
+            amplitude.as_deref(),
             &unit,
-            unheard.as_ref(),
+            c.wait(amplitude.is_some(), faint).as_ref(),
             &with_moment(c.moment.as_deref(), behind.trim_start()),
             (compact, Some(1)),
         );
@@ -892,7 +945,6 @@ impl TimegrapherApp {
 
     /// The Beat Error card's title and figure, the size only: which beat is the tick can flip between runs.
     fn beat_error_card(&self, ui: &mut egui::Ui, rows: &CardRows, c: &CardCtx<'_>) {
-        let unheard = &c.unheard;
         let r = c.r;
         let caveats = c.caveats;
         let lift_now = c.lift_now;
@@ -951,6 +1003,7 @@ impl TimegrapherApp {
         {
             from = format!("{words}\n\n{from}");
         }
+        let be = r.and_then(beat_error_figure);
         let (fig, spark, place) = sparkline::lay(rows.inner, rows.figure, rows.controls);
         let spark = trend_chip(ui, spark, caption, &be_facts, c.short);
         let colour = theme::pal(ui).trace_beat_error;
@@ -958,9 +1011,9 @@ impl TimegrapherApp {
         figure_row(
             ui,
             fig,
-            r.and_then(beat_error_figure).as_deref(),
+            be.as_deref(),
             &unit,
-            unheard.as_ref(),
+            c.wait(be.is_some(), false).as_ref(),
             &with_moment(c.moment.as_deref(), &from),
             (compact, Some(2)),
         );
@@ -1595,14 +1648,29 @@ impl TimegrapherApp {
             .on_hover_text(hint);
         }
         if self.running() {
-            if let Some(s) = self.reading().and_then(|r| r.snr) {
-                ui.label(
-                    RichText::new(format!("signal {s:.0}×"))
-                        .small()
-                        .color(pal.text_secondary),
-                )
-                .on_hover_text(*help::SIGNAL);
-            }
+            // Always in its place while listening, so what follows it
+            // never moves on its own: "signal —" before there is one
+            // (#2007).
+            let s = self
+                .signal()
+                .map_or_else(|| "—".to_string(), |s| format!("{s:.0}×"));
+            ui.label(
+                RichText::new(format!("signal {s}"))
+                    .small()
+                    .color(pal.text_secondary),
+            )
+            .on_hover_text(*help::SIGNAL);
+        }
+    }
+
+    /// The signal heard now: the newest reading's, and while the watch
+    /// settles after a move, when nothing is read, the sound's own, as
+    /// the signal doesn't wait for the settle (#2007).
+    pub(super) fn signal(&self) -> Option<f32> {
+        match (self.reading(), self.settling_left()) {
+            (Some(r), _) => r.snr,
+            (None, Some(_)) => self.live.as_ref()?.reading(self.average_s).snr,
+            (None, None) => None,
         }
     }
 
