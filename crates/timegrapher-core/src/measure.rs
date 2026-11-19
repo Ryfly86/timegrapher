@@ -74,8 +74,9 @@ fn in_doubt(jitter_us: Option<f64>, bph: u32) -> bool {
 }
 
 /// Whether a reading waits for its verdict: under [`SHORT_SPAN_S`] of
-/// sound has been heard since the start, or since the latest break or
-/// mask (`heard_s`), and the beats' averaged sound can't be judged
+/// sound has been heard since the start or the latest break, its masked
+/// seconds left out (`heard_s`; a mask does not restart the count, Norm
+/// on #2017), and the beats' averaged sound can't be judged
 /// (`beat_sound` None). Then no scatter can be judged, and a watch is
 /// heard only where the sound positively shows one, so there is no
 /// verdict either way and no figures: an empty stand's first seconds
@@ -186,8 +187,6 @@ pub enum HeardSince {
     Start,
     /// The latest break, such as a move to a new position.
     Break,
-    /// The latest masked stretch.
-    Mask,
 }
 
 /// The heading every surface gives a reading still waiting for
@@ -200,7 +199,6 @@ pub fn listening_text(since: HeardSince) -> String {
     let from = match since {
         HeardSince::Start => "Listen started",
         HeardSince::Break => "the break",
-        HeardSince::Mask => "the mask",
     };
     format!(
         "The figures need {s:.0} s of sound: they appear once {s:.0} s have been heard \

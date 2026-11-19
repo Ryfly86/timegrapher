@@ -251,8 +251,9 @@ the first and how many more ("12 s of Beats +1").
 
 ### Listening
 
-In the first 10 s after Listen starts, and after a break or a masked
-stretch, the timing can't yet tell a watch from the stand's noise. The
+In the first 10 s after Listen starts, and after a break, the timing
+can't yet tell a watch from the stand's noise. Masked seconds don't
+count toward the 10 s. The
 figures show there only when the beats' sound already shows a watch.
 When it can't tell yet, the cards show no figures, only **Listening**.
 Where a settle is running, the cards say **Settling** instead.

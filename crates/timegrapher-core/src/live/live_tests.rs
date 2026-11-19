@@ -1836,10 +1836,11 @@ fn live_profiles_go_long_with_their_amplitude_reading() {
 }
 
 /// Under 10 s of sound behind a reading it gives no figures and says what
-/// that sound is counted since: Listen's start, the latest break, or the
-/// latest mask (#2014, Hugh's words). From 10 s on, the figures.
+/// that sound is counted since: Listen's start or the latest break (#2014,
+/// Hugh's words). A mask does not restart the count, but its seconds are
+/// not counted in it (Norm on #2017). From 10 s on, the figures.
 #[test]
-fn a_reading_listens_for_ten_seconds_since_the_start_a_break_or_a_mask() {
+fn a_reading_listens_for_ten_seconds_since_the_start_or_a_break() {
     use measure::HeardSince;
     // An opened log with no snippets: its beats' sound can't be judged,
     // so under 10 s of sound there is no verdict.
@@ -1851,13 +1852,17 @@ fn a_reading_listens_for_ten_seconds_since_the_start_a_break_or_a_mask() {
     };
     assert_eq!(at(&a, 6.0), (Some(HeardSince::Start), false));
     assert_eq!(at(&a, 12.0), (None, true));
+    // A break at 20 s, then 3 s masked: 31 s holds 8 s of sound since
+    // the break, 34 s holds 11.
     a.set_breaks(vec![20.0]);
+    a.set_masked(&[(23.0, 26.0)]);
     assert_eq!(at(&a, 25.0), (Some(HeardSince::Break), false));
-    assert_eq!(at(&a, 31.0), (None, true));
-    a.set_masked(&[(38.0, 40.0)]);
-    assert_eq!(at(&a, 45.0), (Some(HeardSince::Mask), false));
-    assert_eq!(at(&a, 51.0), (None, true));
-    let text = measure::listening_text(HeardSince::Mask);
-    assert!(text.ends_with("since the mask."), "{text}");
+    assert_eq!(at(&a, 31.0), (Some(HeardSince::Break), false));
+    assert_eq!(at(&a, 34.0), (None, true));
+    // A mask after 10 s of sound does not start the wait again.
+    a.set_masked(&[(23.0, 26.0), (38.0, 40.0)]);
+    assert_eq!(at(&a, 45.0), (None, true));
+    let text = measure::listening_text(HeardSince::Break);
+    assert!(text.ends_with("since the break."), "{text}");
     assert!(text.starts_with("The figures need 10 s of sound"), "{text}");
 }

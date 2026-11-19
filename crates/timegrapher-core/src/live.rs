@@ -205,8 +205,9 @@ pub struct LiveReading {
     pub caveats: Vec<Caveat>,
     /// Where the reading waits for its verdict
     /// ([`measure::awaiting_verdict`]: under [`measure::SHORT_SPAN_S`] of
-    /// sound since the start or the latest break or mask, and the beats'
-    /// sound can't be judged), so it gives no figures yet: what that
+    /// sound since the start or the latest break, masked seconds left
+    /// out, and the beats' sound can't be judged), so it gives no figures
+    /// yet: what that
     /// sound is counted since ([`measure::LISTENING_TITLE`], #2014). None
     /// otherwise.
     pub listening: Option<measure::HeardSince>,
@@ -1258,13 +1259,10 @@ impl LiveAnalyzer {
     }
 
     /// What the sound heard up to `end_s` is heard since: the take's
-    /// start, or the latest break or mask ([`Self::heard_cuts`]).
+    /// start, or the latest break ([`Cuts::heard_from`]).
     fn heard_since_kind(&self, end_s: f64) -> measure::HeardSince {
-        let since = self.heard_cuts().stretch_from(end_s);
-        if since == f64::NEG_INFINITY || since <= 0.0 {
+        if self.heard_cuts().heard_from(end_s) <= 0.0 {
             measure::HeardSince::Start
-        } else if Cuts::new(None, &[], &self.masked).stretch_from(end_s) >= since {
-            measure::HeardSince::Mask
         } else {
             measure::HeardSince::Break
         }
