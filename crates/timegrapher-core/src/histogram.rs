@@ -120,17 +120,16 @@ pub fn histogram_with(values: &[f64], opt: &Options) -> Option<Histogram> {
     };
     let (q1, q3) = (quantile(&v, 0.25), quantile(&v, 0.75));
     let iqr = q3 - q1;
-    // Trimming, with few values the trim takes nothing out, and one far-out value
-    // would stretch the scale over empty bins: keep the scale to the values
-    // within three interquartile ranges of the middle half (Tukey's far
-    // fences), and count the rest off the scale.
-    if trim > 0.0 && iqr > 0.0 {
-        let (f_lo, f_hi) = crate::dsp::far_fences(&v).unwrap_or_default();
-        if let Some(&x) = v.iter().find(|&&x| x >= f_lo) {
-            lo = lo.max(x);
-        }
-        if let Some(&x) = v.iter().rev().find(|&&x| x <= f_hi) {
-            hi = hi.min(x);
+    // Trimming, the scale keeps the values joined to the body: a value
+    // past Tukey's far fences stays on it while it follows on from the
+    // one before, as a run-down's tail does, and a gap of the fences'
+    // reach ends it, so one far-out value among few, or a cluster of
+    // glitches, is counted off the scale and not drawn over empty bins
+    // (#1971, Norm).
+    if trim > 0.0 {
+        if let Some((j_lo, j_hi)) = crate::dsp::joined_range(&v) {
+            lo = lo.max(j_lo);
+            hi = hi.min(j_hi);
         }
     }
     let fd = 2.0 * iqr / (n as f64).cbrt() * opt.width_factor.clamp(0.05, 20.0);
@@ -361,6 +360,84 @@ mod tests {
         let end = h.start + h.counts.len() as f64 * h.bin_width;
         assert!(end < 8.0, "the scale reaches {end}");
         assert_eq!(h.above, 1);
+        let on: usize = h.counts.iter().map(|&c| c as usize).sum();
+        assert_eq!(on + h.below + h.above, h.n);
+    }
+
+    /// A histogram of `v` at Distributions' trim and 0.1 resolution, with
+    /// its scale's end, after checking every value is counted once, on the
+    /// scale or off it.
+    fn counted(v: &[f64]) -> (Histogram, f64) {
+        let h = histogram_with(
+            v,
+            &Options {
+                trim: 0.005,
+                ..Options::new(0.1)
+            },
+        )
+        .unwrap();
+        let on: usize = h.counts.iter().map(|&c| c as usize).sum();
+        assert_eq!(on + h.below + h.above, h.n);
+        let end = h.start + h.counts.len() as f64 * h.bin_width;
+        (h, end)
+    }
+
+    /// Five glitches near +40 among 400 values in 0 to 4.9 (Trevor on
+    /// #2038): more than the trim takes, but across an empty stretch, so
+    /// the scale ends by the body and all five are counted above it.
+    #[test]
+    fn a_cluster_of_glitches_across_a_gap_is_off_the_scale() {
+        let v: Vec<f64> = (0..400)
+            .map(|i| f64::from(i % 50) * 0.1 + if i % 97 == 0 { 40.0 } else { 0.0 })
+            .collect();
+        let (h, end) = counted(&v);
+        assert!(end < 10.0, "the scale reaches {end}");
+        assert_eq!(h.above, 5);
+    }
+
+    /// One wild value among 200 and among 201, either side of where the
+    /// trim starts taking a whole value out: the scale is not stretched
+    /// at either size (Norm on #2038).
+    #[test]
+    fn one_wild_value_stretches_no_scale_at_200_or_201() {
+        for n in [200, 201] {
+            let mut v = spread(6.0, 0.3, n - 1, 6);
+            v.push(34.0);
+            let (h, end) = counted(&v);
+            assert!(end < 8.0, "n {n}: the scale reaches {end}");
+            assert_eq!(h.above, 1, "n {n}");
+        }
+    }
+
+    /// A run-down (#1971, dd3255's 67 h): most readings near the rate, an
+    /// eighth of them falling away over the last hours to −150 s/d. The
+    /// scale leaves out the 0.5% at each end and no more, so the middle
+    /// 80% the facts box gives is on it.
+    #[test]
+    fn a_run_downs_long_tail_stays_on_the_scale() {
+        let mut v = spread(0.0, 3.0, 2100, 7);
+        v.extend((0..300).map(|k| -10.0 - 140.0 * (f64::from(k) / 299.0).powi(2)));
+        let h = histogram_with(
+            &v,
+            &Options {
+                trim: 0.005,
+                ..Options::new(0.1)
+            },
+        )
+        .unwrap();
+        let end = h.start + h.counts.len() as f64 * h.bin_width;
+        assert!(
+            h.start <= h.p10 && end >= h.p90,
+            "{} {} in {}..{end}",
+            h.p10,
+            h.p90,
+            h.start
+        );
+        let off = (h.below + h.above) as f64 / h.n as f64;
+        assert!(off <= 0.011, "{off} off the scale");
+        // Every value counted once, on the scale or off it.
+        let on: usize = h.counts.iter().map(|&c| c as usize).sum();
+        assert_eq!(on + h.below + h.above, h.n);
     }
 
     #[test]

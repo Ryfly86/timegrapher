@@ -633,7 +633,9 @@ fn noise_shows_its_possible_beats_on_the_strip() {
         egui::CentralPanel::default().show(ctx, |ui| app.strip_pane(ui));
     });
     let drawn = format!("{:?}", out.shapes);
-    assert!(drawn.contains("No regular beat found yet"), "{drawn}");
+    // Led by the cards' own wait, as no beat is found at all (#2044).
+    let note = "No Beats Heard. The faint dots are sounds that might be beats.";
+    assert!(drawn.contains(note), "{note} in {drawn}");
     assert!(drawn.contains("Circle"), "the possible beats are drawn");
 }
 
@@ -2112,6 +2114,42 @@ fn pausing_in_a_tests_opening_settle_stops_its_count() {
     let _ = std::fs::remove_dir_all(base);
 }
 
+/// A guided test's pane counts its settle in the cards' seconds, from the
+/// one `settling_left`, though the test moves on with the sound's length
+/// and the cards read to the last beat (Walter on #2051).
+#[test]
+fn a_tests_pane_counts_the_settle_as_the_cards_do() {
+    let base = std::env::temp_dir().join(format!("tg-pane-settle-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "pane".into());
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let cfg = SynthConfig {
+        duration_s: 17.0,
+        rate_s_per_day: 5.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let live = app.live.as_mut().expect("live");
+    audio.samples.chunks(960).for_each(|b| {
+        live.push(b);
+    });
+    let mut test = guided::Test::new().timed(20.0, 60.0);
+    test.tick(2.0);
+    app.guided = Some(test);
+    let sound = app.live.as_ref().expect("live").duration_s();
+    assert!(sound > app.latest_s(), "{sound} after the last beat");
+    let ticked = app.guided.as_mut().expect("test").tick(sound);
+    let cards = app.settling_left().expect("settling");
+    assert_eq!(ticked, guided::Phase::Settling(22.0 - sound));
+    assert_eq!(
+        app.shown_phase(Some(ticked)),
+        Some(guided::Phase::Settling(cards))
+    );
+    drop(_tx);
+    let _ = std::fs::remove_dir_all(base);
+}
+
 /// An opened recording with no beat in it says "No Beats Heard" on every
 /// card, not "No Regular Beat", which is about beats that are there
 /// (Walter on #2036).
@@ -2159,4 +2197,109 @@ fn a_wait_carries_no_clock_line() {
     assert!(app.live_usb_not_yet().is_some());
     assert_eq!(app.clock_not_yet(None), None);
     assert_eq!(app.clock_not_yet(Some(5.0)), app.live_usb_not_yet());
+}
+
+/// The strip's words in its place when no regular beat is drawn: the
+/// whole pane with `whole`, else its no-watch card alone.
+fn strip_text(app: &mut TimegrapherApp, ctx: &egui::Context, whole: bool) -> String {
+    let out = ctx.run(screen(), |ctx| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            if whole {
+                app.strip_pane(ui);
+            } else {
+                app.no_watch(ui);
+            }
+        });
+    });
+    painted_text(&out).replace('\n', " ")
+}
+
+/// Silence gives the strip the cards' own verdict in the cards' own
+/// words, never "No regular beat found" beside them: "Waiting for Beats"
+/// while listening, and "No Beats Heard" on an opened recording of
+/// silence (Walter on #2036). The Rate hover says nothing of beats behind
+/// a figure there is none of (#2044).
+#[test]
+fn silence_gives_the_strip_and_the_cards_one_verdict() {
+    use timegrapher_core::measure::Wait;
+    let ctx = themed();
+    let base = std::env::temp_dir().join(format!("tg-silence-strip-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "silence".into());
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let quiet = vec![0.0_f32; 960];
+    for _ in 0..15 * 50 {
+        app.live.as_mut().expect("live").push(&quiet);
+    }
+    assert!(app.no_watch_yet());
+    let r = app.reading().expect("a reading");
+    assert_eq!(app.rate_beats_behind(Some(&r)), "");
+    let said = |text: &str, wait: Wait| {
+        assert!(text.contains(&wait.title()), "{text}");
+        assert!(text.contains(&wait.text()), "{text}");
+        assert!(!text.contains("regular"), "{text}");
+    };
+    said(&strip_text(&mut app, &ctx, false), Wait::NoBeats);
+    // With a faint dot or two (the peak as the microphone opens), the
+    // strip's note leads with the same wait, listening and once stopped
+    // (Walter on #2051).
+    let note = |wait: Wait| format!("{}. The faint dots", wait.title());
+    let whole = strip_text(&mut app, &ctx, true);
+    assert!(whole.contains(&note(Wait::NoBeats)), "{whole}");
+    assert!(!whole.contains("regular"), "{whole}");
+    app.stop();
+    let whole = strip_text(&mut app, &ctx, true);
+    assert!(whole.contains(&note(Wait::NoBeatsHeard)), "{whole}");
+    assert!(!whole.contains("regular"), "{whole}");
+    let _ = std::fs::remove_dir_all(base);
+    // An opened recording of silence, as Walter opened it.
+    let mut app = synthetic(30.0, 5.0);
+    let log = timegrapher_core::stream::BeatLog {
+        lock_template_kept: false,
+        sample_rate: 48_000,
+        duration_s: 60.0,
+        bph: 21_600,
+        lift_deg: 52.0,
+        beats: Vec::new(),
+        amplitude_windows: Vec::new(),
+        clipped_beats: Vec::new(),
+        clipped_samples: 0,
+        jumps: Vec::new(),
+        sided: Vec::new(),
+        by_count: Vec::new(),
+        snippets: Vec::new(),
+    };
+    app.live = Some(timegrapher_core::live::LiveAnalyzer::from_log(
+        log,
+        timegrapher_core::live::LiveConfig::default(),
+    ));
+    app.trend.clear();
+    assert!(app.no_watch_yet());
+    said(&strip_text(&mut app, &ctx, true), Wait::NoBeatsHeard);
+}
+
+/// A short stretch's Rate hover, whole, as Hugh ruled it on #2044: the
+/// beats the readings are fitted to, and every cause that cuts the
+/// stretch, the gap's seconds from core's `clean::GAP_S`.
+#[test]
+fn a_short_stretch_says_which_beats_the_readings_are_fitted_to() {
+    let mut app = synthetic(30.0, 5.0);
+    app.average_s = 60.0;
+    let r = app.reading().expect("a reading");
+    assert!(r.span_s + 1.0 < app.average_s, "{r:?}");
+    let gap = crate::fields::duration(timegrapher_core::clean::GAP_S);
+    assert_eq!(gap, "2 s");
+    let said = app.rate_beats_behind(Some(&r));
+    let first = said.split("\n\n").next().expect("a line");
+    assert_eq!(
+        first,
+        format!(
+            "{} beats in {} of 1 min: the beats the readings are fitted to, fewer seconds \
+             than Average Over asks for. They are every beat since the sound began, or \
+             since the latest break, masked stretch or gap of more than 2 s with no beats.",
+            r.beats_used,
+            crate::fields::duration(r.span_s.round())
+        )
+    );
 }

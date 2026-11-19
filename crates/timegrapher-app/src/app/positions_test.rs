@@ -147,7 +147,7 @@ impl TimegrapherApp {
             (format!("Stop the {name}?"), format!("{what}{kept}."))
         };
         let mut choice = None;
-        egui::Modal::new(egui::Id::new("stop test")).show(ctx, |ui| {
+        theme::sheet(egui::Id::new("stop test")).show(ctx, |ui| {
             ui.set_width(360.0);
             ui.label(RichText::new(title).font(theme::semibold(15.0)));
             ui.add_space(4.0);
@@ -687,6 +687,7 @@ impl TimegrapherApp {
             (Some(t), Some(now)) => Some(t.tick(now)),
             _ => None,
         };
+        let phase = self.shown_phase(phase);
         let free = if self.guided.is_none() {
             self.free_table_shown(ui.ctx())
         } else {

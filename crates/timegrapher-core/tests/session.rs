@@ -1823,6 +1823,148 @@ fn a_report_is_set_only_against_full_wind() {
     assert!(against.is_none());
 }
 
+/// Eight upright stops of `stop_s` each, 10 s apart, the first `off`
+/// seconds past the 5 s window grid, on a synthetic watch whose rate runs
+/// 30 s/d each way round the dial, read as the Dynamic Poise pane and
+/// `session` read them ([`session::position_rows`] over
+/// [`Position::UPRIGHT`], then [`poise::shown_fit`]); with the rate
+/// windows the stops hold in all.
+fn poise_of_stops(stop_s: f64, off: f64) -> (timegrapher_core::poise::PoiseFit, usize) {
+    let gap = 10.0;
+    // Each stop the same way off the grid: they are 5 s steps apart.
+    let first = gap + off;
+    let cfg = SynthConfig {
+        duration_s: first + 8.0 * (stop_s + gap),
+        rate_s_per_day: 10.0,
+        snr_db: 26.0,
+        ..Default::default()
+    };
+    let at = move |t: f64| ((t - first) / (stop_s + gap)).floor().clamp(0.0, 7.0) as usize;
+    let angle = |i: usize| Position::UPRIGHT[i].top_deg().unwrap();
+    let faster = move |t: f64| 30.0 * angle(at(t)).to_radians().cos();
+    let path = temp_wav("poise-stops");
+    write_wav(&path, &generate(&cfg, |_| 280.0, faster)).unwrap();
+    let log = analyze_file(&path, &StreamConfig::default(), |_| {}).unwrap();
+    std::fs::remove_file(&path).ok();
+    let stops: Vec<(Position, f64, f64)> = (0..8)
+        .map(|i| {
+            let from = first + i as f64 * (stop_s + gap);
+            (Position::UPRIGHT[i], from, from + stop_s)
+        })
+        .collect();
+    let rows = session::position_rows(
+        &Position::UPRIGHT,
+        (&log, None, &[], &[]),
+        &stops,
+        session::POSITION_MIN_S,
+    );
+    let read = || {
+        rows.iter()
+            .filter_map(|r| Some((r.position, r.measurement.as_ref()?)))
+    };
+    let windows = read().map(|(_, m)| m.coverage.rate.windows_used).sum();
+    let fit = timegrapher_core::poise::shown_fit(read()).expect("eight stops fit");
+    (fit, windows)
+}
+
+/// The words after a wave's size, which core gives.
+fn after_size(text: &str) -> &str {
+    let at = text.find("Once-round wave").expect("the sentence");
+    let (head, tail) = text[at..]
+        .split_once(" s/d each way from the mean")
+        .expect("its size");
+    let size = head
+        .strip_prefix("Once-round wave over 8 upright positions: ")
+        .expect("its head");
+    assert!(size.parse::<f64>().is_ok(), "{text}");
+    tail
+}
+
+/// Eight 30 s stops hold too few rate readings together for a ± (20 of
+/// the 30 one needs, the pool taking every other window across one
+/// stop's end into the next's): the wave is stated with no ±, and the
+/// words say why and what stop length would give one (Norm on #1960,
+/// #2041). Sixty-second stops, the app's Each Position, have their ± and
+/// their fastest hour.
+#[test]
+fn poise_stops_too_short_for_a_rate_pm_say_why() {
+    use timegrapher_core::confidence::NoPm;
+    let (short, _) = poise_of_stops(30.0, 0.0);
+    assert_eq!(short.wave.size.se, None, "{}", short.text);
+    assert_eq!(short.wave.size.no_pm, Some(NoPm::PoolShort));
+    let pool = short.rate_pool.expect("the reason");
+    assert_eq!((pool.values, pool.needed, pool.stops), (20, 30, 8));
+    assert_eq!(
+        (pool.stop_s, pool.reason, pool.fewest),
+        (50.0, NoPm::PoolShort, 3)
+    );
+    assert!(
+        after_size(&short.text).starts_with(
+            ", with no ±, so no fastest hour. The 8 positions hold 20 rate readings, and a ± \
+             needs 30, which 50 s measured at each position would give."
+        ),
+        "{}",
+        short.text
+    );
+    assert!((short.wave.size.value - 30.0).abs() < 3.0, "{}", short.text);
+    let (long, _) = poise_of_stops(60.0, 0.0);
+    assert!(long.wave.size.se.is_some(), "{}", long.text);
+    assert_eq!(long.rate_pool, None);
+    assert!(
+        long.wave_clear && long.text.contains("fastest at"),
+        "{}",
+        long.text
+    );
+}
+
+/// Stops that start off the 5 s window grid, as a live test's do, hold one
+/// window fewer: eight 30 s stops then hold 2 rate readings each, under a
+/// stop's own least of 3, so each is TooFew. At every offset, on the grid
+/// too, the count the words give is the pool's own, the stops' windows
+/// laid end to end, and the length they name gives a ± (Norm and Walter 5
+/// on #2041); 60 s stops keep their ± and state the fastest hour.
+#[test]
+fn poise_stops_off_the_grid_say_why_too() {
+    use timegrapher_core::confidence::{rate_value_count, NoPm};
+    for off in [0.0, 1.3, 2.5, 4.9] {
+        let (short, windows) = poise_of_stops(30.0, off);
+        assert_eq!(short.wave.size.se, None, "{off}: {}", short.text);
+        let pool = short.rate_pool.expect("the reason");
+        assert_eq!(pool.values, rate_value_count(windows), "{off}");
+        assert_eq!(
+            (pool.needed, pool.stops, pool.stop_s),
+            (30, 8, 50.0),
+            "{off}"
+        );
+        if off > 0.0 {
+            assert_eq!(short.wave.size.no_pm, Some(NoPm::TooFew), "{off}");
+            assert_eq!(
+                (pool.values, pool.reason, pool.fewest),
+                (16, NoPm::TooFew, 2)
+            );
+            assert!(
+                after_size(&short.text).starts_with(
+                    ", with no ±, so no fastest hour. The 8 positions hold 16 rate readings, as \
+                     few as 2 at one position. A ± needs 3 at each position and 30 in all, \
+                     which 50 s measured at each position would give."
+                ),
+                "{off}: {}",
+                short.text
+            );
+        }
+        let (enough, windows) = poise_of_stops(pool.stop_s, off);
+        assert!(enough.wave.size.se.is_some(), "{off}: {}", enough.text);
+        assert!(rate_value_count(windows) >= 30, "{off}");
+        let (long, _) = poise_of_stops(60.0, off);
+        assert!(long.wave.size.se.is_some(), "{off}: {}", long.text);
+        assert!(
+            long.wave_clear && long.text.contains("fastest at"),
+            "{off}: {}",
+            long.text
+        );
+    }
+}
+
 /// A saved stretch from 22 to 35 s with 30–32 s masked holds no whole
 /// scatter window of its own, so it looks back as live does: past the
 /// mask, to a window before it (Norm on #2029). Noise stays no watch,
