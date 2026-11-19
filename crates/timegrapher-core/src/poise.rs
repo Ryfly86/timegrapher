@@ -128,9 +128,17 @@ pub struct Wave {
 #[serde(tag = "why", rename_all = "snake_case")]
 pub enum Withheld {
     /// A position's amplitude is within reach of 219.5°, where poise
-    /// barely moves the rate: of those, the one nearest 219.5°, its angle
-    /// and amplitude.
-    NullBand { angle_deg: f64, amplitude_deg: f64 },
+    /// barely moves the rate: its angle and amplitude, and the amplitude's
+    /// ± where only that reaches the band (Norm on #1960), the value
+    /// itself outside it. Of those in reach, one whose value is in the band
+    /// comes first, nearest 219.5°; with none, the one whose ± reaches
+    /// furthest into it.
+    NullBand {
+        angle_deg: f64,
+        amplitude_deg: f64,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        reached_by_se: Option<f64>,
+    },
     /// A position has no amplitude.
     NoAmplitude,
     /// The amplitude-weighted fit cannot be solved.
@@ -279,6 +287,25 @@ impl ShortPool {
                  which {length} measured at each position would give"
             ),
         }
+    }
+}
+
+/// The heavy spot withheld for the band, in words: the stop's amplitude
+/// near 219.5°, or, where only its ± reaches the band, the ± and "may"
+/// (Norm on #1960).
+fn null_band_line(angle_deg: f64, amplitude_deg: f64, reached_by_se: Option<f64>) -> String {
+    let d = base_digits::AMPLITUDE;
+    let (hour, a) = (hour_code(angle_deg), fixed_text(amplitude_deg, d));
+    let null = fixed_text(NULL_AMPLITUDE_DEG, 1);
+    match reached_by_se.and_then(|se| crate::figure_text::pm_text(se, d)) {
+        Some(pm) => format!(
+            "At {hour} the amplitude is {a} ± {pm}°, so it may be near {null}°, where poise \
+             barely moves the rate. Heavy spot not stated."
+        ),
+        None => format!(
+            "At {hour} the amplitude is {a}°, near {null}°, where poise barely moves the rate. \
+             Heavy spot not stated."
+        ),
     }
 }
 
@@ -517,6 +544,44 @@ pub fn fit(points: &[Point], slope: Option<Slope>) -> Option<PoiseFit> {
     Some(out)
 }
 
+/// The stop that names the band, where any is in reach of it (#1960):
+/// never the take's whole range, whose far end may be well clear of it. A
+/// stop whose value is in the band comes first, nearest 219.5°; with
+/// none, the stop whose ± reaches furthest past 219.5°, so the words name
+/// the reason that binds (Norm on #1960).
+fn null_band_stop(pts: &[Point], amps: &[f64]) -> Option<Withheld> {
+    let off = |a: f64| (a - NULL_AMPLITUDE_DEG).abs();
+    let reach = |p: &Point, a: f64| {
+        let in_value = in_null_band(a, None);
+        let se = p
+            .amplitude_se
+            .filter(|s| s.is_finite())
+            .unwrap_or(0.0)
+            .abs();
+        // Values in the band before any ±-only stop; then by how far
+        // short of 219.5° each falls, the ± stops less what theirs reaches.
+        let short = if in_value {
+            off(a)
+        } else {
+            off(a) - CLEAR_SE * se
+        };
+        (!in_value, short)
+    };
+    let (p, &a) = pts
+        .iter()
+        .zip(amps)
+        .filter(|(p, &a)| in_null_band(a, p.amplitude_se))
+        .min_by(|x, y| {
+            let (kx, ky) = (reach(x.0, *x.1), reach(y.0, *y.1));
+            kx.0.cmp(&ky.0).then(kx.1.total_cmp(&ky.1))
+        })?;
+    Some(Withheld::NullBand {
+        angle_deg: p.angle_deg,
+        amplitude_deg: a,
+        reached_by_se: (!in_null_band(a, None)).then_some(p.amplitude_se).flatten(),
+    })
+}
+
 /// The heavy spot, or why it is withheld; any caveat on it goes into
 /// `caveats`.
 fn heavy_fit(
@@ -526,22 +591,7 @@ fn heavy_fit(
     slope: Option<Slope>,
     caveats: &mut Vec<Caveat>,
 ) -> (Option<Wave>, Option<Withheld>) {
-    // The stop nearest 219.5° among those in reach of it names the band
-    // (#1960): never the take's whole range, whose far end may be well
-    // clear of it.
-    if let Some((p, &a)) = pts
-        .iter()
-        .zip(amps)
-        .filter(|(p, &a)| in_null_band(a, p.amplitude_se))
-        .min_by(|x, y| {
-            let off = |a: f64| (a - NULL_AMPLITUDE_DEG).abs();
-            off(*x.1).total_cmp(&off(*y.1))
-        })
-    {
-        let why = Withheld::NullBand {
-            angle_deg: p.angle_deg,
-            amplitude_deg: a,
-        };
+    if let Some(why) = null_band_stop(pts, amps) {
         return (None, Some(why));
     }
     let mut rates: Vec<f64> = pts.iter().map(|p| p.rate_s_per_day).collect();
@@ -842,14 +892,9 @@ impl PoiseFit {
                 Some(Withheld::NullBand {
                     angle_deg,
                     amplitude_deg,
+                    reached_by_se,
                 }),
-            ) => format!(
-                "At {} the amplitude is {}°, near {}°, where poise barely moves the rate. \
-                 Heavy spot not stated.",
-                hour_code(angle_deg),
-                fixed_text(amplitude_deg, base_digits::AMPLITUDE),
-                fixed_text(NULL_AMPLITUDE_DEG, 1),
-            ),
+            ) => null_band_line(angle_deg, amplitude_deg, reached_by_se),
             (None, Some(Withheld::NoAmplitude)) => {
                 "Heavy spot not stated: a position has no amplitude.".into()
             }
