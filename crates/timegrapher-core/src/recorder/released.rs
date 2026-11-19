@@ -16,7 +16,7 @@
 //! from here before the copy is checked on the disk, and the copy is
 //! looked at again, at its length, just before.
 
-use super::{as_flac, regular_file, sync_file, PendingFile, Recorder};
+use super::{as_flac, regular_file, sync_file, sync_folder, PendingFile, Recorder, SaveStep};
 use std::fs::{self, File};
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -45,8 +45,25 @@ impl HeldWhole {
 }
 
 /// The closed hours of `files` that a save into `dest` was to check, each
-/// checked in the copy, on the disk: the ones that hold it whole.
-pub(super) fn checked(files: &[PendingFile], dest: &Path) -> Vec<HeldWhole> {
+/// checked in the copy, on the disk: the ones that hold it whole. None
+/// unless the copy's folder, and the one it is in, are synced first
+/// (`before` may refuse that, in tests): the hour's name in the copy must
+/// be on the disk before its copy here may go, or a power cut could leave
+/// it in neither place.
+pub(super) fn checked(
+    files: &[PendingFile],
+    dest: &Path,
+    before: &mut impl FnMut(SaveStep, &Path) -> io::Result<()>,
+) -> Vec<HeldWhole> {
+    if !files.iter().any(|f| f.release.is_some()) {
+        return Vec::new();
+    }
+    let synced = before(SaveStep::Sync, dest)
+        .and_then(|()| sync_folder(dest))
+        .and_then(|()| dest.parent().map_or(Ok(()), sync_folder));
+    if synced.is_err() {
+        return Vec::new();
+    }
     files
         .iter()
         .filter_map(|f| {

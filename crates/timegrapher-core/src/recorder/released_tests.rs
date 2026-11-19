@@ -202,3 +202,37 @@ fn the_copy_is_checked_byte_for_byte() {
     assert!(!released::same_bytes(&held, len, &there).unwrap());
     fs::remove_dir_all(&dir).unwrap();
 }
+
+/// Trevor on #2046: no hour counts as held whole in the copy until the
+/// copy's folder is synced, so a folder sync that fails lets nothing go;
+/// the next save that syncs does.
+#[test]
+fn nothing_goes_before_the_copys_folder_is_synced() {
+    let (mut r, base) = fixture("released-unsynced");
+    append_second(&mut r, 2);
+    r.pause().unwrap();
+    let parent = base.join("unsorted");
+    let refused = |step: SaveStep, _: &Path| match step {
+        SaveStep::Sync => Err(io::Error::other("injected folder sync failure")),
+        _ => Ok(()),
+    };
+    let copy = r
+        .begin_save(&parent, "", None, &[])
+        .unwrap()
+        .write_using(refused)
+        .unwrap();
+    assert!(copy.held_whole.is_empty());
+    r.note_saved(&copy);
+    tidy_all(&mut r);
+    assert_eq!(sound_in(r.dir()).len(), 1, "kept here");
+    let copy = r
+        .begin_save(&parent, "", None, &[])
+        .unwrap()
+        .write()
+        .unwrap();
+    assert_eq!(copy.held_whole.len(), 1);
+    r.note_saved(&copy);
+    tidy_all(&mut r);
+    assert_eq!(sound_in(r.dir()), Vec::<String>::new());
+    fs::remove_dir_all(&base).unwrap();
+}

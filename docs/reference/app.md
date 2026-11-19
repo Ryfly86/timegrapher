@@ -2177,7 +2177,11 @@ removed, Listen starts a new take. The message names the take and offers **Open 
 itself, opened where it is), **Delete Copy…** (asking first, and saying
 that only those last seconds are lost) and **Later**. If that take has
 since been moved or deleted, what is left of the copy is the only one, and it is offered
-as unsaved sound like any other. A Power Reserve Test with Analysis Only
+as unsaved sound like any other. Where the take held its earlier hours
+alone, the message gives no length and says "Only its last part is here:
+the take it was recording into held the rest, and has since been moved
+or deleted", Delete… says that last part can't be got back, and Open
+reads the part that is there. A Power Reserve Test with Analysis Only
 that stopped before its take was written leaves no sound but its
 analysis kept in parts: the next start offers it the same way, "An
 unsaved Power Reserve Test was found (Analysis Only): started …,

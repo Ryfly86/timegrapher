@@ -20,6 +20,10 @@ pub(super) struct KeptSound {
     /// A Power Reserve Test kept as its analysis alone: no sound, its
     /// analysis kept in parts up to `duration_s` ([`checkpoint::only`]).
     pub(super) parts: bool,
+    /// Only its last part is here: hours its session file lists were kept
+    /// in the take it was recording into alone (#2040), and that take has
+    /// since been moved or deleted. `duration_s` is then not given.
+    pub(super) partial: bool,
 }
 
 impl KeptSound {
@@ -50,6 +54,12 @@ impl KeptSound {
             format!(
                 "An unsaved Power Reserve Test was found (Analysis Only){started}{recorded}, \
                  {size}. Open it, move it to a folder of your own, or delete it?"
+            )
+        } else if self.partial {
+            format!(
+                "Sound from an earlier session wasn't saved{started}, {size}. Only its last part \
+                 is here: the take it was recording into held the rest, and has since been \
+                 moved or deleted. Open it, move it into a folder of your own, or delete it?"
             )
         } else {
             let long = self
@@ -115,6 +125,10 @@ pub(super) fn kept_sounds(scratch: &Path) -> Vec<KeptSound> {
                 n.ends_with(".wav") || n.ends_with(".flac")
             });
             let parts = !has_sound && checkpoint::only(&dir);
+            let names: Vec<String> = files
+                .iter()
+                .map(|f| f.file_name().to_string_lossy().to_lowercase())
+                .collect();
             if !has_sound && !parts {
                 return None;
             }
@@ -122,10 +136,13 @@ pub(super) fn kept_sounds(scratch: &Path) -> Vec<KeptSound> {
                 .ok()
                 .and_then(|b| serde_json::from_slice(&b).ok());
             let started = started_of(about.as_ref());
-            // Of a test kept in parts, as far as its parts reach.
-            let duration_s = match parts {
-                true => checkpoint::length_s(&dir).ok(),
-                false => about.as_ref().and_then(|a| a["duration_s"].as_f64()),
+            let partial = !parts && hours_missing(about.as_ref(), &names);
+            // Of a test kept in parts, as far as its parts reach; none
+            // for one with hours missing, whose session file counts them.
+            let duration_s = match (parts, partial) {
+                (true, _) => checkpoint::length_s(&dir).ok(),
+                (false, true) => None,
+                (false, false) => about.as_ref().and_then(|a| a["duration_s"].as_f64()),
             };
             let streamed_to = take_io::streamed_to(&dir);
             Some(KeptSound {
@@ -134,12 +151,27 @@ pub(super) fn kept_sounds(scratch: &Path) -> Vec<KeptSound> {
                 bytes: tree_bytes(&dir),
                 streamed_to,
                 parts,
+                partial,
                 dir,
             })
         })
         .collect();
     v.sort_by(|a, b| a.dir.cmp(&b.dir));
     v
+}
+
+/// Whether a sound file the session file `about` lists is in none of
+/// `names` (the folder's files, in lower case), as itself or as the FLAC
+/// it was kept as: an hour kept in its take alone (#2040).
+fn hours_missing(about: Option<&serde_json::Value>, names: &[String]) -> bool {
+    let Some(listed) = about.and_then(|a| a["segments"].as_array()) else {
+        return false;
+    };
+    listed.iter().filter_map(|s| s.as_str()).any(|s| {
+        let s = s.to_lowercase();
+        let flac = timegrapher_core::flac::kept_name(Path::new(&s));
+        !names.contains(&s) && !names.iter().any(|n| Path::new(n) == flac)
+    })
 }
 
 /// When a recording started, from its `session.json` (`about`), in this

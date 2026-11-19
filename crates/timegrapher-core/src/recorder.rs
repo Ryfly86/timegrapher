@@ -1261,7 +1261,7 @@ impl PendingSave {
                 }
             }
         }
-        let held_whole = released::checked(&self.files, &self.dest);
+        let held_whole = released::checked(&self.files, &self.dest, &mut before);
         Ok(SavedCopy {
             dir: self.dest,
             name: self.name,
@@ -1331,6 +1331,8 @@ enum SaveStep {
     Stage,
     Install,
     Restore,
+    /// The copy's folder synced before any hour counts as held whole there.
+    Sync,
 }
 
 struct SaveUpdate {
