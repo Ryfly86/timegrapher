@@ -322,9 +322,9 @@ under it its calibre, beat rate, lift angle and added fields, with
   its pane does, 9H to 10H30 (#2002). Its take is known by
   `poise-test.json` beside its sound. Rows show **Analysis Only**, **Incomplete**
   or **On Show** after the date when it is one. A take still being
-  recorded on the Bench shows **Recording** instead, and a dim "—" from
-  Length on, as its library entry holds only its first write; its hover
-  says they come once it stops (#2027). Nothing is inserted
+  recorded on the Bench shows **Recording** instead, and a dim "—" after
+  Started, as its library entry holds only its first write; its hover
+  says they come once it stops, and it is read then (#2027). Nothing is inserted
   between rows. Clicking a row picks it; double-clicking opens it as
   Open does, and the take on show is not read again. Open is greyed out
   while a take runs on the Bench.

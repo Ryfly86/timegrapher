@@ -365,6 +365,7 @@ impl TimegrapherApp {
             ),
             _ => (Vec::new(), false),
         };
+        self.want_take_readings(e, ui.ctx());
         let keeping = self.take_keep.as_ref().map(|(t, job)| {
             let read = f64::from_bits(job.progress.load(std::sync::atomic::Ordering::Relaxed));
             (
@@ -377,19 +378,8 @@ impl TimegrapherApp {
         }
         let on_show = self.take_on_show();
         let held = self.take_held();
-        let writing = self.live.is_some() || self.session.recorder.is_some();
+        let writing = self.take_writing();
         let picked = self.take_picked.clone();
-        // Each take's own reading, as `timegrapher watches` gives it; a
-        // test's figures are its own.
-        self.take_readings.poll();
-        for t in &e.takes {
-            let dir = e.take_dir(t);
-            // A take still being recorded is read once it stops (#2027).
-            let growing = writing && held.as_deref() == Some(dir.as_path());
-            if watches::TakeReadings::read_for(t, &dir) && !growing {
-                self.take_readings.want(&dir, t.bytes, ui.ctx());
-            }
-        }
         let cx = watches::TakesContext {
             others: &others,
             writable,
@@ -398,7 +388,7 @@ impl TimegrapherApp {
             picked: picked.as_deref(),
             on_show: on_show.as_deref(),
             held: held.as_deref(),
-            writing,
+            writing: writing.as_deref(),
             readings: &self.take_readings,
         };
         let mut act = None;
@@ -1279,6 +1269,28 @@ impl TimegrapherApp {
     /// #1947).
     pub(super) fn take_held(&self) -> Option<PathBuf> {
         self.session.saved_to().map(Path::to_path_buf)
+    }
+
+    /// The take the Bench is recording into now: the one it saved into,
+    /// while the microphone runs. Stopped (paused), or a recording opened,
+    /// it is none (Trevor on #2032).
+    pub(super) fn take_writing(&self) -> Option<PathBuf> {
+        self.take_held()
+            .filter(|_| self.running() && self.session.mic())
+    }
+
+    /// Ask for each of `e`'s takes' own reading, as `timegrapher watches`
+    /// gives it; a test's figures are its own, and a take still being
+    /// recorded is read once it stops (#2027).
+    pub(super) fn want_take_readings(&mut self, e: &library::WatchEntry, ctx: &egui::Context) {
+        self.take_readings.poll();
+        let writing = self.take_writing();
+        for t in &e.takes {
+            let dir = e.take_dir(t);
+            if watches::TakeReadings::read_for(t, &dir) && writing.as_ref() != Some(&dir) {
+                self.take_readings.want(&dir, t.bytes, ctx);
+            }
+        }
     }
 
     /// Make the library at its folder when there is none yet.

@@ -576,8 +576,9 @@ pub struct TakesContext<'a> {
     pub picked: Option<&'a std::path::Path>,
     pub on_show: Option<&'a std::path::Path>,
     pub held: Option<&'a std::path::Path>,
-    /// Whether the Bench is still recording into `held` (#2027).
-    pub writing: bool,
+    /// The take the Bench is still recording into, while its input runs
+    /// (#2027).
+    pub writing: Option<&'a std::path::Path>,
     /// The takes' own readings, as far as they are worked out.
     pub readings: &'a TakeReadings,
 }
@@ -593,7 +594,7 @@ impl TakesContext<'_> {
     /// its length, figures and size in the library are from its first
     /// write, so its row says none of them (#2027).
     pub fn being_written(&self, dir: &std::path::Path) -> bool {
-        self.writing && self.held == Some(dir)
+        self.writing == Some(dir)
     }
 }
 
@@ -1540,9 +1541,9 @@ fn draw_cells(
             )
         };
         // A test's figures, part by part in its take, are a dim dash; so
-        // is every cell after Position of a take still being recorded.
+        // is every cell after Started of a take still being recorded.
         let color = dim
-            .filter(|_| (3..6).contains(&i) || i >= 2 && c == "—")
+            .filter(|_| (3..6).contains(&i) || i >= 1 && c == "—")
             .unwrap_or(color);
         p.text(pos, align, c, font.clone(), color);
         x += w;
@@ -1684,19 +1685,19 @@ fn take_hover(
 }
 
 /// The hover of a take still being recorded on the Bench (#2027).
-const BEING_WRITTEN: &str = "This take is being recorded on the Bench. Its length, figures and \
-     size are given here once it stops. Right-click for more.";
+const BEING_WRITTEN: &str = "This take is being recorded on the Bench. Its positions, length, \
+     figures and size are given here once it stops. Right-click for more.";
 
 /// A take's cells in the takes table and whether its figures are dim: a
-/// take still being recorded shows a dim dash from Length on, never the
-/// figures of its first write (#2027).
+/// take still being recorded shows a dim dash after Started, never the
+/// positions or figures of its first write (#2027; Gus on #2032).
 fn row_cells(t: &Take, dir: &Path, cx: &TakesContext) -> ([String; 7], bool) {
     let test = row_test(dir);
     let mut cells = take_cells(t, test, cx.readings.reading(dir));
     if !cx.being_written(dir) {
         return (cells, dashed(t, test));
     }
-    for c in &mut cells[2..] {
+    for c in &mut cells[1..] {
         *c = "—".to_string();
     }
     (cells, true)
@@ -2602,7 +2603,7 @@ mod tests {
             picked: None,
             on_show: None,
             held: None,
-            writing: false,
+            writing: None,
             readings: &readings,
         };
         let ctx = egui::Context::default();
