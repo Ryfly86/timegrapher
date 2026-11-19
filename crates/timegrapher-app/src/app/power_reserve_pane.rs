@@ -352,8 +352,10 @@ impl TimegrapherApp {
             first_chart = whole == 0 && t.so_far.iter().any(|h| h.whole());
         }
         if first_chart {
-            let n = self.reserve.as_ref().map_or(0, |t| t.so_far.len());
-            grow_row(&mut self.panes.tiles, Pane::PowerReserve, reserve::run_h(n));
+            let h = self.reserve.as_ref().map_or(0.0, |t| {
+                reserve::run_h(&t.so_far, true, self.reserve_series)
+            });
+            grow_row(&mut self.panes.tiles, Pane::PowerReserve, h);
         }
     }
 
@@ -407,7 +409,11 @@ impl TimegrapherApp {
     pub(super) fn fit_reserve_row(&mut self) {
         let pane = Pane::PowerReserve;
         match self.reserve.as_ref().and_then(|t| t.results.as_ref()) {
-            Some(r) => grow_row(&mut self.panes.tiles, pane, reserve::run_h(r.hours.len())),
+            Some(r) => grow_row(
+                &mut self.panes.tiles,
+                pane,
+                reserve::run_h(&r.hours, false, self.reserve_series),
+            ),
             None => fit_row(&mut self.panes.tiles, pane, MIN_PANE_H),
         }
     }
@@ -510,15 +516,17 @@ impl TimegrapherApp {
         if let Some(r) = results.as_mut() {
             r.hours = self.reserve_hours(r.first_beat_s, r.last_beat_s, 0);
         }
-        let hours = results.as_ref().map(|r| r.hours.len());
+        let h = results
+            .as_ref()
+            .map(|r| reserve::run_h(&r.hours, false, self.reserve_series));
         let mut stopped = false;
         if let Some(t) = self.reserve.as_mut() {
             stopped = [results.as_ref().map(|r| r.ending), t.ending]
                 .contains(&Some(power_reserve::Ending::Stopped));
             t.results = results;
         }
-        if let Some(n) = hours {
-            grow_row(&mut self.panes.tiles, Pane::PowerReserve, reserve::run_h(n));
+        if let Some(h) = h {
+            grow_row(&mut self.panes.tiles, Pane::PowerReserve, h);
         }
         // The watch ran down: its wind no longer holds (#2001).
         if stopped {

@@ -1528,16 +1528,12 @@ impl TimegrapherApp {
         let mut t = reserve::Test::new(position, r.sound_kept, r.started_utc.clone(), 0.0);
         t.ending = Some(r.ending);
         t.saved = Some(dir.to_path_buf());
-        let hours = r.hours.len();
+        let h = reserve::run_h(&r.hours, false, self.reserve_series);
         t.results = Some(r);
         self.reserve = Some(t);
         self.reveal_pane(Pane::PowerReserve);
         // The run's charts and table, not the line before a test.
-        grow_row(
-            &mut self.panes.tiles,
-            Pane::PowerReserve,
-            reserve::run_h(hours),
-        );
+        grow_row(&mut self.panes.tiles, Pane::PowerReserve, h);
     }
 
     /// Take what a session file says about a recording: the watch, its
