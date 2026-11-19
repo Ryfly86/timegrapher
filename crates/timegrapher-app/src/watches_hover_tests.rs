@@ -391,6 +391,48 @@ fn a_take_still_being_recorded_shows_no_first_write_figures() {
     assert_eq!((cells[2].as_str(), cells[3].as_str()), ("0:05", "+5.4"));
 }
 
+/// A watch's size in the list is a dash while the Bench records into
+/// one of its takes, as that take's row is: the library holds only the
+/// take's first write until it stops. Another watch's, or once it stops,
+/// its size (Walter 2 on #2032, #2034).
+#[test]
+fn a_watchs_size_waits_while_a_take_records_into_it() {
+    let take = Take {
+        name: "2026-11-19 05.40".into(),
+        bytes: 3_900_000,
+        audio: true,
+        incomplete: false,
+        started_utc: None,
+        named_start: None,
+        duration_s: Some(5.0),
+        positions: vec!["DU".into()],
+        at_end: None,
+        power_reserve: None,
+        wind_h: None,
+    };
+    let e = WatchEntry {
+        dir: "/nowhere/Pepsi".into(),
+        watch: timegrapher_core::library::Watch::new("Pepsi"),
+        takes: vec![take.clone()],
+        photos: Vec::new(),
+    };
+    let dir = e.take_dir(&take);
+    let what = "Show this watch's details and takes.";
+    assert_eq!(
+        size_and_hover(&e, Some(dir.as_path()), what),
+        (
+            "—".to_string(),
+            "Show this watch's details and takes. Its size is given once the take being \
+             recorded stops."
+                .to_string()
+        )
+    );
+    let other = std::path::Path::new("/nowhere/Pepsi 2/takes/2026-11-19 05.40");
+    let shown = ("3.9 MB".to_string(), what.to_string());
+    assert_eq!(size_and_hover(&e, Some(other), what), shown);
+    assert_eq!(size_and_hover(&e, None, what), shown);
+}
+
 /// Open greyed out says the real reason first: with no takes, that
 /// there are none, not to stop the Bench; with takes but none picked, to
 /// pick one; only a picked take waits on the Bench (#2007).

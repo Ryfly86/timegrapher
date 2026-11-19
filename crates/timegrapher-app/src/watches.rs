@@ -349,8 +349,23 @@ fn list_size(bytes: u64) -> String {
     }
 }
 
+/// A list row's size and its hover `what`: a dash while the Bench
+/// records a take into `e` (`writing`), as that take's row has, since the
+/// library holds only its first write until it stops (#2034); the hover
+/// says why (Hugh on #2037).
+pub fn size_and_hover(e: &WatchEntry, writing: Option<&Path>, what: &str) -> (String, String) {
+    match writing.is_some_and(|w| w.starts_with(&e.dir)) {
+        true => (
+            "—".into(),
+            format!("{what} Its size is given once the take being recorded stops."),
+        ),
+        false => (list_size(e.bytes()), what.to_string()),
+    }
+}
+
 /// The list: one row per watch, led by its first photo when any watch
-/// listed has one. The id of the watch clicked, if any.
+/// listed has one. The id of the watch clicked, if any. `writing` is the
+/// take the Bench is recording into.
 pub fn list(
     ui: &mut egui::Ui,
     watches: &[&WatchEntry],
@@ -358,6 +373,7 @@ pub fn list(
     thumbs: &mut Thumbs,
     shows: Option<&str>,
     search: &str,
+    writing: Option<&Path>,
 ) -> Option<String> {
     let key = search.trim();
     let mut picked = None;
@@ -392,14 +408,15 @@ pub fn list(
         if let Some(t) = last_take(e).and_then(timegrapher_core::library::date_text) {
             below.push(format!("last {t}"));
         }
+        let (size, hover) = size_and_hover(e, writing, "Show this watch's details and takes.");
         if found_row(
             ui,
             marked == Some(w.id.as_str()),
             lead,
             &w.name,
-            &list_size(e.bytes()),
+            &size,
             &below,
-            "Show this watch's details and takes",
+            &hover,
             key,
         )
         .clicked()
@@ -411,8 +428,21 @@ pub fn list(
 }
 
 /// Unsorted's row, at the top of the list (led by a tile when the
-/// watches' rows have photos): whether it was clicked.
-pub fn unsorted_row(ui: &mut egui::Ui, e: &WatchEntry, tiled: bool, marked: bool) -> bool {
+/// watches' rows have photos): whether it was clicked. `writing` is the
+/// take the Bench is recording into.
+pub fn unsorted_row(
+    ui: &mut egui::Ui,
+    e: &WatchEntry,
+    tiled: bool,
+    marked: bool,
+    writing: Option<&Path>,
+) -> bool {
+    let (size, hover) = size_and_hover(
+        e,
+        writing,
+        "Quick Listen again: no watch, no calibre, the default lift angle and the beat rate \
+         found from the beats. Shows the takes not yet filed under a watch.",
+    );
     row(
         ui,
         marked,
@@ -422,13 +452,12 @@ pub fn unsorted_row(ui: &mut egui::Ui, e: &WatchEntry, tiled: bool, marked: bool
             Lead::None
         },
         UNSORTED_TAKES,
-        &list_size(e.bytes()),
+        &size,
         &[
             "Quick Listen, no watch".to_string(),
             count(e.takes.len(), "take", "takes"),
         ],
-        "Quick Listen again: no watch, no calibre, the default lift angle and the beat \
-         rate found from the beats. Shows the takes not yet filed under a watch.",
+        &hover,
     )
     .clicked()
 }
@@ -1186,65 +1215,6 @@ pub fn picked_take<'a>(e: &'a WatchEntry, cx: &TakesContext) -> Option<&'a Take>
     e.takes
         .iter()
         .find(|t| cx.picked == Some(e.take_dir(t).as_path()))
-}
-
-/// Why Open has nothing to act on in a watch, or Unsorted, with no takes.
-pub const NO_TAKES: &str = "There are no takes here yet";
-
-/// Why the Takes row's Open is greyed out, the real reason first:
-/// nothing to pick, then none picked, and only then the Bench `busy`
-/// (#2007).
-fn open_why<'a>(e: &WatchEntry, picked: bool, busy: Option<&'a str>) -> Option<&'a str> {
-    let none = if e.takes.is_empty() {
-        NO_TAKES
-    } else {
-        "Pick a take first"
-    };
-    if picked {
-        busy
-    } else {
-        Some(none)
-    }
-}
-
-/// The Takes title row's Open and "…", acting on the picked take: Open
-/// greyed out while `busy` says why (a take running on the Bench) or none
-/// is picked.
-pub fn takes_buttons(
-    ui: &mut egui::Ui,
-    e: &WatchEntry,
-    cx: &TakesContext,
-    busy: Option<&str>,
-) -> Option<TakeAction> {
-    let mut act = None;
-    let picked = picked_take(e, cx);
-    let r = ui.add_enabled(picked.is_some(), theme::secondary(ui, "…"));
-    let r = r
-        .on_hover_text("More for the picked take: Show in the folder, Keep Analysis Only…, move it, or delete it")
-        .on_disabled_hover_text(open_why(e, false, None).unwrap_or_default());
-    if let Some(t) = picked {
-        egui::Popup::menu(&r)
-            .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
-            .show(|ui| {
-                if let Some(a) = take_menu(ui, e, t, cx, busy) {
-                    act = Some(a);
-                }
-            });
-    }
-    let why = open_why(e, picked.is_some(), busy);
-    if ui
-        .add_enabled(why.is_none(), theme::secondary(ui, "Open"))
-        .on_hover_text(
-            "Analyse the whole picked take on the Bench; a long take takes a while to read",
-        )
-        .on_disabled_hover_text(why.unwrap_or_default())
-        .clicked()
-    {
-        if let Some(t) = picked {
-            act = Some(TakeAction::Open(e.take_dir(t)));
-        }
-    }
-    act
 }
 
 /// Why the take `t` in `dir` isn't offered Keep Analysis Only, or none
@@ -2986,6 +2956,13 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 }
+
+/// The Takes title row's Open and "…", split from this file by concern.
+#[path = "watches_buttons.rs"]
+mod buttons;
+pub use buttons::takes_buttons;
+#[cfg(test)]
+use buttons::{open_why, NO_TAKES};
 
 #[cfg(test)]
 #[path = "watches_hover_tests.rs"]
