@@ -26,7 +26,7 @@ struct CardCtx<'a> {
     /// "at hh:mm:ss, set by the Paper Strip", for the figures' hovers,
     /// when the strip is moved back: the strip's own label says it.
     moment: Option<String>,
-    /// The readings cards name their readings short ([`cards_short`]).
+    /// The reading cards go without their "?" ([`cards_short`]).
     short: bool,
 }
 
@@ -273,21 +273,27 @@ fn card_row(ui: &mut egui::Ui, rect: egui::Rect, salt: &str) -> egui::Ui {
 }
 
 /// The title row: the caption, its limits in a chip, and the "?" in
-/// the corner. The caption is cut short before the chip is.
+/// the corner. With `bare`, where a reading card has no room for its
+/// whole caption beside a "?" ([`cards_short`]), there is no "?": the
+/// caption carries its help, on a hover and kept open by a click, so the
+/// caption stays whole (Hugh on #1954). The caption is cut short before
+/// the chip is.
 pub(crate) fn card_title(
     ui: &mut egui::Ui,
     rect: egui::Rect,
     caption: &str,
     help: &[&str],
     limits: &[(String, String)],
-    (note, short): (Option<&(String, String)>, bool),
+    (note, bare): (Option<&(String, String)>, bool),
 ) {
     let pal = theme::pal(ui);
     let mut child = card_row(ui, rect, caption);
     child.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
         // Tight, so a reading card's caption stays whole at 800.
         ui.spacing_mut().item_spacing.x = title_gap();
-        theme::help(ui, caption, help);
+        if !bare {
+            theme::help(ui, caption, help);
+        }
         let caption_w = caption_width(ui, caption);
         let small_w = |ui: &egui::Ui, t: &str| {
             ui.fonts_mut(|f| {
@@ -305,8 +311,9 @@ pub(crate) fn card_title(
             }
         }
         // Limits always show in a chip, shortened to fit beside the whole
-        // caption, never dropped (Hugh, #1808).
-        if !limits.is_empty() {
+        // caption, never dropped (Hugh, #1808); on a bare card, at the
+        // trend row's end instead ([`trend_chip`]), the caption whole.
+        if !limits.is_empty() && !bare {
             let room = ui.available_width();
             let words =
                 limits_chip_words(limits, |w| theme::chip_w(ui, w) + 4.0 + caption_w <= room);
@@ -314,24 +321,61 @@ pub(crate) fn card_title(
             theme::chip(ui, &words, caption, &sentences, ui.available_width());
         }
         ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-            // Too narrow for the whole caption (800 pt), its short form as
-            // the axes have it, the whole one on a hover, rather than a
-            // cut "Ampli…" that names nothing (#1061); all the cards
-            // together, as [`cards_short`] says.
-            let short = steady_views::short_name(caption).filter(|_| short);
-            let r = ui.add(
-                egui::Label::new(
-                    RichText::new(short.unwrap_or(caption))
-                        .font(caption_font())
-                        .color(pal.text_secondary),
-                )
-                .truncate(),
-            );
-            if short.is_some() {
-                r.on_hover_text(caption);
+            // Too narrow for the whole caption even with no "?" (narrower
+            // than the window can be made), its short form as the axes
+            // have it rather than a cut "Ampli…" that names nothing
+            // (#1061).
+            let short = steady_views::short_name(caption)
+                .filter(|_| bare && caption_w > ui.available_width());
+            let label = egui::Label::new(
+                RichText::new(short.unwrap_or(caption))
+                    .font(caption_font())
+                    .color(pal.text_secondary),
+            )
+            .truncate();
+            if bare {
+                let r = ui.add(label.sense(egui::Sense::click()));
+                theme::help_on(ui, r, (caption, help, &[]), caption);
+            } else {
+                ui.add(label);
             }
         });
     });
+}
+
+/// On a bare reading card (the narrowest step), its limits chip at the
+/// right end of its trend row `spark`, under the figure, where the title
+/// row has no room for it beside the whole caption: the same chip, hover
+/// and click, in the same place on all three cards (Hugh on #2026). The
+/// room left for the trend, the whole row when there is no chip.
+pub(crate) fn trend_chip(
+    ui: &mut egui::Ui,
+    spark: egui::Rect,
+    caption: &str,
+    limits: &[(String, String)],
+    bare: bool,
+) -> egui::Rect {
+    if !bare || limits.is_empty() {
+        return spark;
+    }
+    let words = limits_chip_words(limits, |w| theme::chip_w(ui, w) <= spark.width() / 2.0);
+    let w = if words.is_empty() {
+        theme::CHIP_ICON + 14.0
+    } else {
+        theme::chip_w(ui, &words)
+    };
+    let at = egui::Rect::from_min_max(egui::pos2(spark.right() - w, spark.top()), spark.max);
+    let mut child = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(at)
+            .layout(egui::Layout::right_to_left(egui::Align::Center)),
+    );
+    let sentences: Vec<String> = limits.iter().map(|l| l.1.clone()).collect();
+    theme::chip(&mut child, &words, caption, &sentences, w);
+    egui::Rect::from_min_max(
+        spark.min,
+        egui::pos2(spark.right() - w - title_gap(), spark.bottom()),
+    )
 }
 
 /// What a card's limits chip says, the first form that `fits` (Hugh,
@@ -380,10 +424,10 @@ fn caption_width(ui: &egui::Ui, caption: &str) -> f32 {
     })
 }
 
-/// Whether the readings cards name their readings short: where any of
-/// them, in its title row, has no room for its whole caption beside its
-/// "?", all of them do, so a row never mixes "Amplitude" with "B.E."
-/// (Hugh, #1061). Worked out from the rows alone, each pass.
+/// Whether the readings cards go without their "?" ([`card_title`]'s
+/// `bare`): where any of them, in its title row, has no room for its
+/// whole caption beside its "?", all of them do, so the row stays alike
+/// (Hugh, #1061, #1954). Worked out from the rows alone, each pass.
 pub(crate) fn cards_short(ui: &egui::Ui, titles: &[(egui::Rect, &str)]) -> bool {
     titles.iter().any(|&(rect, caption)| {
         // Beside the "?" and the gap to it, as `card_title` lays them.
@@ -437,6 +481,20 @@ fn big_stretch(average_s: f64, floored: bool) -> String {
 }
 
 impl TimegrapherApp {
+    /// Under 10 s of sound since Listen started or the latest break, no
+    /// figures yet: a word saying what they wait for, and its hover
+    /// (#2014, Hugh). A settle's own state wins.
+    fn listening(&self, r: Option<&LiveReading>) -> Option<(String, String)> {
+        r.and_then(|r| r.listening)
+            .filter(|_| heard(r) && self.settling_left().is_none())
+            .map(|since| {
+                (
+                    timegrapher_core::measure::LISTENING_TITLE.to_string(),
+                    timegrapher_core::measure::listening_text(since),
+                )
+            })
+    }
+
     /// The reading cards across the top: Current Position, Listen, then
     /// Rate, Amplitude, Beat Error and Beat Rate. Every card is the same
     /// three rows (title, figure, controls) and one height at every width;
@@ -474,7 +532,9 @@ impl TimegrapherApp {
                 ),
             )
         };
-        let unheard = (!heard).then(|| (unheard_line.clone(), unheard_hover.clone()));
+        let unheard = (!heard)
+            .then(|| (unheard_line.clone(), unheard_hover.clone()))
+            .or_else(|| self.listening(r.as_ref()));
         let r = r.as_ref().filter(|_| heard);
         let caveats = self.shown_caveats(r);
         let caveats = &caveats[..];
@@ -614,6 +674,8 @@ impl TimegrapherApp {
             } else {
                 unheard.clone()
             }
+        } else if let Some(listening) = unheard.clone() {
+            Some(listening)
         } else {
             self.stopped_in_settle().map(|at| {
                 (
@@ -643,6 +705,7 @@ impl TimegrapherApp {
             behind = format!("{n}\n\n{}", behind.trim_start());
         }
         let (fig, spark, place) = sparkline::lay(rows.inner, rows.figure, rows.controls);
+        let spark = trend_chip(ui, spark, "Rate", &rate_facts, c.short);
         let colour = theme::pal(ui).trace_rate;
         sparkline::draw(ui, spark, place, &c.spark, &sparkline::RATE, colour);
         figure_row(
@@ -652,7 +715,7 @@ impl TimegrapherApp {
             &unit,
             status.as_ref(),
             &with_moment(c.moment.as_deref(), behind.trim_start()),
-            compact,
+            (compact, Some(0)),
         );
     }
 
@@ -812,6 +875,8 @@ impl TimegrapherApp {
             behind += &format!("\n\n{t}");
         }
         let (fig, spark, place) = sparkline::lay(rows.inner, rows.figure, rows.controls);
+        let caption = steady::title(SeriesKind::Amplitude);
+        let spark = trend_chip(ui, spark, caption, &facts, c.short);
         let colour = theme::pal(ui).trace_amplitude;
         sparkline::draw(ui, spark, place, &c.spark, &sparkline::AMPLITUDE, colour);
         figure_row(
@@ -821,7 +886,7 @@ impl TimegrapherApp {
             &unit,
             unheard.as_ref(),
             &with_moment(c.moment.as_deref(), behind.trim_start()),
-            compact,
+            (compact, Some(1)),
         );
     }
 
@@ -837,18 +902,14 @@ impl TimegrapherApp {
         let compact = c.compact;
         let unlock = r.and_then(|r| r.beat_error_unlock_ms);
         let drop = r.and_then(|r| r.beat_error_ms);
+        let caption = steady::title(SeriesKind::BeatError);
+        let be_facts = reading_limits(caption, caveats, lift_now, beats, false);
         card_title(
             ui,
             rows.title,
-            steady::title(SeriesKind::BeatError),
+            caption,
             help::BEAT_ERROR,
-            &reading_limits(
-                steady::title(SeriesKind::BeatError),
-                caveats,
-                lift_now,
-                beats,
-                false,
-            ),
+            &be_facts,
             (None, c.short),
         );
         let be_pm = be_pm.filter(|_| unlock.is_some());
@@ -891,6 +952,7 @@ impl TimegrapherApp {
             from = format!("{words}\n\n{from}");
         }
         let (fig, spark, place) = sparkline::lay(rows.inner, rows.figure, rows.controls);
+        let spark = trend_chip(ui, spark, caption, &be_facts, c.short);
         let colour = theme::pal(ui).trace_beat_error;
         sparkline::draw(ui, spark, place, &c.spark, &sparkline::BEAT_ERROR, colour);
         figure_row(
@@ -900,7 +962,7 @@ impl TimegrapherApp {
             &unit,
             unheard.as_ref(),
             &with_moment(c.moment.as_deref(), &from),
-            compact,
+            (compact, Some(2)),
         );
     }
 
@@ -1762,6 +1824,65 @@ fn baseline(g: &egui::Galley) -> f32 {
 /// and unit; past it the ± stacks, then leaves the card (#825).
 const FIGURE_LEAST_PT: f32 = 12.0;
 
+/// The size, points, below which a card's figure is not made smaller to
+/// keep its unit whole: past [`FIGURE_LEAST_PT`] only for a figure of
+/// thousands on the narrowest window (#1976).
+const FIGURE_FLOOR_PT: f32 = 8.0;
+
+/// The reading cards' one figure size: card `card`'s own, `own`, kept
+/// for the frame, and the least of the three cards' (Hugh on #1954 and
+/// #1976: no figure smaller than its neighbours). A card drawn before the
+/// others reads their last frame's, and a change draws again.
+fn shared_figure_pt(ctx: &egui::Context, card: usize, own: f32) -> f32 {
+    let id = egui::Id::new("reading card figure sizes");
+    let mut sizes: [f32; 3] = ctx.data(|d| d.get_temp(id)).unwrap_or([f32::INFINITY; 3]);
+    let was = sizes;
+    if let Some(s) = sizes.get_mut(card) {
+        *s = own;
+    }
+    if sizes != was {
+        ctx.data_mut(|d| d.insert_temp(id, sizes));
+        ctx.request_repaint();
+    }
+    sizes.into_iter().fold(own, f32::min)
+}
+
+/// The figure `text` laid out at the largest size up to `full` at which
+/// it and its unit fit whole in `room`: never a unit cut to "s/c"
+/// (#1976), the figure going below its least size first; on reading card
+/// `card`, at the three cards' one size, the largest at which every one
+/// fits (Hugh on #1954, #1976). A dash (`is_figure` false) keeps `full`.
+fn fitted_figure(
+    ui: &egui::Ui,
+    (text, colour): (&str, Color32),
+    (full, room): (f32, f32),
+    is_figure: bool,
+    card: Option<usize>,
+) -> std::sync::Arc<egui::Galley> {
+    let lay = |size: f32| {
+        ui.painter()
+            .layout_no_wrap(text.to_string(), theme::display(size), colour)
+    };
+    let mut pt = full;
+    let mut big = lay(pt);
+    if is_figure {
+        while big.size().x > room && pt > FIGURE_FLOOR_PT {
+            pt = (pt * room / big.size().x)
+                .floor()
+                .min(pt - 1.0)
+                .max(FIGURE_FLOOR_PT);
+            big = lay(pt);
+        }
+    }
+    if let Some(i) = card {
+        let shared = shared_figure_pt(ui.ctx(), i, if is_figure { pt } else { full });
+        if shared < pt {
+            big = lay(shared);
+        }
+    }
+    big
+}
+
 /// A readings card's figure row: the big figure ("—" while there is none),
 /// then its ± and unit on the figure's baseline, or what the reading waits
 /// on in their place. On a compact card the figure is smaller and the ±
@@ -1774,7 +1895,7 @@ pub(super) fn figure_row(
     unit: &str,
     status: Option<&(String, String)>,
     hover: &str,
-    compact: bool,
+    (compact, card): (bool, Option<usize>),
 ) {
     let pal = theme::pal(ui);
     let (text, colour) = match value {
@@ -1849,14 +1970,7 @@ pub(super) fn figure_row(
     } else {
         theme::FIGURE_PT
     };
-    let lay = |size: f32| {
-        ui.painter()
-            .layout_no_wrap(text.clone(), theme::display(size), colour)
-    };
-    let mut big = lay(full);
-    if big.size().x > room && value.is_some() {
-        big = lay((full * room / big.size().x).floor().max(FIGURE_LEAST_PT));
-    }
+    let big = fitted_figure(ui, (&text, colour), (full, room), value.is_some(), card);
     let top = rect.center().y - big.size().y / 2.0;
     let base = top + baseline(&big);
     let painter = ui.painter().with_clip_rect(rect.expand(2.0));

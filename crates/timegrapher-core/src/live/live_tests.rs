@@ -1835,6 +1835,38 @@ fn live_profiles_go_long_with_their_amplitude_reading() {
     }
 }
 
+/// Under 10 s of sound behind a reading it gives no figures and says what
+/// that sound is counted since: Listen's start or the latest break (#2014,
+/// Hugh's words). A mask does not restart the count, but its seconds are
+/// not counted in it (Norm on #2017). From 10 s on, the figures.
+#[test]
+fn a_reading_listens_for_ten_seconds_since_the_start_or_a_break() {
+    use measure::HeardSince;
+    // An opened log with no snippets: its beats' sound can't be judged,
+    // so under 10 s of sound there is no verdict.
+    let mut a = LiveAnalyzer::from_log(viewer_phase_log(5.0, 5.0), LiveConfig::default());
+    let at = |a: &LiveAnalyzer, t: f64| {
+        let r = a.reading_at(t, 10.0);
+        assert!(r.watch_heard, "{t} s: {r:?}");
+        (r.listening, r.rate_s_per_day.is_some())
+    };
+    assert_eq!(at(&a, 6.0), (Some(HeardSince::Start), false));
+    assert_eq!(at(&a, 12.0), (None, true));
+    // A break at 20 s, then 3 s masked: 31 s holds 8 s of sound since
+    // the break, 34 s holds 11.
+    a.set_breaks(vec![20.0]);
+    a.set_masked(&[(23.0, 26.0)]);
+    assert_eq!(at(&a, 25.0), (Some(HeardSince::Break), false));
+    assert_eq!(at(&a, 31.0), (Some(HeardSince::Break), false));
+    assert_eq!(at(&a, 34.0), (None, true));
+    // A mask after 10 s of sound does not start the wait again.
+    a.set_masked(&[(23.0, 26.0), (38.0, 40.0)]);
+    assert_eq!(at(&a, 45.0), (None, true));
+    let text = measure::listening_text(HeardSince::Break);
+    assert!(text.ends_with("since the break."), "{text}");
+    assert!(text.starts_with("The figures need 10 s of sound"), "{text}");
+}
+
 /// A good watch put on the stand after its noise is a beat being found,
 /// never a verdict, until the look back holds it alone (#2008: 18 s of
 /// "No Regular Beat" after launch, the beats already shown). Read each
@@ -1861,12 +1893,14 @@ fn a_good_watch_after_the_stand_noise_is_found_not_judged() {
     for second in noise.chunks(48_000) {
         feed(&mut a, second);
         let r = a.reading(DEFAULT_AVERAGE_S);
+        assert!(!(r.finding_beat && r.listening.is_some()), "{r:?}");
         assert!(!r.finding_beat, "noise at {}: {r:?}", a.duration_s());
     }
     let mut found = Vec::new();
     for second in watch.samples.chunks(48_000) {
         feed(&mut a, second);
         let r = a.reading(DEFAULT_AVERAGE_S);
+        assert!(!(r.finding_beat && r.listening.is_some()), "{r:?}");
         let after = a.duration_s() - noise_s as f64;
         if r.beats_used > 0 {
             assert!(r.watch_heard || r.finding_beat, "{after} s in: {r:?}");
@@ -1882,4 +1916,42 @@ fn a_good_watch_after_the_stand_noise_is_found_not_judged() {
     );
     assert!(found.iter().all(|&t| t <= FINDING_S + 1.0), "{found:?}");
     assert!(a.reading(DEFAULT_AVERAGE_S).watch_heard);
+}
+
+/// Opened beats for 35 s with 30–32 s masked: a watch's at 28,800 bph,
+/// or stand noise's, spread at random through each beat (#2029). No
+/// snippets, so the beats' sound can't be judged and the scatter decides.
+fn masked_take(noise: bool) -> LiveAnalyzer {
+    let mut rng = crate::synth::Rng::new(29);
+    let beats = (0..280)
+        .map(|index| Beat {
+            index,
+            time: index as f64 * 0.125 + if noise { 0.1 * rng.next_f64() } else { 0.0 },
+            quality: 1.0,
+        })
+        .collect();
+    let mut log = viewer_phase_log(0.0, 0.0);
+    log.duration_s = 35.0;
+    log.beats = beats;
+    log.jumps = Vec::new();
+    let mut a = LiveAnalyzer::from_log(log, LiveConfig::default());
+    a.set_masked(&[(30.0, 32.0)]);
+    a
+}
+
+/// A mask is a hole the watch verdict's windows skip, not a cut: 3 s past
+/// a mask after 30 s of sound, the scatter still looks back to the start
+/// (Norm on #2029). Noise stays no watch; a watch stays judged, a watch.
+#[test]
+fn the_watch_verdict_looks_back_past_a_mask() {
+    let noise = masked_take(true).reading_at(35.0, 10.0);
+    assert!(!noise.watch_heard, "{noise:?}");
+    assert_eq!(noise.rate_s_per_day, None);
+    let watch = masked_take(false).reading_at(35.0, 10.0);
+    assert!(watch.watch_heard, "{watch:?}");
+    assert!(
+        watch.jitter_us.is_some(),
+        "the scatter is judged: {watch:?}"
+    );
+    assert!(watch.rate_s_per_day.is_some());
 }

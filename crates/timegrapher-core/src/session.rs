@@ -757,7 +757,8 @@ pub fn holds_scatter_window(holes: &Cuts, from_s: f64, to_s: f64, len: f64, step
 /// seconds: its own start, `from_s`, or the tiling point at or before
 /// [`crate::live::SCATTER_LOOKBACK_S`] back from its end, whichever is
 /// earlier, so a 10 s reading holds a whole window (#636); never before
-/// `since_s`, the latest cut, mask, break or the take's start, so it
+/// `since_s`, the latest cut or break or the take's start
+/// ([`Cuts::look_back_from`]; a mask is skipped, not a cut, #2029), so it
 /// never reaches into another position's sound. Live and saved readings
 /// both look back by it (Norm on #1688, #680).
 pub fn scatter_look_back(from_s: f64, end_s: f64, since_s: f64) -> f64 {
@@ -797,7 +798,7 @@ fn judged_scatter(
             from_s,
         };
     }
-    let back_t = scatter_look_back(from_t, to_t, holes.stretch_from(to_t));
+    let back_t = scatter_look_back(from_t, to_t, holes.look_back_from(to_t));
     let back_s = holes.audio_time(back_t, 0.0, from_s);
     let beats = holes.beats(&log.beats[stretch_beats(&log.beats, back_s, to_s)]);
     let part = window_part_s(&log.amplitude_windows);
@@ -1199,6 +1200,10 @@ pub fn measure_reading(
     );
     let assessed = crate::measure::regularity_assessed(listened_s, judged.holds_window);
     let no_watch = crate::measure::no_watch_reason(jitter_us, log.bph, assessed, beat_sound);
+    // The sound behind the reading: since the latest cut, or the
+    // stretch's own where it reads across one.
+    let awaiting =
+        crate::measure::awaiting_verdict(holes.heard_s(to_t).max(listened_s), beat_sound);
     let mut m = Measurement {
         start_s: from_s,
         end_s: to_s,
@@ -1340,7 +1345,8 @@ pub fn measure_reading(
             crate::measure::Caveat::PausesUnseen { count },
         );
     }
-    if !m.watch_heard {
+    // No regular beat, or no verdict yet (#2014): no figures.
+    if !m.watch_heard || awaiting {
         m.rate_s_per_day = None;
         m.beat_error_ms = None;
         m.beat_error_unlock_ms = None;

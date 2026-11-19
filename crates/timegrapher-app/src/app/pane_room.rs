@@ -8,6 +8,8 @@ use super::*;
 /// taken from the panes with room to spare, so opening a pane never
 /// crushes the others into a sliver. Worked from the sizes of the last
 /// frame; a window too small for them all shares its room in proportion.
+/// A row or column whose divider was dragged keeps the drag, except that
+/// the Paper Strip never goes under its least.
 pub(super) fn keep_room(
     tiles: &mut Tiles<Pane>,
     need: impl Fn(Pane) -> Option<f32>,
@@ -16,8 +18,10 @@ pub(super) fn keep_room(
     let strip_row = strip_row(tiles);
     let ids: Vec<TileId> = tiles.tile_ids().collect();
     for id in ids {
-        // A divider the user dragged stands where they left it.
-        if dragged.contains(&id) {
+        // A divider the user dragged stands where they left it, short of
+        // the Paper Strip's least, which no drag takes it under (#1976).
+        let by_hand = dragged.contains(&id);
+        if by_hand && !strip_row.contains(&id) {
             continue;
         }
         let Some(rect) = tiles.rect(id) else { continue };
@@ -43,6 +47,13 @@ pub(super) fn keep_room(
             continue;
         }
         let mut least = child_leasts(tiles, &shown, vertical, &need);
+        if by_hand {
+            for (c, l) in shown.iter().zip(least.iter_mut()) {
+                if !strip_row.contains(c) {
+                    *l = 0.0;
+                }
+            }
+        }
         squeeze_leasts(&mut least, &shown, &strip_row, room);
         let least: Vec<f32> = least.iter().map(|l| l / room).collect();
         let share: Vec<f32> = shown.iter().map(|&c| l.shares[c]).collect();

@@ -181,10 +181,23 @@ fn a_tests_facts_leave_out_its_last_window() {
         wind_h: None,
     };
     assert_eq!(
-        t.facts(false),
+        t.facts(None),
         ["Dial Up", "2:00", "+3.5 s/d", "281°", "0.40 ms"]
     );
-    assert_eq!(t.facts(true), ["Positions Test", "Dial Up", "2:00"]);
+    assert_eq!(
+        t.facts(Some(TakeTest::Positions)),
+        ["Positions Test", "Dial Up", "2:00"]
+    );
+    // A Dynamic Poise Test's take names its test and its stops as its pane
+    // does, with no one stop's figures as the test's (#2002).
+    let poise = Take {
+        positions: vec!["9H".into(), "7H30".into()],
+        ..t.clone()
+    };
+    assert_eq!(
+        poise.facts(Some(TakeTest::Poise)),
+        ["Dynamic Poise Test", "9H, 7H30", "2:00"]
+    );
     let r = Take {
         power_reserve: Some(crate::power_reserve::Summary {
             run_s: 5400.0,
@@ -193,7 +206,7 @@ fn a_tests_facts_leave_out_its_last_window() {
         }),
         ..t
     };
-    assert_eq!(r.facts(false), ["Power Reserve 1 h 30 min", "Dial Up"]);
+    assert_eq!(r.facts(None), ["Power Reserve 1 h 30 min", "Dial Up"]);
 }
 
 #[test]
@@ -359,7 +372,7 @@ fn a_take_copied_in_without_its_record_is_as_long_as_its_sound() {
     // Its folder isn't named as a take: no start from it either.
     assert_eq!(t.named_start, None);
     assert_eq!(t.duration_s, Some(135.25));
-    assert_eq!(t.facts(false), ["Dial Up, Dial Down", "2:15"]);
+    assert_eq!(t.facts(None), ["Dial Up, Dial Down", "2:15"]);
     // One file split into two entries, each a stretch of it, is one
     // sound: its length counts once.
     fs::write(
@@ -1300,12 +1313,12 @@ fn a_takes_facts_read_show_its_own_reading() {
     let named = ["Dial Up, Crown Left at 45°", "1:02:05"];
     let kept = ["Analysis Only", "Incomplete"];
     assert_eq!(
-        t.facts_read(false, Some(&reading)),
+        t.facts_read(None, Some(&reading)),
         [&named[..], &["-2.0 s/d", "265°", "0.06 ms"], &kept[..]].concat()
     );
-    assert_eq!(t.facts_read(false, None), [&named[..], &kept[..]].concat());
+    assert_eq!(t.facts_read(None, None), [&named[..], &kept[..]].concat());
     assert_eq!(
-        t.facts_read(true, Some(&reading)),
+        t.facts_read(Some(TakeTest::Positions), Some(&reading)),
         [&["Positions Test"], &named[..], &kept[..]].concat()
     );
     // A Power Reserve run the watch didn't end says how it ended.
@@ -1321,7 +1334,7 @@ fn a_takes_facts_read_show_its_own_reading() {
         ..t
     };
     assert_eq!(
-        run.facts_read(false, Some(&reading)),
+        run.facts_read(None, Some(&reading)),
         [
             "Power Reserve 1 h 30 min",
             "Stopped by hand while the watch still ran",
@@ -1426,8 +1439,14 @@ fn only_a_kept_take_beside_it_replaces_a_take() {
     assert!(e.contains("is not a take of these watches"), "{e}");
     assert!(outside.join("take_part01-001.flac").is_file() && beside.exists());
     assert!(!is_positions_test(&t));
+    assert_eq!(take_test(&t), None);
+    fs::write(t.join(POISE_TEST_FILE), POISE_TEST_TEXT).unwrap();
+    assert!(is_poise_test(&t) && !is_positions_test(&t));
+    assert_eq!(take_test(&t), Some(TakeTest::Poise));
+    fs::remove_file(t.join(POISE_TEST_FILE)).unwrap();
     fs::write(t.join(POSITIONS_TEST_FILE), "{}").unwrap();
     assert!(is_positions_test(&t));
+    assert_eq!(take_test(&t), Some(TakeTest::Positions));
     let _ = fs::remove_dir_all(&root);
     let _ = fs::remove_dir_all(&elsewhere);
 }
@@ -1774,4 +1793,145 @@ fn a_failed_swap_never_loses_the_sound_or_hides_where_it_is() {
     assert_eq!(run(&mut lib, &[]).unwrap(), None);
     assert!(crate::analysis_take::is_analysis_only(&t) && !aside.exists() && !kept.exists());
     let _ = fs::remove_dir_all(&root);
+}
+
+/// Every surface shows a date ISO, in this computer's time: the date and
+/// minute, or the day alone (Hugh on #1981).
+#[test]
+fn dates_show_iso_in_local_time() {
+    let utc = "2026-11-18T19:56:00Z";
+    let local = chrono::DateTime::parse_from_rfc3339(utc)
+        .unwrap()
+        .with_timezone(&chrono::Local);
+    assert_eq!(
+        date_time_text(utc),
+        Some(local.format("%Y-%m-%d %H:%M").to_string())
+    );
+    assert_eq!(date_text(utc), Some(local.format("%Y-%m-%d").to_string()));
+    assert!(date_time_text(utc)
+        .unwrap()
+        .starts_with(&date_text(utc).unwrap()));
+    assert_eq!(date_text("18 Nov 2026"), None);
+}
+
+/// A take is copied into a watch only where the disk has room for it and
+/// [`add::ADD_SPARE_BYTES`] over; what isn't known is tried (#1970).
+#[test]
+fn a_take_is_copied_in_only_where_there_is_room() {
+    let gb = 1_000_000_000;
+    assert_eq!(no_room(gb, None), None);
+    assert_eq!(no_room(gb, Some(2 * gb + 1)), None);
+    assert_eq!(no_room(gb, Some(2 * gb)), None);
+    let why = no_room(11_219_200_000, Some(5 * gb)).unwrap();
+    assert!(why.contains("11.2 GB") && why.contains("5.0 GB"), "{why}");
+    assert_eq!(
+        why,
+        "there isn't room for it. It needs 11.2 GB, and the disk has 5.0 GB free with 1.0 GB \
+         kept spare. Make room on the disk first, or, if the take is already on that disk, \
+         move it in rather than copy it."
+    );
+    assert!(no_room(u64::MAX, Some(u64::MAX - 1)).is_some());
+    assert!(free_bytes(&std::env::temp_dir()).is_some_and(|b| b > 0));
+}
+
+/// A copy into a watch tells its progress; stopped, nothing of it is
+/// kept and the original is as it was; let run, it is in the watch
+/// (#1970).
+#[test]
+fn a_take_copied_in_tells_its_progress_and_can_be_stopped() {
+    use std::sync::atomic::AtomicBool;
+    let root = scratch("add-copy");
+    let mut lib = Library::create(&root).unwrap();
+    let w = lib.add(&Watch::new("Pepsi")).unwrap();
+    let id = lib.find("Pepsi").unwrap().watch.id.clone();
+    let outside = scratch("add-copy-outside");
+    take(
+        &outside,
+        &[("take_part01-001.flac", "DU")],
+        1,
+        "2026-10-22T17:00:00Z",
+    );
+    // Over one copy buffer, so it is told more than once.
+    fs::write(outside.join("take_part01-001.flac"), vec![7u8; 3 << 20]).unwrap();
+    let all = folder_bytes(&outside);
+
+    let plan = lib.plan_add(&outside, &id, true).unwrap();
+    assert_eq!((plan.bytes, plan.moved()), (all, None));
+    let takes = w.join(TAKES);
+    let leftovers = || {
+        fs::read_dir(&takes)
+            .unwrap()
+            .flatten()
+            .filter(|e| e.file_name().to_string_lossy().starts_with(add::ADDING))
+            .count()
+    };
+    let stop = AtomicBool::new(true);
+    let stopped = copy_add(&plan, &mut |_| {}, &stop);
+    assert!(stopped.is_err());
+    assert_eq!(leftovers(), 0);
+    assert!(lib.finish_add(&plan, stopped).is_err());
+    assert_eq!(folder_bytes(&outside), all);
+    assert!(lib.find("Pepsi").unwrap().takes.is_empty());
+
+    let mut told = vec![];
+    let go = AtomicBool::new(false);
+    let copied = copy_add(&plan, &mut |n| told.push(n), &go);
+    assert!(told.len() >= 3 && told.windows(2).all(|p| p[0] < p[1]));
+    assert_eq!(told.last(), Some(&all));
+    let (to, left) = lib.finish_add(&plan, copied).unwrap();
+    assert_eq!((left, leftovers()), (None, 0));
+    assert_eq!(folder_bytes(&to), all);
+    assert!(outside.is_dir());
+    assert_eq!(lib.find("Pepsi").unwrap().takes.len(), 1);
+    drop(lib);
+    let _ = fs::remove_dir_all(&root);
+    let _ = fs::remove_dir_all(&outside);
+}
+
+/// A copy into a watch left part way (the app closed, the computer
+/// stopped) is cleared when the library is next opened once an hour has
+/// gone; a copy under way, or another's folder, is left alone (#1970).
+#[test]
+fn a_copy_left_part_way_is_cleared_when_stale() {
+    let root = scratch("add-stale");
+    let mut lib = Library::create(&root).unwrap();
+    let takes = lib.add(&Watch::new("Pepsi")).unwrap().join(TAKES);
+    let made = |name: &str| {
+        let d = takes.join(name);
+        fs::create_dir_all(&d).unwrap();
+        fs::write(d.join("take_part01-001.flac"), b"part").unwrap();
+        d
+    };
+    let old = made(&format!("{}Old-1", add::ADDING));
+    let fresh = made(&format!("{}Fresh-2", add::ADDING));
+    let mine = made("Dial Up");
+    let then = std::time::SystemTime::now() - std::time::Duration::from_secs(STALE_ADD_S + 60);
+    for p in [&old.join("take_part01-001.flac"), &old, &mine] {
+        last_changed(p, then);
+    }
+    // Read only, a second copy of the app clears nothing.
+    drop(Library::open(&root).unwrap());
+    assert!(old.is_dir());
+    drop(lib);
+    let lib = Library::open(&root).unwrap();
+    assert!(!old.exists());
+    assert!(fresh.is_dir() && mine.is_dir());
+    drop(lib);
+    let _ = fs::remove_dir_all(&root);
+}
+
+/// Set when the file or folder `p` last changed. Windows opens a folder
+/// only with backup semantics, and sets a time only through a handle that
+/// may write attributes.
+fn last_changed(p: &Path, t: std::time::SystemTime) {
+    let mut o = fs::OpenOptions::new();
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        // FILE_FLAG_BACKUP_SEMANTICS
+        o.write(true).custom_flags(0x0200_0000);
+    }
+    #[cfg(not(windows))]
+    o.read(true);
+    o.open(p).unwrap().set_modified(t).unwrap();
 }

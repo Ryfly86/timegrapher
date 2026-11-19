@@ -185,14 +185,20 @@ full width first, since Rate, Amplitude and Beat Error need room only
 for their figures, which take a smaller form (the ± over the unit
 beside them) where they are narrower. Then Listen, Current Position and
 Calibre take compact forms in turn, down to the 800-point minimum, the
-reading cards always keeping room for their captions whole. Compact,
+reading cards always keeping room for their captions whole: at the
+narrowest they go without their "?", and the caption carries the same
+help, opening on hover and kept open by a click; a card's limits chip
+moves to the right end of its trend row, under the figure, on all three
+cards alike. The three figures share
+one size, the largest at which every card's figure and unit fit whole. Compact,
 Current Position is captioned **Position**, with a smaller picture, the
 position's two-letter code beside it ("CR"; the name is in its hover),
 and under it one pop-up, **Set**, of the six positions (with their keys)
 instead of the buttons (none while a take is on show or a test runs); the keys still work, and the bars aren't shown. Listen keeps
 its two icons, gives the take's length beside its caption ("Listen
 12:48"; on the narrowest windows in the Listen icon's hover instead),
-and shows Average Over's pop-up as **Avg 10 s**. Compact, Calibre keeps
+and shows Average Over's pop-up as **Avg 10 s**. At the narrowest, the
+boxes read "10 s" and "Wind"; their hovers give the whole words. Compact, Calibre keeps
 its pop-up with the lift and beat rate under it; on the narrowest
 windows the lift alone, since nothing finds the lift while Auto finds the
 beat rate, with the beat rates in a **Beat Rate** submenu under the
@@ -306,8 +312,8 @@ under it its calibre, beat rate, lift angle and added fields, with
   first." at its right; that row is always there, so nothing moves.
 - **Takes**, with the count, and **Open** and **…** at the right of its
   title, acting on the take picked; then the takes as a table, newest
-  first: Started, Position (such as DU, or DU, CU, or All 6; Power Reserve or
-  Positions Test for those tests, a test's positions in the row's hover), Length, Rate (s/d), Amplitude (°), Beat Error (ms, its size) and
+  first: Started, Position (such as DU, or DU, CU, or All 6; Power Reserve,
+  Positions Test or Dynamic Poise Test for those tests, a test's positions in the row's hover), Length, Rate (s/d), Amplitude (°), Beat Error (ms, its size) and
   Size (MB), each unit on its own line under its title. The figures are the take's own reading, as `timegrapher
   session` reads its last position on the take's clock, the same one
   `timegrapher watches` gives: worked out from the take's sound the first
@@ -317,8 +323,14 @@ under it its calibre, beat rate, lift angle and added fields, with
   figures its table shows ("Mean of the six positions" in the row's hover),
   and a Power Reserve Test's shows its run time as its Length and a dim
   "—" for the figures, which are hour by hour in the take ("open it", the
-  hover says). Rows show **Analysis Only**, **Incomplete**
-  or **On Show** after the date when it is one. Nothing is inserted
+  hover says). A Dynamic Poise Test's row shows a dim "—" too: its
+  figures are stop by stop in the take, and its hover names the stops as
+  its pane does, 9H to 10H30 (#2002). Its take is known by
+  `poise-test.json` beside its sound. Rows show **Analysis Only**, **Incomplete**
+  or **On Show** after the date when it is one. A take still being
+  recorded on the Bench shows **Recording** instead, and a dim "—" after
+  Started, as its library entry holds only its first write; its hover
+  says they come once it stops, and it is read then (#2027). Nothing is inserted
   between rows. Clicking a row picks it; double-clicking opens it as
   Open does, and the take on show is not read again. Open is greyed out
   while a take runs on the Bench.
@@ -367,7 +379,8 @@ Picking a watch, refused while listening, sets the take's name, calibre,
 lift angle and beat rate from it; changing them on the readings' cards
 changes that take, not the watch. With a watch picked, **Stop** saves
 the take into it, as **Save…** does, with no question, in a folder named by when the take
-started (in this computer's time) and its position when it used only one;
+started (in this computer's time), never renamed after, so not by its
+positions, which it may change as it goes (#1980);
 Save Again then saves into the same take, and Save As… still asks.
 The Watches view reads the folder again each time the window comes back
 to the front, so a take another program added meanwhile
@@ -387,7 +400,13 @@ file or a take folder), copies it into one of your watches, or into a
 only what neither its files, the watch nor the take on show say (its
 position, beat rate and lift angle are the ones on show, written with
 it; when it started is offered to check); the original stays where it
-is. **Keep** stays greyed out until what is asked is given.
+is. **Keep** stays greyed out until what is asked is given. A copy is
+refused at once, saying how much it needs and how much is free, when the
+disk would be left with under 1.0 GB; it runs in the background, with a
+bar in the watch saying how far it is ("Copying "name": 4.2 GB of 11.2
+GB") and **Cancel**, which keeps nothing and leaves the original as it
+was. A copy left part way (the app closed, the computer stopped) is
+cleared the next time the watches are opened, an hour on (#1970).
 
 **Open Recording…** or **Open Folder…** in the File menu first asks where
 the recording goes (when there are watches and it isn't in them already):
@@ -925,8 +944,10 @@ again and the table gains a row as each hour starts, the hour in progress
 read like a finished run's last: a part hour is labelled as a range whose end
 is in tenths of an hour, "2–2.4 h", never 2.0 or the next whole hour (Hugh on
 #1086), and its hover gives its exact length ("A part hour: 26:28 past 2 h");
-the charts gain a point as
-each hour is whole and show from the first whole hour. At the end its title
+the charts gain a point as each hour is whole and show from the first whole
+hour, ended or not; a run with none shows its table alone, the pane keeping
+room for its rows. A figure no hour has (no amplitude read) draws no chart
+(#1961). At the end its title
 line says the run and how it ended, in short, such as "Ran 41 h 12 min · No
 beat heard" (with "· Restarted 2 times" when the beats came back on the way),
 the run time in true time (through the input's clock as measured
@@ -1130,8 +1151,9 @@ taller."). A
 layout saved by an earlier version of the app is set aside once for this
 starting one. Drag a pane by its tab
 to put it beside, above or below another, or onto another's tab to stack
-them; drag the gaps between panes to resize them; sizes set by a drag stand,
-and are kept with the layout, until a pane in that row or column is
+them; drag the gaps between panes to resize them; sizes set by a drag stand
+(though no drag takes the Paper Strip under its least), and are kept
+with the layout, until a pane in that row or column is
 shown or hidden. The selected tab takes
 the card's colour, joined to the card below it. The × on a tab hides
 that pane (the status line says it comes back from its icon at the top or
@@ -1814,7 +1836,8 @@ details (`watch.toml`), its `photos/` and its `takes/`, and `Unsorted/`,
 whose `takes/` holds the Quick Listen takes kept with Save… in the File
 menu until each is filed;
 each take a standard take folder named by when it started (`2026-10-20
-14.32 Dial Up`, with the position in words when the take used only one).
+14.32`; a recording added as a take has its one position in words after
+it, `2026-10-20 14.32 Dial Up`).
 `timegrapher watches list` and `show` read it from the command line,
 without changing it ([agent-interface.md](agent-interface.md#watches)),
 and `timegrapher record --watch NAME` records a test into a watch's
@@ -2193,8 +2216,13 @@ With no regular beat, the reading cards say "No Regular Beat" there, with
 the full sentence and the timing scatter in the hover. A regular beat
 heard after noise or silence, at launch or a New Session, says "Finding
 the Beat" instead, never that verdict, until the last 20 s
-(`live::FINDING_S`) hold the watch alone (#2008). A figure too wide
-for its card is drawn smaller. So the cards, and every pane under them,
+(`live::FINDING_S`) hold the watch alone (#2008). With under 10 s of
+sound since Listen started or the latest break (a masked stretch's
+seconds don't count, but a mask doesn't start the count again), and no
+watch yet shown by the beats' sound, they say "Listening": the timing
+can't tell a watch from stand noise yet, so no figure is shown (#2014). A
+settle's own words win. A figure too wide for its card is drawn smaller.
+So the cards, and every pane under them,
 never change height with the readings. No pane is squeezed below 120 points, so the Paper
 Strip keeps room to read on a short window.
 
@@ -2211,6 +2239,7 @@ when. It holds:
 | `clock.csv` | System time against frames captured, every 10 s, and on both sides of each break; frames run on across a break, with no line made up for the gap |
 | `session.json` | Watch, position, lift angle, beat rate, device, start and end, position changes, the readings at the end, and (only once the take has a break, such as the computer sleeping while it listened) `breaks`: one entry per break with `frame` (frames in the take before it), `audio_s`, `segment` (its first file), `utc` (host time of its first frame), `gap_s` (host time missing, from the clock log either side) and `device` (the input after it) |
 | `session.toml` | The session file `timegrapher session` reads: watch, calibre (with the wheels of a custom one), lift angle, beat rate, and one `[[recording]]` per stretch in one position with its `start_s` and `end_s` (for a take saved during a Positions Test, the test's own measured stretches, after each settling and for its measuring time, so `timegrapher session` reads the seconds its table did, with `wind_h` in the 24 hour half) |
+| `poise-test.json` | Only for a Dynamic Poise Test's take: marks it as one, so the Watches list names the test (format `timegrapher.poise-test/1`, and the test's name; no figures, which are the take's own stops) |
 | `positions-test.json` | Only for a finished Positions Test: run just after winding, its results, to load for the test 24 hours later; run 24 hours after, its results with the full-wind ones it was set against (the format is under Full wind against 24 hours) |
 
 At start-up the app keeps as FLAC, in the background, any hour of a take
@@ -2251,8 +2280,8 @@ them, then for the Tick Tock profiles of each 2 seconds, the signal
 figure, the clock error the USB lines show and each position's beat
 shape. It then writes a new folder, named as a saved take with
 `_analysis` on the end, holding `session.toml` (with `audio = false`),
-`session.json`, `clock.csv`, `positions-test.json` when there is one, and
-an `analysis/` folder, and no sound; the message says how much space it
+`session.json`, `clock.csv`, `positions-test.json` or `poise-test.json`
+when there is one, and an `analysis/` folder, and no sound; the message says how much space it
 takes. A folder already there is never written over. While it works, a
 progress bar in the status bar shows how far it has read, with Cancel,
 which leaves nothing written; listening, New Session and opening a

@@ -353,6 +353,7 @@ impl TimegrapherApp {
         e: &library::WatchEntry,
         busy: Option<&'static str>,
     ) {
+        self.take_add_row(ui, &e.watch.id);
         let (others, writable) = match &self.library {
             Ok(Some(l)) => (
                 l.watches
@@ -364,6 +365,7 @@ impl TimegrapherApp {
             ),
             _ => (Vec::new(), false),
         };
+        self.want_take_readings(e, ui.ctx());
         let keeping = self.take_keep.as_ref().map(|(t, job)| {
             let read = f64::from_bits(job.progress.load(std::sync::atomic::Ordering::Relaxed));
             (
@@ -376,16 +378,8 @@ impl TimegrapherApp {
         }
         let on_show = self.take_on_show();
         let held = self.take_held();
+        let writing = self.take_writing();
         let picked = self.take_picked.clone();
-        // Each take's own reading, as `timegrapher watches` gives it; a
-        // test's figures are its own.
-        self.take_readings.poll();
-        for t in &e.takes {
-            let dir = e.take_dir(t);
-            if watches::TakeReadings::read_for(t, &dir) {
-                self.take_readings.want(&dir, t.bytes, ui.ctx());
-            }
-        }
         let cx = watches::TakesContext {
             others: &others,
             writable,
@@ -394,6 +388,7 @@ impl TimegrapherApp {
             picked: picked.as_deref(),
             on_show: on_show.as_deref(),
             held: held.as_deref(),
+            writing: writing.as_deref(),
             readings: &self.take_readings,
         };
         let mut act = None;
@@ -590,6 +585,13 @@ impl TimegrapherApp {
         if self.running() && inside(Path::new(&self.opened_path)) {
             return Some("This take is being played. Press Stop first.".into());
         }
+        if self
+            .take_add
+            .as_ref()
+            .is_some_and(|a| a.from().starts_with(take))
+        {
+            return Some(self.adding_already());
+        }
         if self.take_keep.as_ref().is_some_and(|(t, _)| t == take) {
             return Some(
                 "This take's sound is already being removed. Wait for it to finish, or press \
@@ -734,9 +736,10 @@ impl TimegrapherApp {
                 Ok(()) => {
                     // A take on show that is deleted leaves the window
                     // empty, as at the start, rather than showing sound
-                    // that is gone.
+                    // that is gone: set for the next take of the watch
+                    // picked, as Listen sets it (#1981).
                     if !self.running() && Path::new(&self.opened_path).starts_with(&take) {
-                        self.new_session();
+                        self.take_setup();
                     }
                     self.info_msg(format!("Deleted \"{}\".", file_name(&take)))
                 }
@@ -754,23 +757,7 @@ impl TimegrapherApp {
                 from,
                 watch: Some(id),
                 keep_original,
-            } => match lib.add_take(&from, &id, keep_original) {
-                Ok((to, left)) => {
-                    // What is on show is now the watch's take, copied or
-                    // moved.
-                    self.take_moved(&from, &to);
-                    self.watch_open = Some(id);
-                    self.unsorted_open = false;
-                    match left {
-                        Some(why) => self.error(why),
-                        None => self.info_msg(format!(
-                            "Added \"{}\" to the watch's takes.",
-                            file_name(&to)
-                        )),
-                    }
-                }
-                Err(e) => self.error(format!("The take couldn't be added: {e}")),
-            },
+            } => self.start_take_add(from, id, keep_original),
             watches::Ask::Add { watch: None, .. } => {}
         }
     }
@@ -836,6 +823,18 @@ impl TimegrapherApp {
                 total_s,
             },
         ));
+    }
+
+    /// The watch the take is of, as the Calibre card's title and the
+    /// status bar name it: the one open in Watches, else the one the take
+    /// names itself (its session file's), which isn't in Watches (false);
+    /// none for No Watch.
+    pub(super) fn named_watch(&self) -> Option<(String, bool)> {
+        self.open_watch()
+            .map(|e| e.watch.name.clone())
+            .filter(|n| !n.is_empty())
+            .map(|n| (n, true))
+            .or_else(|| (!self.watch.is_empty()).then(|| (self.watch.clone(), false)))
     }
 
     /// The kept analysis, once written, put in its take's place.
@@ -1272,6 +1271,28 @@ impl TimegrapherApp {
         self.session.saved_to().map(Path::to_path_buf)
     }
 
+    /// The take the Bench is recording into now: the one it saved into,
+    /// while the microphone runs. Stopped (paused), or a recording opened,
+    /// it is none (Trevor on #2032).
+    pub(super) fn take_writing(&self) -> Option<PathBuf> {
+        self.take_held()
+            .filter(|_| self.running() && self.session.mic())
+    }
+
+    /// Ask for each of `e`'s takes' own reading, as `timegrapher watches`
+    /// gives it; a test's figures are its own, and a take still being
+    /// recorded is read once it stops (#2027).
+    pub(super) fn want_take_readings(&mut self, e: &library::WatchEntry, ctx: &egui::Context) {
+        self.take_readings.poll();
+        let writing = self.take_writing();
+        for t in &e.takes {
+            let dir = e.take_dir(t);
+            if watches::TakeReadings::read_for(t, &dir) && writing.as_ref() != Some(&dir) {
+                self.take_readings.want(&dir, t.bytes, ctx);
+            }
+        }
+    }
+
     /// Make the library at its folder when there is none yet.
     pub(super) fn ensure_library(&mut self) {
         if matches!(self.library, Ok(None)) {
@@ -1373,7 +1394,9 @@ impl TimegrapherApp {
                 } else if f.new && std::mem::take(&mut self.new_watch_on_mic) {
                     self.line_pick(Some(w.id.clone()), false);
                 } else if f.new {
-                    self.pick_watch(&w.id);
+                    // As a click on it in the list picks it, while
+                    // listening too (#1981).
+                    self.list_pick(w.id.clone());
                 } else if self.watch_open.as_ref() == Some(&w.id)
                     && !self.running()
                     && self.live.is_none()

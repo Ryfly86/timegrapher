@@ -70,6 +70,13 @@ pub const UNSORTED: &str = "Unsorted";
 /// The file a Positions Test keeps its results in, beside its take's
 /// sound: a take with it is a Positions Test's ([`is_positions_test`]).
 pub const POSITIONS_TEST_FILE: &str = "positions-test.json";
+/// The file that marks a take as a Dynamic Poise Test's, beside its
+/// sound ([`is_poise_test`]). It names the test and holds no figures: the
+/// stops are the take's own positions (#2002).
+pub const POISE_TEST_FILE: &str = "poise-test.json";
+/// What [`POISE_TEST_FILE`] holds: its format, and the test it marks.
+pub const POISE_TEST_TEXT: &str =
+    "{\n  \"format\": \"timegrapher.poise-test/1\",\n  \"kind\": \"Dynamic Poise Test\"\n}\n";
 /// The library's folder name in the user's home folder, by default.
 pub const DEFAULT_NAME: &str = "Timegrapher Data";
 
@@ -548,36 +555,36 @@ pub struct Take {
 impl Take {
     /// What the take measured and is, as the facts the app and
     /// `timegrapher watches` list for it: its kind when it is a Positions
-    /// Test's (`positions_test`, from [`is_positions_test`]), a Power
+    /// Test's or a Dynamic Poise Test's (`test`, from [`take_test`]), a Power
     /// Reserve run, its positions, its length, the readings it ended on
     /// (beat error as its size; none for a test, whose last window doesn't
     /// stand for the test: its figures are in its table, or hour by hour)
     /// and its marks. Each surface joins them as it lays them out.
-    pub fn facts(&self, positions_test: bool) -> Vec<String> {
+    pub fn facts(&self, test: Option<TakeTest>) -> Vec<String> {
         let figures = self
             .at_end
             .as_ref()
             .map(|a| (a.rate(), a.amplitude_deg, a.beat_error_ms));
-        self.facts_with(positions_test, figures)
+        self.facts_with(test, figures)
     }
 
     /// [`Take::facts`] with the figures of the take's own reading
     /// ([`reading`]) in place of the ones the app showed when it saved
     /// it: none when it has no reading, nor for a test, as there.
-    pub fn facts_read(&self, positions_test: bool, reading: Option<&Reading>) -> Vec<String> {
+    pub fn facts_read(&self, test: Option<TakeTest>, reading: Option<&Reading>) -> Vec<String> {
         let figures = reading.map(|r| (r.rate_s_per_day, r.amplitude_deg, r.beat_error_ms));
-        self.facts_with(positions_test, figures)
+        self.facts_with(test, figures)
     }
 
     /// The facts with `figures`: rate, amplitude and signed beat error.
     fn facts_with(
         &self,
-        positions_test: bool,
+        test: Option<TakeTest>,
         figures: Option<(Option<f64>, Option<f64>, Option<f64>)>,
     ) -> Vec<String> {
         let mut parts: Vec<String> = Vec::new();
-        if positions_test {
-            parts.push("Positions Test".into());
+        if let Some(k) = test {
+            parts.push(k.name().into());
         }
         if let Some(r) = &self.power_reserve {
             parts.push(format!(
@@ -598,7 +605,13 @@ impl Take {
         let names: Vec<String> = self
             .positions
             .iter()
-            .map(|p| Position::parse(p).map_or_else(|| p.clone(), |x| x.name().to_string()))
+            .map(|p| match Position::parse(p) {
+                // The stops as the Dynamic Poise pane names them: the hour
+                // at the top (#2002).
+                Some(x) if test == Some(TakeTest::Poise) => x.code().to_string(),
+                Some(x) => x.name().to_string(),
+                None => p.clone(),
+            })
             .collect();
         if !names.is_empty() {
             parts.push(names.join(", "));
@@ -606,7 +619,7 @@ impl Take {
         if let Some(d) = self.duration_s.filter(|_| self.power_reserve.is_none()) {
             parts.push(length_text(d));
         }
-        let test = positions_test || self.power_reserve.is_some();
+        let test = test.is_some() || self.power_reserve.is_some();
         if let Some((rate, amplitude, beat_error)) = figures.filter(|_| !test) {
             parts.extend(figure_words(rate, amplitude, beat_error));
         }
@@ -1035,6 +1048,45 @@ pub fn is_positions_test(take_dir: &Path) -> bool {
     take_dir.join(POSITIONS_TEST_FILE).is_file()
 }
 
+/// The guided test a take was made by, known by the file it keeps beside
+/// its sound ([`take_test`]): its row and its facts name the test, never
+/// one window of it as if it stood for the test.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TakeTest {
+    Positions,
+    /// The eight upright stops (#2002).
+    Poise,
+}
+
+impl TakeTest {
+    pub fn name(self) -> &'static str {
+        match self {
+            TakeTest::Positions => "Positions Test",
+            TakeTest::Poise => "Dynamic Poise Test",
+        }
+    }
+}
+
+/// The guided test the take in the folder `take_dir` was made by, if any:
+/// a Positions Test's ([`is_positions_test`]) or a Dynamic Poise Test's
+/// ([`is_poise_test`]).
+pub fn take_test(take_dir: &Path) -> Option<TakeTest> {
+    if is_positions_test(take_dir) {
+        Some(TakeTest::Positions)
+    } else if is_poise_test(take_dir) {
+        Some(TakeTest::Poise)
+    } else {
+        None
+    }
+}
+
+/// Whether the take in the folder `take_dir` is a Dynamic Poise Test's: it
+/// keeps [`POISE_TEST_FILE`] beside its sound. Any format of it marks one,
+/// a newer version's too, as the file only names the test.
+pub fn is_poise_test(take_dir: &Path) -> bool {
+    take_dir.join(POISE_TEST_FILE).is_file()
+}
+
 /// A length of time as the app writes it: `1:30:00`, or `4:05` under an
 /// hour.
 pub fn length_text(t: f64) -> String {
@@ -1202,6 +1254,7 @@ impl Library {
             lock,
             adding: false,
         };
+        lib.clear_stale_adds();
         lib.scan();
         Ok(lib)
     }
@@ -1665,80 +1718,10 @@ impl Library {
         watch_id: &str,
         keep_original: bool,
     ) -> Result<(PathBuf, Option<String>), String> {
-        if !self.adding {
-            self.writable()?;
-        } else if !keep_original {
-            // Without the lock the app may move or delete the watch while
-            // the take goes in: only a copy keeps the original safe.
-            return Err(
-                "the app has these watches open, so a take can only be copied in, not moved: \
-                 leave out --move, or close the app first"
-                    .into(),
-            );
-        }
-        if !(from.join(take::MANIFEST).is_file() || from.join(take::RECORD).is_file()) {
-            return Err(format!(
-                "{} is not a take folder (it has no session.toml or session.json)",
-                from.display()
-            ));
-        }
-        self.not_already_in(from)?;
-        if from.join(take::MANIFEST).is_file() {
-            // A session file that doesn't read would show as a broken take.
-            manifest_of(from).map_err(|e| format!("this take's session file doesn't read: {e}"))?;
-        }
-        stays_readable(from, "add the take again")?;
-        let to_watch = self
-            .watches
-            .iter()
-            .find(|w| w.watch.id == watch_id)
-            .ok_or("That watch is no longer in your watches")?;
-        let takes = to_watch.dir.join(TAKES);
-        if self.adding {
-            // Never make again a watch the app has just renamed or deleted.
-            if !to_watch.dir.join(WATCH_FILE).is_file() {
-                return Err(format!(
-                    "\"{}\" is no longer in your watches",
-                    to_watch.watch.name
-                ));
-            }
-            match fs::create_dir(&takes) {
-                Err(e) if e.kind() != std::io::ErrorKind::AlreadyExists => {
-                    return Err(format!("{}: {e}", takes.display()))
-                }
-                _ => {}
-            }
-        } else {
-            fs::create_dir_all(&takes).map_err(|e| format!("{}: {e}", takes.display()))?;
-        }
-        let to = unused_dir(&takes, &file_name(from));
-        if !keep_original && fs::rename(from, &to).is_ok() {
-            self.scan();
-            return Ok((to, None));
-        }
-        let staged = staging(&takes, &to);
-        let copied = copy_tree(from, &staged, &[])
-            .and_then(|_| move_in(&staged, &takes, &file_name(from), to));
-        let to = match copied {
-            Ok(to) => to,
-            Err(e) => {
-                let _ = fs::remove_dir_all(&staged);
-                return Err(e);
-            }
-        };
-        let left = if keep_original {
-            None
-        } else {
-            fs::remove_dir_all(from).err().map(|e| {
-                format!(
-                    "The take is in the watch, but some of {} couldn't be deleted ({e}): what \
-                     is left there is a copy",
-                    from.display()
-                )
-            })
-        };
-        self.scan();
-        Ok((to, left))
+        let plan = self.plan_add(from, watch_id, keep_original)?;
+        let never = std::sync::atomic::AtomicBool::new(false);
+        let copied = add::copy_add(&plan, &mut |_| {}, &never);
+        self.finish_add(&plan, copied)
     }
 
     /// The one guard both imports use (#1656), before anything is staged:
@@ -1823,7 +1806,7 @@ fn plain(p: &Path) -> bool {
 /// programs adding a take of one name at once (the app, and the command
 /// line adding while the app is open) never clear each other's.
 fn staging(takes: &Path, to: &Path) -> PathBuf {
-    takes.join(format!(".adding-{}-{}", file_name(to), new_id()))
+    takes.join(format!("{}{}-{}", add::ADDING, file_name(to), new_id()))
 }
 
 /// Move the take put together in `staged` into `takes` as `to`, or, where
@@ -2034,36 +2017,7 @@ fn copy_across(from: &Path, to: &Path, held: Option<fs::File>) -> Result<Option<
 
 /// Copy `from` into `to`, leaving out the top-level files in `skip`.
 fn copy_tree(from: &Path, to: &Path, skip: &[&str]) -> Result<(), String> {
-    fs::create_dir_all(to).map_err(|e| format!("{}: {e}", to.display()))?;
-    for e in fs::read_dir(from).map_err(|e| format!("{}: {e}", from.display()))? {
-        let e = e.map_err(|e| format!("{}: {e}", from.display()))?;
-        let (src, dst) = (e.path(), to.join(e.file_name()));
-        if skip.iter().any(|s| e.file_name() == *s) {
-            continue;
-        }
-        let kind = e
-            .file_type()
-            .map_err(|e| format!("{}: {e}", src.display()))?;
-        if kind.is_dir() {
-            copy_tree(&src, &dst, &[])?;
-        } else if kind.is_file() {
-            copy_file(&src, &dst)?;
-        } else {
-            // A link, a named pipe or a device: reading a pipe would never
-            // end, and a link's target may be outside the library.
-            return Err(format!(
-                "{} is a link or a special file, which can't be copied to another disk: \
-                 move it out of the Watches folder first",
-                src.display()
-            ));
-        }
-    }
-    // The folder's own entries too, where the system allows it (not on
-    // Windows, which can't open a folder as a file).
-    if let Ok(d) = fs::File::open(to) {
-        let _ = d.sync_all();
-    }
-    Ok(())
+    add::Copying::quiet(|c| add::copy_tree_with(from, to, skip, c))
 }
 
 /// Copy one file with its modification time and write it to the disk
@@ -2071,16 +2025,7 @@ fn copy_tree(from: &Path, to: &Path, skip: &[&str]) -> Result<(), String> {
 /// permissions (so a read-only file stays read-only, and is never opened
 /// for writing).
 fn copy_file(src: &Path, dst: &Path) -> Result<(), String> {
-    let copied = (|| {
-        let mut r = fs::File::open(src)?;
-        let mut w = fs::File::create(dst)?;
-        std::io::copy(&mut r, &mut w)?;
-        w.set_modified(r.metadata()?.modified()?)?;
-        w.sync_all()?;
-        drop(w);
-        fs::set_permissions(dst, r.metadata()?.permissions())
-    })();
-    copied.map_err(|e| format!("Copying {} to {}: {e}", src.display(), dst.display()))
+    add::Copying::quiet(|c| add::copy_file_with(src, dst, c))
 }
 
 fn file_name(p: &Path) -> String {
@@ -2207,6 +2152,32 @@ fn usb_ppm(files: &[PathBuf]) -> Option<f64> {
 /// and `timegrapher record` name takes by it, and [`named_start`] reads it.
 pub const TAKE_NAME_TIME: &str = "%Y-%m-%d %H.%M";
 
+/// A date and time as every surface shows it, `strftime`'s way: ISO,
+/// `2026-11-18 19:56` (Hugh on #1981). A take folder's name keeps
+/// [`TAKE_NAME_TIME`].
+pub const DATE_TIME_SHOWN: &str = "%Y-%m-%d %H:%M";
+
+/// A date alone as every surface shows it, where only the day matters:
+/// `2026-11-18`, the first part of [`DATE_TIME_SHOWN`].
+pub const DATE_SHOWN: &str = "%Y-%m-%d";
+
+/// The time `utc` (RFC 3339) names, in this computer's time zone, as
+/// [`DATE_TIME_SHOWN`]; None for one that isn't RFC 3339.
+pub fn date_time_text(utc: &str) -> Option<String> {
+    local_shown(utc, DATE_TIME_SHOWN)
+}
+
+/// The day `utc` (RFC 3339) falls on, in this computer's time zone, as
+/// [`DATE_SHOWN`].
+pub fn date_text(utc: &str) -> Option<String> {
+    local_shown(utc, DATE_SHOWN)
+}
+
+fn local_shown(utc: &str, shown: &str) -> Option<String> {
+    let t = chrono::DateTime::parse_from_rfc3339(utc).ok()?;
+    Some(t.with_timezone(&chrono::Local).format(shown).to_string())
+}
+
 /// When a take folder named by [`TAKE_NAME_TIME`] says it started, as
 /// `2026-10-22T09:10` (its recording computer's time, no zone): None for a
 /// name that doesn't start so, or names no real minute.
@@ -2314,7 +2285,11 @@ fn read_take(dir: &Path, bytes: u64) -> Result<Take, String> {
         None => false,
     };
     let mut positions: Vec<String> = Vec::new();
-    for r in manifest.iter().flat_map(|m| &m.recordings) {
+    // A position left at once, unread, is not one of the take's (#1980).
+    let read = manifest
+        .iter()
+        .flat_map(|m| m.recordings.iter().filter(|r| !take::listed_unread(r, m)));
+    for r in read {
         if let Some(p) = &r.position {
             if !positions.contains(p) {
                 positions.push(p.clone());
@@ -2388,6 +2363,10 @@ fn read_take(dir: &Path, bytes: u64) -> Result<Take, String> {
         wind_h: manifest.as_ref().and_then(crate::full_wind::take_wind_h),
     })
 }
+
+#[path = "library_add.rs"]
+mod add;
+pub use add::{copy_add, free_bytes, no_room, AddPlan, ADD_SPARE_BYTES, STALE_ADD_S};
 
 #[cfg(test)]
 #[path = "library_tests.rs"]

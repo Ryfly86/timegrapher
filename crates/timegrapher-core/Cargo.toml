@@ -31,6 +31,10 @@ zip = { version = "9.1", default-features = false, features = ["deflate"] }
 cpal = { version = "0.18.2", optional = true }
 ureq = { version = "3", optional = true, features = ["platform-verifier"] }
 
+# Free space on a disk (`library::free_bytes`), the versions the app uses.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 # A capture endpoint's automatic gain switch (`usbagc::endpoint_agc`):
 # the version cpal already uses.
 [target.'cfg(windows)'.dependencies]
@@ -43,6 +47,7 @@ windows = { version = "0.62", features = [
     "Win32_System_Variant",
     "Win32_UI_Shell_PropertiesSystem",
 ] }
+windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem"] }
 
 [features]
 # Sound input devices (links ALSA on Linux, CoreAudio, WASAPI).

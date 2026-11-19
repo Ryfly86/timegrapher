@@ -290,7 +290,10 @@ fn a_painted_take_in_a_watch_shows_what_was_saved() {
     app.paint_position(10.04, 40.0);
     app.save_marks();
     assert!(!app.marks_unsaved(), "{:?}", app.message);
-    assert_eq!(positions(&app), ["DU", "CU"]);
+    // The take now starts in CU: the Dial Up entry before it is empty
+    // (10.0 to 10.0), reads nothing and is not one of its positions; Dial
+    // Up comes back after 40 s (Norm on #1980, Vernon on #2021).
+    assert_eq!(positions(&app), ["CU", "DU"]);
     let _ = std::fs::remove_dir_all(&base);
 }
 

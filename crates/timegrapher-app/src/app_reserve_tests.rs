@@ -607,7 +607,7 @@ fn a_power_reserve_test_holds_its_position_and_keeps_its_take_with_its_run() {
     assert_eq!(r.position, "CL");
     assert!((r.run_s - 99.0 * 0.125).abs() < 1e-6, "{}", r.run_s);
     let take = app.open_watch().unwrap().takes[0].clone();
-    assert!(watches::take_line(&take, false, None)
+    assert!(watches::take_line(&take, None, None)
         .starts_with("Power Reserve 12 s · Stopped by hand while the watch still ran"));
     // Opened again, the take brings its run back to the pane.
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
@@ -1292,7 +1292,7 @@ fn a_power_reserve_test_whose_recording_fails_keeps_its_run_so_far() {
     let length = row.duration_s.expect("a length");
     // The failing save's thread wrote its copy before failing here.
     assert!(length >= 26.0 - 0.01, "{length}");
-    assert!(watches::take_line(&row, false, None).starts_with(
+    assert!(watches::take_line(&row, None, None).starts_with(
         "Power Reserve at least 12 s · The recording failed while the watch still ran"
     ));
 

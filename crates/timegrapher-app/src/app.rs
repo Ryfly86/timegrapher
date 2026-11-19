@@ -86,6 +86,7 @@ mod scope_panes;
 mod session_marks;
 mod settings_pane;
 mod steadiness_panes;
+mod take_add;
 mod take_io;
 mod take_reads;
 mod test_body;
@@ -1691,6 +1692,8 @@ pub struct TimegrapherApp {
     /// one it keeps into, put back if its question is cancelled.
     keep_back: Option<(Option<String>, bool)>,
     take_keep: Option<(PathBuf, AnalysisSave)>,
+    /// A take being copied into a watch by Keep in a Watch… (#1970).
+    take_add: Option<take_add::TakeAdd>,
     /// The takes' own readings the Watches list shows, worked out on a
     /// thread of their own.
     take_readings: watches::TakeReadings,
@@ -2457,6 +2460,7 @@ impl TimegrapherApp {
             take_ask: None,
             keep_back: None,
             take_keep: None,
+            take_add: None,
             take_readings: watches::TakeReadings::default(),
             thumbs: Default::default(),
             strip_points: None,
@@ -2951,18 +2955,6 @@ impl TimegrapherApp {
         true
     }
 
-    /// The watch the take is of, as the Calibre card's title and the
-    /// status bar name it: the one open in Watches, else the one the take
-    /// names itself (its session file's), which isn't in Watches (false);
-    /// none for No Watch.
-    fn named_watch(&self) -> Option<(String, bool)> {
-        self.open_watch()
-            .map(|e| e.watch.name.clone())
-            .filter(|n| !n.is_empty())
-            .map(|n| (n, true))
-            .or_else(|| (!self.watch.is_empty()).then(|| (self.watch.clone(), false)))
-    }
-
     /// A button for each pane, its icon pressed while the pane shows.
     /// The icon bar: the pane icons under their groups' names, then the
     /// Settings gear. With `shown` false (the Watches view) the pane icons
@@ -3448,8 +3440,8 @@ fn no_room_short(what: &str) -> String {
 const STACKED_NOTE_H: f32 = 18.0;
 /// The least height of the Paper Strip under its toolbar: its lane, at
 /// least 100 pt of dots and the time axis, the amplitude scale's labels
-/// apart. The strip keeps it whatever pane is opened under it; only a
-/// divider dragged by hand takes it lower.
+/// apart. The strip keeps it whatever pane is opened under it, and no
+/// divider dragged by hand takes it lower (#1976).
 const STRIP_MIN_H: f32 = STRIP_MIN_PLOT_H + 39.0;
 /// The least height of the Paper Strip's dots.
 const STRIP_MIN_PLOT_H: f32 = 100.0;
@@ -3941,6 +3933,7 @@ impl eframe::App for TimegrapherApp {
         self.setup_sheet_dialog(ctx);
         self.take_ask_dialog(ctx);
         self.poll_take_keep();
+        self.poll_take_add();
         self.reread_library_on_focus(ctx);
         if let Some(m) = self.report.ui(ctx) {
             self.info_msg(m);
