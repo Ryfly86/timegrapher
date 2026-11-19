@@ -851,7 +851,7 @@ the listening's figures and that line says "These are the figures heard while li
 analysed again (why). Opened again, the take may read slightly
 differently.", and `positions-test.json` says `listened: true`. A take
 kept by Save Analysis Only is not read again: its figures stay the
-listening's, the table says "These are the figures heard while
+listening's, the line at the top of the pane says "These are the figures heard while
 listening: the take was saved without its sound, so it couldn't be
 analysed again. Opened again, the take may read slightly differently.",
 and its file says `listened: true` too.
