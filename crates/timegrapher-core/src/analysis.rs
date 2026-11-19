@@ -423,9 +423,7 @@ fn analyze_read(
         caveats,
         shape,
     };
-    if heard.awaiting {
-        summary.withhold_readings();
-    }
+    heard.awaiting.then(|| summary.withhold_readings());
     settle_beat_error(&mut summary, fits.figures.unlock_inconsistent);
     Analysis {
         summary,
