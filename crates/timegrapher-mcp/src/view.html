@@ -1537,6 +1537,12 @@ function xyChart(o) {
     const w = String(o.corner.text).split("\n")[0].length * CHAR_W;
     avoid.push([L + plotW - 6 - w, T + 2, L + plotW - 6, T + 17]);
   }
+  // And the notes beside a point (steady::mark_label's), as drawn below.
+  for (const n of o.notes || []) {
+    const right = n.x > (x0 + x1) / 2, w = n.text.length * CHAR_W;
+    const a = sx(n.x) + (right ? -8 - w : 8), base = sy(n.y) + (n.above ? -6 : 14);
+    avoid.push([a, base - 11, a + w, base + 3]);
+  }
   for (const n of o.beside || []) {
     const dot = [sx(n.x), sy(n.y)];
     if (!(dot[0] >= L && dot[0] <= L + plotW && dot[1] >= T && dot[1] <= T + plotH)) continue;
@@ -2122,13 +2128,15 @@ function steadyPlot(s, view, doc) {
       if (a.best_tau_s > 0 && a.best_deviation > 0) {
         notes.push({ x: Math.log10(a.best_tau_s), y: Math.log10(a.best_deviation), text: `least scatter at ${secs(a.best_tau_s)}: ${sig(a.best_deviation)}${unit}` });
       }
-      if (hollow.length && a.hollow_note) notes.push({ x: hollow[0][0], y: hollow[0][1], text: a.hollow_note });
+      // The hollow points' note on a plate clear of the trace and of the
+      // least scatter's (Walter on #2012).
+      const beside = hollow.length && a.hollow_note ? [{ x: hollow[0][0], y: hollow[0][1], text: a.hollow_note }] : [];
       return xyChart({
         title: "Allan Deviation", x, y,
         xTicks: periodTicks,
         yTicks: (p, q) => logTicks(p, q, (d) => sig(d) + unit),
         lines: [{ pts: white, color: "--callout", width: CALL_OUT_W, dash: "loose" }, { pts: firm, color, width: 1.5 }, { pts: faint, color, width: 1.5, opacity: 0.4 }],
-        dots: [{ pts: firm, color, r: 2 }, { pts: hollow, color, r: 2.5, hollow: true }], notes,
+        dots: [{ pts: firm, color, r: 2 }, { pts: hollow, color, r: 2.5, hollow: true }], notes, beside,
       });
     }
     case "cusum": {

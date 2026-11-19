@@ -1792,3 +1792,107 @@ fn allan_points_on_too_few_differences_are_hollow() {
     let best = [80f64.log10(), 0.5f64.log10()];
     assert!(judged.contains(&best) && !hollow.contains(&best));
 }
+
+/// The hollow points' note keeps clear of the dashed line's name and of
+/// the least scatter's, where the first hollow point sits by them
+/// (Walter on #2012: it was drawn over "if the readings were
+/// independent").
+#[test]
+fn the_hollow_note_keeps_clear_of_the_allan_plots_other_labels() {
+    use timegrapher_core::steadiness::{
+        Allan, ALLAN_HOLLOW_NOTE, ALLAN_JUDGED_DIFFERENCES as JUDGED,
+    };
+    let beats = (0..9600)
+        .map(|index| Beat {
+            time: index as f64 * 0.125 + 0.0005 * ((index * 7919) % 13) as f64 / 13.0,
+            index,
+            quality: 1.0,
+        })
+        .collect();
+    let log = BeatLog {
+        lock_template_kept: false,
+        sample_rate: 48000,
+        duration_s: 1200.0,
+        bph: 28800,
+        lift_deg: 52.0,
+        beats,
+        amplitude_windows: vec![],
+        clipped_beats: vec![],
+        clipped_samples: 0,
+        jumps: vec![],
+        sided: vec![],
+        by_count: vec![],
+        snippets: Vec::new(),
+    };
+    let mut s = compute(&log, None);
+    // The deviation runs along the independent line, its last point,
+    // on too few differences, just under the line's end: where the dashed
+    // line's name goes.
+    let tau: Vec<f64> = (0..8).map(|i| 10.0 * 2f64.powi(i)).collect();
+    let white: Vec<f64> = tau.iter().map(|t| 1.0 / (t / 10.0).sqrt()).collect();
+    let deviation: Vec<f64> = white
+        .iter()
+        .enumerate()
+        .map(|(i, w)| if i < 7 { w * 1.02 } else { w * 0.95 })
+        .collect();
+    let pairs: Vec<usize> = (0..8)
+        .map(|i| if i < 7 { 4000 >> i } else { JUDGED - 1 })
+        .collect();
+    s.report.series[0].allan = Some(Allan {
+        judged: pairs.iter().map(|&n| n >= JUDGED).collect(),
+        best_tau_s: Some(tau[6]),
+        best_deviation: Some(deviation[6]),
+        tau_s: tau,
+        deviation,
+        white,
+        pairs,
+        slope_short: None,
+        max_excess: 1.05,
+        hollow_note: Some(ALLAN_HOLLOW_NOTE),
+    });
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    fn texts(shape: &egui::Shape, into: &mut Vec<(String, egui::Rect)>) {
+        match shape {
+            egui::Shape::Text(t) => {
+                into.push((t.galley.text().trim().to_string(), t.visual_bounding_rect()))
+            }
+            egui::Shape::Vec(v) => v.iter().for_each(|s| texts(s, into)),
+            _ => {}
+        }
+    }
+    for w in [700.0, 900.0, 1400.0, 1900.0] {
+        let mut all = Vec::new();
+        // Twice, as a note keeps the place it took last frame.
+        for _ in 0..2 {
+            let input = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    Vec2::new(w, 500.0),
+                )),
+                ..Default::default()
+            };
+            let out = ctx.run(input, |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    let shown = [true, false, false];
+                    draw(ui, Some(&s), "hollow", View::Allan, &shown, Opts::default());
+                });
+            });
+            all.clear();
+            out.shapes.iter().for_each(|c| texts(&c.shape, &mut all));
+        }
+        let at = |want: &str| {
+            all.iter()
+                .find(|(t, _)| t.starts_with(want))
+                .map(|(_, r)| *r)
+                .unwrap_or_else(|| panic!("{w}: no \"{want}\" in {all:?}"))
+        };
+        let note = at(ALLAN_HOLLOW_NOTE);
+        for other in ["if the readings were independent", "least scatter at"] {
+            assert!(
+                !note.intersects(at(other)),
+                "{w}: the note is on \"{other}\""
+            );
+        }
+    }
+}

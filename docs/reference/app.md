@@ -1569,7 +1569,9 @@ dashed, the repeat marked and the Ljung–Box p-value), **Allan Deviation**
 (log-log, against the dashed line independent readings follow, labelled
 where it ends, with the averaging time of least scatter labelled; times on
 fewer differences than core's `ALLAN_JUDGED_DIFFERENCES` (8) hollow, their
-line faint, noted once "hollow: too few differences to judge"),
+line faint, noted once "hollow: too few differences to judge" on a
+plate beside the first, as the repeat's note is, clear of the trace and
+the other two labels),
 **CUSUM** (with the ±1.36 lines dashed and the largest excursion
 labelled) and **FFT** (the plain amplitude spectrum of each series, like
 Witschi's: the size of the sine wave at each period, log-log, in the

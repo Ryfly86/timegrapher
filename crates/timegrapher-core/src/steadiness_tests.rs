@@ -203,7 +203,7 @@ fn the_least_scatter_rests_on_enough_differences() {
 fn an_allan_point_is_judged_from_exactly_eight_differences() {
     let n = ALLAN_JUDGED_DIFFERENCES;
     let ad = [(10.0, 1.0, n + 1), (20.0, 0.9, n), (40.0, 0.2, n - 1)];
-    let a = Allan::of(&ad, vec![1.0, 0.71, 0.5], None);
+    let a = Allan::of(&ad, vec![1.0, 0.71, 0.1], None);
     assert_eq!(a.judged, [true, true, false]);
     assert_eq!(a.best_tau_s, Some(20.0));
     assert!(

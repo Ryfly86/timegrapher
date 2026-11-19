@@ -133,11 +133,11 @@ test("the Allan view draws the points core does not judge hollow, with core's no
   assert.deepEqual(chart.dots[1].pts, [log(160, 0.3), log(320, 0.1)]);
   assert.equal(chart.dots[1].hollow, true);
   assert.deepEqual(chart.lines[2].pts, [log(80, 0.5), log(160, 0.3), log(320, 0.1)], "the faint line runs on from the last filled point");
-  assert.ok(chart.notes.some((n) => n.text === NOTE));
+  assert.deepEqual(chart.beside, [{ x: log(160, 0.3)[0], y: log(160, 0.3)[1], text: NOTE }], "on a plate, beside the first hollow point");
   // Every point judged: none hollow, and no note.
   context.steadyPlot({ series: "rate", allan: { ...allan, judged: allan.tau_s.map(() => true), hollow_note: null } }, "allan", {});
   assert.deepEqual(chart.dots[1].pts, []);
-  assert.ok(!chart.notes.some((n) => n.text === NOTE));
+  assert.deepEqual(chart.beside, []);
   // A hollow dot is a ring.
   const svg = context.realChart({ x: [0, 1], y: [0, 1], xTicks: () => [], yTicks: () => [], dots: [{ pts: [[0.5, 0.5]], color: "--rate", r: 2.5, hollow: true }] });
   assert.match(svg, /<g fill="none" stroke="var\(--rate\)" stroke-width="1.2"><circle/);
