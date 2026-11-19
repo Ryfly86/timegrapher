@@ -63,7 +63,7 @@ pub(super) fn card_wait(
 
 /// Whether a reading's stretch holds no beat at all: no beat rate found,
 /// or none of its beats in the stretch (an opened recording of silence).
-fn no_beat(r: &LiveReading) -> bool {
+pub(super) fn no_beat(r: &LiveReading) -> bool {
     r.bph.is_none() || r.beats_used == 0
 }
 

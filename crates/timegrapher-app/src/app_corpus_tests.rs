@@ -831,11 +831,50 @@ fn a_saved_takes_row_and_its_cards_give_one_reading() {
     );
 }
 
+/// The app as the window runs it with a take's folder given at launch,
+/// as `timegrapher-app <folder>` opens it: a fresh app, its settings at
+/// their defaults, drawn frame by frame until the take is read, with the
+/// text the frame painted.
+fn window_opened(dir: &Path) -> (TimegrapherApp, egui::Context) {
+    let mut app = TimegrapherApp::new(Some(dir.to_path_buf()), None);
+    let ctx = egui::Context::default();
+    crate::theme::install(&ctx);
+    let t = Instant::now();
+    loop {
+        let _ = window_frame(&mut app, &ctx);
+        if app.live.is_some() && app.batch.is_none() {
+            break;
+        }
+        assert!(
+            t.elapsed().as_secs() < OPEN_LIMIT_S,
+            "{dir:?} still opening after {OPEN_LIMIT_S} s"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    (app, ctx)
+}
+
+/// One frame of the window, 1920 by 1080, and the text it painted.
+fn window_frame(app: &mut TimegrapherApp, ctx: &egui::Context) -> String {
+    let mut frame = eframe::Frame::_new_kittest();
+    let out = ctx.run(
+        egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::Vec2::new(1920.0, 1080.0),
+            )),
+            ..Default::default()
+        },
+        |ctx| eframe::App::update(app, ctx, &mut frame),
+    );
+    super::tests::painted_text(&out)
+}
+
 /// A saved take whose watch was taken off the stand before Stop, opened
-/// again: its cards at its end read the last stretch with a watch heard,
-/// not "no watch" over the silence, at the default Average Over and at
-/// one the silence outlasts (Vernon and Walter on #2075). Needs only
-/// `TIMEGRAPHER_CORPUS`.
+/// at launch as the window opens it: its cards at its end read the last
+/// stretch with a watch heard, not "No Beats Heard" over the quiet, at
+/// the default Average Over and at one the quiet outlasts (Vernon and
+/// Walter 15 on #2075). Needs only `TIMEGRAPHER_CORPUS`.
 #[test]
 fn a_saved_takes_cards_read_past_a_silent_tail() {
     let required = std::env::var_os("TIMEGRAPHER_REQUIRE_CORPUS").is_some();
@@ -844,49 +883,45 @@ fn a_saved_takes_cards_read_past_a_silent_tail() {
         eprintln!("SKIP: set TIMEGRAPHER_CORPUS to read saved takes");
         return;
     };
-    // Walter's take on #2075: 30 s of a Datejust, then 10 s of a quiet
-    // stand; again with the capture stalled 2 s at 31 s, so the quiet
-    // after that break still awaits its verdict at the end (as Walter's
-    // did at the default Average Over); and the ETA with a quiet tail
-    // longer than every Average Over. At 1 min that last take reads its
-    // last beat, which the stand's hiss makes a stray one, as a take just
-    // stopped does on main: not this test's, see #2075.
+    // 30 s of a Datejust then a quiet stand: 9.7 s, Walter 15's take,
+    // just under Average Over, so the watch verdict still hears the watch
+    // before it with no beat in the stretch; 10 s; 10 s with the capture
+    // stalled 2 s at 31 s, so the quiet after that break still awaits its
+    // verdict. And the ETA with 10 s, and 70 s, longer than every Average
+    // Over. At 1 min that last take reads its last beat, which the hiss
+    // makes a stray one, as a take just stopped does on main (#2081).
+    let dj = "datejust41_3235_multipos_105min/raw";
+    let eta = "eta2824_bare_DU_10min_g4";
     let both: &[f64] = &[10.0, 60.0];
     let takes = [
-        ("datejust41_3235_multipos_105min/raw", 0.0, 10.0, None, both),
-        (
-            "datejust41_3235_multipos_105min/raw",
-            0.0,
-            10.0,
-            Some((31.0, 2.0)),
-            &[10.0][..],
-        ),
-        ("eta2824_bare_DU_10min_g4", 200.0, 10.0, None, both),
-        ("eta2824_bare_DU_10min_g4", 200.0, 70.0, None, &[10.0][..]),
+        (dj, 0.0, 9.7, None, both),
+        (dj, 0.0, 10.0, None, both),
+        (dj, 0.0, 10.0, Some((31.0, 2.0)), &[10.0][..]),
+        (eta, 200.0, 10.0, None, both),
+        (eta, 200.0, 70.0, None, &[10.0][..]),
     ];
-    for (take, from_s, silent_s, pause, averages) in takes {
+    for (k, (take, from_s, silent_s, pause, averages)) in takes.into_iter().enumerate() {
         let flac = root.join(format!("takes/{take}/take_part01-001.flac"));
-        let name = take.replace('/', "-");
-        let base = std::env::temp_dir().join(format!(
-            "tg-silent-tail-{name}-{silent_s}-{}",
-            std::process::id()
-        ));
+        let base = std::env::temp_dir().join(format!("tg-silent-tail-{k}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&base);
         let dir = listened_and_saved(&base, &flac, (from_s, 30.0), 0.0, pause, silent_s);
-        let mut app = opened(&dir);
+        let (mut app, ctx) = window_opened(&dir);
         for &average in averages {
             app.set_average(average);
-            // What the cards draw once the window has read the whole
-            // take: the reading at the strip's end.
+            // As the window has it once its background reads are in.
             let _ = app.whole_take();
+            let painted = window_frame(&mut app, &ctx);
             let card = app.card_reading().expect("the opened take reads");
-            eprintln!(
-                "{take} {silent_s} s silent, Average Over {average} s: {:?} s/d at {} s, heard {}, listening {:?}, whole {}, beats {}",
-                card.rate_s_per_day, card.time_s, card.watch_heard, card.listening, card.whole_take, card.beats_used
+            let what =
+                format!("{take}, {silent_s} s quiet, pause {pause:?}, Average Over {average} s");
+            eprintln!("{what}: {:?} s/d at {} s", card.rate_s_per_day, card.time_s);
+            assert!(
+                !painted.contains("No Beats Heard"),
+                "{what}: the cards say No Beats Heard"
             );
             assert!(
                 card.watch_heard && card.listening.is_none() && card.rate_s_per_day.is_some(),
-                "{take}, {silent_s} s silent, Average Over {average} s: no figures on the cards"
+                "{what}: no figures on the cards"
             );
         }
         let _ = std::fs::remove_dir_all(&base);

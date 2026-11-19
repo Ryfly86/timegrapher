@@ -219,10 +219,13 @@ impl TimegrapherApp {
     /// at its end ([`Self::opened_end_s`]), as its whole reading gives it
     /// where that is the same stretch (core's `LiveReading::at_whole_end`),
     /// where a watch is heard there with a verdict given (as `reading_at`
-    /// reads figures); else, as for a take not opened, at its last beat
-    /// with a watch heard, so the silence after the watch is taken off the
-    /// stand doesn't blank the cards, not even when that silence came
-    /// after a break and is still awaiting its verdict (Vernon on #2075).
+    /// reads figures) and beats in its stretch (as the cards' "No Beats
+    /// Heard" asks); else, as for a take not opened, at its last beat with
+    /// a watch heard, so the silence after the watch is taken off the
+    /// stand doesn't blank the cards: not when that silence came after a
+    /// break and still awaits its verdict, nor when it is just under
+    /// Average Over and the verdict still hears the watch before it
+    /// (Vernon and Walter 15 on #2075).
     pub(super) fn stopped_reading(&self, live: &LiveAnalyzer, average: f64) -> LiveReading {
         let heard = || live.reading_at(self.latest_s().min(self.last_heard_s()), average);
         let Some(end) = self.opened_end_s() else {
@@ -232,7 +235,7 @@ impl TimegrapherApp {
             Some(Ok(Some(w))) => live.reading_at(end, average).at_whole_end(&w.m, average),
             _ => live.reading_at(end, average),
         };
-        if r.watch_heard && r.listening.is_none() {
+        if r.watch_heard && r.listening.is_none() && !super::readouts::no_beat(&r) {
             r
         } else {
             heard()
