@@ -2167,10 +2167,16 @@ size, and **Open** (analysed here, and offered again next time),
 with Open Folder…), **Delete…** (asking first) and **Later**. When the
 sound was from a take recording into its own folder as it went, that take
 already holds all of it but its last few seconds, so what is kept is a
-copy: the message names the take and offers **Open Take** (the take
+copy, and not of all of it: each closed hour the take holds whole is deleted
+from the app's folder once it is checked in the take on the disk (byte
+for byte, or sample for sample), so a take kept while it is heard takes
+its room once, not twice; only the hour still being written is in both
+(#2040). Carried on after a Stop, a take reads those hours from its
+folder, and if the take has since been deleted or had its sound
+removed, Listen starts a new take. The message names the take and offers **Open Take** (the take
 itself, opened where it is), **Delete Copy…** (asking first, and saying
 that only those last seconds are lost) and **Later**. If that take has
-since been moved or deleted, the copy is the only one, and it is offered
+since been moved or deleted, what is left of the copy is the only one, and it is offered
 as unsaved sound like any other. A Power Reserve Test with Analysis Only
 that stopped before its take was written leaves no sound but its
 analysis kept in parts: the next start offers it the same way, "An

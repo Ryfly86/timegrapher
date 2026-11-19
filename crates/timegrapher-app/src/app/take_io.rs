@@ -218,7 +218,10 @@ impl TimegrapherApp {
                 // point; it is thrown away with a new session unless saved.
                 let info = self.info(&c.label, c.sample_rate, c.bits);
                 match Recorder::start(&scratch_dir(), info) {
-                    Ok(r) => self.session.recorder = Some(r),
+                    Ok(mut r) => {
+                        r.keep_saved_hours_in_copy(); // #2040
+                        self.session.recorder = Some(r);
+                    }
                     Err(e) => self.error(format!(
                         "Can't keep the sound for saving later: {e}. The readings still work."
                     )),
@@ -244,7 +247,10 @@ impl TimegrapherApp {
 
     /// A microphone session that is paused and can carry on.
     pub(super) fn can_resume(&self) -> bool {
-        self.session.allows(Action::Resume) && self.live.is_some() && !self.running()
+        self.session.allows(Action::Resume)
+            && self.live.is_some()
+            && !self.running()
+            && self.saved_hours_reachable()
     }
 
     /// Let go of the input. Done on a thread of its own with a short
@@ -2349,6 +2355,7 @@ impl TimegrapherApp {
 
         self.poll_analysis_save();
         self.poll_saving();
+        self.tidy_recording();
         self.stream_tick();
         self.poll_batch();
 

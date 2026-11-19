@@ -72,6 +72,31 @@ impl KeptSound {
     }
 }
 
+impl TimegrapherApp {
+    /// Let go of the session's own copy of each hour its take holds
+    /// whole, once that copy is kept as FLAC (#2040): listening does it as
+    /// it writes, this does it after a Stop.
+    pub(super) fn tidy_recording(&mut self) {
+        let Some(r) = self.session.recorder.as_mut().filter(|r| r.releasing()) else {
+            return;
+        };
+        if let Err(e) = r.tidy() {
+            applog::warn(&format!("couldn't tidy the session's folder: {e}"));
+        }
+    }
+
+    /// Whether every hour the session keeps in its take alone is still
+    /// there (#2040). One gone with its take (deleted, or its sound
+    /// removed) means the take can't be carried on whole, so Listen
+    /// starts a new one rather than resuming.
+    pub(super) fn saved_hours_reachable(&self) -> bool {
+        self.session
+            .recorder
+            .as_ref()
+            .is_none_or(Recorder::hours_reachable)
+    }
+}
+
 /// What was left in `scratch` from earlier sessions, oldest first: sound,
 /// or a test's analysis kept in parts, leaving out any folder another
 /// copy of the app is recording into now.
