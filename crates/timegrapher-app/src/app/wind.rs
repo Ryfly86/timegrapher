@@ -105,6 +105,17 @@ impl TimegrapherApp {
         }
     }
 
+    /// A Power Reserve Test found the watch stopped: it is let down, so
+    /// its full wind no longer holds, and the field and the takes after
+    /// say Not given. The test's own take keeps its wind from its start
+    /// ([`reserve::Test::wind_h`]); thrown away, the stop still stands
+    /// (#2001). A test thrown away otherwise keeps the wind its Start
+    /// gave: the watch was wound then, whatever becomes of its sound
+    /// (Hugh on #2031).
+    pub(super) fn wind_let_down(&mut self) {
+        self.set_wound(None);
+    }
+
     /// When the take's recording began, Unix seconds; none without one.
     fn recording_began_unix(&self) -> Option<f64> {
         let r = self.session.recorder.as_ref()?;
@@ -133,12 +144,14 @@ impl TimegrapherApp {
     }
 
     /// Each entry's hours since full wind, as a take saves them: a
-    /// Positions Test's 24 hour half its own, from its full-wind test;
-    /// any other take the card's.
+    /// Positions Test's 24 hour half its own, from its full-wind test; a
+    /// Power Reserve Test's its own from its start (#2001); any other
+    /// take the card's.
     pub(super) fn entry_wind_h(&self) -> Option<f64> {
         self.guided
             .as_ref()
             .and_then(|t| t.wind_h())
+            .or_else(|| self.reserve.as_ref().and_then(|t| t.wind_h))
             .or_else(|| self.take_wind_h())
     }
 
