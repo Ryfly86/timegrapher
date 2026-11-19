@@ -390,3 +390,110 @@ fn a_take_still_being_recorded_shows_no_first_write_figures() {
     assert!(!dim);
     assert_eq!((cells[2].as_str(), cells[3].as_str()), ("0:05", "+5.4"));
 }
+
+/// A watch's size in the list is a dash while the Bench records into
+/// one of its takes, as that take's row is: the library holds only the
+/// take's first write until it stops. Another watch's, or once it stops,
+/// its size (Walter 2 on #2032, #2034).
+#[test]
+fn a_watchs_size_waits_while_a_take_records_into_it() {
+    let take = Take {
+        name: "2026-11-19 05.40".into(),
+        bytes: 3_900_000,
+        audio: true,
+        incomplete: false,
+        started_utc: None,
+        named_start: None,
+        duration_s: Some(5.0),
+        positions: vec!["DU".into()],
+        at_end: None,
+        power_reserve: None,
+        wind_h: None,
+    };
+    let e = WatchEntry {
+        dir: "/nowhere/Pepsi".into(),
+        watch: timegrapher_core::library::Watch::new("Pepsi"),
+        takes: vec![take.clone()],
+        photos: Vec::new(),
+    };
+    let dir = e.take_dir(&take);
+    let what = "Show this watch's details and takes.";
+    assert_eq!(
+        crate::size_wait::size_or_wait(&e.dir, Some(dir.as_path()), what, || list_size(e.bytes())),
+        (
+            "—".to_string(),
+            "Show this watch's details and takes. Its size is given once the take being \
+             recorded stops."
+                .to_string()
+        )
+    );
+    let other = std::path::Path::new("/nowhere/Pepsi 2/takes/2026-11-19 05.40");
+    let shown = ("3.9 MB".to_string(), what.to_string());
+    assert_eq!(
+        crate::size_wait::size_or_wait(&e.dir, Some(other), what, || list_size(e.bytes())),
+        shown
+    );
+    assert_eq!(
+        crate::size_wait::size_or_wait(&e.dir, None, what, || list_size(e.bytes())),
+        shown
+    );
+}
+
+/// Open greyed out says the real reason first: with no takes, that
+/// there are none, not to stop the Bench; with takes but none picked, to
+/// pick one; only a picked take waits on the Bench (#2007).
+#[test]
+fn open_greyed_out_gives_the_real_reason() {
+    let bench = Some("Stop the take on the Bench first.");
+    let mut e = WatchEntry {
+        dir: "/nowhere/Unsorted".into(),
+        watch: timegrapher_core::library::Watch::new("Unsorted"),
+        takes: Vec::new(),
+        photos: Vec::new(),
+    };
+    assert_eq!(open_why(&e, false, bench), Some(NO_TAKES));
+    assert_eq!(open_why(&e, false, None), Some(NO_TAKES));
+    e.takes.push(Take {
+        name: "2026-11-19 06.00".into(),
+        bytes: 0,
+        audio: true,
+        incomplete: false,
+        started_utc: None,
+        named_start: None,
+        duration_s: None,
+        positions: Vec::new(),
+        at_end: None,
+        power_reserve: None,
+        wind_h: None,
+    });
+    assert_eq!(open_why(&e, false, bench), Some("Pick a take first"));
+    assert_eq!(open_why(&e, true, bench), bench);
+    assert_eq!(open_why(&e, true, None), None);
+}
+
+/// A Positions Test stopped before any position was measured has no
+/// Mean row: its row's figures are the dim dash, not blank cells. One
+/// measured, its Mean shows (Walter on #2032, #2007).
+#[test]
+fn a_positions_test_with_nothing_measured_shows_a_dash() {
+    let take = Take {
+        name: "2026-11-19 06.10".into(),
+        bytes: 0,
+        audio: true,
+        incomplete: false,
+        started_utc: None,
+        named_start: None,
+        duration_s: Some(20.0),
+        positions: vec!["DU".into()],
+        at_end: None,
+        power_reserve: None,
+        wind_h: None,
+    };
+    let none = Some((TakeTest::Positions, [None; 3]));
+    assert!(dashed(&take, none));
+    let cells = take_cells(&take, none, None);
+    assert_eq!(&cells[3..6], ["—", "—", "—"], "{cells:?}");
+    let one = Some((TakeTest::Positions, [Some(4.0), Some(280.0), Some(0.3)]));
+    assert!(!dashed(&take, one));
+    assert!(!take_cells(&take, one, None)[3..6].contains(&"—".to_string()));
+}

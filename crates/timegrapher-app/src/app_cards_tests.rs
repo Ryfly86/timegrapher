@@ -1711,3 +1711,42 @@ fn the_beat_rate_found_comes_from_the_reading_shown() {
     app.calibre = "Hangzhou HZ2B00A".into();
     assert!(app.calibre_chips().is_empty(), "no watch heard to differ");
 }
+
+/// At 800 wide, early in a take, while its short-span chip shows, no
+/// reading card's caption is cut to "…": each is drawn whole, as laid
+/// out, not only as asked for (#2007, beyond #1954).
+#[test]
+fn no_reading_caption_is_cut_at_800_early_in_a_take() {
+    let mut app = synthetic(6.0, 0.0);
+    app.session.listen();
+    let ctx = themed();
+    for w in [800.0, 1000.0] {
+        let mut shown = Vec::new();
+        for _ in 0..3 {
+            let input = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    Vec2::new(w, 800.0),
+                )),
+                ..Default::default()
+            };
+            let out = ctx.run(input, |ctx| app.panels(ctx));
+            shown = out
+                .shapes
+                .iter()
+                .filter_map(|c| match &c.shape {
+                    egui::Shape::Text(t) => {
+                        Some(t.galley.rows.iter().map(|r| r.text()).collect::<String>())
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+        }
+        for caption in ["Rate", "Amplitude", "Beat Error"] {
+            assert!(
+                shown.iter().any(|t| t == caption),
+                "{caption} at {w}: {shown:?}"
+            );
+        }
+    }
+}
