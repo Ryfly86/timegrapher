@@ -653,10 +653,17 @@ fn plot_facts(
     facts: &FactBox,
     (mut trace, (x, y), pic): (Vec<egui::Pos2>, Axes<'_>, &Picture<'_>),
 ) {
+    // Each point by its dot's edge and a dot's width more, so the box
+    // keeps clear of the dot, not only its centre: a 12H point just left
+    // of the box read as a bullet on its first line (#1963).
+    let reach = 2.0 * DOT_R;
+    let ring = [Vec2::ZERO, Vec2::X, -Vec2::X, Vec2::Y, -Vec2::Y].map(|v| v * reach);
     for &(deg, r, se) in &pic.points {
         let e = se.unwrap_or(0.0);
         for d in [deg, deg + 360.0 * f64::from(deg.rem_euclid(360.0) == 0.0)] {
-            trace.extend([r - e, r, r + e].map(|v| egui::pos2(x(d), y(v))));
+            trace.extend([r - e, r + e].map(|v| egui::pos2(x(d), y(v))));
+            let at = egui::pos2(x(d), y(r));
+            trace.extend(ring.map(|v| at + v));
         }
     }
     let inset = Vec2::splat(FACT_INSET);
@@ -1415,6 +1422,56 @@ mod tests {
             }
         }
         assert!(under > 0, "a narrow plot's key is under it");
+    }
+
+    /// The facts box keeps its words a dot's width clear of every point's
+    /// dot, not only its centre: a high 12H point at the plot's left edge never sits
+    /// against "Heavy spot" like a bullet (#1963, Shane's free take).
+    #[test]
+    fn the_facts_box_keeps_clear_of_a_point_at_its_edge() {
+        let rows = vec![("Heavy spot".to_string(), "Not stated".to_string())];
+        let rates = [36.0, 20.0, 8.0, -4.0, -10.0, -6.0, 4.0, 18.0];
+        // A plot with room for the box somewhere: in a smaller one it goes
+        // where it covers the fewest points.
+        for w in (480..=960).step_by(20) {
+            for h in (260..=380).step_by(30) {
+                let rect =
+                    egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(w as f32, h as f32));
+                let ctx = egui::Context::default();
+                let out = ctx.run(egui::RawInput::default(), |ctx| {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        let pic = Picture {
+                            points: (0..8).map(|i| (45.0 * i as f64, rates[i], None)).collect(),
+                            fit: None,
+                            mean: None,
+                            facts: Some(FactBox::plain(ui, "t", "plot", rows.clone(), Vec::new())),
+                        };
+                        draw_plot(ui, rect, &pic);
+                    });
+                });
+                let shapes: Vec<&egui::Shape> = out.shapes.iter().map(|c| &c.shape).collect();
+                let Some(words) = shapes.iter().find_map(|s| match s {
+                    egui::Shape::Text(t) if t.galley.text() == "Heavy spot" => {
+                        Some(t.galley.rect.translate(t.pos.to_vec2()))
+                    }
+                    _ => None,
+                }) else {
+                    continue;
+                };
+                for s in &shapes {
+                    if let egui::Shape::Circle(c) = s {
+                        if (c.radius - DOT_R).abs() < 0.01 {
+                            let dot =
+                                egui::Rect::from_center_size(c.center, Vec2::splat(2.0 * DOT_R));
+                            assert!(
+                                !dot.intersects(words.expand(2.0 * DOT_R)),
+                                "{w}x{h}: a dot {dot:?} against Heavy spot {words:?}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// A backed label set past the picture's edge slides back inside it,

@@ -429,14 +429,14 @@ impl FactBox {
     ) -> egui::Rect {
         let size = self.size();
         let at = |p: &egui::Pos2| egui::Rect::from_min_size(*p, size);
-        let clear = |r: &egui::Rect| !trace.iter().any(|p| r.expand(2.0).contains(*p));
+        let clear = |r: &egui::Rect| covered(r, trace) == 0;
         let clear_bottoms: Vec<egui::Rect> = bottoms.iter().map(at).filter(clear).collect();
         let r = tops
             .iter()
             .map(at)
             .find(clear)
             .or_else(|| emptiest(&clear_bottoms, |r| *r, trace).copied())
-            .unwrap_or_else(|| at(&tops[0]));
+            .unwrap_or_else(|| fewest_under(tops.iter().chain(bottoms).map(at), trace));
         let all: Vec<usize> = (0..self.rows.len()).collect();
         let mut shapes = Vec::new();
         self.rows_shapes(ui, &all, (r, 1), &mut shapes);
@@ -483,6 +483,20 @@ impl egui_plot::PlotItem for FactBox {
     fn base_mut(&mut self) -> &mut egui_plot::PlotItemBase {
         &mut self.base
     }
+}
+
+/// Where no place is clear: the one over the fewest of the trace's
+/// points, the first of those that tie (#1963).
+fn fewest_under(places: impl Iterator<Item = egui::Rect>, trace: &[egui::Pos2]) -> egui::Rect {
+    places
+        .min_by_key(|r| covered(r, trace))
+        .unwrap_or(egui::Rect::NOTHING)
+}
+
+/// How many of the trace's points a box at `r` would cover, with a
+/// little room round it.
+fn covered(r: &egui::Rect, trace: &[egui::Pos2]) -> usize {
+    trace.iter().filter(|p| r.expand(2.0).contains(**p)).count()
 }
 
 /// Of the bottom corners a facts box keeps clear of the trace, left to

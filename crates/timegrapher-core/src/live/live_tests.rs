@@ -529,6 +529,81 @@ fn a_window_across_a_jump_in_a_read_recording_is_left_out() {
     assert_eq!(a.reading_at(60.0, 2.0).amplitude_deg, Some(280.0));
 }
 
+/// At an Average Over under 10 s, the amplitude and the beat error from
+/// the unlock are read over 10 s, from the same windows: a 2 s reading
+/// holds one window, and one that missed a side blanked it, flickering
+/// the card and breaking the strip's line (Norm, #1951). They equal the
+/// 10 s figures to the bit; the rate keeps the average chosen.
+#[test]
+fn a_short_average_reads_its_amplitude_over_ten_seconds() {
+    let mut log = viewer_phase_log(10.0, 10.0);
+    // Before the log's jump at 60.03 s; the window from 50 s missed a side.
+    log.amplitude_windows = (20..28)
+        .map(|k| amp_win(f64::from(k) * 2.0, 270.0 + f64::from(k), k != 25))
+        .collect();
+    let a = LiveAnalyzer::from_log(log, LiveConfig::default());
+    for end in [52.0, 53.0, 54.0, 56.0] {
+        let (short, ten) = (a.reading_at(end, 2.0), a.reading_at(end, 10.0));
+        assert!(short.amplitude_deg.is_some(), "at {end} s");
+        assert_eq!(
+            short.amplitude_deg.map(f64::to_bits),
+            ten.amplitude_deg.map(f64::to_bits),
+            "at {end} s"
+        );
+        assert_eq!(
+            short.beat_error_unlock_ms.map(f64::to_bits),
+            ten.beat_error_unlock_ms.map(f64::to_bits),
+            "at {end} s"
+        );
+        assert_eq!(short.amplitude_values, ten.amplitude_values, "at {end} s");
+    }
+    // At 10 s and over nothing moves: the 30 s figure is its own.
+    let (ten, thirty) = (a.reading_at(56.0, 10.0), a.reading_at(56.0, 30.0));
+    assert_ne!(ten.amplitude_deg, thirty.amplitude_deg);
+}
+
+/// A 2 s amplitude window from `a` s at `deg`, its odd side 4° more,
+/// or missed where not `odd`.
+fn amp_win(a: f64, deg: f64, odd: bool) -> AmplitudeWindow {
+    AmplitudeWindow {
+        start_s: a,
+        end_s: a + 2.0,
+        even_deg: Some(deg),
+        odd_deg: odd.then_some(deg + 4.0),
+        beat_error_ms: None,
+        beat_error_unlock_ms: Some(0.3),
+        even_unlock_ms: None,
+        odd_unlock_ms: None,
+        even_drop_ms: None,
+        odd_drop_ms: None,
+        extra: None,
+        sound_1: [f32::NAN; 2],
+    }
+}
+
+/// A masked stretch between 10 s and 2 s back cuts the 2 s reading's
+/// amplitude as it cuts the 10 s reading's: the floor never reaches back
+/// across it (Norm, #2015).
+#[test]
+fn a_short_average_reads_no_amplitude_from_before_a_mask() {
+    let mut log = viewer_phase_log(10.0, 10.0);
+    log.amplitude_windows = (20..28)
+        .map(|k| amp_win(f64::from(k) * 2.0, 270.0 + f64::from(k), true))
+        .collect();
+    let mut a = LiveAnalyzer::from_log(log, LiveConfig::default());
+    let end = 56.0;
+    let unmasked = a.reading_at(end, 2.0);
+    a.set_masked(&[(47.0, 49.0)]);
+    let (short, ten) = (a.reading_at(end, 2.0), a.reading_at(end, 10.0));
+    assert!(short.amplitude_deg.is_some());
+    assert_ne!(short.amplitude_deg, unmasked.amplitude_deg);
+    assert_eq!(short.amplitude_values, ten.amplitude_values);
+    assert_eq!(
+        short.amplitude_deg.map(f64::to_bits),
+        ten.amplitude_deg.map(f64::to_bits)
+    );
+}
+
 /// Steady beats for `seconds`: a watch whose Tock sounds unlike its
 /// Tick, and a live analyzer fed the first `fed` seconds of them.
 pub(super) fn steady_live(seconds: f64, fed: f64) -> (LiveAnalyzer, Vec<f32>) {
@@ -1127,7 +1202,8 @@ fn a_new_stretch_keeps_the_beats_and_breaks_the_readings() {
 
 /// Setting the rate Auto already found (a calibre picked while
 /// listening) keeps the beats heard so far, as does going back to
-/// Auto; another rate starts the beat log again.
+/// Auto; another rate starts the beat log again, and going back to Auto
+/// then brings the beats from before it back (#1949).
 #[test]
 fn the_rate_already_found_keeps_the_beats() {
     let cfg = SynthConfig {
@@ -1148,8 +1224,136 @@ fn the_rate_already_found_keeps_the_beats() {
     assert_eq!(a.bph(), Some(28_800));
     assert!(!a.set_bph(Some(21_600)));
     assert!(a.beats().is_empty());
-    // Auto after a rate set by hand listens afresh and finds 28800.
+    assert!(a.holds_reading());
+    // Back on Auto, the reading from before the change comes back, with
+    // the sound heard since read at its own rate (#1949).
     feed(&mut a, &audio.samples);
+    assert!(a.set_bph(None));
+    assert!(!a.holds_reading());
+    assert_eq!(a.bph(), Some(28_800));
+    assert!(
+        a.beats().len() > heard + 100,
+        "{} after {heard}",
+        a.beats().len()
+    );
+}
+
+/// A beat rate changed and set back (#1949): the beats, the masks set
+/// meanwhile and the readings are as if it had never been changed, and a
+/// third rate on the way keeps the reading from before the first.
+#[test]
+fn a_rate_changed_and_set_back_leaves_the_take_as_it_was() {
+    let cfg = SynthConfig {
+        duration_s: 20.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let (first, rest) = audio.samples.split_at(audio.samples.len() / 2);
+    let mut never = LiveAnalyzer::new(48000, LiveConfig::default());
+    feed(&mut never, first);
+    never.set_masked(&[(12.0, 13.0)]);
+    feed(&mut never, rest);
+
+    let mut a = LiveAnalyzer::new(48000, LiveConfig::default());
+    feed(&mut a, first);
+    assert_eq!(a.bph(), Some(28_800));
+    assert!(!a.set_bph(Some(21_600)));
+    a.set_masked(&[(12.0, 13.0)]);
+    feed(&mut a, &rest[..rest.len() / 2]);
+    assert!(!a.set_bph(Some(18_000)));
+    feed(&mut a, &rest[rest.len() / 2..]);
+    assert!(a.set_bph(None));
+    assert_eq!(beat_keys(a.beats()), beat_keys(never.beats()));
+    assert_eq!(a.masked(), never.masked());
+    assert_eq!(
+        a.reading(10.0).rate_s_per_day,
+        never.reading(10.0).rate_s_per_day
+    );
+    assert_eq!(
+        a.reading(10.0).amplitude_deg,
+        never.reading(10.0).amplitude_deg
+    );
+
+    // Set to the rate it was read at, rather than Auto, it comes back too.
+    let mut b = LiveAnalyzer::new(48000, LiveConfig::default());
+    feed(&mut b, first);
+    assert!(!b.set_bph(Some(21_600)));
+    feed(&mut b, rest);
+    assert!(b.set_bph(Some(28_800)));
+    assert_eq!(beat_keys(b.beats()), beat_keys(never.beats()));
+}
+
+/// A rate set by hand while Auto is still searching, then Auto again
+/// before the held reading has found its rate, brings that reading back:
+/// set back to its own setting, it stands whatever it has found.
+#[test]
+fn auto_set_back_before_it_found_the_rate_brings_the_reading_back() {
+    let cfg = SynthConfig {
+        duration_s: 20.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let (first, rest) = audio.samples.split_at(24_000);
+    let mut never = LiveAnalyzer::new(48000, LiveConfig::default());
+    feed(&mut never, &audio.samples);
+
+    let mut a = LiveAnalyzer::new(48000, LiveConfig::default());
+    feed(&mut a, first);
+    assert_eq!(a.bph(), None, "still searching");
+    a.set_bph(Some(21_600));
+    assert!(a.holds_reading());
+    feed(&mut a, &rest[..24_000]);
+    a.set_bph(None);
+    assert!(!a.holds_reading(), "the held reading is back");
+    feed(&mut a, &rest[24_000..]);
+    assert_eq!(a.bph(), Some(28_800));
+    assert_eq!(beat_keys(a.beats()), beat_keys(never.beats()));
+}
+
+/// A restart asked for drops the held reading: setting the old rate
+/// afterwards brings nothing back.
+#[test]
+fn a_restart_lets_the_held_reading_go() {
+    let cfg = SynthConfig {
+        duration_s: 20.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let mut a = LiveAnalyzer::new(48000, LiveConfig::default());
+    feed(&mut a, &audio.samples);
+    assert!(!a.set_bph(Some(21_600)));
+    assert!(a.holds_reading());
+    a.restart();
+    assert!(!a.holds_reading());
+    assert!(!a.set_bph(None));
+    assert!(a.beats().is_empty());
+}
+
+/// Each beat's number, time and quality, to compare two readings' beats.
+fn beat_keys(beats: &[Beat]) -> Vec<(i64, u64, u32)> {
+    beats
+        .iter()
+        .map(|b| (b.index, b.time.to_bits(), b.quality.to_bits()))
+        .collect()
+}
+
+/// Once a rate change has stood for [`held::HELD_S`], it is taken as
+/// meant: the reading from before it is let go, and Auto then listens
+/// afresh.
+#[test]
+fn a_rate_change_that_stands_lets_the_old_reading_go() {
+    let cfg = SynthConfig {
+        duration_s: 20.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let mut a = LiveAnalyzer::new(48000, LiveConfig::default());
+    feed(&mut a, &audio.samples);
+    assert!(!a.set_bph(Some(21_600)));
+    a.skip(held::HELD_S - 1.0);
+    assert!(a.holds_reading());
+    a.skip(2.0);
+    assert!(!a.holds_reading());
     assert!(!a.set_bph(None));
     assert!(a.beats().is_empty());
     feed(&mut a, &audio.samples);
@@ -1383,7 +1587,9 @@ fn silence_gives_no_readings_and_lift_rescales() {
 /// Over the same stretch of the same beats, a live reading and a saved
 /// one (`session`) read the same figures: the same beats, the same
 /// amplitude windows (none reaching back before the stretch) and the
-/// same medians (#632).
+/// same medians (#632). Under 10 s, live reads its amplitude and unlock
+/// beat error over the last 10 s (#1951): those are the saved reading's
+/// of the last 10 s, and its rate and drop beat error the stretch's.
 #[test]
 fn live_and_saved_read_one_stretch_alike() {
     let cfg = SynthConfig {
@@ -1414,15 +1620,18 @@ fn live_and_saved_read_one_stretch_alike() {
     };
     let end = a.settled_to;
     // A stretch that starts partway through an amplitude window.
-    for average_s in [7.3, 9.1] {
+    for average_s in [7.3, 9.1, 12.7] {
         let live = a.reading_at(end, average_s);
         let saved = crate::session::measure_masked(&log, None, &[], &[], end - average_s, end);
+        let amp_s = average_s.max(crate::measure::SHORT_SPAN_S);
+        let saved_amp = crate::session::measure_masked(&log, None, &[], &[], end - amp_s, end);
         assert!(live.amplitude_deg.is_some(), "{live:?}");
-        assert_eq!(live.amplitude_deg, saved.amplitude_deg, "{average_s}");
-        assert_eq!(live.amplitude_even_deg, saved.amplitude_even_deg);
-        assert_eq!(live.amplitude_odd_deg, saved.amplitude_odd_deg);
-        assert_eq!(live.beat_error_unlock_ms, saved.beat_error_unlock_ms);
+        assert_eq!(live.amplitude_deg, saved_amp.amplitude_deg, "{average_s}");
+        assert_eq!(live.amplitude_even_deg, saved_amp.amplitude_even_deg);
+        assert_eq!(live.amplitude_odd_deg, saved_amp.amplitude_odd_deg);
+        assert_eq!(live.beat_error_unlock_ms, saved_amp.beat_error_unlock_ms);
         assert_eq!(live.beat_error_ms, saved.beat_error_ms);
+        assert_eq!(live.rate_s_per_day, saved.rate_s_per_day);
     }
 }
 
@@ -1624,4 +1833,53 @@ fn live_profiles_go_long_with_their_amplitude_reading() {
         let amp = p.amplitude_deg.expect("amplitude");
         assert!((amp - 150.0).abs() < 10.0, "amplitude {amp}");
     }
+}
+
+/// A good watch put on the stand after its noise is a beat being found,
+/// never a verdict, until the look back holds it alone (#2008: 18 s of
+/// "No Regular Beat" after launch, the beats already shown). Read each
+/// second as the cards read it: from the watch's first fitted reading,
+/// either it is heard or it is still being found, and the finding ends
+/// within `FINDING_S`. The stand's noise alone is never a beat found.
+#[test]
+fn a_good_watch_after_the_stand_noise_is_found_not_judged() {
+    let rms = crate::synth::noise_rms(SynthConfig::default().snr_db) * crate::synth::SCALE;
+    let mut rng = crate::synth::Rng::new(5);
+    let noise_s = 30;
+    let noise: Vec<f32> = (0..noise_s * 48_000)
+        .map(|_| (rms * rng.normal()) as f32)
+        .collect();
+    let watch = generate(
+        &SynthConfig {
+            duration_s: 40.0,
+            ..Default::default()
+        },
+        |_| 280.0,
+        |_| 0.0,
+    );
+    let mut a = LiveAnalyzer::new(48_000, LiveConfig::default());
+    for second in noise.chunks(48_000) {
+        feed(&mut a, second);
+        let r = a.reading(DEFAULT_AVERAGE_S);
+        assert!(!r.finding_beat, "noise at {}: {r:?}", a.duration_s());
+    }
+    let mut found = Vec::new();
+    for second in watch.samples.chunks(48_000) {
+        feed(&mut a, second);
+        let r = a.reading(DEFAULT_AVERAGE_S);
+        let after = a.duration_s() - noise_s as f64;
+        if r.beats_used > 0 {
+            assert!(r.watch_heard || r.finding_beat, "{after} s in: {r:?}");
+        }
+        if r.finding_beat {
+            assert!(!r.watch_heard);
+            found.push(after);
+        }
+    }
+    assert!(
+        !found.is_empty(),
+        "the noise still holds the verdict at first"
+    );
+    assert!(found.iter().all(|&t| t <= FINDING_S + 1.0), "{found:?}");
+    assert!(a.reading(DEFAULT_AVERAGE_S).watch_heard);
 }

@@ -337,7 +337,7 @@ the timegrapher app draws them:
   a dot is and how many are drawn, and on a long series, where core gives
   the readings in chunks, each dot is a chunk's mean over a filled band
   from its lowest reading to its highest, as the app draws it, and the key
-  says how many bands hold how many readings, over its Readings, Periods,
+  still counts the readings, over its Readings, Periods,
   Cycle, Autocorrelation, Allan Deviation, CUSUM or FFT view, picked with
   the buttons above it; each view keeps its own switches, so turning one
   on in one view leaves the others as they were; Periods has a Log Scale switch, and the FFT draws

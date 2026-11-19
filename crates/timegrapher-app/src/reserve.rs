@@ -914,6 +914,9 @@ fn hour_rows(hours: &[power_reserve::Hour]) -> Vec<[Cell; 6]> {
     hours
         .iter()
         .map(|h| {
+            if let Some(row) = unread_row(h) {
+                return row;
+            }
             [
                 (hour_label(h), part_hour_hover(h)),
                 (
@@ -954,6 +957,48 @@ fn hour_rows(hours: &[power_reserve::Hour]) -> Vec<[Cell; 6]> {
         })
         .collect()
 }
+
+/// The row of an hour that was heard but has no figure, saying why in
+/// place of a row of dashes: its beats too irregular for a regular beat,
+/// as every surface says it (#1967, the end of a run-down). None for an
+/// hour with a figure, or with nothing heard.
+fn unread_row(h: &power_reserve::Hour) -> Option<[Cell; 6]> {
+    use timegrapher_core::measure::{no_watch_reason_in, no_watch_text, NO_WATCH_TITLE};
+    let none = h.rate_s_per_day.is_none() && h.amplitude_deg.is_none();
+    if !none || h.beat_error_ms.is_some() || h.read_s <= 0.0 {
+        return None;
+    }
+    let (head, why) = match no_watch_reason_in(&h.caveats) {
+        Some(r) => (
+            NO_WATCH_TITLE.to_string(),
+            format!(
+                "{}. {}",
+                no_watch_text(r, None, h.bph).trim_end_matches('.'),
+                timegrapher_core::session::NO_READINGS
+            ),
+        ),
+        None => ("–".to_string(), UNREAD_HOUR.to_string()),
+    };
+    let dash = || ("–".to_string(), Some((why.clone(), true)));
+    Some([
+        (hour_label(h), part_hour_hover(h)),
+        (head, Some((why.clone(), true))),
+        dash(),
+        dash(),
+        dash(),
+        (
+            cell(h.read_share(), |v| fixed_text(100.0 * v, 0)),
+            h.read_share()
+                .is_none()
+                .then(|| (NO_READ_SHARE.into(), false)),
+        ),
+    ])
+}
+
+/// Why an hour heard has no figure, where its beats were not judged
+/// irregular: none of its stretches held enough to read.
+const UNREAD_HOUR: &str =
+    "Heard, but too little of this hour held together to read a rate, amplitude or beat error.";
 
 /// The width of the table of `hours`, its stripes' edges included.
 fn table_width(ui: &egui::Ui, hours: &[power_reserve::Hour]) -> f32 {
@@ -1312,6 +1357,35 @@ mod tests {
             "Kept as \"2026-10-25 23.17 Power Reserve\", with its beats and readings only (the \
              sound was deleted). Every pane reads it like any other take"
         );
+    }
+
+    /// The last hours of a run-down, heard but too irregular for a
+    /// regular beat, say so in the Rate column and every dash's hover,
+    /// not dashes alone (#1967, the v1.1 shakedown).
+    #[test]
+    fn an_hour_heard_with_no_regular_beat_says_so() {
+        use timegrapher_core::measure::{Caveat, NoWatchReason, NO_WATCH_TITLE};
+        let mut t = finished_run(3);
+        if let Some(r) = t.results.as_mut() {
+            let h = &mut r.hours[2];
+            h.rate_s_per_day = None;
+            h.amplitude_deg = None;
+            h.beat_error_ms = None;
+            h.caveats = vec![Caveat::NoWatch {
+                reason: NoWatchReason::Scatter,
+            }];
+        }
+        let hours = t.results.unwrap().hours;
+        let rows = hour_rows(&hours);
+        assert_ne!(rows[1][1].0, NO_WATCH_TITLE, "an hour read is read");
+        let last = &rows[2];
+        assert_eq!(last[1].0, NO_WATCH_TITLE);
+        for c in &last[1..5] {
+            let why = &c.1.as_ref().expect("a hover").0;
+            assert!(why.starts_with("No regular beat found"), "{why}");
+            assert!(why.contains("no rate, amplitude or beat error"), "{why}");
+        }
+        assert_ne!(last[5].0, "–", "its Read (%) stays");
     }
 
     /// A run's hours whose beat error came from the drop: in the table

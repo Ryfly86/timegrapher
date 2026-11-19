@@ -137,7 +137,7 @@ fn drawn_with(
                     20.0,
                     false,
                     None,
-                    ("Current Position", false, [true; 3]),
+                    ("Current Position", false, [true; 3], false),
                 );
             });
         });
@@ -205,7 +205,7 @@ fn the_test_buttons_keep_their_places_from_phase_to_phase() {
     }
     // On the title's line, so the step's button is in reach in the
     // shortest pane: never under the progress bar.
-    let title = rect(&turn, "Turn the watch to Dial Down");
+    let title = rect(&turn, "Next: Dial Down (DD)");
     let start = rect(&turn, "Start DD Measurement");
     assert!(
         (start.center().y - title.center().y).abs() < 6.0,
@@ -1040,7 +1040,7 @@ fn drawn_empty(info: bool) -> Vec<String> {
         };
         let out = ctx.run(input, |ctx| {
             egui::CentralPanel::default().show(ctx, |ui| {
-                let card = ("Current Position", info, [true; 3]);
+                let card = ("Current Position", info, [true; 3], false);
                 pane(
                     ui, None, None, None, None, None, None, 20.0, false, None, card,
                 );
@@ -1480,4 +1480,112 @@ fn a_poise_stop_under_10_s_says_so_in_its_slot() {
         assert!((under.2.center().y - y).abs() < 1.0 && (dur.2.center().y - y).abs() < 1.0);
         assert!(under.2.left() > dur.2.right(), "{w}: {dur:?} {under:?}");
     }
+}
+
+/// No word in the step panel is ever cut, at any step of any of the three
+/// tests: the title whole on one line, the buttons under it where it won't
+/// fit beside them, and what happens next wrapped (Hugh on #1955, the v1.1
+/// shakedown: "Turn the watch to Crown ..." beside the comparison plot).
+/// The panel is ~600 pt beside the plot in a wide window, and the pane's
+/// width in a narrow one.
+#[test]
+fn no_word_in_the_step_panel_is_ever_cut() {
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    let tests = [
+        Test::new(),
+        Test::poise(),
+        Test::complication(Position::DialUp),
+    ];
+    for mut test in tests.map(|t| t.timed(10.0, 30.0)) {
+        for step in 0..test.order().len() {
+            test.step = step;
+            let phases = [
+                Phase::Settling(5.0),
+                Phase::Measuring(10.0),
+                Phase::Paused,
+                Phase::Turn,
+            ];
+            for (phase, w) in phases
+                .into_iter()
+                .flat_map(|p| [560.0, 1000.0, 1280.0, 1920.0, 2560.0].map(move |w| (p, w)))
+            {
+                let mut title = String::new();
+                let mut texts = Vec::new();
+                for _ in 0..2 {
+                    let input = egui::RawInput {
+                        screen_rect: Some(egui::Rect::from_min_size(
+                            egui::Pos2::ZERO,
+                            Vec2::new(w, 400.0),
+                        )),
+                        ..Default::default()
+                    };
+                    let out = ctx.run(input, |ctx| {
+                        egui::CentralPanel::default().show(ctx, |ui| {
+                            title = phase_words(&test, phase).0;
+                            banner(ui, &test, phase, None);
+                        });
+                    });
+                    texts = out
+                        .shapes
+                        .iter()
+                        .filter_map(|c| match &c.shape {
+                            egui::Shape::Text(s) => Some((
+                                s.galley.text().to_string(),
+                                s.galley.elided,
+                                s.galley.rows.len(),
+                            )),
+                            _ => None,
+                        })
+                        .collect::<Vec<_>>();
+                }
+                let at = format!("{:?} step {step} {phase:?} at {w}", test.kind);
+                for (t, elided, _) in &texts {
+                    assert!(!elided, "{at}: cut: {t}");
+                }
+                let shown = texts.iter().find(|t| t.0 == title);
+                assert_eq!(
+                    shown.map(|t| t.2),
+                    Some(1),
+                    "{at}: {title} whole on one line: {texts:?}"
+                );
+            }
+        }
+    }
+}
+
+/// Set up by New Test, the pane says the next step, Start Test, not how
+/// to set the test up; and no line ends in an ellipsis and a full stop
+/// (#1959).
+#[test]
+fn the_pane_says_the_next_step_once_set_up() {
+    let set_up = about_text(None, None, (true, false, true));
+    assert!(
+        set_up.contains("press Start Test on the Listen card"),
+        "{set_up}"
+    );
+    assert!(!set_up.contains("New Test"), "{set_up}");
+    assert!(about_text(None, None, (true, false, false)).contains("New Test"));
+    let mut test = Test::new();
+    test.readings = Some(six_readings());
+    let keep = about_text(Some(&test), None, (false, false, false));
+    assert!(!keep.is_empty());
+    assert!(!keep.contains("\u{2026}."), "{keep}");
+}
+
+/// Two rows, one with no rate: no Average yet, so no From Average, by the
+/// one rule the plots' average line uses too (#1959, Vernon on #2013).
+#[test]
+fn one_rated_row_of_two_has_no_average() {
+    use timegrapher_core::session::Position as P;
+    let figures = [
+        (P::CH, Some(2.0), Some(280.0), Some(0.2), None),
+        (P::CB, None, Some(270.0), None, None),
+    ];
+    let t = table_of(&figures, Vec::new(), Kind::Positions);
+    assert!(!session::has_mean(t.rows.iter().map(|r| r.1)));
+    assert!(t.rows.iter().all(|r| r.2.is_none()), "{:?}", t.rows);
+    let both = [figures[0], (P::CB, Some(4.0), Some(270.0), Some(0.1), None)];
+    let t = table_of(&both, Vec::new(), Kind::Positions);
+    assert!(t.rows.iter().all(|r| r.2.is_some()), "{:?}", t.rows);
 }

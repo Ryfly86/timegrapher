@@ -515,7 +515,10 @@ Paper Strip: with the strip moved back off the newest beats, Rate,
 Amplitude and Beat Error and their sparklines are read over Average Over
 ending at the strip's newest edge. The strip's own label says when
 ("at 0:40"), and each figure's hover says it was set by the Paper Strip;
-the status bar stays live. The big amplitude is the average of the two
+the status bar stays live. Under 10 s, amplitude and the unlock beat error
+are read over the last 10 s instead, since a shorter span holds too few
+lift readings; rate and the drop beat error keep the time chosen, and the
+Amplitude and Beat Error hovers say so (#1951). The big amplitude is the average of the two
 swings, in whole degrees, with a ± figure: the standard error of the
 median of its 2 s windows, estimated from successive window differences
 and widened for the windows' lag-one correlation.
@@ -559,8 +562,9 @@ it from the 30 nearest in the take, so the rate's ± waits for about
 5 min of beats and the others for about a minute (#1470). The Rate
 figure's hover says how many of the 30 there are so far, and once there
 is a ±, how many of them are this run's own. What the ± can't show is named, as a
-plain fact, in a chip beside the reading's caption, with its sentence on
-hover (a click keeps it open, as the ? does; with several, the chip
+plain fact, in a chip with its sentence on hover: beside the reading's
+caption when it limits that card alone, and otherwise once, in a chip in
+the status bar headed "About the readings shown:", #1975 (a click keeps it open, as the ? does; with several, the chip
 shows the first and how many more, "12 s of Beats +1", and the hover
 lists them all; with no room for its words beside the caption, the
 caption's hover gives them): "12 s of beats" when the beats span under 10 s, "540 of 600
@@ -814,8 +818,8 @@ eight upright stops, 45° apart, from 9H at the top: 9H, 7H30, 6H, 4H30,
 **New Test** in its toolbar, or **Dynamic Poise Test** under New Take in
 the Watches view, sets it up at 9H and turns the Current Position card to
 10, where it stays until switched back; Start Test on the Listen card
-starts it. The toolbar has **View** first (**Plot** or **Dial**, kept
-between runs), then Settle and Each Position, the Positions Test's own,
+starts it. The toolbar has **View** first (**Plot**, **Dial**, or
+both lit to show them side by side, kept between runs), then Settle and Each Position, the Positions Test's own,
 then **Copy** and Export…, with **Info** at the right. The banner works as
 the Positions Test's, naming each stop by the hour at the top ("Done:
 Crown Down (1 of 8)", "Turn the watch 45°, to 7:30 Up (7H30) at the top",
@@ -835,7 +839,9 @@ with a line to its fastest hour, and the line over the picture is its
 not stated. The heavy spot is a facts box's one row on the picture,
 core's `heavy_spot_row` ("Heavy spot", "6H at the top, 180 ± 12°", or
 "Not stated"): on the plot in its top left, or its top right under the
-key where the wave or a point runs under the left; on the dial above the
+key where the wave or a point (its dot and a dot's width round it,
+#1963) runs under the left, else a bottom corner; where none is clear,
+the place over the fewest points; on the dial above the
 watch face, at the top left (#1537). Until then the space reads "Fitted
 once 5 positions are measured". **Info** shows `text`, the fit in full
 with its twice-round terms, the heavy spot or why it is not stated and
@@ -1079,9 +1085,9 @@ afresh. Do this after changing the microphone or sound card behind an
 input's name.
 
 **Clipping.** Whenever a beat in the readings has a clipped sample in
-its sound, counted as `timegrapher analyze` counts them, the Amplitude
-and Beat Error cards say so in a chip, **3% Clipped**, its hover saying
-why it matters. Clipping flattens the loudest part of each tick, which
+its sound, counted as `timegrapher analyze` counts them, the status bar
+says so once, for the Amplitude and Beat Error it limits, in a chip,
+**3% Clipped**, its hover saying why it matters. Clipping flattens the loudest part of each tick, which
 moves the drop and so the amplitude and the beat error; the rate is
 unaffected. The chip follows the readings: it shows while the beats
 being averaged clip and goes when they no longer do. The peak meter, in
@@ -1418,7 +1424,8 @@ the strip runs down):
   narrower, in dark text on the teal; the position's name starts after
   it. Hovering the band always says "Settling" and how long. Changing
   **Settle** on the Positions Test pane redraws every band and the
-  table. A change painted with the Position Brush starts at the fade. The plot behind the beats takes the same at a sixth of
+  table, except those in a guided test already run: a test's stretches
+  stay as it read them, and the new Settle is for the next test. A change painted with the Position Brush starts at the fade. The plot behind the beats takes the same at a sixth of
   the strength.
 - Masked stretches are grey hatching over it, named "Masked".
 - Each name sits on a small plate of the card's colour, in the text
@@ -1570,7 +1577,11 @@ as a line; and a note giving the line's swing, highest less lowest, beside
 the boxes' median height), **Autocorrelation** (with the ±1.96/√n band
 dashed, the repeat marked and the Ljung–Box p-value), **Allan Deviation**
 (log-log, against the dashed line independent readings follow, labelled
-where it ends, with the averaging time of least scatter labelled),
+where it ends, with the averaging time of least scatter labelled; times on
+fewer differences than core's `ALLAN_JUDGED_DIFFERENCES` (8) hollow, their
+line faint, noted once "hollow: too few differences to judge" on a
+plate beside the first, as the repeat's note is, clear of the trace and
+the other two labels),
 **CUSUM** (with the ±1.36 lines dashed and the largest excursion
 labelled) and **FFT** (the plain amplitude spectrum of each series, like
 Witschi's: the size of the sine wave at each period, log-log, in the
@@ -2166,7 +2177,10 @@ anything is in them or not. A missing figure is a "—", with what the
 reading waits on in the unit's place, in short words ("Settling, 20 s";
 "Waiting for Beats"; "Before the Move"), the full sentence in the hover.
 With no regular beat, the reading cards say "No Regular Beat" there, with
-the full sentence and the timing scatter in the hover. A figure too wide
+the full sentence and the timing scatter in the hover. A regular beat
+heard after noise or silence, at launch or a New Session, says "Finding
+the Beat" instead, never that verdict, until the last 20 s
+(`live::FINDING_S`) hold the watch alone (#2008). A figure too wide
 for its card is drawn smaller. So the cards, and every pane under them,
 never change height with the readings. No pane is squeezed below 120 points, so the Paper
 Strip keeps room to read on a short window.

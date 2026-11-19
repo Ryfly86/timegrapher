@@ -261,6 +261,12 @@ example "(timing scatter 8.6 ms, 5.2% of a beat)".
   the input, and the level.
 - No reading is graded. The app never says whether a figure is good.
 
+When you put a watch on the stand after the app has been listening to
+the room, its first seconds are judged together with the noise before
+them. So while a regular beat is first heard, the cards say **Finding
+the Beat**, not No regular beat found, for up to 20 s, until the time
+they judge holds only the watch.
+
 ## Compact Readings
 
 The pin at the right end of the cards folds them into a strip, with the
