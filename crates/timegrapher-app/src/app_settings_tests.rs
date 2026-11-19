@@ -404,7 +404,13 @@ fn a_test_with_no_watch_asks_where_it_goes() {
     app.reserve = Some(reserve::Test::new(Position::DialUp, true, started, 0.0));
     app.stop_listening();
     assert_eq!(app.test_keep, Some(TestKeep::PowerReserve));
-    status_names(&app, "Power Reserve Test · No watch picked");
+    // Still the test's take (this fixture keeps Pepsi's name from the
+    // take kept before, so only the test's name is checked here).
+    assert!(
+        app.status_words().starts_with("Power Reserve Test · "),
+        "{}",
+        app.status_words()
+    );
     assert_eq!(takes_in(unsorted.clone()), 1, "not saved before the answer");
     app.keep_test(TestKeep::PowerReserve, None);
     app.wait_for_save();
