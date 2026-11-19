@@ -34,9 +34,66 @@ pub(super) fn axis_ms(ms: f64, step: f64, half: f64) -> String {
     }
 }
 
+/// The step between the strip's labelled time lines, seconds: the first
+/// of the time axis's steps that leaves `gap` points between lines over
+/// `along_px` points showing `span` seconds, and never under 1 s, as its
+/// m:ss labels name whole seconds, so no two lines share a label (#2068,
+/// Hugh).
+pub(super) fn time_step(span: f64, gap: f64, along_px: f64) -> f64 {
+    let want = span * gap / along_px.max(1.0);
+    crate::theme::TIME_STEPS
+        .iter()
+        .copied()
+        .filter(|&s| s >= 1.0)
+        .find(|&s| s >= want)
+        .unwrap_or(172800.0)
+}
+
+/// The times of the labelled lines, `step` apart, from the newest at or
+/// before `end` back to just after `oldest`, and none before the session
+/// started.
+pub(super) fn time_lines(end: f64, oldest: f64, step: f64) -> Vec<f64> {
+    let mut t = (end / step).floor() * step;
+    let mut lines = Vec::new();
+    while t > oldest && t >= -1e-9 {
+        lines.push(t);
+        t -= step;
+    }
+    lines
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// On every strip from 1 s to 60 s, lying across or standing down,
+    /// at least one time line is labelled, and no two neighbours share a
+    /// label: the step is whole seconds at the least (#2068).
+    #[test]
+    fn short_strips_label_each_time_line_once() {
+        use timegrapher_core::library::length_text;
+        for (gap, along) in [
+            (90.0, 300.0),
+            (90.0, 1000.0),
+            (90.0, 1900.0),
+            (40.0, 200.0),
+            (40.0, 900.0),
+        ] {
+            for span in 1..=60 {
+                let span = span as f64;
+                let step = time_step(span, gap, along);
+                assert!(step >= 1.0, "{step} s at {span} s over {along}");
+                let labels: Vec<String> = time_lines(span, -0.5, step)
+                    .into_iter()
+                    .map(length_text)
+                    .collect();
+                assert!(!labels.is_empty(), "none at {span} s over {along}");
+                for pair in labels.windows(2) {
+                    assert_ne!(pair[0], pair[1], "{labels:?} at {span} s over {along}");
+                }
+            }
+        }
+    }
 
     #[test]
     fn axis_labels_turn_to_seconds() {
