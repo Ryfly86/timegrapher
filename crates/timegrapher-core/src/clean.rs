@@ -253,6 +253,25 @@ impl<'a> Cuts<'a> {
             .fold(f64::NEG_INFINITY, f64::max)
     }
 
+    /// The seconds of sound heard by `end` (true time) since the start or
+    /// the end of the latest hole before it ([`crate::measure::awaiting_verdict`]).
+    /// Inside a hole, the sound heard up to where the hole began.
+    pub fn heard_s(&self, end: f64) -> f64 {
+        let sound_end = self
+            .holes
+            .iter()
+            .filter(|h| h.start_s <= end && end < h.end_s)
+            .map(|h| h.start_s)
+            .fold(end, f64::min);
+        let from = self
+            .holes
+            .iter()
+            .filter(|h| h.end_s <= sound_end)
+            .map(|h| h.end_s)
+            .fold(0.0, f64::max);
+        (sound_end - from).max(0.0)
+    }
+
     /// The latest cut a reading over `beats` (true time, sorted) from
     /// `from` to `end` may not reach back across: the start of the whole
     /// stretch holding `end` ([`stretch_from`](Self::stretch_from)), or

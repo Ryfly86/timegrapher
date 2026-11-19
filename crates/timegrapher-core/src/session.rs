@@ -1199,7 +1199,10 @@ pub fn measure_reading(
     );
     let assessed = crate::measure::regularity_assessed(listened_s, judged.holds_window);
     let no_watch = crate::measure::no_watch_reason(jitter_us, log.bph, assessed, beat_sound);
-    let awaiting = crate::measure::awaiting_verdict(assessed, beat_sound);
+    // The sound behind the reading: since the latest cut, or the
+    // stretch's own where it reads across one.
+    let awaiting =
+        crate::measure::awaiting_verdict(holes.heard_s(to_t).max(listened_s), beat_sound);
     let mut m = Measurement {
         start_s: from_s,
         end_s: to_s,

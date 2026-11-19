@@ -1511,7 +1511,7 @@ impl LiveAnalyzer {
             jitter_us,
             timing_scatter_fraction,
             no_watch,
-            awaiting: measure::awaiting_verdict(assessed, beat_sound),
+            awaiting: measure::awaiting_verdict(self.heard_cuts().heard_s(end_s), beat_sound),
         }
     }
 

@@ -1632,14 +1632,9 @@ fn live_profiles_go_long_with_their_amplitude_reading() {
 #[test]
 fn a_reading_listens_for_ten_seconds_since_the_start_a_break_or_a_mask() {
     use measure::HeardSince;
-    let cfg = SynthConfig {
-        duration_s: 60.0,
-        rate_s_per_day: 5.0,
-        ..Default::default()
-    };
-    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
-    let mut a = LiveAnalyzer::new(48000, LiveConfig::default());
-    feed(&mut a, &audio.samples);
+    // An opened log with no snippets: its beats' sound can't be judged,
+    // so under 10 s of sound there is no verdict.
+    let mut a = LiveAnalyzer::from_log(viewer_phase_log(5.0, 5.0), LiveConfig::default());
     let at = |a: &LiveAnalyzer, t: f64| {
         let r = a.reading_at(t, 10.0);
         assert!(r.watch_heard, "{t} s: {r:?}");

@@ -471,7 +471,7 @@ fn hear(
     Heard {
         jitter_us,
         no_watch: crate::measure::no_watch_reason(jitter_us, bph, assessed, beat_sound),
-        awaiting: crate::measure::awaiting_verdict(assessed, beat_sound),
+        awaiting: crate::measure::awaiting_verdict(audio.duration(), beat_sound),
         listened_s,
         expected: crate::beats::expected_beats(listened_s, bph),
         clipping: Clipping::measure(&audio.samples, fs, beats),
