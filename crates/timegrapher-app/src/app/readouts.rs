@@ -525,16 +525,30 @@ fn big_stretch(average_s: f64, floored: bool) -> String {
 impl TimegrapherApp {
     /// Under 10 s of sound since Listen started or the latest break, no
     /// figures yet: a word saying what they wait for, and its hover
-    /// (#2014, Hugh). A settle's own state wins.
-    fn listening(&self, r: Option<&LiveReading>) -> Option<(String, String)> {
+    /// (#2014, Hugh). A settle's own state wins. Where the sound is over it
+    /// is no longer listening (#2053): with beats, "Under 10 s Heard", the
+    /// fact (#2066); with none, the cards' "No Beats Heard".
+    pub(super) fn listening(&self, r: Option<&LiveReading>) -> Option<(String, String)> {
+        // With no beat at all, once over, the cards' "No Beats Heard".
+        let none = r.is_some_and(no_beat) && self.sound_over();
         r.and_then(|r| r.listening)
-            .filter(|_| heard(r) && self.settling_left().is_none())
-            .map(|since| {
-                (
-                    timegrapher_core::measure::LISTENING_TITLE.to_string(),
-                    timegrapher_core::measure::listening_text(since),
-                )
+            .filter(|_| !none && heard(r) && self.settling_left().is_none())
+            .map(|since| match self.sound_over() {
+                // The sound over, under 10 s heard is a fact, not a wait:
+                // no more will come (Hugh on #2066).
+                true => wait_words(measure::Wait::ShortHeard { since }),
+                false => (
+                    measure::LISTENING_TITLE.to_string(),
+                    measure::listening_text(since),
+                ),
             })
+    }
+
+    /// Whether the cards show the end of a sound that is over: stopped, or
+    /// an opened recording, at its newest moment. Earlier in it, the strip
+    /// moved back, its first 10 s are still "Listening" (#2053).
+    fn sound_over(&self) -> bool {
+        !self.running() && self.strip_end.is_none()
     }
 
     /// Why the cards have no reading, or a reading with no beat at all:
@@ -601,6 +615,16 @@ impl TimegrapherApp {
         self.session
             .settling_left(at)
             .or_else(|| self.test_settle_left(at))
+    }
+
+    /// A guided test's phase as its pane shows it: a settle counted in the
+    /// cards' own seconds, from the one `settling_left`, so the pane and
+    /// the cards never say the same settle 1 s apart (Walter on #2051).
+    pub(super) fn shown_phase(&self, p: Option<guided::Phase>) -> Option<guided::Phase> {
+        p.map(|p| match (p, self.settling_left()) {
+            (guided::Phase::Settling(_), Some(left)) => guided::Phase::Settling(left),
+            (p, _) => p,
+        })
     }
 
     /// A guided test's own settle still to come at `at`, while it listens.
@@ -771,7 +795,7 @@ impl TimegrapherApp {
             None => "s/d".to_string(),
         };
         // The beats behind the figure, in its hover.
-        let mut behind = r.map_or_else(String::new, |r| self.beats_behind(r));
+        let mut behind = self.rate_beats_behind(r);
         if let Some(t) = r.filter(|_| heard).and_then(rate_pm_words) {
             behind += &format!("\n\n{t}");
         }
@@ -896,17 +920,26 @@ impl TimegrapherApp {
         out
     }
 
+    /// The beats behind the Rate figure for its hover: none said where the
+    /// stretch holds no beat at all, as its wait says so (#2044).
+    pub(super) fn rate_beats_behind(&self, r: Option<&LiveReading>) -> String {
+        r.filter(|r| !no_beat(r))
+            .map_or_else(String::new, |r| self.beats_behind(r))
+    }
+
     /// The beats behind the Rate figure, and their jitter, for its hover.
     fn beats_behind(&self, r: &LiveReading) -> String {
         let short = r.span_s + 1.0 < self.average_s;
         let mut t = if short {
             format!(
-                "{} beats in {} of {}: there are fewer seconds of beats than \
-                 Average Over asks for, early in a session or after a break in \
-                 the sound, so the readings use what there is.",
+                "{} beats in {} of {}: the beats the readings are fitted to, \
+                 fewer seconds than Average Over asks for. They are every beat \
+                 since the sound began, or since the latest break, masked \
+                 stretch or gap of more than {} with no beats.",
                 r.beats_used,
                 fields::duration(r.span_s.round()),
-                fields::duration(self.average_s)
+                fields::duration(self.average_s),
+                fields::duration(timegrapher_core::clean::GAP_S)
             )
         } else {
             format!(
@@ -1457,14 +1490,7 @@ impl TimegrapherApp {
         if error && !self.setup_sheet {
             let short = match (self.session.recording_fault(), &self.message) {
                 (Some(_), _) => "Recording Stopped…".to_string(),
-                (None, Some((m, _))) => {
-                    let first = m.lines().next().unwrap_or_default();
-                    if first.chars().count() > 48 {
-                        format!("{}…", first.chars().take(47).collect::<String>())
-                    } else {
-                        format!("{first}…")
-                    }
-                }
+                (None, Some((m, _))) => error_short(m),
                 _ => String::new(),
             };
             let resp = status_item(
@@ -1815,10 +1841,23 @@ impl TimegrapherApp {
 
     pub(super) fn no_watch(&mut self, ui: &mut egui::Ui) {
         let pal = theme::pal(ui);
-        let line = self.reading().map_or_else(
-            || timegrapher_core::beats::no_regular_beat_text(None, None),
-            |r| no_regular_beat(&r),
-        );
+        // A stretch with no beat at all: the cards' own words, so the strip
+        // and the cards give one verdict (#2044). Beats that aren't
+        // regular, or noise in a settle (#1944): why there is no watch.
+        let reading = self.reading();
+        let (line, below, hover) = match reading.as_ref().and_then(|r| self.waiting(Some(r))) {
+            Some((title, text)) => (title, text, None),
+            None => (
+                reading.as_ref().map_or_else(
+                    || timegrapher_core::beats::no_regular_beat_text(None, None),
+                    no_regular_beat,
+                ),
+                "The sound so far has no beats at regular intervals. The readings and \
+                 charts appear once a regular beat is found."
+                    .to_string(),
+                Some(*help::NO_REGULAR_BEAT),
+            ),
+        };
         ui.add_space((ui.available_height() * 0.16).clamp(16.0, 110.0));
         ui.vertical_centered(|ui| {
             let w = 520.0_f32.min(ui.available_width());
@@ -1827,16 +1866,13 @@ impl TimegrapherApp {
                     ui.set_width(w - 28.0);
                     ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
                         ui.spacing_mut().item_spacing.y = 8.0;
-                        ui.label(RichText::new(&line).font(theme::semibold(17.0)))
-                            .on_hover_text(*help::NO_REGULAR_BEAT);
+                        let title = ui.label(RichText::new(&line).font(theme::semibold(17.0)));
+                        if let Some(h) = hover {
+                            title.on_hover_text(h);
+                        }
                         ui.add(
                             egui::Label::new(
-                                RichText::new(
-                                    "The sound so far has no beats at regular intervals. The \
-                                     readings and charts appear once a regular beat is found.",
-                                )
-                                .small()
-                                .color(pal.text_secondary),
+                                RichText::new(&below).small().color(pal.text_secondary),
                             )
                             .wrap(),
                         );
@@ -2069,7 +2105,7 @@ pub(super) fn figure_row(
     // (Hugh on #2036), and only then is made smaller.
     let short = status.and_then(|s| measure::wait_short_title(&s.0));
     if let Some(short) = short.filter(|_| no_dash && side_w > rect.width()) {
-        lines = side_lines(short, true, compact);
+        lines = side_lines(&short, true, compact);
         side = lay_side(&side_font, &lines);
         side_w = side.iter().map(|g| g.size().x).fold(0.0, f32::max);
     }
@@ -2151,8 +2187,13 @@ fn side_lines(side_text: &str, status: bool, compact: bool) -> Vec<String> {
         vec![side_text.to_string()]
     } else if status {
         // Two lines as even as the words allow: "Settling," over "12 s",
-        // "Waiting for" over "Beats".
-        let splits = side_text.match_indices(' ').map(|(i, _)| i);
+        // "Waiting for" over "Beats". Never between a number and its
+        // unit: "Under 10 s" over "Heard" (#2066).
+        let number = |w: &str| w.chars().all(|c| c.is_ascii_digit());
+        let splits = side_text
+            .match_indices(' ')
+            .map(|(i, _)| i)
+            .filter(|&i| !side_text[..i].rsplit(' ').next().is_some_and(number));
         match splits.min_by_key(|&i| i.abs_diff(side_text.len() - i)) {
             Some(i) => vec![side_text[..i].to_string(), side_text[i + 1..].to_string()],
             None => vec![side_text.to_string()],
@@ -2354,4 +2395,15 @@ fn said_elsewhere(c: &Caveat) -> bool {
             | Caveat::LiftUnknown
             | Caveat::ClockUnknown
     )
+}
+
+/// An error's words in the status bar: its first line, cut to 48
+/// characters, with "…" saying a click shows the whole message.
+pub(super) fn error_short(m: &str) -> String {
+    let first = m.lines().next().unwrap_or_default();
+    if first.chars().count() > 48 {
+        format!("{}…", first.chars().take(47).collect::<String>())
+    } else {
+        format!("{first}…")
+    }
 }

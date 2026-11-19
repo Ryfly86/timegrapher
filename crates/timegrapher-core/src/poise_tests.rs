@@ -736,15 +736,18 @@ fn the_corpus_ym42_verticals_state_the_wave_and_withhold_the_heavy_spot() {
 }
 
 /// In the band the words say each fact once (Hugh, #1499): the range in
-/// the heavy spot's line only, its caveat apart from it for a pane's
-/// chip, and beside the band's note no second word on 219.5°.
+/// the amplitude's sentence only, the heavy spot's line naming the stop
+/// nearest 219.5° that put the take in the band, not the range (#1960),
+/// its caveat apart from it for a pane's chip, and beside the band's note
+/// no second word on 219.5°.
 #[test]
 fn in_the_band_each_fact_is_said_once() {
     let f = fit(&ym42_verticals(), None).unwrap();
     let (spot, caveat) = (f.heavy_spot_line(), f.caveat_line());
     assert_eq!(
         spot,
-        "At 224–237°, poise barely moves the rate. Heavy spot not stated."
+        "At 3H the amplitude is 224°, near 219.5°, where poise barely moves the rate. \
+         Heavy spot not stated."
     );
     assert_eq!(
         f.heavy_spot_row(),
@@ -803,4 +806,98 @@ fn a_reading_gives_its_point_upright_only() {
     assert_eq!(p.amplitude_deg, m.amplitude_deg);
     assert!(p.rate_se.is_some() && p.amplitude_se.is_some());
     assert!(point(P::CH, &m).is_none() && point(P::CB, &m).is_none());
+}
+
+/// Four stops, at `(angle, amplitude, amplitude ±)`, their rates a clear
+/// once-round wave.
+fn stops_at(amps: &[(f64, f64, f64)]) -> Vec<Point> {
+    amps.iter()
+        .map(|&(a, am, ams)| Point {
+            angle_deg: a,
+            rate_s_per_day: 20.0 * a.to_radians().cos(),
+            rate_se: Some(0.8),
+            amplitude_deg: Some(am),
+            amplitude_se: Some(ams),
+        })
+        .collect()
+}
+
+/// A stop at 174° whose ± of 23.5° alone reaches the band (Walter 5 on
+/// #2041): the heavy spot is still withheld, and the words name the ±
+/// and say "may", not that 174° is near 219.5° (Norm on #1960, (a)).
+#[test]
+fn a_stop_whose_pm_alone_reaches_the_band_says_it_may_be_near() {
+    let f = fit(
+        &stops_at(&[
+            (0.0, 280.0, 1.0),
+            (90.0, 285.0, 1.0),
+            (225.0, 174.0, 23.5),
+            (270.0, 278.0, 1.0),
+        ]),
+        None,
+    )
+    .unwrap();
+    assert!(f.heavy_spot.is_none());
+    assert_eq!(
+        f.heavy_spot_line(),
+        "At 7H30 the amplitude is 174 ± 24°, so it may be near 219.5°, where poise barely \
+         moves the rate. Heavy spot not stated."
+    );
+}
+
+/// A stop whose value is in the band names it ahead of one whose wider ±
+/// reaches nearer 219.5° (Norm on #1960, (c)).
+#[test]
+fn a_stop_in_the_band_is_named_ahead_of_a_wide_pm_stop() {
+    let f = fit(
+        &stops_at(&[
+            (0.0, 280.0, 1.0),
+            (180.0, 236.0, 1.0),
+            (225.0, 174.0, 23.5),
+            (270.0, 278.0, 1.0),
+        ]),
+        None,
+    )
+    .unwrap();
+    assert!(matches!(
+        f.withheld,
+        Some(Withheld::NullBand {
+            angle_deg: 180.0,
+            reached_by_se: None,
+            ..
+        })
+    ));
+    assert_eq!(
+        f.heavy_spot_line(),
+        "At 6H the amplitude is 236°, near 219.5°, where poise barely moves the rate. \
+         Heavy spot not stated."
+    );
+}
+
+/// Of two stops whose ± alone reaches the band, the one named is the
+/// furthest past 219.5° by the reach `in_null_band` tests, its share of
+/// the amplitude in it ([`null_band_margin`]): 3H at 280 ± 20° (margin
+/// −1.9°) ahead of 7H30 at 170 ± 18.5° (−1.1°), which the ± alone would
+/// put ahead (Vernon and Norm on #2041).
+#[test]
+fn the_band_names_the_stop_by_the_reach_it_is_tested_by() {
+    let stops = [
+        (0.0, 300.0, 1.0),
+        (90.0, 280.0, 20.0),
+        (225.0, 170.0, 18.5),
+        (270.0, 310.0, 1.0),
+    ];
+    assert!(null_band_margin(280.0, Some(20.0)) < null_band_margin(170.0, Some(18.5)));
+    let f = fit(&stops_at(&stops), None).unwrap();
+    assert!(matches!(
+        f.withheld,
+        Some(Withheld::NullBand {
+            angle_deg: 90.0,
+            reached_by_se: Some(_),
+            ..
+        })
+    ));
+    assert!(f
+        .heavy_spot_line()
+        .starts_with("At 3H the amplitude is 280 ± 20°, so it may"));
 }

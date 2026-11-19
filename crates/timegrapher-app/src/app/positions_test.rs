@@ -687,6 +687,7 @@ impl TimegrapherApp {
             (Some(t), Some(now)) => Some(t.tick(now)),
             _ => None,
         };
+        let phase = self.shown_phase(phase);
         let free = if self.guided.is_none() {
             self.free_table_shown(ui.ctx())
         } else {

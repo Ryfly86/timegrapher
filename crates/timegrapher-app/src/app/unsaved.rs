@@ -97,14 +97,15 @@ impl TimegrapherApp {
 
     /// Refuse a save, saying why, when hours the session kept in its take
     /// alone are gone with it (Desmond on #2046): it can't be saved whole
-    /// anywhere, and a save would fail part way.
+    /// anywhere, and a save would fail part way. The first line is short
+    /// enough for the status bar to show whole (Hugh 4 on #2055).
     pub(super) fn refuse_hours_gone(&mut self) -> bool {
         if self.saved_hours_reachable() {
             return false;
         }
         self.error(
-            "This sound can't be saved: what was already saved was kept only in its take, \
-             which no longer holds it."
+            "This sound can't be saved\nIts earlier part was kept only in its take, and the \
+             take no longer holds it."
                 .into(),
         );
         true

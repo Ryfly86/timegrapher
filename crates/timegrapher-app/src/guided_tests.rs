@@ -1589,3 +1589,17 @@ fn one_rated_row_of_two_has_no_average() {
     let t = table_of(&both, Vec::new(), Kind::Positions);
     assert!(t.rows.iter().all(|r| r.2.is_some()), "{:?}", t.rows);
 }
+
+/// The step panel counts a settle down in the same whole seconds as the
+/// reading cards' "Settling, N s": one settle, one count (#2044).
+#[test]
+fn the_step_panel_and_the_cards_count_the_settle_alike() {
+    use timegrapher_core::measure::Wait;
+    let t = Test::new().timed(30.0, 60.0);
+    for left in [29.6, 14.4, 14.5, 1.0, 0.3] {
+        let (_, detail, _) = phase_words(&t, Phase::Settling(left));
+        let cards = Wait::Settling { left_s: left }.title();
+        let n = cards.trim_start_matches("Settling, ");
+        assert_eq!(detail, format!("Letting the watch settle, {n}"), "{left}");
+    }
+}

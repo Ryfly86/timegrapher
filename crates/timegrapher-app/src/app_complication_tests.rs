@@ -556,6 +556,14 @@ fn the_banner_says_to_turn_the_complication_on() {
     let texts: Vec<&str> = drawn.iter().map(|(t, _)| t.as_str()).collect();
     assert!(texts.contains(&"Turn the complication on"), "{texts:?}");
     assert!(texts.contains(&"Start On Measurement"), "{texts:?}");
+    // Its line under the title is a sentence of its own (#2003).
+    assert!(
+        texts.contains(
+            &"When it's on, press Start On Measurement. Until then the strip reads Not Used for \
+              Complication Test."
+        ),
+        "{texts:?}"
+    );
 }
 
 /// The pane drawn twice at `size`: each text and where it is.
