@@ -545,10 +545,10 @@ impl Test {
         }
         let start = *self.start.get_or_insert(now);
         self.began.get_or_insert(start);
-        let (from, to) = self.window(start);
-        if now < from {
-            return Phase::Settling(from - now);
+        if let Some(left) = self.settling_left(now) {
+            return Phase::Settling(left);
         }
+        let (from, to) = self.window(start);
         if now < to {
             return Phase::Measuring(now - from);
         }

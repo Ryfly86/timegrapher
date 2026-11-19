@@ -597,7 +597,7 @@ impl TimegrapherApp {
     /// Seconds of settling still to come at `at`: after a move, as the
     /// session keeps them, or a guided test's opening settle in its first
     /// position, which no move starts (Walter on #2036).
-    fn settle_left_at(&self, at: f64) -> Option<f64> {
+    pub(super) fn settle_left_at(&self, at: f64) -> Option<f64> {
         self.session
             .settling_left(at)
             .or_else(|| self.test_settle_left(at))
@@ -613,8 +613,8 @@ impl TimegrapherApp {
 
     /// The reading the reading cards show, whether a watch is heard in
     /// it, and what every card says in its figure's place when it has
-    /// none: a settle, no regular beat, Finding the Beat, Listening, or
-    /// another wait (#2007).
+    /// none: no regular beat, Finding the Beat, Listening, or a wait such
+    /// as a settle (#2007).
     fn cards_state(
         &self,
         r: Option<LiveReading>,
@@ -623,12 +623,6 @@ impl TimegrapherApp {
         // then, only a word saying so where the unit goes.
         // A regular beat just heard after noise or silence is still being
         // found: a wait, not that verdict (#2008).
-        // A guided test's opening settle, which no move starts: nothing is
-        // read in it, as in a move's (Walter on #2036).
-        let opening = self
-            .test_settle_left(self.latest_s())
-            .filter(|_| self.strip_end.is_none());
-        let r = r.filter(|_| opening.is_none());
         // A stretch with no beat at all is no beat heard, not an
         // irregular one (Walter on #2036).
         let none = r.as_ref().is_some_and(no_beat);
@@ -649,9 +643,8 @@ impl TimegrapherApp {
                 ),
             )
         };
-        let unheard = opening
-            .map(|left_s| self.settle_words(left_s))
-            .or_else(|| (!heard).then(|| (unheard_line.clone(), unheard_hover.clone())))
+        let unheard = (!heard)
+            .then(|| (unheard_line.clone(), unheard_hover.clone()))
             .or_else(|| self.listening(r.as_ref()))
             .or_else(|| self.waiting(r.as_ref()));
         (r, heard, unheard)
