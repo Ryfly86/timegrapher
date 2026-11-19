@@ -364,6 +364,9 @@ pub enum SavedRead {
     /// It couldn't be read again, and why: its figures are the
     /// listening's.
     Failed(String),
+    /// Its take was kept by Save Analysis Only, with no sound to read it
+    /// again from: its figures are the listening's (#2070).
+    NoSound,
 }
 
 impl Test {
@@ -773,7 +776,7 @@ impl Test {
     pub fn listened(&self) -> bool {
         matches!(
             self.saved_read,
-            SavedRead::Pending | SavedRead::Reading | SavedRead::Failed(_)
+            SavedRead::Pending | SavedRead::Reading | SavedRead::Failed(_) | SavedRead::NoSound
         )
     }
 
@@ -788,6 +791,12 @@ impl Test {
                 "These are the figures heard while listening: the saved take couldn't be \
                  analysed again ({why}). Opened again, the take may read slightly differently."
             )),
+            SavedRead::NoSound => Some(
+                "These are the figures heard while listening: the take was saved without its \
+                 sound, so it couldn't be analysed again. Opened again, the take may read \
+                 slightly differently."
+                    .to_string(),
+            ),
             SavedRead::NotRead | SavedRead::Pending | SavedRead::Read => None,
         }
     }
