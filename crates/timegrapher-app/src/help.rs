@@ -426,6 +426,7 @@ const STEADY_PERIODS: &[&str] = &[
     "- The score has no unit; only its height against the dashed line matters.",
     "- The dashed line is the score a period needs for the search to list it.",
     "- The strongest listed period is labelled, with the wheel whose turn it matches, if any.",
+    "- The headline's cycle is marked as the headline's.",
     "## Controls",
     "- dB Scale shows the scores in decibels; off, linear.",
     "- Wheel Periods and Mesh mark the wheels' turns and where their teeth meet.",
@@ -439,8 +440,8 @@ const STEADY_CYCLE: &[&str] = &[
      yellow-green last.",
     "- A box round the middle half of each phase's readings, and their median shape as the \
      line.",
-    "- The note gives the cycle's size, peak to peak, beside a box's median height: a size \
-     well above the boxes' height is a real cycle.",
+    "- The note gives the size beside a box's median height: the cycle's own peak to peak at \
+     the headline's cycle, otherwise as the note says.",
 ];
 
 const STEADY_AUTOCORRELATION: &[&str] = &[
@@ -448,7 +449,9 @@ const STEADY_AUTOCORRELATION: &[&str] = &[
     "## What It Shows",
     "- Across: the lag. Up: the correlation, from −1 to +1.",
     "- Independent readings stay inside the dashed band. A rise back to a peak outside it \
-     means the readings repeat at that lag, and the first such peak is marked with its lag.",
+     means the readings repeat at that lag.",
+    "- The first such peak is marked with its lag, or, when the autocorrelation found the \
+     headline's cycle, that cycle's lag.",
     "- The note gives the Ljung–Box p-value: under 0.01, the readings are not independent.",
 ];
 
