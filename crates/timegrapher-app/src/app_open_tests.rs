@@ -422,6 +422,7 @@ fn a_positions_test_take_lists_its_measured_stretches() {
     let full = guided::FullWind {
         wind_h: None,
         against: None,
+        listened: false,
         format: guided::RESULTS_FORMAT.into(),
         began_utc: String::new(),
         began_unix: now - 24.0 * 3600.0,

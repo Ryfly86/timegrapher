@@ -970,6 +970,7 @@ impl TimegrapherApp {
         {
             files.push((power_reserve::FILE, r.to_json().into_bytes()));
         }
+        files.extend(self.test_marks_file());
         Ok(files)
     }
 
@@ -1058,6 +1059,7 @@ impl TimegrapherApp {
                 if s.streamed == Streamed::No && !self.running() {
                     self.run_after_save_command(&copy.dir);
                 }
+                self.read_test_again(&copy.dir, s.streamed);
                 self.session.mark_saved(s.secs, copy.dir, s.metadata);
                 if s.rescan {
                     if let Ok(Some(l)) = &mut self.library {
@@ -1100,7 +1102,7 @@ impl TimegrapherApp {
     /// waiting its turn holds all its sound, so it alone answers for the
     /// take and the quit: the pause can take the hour from under a copy
     /// still under way (#1230).
-    fn save_failed(&mut self, streamed: Streamed, dest: &Path, e: String) {
+    pub(super) fn save_failed(&mut self, streamed: Streamed, dest: &Path, e: String) {
         if streamed == Streamed::Yes && !self.running() && !self.after_save.is_empty() {
             return applog::info(&format!(
                 "a save into {} failed after the Stop, whose save follows: {e}",
@@ -1126,12 +1128,6 @@ impl TimegrapherApp {
             ));
         }
         self.error(format!("Saving the recording failed: {e}"))
-    }
-
-    /// [`Self::save_failed`] of a save into the take's folder, for tests.
-    #[cfg(test)]
-    pub(super) fn save_failed_for_test(&mut self, dest: &Path, e: String) {
-        self.save_failed(Streamed::Yes, dest, e);
     }
 
     /// While the session is being kept as its analysis alone, say so and
@@ -2217,6 +2213,7 @@ impl TimegrapherApp {
         self.poll_for(FRAME_BUDGET);
         self.follow_live_usb();
         self.poll_wav_keep();
+        self.poll_test_read();
         // Asks waiting on a save go ahead on the window's frame, never on
         // the listening thread, which polls too.
         self.run_after_save();
