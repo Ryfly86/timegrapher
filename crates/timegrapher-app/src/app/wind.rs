@@ -28,6 +28,12 @@ pub(super) struct Wind {
     shown: Option<(PathBuf, Option<f64>)>,
     /// The hours typed in Full Wind [ ] h ago.
     ago: String,
+    /// The full wind before a test's Start set it (inner none where not
+    /// given), until the next test starts or a stop lets the wind go: put
+    /// back if the test is thrown away, which leaves no facts behind
+    /// (#2001). Every test's Start sets or clears it, and only a test is
+    /// ever thrown away.
+    before_test: Option<Option<f64>>,
 }
 
 /// A choice in the Wind part of a Set menu. Once a take has begun, its
@@ -99,9 +105,34 @@ impl TimegrapherApp {
     /// began gives none (Norm on #1935: never moved earlier to fill one).
     pub(super) fn started_from_full_wind(&mut self, fresh: bool) {
         if START_SETS_FULL_WIND {
+            self.wind.before_test = Some(self.wound_unix());
             let now = guided::unix_now();
             let began = self.recording_began_unix().filter(|_| fresh);
             self.set_wound(Some(began.unwrap_or(now)));
+        }
+    }
+
+    /// A test that doesn't set the wind has started: a thrown-away test
+    /// before it is past putting the wind back.
+    pub(super) fn started_without_full_wind(&mut self) {
+        self.wind.before_test = None;
+    }
+
+    /// A Power Reserve Test found the watch stopped: it is let down, so
+    /// its full wind no longer holds, and the field and the takes after
+    /// say Not given. The test's own take keeps its wind from its start
+    /// ([`reserve::Test::wind_h`]); thrown away, the stop still stands
+    /// (#2001).
+    pub(super) fn wind_let_down(&mut self) {
+        self.wind.before_test = None;
+        self.set_wound(None);
+    }
+
+    /// A test thrown away: the wind its Start set goes back to what it
+    /// was before (#2001). Nothing where its Start set none.
+    pub(super) fn test_thrown_away(&mut self) {
+        if let Some(before) = self.wind.before_test.take() {
+            self.set_wound(before);
         }
     }
 
@@ -133,12 +164,14 @@ impl TimegrapherApp {
     }
 
     /// Each entry's hours since full wind, as a take saves them: a
-    /// Positions Test's 24 hour half its own, from its full-wind test;
-    /// any other take the card's.
+    /// Positions Test's 24 hour half its own, from its full-wind test; a
+    /// Power Reserve Test's its own from its start (#2001); any other
+    /// take the card's.
     pub(super) fn entry_wind_h(&self) -> Option<f64> {
         self.guided
             .as_ref()
             .and_then(|t| t.wind_h())
+            .or_else(|| self.reserve.as_ref().and_then(|t| t.wind_h))
             .or_else(|| self.take_wind_h())
     }
 

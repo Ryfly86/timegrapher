@@ -245,6 +245,7 @@ impl TimegrapherApp {
     pub(super) fn begin_reserve(&mut self) {
         // A Power Reserve Test begins at full wind.
         self.started_from_full_wind(true);
+        let wind_h = self.take_wind_h();
         let pos = self.position;
         let started = self
             .session
@@ -259,7 +260,9 @@ impl TimegrapherApp {
         // Analysis Only reads the sound as it comes and never writes it
         // (#1514); when it can't, the sound is kept, and that is said.
         let keep_sound = self.reserve_keep_sound || !self.start_kept();
-        self.reserve = Some(reserve::Test::new(pos, keep_sound, started, now));
+        let mut t = reserve::Test::new(pos, keep_sound, started, now);
+        t.wind_h = wind_h;
+        self.reserve = Some(t);
         self.reserve_read_s = now;
         self.reserve_hours_s = f64::NEG_INFINITY;
         applog::info(&format!(
@@ -508,11 +511,18 @@ impl TimegrapherApp {
             r.hours = self.reserve_hours(r.first_beat_s, r.last_beat_s, 0);
         }
         let hours = results.as_ref().map(|r| r.hours.len());
+        let mut stopped = false;
         if let Some(t) = self.reserve.as_mut() {
+            stopped = [results.as_ref().map(|r| r.ending), t.ending]
+                .contains(&Some(power_reserve::Ending::Stopped));
             t.results = results;
         }
         if let Some(n) = hours {
             grow_row(&mut self.panes.tiles, Pane::PowerReserve, reserve::run_h(n));
+        }
+        // The watch ran down: its wind no longer holds (#2001).
+        if stopped {
+            self.wind_let_down();
         }
     }
 

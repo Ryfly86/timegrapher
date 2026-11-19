@@ -748,3 +748,65 @@ fn a_buttons_code_clears_its_bar() {
         }
     }
 }
+
+/// A Power Reserve Test that finds the watch stopped lets its wind go:
+/// the field says Not given, and so do the takes after, while the test's
+/// own take keeps its full wind at its start (Shane, #2001).
+#[test]
+fn a_power_reserve_test_that_runs_down_lets_the_wind_go() {
+    let (mut app, base) = save_failure_fixture("wind-run-down");
+    app.pick_wind(WindPick::HoursAgo(30.0));
+    app.begin_reserve();
+    app.reserve.as_mut().unwrap().ending = Some(power_reserve::Ending::Stopped);
+    app.end_reserve();
+    assert_eq!(app.wound_unix(), None);
+    assert!(app
+        .take_manifest()
+        .recordings
+        .iter()
+        .all(|r| r.wind_h == Some(0.0)));
+    // Thrown away, the stop still stands.
+    app.test_thrown_away();
+    app.new_session();
+    assert_eq!(app.wind_field().words.value, "Not given");
+    app.session.discard_recording();
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// A Power Reserve Test thrown away leaves no facts behind: the wind its
+/// Start set goes back to what it was. A test ended by hand or at its
+/// limit, with the watch still running, keeps the wind it set (#2001).
+#[test]
+fn a_test_thrown_away_puts_the_wind_back() {
+    for kept in [false, true] {
+        let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+        app.pick_wind(WindPick::HoursAgo(5.0));
+        app.begin_reserve();
+        assert_eq!(app.wind_field().words.value, "Full 0.0 h ago");
+        app.reserve.as_mut().unwrap().ending = Some(power_reserve::Ending::ByHand);
+        app.end_reserve();
+        if !kept {
+            app.test_thrown_away();
+        }
+        app.new_session();
+        let words = if kept {
+            "Full 0.0 h ago"
+        } else {
+            "Full 5.0 h ago"
+        };
+        assert_eq!(app.wind_field().words.value, words);
+    }
+    // Put back once only; and a test that sets no wind has nothing to put
+    // back, whatever came before it.
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.pick_wind(WindPick::HoursAgo(5.0));
+    app.begin_reserve();
+    app.test_thrown_away();
+    app.pick_wind(WindPick::HoursAgo(2.0));
+    app.test_thrown_away();
+    assert_eq!(app.wind_field().words.value, "Full 2.0 h ago");
+    app.begin_reserve();
+    app.started_without_full_wind();
+    app.test_thrown_away();
+    assert_eq!(app.wind_field().words.value, "Full 0.0 h ago");
+}

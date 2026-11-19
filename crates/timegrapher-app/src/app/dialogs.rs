@@ -439,6 +439,8 @@ impl TimegrapherApp {
             }
             Some(None) => {
                 self.test_keep = None;
+                // Thrown away: the wind its Start set goes back (#2001).
+                self.test_thrown_away();
                 self.new_session();
             }
             None => {}
