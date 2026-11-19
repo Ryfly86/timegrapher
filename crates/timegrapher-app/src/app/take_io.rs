@@ -416,22 +416,6 @@ impl TimegrapherApp {
         }
     }
 
-    /// While a kept take is heard, add its sound since the last save to
-    /// its folder every [`STREAM_EVERY_S`] of sound, quietly, so a crash
-    /// or a power cut costs only seconds. A save that fails says so, and
-    /// the next is tried a minute later.
-    pub(super) fn stream_tick(&mut self) {
-        if self.saving.is_some()
-            || self.stream_wait.is_some_and(|t| t.elapsed() < STREAM_RETRY)
-            || !self.streams()
-            || self.session.unsaved_s() < STREAM_EVERY_S
-        {
-            return;
-        }
-        self.stream_wait = None;
-        self.save_again_as(Streamed::Yes);
-    }
-
     /// Carry on listening after a pause, in the same session.
     pub(super) fn resume_microphone(&mut self) {
         if self.refuse_faulted_recording() || self.analysis_save_busy() {
@@ -795,7 +779,7 @@ impl TimegrapherApp {
 
     /// [`TimegrapherApp::save_again`], or a save of a take recording into
     /// its folder as it goes, which says nothing when it is done.
-    fn save_again_as(&mut self, streamed: Streamed) {
+    pub(super) fn save_again_as(&mut self, streamed: Streamed) {
         if self.behind_save(move |a| a.save_again_as(streamed)) {
             return;
         }

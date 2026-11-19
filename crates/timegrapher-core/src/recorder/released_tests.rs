@@ -336,3 +336,150 @@ fn the_hour_being_written_never_goes() {
     append_second(&mut r, 3);
     fs::remove_dir_all(&base).unwrap();
 }
+
+/// #2052: whether the copy saved last still holds its sound, by stat
+/// alone. Nothing saved, nothing there; saved, it is, even as the hour
+/// being written grows past the save. Moved in the app, it follows; an
+/// hour cut short outside the app, or the take deleted, and it isn't.
+#[test]
+fn the_copy_saved_last_is_there_until_its_sound_goes() {
+    let (mut r, base) = fixture("saved-there");
+    append_second(&mut r, 2);
+    assert!(!gone(&mut r), "nothing saved yet");
+    r.pause().unwrap();
+    r.resume("test");
+    append_second(&mut r, 30);
+    let take = stream(&mut r, &base.join("unsorted"));
+    assert!(!gone(&mut r));
+    // The hour being written grows after the save: still as saved.
+    append_second(&mut r, 31);
+    let take2 = stream(&mut r, &base.join("unsorted"));
+    assert_eq!(take2, take);
+    append_second(&mut r, 32);
+    assert!(!gone(&mut r), "the open hour grown past the save");
+    // And the copy's own open hour longer than the save left it, as a
+    // streamed save appending to it is when a look lands (Trevor on #2060).
+    let copy_open = take.join("audio-002.wav");
+    assert!(copy_open.exists(), "the open hour is the copy's WAV");
+    let mut f = fs::OpenOptions::new()
+        .append(true)
+        .open(&copy_open)
+        .unwrap();
+    std::io::Write::write_all(&mut f, &[0; 64]).unwrap();
+    drop(f);
+    assert!(!gone(&mut r), "the copy's open hour grown");
+    // Moved in the app (filed under a watch): it follows.
+    let moved = base.join("watches").join("take");
+    fs::create_dir_all(moved.parent().unwrap()).unwrap();
+    fs::rename(&take, &moved).unwrap();
+    r.copy_moved(&take, &moved);
+    assert!(!gone(&mut r), "followed the move");
+    // A closed hour cut short outside the app: not there.
+    let closed = moved.join("audio-001.flac");
+    let bytes = fs::read(&closed).unwrap();
+    fs::write(&closed, &bytes[..bytes.len() - 1]).unwrap();
+    assert!(gone(&mut r), "a closed hour cut short");
+    fs::write(&closed, &bytes).unwrap();
+    assert!(!gone(&mut r));
+    // The open hour's copy cut short: not there.
+    let open = moved.join("audio-002.wav");
+    let wav = fs::read(&open).unwrap();
+    fs::write(&open, &wav[..wav.len() / 2]).unwrap();
+    assert!(gone(&mut r), "the open hour cut short");
+    fs::write(&open, &wav).unwrap();
+    assert!(!gone(&mut r));
+    // The take deleted outside the app: not there.
+    fs::remove_dir_all(&moved).unwrap();
+    assert!(gone(&mut r), "the take deleted");
+    fs::remove_dir_all(&base).unwrap();
+}
+
+/// #2052: a closed hour the copy holds but the recording keeps too (no
+/// opt-in, or not let go yet) is looked for in the copy all the same.
+#[test]
+fn a_closed_hour_kept_in_both_places_is_looked_for_in_the_copy() {
+    let (mut r, base) = save_fixture("saved-there-both");
+    append_second(&mut r, 2);
+    r.pause().unwrap();
+    let take = stream(&mut r, &base.join("unsorted"));
+    // Kept here too (as a WAV, or a FLAC once kept as one on its thread).
+    assert!(!sound_in(r.dir()).is_empty(), "kept here too");
+    assert!(!gone(&mut r));
+    fs::remove_file(take.join("audio-001.flac")).unwrap();
+    assert!(gone(&mut r), "the copy's hour gone");
+    fs::remove_dir_all(&base).unwrap();
+}
+
+/// Whether the copy saved last is gone, looked at now.
+fn gone(r: &mut Recorder) -> bool {
+    r.look_at_saved_copy();
+    r.saved_copy_gone()
+}
+
+/// Trevor on #2060: saved into another folder after its hour went to the
+/// first take alone, the recording reads that hour from the copy saved
+/// last. The first take deleted, the sound is still whole where it was
+/// saved last, and can be carried on and saved again; the copy saved
+/// last deleted, it is gone.
+#[test]
+fn an_hour_held_alone_follows_a_save_into_another_folder() {
+    let (mut r, base) = fixture("saved-elsewhere");
+    append_second(&mut r, 2);
+    r.pause().unwrap();
+    let first = stream(&mut r, &base.join("unsorted"));
+    tidy_all(&mut r);
+    assert_eq!(
+        sound_in(r.dir()),
+        Vec::<String>::new(),
+        "kept in the take alone"
+    );
+    let other = stream(&mut r, &base.join("other"));
+    assert_ne!(other, first);
+    assert_eq!(sound_in(&other), ["audio-001.flac"]);
+    fs::remove_dir_all(&first).unwrap();
+    assert!(r.hours_reachable(), "read from the copy saved last");
+    assert!(!gone(&mut r), "whole where it was saved last");
+    assert_eq!(r.segment_paths(), [other.join("audio-001.flac")]);
+    fs::remove_dir_all(&other).unwrap();
+    assert!(gone(&mut r), "the copy saved last deleted");
+    assert!(!r.hours_reachable());
+    fs::remove_dir_all(&base).unwrap();
+}
+
+/// Felix on #2060: an hour kept in the first take alone, saved into
+/// another folder whose sync fails, isn't read from there: it isn't known
+/// to be on the disk. So the first take deleted, it is gone, though the
+/// copy saved last looks whole; with the sync, the same save moves it.
+#[test]
+fn an_hour_held_alone_follows_a_save_elsewhere_only_once_checked_there() {
+    let (mut r, base) = fixture("saved-elsewhere-unsynced");
+    append_second(&mut r, 2);
+    r.pause().unwrap();
+    let first = stream(&mut r, &base.join("unsorted"));
+    tidy_all(&mut r);
+    assert_eq!(
+        sound_in(r.dir()),
+        Vec::<String>::new(),
+        "kept in the take alone"
+    );
+    let refused = |step: SaveStep, _: &Path| match step {
+        SaveStep::Sync => Err(io::Error::other("injected folder sync failure")),
+        _ => Ok(()),
+    };
+    let copy = r
+        .begin_save(&base.join("other"), "", None, &[])
+        .unwrap()
+        .write_using(refused)
+        .unwrap();
+    assert!(copy.held_whole.is_empty(), "not checked there");
+    r.note_saved(&copy);
+    assert_eq!(
+        r.segment_paths(),
+        [first.join("audio-001.flac")],
+        "read from the first"
+    );
+    fs::remove_dir_all(&first).unwrap();
+    assert!(!r.hours_reachable());
+    assert!(gone(&mut r), "its hour gone with the first take");
+    fs::remove_dir_all(&base).unwrap();
+}

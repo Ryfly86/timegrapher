@@ -233,9 +233,21 @@ so does a watch's own take: every 5 s of sound is added to the take with
 no Save Again, so a crash or a power cut costs only seconds. Meanwhile the
 Save icon is lit, its menu and hover say "Saving to" the watch, Unsorted
 Takes or the folder, and it has no Save Again. File ▸ Save is dimmed
-for the same reason, and the status bar says "Saved". Stop and quitting
+for the same reason, and the status bar says "Saved". "Saved" is shown only
+while the take holds the sound saved into it. The app looks at the take
+again when its window comes back to the front, after a save and when a
+save is refused (#2052). Once the take no
+longer holds its sound, the status bar says "Not saved", and its hover
+says Save keeps it again. While the take is still recorded into, Save is
+dimmed, and the hover says instead that the next few seconds of sound
+save it whole again. If the earlier part the take held alone is
+gone too, it says "Can't be saved", and its hover gives the refusal's
+reason. Stop and quitting
 add the last seconds and close the take with no question. A save that
-fails says so, and the next is tried a minute later. Only the new
+fails says so, and the next is tried a minute later. A write refused
+because the take no longer holds the sound is said once, not every
+minute, and the status bar says "Can't be saved" until the take holds it
+again (#2061). Only the new
 sound is written each time. After a crash, the next start says the take
 holds all but its last few seconds, and offers **Open Take** or **Delete
 Copy…** for the copy left on this computer with those seconds. A Positions or Power Reserve Test of a watch

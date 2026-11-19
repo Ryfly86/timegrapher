@@ -82,6 +82,11 @@ impl KeptSound {
     }
 }
 
+/// Why the sound can't be saved once the hours its take held alone are
+/// gone: the refusal's second line, and the status bar's hover (#2052).
+pub(super) const HOURS_GONE: &str =
+    "Its earlier part was kept only in its take, and the take no longer holds it.";
+
 impl TimegrapherApp {
     /// Let go of the session's own copy of each hour its take holds
     /// whole, once that copy is kept as FLAC (#2040): listening does it as
@@ -103,12 +108,44 @@ impl TimegrapherApp {
         if self.saved_hours_reachable() {
             return false;
         }
-        self.error(
-            "This sound can't be saved\nIts earlier part was kept only in its take, and the \
-             take no longer holds it."
-                .into(),
-        );
+        // The status bar says so too, not "Saved" beside it (#2052).
+        if let Some(r) = self.session.recorder.as_mut() {
+            r.look_at_saved_copy();
+        }
+        self.error(format!("This sound can't be saved\n{HOURS_GONE}"));
         true
+    }
+
+    /// While a kept take is heard, add its sound since the last save to
+    /// its folder every [`STREAM_EVERY_S`] of sound, quietly, so a crash
+    /// or a power cut costs only seconds. A save that fails says so, and
+    /// the next is tried a minute later. One refused because the take no
+    /// longer holds hours it held alone is said once (#2061): it is looked
+    /// at again each minute, quietly, and written into once it holds them.
+    pub(super) fn stream_tick(&mut self) {
+        if self.saving.is_some() || !self.streams() || self.session.unsaved_s() < STREAM_EVERY_S {
+            return;
+        }
+        if let Some(t) = self.stream_wait {
+            if t.elapsed() < STREAM_RETRY {
+                return;
+            }
+            let gone = self
+                .session
+                .recorder
+                .as_ref()
+                .is_some_and(Recorder::saved_copy_gone);
+            // Felix on #2063: only a write that would be refused waits on;
+            // one the take's deletion alone stopped puts the take back.
+            if gone && !self.saved_hours_reachable() {
+                self.stream_wait = Some(Instant::now());
+                return;
+            }
+        }
+        self.stream_wait = None;
+        self.save_again_as(Streamed::Yes);
+        // Refused (its take's hours gone, say): not tried every frame.
+        self.stream_wait = self.saving.is_none().then(Instant::now);
     }
 
     /// Keep in a Watch > New Watch…: the form, and the keep once it is
