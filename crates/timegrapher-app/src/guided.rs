@@ -21,6 +21,7 @@ pub use free_grid::free_table;
 use timegrapher_core::clock::ClockFit;
 use timegrapher_core::figure_text::base_digits::{AMPLITUDE, BEAT_ERROR, RATE};
 use timegrapher_core::figure_text::{fixed_text, signed_text, true_minus};
+use timegrapher_core::library::TakeTest;
 use timegrapher_core::reading_text::WindHours;
 use timegrapher_core::session::{self, Measurement, Reading, SourcedFigures};
 use timegrapher_core::steadiness::SeriesKind;
@@ -239,8 +240,8 @@ impl Kind {
 
     pub fn name(self) -> &'static str {
         match self {
-            Kind::Positions => "Positions Test",
-            Kind::Poise => "Dynamic Poise Test",
+            Kind::Positions => TakeTest::Positions.name(),
+            Kind::Poise => TakeTest::Poise.name(),
             Kind::Complication => "Complication Test",
         }
     }

@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use timegrapher_core::figure_text::true_minus;
-use timegrapher_core::library::{length_text, size_text, Reading};
+use timegrapher_core::library::{length_text, size_text, Reading, TakeTest};
 use timegrapher_core::library::{Field, FieldKind, FromCalibre, Library, Take, Watch, WatchEntry};
 use timegrapher_core::session::Position;
 
@@ -389,8 +389,8 @@ pub fn list(
             below.push(c);
         }
         below.push(count(e.takes.len(), "take", "takes"));
-        if let Some(t) = last_take(e).and_then(local_minute) {
-            below.push(format!("last {}", &t[..10]));
+        if let Some(t) = last_take(e).and_then(timegrapher_core::library::date_text) {
+            below.push(format!("last {t}"));
         }
         if found_row(
             ui,
@@ -580,6 +580,14 @@ pub struct TakesContext<'a> {
     pub readings: &'a TakeReadings,
 }
 
+impl TakesContext<'_> {
+    /// Whether the take in `dir` is the one on the Bench: open there, or
+    /// the session's own, recording or saved (#1981).
+    pub fn on_bench(&self, dir: &std::path::Path) -> bool {
+        self.on_show == Some(dir) || self.held == Some(dir)
+    }
+}
+
 /// Where the Watches list is with a take's own reading (core
 /// `library::reading`).
 #[derive(Debug, Clone, PartialEq)]
@@ -720,7 +728,7 @@ impl TakeReadings {
     /// Whether the take's figures come from its own reading: not a test's,
     /// whose figures are its Mean row or hour by hour.
     pub fn read_for(t: &Take, dir: &Path) -> bool {
-        t.power_reserve.is_none() && !timegrapher_core::library::is_positions_test(dir)
+        t.power_reserve.is_none() && timegrapher_core::library::take_test(dir).is_none()
     }
 
     #[cfg(test)]
@@ -734,8 +742,8 @@ impl TakeReadings {
 
 /// What a take measured and is, in a line: core's facts for it with its
 /// own reading ([`Take::facts_read`]), as `timegrapher watches` lists them.
-pub fn take_line(t: &Take, positions_test: bool, reading: Option<&Reading>) -> String {
-    t.facts_read(positions_test, reading).join(" · ")
+pub fn take_line(t: &Take, test: Option<TakeTest>, reading: Option<&Reading>) -> String {
+    t.facts_read(test, reading).join(" · ")
 }
 
 /// The words under a watch's name in its header: its calibre, beat rate
@@ -978,25 +986,22 @@ fn new_take_button(
     pressed
 }
 
-/// A take's start in its row: `22 Oct 2026 09:10`, in this computer's
+/// A take's start in its row: `2026-10-22 09:10` (core's
+/// [`date_time_text`](timegrapher_core::library::date_time_text)), in this computer's
 /// time zone. A take copied in without its `session.json` (#1272) shows
 /// the start its folder's name gives (core's `named_start`, its recording
 /// computer's time), and a dash when neither says: never the name itself,
 /// which would put a second form in the column and its position beside
 /// the Position column's.
 pub fn started_words(t: &Take) -> String {
-    const SHOWN: &str = "%-d %b %Y %H:%M";
-    if let Some(d) = t
-        .started_utc
-        .as_deref()
-        .and_then(|u| chrono::DateTime::parse_from_rfc3339(u).ok())
-    {
-        return d.with_timezone(&chrono::Local).format(SHOWN).to_string();
+    use timegrapher_core::library::{date_time_text, DATE_TIME_SHOWN};
+    if let Some(d) = t.started_utc.as_deref().and_then(date_time_text) {
+        return d;
     }
     t.named_start
         .as_deref()
         .and_then(|n| chrono::NaiveDateTime::parse_from_str(n, "%Y-%m-%dT%H:%M").ok())
-        .map_or_else(|| "—".into(), |d| d.format(SHOWN).to_string())
+        .map_or_else(|| "—".into(), |d| d.format(DATE_TIME_SHOWN).to_string())
 }
 
 /// A Positions Test take's positions measured and its Mean row: rate,
@@ -1005,6 +1010,24 @@ pub fn started_words(t: &Take) -> String {
 /// of the results file.
 pub fn positions_means(dir: &std::path::Path) -> Option<(usize, [Option<f64>; 3])> {
     positions_summary(dir).map(|m| (m.0, m.1))
+}
+
+/// Whether a take's row shows a dim dash for its figures, as they are
+/// part by part in the take: a Power Reserve Test's hour by hour, a
+/// Dynamic Poise Test's stop by stop (#2002). One rule for its cells and
+/// their dimming (Vernon on #2021).
+fn dashed(t: &Take, test: Option<(TakeTest, [Option<f64>; 3])>) -> bool {
+    t.power_reserve.is_some() || matches!(test, Some((TakeTest::Poise, _)))
+}
+
+/// The guided test a take's row names, with the figures it shows: a
+/// Positions Test's Mean row; none for a Dynamic Poise Test, whose stops
+/// are in the take, so its row shows a dash (#2002).
+pub fn row_test(dir: &std::path::Path) -> Option<(TakeTest, [Option<f64>; 3])> {
+    match timegrapher_core::library::take_test(dir)? {
+        TakeTest::Positions => positions_means(dir).map(|m| (TakeTest::Positions, m.1)),
+        TakeTest::Poise => Some((TakeTest::Poise, [None; 3])),
+    }
 }
 
 fn positions_summary(dir: &std::path::Path) -> Option<(usize, [Option<f64>; 3], String)> {
@@ -1042,16 +1065,17 @@ fn positions_summary(dir: &std::path::Path) -> Option<(usize, [Option<f64>; 3], 
 /// A take's row in the takes table: Started, Position, Length, Rate (s/d,
 /// on the take's clock), Amplitude (°), Beat Error (ms, its size) and Size
 /// (MB). A take's figures are its own `reading`, as `session` reads its
-/// last position; blank until it is worked out. A Positions Test's figures
-/// are its Mean row (`means`); a Power Reserve Test's are hour by hour in
-/// the take, so its row shows a dash. Never a test's last window as if it
-/// stood for the test.
+/// last position; blank until it is worked out. A guided test's row names
+/// the test (`test`, from [`row_test`]): a Positions Test's figures are its
+/// Mean row; a Dynamic Poise Test's and a Power Reserve Test's are stop by
+/// stop or hour by hour in the take, so their rows show a dash. Never a
+/// test's last window as if it stood for the test.
 pub fn take_cells(
     t: &Take,
-    means: Option<[Option<f64>; 3]>,
+    test: Option<(TakeTest, [Option<f64>; 3])>,
     reading: Option<&Reading>,
 ) -> [String; 7] {
-    let positions_test = means.is_some();
+    let dash = dashed(t, test);
     let codes: Vec<String> = t
         .positions
         .iter()
@@ -1059,9 +1083,9 @@ pub fn take_cells(
         .collect();
     let position = if t.power_reserve.is_some() {
         "Power Reserve".to_string()
-    } else if positions_test {
+    } else if let Some((k, _)) = test {
         // The test's kind; its positions are in the row's hover.
-        "Positions Test".to_string()
+        k.name().to_string()
     } else if codes.len() == 6 {
         "All 6".to_string()
     } else {
@@ -1074,9 +1098,9 @@ pub fn take_cells(
         (None, Some(d)) => length_text(d),
         _ => String::new(),
     };
-    let [rate, amp, be] = if t.power_reserve.is_some() {
+    let [rate, amp, be] = if dash {
         [None; 3]
-    } else if let Some(m) = means {
+    } else if let Some((_, m)) = test {
         m
     } else {
         [
@@ -1086,7 +1110,7 @@ pub fn take_cells(
         ]
     };
     let figure = |v: Option<String>| {
-        if t.power_reserve.is_some() {
+        if dash {
             "—".to_string()
         } else {
             v.map_or_else(String::new, |v| true_minus(&v))
@@ -1118,11 +1142,16 @@ fn figures_hover(count: Option<usize>, reserve: bool) -> String {
             };
             format!("\n\nRate and Amplitude: Mean of the {of}.")
         }
-        None if reserve => {
-            "\n\nRate, Amplitude and Beat Error: hour by hour in the take: open it.".into()
-        }
+        None if reserve => in_the_take("hour by hour"),
         None => String::new(),
     }
+}
+
+/// The hover's words for a test whose figures are part by part in its
+/// take, `by` ("hour by hour", "stop by stop"): one format for each
+/// (Hugh on #2021).
+fn in_the_take(by: &str) -> String {
+    format!("\n\nRate, Amplitude and Beat Error are given {by} in the take: open it to see them.")
 }
 
 /// The takes table's headings, in [`take_cells`]' order: each name and
@@ -1345,6 +1374,7 @@ pub fn takes_table(
             let dir = e.take_dir(t);
             let picked = cx.picked == Some(dir.as_path());
             let means = positions_means(&dir);
+            let test = row_test(&dir);
             let (rect, r) = ui.allocate_exact_size(Vec2::new(w, row_h), Sense::click());
             if picked {
                 ui.painter().rect_filled(rect, 4.0, pal.control_active);
@@ -1352,8 +1382,8 @@ pub fn takes_table(
                 ui.painter().rect_filled(rect, 4.0, pal.control_hover);
             }
             let reading = cx.readings.reading(&dir);
-            let mut cells = take_cells(t, means.map(|m| m.1), reading);
-            let reserve = t.power_reserve.is_some();
+            let mut cells = take_cells(t, test, reading);
+            let dim = dashed(t, test);
             // Date and tags share Started's room, never the columns after
             // it: the date, which tells takes apart, comes first, cut short
             // with "…" only when it alone doesn't fit; the tags take what
@@ -1366,7 +1396,7 @@ pub fn takes_table(
                 rect,
                 &cells,
                 pal.text,
-                reserve.then_some(pal.text_tertiary),
+                dim.then_some(pal.text_tertiary),
                 &font,
             );
             let date_w = text_w(&cells[0], 12.5);
@@ -1419,11 +1449,7 @@ fn take_widths(ui: &egui::Ui, e: &WatchEntry, cx: &TakesContext, w: f32) -> Vec<
         .iter()
         .map(|t| {
             let dir = e.take_dir(t);
-            take_cells(
-                t,
-                positions_means(&dir).map(|m| m.1),
-                cx.readings.reading(&dir),
-            )
+            take_cells(t, row_test(&dir), cx.readings.reading(&dir))
         })
         .collect();
     let pal = theme::pal(ui);
@@ -1519,7 +1545,7 @@ fn draw_cells(
 /// A take's state, shown after its date in small grey words.
 fn take_tags(e: &WatchEntry, t: &Take, cx: &TakesContext) -> String {
     let mut tags = Vec::new();
-    if cx.on_show == Some(e.take_dir(t).as_path()) {
+    if cx.on_bench(&e.take_dir(t)) {
         tags.push("On Show");
     }
     if !t.audio {
@@ -1571,8 +1597,8 @@ fn engine_line() -> String {
 /// one, and that they are its whole stretch after settling, so they can
 /// differ from the Bench's at Stop (#1979). Empty for a test's take, whose
 /// figures [`figures_hover`] says, or with nothing read.
-fn read_line(t: &Take, test: bool, reading: Option<&Reading>) -> String {
-    let Some(r) = reading.filter(|_| !test && t.power_reserve.is_none()) else {
+fn read_line(t: &Take, test: Option<TakeTest>, reading: Option<&Reading>) -> String {
+    let Some(r) = reading.filter(|_| test.is_none() && t.power_reserve.is_none()) else {
         return String::new();
     };
     let figures: Vec<String> =
@@ -1601,9 +1627,15 @@ fn take_hover(
     reading: Option<&Reading>,
 ) -> String {
     let reserve = t.power_reserve.is_some();
-    let on_show = cx.on_show == Some(dir);
-    let test = count.is_some();
+    let on_show = cx.on_bench(dir);
+    // `count` comes only with a Positions Test's results, read already.
+    let test = count
+        .map(|_| TakeTest::Positions)
+        .or_else(|| timegrapher_core::library::take_test(dir));
     let mut figures = figures_hover(count, reserve);
+    if test == Some(TakeTest::Poise) {
+        figures.push_str(&in_the_take("stop by stop"));
+    }
     if let Some((_, _, summary)) = positions_summary(dir) {
         figures.push_str(&format!("\n\n{summary}"));
     }
@@ -2390,7 +2422,7 @@ mod tests {
         assert_eq!(
             take_cells(&t, None, r),
             [
-                "22 Oct 2026 09:10",
+                "2026-10-22 09:10",
                 "DU",
                 "30:00",
                 "+9.8",
@@ -2407,7 +2439,7 @@ mod tests {
                 ..t.clone()
             })
         };
-        assert_eq!(named("2026-11-06 18.30 Dial Up"), "6 Nov 2026 18:30");
+        assert_eq!(named("2026-11-06 18.30 Dial Up"), "2026-11-06 18:30");
         assert_eq!(named("ym42 copied"), "—");
         // Until its reading is worked out the figures are blank, never
         // the ones the app showed when it saved the take.
@@ -2437,7 +2469,11 @@ mod tests {
         // Its figures are hour by hour in the take, not its last window.
         assert_eq!(cells[3..6], ["—", "—", "—"].map(String::from));
         // A Positions Test's are its Mean row.
-        let cells = take_cells(&all, Some([Some(-2.25), Some(271.6), Some(-0.34)]), r);
+        let cells = take_cells(
+            &all,
+            Some((TakeTest::Positions, [Some(-2.25), Some(271.6), Some(-0.34)])),
+            r,
+        );
         assert_eq!(cells[1], "Positions Test");
         assert_eq!(cells[3..6], ["−2.2", "272", "0.34"].map(String::from));
         assert_eq!(TAKE_HEADS.len(), 7);
@@ -2474,7 +2510,7 @@ mod tests {
             wind_h: None,
         };
         assert_eq!(take_cells(&t, None, None)[2], "1:53");
-        assert!(take_line(&t, false, None).starts_with("Power Reserve 1 min 53 s"));
+        assert!(take_line(&t, None, None).starts_with("Power Reserve 1 min 53 s"));
     }
 
     /// A table narrower than its columns keeps every one inside it: the
@@ -2572,7 +2608,7 @@ mod tests {
         assert!(wide.iter().any(|t| t.0 == "Analysis Only"), "{wide:?}");
         assert!(
             wide.iter()
-                .filter(|t| t.0.split(' ').nth(1) == Some("Oct"))
+                .filter(|t| t.0.starts_with("2026-10-") && t.0.len() == "2026-10-22 09:10".len())
                 .count()
                 == 2,
             "{wide:?}"
@@ -2728,9 +2764,63 @@ mod tests {
             wind_h: None,
         };
         assert_eq!(take_cells(&t, None, None)[1], "DU");
-        assert_eq!(take_cells(&t, Some([None; 3]), None)[1], "Positions Test");
-        let line = take_line(&t, true, None);
+        assert_eq!(
+            take_cells(&t, Some((TakeTest::Positions, [None; 3])), None)[1],
+            "Positions Test"
+        );
+        let line = take_line(&t, Some(TakeTest::Positions), None);
         assert!(line.starts_with("Positions Test · Dial Up · "), "{line}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A Dynamic Poise Test's take, marked by its file, names the test in
+    /// its row with a dash for the figures, never its last stop's, and is
+    /// not read for them; its hover names the stops as the pane does
+    /// (#2002).
+    #[test]
+    fn a_dynamic_poise_tests_row_names_the_test_not_its_last_stop() {
+        let dir = std::env::temp_dir().join(format!("tg-app-poise-row-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let t = Take {
+            name: "2026-11-18 21.43".into(),
+            bytes: 1_000_000,
+            audio: true,
+            incomplete: false,
+            started_utc: Some("2026-11-18T21:43:00Z".into()),
+            named_start: None,
+            duration_s: Some(400.0),
+            positions: ["9H", "7H30", "6H", "4H30", "3H", "1H30", "12H", "10H30"]
+                .map(String::from)
+                .to_vec(),
+            at_end: None,
+            power_reserve: None,
+            wind_h: None,
+        };
+        assert_eq!(row_test(&dir), None);
+        assert!(TakeReadings::read_for(&t, &dir));
+        std::fs::write(
+            dir.join(timegrapher_core::library::POISE_TEST_FILE),
+            timegrapher_core::library::POISE_TEST_TEXT,
+        )
+        .unwrap();
+        let test = row_test(&dir);
+        assert_eq!(test, Some((TakeTest::Poise, [None; 3])));
+        assert!(!TakeReadings::read_for(&t, &dir));
+        let r = Reading {
+            rate_s_per_day: Some(-111.6),
+            amplitude_deg: Some(250.0),
+            beat_error_ms: Some(1.43),
+            ..Default::default()
+        };
+        let cells = take_cells(&t, test, Some(&r));
+        assert_eq!(cells[1], "Dynamic Poise Test");
+        assert_eq!(cells[3..6], ["—", "—", "—"]);
+        let line = take_line(&t, test.map(|x| x.0), Some(&r));
+        assert_eq!(
+            line,
+            "Dynamic Poise Test · 9H, 7H30, 6H, 4H30, 3H, 1H30, 12H, 10H30 · 6:40"
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 

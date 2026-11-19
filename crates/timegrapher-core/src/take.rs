@@ -282,6 +282,10 @@ pub fn breaks(
 /// nor its session file says (Witschi's 20 s).
 pub const SETTLE_S: f64 = 20.0;
 
+#[path = "take_settle.rs"]
+mod settle;
+pub use settle::{cut_from_one, listed_unread, settles_through};
+
 /// The settling and measuring times a session `entry` asks for: its own,
 /// else its session file's.
 pub fn entry_times(entry: &RecordingEntry, manifest: &Manifest) -> (Option<f64>, Option<f64>) {
@@ -443,6 +447,11 @@ pub fn reading_window(
     // whatever settling the reader gives; only its own entry's stands.
     let carried_on = continues_position(e, m).then_some(0.0);
     let settle = e.settle_s.or(carried_on).or(given_settle_s).or(settle);
+    if settle.is_none() && settles_through(e, m, stop_s - start_s) {
+        return Err(NoReading::Nothing);
+    }
+    // A stretch cut from one recording settles in full, never halved.
+    let settle = settle.or(cut_from_one(e, m).then_some(SETTLE_S));
     let (from_s, to_s) = measured(start_s, stop_s, settle, measure);
     if from_s >= stop_s {
         return Err(NoReading::Unsettled {

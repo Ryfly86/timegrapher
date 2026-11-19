@@ -57,6 +57,12 @@
      "constants": 0,
      "defaults": 0
     },
+    "crates/timegrapher-app/src/app/power_reserve_pane.rs": {
+     "bounds": 0,
+     "comparisons": 1,
+     "constants": 0,
+     "defaults": 0
+    },
     "crates/timegrapher-app/src/app/readouts.rs": {
      "bounds": 7,
      "comparisons": 4,
@@ -83,7 +89,7 @@
     },
     "crates/timegrapher-app/src/app/take_io.rs": {
      "bounds": 1,
-     "comparisons": 4,
+     "comparisons": 3,
      "constants": 0,
      "defaults": 0
     },
@@ -268,14 +274,14 @@
      "defaults": 0
     },
     "crates/timegrapher-app/src/watches.rs": {
-     "bounds": 6,
+     "bounds": 5,
      "comparisons": 4,
      "constants": 1,
      "defaults": 0
     }
    },
    "total": {
-    "bounds": 100,
+    "bounds": 99,
     "comparisons": 91,
     "constants": 62,
     "defaults": 2

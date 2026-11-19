@@ -253,6 +253,44 @@ impl<'a> Cuts<'a> {
             .fold(f64::NEG_INFINITY, f64::max)
     }
 
+    /// Where the sound heard by `end` (true time) is counted from: the
+    /// start (0), or the end of the latest hole before it that is not a
+    /// mask. A mask removes bad sound but does not move the watch, so it
+    /// does not restart the count (Norm on #2017).
+    pub fn heard_from(&self, end: f64) -> f64 {
+        let sound_end = self.sound_end(end);
+        self.holes
+            .iter()
+            .filter(|h| h.kind != HoleKind::Mask && h.end_s <= sound_end)
+            .map(|h| h.end_s)
+            .fold(0.0, f64::max)
+    }
+
+    /// The seconds of sound heard by `end` (true time) since
+    /// [`heard_from`](Self::heard_from), its masked seconds left out
+    /// ([`crate::measure::awaiting_verdict`]). Inside a pause, the sound
+    /// heard up to where it began.
+    pub fn heard_s(&self, end: f64) -> f64 {
+        let (from, sound_end) = (self.heard_from(end), self.sound_end(end));
+        let masked: f64 = self
+            .holes
+            .iter()
+            .filter(|h| h.kind == HoleKind::Mask)
+            .map(|h| (h.end_s.min(sound_end) - h.start_s.max(from)).max(0.0))
+            .sum();
+        (sound_end - from - masked).max(0.0)
+    }
+
+    /// `end`, or the start of the pause (a hole that is not a mask) that
+    /// holds it.
+    fn sound_end(&self, end: f64) -> f64 {
+        self.holes
+            .iter()
+            .filter(|h| h.kind != HoleKind::Mask && h.start_s <= end && end < h.end_s)
+            .map(|h| h.start_s)
+            .fold(end, f64::min)
+    }
+
     /// The latest cut a reading over `beats` (true time, sorted) from
     /// `from` to `end` may not reach back across: the start of the whole
     /// stretch holding `end` ([`stretch_from`](Self::stretch_from)), or
