@@ -554,8 +554,8 @@ impl TimegrapherApp {
             return false;
         }
         let words = format!(
-            "No sound is arriving from this input. The test carries on, and ends as \
-             Input failed if none comes for {}.",
+            "No sound is arriving from this input. The test carries on, and ends if \
+             none comes for {}.",
             fields::duration(power_reserve::STOP_AFTER_S)
         );
         if self.message.as_ref().map(|m| &m.0) != Some(&words) {
