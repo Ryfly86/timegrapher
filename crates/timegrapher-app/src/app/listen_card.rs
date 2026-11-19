@@ -1826,9 +1826,12 @@ impl TimegrapherApp {
         }
     }
 
-    /// Seconds of settling still to come now.
+    /// Seconds of settling still to come now: after a move, or in a
+    /// guided test's opening settle, which no move starts. One answer for
+    /// the readings, the cards, the signal and the strip (Trevor on
+    /// #2036).
     pub(super) fn settling_left(&self) -> Option<f64> {
-        self.session.settling_left(self.latest_s())
+        self.settle_left_at(self.latest_s())
     }
 
     /// When stopped inside the settle after a move: when that move was,
