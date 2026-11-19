@@ -244,9 +244,10 @@ save it whole again: the take's next write puts it all back. If the earlier part
 gone too, it says "Can't be saved", and its hover gives the refusal's
 reason. Stop and quitting
 add the last seconds and close the take with no question. A save that
-fails says so, and the next is tried a minute later. One refused because
-the take no longer holds the sound is said once, not every minute: the
-status bar says "Can't be saved" until the take holds it again (#2061). Only the new
+fails says so, and the next is tried a minute later. A write refused
+because the take no longer holds the sound is said once, not every
+minute, and the status bar says "Can't be saved" until the take holds it
+again (#2061). Only the new
 sound is written each time. After a crash, the next start says the take
 holds all but its last few seconds, and offers **Open Take** or **Delete
 Copy…** for the copy left on this computer with those seconds. A Positions or Power Reserve Test of a watch
