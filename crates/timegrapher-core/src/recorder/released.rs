@@ -60,7 +60,9 @@ impl SavedHours {
 
 /// The closed hours of `files` a save put into `dest`, each at its length
 /// there once in place (#2052): what [`Recorder::look_at_saved_copy`] looks
-/// for later. Stat only, no reading.
+/// for later. Stat only, no reading. Each is named as the copy names it
+/// (a FLAC where the recording may still hold a WAV), not by the
+/// recording's segment name: only its place and length are looked at.
 pub(super) fn written(files: &[PendingFile], dest: &Path) -> Vec<HeldWhole> {
     files
         .iter()
