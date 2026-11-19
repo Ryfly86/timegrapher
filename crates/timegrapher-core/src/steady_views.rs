@@ -119,16 +119,13 @@ pub fn readings_kind(step_s: f64) -> String {
     format!("{step_s:.0} s {what}")
 }
 
-/// The Readings view's key: what a dot is and how many are drawn, and on
-/// a long series ([`banded`]) how many readings the bands hold: "10 s
-/// readings (179)", "10 s readings in 3000 bands (23400)".
-pub fn readings_key(step_s: f64, drawn: usize, read: usize, banded: bool) -> String {
-    let kind = readings_kind(step_s);
-    if banded {
-        format!("{kind} in {drawn} bands ({read})")
-    } else {
-        format!("{kind} ({drawn})")
-    }
+/// The Readings view's key: what a dot is and how many readings there
+/// are, "10 s readings (179)". On a long series, too many to draw one by
+/// one, each dot is the mean of several: the hover says of how many, and
+/// their lowest to highest ([`Drawn::readout_parts`]), rather than the key
+/// count bands, a word no watchmaker reads (Shane, #1974).
+pub fn readings_key(step_s: f64, read: usize) -> String {
+    format!("{} ({read})", readings_kind(step_s))
 }
 
 /// The value scale a series' readings are drawn on: core's
@@ -985,7 +982,7 @@ fn readings_of(g: &Grid) -> Readings {
     let read = drawn.iter().map(|d| d.count).sum();
     Readings {
         banded: banded(&drawn),
-        key: readings_key(g.step, drawn.len(), read, banded(&drawn)),
+        key: readings_key(g.step, read),
         step_s: g.step,
         n: g.y.len(),
         chunk_s: chunk_s(g),
@@ -1289,14 +1286,13 @@ mod tests {
     /// app and the view alike.
     #[test]
     fn the_readings_key_says_what_a_dot_is_and_how_many_are_drawn() {
-        assert_eq!(readings_key(10.0, 179, 179, false), "10 s readings (179)");
-        assert_eq!(readings_key(2.0, 912, 912, false), "2 s windows (912)");
-        assert_eq!(readings_key(20.0, 90, 90, false), "20 s readings (90)");
-        assert_eq!(readings_key(5.0, 40, 40, false), "5 s windows (40)");
-        assert_eq!(
-            readings_key(2.0, 3000, 9000, true),
-            "2 s windows in 3000 bands (9000)"
-        );
+        assert_eq!(readings_key(10.0, 179), "10 s readings (179)");
+        assert_eq!(readings_key(2.0, 912), "2 s windows (912)");
+        assert_eq!(readings_key(20.0, 90), "20 s readings (90)");
+        assert_eq!(readings_key(5.0, 40), "5 s windows (40)");
+        // Drawn as 3000 dots each the mean of three, the key still counts
+        // readings, with no "bands" (#1974).
+        assert_eq!(readings_key(2.0, 9000), "2 s windows (9000)");
         assert_eq!(readings_kind(10.0), "10 s readings");
     }
 
@@ -1315,10 +1311,7 @@ mod tests {
         assert!(r.banded);
         let read: usize = r.counts.iter().sum();
         assert_eq!(read, 6000);
-        assert_eq!(
-            r.key,
-            format!("2 s windows in {} bands (6000)", r.t_s.len())
-        );
+        assert_eq!(r.key, "2 s windows (6000)");
         let short = readings_of(&Grid {
             t0: 0.0,
             step: 10.0,

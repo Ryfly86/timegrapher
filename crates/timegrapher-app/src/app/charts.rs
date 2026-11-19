@@ -10,6 +10,13 @@ impl TimegrapherApp {
     pub(super) fn charts_pane(&mut self, ui: &mut egui::Ui) {
         let shown = self.chart_series;
         self.note_need(ui, Pane::Charts, STACKED_MIN_H);
+        // No scales with nothing on them: while a take opens, or before
+        // its first reading, one line in their place (#1973).
+        if let Some(line) = self.charts_waiting() {
+            let pal = theme::pal(ui);
+            ui.label(RichText::new(line).color(pal.text_tertiary));
+            return;
+        }
         let (mut moved, mut over, mut newest) = (false, None, false);
         self.charts_drawn = stacked(ui, shown, (STACKED_MIN_H, false), |ui, k, _| {
             let (m, hover, at_newest) = self.chart(ui, k);
@@ -25,6 +32,21 @@ impl TimegrapherApp {
         if over != self.charts_over {
             self.charts_over = over;
             ui.ctx().request_repaint();
+        }
+    }
+
+    /// What the Charts pane says in place of its charts while there is no
+    /// reading to draw: before anything is open, while a take opens, and
+    /// before a take's first reading. None once there is one.
+    pub(super) fn charts_waiting(&self) -> Option<&'static str> {
+        if self.batch.is_some() {
+            Some("Opening the take: its charts appear once it is read.")
+        } else if self.live.is_none() {
+            Some("Listen to a watch or open a recording to see its readings here.")
+        } else if self.trend.is_empty() {
+            Some("The charts begin with the first reading.")
+        } else {
+            None
         }
     }
 
