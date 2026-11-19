@@ -133,6 +133,19 @@ impl TimegrapherApp {
         self.write_results_into(&dir);
     }
 
+    /// A finished test's take kept by Save Analysis Only: with no sound to
+    /// read it again from, its table says its figures are the listening's
+    /// (#2070). One read again already, or under way, is left as it is.
+    pub(super) fn test_kept_without_sound(&mut self) {
+        if let Some(t) = self
+            .guided
+            .as_mut()
+            .filter(|t| t.saved_read == guided::SavedRead::Pending)
+        {
+            t.saved_read = guided::SavedRead::NoSound;
+        }
+    }
+
     /// Where a test read again from the take saved in `read` writes its
     /// results: where the take is now, which may have moved while it was
     /// read (Desmond on #2067).

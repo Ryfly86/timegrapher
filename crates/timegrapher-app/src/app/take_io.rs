@@ -1289,6 +1289,7 @@ impl TimegrapherApp {
                     size_text(size)
                 ));
                 self.analysis_kept_to = Some((dir, job.total_s));
+                self.test_kept_without_sound();
             }
             Err(e) => self.error(format!("Keeping the analysis failed: {e}")),
         }
