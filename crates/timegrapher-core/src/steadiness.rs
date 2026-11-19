@@ -2754,6 +2754,10 @@ use cycle_search::cycle;
 #[cfg(test)]
 use cycle_search::{refined_candidates, same_peaks_once, strongest_cycle};
 pub use family::{family_long, hold_to_family, RUNNER_UP_SHARE, STEP_SLIDE_RHO};
+
+/// How far either side of a period search's line, as a share of its
+/// period, the cycle finder refines the cycle it folds there (#1984).
+pub const SEARCH_REFINE_SHARE: f64 = 0.01;
 pub use readings::isochronism_alone;
 
 #[cfg(test)]

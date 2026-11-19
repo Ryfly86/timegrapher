@@ -1465,9 +1465,10 @@ fn cycle_label(
             f.raster.len()
         ),
     };
-    // Folded at the headline's own cycle: the size stated is the cycle's
-    // one size, the headline's (Norm, #1984), not the fold's swing.
-    let own = matches!(s.fold_from[i], FoldFrom::Own) && c.is_cycle_period(f.period_s);
+    // Folded at the headline's cycle (core's `at_cycle`, the same test):
+    // the size stated is the cycle's one size, the headline's (Norm,
+    // #1984), not the fold's swing.
+    let own = c.is_cycle_period(f.period_s);
     match (
         steady_views::fold_spread(f, boxes),
         own.then(|| c.cycle_size_text()).flatten(),
