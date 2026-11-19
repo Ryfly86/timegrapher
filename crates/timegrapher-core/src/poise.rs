@@ -345,9 +345,17 @@ fn factor_series(x: f64) -> (f64, f64) {
 /// rate: [θ − 2·SE, θ + 2·SE] widened by [`NULL_BAND_SHARE`] of θ holds
 /// [`NULL_AMPLITUDE_DEG`].
 pub fn in_null_band(amplitude_deg: f64, se: Option<f64>) -> bool {
+    null_band_margin(amplitude_deg, se) <= 0.0
+}
+
+/// How far, degrees, an amplitude with its ± falls short of reaching
+/// [`NULL_AMPLITUDE_DEG`]: |θ − 219.5| less its reach, [`CLEAR_SE`]·SE
+/// and [`NULL_BAND_SHARE`] of θ; at or below 0 it is in the band. The one
+/// reach [`in_null_band`] tests and the band's stop is chosen by.
+pub fn null_band_margin(amplitude_deg: f64, se: Option<f64>) -> f64 {
     let se = se.filter(|s| s.is_finite()).unwrap_or(0.0).abs();
     let reach = CLEAR_SE * se + NULL_BAND_SHARE * amplitude_deg.abs();
-    (amplitude_deg - NULL_AMPLITUDE_DEG).abs() <= reach
+    (amplitude_deg - NULL_AMPLITUDE_DEG).abs() - reach
 }
 
 /// The amplitudes [`in_null_band`] holds when they have no ±, degrees:
@@ -547,25 +555,20 @@ pub fn fit(points: &[Point], slope: Option<Slope>) -> Option<PoiseFit> {
 /// The stop that names the band, where any is in reach of it (#1960):
 /// never the take's whole range, whose far end may be well clear of it. A
 /// stop whose value is in the band comes first, nearest 219.5°; with
-/// none, the stop whose ± reaches furthest past 219.5°, so the words name
-/// the reason that binds (Norm on #1960).
+/// none, the stop whose ± reaches furthest past 219.5°
+/// ([`null_band_margin`]), so the words name the reason that binds (Norm
+/// on #1960).
 fn null_band_stop(pts: &[Point], amps: &[f64]) -> Option<Withheld> {
-    let off = |a: f64| (a - NULL_AMPLITUDE_DEG).abs();
     let reach = |p: &Point, a: f64| {
         let in_value = in_null_band(a, None);
-        let se = p
-            .amplitude_se
-            .filter(|s| s.is_finite())
-            .unwrap_or(0.0)
-            .abs();
-        // Values in the band before any ±-only stop; then by how far
-        // short of 219.5° each falls, the ± stops less what theirs reaches.
-        let short = if in_value {
-            off(a)
+        // Values in the band before any ±-only stop, nearest 219.5°; then
+        // the ± stops by their margin, the one reach the band is tested by.
+        let by = if in_value {
+            (a - NULL_AMPLITUDE_DEG).abs()
         } else {
-            off(a) - CLEAR_SE * se
+            null_band_margin(a, p.amplitude_se)
         };
-        (!in_value, short)
+        (!in_value, by)
     };
     let (p, &a) = pts
         .iter()

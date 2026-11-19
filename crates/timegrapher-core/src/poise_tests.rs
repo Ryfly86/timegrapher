@@ -873,3 +873,31 @@ fn a_stop_in_the_band_is_named_ahead_of_a_wide_pm_stop() {
          Heavy spot not stated."
     );
 }
+
+/// Of two stops whose ± alone reaches the band, the one named is the
+/// furthest past 219.5° by the reach `in_null_band` tests, its share of
+/// the amplitude in it ([`null_band_margin`]): 3H at 280 ± 20° (margin
+/// −1.9°) ahead of 7H30 at 170 ± 18.5° (−1.1°), which the ± alone would
+/// put ahead (Vernon and Norm on #2041).
+#[test]
+fn the_band_names_the_stop_by_the_reach_it_is_tested_by() {
+    let stops = [
+        (0.0, 300.0, 1.0),
+        (90.0, 280.0, 20.0),
+        (225.0, 170.0, 18.5),
+        (270.0, 310.0, 1.0),
+    ];
+    assert!(null_band_margin(280.0, Some(20.0)) < null_band_margin(170.0, Some(18.5)));
+    let f = fit(&stops_at(&stops), None).unwrap();
+    assert!(matches!(
+        f.withheld,
+        Some(Withheld::NullBand {
+            angle_deg: 90.0,
+            reached_by_se: Some(_),
+            ..
+        })
+    ));
+    assert!(f
+        .heavy_spot_line()
+        .starts_with("At 3H the amplitude is 280 ± 20°, so it may"));
+}
