@@ -214,26 +214,17 @@ Before concluding anything is wrong, in this order:
 
 1. Re-check the set-up with `timegrapher doctor`; re-clamp the watch.
 2. Check the beat rate and the lift angle are right for the calibre.
-3. Fully wind, wait 10–15 minutes to settle, re-test. Wait 30–60 s after each
-   position change.
+3. Fully wind, wait a few minutes, re-test. Let it settle as the program
+   does (20 s, `take::SETTLE_S`) after each position change.
 4. If it gains a lot: demagnetise and re-test.
 5. Test more than one position; test again the next day without winding.
 6. For a regular wave: run `long` for at least half an hour, better two
    hours (or overnight), and see whether the period matches a wheel.
 
-When an anomaly or user-reported symptom appears (a periodic dip, two-level
-step, steep isochronism slope, or intermittent stall), run the interactive
-hypothesis loop in
-[bench-hypothesis-testing.md](bench-hypothesis-testing.md):
-
-- Formulate ranked hypotheses from the measured evidence (setup/settling →
-  hands/complications → barrel/gear train → escapement → oscillator).
-- Propose the **quickest case-closed differential test first** (e.g., 10–15 min
-  post-wind settle, firm re-clamp, targeted positional pair, chronograph ON vs.
-  OFF load check, or hand-repositioning phase-shift test) to tell competing
-  causes apart before asking for an overnight run.
-- When an internal mechanical cause is confirmed, refer to the open-case
-  inspection points below.
+When an anomaly or user-reported symptom appears, use the case-closed
+hypothesis loop in [bench-hypothesis-testing.md](bench-hypothesis-testing.md)
+to rank causes from what was measured, pick the cheapest differentiating bench
+test, and confirm before referring to the open-case inspection points below.
 
 Then:
 
@@ -248,12 +239,12 @@ Then:
 When case-closed bench testing has confirmed an internal fault, tie the inspection
 directly to what was measured:
 
-- **Dial and hands:** If a periodic 60 s dip or hand-position anomaly was
-  found, inspect hand clearances across 12 hours under a loupe before uncasing
-  the movement. Check clearance between seconds hand, minute hand, hour hand,
-  applied dial markers, and the crystal underside. Check dial-washer height
-  and cannon-pinion tension.
-- **Hairspring and regulator pins:** If a steep isochronism slope was measured
+- **Dial and hands:** If a line the program matches to the fourth wheel
+  (`periods`) or a hand-position anomaly was found, inspect hand clearances
+  across 12 hours under a loupe before uncasing the movement. Check clearance
+  between seconds hand, minute hand, hour hand, applied dial markers, and the
+  crystal underside. Check dial-washer height and cannon-pinion tension.
+- **Hairspring and regulator pins:** If an isochronism slope was measured
   on an index-regulated calibre, inspect the hairspring between the regulator
   pins: verify that the outer coil breathes symmetrically without resting
   biased against one pin, and check hairspring flatness and concentricity. When

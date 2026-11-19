@@ -448,53 +448,19 @@ The **Test My Watch** prompt is the skill's own
 watchmaker would run, from the calibre and the microphone through the six
 positions to a plain answer, with the watch you name added at the end.
 
-## Using the Watchmaker Skill at the Bench
+## Using the watchmaker skill at the bench
 
-The watchmaker skill provides an iterative, hypothesis-driven way to test and diagnose a watch:
+At the bench, the agent uses the case-closed reasoning loop in [bench-hypothesis-testing.md](../../skills/watchmaker/references/bench-hypothesis-testing.md): it checks the measured figures, `±` uncertainties, and caveats (`no_watch`, `beats_missing`, `clipped`, `clock_unknown`, `clock_sources_disagree`), ranks candidate causes from set-up and settling down to the oscillator, and proposes the cheapest case-closed change—or the app's built-in **Positions Test**, **Dynamic Poise Test**, or **Complication Test**—to tell them apart. When an internal fault is confirmed, it maps what was measured to the inspection points in [diagnosis.md](../../skills/watchmaker/references/diagnosis.md#once-the-case-is-open-what-to-inspect).
 
-### 1. Start with a Recording or a Symptom (Triage & Hypotheses)
+Example prompts you can use directly:
 
-Record a take in the Timegrapher app (or describe a problem) and ask naturally:
-
-- "Analyze my last [Watch Name] recording."
-- "My watch loses time when the chrono is on—what are the hypotheses and how do we test it?"
-- "I just ran a 3-position test on my [Watch Name]. What looks off?"
-
-What the agent will do:
-
-1. Pull the latest take, verify the calibre and lift angle, and rule out setup or handling issues first (clipping, missed beats from a loose clamp, or temporary settling torque after winding).
-2. Form ranked hypotheses from what the program measured (e.g., symmetric vs. one-sided amplitude drop, periodogram wheel matches, or positional variations).
-3. Propose the cheapest case-closed change at the bench first (usually a 1- to 5-minute check) to confirm or eliminate candidate causes.
-
-### 2. Run Differential Tests at the Bench
-
-As you try each suggested change in the Timegrapher app, reply with what you did (for example, "waited 15 minutes", "re-clamped the watch", "turned chronograph on"). Guided by [bench-hypothesis-testing.md](../../skills/watchmaker/references/bench-hypothesis-testing.md), the agent judges which case-closed test fits the symptoms:
-
-- **Settling check:** Wait 10–15 min after winding to rule out temporary mainspring bridle torque peaks.
-- **Clamp & acoustic contact:** Re-seat the watch when a `beats_missing` caveat or poor signal appears in only one position.
-- **Targeted positional pairs:** Compare DU vs. DD (endstones and endshake) and horizontal vs. verticals (`dvh_amplitude` for pivot friction, rate divergence for poise).
-- **Complication load:** Compare chronograph ON vs. OFF to separate normal friction from excessive coupling drag.
-- **Hand phase-shift:** Advance the hands 4–6 hours to separate hand-to-hand rubbing from dial/crystal contact or a wheel defect.
-- **Date-change & wind progression:** Check date wheel engagement across midnight, or wind incrementally from stop to test bridle slip.
-
-While an extended run is recording, ask "status and isochronism?" or "checkpoint" anytime for a live readout without stopping the take.
-
-### 3. Open-Case Inspection Guidance
-
-When testing has confirmed an internal fault and the watch needs service, ask:
-
-- "What should a watchmaker inspect once the case is open?"
-- "What does this rate and amplitude drop mean for service?"
-
-What the agent will do:
-
-The agent translates the measured figures and caveats directly into specific mechanical inspection points for the watchmaker—such as verifying hand clearances before uncasing, inspecting hairspring centering between regulator pins, checking chronograph coupling depth, or letting down power to observe going-train spin-down at a flagged wheel (see [diagnosis.md](../../skills/watchmaker/references/diagnosis.md#once-the-case-is-open-what-to-inspect)).
-
-### 4. Other Built-In Modes
-
-- **Full Guided Test from Scratch:** "Walk me through a full 6-position test on a new watch."
-- **Microphone / Stand Troubleshooting:** "Check my microphone levels with doctor."
-- **Seller QC Photo / Video Check:** Attach a photo or video of another timegrapher screen and ask "What do you make of this QC video?"
+- *"Analyse my last [Watch Name] recording."*
+- *"My watch loses time when the chrono is on—what are the hypotheses and how do we test it?"*
+- *"I just ran a 3-position test on my [Watch Name]. What looks off?"*
+- *"What should a watchmaker inspect once the case is open?"*
+- *"Walk me through a full 6-position test on a new watch."*
+- *"Check my microphone levels with doctor."*
+- *"What do you make of this QC video?"* (with an image or video of another timegrapher screen)
 
 ## What it never does
 

@@ -11,15 +11,15 @@ would: plainly, without hype, and always saying *why*. Most people who ask
 "is my watch all right?" have a perfectly good watch, a microphone turned up
 too far and the wrong lift angle. Sort those out first, then read the watch.
 
-Four jobs, in order:
+Three jobs, in order, and a fourth when something's off:
 
 1. **Get the software and the microphone working.**
 2. **Run a proper test**: the right positions, the watch wound and settled.
 3. **Read the results like a watchmaker**, and say plainly when the watch
    needs one.
 4. **Guide hypothesis-driven bench tests & advise on open-case inspection**:
-   when an anomaly or symptom shows up, state ranked hypotheses, propose the
-   quickest case-closed change to tell them apart, and explain what a watchmaker
+   when an anomaly or symptom shows up, form ranked hypotheses, pick the
+   cheapest case-closed change to tell them apart, and explain what a watchmaker
    should look for once the case is opened.
 
 ## Ground rules
@@ -112,8 +112,9 @@ from the microphone check to six positions fully wound and the same six
 
 - Wind it fully (about 30–40 turns of the crown for most manual-wind and
   automatics; stop at resistance on a manual wind, never force it).
-- Let it run a few minutes before measuring, and give it 30 s to a minute
-  to settle after every change of position.
+- Let it run a few minutes before measuring, and let it settle as the
+  program does (20 s, `take::SETTLE_S`, settable in the pane) after every
+  change of position.
 - Record at least 60 s per position; 2 minutes is better. Dial up first.
 - For a proper check, six positions in the desktop app's order: dial
   up, dial down, crown down, crown left, crown up, crown right (its
@@ -244,22 +245,9 @@ Then decide. [when-to-see-a-watchmaker.md](references/when-to-see-a-watchmaker.m
 gives the four verdicts: **fine**, **keep an eye on it**, **service soon**,
 **stop wearing it**.
 
-### 4. Interactive hypothesis testing & open-case inspection (see [bench-hypothesis-testing.md](references/bench-hypothesis-testing.md))
+### 4. Interactive hypothesis testing & open-case inspection
 
-When an anomaly or a user-reported symptom appears (a periodic wave, a
-two-level torque dip, a steep isochronism slope, an odd positional drop, or an
-intermittent stall):
-
-1. **Rank your hypotheses** from most likely to least likely, naming the exact
-   measured evidence and caveats for each (setup/settling → hands/complications →
-   barrel/gear train → escapement → oscillator).
-2. **Propose the cheapest case-closed differential test first** (e.g., settling
-   wait, firm re-clamp, targeted positional pair, chronograph ON vs. OFF, or
-   hand-repositioning phase-shift) to tell competing causes apart before
-   suggesting an overnight run.
-3. **Advise on open-case inspection**: when an internal fault is confirmed, tie
-   what the watchmaker should inspect directly to what was measured (see
-   [diagnosis.md](references/diagnosis.md#once-the-case-is-open-what-to-inspect)).
+When an anomaly or symptom shows up, follow the case-closed reasoning loop in [bench-hypothesis-testing.md](references/bench-hypothesis-testing.md): rank hypotheses from what the program measured, pick the cheapest bench change that tells them apart, and re-measure until the metric displays a `±`. When an internal fault is confirmed, tie what the watchmaker should inspect to what was measured ([diagnosis.md](references/diagnosis.md#once-the-case-is-open-what-to-inspect)).
 
 ## Judgement rules worth remembering
 
