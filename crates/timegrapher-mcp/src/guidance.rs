@@ -71,6 +71,13 @@ pub const DOCS: &[Doc] = &[
         "skills/watchmaker/references/diagnosis.md"
     ),
     doc!(
+        "timegrapher://skill/bench-hypothesis-testing",
+        "bench-hypothesis-testing",
+        "Bench Hypothesis Testing",
+        "Ranking causes and choosing the case-closed bench check that tells them apart.",
+        "skills/watchmaker/references/bench-hypothesis-testing.md"
+    ),
+    doc!(
         "timegrapher://skill/tick-shape",
         "tick-shape",
         "Tick Shape",
