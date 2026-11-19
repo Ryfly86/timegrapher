@@ -462,9 +462,26 @@ pub struct SeriesCheck {
     /// σ allowing for their correlation once their largest step is out
     /// ([`confidence::long_run_sd`]). The CUSUM is scaled by it.
     pub long_run_sd: Option<f64>,
+    /// The readings' effective count, n(1 − ρ)/(1 + ρ) with ρ the
+    /// corrected lag-one correlation `long_run_sd` allows for
+    /// ([`confidence::effective_readings`]): what a level change and a
+    /// slide are weighed on when they compete for the lead (#1984).
+    #[serde(skip)]
+    effective_readings: f64,
     /// Null, like the other tests, when there are too few readings to
     /// search (the headline says how many).
     pub autocorrelation: Option<Autocorrelation>,
+    /// [`SeriesCheck::autocorrelation_repeat`] as [lag, r], the mark the
+    /// Autocorrelation view puts on its curve (#1984); null when none.
+    pub repeat_mark: Option<[f64; 2]>,
+    /// [`SeriesCheck::cycle_size_text`], the cycle's one stated size as a
+    /// screen shows it, for the Cycle view's note (#1984); null without a
+    /// cycle.
+    pub screen_cycle_size: Option<String>,
+    /// [`SeriesCheck::cycle_off_search`]'s period, seconds: the headline's
+    /// cycle the Periods view marks beside the search's top (#1984); null
+    /// when the two agree or there is no cycle.
+    pub cycle_off_search_s: Option<f64>,
     pub allan: Option<Allan>,
     pub cusum: Option<Cusum>,
     pub changes: Option<Changes>,
@@ -1099,7 +1116,11 @@ pub fn check_series(
         sd: mean_sd(y).map(|m| m.1),
         short_term_sd: short_term_sd(y),
         long_run_sd: None,
+        effective_readings: n as f64,
         autocorrelation: None,
+        repeat_mark: None,
+        screen_cycle_size: None,
+        cycle_off_search_s: None,
         allan: None,
         cusum: None,
         changes: None,
@@ -1176,6 +1197,8 @@ pub fn check_series(
     // out (#647).
     let lr = confidence::long_run_sd(y, sst, Slow::ChosenStep);
     out.long_run_sd = Some(lr);
+    out.effective_readings =
+        confidence::effective_readings(nf, confidence::long_run_rho(y, Slow::ChosenStep));
     let mut walk = None;
     if lr > 0.0 {
         let scale = lr * nf.sqrt();
@@ -1283,8 +1306,8 @@ pub fn check_series(
     family::mark_named(&mut out, cfg);
     if let Some((ts, ss)) = walk {
         // The corner is marked only at a level change the headline
-        // names (#697).
-        let cuts: Vec<f64> = family::level_change(&out, cfg)
+        // names (#697), as its lead or its runner-up (#1984).
+        let cuts: Vec<f64> = family::level_named(&out, cfg)
             .iter()
             .flat_map(|c| c.segments.iter().skip(1).map(|g| g.start_s))
             .collect();
@@ -1397,7 +1420,53 @@ fn also(s: &SeriesCheck, cfg: &Config) -> Option<String> {
             k.fmt(hi)
         ));
     }
+    if let Some(t) = runner_up(s, cfg) {
+        out.push(t);
+    }
     (!out.is_empty()).then(|| out.join(" "))
+}
+
+/// The other of a slide and a level change, when its own test names it
+/// too and the lead went to the first: said with both adjusted shares, so
+/// that a step the plot shows under a slide's headline, or a slide under a
+/// step's, is accounted for (Norm, #1984).
+fn runner_up(s: &SeriesCheck, cfg: &Config) -> Option<String> {
+    let ch = family::level_moves(s, cfg)?;
+    let (slide, steps) = family::adjusted_shares(s, ch)?;
+    let pct = |v: f64| format!("{:.1}%", 100.0 * v);
+    match s.lead {
+        Lead::Drifting => {
+            let at: Vec<String> = ch
+                .segments
+                .iter()
+                .skip(1)
+                .map(|g| every_text(g.start_s))
+                .collect();
+            let what = if at.len() == 1 {
+                format!("A step at {}", at[0])
+            } else {
+                format!("Steps at {}", at.join(", "))
+            };
+            Some(format!(
+                "{what} explains about as much ({} against {}).",
+                pct(steps),
+                pct(slide)
+            ))
+        }
+        Lead::ShiftingMean
+            if family::trend_holds(s, cfg)
+                && s.trend
+                    .as_ref()
+                    .is_some_and(|t| t.explained.max(t.curve_explained) >= cfg.min_explained) =>
+        {
+            Some(format!(
+                "A slow change explains about as much ({} against {}).",
+                pct(slide),
+                pct(steps)
+            ))
+        }
+        _ => None,
+    }
 }
 
 /// Fold the detrended readings at `period`: the share of their variance
@@ -1747,13 +1816,12 @@ fn lead(s: &SeriesCheck, cfg: &Config) -> Lead {
         .as_ref()
         .map_or(0.0, |t| t.explained.max(t.curve_explained));
     if let Some(ch) = family::level_moves(s, cfg) {
-        // A slide cut into steps is still a slide: whichever of the line
-        // and the steps explains more names it. A line explains a clean
-        // mid-take step about 0.75 as well, so a bar of 0.8 called 40 to
-        // 45% of 2σ steps at ρ 0.9 slides; at 1.0 a ramp cut into steps
-        // is sometimes called a level shift instead, which still says the
-        // level moved (#721).
-        return if trend >= ch.explained && family::trend_holds(s, cfg) {
+        // A slide cut into steps is still a slide, and a step is not a
+        // slide (#721, #1984): the line, the curve and the steps are
+        // weighed by their adjusted explained shares on the readings'
+        // effective count, each paying for its parameters, and a tie goes
+        // to the level change the levels test names (Norm, #1984).
+        return if family::slide_outweighs_steps(s, ch) && family::trend_holds(s, cfg) {
             Lead::Drifting
         } else {
             Lead::ShiftingMean
@@ -1998,11 +2066,18 @@ fn lead_text(s: &SeriesCheck, mean: f64) -> String {
         Lead::Drifting => {
             let t = s.trend.as_ref().unwrap();
             if let Some((at, v)) = t.turn.filter(|_| t.curve_explained > t.explained + 0.05) {
+                // The curve's turn is its top or bottom, never a change
+                // at that time (Norm, #1984).
+                let side = if v >= t.start.max(t.end) {
+                    "highest"
+                } else {
+                    "lowest"
+                };
                 return format!(
-                    "{cap} changes slowly: from {} to {} at {}, then to {} at the end.",
+                    "{cap} changes slowly along a curve: from {}, {side} at {} ({}), to {} at the end.",
                     k.fmt(t.start),
-                    k.fmt(v),
                     every(at),
+                    k.fmt(v),
                     k.fmt(t.end)
                 );
             }
@@ -2049,12 +2124,53 @@ fn lead_text(s: &SeriesCheck, mean: f64) -> String {
 }
 
 impl SeriesCheck {
-    /// Writes the screen copies of the headline and summary; called
-    /// whenever either has its last words.
+    /// Writes the screen copies of the headline and summary, and the
+    /// Autocorrelation view's mark; called whenever either has its last
+    /// words, after the cycle is chosen.
     fn set_screen_text(&mut self) {
+        self.repeat_mark = self.autocorrelation_repeat().map(|(l, r)| [l, r]);
+        self.screen_cycle_size = self.cycle_size_text();
+        self.cycle_off_search_s = self.cycle_off_search().map(|c| c.period_s);
         self.screen_headline = crate::figure_text::figure_minus(&self.headline);
         self.screen_summary = crate::figure_text::figure_minus(&self.summary);
         self.screen_stats = crate::figure_text::figure_minus(&self.stats_line());
+    }
+
+    /// The cycle's one stated size (math-standards, "Size of a cycle",
+    /// #761), as the headline writes it, "11.0°", with a true minus: the
+    /// Cycle view states this, not its fold's own swing (Norm, #1984).
+    /// None without a cycle.
+    pub fn cycle_size_text(&self) -> Option<String> {
+        let c = self.cycle.as_ref()?;
+        Some(crate::figure_text::figure_minus(
+            &self.series.fmt_size(c.peak_to_peak),
+        ))
+    }
+
+    /// The repeat the Autocorrelation view marks, (lag, r): the readings'
+    /// first repeat, or else the lag of the headline's cycle when the
+    /// autocorrelation found it, so a cycle "found by the autocorrelation"
+    /// is marked there (#1984); None when neither.
+    pub fn autocorrelation_repeat(&self) -> Option<(f64, f64)> {
+        let a = self.autocorrelation.as_ref()?;
+        if let (Some(l), Some(r)) = (a.repeat_lag_s, a.repeat_r) {
+            return Some((l, r));
+        }
+        let c = self
+            .cycle
+            .as_ref()
+            .filter(|c| c.source == CycleSource::Autocorrelation)?;
+        let (l, r) = a
+            .lag_s
+            .iter()
+            .zip(&a.r)
+            .filter(|(_, r)| r.is_finite())
+            .min_by(|x, y| {
+                (x.0 - c.period_s)
+                    .abs()
+                    .total_cmp(&(y.0 - c.period_s).abs())
+            })?;
+        Some((*l, *r))
     }
 
     /// The period search's line when it turns in under three of the

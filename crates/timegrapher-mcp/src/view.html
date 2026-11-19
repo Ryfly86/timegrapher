@@ -1985,6 +1985,14 @@ function steadyPlot(s, view, doc) {
         marks.push({ x, y: near[1], color });
         notes.push({ x, y: near[1], text: secs(s.period.period_s) + (s.period.wheel_title ? `, ${s.period.wheel_title}` : "") });
       }
+      // The headline's cycle where the fold chose another line than the
+      // search's top (core's cycle_off_search_s, #1984).
+      if (Number.isFinite(s.cycle_off_search_s) && s.cycle_off_search_s > 0) {
+        const x = Math.log10(s.cycle_off_search_s);
+        const near = pts.reduce((a, q) => (Math.abs(q[0] - x) < Math.abs(a[0] - x) ? q : a), pts[0]);
+        marks.push({ x, y: near[1], color });
+        notes.push({ x, y: near[1], text: `the headline's cycle, ${secs(s.cycle_off_search_s)}` + (s.cycle && s.cycle.wheel_title ? `, ${s.cycle.wheel_title}` : "") });
+      }
       return xyChart({
         title: "Periods", x: span, y,
         xTicks: periodTicks,
@@ -2024,7 +2032,12 @@ function steadyPlot(s, view, doc) {
       } else {
         label = `Folded at the ${String(f.wheel || "wheel").toLowerCase()}'s ${secs(f.period_s)} turn, ${n} cycles`;
       }
-      if (Number.isFinite(f.swing) && Number.isFinite(f.middle_half)) {
+      // Folded at the headline's own cycle: its one size, core's (#1984).
+      const ownSize = f.from === "own" && s.cycle && s.screen_cycle_size
+        && Math.abs(s.cycle.period_s - f.period_s) <= 1e-6 * f.period_s ? s.screen_cycle_size : null;
+      if (ownSize && Number.isFinite(f.middle_half)) {
+        label += `\n${ownSize} peak to peak; the boxes' median height is ${stepText(f.middle_half, Math.abs(f.middle_half) / 10, unit)}`;
+      } else if (Number.isFinite(f.swing) && Number.isFinite(f.middle_half)) {
         const st = Math.min(Math.abs(f.swing), Math.abs(f.middle_half)) / 10;
         label += `\nThe median line swings ${stepText(f.swing, st, unit)}; the boxes' median height is ${stepText(f.middle_half, st, unit)}`;
       }
@@ -2045,9 +2058,12 @@ function steadyPlot(s, view, doc) {
       const xHi = pts.length ? pts[pts.length - 1][0] : 1;
       const lo = Math.min(-0.2, -a.band, ...pts.map((q) => q[1]));
       const marks = [], notes = [];
-      if (Number.isFinite(a.repeat_lag_s) && Number.isFinite(a.repeat_r)) {
-        marks.push({ x: a.repeat_lag_s, y: a.repeat_r, color });
-        notes.push({ x: a.repeat_lag_s, y: a.repeat_r, text: `repeats at ${secs(a.repeat_lag_s)}` });
+      // Core's mark: the first repeat, or the headline cycle's lag when
+      // the autocorrelation found it (#1984).
+      const m = s.repeat_mark;
+      if (m && Number.isFinite(m[0]) && Number.isFinite(m[1])) {
+        marks.push({ x: m[0], y: m[1], color });
+        notes.push({ x: m[0], y: m[1], text: `repeats at ${secs(m[0])}` });
       }
       return xyChart({
         title: "Autocorrelation", x: [0, xHi], y: [lo - 0.05, 1.35],
@@ -2087,7 +2103,7 @@ function steadyPlot(s, view, doc) {
         yTicks: (p, q) => logTicks(p, q, size),
         vlines: wheelMarks(doc, x), names: showWheels || showMesh, lines: runs.map((r) => ({ pts: r, color, width: 1.5 })),
         marks: [{ x: peak[0], y: peak[1], color }],
-        noteRoom: true, beside: [{ x: peak[0], y: peak[1], text: `tallest at ${secs(Math.pow(10, peak[0]))}: ${size(Math.pow(10, peak[1]))}${asRate ? " peak to peak" : ""}` }],
+        noteRoom: true, beside: [{ x: peak[0], y: peak[1], text: `tallest at ${secs(Math.pow(10, peak[0]))}: ${size(Math.pow(10, peak[1]))}${asRate ? " peak to peak" : ", a sine's amplitude, half its peak to peak"}` }],
       });
     }
     case "stft":

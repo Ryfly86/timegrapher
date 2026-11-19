@@ -193,6 +193,49 @@ pub(super) fn level_change<'a>(s: &'a SeriesCheck, cfg: &Config) -> Option<&'a C
     level_moves(s, cfg).filter(|_| s.lead != Lead::Drifting)
 }
 
+/// The adjusted share of the variance a model with `k` parameters explains
+/// on `n_eff` effective readings, 1 − (1 − R²)(n_eff − 1)/(n_eff − k − 1):
+/// R² less what that many parameters would fit in noise. None when the
+/// readings are too few to pay for the parameters.
+pub(super) fn adjusted_explained(r2: f64, k: f64, n_eff: f64) -> Option<f64> {
+    let room = n_eff - k - 1.0;
+    (room > 0.0 && r2.is_finite()).then(|| 1.0 - (1.0 - r2) * (n_eff - 1.0) / room)
+}
+
+/// Whether the trend outweighs the level change `ch` for the lead: the
+/// better of the line (2 parameters) and the curve (3) against the steps'
+/// means and times (2m − 1 for m stretches), each by its
+/// [`adjusted_explained`] on the readings' effective count. The steps win
+/// a tie, and win where the readings are too few to judge either (Norm,
+/// #1984).
+pub(super) fn slide_outweighs_steps(s: &SeriesCheck, ch: &super::Changes) -> bool {
+    adjusted_shares(s, ch).is_some_and(|(slide, steps)| slide > steps)
+}
+
+/// The adjusted shares [`slide_outweighs_steps`] weighs, (slide, steps):
+/// the better of the line's and the curve's, and the level change's.
+/// None when either can't be judged on the readings' effective count.
+pub(super) fn adjusted_shares(s: &SeriesCheck, ch: &super::Changes) -> Option<(f64, f64)> {
+    let t = s.trend.as_ref()?;
+    let n = s.effective_readings;
+    let slide = [(t.explained, 2.0), (t.curve_explained, 3.0)]
+        .into_iter()
+        .filter_map(|(r2, k)| adjusted_explained(r2, k, n))
+        .reduce(f64::max)?;
+    let k = 2.0 * ch.segments.len() as f64 - 1.0;
+    Some((slide, adjusted_explained(ch.explained, k, n)?))
+}
+
+/// A level change the headline names, as its lead or, under a slide's
+/// lead, as the runner-up it also states (#1984): the CUSUM marks its
+/// corner either way.
+pub(super) fn level_named<'a>(s: &'a SeriesCheck, cfg: &Config) -> Option<&'a Changes> {
+    level_change(s, cfg).or_else(|| {
+        level_moves(s, cfg)
+            .filter(|ch| s.lead == Lead::Drifting && adjusted_shares(s, ch).is_some())
+    })
+}
+
 /// Whether the CUSUM's test clears `cfg.level_alpha` (#917).
 pub(super) fn level_holds(s: &SeriesCheck, cfg: &Config) -> bool {
     s.changes

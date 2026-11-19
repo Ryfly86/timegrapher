@@ -227,6 +227,45 @@ fn a_minute_cycle_on_a_slow_trend_is_still_found() {
     assert!((lag - 60.0).abs() <= 10.0, "{lag}");
 }
 
+/// The Autocorrelation view's mark (#1984): the readings' first repeat
+/// where there is one, and else the lag nearest a cycle the
+/// autocorrelation found, so "from the autocorrelation" is never said
+/// without the mark; none for a cycle the period search found alone.
+#[test]
+fn a_cycle_found_by_the_autocorrelation_is_marked_there() {
+    let s = drifting_rate(1.5);
+    let a = s.autocorrelation.clone().unwrap();
+    let (l, r) = (a.repeat_lag_s.unwrap(), a.repeat_r.unwrap());
+    assert_eq!(s.autocorrelation_repeat(), Some((l, r)));
+    assert_eq!(s.repeat_mark, Some([l, r]));
+    let mut s = s;
+    let ac = s.autocorrelation.as_mut().unwrap();
+    (ac.repeat_lag_s, ac.repeat_r) = (None, None);
+    let c = s.cycle.as_mut().expect("the minute's cycle");
+    c.period_s = 59.95;
+    c.source = CycleSource::Autocorrelation;
+    let (l, r) = s.autocorrelation_repeat().expect("marked at the cycle");
+    assert_eq!(l, 60.0);
+    let a = s.autocorrelation.as_ref().unwrap();
+    let k = a.lag_s.iter().position(|&x| x == 60.0).unwrap();
+    assert_eq!(r, a.r[k]);
+    s.cycle.as_mut().unwrap().source = CycleSource::PeriodSearch;
+    assert_eq!(s.autocorrelation_repeat(), None);
+}
+
+/// The Cycle view states the cycle's one size, the headline's (Norm,
+/// #1984, #761): `cycle_size_text` is `peak_to_peak` as the headline
+/// writes it, and the JSON carries it.
+#[test]
+fn the_cycles_stated_size_is_its_peak_to_peak() {
+    let s = drifting_rate(1.5);
+    let c = s.cycle.as_ref().expect("the minute's cycle");
+    let size = s.cycle_size_text().unwrap();
+    assert_eq!(size, crate::figure_text::figure_minus(&s.series.fmt_size(c.peak_to_peak)));
+    assert!(s.headline.contains(&s.series.fmt_size(c.peak_to_peak)), "{}", s.headline);
+    assert_eq!(s.screen_cycle_size.as_deref(), Some(size.as_str()));
+}
+
 fn search_line(period_s: f64, size: f64, size_unit: &'static str, wheel: Option<&str>) -> Period {
     Period {
         period_s,
@@ -1347,7 +1386,11 @@ fn a_step_in_correlated_readings_is_still_found() {
 /// Whether the headline names a level change: as its lead, or as the
 /// level also moving.
 fn headline_names_a_change(s: &SeriesCheck) -> bool {
-    s.headline.contains("shifts level") || s.headline.contains("level also moves")
+    s.headline.contains("shifts level")
+        || s.headline.contains("level also moves")
+        // Under a slide's lead, the step it also names (#1984).
+        || ((s.headline.contains("A step at ") || s.headline.contains("Steps at "))
+            && s.headline.contains(" explains about as much"))
 }
 
 /// One rule names a level change (#697): the CUSUM marks its corner only
@@ -1427,6 +1470,35 @@ fn a_cut_series_is_a_slide_only_when_its_line_explains_at_least_as_much() {
         let t = s.trend.as_mut().unwrap();
         (t.explained, t.curve_explained) = (0.5 * ratio, 0.0);
         assert_eq!(lead(&s, &cfg), want, "line at {ratio} of the stretches");
+    }
+}
+
+/// Step against slide by adjusted share (Norm, #1984): in 200 seeded
+/// series at each of ρ 0, 0.5 and 0.9, a pure step of 4σ halfway leads as
+/// a level change, and a pure bend of 4σ (rising and levelling, a
+/// quadratic's half) as a slide, at least 95% of the time in each cell.
+/// The cells are printed for the issue.
+#[test]
+fn a_step_leads_as_a_step_and_a_bend_as_a_slide() {
+    let cfg = Config::default();
+    let mut z = Noise(1984);
+    for rho in [0.0, 0.5, 0.9] {
+        let (mut steps, mut bends) = (0, 0);
+        for _ in 0..200 {
+            let g = correlated(&mut z, 720, rho, 4.0, Gaps::None);
+            let s = check_series(SeriesKind::Rate, g, None, None, None, &[], &cfg);
+            steps += usize::from(s.lead == Lead::ShiftingMean);
+            let mut g = correlated(&mut z, 720, rho, 0.0, Gaps::None);
+            for (i, v) in g.y.iter_mut().enumerate() {
+                let t = i as f64 / 719.0;
+                *v += 4.0 * (1.0 - (1.0 - t).powi(2));
+            }
+            let s = check_series(SeriesKind::Rate, g, None, None, None, &[], &cfg);
+            bends += usize::from(s.lead == Lead::Drifting);
+        }
+        println!("#1984 cell ρ {rho}: step led as a step {steps}/200, bend as a slide {bends}/200");
+        assert!(steps >= 190, "ρ {rho}: step as a step {steps}/200");
+        assert!(bends >= 190, "ρ {rho}: bend as a slide {bends}/200");
     }
 }
 

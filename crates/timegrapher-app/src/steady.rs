@@ -1356,6 +1356,23 @@ fn periods_plot(ui: &mut egui::Ui, r: Row<'_>) {
     // The period found, its dot and note; the note is hover only on
     // a short plot, where the names are inside it on its top.
     let found = period_found(c, &pts);
+    // The headline's cycle, where the fold chose another line than the
+    // search's top (#1984): marked as the headline's.
+    let headline = c.cycle_off_search().map(|cy| {
+        let x = cy.period_s.log10();
+        let y = pts
+            .iter()
+            .min_by(|a, b| (a[0] - x).abs().total_cmp(&(b[0] - x).abs()))
+            .map_or(0.0, |q| q[1]);
+        let w = cy
+            .wheel
+            .as_ref()
+            .map_or(String::new(), |w| format!(", {}", marks::title_case(w)));
+        (
+            [x, y],
+            format!("the headline's cycle, {}{w}", secs(cy.period_s)),
+        )
+    });
     let short = note_short(ui, &names, (i, view));
     let top = if found.is_some() && !short {
         let hi = pts.iter().map(|q| q[1]).fold(y_lo, f64::max);
@@ -1390,15 +1407,15 @@ fn periods_plot(ui: &mut egui::Ui, r: Row<'_>) {
             n.inside(p, &lines, &pts, fill);
         }
         p.line(Line::new("score", pts.clone()).color(colour).width(DATA_W));
-        if let Some((at, _)) = &found {
+        for (at, _) in found.iter().chain(&headline) {
             p.points(Points::new("peak", vec![*at]).color(colour).radius(3.5_f32));
         }
     });
     if let Some(n) = &names {
         n.draw(ui, &resp, &lines, &pts);
     }
-    if let Some((at, t)) = &found {
-        let id = ui.id().with(("point note", i, view));
+    for (k, (at, t)) in found.iter().chain(&headline).enumerate() {
+        let id = ui.id().with(("point note", i, view, k));
         marks::beside(ui, &resp.transform, *at, t, &pts, &[], fill, short, id);
     }
 }
@@ -1443,13 +1460,26 @@ fn cycle_label(
             f.raster.len()
         ),
     };
-    match steady_views::fold_spread(f, boxes) {
-        Some((swing, middle)) => format!(
+    // Folded at the headline's own cycle: the size stated is the cycle's
+    // one size, the headline's (Norm, #1984), not the fold's swing.
+    let own = matches!(s.fold_from[i], FoldFrom::Own)
+        && c.cycle
+            .as_ref()
+            .is_some_and(|cy| (cy.period_s - f.period_s).abs() <= 1e-6 * f.period_s);
+    match (
+        steady_views::fold_spread(f, boxes),
+        own.then(|| c.cycle_size_text()).flatten(),
+    ) {
+        (Some((_, middle)), Some(size)) => format!(
+            "{label}\n{size} peak to peak; the boxes' median height is {}",
+            value_text(k, middle, middle.abs() / 10.0),
+        ),
+        (Some((swing, middle)), None) => format!(
             "{label}\nThe median line swings {}; the boxes' median height is {}",
             value_text(k, swing, swing.abs().min(middle.abs()) / 10.0),
             value_text(k, middle, swing.abs().min(middle.abs()) / 10.0),
         ),
-        None => label,
+        (None, _) => label,
     }
 }
 
@@ -1587,7 +1617,7 @@ fn autocorrelation_plot(ui: &mut egui::Ui, r: Row<'_>) {
                 p.hline(call_out(HLine::new("band", b), dashed, pal));
             }
             p.line(Line::new("r", pts.clone()).color(colour).width(DATA_W));
-            if let (Some(l), Some(r)) = (a.repeat_lag_s, a.repeat_r) {
+            if let Some([l, r]) = c.repeat_mark {
                 p.points(
                     Points::new("repeat", vec![[l, r]])
                         .color(colour)
@@ -1600,7 +1630,7 @@ fn autocorrelation_plot(ui: &mut egui::Ui, r: Row<'_>) {
                     .anchor(egui::Align2::RIGHT_TOP),
             );
         });
-    if let (Some(l), Some(r)) = (a.repeat_lag_s, a.repeat_r) {
+    if let Some([l, r]) = c.repeat_mark {
         // The Ljung–Box note's place, kept clear of the repeat's.
         let t = &resp.transform;
         let font = egui::TextStyle::Small.resolve(ui.style());
@@ -1902,7 +1932,13 @@ fn fft_plot(ui: &mut egui::Ui, r: Row<'_>) {
                 "tallest peak at {}: {}{}",
                 secs(10f64.powf(peak[0])),
                 size(10f64.powf(peak[1])),
-                if as_rate { " peak to peak" } else { "" }
+                // The amplitude and beat error read as a sine's
+                // amplitude, half its peak to peak (Norm, #1984).
+                if as_rate {
+                    " peak to peak"
+                } else {
+                    ", a sine's amplitude, half its peak to peak"
+                }
             ),
         )
     });
