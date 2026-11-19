@@ -220,7 +220,7 @@ impl TimegrapherApp {
     /// the Calibre card writes it, "Auto 28800", and the rate alone,
     /// "28800" (`bph_parts`).
     pub(super) fn watch_facts(&self) -> (String, String, String) {
-        let heard = self.live.as_ref().and_then(|l| l.bph());
+        let heard = self.bph_heard();
         let set = self.bph_set_by_calibre();
         let angle = format!("{}°", fields::plain(self.lift_deg));
         let (how, rate) = self.bph_parts(set, heard);

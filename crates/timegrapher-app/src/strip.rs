@@ -30,6 +30,8 @@ mod lines;
 #[cfg(test)]
 use lines::joined;
 #[cfg(test)]
+mod guide_tests;
+#[cfg(test)]
 mod key_tests;
 #[cfg(test)]
 mod overlay_tests;
@@ -1975,7 +1977,8 @@ impl Frame<'_> {
 
     /// The rate reading over its beats, on top of them, wrapping as the
     /// dots do; and faint parallels to it across the whole strip, one per
-    /// grid `step`, so the eye can tell whether the dots run parallel to it.
+    /// grid `step` from the session's start, so the eye can tell whether
+    /// the dots run parallel to it.
     fn paint_rate_line(&self, beats: &[Beat], period_s: f64, anchor: Anchor, step: f64) {
         let (g, half, extras, pal) = (&self.g, self.g.half, self.extras, self.pal);
         let Some(line) = extras.rate_line else {
@@ -2007,8 +2010,10 @@ impl Frame<'_> {
         if extras.guides {
             let n = (2.0 * half / step).round().max(1.0) as i64;
             let faint = Stroke::new(1.0_f32, pal.trace_rate.gamma_multiply(0.3));
+            // Blank paper before the session began, as for the time
+            // lines: at a long length, guides there hatched it (#1952).
             for k in 0..n {
-                polyline(self.oldest, g.end, k as f64 * step, faint);
+                polyline(self.oldest.max(0.0), g.end, k as f64 * step, faint);
             }
         }
         if extras.line {
