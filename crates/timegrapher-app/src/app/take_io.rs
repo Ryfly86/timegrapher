@@ -2457,14 +2457,11 @@ impl TimegrapherApp {
             }
         }
         // A microphone that opened but sends nothing.
-        if let Some(cap) = &self.capture {
-            let quiet = self.audio_at.unwrap_or(self.opened_at).elapsed();
-            if !cap.is_file && quiet.as_secs_f64() > 3.0 && failure.is_none() {
-                failure = Some(CaptureFailure::Input(
-                    "No sound is arriving from this input.".to_string(),
-                ));
-                ended = true;
-            }
+        if failure.is_none() && self.mic_stalled() {
+            failure = Some(CaptureFailure::Input(
+                "No sound is arriving from this input.".to_string(),
+            ));
+            ended = true;
         }
         (taken, ended, failure)
     }
@@ -2991,8 +2988,8 @@ fn break_text(gap: f64, dropped: bool) -> String {
     } else {
         format!(
             "The sound's timestamps jumped by {}, as they do when the \
-             computer sleeps. The jump is left out of the take as a \
-             break, and listening carries on.",
+             computer sleeps or the input stalls. The jump is left out of \
+             the take as a break, and listening carries on.",
             fields::duration(gap.round())
         )
     }
