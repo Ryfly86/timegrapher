@@ -608,18 +608,46 @@ fn the_apps_panes_read_each_corpus_take_as_the_command_line_does() {
 /// `secs` of the corpus recording `flac` from `from_s` in, listened to as
 /// from a microphone whose blocks are stamped `ppm` fast against the
 /// computer's clock, stopped and saved: the saved take's folder, under
-/// `base`. The input stalls for `pause` (audio seconds in, and how long by
-/// the computer's clock) where one is given, so the take holds a break
-/// there, and `silent_s` of silence follows the sound, as when the watch
-/// is taken off the stand before Stop.
+/// `base`. See [`listened`].
 fn listened_and_saved(
+    base: &Path,
+    flac: &Path,
+    stretch: (f64, f64),
+    ppm: f64,
+    pause: Option<(f64, f64)>,
+    silent_s: f64,
+) -> PathBuf {
+    saved(
+        &mut listened(base, flac, stretch, ppm, pause, silent_s),
+        base,
+    )
+}
+
+/// The stopped `app`'s take saved under `base`: its folder.
+fn saved(app: &mut TimegrapherApp, base: &Path) -> PathBuf {
+    app.save_into(&base.join("saved"));
+    app.wait_for_save();
+    app.session
+        .saved_to()
+        .expect("the take is saved")
+        .to_path_buf()
+}
+
+/// The app just stopped after `secs` of the corpus recording `flac` from
+/// `from_s` in, listened to as from a microphone whose blocks are stamped
+/// `ppm` fast against the computer's clock, recorded under `base`. The
+/// input stalls for `pause` (audio seconds in, and how long by the
+/// computer's clock) where one is given, so the take holds a break there,
+/// and `silent_s` of a quiet stand follows the sound, as when the watch is
+/// taken off the stand before Stop.
+fn listened(
     base: &Path,
     flac: &Path,
     (from_s, secs): (f64, f64),
     ppm: f64,
     pause: Option<(f64, f64)>,
     silent_s: f64,
-) -> PathBuf {
+) -> TimegrapherApp {
     std::fs::create_dir_all(base).unwrap();
     let audio = timegrapher_core::audio::load(flac).unwrap();
     let fs = audio.sample_rate as usize;
@@ -652,12 +680,7 @@ fn listened_and_saved(
     }
     while app.poll_for(std::time::Duration::from_secs(60)) > 0 {}
     app.stop();
-    app.save_into(&base.join("saved"));
-    app.wait_for_save();
-    app.session
-        .saved_to()
-        .expect("the take is saved")
-        .to_path_buf()
+    app
 }
 
 /// The measurement behind the Watches row of the take saved in `dir`:
@@ -887,9 +910,8 @@ fn a_saved_takes_cards_read_past_a_silent_tail() {
     // just under Average Over, so the watch verdict still hears the watch
     // before it with no beat in the stretch; 10 s; 10 s with the capture
     // stalled 2 s at 31 s, so the quiet after that break still awaits its
-    // verdict. And 70 s, longer than every Average Over. At 1 min that one
-    // reads its last beat, which the hiss makes a stray one, as a take
-    // just stopped does on main (#2081). Takes the PR corpus cut holds.
+    // verdict. And 70 s, longer than every Average Over (#2081). Takes the
+    // PR corpus cut holds.
     let pepsi = "pepsi3285_DU_10min_newstand_firsttest";
     let eta = "eta2824_bare_DU_10min_g4";
     let both: &[f64] = &[10.0, 60.0];
@@ -898,7 +920,7 @@ fn a_saved_takes_cards_read_past_a_silent_tail() {
         (pepsi, 60.0, 10.0, None, both),
         (pepsi, 60.0, 10.0, Some((31.0, 2.0)), &[10.0][..]),
         (eta, 200.0, 10.0, None, both),
-        (eta, 200.0, 70.0, None, &[10.0][..]),
+        (eta, 200.0, 70.0, None, both),
     ];
     for (k, (take, from_s, silent_s, pause, averages)) in takes.into_iter().enumerate() {
         let flac = root.join(format!("takes/{take}/take_part01-001.flac"));
@@ -926,4 +948,94 @@ fn a_saved_takes_cards_read_past_a_silent_tail() {
         }
         let _ = std::fs::remove_dir_all(&base);
     }
+}
+
+/// A take ending in a quiet stand's hiss, just stopped and opened again at
+/// launch: where Average Over doesn't hold the whole take, the cards read
+/// at the watch's last beat (core's `beats::last_watch_beat_s`), bit for
+/// bit, and that beat is the watch's, within one beat before the hiss
+/// starts, never a stray one in it (Norm's ruling and acceptance on
+/// #2081). Needs only `TIMEGRAPHER_CORPUS`.
+#[test]
+fn a_stopped_takes_cards_read_to_the_watchs_last_beat() {
+    let required = std::env::var_os("TIMEGRAPHER_REQUIRE_CORPUS").is_some();
+    let Some(root) = std::env::var_os("TIMEGRAPHER_CORPUS").map(PathBuf::from) else {
+        assert!(!required, "TIMEGRAPHER_CORPUS is needed");
+        eprintln!("SKIP: set TIMEGRAPHER_CORPUS to read saved takes");
+        return;
+    };
+    // 30 s of the watch, then the hiss.
+    const SOUND_S: f64 = 30.0;
+    let pepsi = "pepsi3285_DU_10min_newstand_firsttest";
+    let eta = "eta2824_bare_DU_10min_g4";
+    let takes = [
+        (pepsi, 60.0, 9.7, &[10.0][..]),
+        (pepsi, 60.0, 10.0, &[10.0][..]),
+        (eta, 200.0, 70.0, &[10.0, 60.0][..]),
+    ];
+    let mut wrong = Vec::new();
+    for (k, (take, from_s, silent_s, averages)) in takes.into_iter().enumerate() {
+        let flac = root.join(format!("takes/{take}/take_part01-001.flac"));
+        let base = std::env::temp_dir().join(format!("tg-last-beat-{k}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let mut stopped = listened(&base, &flac, (from_s, SOUND_S), 0.0, None, silent_s);
+        let (mut opened, ctx) = window_opened(&saved(&mut stopped, &base));
+        for &average in averages {
+            for (name, app) in [("just stopped", &mut stopped), ("opened", &mut opened)] {
+                let what = format!("{take}, {silent_s} s quiet, Average Over {average} s, {name}");
+                app.set_average(average);
+                let _ = app.whole_take();
+                let painted = window_frame(app, &ctx);
+                let live = app.live.as_ref().unwrap();
+                let t = timegrapher_core::beats::last_watch_beat_s(live.beats())
+                    .expect("the watch's run is long enough");
+                let want = live.reading_at(t, average);
+                let got = app.card_reading().expect("the take reads");
+                eprintln!("{what}: {:?} s/d at {} s", got.rate_s_per_day, got.time_s);
+                wrong.extend(last_beat_differences(&what, &got, &want, &painted));
+                let beat_s = 3600.0 / f64::from(got.bph.unwrap_or(0));
+                if !(SOUND_S - beat_s <= t && t <= SOUND_S) {
+                    wrong.push(format!(
+                        "{what}: the last beat at {t} s, not within {beat_s} s before {SOUND_S} s"
+                    ));
+                }
+            }
+        }
+        let _ = std::fs::remove_dir_all(&base);
+    }
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+}
+
+/// How the cards' reading `got` differs from the reading at the watch's
+/// last beat, `want`, bit for bit: its time, figures and what the cards
+/// painted.
+fn last_beat_differences(
+    what: &str,
+    got: &LiveReading,
+    want: &LiveReading,
+    painted: &str,
+) -> Vec<String> {
+    let mut wrong = Vec::new();
+    if painted.contains("No Beats Heard") || got.rate_s_per_day.is_none() {
+        wrong.push(format!("{what}: no figures on the cards"));
+    }
+    let pairs = [
+        ("time", Some(got.time_s), Some(want.time_s)),
+        ("rate", got.rate_s_per_day, want.rate_s_per_day),
+        ("amplitude", got.amplitude_deg, want.amplitude_deg),
+        ("beat error", got.beat_error_ms, want.beat_error_ms),
+        (
+            "unlock beat error",
+            got.beat_error_unlock_ms,
+            want.beat_error_unlock_ms,
+        ),
+    ];
+    for (field, g, w) in pairs {
+        if g.map(f64::to_bits) != w.map(f64::to_bits) {
+            wrong.push(format!(
+                "{what}: {field} {g:?} on the cards, {w:?} at the last beat"
+            ));
+        }
+    }
+    wrong
 }
