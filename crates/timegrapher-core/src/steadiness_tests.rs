@@ -261,8 +261,15 @@ fn the_cycles_stated_size_is_its_peak_to_peak() {
     let s = drifting_rate(1.5);
     let c = s.cycle.as_ref().expect("the minute's cycle");
     let size = s.cycle_size_text().unwrap();
-    assert_eq!(size, crate::figure_text::figure_minus(&s.series.fmt_size(c.peak_to_peak)));
-    assert!(s.headline.contains(&s.series.fmt_size(c.peak_to_peak)), "{}", s.headline);
+    assert_eq!(
+        size,
+        crate::figure_text::figure_minus(&s.series.fmt_size(c.peak_to_peak))
+    );
+    assert!(
+        s.headline.contains(&s.series.fmt_size(c.peak_to_peak)),
+        "{}",
+        s.headline
+    );
     assert_eq!(s.screen_cycle_size.as_deref(), Some(size.as_str()));
 }
 
@@ -1499,6 +1506,71 @@ fn a_step_leads_as_a_step_and_a_bend_as_a_slide() {
         println!("#1984 cell ρ {rho}: step led as a step {steps}/200, bend as a slide {bends}/200");
         assert!(steps >= 190, "ρ {rho}: step as a step {steps}/200");
         assert!(bends >= 190, "ρ {rho}: bend as a slide {bends}/200");
+    }
+}
+
+/// A pure slide the finder cuts into steps names no runner-up step but
+/// rarely (Norm, #1984, set before the run): the #717 shape, 0 to 4 over
+/// 720 readings with noise 0.3 at ρ 0, 0.5 and 0.9, 200 each on a fresh
+/// seed, at most 10 of 200 per cell. The cells are printed for the issue.
+#[test]
+fn a_pure_slide_rarely_names_a_runner_up_step() {
+    let cfg = Config::default();
+    let mut z = Noise(2026_1119);
+    for rho in [0.0, 0.5, 0.9] {
+        let mut named = 0;
+        for _ in 0..200 {
+            let mut g = correlated(&mut z, 720, rho, 0.0, Gaps::None);
+            for (i, v) in g.y.iter_mut().enumerate() {
+                *v = i as f64 / 180.0 + 0.3 * *v;
+            }
+            let s = check_series(SeriesKind::Rate, g, None, None, None, &[], &cfg);
+            named += usize::from(s.lead == Lead::Drifting && headline_names_a_change(&s));
+        }
+        println!("#1984 slide cell ρ {rho}: runner-up step named {named}/200");
+        assert!(named <= 10, "ρ {rho}: runner-up step named {named}/200");
+    }
+}
+
+/// The calibration run for #1984 (b), on the seen seed: bends and steps
+/// at ρ 0.5 to 0.9, each cell's leads and the median ρ core estimates.
+#[test]
+#[ignore = "calibration, run by hand for #1984"]
+fn step_and_bend_by_rho_calibration() {
+    let cfg = Config::default();
+    let mut z = Noise(1984);
+    for rho in [0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9] {
+        let (mut steps, mut bends) = (0, 0);
+        let mut est = Vec::new();
+        for _ in 0..200 {
+            let g = correlated(&mut z, 720, rho, 4.0, Gaps::None);
+            est.push(crate::confidence::long_run_rho(
+                &g.y,
+                crate::confidence::Slow::ChosenStep,
+            ));
+            let s = check_series(SeriesKind::Rate, g, None, None, None, &[], &cfg);
+            steps += usize::from(s.lead == Lead::ShiftingMean);
+            let mut g = correlated(&mut z, 720, rho, 0.0, Gaps::None);
+            for (i, v) in g.y.iter_mut().enumerate() {
+                let t = i as f64 / 719.0;
+                *v += 4.0 * (1.0 - (1.0 - t).powi(2));
+            }
+            est.push(crate::confidence::long_run_rho(
+                &g.y,
+                crate::confidence::Slow::ChosenStep,
+            ));
+            let s = check_series(SeriesKind::Rate, g, None, None, None, &[], &cfg);
+            bends += usize::from(s.lead == Lead::Drifting);
+        }
+        est.sort_by(f64::total_cmp);
+        let (lo, mid, hi) = (
+            est[est.len() / 20],
+            est[est.len() / 2],
+            est[est.len() * 19 / 20],
+        );
+        println!(
+            "CAL ρ {rho}: steps {steps}/200 bends {bends}/200, estimated ρ {lo:.3} {mid:.3} {hi:.3}"
+        );
     }
 }
 

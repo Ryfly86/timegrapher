@@ -1427,46 +1427,33 @@ fn also(s: &SeriesCheck, cfg: &Config) -> Option<String> {
 }
 
 /// The other of a slide and a level change, when its own test names it
-/// too and the lead went to the first: said with both adjusted shares, so
+/// too, the lead went to the first, and it explains within a tenth as
+/// much ([`family::runner_up`]): said with both adjusted shares, so
 /// that a step the plot shows under a slide's headline, or a slide under a
 /// step's, is accounted for (Norm, #1984).
 fn runner_up(s: &SeriesCheck, cfg: &Config) -> Option<String> {
-    let ch = family::level_moves(s, cfg)?;
-    let (slide, steps) = family::adjusted_shares(s, ch)?;
+    let (ch, second, first) = family::runner_up(s, cfg)?;
     let pct = |v: f64| format!("{:.1}%", 100.0 * v);
-    match s.lead {
-        Lead::Drifting => {
-            let at: Vec<String> = ch
-                .segments
-                .iter()
-                .skip(1)
-                .map(|g| every_text(g.start_s))
-                .collect();
-            let what = if at.len() == 1 {
-                format!("A step at {}", at[0])
-            } else {
-                format!("Steps at {}", at.join(", "))
-            };
-            Some(format!(
-                "{what} explains about as much ({} against {}).",
-                pct(steps),
-                pct(slide)
-            ))
+    let what = if s.lead == Lead::Drifting {
+        let at: Vec<String> = ch
+            .segments
+            .iter()
+            .skip(1)
+            .map(|g| every_text(g.start_s))
+            .collect();
+        if at.len() == 1 {
+            format!("A step at {}", at[0])
+        } else {
+            format!("Steps at {}", at.join(", "))
         }
-        Lead::ShiftingMean
-            if family::trend_holds(s, cfg)
-                && s.trend
-                    .as_ref()
-                    .is_some_and(|t| t.explained.max(t.curve_explained) >= cfg.min_explained) =>
-        {
-            Some(format!(
-                "A slow change explains about as much ({} against {}).",
-                pct(slide),
-                pct(steps)
-            ))
-        }
-        _ => None,
-    }
+    } else {
+        "A slow change".to_string()
+    };
+    Some(format!(
+        "{what} explains about as much ({} against {}).",
+        pct(second),
+        pct(first)
+    ))
 }
 
 /// Fold the detrended readings at `period`: the share of their variance
@@ -2986,7 +2973,7 @@ mod readings;
 use cycle_search::cycle;
 #[cfg(test)]
 use cycle_search::{refined_candidates, same_peaks_once, strongest_cycle};
-pub use family::{family_long, hold_to_family};
+pub use family::{family_long, hold_to_family, RUNNER_UP_SHARE};
 pub use readings::isochronism_alone;
 
 #[cfg(test)]

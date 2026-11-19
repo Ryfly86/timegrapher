@@ -226,13 +226,42 @@ pub(super) fn adjusted_shares(s: &SeriesCheck, ch: &super::Changes) -> Option<(f
     Some((slide, adjusted_explained(ch.explained, k, n)?))
 }
 
+/// Within a tenth: a runner-up is named beside the lead only when its
+/// adjusted share is at least this share of the leader's, as "about as
+/// much" says (Norm, #1984). Never moved to pass a case.
+pub const RUNNER_UP_SHARE: f64 = 0.9;
+
+/// The runner-up the headline also names (#1984), with its adjusted share
+/// and the leader's: under a slide's lead the level change `level_moves`
+/// gives, under a level change's lead the slide its trend test passes,
+/// each only within [`RUNNER_UP_SHARE`] of the leader. One decision for
+/// Info's words and the CUSUM's corner.
+pub(super) fn runner_up<'a>(s: &'a SeriesCheck, cfg: &Config) -> Option<(&'a Changes, f64, f64)> {
+    let ch = level_moves(s, cfg)?;
+    let (slide, steps) = adjusted_shares(s, ch)?;
+    let (second, first) = match s.lead {
+        Lead::Drifting => (steps, slide),
+        Lead::ShiftingMean
+            if trend_holds(s, cfg)
+                && s.trend
+                    .as_ref()
+                    .is_some_and(|t| t.explained.max(t.curve_explained) >= cfg.min_explained) =>
+        {
+            (slide, steps)
+        }
+        _ => return None,
+    };
+    (second >= RUNNER_UP_SHARE * first).then_some((ch, second, first))
+}
+
 /// A level change the headline names, as its lead or, under a slide's
 /// lead, as the runner-up it also states (#1984): the CUSUM marks its
 /// corner either way.
 pub(super) fn level_named<'a>(s: &'a SeriesCheck, cfg: &Config) -> Option<&'a Changes> {
     level_change(s, cfg).or_else(|| {
-        level_moves(s, cfg)
-            .filter(|ch| s.lead == Lead::Drifting && adjusted_shares(s, ch).is_some())
+        runner_up(s, cfg)
+            .filter(|_| s.lead == Lead::Drifting)
+            .map(|(ch, _, _)| ch)
     })
 }
 
