@@ -2913,8 +2913,7 @@ impl TimegrapherApp {
             Pane::Sound | Pane::Scope => self.sound_tools(ui, pane),
             p if p.steady_view().is_some() => {
                 let view = p.steady_view().unwrap_or_default();
-                let mut info = self.steady_info.on(view);
-                let help_text = help::steadiness(view);
+                let (mut info, help_text) = (self.steady_info.on(view), help::steadiness(view));
                 let mut pin = |ui: &mut egui::Ui| {
                     let accent = theme::pal(ui).accent;
                     if theme::icon_toggle(ui, Icon::Info, info, accent)

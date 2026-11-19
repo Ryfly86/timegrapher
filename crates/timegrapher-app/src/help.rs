@@ -490,8 +490,8 @@ const STEADY_FFT: &[&str] = &[
 const STEADY_STFT: &[&str] = &[
     "Each period's size through the session, so a line that comes and goes shows where it is.",
     "## What It Shows",
-    "- Across: the time in the session. Up: the period, on a log scale. Colour: the size, \
-     with its key.",
+    "- Across: the time in the session. Up: the period, on a log scale.",
+    "- Colour: the size, with its key.",
     "- Each column is read from 20 minutes of readings, stepped 5 minutes, every period over \
      the same window, so this is the map to read a line's size from.",
     "- The rate's map is of the beat timing, in ms. A window with a reading missing is left \
@@ -505,8 +505,8 @@ const STEADY_WAVELET: &[&str] = &[
     "Each period's size through the session, sharpened so a line shows exactly where and \
      when it is.",
     "## What It Shows",
-    "- Across: the time in the session. Up: the period, on a log scale. Colour: the size, \
-     with its key.",
+    "- Across: the time in the session. Up: the period, on a log scale.",
+    "- Colour: the size, with its key.",
     "- Short periods are read over short times and long ones over long, each moved to the \
      period it really turns at.",
     "- Under noise a line reads smaller here than it is: read its size from the STFT Map.",
