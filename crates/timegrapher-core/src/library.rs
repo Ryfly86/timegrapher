@@ -1202,6 +1202,7 @@ impl Library {
             lock,
             adding: false,
         };
+        lib.clear_stale_adds();
         lib.scan();
         Ok(lib)
     }
@@ -1665,80 +1666,10 @@ impl Library {
         watch_id: &str,
         keep_original: bool,
     ) -> Result<(PathBuf, Option<String>), String> {
-        if !self.adding {
-            self.writable()?;
-        } else if !keep_original {
-            // Without the lock the app may move or delete the watch while
-            // the take goes in: only a copy keeps the original safe.
-            return Err(
-                "the app has these watches open, so a take can only be copied in, not moved: \
-                 leave out --move, or close the app first"
-                    .into(),
-            );
-        }
-        if !(from.join(take::MANIFEST).is_file() || from.join(take::RECORD).is_file()) {
-            return Err(format!(
-                "{} is not a take folder (it has no session.toml or session.json)",
-                from.display()
-            ));
-        }
-        self.not_already_in(from)?;
-        if from.join(take::MANIFEST).is_file() {
-            // A session file that doesn't read would show as a broken take.
-            manifest_of(from).map_err(|e| format!("this take's session file doesn't read: {e}"))?;
-        }
-        stays_readable(from, "add the take again")?;
-        let to_watch = self
-            .watches
-            .iter()
-            .find(|w| w.watch.id == watch_id)
-            .ok_or("That watch is no longer in your watches")?;
-        let takes = to_watch.dir.join(TAKES);
-        if self.adding {
-            // Never make again a watch the app has just renamed or deleted.
-            if !to_watch.dir.join(WATCH_FILE).is_file() {
-                return Err(format!(
-                    "\"{}\" is no longer in your watches",
-                    to_watch.watch.name
-                ));
-            }
-            match fs::create_dir(&takes) {
-                Err(e) if e.kind() != std::io::ErrorKind::AlreadyExists => {
-                    return Err(format!("{}: {e}", takes.display()))
-                }
-                _ => {}
-            }
-        } else {
-            fs::create_dir_all(&takes).map_err(|e| format!("{}: {e}", takes.display()))?;
-        }
-        let to = unused_dir(&takes, &file_name(from));
-        if !keep_original && fs::rename(from, &to).is_ok() {
-            self.scan();
-            return Ok((to, None));
-        }
-        let staged = staging(&takes, &to);
-        let copied = copy_tree(from, &staged, &[])
-            .and_then(|_| move_in(&staged, &takes, &file_name(from), to));
-        let to = match copied {
-            Ok(to) => to,
-            Err(e) => {
-                let _ = fs::remove_dir_all(&staged);
-                return Err(e);
-            }
-        };
-        let left = if keep_original {
-            None
-        } else {
-            fs::remove_dir_all(from).err().map(|e| {
-                format!(
-                    "The take is in the watch, but some of {} couldn't be deleted ({e}): what \
-                     is left there is a copy",
-                    from.display()
-                )
-            })
-        };
-        self.scan();
-        Ok((to, left))
+        let plan = self.plan_add(from, watch_id, keep_original)?;
+        let never = std::sync::atomic::AtomicBool::new(false);
+        let copied = add::copy_add(&plan, &mut |_| {}, &never);
+        self.finish_add(&plan, copied)
     }
 
     /// The one guard both imports use (#1656), before anything is staged:
@@ -1823,7 +1754,7 @@ fn plain(p: &Path) -> bool {
 /// programs adding a take of one name at once (the app, and the command
 /// line adding while the app is open) never clear each other's.
 fn staging(takes: &Path, to: &Path) -> PathBuf {
-    takes.join(format!(".adding-{}-{}", file_name(to), new_id()))
+    takes.join(format!("{}{}-{}", add::ADDING, file_name(to), new_id()))
 }
 
 /// Move the take put together in `staged` into `takes` as `to`, or, where
@@ -2034,36 +1965,7 @@ fn copy_across(from: &Path, to: &Path, held: Option<fs::File>) -> Result<Option<
 
 /// Copy `from` into `to`, leaving out the top-level files in `skip`.
 fn copy_tree(from: &Path, to: &Path, skip: &[&str]) -> Result<(), String> {
-    fs::create_dir_all(to).map_err(|e| format!("{}: {e}", to.display()))?;
-    for e in fs::read_dir(from).map_err(|e| format!("{}: {e}", from.display()))? {
-        let e = e.map_err(|e| format!("{}: {e}", from.display()))?;
-        let (src, dst) = (e.path(), to.join(e.file_name()));
-        if skip.iter().any(|s| e.file_name() == *s) {
-            continue;
-        }
-        let kind = e
-            .file_type()
-            .map_err(|e| format!("{}: {e}", src.display()))?;
-        if kind.is_dir() {
-            copy_tree(&src, &dst, &[])?;
-        } else if kind.is_file() {
-            copy_file(&src, &dst)?;
-        } else {
-            // A link, a named pipe or a device: reading a pipe would never
-            // end, and a link's target may be outside the library.
-            return Err(format!(
-                "{} is a link or a special file, which can't be copied to another disk: \
-                 move it out of the Watches folder first",
-                src.display()
-            ));
-        }
-    }
-    // The folder's own entries too, where the system allows it (not on
-    // Windows, which can't open a folder as a file).
-    if let Ok(d) = fs::File::open(to) {
-        let _ = d.sync_all();
-    }
-    Ok(())
+    add::Copying::quiet(|c| add::copy_tree_with(from, to, skip, c))
 }
 
 /// Copy one file with its modification time and write it to the disk
@@ -2071,16 +1973,7 @@ fn copy_tree(from: &Path, to: &Path, skip: &[&str]) -> Result<(), String> {
 /// permissions (so a read-only file stays read-only, and is never opened
 /// for writing).
 fn copy_file(src: &Path, dst: &Path) -> Result<(), String> {
-    let copied = (|| {
-        let mut r = fs::File::open(src)?;
-        let mut w = fs::File::create(dst)?;
-        std::io::copy(&mut r, &mut w)?;
-        w.set_modified(r.metadata()?.modified()?)?;
-        w.sync_all()?;
-        drop(w);
-        fs::set_permissions(dst, r.metadata()?.permissions())
-    })();
-    copied.map_err(|e| format!("Copying {} to {}: {e}", src.display(), dst.display()))
+    add::Copying::quiet(|c| add::copy_file_with(src, dst, c))
 }
 
 fn file_name(p: &Path) -> String {
@@ -2388,6 +2281,10 @@ fn read_take(dir: &Path, bytes: u64) -> Result<Take, String> {
         wind_h: manifest.as_ref().and_then(crate::full_wind::take_wind_h),
     })
 }
+
+#[path = "library_add.rs"]
+mod add;
+pub use add::{copy_add, free_bytes, no_room, AddPlan, ADD_SPARE_BYTES, STALE_ADD_S};
 
 #[cfg(test)]
 #[path = "library_tests.rs"]

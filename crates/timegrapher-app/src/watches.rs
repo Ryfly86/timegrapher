@@ -1100,7 +1100,7 @@ pub fn take_cells(
         figure(rate),
         figure(amp),
         figure(be),
-        format!("{:.1}", t.bytes as f64 / 1e6),
+        size_text(t.bytes),
     ]
 }
 
@@ -1134,7 +1134,7 @@ pub const TAKE_HEADS: [(&str, &str); 7] = [
     ("Rate", "s/d"),
     ("Amplitude", "°"),
     ("Beat Error", "ms"),
-    ("Size", "MB"),
+    ("Size", ""),
 ];
 
 /// The take picked in `e`'s takes, if it is still there.
@@ -2396,7 +2396,7 @@ mod tests {
                 "+9.8",
                 "287",
                 "0.21",
-                "112.6"
+                "112.6 MB"
             ]
             .map(String::from)
         );
@@ -2441,6 +2441,15 @@ mod tests {
         assert_eq!(cells[1], "Positions Test");
         assert_eq!(cells[3..6], ["−2.2", "272", "0.34"].map(String::from));
         assert_eq!(TAKE_HEADS.len(), 7);
+        // Its size in the watch list's words, the unit in the cell (#1970).
+        for (bytes, words) in [(912_000, "912 kB"), (11_219_200_000, "11.2 GB")] {
+            let t = Take {
+                bytes,
+                ..all.clone()
+            };
+            assert_eq!(take_cells(&t, None, r)[6], words);
+        }
+        assert_eq!(TAKE_HEADS[6], ("Size", ""));
     }
 
     /// A Power Reserve take's Length counts the run's whole seconds, as its
@@ -2581,14 +2590,16 @@ mod tests {
         };
         assert!(find("Size").right() <= w, "{texts:?}");
         // Each unit on its own line under its name, right-aligned with it
-        // (Hugh's ruling on #1086).
-        for (name, unit) in [("Rate", "s/d"), ("Amplitude", "°"), ("Size", "MB")] {
+        // (Hugh's ruling on #1086). Size has none: each cell carries its
+        // own unit, as the watch list's sizes do (Hugh on #1970).
+        for (name, unit) in [("Rate", "s/d"), ("Amplitude", "°")] {
             let (n, u) = (find(name), find(unit));
             assert!(u.top() >= n.bottom() - 1.0, "{name} over {unit}: {texts:?}");
             assert!((u.right() - n.right()).abs() < 1.0, "{texts:?}");
         }
         assert!(!texts.iter().any(|t| t.0.contains('(')), "{texts:?}");
-        assert!(find("1.4").right() <= w, "{texts:?}");
+        assert!(find("1.4 MB").right() <= w, "{texts:?}");
+        assert!(!texts.iter().any(|t| t.0 == "MB"), "{texts:?}");
         // The date and its tags end before the Position column starts.
         let position = texts
             .iter()
