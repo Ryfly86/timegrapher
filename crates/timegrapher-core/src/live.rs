@@ -1987,7 +1987,7 @@ impl LiveAnalyzer {
 /// skip a jump, so until one fits after it there may be none, and none is
 /// no verdict of noise (#1170). Past that, having none is.
 fn judged_s(fitted: bool, end_s: f64, window_from: f64, heard_since: f64, holes: &Cuts) -> f64 {
-    let cut_since = holes.look_back_from(end_s).max(heard_since);
+    let cut_since = holes.stretch_from(end_s).max(heard_since);
     if !fitted && end_s - cut_since < SCATTER_LOOKBACK_S {
         0.0
     } else {
