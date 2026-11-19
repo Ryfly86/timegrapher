@@ -37,7 +37,7 @@ impl TimegrapherApp {
     /// room for it.
     pub(super) fn start_take_add(&mut self, from: PathBuf, id: String, keep_original: bool) {
         if self.take_add.is_some() {
-            return self.info_msg(ADDING_ALREADY.into());
+            return self.info_msg(self.adding_already());
         }
         let Ok(Some(lib)) = &mut self.library else {
             return self.error("There is no Watches folder.".into());
@@ -150,6 +150,23 @@ impl TimegrapherApp {
         }
     }
 
+    /// Why a take can't be added, nor the take being copied changed, while
+    /// one is copied in: the watch it goes into named, where its Cancel
+    /// is (Hugh on #2020).
+    pub(super) fn adding_already(&self) -> String {
+        let into = self.take_add.as_ref().and_then(|a| match &self.library {
+            Ok(Some(l)) => l.watches.iter().find(|w| w.watch.id == a.watch),
+            _ => None,
+        });
+        match into {
+            Some(w) => format!(
+                "A take is being copied into \"{}\". Wait for it to finish, or press Cancel there.",
+                w.watch.name
+            ),
+            None => "A take is being copied into a watch. Wait for it to finish.".into(),
+        }
+    }
+
     /// The copy under way into the watch `id`, if any: its progress bar,
     /// how far it is in words, and Cancel.
     pub(super) fn take_add_row(&mut self, ui: &mut egui::Ui, id: &str) {
@@ -176,10 +193,6 @@ impl TimegrapherApp {
         }
     }
 }
-
-/// Why another take can't be added while one is copied in.
-pub(super) const ADDING_ALREADY: &str =
-    "A take is being copied into a watch. Wait for it to finish, or press Cancel in that watch.";
 
 /// A move finished as a copy, its original in use.
 pub(super) fn in_use_words(name: &str) -> String {
@@ -276,9 +289,20 @@ mod tests {
         let (mut app, base, id, from) = with_take("thread");
         app.start_take_add(from.clone(), id.clone(), true);
         assert!(app.take_add.is_some(), "{:?}", app.message);
-        assert_eq!(app.take_busy(&from, true).as_deref(), Some(ADDING_ALREADY));
+        let busy = "A take is being copied into \"Pepsi\". Wait for it to finish, or press \
+                    Cancel there.";
+        assert_eq!(app.take_busy(&from, true).as_deref(), Some(busy));
         app.start_take_add(from.clone(), id.clone(), true);
-        assert_eq!(app.message.clone().unwrap().0, ADDING_ALREADY);
+        assert_eq!(app.message.clone().unwrap().0, busy);
+        // Nor can the Watches folder move under it (Trevor on #2020).
+        let root = app.library_root().unwrap();
+        app.move_library(root.clone(), base.join("Elsewhere"));
+        let m = app.message.clone().unwrap().0;
+        assert!(
+            m.starts_with("The Watches folder can't move while a take is being copied"),
+            "{m}"
+        );
+        assert!(root.is_dir() && !base.join("Elsewhere").exists());
         wait(&mut app);
         let m = app.message.clone().unwrap().0;
         assert!(m.starts_with("Added \""), "{m}");

@@ -596,7 +596,7 @@ impl TimegrapherApp {
             .as_ref()
             .is_some_and(|a| a.from().starts_with(take))
         {
-            return Some(super::take_add::ADDING_ALREADY.into());
+            return Some(self.adding_already());
         }
         if self.take_keep.as_ref().is_some_and(|(t, _)| t == take) {
             return Some(
