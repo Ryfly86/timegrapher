@@ -104,6 +104,13 @@ pub fn histogram(values: &[f64], resolution: f64) -> Option<Histogram> {
     histogram_with(values, &Options::new(resolution))
 }
 
+/// Whether trimming the share `trim` at each end of `n` values takes at
+/// least one out: then the trim sets the scale alone, and the far fences
+/// stay off (#1971, Norm).
+fn trim_takes_out(n: usize, trim: f64) -> bool {
+    n as f64 * trim >= 1.0
+}
+
 /// A histogram with bins chosen by `opt`.
 pub fn histogram_with(values: &[f64], opt: &Options) -> Option<Histogram> {
     let mut v: Vec<f64> = values.iter().copied().filter(|x| x.is_finite()).collect();
@@ -123,8 +130,10 @@ pub fn histogram_with(values: &[f64], opt: &Options) -> Option<Histogram> {
     // Trimming, with few values the trim takes nothing out, and one far-out value
     // would stretch the scale over empty bins: keep the scale to the values
     // within three interquartile ranges of the middle half (Tukey's far
-    // fences), and count the rest off the scale.
-    if trim > 0.0 && iqr > 0.0 {
+    // fences), and count the rest off the scale. Only then: where the trim
+    // takes values out, it alone sets the scale, so a long tail of real
+    // readings, a run-down's, stays on it (#1971).
+    if trim > 0.0 && iqr > 0.0 && !trim_takes_out(n, trim) {
         let (f_lo, f_hi) = crate::dsp::far_fences(&v).unwrap_or_default();
         if let Some(&x) = v.iter().find(|&&x| x >= f_lo) {
             lo = lo.max(x);
@@ -361,6 +370,42 @@ mod tests {
         let end = h.start + h.counts.len() as f64 * h.bin_width;
         assert!(end < 8.0, "the scale reaches {end}");
         assert_eq!(h.above, 1);
+        // Under 200 values the trim takes none out, so the fences hold.
+        assert!(!trim_takes_out(h.n, 0.005));
+        let on: usize = h.counts.iter().map(|&c| c as usize).sum();
+        assert_eq!(on + h.below + h.above, h.n);
+    }
+
+    /// A run-down (#1971, dd3255's 67 h): most readings near the rate, an
+    /// eighth of them falling away over the last hours to −150 s/d. The
+    /// scale leaves out the 0.5% at each end and no more, so the middle
+    /// 80% the facts box gives is on it.
+    #[test]
+    fn a_run_downs_long_tail_stays_on_the_scale() {
+        let mut v = spread(0.0, 3.0, 2100, 7);
+        v.extend((0..300).map(|k| -10.0 - 140.0 * (f64::from(k) / 299.0).powi(2)));
+        let h = histogram_with(
+            &v,
+            &Options {
+                trim: 0.005,
+                ..Options::new(0.1)
+            },
+        )
+        .unwrap();
+        let end = h.start + h.counts.len() as f64 * h.bin_width;
+        assert!(
+            h.start <= h.p10 && end >= h.p90,
+            "{} {} in {}..{end}",
+            h.p10,
+            h.p90,
+            h.start
+        );
+        let off = (h.below + h.above) as f64 / h.n as f64;
+        assert!(off <= 0.011, "{off} off the scale");
+        assert!(trim_takes_out(h.n, 0.005));
+        // Every value counted once, on the scale or off it.
+        let on: usize = h.counts.iter().map(|&c| c as usize).sum();
+        assert_eq!(on + h.below + h.above, h.n);
     }
 
     #[test]
