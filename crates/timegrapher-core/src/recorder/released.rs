@@ -44,6 +44,36 @@ impl HeldWhole {
     }
 }
 
+/// Each closed hour the last save wrote, at its length there, and whether
+/// the copy was found not to hold them when last looked at (#2052).
+#[derive(Debug, Default)]
+pub(super) struct SavedHours {
+    hours: Vec<HeldWhole>,
+    gone: bool,
+}
+
+impl SavedHours {
+    pub(super) fn new(hours: Vec<HeldWhole>) -> Self {
+        Self { hours, gone: false }
+    }
+}
+
+/// The closed hours of `files` a save put into `dest`, each at its length
+/// there once in place (#2052): what [`Recorder::look_at_saved_copy`] looks
+/// for later. Stat only, no reading.
+pub(super) fn written(files: &[PendingFile], dest: &Path) -> Vec<HeldWhole> {
+    files
+        .iter()
+        .filter(|f| f.held.is_some())
+        .filter_map(|f| {
+            let at = dest.join(f.name());
+            let len = regular_file(&at).ok()?.len();
+            let name = f.name().to_string_lossy().into_owned();
+            Some(HeldWhole { name, at, len })
+        })
+        .collect()
+}
+
 /// The closed hours of `files` that a save into `dest` was to check, each
 /// checked in the copy, on the disk: the ones that hold it whole. None
 /// unless the copy's folder, and the one it is in, are synced first
@@ -179,7 +209,8 @@ impl Recorder {
     /// The copy moved from `from` to `to`: the hours it holds alone are
     /// read from there.
     pub(super) fn released_moved(&mut self, from: &Path, to: &Path) {
-        for h in self.released.iter_mut().chain(self.releasing.iter_mut()) {
+        let all = self.released.iter_mut().chain(self.releasing.iter_mut());
+        for h in all.chain(self.saved_hours.hours.iter_mut()) {
             if let Ok(rest) = h.at.strip_prefix(from) {
                 h.at = to.join(rest);
             }
@@ -208,5 +239,26 @@ impl Recorder {
         }
         self.release_due();
         Ok(())
+    }
+
+    /// Look again at whether the copy saved last still holds the sound it
+    /// was saved with (#2052): each closed hour it wrote at its length,
+    /// the hour still being written at least as long as it was left, and
+    /// every hour kept there alone. Stat only: for now and then (the
+    /// window back in front, a save done), never every frame.
+    pub fn look_at_saved_copy(&mut self) {
+        let open = |(at, len): &(PathBuf, u64)| regular_file(at).is_ok_and(|m| m.len() >= *len);
+        self.saved_hours.gone = self.saved_name.is_some()
+            && !(self.saved_hours.hours.iter().all(HeldWhole::there)
+                && self.grown.as_ref().is_none_or(open)
+                && self.hours_reachable());
+    }
+
+    /// Whether the copy saved last was found, when last looked at, no
+    /// longer to hold its sound: the take deleted, or its sound removed or
+    /// cut short, outside the app. False when nothing was saved, and just
+    /// after a save.
+    pub fn saved_copy_gone(&self) -> bool {
+        self.saved_hours.gone
     }
 }

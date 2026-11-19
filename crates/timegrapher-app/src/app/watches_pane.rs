@@ -656,6 +656,7 @@ impl TimegrapherApp {
             let now = to.join(rest);
             if let Some(r) = self.session.recorder.as_mut() {
                 r.copy_moved(take, &now);
+                r.look_at_saved_copy();
             }
         }
         self.session.saved_moved(from, to);

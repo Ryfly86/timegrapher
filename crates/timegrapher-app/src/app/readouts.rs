@@ -1590,6 +1590,8 @@ impl TimegrapherApp {
                 pal.text,
                 fault.description(),
             )
+        } else if r.saved_copy_gone() {
+            saved_copy_gone(self.saved_hours_reachable(), pal)
         } else if self.streams() {
             // Recording into its folder: nothing waits on a Save Again.
             (
@@ -2359,3 +2361,28 @@ pub(super) fn error_short(m: &str) -> String {
         format!("{first}…")
     }
 }
+
+/// The recording's state once the take it was saved in was found no
+/// longer to hold its sound (#2052): never "Saved". `reachable`: the hours
+/// it held alone are still there, so a save can keep the sound again.
+fn saved_copy_gone(reachable: bool, pal: &theme::Palette) -> (String, Color32, String) {
+    if reachable {
+        (
+            "Not saved".to_string(),
+            pal.text_secondary,
+            SAVED_COPY_GONE.to_string(),
+        )
+    } else {
+        (
+            "Can't be saved".to_string(),
+            pal.text_secondary,
+            super::unsaved::HOURS_GONE.to_string(),
+        )
+    }
+}
+
+/// The hover of a session whose take no longer holds its sound, when a
+/// save can keep it again.
+pub(super) const SAVED_COPY_GONE: &str =
+    "The take this was saved in no longer holds its sound: it \
+     was moved, deleted or changed outside the app. Save keeps it again.";

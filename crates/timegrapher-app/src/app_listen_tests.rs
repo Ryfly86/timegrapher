@@ -440,6 +440,24 @@ fn a_kept_quick_listen_records_into_its_take() {
     let flac = take.join("audio-001.flac");
     let kept = if flac.exists() { flac } else { wav };
     assert_eq!(samples(&kept), 11 * 48000);
+    // #2052: the take deleted outside the app, the status bar drops
+    // "Saved" once the window is back in front, and says Save keeps it.
+    let state = |app: &TimegrapherApp| {
+        let r = app.session.recorder.as_ref().unwrap();
+        let (text, _, hover) = app.recording_state(r, &theme::LIGHT);
+        (text, hover)
+    };
+    assert_eq!(state(&app).0, "Saved");
+    std::fs::remove_dir_all(&take).unwrap();
+    let ctx = egui::Context::default();
+    let back = egui::RawInput {
+        events: vec![egui::Event::WindowFocused(true)],
+        ..Default::default()
+    };
+    let _ = ctx.run(back, |ctx| app.reread_library_on_focus(ctx));
+    let (text, hover) = state(&app);
+    assert_eq!(text, "Not saved");
+    assert_eq!(hover, super::readouts::SAVED_COPY_GONE);
     let _ = std::fs::remove_dir_all(&base);
 }
 
@@ -507,6 +525,11 @@ fn a_kept_quick_listen_stopped_keeps_its_sound_in_its_take_alone() {
         // Its first line fits the status bar whole (Hugh 4 on #2055).
         let short = super::readouts::error_short(why);
         assert_eq!(short, "This sound can't be saved…");
+        // Nor "Saved" beside it (#2052).
+        let r = app.session.recorder.as_ref().unwrap();
+        let (text, _, hover) = app.recording_state(r, &theme::LIGHT);
+        assert_eq!(text, "Can't be saved");
+        assert_eq!(hover, super::unsaved::HOURS_GONE);
     }
     assert_eq!(std::fs::read_dir(&other).unwrap().count(), 0);
     // Nor kept in a watch: the session stays a Quick Listen, saying why

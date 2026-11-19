@@ -336,3 +336,70 @@ fn the_hour_being_written_never_goes() {
     append_second(&mut r, 3);
     fs::remove_dir_all(&base).unwrap();
 }
+
+/// #2052: whether the copy saved last still holds its sound, by stat
+/// alone. Nothing saved, nothing there; saved, it is, even as the hour
+/// being written grows past the save. Moved in the app, it follows; an
+/// hour cut short outside the app, or the take deleted, and it isn't.
+#[test]
+fn the_copy_saved_last_is_there_until_its_sound_goes() {
+    let (mut r, base) = fixture("saved-there");
+    append_second(&mut r, 2);
+    assert!(!gone(&mut r), "nothing saved yet");
+    r.pause().unwrap();
+    r.resume("test");
+    append_second(&mut r, 30);
+    let take = stream(&mut r, &base.join("unsorted"));
+    assert!(!gone(&mut r));
+    // The hour being written grows after the save: still as saved.
+    append_second(&mut r, 31);
+    let take2 = stream(&mut r, &base.join("unsorted"));
+    assert_eq!(take2, take);
+    append_second(&mut r, 32);
+    assert!(!gone(&mut r), "the open hour grown past the save");
+    // Moved in the app (filed under a watch): it follows.
+    let moved = base.join("watches").join("take");
+    fs::create_dir_all(moved.parent().unwrap()).unwrap();
+    fs::rename(&take, &moved).unwrap();
+    r.copy_moved(&take, &moved);
+    assert!(!gone(&mut r), "followed the move");
+    // A closed hour cut short outside the app: not there.
+    let closed = moved.join("audio-001.flac");
+    let bytes = fs::read(&closed).unwrap();
+    fs::write(&closed, &bytes[..bytes.len() - 1]).unwrap();
+    assert!(gone(&mut r), "a closed hour cut short");
+    fs::write(&closed, &bytes).unwrap();
+    assert!(!gone(&mut r));
+    // The open hour's copy cut short: not there.
+    let open = moved.join("audio-002.wav");
+    let wav = fs::read(&open).unwrap();
+    fs::write(&open, &wav[..wav.len() / 2]).unwrap();
+    assert!(gone(&mut r), "the open hour cut short");
+    fs::write(&open, &wav).unwrap();
+    assert!(!gone(&mut r));
+    // The take deleted outside the app: not there.
+    fs::remove_dir_all(&moved).unwrap();
+    assert!(gone(&mut r), "the take deleted");
+    fs::remove_dir_all(&base).unwrap();
+}
+
+/// #2052: a closed hour the copy holds but the recording keeps too (no
+/// opt-in, or not let go yet) is looked for in the copy all the same.
+#[test]
+fn a_closed_hour_kept_in_both_places_is_looked_for_in_the_copy() {
+    let (mut r, base) = save_fixture("saved-there-both");
+    append_second(&mut r, 2);
+    r.pause().unwrap();
+    let take = stream(&mut r, &base.join("unsorted"));
+    assert_eq!(sound_in(r.dir()), ["audio-001.flac"], "kept here too");
+    assert!(!gone(&mut r));
+    fs::remove_file(take.join("audio-001.flac")).unwrap();
+    assert!(gone(&mut r), "the copy's hour gone");
+    fs::remove_dir_all(&base).unwrap();
+}
+
+/// Whether the copy saved last is gone, looked at now.
+fn gone(r: &mut Recorder) -> bool {
+    r.look_at_saved_copy();
+    r.saved_copy_gone()
+}
