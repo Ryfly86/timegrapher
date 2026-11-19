@@ -1,5 +1,6 @@
-//! A take kept as its analysis alone: the beats, the amplitude windows and
-//! the Tick Tock profiles the engine found in its sound, in an `analysis/`
+//! A take kept as its analysis alone: the beats, the amplitude windows,
+//! the Tick Tock profiles and the sample of beat sound the watch verdict
+//! reads ([`SOUND`]) the engine found in its sound, in an `analysis/`
 //! folder beside `session.toml`, `session.json` and `clock.csv`, with no
 //! audio. Everything read from the beats (readings, charts, steadiness,
 //! the Positions Test, cycles) reads from it as from the sound; only
@@ -35,6 +36,14 @@ pub const PROFILES: &str = "profiles.bin.gz";
 /// lift, so a later lift can read them again (#1333). Optional: a take
 /// kept before it has none, and an older version ignores it.
 pub const CULLED: &str = "culled.csv.gz";
+/// The beats' sound the watch verdict reads under
+/// [`crate::measure::SHORT_SPAN_S`] (the beat log's `snippets`, a
+/// [`crate::sound_sample`] of at most
+/// [`crate::sound_sample::SOUND_SAMPLE_BEATS`] beats), kept exactly, so a
+/// kept take is judged from the same sound as with its sound (#2069).
+/// Optional: a take kept before it has none, and one that can't be read is
+/// read as none, so its short stretches wait for a verdict as before.
+pub const SOUND: &str = "sound.bin.gz";
 /// The layout's name and version, in the header's `format`.
 pub const FORMAT: &str = "timegrapher.analysis/2";
 /// The layout before #657: the same, but `usb_clock.ppm` is ppm slow. It
@@ -69,6 +78,8 @@ const PROFILE_MAGIC: &[u8; 8] = b"TGPROF\0\x01";
 /// axis: each carries its own first point and points a curve
 /// ([`profiles_bin`], #1924). Its last byte is the version.
 const PROFILE_MAGIC_V2: &[u8; 8] = b"TGPROF\0\x02";
+/// The start of [`SOUND`]; its last byte is the version.
+const SOUND_MAGIC: &[u8; 8] = b"TGSOUND\x01";
 const BEATS_COLUMNS: &str = "index_step,residual_us,quality,clipped";
 const WINDOWS_COLUMNS: &str = "start_s,end_s,even_deg,odd_deg,beat_error_ms,\
      beat_error_unlock_ms,even_unlock_ms,odd_unlock_ms,even_drop_ms,odd_drop_ms";
@@ -484,20 +495,22 @@ pub fn files(s: &Stored) -> io::Result<Vec<(&'static str, Vec<u8>)>> {
             CULLED,
             gzip(culled_csv(&s.log.amplitude_windows).as_bytes())?,
         ),
+        (SOUND, gzip(&sound_bin(&s.log))?),
     ])
 }
 
 /// What a problem report carries of a take's analysis (#400) when the
 /// whole of it won't fit ([`report_analysis`]): its beats and amplitude
 /// windows, from which every reading, chart and Steadiness figure is read,
-/// without the Tick Tock profiles. The profiles are most of an analysis's
-/// size (about 1.2 of its 1.5 MB an hour), so without them a long take
-/// fits beside the report's sound under GitHub's 25 MB.
-/// What the header says of the sound (its USB-line clock, signal figure
-/// and beat shapes) is kept.
+/// without the Tick Tock profiles or the beat sound ([`SOUND`]). The
+/// profiles are most of an analysis's size (about 1.2 of its 1.5 MB an
+/// hour), so without them a long take fits beside the report's sound under
+/// GitHub's 25 MB. What the header says of the sound (its USB-line clock,
+/// signal figure and beat shapes) is kept.
 pub fn for_report(mut s: Stored) -> Stored {
     s.profiles.clear();
     s.header.profiles = 0;
+    s.log.snippets.clear();
     s
 }
 
@@ -565,7 +578,7 @@ pub fn report_analysis(
     let whole = match from {
         ReportFrom::Kept(s) => *s,
         ReportFrom::Sound {
-            log,
+            mut log,
             files: sound,
             cfg,
             software,
@@ -574,11 +587,13 @@ pub fn report_analysis(
             let frame = audio::info(first)
                 .map_err(|e| e.to_string())?
                 .bytes_per_frame;
-            let cut = from_log(*log, cfg, frame, software.clone());
+            let snippets = std::mem::take(&mut log.snippets);
+            let mut cut = from_log(*log, cfg, frame, software.clone());
             let stretches = (cut.header.duration_s / PROFILE_EVERY_S).ceil() as u64;
             if !fits(size(&cut)? + stretches * profile_stretch_max_bytes(cut.log.bph)) {
                 return report_entries(cut, false, redact);
             }
+            cut.log.snippets = snippets;
             measure_from(cut.log, sound, cfg, &[], software, |_| {}).map_err(|e| e.to_string())?
         }
     };
@@ -611,8 +626,8 @@ fn report_entries(
     Ok(ReportAnalysis {
         entries,
         left_out: (!whole).then(|| {
-            "the Tick Tock profiles of the take's analysis: with them the report would be \
-             over GitHub's 25 MB limit for attachments"
+            "the Tick Tock profiles and the beat sound of the take's analysis: with them the \
+             report would be over GitHub's 25 MB limit for attachments"
                 .to_string()
         }),
     })
@@ -661,11 +676,12 @@ fn redacted_header(
 /// A take's analysis from its beat `log` alone, as a report carries it
 /// when the whole won't fit ([`for_report`]), for a take whose sound has
 /// already been read: no
-/// profiles, and none of what [`measure`] reads from the sound a second
-/// time (the USB-line clock, the signal figure, the beat shapes).
-/// `bytes_per_frame` is the sound's, for reading `clock.csv`.
+/// profiles, no beat sound ([`SOUND`]), and none of what [`measure`]
+/// reads from the sound a second time (the USB-line clock, the signal
+/// figure, the beat shapes). `bytes_per_frame` is the sound's, for
+/// reading `clock.csv`.
 pub fn from_log(
-    log: BeatLog,
+    mut log: BeatLog,
     cfg: &StreamConfig,
     bytes_per_frame: u32,
     software: serde_json::Value,
@@ -692,6 +708,7 @@ pub fn from_log(
         shape: Vec::new(),
         lock_template_kept: log.lock_template_kept,
     };
+    log.snippets.clear();
     Stored {
         header,
         log,
@@ -778,6 +795,12 @@ fn read_with_limit(take: &Path, limit: u64) -> io::Result<Stored> {
     }
     let profiles = parse_profiles(&gunzip(PROFILES)?)
         .map_err(|e| invalid(format!("{DIR}/{PROFILES}: {e}")))?;
+    // Optional, and never a guessed verdict: a file that is missing or
+    // can't be read is no beat sound at all.
+    let snippets = gunzip(SOUND)
+        .ok()
+        .and_then(|raw| parse_sound(&raw, &beats).ok())
+        .unwrap_or_default();
     for (name, want, got) in [
         (BEATS, header.beats, beats.len()),
         (WINDOWS, header.windows, windows.len()),
@@ -789,7 +812,9 @@ fn read_with_limit(take: &Path, limit: u64) -> io::Result<Stored> {
             )));
         }
     }
-    Ok(stored_from(header, (beats, clipped), windows, profiles))
+    let mut stored = stored_from(header, (beats, clipped), windows, profiles);
+    stored.log.snippets = snippets;
+    Ok(stored)
 }
 
 /// The take kept with `header`: its beats, those at the `clipped` times
@@ -997,6 +1022,91 @@ pub(crate) fn windows_csv(windows: &[AmplitudeWindow]) -> String {
         ));
     }
     out
+}
+
+/// [`SOUND`]'s bytes for `log`: little-endian, [`SOUND_MAGIC`], the
+/// number of beats (u32), then each beat of `log.snippets` in order: its
+/// row in the beats (u32, from 0), the values in its envelope window
+/// (u32) and the values (f32), as they are. A beat's time is kept to
+/// 0.5 µs in [`BEATS`], so the row, not the time, names it.
+pub(crate) fn sound_bin(log: &BeatLog) -> Vec<u8> {
+    let rows = sound_rows(log);
+    let values: usize = rows.iter().map(|r| r.1.len()).sum();
+    let mut out = Vec::with_capacity(12 + 8 * rows.len() + 4 * values);
+    out.extend_from_slice(SOUND_MAGIC);
+    out.extend_from_slice(&(rows.len() as u32).to_le_bytes());
+    for (row, w) in rows {
+        out.extend_from_slice(&(row as u32).to_le_bytes());
+        out.extend_from_slice(&(w.len() as u32).to_le_bytes());
+        for v in w {
+            out.extend_from_slice(&v.to_le_bytes());
+        }
+    }
+    out
+}
+
+/// Each of `log.snippets` with the row of the beat at its time.
+fn sound_rows(log: &BeatLog) -> Vec<(usize, &[f32])> {
+    let mut from = 0;
+    log.snippets
+        .iter()
+        .filter_map(|(t, w)| {
+            from += log.beats[from..].partition_point(|b| b.time < t - 1e-9);
+            let b = log.beats.get(from)?;
+            ((b.time - t).abs() < 1e-9).then_some((from, w.as_slice()))
+        })
+        .collect()
+}
+
+/// [`sound_bin`] read back against `beats`, the take's beats as kept:
+/// each window at its beat's time. An error for anything else.
+pub(crate) fn parse_sound(raw: &[u8], beats: &[Beat]) -> Result<Vec<(f64, Vec<f32>)>, String> {
+    let mut at = 0usize;
+    let mut take = |n: usize| -> Result<&[u8], String> {
+        let s = raw
+            .get(at..at.checked_add(n).ok_or("it is too long")?)
+            .ok_or_else(|| "it ends part way through".to_string())?;
+        at += n;
+        Ok(s)
+    };
+    let magic = take(8)?;
+    if magic[..7] != SOUND_MAGIC[..7] {
+        return Err("it doesn't start as a beat sound file".into());
+    }
+    if magic[7] != SOUND_MAGIC[7] {
+        return Err(format!(
+            "it is version {}, made by a newer version",
+            magic[7]
+        ));
+    }
+    let u32_at = |b: &[u8]| u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as usize;
+    let n = u32_at(take(4)?);
+    let mut out: Vec<(f64, Vec<f32>)> = Vec::new();
+    let mut last: Option<usize> = None;
+    for _ in 0..n {
+        let row = u32_at(take(4)?);
+        if last.is_some_and(|l| row <= l) {
+            return Err(format!("beat row {row} is out of order"));
+        }
+        let beat = beats
+            .get(row)
+            .ok_or_else(|| format!("beat row {row} is past the {} beats", beats.len()))?;
+        last = Some(row);
+        let len = u32_at(take(4)?);
+        let bytes = take(len.checked_mul(4).ok_or("it is too long")?)?;
+        let w: Vec<f32> = bytes
+            .chunks_exact(4)
+            .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+            .collect();
+        if w.iter().any(|v| !v.is_finite()) {
+            return Err(format!("beat row {row} holds a value that is not a number"));
+        }
+        out.push((beat.time, w));
+    }
+    if at != raw.len() {
+        return Err("it runs on past its last beat".into());
+    }
+    Ok(out)
 }
 
 /// One row per window with a culled side: its index and each side's
@@ -2497,3 +2607,7 @@ mod clock_sign_tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "analysis_take_sound_tests.rs"]
+mod sound_tests;

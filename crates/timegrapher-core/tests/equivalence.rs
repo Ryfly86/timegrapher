@@ -1234,6 +1234,58 @@ fn an_empty_stand_is_no_watch_however_it_is_read() {
     }
 }
 
+/// Kept as its analysis alone, an empty stand still reads no watch, with
+/// no figures in its first seconds (#2014), now that the beats' sound the
+/// verdict reads is kept with it (#2069): as opened with its sound, every
+/// second up to 10 s and every 5 s after, at 10, 30 and 60 s averages.
+/// The beat sound kept stays within its budget, whatever the length.
+///
+/// Runs where `TIMEGRAPHER_CORPUS` is set.
+#[test]
+fn an_empty_stand_kept_as_its_analysis_is_still_no_watch() {
+    use timegrapher_core::analysis_take::{measure, read, write};
+    let Some(path) = corpus_takes(&[EMPTY_STAND_TAKE]).pop() else {
+        return;
+    };
+    let cfg = StreamConfig::default();
+    let software = serde_json::json!({"name": "timegrapher", "version": "test"});
+    let s = measure(&[path.as_path()], &cfg, &[], software, |_| {}).unwrap();
+    let dir = std::env::temp_dir().join(format!("tg-eq-kept-stand-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    write(&dir, &s).unwrap();
+    let kept = read(&dir).unwrap().log;
+    std::fs::remove_dir_all(&dir).ok();
+    let budget = timegrapher_core::sound_sample::SOUND_SAMPLE_BEATS;
+    let len = timegrapher_core::profile::template_len(
+        kept.sample_rate as f64,
+        timegrapher_core::amplitude::UnlockWindow::SHORT,
+    );
+    assert!(!kept.snippets.is_empty() && kept.snippets.len() <= budget);
+    assert!(kept.snippets.iter().all(|w| w.1.len() == len));
+    assert_eq!(kept.snippets.len(), s.log.snippets.len());
+    assert!(!whole(&kept).watch_heard, "the kept take as a whole");
+    let sound = LiveAnalyzer::from_log(stream(&path, 47.0), LiveConfig::default());
+    let opened = LiveAnalyzer::from_log(kept, LiveConfig::default());
+    let mut t = 1.0;
+    while t <= opened.duration_s() {
+        for average_s in [10.0, 30.0, 60.0] {
+            let (a, r) = (
+                sound.reading_at(t, average_s),
+                opened.reading_at(t, average_s),
+            );
+            let figures = [r.rate_s_per_day, r.amplitude_deg, r.beat_error_ms];
+            assert!(
+                (t < 10.0 || !r.watch_heard) && figures == [None; 3],
+                "kept, {average_s} s ending at {t} s: {:?} s/d",
+                r.rate_s_per_day
+            );
+            assert_eq!(r.watch_heard, a.watch_heard, "{average_s} s at {t} s");
+            assert_eq!(r.listening, a.listening, "{average_s} s at {t} s");
+        }
+        t += if t < 10.0 { 1.0 } else { 5.0 };
+    }
+}
+
 /// An empty stand is never a beat being found (#2008, Norm on #2013):
 /// "Finding the Beat" says a regular beat is heard, so a run of stand
 /// noise after a pause, heard on its own, must fail the rule every reader
