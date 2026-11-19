@@ -2629,3 +2629,78 @@ fn a_stop_withholds_the_faint_sides_of_the_open_chunk() {
     assert!(faint_from(&app, 141.0) > 0, "judged at the stop");
     let _ = std::fs::remove_dir_all(base);
 }
+
+/// A finished test whose take is kept by Save Analysis Only has no sound
+/// to be read again from: its table says its figures are the listening's,
+/// and its file says `listened` (#2070, Hugh 5's words). A full save never
+/// shows that note: its test is read again instead.
+#[test]
+fn a_test_kept_without_its_sound_says_its_figures_are_the_listenings() {
+    let base = std::env::temp_dir().join(format!("tg-app-2070-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.bph = Some(28800);
+    app.reset_session(48000, "test".into());
+    app.session.listen();
+    let audio = generate(
+        &SynthConfig {
+            duration_s: 30.0,
+            ..Default::default()
+        },
+        |_| 280.0,
+        |_| 0.0,
+    );
+    let info = app.info("test", 48000, 16);
+    app.session.recorder = Some(Recorder::start(&base.join("live"), info).unwrap());
+    let began = std::time::SystemTime::now();
+    for (k, second) in audio.samples.chunks(48000).enumerate() {
+        let block = timegrapher_core::capture::Block {
+            samples: second.to_vec(),
+            at: began + std::time::Duration::from_secs(k as u64 + 1),
+        };
+        let r = app.session.recorder.as_mut().unwrap();
+        r.write(&block).unwrap();
+    }
+    for samples in audio.samples.chunks(960) {
+        app.live.as_mut().unwrap().push(samples);
+    }
+    // A test not finished is left as it is, with no note (Trevor on
+    // #2080).
+    app.guided = Some(guided::Test::poise());
+    assert!(app.can_save_analysis());
+    app.start_analysis_save(&base.join("unfinished"));
+    wait_for_jobs(&mut app);
+    assert!(app.analysis_kept_to.is_some(), "{:?}", app.message);
+    let t = app.guided.as_ref().unwrap();
+    assert_eq!(t.saved_read, guided::SavedRead::NotRead);
+    assert_eq!(t.saved_read_note(), None);
+    app.analysis_kept_to = None;
+    let mut test = guided::Test::poise();
+    test.saved_read = guided::SavedRead::Pending;
+    app.guided = Some(test);
+    assert_eq!(app.guided.as_ref().unwrap().saved_read_note(), None);
+    assert!(app.can_save_analysis());
+    app.start_analysis_save(&base.join("kept"));
+    wait_for_jobs(&mut app);
+    assert!(app.analysis_kept_to.is_some(), "{:?}", app.message);
+    let t = app.guided.as_ref().unwrap();
+    assert_eq!(t.saved_read, guided::SavedRead::NoSound);
+    assert!(t.listened());
+    assert_eq!(
+        t.saved_read_note().as_deref(),
+        Some(
+            "These are the figures heard while listening: the take was saved without its \
+             sound, so it couldn't be analysed again. Opened again, the take may read slightly \
+             differently."
+        )
+    );
+    // Saved in full after: read again from the sound that save keeps, so
+    // the note goes (Hugh 5 on #2080).
+    app.save_into(&base.join("full"));
+    app.wait_for_save();
+    assert!(app.session.saved_to().is_some());
+    let t = app.guided.as_ref().unwrap();
+    assert_ne!(t.saved_read, guided::SavedRead::NoSound);
+    assert_ne!(t.saved_read, guided::SavedRead::Pending);
+    let _ = std::fs::remove_dir_all(&base);
+}
