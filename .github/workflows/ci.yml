@@ -206,10 +206,9 @@ jobs:
       matrix:
         check: [engine, app, mcp]
     runs-on: ubuntu-24.04
-    # Well above each check's own steps in the single job they shared
-    # until November 2026 (engine 3 minutes, app 12, MCP 16, plus about 2
-    # of setup each), so a hung job fails within the hour.
-    timeout-minutes: 45
+    # Above the longest step's own limit plus about 6 minutes of setup,
+    # so a hung job still fails within the hour (#2028).
+    timeout-minutes: 60
     env:
       # As in the test job: no debug info in CI's release builds.
       CARGO_PROFILE_RELEASE_DEBUG: "0"
@@ -341,8 +340,10 @@ jobs:
         if: matrix.check == 'app' && steps.changes.outputs.full != 'false'
         # Each take is also opened whole, for its panes against series and
         # session (#514): about 3 minutes on a pull request's cut, and 20.5
-        # on the whole corpus (run 41989178413, against 14.6 before).
-        timeout-minutes: 35
+        # on the whole corpus (run 41989178413, against 14.6 before). Main's
+        # whole-corpus runs took 21 to 27 minutes on 11-18 and 11-19; a slow
+        # runner with a cold build cache needed just over 35 (#2028).
+        timeout-minutes: 50
         run: |
           set -o pipefail
           cargo test --locked --release -p timegrapher-app corpus_tests -- --nocapture 2>&1 | tee app-corpus.txt
@@ -350,7 +351,9 @@ jobs:
       # analyze_recording, reads what `timegrapher session` reads.
       - name: MCP server against session on every corpus recording
         if: matrix.check == 'mcp' && steps.changes.outputs.full != 'false'
-        timeout-minutes: 30
+        # Main's whole-corpus runs took 17 to 21 minutes on 11-18 and 11-19;
+        # a runner about 1.7 times slow ran out 30 (#2028).
+        timeout-minutes: 45
         run: |
           set -o pipefail
           cargo test --locked --release -p timegrapher-mcp --bins corpus_tests -- --nocapture 2>&1 | tee mcp-corpus.txt
