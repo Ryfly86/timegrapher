@@ -16,8 +16,8 @@ use serde::Serialize;
 
 use crate::chart_scale;
 use crate::session::{
-    group_mean, sourced_indices_over, Position, PositionGroup, PositionValue, SourcedFigures,
-    StateIndices,
+    group_mean, has_mean, sourced_indices_over, Position, PositionGroup, PositionValue,
+    SourcedFigures, StateIndices,
 };
 use crate::steadiness::SeriesKind;
 
@@ -133,9 +133,21 @@ pub fn screen(kind: SeriesKind, v: f64) -> String {
 /// values.
 pub fn value_axis(kind: SeriesKind, values: &[f64]) -> Option<[f64; 3]> {
     let (lo, hi) = chart_scale::data_range(values)?;
-    let lo = match kind {
-        SeriesKind::BeatError => lo.max(0.0),
-        _ => lo,
+    // Never narrower than a few of the figure, about the values' middle:
+    // one position, or several this close, would else span tenths and
+    // re-centre at each re-read (#1953, as #1943's poise dial).
+    let least = least_span(kind);
+    let (lo, hi) = if hi - lo < least {
+        let mid = (lo + hi) / 2.0;
+        (mid - least / 2.0, mid + least / 2.0)
+    } else {
+        (lo, hi)
+    };
+    // A beat error is a size: its axis starts at 0 at the lowest, and a
+    // widened span moves up off 0 whole rather than being cut (Norm).
+    let (lo, hi) = match kind {
+        SeriesKind::BeatError if lo < 0.0 => (0.0, hi - lo),
+        _ => (lo, hi),
     };
     let finest = 10f64.powi(-(kind.digits() as i32));
     let (lo, hi, step) = match chart_scale::round_ends(lo, hi) {
@@ -144,6 +156,67 @@ pub fn value_axis(kind: SeriesKind, values: &[f64]) -> Option<[f64; 3]> {
     };
     Some([lo, hi, step])
 }
+
+/// The Average, Vertical and Horizontal lines of `state`'s `kind`, each
+/// where its group has a mean ([`has_mean`]).
+fn average_lines(state: &StateIndices, kind: SeriesKind) -> Vec<AverageLine> {
+    [
+        (AverageOf::All, AVERAGE, None),
+        (
+            AverageOf::Vertical,
+            PositionGroup::Vertical.name(),
+            Some(PositionGroup::Vertical),
+        ),
+        (
+            AverageOf::Horizontal,
+            PositionGroup::Horizontal.name(),
+            Some(PositionGroup::Horizontal),
+        ),
+    ]
+    .into_iter()
+    // A mean of one position is that position: no line until two are read
+    // (#1959, Walter on #2013).
+    .filter(|&(_, _, group)| {
+        has_mean(
+            state
+                .positions
+                .iter()
+                .filter(|v| group.is_none_or(|g| PositionGroup::of(v.position) == g))
+                .map(|v| figure(v, kind)),
+        )
+    })
+    .filter_map(|(of, name, group)| {
+        let value = group_mean(&state.positions, kind, group).filter(|x| x.is_finite())?;
+        let text = screen(kind, value);
+        Some(AverageLine {
+            of,
+            name,
+            value,
+            hover: format!("{name} {text}"),
+            figure: bare(kind, value),
+            text,
+        })
+    })
+    .collect()
+}
+
+/// The least span of a measure's value axis: 10 s/d, 10° or 0.2 ms, so a
+/// lone figure sits on a scale of some seconds, degrees or tenths of a
+/// millisecond, as a timegrapher's chart does (#1953).
+pub fn least_span(kind: SeriesKind) -> f64 {
+    match kind {
+        SeriesKind::Rate => LEAST_SPAN_S_PER_DAY,
+        SeriesKind::Amplitude => LEAST_SPAN_DEG,
+        SeriesKind::BeatError => LEAST_SPAN_MS,
+    }
+}
+
+/// [`least_span`] of a rate, s/d.
+pub const LEAST_SPAN_S_PER_DAY: f64 = 10.0;
+/// [`least_span`] of an amplitude, degrees.
+pub const LEAST_SPAN_DEG: f64 = 10.0;
+/// [`least_span`] of a beat error, ms.
+pub const LEAST_SPAN_MS: f64 = 0.2;
 
 /// A figure bare, as a table cell under its column's unit writes it, a
 /// negative one with a true minus: "−0.5".
@@ -221,33 +294,7 @@ pub fn position_line_over(
             });
         }
     }
-    let averages: Vec<AverageLine> = [
-        (AverageOf::All, AVERAGE, None),
-        (
-            AverageOf::Vertical,
-            PositionGroup::Vertical.name(),
-            Some(PositionGroup::Vertical),
-        ),
-        (
-            AverageOf::Horizontal,
-            PositionGroup::Horizontal.name(),
-            Some(PositionGroup::Horizontal),
-        ),
-    ]
-    .into_iter()
-    .filter_map(|(of, name, group)| {
-        let value = group_mean(&state.positions, kind, group).filter(|x| x.is_finite())?;
-        let text = screen(kind, value);
-        Some(AverageLine {
-            of,
-            name,
-            value,
-            hover: format!("{name} {text}"),
-            figure: bare(kind, value),
-            text,
-        })
-    })
-    .collect();
+    let averages = average_lines(state, kind);
     let drawn: Vec<f64> = lanes
         .iter()
         .flat_map(|l| [l.value, l.full_wind])
@@ -494,6 +541,66 @@ mod tests {
         // A wide spread keeps its own, coarser step.
         let [_, _, step] = value_axis(SeriesKind::Rate, &[-10.0, 12.0]).expect("an axis");
         assert!(step >= 5.0, "{step}");
+    }
+
+    /// One position's axis spans at least a few of the figure about it,
+    /// and holds as its figure drifts by tenths at each re-read
+    /// (#1953, the v1.1 shakedown: +17.4 to +17.6 s/d, then +17.8 to
+    /// +18.0, then +17.7 to +17.9).
+    #[test]
+    fn a_lone_figures_axis_is_some_figures_wide_and_holds_still() {
+        for (kind, v, nudge) in [
+            (SeriesKind::Rate, 17.5, 0.1),
+            (SeriesKind::Amplitude, 246.0, 1.0),
+            (SeriesKind::BeatError, 0.28, 0.01),
+        ] {
+            let [lo, hi, step] = value_axis(kind, &[v]).expect("an axis");
+            assert!(hi - lo >= least_span(kind) - 1e-9, "{kind:?}: {lo} to {hi}");
+            // About the figure, not from one end of it.
+            assert!(
+                ((lo + hi) / 2.0 - v).abs() <= step + 1e-9,
+                "{kind:?}: {lo} to {hi}"
+            );
+            // Ten re-reads drifting by a figure's tenth each: the axis
+            // moves at most once, where its middle crosses a step, not
+            // at each (as the 0.2 s/d one did).
+            let mut axes: Vec<[f64; 2]> = (0..10)
+                .map(|k| value_axis(kind, &[v + nudge * f64::from(k) / 10.0]).expect("an axis"))
+                .map(|a| [a[0], a[1]])
+                .collect();
+            axes.dedup();
+            assert!(axes.len() <= 2, "{kind:?}: {axes:?}");
+        }
+        // A regulated watch's rate either side of 0 keeps one axis about
+        // it: no jump of the span from one side to the other (Norm).
+        for v in [-0.05, 0.05] {
+            let [lo, hi, _] = value_axis(SeriesKind::Rate, &[v]).expect("an axis");
+            assert!(
+                lo < 0.0 && hi > 0.0 && (lo + hi).abs() <= 2.0,
+                "{v}: {lo} to {hi}"
+            );
+        }
+        // A beat error near 0 moves its span up off 0, never cut narrower.
+        let [lo, hi, _] = value_axis(SeriesKind::BeatError, &[0.05]).expect("an axis");
+        assert!(lo >= 0.0 && hi - lo >= LEAST_SPAN_MS - 1e-9, "{lo} to {hi}");
+    }
+
+    /// One position draws no Average, Vertical or Horizontal line: a mean
+    /// of one is that position; two Horizontal draw Average and Horizontal
+    /// but not Vertical (#1959, Walter on #2013).
+    #[test]
+    fn an_average_needs_two_positions() {
+        let one = figures(&[(Position::CH, 2.0, 300.0)]);
+        let lines = state_lines(&[sourced_indices(Some(0.0), &one)]);
+        assert!(
+            lines[0].rate.averages.is_empty(),
+            "{:?}",
+            lines[0].rate.averages
+        );
+        let two = figures(&[(Position::CH, 2.0, 300.0), (Position::CB, 4.0, 296.0)]);
+        let lines = state_lines(&[sourced_indices(Some(0.0), &two)]);
+        let names: Vec<&str> = lines[0].rate.averages.iter().map(|a| a.name).collect();
+        assert_eq!(names, [AVERAGE, PositionGroup::Horizontal.name()]);
     }
 
     /// A session of ten positions draws a lane for each of the ten, its

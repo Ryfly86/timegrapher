@@ -376,7 +376,7 @@ A change of position made on the Position card, or by the guided Positions Test,
   - **(47)** "S" from 12 pt;
   - **(48)** no word under 12 pt. The band stays solid, and its hover always says "Settling, 20 s: not read" (the Settle in use; Hugh, #1257).
 - **The position's name starts after the band,** on its plate, so the two never overlap.
-- **The band follows the Settle setting.** Changing Settle on the Positions Test pane redraws every band and the table together.
+- **The band follows the Settle setting.** Changing Settle on the Positions Test pane redraws every band and the table together, except a guided test's bands: a test already run keeps the stretches it read (#1956).
 
 **Painting** with the Position Brush is a correction after the fact, so it never makes a settle band. The track is two layers: the recorded switches underneath, and the painted stretches on top. What shows at any moment is the painted position where there is one, otherwise the recorded one. Every edge follows one rule: **an edge made by a recorded switch starts solid for its Settle; an edge made by painting starts at the fade.**
 

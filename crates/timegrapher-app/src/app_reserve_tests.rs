@@ -245,17 +245,20 @@ fn a_long_runs_charts_read_with_its_take_open_in_a_small_window() {
     assert!(axis_labels(&top, "") >= 1, "{top:?}");
     let shown = under_run_line(out.as_ref().unwrap(), screen);
     // Each chart's first and last hour drawn whole, the right one clear
-    // of the pane's edge and its scroll bar.
-    for h in ["0 h", "48 h"] {
+    // of the pane's edge and its scroll bar. The 46.5 h run's axis ends
+    // with it, so 36 h is its last hour and none past the run is drawn
+    // (#1967).
+    for h in ["0 h", "36 h"] {
         assert_eq!(shown.iter().filter(|t| *t == h).count(), 1, "{shown:?}");
     }
+    assert!(!shown.iter().any(|t| t == "48 h"), "{shown:?}");
     let last_right = out
         .as_ref()
         .unwrap()
         .shapes
         .iter()
         .filter_map(|c| match &c.shape {
-            egui::Shape::Text(t) if t.galley.text() == "48 h" => {
+            egui::Shape::Text(t) if t.galley.text() == "36 h" => {
                 Some(t.galley.rect.translate(t.pos.to_vec2()).right())
             }
             _ => None,

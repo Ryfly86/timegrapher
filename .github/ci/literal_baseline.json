@@ -136,9 +136,15 @@
      "defaults": 0
     },
     "crates/timegrapher-app/src/guided.rs": {
-     "bounds": 15,
+     "bounds": 13,
      "comparisons": 1,
      "constants": 4,
+     "defaults": 0
+    },
+    "crates/timegrapher-app/src/guided/complication_grid.rs": {
+     "bounds": 1,
+     "comparisons": 0,
+     "constants": 0,
      "defaults": 0
     },
     "crates/timegrapher-app/src/hour_steps.rs": {
