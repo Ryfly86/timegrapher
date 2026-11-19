@@ -116,6 +116,38 @@ impl TimegrapherApp {
         true
     }
 
+    /// While a kept take is heard, add its sound since the last save to
+    /// its folder every [`STREAM_EVERY_S`] of sound, quietly, so a crash
+    /// or a power cut costs only seconds. A save that fails says so, and
+    /// the next is tried a minute later. One refused because the take no
+    /// longer holds hours it held alone is said once (#2061): it is looked
+    /// at again each minute, quietly, and written into once it holds them.
+    pub(super) fn stream_tick(&mut self) {
+        if self.saving.is_some() || !self.streams() || self.session.unsaved_s() < STREAM_EVERY_S {
+            return;
+        }
+        if let Some(t) = self.stream_wait {
+            if t.elapsed() < STREAM_RETRY {
+                return;
+            }
+            let gone = self
+                .session
+                .recorder
+                .as_ref()
+                .is_some_and(Recorder::saved_copy_gone);
+            // Felix on #2063: only a write that would be refused waits on;
+            // one the take's deletion alone stopped puts the take back.
+            if gone && !self.saved_hours_reachable() {
+                self.stream_wait = Some(Instant::now());
+                return;
+            }
+        }
+        self.stream_wait = None;
+        self.save_again_as(Streamed::Yes);
+        // Refused (its take's hours gone, say): not tried every frame.
+        self.stream_wait = self.saving.is_none().then(Instant::now);
+    }
+
     /// Keep in a Watch > New Watch…: the form, and the keep once it is
     /// done, unless the keep would be refused, which is said before the
     /// form is filled in for nothing (Walter 11 on #2057, #2058).
