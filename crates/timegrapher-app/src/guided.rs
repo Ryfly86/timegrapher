@@ -2189,6 +2189,8 @@ fn table_of(figures: &[SourcedFigures], mut notes: Vec<String>, kind: Kind) -> T
     let ix = session::sourced_indices_over(None, figures, &over);
     let beat_error_summary = ix.beat_error_summary();
     notes.extend((!figures.is_empty()).then(|| beat_error_summary.clone())); // #1911
+                                                                             // From Average only once there is an average of two (#1959).
+    let rated = figures.iter().filter(|f| f.1.is_some()).count();
     Table {
         beat_error_hovers: figures
             .iter()
@@ -2205,7 +2207,7 @@ fn table_of(figures: &[SourcedFigures], mut notes: Vec<String>, kind: Kind) -> T
                 (
                     position_label(p),
                     rate,
-                    rate.zip(ix.x).map(|(x, x0)| x - x0),
+                    rate.zip(ix.x).filter(|_| rated >= 2).map(|(x, x0)| x - x0),
                     amp,
                     be,
                 )

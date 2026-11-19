@@ -139,14 +139,7 @@ pub fn value_axis(kind: SeriesKind, values: &[f64]) -> Option<[f64; 3]> {
     let least = least_span(kind);
     let (lo, hi) = if hi - lo < least {
         let mid = (lo + hi) / 2.0;
-        match (mid - least / 2.0, mid + least / 2.0) {
-            // Widening never takes the axis across zero the values don't
-            // reach: it grows away from zero instead, from the values' end
-            // nearest it (zero is never forced, Hugh on #1761).
-            (a, _) if a < 0.0 && lo >= 0.0 && kind != SeriesKind::BeatError => (lo, lo + least),
-            (_, b) if b > 0.0 && hi <= 0.0 => (hi - least, hi),
-            ends => ends,
-        }
+        (mid - least / 2.0, mid + least / 2.0)
     } else {
         (lo, hi)
     };
@@ -162,6 +155,19 @@ pub fn value_axis(kind: SeriesKind, values: &[f64]) -> Option<[f64; 3]> {
         ends => ends,
     };
     Some([lo, hi, step])
+}
+
+/// How many positions of `group` (all, for none) have a `kind` figure.
+fn figures_in(
+    positions: &[PositionValue],
+    kind: SeriesKind,
+    group: Option<PositionGroup>,
+) -> usize {
+    positions
+        .iter()
+        .filter(|v| group.is_none_or(|g| PositionGroup::of(v.position) == g))
+        .filter(|v| figure(v, kind).is_some())
+        .count()
 }
 
 /// The least span of a measure's value axis: 10 s/d, 10° or 0.2 ms, so a
@@ -272,6 +278,9 @@ pub fn position_line_over(
         ),
     ]
     .into_iter()
+    // A mean of one position is that position: no line until two are read
+    // (#1959, Walter on #2013).
+    .filter(|&(_, _, group)| figures_in(&state.positions, kind, group) >= 2)
     .filter_map(|(of, name, group)| {
         let value = group_mean(&state.positions, kind, group).filter(|x| x.is_finite())?;
         let text = screen(kind, value);
@@ -561,9 +570,36 @@ mod tests {
             axes.dedup();
             assert!(axes.len() <= 2, "{kind:?}: {axes:?}");
         }
+        // A regulated watch's rate either side of 0 keeps one axis about
+        // it: no jump of the span from one side to the other (Norm).
+        for v in [-0.05, 0.05] {
+            let [lo, hi, _] = value_axis(SeriesKind::Rate, &[v]).expect("an axis");
+            assert!(
+                lo < 0.0 && hi > 0.0 && (lo + hi).abs() <= 2.0,
+                "{v}: {lo} to {hi}"
+            );
+        }
         // A beat error near 0 moves its span up off 0, never cut narrower.
         let [lo, hi, _] = value_axis(SeriesKind::BeatError, &[0.05]).expect("an axis");
         assert!(lo >= 0.0 && hi - lo >= LEAST_SPAN_MS - 1e-9, "{lo} to {hi}");
+    }
+
+    /// One position draws no Average, Vertical or Horizontal line: a mean
+    /// of one is that position; two Horizontal draw Average and Horizontal
+    /// but not Vertical (#1959, Walter on #2013).
+    #[test]
+    fn an_average_needs_two_positions() {
+        let one = figures(&[(Position::CH, 2.0, 300.0)]);
+        let lines = state_lines(&[sourced_indices(Some(0.0), &one)]);
+        assert!(
+            lines[0].rate.averages.is_empty(),
+            "{:?}",
+            lines[0].rate.averages
+        );
+        let two = figures(&[(Position::CH, 2.0, 300.0), (Position::CB, 4.0, 296.0)]);
+        let lines = state_lines(&[sourced_indices(Some(0.0), &two)]);
+        let names: Vec<&str> = lines[0].rate.averages.iter().map(|a| a.name).collect();
+        assert_eq!(names, [AVERAGE, PositionGroup::Horizontal.name()]);
     }
 
     /// A session of ten positions draws a lane for each of the ten, its
