@@ -2988,8 +2988,8 @@ fn break_text(gap: f64, dropped: bool) -> String {
     } else {
         format!(
             "The sound's timestamps jumped by {}, as they do when the \
-             computer sleeps. The jump is left out of the take as a \
-             break, and listening carries on.",
+             computer sleeps or the input stalls. The jump is left out of \
+             the take as a break, and listening carries on.",
             fields::duration(gap.round())
         )
     }
