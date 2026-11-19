@@ -34,11 +34,15 @@ use std::time::{SystemTime, UNIX_EPOCH};
 mod closed_hour;
 #[cfg(test)]
 mod no_sound_tests;
+mod released;
+#[cfg(test)]
+mod released_tests;
 mod saved_flac;
 #[cfg(test)]
 mod session_file_tests;
 mod settle;
 use closed_hour::{open_closed_hour, open_in_place};
+use released::HeldWhole;
 pub use saved_flac::{holding_wav, keep_saved_as_flac, keep_saved_as_flac_unless};
 use settle::{held_open, settled};
 pub use settle::{read_settled, rename_settled, sync_file, sync_folder};
@@ -220,6 +224,14 @@ pub struct Recorder {
     /// and its length there: the next save into the same copy adds only
     /// what came since ([`Recorder::begin_stream_save`]).
     grown: Option<(PathBuf, u64)>,
+    /// Whether a closed hour its saved copy holds whole is kept there
+    /// alone ([`Recorder::keep_saved_hours_in_copy`]).
+    copy_alone: bool,
+    /// Closed hours the saved copy holds alone, read from there (#2040).
+    released: Vec<HeldWhole>,
+    /// Closed hours a save checked in its copy, kept here until no thread
+    /// is keeping them as FLAC here.
+    releasing: Vec<HeldWhole>,
     /// Held locked while recording ([`in_use`]), beside the folder rather
     /// than in it, so a save never copies it.
     lock: Option<File>,
@@ -313,6 +325,9 @@ impl Recorder {
             notes: Vec::new(),
             saved_name: None,
             grown: None,
+            copy_alone: false,
+            released: Vec::new(),
+            releasing: Vec::new(),
             lock,
         };
         r.write_session(None, None)?;
@@ -501,6 +516,7 @@ impl Recorder {
             if self.reap(false) {
                 self.write_session(None, None)?;
             }
+            self.release_due();
         }
         Ok(())
     }
@@ -538,7 +554,11 @@ impl Recorder {
     /// The audio files so far, in order (after [`Recorder::flush`] they
     /// hold everything written).
     pub fn segment_paths(&self) -> Vec<PathBuf> {
-        self.segments.iter().map(|n| self.dir.join(n)).collect()
+        let at = |n: &String| match self.released_at(n) {
+            Some(p) => p.to_path_buf(),
+            None => self.dir.join(n),
+        };
+        self.segments.iter().map(at).collect()
     }
 
     /// Note an event (a change of position, say) at the current audio time.
@@ -906,6 +926,7 @@ impl Recorder {
                 as_flac: false,
                 open_sound: false,
                 grow_from: None,
+                release: None,
             });
         }
         let mut written = vec![(take::RECORD.to_string(), session.into_bytes())];
@@ -951,9 +972,15 @@ impl Recorder {
                 as_flac: false,
                 open_sound: true,
                 grow_from: None,
+                release: None,
             });
         }
-        let (source, held, len) = open_closed_hour(&self.dir.join(name))?;
+        // An hour the copy holds alone is read from there (#2040).
+        let here = self.released_at(name).is_none();
+        let path = self
+            .released_at(name)
+            .map_or_else(|| self.dir.join(name), Path::to_path_buf);
+        let (source, held, len) = open_closed_hour(&path)?;
         Ok(PendingFile {
             as_flac: crate::flac::is_wav(&source),
             source,
@@ -963,6 +990,7 @@ impl Recorder {
             held: Some(held),
             open_sound: false,
             grow_from: None,
+            release: (self.copy_alone && here && self.to_check(name)).then(|| name.to_string()),
         })
     }
 
@@ -987,6 +1015,7 @@ impl Recorder {
                 *path = to.join(rest);
             }
         }
+        self.released_moved(from, to);
     }
 
     /// Note a copy [`PendingSave::write`] wrote, so Save Again saves into
@@ -994,6 +1023,7 @@ impl Recorder {
     pub fn note_saved(&mut self, copy: &SavedCopy) {
         self.saved_name = Some(copy.name.clone());
         self.grown = copy.grown.clone();
+        self.take_released(&copy.held_whole);
     }
 
     /// Close the files, saving `result` (the readings at the end) with the
@@ -1081,6 +1111,9 @@ struct PendingFile {
     /// Its copy's length after the last save into the same copy, when
     /// only the sound since needs adding ([`Recorder::grown_from`]).
     grow_from: Option<u64>,
+    /// A closed hour kept in the recording folder, by its name there, to
+    /// check in the copy once written ([`released::checked`]).
+    release: Option<String>,
 }
 
 impl PendingFile {
@@ -1161,6 +1194,8 @@ pub struct SavedCopy {
     name: std::ffi::OsString,
     /// The hour still being written as copied, and its length there.
     grown: Option<(PathBuf, u64)>,
+    /// The closed hours checked in it, on the disk (#2040).
+    held_whole: Vec<HeldWhole>,
 }
 
 impl PendingSave {
@@ -1226,10 +1261,12 @@ impl PendingSave {
                 }
             }
         }
+        let held_whole = released::checked(&self.files, &self.dest, &mut before);
         Ok(SavedCopy {
             dir: self.dest,
             name: self.name,
             grown,
+            held_whole,
         })
     }
 }
@@ -1294,6 +1331,8 @@ enum SaveStep {
     Stage,
     Install,
     Restore,
+    /// The copy's folder synced before any hour counts as held whole there.
+    Sync,
 }
 
 struct SaveUpdate {

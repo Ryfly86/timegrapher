@@ -1623,6 +1623,11 @@ impl TimegrapherApp {
         if heard && !self.quick_listen {
             return;
         }
+        // Its earlier hours gone with its take: nothing can be kept, so the
+        // session isn't made the watch's either (Walter 7 on #2046).
+        if self.refuse_hours_gone() {
+            return;
+        }
         let Some(name) = (match &self.library {
             Ok(Some(l)) => l.watches.iter().find(|e| e.watch.id == id),
             _ => None,

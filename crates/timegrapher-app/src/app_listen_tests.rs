@@ -443,6 +443,147 @@ fn a_kept_quick_listen_records_into_its_take() {
     let _ = std::fs::remove_dir_all(&base);
 }
 
+/// A kept Quick Listen stopped keeps its sound in its take alone: the
+/// session's own copy of the hour goes once it is kept as FLAC, and the
+/// take reads whole (#2040). With the take deleted, Listen can't carry it
+/// on, so it starts a new one.
+#[test]
+fn a_kept_quick_listen_stopped_keeps_its_sound_in_its_take_alone() {
+    let (mut app, base, _capture) = listening("stopped-alone");
+    let sounds = |d: &std::path::Path| {
+        let mut v: Vec<String> = std::fs::read_dir(d)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().into_string().unwrap())
+            .filter(|n| n.starts_with("audio-"))
+            .collect();
+        v.sort();
+        v
+    };
+    app.session
+        .recorder
+        .as_mut()
+        .unwrap()
+        .keep_saved_hours_in_copy();
+    app.save_again();
+    app.wait_for_save();
+    let take = app.session.saved_to().expect("kept").to_path_buf();
+    let r = app.session.recorder.as_mut().unwrap();
+    r.write(&silence(2, 3)).unwrap();
+    let scratch = r.dir().to_path_buf();
+    app.stop_listening();
+    app.wait_for_save();
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while app.session.recorder.as_ref().unwrap().releasing() {
+        assert!(std::time::Instant::now() < until, "let go in time");
+        app.tidy_recording();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    assert_eq!(sounds(&scratch), Vec::<String>::new(), "no second copy");
+    assert_eq!(sounds(&take), ["audio-001.flac"]);
+    let flac = take.join("audio-001.flac");
+    let heard = timegrapher_core::audio::load(&flac).unwrap().samples.len();
+    assert_eq!(heard, 5 * 48000);
+    assert!(app.saved_hours_reachable());
+    // Stopped with the readings on show, as a Listen leaves it.
+    app.live = Some(LiveAnalyzer::new(48_000, LiveConfig::default()));
+    assert!(app.can_resume(), "carried on while its take is there");
+    std::fs::remove_dir_all(&take).unwrap();
+    assert!(!app.saved_hours_reachable());
+    assert!(!app.can_resume());
+    // Desmond on #2046: nor can it be saved anywhere, which says why.
+    let other = base.join("elsewhere");
+    std::fs::create_dir_all(&other).unwrap();
+    for save in [
+        (|a: &mut TimegrapherApp, p: &std::path::Path| a.save_into(p)) as fn(&mut _, &_),
+        |a, _| a.save_again(),
+    ] {
+        app.message = None;
+        save(&mut app, &other);
+        assert!(app.saving.is_none());
+        let said = app.message.as_ref().map(|m| m.0.as_str());
+        let why = "This sound can't be saved: what was already saved was kept only in its \
+                   take, which no longer holds it.";
+        assert_eq!(said, Some(why));
+    }
+    assert_eq!(std::fs::read_dir(&other).unwrap().count(), 0);
+    // Nor kept in a watch: the session stays a Quick Listen, saying why
+    // once (Walter 7 on #2046).
+    let pepsi = add_watch(&mut app, "Pepsi");
+    app.message = None;
+    app.keep_in_watch(&pepsi);
+    assert!(app.quick_listen && app.watch_open.is_none());
+    assert!(app.saving.is_none() && app.after_save.is_empty());
+    let said = app.message.as_ref().map(|m| m.0.as_str());
+    let why = "This sound can't be saved: what was already saved was kept only in its \
+               take, which no longer holds it.";
+    assert_eq!(said, Some(why));
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// Trevor on #2046: the app stopped after an hour went to the take alone,
+/// and the take was then deleted. What is left holds only the last part,
+/// and the start notice, its Delete… and Open say so, not the whole take.
+#[test]
+fn sound_left_with_its_earlier_hours_gone_says_only_its_last_part_is_here() {
+    let (mut app, base, _capture) = listening("partial-left");
+    let r = app.session.recorder.as_mut().unwrap();
+    r.keep_saved_hours_in_copy();
+    r.pause().unwrap();
+    app.save_again();
+    app.wait_for_save();
+    let take = app.session.saved_to().expect("kept").to_path_buf();
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while app.session.recorder.as_ref().unwrap().releasing() {
+        assert!(std::time::Instant::now() < until, "let go in time");
+        app.tidy_recording();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    // Carried on: 2 s more in the next hour, then the app stops.
+    let r = app.session.recorder.as_mut().unwrap();
+    r.resume("test");
+    r.write(&silence(2, 10)).unwrap();
+    r.flush().unwrap();
+    let scratch = r.dir().to_path_buf();
+    let left = base.join("after a crash");
+    let copy = left.join(scratch.file_name().unwrap());
+    std::fs::create_dir_all(&copy).unwrap();
+    for e in std::fs::read_dir(&scratch).unwrap().flatten() {
+        if e.file_type().unwrap().is_file() {
+            std::fs::copy(e.path(), copy.join(e.file_name())).unwrap();
+        }
+    }
+    std::fs::remove_dir_all(&take).unwrap();
+    let kept = kept_sounds(&left);
+    assert_eq!(kept.len(), 1, "{kept:?}");
+    assert!(kept[0].partial && kept[0].duration_s.is_none(), "{kept:?}");
+    let notice = kept[0].notice();
+    assert!(notice.contains("Only its last part is here"), "{notice}");
+    assert!(!notice.contains(" long"), "{notice}");
+    app.kept = kept;
+    let ctx = theme_ctx();
+    let said = delete_says(&ctx, &mut app);
+    assert!(
+        said.iter()
+            .any(|t| t.0.starts_with("This last part was never")),
+        "{said:?}"
+    );
+    // Open reads what is there: the last 2 s.
+    app.capture = None;
+    app.open_recording(&copy, true);
+    let t = std::time::Instant::now();
+    while app.batch.is_some() && t.elapsed().as_secs() < 60 {
+        app.poll();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let heard = app.live.as_ref().map(|l| l.duration_s());
+    assert!(
+        heard.is_some_and(|d| (d - 2.0).abs() < 0.5),
+        "{heard:?} {:?}",
+        app.message
+    );
+    let _ = std::fs::remove_dir_all(&base);
+}
+
 /// A Quick Listen kept in Unsorted Takes with 9 s heard, its save into
 /// the take of the last 6 s held part way, as a long copy would be, until
 /// the sender returned sends (or 10 s pass); 2 s more heard since.

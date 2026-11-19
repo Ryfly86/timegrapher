@@ -841,12 +841,13 @@ impl TimegrapherApp {
             ui.add_space(4.0);
             // A copy of a take recording into its folder: the take keeps
             // all but its last few seconds. One rule, the notice's.
-            let copy = self
-                .kept
-                .iter()
-                .any(|k| k.dir == dir && k.streamed_to.is_some());
+            let kept = self.kept.iter().find(|k| k.dir == dir);
+            let copy = kept.is_some_and(|k| k.streamed_to.is_some());
+            let partial = kept.is_some_and(|k| k.partial);
             ui.label(if copy {
                 "Its take keeps all of it but the last few seconds, which can't be got back."
+            } else if partial {
+                "This last part was never saved anywhere else, so it can't be got back."
             } else {
                 "It was never saved anywhere else, so it can't be got back."
             });
