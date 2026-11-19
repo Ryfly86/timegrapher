@@ -883,20 +883,20 @@ fn a_saved_takes_cards_read_past_a_silent_tail() {
         eprintln!("SKIP: set TIMEGRAPHER_CORPUS to read saved takes");
         return;
     };
-    // 30 s of a Datejust then a quiet stand: 9.7 s, Walter 15's take,
+    // 30 s of a watch then a quiet stand: 9.7 s, as Walter 15's take,
     // just under Average Over, so the watch verdict still hears the watch
     // before it with no beat in the stretch; 10 s; 10 s with the capture
     // stalled 2 s at 31 s, so the quiet after that break still awaits its
-    // verdict. And the ETA with 10 s, and 70 s, longer than every Average
-    // Over. At 1 min that last take reads its last beat, which the hiss
-    // makes a stray one, as a take just stopped does on main (#2081).
-    let dj = "datejust41_3235_multipos_105min/raw";
+    // verdict. And 70 s, longer than every Average Over. At 1 min that one
+    // reads its last beat, which the hiss makes a stray one, as a take
+    // just stopped does on main (#2081). Takes the PR corpus cut holds.
+    let pepsi = "pepsi3285_DU_10min_newstand_firsttest";
     let eta = "eta2824_bare_DU_10min_g4";
     let both: &[f64] = &[10.0, 60.0];
     let takes = [
-        (dj, 0.0, 9.7, None, both),
-        (dj, 0.0, 10.0, None, both),
-        (dj, 0.0, 10.0, Some((31.0, 2.0)), &[10.0][..]),
+        (pepsi, 60.0, 9.7, None, both),
+        (pepsi, 60.0, 10.0, None, both),
+        (pepsi, 60.0, 10.0, Some((31.0, 2.0)), &[10.0][..]),
         (eta, 200.0, 10.0, None, both),
         (eta, 200.0, 70.0, None, &[10.0][..]),
     ];
