@@ -1374,9 +1374,13 @@ impl LiveAnalyzer {
     ) -> (Vec<&AmplitudeWindow>, Option<std::ops::Range<usize>>) {
         let longer = (average_s < measure::SHORT_SPAN_S)
             .then(|| self.stretch_at(end_s - measure::SHORT_SPAN_S, end_s));
-        let from = longer.as_ref().map_or(st.from, |a| a.from);
+        // The longer stretch's own holes: a gap before the average's
+        // start but within the 10 s is not in `st`'s.
+        let (from, holes) = longer
+            .as_ref()
+            .map_or((st.from, &st.holes), |a| (a.from, &a.holes));
         let wins =
-            crate::session::stretch_windows(&st.holes, self.amp_within(from, end_s), from, end_s);
+            crate::session::stretch_windows(holes, self.amp_within(from, end_s), from, end_s);
         (wins, longer.map(|a| a.lo..a.hi))
     }
 

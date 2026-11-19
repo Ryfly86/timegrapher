@@ -559,8 +559,9 @@ break or a move, up to five minutes), scaled to the averaging time. Each
 it from the 30 nearest in the take, so the rate's ± waits for about
 5 min of beats and the others for about a minute (#1470). The Rate
 figure's hover says how many of the 30 there are so far. What the ± can't show is named, as a
-plain fact, in a chip beside the reading's caption, with its sentence on
-hover (a click keeps it open, as the ? does; with several, the chip
+plain fact, in a chip with its sentence on hover: beside the reading's
+caption when it limits that card alone, and otherwise once, in a chip in
+the status bar headed "About the readings shown:", #1975 (a click keeps it open, as the ? does; with several, the chip
 shows the first and how many more, "12 s of Beats +1", and the hover
 lists them all; with no room for its words beside the caption, the
 caption's hover gives them): "12 s of beats" when the beats span under 10 s, "540 of 600
@@ -1079,9 +1080,9 @@ afresh. Do this after changing the microphone or sound card behind an
 input's name.
 
 **Clipping.** Whenever a beat in the readings has a clipped sample in
-its sound, counted as `timegrapher analyze` counts them, the Amplitude
-and Beat Error cards say so in a chip, **3% Clipped**, its hover saying
-why it matters. Clipping flattens the loudest part of each tick, which
+its sound, counted as `timegrapher analyze` counts them, the status bar
+says so once, for the Amplitude and Beat Error it limits, in a chip,
+**3% Clipped**, its hover saying why it matters. Clipping flattens the loudest part of each tick, which
 moves the drop and so the amplitude and the beat error; the rate is
 unaffected. The chip follows the readings: it shows while the beats
 being averaged clip and goes when they no longer do. The peak meter, in

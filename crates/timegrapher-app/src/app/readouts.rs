@@ -178,14 +178,15 @@ pub(super) fn rate_pm_words(r: &LiveReading) -> Option<String> {
 
 /// What the Amplitude figure's ± rests on, or why there is none, for the
 /// figure's hover (#1470), as [`rate_pm_words`] says the rate's.
-pub(super) fn amplitude_pm_words(r: &LiveReading) -> Option<String> {
+pub(super) fn amplitude_pm_words(r: &LiveReading, average_s: f64) -> Option<String> {
     use timegrapher_core::confidence::{NoPm, MIN_NOISE_VALUES as NEED, MIN_VALUES};
     r.amplitude_deg?;
+    let stretch = amplitude_stretch_words(average_s);
     Some(match r.amplitude_error_deg {
         Some(se) => format!(
             "± {}° is one standard error ({se:.2}, rounded up). It comes from at \
-             least {NEED} readings of 2 s each: this average's, or if it has fewer, \
-             the {NEED} nearest in this take.",
+             least {NEED} readings of 2 s each: those in {stretch}, or if it has \
+             fewer, the {NEED} nearest in this take.",
             pm_text(se, base::AMPLITUDE)?
         ),
         None if r.amplitude_no_pm == Some(NoPm::Repeats) => NoPm::REPEATS_TEXT.to_string(),
@@ -195,7 +196,7 @@ pub(super) fn amplitude_pm_words(r: &LiveReading) -> Option<String> {
             r.amplitude_noise_values
         ),
         None => format!(
-            "No ± now: {} of the 2 s readings in this average found the amplitude, \
+            "No ± now: {} of the 2 s readings in {stretch} found the amplitude, \
              and a ± needs {MIN_VALUES}.",
             r.amplitude_values
         ),
@@ -349,8 +350,9 @@ pub(crate) fn limits_chip_words(
         .unwrap_or_default()
 }
 
-/// The heading of the take-wide caveats' hover in the status bar.
-pub(crate) const TAKE_CAVEATS_TITLE: &str = "About the whole take:";
+/// The heading of the status bar hover on the caveats that limit more
+/// than one card of the reading shown (Walter, #2015).
+pub(crate) const SHOWN_CAVEATS_TITLE: &str = "About the readings shown:";
 
 /// A card title's caption font.
 fn caption_font() -> egui::FontId {
@@ -394,14 +396,42 @@ fn with_moment(moment: Option<&str>, hover: &str) -> String {
 }
 
 /// The whole take's reading, for a figure's hover.
-fn whole_text(whole_breaks: &str, figure: String, spread: Option<String>, span: f64) -> String {
+/// Where the amplitude and the unlock beat error are read: the average,
+/// or the last 10 s where the average is shorter (#1951).
+fn amplitude_stretch_words(average_s: f64) -> &'static str {
+    if average_s < measure::SHORT_SPAN_S {
+        "the last 10 s"
+    } else {
+        "this average"
+    }
+}
+
+/// The whole take's figure for a card's hover, after the big figure's
+/// own stretch, `big`: "the stretch of Average Over", or for a figure
+/// read over at least 10 s, "the last 10 s" (#1951).
+fn whole_text(
+    whole_breaks: &str,
+    figure: String,
+    spread: Option<String>,
+    (span, big): (f64, &str),
+) -> String {
     let spread = spread.map_or_else(String::new, |s| format!(", {s}"));
     format!(
-        "\n\nWhole take {figure}{spread} over {}. The big figure is the stretch of \
-         Average Over ending at the strip's newest edge; this is the take in this position, settling left out, read \
+        "\n\nWhole take {figure}{spread} over {}. The big figure is {big} \
+         ending at the strip's newest edge; this is the take in this position, settling left out, read \
          as the command line reads it.{whole_breaks}",
         length_text(span)
     )
+}
+
+/// The big figure's stretch, as [`whole_text`] names it: the amplitude's
+/// and the unlock's are at least 10 s (#1951).
+fn big_stretch(average_s: f64, floored: bool) -> &'static str {
+    if floored && average_s < measure::SHORT_SPAN_S {
+        "the last 10 s"
+    } else {
+        "the stretch of Average Over"
+    }
 }
 
 impl TimegrapherApp {
@@ -550,7 +580,7 @@ impl TimegrapherApp {
                 &c.whole_breaks,
                 true_minus(&format!("{} s/d", with_pm(v, se, base::RATE, true))),
                 spread,
-                w.span,
+                (w.span, big_stretch(self.average_s, false)),
             );
         }
         // In the unit's place: what the reading waits on, or why it is
@@ -754,13 +784,17 @@ impl TimegrapherApp {
                 format!("2 s windows {}° to {}°", deg(a), deg(b))
             });
             let text = format!("{}°", with_pm(v, se, base::AMPLITUDE, false));
-            behind += &whole_text(&c.whole_breaks, text, spread, w.span);
+            let big = big_stretch(self.average_s, true);
+            behind += &whole_text(&c.whole_breaks, text, spread, (w.span, big));
         }
         behind += &format!(
             " Worked out with a lift angle of {}°, on the Calibre card.",
             fields::plain(lift_now)
         );
-        if let Some(t) = r.filter(|_| c.heard).and_then(amplitude_pm_words) {
+        if let Some(t) = r
+            .filter(|_| c.heard)
+            .and_then(|r| amplitude_pm_words(r, self.average_s))
+        {
             behind += &format!("\n\n{t}");
         }
         let (fig, spark, place) = sparkline::lay(rows.inner, rows.figure, rows.controls);
@@ -824,7 +858,9 @@ impl TimegrapherApp {
         if let Some((w, v)) = whole.as_ref().and_then(|w| Some((w, w.m.beat_error()?))) {
             let se = w.m.confidence.and_then(|c| c.beat_error.se);
             let text = format!("{} ms", with_pm(v, se, base::BEAT_ERROR, false));
-            from += &whole_text(&c.whole_breaks, text, None, w.span);
+            // The unlock's stretch where it gives the figure (#1951).
+            let big = big_stretch(self.average_s, unlock.is_some());
+            from += &whole_text(&c.whole_breaks, text, None, (w.span, big));
             if w.m.caveats.contains(&Caveat::BeatErrorAsSize) {
                 from += &format!(
                     " The {WHOLE_AS_SIZES}, so the sizes either side are combined \
@@ -1133,7 +1169,7 @@ impl TimegrapherApp {
     /// or on the take, once, in the status bar after the take's state: a
     /// chip in the cards' step-down, each one's sentence on its hover
     /// (Hugh, #1975).
-    fn take_caveats_chip(&self, ui: &mut egui::Ui) {
+    fn shown_caveats_chip(&self, ui: &mut egui::Ui) {
         let r = self.card_reading();
         let r = r.as_ref().filter(|r| heard(Some(r)));
         let amplitude_empty = r.and_then(|r| r.amplitude_deg).is_none();
@@ -1146,7 +1182,7 @@ impl TimegrapherApp {
         let room = ui.available_width();
         let words = limits_chip_words(&limits, |w| theme::chip_w(ui, w) <= room);
         let sentences: Vec<String> = limits.into_iter().map(|l| l.1).collect();
-        theme::chip(ui, &words, TAKE_CAVEATS_TITLE, &sentences, room);
+        theme::chip(ui, &words, SHOWN_CAVEATS_TITLE, &sentences, room);
     }
 
     pub(super) fn status_bar(&mut self, ui: &mut egui::Ui) {
@@ -1434,7 +1470,7 @@ impl TimegrapherApp {
     /// signal.
     pub(super) fn status_facts(&self, ui: &mut egui::Ui) {
         let pal = theme::pal(ui);
-        self.take_caveats_chip(ui);
+        self.shown_caveats_chip(ui);
         if let Some(b) = &self.batch {
             let done = f64::from_bits(b.progress.load(std::sync::atomic::Ordering::Relaxed));
             let frac = b.duration_s.map_or(0.0, |d| (done / d).clamp(0.0, 1.0));

@@ -99,8 +99,8 @@ fn a_reading_says_what_limits_it_as_facts() {
         Caveat::LiftUnknown,
         Caveat::ClockUnknown,
     ];
-    // A short stretch bears on the whole take: said once, in the status
-    // bar, and on no card (#1975).
+    // A short stretch bears on every card of the reading shown: said once,
+    // in the status bar, and on no card (#1975).
     for title in ["Rate", "Amplitude", "Beat Error"] {
         assert!(
             reading_limits(title, &caveats, 52.0, 30, false).is_empty(),
@@ -757,7 +757,7 @@ fn the_amplitude_hover_says_why_it_has_no_plus_minus() {
     let mut early = r.clone();
     (early.amplitude_error_deg, early.amplitude_noise_values) = (None, 12);
     assert_eq!(
-        readouts::amplitude_pm_words(&early).as_deref(),
+        readouts::amplitude_pm_words(&early, 10.0).as_deref(),
         Some("± after 1 min of beats: it needs 30 readings of 2 s each, and has 12.")
     );
     let mut few = r.clone();
@@ -767,15 +767,18 @@ fn the_amplitude_hover_says_why_it_has_no_plus_minus() {
         few.amplitude_values,
     ) = (None, 30, 2);
     assert_eq!(
-        readouts::amplitude_pm_words(&few).as_deref(),
+        readouts::amplitude_pm_words(&few, 10.0).as_deref(),
         Some(
             "No ± now: 2 of the 2 s readings in this average found the amplitude, \
              and a ± needs 3."
         )
     );
+    // Under 10 s the readings are the last 10 s's, as the figure's (#1951).
+    assert!(readouts::amplitude_pm_words(&few, 2.0)
+        .is_some_and(|w| w.starts_with("No ± now: 2 of the 2 s readings in the last 10 s")));
     let mut with = r.clone();
     with.amplitude_error_deg = Some(12.4);
-    let words = readouts::amplitude_pm_words(&with).unwrap();
+    let words = readouts::amplitude_pm_words(&with, 10.0).unwrap();
     assert!(
         words.starts_with("± 13° is one standard error (12.40, rounded up)."),
         "{words}"
@@ -808,12 +811,12 @@ fn a_figure_whose_readings_repeat_says_so() {
         amp.amplitude_no_pm,
     ) = (None, 30, 30, Some(NoPm::Repeats));
     assert_eq!(
-        readouts::amplitude_pm_words(&amp).as_deref(),
+        readouts::amplitude_pm_words(&amp, 10.0).as_deref(),
         Some(NoPm::REPEATS_TEXT)
     );
     // The waiting reasons keep their words.
     amp.amplitude_no_pm = Some(NoPm::TooFew);
-    assert!(readouts::amplitude_pm_words(&amp)
+    assert!(readouts::amplitude_pm_words(&amp, 10.0)
         .is_some_and(|w| w.starts_with("No ± now: 30 of the 2 s readings")));
 }
 
