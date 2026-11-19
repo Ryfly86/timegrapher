@@ -1825,15 +1825,17 @@ fn the_hollow_note_keeps_clear_of_the_allan_plots_other_labels() {
         snippets: Vec::new(),
     };
     let mut s = compute(&log, None);
-    // The deviation runs along the independent line, its last point,
-    // on too few differences, just under the line's end: where the dashed
-    // line's name goes.
+    // The deviation runs above the independent line, its last point, on
+    // too few differences, just over the line's end. The trace falls to
+    // it from above left, so the note's first clear place off the trace
+    // alone is below left, on the dashed line's name: only keeping off
+    // that name moves it (Trevor on #2012).
     let tau: Vec<f64> = (0..8).map(|i| 10.0 * 2f64.powi(i)).collect();
     let white: Vec<f64> = tau.iter().map(|t| 1.0 / (t / 10.0).sqrt()).collect();
     let deviation: Vec<f64> = white
         .iter()
         .enumerate()
-        .map(|(i, w)| if i < 7 { w * 1.02 } else { w * 0.95 })
+        .map(|(i, w)| if i < 7 { w * 1.3 } else { w * 1.1 })
         .collect();
     let pairs: Vec<usize> = (0..8)
         .map(|i| if i < 7 { 4000 >> i } else { JUDGED - 1 })
