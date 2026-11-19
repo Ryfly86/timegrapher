@@ -61,6 +61,12 @@ pub(super) fn card_wait(
     })
 }
 
+/// Whether a reading's stretch holds no beat at all: no beat rate found,
+/// or none of its beats in the stretch (an opened recording of silence).
+fn no_beat(r: &LiveReading) -> bool {
+    r.bph.is_none() || r.beats_used == 0
+}
+
 /// A wait's short words and its hover sentence, as core gives them.
 fn wait_words(w: measure::Wait) -> (String, String) {
     (w.title(), w.text())
@@ -548,7 +554,7 @@ impl TimegrapherApp {
             Wait::NoBeatsHeard
         };
         if let Some(r) = r {
-            return r.bph.is_none().then(|| wait_words(quiet));
+            return no_beat(r).then(|| wait_words(quiet));
         }
         // At the moment the cards show: the strip's newest edge when it
         // is moved back, as `card_reading` reads it.
@@ -556,7 +562,7 @@ impl TimegrapherApp {
             Some(_) => self.strip_end_s(),
             None => self.latest_s(),
         };
-        let Some(left_s) = self.session.settling_left(at) else {
+        let Some(left_s) = self.settle_left_at(at) else {
             let w = if self.ready_test().is_some() {
                 Wait::TestStart
             } else if self.batch.is_some() {
@@ -568,11 +574,87 @@ impl TimegrapherApp {
             };
             return Some(wait_words(w));
         };
-        let (title, text) = wait_words(Wait::Settling { left_s });
-        Some((
+        Some(self.settle_words(left_s))
+    }
+
+    /// That the Rate figure `rate` is on the sound card's clock until the
+    /// recording's own is read (#1721): only with a figure it is about,
+    /// as a wait has none (Walter on #2036, where a cleared take's clock
+    /// line followed New Session).
+    pub(super) fn clock_not_yet(&self, rate: Option<f64>) -> Option<String> {
+        rate.and_then(|_| self.live_usb_not_yet())
+    }
+
+    /// The settle's wait, with the Settle note after its sentence.
+    fn settle_words(&self, left_s: f64) -> (String, String) {
+        let (title, text) = wait_words(measure::Wait::Settling { left_s });
+        (
             title,
             format!("{text}\n\n{}", settle_hint(self.session.settle_len())),
-        ))
+        )
+    }
+
+    /// Seconds of settling still to come at `at`: after a move, as the
+    /// session keeps them, or a guided test's opening settle in its first
+    /// position, which no move starts (Walter on #2036).
+    fn settle_left_at(&self, at: f64) -> Option<f64> {
+        self.session
+            .settling_left(at)
+            .or_else(|| self.test_settle_left(at))
+    }
+
+    /// A guided test's own settle still to come at `at`, while it listens.
+    pub(super) fn test_settle_left(&self, at: f64) -> Option<f64> {
+        self.guided
+            .as_ref()
+            .filter(|_| self.test_listening())
+            .and_then(|t| t.settling_left(at))
+    }
+
+    /// The reading the reading cards show, whether a watch is heard in
+    /// it, and what every card says in its figure's place when it has
+    /// none: a settle, no regular beat, Finding the Beat, Listening, or
+    /// another wait (#2007).
+    fn cards_state(
+        &self,
+        r: Option<LiveReading>,
+    ) -> (Option<LiveReading>, bool, Option<(String, String)>) {
+        // A reading whose beats scatter like noise is no watch: no figures
+        // then, only a word saying so where the unit goes.
+        // A regular beat just heard after noise or silence is still being
+        // found: a wait, not that verdict (#2008).
+        // A guided test's opening settle, which no move starts: nothing is
+        // read in it, as in a move's (Walter on #2036).
+        let opening = self
+            .test_settle_left(self.latest_s())
+            .filter(|_| self.strip_end.is_none());
+        let r = r.filter(|_| opening.is_none());
+        // A stretch with no beat at all is no beat heard, not an
+        // irregular one (Walter on #2036).
+        let none = r.as_ref().is_some_and(no_beat);
+        let heard = heard(r.as_ref()) || none;
+        let finding = r.as_ref().is_some_and(|r| r.finding_beat);
+        let (unheard_line, unheard_hover) = if finding {
+            (
+                timegrapher_core::measure::FINDING_TITLE.to_string(),
+                timegrapher_core::measure::finding_text(),
+            )
+        } else {
+            (
+                timegrapher_core::measure::NO_WATCH_TITLE.to_string(),
+                format!(
+                    "{}.\n\n{}",
+                    r.as_ref().map(no_regular_beat).unwrap_or_default(),
+                    *help::NO_REGULAR_BEAT
+                ),
+            )
+        };
+        let unheard = opening
+            .map(|left_s| self.settle_words(left_s))
+            .or_else(|| (!heard).then(|| (unheard_line.clone(), unheard_hover.clone())))
+            .or_else(|| self.listening(r.as_ref()))
+            .or_else(|| self.waiting(r.as_ref()));
+        (r, heard, unheard)
     }
 
     /// The reading cards across the top: Current Position, Listen, then
@@ -591,31 +673,7 @@ impl TimegrapherApp {
         let compact = widths[2] < READING_FULL_W;
         let h = self.readings_card_h(ui.ctx());
         let cards = lay_cards(ui, (total, h), widths, gap, pal);
-        // A reading whose beats scatter like noise is no watch: no figures
-        // then, only a word saying so where the unit goes.
-        // A regular beat just heard after noise or silence is still being
-        // found: a wait, not that verdict (#2008).
-        let heard = heard(r.as_ref());
-        let finding = r.as_ref().is_some_and(|r| r.finding_beat);
-        let (unheard_line, unheard_hover) = if finding {
-            (
-                timegrapher_core::measure::FINDING_TITLE.to_string(),
-                timegrapher_core::measure::finding_text(),
-            )
-        } else {
-            (
-                timegrapher_core::measure::NO_WATCH_TITLE.to_string(),
-                format!(
-                    "{}.\n\n{}",
-                    r.as_ref().map(no_regular_beat).unwrap_or_default(),
-                    *help::NO_REGULAR_BEAT
-                ),
-            )
-        };
-        let unheard = (!heard)
-            .then(|| (unheard_line.clone(), unheard_hover.clone()))
-            .or_else(|| self.listening(r.as_ref()))
-            .or_else(|| self.waiting(r.as_ref()));
+        let (r, heard, unheard) = self.cards_state(r);
         let r = r.as_ref().filter(|_| heard);
         let caveats = self.shown_caveats(r);
         let caveats = &caveats[..];
@@ -764,7 +822,7 @@ impl TimegrapherApp {
         }
         // Live, before the recording's own clock is read: first, so the
         // figure isn't taken for the one the take will read (#1721).
-        if let Some(n) = self.live_usb_not_yet() {
+        if let Some(n) = self.clock_not_yet(rate) {
             behind = format!("{n}\n\n{}", behind.trim_start());
         }
         let (fig, spark, place) = sparkline::lay(rows.inner, rows.figure, rows.controls);

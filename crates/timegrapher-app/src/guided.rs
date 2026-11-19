@@ -522,6 +522,18 @@ impl Test {
         self.order().get(self.step + 1).copied()
     }
 
+    /// Seconds of this step's settle still to come at `now`, as
+    /// [`Test::tick`] finds them, without moving the test on: the cards
+    /// show the test's opening settle as they do a move's (Walter on
+    /// #2036).
+    pub fn settling_left(&self, now: f64) -> Option<f64> {
+        if self.readings.is_some() || self.paused.is_some() {
+            return None;
+        }
+        let (from, _) = self.window(self.start?);
+        (now < from).then_some(from - now)
+    }
+
     /// Move the test on to `now`, seconds of the session's sound. Records
     /// the position's measured stretch once it is complete.
     pub fn tick(&mut self, now: f64) -> Phase {

@@ -2021,3 +2021,99 @@ fn waiting_for_more_beats_shows_whole_at_every_width() {
     }
     assert_eq!(words.join(" "), "More Beats");
 }
+
+/// A Positions Test's opening settle, in its first position, which no
+/// move starts: every reading card counts it down as a move's settle,
+/// not "Listening", and shows no figure in it (Walter on #2036).
+#[test]
+fn a_tests_opening_settle_counts_down_on_every_card() {
+    let ctx = themed();
+    let base = std::env::temp_dir().join(format!("tg-open-settle-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "opening".into());
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let cfg = SynthConfig {
+        duration_s: 17.0,
+        rate_s_per_day: 5.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let live = app.live.as_mut().expect("live");
+    audio.samples.chunks(960).for_each(|b| {
+        live.push(b);
+    });
+    // Started at 2 s with a 20 s settle, which ends at 22 s.
+    let mut test = guided::Test::new().timed(20.0, 60.0);
+    test.tick(2.0);
+    app.guided = Some(test);
+    let now = app.latest_s();
+    assert!(app.session.settling_left(now).is_none(), "no move");
+    let left = app.test_settle_left(now).expect("settling");
+    assert!((left - (22.0 - now)).abs() < 1e-9, "{left} at {now}");
+    let title = timegrapher_core::measure::Wait::Settling { left_s: left }.title();
+    let (head, secs) = title.split_once(' ').expect("two words");
+    let text = cards_text(&app, &ctx);
+    assert_eq!(painted(&text, head), 3, "{text}");
+    assert_eq!(painted(&text, secs), 3, "{text}");
+    assert!(
+        !text.contains("Listening") && !text.contains("s/d"),
+        "{text}"
+    );
+    // From 22 s the test measures: its settle is over.
+    assert!(app.test_settle_left(22.0).is_none());
+    // Not listening, a test's settle says nothing to the cards.
+    app.stop();
+    assert!(app.test_settle_left(now).is_none());
+    drop(_tx);
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// An opened recording with no beat in it says "No Beats Heard" on every
+/// card, not "No Regular Beat", which is about beats that are there
+/// (Walter on #2036).
+#[test]
+fn an_opened_recording_of_silence_says_no_beats_heard() {
+    let ctx = themed();
+    let mut app = synthetic(30.0, 5.0);
+    let log = timegrapher_core::stream::BeatLog {
+        lock_template_kept: false,
+        sample_rate: 48_000,
+        duration_s: 60.0,
+        bph: 21_600,
+        lift_deg: 52.0,
+        beats: Vec::new(),
+        amplitude_windows: Vec::new(),
+        clipped_beats: Vec::new(),
+        clipped_samples: 0,
+        jumps: Vec::new(),
+        sided: Vec::new(),
+        by_count: Vec::new(),
+        snippets: Vec::new(),
+    };
+    app.live = Some(timegrapher_core::live::LiveAnalyzer::from_log(
+        log,
+        timegrapher_core::live::LiveConfig::default(),
+    ));
+    app.strip_end = Some(40.0);
+    assert!(!app.running());
+    let r = app.card_reading().expect("a reading");
+    assert_eq!(r.beats_used, 0, "{r:?}");
+    let text = cards_text(&app, &ctx);
+    assert_eq!(painted(&text, "No Beats"), 3, "{text}");
+    assert_eq!(painted(&text, "Heard"), 3, "{text}");
+    assert!(!text.contains("Regular"), "{text}");
+}
+
+/// After New Session no figure is shown, so the sound card's clock line
+/// a cleared take left behind isn't in the Rate card's hover; with a
+/// figure it is (Walter on #2036, #1721).
+#[test]
+fn a_wait_carries_no_clock_line() {
+    let mut app = synthetic(30.0, 5.0);
+    app.new_session();
+    app.live_usb = Some(super::live_usb::LiveUsb::new(48_000));
+    assert!(app.live_usb_not_yet().is_some());
+    assert_eq!(app.clock_not_yet(None), None);
+    assert_eq!(app.clock_not_yet(Some(5.0)), app.live_usb_not_yet());
+}

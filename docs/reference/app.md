@@ -2204,14 +2204,16 @@ reading waits on in the unit's place, in short words, the same on the
 Rate, Amplitude and Beat Error cards (core `measure::Wait`, #2007), and
 the full sentence in the hover, saying what the figures need and, where
 it can, when reading starts: "Settling, 20 s" counting down while the watch settles
-after a move; "Waiting for Beats" while listening with no beat heard at
+after a move, or in a guided test's first position (no figure is shown
+in either); "Waiting for Beats" while listening with no beat heard at
 all; "Waiting for More Beats" on a card whose figure needs more beats
 than a short stretch holds yet ("More Beats" where those words don't
 fit at the card's size); "Waiting for Start" while a test is set up;
 "Analysing" while a recording is read; "Not Listening" when nothing is
 listened to and no recording is open, as after New Session while
 stopped; and "No Beats Heard", a fact rather than a wait, for a stopped
-take or an opened recording with no beat in the stretch read.
+take or an opened recording with no beat in the stretch read (not "No
+Regular Beat", which is about beats that are there).
 Stopped during a settle, the Rate card says "Before the Move".
 With no regular beat, the reading cards say "No Regular Beat" there, with
 the full sentence and the timing scatter in the hover. A regular beat
