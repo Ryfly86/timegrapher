@@ -16,8 +16,8 @@ use serde::Serialize;
 
 use crate::chart_scale;
 use crate::session::{
-    group_mean, sourced_indices_over, Position, PositionGroup, PositionValue, SourcedFigures,
-    StateIndices,
+    group_mean, has_mean, sourced_indices_over, Position, PositionGroup, PositionValue,
+    SourcedFigures, StateIndices,
 };
 use crate::steadiness::SeriesKind;
 
@@ -157,17 +157,47 @@ pub fn value_axis(kind: SeriesKind, values: &[f64]) -> Option<[f64; 3]> {
     Some([lo, hi, step])
 }
 
-/// How many positions of `group` (all, for none) have a `kind` figure.
-fn figures_in(
-    positions: &[PositionValue],
-    kind: SeriesKind,
-    group: Option<PositionGroup>,
-) -> usize {
-    positions
-        .iter()
-        .filter(|v| group.is_none_or(|g| PositionGroup::of(v.position) == g))
-        .filter(|v| figure(v, kind).is_some())
-        .count()
+/// The Average, Vertical and Horizontal lines of `state`'s `kind`, each
+/// where its group has a mean ([`has_mean`]).
+fn average_lines(state: &StateIndices, kind: SeriesKind) -> Vec<AverageLine> {
+    [
+        (AverageOf::All, AVERAGE, None),
+        (
+            AverageOf::Vertical,
+            PositionGroup::Vertical.name(),
+            Some(PositionGroup::Vertical),
+        ),
+        (
+            AverageOf::Horizontal,
+            PositionGroup::Horizontal.name(),
+            Some(PositionGroup::Horizontal),
+        ),
+    ]
+    .into_iter()
+    // A mean of one position is that position: no line until two are read
+    // (#1959, Walter on #2013).
+    .filter(|&(_, _, group)| {
+        has_mean(
+            state
+                .positions
+                .iter()
+                .filter(|v| group.is_none_or(|g| PositionGroup::of(v.position) == g))
+                .map(|v| figure(v, kind)),
+        )
+    })
+    .filter_map(|(of, name, group)| {
+        let value = group_mean(&state.positions, kind, group).filter(|x| x.is_finite())?;
+        let text = screen(kind, value);
+        Some(AverageLine {
+            of,
+            name,
+            value,
+            hover: format!("{name} {text}"),
+            figure: bare(kind, value),
+            text,
+        })
+    })
+    .collect()
 }
 
 /// The least span of a measure's value axis: 10 s/d, 10° or 0.2 ms, so a
@@ -264,36 +294,7 @@ pub fn position_line_over(
             });
         }
     }
-    let averages: Vec<AverageLine> = [
-        (AverageOf::All, AVERAGE, None),
-        (
-            AverageOf::Vertical,
-            PositionGroup::Vertical.name(),
-            Some(PositionGroup::Vertical),
-        ),
-        (
-            AverageOf::Horizontal,
-            PositionGroup::Horizontal.name(),
-            Some(PositionGroup::Horizontal),
-        ),
-    ]
-    .into_iter()
-    // A mean of one position is that position: no line until two are read
-    // (#1959, Walter on #2013).
-    .filter(|&(_, _, group)| figures_in(&state.positions, kind, group) >= 2)
-    .filter_map(|(of, name, group)| {
-        let value = group_mean(&state.positions, kind, group).filter(|x| x.is_finite())?;
-        let text = screen(kind, value);
-        Some(AverageLine {
-            of,
-            name,
-            value,
-            hover: format!("{name} {text}"),
-            figure: bare(kind, value),
-            text,
-        })
-    })
-    .collect();
+    let averages = average_lines(state, kind);
     let drawn: Vec<f64> = lanes
         .iter()
         .flat_map(|l| [l.value, l.full_wind])

@@ -1381,8 +1381,9 @@ fn table_grid(
             }
             tops.push(ui.cursor().top());
             // A mean of one position is that position: the Average comes
-            // with the second (#1959).
-            if t.rows.len() >= 2 {
+            // with the second (#1959), as From Average and the plots' line.
+            let averaged = session::has_mean(t.rows.iter().map(|r| r.1));
+            if averaged {
                 ui.label(RichText::new(mean_word).strong().color(pal.text));
                 blank(ui);
                 right_in(ui, fw, signed(t.mean_rate, RATE), true, pal.text);
@@ -1392,7 +1393,7 @@ fn table_grid(
                     .on_hover_text(&t.beat_error_summary);
                 ui.end_row();
             }
-            if t.rows.len() >= 2 && !poise {
+            if averaged && !poise {
                 largest_row(ui, t, fw);
             }
         });
@@ -2189,8 +2190,9 @@ fn table_of(figures: &[SourcedFigures], mut notes: Vec<String>, kind: Kind) -> T
     let ix = session::sourced_indices_over(None, figures, &over);
     let beat_error_summary = ix.beat_error_summary();
     notes.extend((!figures.is_empty()).then(|| beat_error_summary.clone())); // #1911
-                                                                             // From Average only once there is an average of two (#1959).
-    let rated = figures.iter().filter(|f| f.1.is_some()).count();
+
+    // From Average only once there is an average (#1959).
+    let averaged = session::has_mean(figures.iter().map(|f| f.1));
     Table {
         beat_error_hovers: figures
             .iter()
@@ -2207,7 +2209,7 @@ fn table_of(figures: &[SourcedFigures], mut notes: Vec<String>, kind: Kind) -> T
                 (
                     position_label(p),
                     rate,
-                    rate.zip(ix.x).filter(|_| rated >= 2).map(|(x, x0)| x - x0),
+                    rate.zip(ix.x).filter(|_| averaged).map(|(x, x0)| x - x0),
                     amp,
                     be,
                 )

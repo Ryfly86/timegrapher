@@ -129,6 +129,17 @@ impl PositionGroup {
         }
     }
 }
+/// The fewest positions a mean is shown over: a mean of one position is
+/// that position, so the Average, its line and From Average come with the
+/// second (#1959).
+pub const MEAN_LEAST_POSITIONS: usize = 2;
+
+/// Whether `figures`, one per position, have a mean worth showing: at
+/// least [`MEAN_LEAST_POSITIONS`] of them read. The one rule for the
+/// tables' Average rows, From Average and the plots' average lines.
+pub fn has_mean<T>(figures: impl IntoIterator<Item = Option<T>>) -> bool {
+    figures.into_iter().flatten().count() >= MEAN_LEAST_POSITIONS
+}
 
 /// The mean of the positions' `kind` over `group` (all of them with
 /// `None`): the one place a state's averages are taken, the table's and

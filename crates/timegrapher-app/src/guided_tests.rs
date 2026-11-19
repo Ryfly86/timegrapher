@@ -1572,3 +1572,20 @@ fn the_pane_says_the_next_step_once_set_up() {
     assert!(!keep.is_empty());
     assert!(!keep.contains("\u{2026}."), "{keep}");
 }
+
+/// Two rows, one with no rate: no Average yet, so no From Average, by the
+/// one rule the plots' average line uses too (#1959, Vernon on #2013).
+#[test]
+fn one_rated_row_of_two_has_no_average() {
+    use timegrapher_core::session::Position as P;
+    let figures = [
+        (P::CH, Some(2.0), Some(280.0), Some(0.2), None),
+        (P::CB, None, Some(270.0), None, None),
+    ];
+    let t = table_of(&figures, Vec::new(), Kind::Positions);
+    assert!(!session::has_mean(t.rows.iter().map(|r| r.1)));
+    assert!(t.rows.iter().all(|r| r.2.is_none()), "{:?}", t.rows);
+    let both = [figures[0], (P::CB, Some(4.0), Some(270.0), Some(0.1), None)];
+    let t = table_of(&both, Vec::new(), Kind::Positions);
+    assert!(t.rows.iter().all(|r| r.2.is_some()), "{:?}", t.rows);
+}
