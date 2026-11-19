@@ -2175,7 +2175,18 @@ fn a_power_reserve_test_waits_out_an_input_stall() {
     assert!(app.capture.is_some() && app.input_fault.is_none());
     let (m, error) = app.message.clone().unwrap();
     assert!(!error && m.starts_with("No sound is arriving"), "{m}");
+    let stall = m.clone();
     assert!(m.ends_with("if none comes for 10 min."), "{m}");
+    // Sound arriving again, a late backlog with nothing lost, takes the
+    // message away (Felix on #2018).
+    app.audio_at = Some(Instant::now());
+    app.poll_for(Duration::from_millis(200));
+    assert!(app.reserve_running());
+    assert!(
+        app.message.as_ref().is_none_or(|m| m.0 != stall),
+        "{:?}",
+        app.message
+    );
     // Past a watch's own wait, the input has failed.
     let past = power_reserve::STOP_AFTER_S + 1.0;
     app.audio_at = Some(Instant::now() - Duration::from_secs_f64(past));

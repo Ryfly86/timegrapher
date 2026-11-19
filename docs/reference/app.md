@@ -2295,8 +2295,9 @@ sound arriving) ends there as Stop would end it, its take kept with its
 results: "Power reserve at least … The sound input failed while the watch still
 ran" (#1882). An input that only stalls (the computer busy, a USB hiccup) is
 waited out for as long as a watch is given without a beat, 10 min, with the
-status line saying so: the sound that comes back is a break, as after a
-sleep, so one stall never ends a run of days (#2004).
+status line saying so until sound arrives again. Any time lost is a break,
+as after a sleep, and a late backlog is read as it is, so one stall never
+ends a run of days (#2004).
 
 Copy the folder shown in the warning to a location outside the app's
 folder for unsaved sound before attempting manual recovery or cleanup; do
