@@ -193,6 +193,86 @@ pub(super) fn level_change<'a>(s: &'a SeriesCheck, cfg: &Config) -> Option<&'a C
     level_moves(s, cfg).filter(|_| s.lead != Lead::Drifting)
 }
 
+/// The adjusted share of the variance a model with `k` parameters explains
+/// on `n_eff` effective readings, 1 − (1 − R²)(n_eff − 1)/(n_eff − k − 1):
+/// R² less what that many parameters would fit in noise. None when the
+/// readings are too few to pay for the parameters.
+pub(super) fn adjusted_explained(r2: f64, k: f64, n_eff: f64) -> Option<f64> {
+    let room = n_eff - k - 1.0;
+    (room > 0.0 && r2.is_finite()).then(|| 1.0 - (1.0 - r2) * (n_eff - 1.0) / room)
+}
+
+/// Whether the trend outweighs the level change `ch` for the lead: the
+/// better of the line (2 parameters) and the curve (3) against the steps'
+/// means and times (2m − 1 for m stretches), each by its
+/// [`adjusted_explained`] on the readings' effective count. The steps win
+/// a tie, and win where the readings are too few to judge either (Norm,
+/// #1984).
+pub(super) fn slide_outweighs_steps(s: &SeriesCheck, ch: &super::Changes) -> bool {
+    adjusted_shares(s, ch).is_some_and(|(slide, steps)| slide > steps)
+}
+
+/// The adjusted shares [`slide_outweighs_steps`] weighs, (slide, steps):
+/// the better of the line's and the curve's, and the level change's.
+/// None when either can't be judged on the readings' effective count.
+pub(super) fn adjusted_shares(s: &SeriesCheck, ch: &super::Changes) -> Option<(f64, f64)> {
+    let t = s.trend.as_ref()?;
+    let n = s.effective_readings;
+    let slide = [(t.explained, 2.0), (t.curve_explained, 3.0)]
+        .into_iter()
+        .filter_map(|(r2, k)| adjusted_explained(r2, k, n))
+        .reduce(f64::max)?;
+    let k = 2.0 * ch.segments.len() as f64 - 1.0;
+    Some((slide, adjusted_explained(ch.explained, k, n)?))
+}
+
+/// Core's estimated ρ from which a step and a slide that both pass their
+/// tests are not told apart (Norm, #1984). Set from a seeded run of 200
+/// bends and 200 steps at each true ρ from 0.5 to 0.9: bends first fell
+/// under 95% right at true ρ 0.85, where core's estimate reads about 0.02
+/// high; 0.83 is that estimate's 5th percentile there.
+pub const STEP_SLIDE_RHO: f64 = 0.83;
+
+/// Whether the slide passes its own test and explains enough to name.
+pub(super) fn slide_passes(s: &SeriesCheck, cfg: &Config) -> bool {
+    trend_holds(s, cfg)
+        && s.trend
+            .as_ref()
+            .is_some_and(|t| t.explained.max(t.curve_explained) >= cfg.min_explained)
+}
+
+/// Within a tenth: a runner-up is named beside the lead only when its
+/// adjusted share is at least this share of the leader's, as "about as
+/// much" says (Norm, #1984). Never moved to pass a case.
+pub const RUNNER_UP_SHARE: f64 = 0.9;
+
+/// The runner-up the headline also names (#1984), with its adjusted share
+/// and the leader's: under a slide's lead the level change `level_moves`
+/// gives, under a level change's lead the slide its trend test passes,
+/// each only within [`RUNNER_UP_SHARE`] of the leader. One decision for
+/// Info's words and the CUSUM's corner.
+pub(super) fn runner_up<'a>(s: &'a SeriesCheck, cfg: &Config) -> Option<(&'a Changes, f64, f64)> {
+    let ch = level_moves(s, cfg)?;
+    let (slide, steps) = adjusted_shares(s, ch)?;
+    let (second, first) = match s.lead {
+        Lead::Drifting => (steps, slide),
+        Lead::ShiftingMean if slide_passes(s, cfg) => (slide, steps),
+        _ => return None,
+    };
+    (second >= RUNNER_UP_SHARE * first).then_some((ch, second, first))
+}
+
+/// A level change the headline names, as its lead or, under a slide's
+/// lead, as the runner-up it also states (#1984): the CUSUM marks its
+/// corner either way.
+pub(super) fn level_named<'a>(s: &'a SeriesCheck, cfg: &Config) -> Option<&'a Changes> {
+    level_change(s, cfg).or_else(|| {
+        runner_up(s, cfg)
+            .filter(|_| s.lead == Lead::Drifting)
+            .map(|(ch, _, _)| ch)
+    })
+}
+
 /// Whether the CUSUM's test clears `cfg.level_alpha` (#917).
 pub(super) fn level_holds(s: &SeriesCheck, cfg: &Config) -> bool {
     s.changes
@@ -216,7 +296,7 @@ fn not_significant(p: f64, bar: f64, what: &str) -> String {
 /// can say so.
 pub(super) fn mark_named(s: &mut SeriesCheck, cfg: &Config) {
     let significant = trend_holds(s, cfg);
-    let drifting = s.lead == Lead::Drifting;
+    let drifting = matches!(s.lead, Lead::Drifting | Lead::StepOrSlide);
     let levels = level_change(s, cfg).is_some() || (drifting && level_moves(s, cfg).is_some());
     let level_ok = level_holds(s, cfg);
     let bar = |x: f64, what: &str| {

@@ -497,7 +497,7 @@ fn print_cycles(s: &SeriesCheck) {
     }
     if let Some(p) = &s.period {
         println!(
-            "  {:<14} {} s{}, {} {} p-p, explains {}%, false alarm {}",
+            "  {:<14} {} s{}, {} {} sine p-p, explains {}%, false alarm {}",
             "period search",
             fixed_text(p.period_s, 1),
             p.wheel

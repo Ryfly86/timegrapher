@@ -278,6 +278,52 @@ fn a_minute_cycle_on_a_slow_trend_is_still_found() {
     assert!((lag - 60.0).abs() <= 10.0, "{lag}");
 }
 
+/// The Autocorrelation view's mark (#1984): the readings' first repeat
+/// where there is one, and else the lag nearest a cycle the
+/// autocorrelation found, so "from the autocorrelation" is never said
+/// without the mark; none for a cycle the period search found alone.
+#[test]
+fn a_cycle_found_by_the_autocorrelation_is_marked_there() {
+    let s = drifting_rate(1.5);
+    let a = s.autocorrelation.clone().unwrap();
+    let (l, r) = (a.repeat_lag_s.unwrap(), a.repeat_r.unwrap());
+    assert_eq!(s.autocorrelation_repeat(), Some((l, r)));
+    assert_eq!(s.repeat_mark, Some([l, r]));
+    let mut s = s;
+    let ac = s.autocorrelation.as_mut().unwrap();
+    (ac.repeat_lag_s, ac.repeat_r) = (None, None);
+    let c = s.cycle.as_mut().expect("the minute's cycle");
+    c.period_s = 59.95;
+    c.source = CycleSource::Autocorrelation;
+    let (l, r) = s.autocorrelation_repeat().expect("marked at the cycle");
+    assert_eq!(l, 60.0);
+    let a = s.autocorrelation.as_ref().unwrap();
+    let k = a.lag_s.iter().position(|&x| x == 60.0).unwrap();
+    assert_eq!(r, a.r[k]);
+    s.cycle.as_mut().unwrap().source = CycleSource::PeriodSearch;
+    assert_eq!(s.autocorrelation_repeat(), None);
+}
+
+/// The Cycle view states the cycle's one size, the headline's (Norm,
+/// #1984, #761): `cycle_size_text` is `peak_to_peak` as the headline
+/// writes it, and the JSON carries it.
+#[test]
+fn the_cycles_stated_size_is_its_peak_to_peak() {
+    let s = drifting_rate(1.5);
+    let c = s.cycle.as_ref().expect("the minute's cycle");
+    let size = s.cycle_size_text().unwrap();
+    assert_eq!(
+        size,
+        crate::figure_text::figure_minus(&s.series.fmt_size(c.peak_to_peak))
+    );
+    assert!(
+        s.headline.contains(&s.series.fmt_size(c.peak_to_peak)),
+        "{}",
+        s.headline
+    );
+    assert_eq!(s.screen_cycle_size.as_deref(), Some(size.as_str()));
+}
+
 fn search_line(period_s: f64, size: f64, size_unit: &'static str, wheel: Option<&str>) -> Period {
     Period {
         period_s,
@@ -313,7 +359,7 @@ fn a_fast_rate_line_is_stated_as_the_beat_timing_in_ms() {
     );
     assert_eq!(s.lead, Lead::Steady, "{}", s.headline);
     assert!(
-        s.headline.ends_with("; the beat timing repeats every 5.0 s, the escape wheel's period, 0.043 ms peak to peak; 10 s readings are too coarse to show it."),
+        s.headline.ends_with("; the beat timing repeats every 5.0 s, the escape wheel's period, 0.043 ms sine peak to peak; 10 s readings are too coarse to show it."),
         "{}",
         s.headline
     );
@@ -332,7 +378,7 @@ fn a_rate_line_of_30_s_or_more_is_stated_as_the_rate_in_s_per_day() {
         &Config::default(),
     );
     assert!(
-        s.headline.contains("; the rate repeats every 60.0 s, the fourth wheel's period, 1.20 s/d peak to peak; 30 s readings are too coarse to show it."),
+        s.headline.contains("; the rate repeats every 60.0 s, the fourth wheel's period, 1.20 s/d sine peak to peak; 30 s readings are too coarse to show it."),
         "{}",
         s.headline
     );
@@ -353,7 +399,7 @@ fn an_amplitude_line_is_judged_against_the_2_s_windows() {
         &Config::default(),
     );
     assert!(
-        s.headline.ends_with("; the amplitude repeats every 4.0 s, 0.8° peak to peak; 2 s readings are too coarse to show it."),
+        s.headline.ends_with("; the amplitude repeats every 4.0 s, 0.8° sine peak to peak; 2 s readings are too coarse to show it."),
         "{}",
         s.headline
     );
@@ -373,7 +419,7 @@ fn an_amplitude_line_is_judged_against_the_2_s_windows() {
     // The search's line is named, and the lead says nothing of cycles.
     assert!(
         s.headline.ends_with(
-            "; no level change, trend or correlation between readings detected. The amplitude's period search also finds 20.0 s (0.8° peak to peak)."
+            "; no level change, trend or correlation between readings detected. The amplitude's period search also finds 20.0 s (0.8° sine peak to peak)."
         ),
         "{}",
         s.headline
@@ -397,7 +443,7 @@ fn a_fast_line_beside_a_level_change_is_its_own_sentence() {
     );
     assert_eq!(s.lead, Lead::ShiftingMean, "{}", s.headline);
     assert!(
-        s.headline.ends_with(". The beat timing repeats every 4.0 s, the escape wheel's period, 0.043 ms peak to peak; 2 s readings are too coarse to show it."),
+        s.headline.ends_with(". The beat timing repeats every 4.0 s, the escape wheel's period, 0.043 ms sine peak to peak; 2 s readings are too coarse to show it."),
         "{}",
         s.headline
     );
@@ -584,7 +630,7 @@ fn a_search_line_the_headline_does_not_name_is_added() {
     );
     assert!(
         s.headline.ends_with(
-            " The amplitude's period search also finds 45 s (0.8° peak to peak) and 600 s."
+            " The amplitude's period search also finds 45 s (0.8° sine peak to peak) and 600 s."
         ),
         "{}",
         s.headline
@@ -1398,7 +1444,11 @@ fn a_step_in_correlated_readings_is_still_found() {
 /// Whether the headline names a level change: as its lead, or as the
 /// level also moving.
 fn headline_names_a_change(s: &SeriesCheck) -> bool {
-    s.headline.contains("shifts level") || s.headline.contains("level also moves")
+    s.headline.contains("shifts level")
+        || s.headline.contains("level also moves")
+        // Under a slide's lead, the step it also names (#1984).
+        || ((s.headline.contains("A shift at ") || s.headline.contains("Shifts at "))
+            && s.headline.contains(" about as much ("))
 }
 
 /// One rule names a level change (#697): the CUSUM marks its corner only
@@ -1478,6 +1528,138 @@ fn a_cut_series_is_a_slide_only_when_its_line_explains_at_least_as_much() {
         let t = s.trend.as_mut().unwrap();
         (t.explained, t.curve_explained) = (0.5 * ratio, 0.0);
         assert_eq!(lead(&s, &cfg), want, "line at {ratio} of the stretches");
+    }
+}
+
+/// Step against slide (Norm, #1984), the confirming run on a fresh seed
+/// set after the calibration below: 200 steps of 4σ halfway and 200
+/// bends of 4σ (a quadratic's rising half) at each true ρ from 0.5 to
+/// 0.9. Where core's estimated ρ is under [`STEP_SLIDE_RHO`], a step
+/// leads as a level change and a bend as a slide at least 95% of the time
+/// in each cell of 40 or more; at or over it, every series where both
+/// pass their tests says it can't tell. Every cell is printed.
+#[test]
+fn a_step_leads_as_a_step_and_a_bend_as_a_slide() {
+    let cfg = Config::default();
+    let mut z = Noise(2026_1984);
+    for rho in [0.5, 0.6, 0.7, 0.8, 0.85, 0.9] {
+        // (under the ρ: series, right; over it with both passing: series, can't tell)
+        let mut cells = [[0usize; 4]; 2];
+        for (shape, c) in cells.iter_mut().enumerate() {
+            for _ in 0..200 {
+                let mut g = correlated(
+                    &mut z,
+                    720,
+                    rho,
+                    if shape == 0 { 4.0 } else { 0.0 },
+                    Gaps::None,
+                );
+                if shape == 1 {
+                    for (i, v) in g.y.iter_mut().enumerate() {
+                        let t = i as f64 / 719.0;
+                        *v += 4.0 * (1.0 - (1.0 - t).powi(2));
+                    }
+                }
+                let s = check_series(SeriesKind::Rate, g, None, None, None, &[], &cfg);
+                if s.long_run_rho < STEP_SLIDE_RHO {
+                    let want = if shape == 0 {
+                        Lead::ShiftingMean
+                    } else {
+                        Lead::Drifting
+                    };
+                    c[0] += 1;
+                    c[1] += usize::from(s.lead == want);
+                } else if family::level_moves(&s, &cfg).is_some() && family::slide_passes(&s, &cfg)
+                {
+                    c[2] += 1;
+                    c[3] += usize::from(s.lead == Lead::StepOrSlide);
+                }
+            }
+        }
+        for (shape, c) in ["steps", "bends"].iter().zip(cells) {
+            println!(
+                "#1984 confirm ρ {rho} {shape}: under {} right {}; over with both {} can't tell {}",
+                c[0], c[1], c[2], c[3]
+            );
+            if c[0] >= 40 {
+                assert!(
+                    c[1] * 100 >= 95 * c[0],
+                    "ρ {rho} {shape}: {} of {}",
+                    c[1],
+                    c[0]
+                );
+            }
+            assert_eq!(
+                c[3], c[2],
+                "ρ {rho} {shape}: can't tell {} of {}",
+                c[3], c[2]
+            );
+        }
+    }
+}
+
+/// A pure slide the finder cuts into steps names no runner-up step but
+/// rarely (Norm, #1984, set before the run): the #717 shape, 0 to 4 over
+/// 720 readings with noise 0.3 at ρ 0, 0.5 and 0.9, 200 each on a fresh
+/// seed, at most 10 of 200 per cell. The cells are printed for the issue.
+#[test]
+fn a_pure_slide_rarely_names_a_runner_up_step() {
+    let cfg = Config::default();
+    let mut z = Noise(2026_1119);
+    for rho in [0.0, 0.5, 0.9] {
+        let mut named = 0;
+        for _ in 0..200 {
+            let mut g = correlated(&mut z, 720, rho, 0.0, Gaps::None);
+            for (i, v) in g.y.iter_mut().enumerate() {
+                *v = i as f64 / 180.0 + 0.3 * *v;
+            }
+            let s = check_series(SeriesKind::Rate, g, None, None, None, &[], &cfg);
+            named += usize::from(s.lead == Lead::Drifting && headline_names_a_change(&s));
+        }
+        println!("#1984 slide cell ρ {rho}: runner-up step named {named}/200");
+        assert!(named <= 10, "ρ {rho}: runner-up step named {named}/200");
+    }
+}
+
+/// The calibration run for #1984 (b), on the seen seed: bends and steps
+/// at ρ 0.5 to 0.9, each cell's leads and the median ρ core estimates.
+#[test]
+#[ignore = "calibration, run by hand for #1984"]
+fn step_and_bend_by_rho_calibration() {
+    let cfg = Config::default();
+    let mut z = Noise(1984);
+    for rho in [0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9] {
+        let (mut steps, mut bends) = (0, 0);
+        let mut est = Vec::new();
+        for _ in 0..200 {
+            let g = correlated(&mut z, 720, rho, 4.0, Gaps::None);
+            est.push(crate::confidence::long_run_rho(
+                &g.y,
+                crate::confidence::Slow::ChosenStep,
+            ));
+            let s = check_series(SeriesKind::Rate, g, None, None, None, &[], &cfg);
+            steps += usize::from(s.lead == Lead::ShiftingMean);
+            let mut g = correlated(&mut z, 720, rho, 0.0, Gaps::None);
+            for (i, v) in g.y.iter_mut().enumerate() {
+                let t = i as f64 / 719.0;
+                *v += 4.0 * (1.0 - (1.0 - t).powi(2));
+            }
+            est.push(crate::confidence::long_run_rho(
+                &g.y,
+                crate::confidence::Slow::ChosenStep,
+            ));
+            let s = check_series(SeriesKind::Rate, g, None, None, None, &[], &cfg);
+            bends += usize::from(s.lead == Lead::Drifting);
+        }
+        est.sort_by(f64::total_cmp);
+        let (lo, mid, hi) = (
+            est[est.len() / 20],
+            est[est.len() / 2],
+            est[est.len() * 19 / 20],
+        );
+        println!(
+            "CAL ρ {rho}: steps {steps}/200 bends {bends}/200, estimated ρ {lo:.3} {mid:.3} {hi:.3}"
+        );
     }
 }
 

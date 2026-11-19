@@ -249,6 +249,10 @@ enum Lead {
     /// A steady slide, such as amplitude falling as the mainspring lets
     /// down.
     Drifting,
+    /// A step and a slide both pass their tests, but the readings move
+    /// together too much (ρ at least [`family::STEP_SLIDE_RHO`]) to tell
+    /// which (Norm, #1984): neither leads, and both shares are given.
+    StepOrSlide,
     /// Readings that remember the last ones without steps, a cycle or a
     /// trend: slow, irregular wander.
     Wandering,
@@ -446,9 +450,29 @@ pub struct SeriesCheck {
     /// σ allowing for their correlation once their largest step is out
     /// ([`confidence::long_run_sd`]). The CUSUM is scaled by it.
     pub long_run_sd: Option<f64>,
+    /// The readings' effective count, n(1 − ρ)/(1 + ρ) with ρ the
+    /// corrected lag-one correlation `long_run_sd` allows for
+    /// ([`confidence::effective_readings`]): what a level change and a
+    /// slide are weighed on when they compete for the lead (#1984).
+    #[serde(skip)]
+    effective_readings: f64,
+    /// The ρ that count is worked from, core's estimate.
+    #[serde(skip)]
+    long_run_rho: f64,
     /// Null, like the other tests, when there are too few readings to
     /// search (the headline says how many).
     pub autocorrelation: Option<Autocorrelation>,
+    /// [`SeriesCheck::autocorrelation_repeat`] as [lag, r], the mark the
+    /// Autocorrelation view puts on its curve (#1984); null when none.
+    pub repeat_mark: Option<[f64; 2]>,
+    /// [`SeriesCheck::cycle_size_text`], the cycle's one stated size as a
+    /// screen shows it, for the Cycle view's note (#1984); null without a
+    /// cycle.
+    pub screen_cycle_size: Option<String>,
+    /// [`SeriesCheck::cycle_off_search`]'s period, seconds: the headline's
+    /// cycle the Periods view marks beside the search's top (#1984); null
+    /// when the two agree or there is no cycle.
+    pub cycle_off_search_s: Option<f64>,
     pub allan: Option<Allan>,
     pub cusum: Option<Cusum>,
     pub changes: Option<Changes>,
@@ -1083,7 +1107,12 @@ pub fn check_series(
         sd: mean_sd(y).map(|m| m.1),
         short_term_sd: short_term_sd(y),
         long_run_sd: None,
+        effective_readings: n as f64,
+        long_run_rho: 0.0,
         autocorrelation: None,
+        repeat_mark: None,
+        screen_cycle_size: None,
+        cycle_off_search_s: None,
         allan: None,
         cusum: None,
         changes: None,
@@ -1141,6 +1170,8 @@ pub fn check_series(
     // out (#647).
     let lr = confidence::long_run_sd(y, sst, Slow::ChosenStep);
     out.long_run_sd = Some(lr);
+    out.long_run_rho = confidence::long_run_rho(y, Slow::ChosenStep);
+    out.effective_readings = confidence::effective_readings(nf, out.long_run_rho);
     let mut walk = None;
     if lr > 0.0 {
         let scale = lr * nf.sqrt();
@@ -1248,8 +1279,8 @@ pub fn check_series(
     family::mark_named(&mut out, cfg);
     if let Some((ts, ss)) = walk {
         // The corner is marked only at a level change the headline
-        // names (#697).
-        let cuts: Vec<f64> = family::level_change(&out, cfg)
+        // names (#697), as its lead or its runner-up (#1984).
+        let cuts: Vec<f64> = family::level_named(&out, cfg)
             .iter()
             .flat_map(|c| c.segments.iter().skip(1).map(|g| g.start_s))
             .collect();
@@ -1276,8 +1307,7 @@ pub fn check_series(
 /// its own significance test.
 fn search_also(s: &SeriesCheck) -> Option<String> {
     let p = s.period.as_ref()?;
-    let span = s.readings as f64 * s.step_s;
-    let near = |a: f64, b: f64| (a - b).abs() <= (b * b / span).max(0.01 * b);
+    let near = |a: f64, b: f64| s.same_search_line(a, b);
     let named: Vec<f64> = s
         .cycle
         .iter()
@@ -1301,8 +1331,9 @@ fn search_also(s: &SeriesCheck) -> Option<String> {
             .wheel
             .as_ref()
             .map_or(String::new(), |w| format!(", the {w}'s period"));
+        // A sine's size: a plain "peak to peak" is the cycle's (#761).
         lines.push(format!(
-            "{} ({size} peak to peak{wheel})",
+            "{} ({size} sine peak to peak{wheel})",
             period(p.period_s)
         ));
     }
@@ -1344,7 +1375,10 @@ fn also(s: &SeriesCheck, cfg: &Config) -> Option<String> {
             k.fmt_size(c.peak_to_peak)
         ));
     }
-    let moves = !matches!(s.lead, Lead::ShiftingMean | Lead::Drifting);
+    let moves = !matches!(
+        s.lead,
+        Lead::ShiftingMean | Lead::Drifting | Lead::StepOrSlide
+    );
     if let Some(ch) = family::level_change(s, cfg).filter(|_| moves) {
         let lo = ch
             .segments
@@ -1361,6 +1395,9 @@ fn also(s: &SeriesCheck, cfg: &Config) -> Option<String> {
             k.fmt(lo),
             k.fmt(hi)
         ));
+    }
+    if let Some(t) = runner_up(s, cfg) {
+        out.push(t);
     }
     (!out.is_empty()).then(|| out.join(" "))
 }
@@ -1712,13 +1749,17 @@ fn lead(s: &SeriesCheck, cfg: &Config) -> Lead {
         .as_ref()
         .map_or(0.0, |t| t.explained.max(t.curve_explained));
     if let Some(ch) = family::level_moves(s, cfg) {
-        // A slide cut into steps is still a slide: whichever of the line
-        // and the steps explains more names it. A line explains a clean
-        // mid-take step about 0.75 as well, so a bar of 0.8 called 40 to
-        // 45% of 2σ steps at ρ 0.9 slides; at 1.0 a ramp cut into steps
-        // is sometimes called a level shift instead, which still says the
-        // level moved (#721).
-        return if trend >= ch.explained && family::trend_holds(s, cfg) {
+        // A slide cut into steps is still a slide, and a step is not a
+        // slide (#721, #1984): the line, the curve and the steps are
+        // weighed by their adjusted explained shares on the readings'
+        // effective count, each paying for its parameters, and a tie goes
+        // to the level change the levels test names (Norm, #1984).
+        // Too correlated to tell the two apart, when both pass their
+        // tests: neither leads (Norm, #1984).
+        if family::slide_passes(s, cfg) && s.long_run_rho >= family::STEP_SLIDE_RHO {
+            return Lead::StepOrSlide;
+        }
+        return if family::slide_outweighs_steps(s, ch) && family::trend_holds(s, cfg) {
             Lead::Drifting
         } else {
             Lead::ShiftingMean
@@ -1752,48 +1793,6 @@ fn fast_sentence(s: &SeriesCheck) -> Option<String> {
             format!("{line}.")
         }),
     }
-}
-
-fn every_text(sec: f64) -> String {
-    if sec >= 5400.0 {
-        format!("{:.1} h", sec / 3600.0)
-    } else if sec >= 120.0 {
-        format!("{:.0} min", sec / 60.0)
-    } else {
-        format!("{sec:.0} s")
-    }
-}
-
-/// The level shifts in the words both the headline and the one-line
-/// summary use, so a plot's title says what its text says: every level
-/// for a few, past that the range and the ends, each level left to the
-/// table (#734, Walter's walk of #1096).
-fn shifts_text(s: &SeriesCheck) -> String {
-    let k = s.series;
-    let ch = s.changes.as_ref().unwrap();
-    let n = ch.segments.len() - 1;
-    let times = crate::measure::plural(n);
-    if ch.segments.len() <= 4 {
-        let means: Vec<String> = ch.segments.iter().map(|g| k.fmt(g.mean)).collect();
-        return format!("shifts level {n} time{times}: {}", means.join(", then "));
-    }
-    let lo = ch
-        .segments
-        .iter()
-        .map(|g| g.mean)
-        .fold(f64::INFINITY, f64::min);
-    let hi = ch
-        .segments
-        .iter()
-        .map(|g| g.mean)
-        .fold(f64::NEG_INFINITY, f64::max);
-    format!(
-        "shifts level {n} time{times}, between {} and {}: {} at the start, {} at the end",
-        k.fmt(lo),
-        k.fmt(hi),
-        k.fmt(ch.segments[0].mean),
-        k.fmt(ch.segments[n].mean)
-    )
 }
 
 /// The lead of [`lead_text`] in a few words: what a plot's title line
@@ -1855,6 +1854,7 @@ fn lead_summary(s: &SeriesCheck) -> String {
             }
         }
         Lead::ShiftingMean => shifts_text(s),
+        Lead::StepOrSlide => "shifts level or slides".to_string(),
         Lead::Drifting => {
             let t = s.trend.as_ref().unwrap();
             if let Some((_, v)) = t.turn.filter(|_| t.curve_explained > t.explained + 0.05) {
@@ -1874,152 +1874,86 @@ fn lead_summary(s: &SeriesCheck) -> String {
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "over the limit before it was set; split it (architecture guide, section 12)"
-)]
-fn lead_text(s: &SeriesCheck, mean: f64) -> String {
-    let k = s.series;
-    let name = k.name();
-    let cap = {
-        let mut c = name.chars();
-        c.next()
-            .map_or(String::new(), |f| f.to_uppercase().chain(c).collect())
-    };
-    let every = every_text;
-    let step = every(s.step_s);
-    // Without a short-term SD the clause is left out, not written "±0".
-    let spread = s.short_term_sd.map_or(String::new(), |v| {
-        format!(", ±{} from one reading to the next", k.fmt_pm(v))
-    });
-    match s.lead {
-        // check_series states the too-short case, with its rule, before
-        // the tests run.
-        Lead::TooShort => s.headline.clone(),
-        Lead::Steady => match fast_line(s) {
-            // A period-search line the headline adds is a cycle: say
-            // nothing of cycles here.
-            None if search_also(s).is_some() => format!(
-                "{cap}: {} {step} readings, median {}{}; no level change, trend or correlation between readings detected.",
-                s.readings,
-                k.fmt(s.median.unwrap_or(mean)),
-                spread
-            ),
-            None => format!(
-                "{cap}: {} {step} readings, median {}{}; no cycle, level change, trend or correlation between readings detected.",
-                s.readings,
-                k.fmt(s.median.unwrap_or(mean)),
-                spread
-            ),
-            Some(line) => format!(
-                "{cap}: {} {step} readings, median {}{}; no level change, trend or correlation between readings detected; {line}.",
-                s.readings,
-                k.fmt(s.median.unwrap_or(mean)),
-                spread
-            ),
-        },
-                Lead::Periodic => match (&s.cycle, &s.two_state) {
-            (Some(p), _) => format!(
-                "{cap} repeats every {}{}{}, {} peak to peak.",
-                every(p.period_s),
-                p.wheel
-                    .as_ref()
-                    .map_or(String::new(), |w| format!(" (the {w})")),
-                inner_text(p),
-                k.fmt_size(p.peak_to_peak)
-            ),
-            (None, Some(t)) => format!(
-                "{cap} drops to a low level and back on a cycle{}.",
-                t.period_s
-                    .map_or(String::new(), |p| format!(" of about {}", every(p)))
-            ),
-            _ => format!("{cap} repeats on a cycle."),
-        },
-        Lead::TwoStates | Lead::Measurement => {
-            let t = s.two_state.as_ref().unwrap();
-            let base = format!(
-                "{cap} switches between two levels, {} and {}, about every {}",
-                k.fmt(t.low),
-                k.fmt(t.high),
-                every(t.switch_every_s)
-            );
-            if s.lead == Lead::Measurement {
-                let why = match lone_side(t) {
-                    Some(side) => clusters(side),
-                    None if t.unlock_jump => "the beat error from the unlock jumps between the levels; the one from the drop does not".to_string(),
-                    None => {
-                        let tick = t.tick_change.unwrap_or(0.0).abs();
-                        let tock = t.tock_change.unwrap_or(0.0).abs();
-                        let (a, b) = if tick > tock { ("Tick", "Tock") } else { ("Tock", "Tick") };
-                        format!("the {a} side changes between the levels; the {b} side does not")
-                    }
-                };
-                format!("{base}; {why}.")
-            } else {
-                format!("{base}.")
-            }
-        }
-        Lead::ShiftingMean => format!("{cap} {}.", shifts_text(s)),
-        Lead::Drifting => {
-            let t = s.trend.as_ref().unwrap();
-            if let Some((at, v)) = t.turn.filter(|_| t.curve_explained > t.explained + 0.05) {
-                return format!(
-                    "{cap} changes slowly: from {} to {} at {}, then to {} at the end.",
-                    k.fmt(t.start),
-                    k.fmt(v),
-                    every(at),
-                    k.fmt(t.end)
-                );
-            }
-            format!(
-                "{cap} slides from {} to {} ({} per hour).",
-                k.fmt(t.start),
-                k.fmt(t.end),
-                k.fmt_per_hour(t.per_hour)
-            )
-        }
-        Lead::Wandering => {
-            let mut parts = Vec::new();
-            if let Some(a) = &s.autocorrelation {
-                parts.push(format!(
-                    "lag-1 correlation {:.2}, Ljung–Box p {}{}",
-                    a.r.get(1).copied().unwrap_or(f64::NAN),
-                    p_text(a.p_value),
-                    a.memory_s
-                        .map_or(String::new(), |m| format!(", correlated for about {}", every(m)))
-                ));
-            }
-            if let Some(a) = s.allan.as_ref().filter(|a| a.max_excess >= 2.0) {
-                parts.push(format!(
-                    "Allan deviation up to {:.1}× what independent readings give",
-                    a.max_excess
-                ));
-            }
-            match fast_line(s) {
-                None if search_also(s).is_some() => format!(
-                    "Successive {step} {name} readings are correlated ({}); no level change or trend detected.",
-                    parts.join("; ")
-                ),
-                None => format!(
-                    "Successive {step} {name} readings are correlated ({}); no cycle, level change or trend detected.",
-                    parts.join("; ")
-                ),
-                Some(line) => format!(
-                    "Successive {step} {name} readings are correlated ({}); no level change or trend detected; {line}.",
-                    parts.join("; ")
-                ),
-            }
-        }
-    }
-}
-
 impl SeriesCheck {
-    /// Writes the screen copies of the headline and summary; called
-    /// whenever either has its last words.
+    /// Writes the screen copies of the headline and summary, and the
+    /// Autocorrelation view's mark; called whenever either has its last
+    /// words, after the cycle is chosen.
     fn set_screen_text(&mut self) {
+        self.repeat_mark = self.autocorrelation_repeat().map(|(l, r)| [l, r]);
+        self.screen_cycle_size = self.cycle_size_text();
+        self.cycle_off_search_s = self.cycle_off_search().map(|c| c.period_s);
         self.screen_headline = crate::figure_text::figure_minus(&self.headline);
         self.screen_summary = crate::figure_text::figure_minus(&self.summary);
         self.screen_stats = crate::figure_text::figure_minus(&self.stats_line());
+    }
+
+    /// Whether `period_s` is the headline cycle's own period, as a fold
+    /// at it is (#1984).
+    pub fn is_cycle_period(&self, period_s: f64) -> bool {
+        self.cycle
+            .as_ref()
+            .is_some_and(|cy| (cy.period_s - period_s).abs() <= 1e-6 * period_s)
+    }
+
+    /// Whether periods `a` and `b` are one line of the period search:
+    /// within its resolution, period² over the take, and at least
+    /// [`SEARCH_REFINE_SHARE`], within which the cycle finder refines a
+    /// search line. The one rule for "the same line" (Norm, #1984).
+    pub fn same_search_line(&self, a: f64, b: f64) -> bool {
+        let span = self.readings as f64 * self.step_s;
+        (a - b).abs() <= (b * b / span).max(SEARCH_REFINE_SHARE * b)
+    }
+
+    /// The period search's sine peak to peak, as the headline's "also
+    /// finds" writes it, when `period_s` is the search's sized line and not
+    /// the headline's cycle: what a fold there states, one size per line
+    /// (Norm, #1984). None elsewhere.
+    pub fn search_line_size_text(&self, period_s: f64) -> Option<String> {
+        let p = self.period.as_ref()?;
+        if self.is_cycle_period(period_s) || !self.same_search_line(period_s, p.period_s) {
+            return None;
+        }
+        Some(crate::figure_text::figure_minus(&SeriesKind::fmt_size_in(
+            p.size_unit,
+            p.size,
+        )))
+    }
+
+    /// The cycle's one stated size (math-standards, "Size of a cycle",
+    /// #761), as the headline writes it, "11.0°", with a true minus: the
+    /// Cycle view states this, not its fold's own swing (Norm, #1984).
+    /// None without a cycle.
+    pub fn cycle_size_text(&self) -> Option<String> {
+        let c = self.cycle.as_ref()?;
+        Some(crate::figure_text::figure_minus(
+            &self.series.fmt_size(c.peak_to_peak),
+        ))
+    }
+
+    /// The repeat the Autocorrelation view marks, (lag, r): the readings'
+    /// first repeat, or else the lag of the headline's cycle when the
+    /// autocorrelation found it, so a cycle "found by the autocorrelation"
+    /// is marked there (#1984); None when neither.
+    pub fn autocorrelation_repeat(&self) -> Option<(f64, f64)> {
+        let a = self.autocorrelation.as_ref()?;
+        if let (Some(l), Some(r)) = (a.repeat_lag_s, a.repeat_r) {
+            return Some((l, r));
+        }
+        let c = self
+            .cycle
+            .as_ref()
+            .filter(|c| c.source == CycleSource::Autocorrelation)?;
+        let (l, r) = a
+            .lag_s
+            .iter()
+            .zip(&a.r)
+            .filter(|(_, r)| r.is_finite())
+            .min_by(|x, y| {
+                (x.0 - c.period_s)
+                    .abs()
+                    .total_cmp(&(y.0 - c.period_s).abs())
+            })?;
+        Some((*l, *r))
     }
 
     /// The period search's line when it turns in under three of the
@@ -2052,7 +1986,7 @@ fn fast_line(s: &SeriesCheck) -> Option<String> {
     let size = SeriesKind::fmt_size_in(p.size_unit, p.size);
     let also = if s.cycle.is_some() { " also" } else { "" };
     Some(format!(
-        "{what}{also} repeats every {:.1} s{wheel}, {size} peak to peak; {} readings are too coarse to show it",
+        "{what}{also} repeats every {:.1} s{wheel}, {size} sine peak to peak; {} readings are too coarse to show it",
         p.period_s,
         every_text(s.cycle_step_s)
     ))
@@ -2077,6 +2011,10 @@ fn findings(s: &SeriesCheck) -> Option<Finding> {
             format!("The {name} changes level during the take"),
         ),
         Lead::Drifting => ("drifting", format!("The {name} slides through the take")),
+        Lead::StepOrSlide => (
+            "step_or_slide",
+            format!("The {name} shifts level or slides; its readings move together too much to tell which"),
+        ),
         Lead::Wandering => (
             "wandering",
             format!("Successive {name} readings are correlated"),
@@ -2818,6 +2756,14 @@ use beat_error::wind_down_sourced;
 #[path = "steadiness_tests.rs"]
 mod tests;
 
+#[cfg(test)]
+#[path = "steadiness_rule_tests.rs"]
+mod rule_tests;
+
+#[path = "steadiness_words.rs"]
+mod words;
+use words::{every_text, lead_text, runner_up, shifts_text};
+
 #[path = "steadiness_family.rs"]
 mod family;
 
@@ -2835,7 +2781,11 @@ mod readings;
 use cycle_search::cycle;
 #[cfg(test)]
 use cycle_search::{refined_candidates, same_peaks_once, strongest_cycle};
-pub use family::{family_long, hold_to_family};
+pub use family::{family_long, hold_to_family, RUNNER_UP_SHARE, STEP_SLIDE_RHO};
+
+/// How far either side of a period search's line, as a share of its
+/// period, the cycle finder refines the cycle it folds there (#1984).
+pub const SEARCH_REFINE_SHARE: f64 = 0.01;
 pub use readings::isochronism_alone;
 
 #[cfg(test)]

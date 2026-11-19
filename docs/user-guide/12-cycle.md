@@ -14,7 +14,7 @@ take.
 | Mark | Part | What it shows |
 | --- | --- | --- |
 | 1 | What it is folded at | The period, and where it came from (below), with the number of cycles folded. |
-| 2 | The swing | How far the median line swings, highest less lowest, beside the boxes' median height. |
+| 2 | The size | Beside the boxes' median height: folded at the headline's cycle, its size peak to peak, as the headline gives it; folded at the period search's sized line, that line's sine peak to peak; anywhere else, how far the median line swings, highest less lowest, its noise included. |
 | 3 | A box | The middle half of the readings at that point of the cycle. Drawn where a point has at least four readings. |
 | 4 | The median line | The median reading at each point of the cycle: the cycle's typical shape. |
 | 5 | A reading | One reading at its place in the cycle, coloured by when its cycle came: purple for the first, through to yellow-green for the last. |
