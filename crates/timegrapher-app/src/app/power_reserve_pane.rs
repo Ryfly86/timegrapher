@@ -534,6 +534,42 @@ impl TimegrapherApp {
         }
     }
 
+    /// Whether the live microphone has sent nothing for over 3 s and so has
+    /// failed: a Power Reserve Test waits a stall out first
+    /// ([`Self::reserve_waits_out`], #2004). Once sound arrives again, the
+    /// stall's message goes, as core gives no break for a late backlog
+    /// with nothing lost (Felix on #2018).
+    pub(super) fn mic_stalled(&mut self) -> bool {
+        let quiet = self.audio_at.unwrap_or(self.opened_at).elapsed();
+        let mic = self.capture.as_ref().is_some_and(|c| !c.is_file);
+        if quiet.as_secs_f64() <= 3.0 {
+            if self.message.as_ref().is_some_and(|m| m.0 == stall_words()) {
+                self.message = None;
+            }
+            return false;
+        }
+        mic && !self.reserve_waits_out(quiet.as_secs_f64())
+    }
+
+    /// Whether a Power Reserve Test waits out an input that has sent
+    /// nothing for `quiet_s`: a stall (the computer busy, a USB hiccup)
+    /// for as long as a watch is given without a beat
+    /// ([`power_reserve::STOP_AFTER_S`]), saying so, so one stall never
+    /// ends a run of days. Any time lost is a break, as after a sleep; a
+    /// late backlog is read as it is. The run ends as Input failed only
+    /// past that (#2004).
+    pub(super) fn reserve_waits_out(&mut self, quiet_s: f64) -> bool {
+        if !self.reserve_running() || quiet_s > power_reserve::STOP_AFTER_S {
+            return false;
+        }
+        let words = stall_words();
+        if self.message.as_ref().map(|m| &m.0) != Some(&words) {
+            applog::warn(&words);
+            self.message = Some((words, false));
+        }
+        true
+    }
+
     /// The live input ended while a Power Reserve Test ran (a microphone
     /// unplugged, no sound arriving, or its stream gone; each but the last
     /// says why as an input failure): the run ends there
@@ -716,4 +752,14 @@ impl TimegrapherApp {
             (self.reserve_info, shown),
         );
     }
+}
+
+/// What the status line says while a Power Reserve Test waits out a stall
+/// ([`TimegrapherApp::reserve_waits_out`]).
+fn stall_words() -> String {
+    format!(
+        "No sound is arriving from this input. The test carries on, and ends if \
+         none comes for {}.",
+        fields::duration(power_reserve::STOP_AFTER_S)
+    )
 }
