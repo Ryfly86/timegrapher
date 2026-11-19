@@ -927,6 +927,7 @@ pub struct EntrySettings {
 
 /// One entry of a take, opened: its beats, clock, breaks and masks, read
 /// as [`measure_entry`] reads them, before any stretch is measured.
+#[derive(Clone)]
 pub struct OpenedEntry {
     /// The sound files read, in order; empty for a take kept as its
     /// analysis alone.
@@ -1231,10 +1232,7 @@ fn open_sound(
         None => Listed::Files(&paths),
     };
     let breaks::Found { breaks, unlisted } = breaks(&mut log, listed, fit.as_mut());
-    // Stretches masked by hand are left out of everything read below.
-    let masked = session::masked_spans(masked);
-    session::mask_log(&mut log, &masked);
-    Ok(OpenedEntry {
+    let opened = OpenedEntry {
         files,
         kept,
         log,
@@ -1245,9 +1243,18 @@ fn open_sound(
         clock_text,
         breaks,
         unlisted,
-        masked,
+        masked: Vec::new(),
         peak,
-    })
+    };
+    Ok(with_masks(opened, masked))
+}
+
+/// `opened`, opened with no masks, with the stretches `masked` by hand
+/// left out of everything read from it: the last step of every open.
+pub(crate) fn with_masks(mut opened: OpenedEntry, masked: &[[f64; 2]]) -> OpenedEntry {
+    opened.masked = session::masked_spans(masked);
+    session::mask_log(&mut opened.log, &opened.masked);
+    opened
 }
 
 /// The take at `path` kept as its analysis alone, read; `None` for a

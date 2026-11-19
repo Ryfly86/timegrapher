@@ -90,6 +90,7 @@ mod take_add;
 mod take_io;
 mod take_reads;
 mod test_body;
+mod test_read;
 mod watches_pane;
 mod wind;
 
@@ -890,8 +891,7 @@ struct ClockWords {
 
 /// A reading's limit in short in Title Case, for its chip: "9 s of Beats",
 /// "3% Clipped", "28800 bph Heard".
-/// The beat rate's choices: Auto, then the standard rates, the one in use
-/// ticked.
+/// The beat rate's choices: Auto, then the standard rates, the one in use ticked.
 fn bph_choices(ui: &mut egui::Ui, bph: &mut Option<u32>) {
     let choices = std::iter::once((None, "Auto: found from the beats".to_string())).chain(
         STANDARD_BPH
@@ -2703,9 +2703,7 @@ impl TimegrapherApp {
             return None;
         }
         let reading = if !self.running() {
-            // Stopped: the last window with a watch heard, so the silence
-            // after it is taken off the stand doesn't change the readings.
-            live.reading_at(self.latest_s().min(self.last_heard_s()), average)
+            self.stopped_reading(live, average)
         } else {
             live.reading(average)
         };

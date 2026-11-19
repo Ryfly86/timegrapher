@@ -210,9 +210,16 @@ pub const MIN_PIECE_S: f64 = 10.0;
 /// less, is left out too.
 fn whole(p: &[Beat]) -> bool {
     match (p.first(), p.last()) {
-        (Some(a), Some(b)) => b.time - a.time >= MIN_PIECE_S - 1e-9,
+        (Some(a), Some(b)) => spans_piece(a, b),
         _ => false,
     }
+}
+
+/// Whether the beats from `a` to `b` span [`MIN_PIECE_S`]: the one length
+/// rule for [`whole`] and the watch's last beat
+/// (`beats::last_watch_beat_s`).
+pub(crate) fn spans_piece(a: &Beat, b: &Beat) -> bool {
+    b.time - a.time >= MIN_PIECE_S - 1e-9
 }
 
 /// [`fit`] for a take with breaks: each stretch between `cuts` is fitted on

@@ -2284,6 +2284,31 @@ fn silence_gives_the_strip_and_the_cards_one_verdict() {
     said(&strip_text(&mut app, &ctx, true), Wait::NoBeatsHeard);
 }
 
+/// The Rate hover of an opened take's whole reading at its end, shorter
+/// than Average Over: its beats are the whole take's after settling, each
+/// side of a break fitted apart, not the latest run's (Hugh 5 and Norm on
+/// #2075).
+#[test]
+fn a_whole_readings_rate_hover_says_its_beats_are_the_whole_takes() {
+    let mut app = synthetic(30.0, 5.0);
+    app.average_s = 60.0;
+    let mut r = app.reading().expect("a reading");
+    r.whole_take = true;
+    let said = app.rate_beats_behind(Some(&r));
+    let first = said.split("\n\n").next().expect("a line");
+    assert_eq!(
+        first,
+        format!(
+            "{} beats in {} of 1 min: the beats the readings are fitted to, fewer seconds \
+             than Average Over asks for. They are the whole take after settling, fitted \
+             apart at each break, masked stretch or gap of more than 2 s with no beats, \
+             with any piece under 10 s left out.",
+            r.beats_used,
+            crate::fields::duration(r.span_s.round())
+        )
+    );
+}
+
 /// A short stretch's Rate hover, whole, as Hugh ruled it on #2044: the
 /// beats the readings are fitted to, and every cause that cuts the
 /// stretch, the gap's seconds from core's `clean::GAP_S`.

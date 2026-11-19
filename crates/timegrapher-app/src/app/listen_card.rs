@@ -887,8 +887,7 @@ impl TimegrapherApp {
             self.save_again();
         }
         if new {
-            self.open_new_watch_form();
-            self.keep_after_form = true;
+            self.keep_in_new_watch();
         }
         if folder {
             // Save Again into the folder saved to before; else ask where.

@@ -63,7 +63,7 @@ pub(super) fn card_wait(
 
 /// Whether a reading's stretch holds no beat at all: no beat rate found,
 /// or none of its beats in the stretch (an opened recording of silence).
-fn no_beat(r: &LiveReading) -> bool {
+pub(super) fn no_beat(r: &LiveReading) -> bool {
     r.bph.is_none() || r.beats_used == 0
 }
 
@@ -930,7 +930,22 @@ impl TimegrapherApp {
     /// The beats behind the Rate figure, and their jitter, for its hover.
     fn beats_behind(&self, r: &LiveReading) -> String {
         let short = r.span_s + 1.0 < self.average_s;
-        let mut t = if short {
+        let mut t = if short && r.whole_take {
+            // The take's whole reading at its end: its beats are the whole
+            // stretch's fitted pieces (Hugh 5 and Norm on #2075).
+            format!(
+                "{} beats in {} of {}: the beats the readings are fitted to, \
+                 fewer seconds than Average Over asks for. They are {} after \
+                 settling, fitted apart at each break, masked stretch or gap \
+                 of more than {} with no beats, with any piece under {} left out.",
+                r.beats_used,
+                fields::duration(r.span_s.round()),
+                fields::duration(self.average_s),
+                self.whole_named(),
+                fields::duration(timegrapher_core::clean::GAP_S),
+                fields::duration(timegrapher_core::timing::MIN_PIECE_S)
+            )
+        } else if short {
             format!(
                 "{} beats in {} of {}: the beats the readings are fitted to, \
                  fewer seconds than Average Over asks for. They are every beat \
@@ -1623,6 +1638,8 @@ impl TimegrapherApp {
                 pal.text,
                 fault.description(),
             )
+        } else if r.saved_copy_gone() {
+            saved_copy_gone(self.saved_hours_reachable(), self.streams(), pal)
         } else if self.streams() {
             // Recording into its folder: nothing waits on a Save Again.
             (
@@ -2407,3 +2424,42 @@ pub(super) fn error_short(m: &str) -> String {
         format!("{first}…")
     }
 }
+
+/// The recording's state once the take it was saved in was found no
+/// longer to hold its sound (#2052): never "Saved". `reachable`: the hours
+/// it held alone are still there, so a save can keep the sound again: by
+/// itself while the take is recorded into (`streams`), its next write
+/// putting the whole take back (Hugh 4 on #2060), else by Save.
+fn saved_copy_gone(
+    reachable: bool,
+    streams: bool,
+    pal: &theme::Palette,
+) -> (String, Color32, String) {
+    if reachable {
+        let hover = if streams {
+            SAVED_COPY_GONE_STREAMING
+        } else {
+            SAVED_COPY_GONE
+        };
+        (
+            "Not saved".to_string(),
+            pal.text_secondary,
+            hover.to_string(),
+        )
+    } else {
+        (
+            "Can't be saved".to_string(),
+            pal.text_secondary,
+            super::unsaved::HOURS_GONE.to_string(),
+        )
+    }
+}
+
+/// The hover of a session whose take no longer holds its sound, when a
+/// save can keep it again.
+const SAVED_COPY_GONE: &str =
+    "The take this sound was saved in no longer holds it. Save keeps it again.";
+
+/// The same while the take is recorded into, which Save isn't for.
+const SAVED_COPY_GONE_STREAMING: &str = "The take this sound is being saved in no longer holds \
+     it. The next few seconds of sound save it whole again.";

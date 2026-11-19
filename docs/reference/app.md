@@ -233,9 +233,21 @@ so does a watch's own take: every 5 s of sound is added to the take with
 no Save Again, so a crash or a power cut costs only seconds. Meanwhile the
 Save icon is lit, its menu and hover say "Saving to" the watch, Unsorted
 Takes or the folder, and it has no Save Again. File ▸ Save is dimmed
-for the same reason, and the status bar says "Saved". Stop and quitting
+for the same reason, and the status bar says "Saved". "Saved" is shown only
+while the take holds the sound saved into it. The app looks at the take
+again when its window comes back to the front, after a save and when a
+save is refused (#2052). Once the take no
+longer holds its sound, the status bar says "Not saved", and its hover
+says Save keeps it again. While the take is still recorded into, Save is
+dimmed, and the hover says instead that the next few seconds of sound
+save it whole again. If the earlier part the take held alone is
+gone too, it says "Can't be saved", and its hover gives the refusal's
+reason. Stop and quitting
 add the last seconds and close the take with no question. A save that
-fails says so, and the next is tried a minute later. Only the new
+fails says so, and the next is tried a minute later. A write refused
+because the take no longer holds the sound is said once, not every
+minute, and the status bar says "Can't be saved" until the take holds it
+again (#2061). Only the new
 sound is written each time. After a crash, the next start says the take
 holds all but its last few seconds, and offers **Open Take** or **Delete
 Copy…** for the copy left on this computer with those seconds. A Positions or Power Reserve Test of a watch
@@ -321,8 +333,18 @@ under it its calibre, beat rate, lift angle and added fields, with
   session` reads its last position on the take's clock, the same one
   `timegrapher watches` gives: worked out from the take's sound the first
   time the list shows it (about a minute for a 9 hour take, the row
-  blank until then, its hover saying it is being read), then kept. A test's last window never
-  stands for the test: a Positions Test's row shows its Mean row, the
+  blank until then, its hover saying it is being read), then kept. The
+  take opened shows the same reading on its cards at its end, to the last
+  bit, where the Average Over holds the whole stretch it reads and a
+  watch is heard there (core's `LiveReading::at_whole_end`, #2073).
+  Otherwise a stopped take's cards, opened or just stopped, read the
+  stretch ending at the watch's last beat: the end of the latest run of
+  good beats with no gap over 2 s, at least 10 s long (core's
+  `beats::last_watch_beat_s`, #2081), so a quiet stand after the watch
+  is lifted, and any stray beat in its hiss, moves nothing. The row's
+  hover says, on the line after its
+  figures, that the cards at Stop can differ a little. A test's last
+  window never stands for the test: a Positions Test's row shows its Mean row, the
   figures its table shows ("Mean of the six positions" in the row's hover),
   and a Power Reserve Test's shows its run time as its Length and a dim
   "—" for the figures, which are hour by hour in the take ("open it", the
@@ -833,7 +855,38 @@ CR, as in `session.toml`), `rate_s_per_day`, `amplitude_deg` and
 A 24 hours after test's file adds `wind_h` (the hours since the
 full-wind test began, to a tenth) and `against` (the full-wind test's
 results it was set against, in this same form); a full-wind test's file
-has neither.
+has neither. `listened: true` is there only when the figures are the ones
+heard while listening, not the saved take's (below).
+
+**A test's saved take.** When a finished guided test's take is saved
+(not a take recording into its folder as it goes), the app analyses the
+test again from that saved sound in the background, through the same
+core path as `timegrapher session` (#1958). When it is done, the test's
+table shows those figures, its results files are written into the
+take again, each file whole, wherever the take is by then, and the status
+bar says "Analysed the saved take again: the test's figures are
+updated." A Save Again while it runs starts it over on what that save
+wrote. While it runs, a plain line at the top of the test's pane, where
+the banner was, outside the table's scrolling, says "Analysing the saved
+take: these figures may change slightly."; if it fails, the table keeps
+the listening's figures and that line says "These are the figures heard while listening: the saved take couldn't be
+analysed again (why). Opened again, the take may read slightly
+differently.", and `positions-test.json` says `listened: true`. A take
+kept by Save Analysis Only is not read again: its figures stay the
+listening's, the line at the top of the pane says "These are the figures heard while
+listening: the take was saved without its sound, so it couldn't be
+analysed again. Opened again, the take may read slightly differently.",
+and its file says `listened: true` too.
+
+The take also keeps the test's marks in `test-marks.json` (format
+`timegrapher.test-marks/1`; #1957): `format`, `test` (`positions`,
+`dynamic_poise` or `complication`), `marks` (each `start_s`, `end_s`, in
+seconds of the saved sound, and `mark`: `before_test`, `settling` or
+`not_used`) and `measured` (the `[start_s, end_s]` stretches the test
+measured). Opened again, the strip shows Before Test, Settling and the
+test's own Not Used words where the test put them, and the gaps
+`session.toml` leaves between its entries read as settling only where the
+test settled. A take without the file opens as before.
 
 **Dynamic Poise.** The Dynamic Poise pane (#1474), a hidden tab beside
 the Positions Test to begin with, runs the same guided test through the
@@ -2202,7 +2255,8 @@ or moved or changed outside the app), Listen starts a new take, and
 Save…, Save As…, Save Again, Keep Analysis Only and Keep in a Watch… are
 refused. The status bar reads "This sound can't be saved…", and a click
 on it shows the reason under that line: "Its earlier part was kept only
-in its take, and the take no longer holds it." The message names the take and offers **Open Take** (the take
+in its take, and the take no longer holds it." Keep in a Watch… > New Watch…
+refuses before its form opens, not after it is filled in. The message names the take and offers **Open Take** (the take
 itself, opened where it is), **Delete Copy…** (asking first, and saying
 that only those last seconds are lost) and **Later**. If that take has
 since been moved or deleted, what is left of the copy is the only one, and it is offered
@@ -2282,6 +2336,7 @@ when. It holds:
 | `session.toml` | The session file `timegrapher session` reads: watch, calibre (with the wheels of a custom one), lift angle, beat rate, and one `[[recording]]` per stretch in one position with its `start_s` and `end_s` (for a take saved during a Positions Test, the test's own measured stretches, after each settling and for its measuring time, so `timegrapher session` reads the seconds its table did, with `wind_h` in the 24 hour half) |
 | `poise-test.json` | Only for a Dynamic Poise Test's take: marks it as one, so the Watches list names the test (format `timegrapher.poise-test/1`, and the test's name; no figures, which are the take's own stops) |
 | `positions-test.json` | Only for a finished Positions Test: run just after winding, its results, to load for the test 24 hours later; run 24 hours after, its results with the full-wind ones it was set against (the format is under Full wind against 24 hours) |
+| `test-marks.json` | Only for a guided test's take (Positions, Dynamic Poise or Complication): what the test marked each stretch, so the strip shows it again when the take is opened (format below, under A test's saved take). Optional: a take without it opens as before, and builds without it ignore it |
 
 At start-up the app keeps as FLAC, in the background, any hour of a take
 in the Watches folder that is still a WAV (saved before hours were kept
@@ -2321,8 +2376,8 @@ them, then for the Tick Tock profiles of each 2 seconds, the signal
 figure, the clock error the USB lines show and each position's beat
 shape. It then writes a new folder, named as a saved take with
 `_analysis` on the end, holding `session.toml` (with `audio = false`),
-`session.json`, `clock.csv`, `positions-test.json` or `poise-test.json`
-when there is one, and an `analysis/` folder, and no sound; the message says how much space it
+`session.json`, `clock.csv`, `positions-test.json`, `poise-test.json` or
+`test-marks.json` when there is one, and an `analysis/` folder, and no sound; the message says how much space it
 takes. A folder already there is never written over. While it works, a
 progress bar in the status bar shows how far it has read, with Cancel,
 which leaves nothing written; listening, New Session and opening a
