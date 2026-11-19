@@ -651,7 +651,9 @@ range (core `input_domain::LIFT_RANGE_DEG`, which the app's lift fields use too)
   remain valid; this does not establish calibration accuracy.
 - `--trend-average` (`analyze`): one of the app's averaging times, 2, 4,
   10, 20, 30 or 60 seconds (core `live::AVERAGES`), as is MCP's
-  `average_s`.
+  `average_s`. As in the app, under 10 s the amplitude and unlock beat
+  error columns are read over the last 10 s, and the rate and drop beat
+  error over the average chosen (#1951).
 
 CLI validation happens during argument parsing, before audio/device access,
 output creation or storing a correction. MCP validates exposed measurement BPH

@@ -1,6 +1,7 @@
 //! Inputs and their gain, what the cards and readings say, the profiles,
 //! exporting a pane, and the empty and error states.
 
+use super::readouts::{reading_limits, take_limits};
 use super::tests::{frames, painted_text, screen, synthetic, themed};
 use super::*;
 use timegrapher_core::synth::{generate, SynthConfig};
@@ -98,16 +99,21 @@ fn a_reading_says_what_limits_it_as_facts() {
         Caveat::LiftUnknown,
         Caveat::ClockUnknown,
     ];
-    let amp = reading_limits("Amplitude", &caveats, 52.0, 30);
-    let short: Vec<&str> = amp.iter().map(|f| f.0.as_str()).collect();
+    // A short stretch bears on every card of the reading shown: said once,
+    // in the status bar, and on no card (#1975).
+    for title in ["Rate", "Amplitude", "Beat Error"] {
+        assert!(
+            reading_limits(title, &caveats, 52.0, 30, false).is_empty(),
+            "{title}"
+        );
+    }
+    let take = take_limits(&caveats, 52.0, 30, false);
+    let short: Vec<&str> = take.iter().map(|f| f.0.as_str()).collect();
     // The lift angle and the input's clock are said elsewhere.
     assert_eq!(short, ["4 s of beats"]);
-    let rate = reading_limits("Rate", &caveats, 52.0, 30);
-    let short: Vec<&str> = rate.iter().map(|f| f.0.as_str()).collect();
-    assert_eq!(short, ["4 s of beats"]);
-    let missing = reading_limits("Rate", &[Caveat::BeatsMissing { fraction: 0.9 }], 52.0, 90);
+    let missing = take_limits(&[Caveat::BeatsMissing { fraction: 0.9 }], 52.0, 90, false);
     assert_eq!(missing[0].0, "90 of 100 beats");
-    for (_, long) in amp.iter().chain(&rate) {
+    for (_, long) in take.iter().chain(&missing) {
         for word in [
             "Confidence",
             "Low",
@@ -125,45 +131,86 @@ fn a_reading_says_what_limits_it_as_facts() {
 #[test]
 fn a_beat_error_says_where_its_sides_were_named_by_count() {
     let caveats = [Caveat::SidesByCount { count: 2 }];
-    let be = reading_limits("Beat Error", &caveats, 52.0, 30);
+    let be = reading_limits("Beat Error", &caveats, 52.0, 30, false);
     assert_eq!(be.len(), 1);
     assert_eq!(be[0].0, "sides named by count");
     assert!(be[0].1.contains("not told apart by their sound"));
     // It doesn't touch the rate or the amplitude.
-    assert!(reading_limits("Rate", &caveats, 52.0, 30).is_empty());
-    assert!(reading_limits("Amplitude", &caveats, 52.0, 30).is_empty());
+    assert!(reading_limits("Rate", &caveats, 52.0, 30, false).is_empty());
+    assert!(reading_limits("Amplitude", &caveats, 52.0, 30, false).is_empty());
 }
 
 #[test]
 fn a_drop_beat_error_caveat_belongs_only_on_beat_error() {
     let caveats = [Caveat::FROM_DROP];
-    let be = reading_limits("Beat Error", &caveats, 52.0, 30);
+    let be = reading_limits("Beat Error", &caveats, 52.0, 30, false);
     assert_eq!(be.len(), 1);
     assert_eq!(be[0].0, "beat error from the drop");
     assert!(be[0].1.contains("unlock was not found"));
-    assert!(reading_limits("Rate", &caveats, 52.0, 30).is_empty());
-    assert!(reading_limits("Amplitude", &caveats, 52.0, 30).is_empty());
+    assert!(reading_limits("Rate", &caveats, 52.0, 30, false).is_empty());
+    assert!(reading_limits("Amplitude", &caveats, 52.0, 30, false).is_empty());
 }
 
-/// Sides too faint to read are named on the Amplitude and Beat Error
-/// cards, whose figures leave them out, and not on Rate's (#1738).
+/// Sides too faint to read give neither an amplitude nor an unlock beat
+/// error (#1738), so they are said once, in the status bar (Norm,
+/// #1975); but where they leave the Amplitude card without a figure,
+/// they are said there, the reason for its dash, and not again in the
+/// status bar (Hugh's rule 3).
 #[test]
-fn faint_sides_are_named_on_amplitude_and_beat_error_only() {
+fn faint_sides_are_named_where_they_empty_a_card_else_for_the_take() {
     let caveats = [Caveat::FaintSidesWithheld {
         sides: 3,
         windows: 2,
     }];
-    for title in ["Amplitude", "Beat Error"] {
-        let facts = reading_limits(title, &caveats, 52.0, 30);
-        assert_eq!(facts.len(), 1, "{title}");
-        assert_eq!(facts[0].0, "3 faint sides left out");
+    for empty in [false, true] {
+        for title in ["Rate", "Beat Error"] {
+            assert!(
+                reading_limits(title, &caveats, 52.0, 30, empty).is_empty(),
+                "{title}"
+            );
+        }
+    }
+    assert!(reading_limits("Amplitude", &caveats, 52.0, 30, false).is_empty());
+    let take = take_limits(&caveats, 52.0, 30, false);
+    assert_eq!(take.len(), 1);
+    let facts = reading_limits("Amplitude", &caveats, 52.0, 30, true);
+    assert_eq!(facts.len(), 1);
+    assert_eq!(facts[0].0, "3 faint sides left out");
+    assert!(
+        facts[0].1.starts_with("3 sides in 2 windows"),
+        "{}",
+        facts[0].1
+    );
+    assert!(take_limits(&caveats, 52.0, 30, true).is_empty());
+    // A take-wide caveat on an empty card is not its reason: no chip.
+    let short = [Caveat::ShortSpan { span_s: 4.0 }];
+    assert!(reading_limits("Amplitude", &short, 52.0, 30, true).is_empty());
+}
+
+/// A caveat that bears on more than one card, or on the take, is said
+/// once, in the status bar's chip, and on no card: breaks, clipping, a
+/// set rate unlike the one heard (#1975). One that bears on one card
+/// alone is on that card and not in the status bar.
+#[test]
+fn a_take_wide_caveat_is_said_once_for_the_take() {
+    let caveats = [
+        Caveat::Breaks { count: 2 },
+        Caveat::Clipped { fraction: 0.03 },
+        Caveat::SetRateDisagrees { heard: 21600 },
+        Caveat::SidesByCount { count: 1 },
+    ];
+    for title in ["Rate", "Amplitude"] {
         assert!(
-            facts[0].1.starts_with("3 sides in 2 windows"),
-            "{}",
-            facts[0].1
+            reading_limits(title, &caveats, 52.0, 30, false).is_empty(),
+            "{title}"
         );
     }
-    assert!(reading_limits("Rate", &caveats, 52.0, 30).is_empty());
+    let be = reading_limits("Beat Error", &caveats, 52.0, 30, false);
+    assert_eq!(be.len(), 1);
+    assert_eq!(be[0].0, "sides named by count");
+    let take = take_limits(&caveats, 52.0, 30, false);
+    assert_eq!(take.len(), 3, "{take:?}");
+    assert!(take.iter().all(|t| t.0 != "sides named by count"));
 }
 
 /// Words in a reading's place on a narrow card show whole: "No
@@ -727,7 +774,7 @@ fn the_amplitude_hover_says_why_it_has_no_plus_minus() {
     let mut early = r.clone();
     (early.amplitude_error_deg, early.amplitude_noise_values) = (None, 12);
     assert_eq!(
-        readouts::amplitude_pm_words(&early).as_deref(),
+        readouts::amplitude_pm_words(&early, 10.0).as_deref(),
         Some("± after 1 min of beats: it needs 30 readings of 2 s each, and has 12.")
     );
     let mut few = r.clone();
@@ -737,15 +784,18 @@ fn the_amplitude_hover_says_why_it_has_no_plus_minus() {
         few.amplitude_values,
     ) = (None, 30, 2);
     assert_eq!(
-        readouts::amplitude_pm_words(&few).as_deref(),
+        readouts::amplitude_pm_words(&few, 10.0).as_deref(),
         Some(
             "No ± now: 2 of the 2 s readings in this average found the amplitude, \
              and a ± needs 3."
         )
     );
+    // Under 10 s the readings are the last 10 s's, as the figure's (#1951).
+    assert!(readouts::amplitude_pm_words(&few, 2.0)
+        .is_some_and(|w| w.starts_with("No ± now: 2 of the 2 s readings in the last 10 s")));
     let mut with = r.clone();
     with.amplitude_error_deg = Some(12.4);
-    let words = readouts::amplitude_pm_words(&with).unwrap();
+    let words = readouts::amplitude_pm_words(&with, 10.0).unwrap();
     assert!(
         words.starts_with("± 13° is one standard error (12.40, rounded up)."),
         "{words}"
@@ -778,12 +828,12 @@ fn a_figure_whose_readings_repeat_says_so() {
         amp.amplitude_no_pm,
     ) = (None, 30, 30, Some(NoPm::Repeats));
     assert_eq!(
-        readouts::amplitude_pm_words(&amp).as_deref(),
+        readouts::amplitude_pm_words(&amp, 10.0).as_deref(),
         Some(NoPm::REPEATS_TEXT)
     );
     // The waiting reasons keep their words.
     amp.amplitude_no_pm = Some(NoPm::TooFew);
-    assert!(readouts::amplitude_pm_words(&amp)
+    assert!(readouts::amplitude_pm_words(&amp, 10.0)
         .is_some_and(|w| w.starts_with("No ± now: 30 of the 2 s readings")));
 }
 
@@ -919,8 +969,9 @@ fn an_export_that_cannot_be_drawn_gives_up() {
     assert!(matches!(&app.message, Some((_, true))));
 }
 
-/// Clipped sound shows in a chip on the Amplitude and Beat Error cards,
-/// with nothing pushed in over the readings; a stored clock error is
+/// Clipped sound, which bears on the amplitude and the beat error, shows
+/// once, in the status bar's chip (#1975), with nothing pushed in over
+/// the readings; a stored clock error is
 /// in Settings, not on the Rate card, the corrected rate in the Rate
 /// figure's hover.
 #[test]
@@ -966,8 +1017,9 @@ fn clipping_shows_in_a_chip_and_the_true_clock_in_the_rate_hover() {
         text = painted_text(&ctx.run(input, |ctx| app.panels(ctx)));
     }
     assert!(!text.contains("Clipping on"), "no banner: {text}");
-    assert!(
-        text.lines().filter(|l| l.ends_with("% Clipped")).count() >= 2,
+    assert_eq!(
+        text.lines().filter(|l| l.contains("% Clipped")).count(),
+        1,
         "{text}"
     );
     // The clock kept is Settings' to show.
@@ -1359,11 +1411,15 @@ fn card_row(
     pointer: Option<egui::Pos2>,
 ) -> (CardRow, String) {
     let r = app.reading().expect("a reading");
-    let figures = [
-        readouts::rate_figure(&r).expect("rate"),
-        readouts::amplitude_figure(&r).expect("amplitude"),
-        readouts::beat_error_figure(&r).expect("beat error"),
-    ];
+    // The figures there are (a watch with no unlock gives no amplitude).
+    let figures: Vec<String> = [
+        readouts::rate_figure(&r),
+        readouts::amplitude_figure(&r),
+        readouts::beat_error_figure(&r),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(w, 800.0));
     let mut out = None;
     for pass in 0..4 {
@@ -1493,56 +1549,66 @@ fn at_800_the_reading_cards_captions_are_whole_and_carry_the_help() {
 }
 
 /// At 800 a reading card's limits chip sits at the right end of its trend
-/// row, under the figure, so its caption stays whole: inside the card,
-/// clear of the trend's last point, in the same place on every card
-/// (Hugh on #2026; Walter found "B.E." with a caveat on a stopped watch).
+/// row, under the figure, so its caption stays whole: inside the card and
+/// clear of the trend's last point (Hugh on #2026; Walter found "B.E."
+/// with a caveat on a stopped watch). Every reading card places it by the
+/// one `readouts::trend_chip`.
 #[test]
 fn at_800_a_caveat_leaves_the_reading_cards_captions_whole() {
-    let mut app = synthetic(120.0, 20.0);
+    // A watch whose unlock makes no sound: its beat error is timed from
+    // the drop, a caveat on the Beat Error card alone.
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "syn".into());
+    let mut cfg = SynthConfig {
+        duration_s: 120.0,
+        rate_s_per_day: 20.0,
+        ..Default::default()
+    };
+    cfg.sounds[0].gain = 0.0;
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let live = app.live.as_mut().unwrap();
+    for b in audio.samples.chunks(960) {
+        if live.push(b) {
+            let r = live.reading(app.average_s);
+            app.trend.push(TrendPoint::of(r.time_s, &r));
+        }
+    }
+    app.poll();
+    app.refresh_trend();
     app.readings_pinned = true;
-    // A caveat every reading card names, Beat Error's among them.
-    app.take_unlisted = Some(timegrapher_core::breaks::Unlisted::Unreadable);
+    let caveats = app.reading().expect("a reading").caveats;
+    assert!(
+        reading_limits("Rate", &caveats, 52.0, 30, false).is_empty()
+            && !reading_limits("Beat Error", &caveats, 52.0, 30, false).is_empty(),
+        "a Beat Error caveat alone: {caveats:?}"
+    );
     let ctx = themed();
     let (row, text) = card_row(&mut app, &ctx, 800.0, None);
     let names: Vec<&str> = row.captions.iter().map(|c| c.0.as_str()).collect();
     assert_eq!(names, ["Rate", "Amplitude", "Beat Error"], "{text}");
-    assert_eq!(row.chips.len(), 3, "a chip on each card: {:?}", row.chips);
-    let inner = readouts::six_widths(800.0 - 24.0 - 52.0, theme::GAP)[2] - 2.0 * 16.0;
-    let mut offsets = Vec::new();
-    for (caption, rect) in &row.captions {
-        let card = rect.left()..=rect.left() + inner + 0.5;
-        let chip = row
-            .chips
-            .iter()
-            .find(|c| card.contains(&c.left()))
-            .unwrap_or_else(|| panic!("{caption}: no chip in its card {:?}", row.chips));
-        assert!(
-            card.contains(&chip.right()),
-            "{caption}: chip {chip:?} leaves the card"
-        );
-        assert!(
-            chip.top() > rect.bottom(),
-            "{caption}: chip in the title row"
-        );
-        for p in row.last_points.iter().filter(|p| card.contains(&p.x)) {
-            assert!(
-                !chip.expand(2.5).contains(*p),
-                "{caption}: chip {chip:?} on the trend's last point {p:?}"
-            );
-        }
-        offsets.push((chip.right() - rect.left(), chip.top() - rect.top()));
-    }
-    assert!(
-        offsets
-            .windows(2)
-            .all(|o| (o[0].0 - o[1].0).abs() < 1.0 && (o[0].1 - o[1].1).abs() < 1.0),
-        "the same place on every card: {offsets:?}"
-    );
     assert_eq!(
-        row.last_points.len(),
-        3,
-        "each trend drawn: {:?}",
-        row.last_points
+        row.chips.len(),
+        1,
+        "Beat Error's chip alone: {:?}",
+        row.chips
+    );
+    let inner = readouts::six_widths(800.0 - 24.0 - 52.0, theme::GAP)[2] - 2.0 * 16.0;
+    let rect = row.captions[2].1;
+    let card = rect.left()..=rect.left() + inner + 0.5;
+    let chip = row.chips[0];
+    assert!(
+        card.contains(&chip.left()) && card.contains(&chip.right()),
+        "the chip {chip:?} inside Beat Error's card {card:?}"
+    );
+    assert!(chip.top() > rect.bottom(), "the chip in the title row");
+    let last = row
+        .last_points
+        .iter()
+        .find(|p| card.contains(&p.x))
+        .expect("Beat Error's trend drawn");
+    assert!(
+        !chip.expand(2.5).contains(*last),
+        "the chip {chip:?} on the trend's last point {last:?}"
     );
 }
 
@@ -1559,7 +1625,7 @@ fn the_reading_figures_share_one_size() {
             let (row, _) = card_row(&mut app, &ctx, w, None);
             let f = &row.figures;
             assert!(
-                f[0] > 0.0 && f.iter().all(|s| *s == f[0]),
+                f.len() == 3 && f[0] > 0.0 && f.iter().all(|s| *s == f[0]),
                 "{rate} at {w}: {f:?}"
             );
             // The unit whole, inside the rate card: left of the next

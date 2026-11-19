@@ -3,6 +3,11 @@
 use super::*;
 use timegrapher_core::steady_views;
 
+/// The Length field's width: holds the longest length whole, Fit's 80
+/// hours to its latest beat as 79:59:59, its last digit clear of the ⏷
+/// (#1976).
+pub(super) const LENGTH_FIELD_W: f32 = 112.0;
+
 impl TimegrapherApp {
     /// Show the whole session so far along the strip, ending at its latest
     /// beat, and keep it so as beats arrive: Fit on.
@@ -237,7 +242,7 @@ impl TimegrapherApp {
     }
 
     /// The strip settings' Width and Length fields and the Fit switch.
-    fn strip_span_fields(&mut self, ui: &mut egui::Ui, pal: &theme::Palette) {
+    pub(super) fn strip_span_fields(&mut self, ui: &mut egui::Ui, pal: &theme::Palette) {
         theme::tool_field(
             ui,
             "Width",
@@ -282,9 +287,7 @@ impl TimegrapherApp {
                     &SPANS,
                     fields::duration,
                     "",
-                    // Holds the longest length whole, Fit's 80 hours as
-                    // 80:00:00, its last digit clear of the ⏷ (#1976).
-                    112.0,
+                    LENGTH_FIELD_W,
                 );
                 if changed {
                     self.strip_fit = false;

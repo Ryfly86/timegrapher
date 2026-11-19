@@ -1254,6 +1254,23 @@ fn a_dragged_divider_stands_until_a_pane_in_its_row_changes() {
         low <= need + TAB_BAR_H + 2.0,
         "{low} past the strip's least {need}"
     );
+    // Dragged the other way, the map a sliver under its own least: that
+    // drag stands, only the strip's least is kept (Trevor on #2026).
+    let Some(egui_tiles::Tile::Container(egui_tiles::Container::Linear(l))) =
+        app.panes.tiles.get_mut(column)
+    else {
+        panic!("the strip's column");
+    };
+    l.shares.set_share(strip_id, total * 0.95);
+    for &c in &others {
+        l.shares.set_share(c, total * 0.05 / others.len() as f32);
+    }
+    for _ in 0..3 {
+        pass(&mut app);
+    }
+    let map = row_h(&app, Pane::SteadyStft);
+    assert!(map < MIN_PANE_H, "the map's drag stands: {map}");
+    assert!(row_h(&app, Pane::Strip) + 1.0 >= need);
     // Kept with the layout.
     let saved = app.settings();
     assert_eq!(saved.panes_dragged, vec![column]);
@@ -1363,5 +1380,67 @@ fn the_microphone_menu_has_its_own_line_and_cuts_a_name_in_the_middle() {
     assert!(
         cut.starts_with("Very Long") && cut.ends_with("(default)"),
         "{cut}"
+    );
+}
+
+/// The strip's Length field holds the longest length whole: Fit's
+/// 79:59:59, inside the field and clear of its ⏷ (#1976; it read
+/// "67:28:1" at 92 pt).
+#[test]
+fn the_length_field_holds_eighty_hours_whole() {
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    // Fit's length to the latest beat, a second short of the 80 hours:
+    // the widest it reads (whole hours read "80 h").
+    let longest = StripView::MAX_SPAN_S - 1.0;
+    app.strip.set_span(longest);
+    let shown = fields::duration(longest);
+    assert_eq!(shown, "79:59:59");
+    let mut drawn = None;
+    for _ in 0..2 {
+        let out = ctx.run(egui::RawInput::default(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let pal = theme::pal(ui);
+                    app.strip_span_fields(ui, pal);
+                });
+            });
+        });
+        let mut shapes = Vec::new();
+        fn flat(s: &egui::Shape, into: &mut Vec<egui::Shape>) {
+            match s {
+                egui::Shape::Vec(v) => v.iter().for_each(|s| flat(s, into)),
+                s => into.push(s.clone()),
+            }
+        }
+        out.shapes.iter().for_each(|c| flat(&c.shape, &mut shapes));
+        let text = shapes.iter().find_map(|s| match s {
+            egui::Shape::Text(t) if t.galley.text() == shown => {
+                Some(t.galley.rect.translate(t.pos.to_vec2()))
+            }
+            _ => None,
+        });
+        // The field's plate: the one LENGTH_FIELD_W wide round the text.
+        let field = text.and_then(|t| {
+            shapes.iter().find_map(|s| match s {
+                egui::Shape::Rect(r)
+                    if r.rect.contains(t.center())
+                        && (r.rect.width() - super::paper_strip::LENGTH_FIELD_W).abs() < 0.5 =>
+                {
+                    Some(r.rect)
+                }
+                _ => None,
+            })
+        });
+        drawn = text.zip(field);
+    }
+    let (text, field) = drawn.expect("79:59:59 drawn in its field");
+    // The ⏷ takes the field's last 24 pt.
+    let arrow_left = field.right() - 24.0;
+    assert!(
+        text.right() <= arrow_left,
+        "{shown} ends at {}, the ⏷ starts at {arrow_left}",
+        text.right()
     );
 }
