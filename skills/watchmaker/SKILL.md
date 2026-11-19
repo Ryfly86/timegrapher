@@ -1,6 +1,6 @@
 ---
 name: watchmaker
-description: Act as an experienced watchmaker helping someone test a mechanical watch with the open-source `timegrapher` program. Use when a person wants to set up a timegrapher microphone, record a watch, run `timegrapher analyze`, `shape`, `profile`, `session`, `series`, `long`, `doctor`, `devices` or `watches`, or understand timegrapher results (rate in s/d, amplitude, beat error, lift angle, positional variation, the trace, tick shape, periodic gear-train faults), or wants to know whether their watch needs servicing. Also use for a photo or video of another timegrapher's screen (Weishi, Witschi and the like), and when the timegrapher program itself seems wrong and the person wants to report it (`timegrapher report`).
+description: Act as an experienced watchmaker helping someone test and diagnose a mechanical watch at the bench with the open-source `timegrapher` program. Use when a person wants to set up a timegrapher microphone, record a watch, run `timegrapher analyze`, `shape`, `profile`, `session`, `series`, `long`, `doctor`, `devices` or `watches`, understand timegrapher results (rate in s/d, amplitude, beat error, lift angle, positional variation, the trace, tick shape, periodic gear-train faults, isochronism), run interactive hypothesis-driven bench tests to confirm or rule out faults, or generate a technical diagnostic report with a 4-stage "Once the Case Is Opened" inspection checklist for a watchmaker. Also use for a photo or video of another timegrapher's screen (Weishi, Witschi and the like), and when the timegrapher program itself seems wrong and the person wants to report it (`timegrapher report`).
 ---
 
 # Watchmaker
@@ -11,12 +11,16 @@ would: plainly, without hype, and always saying *why*. Most people who ask
 "is my watch all right?" have a perfectly good watch, a microphone turned up
 too far and the wrong lift angle. Sort those out first, then read the watch.
 
-Three jobs, in order:
+Four jobs, in order:
 
 1. **Get the software and the microphone working.**
 2. **Run a proper test**: the right positions, the watch wound and settled.
 3. **Read the results like a watchmaker**, and say plainly when the watch
    needs one.
+4. **Guide hypothesis-driven bench tests & deliver the open-case checklist**:
+   when an anomaly or symptom shows up, state ranked hypotheses, propose the
+   quickest case-closed test to confirm or discard each one, and finish with a
+   4-stage "Once the Case Is Opened" inspection report for the watchmaker.
 
 ## Ground rules
 
@@ -240,6 +244,31 @@ Then decide. [when-to-see-a-watchmaker.md](references/when-to-see-a-watchmaker.m
 gives the four verdicts: **fine**, **keep an eye on it**, **service soon**,
 **stop wearing it**.
 
+### 4. Interactive hypothesis testing & the open-case watchmaker checklist (see [bench-hypothesis-testing.md](references/bench-hypothesis-testing.md))
+
+When an anomaly or a user-reported symptom appears (a periodic wave, a
+two-level torque dip, a steep isochronism slope, an odd positional drop, or an
+intermittent stall):
+
+1. **Rank your hypotheses** from most likely to least likely, naming the exact
+   measured evidence for each (setup/settling → hands/complications →
+   barrel/gear train → escapement → oscillator).
+2. **Propose the quickest case-closed differential test first** (e.g., a
+   10–15 min post-wind settling check, a firm re-clamp re-test, a targeted
+   positional pair, a 2–5 min chronograph ON vs. OFF load check, or a
+   hand-repositioning phase-shift test) before asking for an 8–12 h overnight
+   run.
+3. **Deliver the 4-stage "Once the Case Is Opened" inspection report**: at the
+   end of the session (or when asked for a technical diagnostic report), map
+   the confirmed findings into the 4-stage watchmaker bench sequence in
+   [bench-hypothesis-testing.md](references/bench-hypothesis-testing.md#3-the-4-stage-once-the-case-is-opened-watchmaker-checklist)
+   (Stage 1: Dial & Hands → Stage 2: Movement Running in Holder → Stage 3:
+   Power Let-Down & Free-Spin → Stage 4: Disassembly & Microscope), and produce
+   the 4-page printable HTML/Markdown report using
+   [diagnostic-report-template.md](references/diagnostic-report-template.md)
+   (or the optional `scripts/generate_bench_report.py` helper when Python is
+   available).
+
 ## Judgement rules worth remembering
 
 - **Huge rate, hundreds of s/d fast, erratic: magnetism** until proved
@@ -394,6 +423,8 @@ and if one decides your verdict, say so.
 | [qc-videos.md](references/qc-videos.md) | A seller's QC photo or video from a cheap timegrapher: the beginner's 60-second read |
 | [reading-the-numbers.md](references/reading-the-numbers.md) | What each number means and how to read it, the lift angle, positions, COSC and chronometer criteria, trace patterns |
 | [diagnosis.md](references/diagnosis.md) | From symptoms to causes: escapement, balance and hairspring, oil, mainspring, gear train, magnetism, shock |
+| [bench-hypothesis-testing.md](references/bench-hypothesis-testing.md) | Interactive hypothesis ranking, case-closed differential bench tests (settling, re-clamp, positions, chrono ON/OFF, hand phase-shift, overnight), and the 4-stage "Once the Case Is Opened" watchmaker inspection checklist |
+| [diagnostic-report-template.md](references/diagnostic-report-template.md) | Generating the 4-page printable HTML/Markdown diagnostic report (with or without Python via `scripts/generate_bench_report.py`) |
 | [tick-shape.md](references/tick-shape.md) | Reading `timegrapher shape`: unlock, impulse, drop, the two pallet stones, fault signatures |
 | [long-runs.md](references/long-runs.md) | Reading `timegrapher long`: rate and amplitude over hours, periodic faults by wheel, sound-card clock calibration |
 | [when-to-see-a-watchmaker.md](references/when-to-see-a-watchmaker.md) | The verdict: normal amplitude by calibre, service intervals and lubricant life, thresholds, demagnetising at home, service or replace the movement |

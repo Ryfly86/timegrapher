@@ -208,18 +208,35 @@ After a drop or a hard knock, compare with any earlier reading:
 - Beat error suddenly large: hairspring shifted. An adjustment, but check
   the rest.
 
-## Decision rules
+## Decision rules & interactive bench testing
 
 Before concluding anything is wrong, in this order:
 
 1. Re-check the set-up with `timegrapher doctor`; re-clamp the watch.
 2. Check the beat rate and the lift angle are right for the calibre.
-3. Fully wind, wait a few minutes, re-test. Wait 30–60 s after each
+3. Fully wind, wait 10–15 minutes to settle, re-test. Wait 30–60 s after each
    position change.
 4. If it gains a lot: demagnetise and re-test.
 5. Test more than one position; test again the next day without winding.
 6. For a regular wave: run `long` for at least half an hour, better two
-   hours, and see whether the period matches a wheel.
+   hours (or overnight), and see whether the period matches a wheel.
+
+When an anomaly or user-reported symptom appears (a periodic dip, two-level
+step, steep isochronism slope, or intermittent stall), run the interactive
+hypothesis loop in
+[bench-hypothesis-testing.md](bench-hypothesis-testing.md):
+
+- Formulate ranked hypotheses from the measured evidence (setup/settling →
+  hands/complications → barrel/gear train → escapement → oscillator).
+- Propose the **quickest case-closed differential test first** (e.g., 10–15 min
+  post-wind settle, firm re-clamp, targeted positional pair, chronograph ON vs.
+  OFF load check, or hand-repositioning phase-shift test) before asking for an
+  8–12 h overnight run.
+- Once confirmed, translate the findings into the **4-stage "Once the Case Is
+  Opened" watchmaker inspection checklist** (Stage 1: Dial & Hands → Stage 2:
+  Movement Running in Holder → Stage 3: Power Let-Down & Free-Spin → Stage 4:
+  Disassembly & Microscope) and, when requested, generate the 4-page technical
+  report via [diagnostic-report-template.md](diagnostic-report-template.md).
 
 Then:
 
