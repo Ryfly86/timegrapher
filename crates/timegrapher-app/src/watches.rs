@@ -350,7 +350,8 @@ fn list_size(bytes: u64) -> String {
 }
 
 /// The list: one row per watch, led by its first photo when any watch
-/// listed has one. The id of the watch clicked, if any.
+/// listed has one. The id of the watch clicked, if any. `writing` is the
+/// take the Bench is recording into.
 pub fn list(
     ui: &mut egui::Ui,
     watches: &[&WatchEntry],
@@ -358,6 +359,7 @@ pub fn list(
     thumbs: &mut Thumbs,
     shows: Option<&str>,
     search: &str,
+    writing: Option<&Path>,
 ) -> Option<String> {
     let key = search.trim();
     let mut picked = None;
@@ -392,14 +394,20 @@ pub fn list(
         if let Some(t) = last_take(e).and_then(timegrapher_core::library::date_text) {
             below.push(format!("last {t}"));
         }
+        let (size, hover) = crate::size_wait::size_or_wait(
+            &e.dir,
+            writing,
+            "Show this watch's details and takes.",
+            || list_size(e.bytes()),
+        );
         if found_row(
             ui,
             marked == Some(w.id.as_str()),
             lead,
             &w.name,
-            &list_size(e.bytes()),
+            &size,
             &below,
-            "Show this watch's details and takes",
+            &hover,
             key,
         )
         .clicked()
@@ -411,8 +419,22 @@ pub fn list(
 }
 
 /// Unsorted's row, at the top of the list (led by a tile when the
-/// watches' rows have photos): whether it was clicked.
-pub fn unsorted_row(ui: &mut egui::Ui, e: &WatchEntry, tiled: bool, marked: bool) -> bool {
+/// watches' rows have photos): whether it was clicked. `writing` is the
+/// take the Bench is recording into.
+pub fn unsorted_row(
+    ui: &mut egui::Ui,
+    e: &WatchEntry,
+    tiled: bool,
+    marked: bool,
+    writing: Option<&Path>,
+) -> bool {
+    let (size, hover) = crate::size_wait::size_or_wait(
+        &e.dir,
+        writing,
+        "Quick Listen again: no watch, no calibre, the default lift angle and the beat rate \
+         found from the beats. Shows the takes not yet filed under a watch.",
+        || list_size(e.bytes()),
+    );
     row(
         ui,
         marked,
@@ -422,13 +444,12 @@ pub fn unsorted_row(ui: &mut egui::Ui, e: &WatchEntry, tiled: bool, marked: bool
             Lead::None
         },
         UNSORTED_TAKES,
-        &list_size(e.bytes()),
+        &size,
         &[
             "Quick Listen, no watch".to_string(),
             count(e.takes.len(), "take", "takes"),
         ],
-        "Quick Listen again: no watch, no calibre, the default lift angle and the beat \
-         rate found from the beats. Shows the takes not yet filed under a watch.",
+        &hover,
     )
     .clicked()
 }
@@ -1024,10 +1045,15 @@ pub fn positions_means(dir: &std::path::Path) -> Option<(usize, [Option<f64>; 3]
 
 /// Whether a take's row shows a dim dash for its figures, as they are
 /// part by part in the take: a Power Reserve Test's hour by hour, a
-/// Dynamic Poise Test's stop by stop (#2002). One rule for its cells and
-/// their dimming (Vernon on #2021).
+/// Dynamic Poise Test's stop by stop (#2002); and a Positions Test
+/// stopped before any position was measured, which has none, not blanks
+/// (#2007). One rule for its cells and their dimming (Vernon on #2021).
 fn dashed(t: &Take, test: Option<(TakeTest, [Option<f64>; 3])>) -> bool {
-    t.power_reserve.is_some() || matches!(test, Some((TakeTest::Poise, _)))
+    t.power_reserve.is_some()
+        || matches!(
+            test,
+            Some((TakeTest::Poise, _)) | Some((TakeTest::Positions, [None, None, None]))
+        )
 }
 
 /// The guided test a take's row names, with the figures it shows: a
@@ -1181,46 +1207,6 @@ pub fn picked_take<'a>(e: &'a WatchEntry, cx: &TakesContext) -> Option<&'a Take>
     e.takes
         .iter()
         .find(|t| cx.picked == Some(e.take_dir(t).as_path()))
-}
-
-/// The Takes title row's Open and "…", acting on the picked take: Open
-/// greyed out while `busy` says why (a take running on the Bench) or none
-/// is picked.
-pub fn takes_buttons(
-    ui: &mut egui::Ui,
-    e: &WatchEntry,
-    cx: &TakesContext,
-    busy: Option<&str>,
-) -> Option<TakeAction> {
-    let mut act = None;
-    let picked = picked_take(e, cx);
-    let r = ui.add_enabled(picked.is_some(), theme::secondary(ui, "…"));
-    let r = r
-        .on_hover_text("More for the picked take: Show in the folder, Keep Analysis Only…, move it, or delete it")
-        .on_disabled_hover_text("Pick a take first");
-    if let Some(t) = picked {
-        egui::Popup::menu(&r)
-            .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
-            .show(|ui| {
-                if let Some(a) = take_menu(ui, e, t, cx, busy) {
-                    act = Some(a);
-                }
-            });
-    }
-    let why = busy.or(picked.is_none().then_some("Pick a take first"));
-    if ui
-        .add_enabled(why.is_none(), theme::secondary(ui, "Open"))
-        .on_hover_text(
-            "Analyse the whole picked take on the Bench; a long take takes a while to read",
-        )
-        .on_disabled_hover_text(why.unwrap_or_default())
-        .clicked()
-    {
-        if let Some(t) = picked {
-            act = Some(TakeAction::Open(e.take_dir(t)));
-        }
-    }
-    act
 }
 
 /// Why the take `t` in `dir` isn't offered Keep Analysis Only, or none
@@ -2962,6 +2948,13 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 }
+
+/// The Takes title row's Open and "…", split from this file by concern.
+#[path = "watches_buttons.rs"]
+mod buttons;
+pub use buttons::takes_buttons;
+#[cfg(test)]
+use buttons::{open_why, NO_TAKES};
 
 #[cfg(test)]
 #[path = "watches_hover_tests.rs"]

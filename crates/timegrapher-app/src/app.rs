@@ -2719,7 +2719,7 @@ impl TimegrapherApp {
     /// newest edge when the strip is moved off the newest beats.
     fn reading_at_time(&self, t: f64) -> Option<LiveReading> {
         let live = self.live.as_ref()?;
-        if self.session.settling_left(t).is_some() {
+        if self.settle_left_at(t).is_some() {
             return None;
         }
         let reading = live.reading_at(t, self.average_s);
