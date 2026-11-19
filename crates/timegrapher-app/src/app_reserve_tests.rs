@@ -2197,3 +2197,31 @@ fn a_power_reserve_test_waits_out_an_input_stall() {
     drop(tx);
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// An ordinary live take, no Power Reserve Test running, whose microphone
+/// sends nothing for over 3 s fails there as before: only a reserve waits
+/// a stall out, and nothing else says it does (Trevor on #2018).
+#[test]
+fn an_ordinary_take_still_fails_when_its_input_sends_nothing() {
+    use std::time::Duration;
+    let (mut app, base, tx) = reserve_heard("stall-ordinary");
+    app.reserve = None;
+    assert!(!app.reserve_running() && app.running());
+    app.audio_at = Some(Instant::now() - Duration::from_secs(5));
+    app.poll_for(Duration::from_millis(200));
+    assert!(!app.running(), "{:?}", app.message);
+    let fault = app.input_fault.clone().unwrap_or_default();
+    assert!(
+        fault.contains("No sound is arriving from this input."),
+        "{fault}"
+    );
+    assert!(
+        app.message
+            .as_ref()
+            .is_none_or(|m| !m.0.contains("The test carries on")),
+        "{:?}",
+        app.message
+    );
+    drop(tx);
+    let _ = std::fs::remove_dir_all(&base);
+}
