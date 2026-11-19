@@ -896,7 +896,10 @@ fn phase_words(test: &Test, phase: Phase) -> (String, String, f32) {
     match phase {
         Phase::Settling(left) => (
             step_title(test),
-            format!("Letting the watch settle, {left:.0} s"),
+            format!(
+                "Letting the watch settle, {:.0} s",
+                timegrapher_core::measure::settle_seconds(left)
+            ),
             ((settle - left) / (settle + measure)) as f32,
         ),
         Phase::Measuring(done) => (

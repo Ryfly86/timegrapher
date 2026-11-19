@@ -771,7 +771,7 @@ impl TimegrapherApp {
             None => "s/d".to_string(),
         };
         // The beats behind the figure, in its hover.
-        let mut behind = r.map_or_else(String::new, |r| self.beats_behind(r));
+        let mut behind = self.rate_beats_behind(r);
         if let Some(t) = r.filter(|_| heard).and_then(rate_pm_words) {
             behind += &format!("\n\n{t}");
         }
@@ -896,6 +896,13 @@ impl TimegrapherApp {
         out
     }
 
+    /// The beats behind the Rate figure for its hover: none said where the
+    /// stretch holds no beat at all, as its wait says so (#2044).
+    pub(super) fn rate_beats_behind(&self, r: Option<&LiveReading>) -> String {
+        r.filter(|r| !no_beat(r))
+            .map_or_else(String::new, |r| self.beats_behind(r))
+    }
+
     /// The beats behind the Rate figure, and their jitter, for its hover.
     fn beats_behind(&self, r: &LiveReading) -> String {
         let short = r.span_s + 1.0 < self.average_s;
@@ -903,7 +910,7 @@ impl TimegrapherApp {
             format!(
                 "{} beats in {} of {}: there are fewer seconds of beats than \
                  Average Over asks for, early in a session or after a break in \
-                 the sound, so the readings use what there is.",
+                 the sound, so the figures are read from these beats alone.",
                 r.beats_used,
                 fields::duration(r.span_s.round()),
                 fields::duration(self.average_s)
@@ -1815,10 +1822,23 @@ impl TimegrapherApp {
 
     pub(super) fn no_watch(&mut self, ui: &mut egui::Ui) {
         let pal = theme::pal(ui);
-        let line = self.reading().map_or_else(
-            || timegrapher_core::beats::no_regular_beat_text(None, None),
-            |r| no_regular_beat(&r),
-        );
+        // A stretch with no beat at all: the cards' own words, so the strip
+        // and the cards give one verdict (#2044). Beats that aren't
+        // regular, or noise in a settle (#1944): why there is no watch.
+        let reading = self.reading();
+        let (line, below, hover) = match reading.as_ref().and_then(|r| self.waiting(Some(r))) {
+            Some((title, text)) => (title, text, None),
+            None => (
+                reading.as_ref().map_or_else(
+                    || timegrapher_core::beats::no_regular_beat_text(None, None),
+                    no_regular_beat,
+                ),
+                "The sound so far has no beats at regular intervals. The readings and \
+                 charts appear once a regular beat is found."
+                    .to_string(),
+                Some(*help::NO_REGULAR_BEAT),
+            ),
+        };
         ui.add_space((ui.available_height() * 0.16).clamp(16.0, 110.0));
         ui.vertical_centered(|ui| {
             let w = 520.0_f32.min(ui.available_width());
@@ -1827,16 +1847,13 @@ impl TimegrapherApp {
                     ui.set_width(w - 28.0);
                     ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
                         ui.spacing_mut().item_spacing.y = 8.0;
-                        ui.label(RichText::new(&line).font(theme::semibold(17.0)))
-                            .on_hover_text(*help::NO_REGULAR_BEAT);
+                        let title = ui.label(RichText::new(&line).font(theme::semibold(17.0)));
+                        if let Some(h) = hover {
+                            title.on_hover_text(h);
+                        }
                         ui.add(
                             egui::Label::new(
-                                RichText::new(
-                                    "The sound so far has no beats at regular intervals. The \
-                                     readings and charts appear once a regular beat is found.",
-                                )
-                                .small()
-                                .color(pal.text_secondary),
+                                RichText::new(&below).small().color(pal.text_secondary),
                             )
                             .wrap(),
                         );

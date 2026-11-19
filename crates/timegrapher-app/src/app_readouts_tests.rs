@@ -2160,3 +2160,72 @@ fn a_wait_carries_no_clock_line() {
     assert_eq!(app.clock_not_yet(None), None);
     assert_eq!(app.clock_not_yet(Some(5.0)), app.live_usb_not_yet());
 }
+
+/// The strip's words in its place when no regular beat is drawn: the
+/// whole pane with `whole`, else its no-watch card alone.
+fn strip_text(app: &mut TimegrapherApp, ctx: &egui::Context, whole: bool) -> String {
+    let out = ctx.run(screen(), |ctx| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            if whole {
+                app.strip_pane(ui);
+            } else {
+                app.no_watch(ui);
+            }
+        });
+    });
+    painted_text(&out).replace('\n', " ")
+}
+
+/// Silence gives the strip the cards' own verdict in the cards' own
+/// words, never "No regular beat found" beside them: "Waiting for Beats"
+/// while listening, and "No Beats Heard" on an opened recording of
+/// silence (Walter on #2036). The Rate hover says nothing of beats behind
+/// a figure there is none of (#2044).
+#[test]
+fn silence_gives_the_strip_and_the_cards_one_verdict() {
+    use timegrapher_core::measure::Wait;
+    let ctx = themed();
+    let base = std::env::temp_dir().join(format!("tg-silence-strip-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "silence".into());
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let quiet = vec![0.0_f32; 960];
+    for _ in 0..15 * 50 {
+        app.live.as_mut().expect("live").push(&quiet);
+    }
+    assert!(app.no_watch_yet());
+    let r = app.reading().expect("a reading");
+    assert_eq!(app.rate_beats_behind(Some(&r)), "");
+    let said = |text: &str, wait: Wait| {
+        assert!(text.contains(&wait.title()), "{text}");
+        assert!(text.contains(&wait.text()), "{text}");
+        assert!(!text.contains("regular"), "{text}");
+    };
+    said(&strip_text(&mut app, &ctx, false), Wait::NoBeats);
+    let _ = std::fs::remove_dir_all(base);
+    // An opened recording of silence, as Walter opened it.
+    let mut app = synthetic(30.0, 5.0);
+    let log = timegrapher_core::stream::BeatLog {
+        lock_template_kept: false,
+        sample_rate: 48_000,
+        duration_s: 60.0,
+        bph: 21_600,
+        lift_deg: 52.0,
+        beats: Vec::new(),
+        amplitude_windows: Vec::new(),
+        clipped_beats: Vec::new(),
+        clipped_samples: 0,
+        jumps: Vec::new(),
+        sided: Vec::new(),
+        by_count: Vec::new(),
+        snippets: Vec::new(),
+    };
+    app.live = Some(timegrapher_core::live::LiveAnalyzer::from_log(
+        log,
+        timegrapher_core::live::LiveConfig::default(),
+    ));
+    app.trend.clear();
+    assert!(app.no_watch_yet());
+    said(&strip_text(&mut app, &ctx, true), Wait::NoBeatsHeard);
+}

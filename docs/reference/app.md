@@ -529,7 +529,7 @@ readings use: found from the beats while its beat rate is Auto ("Auto
 fit over the last few seconds of beats (10 s by default, or 2, 4, 20, 30
 or 60 s; the setting is Average Over, on the Listen card). Early in a session, or after a break in listening or a gap of
 more than 2 s with no beats, there are fewer seconds of beats than asked
-for: the readings use what there is and say so in the rate's hover
+for: the figures are read from those beats alone, and the rate's hover says so
 ("190 beats in 24 s of 180 s"); they never fit across a break or gap, since the watch may have
 been moved or have drifted meanwhile. Average Over is one setting for the
 whole app: the panes that average (the Paper Strip's Rate Line, guides
@@ -2215,7 +2215,11 @@ fit at the card's size); "Waiting for Start" while a test is set up;
 listened to and no recording is open, as after New Session while
 stopped; and "No Beats Heard", a fact rather than a wait, for a stopped
 take or an opened recording with no beat in the stretch read (not "No
-Regular Beat", which is about beats that are there).
+Regular Beat", which is about beats that are there). The settle's
+seconds are core's `measure::settle_seconds`, rounded up, so the
+cards and the Positions pane's "Letting the watch settle, N s" count
+alike; with no beat at all, the strip's place says the cards' wait in
+the same words, not "No regular beat found" (#2044).
 Stopped during a settle, the Rate card says "Before the Move".
 With no regular beat, the reading cards say "No Regular Beat" there, with
 the full sentence and the timing scatter in the hover. A regular beat
