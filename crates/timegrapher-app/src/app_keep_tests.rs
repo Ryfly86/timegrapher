@@ -2664,6 +2664,17 @@ fn a_test_kept_without_its_sound_says_its_figures_are_the_listenings() {
     for samples in audio.samples.chunks(960) {
         app.live.as_mut().unwrap().push(samples);
     }
+    // A test not finished is left as it is, with no note (Trevor on
+    // #2080).
+    app.guided = Some(guided::Test::poise());
+    assert!(app.can_save_analysis());
+    app.start_analysis_save(&base.join("unfinished"));
+    wait_for_jobs(&mut app);
+    assert!(app.analysis_kept_to.is_some(), "{:?}", app.message);
+    let t = app.guided.as_ref().unwrap();
+    assert_eq!(t.saved_read, guided::SavedRead::NotRead);
+    assert_eq!(t.saved_read_note(), None);
+    app.analysis_kept_to = None;
     let mut test = guided::Test::poise();
     test.saved_read = guided::SavedRead::Pending;
     app.guided = Some(test);
