@@ -1289,17 +1289,16 @@ impl LiveAnalyzer {
         let (from, lo, hi, span_s) = (st.from, st.lo, st.hi, st.span_s);
         let holes = &st.holes;
         let bph = self.bph.or(self.logged_bph);
-        // No window reaches back across the latest cut: the amplitude
-        // windows' grid starts again at each cut, and `stretch_windows`
-        // keeps only windows clear of every hole, so a jump in a recording
-        // read whole falls between two.
-        let wins =
-            crate::session::stretch_windows(holes, self.amp_within(from, end_s), from, end_s);
+        let (wins, amp_beats) = self.amplitude_stretch(&st, end_s, average_s);
         // Fitted as every reading of a stretch is (#512). The latest run
         // holds no cut (`stretch_at` starts it after the latest one), so
         // it is fitted whole and its beat error's sign does not turn.
         let crate::session::StretchFits { fit, figures, .. } =
             crate::session::stretch_fits(&self.beats[lo..hi], bph, &[], &wins);
+        let figures = match amp_beats {
+            Some(r) => crate::session::stretch_fits(&self.beats[r], bph, &[], &wins).figures,
+            None => figures,
+        };
         let (run_from, rate_windows) = self.run_rate_windows(&st, bph, end_s);
         // The take's windows the ±s borrow their noise from (#1470): the
         // run's own rate windows when they hold enough.
@@ -1389,6 +1388,35 @@ impl LiveAnalyzer {
             beat_error_unlock_error_ms: sided(assessment.confidence.and_then(|c| c.beat_error.se)),
             caveats,
         }
+    }
+
+    /// The amplitude windows a reading ending at `end_s` over
+    /// `average_s` is read from, with the beats they go with where those
+    /// differ from the run's `st`. The amplitude, and the beat error from
+    /// the unlock, which come from the same windows, are read over at
+    /// least SHORT_SPAN_S: a shorter average holds a window or so, and a
+    /// window that missed a side blanked the reading (Norm, #1951). The
+    /// rate and the beat error from the drop keep the average chosen. No
+    /// window reaches back across the latest cut: the amplitude windows'
+    /// grid starts again at each cut, and `stretch_windows` keeps only
+    /// windows clear of every hole, so a jump in a recording read whole
+    /// falls between two.
+    fn amplitude_stretch(
+        &self,
+        st: &Stretch,
+        end_s: f64,
+        average_s: f64,
+    ) -> (Vec<&AmplitudeWindow>, Option<std::ops::Range<usize>>) {
+        let longer =
+            measure::amplitude_span_s(average_s).map(|s| self.stretch_at(end_s - s, end_s));
+        // The longer stretch's own holes: a gap before the average's
+        // start but within the 10 s is not in `st`'s.
+        let (from, holes) = longer
+            .as_ref()
+            .map_or((st.from, &st.holes), |a| (a.from, &a.holes));
+        let wins =
+            crate::session::stretch_windows(holes, self.amp_within(from, end_s), from, end_s);
+        (wins, longer.map(|a| a.lo..a.hi))
     }
 
     /// The amplitude windows whose midpoint lies from `from_s` up to but
