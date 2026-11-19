@@ -909,9 +909,10 @@ fn phase_words(test: &Test, phase: Phase) -> (String, String, f32) {
                 (
                     turn_title(test, test.step),
                     format!(
-                        "Turn it {}, then press Start {next} Measurement. Until then \
-                         the strip marks it Not Used.",
-                        next.to_lowercase()
+                        "When it's {}, press Start {next} Measurement. Until then the strip \
+                         reads {}.",
+                        next.to_lowercase(),
+                        test.kind.not_used()
                     ),
                     1.0,
                 )

@@ -859,9 +859,10 @@ not stated: the stop nearest 219.5° among those within reach of it, and its
 amplitude ("At 6H the amplitude is 234°, near 219.5°, …"), never the take's
 whole range (#1960). Core's words are shown with a true minus sign. Where the
 stops' rates have no ±, because together they hold fewer rate readings than
-a ± needs, Info says so with the count and the stop length that would give
-one ("the 8 stops hold 24 rate readings, and a ± needs 30, which stops of
-45 s each give"). The heavy spot is a facts box's one row on the picture,
+a ± needs, Info says so in a sentence of its own, with the count and the
+time measured at each position that would give one ("The 8 positions hold
+24 rate readings, and a ± needs 30, which 45 s measured at each position
+would give."). The heavy spot is a facts box's one row on the picture,
 core's `heavy_spot_row` ("Heavy spot", "6H at the top, 180 ± 12°", or
 "Not stated"): on the plot in its top left, or its top right under the
 key where the wave or a point (its dot and a dot's width round it,

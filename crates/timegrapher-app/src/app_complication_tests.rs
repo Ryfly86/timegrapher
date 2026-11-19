@@ -559,7 +559,8 @@ fn the_banner_says_to_turn_the_complication_on() {
     // Its line under the title is a sentence of its own (#2003).
     assert!(
         texts.contains(
-            &"Turn it on, then press Start On Measurement. Until then the strip marks it Not Used."
+            &"When it's on, press Start On Measurement. Until then the strip reads Not Used for \
+              Complication Test."
         ),
         "{texts:?}"
     );

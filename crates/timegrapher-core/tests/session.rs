@@ -1874,10 +1874,19 @@ fn poise_stops_too_short_for_a_rate_pm_say_why() {
     let pool = short.rate_pool.expect("the reason");
     assert_eq!((pool.values, pool.needed, pool.stops), (24, 30, 8));
     assert_eq!(pool.stop_s, 45.0);
+    // The whole sentence, its size as core gives it.
+    let at = short.text.find("Once-round wave").expect("the sentence");
+    let (head, tail) = short.text[at..]
+        .split_once(" s/d each way from the mean")
+        .expect("its size");
+    let size = head
+        .strip_prefix("Once-round wave over 8 upright positions: ")
+        .expect("its head");
+    assert!(size.parse::<f64>().is_ok(), "{}", short.text);
     assert!(
-        short.text.contains(
-            "with no ±, so no fastest hour: the 8 stops hold 24 rate readings, and a ± \
-             needs 30, which stops of 45 s each give."
+        tail.starts_with(
+            ", with no ±, so no fastest hour. The 8 positions hold 24 rate readings, and a ± \
+             needs 30, which 45 s measured at each position would give."
         ),
         "{}",
         short.text

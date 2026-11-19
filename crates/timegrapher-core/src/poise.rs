@@ -231,11 +231,13 @@ impl ShortPool {
         })
     }
 
-    /// Why there is no ±, in words: "the 8 stops hold 24 rate readings,
-    /// and a ± needs 30, which stops of 45 s each give".
+    /// Why there is no ±, in words: "The 8 positions hold 24 rate
+    /// readings, and a ± needs 30, which 45 s measured at each position
+    /// would give" (Hugh on #2041).
     pub fn text(&self) -> String {
         format!(
-            "the {} stops hold {} rate readings, and a ± needs {}, which stops of {} s each give",
+            "The {} positions hold {} rate readings, and a ± needs {}, which {} s measured at \
+             each position would give",
             self.stops,
             self.values,
             self.needed,
@@ -746,7 +748,7 @@ impl PoiseFit {
             ),
             (false, true) => ", not clear of the noise, so no fastest hour.".into(),
             (false, false) => match &self.rate_pool {
-                Some(p) => format!(", with no ±, so no fastest hour: {}.", p.text()),
+                Some(p) => format!(", with no ±, so no fastest hour. {}.", p.text()),
                 None => ", with no ±, so no fastest hour.".into(),
             },
         });
