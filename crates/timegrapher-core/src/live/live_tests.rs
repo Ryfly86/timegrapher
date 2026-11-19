@@ -1917,3 +1917,41 @@ fn a_good_watch_after_the_stand_noise_is_found_not_judged() {
     assert!(found.iter().all(|&t| t <= FINDING_S + 1.0), "{found:?}");
     assert!(a.reading(DEFAULT_AVERAGE_S).watch_heard);
 }
+
+/// Opened beats for 35 s with 30–32 s masked: a watch's at 28,800 bph,
+/// or stand noise's, spread at random through each beat (#2029). No
+/// snippets, so the beats' sound can't be judged and the scatter decides.
+fn masked_take(noise: bool) -> LiveAnalyzer {
+    let mut rng = crate::synth::Rng::new(29);
+    let beats = (0..280)
+        .map(|index| Beat {
+            index,
+            time: index as f64 * 0.125 + if noise { 0.1 * rng.next_f64() } else { 0.0 },
+            quality: 1.0,
+        })
+        .collect();
+    let mut log = viewer_phase_log(0.0, 0.0);
+    log.duration_s = 35.0;
+    log.beats = beats;
+    log.jumps = Vec::new();
+    let mut a = LiveAnalyzer::from_log(log, LiveConfig::default());
+    a.set_masked(&[(30.0, 32.0)]);
+    a
+}
+
+/// A mask is a hole the watch verdict's windows skip, not a cut: 3 s past
+/// a mask after 30 s of sound, the scatter still looks back to the start
+/// (Norm on #2029). Noise stays no watch; a watch stays judged, a watch.
+#[test]
+fn the_watch_verdict_looks_back_past_a_mask() {
+    let noise = masked_take(true).reading_at(35.0, 10.0);
+    assert!(!noise.watch_heard, "{noise:?}");
+    assert_eq!(noise.rate_s_per_day, None);
+    let watch = masked_take(false).reading_at(35.0, 10.0);
+    assert!(watch.watch_heard, "{watch:?}");
+    assert!(
+        watch.jitter_us.is_some(),
+        "the scatter is judged: {watch:?}"
+    );
+    assert!(watch.rate_s_per_day.is_some());
+}

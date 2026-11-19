@@ -1822,3 +1822,41 @@ fn a_report_is_set_only_against_full_wind() {
     assert_eq!((shown.len(), shown[0].wind_h), (1, Some(24.0)));
     assert!(against.is_none());
 }
+
+/// A saved stretch from 22 to 35 s with 30–32 s masked holds no whole
+/// scatter window of its own, so it looks back as live does: past the
+/// mask, to a window before it (Norm on #2029). Noise stays no watch,
+/// with no rate; a watch is judged, a watch.
+#[test]
+fn a_saved_stretch_looks_back_past_a_mask() {
+    for noise in [true, false] {
+        let mut rng = timegrapher_core::synth::Rng::new(29);
+        let log = timegrapher_core::stream::BeatLog {
+            lock_template_kept: false,
+            sample_rate: 48_000,
+            duration_s: 35.0,
+            bph: 28_800,
+            lift_deg: 52.0,
+            beats: (0..280)
+                .map(|i| timegrapher_core::beats::Beat {
+                    index: i,
+                    time: i as f64 * 0.125 + if noise { 0.1 * rng.next_f64() } else { 0.0 },
+                    quality: 1.0,
+                })
+                .collect(),
+            amplitude_windows: Vec::new(),
+            clipped_beats: Vec::new(),
+            clipped_samples: 0,
+            jumps: Vec::new(),
+            sided: Vec::new(),
+            by_count: Vec::new(),
+            snippets: Vec::new(),
+        };
+        let m = session::measure_masked(&log, None, &[], &[(30.0, 32.0)], 22.0, 35.0);
+        assert_eq!(m.watch_heard, !noise, "noise {noise}: {:?}", m.caveats);
+        if noise {
+            assert_eq!(m.rate_s_per_day, None);
+        }
+        assert!(m.jitter_us.is_some(), "noise {noise}: judged");
+    }
+}
