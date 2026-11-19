@@ -353,6 +353,7 @@ impl TimegrapherApp {
         e: &library::WatchEntry,
         busy: Option<&'static str>,
     ) {
+        self.take_add_row(ui, &e.watch.id);
         let (others, writable) = match &self.library {
             Ok(Some(l)) => (
                 l.watches
@@ -590,6 +591,13 @@ impl TimegrapherApp {
         if self.running() && inside(Path::new(&self.opened_path)) {
             return Some("This take is being played. Press Stop first.".into());
         }
+        if self
+            .take_add
+            .as_ref()
+            .is_some_and(|a| a.from().starts_with(take))
+        {
+            return Some(self.adding_already());
+        }
         if self.take_keep.as_ref().is_some_and(|(t, _)| t == take) {
             return Some(
                 "This take's sound is already being removed. Wait for it to finish, or press \
@@ -755,23 +763,7 @@ impl TimegrapherApp {
                 from,
                 watch: Some(id),
                 keep_original,
-            } => match lib.add_take(&from, &id, keep_original) {
-                Ok((to, left)) => {
-                    // What is on show is now the watch's take, copied or
-                    // moved.
-                    self.take_moved(&from, &to);
-                    self.watch_open = Some(id);
-                    self.unsorted_open = false;
-                    match left {
-                        Some(why) => self.error(why),
-                        None => self.info_msg(format!(
-                            "Added \"{}\" to the watch's takes.",
-                            file_name(&to)
-                        )),
-                    }
-                }
-                Err(e) => self.error(format!("The take couldn't be added: {e}")),
-            },
+            } => self.start_take_add(from, id, keep_original),
             watches::Ask::Add { watch: None, .. } => {}
         }
     }
@@ -837,6 +829,18 @@ impl TimegrapherApp {
                 total_s,
             },
         ));
+    }
+
+    /// The watch the take is of, as the Calibre card's title and the
+    /// status bar name it: the one open in Watches, else the one the take
+    /// names itself (its session file's), which isn't in Watches (false);
+    /// none for No Watch.
+    pub(super) fn named_watch(&self) -> Option<(String, bool)> {
+        self.open_watch()
+            .map(|e| e.watch.name.clone())
+            .filter(|n| !n.is_empty())
+            .map(|n| (n, true))
+            .or_else(|| (!self.watch.is_empty()).then(|| (self.watch.clone(), false)))
     }
 
     /// The kept analysis, once written, put in its take's place.

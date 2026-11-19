@@ -391,7 +391,13 @@ file or a take folder), copies it into one of your watches, or into a
 only what neither its files, the watch nor the take on show say (its
 position, beat rate and lift angle are the ones on show, written with
 it; when it started is offered to check); the original stays where it
-is. **Keep** stays greyed out until what is asked is given.
+is. **Keep** stays greyed out until what is asked is given. A copy is
+refused at once, saying how much it needs and how much is free, when the
+disk would be left with under 1.0 GB; it runs in the background, with a
+bar in the watch saying how far it is ("Copying "name": 4.2 GB of 11.2
+GB") and **Cancel**, which keeps nothing and leaves the original as it
+was. A copy left part way (the app closed, the computer stopped) is
+cleared the next time the watches are opened, an hour on (#1970).
 
 **Open Recording…** or **Open Folder…** in the File menu first asks where
 the recording goes (when there are watches and it isn't in them already):
