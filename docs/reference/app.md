@@ -529,8 +529,8 @@ readings use: found from the beats while its beat rate is Auto ("Auto
 fit over the last few seconds of beats (10 s by default, or 2, 4, 20, 30
 or 60 s; the setting is Average Over, on the Listen card). Early in a session, or after a break in listening or a gap of
 more than 2 s with no beats, there are fewer seconds of beats than asked
-for: the figures are read from those beats alone, and the rate's hover says so
-("190 beats in 24 s of 180 s"); they never fit across a break or gap, since the watch may have
+for: the readings are fitted to the beats there are, and the rate's hover says so
+("190 beats in 24 s of 60 s"); they never fit across a break or gap, since the watch may have
 been moved or have drifted meanwhile. Average Over is one setting for the
 whole app: the panes that average (the Paper Strip's Rate Line, guides
 and overlays, the Tick Tock Profile, Charts and Distributions) all

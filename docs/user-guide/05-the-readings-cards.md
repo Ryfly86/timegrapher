@@ -121,8 +121,8 @@ or noisy take. A wrong beat rate gives readings far out, or none.
 - **One setting for the whole app.** The Paper Strip's rate line, the
   Tick Tock Profile, Charts and Distributions all average over it too.
 - **Early in a take,** or after a break, there are fewer seconds of beats
-  than asked for. The figures are read from those beats alone, and the
-  Rate card's hover says so.
+  than asked for. The readings are fitted to the beats there are, and the
+  Rate card's hover says how many seconds of beats that is.
 - **No reading reaches across a break**, a change of position, or more
   than 2 s with no beats: the watch may have moved or changed meanwhile.
 

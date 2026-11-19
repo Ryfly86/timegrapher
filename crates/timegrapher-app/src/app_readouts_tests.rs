@@ -2229,3 +2229,28 @@ fn silence_gives_the_strip_and_the_cards_one_verdict() {
     assert!(app.no_watch_yet());
     said(&strip_text(&mut app, &ctx, true), Wait::NoBeatsHeard);
 }
+
+/// A short stretch's Rate hover, whole, as Hugh ruled it on #2044: the
+/// beats the readings are fitted to, and every cause that cuts the
+/// stretch, the gap's seconds from core's `clean::GAP_S`.
+#[test]
+fn a_short_stretch_says_which_beats_the_readings_are_fitted_to() {
+    let mut app = synthetic(30.0, 5.0);
+    app.average_s = 60.0;
+    let r = app.reading().expect("a reading");
+    assert!(r.span_s + 1.0 < app.average_s, "{r:?}");
+    let gap = crate::fields::duration(timegrapher_core::clean::GAP_S);
+    assert_eq!(gap, "2 s");
+    let said = app.rate_beats_behind(Some(&r));
+    let first = said.split("\n\n").next().expect("a line");
+    assert_eq!(
+        first,
+        format!(
+            "{} beats in {} of 1 min: the beats the readings are fitted to, fewer seconds \
+             than Average Over asks for. They are every beat since the sound began, or \
+             since the latest break, masked stretch or gap of more than 2 s with no beats.",
+            r.beats_used,
+            crate::fields::duration(r.span_s.round())
+        )
+    );
+}

@@ -908,12 +908,14 @@ impl TimegrapherApp {
         let short = r.span_s + 1.0 < self.average_s;
         let mut t = if short {
             format!(
-                "{} beats in {} of {}: there are fewer seconds of beats than \
-                 Average Over asks for, early in a session or after a break in \
-                 the sound, so the figures are read from these beats alone.",
+                "{} beats in {} of {}: the beats the readings are fitted to, \
+                 fewer seconds than Average Over asks for. They are every beat \
+                 since the sound began, or since the latest break, masked \
+                 stretch or gap of more than {} with no beats.",
                 r.beats_used,
                 fields::duration(r.span_s.round()),
-                fields::duration(self.average_s)
+                fields::duration(self.average_s),
+                fields::duration(timegrapher_core::clean::GAP_S)
             )
         } else {
             format!(
