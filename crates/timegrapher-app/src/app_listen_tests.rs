@@ -501,11 +501,22 @@ fn a_kept_quick_listen_stopped_keeps_its_sound_in_its_take_alone() {
         save(&mut app, &other);
         assert!(app.saving.is_none());
         let said = app.message.as_ref().map(|m| m.0.as_str());
-        let why = "This sound can't be saved: its earlier part was kept only in its take, \
-                   which no longer holds it.";
+        let why = "This sound can't be saved: what was already saved was kept only in its \
+                   take, which no longer holds it.";
         assert_eq!(said, Some(why));
     }
     assert_eq!(std::fs::read_dir(&other).unwrap().count(), 0);
+    // Nor kept in a watch: the session stays a Quick Listen, saying why
+    // once (Walter 7 on #2046).
+    let pepsi = add_watch(&mut app, "Pepsi");
+    app.message = None;
+    app.keep_in_watch(&pepsi);
+    assert!(app.quick_listen && app.watch_open.is_none());
+    assert!(app.saving.is_none() && app.after_save.is_empty());
+    let said = app.message.as_ref().map(|m| m.0.as_str());
+    let why = "This sound can't be saved: what was already saved was kept only in its \
+               take, which no longer holds it.";
+    assert_eq!(said, Some(why));
     let _ = std::fs::remove_dir_all(&base);
 }
 

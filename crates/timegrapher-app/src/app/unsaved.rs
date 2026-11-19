@@ -103,8 +103,8 @@ impl TimegrapherApp {
             return false;
         }
         self.error(
-            "This sound can't be saved: its earlier part was kept only in its take, which no \
-             longer holds it."
+            "This sound can't be saved: what was already saved was kept only in its take, \
+             which no longer holds it."
                 .into(),
         );
         true
