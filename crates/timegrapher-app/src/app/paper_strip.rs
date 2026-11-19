@@ -560,11 +560,7 @@ impl TimegrapherApp {
             .map(|(title, _)| title);
         // The faint dots in view, so the note says what is drawn: on pure
         // silence only the peak as the microphone opens (#2053).
-        let shown = end - self.strip.span_s;
-        let dots = candidates
-            .iter()
-            .filter(|b| (shown..=end).contains(&b.time))
-            .count();
+        let dots = dots_in_view(&candidates, end - self.strip.span_s, end);
         let note = strip_note(guessing, (wait.as_deref(), dots), looking_back, end);
         let from = end - self.strip.span_s - 5.0;
         let (trend, _) = self.strip_trend(from, end, self.average_s);
@@ -761,6 +757,15 @@ fn round_span(s: f64) -> f64 {
 
 /// The position track along the strip: (from s, to s, label, code).
 type StripTrack = Vec<(f64, f64, &'static str, &'static str)>;
+
+/// How many of the faint dots fall in the strip's view, from `shown` to
+/// `end` seconds (#2053).
+fn dots_in_view(candidates: &[timegrapher_core::beats::Beat], shown: f64, end: f64) -> usize {
+    candidates
+        .iter()
+        .filter(|b| (shown..=end).contains(&b.time))
+        .count()
+}
 
 /// The line over the strip: what the faint dots are while no regular beat
 /// is found, led by the cards' wait where there is no beat at all and
@@ -1016,6 +1021,23 @@ mod tests {
         assert_eq!(overlays[1].points[1], [1.0, 0.8]);
         assert!(overlays[1].points[0][1].is_nan());
         assert!(overlays[1].points[2][1].is_nan());
+    }
+
+    /// Only the dots in the strip's view count: the 0:00 peak scrolled
+    /// off, or dots after the strip's newest edge moved back, don't (Trevor
+    /// on #2066).
+    #[test]
+    fn only_the_dots_in_view_are_counted() {
+        let at = |time| timegrapher_core::beats::Beat {
+            index: 0,
+            time,
+            quality: 1.0,
+        };
+        let dots = [at(0.0), at(12.0), at(14.0), at(30.0)];
+        assert_eq!(dots_in_view(&dots, 10.0, 20.0), 2);
+        assert_eq!(dots_in_view(&dots, 20.0, 29.0), 0);
+        assert_eq!(dots_in_view(&dots, 0.0, 12.0), 2, "both ends in view");
+        assert_eq!(dots_in_view(&dots, 25.0, 40.0), 1);
     }
 
     /// The note says as many faint dots as are in view: none, the one
