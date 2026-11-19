@@ -72,6 +72,13 @@ mod tests {
     #[test]
     fn short_strips_label_each_time_line_once() {
         use timegrapher_core::library::length_text;
+        // A 5 s take lying across a wide strip: a label each second.
+        let step = time_step(5.0, 90.0, 1000.0);
+        let labels: Vec<String> = time_lines(5.0, -0.5, step)
+            .into_iter()
+            .map(length_text)
+            .collect();
+        assert_eq!(labels, ["0:05", "0:04", "0:03", "0:02", "0:01", "0:00"]);
         for (gap, along) in [
             (90.0, 300.0),
             (90.0, 1000.0),
@@ -83,6 +90,9 @@ mod tests {
                 let span = span as f64;
                 let step = time_step(span, gap, along);
                 assert!(step >= 1.0, "{step} s at {span} s over {along}");
+                if span * gap / along <= 1.0 {
+                    assert_eq!(step, 1.0, "1 s lines where they fit, {span} s over {along}");
+                }
                 let labels: Vec<String> = time_lines(span, -0.5, step)
                     .into_iter()
                     .map(length_text)
