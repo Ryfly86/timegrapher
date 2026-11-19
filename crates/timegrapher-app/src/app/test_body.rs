@@ -82,6 +82,7 @@ pub(super) fn test_body(
                     ui.add_space(6.0);
                 }
             }
+            guided::saved_read_line(ui, test, phase);
             // Beside the result at the first of the table's widths that
             // leaves the result its least width; else under it.
             let side = layout

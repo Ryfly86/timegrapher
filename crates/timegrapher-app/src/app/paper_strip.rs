@@ -160,7 +160,22 @@ impl TimegrapherApp {
     /// two overlap: what is shaded as settling is not read, and what is
     /// culled is shaded (Hugh).
     pub(super) fn strip_settles(&self) -> Vec<(f64, f64, &'static str)> {
-        let settling = super::masks::settlings(&self.session, &self.guided_unused);
+        let mut settling = super::masks::settlings(&self.session, &self.guided_unused);
+        // A test's take opened: its marks say what each stretch was, so
+        // the gaps the session file leaves between its entries are
+        // settling only where the test settled (#1957).
+        if self.marks_opened() {
+            let marked: Vec<(f64, f64)> = self
+                .guided_unused
+                .iter()
+                .filter(|s| s.2 != guided::SETTLING)
+                .map(|&(a, b, _)| (a, b))
+                .collect();
+            settling = settling
+                .iter()
+                .flat_map(|&(a, b)| crate::strip::showing(a, b, marked.iter().copied()))
+                .collect();
+        }
         let rest = self
             .guided_unused
             .iter()

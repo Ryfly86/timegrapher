@@ -70,6 +70,7 @@ pub(super) fn full_wind_of_take(
         positions,
         wind_h: None,
         against: None,
+        listened: false,
     })
 }
 

@@ -32,6 +32,7 @@ fn the_full_wind_tests_offered_are_those_from_12_to_36_hours_ago() {
         let f = FullWind {
             wind_h,
             against: None,
+            listened: false,
             format: RESULTS_FORMAT.into(),
             began_utc: String::new(),
             began_unix: now - hours * 3600.0,
@@ -81,6 +82,7 @@ fn a_full_wind_choice_says_when_and_what_it_measured() {
     let mut f = FullWind {
         wind_h: None,
         against: None,
+        listened: false,
         format: RESULTS_FORMAT.into(),
         began_utc: "2026-10-27T18:58:04.120Z".into(),
         began_unix: 0.0,
@@ -1107,12 +1109,14 @@ fn an_opened_24_hour_half_shows_its_table_and_comparison() {
         positions: vec![row("DU", 2.0, 300.0), row("CD", 6.0, 270.0)],
         wind_h: None,
         against: None,
+        listened: false,
     };
     let later = FullWind {
         began_unix: full.began_unix + 24.5 * 3600.0,
         positions: vec![row("DU", 5.0, 260.0), row("CD", 12.0, 240.0)],
         wind_h: Some(24.5),
         against: Some(Box::new(full.clone())),
+        listened: false,
         ..full.clone()
     };
     let c = saved_comparison(&later).unwrap();
@@ -1157,10 +1161,12 @@ fn an_opened_24_hour_half_shows_no_empty_table_line() {
         positions: vec![row("DU")],
         wind_h: None,
         against: None,
+        listened: false,
     };
     let later = FullWind {
         wind_h: Some(24.5),
         against: Some(Box::new(full.clone())),
+        listened: false,
         ..full
     };
     let texts: Vec<String> = drawn_with(None, None, Some(&later), None)
@@ -1601,5 +1607,27 @@ fn the_step_panel_and_the_cards_count_the_settle_alike() {
         let cards = Wait::Settling { left_s: left }.title();
         let n = cards.trim_start_matches("Settling, ");
         assert_eq!(detail, format!("Letting the watch settle, {n}"), "{left}");
+    }
+}
+
+/// Every guided test's pane says its saved take is being analysed again,
+/// the Complication Test's too (#1958, Gus 8 on #2067), once, at its top
+/// (Hugh 5).
+#[test]
+fn every_tests_table_says_its_saved_take_is_analysed_again() {
+    for mut t in [
+        Test::new(),
+        Test::poise(),
+        Test::complication(Position::DialUp),
+    ] {
+        t.saved_read = SavedRead::Reading;
+        let texts = drawn_with(Some(&t), None, None, None);
+        assert!(
+            texts
+                .iter()
+                .any(|(s, _)| s == "Analysing the saved take: these figures may change slightly."),
+            "{:?}: {texts:?}",
+            t.kind
+        );
     }
 }
