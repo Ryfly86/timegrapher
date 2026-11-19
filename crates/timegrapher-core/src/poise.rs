@@ -192,57 +192,93 @@ pub struct PoiseFit {
 }
 
 /// A test's stops holding too few rate readings to read a ± from
-/// ([`crate::confidence::NoPm::PoolShort`]): how many they hold, how many
-/// a ± needs, and the stop length that would give that many (#1960).
+/// ([`crate::confidence::NoPm::PoolShort`], or
+/// [`crate::confidence::NoPm::TooFew`] where a stop holds fewer than its
+/// own least): how many they hold, how many a ± needs, and the stop
+/// length that would give that many (#1960).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ShortPool {
     pub values: usize,
     pub needed: usize,
     pub stops: usize,
     pub stop_s: f64,
+    /// The fewest any one stop holds.
+    pub fewest: usize,
+    /// The reason that binds: [`NoPm::TooFew`](crate::confidence::NoPm::TooFew)
+    /// where any stop holds fewer than its own least, else
+    /// [`NoPm::PoolShort`](crate::confidence::NoPm::PoolShort) (Norm on #1960).
+    pub reason: crate::confidence::NoPm,
 }
 
 impl ShortPool {
-    /// For `measurements` of a test's stops, each of whose rate has no ±
-    /// or [`NoPm::PoolShort`](crate::confidence::NoPm::PoolShort) for its
-    /// reason: the readings they hold, counted as the rate's ± counts them
-    /// ([`crate::confidence::rate_value_count`]). None where a rate lacks
-    /// its ± for another reason, or none lacks one.
+    /// For `measurements` of a test's stops, each of whose rate has a ±
+    /// or lacks one for too few readings
+    /// ([`NoPm::PoolShort`](crate::confidence::NoPm::PoolShort) or
+    /// [`NoPm::TooFew`](crate::confidence::NoPm::TooFew)): the readings
+    /// they hold, in the rate's noise pool
+    /// ([`crate::confidence::rate_pool_values`]), and the stop length at
+    /// which each holds its own least and all of them the pool's, at any
+    /// offset from the window grid. None where a rate lacks its ± for
+    /// another reason, or none lacks one.
     pub fn of<'a>(
         measurements: impl IntoIterator<Item = &'a crate::session::Measurement>,
     ) -> Option<Self> {
-        use crate::confidence::{rate_span_for, rate_value_count, NoPm, MIN_NOISE_VALUES};
-        let (mut values, mut stops, mut short) = (0, 0, false);
+        use crate::confidence::{
+            rate_span_of, rate_value_count, rate_windows_for, NoPm, MIN_NOISE_VALUES, MIN_VALUES,
+        };
+        let (mut values, mut stops, mut short, mut few) = (0, 0, false, false);
+        let mut fewest = usize::MAX;
         for m in measurements {
+            values = values.max(m.confidence.map_or(0, |c| c.rate_pool_values));
             let rate = m.confidence.map(|c| c.rate);
             match rate.map(|r| (r.se, r.no_pm)) {
                 Some((Some(_), _)) => {}
                 Some((None, Some(NoPm::PoolShort))) => short = true,
+                Some((None, Some(NoPm::TooFew))) => few = true,
                 _ => return None,
             }
-            values += rate_value_count(m.coverage.rate.windows_used);
+            fewest = fewest.min(rate_value_count(m.coverage.rate.windows_used));
             stops += 1;
         }
-        (short && stops > 0).then(|| ShortPool {
+        // The pool takes every other window of the stops' windows in
+        // turn, across one stop's end into the next's (Norm on #2041), so
+        // its count is its own, and each stop needs the windows for its own
+        // least and its share of the pool's, wherever it falls on their
+        // grid.
+        let each = rate_windows_for(MIN_VALUES)
+            .max(rate_windows_for(MIN_NOISE_VALUES).div_ceil(stops.max(1)));
+        ((short || few) && stops > 0).then(|| ShortPool {
             values,
             needed: MIN_NOISE_VALUES,
             stops,
-            stop_s: rate_span_for(MIN_NOISE_VALUES.div_ceil(stops)),
+            stop_s: rate_span_of(each),
+            fewest,
+            reason: if few { NoPm::TooFew } else { NoPm::PoolShort },
         })
     }
 
-    /// Why there is no ±, in words: "The 8 positions hold 24 rate
-    /// readings, and a ± needs 30, which 45 s measured at each position
-    /// would give" (Hugh on #2041).
+    /// Why there is no ±, in words (Hugh on #1960): where only the pool
+    /// is short, "The 8 positions hold 20 rate readings, and a ± needs 30,
+    /// which 50 s measured at each position would give"; where a position
+    /// holds fewer than its own least, "The 8 positions hold 16 rate
+    /// readings, as few as 2 at one position. A ± needs 3 at each position
+    /// and 30 in all, which 50 s measured at each position would give".
     pub fn text(&self) -> String {
-        format!(
-            "The {} positions hold {} rate readings, and a ± needs {}, which {} s measured at \
-             each position would give",
-            self.stops,
-            self.values,
-            self.needed,
-            fixed_text(self.stop_s, 0)
-        )
+        use crate::confidence::{NoPm, MIN_VALUES};
+        let length = crate::figure_text::duration_text(self.stop_s);
+        let (stops, values, needed) = (self.stops, self.values, self.needed);
+        match self.reason {
+            NoPm::TooFew => format!(
+                "The {stops} positions hold {values} rate readings, as few as {} at one \
+                 position. A ± needs {MIN_VALUES} at each position and {needed} in all, which \
+                 {length} measured at each position would give",
+                self.fewest
+            ),
+            _ => format!(
+                "The {stops} positions hold {values} rate readings, and a ± needs {needed}, \
+                 which {length} measured at each position would give"
+            ),
+        }
     }
 }
 
@@ -359,7 +395,7 @@ pub fn shown_fit<'a>(
     // A wave with no ± because the stops together hold too few rate
     // readings says so, with what would give one (Norm on #1960).
     if let (None, Some(pool)) = (f.wave.size.se, ShortPool::of(stops)) {
-        let why = Some(crate::confidence::NoPm::PoolShort);
+        let why = Some(pool.reason);
         for t in [&mut f.wave.mean, &mut f.wave.size, &mut f.wave.peak_deg] {
             t.no_pm = why;
         }

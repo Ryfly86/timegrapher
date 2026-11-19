@@ -282,7 +282,7 @@
    },
    "total": {
     "bounds": 99,
-    "comparisons": 91,
+    "comparisons": 88,
     "constants": 62,
     "defaults": 2
    }

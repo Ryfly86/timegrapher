@@ -214,6 +214,10 @@ pub struct Confidence {
     pub rate: Reading,
     pub amplitude: Reading,
     pub beat_error: Reading,
+    /// The values the rate's noise pool holds ([`rate_pool_values`]);
+    /// 0 where no take was given.
+    #[serde(skip)]
+    pub rate_pool_values: usize,
 }
 
 /// Conditions detected in the recording, as plain flags; each one set is
@@ -241,6 +245,7 @@ impl Confidence {
             rate: reading(rate_se),
             amplitude: reading(amplitude_se),
             beat_error: reading(beat_error_se),
+            rate_pool_values: 0,
         }
     }
 
@@ -258,6 +263,7 @@ impl Confidence {
             rate: reading(rate_se),
             amplitude: reading(amplitude_se),
             beat_error: reading(beat_error_se),
+            rate_pool_values: 0,
         }
     }
 }
@@ -876,13 +882,19 @@ pub fn rate_value_count(windows: usize) -> usize {
     windows.div_ceil(RATE_WINDOW_STRIDE)
 }
 
-/// The shortest stretch, s, whose rate windows hold `values` independent
-/// values ([`rate_value_count`]) wherever it falls on the windows' grid
-/// (`clean::nominal_windows`): its first window may start up to a step
-/// after it begins, so it needs `(values − 1)·2 + 1` windows laid after
-/// that (#1960).
-pub fn rate_span_for(values: usize) -> f64 {
-    let windows = (values.max(1) - 1) * RATE_WINDOW_STRIDE + 1;
+/// The fewest rate windows that hold `values` independent values
+/// ([`rate_value_count`]): `(values − 1)·2 + 1`.
+pub fn rate_windows_for(values: usize) -> usize {
+    (values.max(1) - 1) * RATE_WINDOW_STRIDE + 1
+}
+
+/// The shortest stretch, s, that holds `windows` rate windows wherever it
+/// falls on the windows' grid (`clean::nominal_windows`): its first may
+/// start up to a step after it begins, so `windows` steps are laid after
+/// that, and the last window's own length (#1960). The one rule for how
+/// long a stretch must be: for `values` independent values, of
+/// [`rate_windows_for`] them.
+pub fn rate_span_of(windows: usize) -> f64 {
     crate::measure::RATE_WINDOW_S + windows as f64 * crate::measure::RATE_WINDOW_STEP_S
 }
 
@@ -895,6 +907,17 @@ pub fn rate_span_for(values: usize) -> f64 {
 /// [`MIN_NOISE_VALUES`] (#1470).
 pub fn rate_se(windows: &[WindowFit], take: &[WindowFit]) -> Option<f64> {
     rate_se_or_why(windows, take).ok()
+}
+
+/// How many values the rate's noise pool in `take` holds: its valued
+/// windows among [`rate_values`], as [`noise_pool`] counts them for
+/// [`rate_se_or_why`]. A test's stops lie end to end in `take`, so the
+/// pool takes every other window across one stop's end into the next's
+/// (Norm on #2041).
+pub fn rate_pool_values(take: &[WindowFit]) -> usize {
+    rate_values(take)
+        .filter(|w| w.fit.rate_s_per_day.is_finite())
+        .count()
 }
 
 /// [`rate_se`], or why there is none (#1908).
@@ -970,8 +993,8 @@ pub fn beat_error_se_or_why<'a>(
 mod tests {
     use super::*;
 
-    /// [`rate_span_for`] is the shortest whole-second stretch whose
-    /// windows give that many rate values wherever it falls on the grid:
+    /// [`rate_span_of`] [`rate_windows_for`] is the shortest whole-second
+    /// stretch whose windows give that many rate values wherever it falls on the grid:
     /// it does at every offset, and a second less doesn't at some (#1960).
     #[test]
     fn the_span_for_rate_values_holds_them_at_any_offset() {
@@ -987,7 +1010,7 @@ mod tests {
         };
         let offsets: Vec<f64> = (0..50).map(|i| 100.0 + f64::from(i) * 0.1 + 0.01).collect();
         for k in 1..=10 {
-            let span = rate_span_for(k);
+            let span = rate_span_of(rate_windows_for(k));
             assert!(
                 offsets.iter().all(|&o| values_in(o, span) >= k),
                 "{k}: {span}"
@@ -997,7 +1020,7 @@ mod tests {
                 "{k}: {span}"
             );
         }
-        assert_eq!(rate_span_for(4), 45.0);
+        assert_eq!(rate_span_of(rate_windows_for(4)), 45.0);
     }
     use crate::synth::Rng;
 
