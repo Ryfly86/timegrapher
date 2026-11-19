@@ -317,6 +317,7 @@ adds a **Sound** row saying none was kept and what measured it.
 | `windows.csv.gz` | Every 2-second amplitude window, gzipped CSV with the header line `start_s,end_s,even_deg,odd_deg,beat_error_ms,beat_error_unlock_ms,even_unlock_ms,odd_unlock_ms,even_drop_ms,odd_drop_ms` (the beat log's fields, each written so it reads back exactly; empty where there is none) |
 | `profiles.bin.gz` | The Tick Tock profiles of each 2 seconds, gzipped binary, below |
 | `culled.csv.gz` | The window sides the amplitude gate (100° to 380°) left out at the kept lift, gzipped CSV with the header line `window,even_unlock_ms,even_drop_ms,odd_unlock_ms,odd_drop_ms`: the window's row in `windows.csv.gz` from 0, and each culled side's unlock and drop, ms from the beat time (empty for a side not culled). Only windows with a culled side have a row. When the take is read at another lift, these sides are read again and gated at it (#1333). Optional: a take kept before it has none, and is read without it |
+| `sound.bin.gz` | The beats' sound the watch verdict reads where the timing can't say (under 10 s of sound since the start or a break, or a scatter in doubt), gzipped binary, below (#2069). Optional: a take kept before it has none, and one that can't be read is read as none, so its stretches under 10 s give no figures |
 
 `analysis.json` holds `format` (`"timegrapher.analysis/2"`; a later
 version is refused by name, and `/1`, written before #657, is read with
@@ -339,6 +340,19 @@ over the envelope's median, or null) and `shape` (one entry per
 recording with a shape: `recording`, its place in `session.toml` from
 0, `from_s` and `to_s`, the stretch measured, and `summary`, as a
 reading's `shape`).
+
+`sound.bin.gz` is little-endian. It starts with the 8 bytes
+`TGSOUND\x01` (the last byte is the version) and the number of beats
+(u32). Each beat then has its row in `beats.csv.gz` (u32, from 0, each
+after the last), the values in its envelope window (u32) and the values
+(f32, exactly as the engine found them). The beats are the sample the
+engine keeps of a take's sound for the verdict, spread evenly over the
+whole take, both Tick and Tock, at most 384 of them whatever its length
+(about 2 MB before compression at 48 kHz, 1 MB after), so a stretch of a
+take kept as its analysis is judged on the same sound, value for value,
+as with its sound. A file cut short, of a later version, out of order,
+past the last beat, holding a value that isn't a number or running on
+past its last beat is read as none.
 
 `profiles.bin.gz` is little-endian. It starts with the 8 bytes
 `TGPROF\0\x01`, the stretch length (f32 seconds, 2), the first point

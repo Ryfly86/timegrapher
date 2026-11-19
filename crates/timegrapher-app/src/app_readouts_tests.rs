@@ -2241,10 +2241,15 @@ fn silence_gives_the_strip_and_the_cards_one_verdict() {
         assert!(!text.contains("regular"), "{text}");
     };
     said(&strip_text(&mut app, &ctx, false), Wait::NoBeats);
-    // With a faint dot or two (the peak as the microphone opens), the
+    // With the one faint dot (the peak as the microphone opens), the
     // strip's note leads with the same wait, listening and once stopped
-    // (Walter on #2051).
-    let note = |wait: Wait| format!("{}. The faint dots", wait.title());
+    // (Walter on #2051), and says one dot (#2053).
+    let note = |wait: Wait| {
+        format!(
+            "{}. The faint dot is a sound that might be a beat.",
+            wait.title()
+        )
+    };
     let whole = strip_text(&mut app, &ctx, true);
     assert!(whole.contains(&note(Wait::NoBeats)), "{whole}");
     assert!(!whole.contains("regular"), "{whole}");
@@ -2302,4 +2307,113 @@ fn a_short_stretch_says_which_beats_the_readings_are_fitted_to() {
             crate::fields::duration(r.span_s.round())
         )
     );
+}
+
+/// A listen stopped before 10 s with nothing heard is no longer
+/// listening: every card says "No Beats Heard", as the status bar says
+/// Stopped, not "Listening" (Walter on #2053).
+#[test]
+fn a_listen_stopped_early_on_silence_says_no_beats_heard() {
+    use timegrapher_core::measure::Wait;
+    let ctx = themed();
+    let base = std::env::temp_dir().join(format!("tg-stop-early-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "early".into());
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let quiet = vec![0.0_f32; 960];
+    for _ in 0..6 * 50 {
+        app.live.as_mut().expect("live").push(&quiet);
+    }
+    let text = cards_text(&app, &ctx);
+    assert_eq!(painted(&text, "Listening"), 3, "listening first: {text}");
+    app.stop();
+    let text = cards_text(&app, &ctx);
+    assert!(!text.contains("Listening"), "{text}");
+    assert_eq!(painted(&text, "No Beats"), 3, "{text}");
+    assert_eq!(painted(&text, "Heard"), 3, "{text}");
+    let r = app.card_reading();
+    assert_eq!(
+        app.waiting(r.as_ref()),
+        Some((Wait::NoBeatsHeard.title(), Wait::NoBeatsHeard.text()))
+    );
+    drop(_tx);
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// A watch heard for under 10 s, its beats' sound not to be judged, and
+/// the sound over (stopped, or an opened take at its newest moment): the
+/// figures are still held, and no more will come, so every card says
+/// "Under 10 s Heard", the fact, not "Listening" or "Waiting for More
+/// Beats" (Trevor and Hugh on #2066).
+#[test]
+fn under_ten_seconds_heard_and_over_says_so_on_every_card() {
+    use timegrapher_core::measure::{HeardSince, Wait};
+    let ctx = themed();
+    let app = synthetic(30.0, 20.0);
+    let live = app.live.as_ref().expect("live");
+    let log = timegrapher_core::stream::BeatLog {
+        lock_template_kept: false,
+        sample_rate: 48_000,
+        duration_s: 6.0,
+        bph: live.bph().expect("bph"),
+        lift_deg: 52.0,
+        beats: live
+            .beats()
+            .iter()
+            .filter(|b| b.time <= 6.0)
+            .cloned()
+            .collect(),
+        amplitude_windows: Vec::new(),
+        clipped_beats: Vec::new(),
+        clipped_samples: 0,
+        jumps: Vec::new(),
+        sided: Vec::new(),
+        by_count: Vec::new(),
+        snippets: Vec::new(),
+    };
+    let mut app = synthetic(30.0, 20.0);
+    app.live = Some(timegrapher_core::live::LiveAnalyzer::from_log(
+        log,
+        timegrapher_core::live::LiveConfig::default(),
+    ));
+    app.strip_end = None;
+    assert!(!app.running());
+    let r = app.card_reading().expect("a reading");
+    assert_eq!(r.listening, Some(HeardSince::Start), "{r:?}");
+    let text = cards_text(&app, &ctx);
+    let title = Wait::ShortHeard {
+        since: HeardSince::Start,
+    }
+    .title();
+    assert_eq!(title, "Under 10 s Heard");
+    let (head, tail) = title.rsplit_once(' ').expect("words");
+    assert_eq!(painted(&text, head), 3, "{text}");
+    assert_eq!(painted(&text, tail), 3, "{text}");
+    assert!(
+        !text.contains("Listening") && !text.contains("More") && !text.contains("Waiting"),
+        "{text}"
+    );
+    let says = |since| {
+        let mut r = r.clone();
+        r.listening = Some(since);
+        app.listening(Some(&r)).expect("a word")
+    };
+    assert_eq!(
+        says(HeardSince::Start),
+        (
+            "Under 10 s Heard".to_string(),
+            "The figures need 10 s of sound: less than 10 s was heard since the start.".to_string()
+        )
+    );
+    assert_eq!(
+        says(HeardSince::Break),
+        (
+            "Under 10 s Heard".to_string(),
+            "The figures need 10 s of sound: less than 10 s was heard since the break.".to_string()
+        )
+    );
+    // Moved back into it, the take goes on past there: still Listening.
+    app.strip_end = Some(5.0);
+    assert!(cards_text(&app, &ctx).contains("Listening"));
 }

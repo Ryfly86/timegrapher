@@ -525,16 +525,30 @@ fn big_stretch(average_s: f64, floored: bool) -> String {
 impl TimegrapherApp {
     /// Under 10 s of sound since Listen started or the latest break, no
     /// figures yet: a word saying what they wait for, and its hover
-    /// (#2014, Hugh). A settle's own state wins.
-    fn listening(&self, r: Option<&LiveReading>) -> Option<(String, String)> {
+    /// (#2014, Hugh). A settle's own state wins. Where the sound is over it
+    /// is no longer listening (#2053): with beats, "Under 10 s Heard", the
+    /// fact (#2066); with none, the cards' "No Beats Heard".
+    pub(super) fn listening(&self, r: Option<&LiveReading>) -> Option<(String, String)> {
+        // With no beat at all, once over, the cards' "No Beats Heard".
+        let none = r.is_some_and(no_beat) && self.sound_over();
         r.and_then(|r| r.listening)
-            .filter(|_| heard(r) && self.settling_left().is_none())
-            .map(|since| {
-                (
-                    timegrapher_core::measure::LISTENING_TITLE.to_string(),
-                    timegrapher_core::measure::listening_text(since),
-                )
+            .filter(|_| !none && heard(r) && self.settling_left().is_none())
+            .map(|since| match self.sound_over() {
+                // The sound over, under 10 s heard is a fact, not a wait:
+                // no more will come (Hugh on #2066).
+                true => wait_words(measure::Wait::ShortHeard { since }),
+                false => (
+                    measure::LISTENING_TITLE.to_string(),
+                    measure::listening_text(since),
+                ),
             })
+    }
+
+    /// Whether the cards show the end of a sound that is over: stopped, or
+    /// an opened recording, at its newest moment. Earlier in it, the strip
+    /// moved back, its first 10 s are still "Listening" (#2053).
+    fn sound_over(&self) -> bool {
+        !self.running() && self.strip_end.is_none()
     }
 
     /// Why the cards have no reading, or a reading with no beat at all:
@@ -1476,14 +1490,7 @@ impl TimegrapherApp {
         if error && !self.setup_sheet {
             let short = match (self.session.recording_fault(), &self.message) {
                 (Some(_), _) => "Recording Stopped…".to_string(),
-                (None, Some((m, _))) => {
-                    let first = m.lines().next().unwrap_or_default();
-                    if first.chars().count() > 48 {
-                        format!("{}…", first.chars().take(47).collect::<String>())
-                    } else {
-                        format!("{first}…")
-                    }
-                }
+                (None, Some((m, _))) => error_short(m),
                 _ => String::new(),
             };
             let resp = status_item(
@@ -2098,7 +2105,7 @@ pub(super) fn figure_row(
     // (Hugh on #2036), and only then is made smaller.
     let short = status.and_then(|s| measure::wait_short_title(&s.0));
     if let Some(short) = short.filter(|_| no_dash && side_w > rect.width()) {
-        lines = side_lines(short, true, compact);
+        lines = side_lines(&short, true, compact);
         side = lay_side(&side_font, &lines);
         side_w = side.iter().map(|g| g.size().x).fold(0.0, f32::max);
     }
@@ -2180,8 +2187,13 @@ fn side_lines(side_text: &str, status: bool, compact: bool) -> Vec<String> {
         vec![side_text.to_string()]
     } else if status {
         // Two lines as even as the words allow: "Settling," over "12 s",
-        // "Waiting for" over "Beats".
-        let splits = side_text.match_indices(' ').map(|(i, _)| i);
+        // "Waiting for" over "Beats". Never between a number and its
+        // unit: "Under 10 s" over "Heard" (#2066).
+        let number = |w: &str| w.chars().all(|c| c.is_ascii_digit());
+        let splits = side_text
+            .match_indices(' ')
+            .map(|(i, _)| i)
+            .filter(|&i| !side_text[..i].rsplit(' ').next().is_some_and(number));
         match splits.min_by_key(|&i| i.abs_diff(side_text.len() - i)) {
             Some(i) => vec![side_text[..i].to_string(), side_text[i + 1..].to_string()],
             None => vec![side_text.to_string()],
@@ -2383,4 +2395,15 @@ fn said_elsewhere(c: &Caveat) -> bool {
             | Caveat::LiftUnknown
             | Caveat::ClockUnknown
     )
+}
+
+/// An error's words in the status bar: its first line, cut to 48
+/// characters, with "…" saying a click shows the whole message.
+pub(super) fn error_short(m: &str) -> String {
+    let first = m.lines().next().unwrap_or_default();
+    if first.chars().count() > 48 {
+        format!("{}…", first.chars().take(47).collect::<String>())
+    } else {
+        format!("{first}…")
+    }
 }
