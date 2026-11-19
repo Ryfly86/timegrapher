@@ -29,7 +29,10 @@ pub struct AddPlan {
     pub from: PathBuf,
     /// Its bytes, all of them copied.
     pub bytes: u64,
-    keep_original: bool,
+    /// The original is kept: a copy, or a move whose original is still in
+    /// use when the copy ends ([`Library::finish_add`] deletes it only
+    /// when false).
+    pub keep_original: bool,
     takes: PathBuf,
     to: PathBuf,
     staged: PathBuf,
