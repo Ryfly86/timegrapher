@@ -1057,14 +1057,9 @@ fn the_readings_cards_carry_the_take_controls() {
             wants.push("Auto");
         }
         // The take's length shows at every width, and the reading cards
-        // keep their captions beside it: whole where they fit, by their
-        // short names at 800 (#1061), never cut.
-        wants.extend(["0:00", "Rate"]);
-        wants.extend(if w > 800.0 {
-            ["Amplitude", "Beat Error"]
-        } else {
-            ["Amp.", "B.E."]
-        });
+        // keep their captions whole beside it, at 800 without their "?"
+        // (Hugh on #1954), never cut.
+        wants.extend(["0:00", "Rate", "Amplitude", "Beat Error"]);
         if w <= 800.0 {
             // The compact Listen card's foot: the average and Wind,
             // short (Hugh on #1915).
@@ -1184,12 +1179,8 @@ fn the_cards_read_position_calibre_listen_then_the_readings() {
             line.as_str(),
             "Listen",
             "Rate",
-            timegrapher_core::steady_views::short_name("Amplitude")
-                .filter(|_| w <= 800.0)
-                .unwrap_or("Amplitude"),
-            timegrapher_core::steady_views::short_name("Beat Error")
-                .filter(|_| w <= 800.0)
-                .unwrap_or("Beat Error"),
+            "Amplitude",
+            "Beat Error",
         ];
         for pair in order.windows(2) {
             assert!(at(pair[0]) < at(pair[1]), "{pair:?} at {w}");

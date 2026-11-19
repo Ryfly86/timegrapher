@@ -185,14 +185,20 @@ full width first, since Rate, Amplitude and Beat Error need room only
 for their figures, which take a smaller form (the ± over the unit
 beside them) where they are narrower. Then Listen, Current Position and
 Calibre take compact forms in turn, down to the 800-point minimum, the
-reading cards always keeping room for their captions whole. Compact,
+reading cards always keeping room for their captions whole: at the
+narrowest they go without their "?", and the caption carries the same
+help, opening on hover and kept open by a click; a card's limits chip
+moves to the right end of its trend row, under the figure, on all three
+cards alike. The three figures share
+one size, the largest at which every card's figure and unit fit whole. Compact,
 Current Position is captioned **Position**, with a smaller picture, the
 position's two-letter code beside it ("CR"; the name is in its hover),
 and under it one pop-up, **Set**, of the six positions (with their keys)
 instead of the buttons (none while a take is on show or a test runs); the keys still work, and the bars aren't shown. Listen keeps
 its two icons, gives the take's length beside its caption ("Listen
 12:48"; on the narrowest windows in the Listen icon's hover instead),
-and shows Average Over's pop-up as **Avg 10 s**. Compact, Calibre keeps
+and shows Average Over's pop-up as **Avg 10 s**. At the narrowest, the
+boxes read "10 s" and "Wind"; their hovers give the whole words. Compact, Calibre keeps
 its pop-up with the lift and beat rate under it; on the narrowest
 windows the lift alone, since nothing finds the lift while Auto finds the
 beat rate, with the beat rates in a **Beat Rate** submenu under the
@@ -1127,8 +1133,9 @@ taller."). A
 layout saved by an earlier version of the app is set aside once for this
 starting one. Drag a pane by its tab
 to put it beside, above or below another, or onto another's tab to stack
-them; drag the gaps between panes to resize them; sizes set by a drag stand,
-and are kept with the layout, until a pane in that row or column is
+them; drag the gaps between panes to resize them; sizes set by a drag stand
+(though no drag takes the Paper Strip under its least), and are kept
+with the layout, until a pane in that row or column is
 shown or hidden. The selected tab takes
 the card's colour, joined to the card below it. The × on a tab hides
 that pane (the status line says it comes back from its icon at the top or
