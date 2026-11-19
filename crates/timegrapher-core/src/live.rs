@@ -268,6 +268,10 @@ pub struct LiveAnalyzer {
     /// whole file's reading tells them. Readings that name a side are left
     /// out until it has, and in a stretch it never could.
     sides: beats::SideCheck,
+    /// The reading as it was before a beat rate change started it again,
+    /// still listening at its own rate, so going back brings every beat
+    /// back (#1949; [`held::Held`]).
+    held: held::Held,
 }
 
 /// Good beats looked at for a step in their timing ([`beats::jumps`]) on
@@ -311,6 +315,7 @@ impl LiveAnalyzer {
             settled_to: 0.0,
             template: None,
             rebuild: Default::default(),
+            held: Default::default(),
             beats: Vec::new(),
             beats_gen: fresh_gen(),
             clipped: Vec::new(),
@@ -418,6 +423,7 @@ impl LiveAnalyzer {
     pub fn set_profile_span(&mut self, seconds: f64) {
         self.cfg.profile_s = seconds;
         self.in_shadow(|l| l.set_profile_span(seconds));
+        self.in_held(|l| l.set_profile_span(seconds));
     }
 
     fn profile_span(&self) -> f64 {
@@ -470,6 +476,13 @@ impl LiveAnalyzer {
     /// Forget the beats and the template, keeping the audio clock running
     /// (for a new watch or a new position).
     pub fn restart(&mut self) {
+        self.held = Default::default();
+        self.start_again();
+    }
+
+    /// [`Self::restart`] but for the reading held from before a rate
+    /// change, which stays.
+    fn start_again(&mut self) {
         self.template = None;
         self.forget_rebuild();
         self.bph = self.cfg.analysis.bph;
@@ -498,6 +511,7 @@ impl LiveAnalyzer {
     /// let go, the profiles start again, and no reading fits across the
     /// break.
     pub fn new_stretch(&mut self) {
+        self.in_held(LiveAnalyzer::new_stretch);
         self.give_up_rebuild("a new stretch began first");
         let now = self.duration_s();
         self.breaks.push(now);
@@ -600,6 +614,7 @@ impl LiveAnalyzer {
     /// jumps from the imported beat log. Distinct timestamps remain distinct;
     /// a position boundary is not evidence that a nearby jump is the same cut.
     pub fn set_breaks(&mut self, mut breaks: Vec<f64>) {
+        self.in_held(|l| l.set_breaks(breaks.clone()));
         self.give_up_rebuild("breaks were set first");
         breaks.extend_from_slice(&self.intrinsic_breaks);
         breaks.sort_by(f64::total_cmp);
@@ -619,6 +634,7 @@ impl LiveAnalyzer {
         let pairs: Vec<[f64; 2]> = spans.iter().map(|&(a, b)| [a, b]).collect();
         self.masked = crate::session::masked_spans(&pairs);
         self.in_shadow(|l| l.set_masked(spans));
+        self.in_held(|l| l.set_masked(spans));
     }
 
     /// Move the audio clock on by `seconds` with no audio, for a pause in
@@ -626,8 +642,10 @@ impl LiveAnalyzer {
     /// buffer starts afresh, and the beats after the pause carry on in time
     /// after a gap (which the readings don't fit across).
     pub fn skip(&mut self, seconds: f64) {
-        self.give_up_rebuild("listening paused first");
         let n = (seconds.max(0.0) * self.fs).round() as u64;
+        self.let_go_held_at(self.total + n);
+        self.in_held(|l| l.skip(seconds));
+        self.give_up_rebuild("listening paused first");
         self.total += n;
         self.buf.clear();
         self.buf0 = self.total;
@@ -643,7 +661,7 @@ impl LiveAnalyzer {
     pub fn set_bph(&mut self, bph: Option<u32>) -> bool {
         let heard = self.bph.is_some();
         if bph != self.cfg.analysis.bph {
-            self.cfg.analysis.bph = bph;
+            let was = std::mem::replace(&mut self.cfg.analysis.bph, bph);
             // The rate the beats are already read at, or Auto where Auto
             // found that rate: the beats so far stand. Auto after a rate
             // set by hand listens for the rate afresh.
@@ -652,7 +670,11 @@ impl LiveAnalyzer {
                 None => self.found_bph,
             };
             if !stands {
-                self.restart();
+                if let Some(heard) = self.back_to_held(bph) {
+                    return heard;
+                }
+                self.hold(was);
+                self.start_again();
                 return false;
             }
             self.in_shadow(|l| {
@@ -668,6 +690,7 @@ impl LiveAnalyzer {
         self.cfg.analysis.lift_known = lift_known;
         self.clock_known = clock_known;
         self.in_shadow(|l| l.set_known(lift_known, clock_known));
+        self.in_held(|l| l.set_known(lift_known, clock_known));
     }
 
     /// Correct the rates read on the recording's own clock, `clock` (its
@@ -690,6 +713,7 @@ impl LiveAnalyzer {
             _ => self.rate_clock = clock.cloned(),
         }
         self.in_shadow(|l| l.set_rate_clock(clock));
+        self.in_held(|l| l.set_rate_clock(clock));
     }
 
     /// A clock's error over audio `from..to`, ppm fast: its mapping's
@@ -718,12 +742,14 @@ impl LiveAnalyzer {
             self.cfg.analysis.amplitude.lift_deg = lift_deg;
         }
         self.in_shadow(|l| l.set_lift(lift_deg));
+        self.in_held(|l| l.set_lift(lift_deg));
     }
 
     /// Keep up to `n` beats from now on, the oldest dropped beyond them.
     pub fn set_max_beats(&mut self, n: usize) {
         self.cfg.max_beats = n;
         self.in_shadow(|l| l.set_max_beats(n));
+        self.in_held(|l| l.set_max_beats(n));
     }
 
     /// The sound as it came in, from `from_s` for `len_s` seconds, while it
@@ -747,6 +773,7 @@ impl LiveAnalyzer {
     /// microphone's 100 ms blocks and a file's 20 ms ones find the same
     /// first template and read the same beats (#1720).
     pub fn push(&mut self, samples: &[f32]) -> bool {
+        self.push_held(samples);
         let mut ran = false;
         let mut rest = samples;
         while !rest.is_empty() {
@@ -1156,6 +1183,7 @@ impl LiveAnalyzer {
         let from = self.amp.partition_point(|x| chunk_of(x.start_s) < last);
         self.judge_amplitude(from, last + 1);
         self.in_shadow(LiveAnalyzer::settle);
+        self.in_held(LiveAnalyzer::settle);
     }
 
     /// The Tick and Tock profiles from the sound kept up to `to`.
@@ -1828,6 +1856,7 @@ fn judged_s(fitted: bool, end_s: f64, window_from: f64, heard_since: f64, holes:
     }
 }
 
+mod held;
 mod rebuild;
 
 #[cfg(test)]
