@@ -159,7 +159,7 @@ Timegrapher Data/
     watch.toml
     photos/
     takes/
-      2026-10-08 11.31 Dial Up/
+      2026-10-08 11.31/
   Unsorted/
     takes/
 ```
