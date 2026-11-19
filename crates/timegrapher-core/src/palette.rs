@@ -203,6 +203,12 @@ pub fn palette(dark: bool) -> &'static Palette {
 /// under the line, on every surface (#1729, #1761).
 pub const BAND_FILL: f64 = 0.2;
 
+/// How dark a sheet (a dialog over the window) makes the window behind it,
+/// as black's opacity out of 255: clearly, in dark and light, so nothing
+/// under it reads as a control while the sheet takes every click there
+/// (Hugh on #2045; egui's own default is 100).
+pub const SHEET_BACKDROP_ALPHA: u8 = 170;
+
 /// The time-frequency maps' colours, from the smallest size to the
 /// largest: viridis at 17 evenly spaced points, from matplotlib's table.
 /// The same in both themes.
