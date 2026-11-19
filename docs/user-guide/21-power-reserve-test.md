@@ -82,7 +82,7 @@ own.
 
 | Mark | Part | What it shows |
 | --- | --- | --- |
-| 8 | The title | The run time in true time (through the sound card's measured clock) and how it ended, in short: "Ran 41 h 12 min · no beat heard". When the beats stopped and came back on the way, it adds how many times: "· restarted 2 times". The position is in the toolbar, and the run in full in the Info panel (mark 7). |
+| 8 | The title | The run time in true time (through the sound card's measured clock) and how it ended, in short: "Ran 41 h 12 min · No beat heard". When the beats stopped and came back on the way, it adds how many times: "· Restarted 2 times". The position is in the toolbar, and the run in full in the Info panel (mark 7). |
 | 9 | The rate | The rate against hours since the first beat: a step for each hour, an ended run's last part hour included, with a shaded band for the hour's ± where it has one. Hover a step for its figure. |
 | 10 | The amplitude | The amplitude against the same hours. |
 | 11 | The beat error | The beat error (ms) against the same hours. A figure grey in the table (below) is a grey step in its chart. |
@@ -133,7 +133,7 @@ take's end. The Info panel says it in full: "Ran 59 h 46 min in … from
 the take's start". Nothing is written into the take.
 
 **In the picture** is a Dandong 3235, fully wound, left dial up on the
-stand and recorded until it stopped: "Ran 59 h 46 min · no beat heard". The
+stand and recorded until it stopped: "Ran 59 h 46 min · No beat heard". The
 Paper Strip above it shows the whole
 take, the amplitude line falling to the right and the beats ending
 before the take does. Hour by hour, the amplitude falls from 253° in

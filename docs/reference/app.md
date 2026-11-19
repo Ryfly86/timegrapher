@@ -860,7 +860,16 @@ the top, further out when faster, and the mean as a dotted ring. Once
 five stops are in, core's `poise::fit` draws the once-round wave in grey
 with a line to its fastest hour, and the line over the picture is its
 `short_text`, with, near 219.5°, a grey chip saying why the heavy spot is
-not stated. The heavy spot is a facts box's one row on the picture,
+not stated: the stop nearest 219.5° among those within reach of it, and its
+amplitude ("At 6H the amplitude is 234°, near 219.5°, …"), never the take's
+whole range (#1960). Core's words are shown with a true minus sign. Where the
+stops' rates have no ±, because together they hold fewer rate readings than
+a ± needs, Info says so in a sentence of its own, with the count and the
+time measured at each position that would give one ("The 8 positions hold
+20 rate readings, and a ± needs 30, which 50 s measured at each position
+would give."); where a position holds fewer than its own least, it names
+the fewest too ("… as few as 2 at one position. A ± needs 3 at each
+position and 30 in all, which 50 s …"). The heavy spot is a facts box's one row on the picture,
 core's `heavy_spot_row` ("Heavy spot", "6H at the top, 180 ± 12°", or
 "Not stated"): on the plot in its top left, or its top right under the
 key where the wave or a point (its dot and a dot's width round it,
@@ -940,11 +949,20 @@ pane shows one line, the run time from the first beat heard and how the
 beats stand, with the count of stops on the way, and under it the hours so
 far as at the end: about once a minute the hour in progress is measured
 again and the table gains a row as each hour starts, the hour in progress
-read like a finished run's last ("2–2.4 h", its hover "A part hour: 26:28 past 2 h"); the charts gain a point as
-each hour is whole and show from the first whole hour, ended or not; a run with none shows its table alone, the pane keeping room for its rows. A figure no hour has (no amplitude read) draws no chart (#1961). At the end it shows one line,
-such as "Ran 41 h 12 min · No beat heard since 17 Nov 22:42, in Dial Up (DU) · Kept in Pepsi",
+read like a finished run's last: a part hour is labelled as a range whose end
+is in tenths of an hour, "2–2.4 h", never 2.0 or the next whole hour (Hugh on
+#1086), and its hover gives its exact length ("A part hour: 26:28 past 2 h");
+the charts gain a point as each hour is whole and show from the first whole
+hour, ended or not; a run with none shows its table alone, the pane keeping
+room for its rows. A figure no hour has (no amplitude read) draws no chart
+(#1961). At the end its title
+line says the run and how it ended, in short, such as "Ran 41 h 12 min · No
+beat heard" (with "· Restarted 2 times" when the beats came back on the way),
 the run time in true time (through the input's clock as measured
-while listening, else its stored correction), then, scrolling in the rest
+while listening, else its stored correction). The Info panel gives the run in
+full, with its position and when the last beat was heard ("No beat heard since
+17 Nov 22:42"), and where its take is kept ("Kept in Pepsi"), as Hugh placed
+them (#1528). Then, scrolling in the rest
 of the pane, the rate and amplitude against hours since the first beat, and a table
 of each hour (the last as long as is left): its rate, median amplitude
 and beat error from the unlock (from the drop in an hour where the unlock
