@@ -603,6 +603,16 @@ impl TimegrapherApp {
             .or_else(|| self.test_settle_left(at))
     }
 
+    /// A guided test's phase as its pane shows it: a settle counted in the
+    /// cards' own seconds, from the one `settling_left`, so the pane and
+    /// the cards never say the same settle 1 s apart (Walter on #2051).
+    pub(super) fn shown_phase(&self, p: Option<guided::Phase>) -> Option<guided::Phase> {
+        p.map(|p| match (p, self.settling_left()) {
+            (guided::Phase::Settling(_), Some(left)) => guided::Phase::Settling(left),
+            (p, _) => p,
+        })
+    }
+
     /// A guided test's own settle still to come at `at`, while it listens.
     pub(super) fn test_settle_left(&self, at: f64) -> Option<f64> {
         self.guided

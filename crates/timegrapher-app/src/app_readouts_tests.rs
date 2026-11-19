@@ -633,7 +633,13 @@ fn noise_shows_its_possible_beats_on_the_strip() {
         egui::CentralPanel::default().show(ctx, |ui| app.strip_pane(ui));
     });
     let drawn = format!("{:?}", out.shapes);
-    assert!(drawn.contains("No regular beat found yet"), "{drawn}");
+    // Led by the cards' own wait where no beat is found at all (#2044).
+    let r = app.reading().expect("a reading");
+    let lead = app
+        .waiting(Some(&r))
+        .map_or("No regular beat found yet".to_string(), |w| w.0);
+    let note = format!("{lead}. The faint dots are sounds that might be beats.");
+    assert!(drawn.contains(&note), "{note} in {drawn}");
     assert!(drawn.contains("Circle"), "the possible beats are drawn");
 }
 
@@ -2112,6 +2118,42 @@ fn pausing_in_a_tests_opening_settle_stops_its_count() {
     let _ = std::fs::remove_dir_all(base);
 }
 
+/// A guided test's pane counts its settle in the cards' seconds, from the
+/// one `settling_left`, though the test moves on with the sound's length
+/// and the cards read to the last beat (Walter on #2051).
+#[test]
+fn a_tests_pane_counts_the_settle_as_the_cards_do() {
+    let base = std::env::temp_dir().join(format!("tg-pane-settle-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "pane".into());
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let cfg = SynthConfig {
+        duration_s: 17.0,
+        rate_s_per_day: 5.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let live = app.live.as_mut().expect("live");
+    audio.samples.chunks(960).for_each(|b| {
+        live.push(b);
+    });
+    let mut test = guided::Test::new().timed(20.0, 60.0);
+    test.tick(2.0);
+    app.guided = Some(test);
+    let sound = app.live.as_ref().expect("live").duration_s();
+    assert!(sound > app.latest_s(), "{sound} after the last beat");
+    let ticked = app.guided.as_mut().expect("test").tick(sound);
+    let cards = app.settling_left().expect("settling");
+    assert_eq!(ticked, guided::Phase::Settling(22.0 - sound));
+    assert_eq!(
+        app.shown_phase(Some(ticked)),
+        Some(guided::Phase::Settling(cards))
+    );
+    drop(_tx);
+    let _ = std::fs::remove_dir_all(base);
+}
+
 /// An opened recording with no beat in it says "No Beats Heard" on every
 /// card, not "No Regular Beat", which is about beats that are there
 /// (Walter on #2036).
@@ -2203,6 +2245,17 @@ fn silence_gives_the_strip_and_the_cards_one_verdict() {
         assert!(!text.contains("regular"), "{text}");
     };
     said(&strip_text(&mut app, &ctx, false), Wait::NoBeats);
+    // With a faint dot or two (the peak as the microphone opens), the
+    // strip's note leads with the same wait, listening and once stopped
+    // (Walter on #2051).
+    let note = |wait: Wait| format!("{}. The faint dots", wait.title());
+    let whole = strip_text(&mut app, &ctx, true);
+    assert!(whole.contains(&note(Wait::NoBeats)), "{whole}");
+    assert!(!whole.contains("regular"), "{whole}");
+    app.stop();
+    let whole = strip_text(&mut app, &ctx, true);
+    assert!(whole.contains(&note(Wait::NoBeatsHeard)), "{whole}");
+    assert!(!whole.contains("regular"), "{whole}");
     let _ = std::fs::remove_dir_all(base);
     // An opened recording of silence, as Walter opened it.
     let mut app = synthetic(30.0, 5.0);
