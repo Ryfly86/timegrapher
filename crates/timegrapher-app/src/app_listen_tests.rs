@@ -1373,6 +1373,25 @@ fn a_take_deleted_while_recorded_into_is_put_back_by_its_next_write() {
     let wav = take.join("audio-001.wav");
     let heard = timegrapher_core::audio::load(&wav).unwrap().samples.len();
     assert_eq!(heard, 9 * 48000, "the whole sound, from its start");
+    // Felix on #2063: a streamed write failed (waiting a minute), then the
+    // take deleted, every hour still here, and the window in front. A
+    // minute on, the take is written back: streaming never stops quietly.
+    app.stream_wait = Some(std::time::Instant::now());
+    std::fs::remove_dir_all(&take).unwrap();
+    window_back(&mut app);
+    assert_eq!(status_now(&app).0, "Not saved");
+    let r = app.session.recorder.as_mut().unwrap();
+    r.write(&silence(6, 9)).unwrap();
+    app.stream_tick();
+    assert!(app.saving.is_none(), "a minute's wait first");
+    let long_ago = std::time::Instant::now().checked_sub(2 * STREAM_RETRY);
+    app.stream_wait = long_ago;
+    app.stream_tick();
+    assert!(app.saving.is_some(), "written back a minute on");
+    app.wait_for_save();
+    assert_eq!(status_now(&app).0, "Saved");
+    let heard = timegrapher_core::audio::load(&wav).unwrap().samples.len();
+    assert_eq!(heard, 15 * 48000, "the whole sound again");
     let _ = std::fs::remove_dir_all(&base);
 }
 

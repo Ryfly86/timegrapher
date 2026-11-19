@@ -119,23 +119,28 @@ impl TimegrapherApp {
     /// While a kept take is heard, add its sound since the last save to
     /// its folder every [`STREAM_EVERY_S`] of sound, quietly, so a crash
     /// or a power cut costs only seconds. A save that fails says so, and
-    /// the next is tried a minute later. One refused as its take no longer
-    /// holds the sound is said once, not again until the take holds it
-    /// (#2061): the status bar says "Can't be saved" meanwhile.
+    /// the next is tried a minute later. One refused because the take no
+    /// longer holds hours it held alone is said once (#2061): it is looked
+    /// at again each minute, quietly, and written into once it holds them.
     pub(super) fn stream_tick(&mut self) {
-        let gone = self
-            .session
-            .recorder
-            .as_ref()
-            .is_some_and(Recorder::saved_copy_gone);
-        if self.saving.is_some()
-            || self
-                .stream_wait
-                .is_some_and(|t| gone || t.elapsed() < STREAM_RETRY)
-            || !self.streams()
-            || self.session.unsaved_s() < STREAM_EVERY_S
-        {
+        if self.saving.is_some() || !self.streams() || self.session.unsaved_s() < STREAM_EVERY_S {
             return;
+        }
+        if let Some(t) = self.stream_wait {
+            if t.elapsed() < STREAM_RETRY {
+                return;
+            }
+            let gone = self
+                .session
+                .recorder
+                .as_ref()
+                .is_some_and(Recorder::saved_copy_gone);
+            // Felix on #2063: only a write that would be refused waits on;
+            // one the take's deletion alone stopped puts the take back.
+            if gone && !self.saved_hours_reachable() {
+                self.stream_wait = Some(Instant::now());
+                return;
+            }
         }
         self.stream_wait = None;
         self.save_again_as(Streamed::Yes);
