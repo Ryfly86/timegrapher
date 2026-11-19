@@ -889,6 +889,7 @@ impl Recorder {
         // from read_dir and turn an incomplete take into a success.
         for n in &self.segments {
             let mut f = self.pending_segment(n)?;
+            self.check_released_elsewhere(&mut f, n, &dest);
             // Only a streamed save grows the copy in place: Save and Save
             // Again stage every file, as before.
             if !log_end {
@@ -1026,7 +1027,7 @@ impl Recorder {
     pub fn note_saved(&mut self, copy: &SavedCopy) {
         self.saved_name = Some(copy.name.clone());
         self.grown = copy.grown.clone();
-        self.saved_into(&copy.written);
+        self.saved_into(copy);
         self.take_released(&copy.held_whole);
     }
 
