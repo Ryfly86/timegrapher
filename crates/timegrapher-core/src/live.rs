@@ -1357,10 +1357,7 @@ impl LiveAnalyzer {
         {
             measure::add(&mut caveats, caveat);
         }
-        if masked_s > 0.0 {
-            measure::add(&mut caveats, Caveat::Masked { seconds: masked_s });
-        }
-        self.add_rebuild_caveat(&mut caveats);
+        self.window_caveats(&mut caveats, masked_s);
         let whole = holes.whole(&self.beats, window_from, end_s, GAP_S);
         LiveReading {
             bph_set: self.cfg.analysis.bph,
@@ -1482,6 +1479,15 @@ impl LiveAnalyzer {
             span_s,
             clipped_beats,
         }
+    }
+
+    /// A reading's caveats of its window: the seconds masked in it, and
+    /// the rebuild's, where it kept its lock template.
+    fn window_caveats(&self, caveats: &mut Vec<Caveat>, masked_s: f64) {
+        if masked_s > 0.0 {
+            measure::add(caveats, Caveat::Masked { seconds: masked_s });
+        }
+        self.add_rebuild_caveat(caveats);
     }
 
     /// Whether the run a reading ending at `end_s` is fitted on is heard
