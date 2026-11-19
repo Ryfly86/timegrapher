@@ -438,11 +438,14 @@ fn along_rect(
 }
 
 /// When the settling that began the stretch from `a` to `b` ends: the
-/// latest end of those in `settles` starting in it, else its start.
+/// latest end of those in `settles` reaching into it, else its start. A
+/// settling that began before it counts: a move made while the last one
+/// still settled starts its own, which the settlings merge into one with
+/// the last's (#1942), and the beats it holds back are this stretch's.
 fn settled_from(a: f64, b: f64, settles: &[(f64, f64, &str)]) -> f64 {
     settles
         .iter()
-        .filter(|s| s.0 >= a && s.0 < b && s.2 == SETTLING)
+        .filter(|s| s.0 < b && s.1 > a && s.2 == SETTLING)
         .fold(a, |to, s| to.max(s.1.min(b)))
 }
 
@@ -2584,6 +2587,12 @@ mod tests {
             Some((50.0, 70.0))
         );
         assert_eq!(settle_band(0.0, 50.0, &[(50.0, 70.0, SETTLING)]), None);
+        // A move at 60 s while the move at 40 s still settled: its own 30 s
+        // settling, merged with the last's into one from 40 to 90 s, bands
+        // both stretches, each its own part (#1942).
+        let merged = [(40.0, 90.0, SETTLING)];
+        assert_eq!(settle_band(40.0, 60.0, &merged), Some((40.0, 60.0)));
+        assert_eq!(settle_band(60.0, 120.0, &merged), Some((60.0, 90.0)));
 
         // The words drawn on a track 100 s across about 410 pt, a change at
         // 50 s settling for `settle` seconds, with `masked` over it: each
