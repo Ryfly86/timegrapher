@@ -569,6 +569,7 @@ mod tests {
                 se: Some(0.01),
                 no_pm: None,
             },
+            rate_pool_values: 0,
         });
         let f = figures(&m);
         assert_eq!(f.rate.unwrap().no_pm, Some(NoPm::Repeats));

@@ -896,7 +896,10 @@ fn phase_words(test: &Test, phase: Phase) -> (String, String, f32) {
     match phase {
         Phase::Settling(left) => (
             step_title(test),
-            format!("Letting the watch settle, {left:.0} s"),
+            format!(
+                "Letting the watch settle, {:.0} s",
+                timegrapher_core::measure::settle_seconds(left)
+            ),
             ((settle - left) / (settle + measure)) as f32,
         ),
         Phase::Measuring(done) => (
@@ -917,11 +920,14 @@ fn phase_words(test: &Test, phase: Phase) -> (String, String, f32) {
         Phase::Turn => match test.next_position() {
             Some(_) if test.kind == Kind::Complication => {
                 let next = test.step_code(test.step + 1);
+                // A whole sentence of its own, as the other tests' are
+                // (#2003): never a lower-case end to the title's.
                 (
                     turn_title(test, test.step),
                     format!(
-                        "then press Start {next} Measurement. Nothing until then is \
-                         measured; the strip marks it {}.",
+                        "When it's {}, press Start {next} Measurement. Until then the strip \
+                         reads {}.",
+                        next.to_lowercase(),
                         test.kind.not_used()
                     ),
                     1.0,

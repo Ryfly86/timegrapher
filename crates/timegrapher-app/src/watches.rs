@@ -1789,7 +1789,7 @@ pub fn ask_dialog(
     watches: &[(String, String)],
 ) -> Option<bool> {
     let mut answer = None;
-    let modal = egui::Modal::new(egui::Id::new("take question")).show(ctx, |ui| {
+    let modal = theme::sheet(egui::Id::new("take question")).show(ctx, |ui| {
         ui.set_width(420.0);
         let (go, ready, red) = match ask {
             Ask::Delete { take, bytes } => {
@@ -1969,7 +1969,7 @@ fn remove_button(ui: &mut egui::Ui, what: &str) -> bool {
 /// The form for a watch's details, in a window of its own.
 pub fn form(ctx: &egui::Context, f: &mut Form, cal: &mut Calibres) -> Option<FormAction> {
     let mut act = None;
-    let modal = egui::Modal::new(egui::Id::new("watch form")).show(ctx, |ui| {
+    let modal = theme::sheet(egui::Id::new("watch form")).show(ctx, |ui| {
         ui.set_width(440.0);
         ui.label(
             RichText::new(if f.new { "New Watch" } else { "Edit Watch" })

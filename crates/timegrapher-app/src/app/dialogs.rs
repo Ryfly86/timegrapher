@@ -35,7 +35,7 @@ impl TimegrapherApp {
         let metadata = self.metadata_unsaved();
         let masks = self.marks_unsaved();
         let fault = self.session.recording_fault().map(|f| f.description());
-        egui::Modal::new(egui::Id::new("confirm")).show(ctx, |ui| {
+        theme::sheet(egui::Id::new("confirm")).show(ctx, |ui| {
             ui.set_width(360.0);
             ui.label(RichText::new(confirm_title(&what)).font(theme::semibold(15.0)));
             ui.add_space(4.0);
@@ -128,7 +128,7 @@ impl TimegrapherApp {
     /// written.
     fn confirm_saving_dialog(&mut self, ctx: &egui::Context) {
         let mut cancel = false;
-        egui::Modal::new(egui::Id::new("confirm")).show(ctx, |ui| {
+        theme::sheet(egui::Id::new("confirm")).show(ctx, |ui| {
             ui.set_width(360.0);
             ui.horizontal(|ui| {
                 ui.add(egui::Spinner::new().size(14.0));
@@ -239,7 +239,7 @@ impl TimegrapherApp {
         self.refresh_gain();
         let before = self.device.clone();
         let (mut done, mut later) = (false, false);
-        let modal = egui::Modal::new(egui::Id::new("set up the microphone")).show(ctx, |ui| {
+        let modal = theme::sheet(egui::Id::new("set up the microphone")).show(ctx, |ui| {
             ui.set_width(SHEET_W);
             let pal = theme::pal(ui);
             ui.spacing_mut().item_spacing.y = 6.0;
@@ -483,7 +483,7 @@ impl TimegrapherApp {
         let started = parse_local_minute(&a.started);
         let ready = Self::open_ready(&a, need);
         let mut answer = None;
-        let modal = egui::Modal::new(egui::Id::new("open question")).show(ctx, |ui| {
+        let modal = theme::sheet(egui::Id::new("open question")).show(ctx, |ui| {
             ui.set_width(440.0);
             let pal = theme::pal(ui);
             let title = if a.keeping {
@@ -657,7 +657,7 @@ impl TimegrapherApp {
         if self.update_dialog.is_none() {
             return;
         }
-        let modal = egui::Modal::new(egui::Id::new("check for updates")).show(ctx, |ui| {
+        let modal = theme::sheet(egui::Id::new("check for updates")).show(ctx, |ui| {
             ui.set_width(360.0);
             ui.shrink_height_to_current();
             match &self.update_dialog {
@@ -828,7 +828,7 @@ impl TimegrapherApp {
             return;
         };
         let mut choice = None;
-        let modal = egui::Modal::new(egui::Id::new("delete kept sound")).show(ctx, |ui| {
+        let modal = theme::sheet(egui::Id::new("delete kept sound")).show(ctx, |ui| {
             ui.set_width(380.0);
             let what = self
                 .kept

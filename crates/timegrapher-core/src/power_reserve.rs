@@ -111,16 +111,17 @@ impl Ending {
     }
 
     /// How the run ended in a word or two, as a plot's title gives it
-    /// after the run time ([`title`]): "no beat heard".
+    /// after the run time ([`title`]), capitalised as each part of a
+    /// status line is (#2003): "No beat heard".
     pub fn short(self) -> String {
         match self {
-            Ending::Stopped => "no beat heard".to_string(),
-            Ending::ByHand => "stopped by hand".to_string(),
-            Ending::Limit => format!("reached the {} limit", limit_text()),
-            Ending::TakeEnded => "take ended".to_string(),
-            Ending::Listening => "still listening".to_string(),
-            Ending::RecordingFailed => "recording failed".to_string(),
-            Ending::InputFailed => "input failed".to_string(),
+            Ending::Stopped => "No beat heard".to_string(),
+            Ending::ByHand => "Stopped by hand".to_string(),
+            Ending::Limit => format!("Reached the {} limit", limit_text()),
+            Ending::TakeEnded => "Take ended".to_string(),
+            Ending::Listening => "Still listening".to_string(),
+            Ending::RecordingFailed => "Recording failed".to_string(),
+            Ending::InputFailed => "Input failed".to_string(),
         }
     }
 }
@@ -162,8 +163,8 @@ impl Source {
 }
 
 /// An ended run in one line, as the Power Reserve pane's title gives it
-/// (#1528): "Ran 9 h 46 min · no beat heard", then how many times the beats
-/// stopped and came back on the way, when they did ("· restarted 2
+/// (#1528): "Ran 9 h 46 min · No beat heard", then how many times the beats
+/// stopped and came back on the way, when they did ("· Restarted 2
 /// times"). The run sentence ([`sentence`]) says it in full.
 pub fn title(run_s: f64, ending: Ending, source: Source, restarts: usize) -> String {
     let mut line = format!(
@@ -178,14 +179,14 @@ pub fn title(run_s: f64, ending: Ending, source: Source, restarts: usize) -> Str
 }
 
 /// How many times the beats stopped and came back on the way, in a few
-/// words: "restarted 2 times".
+/// words: "Restarted 2 times".
 pub fn restarted_text(restarts: usize) -> String {
     let times = if restarts == 1 {
         "once".to_string()
     } else {
         format!("{restarts} times")
     };
-    format!("restarted {times}")
+    format!("Restarted {times}")
 }
 
 /// The longest run, as words say it: "80 h".
@@ -1003,17 +1004,17 @@ mod title_tests {
         let s = 9.0 * 3600.0 + 46.0 * 60.0;
         assert_eq!(
             title(s, Ending::Stopped, Source::Test, 0),
-            "Ran 9 h 46 min \u{b7} no beat heard"
+            "Ran 9 h 46 min \u{b7} No beat heard"
         );
         assert_eq!(
             title(s, Ending::Stopped, Source::LongTake, 2),
-            "Ran 9 h 46 min \u{b7} no beat heard \u{b7} restarted 2 times"
+            "Ran 9 h 46 min \u{b7} No beat heard \u{b7} Restarted 2 times"
         );
         assert!(title(s, Ending::TakeEnded, Source::LongTake, 1)
-            .starts_with("Ran at least 9 h 46 min \u{b7} take ended \u{b7} restarted once"));
+            .starts_with("Ran at least 9 h 46 min \u{b7} Take ended \u{b7} Restarted once"));
         assert_eq!(
             Ending::Limit.short(),
-            format!("reached the {} limit", limit_text())
+            format!("Reached the {} limit", limit_text())
         );
         assert_eq!(Source::Test.chip(), None);
         assert!(Source::LongTake.chip().is_some());
@@ -1227,7 +1228,7 @@ mod tests {
             "Power reserve at least 2 h 01 min in DU. The sound input failed while the watch \
              still ran."
         );
-        assert_eq!(Ending::InputFailed.short(), "input failed");
+        assert_eq!(Ending::InputFailed.short(), "Input failed");
         let v: serde_json::Value = serde_json::to_value(Ending::InputFailed).unwrap();
         assert_eq!(v, "input_failed");
     }
