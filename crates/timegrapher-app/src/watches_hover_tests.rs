@@ -45,6 +45,7 @@ fn a_takes_hover_names_the_engine_that_read_it() {
             picked: None,
             on_show: None,
             held: None,
+            writing: None,
             readings: &readings,
         };
         take_hover(&take, &cx, &dir, None, readings.reading(&dir))
@@ -100,6 +101,7 @@ fn a_takes_hover_names_the_position_its_figures_are_of() {
             picked: None,
             on_show: None,
             held: None,
+            writing: None,
             readings: &readings,
         };
         take_hover(t, &cx, &dir, None, readings.reading(&dir))
@@ -132,6 +134,7 @@ fn a_takes_hover_names_the_position_its_figures_are_of() {
         picked: None,
         on_show: None,
         held: None,
+        writing: None,
         readings: &readings,
     };
     let h = take_hover(&take, &cx, &dir, Some(2), readings.reading(&dir));
@@ -251,6 +254,7 @@ fn positions_take_hover_explains_the_actual_beat_error_mean() {
             picked: None,
             on_show: None,
             held: None,
+            writing: None,
             readings: &readings,
         };
         let take = Take {
@@ -318,6 +322,7 @@ fn the_take_on_the_bench_is_tagged_on_show_while_its_session_writes_it() {
         picked: None,
         on_show,
         held,
+        writing: None,
         readings: &readings,
     };
     for (on_show, held) in [(Some(dir.as_path()), None), (None, Some(dir.as_path()))] {
@@ -327,4 +332,61 @@ fn the_take_on_the_bench_is_tagged_on_show_while_its_session_writes_it() {
     }
     let cx = cx(None, None);
     assert_eq!(take_tags(&e, &take, &cx), "");
+}
+
+/// A take still being recorded on the Bench is tagged Recording, and its
+/// row gives no length, figures or size from its first write: a dim dash,
+/// with a hover saying they come once it stops. Stopped, its row is as
+/// any other's (Walter, #2027).
+#[test]
+fn a_take_still_being_recorded_shows_no_first_write_figures() {
+    let take = Take {
+        name: "2026-11-18 19.56".into(),
+        bytes: 1_200_000,
+        audio: true,
+        incomplete: false,
+        started_utc: None,
+        named_start: None,
+        duration_s: Some(5.0),
+        positions: vec!["DU".into()],
+        at_end: None,
+        power_reserve: None,
+        wind_h: None,
+    };
+    let e = WatchEntry {
+        dir: "/nowhere/Pepsi".into(),
+        watch: timegrapher_core::library::Watch::new("Pepsi"),
+        takes: vec![take.clone()],
+        photos: Vec::new(),
+    };
+    let dir = e.take_dir(&take);
+    let read = Reading {
+        rate_s_per_day: Some(5.4),
+        ..Default::default()
+    };
+    let readings = TakeReadings::known([(dir.clone(), 1_200_000, TakeReading::Read(Ok(read)))]);
+    let cx = |writing| TakesContext {
+        others: &[],
+        writable: true,
+        keeping: None,
+        unsorted: false,
+        picked: None,
+        on_show: None,
+        held: Some(dir.as_path()),
+        writing,
+        readings: &readings,
+    };
+    let rec = cx(Some(dir.as_path()));
+    assert_eq!(take_tags(&e, &take, &rec), "Recording");
+    let (cells, dim) = row_cells(&take, &dir, &rec);
+    assert!(dim);
+    assert!(cells[1..].iter().all(|c| c == "—"), "{cells:?}");
+    let h = take_hover(&take, &rec, &dir, None, readings.reading(&dir));
+    assert!(h.contains("being recorded") && !h.contains("+5.4"), "{h}");
+    // Stopped: its row is the take's own again.
+    let done = cx(None);
+    assert_eq!(take_tags(&e, &take, &done), "On Show");
+    let (cells, dim) = row_cells(&take, &dir, &done);
+    assert!(!dim);
+    assert_eq!((cells[2].as_str(), cells[3].as_str()), ("0:05", "+5.4"));
 }

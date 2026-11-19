@@ -1201,3 +1201,52 @@ fn the_watch_lines_chip_shortens_as_the_cards_do() {
     drop(app);
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// The take the Bench records into is the one being written only while
+/// its microphone runs: its row says Recording and its reading waits.
+/// Stopped, the take is on show as any other, and its reading is asked
+/// for (Trevor on #2032, #2027).
+#[test]
+fn a_take_is_recording_only_while_its_microphone_runs() {
+    let (mut app, base) = super::tests::save_failure_fixture("recording-row");
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let dir = base
+        .join("Pepsi")
+        .join(library::TAKES)
+        .join("2026-11-19 05.40");
+    let metadata = app.session.metadata_snapshot(app.save_metadata());
+    app.session.mark_saved(1.0, dir.clone(), metadata);
+    let take = library::Take {
+        name: "2026-11-19 05.40".into(),
+        bytes: 96_000,
+        audio: true,
+        incomplete: false,
+        started_utc: None,
+        named_start: None,
+        duration_s: Some(1.0),
+        positions: vec!["DU".into()],
+        at_end: None,
+        power_reserve: None,
+        wind_h: None,
+    };
+    let e = library::WatchEntry {
+        dir: base.join("Pepsi"),
+        watch: library::Watch::new("Pepsi"),
+        takes: vec![take.clone()],
+        photos: Vec::new(),
+    };
+    assert_eq!(e.take_dir(&take), dir);
+    let ctx = egui::Context::default();
+    assert_eq!(app.take_writing(), Some(dir.clone()));
+    app.want_take_readings(&e, &ctx);
+    assert_eq!(app.take_readings.of(&dir), None);
+
+    app.stop();
+    assert!(app.session.paused());
+    assert_eq!(app.take_held(), Some(dir.clone()));
+    assert_eq!(app.take_writing(), None);
+    app.want_take_readings(&e, &ctx);
+    assert!(app.take_readings.of(&dir).is_some());
+    app.session.discard_recording();
+    let _ = std::fs::remove_dir_all(base);
+}

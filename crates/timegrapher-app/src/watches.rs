@@ -576,6 +576,9 @@ pub struct TakesContext<'a> {
     pub picked: Option<&'a std::path::Path>,
     pub on_show: Option<&'a std::path::Path>,
     pub held: Option<&'a std::path::Path>,
+    /// The take the Bench is still recording into, while its input runs
+    /// (#2027).
+    pub writing: Option<&'a std::path::Path>,
     /// The takes' own readings, as far as they are worked out.
     pub readings: &'a TakeReadings,
 }
@@ -585,6 +588,13 @@ impl TakesContext<'_> {
     /// the session's own, recording or saved (#1981).
     pub fn on_bench(&self, dir: &std::path::Path) -> bool {
         self.on_show == Some(dir) || self.held == Some(dir)
+    }
+
+    /// Whether the take in `dir` is still being recorded on the Bench:
+    /// its length, figures and size in the library are from its first
+    /// write, so its row says none of them (#2027).
+    pub fn being_written(&self, dir: &std::path::Path) -> bool {
+        self.writing == Some(dir)
     }
 }
 
@@ -1374,7 +1384,6 @@ pub fn takes_table(
             let dir = e.take_dir(t);
             let picked = cx.picked == Some(dir.as_path());
             let means = positions_means(&dir);
-            let test = row_test(&dir);
             let (rect, r) = ui.allocate_exact_size(Vec2::new(w, row_h), Sense::click());
             if picked {
                 ui.painter().rect_filled(rect, 4.0, pal.control_active);
@@ -1382,8 +1391,7 @@ pub fn takes_table(
                 ui.painter().rect_filled(rect, 4.0, pal.control_hover);
             }
             let reading = cx.readings.reading(&dir);
-            let mut cells = take_cells(t, test, reading);
-            let dim = dashed(t, test);
+            let (mut cells, dim) = row_cells(t, &dir, cx);
             // Date and tags share Started's room, never the columns after
             // it: the date, which tells takes apart, comes first, cut short
             // with "…" only when it alone doesn't fit; the tags take what
@@ -1447,10 +1455,7 @@ fn take_widths(ui: &egui::Ui, e: &WatchEntry, cx: &TakesContext, w: f32) -> Vec<
     let rows: Vec<[String; 7]> = e
         .takes
         .iter()
-        .map(|t| {
-            let dir = e.take_dir(t);
-            take_cells(t, row_test(&dir), cx.readings.reading(&dir))
-        })
+        .map(|t| row_cells(t, &e.take_dir(t), cx).0)
         .collect();
     let pal = theme::pal(ui);
     let text_w = |t: &str, size: f32| text_width(ui.ctx(), t, size, pal.text);
@@ -1535,8 +1540,11 @@ fn draw_cells(
                 egui::Align2::RIGHT_CENTER,
             )
         };
-        // A Power Reserve Test's figures are a dim dash.
-        let color = dim.filter(|_| (3..6).contains(&i)).unwrap_or(color);
+        // A test's figures, part by part in its take, are a dim dash; so
+        // is every cell after Started of a take still being recorded.
+        let color = dim
+            .filter(|_| (3..6).contains(&i) || i >= 1 && c == "—")
+            .unwrap_or(color);
         p.text(pos, align, c, font.clone(), color);
         x += w;
     }
@@ -1545,7 +1553,10 @@ fn draw_cells(
 /// A take's state, shown after its date in small grey words.
 fn take_tags(e: &WatchEntry, t: &Take, cx: &TakesContext) -> String {
     let mut tags = Vec::new();
-    if cx.on_bench(&e.take_dir(t)) {
+    let dir = e.take_dir(t);
+    if cx.being_written(&dir) {
+        tags.push("Recording");
+    } else if cx.on_bench(&dir) {
         tags.push("On Show");
     }
     if !t.audio {
@@ -1626,6 +1637,9 @@ fn take_hover(
     count: Option<usize>,
     reading: Option<&Reading>,
 ) -> String {
+    if cx.being_written(dir) {
+        return BEING_WRITTEN.to_string();
+    }
     let reserve = t.power_reserve.is_some();
     let on_show = cx.on_bench(dir);
     // `count` comes only with a Positions Test's results, read already.
@@ -1668,6 +1682,25 @@ fn take_hover(
             "Click to pick this take, double-click to open it. Right-click for more."
         }
     )
+}
+
+/// The hover of a take still being recorded on the Bench (#2027).
+const BEING_WRITTEN: &str = "This take is being recorded on the Bench. Its positions, length, \
+     figures and size are given here once it stops. Right-click for more.";
+
+/// A take's cells in the takes table and whether its figures are dim: a
+/// take still being recorded shows a dim dash after Started, never the
+/// positions or figures of its first write (#2027; Gus on #2032).
+fn row_cells(t: &Take, dir: &Path, cx: &TakesContext) -> ([String; 7], bool) {
+    let test = row_test(dir);
+    let mut cells = take_cells(t, test, cx.readings.reading(dir));
+    if !cx.being_written(dir) {
+        return (cells, dashed(t, test));
+    }
+    for c in &mut cells[1..] {
+        *c = "—".to_string();
+    }
+    (cells, true)
 }
 
 /// The progress of a take of `e` whose sound is being removed, with its
@@ -2570,6 +2603,7 @@ mod tests {
             picked: None,
             on_show: None,
             held: None,
+            writing: None,
             readings: &readings,
         };
         let ctx = egui::Context::default();
