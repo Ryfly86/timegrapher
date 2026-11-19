@@ -159,9 +159,11 @@ pub struct LiveReading {
     pub clipped_fraction: Option<f64>,
     /// False when a regular beat was looked for and not found
     /// (`measure::watch_heard` on the fit's jitter, assessed once the
-    /// averaging time holds 10 s of sound). Then every reading is `None`,
-    /// as `analyze` leaves them out; `jitter_us`,
-    /// `timing_scatter_fraction` and `bph` stay.
+    /// averaging time holds 10 s of sound; under it, false only where the
+    /// beats' sound shows no watch). Then every reading is `None`, as
+    /// `analyze` leaves them out; `jitter_us`, `timing_scatter_fraction`
+    /// and `bph` stay. True with no figures while the reading waits for
+    /// its verdict (`listening`).
     pub watch_heard: bool,
     /// The rate's ±, from `measure::assess` as `analyze` and `session`
     /// give theirs: the scatter of 10 s windows over the run so far,
@@ -195,10 +197,12 @@ pub struct LiveReading {
     pub beat_error_unlock_error_ms: Option<f64>,
     /// What limits the readings, in `measure`'s order.
     pub caveats: Vec<Caveat>,
-    /// Where a regular beat isn't ruled out but under
-    /// [`measure::SHORT_SPAN_S`] of sound is behind the reading, so it
-    /// gives no figures yet: what that sound is counted since
-    /// ([`measure::LISTENING_TITLE`], #2014). None otherwise.
+    /// Where the reading waits for its verdict
+    /// ([`measure::awaiting_verdict`]: under [`measure::SHORT_SPAN_S`] of
+    /// sound since the start or the latest break or mask, and the beats'
+    /// sound can't be judged), so it gives no figures yet: what that
+    /// sound is counted since ([`measure::LISTENING_TITLE`], #2014). None
+    /// otherwise.
     pub listening: Option<measure::HeardSince>,
 }
 

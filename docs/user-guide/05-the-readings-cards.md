@@ -251,10 +251,11 @@ the first and how many more ("12 s of Beats +1").
 
 ### Listening
 
-For the first 10 s after Listen starts, and after a break or a masked
-stretch, the cards show no figures, only **Listening**. Under 10 s the
-timing can't tell a watch from the stand's noise, so no figure is given
-yet. Where a settle is running, the cards say **Settling** instead.
+In the first 10 s after Listen starts, and after a break or a masked
+stretch, the timing can't yet tell a watch from the stand's noise. The
+figures show there only when the beats' sound already shows a watch.
+When it can't tell yet, the cards show no figures, only **Listening**.
+Where a settle is running, the cards say **Settling** instead.
 
 ### No Regular Beat Found
 
