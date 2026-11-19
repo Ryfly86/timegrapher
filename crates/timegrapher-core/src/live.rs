@@ -225,6 +225,45 @@ pub struct LiveReading {
     pub listening: Option<measure::HeardSince>,
 }
 
+impl LiveReading {
+    /// This reading, at a take's end, as the take's whole reading `whole`
+    /// (`session`'s, [`crate::session::measure_together`]) gives it, where
+    /// `whole` ends where this reading does and the averaging time
+    /// `average_s` holds the whole stretch it reads: there the last
+    /// `average_s` and the whole take are one fact, so its figures, their
+    /// ±s, why one has none, and the caveats are `whole`'s alone, and a
+    /// take's cards at its end give what its Watches row gives, to the last
+    /// bit (#2073, Norm). The engine corrects a rate fitted on the sound's
+    /// time by the clock's slope, where `session` fits it on the clock's
+    /// time: the same rate, but not the same float. With a shorter
+    /// averaging time, or no watch heard in either, this reading stands.
+    #[must_use]
+    pub fn at_whole_end(self, whole: &crate::session::Measurement, average_s: f64) -> Self {
+        let holds = whole.end_s == self.time_s && whole.start_s >= self.time_s - average_s;
+        if !holds || !self.watch_heard || !whole.watch_heard || self.listening.is_some() {
+            return self;
+        }
+        let c = whole.confidence;
+        Self {
+            rate_s_per_day: whole.rate_s_per_day,
+            rate_error_s_per_day: c.and_then(|c| c.rate.se),
+            rate_no_pm: c.and_then(|c| c.rate.no_pm),
+            amplitude_deg: whole.amplitude_deg,
+            amplitude_error_deg: c.and_then(|c| c.amplitude.se),
+            amplitude_no_pm: c.and_then(|c| c.amplitude.no_pm),
+            amplitude_even_deg: whole.amplitude_even_deg,
+            amplitude_odd_deg: whole.amplitude_odd_deg,
+            beat_error_ms: whole.beat_error_ms,
+            beat_error_unlock_ms: whole.beat_error_unlock_ms,
+            beat_error_source: whole.beat_error_source,
+            beat_error_unlock_error_ms: c.and_then(|c| c.beat_error.se),
+            jitter_us: whole.jitter_us,
+            caveats: whole.caveats.clone(),
+            ..self
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct LiveAnalyzer {
     fs: f64,

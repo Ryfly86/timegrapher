@@ -1589,11 +1589,20 @@ fn engine_line() -> String {
     format!("Read by Timegrapher {version}, engine {source}")
 }
 
+/// Why the figures shown live at Stop can differ from a take's own, on
+/// the line after them (#2073; Norm's ruling 3, words Hugh's): they are
+/// the last Average Over, read as the sound came in, where the take's are
+/// its whole stretch read afterwards. An opened take's cards at its end
+/// give the take's own.
+pub(crate) const AT_STOP_LINE: &str = "The figures shown live at Stop can differ a little: they \
+     were the last Average Over, read as the sound came in.";
+
 /// A take's own figures as its hover says them, on a line of their own
 /// after its facts: which position they are of, where it has more than
 /// one, and that they are its whole stretch after settling, so they can
-/// differ from the Bench's at Stop (#1979). Empty for a test's take, whose
-/// figures [`figures_hover`] says, or with nothing read.
+/// differ from the Bench's at Stop, which the line after says (#1979,
+/// #2073). Empty for a test's take, whose figures [`figures_hover`] says,
+/// or with nothing read.
 fn read_line(t: &Take, test: Option<TakeTest>, reading: Option<&Reading>) -> String {
     let Some(r) = reading.filter(|_| test.is_none() && t.power_reserve.is_none()) else {
         return String::new();
@@ -1610,7 +1619,10 @@ fn read_line(t: &Take, test: Option<TakeTest>, reading: Option<&Reading>) -> Str
         Some(p) if t.positions.len() > 1 => format!("{}, its whole stretch", p.name()),
         _ => "The whole take".to_string(),
     };
-    format!("\n{of} after settling: {}", figures.join(" · "))
+    format!(
+        "\n{of} after settling: {}\n{AT_STOP_LINE}",
+        figures.join(" · ")
+    )
 }
 
 /// A take's row as its hover says it: the take, its figures, where its

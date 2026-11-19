@@ -321,7 +321,11 @@ under it its calibre, beat rate, lift angle and added fields, with
   session` reads its last position on the take's clock, the same one
   `timegrapher watches` gives: worked out from the take's sound the first
   time the list shows it (about a minute for a 9 hour take, the row
-  blank until then, its hover saying it is being read), then kept. A test's last window never
+  blank until then, its hover saying it is being read), then kept. The
+  take opened shows the same reading on its cards at its end, to the last
+  bit, where the Average Over holds the whole stretch it reads (core's
+  `LiveReading::at_whole_end`, #2073); the row's hover says, on the line
+  after its figures, that those shown live at Stop can differ a little. A test's last window never
   stands for the test: a Positions Test's row shows its Mean row, the
   figures its table shows ("Mean of the six positions" in the row's hover),
   and a Power Reserve Test's shows its run time as its Length and a dim

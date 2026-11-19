@@ -201,6 +201,31 @@ impl TimegrapherApp {
         }
     }
 
+    /// Where an opened take's readings end once stopped: at the take's
+    /// end, as `session` and the take's Watches row read it, not at its
+    /// last beat (#2073). The one rule for the whole take and the cards;
+    /// none for a take not opened.
+    pub(super) fn opened_end_s(&self) -> Option<f64> {
+        let live = self.live.as_ref()?;
+        self.take_breaks.is_some().then(|| live.duration_s())
+    }
+
+    /// A stopped take's reading over `average` seconds: an opened take's
+    /// at its end ([`Self::opened_end_s`]), as its whole reading gives it
+    /// where that is the same stretch (core's `LiveReading::at_whole_end`);
+    /// else at its last beat with a watch heard, so the silence after it
+    /// is taken off the stand doesn't change it.
+    pub(super) fn stopped_reading(&self, live: &LiveAnalyzer, average: f64) -> LiveReading {
+        let Some(end) = self.opened_end_s() else {
+            return live.reading_at(self.latest_s().min(self.last_heard_s()), average);
+        };
+        let r = live.reading_at(end, average);
+        match self.whole_read() {
+            Some(Ok(Some(w))) => r.at_whole_end(&w.m, average),
+            _ => r,
+        }
+    }
+
     /// The whole take as kept (`Ok`), or what it is to be read from
     /// (`Err`); none while listening or with nothing to read.
     fn whole_read(&self) -> Option<Result<Option<WholeTake>, WholeKey>> {
@@ -208,13 +233,9 @@ impl TimegrapherApp {
             return None;
         }
         let live = self.live.as_ref()?;
-        // To the take's end, as session reads it, not its last beat.
-        let opened = self.take_breaks.is_some();
-        let end = if opened {
-            live.duration_s()
-        } else {
-            self.last_heard_s().min(live.duration_s())
-        };
+        let end = self
+            .opened_end_s()
+            .unwrap_or_else(|| self.last_heard_s().min(live.duration_s()));
         let spans: Vec<(f64, f64)> = self
             .current_spans()
             .into_iter()

@@ -2703,9 +2703,7 @@ impl TimegrapherApp {
             return None;
         }
         let reading = if !self.running() {
-            // Stopped: the last window with a watch heard, so the silence
-            // after it is taken off the stand doesn't change the readings.
-            live.reading_at(self.latest_s().min(self.last_heard_s()), average)
+            self.stopped_reading(live, average)
         } else {
             live.reading(average)
         };

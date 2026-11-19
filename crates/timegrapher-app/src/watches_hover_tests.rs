@@ -107,6 +107,11 @@ fn a_takes_hover_names_the_position_its_figures_are_of() {
         take_hover(t, &cx, &dir, None, readings.reading(&dir))
     };
     let h = hover(&take);
+    // Why the Bench's figures at Stop can differ, on the line after (#2073).
+    assert!(
+        h.contains(&format!(" 0.03 ms\n{}", super::AT_STOP_LINE)),
+        "{h}"
+    );
     let first = h.lines().next().unwrap();
     assert!(!first.contains("s/d"), "{h}");
     assert!(
