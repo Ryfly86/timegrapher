@@ -517,6 +517,27 @@ pub fn chart_axis(hours: &[Hour], kind: SeriesKind) -> Option<[f64; 3]> {
     }
     let least = values.iter().copied().fold(f64::INFINITY, f64::min);
     let most = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    // Figures more than a step from zero, all one side: the axis starts no
+    // nearer zero than halfway to the nearest of them, on the step's grid
+    // and at least a step out, and spans the least span or out to the
+    // farthest figure. So zero is never forced by the least span (#1953
+    // under Hugh's #1761 rule), and as the figures move the axis moves the
+    // same way, never back (Norm on #2013). Figures within a step of zero
+    // take it in, as before.
+    let span = crate::position_line::least_span(kind);
+    let grid = |v: f64| (v / step).ceil() * step;
+    let off = |near: f64| ((near / 2.0 / step).floor() * step).max(step);
+    let (lo, hi) = if least > step && off(least) > lo {
+        (off(least), grid(off(least) + span).max(grid(most)))
+    } else if most < -step && -off(-most) < hi {
+        (-grid(off(-most) + span).max(grid(-least)), -off(-most))
+    } else if lo < 0.0 && least >= 0.0 && least <= step {
+        (0.0, hi.max(grid(span)))
+    } else if hi > 0.0 && most <= 0.0 && -most <= step {
+        (lo.min(-grid(span)), 0.0)
+    } else {
+        (lo, hi)
+    };
     let lo = if lo.is_sign_positive() && least <= step {
         0.0
     } else {
@@ -1043,6 +1064,29 @@ mod chart_tests {
         low[1].amplitude_deg = Some(40.0);
         let [lo, _, _] = chart_axis(&low, SeriesKind::Amplitude).unwrap();
         assert!(lo > 0.0, "{lo}");
+    }
+
+    /// A steady run's rate axis, widened to the least span, moves steadily
+    /// with the rate: never down as the rate goes up, never across zero
+    /// for a rate more than a step from it (Norm on #2013).
+    #[test]
+    fn a_steady_runs_rate_axis_moves_steadily_and_keeps_off_zero() {
+        let mut last = [f64::NEG_INFINITY; 2];
+        for k in 10..=80 {
+            let v = f64::from(k) / 4.0;
+            let [lo, hi, step] = chart_axis(&[hour(v, None)], SeriesKind::Rate).unwrap();
+            assert!(
+                lo >= last[0] && hi >= last[1],
+                "{v}: {lo} to {hi} after {last:?}"
+            );
+            assert!(hi - lo >= crate::position_line::LEAST_SPAN_S_PER_DAY - 1e-9);
+            if v > step {
+                assert!(lo > 0.0, "{v}: {lo}");
+            }
+            let [nlo, nhi, _] = chart_axis(&[hour(-v, None)], SeriesKind::Rate).unwrap();
+            assert_eq!([nlo, nhi], [-hi, -lo], "{v}: the same either side");
+            last = [lo, hi];
+        }
     }
 
     /// A figure is grey where thin, and a beat error also off the unlock,

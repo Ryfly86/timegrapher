@@ -163,6 +163,20 @@ pub fn no_watch_reason_in(caveats: &[Caveat]) -> Option<NoWatchReason> {
 /// [`no_watch_text`]'s sentence or in the figures' place (#510).
 pub const NO_WATCH_TITLE: &str = "No Regular Beat";
 
+/// What a reading says in place of [`NO_WATCH_TITLE`] while a regular
+/// beat just heard is still being found (`live::LiveReading::finding_beat`,
+/// #2008): a wait, not a verdict.
+pub const FINDING_TITLE: &str = "Finding the Beat";
+
+/// Why a reading waits while the beat is being found, for a hover.
+pub fn finding_text() -> String {
+    format!(
+        "A regular beat is heard. The figures wait until the last {:.0} s \
+         hold the watch alone, so the sound before it isn't counted against it.",
+        crate::live::FINDING_S
+    )
+}
+
 /// The sentence for no regular beat found, as every surface states it:
 /// with the timing scatter, as [`crate::beats::no_regular_beat_text`]
 /// gives it, or that the beats' sound shows no unlock and no drop.
