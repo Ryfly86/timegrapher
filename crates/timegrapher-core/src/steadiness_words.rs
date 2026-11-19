@@ -57,15 +57,15 @@ pub(super) fn runner_up(s: &SeriesCheck, cfg: &Config) -> Option<String> {
             .map(|g| every_text(g.start_s))
             .collect();
         if at.len() == 1 {
-            format!("A step at {}", at[0])
+            format!("A shift at {} explains", at[0])
         } else {
-            format!("Steps at {}", at.join(", "))
+            format!("Shifts at {} explain", at.join(", "))
         }
     } else {
-        "A slow change".to_string()
+        "A slide explains".to_string()
     };
     Some(format!(
-        "{what} explains about as much ({} against {}).",
+        "{what} about as much ({} against {}).",
         pct(second),
         pct(first)
     ))

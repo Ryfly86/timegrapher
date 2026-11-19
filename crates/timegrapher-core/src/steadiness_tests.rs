@@ -1447,8 +1447,8 @@ fn headline_names_a_change(s: &SeriesCheck) -> bool {
     s.headline.contains("shifts level")
         || s.headline.contains("level also moves")
         // Under a slide's lead, the step it also names (#1984).
-        || ((s.headline.contains("A step at ") || s.headline.contains("Steps at "))
-            && s.headline.contains(" explains about as much"))
+        || ((s.headline.contains("A shift at ") || s.headline.contains("Shifts at "))
+            && s.headline.contains(" about as much ("))
 }
 
 /// One rule names a level change (#697): the CUSUM marks its corner only

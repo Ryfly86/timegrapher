@@ -1983,21 +1983,16 @@ fn fft_plot(ui: &mut egui::Ui, r: Row<'_>) {
     // The tallest peak's dot and note; the note is hover only on a
     // short plot, where the names are inside it on its top.
     let tallest = peak.map(|peak| {
-        (
-            peak,
-            format!(
-                "tallest peak at {}: {}{}",
-                secs(10f64.powf(peak[0])),
-                size(10f64.powf(peak[1])),
-                // The amplitude and beat error read as a sine's
-                // amplitude, half its peak to peak (Norm, #1984).
-                if as_rate {
-                    " peak to peak"
-                } else {
-                    ", a sine's amplitude, half its peak to peak"
-                }
-            ),
-        )
+        (peak, {
+            let (at, of) = (secs(10f64.powf(peak[0])), size(10f64.powf(peak[1])));
+            // Any other size reads as a sine's amplitude, half its
+            // peak to peak (Norm, #1984), said before the size.
+            if as_rate {
+                format!("tallest peak at {at}: {of} peak to peak")
+            } else {
+                format!("tallest peak at {at}, a sine's amplitude (half its peak to peak): {of}")
+            }
+        })
     });
     let short = note_short(ui, &names, (i, view));
     let top = if tallest.is_some() && !short {

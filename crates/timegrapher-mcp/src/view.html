@@ -2040,9 +2040,8 @@ function steadyPlot(s, view, doc) {
       } else {
         label = `Folded at the ${String(f.wheel || "wheel").toLowerCase()}'s ${secs(f.period_s)} turn, ${n} cycles`;
       }
-      // Folded at the headline's own cycle: its one size, core's (#1984).
-      const ownSize = f.from === "own" && s.cycle && s.screen_cycle_size
-        && Math.abs(s.cycle.period_s - f.period_s) <= 1e-6 * f.period_s ? s.screen_cycle_size : null;
+      // Folded at the headline's own cycle (core's at_cycle): its one size, core's (#1984).
+      const ownSize = f.at_cycle && s.screen_cycle_size ? s.screen_cycle_size : null;
       if (ownSize && Number.isFinite(f.middle_half)) {
         label += `\n${ownSize} peak to peak; the boxes' median height is ${stepText(f.middle_half, Math.abs(f.middle_half) / 10, unit)}`;
       } else if (Number.isFinite(f.swing) && Number.isFinite(f.middle_half)) {
@@ -2111,7 +2110,9 @@ function steadyPlot(s, view, doc) {
         yTicks: (p, q) => logTicks(p, q, size),
         vlines: wheelMarks(doc, x), names: showWheels || showMesh, lines: runs.map((r) => ({ pts: r, color, width: 1.5 })),
         marks: [{ x: peak[0], y: peak[1], color }],
-        noteRoom: true, beside: [{ x: peak[0], y: peak[1], text: `tallest at ${secs(Math.pow(10, peak[0]))}: ${size(Math.pow(10, peak[1]))}${asRate ? " peak to peak" : ", a sine's amplitude, half its peak to peak"}` }],
+        noteRoom: true, beside: [{ x: peak[0], y: peak[1], text: asRate
+          ? `tallest at ${secs(Math.pow(10, peak[0]))}: ${size(Math.pow(10, peak[1]))} peak to peak`
+          : `tallest at ${secs(Math.pow(10, peak[0]))}, a sine's amplitude (half its peak to peak): ${size(Math.pow(10, peak[1]))}` }],
       });
     }
     case "stft":
