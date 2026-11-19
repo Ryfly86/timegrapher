@@ -2384,5 +2384,4 @@ fn saved_copy_gone(reachable: bool, pal: &theme::Palette) -> (String, Color32, S
 /// The hover of a session whose take no longer holds its sound, when a
 /// save can keep it again.
 pub(super) const SAVED_COPY_GONE: &str =
-    "The take this was saved in no longer holds its sound: it \
-     was moved, deleted or changed outside the app. Save keeps it again.";
+    "The take this sound was saved in no longer holds it. Save keeps it again.";

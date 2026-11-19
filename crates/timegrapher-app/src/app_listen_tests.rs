@@ -457,7 +457,8 @@ fn a_kept_quick_listen_records_into_its_take() {
     let _ = ctx.run(back, |ctx| app.reread_library_on_focus(ctx));
     let (text, hover) = state(&app);
     assert_eq!(text, "Not saved");
-    assert_eq!(hover, super::readouts::SAVED_COPY_GONE);
+    let again = "The take this sound was saved in no longer holds it. Save keeps it again.";
+    assert_eq!(hover, again);
     let _ = std::fs::remove_dir_all(&base);
 }
 
@@ -525,11 +526,13 @@ fn a_kept_quick_listen_stopped_keeps_its_sound_in_its_take_alone() {
         // Its first line fits the status bar whole (Hugh 4 on #2055).
         let short = super::readouts::error_short(why);
         assert_eq!(short, "This sound can't be saved…");
-        // Nor "Saved" beside it (#2052).
+        // A refusal showing never has "Saved" beside it (Walter 11, #2052).
         let r = app.session.recorder.as_ref().unwrap();
         let (text, _, hover) = app.recording_state(r, &theme::LIGHT);
         assert_eq!(text, "Can't be saved");
-        assert_eq!(hover, super::unsaved::HOURS_GONE);
+        let reason = "Its earlier part was kept only in its take, and the take no longer \
+                      holds it.";
+        assert_eq!(hover, reason);
     }
     assert_eq!(std::fs::read_dir(&other).unwrap().count(), 0);
     // Nor kept in a watch: the session stays a Quick Listen, saying why
