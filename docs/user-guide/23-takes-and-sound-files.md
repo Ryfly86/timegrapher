@@ -143,6 +143,7 @@ renamed. A recording added as a take has its one position in its name
 | `session.toml` | What `timegrapher session` reads: the watch, calibre, lift angle, beat rate, and each stretch in one position with its start and end. |
 | `poise-test.json` | Only after a Dynamic Poise Test: marks the take as one, so the Watches list names the test. |
 | `positions-test.json` | Only after a Positions Test: its results, for the test 24 hours later, or, for that test, its results with the full-wind ones it was set against (chapter 20). |
+| `test-marks.json` | Only after a guided test: what the test marked each stretch (Before Test, Settling, Not Used), so the strip shows the test as it ran when you open the take again. |
 
 At start-up the app keeps as FLAC any hour of a saved take still in WAV,
 in the background ("Keeping saved takes as FLAC: 2 of 5"). An hour an

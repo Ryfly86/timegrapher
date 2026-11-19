@@ -541,8 +541,8 @@ readings use: found from the beats while its beat rate is Auto ("Auto
 fit over the last few seconds of beats (10 s by default, or 2, 4, 20, 30
 or 60 s; the setting is Average Over, on the Listen card). Early in a session, or after a break in listening or a gap of
 more than 2 s with no beats, there are fewer seconds of beats than asked
-for: the readings use what there is and say so in the rate's hover
-("190 beats in 24 s of 180 s"); they never fit across a break or gap, since the watch may have
+for: the readings are fitted to the beats there are, and the rate's hover says so
+("190 beats in 24 s of 1 min"); they never fit across a break or gap, since the watch may have
 been moved or have drifted meanwhile. Average Over is one setting for the
 whole app: the panes that average (the Paper Strip's Rate Line, guides
 and overlays, the Tick Tock Profile, Charts and Distributions) all
@@ -845,7 +845,35 @@ CR, as in `session.toml`), `rate_s_per_day`, `amplitude_deg` and
 A 24 hours after test's file adds `wind_h` (the hours since the
 full-wind test began, to a tenth) and `against` (the full-wind test's
 results it was set against, in this same form); a full-wind test's file
-has neither.
+has neither. `listened: true` is there only when the figures are the ones
+heard while listening, not the saved take's (below).
+
+**A test's saved take.** When a finished guided test's take is saved
+(not a take recording into its folder as it goes), the app analyses the
+test again from that saved sound in the background, through the same
+core path as `timegrapher session` (#1958). When it is done, the test's
+table shows those figures, its results files are written into the
+take again, each file whole, wherever the take is by then, and the status
+bar says "Analysed the saved take again: the test's figures are
+updated." A Save Again while it runs starts it over on what that save
+wrote. While it runs, a plain line at the top of the test's pane, where
+the banner was, outside the table's scrolling, says "Analysing the saved
+take: these figures may change slightly."; if it fails, the table keeps
+the listening's figures and that line says "These are the figures heard while listening: the saved take couldn't be
+analysed again (why). Opened again, the take may read slightly
+differently.", and `positions-test.json` says `listened: true`. A take
+kept by Save Analysis Only is not read again: its figures stay the
+listening's, and its file says `listened: true` too.
+
+The take also keeps the test's marks in `test-marks.json` (format
+`timegrapher.test-marks/1`; #1957): `format`, `test` (`positions`,
+`dynamic_poise` or `complication`), `marks` (each `start_s`, `end_s`, in
+seconds of the saved sound, and `mark`: `before_test`, `settling` or
+`not_used`) and `measured` (the `[start_s, end_s]` stretches the test
+measured). Opened again, the strip shows Before Test, Settling and the
+test's own Not Used words where the test put them, and the gaps
+`session.toml` leaves between its entries read as settling only where the
+test settled. A take without the file opens as before.
 
 **Dynamic Poise.** The Dynamic Poise pane (#1474), a hidden tab beside
 the Positions Test to begin with, runs the same guided test through the
@@ -872,7 +900,16 @@ the top, further out when faster, and the mean as a dotted ring. Once
 five stops are in, core's `poise::fit` draws the once-round wave in grey
 with a line to its fastest hour, and the line over the picture is its
 `short_text`, with, near 219.5°, a grey chip saying why the heavy spot is
-not stated. The heavy spot is a facts box's one row on the picture,
+not stated: the stop nearest 219.5° among those within reach of it, and its
+amplitude ("At 6H the amplitude is 234°, near 219.5°, …"), never the take's
+whole range (#1960). Core's words are shown with a true minus sign. Where the
+stops' rates have no ±, because together they hold fewer rate readings than
+a ± needs, Info says so in a sentence of its own, with the count and the
+time measured at each position that would give one ("The 8 positions hold
+20 rate readings, and a ± needs 30, which 50 s measured at each position
+would give."); where a position holds fewer than its own least, it names
+the fewest too ("… as few as 2 at one position. A ± needs 3 at each
+position and 30 in all, which 50 s …"). The heavy spot is a facts box's one row on the picture,
 core's `heavy_spot_row` ("Heavy spot", "6H at the top, 180 ± 12°", or
 "Not stated"): on the plot in its top left, or its top right under the
 key where the wave or a point (its dot and a dot's width round it,
@@ -952,11 +989,20 @@ pane shows one line, the run time from the first beat heard and how the
 beats stand, with the count of stops on the way, and under it the hours so
 far as at the end: about once a minute the hour in progress is measured
 again and the table gains a row as each hour starts, the hour in progress
-read like a finished run's last ("2–2.4 h", its hover "A part hour: 26:28 past 2 h"); the charts gain a point as
-each hour is whole and show from the first whole hour, ended or not; a run with none shows its table alone, the pane keeping room for its rows. A figure no hour has (no amplitude read) draws no chart (#1961). At the end it shows one line,
-such as "Ran 41 h 12 min · No beat heard since 17 Nov 22:42, in Dial Up (DU) · Kept in Pepsi",
+read like a finished run's last: a part hour is labelled as a range whose end
+is in tenths of an hour, "2–2.4 h", never 2.0 or the next whole hour (Hugh on
+#1086), and its hover gives its exact length ("A part hour: 26:28 past 2 h");
+the charts gain a point as each hour is whole and show from the first whole
+hour, ended or not; a run with none shows its table alone, the pane keeping
+room for its rows. A figure no hour has (no amplitude read) draws no chart
+(#1961). At the end its title
+line says the run and how it ended, in short, such as "Ran 41 h 12 min · No
+beat heard" (with "· Restarted 2 times" when the beats came back on the way),
 the run time in true time (through the input's clock as measured
-while listening, else its stored correction), then, scrolling in the rest
+while listening, else its stored correction). The Info panel gives the run in
+full, with its position and when the last beat was heard ("No beat heard since
+17 Nov 22:42"), and where its take is kept ("Kept in Pepsi"), as Hugh placed
+them (#1528). Then, scrolling in the rest
 of the pane, the rate and amplitude against hours since the first beat, and a table
 of each hour (the last as long as is left): its rate, median amplitude
 and beat error from the unlock (from the drop in an hour where the unlock
@@ -2242,7 +2288,11 @@ fit at the card's size); "Waiting for Start" while a test is set up;
 listened to and no recording is open, as after New Session while
 stopped; and "No Beats Heard", a fact rather than a wait, for a stopped
 take or an opened recording with no beat in the stretch read (not "No
-Regular Beat", which is about beats that are there).
+Regular Beat", which is about beats that are there). The settle's
+seconds are core's `measure::settle_seconds`, rounded up, so the
+cards and the Positions pane's "Letting the watch settle, N s" count
+alike; with no beat at all, the strip's place says the cards' wait in
+the same words, not "No regular beat found" (#2044).
 Stopped during a settle, the Rate card says "Before the Move".
 With no regular beat, the reading cards say "No Regular Beat" there, with
 the full sentence and the timing scatter in the hover. A regular beat
@@ -2273,6 +2323,7 @@ when. It holds:
 | `session.toml` | The session file `timegrapher session` reads: watch, calibre (with the wheels of a custom one), lift angle, beat rate, and one `[[recording]]` per stretch in one position with its `start_s` and `end_s` (for a take saved during a Positions Test, the test's own measured stretches, after each settling and for its measuring time, so `timegrapher session` reads the seconds its table did, with `wind_h` in the 24 hour half) |
 | `poise-test.json` | Only for a Dynamic Poise Test's take: marks it as one, so the Watches list names the test (format `timegrapher.poise-test/1`, and the test's name; no figures, which are the take's own stops) |
 | `positions-test.json` | Only for a finished Positions Test: run just after winding, its results, to load for the test 24 hours later; run 24 hours after, its results with the full-wind ones it was set against (the format is under Full wind against 24 hours) |
+| `test-marks.json` | Only for a guided test's take (Positions, Dynamic Poise or Complication): what the test marked each stretch, so the strip shows it again when the take is opened (format below, under A test's saved take). Optional: a take without it opens as before, and builds without it ignore it |
 
 At start-up the app keeps as FLAC, in the background, any hour of a take
 in the Watches folder that is still a WAV (saved before hours were kept
@@ -2312,8 +2363,8 @@ them, then for the Tick Tock profiles of each 2 seconds, the signal
 figure, the clock error the USB lines show and each position's beat
 shape. It then writes a new folder, named as a saved take with
 `_analysis` on the end, holding `session.toml` (with `audio = false`),
-`session.json`, `clock.csv`, `positions-test.json` or `poise-test.json`
-when there is one, and an `analysis/` folder, and no sound; the message says how much space it
+`session.json`, `clock.csv`, `positions-test.json`, `poise-test.json` or
+`test-marks.json` when there is one, and an `analysis/` folder, and no sound; the message says how much space it
 takes. A folder already there is never written over. While it works, a
 progress bar in the status bar shows how far it has read, with Cancel,
 which leaves nothing written; listening, New Session and opening a

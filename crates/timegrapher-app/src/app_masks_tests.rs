@@ -471,6 +471,7 @@ fn results_loaded_from_a_file_stay_while_the_test_waits() {
     let full = guided::FullWind {
         wind_h: None,
         against: None,
+        listened: false,
         format: guided::RESULTS_FORMAT.to_string(),
         began_utc: "2026-10-25T09:00:00.000Z".into(),
         began_unix: 1_792_918_800.0,
@@ -508,6 +509,7 @@ fn a_cancelled_test_leaves_no_full_wind_results() {
     let full = guided::FullWind {
         wind_h: None,
         against: None,
+        listened: false,
         format: guided::RESULTS_FORMAT.to_string(),
         began_utc: "2026-10-25T09:00:00.000Z".into(),
         began_unix: 1_792_918_800.0,
@@ -545,6 +547,7 @@ fn full_wind_results_load_and_the_next_test_is_set_against_them() {
     let full = guided::FullWind {
         wind_h: None,
         against: None,
+        listened: false,
         format: guided::RESULTS_FORMAT.to_string(),
         began_utc: "2026-10-25T09:00:00.000Z".into(),
         began_unix: 1_792_918_800.0,
@@ -665,10 +668,12 @@ fn an_opened_24_hour_half_brings_back_its_results() {
         }],
         wind_h: None,
         against: None,
+        listened: false,
     };
     let half = guided::FullWind {
         wind_h: Some(24.0),
         against: Some(Box::new(full.clone())),
+        listened: false,
         ..full.clone()
     };
     let take = dir.join("take.flac");

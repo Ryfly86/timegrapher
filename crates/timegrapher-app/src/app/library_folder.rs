@@ -263,7 +263,7 @@ impl TimegrapherApp {
             _ => "Everything in it is moved there,".to_string(),
         };
         let mut choice = None;
-        let modal = egui::Modal::new(egui::Id::new("move library")).show(ctx, |ui| {
+        let modal = theme::sheet(egui::Id::new("move library")).show(ctx, |ui| {
             ui.set_width(420.0);
             ui.label(
                 RichText::new(format!("Move your watches to {}?", to.display()))

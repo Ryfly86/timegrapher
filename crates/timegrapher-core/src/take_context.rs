@@ -560,3 +560,39 @@ fn layout(
         .collect::<Result<Vec<_>, _>>()?;
     Ok((files, places))
 }
+
+/// Every entry of the take `m` in the folder `base`, each measured
+/// exactly as [`take::measure_entry`] measures it, but with the entries that
+/// read the same sound on the same clock log opened once: each takes its
+/// own masks from that one read. For a reader of a whole take's entries
+/// at once, as a guided test reads its take again as it ends (#1958).
+/// `progress` is told each open's progress as [`take::open_entry`] tells it.
+pub fn measure_entries(
+    base: &Path,
+    m: &Manifest,
+    s: &EntrySettings,
+    usb: impl Fn(&[PathBuf]) -> Result<Option<(f64, String)>, String>,
+    correction: impl Fn(&Path) -> Result<Option<(f64, String)>, String>,
+    mut progress: impl FnMut(f64, f64),
+) -> Vec<Result<take::EntryRead, take::EntryError>> {
+    type Key = (String, Option<String>);
+    let mut opened: Vec<(Key, Result<take::OpenedEntry, String>)> = Vec::new();
+    let mut read = |e: &RecordingEntry| -> Result<take::EntryRead, take::EntryError> {
+        let key = (e.file.clone(), e.clock.clone());
+        let i = match opened.iter().position(|(k, _)| *k == key) {
+            Some(i) => i,
+            None => {
+                let bare = RecordingEntry {
+                    masked: Vec::new(),
+                    ..e.clone()
+                };
+                let o = take::open_entry(base, m, &bare, s, &usb, &correction, &mut progress);
+                opened.push((key, o));
+                opened.len() - 1
+            }
+        };
+        let o = opened[i].1.clone()?;
+        take::measure_opened(take::with_masks(o, &e.masked), m, e, s)
+    };
+    m.recordings.iter().map(&mut read).collect()
+}

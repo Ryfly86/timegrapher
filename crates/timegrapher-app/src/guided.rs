@@ -68,6 +68,10 @@ pub struct FullWind {
     pub wind_h: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub against: Option<Box<FullWind>>,
+    /// The figures are the listening's, not the take's sound as saved:
+    /// that read failed (#1958). Absent when they are the take's.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub listened: bool,
 }
 
 /// One position's figures from the full-wind test.
@@ -334,10 +338,32 @@ pub struct Test {
     /// Paused at this second of the session's sound.
     paused: Option<f64>,
     /// When the test was started, Unix seconds.
-    began_unix: f64,
+    pub began_unix: f64,
     /// For the 24 hour half: the full-wind test it follows, and the hours
     /// since that one began, to a tenth (the readings' `wind_h`).
     pub full: Option<(FullWind, f64)>,
+    /// Its figures read again from its sound as saved, as it ends (#1958).
+    pub saved_read: SavedRead,
+}
+
+/// Where a finished test's figures come from (#1958): the take's sound as
+/// saved, read as the take opened again and `timegrapher session` read
+/// it, or, until that read is in or where it failed, the listening.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub enum SavedRead {
+    /// Not read again: a test still under way.
+    #[default]
+    NotRead,
+    /// Finished, its figures the listening's until its take is saved and
+    /// read again: as it ends, or once its masks change.
+    Pending,
+    /// Being read again from its sound.
+    Reading,
+    /// Read again: its figures are the take's as saved.
+    Read,
+    /// It couldn't be read again, and why: its figures are the
+    /// listening's.
+    Failed(String),
 }
 
 impl Test {
@@ -368,6 +394,7 @@ impl Test {
             paused: None,
             began_unix: unix_now(),
             full: None,
+            saved_read: SavedRead::NotRead,
         }
     }
 
@@ -491,6 +518,7 @@ impl Test {
                 .collect(),
             wind_h: self.wind_h(),
             against: self.full.as_ref().map(|f| Box::new(f.0.clone())),
+            listened: self.listened(),
         })
     }
 
@@ -721,6 +749,49 @@ impl Test {
         self.readings = Some(readings);
     }
 
+    /// Its positions' figures as `timegrapher session` reads the take's
+    /// sound as saved (#1958): `saved`, one for each position measured,
+    /// in order, its seconds measured, beat rate and measurement, from
+    /// core's read of each entry of its session file. False, and nothing
+    /// changed, when `saved` doesn't hold one for each.
+    pub fn finish_saved(&mut self, saved: Vec<(f64, u32, Measurement)>) -> bool {
+        if saved.len() != self.spans.len() || self.readings.is_none() {
+            return false;
+        }
+        let readings = saved
+            .into_iter()
+            .enumerate()
+            .filter_map(|(i, (seconds, bph, m))| self.reading_of(i, seconds, bph, m))
+            .collect();
+        self.readings = Some(readings);
+        self.saved_read = SavedRead::Read;
+        true
+    }
+
+    /// Whether its finished figures are the listening's, not yet (or not)
+    /// the take's sound as saved.
+    pub fn listened(&self) -> bool {
+        matches!(
+            self.saved_read,
+            SavedRead::Pending | SavedRead::Reading | SavedRead::Failed(_)
+        )
+    }
+
+    /// Where the finished test's figures come from, in a line for under
+    /// its table, while they are not the take's sound as saved (#1958).
+    pub fn saved_read_note(&self) -> Option<String> {
+        match &self.saved_read {
+            SavedRead::Reading => {
+                Some("Analysing the saved take: these figures may change slightly.".to_string())
+            }
+            SavedRead::Failed(why) => Some(format!(
+                "These are the figures heard while listening: the saved take couldn't be \
+                 analysed again ({why}). Opened again, the take may read slightly differently."
+            )),
+            SavedRead::NotRead | SavedRead::Pending | SavedRead::Read => None,
+        }
+    }
+
     /// End the test with no beat to read its stretches by: the positions
     /// read so far are its readings, so it is finished, not running.
     pub fn end_unread(&mut self) {
@@ -734,6 +805,8 @@ impl Test {
         self.read_new(log, clock, masked);
         if self.readings.is_some() {
             self.finish(log, clock, masked);
+            // Read again from its sound once the take is saved with them.
+            self.saved_read = SavedRead::Pending;
         }
     }
 
@@ -748,8 +821,6 @@ impl Test {
         clock: Option<&ClockFit>,
         masked: &[(f64, f64)],
     ) -> Option<Reading> {
-        let p = *self.order.get(i)?;
-        let position = session::Position::parse(p.code())?;
         // Cut at every jump in the beats, as the whole take is, so no fit
         // runs across one.
         let jumps = crate::steady::reading_breaks(Vec::new(), log);
@@ -762,15 +833,27 @@ impl Test {
         stops.sort_by(|a, b| a.0.total_cmp(&b.0));
         let measurement: Measurement =
             session::measure_reading(log, clock, &jumps, masked, (from, to), &stops);
+        self.reading_of(i, to - from, log.bph, measurement)
+    }
+
+    /// Position `i`'s reading: `measurement` over `seconds` at `bph`.
+    fn reading_of(
+        &self,
+        i: usize,
+        seconds: f64,
+        bph: u32,
+        measurement: Measurement,
+    ) -> Option<Reading> {
+        let p = *self.order.get(i)?;
         Some(Reading {
             bph_set: self.bph_set,
             label: self.step_name(i),
-            position,
+            position: session::Position::parse(p.code())?,
             wind_h: self.wind_h(),
             date: None,
             notes: None,
-            duration_s: to - from,
-            bph: log.bph,
+            duration_s: seconds,
+            bph,
             measurement,
             cycles: Vec::new(),
             shape: None,
@@ -896,7 +979,10 @@ fn phase_words(test: &Test, phase: Phase) -> (String, String, f32) {
     match phase {
         Phase::Settling(left) => (
             step_title(test),
-            format!("Letting the watch settle, {left:.0} s"),
+            format!(
+                "Letting the watch settle, {:.0} s",
+                timegrapher_core::measure::settle_seconds(left)
+            ),
             ((settle - left) / (settle + measure)) as f32,
         ),
         Phase::Measuring(done) => (
@@ -917,11 +1003,14 @@ fn phase_words(test: &Test, phase: Phase) -> (String, String, f32) {
         Phase::Turn => match test.next_position() {
             Some(_) if test.kind == Kind::Complication => {
                 let next = test.step_code(test.step + 1);
+                // A whole sentence of its own, as the other tests' are
+                // (#2003): never a lower-case end to the title's.
                 (
                     turn_title(test, test.step),
                     format!(
-                        "then press Start {next} Measurement. Nothing until then is \
-                         measured; the strip marks it {}.",
+                        "When it's {}, press Start {next} Measurement. Until then the strip \
+                         reads {}.",
+                        next.to_lowercase(),
                         test.kind.not_used()
                     ),
                     1.0,
@@ -1770,6 +1859,7 @@ pub fn pane(
     let lines = body.lines(shown);
     let mut action = None;
     theme::with_info(ui, info, egui::Id::new("positions info"), panel, |ui| {
+        saved_read_line(ui, test, phase);
         action = crate::position_lanes::beside(ui, area, &lines, |ui| body.show(ui));
     });
     action
@@ -1971,15 +2061,30 @@ pub(crate) fn test_table(
     let id = match t.kind {
         Kind::Positions => "positions",
         Kind::Poise => "poise",
-        Kind::Complication => return complication_grid(ui, t, status, live),
+        Kind::Complication => "complication",
     };
-    table_grid(
-        ui,
-        (id, t.kind),
-        &table(t.readings_so_far(), t.kind),
-        status,
-        live,
-    );
+    if t.kind == Kind::Complication {
+        complication_grid(ui, t, status, live);
+    } else {
+        table_grid(
+            ui,
+            (id, t.kind),
+            &table(t.readings_so_far(), t.kind),
+            status,
+            live,
+        );
+    }
+}
+
+/// A finished test's saved take being analysed again, or that it couldn't
+/// be, as a plain line at the top of the pane, outside its scrolling, where
+/// the banner was while the test ran (#1958, Hugh 5 on #2067).
+pub(crate) fn saved_read_line(ui: &mut egui::Ui, t: Option<&Test>, phase: Option<Phase>) {
+    let finished = phase.is_none_or(|p| p == Phase::Finished);
+    if let Some(n) = t.filter(|_| finished).and_then(Test::saved_read_note) {
+        ui.label(RichText::new(n).color(theme::pal(ui).text));
+        ui.add_space(6.0);
+    }
 }
 
 /// This take's positions, as marked on the card, with what the table
