@@ -525,16 +525,24 @@ fn big_stretch(average_s: f64, floored: bool) -> String {
 impl TimegrapherApp {
     /// Under 10 s of sound since Listen started or the latest break, no
     /// figures yet: a word saying what they wait for, and its hover
-    /// (#2014, Hugh). A settle's own state wins.
+    /// (#2014, Hugh). A settle's own state wins, and where the sound is
+    /// over it is no longer listening, whatever was heard (#2053).
     fn listening(&self, r: Option<&LiveReading>) -> Option<(String, String)> {
         r.and_then(|r| r.listening)
-            .filter(|_| heard(r) && self.settling_left().is_none())
+            .filter(|_| !self.sound_over() && heard(r) && self.settling_left().is_none())
             .map(|since| {
                 (
                     timegrapher_core::measure::LISTENING_TITLE.to_string(),
                     timegrapher_core::measure::listening_text(since),
                 )
             })
+    }
+
+    /// Whether the cards show the end of a sound that is over: stopped, or
+    /// an opened recording, at its newest moment. Earlier in it, the strip
+    /// moved back, its first 10 s are still "Listening" (#2053).
+    fn sound_over(&self) -> bool {
+        !self.running() && self.strip_end.is_none()
     }
 
     /// Why the cards have no reading, or a reading with no beat at all:

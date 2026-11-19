@@ -558,7 +558,14 @@ impl TimegrapherApp {
             .flatten()
             .and_then(|r| self.waiting(Some(&r)))
             .map(|(title, _)| title);
-        let note = strip_note(guessing, wait.as_deref(), looking_back, end);
+        // The faint dots in view, so the note says what is drawn: on pure
+        // silence only the peak as the microphone opens (#2053).
+        let shown = end - self.strip.span_s;
+        let dots = candidates
+            .iter()
+            .filter(|b| (shown..=end).contains(&b.time))
+            .count();
+        let note = strip_note(guessing, (wait.as_deref(), dots), looking_back, end);
         let from = end - self.strip.span_s - 5.0;
         let (trend, _) = self.strip_trend(from, end, self.average_s);
         let Some(live) = &self.live else { return };
@@ -756,14 +763,22 @@ fn round_span(s: f64) -> f64 {
 type StripTrack = Vec<(f64, f64, &'static str, &'static str)>;
 
 /// The line over the strip: what the faint dots are while no regular beat
-/// is found, led by the cards' wait where there is no beat at all, or
-/// where the view is when looking back.
-fn strip_note(guessing: bool, wait: Option<&str>, looking_back: bool, end: f64) -> Option<String> {
+/// is found, led by the cards' wait where there is no beat at all and
+/// saying as many dots as are in view, or where the view is when looking
+/// back.
+fn strip_note(
+    guessing: bool,
+    (wait, dots): (Option<&str>, usize),
+    looking_back: bool,
+    end: f64,
+) -> Option<String> {
     if guessing {
         let lead = wait.unwrap_or("No regular beat found yet");
-        Some(format!(
-            "{lead}. The faint dots are sounds that might be beats."
-        ))
+        Some(match dots {
+            0 => format!("{lead}."),
+            1 => format!("{lead}. The faint dot is a sound that might be a beat."),
+            _ => format!("{lead}. The faint dots are sounds that might be beats."),
+        })
     } else {
         looking_back.then(|| format!("at {}, double-click for the newest beats", length_text(end)))
     }
@@ -1001,5 +1016,22 @@ mod tests {
         assert_eq!(overlays[1].points[1], [1.0, 0.8]);
         assert!(overlays[1].points[0][1].is_nan());
         assert!(overlays[1].points[2][1].is_nan());
+    }
+
+    /// The note says as many faint dots as are in view: none, the one
+    /// peak on pure silence, or several (#2053).
+    #[test]
+    fn the_strip_note_says_the_dots_in_view() {
+        let note = |wait, dots| strip_note(true, (wait, dots), false, 10.0);
+        let w = Some("Waiting for Beats");
+        assert_eq!(note(w, 0).as_deref(), Some("Waiting for Beats."));
+        assert_eq!(
+            note(w, 1).as_deref(),
+            Some("Waiting for Beats. The faint dot is a sound that might be a beat.")
+        );
+        assert_eq!(
+            note(None, 5).as_deref(),
+            Some("No regular beat found yet. The faint dots are sounds that might be beats.")
+        );
     }
 }

@@ -2241,10 +2241,15 @@ fn silence_gives_the_strip_and_the_cards_one_verdict() {
         assert!(!text.contains("regular"), "{text}");
     };
     said(&strip_text(&mut app, &ctx, false), Wait::NoBeats);
-    // With a faint dot or two (the peak as the microphone opens), the
+    // With the one faint dot (the peak as the microphone opens), the
     // strip's note leads with the same wait, listening and once stopped
-    // (Walter on #2051).
-    let note = |wait: Wait| format!("{}. The faint dots", wait.title());
+    // (Walter on #2051), and says one dot (#2053).
+    let note = |wait: Wait| {
+        format!(
+            "{}. The faint dot is a sound that might be a beat.",
+            wait.title()
+        )
+    };
     let whole = strip_text(&mut app, &ctx, true);
     assert!(whole.contains(&note(Wait::NoBeats)), "{whole}");
     assert!(!whole.contains("regular"), "{whole}");
@@ -2302,4 +2307,36 @@ fn a_short_stretch_says_which_beats_the_readings_are_fitted_to() {
             crate::fields::duration(r.span_s.round())
         )
     );
+}
+
+/// A listen stopped before 10 s with nothing heard is no longer
+/// listening: every card says "No Beats Heard", as the status bar says
+/// Stopped, not "Listening" (Walter on #2053).
+#[test]
+fn a_listen_stopped_early_on_silence_says_no_beats_heard() {
+    use timegrapher_core::measure::Wait;
+    let ctx = themed();
+    let base = std::env::temp_dir().join(format!("tg-stop-early-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "early".into());
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let quiet = vec![0.0_f32; 960];
+    for _ in 0..6 * 50 {
+        app.live.as_mut().expect("live").push(&quiet);
+    }
+    let text = cards_text(&app, &ctx);
+    assert_eq!(painted(&text, "Listening"), 3, "listening first: {text}");
+    app.stop();
+    let text = cards_text(&app, &ctx);
+    assert!(!text.contains("Listening"), "{text}");
+    assert_eq!(painted(&text, "No Beats"), 3, "{text}");
+    assert_eq!(painted(&text, "Heard"), 3, "{text}");
+    let r = app.card_reading();
+    assert_eq!(
+        app.waiting(r.as_ref()),
+        Some((Wait::NoBeatsHeard.title(), Wait::NoBeatsHeard.text()))
+    );
+    drop(_tx);
+    let _ = std::fs::remove_dir_all(base);
 }
