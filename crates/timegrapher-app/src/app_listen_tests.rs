@@ -501,9 +501,12 @@ fn a_kept_quick_listen_stopped_keeps_its_sound_in_its_take_alone() {
         save(&mut app, &other);
         assert!(app.saving.is_none());
         let said = app.message.as_ref().map(|m| m.0.as_str());
-        let why = "This sound can't be saved: what was already saved was kept only in its \
-                   take, which no longer holds it.";
+        let why = "This sound can't be saved\nIts earlier part was kept only in its take, \
+                   and the take no longer holds it.";
         assert_eq!(said, Some(why));
+        // Its first line fits the status bar whole (Hugh 4 on #2055).
+        let short = super::readouts::error_short(why);
+        assert_eq!(short, "This sound can't be saved…");
     }
     assert_eq!(std::fs::read_dir(&other).unwrap().count(), 0);
     // Nor kept in a watch: the session stays a Quick Listen, saying why
@@ -514,9 +517,13 @@ fn a_kept_quick_listen_stopped_keeps_its_sound_in_its_take_alone() {
     assert!(app.quick_listen && app.watch_open.is_none());
     assert!(app.saving.is_none() && app.after_save.is_empty());
     let said = app.message.as_ref().map(|m| m.0.as_str());
-    let why = "This sound can't be saved: what was already saved was kept only in its \
-               take, which no longer holds it.";
+    let why = "This sound can't be saved\nIts earlier part was kept only in its take, \
+               and the take no longer holds it.";
     assert_eq!(said, Some(why));
+    assert_eq!(
+        super::readouts::error_short(why),
+        "This sound can't be saved…"
+    );
     let _ = std::fs::remove_dir_all(&base);
 }
 

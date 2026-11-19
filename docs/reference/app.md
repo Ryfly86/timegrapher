@@ -2199,9 +2199,10 @@ its room once, not twice; only the hour still being written is in both
 (#2040). Carried on after a Stop, a take reads those hours from its
 folder. If the take no longer holds them (deleted, its sound removed,
 or moved or changed outside the app), Listen starts a new take, and
-Save…, Save As…, Save Again and Keep Analysis Only say "This sound can't
-be saved: what was already saved was kept only in its take, which no
-longer holds it." The message names the take and offers **Open Take** (the take
+Save…, Save As…, Save Again, Keep Analysis Only and Keep in a Watch… are
+refused. The status bar reads "This sound can't be saved…", and a click
+on it shows the reason under that line: "Its earlier part was kept only
+in its take, and the take no longer holds it." The message names the take and offers **Open Take** (the take
 itself, opened where it is), **Delete Copy…** (asking first, and saying
 that only those last seconds are lost) and **Later**. If that take has
 since been moved or deleted, what is left of the copy is the only one, and it is offered

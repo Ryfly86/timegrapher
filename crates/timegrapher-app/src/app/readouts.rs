@@ -1476,14 +1476,7 @@ impl TimegrapherApp {
         if error && !self.setup_sheet {
             let short = match (self.session.recording_fault(), &self.message) {
                 (Some(_), _) => "Recording Stopped…".to_string(),
-                (None, Some((m, _))) => {
-                    let first = m.lines().next().unwrap_or_default();
-                    if first.chars().count() > 48 {
-                        format!("{}…", first.chars().take(47).collect::<String>())
-                    } else {
-                        format!("{first}…")
-                    }
-                }
+                (None, Some((m, _))) => error_short(m),
                 _ => String::new(),
             };
             let resp = status_item(
@@ -2383,4 +2376,15 @@ fn said_elsewhere(c: &Caveat) -> bool {
             | Caveat::LiftUnknown
             | Caveat::ClockUnknown
     )
+}
+
+/// An error's words in the status bar: its first line, cut to 48
+/// characters, with "…" saying a click shows the whole message.
+pub(super) fn error_short(m: &str) -> String {
+    let first = m.lines().next().unwrap_or_default();
+    if first.chars().count() > 48 {
+        format!("{}…", first.chars().take(47).collect::<String>())
+    } else {
+        format!("{first}…")
+    }
 }
