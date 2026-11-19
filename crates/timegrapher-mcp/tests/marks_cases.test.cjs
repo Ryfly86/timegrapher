@@ -245,3 +245,16 @@ test("names beside a plot keep their lines' order, a strong one on its line, as 
   assert.ok(cases.lane_stack.length > 0);
   for (const c of cases.lane_stack) close(plain(context.markStackNames(c.names, c.top, c.bottom)), c.at, c.case);
 });
+
+test("a point's note on a plate keeps off a note beside a point (Walter on #2012)", () => {
+  // The plate keeps off a note beside a point where its first place
+  // would be (Walter on #2012).
+  const at = { x: 0.6, y: 0.5 };
+  const both = context.xyChart({ x: [0, 1], y: [0, 1], height: 300, xTicks: () => [], yTicks: () => [],
+    notes: [{ ...at, text: "least scatter at 5 min: 1", above: true }], beside: [{ ...at, text: "hollow: too few differences to judge" }] });
+  const plate = both.match(/<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)" rx="6"/).slice(1).map(Number);
+  const note = both.match(/<text x="([\d.]+)" y="([\d.]+)" text-anchor="end"[^>]*>least scatter/).slice(1).map(Number);
+  const w = "least scatter at 5 min: 1".length * 6.6;
+  const clear = plate[0] >= note[0] || plate[0] + plate[2] <= note[0] - w || plate[1] >= note[1] + 3 || plate[1] + plate[3] <= note[1] - 11;
+  assert.ok(clear, `plate ${plate} on the note at ${note}`);
+});

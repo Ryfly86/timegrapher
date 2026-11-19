@@ -164,6 +164,57 @@ fn white_noise_is_steady() {
     assert!(a.slope_short.unwrap() < -0.4);
 }
 
+/// The least scatter is picked only among averaging times judged
+/// (`Allan::judged`, [`ALLAN_JUDGED_DIFFERENCES`]): on white noise the
+/// deviation keeps falling, so the longest times, on a few differences
+/// each, lie lower still but are not it (Norm on #1985).
+#[test]
+fn the_least_scatter_rests_on_enough_differences() {
+    let mut z = Noise(1);
+    let y: Vec<f64> = (0..2000).map(|_| 250.0 + 3.0 * z.next()).collect();
+    let s = check_series(
+        SeriesKind::Amplitude,
+        grid(y, 2.0),
+        None,
+        None,
+        None,
+        &[],
+        &Config::default(),
+    );
+    let a = s.allan.unwrap();
+    let judged = &a.judged;
+    assert!(judged.iter().any(|j| !j), "some on too few: {:?}", a.pairs);
+    assert_eq!(a.hollow_note, Some(ALLAN_HOLLOW_NOTE));
+    let i = a
+        .tau_s
+        .iter()
+        .position(|t| Some(*t) == a.best_tau_s)
+        .unwrap();
+    assert!(judged[i] && a.pairs[i] >= ALLAN_JUDGED_DIFFERENCES);
+    for (j, n) in judged.iter().zip(&a.pairs) {
+        assert_eq!(*j, *n >= ALLAN_JUDGED_DIFFERENCES);
+    }
+}
+
+/// A point is judged from exactly [`ALLAN_JUDGED_DIFFERENCES`]
+/// differences: 7, 8 and 9 give hollow, judged, judged (Trevor on
+/// #2012). The least scatter and the excess skip the hollow one.
+#[test]
+fn an_allan_point_is_judged_from_exactly_eight_differences() {
+    let n = ALLAN_JUDGED_DIFFERENCES;
+    let ad = [(10.0, 1.0, n + 1), (20.0, 0.9, n), (40.0, 0.2, n - 1)];
+    let a = Allan::of(&ad, vec![1.0, 0.71, 0.1], None);
+    assert_eq!(a.judged, [true, true, false]);
+    assert_eq!(a.best_tau_s, Some(20.0));
+    assert!(
+        (a.max_excess - 0.9 / 0.71).abs() < 1e-12,
+        "{}",
+        a.max_excess
+    );
+    let all = Allan::of(&ad[..2], vec![1.0, 0.71], None);
+    assert_eq!(all.hollow_note, None);
+}
+
 #[test]
 fn a_step_is_a_shifting_mean() {
     let mut z = Noise(2);
