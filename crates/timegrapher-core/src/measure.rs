@@ -243,6 +243,9 @@ pub enum Wait {
     Analysing,
     /// Nothing is listened to and no recording is open (Hugh on #2036).
     NotListening,
+    /// A stopped take or an opened recording with no beat in the stretch
+    /// read: a fact, not a wait (Hugh on #2036).
+    NoBeatsHeard,
 }
 
 /// The heading of [`Wait::NoBeats`].
@@ -269,6 +272,7 @@ impl Wait {
             Wait::TestStart => "Waiting for Start".into(),
             Wait::Analysing => "Analysing".into(),
             Wait::NotListening => "Not Listening".into(),
+            Wait::NoBeatsHeard => "No Beats Heard".into(),
         }
     }
 
@@ -292,6 +296,9 @@ impl Wait {
                                 Analysing is done."
                 .into(),
             Wait::NotListening => "The figures need sound: nothing is being listened to.".into(),
+            Wait::NoBeatsHeard => {
+                "The figures need a watch's beats: none were heard in this stretch.".into()
+            }
         }
     }
 }
@@ -1240,6 +1247,13 @@ mod tests {
             pair(
                 "Analysing",
                 "The figures need the recording read: they appear once Analysing is done."
+            )
+        );
+        assert_eq!(
+            says(Wait::NoBeatsHeard),
+            pair(
+                "No Beats Heard",
+                "The figures need a watch's beats: none were heard in this stretch."
             )
         );
         assert_eq!(

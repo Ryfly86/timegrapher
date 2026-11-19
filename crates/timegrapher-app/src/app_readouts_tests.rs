@@ -1784,7 +1784,8 @@ fn every_reading_card_counts_the_settle_down_and_the_signal_stays() {
 
 /// Listening to silence past the first 10 s, every reading card says
 /// "Waiting for Beats", with why in its hover, never a bare "—" (#2007).
-/// The status bar keeps "signal" in its place with a "—".
+/// The status bar keeps "signal" in its place with a "—". Stopped, they
+/// say "No Beats Heard" instead.
 #[test]
 fn silence_waits_for_beats_on_every_card() {
     use timegrapher_core::measure::WAITING_FOR_BEATS;
@@ -1817,6 +1818,22 @@ fn silence_waits_for_beats_on_every_card() {
         painted_text(&out).lines().any(|l| l.starts_with("signal ")),
         "{}",
         painted_text(&out)
+    );
+    // Stopped after the silence: a fact, not a wait (Hugh on #2036).
+    app.stop();
+    assert!(!app.running() && app.live.is_some());
+    let r = app.card_reading().expect("a reading");
+    assert!(r.bph.is_none(), "{r:?}");
+    let text = cards_text(&app, &ctx);
+    assert_eq!(painted(&text, "No Beats"), 3, "{text}");
+    assert_eq!(painted(&text, "Heard"), 3, "{text}");
+    assert!(!text.contains("Waiting") && !text.contains("Not"), "{text}");
+    assert_eq!(
+        app.waiting(Some(&r)).expect("a wait"),
+        (
+            "No Beats Heard".to_string(),
+            "The figures need a watch's beats: none were heard in this stretch.".to_string()
+        )
     );
     drop(_tx);
     let _ = std::fs::remove_dir_all(base);

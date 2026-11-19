@@ -2209,7 +2209,9 @@ all; "Waiting for More Beats" on a card whose figure needs more beats
 than a short stretch holds yet ("More Beats" where those words don't
 fit at the card's size); "Waiting for Start" while a test is set up;
 "Analysing" while a recording is read; "Not Listening" when nothing is
-listened to, as after New Session while stopped.
+listened to and no recording is open, as after New Session while
+stopped; and "No Beats Heard", a fact rather than a wait, for a stopped
+take or an opened recording with no beat in the stretch read.
 Stopped during a settle, the Rate card says "Before the Move".
 With no regular beat, the reading cards say "No Regular Beat" there, with
 the full sentence and the timing scatter in the hover. A regular beat

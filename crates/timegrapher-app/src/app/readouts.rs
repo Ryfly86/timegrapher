@@ -533,16 +533,19 @@ impl TimegrapherApp {
 
     /// Why the cards have no reading, or a reading with no beat at all:
     /// the watch settling after a move, a test waiting for its Start, a
-    /// recording being read, no beat heard yet while listening, or
-    /// nothing listened to at all, as after New Session while stopped
-    /// (#2007; Hugh on #2036). The same words on
+    /// recording being read, nothing listened to and nothing open (as
+    /// after New Session while stopped), or no beat in the stretch: a
+    /// wait while listening, a fact once stopped or opened (#2007; Hugh
+    /// on #2036). The same words on
     /// every reading card.
     pub(super) fn waiting(&self, r: Option<&LiveReading>) -> Option<(String, String)> {
         use measure::Wait;
+        // No beat in the stretch: a wait while listening, a fact once
+        // stopped or opened (Hugh on #2036).
         let quiet = if self.running() {
             Wait::NoBeats
         } else {
-            Wait::NotListening
+            Wait::NoBeatsHeard
         };
         if let Some(r) = r {
             return r.bph.is_none().then(|| wait_words(quiet));
@@ -558,6 +561,8 @@ impl TimegrapherApp {
                 Wait::TestStart
             } else if self.batch.is_some() {
                 Wait::Analysing
+            } else if self.live.is_none() {
+                Wait::NotListening
             } else {
                 quiet
             };
