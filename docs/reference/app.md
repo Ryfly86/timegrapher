@@ -261,7 +261,8 @@ its initial while it has none, or one that can't be read), its name, its
 calibre (or, with **List Shows** in the toolbar, one of the fields added
 to the watches, such as Customer; the choice is kept between runs, and
 shows the calibre while no watch has that field), how many takes it has and the date of the last, and the space
-they use once it is 1 MB or more. The row picked is marked. While a search is typed, a line under the
+they use once it is 1 MB or more; a "—" while the Bench records a take
+into it, as that take's row has, until it stops, and its hover says so (#2034). The row picked is marked. While a search is typed, a line under the
 list says how many it shows of how many, "1 of 4 watches", and what it
 found in each row's name and the line under it is in the accent blue.
 Picking a watch while a Quick Listen is listening asks about its unsaved
@@ -311,7 +312,9 @@ under it its calibre, beat rate, lift angle and added fields, with
   greyed out, and the New Take row says "Stop the take on the Bench
   first." at its right; that row is always there, so nothing moves.
 - **Takes**, with the count, and **Open** and **…** at the right of its
-  title, acting on the take picked; then the takes as a table, newest
+  title, acting on the take picked (greyed out, their hover says the
+  real reason first: "There are no takes here yet", then "Pick a take
+  first", then the Bench's, #2007); then the takes as a table, newest
   first: Started, Position (such as DU, or DU, CU, or All 6; Power Reserve,
   Positions Test or Dynamic Poise Test for those tests, a test's positions in the row's hover), Length, Rate (s/d), Amplitude (°), Beat Error (ms, its size) and
   Size (MB), each unit on its own line under its title. The figures are the take's own reading, as `timegrapher
@@ -333,7 +336,9 @@ under it its calibre, beat rate, lift angle and added fields, with
   says they come once it stops, and it is read then (#2027). Nothing is inserted
   between rows. Clicking a row picks it; double-clicking opens it as
   Open does, and the take on show is not read again. Open is greyed out
-  while a take runs on the Bench.
+  while a take runs on the Bench. A Positions Test stopped before any
+  position was measured shows a dim "—" for its figures, as it has none
+  (#2007).
 - **Details**: the fields added to the watch and its notes.
 - **Photos**: a strip of thumbnails (clicking one opens it in the
   computer's own viewer; right-clicking offers **Open**, **Show in
@@ -1770,7 +1775,8 @@ take with none) and its state
 (Not Started, Listening, Stopped, Opening or Opened), such as "Quick
 Listen · No watch · Listening", "New Take · Pepsi · Not Started" or
 "w.wav · No watch picked · Opened". Then, while listening, the input;
-the signal, "signal 12×", how far the typical
+the signal, "signal 12×" ("signal —" before there is one; it stays
+through a settle, as it is the sound's own, #2007), how far the typical
 beat's peak stands above the typical level between beats (noise alone
 reads about 2×, and below 4× no beats are logged). It measures
 loudness, not the shape of the tick, so hum, knocks or a holder that
@@ -1849,7 +1855,8 @@ takes while the app doesn't have the Watches folder open
 it records where it is, so it can be moved, synced or copied whole; a
 take with sound files missing is listed as incomplete and never changed.
 Settings' **Watches Folder** category shows where it is and how many watches and
-takes it holds and their size, with **Show in Finder** (Explorer on
+takes it holds and their size (a "—" while a take is recorded into it,
+its hover saying why, #2039), with **Show in Finder** (Explorer on
 Windows, File Manager on Linux), **Move Watches…** (into a folder picked,
 asking first; onto another disk it is copied, each file with its
 modification time, checked and only then removed, and a link or a
@@ -2213,8 +2220,21 @@ from before the move and says so.
 **The cards keep their height.** Every card is 134 points tall at every
 window width, whatever it shows: its three rows have their places whether
 anything is in them or not. A missing figure is a "—", with what the
-reading waits on in the unit's place, in short words ("Settling, 20 s";
-"Waiting for Beats"; "Before the Move"), the full sentence in the hover.
+reading waits on in the unit's place, in short words, the same on the
+Rate, Amplitude and Beat Error cards (core `measure::Wait`, #2007), and
+the full sentence in the hover, saying what the figures need and, where
+it can, when reading starts: "Settling, 20 s" counting down while the watch settles
+after a move, or in a guided test's first position (no figure is shown
+in either); "Waiting for Beats" while listening with no beat heard at
+all; "Waiting for More Beats" on a card whose figure needs more beats
+than a short stretch holds yet ("More Beats" where those words don't
+fit at the card's size); "Waiting for Start" while a test is set up;
+"Analysing" while a recording is read; "Not Listening" when nothing is
+listened to and no recording is open, as after New Session while
+stopped; and "No Beats Heard", a fact rather than a wait, for a stopped
+take or an opened recording with no beat in the stretch read (not "No
+Regular Beat", which is about beats that are there).
+Stopped during a settle, the Rate card says "Before the Move".
 With no regular beat, the reading cards say "No Regular Beat" there, with
 the full sentence and the timing scatter in the hover. A regular beat
 heard after noise or silence, at launch or a New Session, says "Finding

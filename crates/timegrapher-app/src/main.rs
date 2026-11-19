@@ -42,6 +42,7 @@ mod scope;
 mod session;
 mod settings;
 mod settings_window;
+mod size_wait;
 mod span;
 mod sparkline;
 mod steady;
