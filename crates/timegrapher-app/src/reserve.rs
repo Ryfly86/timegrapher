@@ -610,11 +610,20 @@ pub fn finished_run(hours: u32) -> Test {
     t
 }
 
-/// The height a run of `hours` rows reads well in: the toolbar and the
-/// run's line, two charts of a readable height, and the table.
-pub fn run_h(hours: usize) -> f32 {
+/// The height a run of `hours` reads well in: the toolbar and the run's
+/// line, two charts of a readable height when it draws any of those
+/// `shown` ([`charted_hours`], [`charted_kinds`]), and the table; with no
+/// chart, the line and the table alone, so no room stands empty under it
+/// (#1962). `so_far` while the run goes on.
+pub fn run_h(hours: &[power_reserve::Hour], so_far: bool, shown: [bool; 3]) -> f32 {
     let row_h = 22.0;
-    60.0 + 2.0 * 160.0 + 8.0 + (hours as f32 + 2.0) * row_h
+    let charted = &hours[..charted_hours(hours, so_far)];
+    let charts = if charted_kinds(charted, shown).is_empty() {
+        0.0
+    } else {
+        2.0 * 160.0
+    };
+    60.0 + charts + 8.0 + (hours.len() as f32 + 2.0) * row_h
 }
 
 /// A value written by core's figure rule `text`, or a dash; its unit is
@@ -2384,6 +2393,31 @@ mod tests {
             shown.iter().filter(|s| *s == "Rate").count() >= 2,
             "{shown:?}"
         );
+    }
+
+    /// The room the pane grows to as a run ends, opens or first shows
+    /// (Walter on #2019): the charts' only where it draws one, else its
+    /// line and table alone, nothing empty under them.
+    #[test]
+    fn the_pane_grows_for_charts_only_where_it_draws_one() {
+        let table_alone = |h: &[power_reserve::Hour]| run_h(h, false, [false; 3]);
+        let mut run = finished_run(3);
+        let hours = &mut run.results.as_mut().expect("run").hours;
+        assert!(run_h(hours, false, [true; 3]) > table_alone(hours));
+        // No amplitude read: the Amplitude chart alone draws nothing.
+        for h in hours.iter_mut() {
+            h.amplitude_deg = None;
+        }
+        assert_eq!(
+            run_h(hours, false, [false, true, false]),
+            table_alone(hours)
+        );
+        // Ended inside its first hour, or running in it: no chart.
+        hours.truncate(1);
+        hours[0].span_s = 120.0;
+        assert!(!hours[0].whole());
+        assert_eq!(run_h(hours, false, [true; 3]), table_alone(hours));
+        assert_eq!(run_h(hours, true, [true; 3]), table_alone(hours));
     }
 
     /// A run of half a minute charts 0 h to 1 h, each hour named once,
