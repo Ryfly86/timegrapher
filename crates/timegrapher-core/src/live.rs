@@ -1248,6 +1248,15 @@ impl LiveAnalyzer {
         Cuts::new(None, &breaks, &self.masked)
     }
 
+    /// Under 10 s of sound, a watch is heard only where the beats' sound
+    /// shows one; where it can't be judged (`waiting`) there is no
+    /// verdict and no figures, and the reading says what the sound is
+    /// counted since: an empty stand's first seconds read over 100,000
+    /// s/d when the timing's "watch" stood (#2014).
+    fn listening_at(&self, waiting: bool, end_s: f64) -> Option<measure::HeardSince> {
+        waiting.then(|| self.heard_since_kind(end_s))
+    }
+
     /// What the sound heard up to `end_s` is heard since: the take's
     /// start, or the latest break or mask ([`Self::heard_cuts`]).
     fn heard_since_kind(&self, end_s: f64) -> measure::HeardSince {
@@ -1332,18 +1341,9 @@ impl LiveAnalyzer {
             crate::confidence::amplitude_windows_se_or_why(wins.iter().copied(), &take_amp, |w| {
                 w.mean()
             });
-        let Verdict {
-            jitter_us,
-            timing_scatter_fraction,
-            no_watch,
-            awaiting,
-        } = self.verdict_at(holes, bph, window_from, end_s, st.listened_s);
-        let watch_heard = no_watch.is_none();
-        // Under 10 s of sound, a watch is heard only where the beats'
-        // sound shows one; where it can't be judged there is no verdict
-        // and no figures: an empty stand's first seconds read over
-        // 100,000 s/d when the timing's "watch" stood (#2014).
-        let listening = (watch_heard && awaiting).then(|| self.heard_since_kind(end_s));
+        let verdict = self.verdict_at(holes, bph, window_from, end_s, st.listened_s);
+        let (no_watch, watch_heard) = (verdict.no_watch, verdict.no_watch.is_none());
+        let listening = self.listening_at(watch_heard && verdict.awaiting, end_s);
         let read = watch_heard && listening.is_none();
         let heard = |v: Option<f64>| v.filter(|_| read);
         // Figures that name a side wait until the sides are told apart.
@@ -1394,8 +1394,8 @@ impl LiveAnalyzer {
             amplitude_no_pm: amplitude_se.err().filter(|_| watch_heard),
             amplitude_even_deg: sided(figures.amplitude_even_deg),
             amplitude_odd_deg: sided(figures.amplitude_odd_deg),
-            jitter_us,
-            timing_scatter_fraction,
+            jitter_us: verdict.jitter_us,
+            timing_scatter_fraction: verdict.timing_scatter_fraction,
             beats_used: fit.map_or(0, |f| f.beats_used),
             span_s,
             whole,
