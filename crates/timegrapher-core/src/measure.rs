@@ -262,11 +262,19 @@ pub fn wait_short_title(title: &str) -> Option<&'static str> {
     (title == WAITING_FOR_MORE_BEATS).then_some("More Beats")
 }
 
+/// The whole seconds of a settle still to come, as every countdown says
+/// them: rounded up, so it reads 1 s until the settle is over, never 0 s
+/// (#2044: the cards and the Positions pane said the same settle 1 s
+/// apart).
+pub fn settle_seconds(left_s: f64) -> f64 {
+    left_s.ceil()
+}
+
 impl Wait {
     /// The short words in the figure's place.
     pub fn title(self) -> String {
         match self {
-            Wait::Settling { left_s } => format!("Settling, {:.0} s", left_s.ceil()),
+            Wait::Settling { left_s } => format!("Settling, {:.0} s", settle_seconds(left_s)),
             Wait::NoBeats => WAITING_FOR_BEATS.into(),
             Wait::MoreBeats => WAITING_FOR_MORE_BEATS.into(),
             Wait::TestStart => "Waiting for Start".into(),
@@ -283,7 +291,7 @@ impl Wait {
             Wait::Settling { left_s } => format!(
                 "The figures need the watch settled in its new position: reading starts in \
                  {:.0} s.",
-                left_s.ceil()
+                settle_seconds(left_s)
             ),
             Wait::NoBeats => "The figures need a watch's beats: none are heard yet.".into(),
             Wait::MoreBeats => "This figure needs more beats than the stretch holds yet: it \

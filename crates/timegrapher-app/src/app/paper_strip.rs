@@ -551,7 +551,14 @@ impl TimegrapherApp {
         }
         let end = self.strip_end_s();
         let looking_back = self.strip_end.is_some() && end < self.latest_s() - 0.5;
-        let note = strip_note(guessing, looking_back, end);
+        // With no beat at all, the cards' wait leads the note, so the strip
+        // and the cards say one verdict (#2044).
+        let wait = guessing
+            .then(|| self.reading())
+            .flatten()
+            .and_then(|r| self.waiting(Some(&r)))
+            .map(|(title, _)| title);
+        let note = strip_note(guessing, wait.as_deref(), looking_back, end);
         let from = end - self.strip.span_s - 5.0;
         let (trend, _) = self.strip_trend(from, end, self.average_s);
         let Some(live) = &self.live else { return };
@@ -749,12 +756,14 @@ fn round_span(s: f64) -> f64 {
 type StripTrack = Vec<(f64, f64, &'static str, &'static str)>;
 
 /// The line over the strip: what the faint dots are while no regular beat
-/// is found, or where the view is when looking back.
-fn strip_note(guessing: bool, looking_back: bool, end: f64) -> Option<String> {
+/// is found, led by the cards' wait where there is no beat at all, or
+/// where the view is when looking back.
+fn strip_note(guessing: bool, wait: Option<&str>, looking_back: bool, end: f64) -> Option<String> {
     if guessing {
-        Some(
-            "No regular beat found yet. The faint dots are sounds that might be beats.".to_string(),
-        )
+        let lead = wait.unwrap_or("No regular beat found yet");
+        Some(format!(
+            "{lead}. The faint dots are sounds that might be beats."
+        ))
     } else {
         looking_back.then(|| format!("at {}, double-click for the newest beats", length_text(end)))
     }
