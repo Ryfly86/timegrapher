@@ -1468,17 +1468,21 @@ fn cycle_label(
     // Folded at the headline's cycle (core's `at_cycle`, the same test):
     // the size stated is the cycle's one size, the headline's (Norm,
     // #1984), not the fold's swing.
+    // At the search's sized line instead, that line's sine size; and
+    // elsewhere the median line's swing, its noise included (core's
+    // `sine_size`).
     let own = c.is_cycle_period(f.period_s);
-    match (
-        steady_views::fold_spread(f, boxes),
-        own.then(|| c.cycle_size_text()).flatten(),
-    ) {
+    let size = match own.then(|| c.cycle_size_text()).flatten() {
+        Some(s) => Some(format!("{s} peak to peak")),
+        None => (c.search_line_size_text(f.period_s)).map(|s| format!("{s} sine peak to peak")),
+    };
+    match (steady_views::fold_spread(f, boxes), size) {
         (Some((_, middle)), Some(size)) => format!(
-            "{label}\n{size} peak to peak; the boxes' median height is {}",
+            "{label}\n{size}; the boxes' median height is {}",
             value_text(k, middle, middle.abs() / 10.0),
         ),
         (Some((swing, middle)), None) => format!(
-            "{label}\nThe median line swings {}; the boxes' median height is {}",
+            "{label}\nThe median line swings {}, its noise included; the boxes' median height is {}",
             value_text(k, swing, swing.abs().min(middle.abs()) / 10.0),
             value_text(k, middle, swing.abs().min(middle.abs()) / 10.0),
         ),

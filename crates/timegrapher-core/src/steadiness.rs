@@ -1307,8 +1307,7 @@ pub fn check_series(
 /// its own significance test.
 fn search_also(s: &SeriesCheck) -> Option<String> {
     let p = s.period.as_ref()?;
-    let span = s.readings as f64 * s.step_s;
-    let near = |a: f64, b: f64| (a - b).abs() <= (b * b / span).max(0.01 * b);
+    let near = |a: f64, b: f64| s.same_search_line(a, b);
     let named: Vec<f64> = s
         .cycle
         .iter()
@@ -1332,8 +1331,9 @@ fn search_also(s: &SeriesCheck) -> Option<String> {
             .wheel
             .as_ref()
             .map_or(String::new(), |w| format!(", the {w}'s period"));
+        // A sine's size: a plain "peak to peak" is the cycle's (#761).
         lines.push(format!(
-            "{} ({size} peak to peak{wheel})",
+            "{} ({size} sine peak to peak{wheel})",
             period(p.period_s)
         ));
     }
@@ -1893,6 +1893,28 @@ impl SeriesCheck {
         self.cycle
             .as_ref()
             .is_some_and(|cy| (cy.period_s - period_s).abs() <= 1e-6 * period_s)
+    }
+
+    /// Whether periods `a` and `b` are one line of the period search:
+    /// within its resolution, period² over the take, and at least 1%.
+    pub fn same_search_line(&self, a: f64, b: f64) -> bool {
+        let span = self.readings as f64 * self.step_s;
+        (a - b).abs() <= (b * b / span).max(0.01 * b)
+    }
+
+    /// The period search's sine peak to peak, as the headline's "also
+    /// finds" writes it, when `period_s` is the search's sized line and not
+    /// the headline's cycle: what a fold there states, one size per line
+    /// (Norm, #1984). None elsewhere.
+    pub fn search_line_size_text(&self, period_s: f64) -> Option<String> {
+        let p = self.period.as_ref()?;
+        if self.is_cycle_period(period_s) || !self.same_search_line(period_s, p.period_s) {
+            return None;
+        }
+        Some(crate::figure_text::figure_minus(&SeriesKind::fmt_size_in(
+            p.size_unit,
+            p.size,
+        )))
     }
 
     /// The cycle's one stated size (math-standards, "Size of a cycle",

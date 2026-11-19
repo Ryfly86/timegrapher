@@ -419,7 +419,7 @@ fn an_amplitude_line_is_judged_against_the_2_s_windows() {
     // The search's line is named, and the lead says nothing of cycles.
     assert!(
         s.headline.ends_with(
-            "; no level change, trend or correlation between readings detected. The amplitude's period search also finds 20.0 s (0.8° peak to peak)."
+            "; no level change, trend or correlation between readings detected. The amplitude's period search also finds 20.0 s (0.8° sine peak to peak)."
         ),
         "{}",
         s.headline
@@ -630,7 +630,7 @@ fn a_search_line_the_headline_does_not_name_is_added() {
     );
     assert!(
         s.headline.ends_with(
-            " The amplitude's period search also finds 45 s (0.8° peak to peak) and 600 s."
+            " The amplitude's period search also finds 45 s (0.8° sine peak to peak) and 600 s."
         ),
         "{}",
         s.headline

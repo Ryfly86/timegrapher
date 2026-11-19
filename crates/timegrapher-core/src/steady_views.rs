@@ -202,6 +202,11 @@ pub struct FoldView {
     /// ([`crate::steadiness::SeriesCheck::is_cycle_period`]), so its note
     /// states the cycle's one size (#1984).
     pub at_cycle: bool,
+    /// Folded at the period search's sized line that isn't the headline's
+    /// cycle: that line's sine peak to peak, as the headline writes it
+    /// ([`crate::steadiness::SeriesCheck::search_line_size_text`]), which
+    /// the note states in place of the median line's swing (#1984).
+    pub sine_size: Option<String>,
     /// Median of the detrended readings in each phase bin; NaN as null.
     pub profile: Vec<f64>,
     /// Cycles folded, and up to [`MAX_CYCLES`] of them, evenly spread, one
@@ -288,6 +293,7 @@ fn fold_view(
         from,
         wheel,
         at_cycle,
+        sine_size: None,
         profile: f.profile.clone(),
         cycles: f.raster.len(),
         raster,
@@ -964,11 +970,11 @@ pub fn views(
                     FoldFrom::Series(j) => (NAMES[*j], None),
                     FoldFrom::Wheel(w) => ("wheel", Some(w.clone())),
                 };
-                fold_view(
-                    f,
-                    (from, wheel),
-                    report.series[i].is_cycle_period(f.period_s),
-                )
+                let c = &report.series[i];
+                FoldView {
+                    sine_size: c.search_line_size_text(f.period_s),
+                    ..fold_view(f, (from, wheel), c.is_cycle_period(f.period_s))
+                }
             });
             SeriesViews {
                 beat_error_source: report.series[i].beat_error_source,

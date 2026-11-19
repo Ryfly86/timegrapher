@@ -2041,12 +2041,15 @@ function steadyPlot(s, view, doc) {
         label = `Folded at the ${String(f.wheel || "wheel").toLowerCase()}'s ${secs(f.period_s)} turn, ${n} cycles`;
       }
       // Folded at the headline's own cycle (core's at_cycle): its one size, core's (#1984).
-      const ownSize = f.at_cycle && s.screen_cycle_size ? s.screen_cycle_size : null;
+      // At the search's sized line instead, that line's sine size (core's sine_size);
+      // elsewhere the median line's swing, its noise included.
+      const ownSize = f.at_cycle && s.screen_cycle_size ? `${s.screen_cycle_size} peak to peak`
+        : f.sine_size ? `${f.sine_size} sine peak to peak` : null;
       if (ownSize && Number.isFinite(f.middle_half)) {
-        label += `\n${ownSize} peak to peak; the boxes' median height is ${stepText(f.middle_half, Math.abs(f.middle_half) / 10, unit)}`;
+        label += `\n${ownSize}; the boxes' median height is ${stepText(f.middle_half, Math.abs(f.middle_half) / 10, unit)}`;
       } else if (Number.isFinite(f.swing) && Number.isFinite(f.middle_half)) {
         const st = Math.min(Math.abs(f.swing), Math.abs(f.middle_half)) / 10;
-        label += `\nThe median line swings ${stepText(f.swing, st, unit)}; the boxes' median height is ${stepText(f.middle_half, st, unit)}`;
+        label += `\nThe median line swings ${stepText(f.swing, st, unit)}, its noise included; the boxes' median height is ${stepText(f.middle_half, st, unit)}`;
       }
       return xyChart({
         title: "Cycle", x: [0, f.period_s], y: [lo, hi],

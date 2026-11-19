@@ -270,6 +270,7 @@ series[].views.fold.middle_half
 series[].views.fold.period_s
 series[].views.fold.profile
 series[].views.fold.raster
+series[].views.fold.sine_size
 series[].views.fold.swing
 series[].views.fold.wheel
 series[].views.fold.y_range
