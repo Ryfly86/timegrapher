@@ -377,7 +377,7 @@ fn analyze_read(
     if log.lock_template_kept {
         crate::measure::add(&mut caveats, crate::measure::Caveat::LockTemplateKept);
     }
-    let shape = watch_heard.then(|| {
+    let shape = (watch_heard && !heard.awaiting).then(|| {
         let beat_s = crate::timing::beat_period_s(fits.overall.as_ref(), bph);
         let r = crate::shape::analyze(env, fs, &beats, beat_s, &Default::default());
         crate::shape::Measures::of(&r, &fits.clear)
@@ -423,6 +423,9 @@ fn analyze_read(
         caveats,
         shape,
     };
+    if heard.awaiting {
+        summary.withhold_readings();
+    }
     settle_beat_error(&mut summary, fits.figures.unlock_inconsistent);
     Analysis {
         summary,
@@ -440,6 +443,9 @@ struct Heard {
     jitter_us: Option<f64>,
     /// Why no watch is heard; none when one is.
     no_watch: Option<NoWatchReason>,
+    /// No verdict yet: under 10 s, and the beats' sound can't be judged
+    /// ([`crate::measure::awaiting_verdict`]). No figures then.
+    awaiting: bool,
     /// The sound heard after any lead of noise.
     listened_s: f64,
     /// The beats expected over it.
@@ -465,6 +471,7 @@ fn hear(
     Heard {
         jitter_us,
         no_watch: crate::measure::no_watch_reason(jitter_us, bph, assessed, beat_sound),
+        awaiting: crate::measure::awaiting_verdict(assessed, beat_sound),
         listened_s,
         expected: crate::beats::expected_beats(listened_s, bph),
         clipping: Clipping::measure(&audio.samples, fs, beats),

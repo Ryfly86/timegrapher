@@ -73,6 +73,18 @@ fn in_doubt(jitter_us: Option<f64>, bph: u32) -> bool {
         .is_some_and(|f| f >= crate::beats::NOISE_DOUBT_FRACTION)
 }
 
+/// Whether a stretch waits for its verdict: its regularity is not
+/// `assessed` ([`regularity_assessed`]: under [`SHORT_SPAN_S`], or no
+/// whole scatter window) and its beats' averaged sound can't be judged
+/// (`beat_sound` None). Under 10 s a watch is heard only where the sound
+/// positively shows one, so there is no verdict either way, and no
+/// figures: an empty stand's first seconds read as a rate of over
+/// 100,000 s/d when the timing's "watch" stood (Norm on #2014). Every
+/// reader asks this beside [`no_watch_reason`], so they withhold alike.
+pub fn awaiting_verdict(assessed: bool, beat_sound: Option<bool>) -> bool {
+    !assessed && beat_sound.is_none()
+}
+
 /// Why no regular beat was found, or `None` when one was, from the timing
 /// scatter and the beats' averaged sound (`beat_sound`, from
 /// [`stretch_beat_sound`]: whether either side shows an unlock or a drop):

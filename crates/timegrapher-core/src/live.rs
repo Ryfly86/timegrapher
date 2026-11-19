@@ -1299,15 +1299,14 @@ impl LiveAnalyzer {
             jitter_us,
             timing_scatter_fraction,
             no_watch,
-            behind_s,
+            awaiting,
         } = self.verdict_at(holes, bph, window_from, end_s, st.listened_s);
         let watch_heard = no_watch.is_none();
-        // Under 10 s of sound behind it, since the start or the latest
-        // break, the timing can't be judged, so the reading gives no
-        // figures: an empty stand's noise read as a rate of over
-        // 100,000 s/d in its first seconds (#2014).
-        let listening = (watch_heard && behind_s < measure::SHORT_SPAN_S - 1e-6)
-            .then(|| self.heard_since_kind(end_s));
+        // Under 10 s of sound, a watch is heard only where the beats'
+        // sound shows one; where it can't be judged there is no verdict
+        // and no figures: an empty stand's first seconds read over
+        // 100,000 s/d when the timing's "watch" stood (#2014).
+        let listening = (watch_heard && awaiting).then(|| self.heard_since_kind(end_s));
         let read = watch_heard && listening.is_none();
         let heard = |v: Option<f64>| v.filter(|_| read);
         // Figures that name a side wait until the sides are told apart.
@@ -1512,7 +1511,7 @@ impl LiveAnalyzer {
             jitter_us,
             timing_scatter_fraction,
             no_watch,
-            behind_s: end_s - heard_since,
+            awaiting: measure::awaiting_verdict(assessed, beat_sound),
         }
     }
 
@@ -1664,10 +1663,9 @@ struct Verdict {
     timing_scatter_fraction: Option<f64>,
     /// Why no watch is heard; none when one is.
     no_watch: Option<NoWatchReason>,
-    /// The sound heard behind the reading, seconds: since the start or
-    /// the latest break or mask, whatever the averaging time. Under
-    /// [`measure::SHORT_SPAN_S`] the reading gives no figures (#2014).
-    behind_s: f64,
+    /// No verdict yet: regularity not judged and the beats' sound can't
+    /// be ([`measure::awaiting_verdict`]). No figures then (#2014).
+    awaiting: bool,
 }
 
 /// Whether most of the beats found clipped: a watch far too loud, whose

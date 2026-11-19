@@ -1199,6 +1199,7 @@ pub fn measure_reading(
     );
     let assessed = crate::measure::regularity_assessed(listened_s, judged.holds_window);
     let no_watch = crate::measure::no_watch_reason(jitter_us, log.bph, assessed, beat_sound);
+    let awaiting = crate::measure::awaiting_verdict(assessed, beat_sound);
     let mut m = Measurement {
         start_s: from_s,
         end_s: to_s,
@@ -1340,7 +1341,8 @@ pub fn measure_reading(
             crate::measure::Caveat::PausesUnseen { count },
         );
     }
-    if !m.watch_heard {
+    // No regular beat, or no verdict yet (#2014): no figures.
+    if !m.watch_heard || awaiting {
         m.rate_s_per_day = None;
         m.beat_error_ms = None;
         m.beat_error_unlock_ms = None;
