@@ -333,7 +333,7 @@ impl TimegrapherApp {
             (screen.height() - 64.0).clamp(240.0, 760.0),
         );
         let mut done = false;
-        let modal = egui::Modal::new(egui::Id::new("settings")).show(ctx, |ui| {
+        let modal = theme::sheet(egui::Id::new("settings")).show(ctx, |ui| {
             ui.set_width(size.x);
             ui.set_height(size.y);
             ui.horizontal(|ui| {
@@ -440,6 +440,7 @@ impl TimegrapherApp {
                             &self.library,
                             self.library_moving.as_ref().map(|(to, _)| to.as_path()),
                             self.library_dir.is_some(),
+                            self.take_writing().as_deref(),
                         );
                         if let Some(act) = act {
                             self.library_action(act);
@@ -536,7 +537,7 @@ impl TimegrapherApp {
             .and_then(|s| s.get(&device))
             .cloned();
         let mut choice = None;
-        let modal = egui::Modal::new(egui::Id::new("forget clock")).show(ctx, |ui| {
+        let modal = theme::sheet(egui::Id::new("forget clock")).show(ctx, |ui| {
             ui.set_width(380.0);
             ui.label(
                 RichText::new(match &kept {

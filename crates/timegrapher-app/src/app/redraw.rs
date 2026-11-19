@@ -40,7 +40,12 @@ impl TimegrapherApp {
             || self.take_keep.is_some()
             || self.take_add.is_some()
             || self.analysis_save.is_some()
-            || self.kept_writing();
+            || self.kept_writing()
+            || self
+                .session
+                .recorder
+                .as_ref()
+                .is_some_and(Recorder::releasing);
         if self.running() || self.batch.is_some() {
             Some(LIVE_EVERY)
         } else {

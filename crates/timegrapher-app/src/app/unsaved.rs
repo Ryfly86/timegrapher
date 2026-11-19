@@ -20,6 +20,10 @@ pub(super) struct KeptSound {
     /// A Power Reserve Test kept as its analysis alone: no sound, its
     /// analysis kept in parts up to `duration_s` ([`checkpoint::only`]).
     pub(super) parts: bool,
+    /// Only its last part is here: hours its session file lists were kept
+    /// in the take it was recording into alone (#2040), and that take has
+    /// since been moved or deleted. `duration_s` is then not given.
+    pub(super) partial: bool,
 }
 
 impl KeptSound {
@@ -51,6 +55,12 @@ impl KeptSound {
                 "An unsaved Power Reserve Test was found (Analysis Only){started}{recorded}, \
                  {size}. Open it, move it to a folder of your own, or delete it?"
             )
+        } else if self.partial {
+            format!(
+                "Sound from an earlier session wasn't saved{started}, {size}. Only its last part \
+                 is here: the take it was recording into held the rest, and has since been \
+                 moved or deleted. Open it, move it into a folder of your own, or delete it?"
+            )
         } else {
             let long = self
                 .duration_s
@@ -72,6 +82,46 @@ impl KeptSound {
     }
 }
 
+impl TimegrapherApp {
+    /// Let go of the session's own copy of each hour its take holds
+    /// whole, once that copy is kept as FLAC (#2040): listening does it as
+    /// it writes, this does it after a Stop.
+    pub(super) fn tidy_recording(&mut self) {
+        let Some(r) = self.session.recorder.as_mut().filter(|r| r.releasing()) else {
+            return;
+        };
+        if let Err(e) = r.tidy() {
+            applog::warn(&format!("couldn't tidy the session's folder: {e}"));
+        }
+    }
+
+    /// Refuse a save, saying why, when hours the session kept in its take
+    /// alone are gone with it (Desmond on #2046): it can't be saved whole
+    /// anywhere, and a save would fail part way.
+    pub(super) fn refuse_hours_gone(&mut self) -> bool {
+        if self.saved_hours_reachable() {
+            return false;
+        }
+        self.error(
+            "This sound can't be saved: what was already saved was kept only in its take, \
+             which no longer holds it."
+                .into(),
+        );
+        true
+    }
+
+    /// Whether every hour the session keeps in its take alone is still
+    /// there (#2040). One gone with its take (deleted, or its sound
+    /// removed) means the take can't be carried on whole, so Listen
+    /// starts a new one rather than resuming.
+    pub(super) fn saved_hours_reachable(&self) -> bool {
+        self.session
+            .recorder
+            .as_ref()
+            .is_none_or(Recorder::hours_reachable)
+    }
+}
+
 /// What was left in `scratch` from earlier sessions, oldest first: sound,
 /// or a test's analysis kept in parts, leaving out any folder another
 /// copy of the app is recording into now.
@@ -90,6 +140,10 @@ pub(super) fn kept_sounds(scratch: &Path) -> Vec<KeptSound> {
                 n.ends_with(".wav") || n.ends_with(".flac")
             });
             let parts = !has_sound && checkpoint::only(&dir);
+            let names: Vec<String> = files
+                .iter()
+                .map(|f| f.file_name().to_string_lossy().to_lowercase())
+                .collect();
             if !has_sound && !parts {
                 return None;
             }
@@ -97,10 +151,13 @@ pub(super) fn kept_sounds(scratch: &Path) -> Vec<KeptSound> {
                 .ok()
                 .and_then(|b| serde_json::from_slice(&b).ok());
             let started = started_of(about.as_ref());
-            // Of a test kept in parts, as far as its parts reach.
-            let duration_s = match parts {
-                true => checkpoint::length_s(&dir).ok(),
-                false => about.as_ref().and_then(|a| a["duration_s"].as_f64()),
+            let partial = !parts && hours_missing(about.as_ref(), &names);
+            // Of a test kept in parts, as far as its parts reach; none
+            // for one with hours missing, whose session file counts them.
+            let duration_s = match (parts, partial) {
+                (true, _) => checkpoint::length_s(&dir).ok(),
+                (false, true) => None,
+                (false, false) => about.as_ref().and_then(|a| a["duration_s"].as_f64()),
             };
             let streamed_to = take_io::streamed_to(&dir);
             Some(KeptSound {
@@ -109,12 +166,27 @@ pub(super) fn kept_sounds(scratch: &Path) -> Vec<KeptSound> {
                 bytes: tree_bytes(&dir),
                 streamed_to,
                 parts,
+                partial,
                 dir,
             })
         })
         .collect();
     v.sort_by(|a, b| a.dir.cmp(&b.dir));
     v
+}
+
+/// Whether a sound file the session file `about` lists is in none of
+/// `names` (the folder's files, in lower case), as itself or as the FLAC
+/// it was kept as: an hour kept in its take alone (#2040).
+fn hours_missing(about: Option<&serde_json::Value>, names: &[String]) -> bool {
+    let Some(listed) = about.and_then(|a| a["segments"].as_array()) else {
+        return false;
+    };
+    listed.iter().filter_map(|s| s.as_str()).any(|s| {
+        let s = s.to_lowercase();
+        let flac = timegrapher_core::flac::kept_name(Path::new(&s));
+        !names.contains(&s) && !names.iter().any(|n| Path::new(n) == flac)
+    })
 }
 
 /// When a recording started, from its `session.json` (`about`), in this
