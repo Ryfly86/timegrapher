@@ -314,3 +314,25 @@ fn a_copy_differing_sample_for_sample_when_checked_is_not_held_whole() {
     assert_eq!(sound_in(r.dir()), ["audio-001.wav"]);
     fs::remove_dir_all(&base).unwrap();
 }
+
+/// Trevor's mutant on #2046: the hour still being written never goes, even
+/// were it noted as held whole (a save never asks to check it, so it is
+/// noted here by hand, as a copy that holds it would be).
+#[test]
+fn the_hour_being_written_never_goes() {
+    let (mut r, base) = fixture("released-open");
+    append_second(&mut r, 2);
+    let take = stream(&mut r, &base.join("unsorted"));
+    let wav = take.join("audio-001.wav");
+    let len = fs::metadata(&wav).unwrap().len();
+    r.take_released(&[HeldWhole {
+        name: "audio-001.wav".into(),
+        at: wav,
+        len,
+    }]);
+    tidy_all(&mut r);
+    assert_eq!(sound_in(r.dir()), ["audio-001.wav"]);
+    assert_eq!(r.segment_paths(), [r.dir().join("audio-001.wav")]);
+    append_second(&mut r, 3);
+    fs::remove_dir_all(&base).unwrap();
+}
