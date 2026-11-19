@@ -529,6 +529,81 @@ fn a_window_across_a_jump_in_a_read_recording_is_left_out() {
     assert_eq!(a.reading_at(60.0, 2.0).amplitude_deg, Some(280.0));
 }
 
+/// At an Average Over under 10 s, the amplitude and the beat error from
+/// the unlock are read over 10 s, from the same windows: a 2 s reading
+/// holds one window, and one that missed a side blanked it, flickering
+/// the card and breaking the strip's line (Norm, #1951). They equal the
+/// 10 s figures to the bit; the rate keeps the average chosen.
+#[test]
+fn a_short_average_reads_its_amplitude_over_ten_seconds() {
+    let mut log = viewer_phase_log(10.0, 10.0);
+    // Before the log's jump at 60.03 s; the window from 50 s missed a side.
+    log.amplitude_windows = (20..28)
+        .map(|k| amp_win(f64::from(k) * 2.0, 270.0 + f64::from(k), k != 25))
+        .collect();
+    let a = LiveAnalyzer::from_log(log, LiveConfig::default());
+    for end in [52.0, 53.0, 54.0, 56.0] {
+        let (short, ten) = (a.reading_at(end, 2.0), a.reading_at(end, 10.0));
+        assert!(short.amplitude_deg.is_some(), "at {end} s");
+        assert_eq!(
+            short.amplitude_deg.map(f64::to_bits),
+            ten.amplitude_deg.map(f64::to_bits),
+            "at {end} s"
+        );
+        assert_eq!(
+            short.beat_error_unlock_ms.map(f64::to_bits),
+            ten.beat_error_unlock_ms.map(f64::to_bits),
+            "at {end} s"
+        );
+        assert_eq!(short.amplitude_values, ten.amplitude_values, "at {end} s");
+    }
+    // At 10 s and over nothing moves: the 30 s figure is its own.
+    let (ten, thirty) = (a.reading_at(56.0, 10.0), a.reading_at(56.0, 30.0));
+    assert_ne!(ten.amplitude_deg, thirty.amplitude_deg);
+}
+
+/// A 2 s amplitude window from `a` s at `deg`, its odd side 4° more,
+/// or missed where not `odd`.
+fn amp_win(a: f64, deg: f64, odd: bool) -> AmplitudeWindow {
+    AmplitudeWindow {
+        start_s: a,
+        end_s: a + 2.0,
+        even_deg: Some(deg),
+        odd_deg: odd.then_some(deg + 4.0),
+        beat_error_ms: None,
+        beat_error_unlock_ms: Some(0.3),
+        even_unlock_ms: None,
+        odd_unlock_ms: None,
+        even_drop_ms: None,
+        odd_drop_ms: None,
+        extra: None,
+        sound_1: [f32::NAN; 2],
+    }
+}
+
+/// A masked stretch between 10 s and 2 s back cuts the 2 s reading's
+/// amplitude as it cuts the 10 s reading's: the floor never reaches back
+/// across it (Norm, #2015).
+#[test]
+fn a_short_average_reads_no_amplitude_from_before_a_mask() {
+    let mut log = viewer_phase_log(10.0, 10.0);
+    log.amplitude_windows = (20..28)
+        .map(|k| amp_win(f64::from(k) * 2.0, 270.0 + f64::from(k), true))
+        .collect();
+    let mut a = LiveAnalyzer::from_log(log, LiveConfig::default());
+    let end = 56.0;
+    let unmasked = a.reading_at(end, 2.0);
+    a.set_masked(&[(47.0, 49.0)]);
+    let (short, ten) = (a.reading_at(end, 2.0), a.reading_at(end, 10.0));
+    assert!(short.amplitude_deg.is_some());
+    assert_ne!(short.amplitude_deg, unmasked.amplitude_deg);
+    assert_eq!(short.amplitude_values, ten.amplitude_values);
+    assert_eq!(
+        short.amplitude_deg.map(f64::to_bits),
+        ten.amplitude_deg.map(f64::to_bits)
+    );
+}
+
 /// Steady beats for `seconds`: a watch whose Tock sounds unlike its
 /// Tick, and a live analyzer fed the first `fed` seconds of them.
 pub(super) fn steady_live(seconds: f64, fed: f64) -> (LiveAnalyzer, Vec<f32>) {
@@ -1512,7 +1587,9 @@ fn silence_gives_no_readings_and_lift_rescales() {
 /// Over the same stretch of the same beats, a live reading and a saved
 /// one (`session`) read the same figures: the same beats, the same
 /// amplitude windows (none reaching back before the stretch) and the
-/// same medians (#632).
+/// same medians (#632). Under 10 s, live reads its amplitude and unlock
+/// beat error over the last 10 s (#1951): those are the saved reading's
+/// of the last 10 s, and its rate and drop beat error the stretch's.
 #[test]
 fn live_and_saved_read_one_stretch_alike() {
     let cfg = SynthConfig {
@@ -1543,15 +1620,18 @@ fn live_and_saved_read_one_stretch_alike() {
     };
     let end = a.settled_to;
     // A stretch that starts partway through an amplitude window.
-    for average_s in [7.3, 9.1] {
+    for average_s in [7.3, 9.1, 12.7] {
         let live = a.reading_at(end, average_s);
         let saved = crate::session::measure_masked(&log, None, &[], &[], end - average_s, end);
+        let amp_s = average_s.max(crate::measure::SHORT_SPAN_S);
+        let saved_amp = crate::session::measure_masked(&log, None, &[], &[], end - amp_s, end);
         assert!(live.amplitude_deg.is_some(), "{live:?}");
-        assert_eq!(live.amplitude_deg, saved.amplitude_deg, "{average_s}");
-        assert_eq!(live.amplitude_even_deg, saved.amplitude_even_deg);
-        assert_eq!(live.amplitude_odd_deg, saved.amplitude_odd_deg);
-        assert_eq!(live.beat_error_unlock_ms, saved.beat_error_unlock_ms);
+        assert_eq!(live.amplitude_deg, saved_amp.amplitude_deg, "{average_s}");
+        assert_eq!(live.amplitude_even_deg, saved_amp.amplitude_even_deg);
+        assert_eq!(live.amplitude_odd_deg, saved_amp.amplitude_odd_deg);
+        assert_eq!(live.beat_error_unlock_ms, saved_amp.beat_error_unlock_ms);
         assert_eq!(live.beat_error_ms, saved.beat_error_ms);
+        assert_eq!(live.rate_s_per_day, saved.rate_s_per_day);
     }
 }
 
