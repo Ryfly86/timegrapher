@@ -224,7 +224,12 @@ fn nothing_goes_before_the_copys_folder_is_synced() {
     assert!(copy.held_whole.is_empty());
     r.note_saved(&copy);
     tidy_all(&mut r);
-    assert_eq!(sound_in(r.dir()).len(), 1, "kept here");
+    // Its keeping as FLAC here done, so one file counts.
+    while !r.converting.is_empty() {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        r.tidy().unwrap();
+    }
+    assert_eq!(sound_in(r.dir()), ["audio-001.flac"], "kept here");
     let copy = r
         .begin_save(&parent, "", None, &[])
         .unwrap()
@@ -234,5 +239,78 @@ fn nothing_goes_before_the_copys_folder_is_synced() {
     r.note_saved(&copy);
     tidy_all(&mut r);
     assert_eq!(sound_in(r.dir()), Vec::<String>::new());
+    fs::remove_dir_all(&base).unwrap();
+}
+
+/// A save whose copy of the hour differs at the moment of its check.
+fn tampered_save(r: &mut Recorder, parent: &Path, tamper: impl Fn(&Path)) -> SavedCopy {
+    let copy = r
+        .begin_save(parent, "", None, &[])
+        .unwrap()
+        .write_using(|step, dest| {
+            if step == SaveStep::Sync {
+                tamper(dest);
+            }
+            Ok(())
+        })
+        .unwrap();
+    r.note_saved(&copy);
+    copy
+}
+
+/// Trevor's mutants on #2046: an hour kept as FLAC here whose copy is the
+/// same length but not the same bytes when checked isn't held whole, and
+/// stays here.
+#[test]
+fn a_copy_differing_byte_for_byte_when_checked_is_not_held_whole() {
+    let (mut r, base) = fixture("released-bytes-differ");
+    append_second(&mut r, 2);
+    r.pause().unwrap();
+    while !r.converting.is_empty() {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        r.tidy().unwrap();
+    }
+    let copy = tampered_save(&mut r, &base.join("unsorted"), |dest| {
+        let flac = dest.join("audio-001.flac");
+        let mut b = fs::read(&flac).unwrap();
+        let last = b.len() - 1;
+        b[last] ^= 0xff;
+        fs::write(&flac, b).unwrap();
+    });
+    assert!(copy.held_whole.is_empty());
+    tidy_all(&mut r);
+    assert_eq!(sound_in(r.dir()), ["audio-001.flac"]);
+    fs::remove_dir_all(&base).unwrap();
+}
+
+/// The same for an hour still a WAV here, held as FLAC in the copy: a
+/// copy whose FLAC holds other samples when checked isn't held whole.
+#[test]
+fn a_copy_differing_sample_for_sample_when_checked_is_not_held_whole() {
+    let (mut r, base) = fixture("released-samples-differ");
+    // Kept a WAV here, so the copy holds it as FLAC of the WAV's samples.
+    r.keep_flac = false;
+    append_second(&mut r, 2);
+    r.pause().unwrap();
+    let other = base.join("other.wav");
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate: 8000,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
+    };
+    let mut w = hound::WavWriter::create(&other, spec).unwrap();
+    for i in 0..2 * 8000 {
+        w.write_sample((i % 300) as i16).unwrap();
+    }
+    w.finalize().unwrap();
+    let copy = tampered_save(&mut r, &base.join("unsorted"), |dest| {
+        let flac = dest.join("audio-001.flac");
+        fs::remove_file(&flac).unwrap();
+        crate::flac::encode_wav(&other, &flac).unwrap();
+    });
+    assert!(copy.held_whole.is_empty());
+    tidy_all(&mut r);
+    assert_eq!(sound_in(r.dir()), ["audio-001.wav"]);
     fs::remove_dir_all(&base).unwrap();
 }

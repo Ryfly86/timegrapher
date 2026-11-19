@@ -500,8 +500,10 @@ fn a_kept_quick_listen_stopped_keeps_its_sound_in_its_take_alone() {
         app.message = None;
         save(&mut app, &other);
         assert!(app.saving.is_none());
-        let said = format!("{:?}", app.message);
-        assert!(said.contains("can't be saved"), "{said}");
+        let said = app.message.as_ref().map(|m| m.0.as_str());
+        let why = "This sound can't be saved: its earlier part was kept only in its take, \
+                   which no longer holds it.";
+        assert_eq!(said, Some(why));
     }
     assert_eq!(std::fs::read_dir(&other).unwrap().count(), 0);
     let _ = std::fs::remove_dir_all(&base);
