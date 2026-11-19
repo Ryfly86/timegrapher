@@ -2340,3 +2340,80 @@ fn a_listen_stopped_early_on_silence_says_no_beats_heard() {
     drop(_tx);
     let _ = std::fs::remove_dir_all(base);
 }
+
+/// A watch heard for under 10 s, its beats' sound not to be judged, and
+/// the sound over (stopped, or an opened take at its newest moment): the
+/// figures are still held, and no more will come, so every card says
+/// "Under 10 s Heard", the fact, not "Listening" or "Waiting for More
+/// Beats" (Trevor and Hugh on #2066).
+#[test]
+fn under_ten_seconds_heard_and_over_says_so_on_every_card() {
+    use timegrapher_core::measure::{HeardSince, Wait};
+    let ctx = themed();
+    let app = synthetic(30.0, 20.0);
+    let live = app.live.as_ref().expect("live");
+    let log = timegrapher_core::stream::BeatLog {
+        lock_template_kept: false,
+        sample_rate: 48_000,
+        duration_s: 6.0,
+        bph: live.bph().expect("bph"),
+        lift_deg: 52.0,
+        beats: live
+            .beats()
+            .iter()
+            .filter(|b| b.time <= 6.0)
+            .cloned()
+            .collect(),
+        amplitude_windows: Vec::new(),
+        clipped_beats: Vec::new(),
+        clipped_samples: 0,
+        jumps: Vec::new(),
+        sided: Vec::new(),
+        by_count: Vec::new(),
+        snippets: Vec::new(),
+    };
+    let mut app = synthetic(30.0, 20.0);
+    app.live = Some(timegrapher_core::live::LiveAnalyzer::from_log(
+        log,
+        timegrapher_core::live::LiveConfig::default(),
+    ));
+    app.strip_end = None;
+    assert!(!app.running());
+    let r = app.card_reading().expect("a reading");
+    assert_eq!(r.listening, Some(HeardSince::Start), "{r:?}");
+    let text = cards_text(&app, &ctx);
+    let title = Wait::ShortHeard {
+        since: HeardSince::Start,
+    }
+    .title();
+    assert_eq!(title, "Under 10 s Heard");
+    let (head, tail) = title.rsplit_once(' ').expect("words");
+    assert_eq!(painted(&text, head), 3, "{text}");
+    assert_eq!(painted(&text, tail), 3, "{text}");
+    assert!(
+        !text.contains("Listening") && !text.contains("More") && !text.contains("Waiting"),
+        "{text}"
+    );
+    let says = |since| {
+        let mut r = r.clone();
+        r.listening = Some(since);
+        app.listening(Some(&r)).expect("a word")
+    };
+    assert_eq!(
+        says(HeardSince::Start),
+        (
+            "Under 10 s Heard".to_string(),
+            "The figures need 10 s of sound: less than 10 s was heard since the start.".to_string()
+        )
+    );
+    assert_eq!(
+        says(HeardSince::Break),
+        (
+            "Under 10 s Heard".to_string(),
+            "The figures need 10 s of sound: less than 10 s was heard since the break.".to_string()
+        )
+    );
+    // Moved back into it, the take goes on past there: still Listening.
+    app.strip_end = Some(5.0);
+    assert!(cards_text(&app, &ctx).contains("Listening"));
+}

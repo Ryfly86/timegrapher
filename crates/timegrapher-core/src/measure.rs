@@ -237,6 +237,11 @@ pub enum Wait {
     /// Beats are heard, but this card's figure needs more of them than
     /// the stretch holds yet.
     MoreBeats,
+    /// Beats heard, but under [`SHORT_SPAN_S`] of sound since `since`, and
+    /// the sound is over (stopped, or an opened take at its newest
+    /// moment), so the figures are still held: a fact, in the
+    /// [`Wait::NoBeatsHeard`] family (Hugh on #2066).
+    ShortHeard { since: HeardSince },
     /// A test is set up and waits for its Start.
     TestStart,
     /// A recording is being read.
@@ -257,9 +262,14 @@ pub const WAITING_FOR_MORE_BEATS: &str = "Waiting for More Beats";
 
 /// A wait's shorter words, where its title is too wide for the figure's
 /// place at its own size: "More Beats" for [`WAITING_FOR_MORE_BEATS`]
-/// (Hugh on #2036). None for a title with no shorter form.
-pub fn wait_short_title(title: &str) -> Option<&'static str> {
-    (title == WAITING_FOR_MORE_BEATS).then_some("More Beats")
+/// (Hugh on #2036), "Under 10 s" for [`Wait::ShortHeard`] (Hugh on
+/// #2066). None for a title with no shorter form.
+pub fn wait_short_title(title: &str) -> Option<String> {
+    if title == WAITING_FOR_MORE_BEATS {
+        return Some("More Beats".into());
+    }
+    let under = format!("Under {SHORT_SPAN_S:.0} s");
+    (title == format!("{under} Heard")).then_some(under)
 }
 
 /// The whole seconds of a settle still to come, as every countdown says
@@ -277,6 +287,7 @@ impl Wait {
             Wait::Settling { left_s } => format!("Settling, {:.0} s", settle_seconds(left_s)),
             Wait::NoBeats => WAITING_FOR_BEATS.into(),
             Wait::MoreBeats => WAITING_FOR_MORE_BEATS.into(),
+            Wait::ShortHeard { .. } => format!("Under {SHORT_SPAN_S:.0} s Heard"),
             Wait::TestStart => "Waiting for Start".into(),
             Wait::Analysing => "Analysing".into(),
             Wait::NotListening => "Not Listening".into(),
@@ -294,6 +305,17 @@ impl Wait {
                 settle_seconds(left_s)
             ),
             Wait::NoBeats => "The figures need a watch's beats: none are heard yet.".into(),
+            Wait::ShortHeard { since } => {
+                let from = match since {
+                    HeardSince::Start => "the start",
+                    HeardSince::Break => "the break",
+                };
+                format!(
+                    "The figures need {s:.0} s of sound: less than {s:.0} s was heard since \
+                     {from}.",
+                    s = SHORT_SPAN_S
+                )
+            }
             Wait::MoreBeats => "This figure needs more beats than the stretch holds yet: it \
                                 appears once they have been heard."
                 .into(),
@@ -1243,6 +1265,27 @@ mod tests {
                  have been heard."
             )
         );
+        assert_eq!(
+            says(Wait::ShortHeard {
+                since: HeardSince::Start
+            }),
+            pair(
+                "Under 10 s Heard",
+                "The figures need 10 s of sound: less than 10 s was heard since the start."
+            )
+        );
+        assert_eq!(
+            says(Wait::ShortHeard {
+                since: HeardSince::Break
+            })
+            .1,
+            "The figures need 10 s of sound: less than 10 s was heard since the break."
+        );
+        assert_eq!(
+            wait_short_title("Under 10 s Heard").as_deref(),
+            Some("Under 10 s")
+        );
+        assert_eq!(wait_short_title("No Beats Heard"), None);
         assert_eq!(
             says(Wait::TestStart),
             pair(
