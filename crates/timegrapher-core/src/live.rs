@@ -1379,8 +1379,8 @@ impl LiveAnalyzer {
         end_s: f64,
         average_s: f64,
     ) -> (Vec<&AmplitudeWindow>, Option<std::ops::Range<usize>>) {
-        let longer = (average_s < measure::SHORT_SPAN_S)
-            .then(|| self.stretch_at(end_s - measure::SHORT_SPAN_S, end_s));
+        let longer =
+            measure::amplitude_span_s(average_s).map(|s| self.stretch_at(end_s - s, end_s));
         // The longer stretch's own holes: a gap before the average's
         // start but within the 10 s is not in `st`'s.
         let (from, holes) = longer

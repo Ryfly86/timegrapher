@@ -188,7 +188,7 @@ pub(super) fn rate_pm_words(r: &LiveReading) -> Option<String> {
 pub(super) fn amplitude_pm_words(r: &LiveReading, average_s: f64) -> Option<String> {
     use timegrapher_core::confidence::{NoPm, MIN_NOISE_VALUES as NEED, MIN_VALUES};
     r.amplitude_deg?;
-    let stretch = amplitude_stretch_words(average_s);
+    let stretch = floored_stretch(average_s).unwrap_or_else(|| "this average".into());
     Some(match r.amplitude_error_deg {
         Some(se) => format!(
             "± {}° is one standard error ({se:.2}, rounded up). It comes from at \
@@ -402,15 +402,11 @@ fn with_moment(moment: Option<&str>, hover: &str) -> String {
     }
 }
 
-/// The whole take's reading, for a figure's hover.
-/// Where the amplitude and the unlock beat error are read: the average,
-/// or the last 10 s where the average is shorter (#1951).
-fn amplitude_stretch_words(average_s: f64) -> &'static str {
-    if average_s < measure::SHORT_SPAN_S {
-        "the last 10 s"
-    } else {
-        "this average"
-    }
+/// Where the amplitude and the unlock beat error are read when Average
+/// Over is shorter than they need: "the last 10 s", from core's floor
+/// (#1951). None where they are read over the average.
+fn floored_stretch(average_s: f64) -> Option<String> {
+    measure::amplitude_span_s(average_s).map(|s| format!("the last {} s", fields::plain(s)))
 }
 
 /// The whole take's figure for a card's hover, after the big figure's
@@ -432,13 +428,12 @@ fn whole_text(
 }
 
 /// The big figure's stretch, as [`whole_text`] names it: the amplitude's
-/// and the unlock's are at least 10 s (#1951).
-fn big_stretch(average_s: f64, floored: bool) -> &'static str {
-    if floored && average_s < measure::SHORT_SPAN_S {
-        "the last 10 s"
-    } else {
-        "the stretch of Average Over"
-    }
+/// and the unlock's, `floored`, are [`floored_stretch`] (#1951).
+fn big_stretch(average_s: f64, floored: bool) -> String {
+    floored
+        .then(|| floored_stretch(average_s))
+        .flatten()
+        .unwrap_or_else(|| "the stretch of Average Over".into())
 }
 
 impl TimegrapherApp {
@@ -587,7 +582,7 @@ impl TimegrapherApp {
                 &c.whole_breaks,
                 true_minus(&format!("{} s/d", with_pm(v, se, base::RATE, true))),
                 spread,
-                (w.span, big_stretch(self.average_s, false)),
+                (w.span, &big_stretch(self.average_s, false)),
             );
         }
         // In the unit's place: what the reading waits on, or why it is
@@ -792,7 +787,7 @@ impl TimegrapherApp {
             });
             let text = format!("{}°", with_pm(v, se, base::AMPLITUDE, false));
             let big = big_stretch(self.average_s, true);
-            behind += &whole_text(&c.whole_breaks, text, spread, (w.span, big));
+            behind += &whole_text(&c.whole_breaks, text, spread, (w.span, &big));
         }
         behind += &format!(
             " Worked out with a lift angle of {}°, on the Calibre card.",
@@ -867,7 +862,7 @@ impl TimegrapherApp {
             let text = format!("{} ms", with_pm(v, se, base::BEAT_ERROR, false));
             // The unlock's stretch where it gives the figure (#1951).
             let big = big_stretch(self.average_s, unlock.is_some());
-            from += &whole_text(&c.whole_breaks, text, None, (w.span, big));
+            from += &whole_text(&c.whole_breaks, text, None, (w.span, &big));
             if w.m.caveats.contains(&Caveat::BeatErrorAsSize) {
                 from += &format!(
                     " The {WHOLE_AS_SIZES}, so the sizes either side are combined \

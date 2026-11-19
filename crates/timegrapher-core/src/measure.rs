@@ -448,12 +448,21 @@ pub fn unlock_span_note(average_s: f64) -> Option<String> {
 }
 
 fn span_note(what: &str, average_s: f64) -> Option<String> {
-    (average_s < SHORT_SPAN_S).then(|| {
+    amplitude_span_s(average_s).map(|span| {
         format!(
-            "Over the last {SHORT_SPAN_S} s, not {average_s} s: {what} needs at least \
-             {SHORT_SPAN_S} s of beats."
+            "Over the last {span} s, not {average_s} s: {what} needs at least \
+             {span} s of beats."
         )
     })
+}
+
+/// The span the amplitude and the unlock beat error are read over where
+/// Average Over, `average_s`, is shorter than they need: [`SHORT_SPAN_S`]
+/// (Norm, #1951). None where they are read over the average itself. The
+/// one place that floor is decided; live readings and every hover that
+/// names it read it here.
+pub fn amplitude_span_s(average_s: f64) -> Option<f64> {
+    (average_s < SHORT_SPAN_S).then_some(SHORT_SPAN_S)
 }
 
 /// What a caveat bears on: one reading, or the take as a whole (#1975).

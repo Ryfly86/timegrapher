@@ -537,23 +537,9 @@ fn a_window_across_a_jump_in_a_read_recording_is_left_out() {
 #[test]
 fn a_short_average_reads_its_amplitude_over_ten_seconds() {
     let mut log = viewer_phase_log(10.0, 10.0);
-    let win = |a: f64, deg: f64, odd: bool| AmplitudeWindow {
-        start_s: a,
-        end_s: a + 2.0,
-        even_deg: Some(deg),
-        odd_deg: odd.then_some(deg + 4.0),
-        beat_error_ms: None,
-        beat_error_unlock_ms: Some(0.3),
-        even_unlock_ms: None,
-        odd_unlock_ms: None,
-        even_drop_ms: None,
-        odd_drop_ms: None,
-        extra: None,
-        sound_1: [f32::NAN; 2],
-    };
     // Before the log's jump at 60.03 s; the window from 50 s missed a side.
     log.amplitude_windows = (20..28)
-        .map(|k| win(f64::from(k) * 2.0, 270.0 + f64::from(k), k != 25))
+        .map(|k| amp_win(f64::from(k) * 2.0, 270.0 + f64::from(k), k != 25))
         .collect();
     let a = LiveAnalyzer::from_log(log, LiveConfig::default());
     for end in [52.0, 53.0, 54.0, 56.0] {
@@ -574,6 +560,48 @@ fn a_short_average_reads_its_amplitude_over_ten_seconds() {
     // At 10 s and over nothing moves: the 30 s figure is its own.
     let (ten, thirty) = (a.reading_at(56.0, 10.0), a.reading_at(56.0, 30.0));
     assert_ne!(ten.amplitude_deg, thirty.amplitude_deg);
+}
+
+/// A 2 s amplitude window from `a` s at `deg`, its odd side 4° more,
+/// or missed where not `odd`.
+fn amp_win(a: f64, deg: f64, odd: bool) -> AmplitudeWindow {
+    AmplitudeWindow {
+        start_s: a,
+        end_s: a + 2.0,
+        even_deg: Some(deg),
+        odd_deg: odd.then_some(deg + 4.0),
+        beat_error_ms: None,
+        beat_error_unlock_ms: Some(0.3),
+        even_unlock_ms: None,
+        odd_unlock_ms: None,
+        even_drop_ms: None,
+        odd_drop_ms: None,
+        extra: None,
+        sound_1: [f32::NAN; 2],
+    }
+}
+
+/// A masked stretch between 10 s and 2 s back cuts the 2 s reading's
+/// amplitude as it cuts the 10 s reading's: the floor never reaches back
+/// across it (Norm, #2015).
+#[test]
+fn a_short_average_reads_no_amplitude_from_before_a_mask() {
+    let mut log = viewer_phase_log(10.0, 10.0);
+    log.amplitude_windows = (20..28)
+        .map(|k| amp_win(f64::from(k) * 2.0, 270.0 + f64::from(k), true))
+        .collect();
+    let mut a = LiveAnalyzer::from_log(log, LiveConfig::default());
+    let end = 56.0;
+    let unmasked = a.reading_at(end, 2.0);
+    a.set_masked(&[(47.0, 49.0)]);
+    let (short, ten) = (a.reading_at(end, 2.0), a.reading_at(end, 10.0));
+    assert!(short.amplitude_deg.is_some());
+    assert_ne!(short.amplitude_deg, unmasked.amplitude_deg);
+    assert_eq!(short.amplitude_values, ten.amplitude_values);
+    assert_eq!(
+        short.amplitude_deg.map(f64::to_bits),
+        ten.amplitude_deg.map(f64::to_bits)
+    );
 }
 
 /// Steady beats for `seconds`: a watch whose Tock sounds unlike its
