@@ -304,7 +304,38 @@ pub fn far_fences(sorted: &[f64]) -> Option<(f64, f64)> {
     }
     let (q1, q3) = (quantile(sorted, 0.25), quantile(sorted, 0.75));
     let iqr = q3 - q1;
-    Some((q1 - 3.0 * iqr, q3 + 3.0 * iqr))
+    Some((q1 - FAR_FENCE_IQR * iqr, q3 + FAR_FENCE_IQR * iqr))
+}
+
+/// The reach of Tukey's far fences, in interquartile ranges; also the gap
+/// that parts a value beyond them from the body in [`joined_range`]
+/// (#1971, Norm).
+pub const FAR_FENCE_IQR: f64 = 3.0;
+
+/// The span of `sorted` (ascending) joined to its body: the values inside
+/// [`far_fences`], then, walking outward from the last of them each way,
+/// each next value while it is less than [`FAR_FENCE_IQR`] interquartile
+/// ranges past the one before. The first gap that wide ends it, so a
+/// run-down's tail, its readings following on from one another, stays
+/// joined, and a cluster of glitches across an empty stretch does not, at
+/// any count (Norm, #1971). None when empty or with no spread between the
+/// quartiles.
+pub fn joined_range(sorted: &[f64]) -> Option<(f64, f64)> {
+    let (f_lo, f_hi) = far_fences(sorted)?;
+    let iqr = quantile(sorted, 0.75) - quantile(sorted, 0.25);
+    if iqr <= 0.0 {
+        return None;
+    }
+    let gap = FAR_FENCE_IQR * iqr;
+    let mut hi = sorted.iter().rposition(|&x| x <= f_hi)?;
+    while hi + 1 < sorted.len() && sorted[hi + 1] - sorted[hi] < gap {
+        hi += 1;
+    }
+    let mut lo = sorted.iter().position(|&x| x >= f_lo)?;
+    while lo > 0 && sorted[lo] - sorted[lo - 1] < gap {
+        lo -= 1;
+    }
+    Some((sorted[lo], sorted[hi]))
 }
 
 /// [`quantile`] of `f32` values, by the same rule.
