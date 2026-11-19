@@ -1641,24 +1641,25 @@ pub fn jumps_among_good(beats: &[Beat], before: &[Beat]) -> Vec<usize> {
 }
 
 /// The watch's last beat, seconds: the end of the latest run of good beats
-/// ([`Beat::is_good`]) with no gap over [`crate::clean::GAP_S`] between
-/// them, lasting at least [`crate::timing::MIN_PIECE_S`], the run the
-/// timing fit would keep. A stray good beat in a quiet stand's hiss is a
-/// run too short to count. `None` when no run is that long. The one rule
-/// for where a stopped take's readings end (Norm on #2081).
+/// ([`Beat::is_good`]) as long as a piece the timing fit keeps
+/// ([`crate::timing::spans_piece`]), with no pause between them
+/// ([`crate::clean::paused`]). Good beats only, so a quiet stand's hiss,
+/// whose beats are poor, can't bridge a pause, and a stray good beat in
+/// it is a run too short to count. `None` when no run is that long. The
+/// one rule for where a stopped take's readings end (Norm on #2081).
 pub fn last_watch_beat_s(beats: &[Beat]) -> Option<f64> {
-    let mut good = beats.iter().rev().filter(|b| b.is_good()).map(|b| b.time);
+    let mut good = beats.iter().rev().filter(|b| b.is_good());
     let mut end = good.next()?;
     let mut start = end;
-    for t in good {
-        if start - t > crate::clean::GAP_S {
-            end = t;
-        } else if end - t >= crate::timing::MIN_PIECE_S {
-            return Some(end);
+    for b in good {
+        if crate::clean::paused(b, start) {
+            end = b;
+        } else if crate::timing::spans_piece(b, end) {
+            return Some(end.time);
         }
-        start = t;
+        start = b;
     }
-    (end - start >= crate::timing::MIN_PIECE_S).then_some(end)
+    crate::timing::spans_piece(start, end).then_some(end.time)
 }
 
 /// Beats kept so far that the jump search looks back through for the good

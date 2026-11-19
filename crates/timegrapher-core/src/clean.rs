@@ -42,7 +42,14 @@ pub const GAP_S: f64 = 2.0;
 fn beat_pauses(beats: &[Beat]) -> impl DoubleEndedIterator<Item = f64> + '_ {
     beats
         .windows(2)
-        .filter_map(|w| (w[1].time - w[0].time > GAP_S).then_some(w[1].time - EDGE_S))
+        .filter_map(|w| paused(&w[0], &w[1]).then_some(w[1].time - EDGE_S))
+}
+
+/// Whether beat `b` follows beat `a` after a pause: more than [`GAP_S`]
+/// between them. The one gap rule for [`beat_pauses`] and the watch's
+/// last beat (`beats::last_watch_beat_s`).
+pub(crate) fn paused(a: &Beat, b: &Beat) -> bool {
+    b.time - a.time > GAP_S
 }
 
 /// What cut the take at a hole.
