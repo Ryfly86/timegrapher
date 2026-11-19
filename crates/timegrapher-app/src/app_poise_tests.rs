@@ -1324,6 +1324,196 @@ fn a_poise_test_reads_the_same_live_as_reopened() {
     let _ = std::fs::remove_dir_all(&base);
 }
 
+/// A Dynamic Poise Test of 8 stops of `measure` s after `settle` s, each
+/// turn taking `turn` s, the microphone sending blocks of `block` frames,
+/// run to its end and saved into `base`: the app once its read of the
+/// saved take is in.
+fn poise_test_saved(
+    base: &Path,
+    block: usize,
+    (settle, measure, turn): (f64, f64, f64),
+) -> TimegrapherApp {
+    let _ = std::fs::remove_dir_all(base);
+    std::fs::create_dir_all(base).unwrap();
+    let mut app = synthetic_varying(0.0, 0.0, |_| 0.0);
+    app.session.listen();
+    app.session.recorder =
+        Some(Recorder::start(&base.join("live"), app.info("test", 48000, 16)).unwrap());
+    let cfg = SynthConfig {
+        duration_s: 8.0 * (settle + measure + turn) + 1.0,
+        snr_db: 30.0,
+        rate_s_per_day: 9.0,
+        seed: 1958,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |t| 300.0 - 0.1 * t, |_| 0.4);
+    let tx = queued_capture(&mut app, base);
+    app.guided = Some(guided::Test::poise().timed(settle, measure));
+    (app.guided_settle_s, app.guided_measure_s) = (settle, measure);
+    app.session.set_settle_s(settle);
+    app.session.set_state(session::State::Listening);
+    let ctx = egui::Context::default();
+    let mut frames = 0u64;
+    let mut turning: Option<f64> = None;
+    for s in audio.samples.chunks(48_000) {
+        for b in s.chunks(block) {
+            // Each block stamped as it arrives, at its last frame, on a
+            // perfect clock.
+            frames += b.len() as u64;
+            let at = std::time::Duration::from_nanos(frames * 62_500 / 3);
+            tx.send(Event::Audio(timegrapher_core::capture::Block {
+                samples: b.to_vec(),
+                at: std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000) + at,
+            }))
+            .unwrap_or_else(|_| {
+                panic!(
+                    "listening stopped at {:?}: {:?} {:?}",
+                    app.live.as_ref().map(|l| l.duration_s()),
+                    app.message,
+                    app.guided.as_ref().map(|t| (t.step, t.readings.is_some()))
+                )
+            });
+        }
+        let want = frames as f64 / 48_000.0;
+        let t = Instant::now();
+        while app.live.as_ref().unwrap().duration_s() < want - 1e-6 && t.elapsed().as_secs() < 30 {
+            app.poll();
+        }
+        let now = app.live.as_ref().unwrap().duration_s();
+        app.guided_tick(&ctx);
+        // Once the test has ended, listening has stopped: no more sound.
+        if app.poise_test().is_some_and(|t| t.readings.is_some()) {
+            break;
+        }
+        let ready = app.guided.as_mut().is_some_and(|t| {
+            t.tick(now) == guided::Phase::Turn && !t.needs_reading() && t.next_position().is_some()
+        });
+        // Next once the turn has taken its time.
+        let began = *turning.get_or_insert(now);
+        if ready && now - began >= turn {
+            app.apply_guided_action(guided::Action::Next, now);
+        }
+        if !ready {
+            turning = None;
+        }
+    }
+    drop(tx);
+    assert!(app.poise_test().and_then(|t| t.readings.as_ref()).is_some());
+    app.save_into(&base.join("saved"));
+    app.wait_for_save();
+    let t = Instant::now();
+    while app.bg.test_read.is_some() && t.elapsed().as_secs() < 300 {
+        app.poll();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    app
+}
+
+/// A guided test's figures, once it ends and its take is saved, are the
+/// figures `timegrapher session` gives that take, to the last bit: every
+/// rate, amplitude and beat error, each ±, and every caveat (Norm's (a)
+/// on #1958). Whatever size of block the microphone sends, odd or even,
+/// the take saved is the same and reads the same (Norm's (b)).
+#[test]
+fn a_finished_test_reads_as_session_reads_its_saved_take() {
+    let base = std::env::temp_dir().join(format!("tg-app-poise-1958-{}", std::process::id()));
+    let mut kept = Vec::new();
+    for block in [480, 4093] {
+        let app = poise_test_saved(&base.join(block.to_string()), block, (5.0, 30.0, 0.0));
+        let t = app.poise_test().expect("the test");
+        assert_eq!(t.saved_read, guided::SavedRead::Read, "block {block}");
+        assert_eq!(t.saved_read_note(), None);
+        let readings = t.readings.clone().expect("finished");
+        assert_eq!(readings.len(), 8);
+        let dir = app.session.saved_to().expect("saved").to_path_buf();
+        let (m, _) = read_manifest(&dir).unwrap().unwrap();
+        let settings = app.entry_settings(&m);
+        assert_eq!(m.recordings.len(), 8);
+        for (r, e) in readings.iter().zip(&m.recordings) {
+            let session = timegrapher_core::take::measure_entry(
+                &dir,
+                &m,
+                e,
+                &settings,
+                timegrapher_core::take::usb,
+                |first| timegrapher_core::take::correction_for(&m, first, None, None),
+            )
+            .expect("read");
+            assert_eq!(
+                serde_json::to_value(&r.measurement).unwrap(),
+                serde_json::to_value(&session.measurement).unwrap(),
+                "{} at block {block}",
+                r.label
+            );
+            assert_eq!(r.duration_s, session.stop_s - session.start_s);
+        }
+        // On the sound card's own clock, so only the sound and the
+        // session file count.
+        let card = timegrapher_core::take::EntrySettings {
+            card_clock: true,
+            ..settings
+        };
+        let on_card: Vec<_> = timegrapher_core::take_context::measure_entries(
+            &dir,
+            &m,
+            &card,
+            timegrapher_core::take::usb,
+            |_| Ok(None),
+            |_, _| {},
+        )
+        .into_iter()
+        .map(|r| serde_json::to_value(r.expect("read").measurement).unwrap())
+        .collect();
+        let sound = std::fs::read(dir.join("audio-001.flac")).unwrap();
+        let file = std::fs::read_to_string(dir.join(MANIFEST)).unwrap();
+        kept.push((sound, file, on_card));
+    }
+    // The block size reaches only the clock log, whose stamps are taken
+    // as each block comes: the sound and session file saved are the same
+    // to the byte, and read from them the figures are the same to the bit.
+    let (a, b) = (&kept[0], &kept[1]);
+    assert!(a.0 == b.0, "the sound saved");
+    assert_eq!(a.1, b.1, "the session file");
+    assert_eq!(a.2, b.2, "480 and 4093 frame blocks on the card's clock");
+    // Each read on its own clock log, which the blocks reach, is #2042's.
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// A guided test's take opened again shows the test's own marks: each
+/// settling only as long as the test settled, the turns Not Used, as the
+/// strip showed them while it ran (#1957). Its figures are the ones the
+/// test ended with.
+#[test]
+fn a_test_opened_again_keeps_its_marks() {
+    let base = std::env::temp_dir().join(format!("tg-app-poise-1957-{}", std::process::id()));
+    let app = poise_test_saved(&base, 960, (5.0, 30.0, 3.0));
+    let ran = app.strip_settles();
+    let not_used = ran.iter().filter(|s| s.2 == guided::NOT_USED_POISE).count();
+    assert!(not_used >= 7, "{ran:?}");
+    let saved = app.session.saved_to().expect("saved").to_path_buf();
+    let mut again = TimegrapherApp::with_devices(Vec::new(), None);
+    again.start_batch(&saved);
+    let t = Instant::now();
+    while again.batch.is_some() && t.elapsed().as_secs() < 300 {
+        again.poll();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let opened = again.strip_settles();
+    assert_eq!(opened.len(), ran.len(), "{opened:?}\n{ran:?}");
+    for (o, r) in opened.iter().zip(&ran) {
+        assert_eq!(o.2, r.2);
+        assert!(
+            (o.0 - r.0).abs() < 1e-6 && (o.1 - r.1).abs() < 1e-6,
+            "{o:?} {r:?}"
+        );
+    }
+    // No settling longer than the test's.
+    for s in opened.iter().filter(|s| s.2 == guided::SETTLING) {
+        assert!(s.1 - s.0 <= 5.0 + 1e-6, "{s:?}");
+    }
+    let _ = std::fs::remove_dir_all(&base);
+}
+
 /// With Plot and Dial both on (#1729), the two sit side by side where
 /// there is room, the Plot left of the Dial, and one over the other
 /// where there is not.

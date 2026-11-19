@@ -130,6 +130,11 @@ pub(super) struct Background {
     pub(super) shown_pass: [Option<u64>; 2],
     /// The isochronism read alone, and what the readings rested on then.
     pub(super) isochronism: Option<(Revision, steady::IsochronismAlone)>,
+    /// A finished guided test being read again from its saved take (#1958).
+    pub(super) test_read: Option<super::test_read::TestRead>,
+    /// The test marks a take opened with, as they went on show: the marks
+    /// on show are the take's while they are these (#1957).
+    pub(super) opened_marks: Option<Vec<(f64, f64, &'static str)>>,
 }
 
 /// A Positions Test table being read in the background, and what from.

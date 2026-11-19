@@ -725,3 +725,122 @@ fn recordings_at_another_sample_rate_are_refused() {
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// On a real take, each of a guided test's entries read at once, its
+/// sound opened once, reads exactly as `session` reads it entry by entry
+/// (Norm's (c) on #1958): the Datejust 41's ten positions as recorded,
+/// its eight Dynamic Poise stops of 30 s and of 60 s (the CU stop crossing
+/// the take's two breaks), and those 30 s stops with masks of their own.
+#[test]
+fn a_corpus_take_read_at_once_reads_as_each_entry_alone() {
+    let Some(corpus) = std::env::var_os("TIMEGRAPHER_CORPUS").map(PathBuf::from) else {
+        eprintln!("SKIP: set TIMEGRAPHER_CORPUS to read the corpus's takes");
+        return;
+    };
+    let base = corpus.join("takes").join("datejust41_3235_multipos_105min");
+    if !base.is_dir() {
+        eprintln!("SKIP: fetch datejust41_3235_multipos_105min");
+        return;
+    }
+    let read = |name: &str| -> Manifest {
+        toml::from_str(&std::fs::read_to_string(base.join(name)).unwrap()).unwrap()
+    };
+    let mut masked = read("poise30.toml");
+    masked.recordings[2].masked = vec![[1470.0, 1475.5]];
+    for e in &mut masked.recordings[4..] {
+        e.masked = vec![[e.start_s.unwrap() + 3.0, e.start_s.unwrap() + 4.25]];
+    }
+    let s = settings(None);
+    for (what, m) in [
+        ("positions", read("raw/session.toml")),
+        ("poise 30 s", read("poise30.toml")),
+        ("poise 60 s", read("poise60.toml")),
+        ("poise 30 s masked", masked),
+    ] {
+        let known = |first: &Path| take::correction_for(&m, first, None, None);
+        let at_once = timegrapher_core::take_context::measure_entries(
+            &base,
+            &m,
+            &s,
+            take::usb,
+            known,
+            |_, _| {},
+        );
+        for (e, once) in m.recordings.iter().zip(at_once) {
+            let alone = take::measure_entry(&base, &m, e, &s, take::usb, known);
+            // An entry with nothing to read says so alike (the first
+            // 10H30, shorter than its settling).
+            let (once, alone) = match (once, alone) {
+                (Ok(o), Ok(a)) => (o, a),
+                (o, a) => {
+                    assert_eq!(o.err(), a.err(), "{what}: {:?}", e.position);
+                    continue;
+                }
+            };
+            assert_eq!(
+                serde_json::to_value(&once.measurement).unwrap(),
+                serde_json::to_value(&alone.measurement).unwrap(),
+                "{what}: {:?} from {:?}",
+                e.position,
+                e.start_s
+            );
+        }
+    }
+}
+
+/// A take's entries measured at once, their sound opened once, read
+/// exactly as each measured alone: every figure, ± and caveat, with
+/// each entry's own masks (#1958).
+#[test]
+fn entries_measured_at_once_are_each_as_measured_alone() {
+    use timegrapher_core::synth::{generate, SynthConfig};
+    let dir = std::env::temp_dir().join(format!("tg-entries-once-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let cfg = SynthConfig {
+        duration_s: 95.0,
+        ..SynthConfig::default()
+    };
+    let audio = generate(&cfg, |t| 300.0 - t, |_| 5.0);
+    timegrapher_core::audio::write_wav(&dir.join("take.wav"), &audio).unwrap();
+    let m: Manifest = toml::from_str(
+        "bph = 28800\nlift = 52\n\n\
+         [[recording]]\nfile = \".\"\nposition = \"DU\"\nstart_s = 0.0\nend_s = 30.0\nsettle_s = 0.0\n\
+         masked = [[10.0, 12.0]]\n\n\
+         [[recording]]\nfile = \".\"\nposition = \"CD\"\nstart_s = 32.0\nend_s = 62.0\nsettle_s = 0.0\n\n\
+         [[recording]]\nfile = \".\"\nposition = \"CL\"\nstart_s = 64.0\nend_s = 94.0\nsettle_s = 0.0\n\
+         masked = [[10.0, 12.0], [70.0, 71.5]]\n",
+    )
+    .unwrap();
+    let s = EntrySettings {
+        stream: take::stream_settings(&m, None, take::Given::default()),
+        card_clock: false,
+        settle_s: None,
+    };
+    let known = |_: &Path| Ok(Some((20.0, "stored for 'test'".to_string())));
+    let at_once = timegrapher_core::take_context::measure_entries(
+        &dir,
+        &m,
+        &s,
+        |_| Ok(None),
+        known,
+        |_, _| {},
+    );
+    assert_eq!(at_once.len(), 3);
+    for (e, once) in m.recordings.iter().zip(at_once) {
+        let alone = take::measure_entry(&dir, &m, e, &s, |_| Ok(None), known).unwrap();
+        let once = once.unwrap();
+        assert_eq!(
+            serde_json::to_value(&once.measurement).unwrap(),
+            serde_json::to_value(&alone.measurement).unwrap(),
+            "{:?}",
+            e.position
+        );
+        // Each with its own masks: the log each was read from too.
+        assert_eq!(
+            serde_json::to_value(&once.log).unwrap(),
+            serde_json::to_value(&alone.log).unwrap()
+        );
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
