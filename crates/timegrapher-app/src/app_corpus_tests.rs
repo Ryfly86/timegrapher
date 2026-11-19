@@ -632,7 +632,13 @@ fn listened_and_saved(
     let from = (from_s * fs as f64) as usize;
     let block = fs / 50;
     let mut sound = audio.samples[from..from + (secs * fs as f64) as usize].to_vec();
-    sound.resize(sound.len() + (silent_s * fs as f64) as usize, 0.0);
+    // The tail is a quiet stand's hiss, not digital zero: a microphone
+    // never hears nothing.
+    let mut seed = 0x2073_u32;
+    sound.extend((0..(silent_s * fs as f64) as usize).map(|_| {
+        seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+        (seed >> 8) as f32 / (1u32 << 24) as f32 * 2e-3 - 1e-3
+    }));
     for (k, samples) in sound.chunks(block).enumerate() {
         let heard = (k * block) as f64 / fs as f64;
         let stalled = pause.filter(|&(at, _)| heard >= at).map_or(0.0, |(_, s)| s);
@@ -838,23 +844,49 @@ fn a_saved_takes_cards_read_past_a_silent_tail() {
         eprintln!("SKIP: set TIMEGRAPHER_CORPUS to read saved takes");
         return;
     };
-    let flac = root.join("takes/eta2824_bare_DU_10min_g4/take_part01-001.flac");
-    for silent_s in [10.0, 70.0] {
-        let base =
-            std::env::temp_dir().join(format!("tg-silent-tail-{silent_s}-{}", std::process::id()));
+    // Walter's take on #2075: 30 s of a Datejust, then 10 s of a quiet
+    // stand; again with the capture stalled 2 s at 31 s, so the quiet
+    // after that break still awaits its verdict at the end (as Walter's
+    // did at the default Average Over); and the ETA with a quiet tail
+    // longer than every Average Over. At 1 min that last take reads its
+    // last beat, which the stand's hiss makes a stray one, as a take just
+    // stopped does on main: not this test's, see #2075.
+    let both: &[f64] = &[10.0, 60.0];
+    let takes = [
+        ("datejust41_3235_multipos_105min/raw", 0.0, 10.0, None, both),
+        (
+            "datejust41_3235_multipos_105min/raw",
+            0.0,
+            10.0,
+            Some((31.0, 2.0)),
+            &[10.0][..],
+        ),
+        ("eta2824_bare_DU_10min_g4", 200.0, 10.0, None, both),
+        ("eta2824_bare_DU_10min_g4", 200.0, 70.0, None, &[10.0][..]),
+    ];
+    for (take, from_s, silent_s, pause, averages) in takes {
+        let flac = root.join(format!("takes/{take}/take_part01-001.flac"));
+        let name = take.replace('/', "-");
+        let base = std::env::temp_dir().join(format!(
+            "tg-silent-tail-{name}-{silent_s}-{}",
+            std::process::id()
+        ));
         let _ = std::fs::remove_dir_all(&base);
-        let dir = listened_and_saved(&base, &flac, (200.0, 30.0), 0.0, None, silent_s);
+        let dir = listened_and_saved(&base, &flac, (from_s, 30.0), 0.0, pause, silent_s);
         let mut app = opened(&dir);
-        for average in [10.0, 60.0] {
+        for &average in averages {
             app.set_average(average);
-            let card = app.reading().expect("the opened take reads");
+            // What the cards draw once the window has read the whole
+            // take: the reading at the strip's end.
+            let _ = app.whole_take();
+            let card = app.card_reading().expect("the opened take reads");
             eprintln!(
-                "{silent_s} s silent, Average Over {average} s: {:?} s/d at {} s",
-                card.rate_s_per_day, card.time_s
+                "{take} {silent_s} s silent, Average Over {average} s: {:?} s/d at {} s, heard {}, listening {:?}, whole {}, beats {}",
+                card.rate_s_per_day, card.time_s, card.watch_heard, card.listening, card.whole_take, card.beats_used
             );
             assert!(
-                card.watch_heard && card.rate_s_per_day.is_some(),
-                "{silent_s} s silent, Average Over {average} s: no figures on the cards"
+                card.watch_heard && card.listening.is_none() && card.rate_s_per_day.is_some(),
+                "{take}, {silent_s} s silent, Average Over {average} s: no figures on the cards"
             );
         }
         let _ = std::fs::remove_dir_all(&base);
