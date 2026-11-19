@@ -9,6 +9,9 @@
 //! the charts and a saved session keep the positions as any change of
 //! position does.
 
+mod complication_grid;
+pub(crate) use complication_grid::complication_hover_ids;
+use complication_grid::{complication_grid, complication_text};
 mod free_grid;
 use crate::app::Position;
 use crate::theme;
@@ -765,8 +768,13 @@ impl Test {
 /// The title for the position under way: "Dial Up (1 of 6)", and in the
 /// 24 hour half "Dial Up (1 of 6, 24.1 h After Full Wind)".
 fn step_title(test: &Test) -> String {
-    let i = test.step.min(test.order().len() - 1);
-    let (name, n, of) = (test.step_name(i), test.step + 1, test.order().len());
+    step_title_at(test, test.step)
+}
+
+/// [`step_title`] for step `step`.
+fn step_title_at(test: &Test, step: usize) -> String {
+    let i = step.min(test.order().len() - 1);
+    let (name, n, of) = (test.step_name(i), step + 1, test.order().len());
     match test.wind_h() {
         Some(h) => format!("{name} ({n} of {of}, {h:.1} h After Full Wind)"),
         None => format!("{name} ({n} of {of})"),
@@ -795,30 +803,41 @@ pub(crate) fn banner(
             detail = format!("{detail} · {n}");
         }
         let (first_w, restart_w) = slot_widths(ui, test);
-        // The step's buttons on the title's line, in reach in the shortest
-        // pane; the chips and what is happening on the line under it.
+        // The step's buttons on the title's line where every title the
+        // test can show fits beside them, else on a row of their own: the
+        // title is never cut, and the panel keeps one height (#1955).
         let slots_w = first_w + restart_w + 2.0 * ui.spacing().item_spacing.x;
-        ui.horizontal(|ui| {
-            let title_w = (ui.available_width() - slots_w).max(40.0);
-            ui.allocate_ui_with_layout(
-                Vec2::new(title_w, 26.0),
-                egui::Layout::left_to_right(egui::Align::Center),
-                |ui| {
-                    ui.set_width(title_w);
-                    ui.add(
-                        egui::Label::new(
-                            RichText::new(&title)
-                                .font(theme::semibold(15.0))
-                                .color(pal.text),
-                        )
-                        .truncate(),
-                    );
-                },
+        let font = theme::semibold(15.0);
+        let widest = titles(test)
+            .into_iter()
+            .map(|t| ui.fonts_mut(|f| f.layout_no_wrap(t, font.clone(), pal.text).size().x))
+            .fold(0.0_f32, f32::max);
+        let beside = ui.available_width() - slots_w >= widest;
+        let title_label = |ui: &mut egui::Ui| {
+            ui.add(
+                egui::Label::new(RichText::new(&title).font(font.clone()).color(pal.text)).wrap(),
             );
-            action = step_buttons(ui, test, phase, first_w, restart_w);
-        });
-        // One line, whole in its hover: the panel never grows.
-        ui.horizontal(|ui| detail_line(ui, &detail, test));
+        };
+        if beside {
+            ui.horizontal(|ui| {
+                let title_w = ui.available_width() - slots_w;
+                ui.allocate_ui_with_layout(
+                    Vec2::new(title_w, 26.0),
+                    egui::Layout::left_to_right(egui::Align::Center),
+                    |ui| {
+                        ui.set_width(title_w);
+                        title_label(ui);
+                    },
+                );
+                action = step_buttons(ui, test, phase, first_w, restart_w);
+            });
+        } else {
+            title_label(ui);
+            ui.horizontal(|ui| action = step_buttons(ui, test, phase, first_w, restart_w));
+        }
+        // What happens next, wrapped over up to two lines' room, never
+        // cut (Hugh on #1955).
+        detail_line(ui, &detail, test);
         ui.add_space(4.0);
         ui.add(
             egui::ProgressBar::new(frac.clamp(0.0, 1.0))
@@ -827,6 +846,33 @@ pub(crate) fn banner(
         );
     });
     action
+}
+
+/// Every title the step panel can show in `test`: each step's own, each
+/// turn to the next, and the last.
+fn titles(test: &Test) -> Vec<String> {
+    let n = test.order().len();
+    let mut out: Vec<String> = (0..n).map(|i| step_title_at(test, i)).collect();
+    out.extend((0..n).map(|i| turn_title(test, i)));
+    out
+}
+
+/// The title on turning from step `i` to the next: the next position
+/// first (Hugh on #1955), or the end of the test.
+fn turn_title(test: &Test, i: usize) -> String {
+    match (test.order().get(i + 1), test.kind) {
+        (Some(_), Kind::Complication) => {
+            format!(
+                "Turn the complication {}",
+                test.step_code(i + 1).to_lowercase()
+            )
+        }
+        (Some(_), Kind::Poise) => format!("Done: {}", step_title_at(test, i)),
+        (Some(p), Kind::Positions) => format!("Next: {} ({})", p.name(), p.code()),
+        (None, Kind::Positions) => "All six positions measured".to_string(),
+        (None, Kind::Poise) => "All eight positions measured".to_string(),
+        (None, Kind::Complication) => "All three stretches measured".to_string(),
+    }
 }
 
 /// The step panel's title, what is happening, and how far through its
@@ -858,7 +904,7 @@ fn phase_words(test: &Test, phase: Phase) -> (String, String, f32) {
             Some(_) if test.kind == Kind::Complication => {
                 let next = test.step_code(test.step + 1);
                 (
-                    format!("Turn the complication {}", next.to_lowercase()),
+                    turn_title(test, test.step),
                     format!(
                         "then press Start {next} Measurement. Nothing until then is \
                          measured; the strip marks it {}.",
@@ -868,7 +914,7 @@ fn phase_words(test: &Test, phase: Phase) -> (String, String, f32) {
                 )
             }
             Some(p) if test.kind == Kind::Poise => (
-                format!("Done: {}", step_title(test)),
+                turn_title(test, test.step),
                 format!(
                     "Turn the watch 45°, to {} ({}) at the top, then press Start {} \
                      Measurement. Until then the strip marks it Not Used.",
@@ -878,22 +924,18 @@ fn phase_words(test: &Test, phase: Phase) -> (String, String, f32) {
                 ),
                 1.0,
             ),
+            // The position first, whole (Hugh on #1955).
             Some(p) => (
-                format!("Turn the watch to {}", p.name()),
+                turn_title(test, test.step),
                 format!(
-                    "then press Start {} Measurement. Nothing until then is measured; \
-                     the strip marks it Not Used for Positions Test.",
+                    "Turn the watch to it, then press Start {} Measurement. Until then \
+                     the strip marks it Not Used.",
                     p.code()
                 ),
                 1.0,
             ),
             None => (
-                match test.kind {
-                    Kind::Positions => "All six positions measured",
-                    Kind::Poise => "All eight positions measured",
-                    Kind::Complication => "All three stretches measured",
-                }
-                .to_string(),
+                turn_title(test, test.step),
                 "Reading them together and keeping the take…".to_string(),
                 1.0,
             ),
@@ -1039,7 +1081,7 @@ fn step_buttons(
     action
 }
 
-/// What is happening, in one line whole in its hover, and the chips.
+/// What is happening, wrapped in two lines' room or more, and the chips.
 fn detail_line(ui: &mut egui::Ui, detail: &str, test: &Test) {
     let pal = theme::pal(ui);
     let chips_w = test.order().len() as f32 * (chip_w(test.kind) + 4.0) + 8.0;
@@ -1049,19 +1091,22 @@ fn detail_line(ui: &mut egui::Ui, detail: &str, test: &Test) {
     } else {
         room
     };
-    ui.allocate_ui_with_layout(
-        Vec2::new(detail_w, 18.0),
-        egui::Layout::left_to_right(egui::Align::Center),
-        |ui| {
-            ui.set_width(detail_w);
-            ui.add(
-                egui::Label::new(RichText::new(detail).small().color(pal.text_secondary))
-                    .truncate(),
-            )
-            .on_hover_text(detail);
-        },
-    );
-    step_chips(ui, test);
+    let two_lines = 2.0 * ui.text_style_height(&egui::TextStyle::Small) + 4.0;
+    ui.horizontal_top(|ui| {
+        ui.allocate_ui_with_layout(
+            Vec2::new(detail_w, two_lines),
+            egui::Layout::top_down(egui::Align::Min),
+            |ui| {
+                ui.set_width(detail_w);
+                ui.set_min_height(two_lines);
+                ui.add(
+                    egui::Label::new(RichText::new(detail).small().color(pal.text_secondary))
+                        .wrap(),
+                );
+            },
+        );
+        step_chips(ui, test);
+    });
 }
 
 /// The six positions as chips after what the step is doing: done, the one
@@ -1335,7 +1380,10 @@ fn table_grid(
                 ui.end_row();
             }
             tops.push(ui.cursor().top());
-            if !t.rows.is_empty() {
+            // A mean of one position is that position: the Average comes
+            // with the second (#1959), as From Average and the plots' line.
+            let averaged = session::has_mean(t.rows.iter().map(|r| r.1));
+            if averaged {
                 ui.label(RichText::new(mean_word).strong().color(pal.text));
                 blank(ui);
                 right_in(ui, fw, signed(t.mean_rate, RATE), true, pal.text);
@@ -1345,7 +1393,7 @@ fn table_grid(
                     .on_hover_text(&t.beat_error_summary);
                 ui.end_row();
             }
-            if t.rows.len() >= 2 && !poise {
+            if averaged && !poise {
                 largest_row(ui, t, fw);
             }
         });
@@ -1480,179 +1528,6 @@ pub(crate) fn poise_table_notes(readings: &[Reading]) -> Vec<String> {
         .into_iter()
         .chain(t.notes)
         .collect()
-}
-
-/// The Complication Test's table (#1576, Hugh's spec): a row for each
-/// stretch, Off, On, Off, with amplitude first, then On less Off, core's
-/// difference with its ±. `status` names what the next row is doing while
-/// the test runs, and `live` its figures so far.
-fn complication_grid(ui: &mut egui::Ui, t: &Test, status: Option<String>, live: Option<&FreeCell>) {
-    let pal = theme::pal(ui);
-    let readings = t.readings_so_far();
-    let measurements: Vec<Measurement> = readings.iter().map(|r| r.measurement.clone()).collect();
-    let mut tops = Vec::new();
-    let grid = egui::Grid::new("complication")
-        .num_columns(4)
-        .spacing(Vec2::new(GAP, 5.0))
-        .min_col_width(FIGURE_W)
-        .striped(true)
-        .show(ui, |ui| {
-            let size = Vec2::new(FIGURE_W, ui.spacing().interact_size.y);
-            ui.allocate_ui_with_layout(
-                size,
-                egui::Layout::left_to_right(egui::Align::Center),
-                |ui| {
-                    ui.set_min_size(size);
-                    ui.label(theme::caption("Stretch").color(pal.text_secondary));
-                },
-            );
-            for q in complication::SHOWN {
-                column_head(
-                    ui,
-                    FIGURE_W,
-                    q.title(),
-                    complication::unit_head(q),
-                    complication_hint(q),
-                );
-            }
-            ui.end_row();
-            let mut status = status;
-            for i in 0..t.order().len() {
-                tops.push(ui.cursor().top());
-                let label = t.step_code(i);
-                if let Some(r) = readings.get(i) {
-                    let f = complication::figures(&r.measurement);
-                    ui.label(RichText::new(label).color(pal.text));
-                    for q in complication::SHOWN {
-                        let cell = right(ui, figure_cell(q, &f), false, pal.text);
-                        if q == SeriesKind::BeatError {
-                            // Its source, as the Positions table hovers it.
-                            let src = r.measurement.beat_error_source;
-                            cell.on_hover_text(session::beat_error_source_label(src));
-                        }
-                    }
-                } else {
-                    match (status.take(), live) {
-                        (Some(_), Some(FreeCell::Read(rate, amp, be))) => {
-                            ui.label(RichText::new(label).strong().color(pal.text))
-                                .on_hover_text("Being measured: its figures so far");
-                            right(ui, plain(*amp, AMPLITUDE), false, pal.accent);
-                            right(ui, signed(*rate, RATE), false, pal.accent);
-                            right(ui, plain(*be, BEAT_ERROR), false, pal.accent);
-                        }
-                        (Some(st), _) => {
-                            ui.label(RichText::new(label).strong().color(pal.text));
-                            right(ui, st, false, pal.accent);
-                            ui.label("");
-                            ui.label("");
-                        }
-                        (None, _) => {
-                            ui.label(RichText::new(label).color(pal.text_tertiary));
-                            for _ in 0..3 {
-                                ui.label("");
-                            }
-                        }
-                    }
-                }
-                ui.end_row();
-            }
-            tops.push(ui.cursor().top());
-            if measurements.len() == complication::ORDER.len() {
-                ui.label(
-                    RichText::new(complication::DIFFERENCE_NAME)
-                        .strong()
-                        .color(pal.text),
-                )
-                .on_hover_text(complication::method_note());
-                for q in complication::SHOWN {
-                    let d = complication::change(q, &measurements).map_or_else(
-                        || "—".to_string(),
-                        |c| true_minus(&complication::difference_text(q, c.on_less_off)),
-                    );
-                    right(ui, d, true, pal.text);
-                }
-                ui.end_row();
-            }
-        });
-    // The hovered stretch's row outlined, as the plots' (#1729).
-    let rows: Vec<usize> = (0..t.order().len()).collect();
-    let x = (grid.response.rect.x_range(), 5.0);
-    crate::position_lanes::rows_hovered(ui, x, (&rows, &tops), complication_hover_ids());
-}
-
-/// Where the Complication pane keeps the stretch hovered in its table or
-/// its plots, and the one under the pointer in its table (#1729).
-pub(crate) fn complication_hover_ids() -> (egui::Id, egui::Id) {
-    (
-        egui::Id::new("complication hover"),
-        egui::Id::new("complication table hover"),
-    )
-}
-
-/// A stretch's figure as the table and Copy write it: core's number at
-/// the series' place, the rate signed ([`SeriesKind::number`]).
-fn figure_cell(q: SeriesKind, f: &complication::Figures) -> String {
-    complication::figure(q, f).map_or_else(|| "—".to_string(), |f| true_minus(&q.number(f.value)))
-}
-
-/// A Complication Test column's hover.
-fn complication_hint(q: SeriesKind) -> &'static str {
-    match q {
-        SeriesKind::Amplitude => {
-            "The balance's swing, from the lift angle set. A complication that loads the \
-             going train lowers it."
-        }
-        SeriesKind::Rate => "Seconds a day gained (+) or lost (−)",
-        SeriesKind::BeatError => {
-            "As a size, from the unlock, or from the drop where the unlock isn't found."
-        }
-    }
-}
-
-/// The Complication Test's table as text a spreadsheet takes: a header,
-/// a row for each stretch, then On less Off with its ±. Fields are split
-/// by `sep`.
-fn complication_text(test: &Test, sep: char) -> String {
-    let readings = test.readings_so_far();
-    let mut out = "Stretch".to_string();
-    for q in complication::SHOWN {
-        out.push_str(&format!(
-            "{sep}{} ({})",
-            q.title(),
-            complication::unit_head(q)
-        ));
-    }
-    out.push('\n');
-    for (i, r) in readings.iter().enumerate() {
-        let f = complication::figures(&r.measurement);
-        out.push_str(test.step_code(i));
-        for q in complication::SHOWN {
-            out.push_str(&format!("{sep}{}", figure_cell(q, &f)));
-        }
-        out.push('\n');
-    }
-    let m: Vec<Measurement> = readings.iter().map(|r| r.measurement.clone()).collect();
-    if m.len() == complication::ORDER.len() {
-        out.push_str(complication::DIFFERENCE_NAME);
-        for q in complication::SHOWN {
-            let d = complication::change(q, &m).map_or_else(
-                || "—".to_string(),
-                |c| true_minus(&complication::difference_text(q, c.on_less_off)),
-            );
-            out.push_str(&format!("{sep}{d}"));
-        }
-        out.push('\n');
-        for q in complication::SHOWN {
-            if let Some(c) = complication::change(q, &m) {
-                out.push_str(&format!(
-                    "{}: {}\n",
-                    q.title(),
-                    true_minus(&complication::finding_text(q, c.on_less_off))
-                ));
-            }
-        }
-    }
-    out
 }
 
 /// What the next row is doing, in its Rate cell: from the cell's left
@@ -1845,7 +1720,7 @@ pub fn pane(
     settle_s: f64,
     watch: bool,
     note: Option<&str>,
-    (card, info, shown): (&str, bool, [bool; 3]),
+    (card, info, shown, ready): (&str, bool, [bool; 3], bool),
 ) -> Option<Action> {
     // When the banner comes or goes (a test starts, stops or finishes),
     // the pane starts again from its top, not where it was scrolled.
@@ -1876,6 +1751,7 @@ pub fn pane(
         watch,
         note,
         card,
+        ready,
     };
     let lines = body.lines(shown);
     let mut action = None;
@@ -1896,6 +1772,8 @@ struct Body<'a> {
     watch: bool,
     note: Option<&'a str>,
     card: &'a str,
+    /// A test set up by New Test, waiting for Start Test.
+    ready: bool,
 }
 
 impl Body<'_> {
@@ -1947,7 +1825,11 @@ impl Body<'_> {
             }
         }
         ui.add_space(10.0);
-        let about = about_text(self.test, self.earlier, (self.watch, self.saved.is_some()));
+        let about = about_text(
+            self.test,
+            self.earlier,
+            (self.watch, self.saved.is_some(), self.ready),
+        );
         if !about.is_empty() {
             ui.add(egui::Label::new(RichText::new(about).color(pal.text_secondary)).wrap());
         }
@@ -2158,13 +2040,17 @@ fn earlier_section(
 /// loaded, what the next test does with them; after a full-wind test, the
 /// test 24 hours after winding. The steps are in its "?" (Hugh, #1528).
 /// None over an opened 24 hour half (`saved`), whose tables have rows.
+/// Set up by New Test (`ready`), the next step: Start Test (#1959).
 fn about_text(
     test: Option<&Test>,
     earlier: Option<&FullWind>,
-    (watch, saved): (bool, bool),
+    (watch, saved, ready): (bool, bool, bool),
 ) -> &'static str {
     match (test, earlier) {
         (None, None) if saved => "",
+        (None, None) if ready => {
+            "Wind the watch, then press Start Test on the Listen card. It begins in Dial Up."
+        }
         (None, None) => "New Test leads you through the six positions.",
         (None, Some(_)) => {
             "Start Test runs the six positions again and sets them against these results."
@@ -2175,7 +2061,7 @@ fn about_text(
         }
         (Some(t), _) if t.readings.iter().any(|r| !r.is_empty()) && t.full.is_none() => {
             "For the same test 24 hours after winding, first keep these results with Save \
-                 Results for 24 Hours\u{2026}. \"?\" has the steps."
+                 Results for 24 Hours\u{2026} on the toolbar. \"?\" has the steps."
         }
         _ => "",
     }
@@ -2304,6 +2190,9 @@ fn table_of(figures: &[SourcedFigures], mut notes: Vec<String>, kind: Kind) -> T
     let ix = session::sourced_indices_over(None, figures, &over);
     let beat_error_summary = ix.beat_error_summary();
     notes.extend((!figures.is_empty()).then(|| beat_error_summary.clone())); // #1911
+
+    // From Average only once there is an average (#1959).
+    let averaged = session::has_mean(figures.iter().map(|f| f.1));
     Table {
         beat_error_hovers: figures
             .iter()
@@ -2320,7 +2209,7 @@ fn table_of(figures: &[SourcedFigures], mut notes: Vec<String>, kind: Kind) -> T
                 (
                     position_label(p),
                     rate,
-                    rate.zip(ix.x).map(|(x, x0)| x - x0),
+                    rate.zip(ix.x).filter(|_| averaged).map(|(x, x0)| x - x0),
                     amp,
                     be,
                 )

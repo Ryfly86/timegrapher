@@ -3,6 +3,20 @@
 use super::*;
 
 impl TimegrapherApp {
+    /// The guided test that began at `began` runs to the end of the last
+    /// stretch it marked: noted in the session, so a Settle changed later
+    /// leaves its settling as it read it (#1956).
+    fn note_test_span(&mut self, began: Option<f64>) {
+        let Some(began) = began else { return };
+        let end = self
+            .guided_measured
+            .iter()
+            .map(|m| m.1)
+            .chain(self.guided_unused.iter().map(|u| u.1))
+            .fold(began, f64::max);
+        self.session.note_test(began, end);
+    }
+
     /// Begin the Positions Test, listening first if need be, with the
     /// watch dial up: just after winding, or as the 24 hour half after the
     /// full-wind test `half`.
@@ -180,6 +194,7 @@ impl TimegrapherApp {
         };
         self.guided_unused = test.unused(now);
         self.guided_measured = test.measured(now);
+        let began = test.began_s();
         if matches!(
             phase,
             guided::Phase::Settling(_) | guided::Phase::Measuring(_) | guided::Phase::Paused
@@ -190,6 +205,7 @@ impl TimegrapherApp {
         // stops listening and keeps its take, as Stop does.
         let done =
             phase == guided::Phase::Turn && test.next_position().is_none() && !test.needs_reading();
+        self.note_test_span(began);
         // The test's settlings leave the readings as a move's do.
         self.mask_engine();
         if done && self.running() {
@@ -222,6 +238,8 @@ impl TimegrapherApp {
         }
         self.guided_unused = test.unused(now);
         self.guided_measured = test.measured(now);
+        let began = test.began_s();
+        self.note_test_span(began);
         self.guided = Some(test);
         self.mask_engine();
         self.stop_listening();
@@ -448,8 +466,8 @@ impl TimegrapherApp {
         );
     }
 
-    /// With a take on show and no test on the Bench, how long each of its
-    /// positions was read, as the `kind` of pane's table gives it, so the
+    /// With a guided test's take on show and no test on the Bench, how
+    /// long each of its positions was read, as the `kind` of pane's table gives it, so the
     /// two never disagree (Walter on #1843): the Complication Test's own
     /// stretches on its pane, else the This Take table's. One length to
     /// the second, or "1 to 2 min" where they differ (Hugh, #1733). None
@@ -466,6 +484,11 @@ impl TimegrapherApp {
         let lengths: Vec<f64> = if kind == guided::Kind::Complication {
             let t = self.complication_saved.as_ref()?;
             t.stretches().iter().map(|s| s.2 - s.1).collect()
+        } else if !self.positions_take {
+            // A plain take: the toolbar keeps the settings, for the next
+            // test; its lengths are in the table's Duration (Hugh on
+            // #1969: a 67 h take showed "67:29:10" as Each Position).
+            return None;
         } else {
             let t = self.free_table_shown(ctx)?;
             t.six
@@ -705,6 +728,7 @@ impl TimegrapherApp {
                 self.position_card_title,
                 self.positions_info,
                 self.positions_series,
+                self.ready_test() == Some(NewTake::Positions),
             ),
         );
         let Some(action) = action else { return };
@@ -741,6 +765,8 @@ impl TimegrapherApp {
         }
         self.guided_unused = test.unused(now);
         self.guided_measured = test.measured(now);
+        let began = test.began_s();
+        self.note_test_span(began);
         self.guided = Some(test);
         self.mask_engine();
     }
