@@ -1026,7 +1026,7 @@ impl Recorder {
     pub fn note_saved(&mut self, copy: &SavedCopy) {
         self.saved_name = Some(copy.name.clone());
         self.grown = copy.grown.clone();
-        self.saved_hours = released::SavedHours::new(copy.written.clone());
+        self.saved_into(&copy.written);
         self.take_released(&copy.held_whole);
     }
 

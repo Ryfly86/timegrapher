@@ -357,6 +357,17 @@ fn the_copy_saved_last_is_there_until_its_sound_goes() {
     assert_eq!(take2, take);
     append_second(&mut r, 32);
     assert!(!gone(&mut r), "the open hour grown past the save");
+    // And the copy's own open hour longer than the save left it, as a
+    // streamed save appending to it is when a look lands (Trevor on #2060).
+    let copy_open = take.join("audio-002.wav");
+    assert!(copy_open.exists(), "the open hour is the copy's WAV");
+    let mut f = fs::OpenOptions::new()
+        .append(true)
+        .open(&copy_open)
+        .unwrap();
+    std::io::Write::write_all(&mut f, &[0; 64]).unwrap();
+    drop(f);
+    assert!(!gone(&mut r), "the copy's open hour grown");
     // Moved in the app (filed under a watch): it follows.
     let moved = base.join("watches").join("take");
     fs::create_dir_all(moved.parent().unwrap()).unwrap();
@@ -391,7 +402,8 @@ fn a_closed_hour_kept_in_both_places_is_looked_for_in_the_copy() {
     append_second(&mut r, 2);
     r.pause().unwrap();
     let take = stream(&mut r, &base.join("unsorted"));
-    assert_eq!(sound_in(r.dir()), ["audio-001.flac"], "kept here too");
+    // Kept here too (as a WAV, or a FLAC once kept as one on its thread).
+    assert!(!sound_in(r.dir()).is_empty(), "kept here too");
     assert!(!gone(&mut r));
     fs::remove_file(take.join("audio-001.flac")).unwrap();
     assert!(gone(&mut r), "the copy's hour gone");
@@ -402,4 +414,34 @@ fn a_closed_hour_kept_in_both_places_is_looked_for_in_the_copy() {
 fn gone(r: &mut Recorder) -> bool {
     r.look_at_saved_copy();
     r.saved_copy_gone()
+}
+
+/// Trevor on #2060: saved into another folder after its hour went to the
+/// first take alone, the recording reads that hour from the copy saved
+/// last. The first take deleted, the sound is still whole where it was
+/// saved last, and can be carried on and saved again; the copy saved
+/// last deleted, it is gone.
+#[test]
+fn an_hour_held_alone_follows_a_save_into_another_folder() {
+    let (mut r, base) = fixture("saved-elsewhere");
+    append_second(&mut r, 2);
+    r.pause().unwrap();
+    let first = stream(&mut r, &base.join("unsorted"));
+    tidy_all(&mut r);
+    assert_eq!(
+        sound_in(r.dir()),
+        Vec::<String>::new(),
+        "kept in the take alone"
+    );
+    let other = stream(&mut r, &base.join("other"));
+    assert_ne!(other, first);
+    assert_eq!(sound_in(&other), ["audio-001.flac"]);
+    fs::remove_dir_all(&first).unwrap();
+    assert!(r.hours_reachable(), "read from the copy saved last");
+    assert!(!gone(&mut r), "whole where it was saved last");
+    assert_eq!(r.segment_paths(), [other.join("audio-001.flac")]);
+    fs::remove_dir_all(&other).unwrap();
+    assert!(gone(&mut r), "the copy saved last deleted");
+    assert!(!r.hours_reachable());
+    fs::remove_dir_all(&base).unwrap();
 }
