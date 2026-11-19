@@ -229,6 +229,8 @@ pub struct Recorder {
     copy_alone: bool,
     /// Closed hours the saved copy holds alone, read from there (#2040).
     released: Vec<HeldWhole>,
+    /// Each closed hour the last save wrote, at its length there (#2052).
+    saved_hours: released::SavedHours,
     /// Closed hours a save checked in its copy, kept here until no thread
     /// is keeping them as FLAC here.
     releasing: Vec<HeldWhole>,
@@ -327,6 +329,7 @@ impl Recorder {
             grown: None,
             copy_alone: false,
             released: Vec::new(),
+            saved_hours: Default::default(),
             releasing: Vec::new(),
             lock,
         };
@@ -886,6 +889,7 @@ impl Recorder {
         // from read_dir and turn an incomplete take into a success.
         for n in &self.segments {
             let mut f = self.pending_segment(n)?;
+            self.check_released_elsewhere(&mut f, n, &dest);
             // Only a streamed save grows the copy in place: Save and Save
             // Again stage every file, as before.
             if !log_end {
@@ -1023,6 +1027,7 @@ impl Recorder {
     pub fn note_saved(&mut self, copy: &SavedCopy) {
         self.saved_name = Some(copy.name.clone());
         self.grown = copy.grown.clone();
+        self.saved_into(copy);
         self.take_released(&copy.held_whole);
     }
 
@@ -1196,6 +1201,8 @@ pub struct SavedCopy {
     grown: Option<(PathBuf, u64)>,
     /// The closed hours checked in it, on the disk (#2040).
     held_whole: Vec<HeldWhole>,
+    /// Each closed hour it holds, at its length there (#2052).
+    written: Vec<HeldWhole>,
 }
 
 impl PendingSave {
@@ -1262,11 +1269,13 @@ impl PendingSave {
             }
         }
         let held_whole = released::checked(&self.files, &self.dest, &mut before);
+        let written = released::written(&self.files, &self.dest);
         Ok(SavedCopy {
             dir: self.dest,
             name: self.name,
             grown,
             held_whole,
+            written,
         })
     }
 }

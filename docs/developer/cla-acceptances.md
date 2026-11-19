@@ -10,5 +10,4 @@ owner runs under the owner's account, need no row.
 
 | GitHub account | Account id | Date (UTC) | Pull request | Version | Organisation | Earlier work covered |
 |---|---|---|---|---|---|---|
-
-No outside acceptances yet.
+| [jpdevillers](https://github.com/jpdevillers) | 55284389 | 2026-11-19 | [#2065](https://github.com/peterhudson/timegrapher/pull/2065#issuecomment-7017808943) | 1.0 | None | None |

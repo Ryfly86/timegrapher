@@ -12,7 +12,7 @@
 //! right and early beats towards the top.
 
 use crate::strength::{self, Zero};
-use axis::{axis_ms, label_every};
+use axis::{axis_ms, label_every, time_lines, time_step};
 use eframe::egui::{self, Align2, Color32, FontId, Pos2, Rect, Sense, Stroke, Vec2};
 use sweep::{Geom, Sweep};
 use timegrapher_core::beats::Beat;
@@ -1549,15 +1549,8 @@ impl Frame<'_> {
         // The least room between two labelled lines, points: across, a
         // label's width ("10:00:00"); down, its height with space each side.
         let gap = if g.horizontal { 90.0 } else { 40.0 };
-        let want = g.span * gap / along_px.max(1.0);
-        let tstep = crate::theme::TIME_STEPS
-            .iter()
-            .copied()
-            .find(|&s| s >= want)
-            .unwrap_or(172800.0);
-        let mut t = (g.end / tstep).floor() * tstep;
-        // Nothing before the session started.
-        while t > self.oldest && t >= -1e-9 {
+        let tstep = time_step(g.span, gap, along_px);
+        for t in time_lines(g.end, self.oldest, tstep) {
             let a = g.pos(-g.half, t);
             lines.push(if g.horizontal { a.x } else { a.y });
             let (at, align) = if g.horizontal {
@@ -1566,7 +1559,6 @@ impl Frame<'_> {
                 (Pos2::new(r.left() - 4.0, a.y), Align2::RIGHT_CENTER)
             };
             painter.text(at, align, length_text(t), self.font.clone(), text);
-            t -= tstep;
         }
         lines
     }
