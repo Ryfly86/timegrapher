@@ -73,6 +73,21 @@ fn in_doubt(jitter_us: Option<f64>, bph: u32) -> bool {
         .is_some_and(|f| f >= crate::beats::NOISE_DOUBT_FRACTION)
 }
 
+/// Whether a reading waits for its verdict: under [`SHORT_SPAN_S`] of
+/// sound has been heard since the start or the latest break, its masked
+/// seconds left out (`heard_s`; a mask does not restart the count, Norm
+/// on #2017), and the beats' averaged sound can't be judged
+/// (`beat_sound` None). Then no scatter can be judged, and a watch is
+/// heard only where the sound positively shows one, so there is no
+/// verdict either way and no figures: an empty stand's first seconds
+/// read as a rate of over 100,000 s/d when the timing's "watch" stood
+/// (Norm on #2014). A short average over longer sound is not waiting:
+/// what is heard does not depend on how it is averaged. Every reader
+/// asks this beside [`no_watch_reason`], so they withhold alike.
+pub fn awaiting_verdict(heard_s: f64, beat_sound: Option<bool>) -> bool {
+    heard_s < SHORT_SPAN_S && beat_sound.is_none()
+}
+
 /// Why no regular beat was found, or `None` when one was, from the timing
 /// scatter and the beats' averaged sound (`beat_sound`, from
 /// [`stretch_beat_sound`]: whether either side shows an unlock or a drop):
@@ -162,6 +177,35 @@ pub fn no_watch_reason_in(caveats: &[Caveat]) -> Option<NoWatchReason> {
 /// The heading every surface gives a reading with no regular beat, over
 /// [`no_watch_text`]'s sentence or in the figures' place (#510).
 pub const NO_WATCH_TITLE: &str = "No Regular Beat";
+
+/// What the sound behind a reading is heard since: where the
+/// [`SHORT_SPAN_S`] a reading's figures wait for is counted from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HeardSince {
+    /// Listen started (or the take's start, opened).
+    Start,
+    /// The latest break, such as a move to a new position.
+    Break,
+}
+
+/// The heading every surface gives a reading still waiting for
+/// [`SHORT_SPAN_S`] of sound, in the figures' place (#2014, Hugh).
+pub const LISTENING_TITLE: &str = "Listening";
+
+/// The sentence under [`LISTENING_TITLE`]: what the figures wait for, and
+/// since when it is counted.
+pub fn listening_text(since: HeardSince) -> String {
+    let from = match since {
+        HeardSince::Start => "Listen started",
+        HeardSince::Break => "the break",
+    };
+    format!(
+        "The figures need {s:.0} s of sound: they appear once {s:.0} s have been heard \
+         since {from}.",
+        s = SHORT_SPAN_S
+    )
+}
 
 /// What a reading says in place of [`NO_WATCH_TITLE`] while a regular
 /// beat just heard is still being found (`live::LiveReading::finding_beat`,

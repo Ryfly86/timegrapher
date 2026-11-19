@@ -1377,3 +1377,61 @@ fn a_watch_heard_while_it_settles_is_no_missing_watch() {
     assert!(!app.no_watch_yet(), "its beats are heard");
     let _ = std::fs::remove_dir_all(base);
 }
+
+/// With under 10 s of sound behind the reading, the cards show no figure,
+/// and say "Listening" with what they wait for in its place: not empty,
+/// and never a rate read from the stand's noise (#2014, Hugh). From 10 s
+/// the figures are back.
+#[test]
+fn the_cards_say_listening_until_ten_seconds_are_heard() {
+    use timegrapher_core::measure::{listening_text, HeardSince, LISTENING_TITLE};
+    let ctx = themed();
+    // A watch's beats opened with no snippets: their sound can't be
+    // judged, so under 10 s of sound there is no verdict yet.
+    let mut app = synthetic(30.0, 20.0);
+    let live = app.live.as_ref().expect("live");
+    let log = timegrapher_core::stream::BeatLog {
+        lock_template_kept: false,
+        sample_rate: 48_000,
+        duration_s: live.duration_s(),
+        bph: live.bph().expect("bph"),
+        lift_deg: 52.0,
+        beats: live.beats().to_vec(),
+        amplitude_windows: Vec::new(),
+        clipped_beats: Vec::new(),
+        clipped_samples: 0,
+        jumps: Vec::new(),
+        sided: Vec::new(),
+        by_count: Vec::new(),
+        snippets: Vec::new(),
+    };
+    app.live = Some(timegrapher_core::live::LiveAnalyzer::from_log(
+        log,
+        timegrapher_core::live::LiveConfig::default(),
+    ));
+    let cards = |app: &TimegrapherApp| {
+        let out = ctx.run(screen(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                let _ = app.readouts(ui);
+            });
+        });
+        painted_text(&out)
+    };
+    app.strip_end = Some(6.0);
+    let r = app.card_reading().expect("a reading");
+    assert_eq!(r.listening, Some(HeardSince::Start), "{r:?}");
+    assert_eq!(r.rate_s_per_day, None);
+    let early = cards(&app);
+    assert!(early.contains(LISTENING_TITLE), "{early}");
+    assert!(!early.contains("s/d"), "{early}");
+    assert!(
+        listening_text(HeardSince::Start).contains("since Listen started"),
+        "{}",
+        listening_text(HeardSince::Start)
+    );
+    app.strip_end = Some(25.0);
+    let r = app.card_reading().expect("a reading");
+    assert_eq!(r.listening, None);
+    assert!(r.rate_s_per_day.is_some(), "{r:?}");
+    assert!(!cards(&app).contains(LISTENING_TITLE));
+}
