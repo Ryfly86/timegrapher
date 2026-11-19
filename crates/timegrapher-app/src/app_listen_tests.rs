@@ -524,6 +524,12 @@ fn a_kept_quick_listen_stopped_keeps_its_sound_in_its_take_alone() {
         super::readouts::error_short(why),
         "This sound can't be saved…"
     );
+    // Nor is New Watch…'s form opened to be filled in for nothing: the
+    // refusal comes first (#2058).
+    app.message = None;
+    app.keep_in_new_watch();
+    assert!(app.watch_form.is_none() && !app.keep_after_form);
+    assert_eq!(app.message.as_ref().map(|m| m.0.as_str()), Some(why));
     let _ = std::fs::remove_dir_all(&base);
 }
 

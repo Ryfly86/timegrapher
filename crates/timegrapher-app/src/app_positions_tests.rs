@@ -667,6 +667,7 @@ fn a_ready_test_finds_the_picked_watchs_full_wind() {
     let full = guided::FullWind {
         wind_h: None,
         against: None,
+        listened: false,
         format: guided::RESULTS_FORMAT.to_string(),
         began_utc: String::new(),
         began_unix: guided::unix_now() - 31.0 * 3600.0,
@@ -757,6 +758,7 @@ fn a_ready_tests_full_wind_search_sees_the_time_and_the_takes() {
     let full = guided::FullWind {
         wind_h: None,
         against: None,
+        listened: false,
         format: guided::RESULTS_FORMAT.to_string(),
         began_utc: String::new(),
         began_unix: now - 11.5 * 3600.0,

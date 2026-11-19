@@ -35,6 +35,7 @@ fn halves() -> FullWind {
         ],
         wind_h: None,
         against: None,
+        listened: false,
     };
     FullWind {
         began_unix: full.began_unix + 24.1 * 3600.0,
@@ -48,6 +49,7 @@ fn halves() -> FullWind {
         ],
         wind_h: Some(24.1),
         against: Some(Box::new(full.clone())),
+        listened: false,
         ..full
     }
 }

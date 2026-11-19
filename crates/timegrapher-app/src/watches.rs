@@ -2895,6 +2895,7 @@ mod tests {
         let full = crate::guided::FullWind {
             wind_h: None,
             against: None,
+            listened: false,
             format: crate::guided::RESULTS_FORMAT.into(),
             began_utc: String::new(),
             began_unix: 0.0,

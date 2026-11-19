@@ -238,6 +238,7 @@ fn positions_take_hover_explains_the_actual_beat_error_mean() {
         let full = FullWind {
             wind_h: None,
             against: None,
+            listened: false,
             format: RESULTS_FORMAT.into(),
             began_utc: String::new(),
             began_unix: 0.0,

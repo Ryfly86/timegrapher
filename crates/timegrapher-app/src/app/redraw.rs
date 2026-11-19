@@ -40,6 +40,7 @@ impl TimegrapherApp {
             || self.take_keep.is_some()
             || self.take_add.is_some()
             || self.analysis_save.is_some()
+            || self.bg.test_read.is_some()
             || self.kept_writing()
             || self
                 .session

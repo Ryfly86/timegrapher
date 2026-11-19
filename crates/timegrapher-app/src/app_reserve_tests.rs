@@ -1319,7 +1319,7 @@ fn a_save_failing_after_the_recording_failed_promises_no_retry() {
     app.session.recorder = Some(r);
     app.session
         .recording_failed(0.0, "No space left on device (os error 28)".into());
-    app.save_failed_for_test(&base.join("take"), "No space left".into());
+    app.save_failed(Streamed::Yes, &base.join("take"), "No space left".into());
     assert!(app.stream_wait.is_none());
     let said = app.message.clone().unwrap().0;
     assert!(said.contains("recovery folder"), "{said}");
