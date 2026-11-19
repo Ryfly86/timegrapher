@@ -442,6 +442,20 @@ impl TimegrapherApp {
     /// three rows (title, figure, controls) and one height at every width;
     /// where the full controls don't fit, the compact form of every card.
     /// Returns what the cards asked for, and where their controls go.
+    /// Under 10 s of sound since Listen started or the latest break, no
+    /// figures yet: a word saying what they wait for, and its hover
+    /// (#2014, Hugh). A settle's own state wins.
+    fn listening(&self, r: Option<&LiveReading>) -> Option<(String, String)> {
+        r.and_then(|r| r.listening)
+            .filter(|_| heard(r) && self.settling_left().is_none())
+            .map(|since| {
+                (
+                    timegrapher_core::measure::LISTENING_TITLE.to_string(),
+                    timegrapher_core::measure::listening_text(since),
+                )
+            })
+    }
+
     pub(super) fn readouts(&self, ui: &mut egui::Ui) -> Readouts {
         let pal = theme::pal(ui);
         let r = self.card_reading();
@@ -455,29 +469,28 @@ impl TimegrapherApp {
         let cards = lay_cards(ui, (total, h), widths, gap, pal);
         // A reading whose beats scatter like noise is no watch: no figures
         // then, only a word saying so where the unit goes.
+        // A regular beat just heard after noise or silence is still being
+        // found: a wait, not that verdict (#2008).
         let heard = heard(r.as_ref());
-        let unheard_line = timegrapher_core::measure::NO_WATCH_TITLE.to_string();
-        let unheard_hover = format!(
-            "{}.\n\n{}",
-            r.as_ref().map(no_regular_beat).unwrap_or_default(),
-            *help::NO_REGULAR_BEAT
-        );
-        // Under 10 s of sound since Listen started or the latest break or
-        // mask, no figures yet: a word saying what they wait for (#2014,
-        // Hugh). A settle's own state wins.
-        let listening = r
-            .as_ref()
-            .and_then(|r| r.listening)
-            .filter(|_| heard && self.settling_left().is_none())
-            .map(|since| {
-                (
-                    timegrapher_core::measure::LISTENING_TITLE.to_string(),
-                    timegrapher_core::measure::listening_text(since),
-                )
-            });
+        let finding = r.as_ref().is_some_and(|r| r.finding_beat);
+        let (unheard_line, unheard_hover) = if finding {
+            (
+                timegrapher_core::measure::FINDING_TITLE.to_string(),
+                timegrapher_core::measure::finding_text(),
+            )
+        } else {
+            (
+                timegrapher_core::measure::NO_WATCH_TITLE.to_string(),
+                format!(
+                    "{}.\n\n{}",
+                    r.as_ref().map(no_regular_beat).unwrap_or_default(),
+                    *help::NO_REGULAR_BEAT
+                ),
+            )
+        };
         let unheard = (!heard)
             .then(|| (unheard_line.clone(), unheard_hover.clone()))
-            .or(listening);
+            .or_else(|| self.listening(r.as_ref()));
         let r = r.as_ref().filter(|_| heard);
         let caveats = self.shown_caveats(r);
         let caveats = &caveats[..];
@@ -1608,7 +1621,9 @@ impl TimegrapherApp {
         self.batch.is_none()
             && live.duration_s() > 6.0
             && !self.trend.iter().any(|p| p.heard)
-            && self.reading().is_none_or(|r| !r.watch_heard)
+            && self
+                .reading()
+                .is_none_or(|r| !r.watch_heard && !r.finding_beat)
             && !self.heard_while_settling(live)
     }
 

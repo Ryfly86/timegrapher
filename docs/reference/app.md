@@ -818,8 +818,8 @@ eight upright stops, 45° apart, from 9H at the top: 9H, 7H30, 6H, 4H30,
 **New Test** in its toolbar, or **Dynamic Poise Test** under New Take in
 the Watches view, sets it up at 9H and turns the Current Position card to
 10, where it stays until switched back; Start Test on the Listen card
-starts it. The toolbar has **View** first (**Plot** or **Dial**, kept
-between runs), then Settle and Each Position, the Positions Test's own,
+starts it. The toolbar has **View** first (**Plot**, **Dial**, or
+both lit to show them side by side, kept between runs), then Settle and Each Position, the Positions Test's own,
 then **Copy** and Export…, with **Info** at the right. The banner works as
 the Positions Test's, naming each stop by the hour at the top ("Done:
 Crown Down (1 of 8)", "Turn the watch 45°, to 7:30 Up (7H30) at the top",
@@ -839,7 +839,9 @@ with a line to its fastest hour, and the line over the picture is its
 not stated. The heavy spot is a facts box's one row on the picture,
 core's `heavy_spot_row` ("Heavy spot", "6H at the top, 180 ± 12°", or
 "Not stated"): on the plot in its top left, or its top right under the
-key where the wave or a point runs under the left; on the dial above the
+key where the wave or a point (its dot and a dot's width round it,
+#1963) runs under the left, else a bottom corner; where none is clear,
+the place over the fewest points; on the dial above the
 watch face, at the top left (#1537). Until then the space reads "Fitted
 once 5 positions are measured". **Info** shows `text`, the fit in full
 with its twice-round terms, the heavy spot or why it is not stated and
@@ -1422,7 +1424,8 @@ the strip runs down):
   narrower, in dark text on the teal; the position's name starts after
   it. Hovering the band always says "Settling" and how long. Changing
   **Settle** on the Positions Test pane redraws every band and the
-  table. A change painted with the Position Brush starts at the fade. The plot behind the beats takes the same at a sixth of
+  table, except those in a guided test already run: a test's stretches
+  stay as it read them, and the new Settle is for the next test. A change painted with the Position Brush starts at the fade. The plot behind the beats takes the same at a sixth of
   the strength.
 - Masked stretches are grey hatching over it, named "Masked".
 - Each name sits on a small plate of the card's colour, in the text
@@ -2174,13 +2177,17 @@ anything is in them or not. A missing figure is a "—", with what the
 reading waits on in the unit's place, in short words ("Settling, 20 s";
 "Waiting for Beats"; "Before the Move"), the full sentence in the hover.
 With no regular beat, the reading cards say "No Regular Beat" there, with
-the full sentence and the timing scatter in the hover. With under 10 s of
+the full sentence and the timing scatter in the hover. A regular beat
+heard after noise or silence, at launch or a New Session, says "Finding
+the Beat" instead, never that verdict, until the last 20 s
+(`live::FINDING_S`) hold the watch alone (#2008). With under 10 s of
 sound since Listen started or the latest break (a masked stretch's
 seconds don't count, but a mask doesn't start the count again), and no
 watch yet shown by the beats' sound, they say "Listening": the timing
 can't tell a watch from stand noise yet, so no figure is shown (#2014). A
 settle's own words win. A figure too wide for its card is drawn smaller.
-So the cards, and every pane under them, never change height with the readings. No pane is squeezed below 120 points, so the Paper
+So the cards, and every pane under them,
+never change height with the readings. No pane is squeezed below 120 points, so the Paper
 Strip keeps room to read on a short window.
 
 Each saved recording is a folder named after the start time, then the

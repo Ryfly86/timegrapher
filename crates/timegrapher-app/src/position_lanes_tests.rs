@@ -90,7 +90,7 @@ fn drawn(
                     20.0,
                     true,
                     None,
-                    ("Current Position", false, [true; 3]),
+                    ("Current Position", false, [true; 3], false),
                 );
             });
         }));
