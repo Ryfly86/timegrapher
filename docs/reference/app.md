@@ -2293,7 +2293,10 @@ This is different from an input disconnect alone, after which the take can
 still be saved. A Power Reserve Test whose sound input fails (unplugged, or no
 sound arriving) ends there as Stop would end it, its take kept with its
 results: "Power reserve at least … The sound input failed while the watch still
-ran" (#1882).
+ran" (#1882). An input that only stalls (the computer busy, a USB hiccup) is
+waited out for as long as a watch is given without a beat, 10 min, with the
+status line saying so: the sound that comes back is a break, as after a
+sleep, so one stall never ends a run of days (#2004).
 
 Copy the folder shown in the warning to a location outside the app's
 folder for unsaved sound before attempting manual recovery or cleanup; do
