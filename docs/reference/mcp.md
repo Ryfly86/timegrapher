@@ -450,7 +450,7 @@ positions to a plain answer, with the watch you name added at the end.
 
 ## Using the Watchmaker Skill at the Bench
 
-The watchmaker skill provides four ways to work with the assistant during testing and diagnosis:
+The watchmaker skill provides an iterative, hypothesis-driven way to test and diagnose a watch:
 
 ### 1. Start with a Recording or a Symptom (Triage & Hypotheses)
 
@@ -462,38 +462,33 @@ Record a take in the Timegrapher app (or describe a problem) and ask naturally:
 
 What the agent will do:
 
-1. Pull the latest take, verify the calibre and lift angle, and rule out setup or handling issues first (clipping, missed beats from a loose clamp, or post-wind knocking).
-2. Give you ranked hypotheses backed by the numbers (e.g., symmetric vs. one-sided Tick/Tock drop, wheel periods, or isochronism slope).
-3. Propose the quickest case-closed test first (usually a 1- to 5-minute check) and wait for you to run it.
+1. Pull the latest take, verify the calibre and lift angle, and rule out setup or handling issues first (clipping, missed beats from a loose clamp, or temporary settling torque after winding).
+2. Form ranked hypotheses from what the program measured (e.g., symmetric vs. one-sided amplitude drop, periodogram wheel matches, or positional variations).
+3. Propose the cheapest case-closed change at the bench first (usually a 1- to 5-minute check) to confirm or eliminate candidate causes.
 
-### 2. Run Interactive Differential Tests (Step-by-Step at the Bench)
+### 2. Run Differential Tests at the Bench
 
-As you run each suggested test in the Timegrapher app, reply "done" or "ran it for 3 minutes". Depending on what it finds, the agent will walk you through the right test from [bench-hypothesis-testing.md](../../skills/watchmaker/references/bench-hypothesis-testing.md):
+As you try each suggested change in the Timegrapher app, reply with what you did (for example, "waited 15 minutes", "re-clamped the watch", "turned chronograph on"). Guided by [bench-hypothesis-testing.md](../../skills/watchmaker/references/bench-hypothesis-testing.md), the agent judges which case-closed test fits the symptoms:
 
-- **Test A (Settling):** Wait 10–15 min after a full wind to rule out bridle overbanking.
-- **Test B (Re-clamp):** Re-seat a doubtful position with <95% beats found.
-- **Test C (Positional pairs):** Compare DU vs. DD and Horizontal vs. Verticals (pivot friction vs. poise).
-- **Test D (Complication load):** Compare Chronograph ON vs. OFF at full wind and 12–24 h unwound.
-- **Test E (Hand phase-shift):** Advance the hour/minute hands by 4–6 hours and re-test to separate a hand-to-hand kiss from a dial/crystal graze or wheel-tooth burr.
-- **Test F / G / H:** Date-change midnight window, 10-turn wind-up progression from dead stop, or an 8–12 h overnight wind-down run (`caffeinate -ims -t 46800`).
+- **Settling check:** Wait 10–15 min after winding to rule out temporary mainspring bridle torque peaks.
+- **Clamp & acoustic contact:** Re-seat the watch when a `beats_missing` caveat or poor signal appears in only one position.
+- **Targeted positional pairs:** Compare DU vs. DD (endstones and endshake) and horizontal vs. verticals (`dvh_amplitude` for pivot friction, rate divergence for poise).
+- **Complication load:** Compare chronograph ON vs. OFF to separate normal friction from excessive coupling drag.
+- **Hand phase-shift:** Advance the hands 4–6 hours to separate hand-to-hand rubbing from dial/crystal contact or a wheel defect.
+- **Date-change & wind progression:** Check date wheel engagement across midnight, or wind incrementally from stop to test bridle slip.
 
-While a long run is recording, ask "status and isochronism?" or "checkpoint" anytime for a live readout without stopping the take.
+While an extended run is recording, ask "status and isochronism?" or "checkpoint" anytime for a live readout without stopping the take.
 
-### 3. Generate the 4-Page Report & "Once the Case Is Opened" Checklist
+### 3. Open-Case Inspection Guidance
 
-When testing is done and you want a bench sheet for yourself or a watchmaker, ask:
+When testing has confirmed an internal fault and the watch needs service, ask:
 
-- "Generate the diagnostic report for [Watch Name]."
-- "Give me the 'Once the Case Is Opened' checklist for this watch."
+- "What should a watchmaker inspect once the case is open?"
+- "What does this rate and amplitude drop mean for service?"
 
-What you get:
+What the agent will do:
 
-- A 4-page printable HTML report (open in any browser → Print → Save as PDF) plotted from the real time-series, CUSUM, periodogram, ACF, ADEV, and isochronism data using [diagnostic-report-template.md](../../skills/watchmaker/references/diagnostic-report-template.md) and `generate_bench_report.py`.
-- Page 4 translates your confirmed findings into the 4-Stage Open-Case Watchmaker Sequence:
-  1. **Stage 1 — Dial & Hands** (Before Uncasing)
-  2. **Stage 2 — Movement Running in Holder** (Coupling depth, regulator pins, endshakes)
-  3. **Stage 3 — Power Let-Down & Free-Spin Train Check** (Balance & fork removed)
-  4. **Stage 4 — Disassembly & Microscope Inspection**
+The agent translates the measured figures and caveats directly into specific mechanical inspection points for the watchmaker—such as verifying hand clearances before uncasing, inspecting hairspring centering between regulator pins, checking chronograph coupling depth, or letting down power to observe going-train spin-down at a flagged wheel (see [diagnosis.md](../../skills/watchmaker/references/diagnosis.md#once-the-case-is-open-what-to-inspect)).
 
 ### 4. Other Built-In Modes
 

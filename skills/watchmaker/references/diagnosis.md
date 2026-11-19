@@ -230,13 +230,10 @@ hypothesis loop in
   hands/complications → barrel/gear train → escapement → oscillator).
 - Propose the **quickest case-closed differential test first** (e.g., 10–15 min
   post-wind settle, firm re-clamp, targeted positional pair, chronograph ON vs.
-  OFF load check, or hand-repositioning phase-shift test) before asking for an
-  8–12 h overnight run.
-- Once confirmed, translate the findings into the **4-stage "Once the Case Is
-  Opened" watchmaker inspection checklist** (Stage 1: Dial & Hands → Stage 2:
-  Movement Running in Holder → Stage 3: Power Let-Down & Free-Spin → Stage 4:
-  Disassembly & Microscope) and, when requested, generate the 4-page technical
-  report via [diagnostic-report-template.md](diagnostic-report-template.md).
+  OFF load check, or hand-repositioning phase-shift test) to tell competing
+  causes apart before asking for an overnight run.
+- When an internal mechanical cause is confirmed, refer to the open-case
+  inspection points below.
 
 Then:
 
@@ -245,4 +242,41 @@ Then:
 - Consistent across re-tests: real. Use the tables above to name the
   likely area, and [when-to-see-a-watchmaker.md](when-to-see-a-watchmaker.md)
   for the verdict.
+
+## Once the case is open: what to inspect
+
+When case-closed bench testing has confirmed an internal fault, tie the inspection
+directly to what was measured:
+
+- **Dial and hands:** If a periodic 60 s dip or hand-position anomaly was
+  found, inspect hand clearances across 12 hours under a loupe before uncasing
+  the movement. Check clearance between seconds hand, minute hand, hour hand,
+  applied dial markers, and the crystal underside. Check dial-washer height
+  and cannon-pinion tension.
+- **Hairspring and regulator pins:** If a steep isochronism slope was measured
+  on an index-regulated calibre, inspect the hairspring between the regulator
+  pins: verify that the outer coil breathes symmetrically without resting
+  biased against one pin, and check hairspring flatness and concentricity. When
+  beat error is already low and rate is stable across positions, preserve the
+  stud and collet geometry and regulate only via timing screws or index.
+- **Chronograph mechanism:** If chronograph engagement produced a heavy
+  amplitude drop or stalling, observe coupling engagement under the microscope:
+  check oscillating pinion or coupling wheel meshing depth, and verify that the
+  brake lever and reset hammers clear the central seconds and minute counter
+  heart cams throughout 360° of rotation.
+- **Endshakes and balance pivots:** If the vertical-to-horizontal amplitude drop
+  (`dvh_amplitude`) is large or DU and DD diverge, check balance staff and
+  escapement endshakes in both horizontal and vertical attitudes. Inspect balance
+  pivots for wear, burrs, or grooving, and check cap jewel lubrication and
+  epilame coating.
+- **Going train spin-down:** If a periodic rate or amplitude cycle was detected,
+  safely let down power, remove the balance and pallet fork, and observe the
+  going train spinning down freely under light torque. Watch the specific wheel
+  indicated by the periodogram (fourth, third, or escape wheel) for radial
+  runout, axial wobble, bent pivots, or damaged teeth. Check any sweep-seconds
+  friction spring for dry contact or excessive tension.
+- **Mainspring barrel and bridle:** If persistent post-wind knocking or
+  irregular torque steps were seen, open the barrel drum, inspect the barrel
+  wall and bridle for scoring or dried lubricant, and re-grease with the
+  appropriate braking grease so the bridle slips smoothly at full wind.
 
