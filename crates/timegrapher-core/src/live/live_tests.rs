@@ -1893,12 +1893,14 @@ fn a_good_watch_after_the_stand_noise_is_found_not_judged() {
     for second in noise.chunks(48_000) {
         feed(&mut a, second);
         let r = a.reading(DEFAULT_AVERAGE_S);
+        assert!(!(r.finding_beat && r.listening.is_some()), "{r:?}");
         assert!(!r.finding_beat, "noise at {}: {r:?}", a.duration_s());
     }
     let mut found = Vec::new();
     for second in watch.samples.chunks(48_000) {
         feed(&mut a, second);
         let r = a.reading(DEFAULT_AVERAGE_S);
+        assert!(!(r.finding_beat && r.listening.is_some()), "{r:?}");
         let after = a.duration_s() - noise_s as f64;
         if r.beats_used > 0 {
             assert!(r.watch_heard || r.finding_beat, "{after} s in: {r:?}");

@@ -437,11 +437,6 @@ fn big_stretch(average_s: f64, floored: bool) -> String {
 }
 
 impl TimegrapherApp {
-    /// The reading cards across the top: Current Position, Listen, then
-    /// Rate, Amplitude, Beat Error and Beat Rate. Every card is the same
-    /// three rows (title, figure, controls) and one height at every width;
-    /// where the full controls don't fit, the compact form of every card.
-    /// Returns what the cards asked for, and where their controls go.
     /// Under 10 s of sound since Listen started or the latest break, no
     /// figures yet: a word saying what they wait for, and its hover
     /// (#2014, Hugh). A settle's own state wins.
@@ -456,6 +451,11 @@ impl TimegrapherApp {
             })
     }
 
+    /// The reading cards across the top: Current Position, Listen, then
+    /// Rate, Amplitude, Beat Error and Beat Rate. Every card is the same
+    /// three rows (title, figure, controls) and one height at every width;
+    /// where the full controls don't fit, the compact form of every card.
+    /// Returns what the cards asked for, and where their controls go.
     pub(super) fn readouts(&self, ui: &mut egui::Ui) -> Readouts {
         let pal = theme::pal(ui);
         let r = self.card_reading();
