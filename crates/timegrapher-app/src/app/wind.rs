@@ -28,12 +28,6 @@ pub(super) struct Wind {
     shown: Option<(PathBuf, Option<f64>)>,
     /// The hours typed in Full Wind [ ] h ago.
     ago: String,
-    /// The full wind before a test's Start set it (inner none where not
-    /// given), until the next test starts or a stop lets the wind go: put
-    /// back if the test is thrown away, which leaves no facts behind
-    /// (#2001). Every test's Start sets or clears it, and only a test is
-    /// ever thrown away.
-    before_test: Option<Option<f64>>,
 }
 
 /// A choice in the Wind part of a Set menu. Once a take has begun, its
@@ -105,35 +99,21 @@ impl TimegrapherApp {
     /// began gives none (Norm on #1935: never moved earlier to fill one).
     pub(super) fn started_from_full_wind(&mut self, fresh: bool) {
         if START_SETS_FULL_WIND {
-            self.wind.before_test = Some(self.wound_unix());
             let now = guided::unix_now();
             let began = self.recording_began_unix().filter(|_| fresh);
             self.set_wound(Some(began.unwrap_or(now)));
         }
     }
 
-    /// A test that doesn't set the wind has started: a thrown-away test
-    /// before it is past putting the wind back.
-    pub(super) fn started_without_full_wind(&mut self) {
-        self.wind.before_test = None;
-    }
-
     /// A Power Reserve Test found the watch stopped: it is let down, so
     /// its full wind no longer holds, and the field and the takes after
     /// say Not given. The test's own take keeps its wind from its start
     /// ([`reserve::Test::wind_h`]); thrown away, the stop still stands
-    /// (#2001).
+    /// (#2001). A test thrown away otherwise keeps the wind its Start
+    /// gave: the watch was wound then, whatever becomes of its sound
+    /// (Hugh on #2031).
     pub(super) fn wind_let_down(&mut self) {
-        self.wind.before_test = None;
         self.set_wound(None);
-    }
-
-    /// A test thrown away: the wind its Start set goes back to what it
-    /// was before (#2001). Nothing where its Start set none.
-    pub(super) fn test_thrown_away(&mut self) {
-        if let Some(before) = self.wind.before_test.take() {
-            self.set_wound(before);
-        }
     }
 
     /// When the take's recording began, Unix seconds; none without one.
@@ -268,9 +248,6 @@ impl TimegrapherApp {
         }
         let now = guided::unix_now();
         let began = self.began_unix().unwrap_or(now);
-        // A wind given by hand is newer than any a test's Start overwrote:
-        // a test thrown away after it puts nothing back (Vernon on #2031).
-        self.wind.before_test = None;
         self.set_wound(match pick {
             WindPick::Now => Some(now),
             WindPick::HoursAgo(h) => Some(now - h.max(0.0) * 3600.0),

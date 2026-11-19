@@ -74,8 +74,6 @@ impl TimegrapherApp {
         // The Positions Test's full-wind step begins at full wind.
         if kind == guided::Kind::Positions && half.is_none() {
             self.started_from_full_wind(fresh);
-        } else {
-            self.started_without_full_wind();
         }
         let test = match (kind, half) {
             (guided::Kind::Poise, _) => guided::Test::poise(),
