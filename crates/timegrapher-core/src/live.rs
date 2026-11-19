@@ -1559,7 +1559,7 @@ impl LiveAnalyzer {
         end_s: f64,
         listened_s: f64,
     ) -> Verdict {
-        let heard_since = self.heard_cuts().stretch_from(end_s).max(0.0);
+        let heard_since = self.heard_cuts().look_back_from(end_s).max(0.0);
         self.verdict_since(holes, bph, (window_from, end_s), listened_s, heard_since)
     }
 
@@ -1575,7 +1575,8 @@ impl LiveAnalyzer {
         // Beats scattered like noise are no regular beat: no readings, as
         // `analyze` gives none. Under 10 s of sound it is not assessed.
         // The scatter is a saved reading's, from the 10 s windows over all
-        // the sound heard since the latest break or mask, not the latest
+        // the sound heard since the latest break (a mask is skipped by the
+        // windows, not a cut, #2029), not the latest
         // run's alone: a short regular run at the end of noise is no watch
         // (#679, #680). A jump in the beats is no break in the sound, so
         // the windows skip it but still look back past it. The sound heard
@@ -1617,6 +1618,7 @@ impl LiveAnalyzer {
                     .items()
                     .iter()
                     .filter(|s| s.0 >= first.time && s.0 <= last.time)
+                    .filter(|s| !crate::session::in_mask(&self.masked, s.0))
                     .map(|s| (s.0, s.1, s.2.as_slice()))
                     .collect();
                 measure::stretch_beat_sound(
@@ -1985,7 +1987,7 @@ impl LiveAnalyzer {
 /// skip a jump, so until one fits after it there may be none, and none is
 /// no verdict of noise (#1170). Past that, having none is.
 fn judged_s(fitted: bool, end_s: f64, window_from: f64, heard_since: f64, holes: &Cuts) -> f64 {
-    let cut_since = holes.stretch_from(end_s).max(heard_since);
+    let cut_since = holes.look_back_from(end_s).max(heard_since);
     if !fitted && end_s - cut_since < SCATTER_LOOKBACK_S {
         0.0
     } else {

@@ -253,6 +253,20 @@ impl<'a> Cuts<'a> {
             .fold(f64::NEG_INFINITY, f64::max)
     }
 
+    /// Where the watch verdict's scatter looks back to from `end` (true
+    /// time): the end of the latest hole begun by `end` that is not a
+    /// mask, or `end` itself inside one; minus infinity with none. A mask
+    /// is a hole the windows skip, not a cut in the sound: the watch runs
+    /// on through it (Norm on #2029). Live and saved readings both look
+    /// back from it.
+    pub fn look_back_from(&self, end: f64) -> f64 {
+        self.holes
+            .iter()
+            .filter(|h| h.kind != HoleKind::Mask && h.start_s <= end)
+            .map(|h| h.end_s.min(end))
+            .fold(f64::NEG_INFINITY, f64::max)
+    }
+
     /// Where the sound heard by `end` (true time) is counted from: the
     /// start (0), or the end of the latest hole before it that is not a
     /// mask. A mask removes bad sound but does not move the watch, so it
