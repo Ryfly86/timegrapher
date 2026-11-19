@@ -734,9 +734,10 @@ impl TimegrapherApp {
                 Ok(()) => {
                     // A take on show that is deleted leaves the window
                     // empty, as at the start, rather than showing sound
-                    // that is gone.
+                    // that is gone: set for the next take of the watch
+                    // picked, as Listen sets it (#1981).
                     if !self.running() && Path::new(&self.opened_path).starts_with(&take) {
-                        self.new_session();
+                        self.take_setup();
                     }
                     self.info_msg(format!("Deleted \"{}\".", file_name(&take)))
                 }
@@ -1373,7 +1374,9 @@ impl TimegrapherApp {
                 } else if f.new && std::mem::take(&mut self.new_watch_on_mic) {
                     self.line_pick(Some(w.id.clone()), false);
                 } else if f.new {
-                    self.pick_watch(&w.id);
+                    // As a click on it in the list picks it, while
+                    // listening too (#1981).
+                    self.list_pick(w.id.clone());
                 } else if self.watch_open.as_ref() == Some(&w.id)
                     && !self.running()
                     && self.live.is_none()

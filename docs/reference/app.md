@@ -306,8 +306,8 @@ under it its calibre, beat rate, lift angle and added fields, with
   first." at its right; that row is always there, so nothing moves.
 - **Takes**, with the count, and **Open** and **…** at the right of its
   title, acting on the take picked; then the takes as a table, newest
-  first: Started, Position (such as DU, or DU, CU, or All 6; Power Reserve or
-  Positions Test for those tests, a test's positions in the row's hover), Length, Rate (s/d), Amplitude (°), Beat Error (ms, its size) and
+  first: Started, Position (such as DU, or DU, CU, or All 6; Power Reserve,
+  Positions Test or Dynamic Poise Test for those tests, a test's positions in the row's hover), Length, Rate (s/d), Amplitude (°), Beat Error (ms, its size) and
   Size (MB), each unit on its own line under its title. The figures are the take's own reading, as `timegrapher
   session` reads its last position on the take's clock, the same one
   `timegrapher watches` gives: worked out from the take's sound the first
@@ -317,7 +317,10 @@ under it its calibre, beat rate, lift angle and added fields, with
   figures its table shows ("Mean of the six positions" in the row's hover),
   and a Power Reserve Test's shows its run time as its Length and a dim
   "—" for the figures, which are hour by hour in the take ("open it", the
-  hover says). Rows show **Analysis Only**, **Incomplete**
+  hover says). A Dynamic Poise Test's row shows a dim "—" too: its
+  figures are stop by stop in the take, and its hover names the stops as
+  its pane does, 9H to 10H30 (#2002). Its take is known by
+  `poise-test.json` beside its sound. Rows show **Analysis Only**, **Incomplete**
   or **On Show** after the date when it is one. Nothing is inserted
   between rows. Clicking a row picks it; double-clicking opens it as
   Open does, and the take on show is not read again. Open is greyed out
@@ -367,7 +370,8 @@ Picking a watch, refused while listening, sets the take's name, calibre,
 lift angle and beat rate from it; changing them on the readings' cards
 changes that take, not the watch. With a watch picked, **Stop** saves
 the take into it, as **Save…** does, with no question, in a folder named by when the take
-started (in this computer's time) and its position when it used only one;
+started (in this computer's time), never renamed after, so not by its
+positions, which it may change as it goes (#1980);
 Save Again then saves into the same take, and Save As… still asks.
 The Watches view reads the folder again each time the window comes back
 to the front, so a take another program added meanwhile
@@ -1790,7 +1794,8 @@ details (`watch.toml`), its `photos/` and its `takes/`, and `Unsorted/`,
 whose `takes/` holds the Quick Listen takes kept with Save… in the File
 menu until each is filed;
 each take a standard take folder named by when it started (`2026-10-20
-14.32 Dial Up`, with the position in words when the take used only one).
+14.32`; a recording added as a take has its one position in words after
+it, `2026-10-20 14.32 Dial Up`).
 `timegrapher watches list` and `show` read it from the command line,
 without changing it ([agent-interface.md](agent-interface.md#watches)),
 and `timegrapher record --watch NAME` records a test into a watch's
@@ -2184,6 +2189,7 @@ when. It holds:
 | `clock.csv` | System time against frames captured, every 10 s, and on both sides of each break; frames run on across a break, with no line made up for the gap |
 | `session.json` | Watch, position, lift angle, beat rate, device, start and end, position changes, the readings at the end, and (only once the take has a break, such as the computer sleeping while it listened) `breaks`: one entry per break with `frame` (frames in the take before it), `audio_s`, `segment` (its first file), `utc` (host time of its first frame), `gap_s` (host time missing, from the clock log either side) and `device` (the input after it) |
 | `session.toml` | The session file `timegrapher session` reads: watch, calibre (with the wheels of a custom one), lift angle, beat rate, and one `[[recording]]` per stretch in one position with its `start_s` and `end_s` (for a take saved during a Positions Test, the test's own measured stretches, after each settling and for its measuring time, so `timegrapher session` reads the seconds its table did, with `wind_h` in the 24 hour half) |
+| `poise-test.json` | Only for a Dynamic Poise Test's take: marks it as one, so the Watches list names the test (format `timegrapher.poise-test/1`, and the test's name; no figures, which are the take's own stops) |
 | `positions-test.json` | Only for a finished Positions Test: run just after winding, its results, to load for the test 24 hours later; run 24 hours after, its results with the full-wind ones it was set against (the format is under Full wind against 24 hours) |
 
 At start-up the app keeps as FLAC, in the background, any hour of a take
@@ -2224,8 +2230,8 @@ them, then for the Tick Tock profiles of each 2 seconds, the signal
 figure, the clock error the USB lines show and each position's beat
 shape. It then writes a new folder, named as a saved take with
 `_analysis` on the end, holding `session.toml` (with `audio = false`),
-`session.json`, `clock.csv`, `positions-test.json` when there is one, and
-an `analysis/` folder, and no sound; the message says how much space it
+`session.json`, `clock.csv`, `positions-test.json` or `poise-test.json`
+when there is one, and an `analysis/` folder, and no sound; the message says how much space it
 takes. A folder already there is never written over. While it works, a
 progress bar in the status bar shows how far it has read, with Cancel,
 which leaves nothing written; listening, New Session and opening a

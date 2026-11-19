@@ -286,8 +286,10 @@ fn a_painted_take_in_a_watch_shows_what_was_saved() {
         _ => panic!("no library"),
     };
     assert_eq!(positions(&app), ["DU"]);
+    // Painted past the settle, so the stretch reads and is one of the
+    // take's positions (Norm on #1980: one no longer reads nothing).
     app.brush = Some(Position::CrownUp);
-    app.paint_position(10.04, 40.0);
+    app.paint_position(10.04, 70.0);
     app.save_marks();
     assert!(!app.marks_unsaved(), "{:?}", app.message);
     assert_eq!(positions(&app), ["DU", "CU"]);

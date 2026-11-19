@@ -262,14 +262,14 @@
      "defaults": 0
     },
     "crates/timegrapher-app/src/watches.rs": {
-     "bounds": 6,
+     "bounds": 5,
      "comparisons": 4,
      "constants": 1,
      "defaults": 0
     }
    },
    "total": {
-    "bounds": 101,
+    "bounds": 100,
     "comparisons": 91,
     "constants": 62,
     "defaults": 2

@@ -128,8 +128,10 @@ anything else, a take moved or renamed included, reads the sound again.
 
 ## What Is in a Take
 
-Each take is a folder, named by when it started and its position when it
-used only one (`2026-10-20 14.32 Dial Up`):
+Each take is a folder, named by when it started (`2026-10-20 14.32`). Its
+positions are in its row in Watches, not its name: a take can change
+position as it goes, and its folder is never renamed. A recording added as
+a take has its one position in its name (`2026-10-20 14.32 Dial Up`).
 
 | File | What it holds |
 | --- | --- |
@@ -137,6 +139,7 @@ used only one (`2026-10-20 14.32 Dial Up`):
 | `clock.csv` | The computer's time against the sound card's samples, every 10 s, for the true clock (M3). |
 | `session.json` | The watch, position, lift angle, beat rate, input, start and end, position changes, and any break, such as the computer sleeping. |
 | `session.toml` | What `timegrapher session` reads: the watch, calibre, lift angle, beat rate, and each stretch in one position with its start and end. |
+| `poise-test.json` | Only after a Dynamic Poise Test: marks the take as one, so the Watches list names the test. |
 | `positions-test.json` | Only after a Positions Test: its results, for the test 24 hours later, or, for that test, its results with the full-wind ones it was set against (chapter 20). |
 
 At start-up the app keeps as FLAC any hour of a saved take still in WAV,

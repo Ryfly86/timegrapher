@@ -24,6 +24,7 @@ use timegrapher_core::steadiness::SeriesKind;
 use timegrapher_core::stream::BeatLog;
 use timegrapher_core::{complication, poise, text_report};
 
+use timegrapher_core::library::TakeTest;
 /// The file a finished test just after winding is saved to, from the
 /// pane or beside a saved take, for the same six positions 24
 /// hours later.
@@ -236,8 +237,8 @@ impl Kind {
 
     pub fn name(self) -> &'static str {
         match self {
-            Kind::Positions => "Positions Test",
-            Kind::Poise => "Dynamic Poise Test",
+            Kind::Positions => TakeTest::Positions.name(),
+            Kind::Poise => TakeTest::Poise.name(),
             Kind::Complication => "Complication Test",
         }
     }

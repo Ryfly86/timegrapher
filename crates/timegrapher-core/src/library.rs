@@ -70,6 +70,13 @@ pub const UNSORTED: &str = "Unsorted";
 /// The file a Positions Test keeps its results in, beside its take's
 /// sound: a take with it is a Positions Test's ([`is_positions_test`]).
 pub const POSITIONS_TEST_FILE: &str = "positions-test.json";
+/// The file that marks a take as a Dynamic Poise Test's, beside its
+/// sound ([`is_poise_test`]). It names the test and holds no figures: the
+/// stops are the take's own positions (#2002).
+pub const POISE_TEST_FILE: &str = "poise-test.json";
+/// What [`POISE_TEST_FILE`] holds: its format, and the test it marks.
+pub const POISE_TEST_TEXT: &str =
+    "{\n  \"format\": \"timegrapher.poise-test/1\",\n  \"kind\": \"Dynamic Poise Test\"\n}\n";
 /// The library's folder name in the user's home folder, by default.
 pub const DEFAULT_NAME: &str = "Timegrapher Data";
 
@@ -548,36 +555,36 @@ pub struct Take {
 impl Take {
     /// What the take measured and is, as the facts the app and
     /// `timegrapher watches` list for it: its kind when it is a Positions
-    /// Test's (`positions_test`, from [`is_positions_test`]), a Power
+    /// Test's or a Dynamic Poise Test's (`test`, from [`take_test`]), a Power
     /// Reserve run, its positions, its length, the readings it ended on
     /// (beat error as its size; none for a test, whose last window doesn't
     /// stand for the test: its figures are in its table, or hour by hour)
     /// and its marks. Each surface joins them as it lays them out.
-    pub fn facts(&self, positions_test: bool) -> Vec<String> {
+    pub fn facts(&self, test: Option<TakeTest>) -> Vec<String> {
         let figures = self
             .at_end
             .as_ref()
             .map(|a| (a.rate(), a.amplitude_deg, a.beat_error_ms));
-        self.facts_with(positions_test, figures)
+        self.facts_with(test, figures)
     }
 
     /// [`Take::facts`] with the figures of the take's own reading
     /// ([`reading`]) in place of the ones the app showed when it saved
     /// it: none when it has no reading, nor for a test, as there.
-    pub fn facts_read(&self, positions_test: bool, reading: Option<&Reading>) -> Vec<String> {
+    pub fn facts_read(&self, test: Option<TakeTest>, reading: Option<&Reading>) -> Vec<String> {
         let figures = reading.map(|r| (r.rate_s_per_day, r.amplitude_deg, r.beat_error_ms));
-        self.facts_with(positions_test, figures)
+        self.facts_with(test, figures)
     }
 
     /// The facts with `figures`: rate, amplitude and signed beat error.
     fn facts_with(
         &self,
-        positions_test: bool,
+        test: Option<TakeTest>,
         figures: Option<(Option<f64>, Option<f64>, Option<f64>)>,
     ) -> Vec<String> {
         let mut parts: Vec<String> = Vec::new();
-        if positions_test {
-            parts.push("Positions Test".into());
+        if let Some(k) = test {
+            parts.push(k.name().into());
         }
         if let Some(r) = &self.power_reserve {
             parts.push(format!(
@@ -598,7 +605,13 @@ impl Take {
         let names: Vec<String> = self
             .positions
             .iter()
-            .map(|p| Position::parse(p).map_or_else(|| p.clone(), |x| x.name().to_string()))
+            .map(|p| match Position::parse(p) {
+                // The stops as the Dynamic Poise pane names them: the hour
+                // at the top (#2002).
+                Some(x) if test == Some(TakeTest::Poise) => x.code().to_string(),
+                Some(x) => x.name().to_string(),
+                None => p.clone(),
+            })
             .collect();
         if !names.is_empty() {
             parts.push(names.join(", "));
@@ -606,7 +619,7 @@ impl Take {
         if let Some(d) = self.duration_s.filter(|_| self.power_reserve.is_none()) {
             parts.push(length_text(d));
         }
-        let test = positions_test || self.power_reserve.is_some();
+        let test = test.is_some() || self.power_reserve.is_some();
         if let Some((rate, amplitude, beat_error)) = figures.filter(|_| !test) {
             parts.extend(figure_words(rate, amplitude, beat_error));
         }
@@ -1033,6 +1046,45 @@ fn path_stamp(p: &Path) -> Option<Stamp> {
 /// keeps the test's results ([`POSITIONS_TEST_FILE`]) beside its sound.
 pub fn is_positions_test(take_dir: &Path) -> bool {
     take_dir.join(POSITIONS_TEST_FILE).is_file()
+}
+
+/// The guided test a take was made by, known by the file it keeps beside
+/// its sound ([`take_test`]): its row and its facts name the test, never
+/// one window of it as if it stood for the test.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TakeTest {
+    Positions,
+    /// The eight upright stops (#2002).
+    Poise,
+}
+
+impl TakeTest {
+    pub fn name(self) -> &'static str {
+        match self {
+            TakeTest::Positions => "Positions Test",
+            TakeTest::Poise => "Dynamic Poise Test",
+        }
+    }
+}
+
+/// The guided test the take in the folder `take_dir` was made by, if any:
+/// a Positions Test's ([`is_positions_test`]) or a Dynamic Poise Test's
+/// ([`is_poise_test`]).
+pub fn take_test(take_dir: &Path) -> Option<TakeTest> {
+    if is_positions_test(take_dir) {
+        Some(TakeTest::Positions)
+    } else if is_poise_test(take_dir) {
+        Some(TakeTest::Poise)
+    } else {
+        None
+    }
+}
+
+/// Whether the take in the folder `take_dir` is a Dynamic Poise Test's: it
+/// keeps [`POISE_TEST_FILE`] beside its sound. Any format of it marks one,
+/// a newer version's too, as the file only names the test.
+pub fn is_poise_test(take_dir: &Path) -> bool {
+    take_dir.join(POISE_TEST_FILE).is_file()
 }
 
 /// A length of time as the app writes it: `1:30:00`, or `4:05` under an
@@ -2207,6 +2259,32 @@ fn usb_ppm(files: &[PathBuf]) -> Option<f64> {
 /// and `timegrapher record` name takes by it, and [`named_start`] reads it.
 pub const TAKE_NAME_TIME: &str = "%Y-%m-%d %H.%M";
 
+/// A date and time as every surface shows it, `strftime`'s way: ISO,
+/// `2026-11-18 19:56` (Hugh on #1981). A take folder's name keeps
+/// [`TAKE_NAME_TIME`].
+pub const DATE_TIME_SHOWN: &str = "%Y-%m-%d %H:%M";
+
+/// A date alone as every surface shows it, where only the day matters:
+/// `2026-11-18`, the first part of [`DATE_TIME_SHOWN`].
+pub const DATE_SHOWN: &str = "%Y-%m-%d";
+
+/// The time `utc` (RFC 3339) names, in this computer's time zone, as
+/// [`DATE_TIME_SHOWN`]; None for one that isn't RFC 3339.
+pub fn date_time_text(utc: &str) -> Option<String> {
+    local_shown(utc, DATE_TIME_SHOWN)
+}
+
+/// The day `utc` (RFC 3339) falls on, in this computer's time zone, as
+/// [`DATE_SHOWN`].
+pub fn date_text(utc: &str) -> Option<String> {
+    local_shown(utc, DATE_SHOWN)
+}
+
+fn local_shown(utc: &str, shown: &str) -> Option<String> {
+    let t = chrono::DateTime::parse_from_rfc3339(utc).ok()?;
+    Some(t.with_timezone(&chrono::Local).format(shown).to_string())
+}
+
 /// When a take folder named by [`TAKE_NAME_TIME`] says it started, as
 /// `2026-10-22T09:10` (its recording computer's time, no zone): None for a
 /// name that doesn't start so, or names no real minute.
@@ -2314,7 +2392,11 @@ fn read_take(dir: &Path, bytes: u64) -> Result<Take, String> {
         None => false,
     };
     let mut positions: Vec<String> = Vec::new();
-    for r in manifest.iter().flat_map(|m| &m.recordings) {
+    // A position left at once, unread, is not one of the take's (#1980).
+    let read = manifest
+        .iter()
+        .flat_map(|m| m.recordings.iter().filter(|r| !take::listed_unread(r, m)));
+    for r in read {
         if let Some(p) = &r.position {
             if !positions.contains(p) {
                 positions.push(p.clone());
