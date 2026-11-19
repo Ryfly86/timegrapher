@@ -2732,6 +2732,10 @@ use beat_error::wind_down_sourced;
 #[path = "steadiness_tests.rs"]
 mod tests;
 
+#[cfg(test)]
+#[path = "steadiness_rule_tests.rs"]
+mod rule_tests;
+
 #[path = "steadiness_words.rs"]
 mod words;
 use words::{every_text, lead_text, runner_up, shifts_text};
