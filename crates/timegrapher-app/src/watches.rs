@@ -349,8 +349,23 @@ fn list_size(bytes: u64) -> String {
     }
 }
 
+/// A list row's size and its hover `what`: a dash while the Bench
+/// records a take into `e` (`writing`), as that take's row has, since the
+/// library holds only its first write until it stops (#2034); the hover
+/// says why (Hugh on #2037).
+pub fn size_and_hover(e: &WatchEntry, writing: Option<&Path>, what: &str) -> (String, String) {
+    match writing.is_some_and(|w| w.starts_with(&e.dir)) {
+        true => (
+            "—".into(),
+            format!("{what} Its size is given once the take being recorded stops."),
+        ),
+        false => (list_size(e.bytes()), what.to_string()),
+    }
+}
+
 /// The list: one row per watch, led by its first photo when any watch
-/// listed has one. The id of the watch clicked, if any.
+/// listed has one. The id of the watch clicked, if any. `writing` is the
+/// take the Bench is recording into.
 pub fn list(
     ui: &mut egui::Ui,
     watches: &[&WatchEntry],
@@ -358,6 +373,7 @@ pub fn list(
     thumbs: &mut Thumbs,
     shows: Option<&str>,
     search: &str,
+    writing: Option<&Path>,
 ) -> Option<String> {
     let key = search.trim();
     let mut picked = None;
@@ -392,14 +408,15 @@ pub fn list(
         if let Some(t) = last_take(e).and_then(timegrapher_core::library::date_text) {
             below.push(format!("last {t}"));
         }
+        let (size, hover) = size_and_hover(e, writing, "Show this watch's details and takes.");
         if found_row(
             ui,
             marked == Some(w.id.as_str()),
             lead,
             &w.name,
-            &list_size(e.bytes()),
+            &size,
             &below,
-            "Show this watch's details and takes",
+            &hover,
             key,
         )
         .clicked()
@@ -411,8 +428,21 @@ pub fn list(
 }
 
 /// Unsorted's row, at the top of the list (led by a tile when the
-/// watches' rows have photos): whether it was clicked.
-pub fn unsorted_row(ui: &mut egui::Ui, e: &WatchEntry, tiled: bool, marked: bool) -> bool {
+/// watches' rows have photos): whether it was clicked. `writing` is the
+/// take the Bench is recording into.
+pub fn unsorted_row(
+    ui: &mut egui::Ui,
+    e: &WatchEntry,
+    tiled: bool,
+    marked: bool,
+    writing: Option<&Path>,
+) -> bool {
+    let (size, hover) = size_and_hover(
+        e,
+        writing,
+        "Quick Listen again: no watch, no calibre, the default lift angle and the beat rate \
+         found from the beats. Shows the takes not yet filed under a watch.",
+    );
     row(
         ui,
         marked,
@@ -422,13 +452,12 @@ pub fn unsorted_row(ui: &mut egui::Ui, e: &WatchEntry, tiled: bool, marked: bool
             Lead::None
         },
         UNSORTED_TAKES,
-        &list_size(e.bytes()),
+        &size,
         &[
             "Quick Listen, no watch".to_string(),
             count(e.takes.len(), "take", "takes"),
         ],
-        "Quick Listen again: no watch, no calibre, the default lift angle and the beat \
-         rate found from the beats. Shows the takes not yet filed under a watch.",
+        &hover,
     )
     .clicked()
 }
