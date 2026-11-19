@@ -45,7 +45,7 @@ test("the Cycle view colours the dots by when they came and boxes each phase's m
   // A box per phase with its quartiles, none where core gave none.
   assert.deepEqual(chart.rects.map((r) => [r.y0, r.y1]), [[1.05, 1.17], [3, 3]]);
   assert.ok(Math.abs(chart.rects[0].x1 - chart.rects[0].x0 - 6) < 1e-9, "0.3 of a bin either side");
-  assert.equal(chart.corner.text, "30 s cycle, 24 cycles folded\nThe median line swings 2.000 s/d; the boxes' median height is 0.060 s/d");
+  assert.equal(chart.corner.text, "30 s cycle, 24 cycles folded\nThe median line swings 2.000 s/d, its noise included; the boxes' median height is 0.060 s/d");
   // A fold from before core gave columns draws as before, with no note.
   const old = { ...fold, columns: undefined, swing: undefined, middle_half: undefined };
   context.steadyPlot({ series: "rate", views: { fold: old } }, "cycle", {});
