@@ -1202,7 +1202,8 @@ fn a_new_stretch_keeps_the_beats_and_breaks_the_readings() {
 
 /// Setting the rate Auto already found (a calibre picked while
 /// listening) keeps the beats heard so far, as does going back to
-/// Auto; another rate starts the beat log again.
+/// Auto; another rate starts the beat log again, and going back to Auto
+/// then brings the beats from before it back (#1949).
 #[test]
 fn the_rate_already_found_keeps_the_beats() {
     let cfg = SynthConfig {
@@ -1223,8 +1224,136 @@ fn the_rate_already_found_keeps_the_beats() {
     assert_eq!(a.bph(), Some(28_800));
     assert!(!a.set_bph(Some(21_600)));
     assert!(a.beats().is_empty());
-    // Auto after a rate set by hand listens afresh and finds 28800.
+    assert!(a.holds_reading());
+    // Back on Auto, the reading from before the change comes back, with
+    // the sound heard since read at its own rate (#1949).
     feed(&mut a, &audio.samples);
+    assert!(a.set_bph(None));
+    assert!(!a.holds_reading());
+    assert_eq!(a.bph(), Some(28_800));
+    assert!(
+        a.beats().len() > heard + 100,
+        "{} after {heard}",
+        a.beats().len()
+    );
+}
+
+/// A beat rate changed and set back (#1949): the beats, the masks set
+/// meanwhile and the readings are as if it had never been changed, and a
+/// third rate on the way keeps the reading from before the first.
+#[test]
+fn a_rate_changed_and_set_back_leaves_the_take_as_it_was() {
+    let cfg = SynthConfig {
+        duration_s: 20.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let (first, rest) = audio.samples.split_at(audio.samples.len() / 2);
+    let mut never = LiveAnalyzer::new(48000, LiveConfig::default());
+    feed(&mut never, first);
+    never.set_masked(&[(12.0, 13.0)]);
+    feed(&mut never, rest);
+
+    let mut a = LiveAnalyzer::new(48000, LiveConfig::default());
+    feed(&mut a, first);
+    assert_eq!(a.bph(), Some(28_800));
+    assert!(!a.set_bph(Some(21_600)));
+    a.set_masked(&[(12.0, 13.0)]);
+    feed(&mut a, &rest[..rest.len() / 2]);
+    assert!(!a.set_bph(Some(18_000)));
+    feed(&mut a, &rest[rest.len() / 2..]);
+    assert!(a.set_bph(None));
+    assert_eq!(beat_keys(a.beats()), beat_keys(never.beats()));
+    assert_eq!(a.masked(), never.masked());
+    assert_eq!(
+        a.reading(10.0).rate_s_per_day,
+        never.reading(10.0).rate_s_per_day
+    );
+    assert_eq!(
+        a.reading(10.0).amplitude_deg,
+        never.reading(10.0).amplitude_deg
+    );
+
+    // Set to the rate it was read at, rather than Auto, it comes back too.
+    let mut b = LiveAnalyzer::new(48000, LiveConfig::default());
+    feed(&mut b, first);
+    assert!(!b.set_bph(Some(21_600)));
+    feed(&mut b, rest);
+    assert!(b.set_bph(Some(28_800)));
+    assert_eq!(beat_keys(b.beats()), beat_keys(never.beats()));
+}
+
+/// A rate set by hand while Auto is still searching, then Auto again
+/// before the held reading has found its rate, brings that reading back:
+/// set back to its own setting, it stands whatever it has found.
+#[test]
+fn auto_set_back_before_it_found_the_rate_brings_the_reading_back() {
+    let cfg = SynthConfig {
+        duration_s: 20.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let (first, rest) = audio.samples.split_at(24_000);
+    let mut never = LiveAnalyzer::new(48000, LiveConfig::default());
+    feed(&mut never, &audio.samples);
+
+    let mut a = LiveAnalyzer::new(48000, LiveConfig::default());
+    feed(&mut a, first);
+    assert_eq!(a.bph(), None, "still searching");
+    a.set_bph(Some(21_600));
+    assert!(a.holds_reading());
+    feed(&mut a, &rest[..24_000]);
+    a.set_bph(None);
+    assert!(!a.holds_reading(), "the held reading is back");
+    feed(&mut a, &rest[24_000..]);
+    assert_eq!(a.bph(), Some(28_800));
+    assert_eq!(beat_keys(a.beats()), beat_keys(never.beats()));
+}
+
+/// A restart asked for drops the held reading: setting the old rate
+/// afterwards brings nothing back.
+#[test]
+fn a_restart_lets_the_held_reading_go() {
+    let cfg = SynthConfig {
+        duration_s: 20.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let mut a = LiveAnalyzer::new(48000, LiveConfig::default());
+    feed(&mut a, &audio.samples);
+    assert!(!a.set_bph(Some(21_600)));
+    assert!(a.holds_reading());
+    a.restart();
+    assert!(!a.holds_reading());
+    assert!(!a.set_bph(None));
+    assert!(a.beats().is_empty());
+}
+
+/// Each beat's number, time and quality, to compare two readings' beats.
+fn beat_keys(beats: &[Beat]) -> Vec<(i64, u64, u32)> {
+    beats
+        .iter()
+        .map(|b| (b.index, b.time.to_bits(), b.quality.to_bits()))
+        .collect()
+}
+
+/// Once a rate change has stood for [`held::HELD_S`], it is taken as
+/// meant: the reading from before it is let go, and Auto then listens
+/// afresh.
+#[test]
+fn a_rate_change_that_stands_lets_the_old_reading_go() {
+    let cfg = SynthConfig {
+        duration_s: 20.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let mut a = LiveAnalyzer::new(48000, LiveConfig::default());
+    feed(&mut a, &audio.samples);
+    assert!(!a.set_bph(Some(21_600)));
+    a.skip(held::HELD_S - 1.0);
+    assert!(a.holds_reading());
+    a.skip(2.0);
+    assert!(!a.holds_reading());
     assert!(!a.set_bph(None));
     assert!(a.beats().is_empty());
     feed(&mut a, &audio.samples);
