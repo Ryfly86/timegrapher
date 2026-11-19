@@ -601,8 +601,7 @@ fn a_recording_on_show_is_kept_in_a_new_watch_with_its_charts() {
     assert_eq!(app.addable_take(), Some(lone.clone()));
 
     // Keep in a Watch… > New Watch…, filled in, then Done.
-    app.open_new_watch_form();
-    app.keep_after_form = true;
+    app.keep_in_new_watch();
     let f = app.watch_form.as_mut().unwrap();
     f.watch.name = "Meteorite".into();
     f.watch.bph = Some(21600);

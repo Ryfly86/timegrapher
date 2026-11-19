@@ -428,8 +428,7 @@ impl TimegrapherApp {
                 }
             });
         if new {
-            self.open_new_watch_form();
-            self.keep_after_form = true;
+            self.keep_in_new_watch();
             return;
         }
         match answer {
