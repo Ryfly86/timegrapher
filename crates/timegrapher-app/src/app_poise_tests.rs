@@ -1332,6 +1332,7 @@ fn poise_test_saved(
     base: &Path,
     block: usize,
     (settle, measure, turn): (f64, f64, f64),
+    again: bool,
 ) -> TimegrapherApp {
     let _ = std::fs::remove_dir_all(base);
     std::fs::create_dir_all(base).unwrap();
@@ -1401,6 +1402,11 @@ fn poise_test_saved(
     assert!(app.poise_test().and_then(|t| t.readings.as_ref()).is_some());
     app.save_into(&base.join("saved"));
     app.wait_for_save();
+    // Saved again while it is read: it reads what that save wrote.
+    if again {
+        app.save_again();
+        app.wait_for_save();
+    }
     let t = Instant::now();
     while app.bg.test_read.is_some() && t.elapsed().as_secs() < 300 {
         app.poll();
@@ -1419,7 +1425,13 @@ fn a_finished_test_reads_as_session_reads_its_saved_take() {
     let base = std::env::temp_dir().join(format!("tg-app-poise-1958-{}", std::process::id()));
     let mut kept = Vec::new();
     for block in [480, 4093] {
-        let app = poise_test_saved(&base.join(block.to_string()), block, (5.0, 30.0, 0.0));
+        let again = block == 4093;
+        let app = poise_test_saved(
+            &base.join(block.to_string()),
+            block,
+            (5.0, 30.0, 0.0),
+            again,
+        );
         let t = app.poise_test().expect("the test");
         assert_eq!(t.saved_read, guided::SavedRead::Read, "block {block}");
         assert_eq!(t.saved_read_note(), None);
@@ -1486,7 +1498,7 @@ fn a_finished_test_reads_as_session_reads_its_saved_take() {
 #[test]
 fn a_test_opened_again_keeps_its_marks() {
     let base = std::env::temp_dir().join(format!("tg-app-poise-1957-{}", std::process::id()));
-    let app = poise_test_saved(&base, 960, (5.0, 30.0, 3.0));
+    let app = poise_test_saved(&base, 960, (5.0, 30.0, 3.0), false);
     let ran = app.strip_settles();
     let not_used = ran.iter().filter(|s| s.2 == guided::NOT_USED_POISE).count();
     assert!(not_used >= 7, "{ran:?}");
@@ -1682,4 +1694,39 @@ fn the_poise_table_shows_each_stops_duration_once() {
         assert_eq!(n, 1, "{label} once: {drawn}");
     }
     let _ = std::fs::remove_dir_all(base);
+}
+
+/// A test read again from its saved take writes its results where the take
+/// is now: a take moved while it was read keeps them (Desmond on #2067).
+#[test]
+fn a_test_read_again_writes_where_its_take_is_now() {
+    let mut app = super::tests::synthetic(5.0, 0.0);
+    let base = std::env::temp_dir().join(format!("tg-app-1958-moved-{}", std::process::id()));
+    let snap = app.session.metadata_snapshot(app.save_metadata());
+    app.session.mark_saved(5.0, base.join("take"), snap);
+    app.session.saved_moved(&base, &base.join("moved"));
+    assert_eq!(
+        app.results_dir(base.join("take")),
+        base.join("moved").join("take")
+    );
+}
+
+/// The two notes a finished test's table gives while its saved take is
+/// analysed again, and if that fails, whole (Hugh 5 on #2067).
+#[test]
+fn a_test_read_again_says_so_in_its_table() {
+    let mut t = guided::Test::poise();
+    t.saved_read = guided::SavedRead::Reading;
+    assert_eq!(
+        t.saved_read_note().as_deref(),
+        Some("Analysing the saved take: these figures may change slightly.")
+    );
+    t.saved_read = guided::SavedRead::Failed("it stopped part way".into());
+    assert_eq!(
+        t.saved_read_note().as_deref(),
+        Some(
+            "These are the figures heard while listening: the saved take couldn't be analysed \
+             again (it stopped part way). Opened again, the take may read slightly differently."
+        )
+    );
 }

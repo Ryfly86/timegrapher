@@ -48,7 +48,9 @@ fn read_saved(dir: &Path, m: &Manifest, settings: &take::EntrySettings) -> Saved
 impl TimegrapherApp {
     /// Once a take is saved into `dir`, not streamed there: a finished
     /// test whose figures are still the listening's is read again from
-    /// that sound as saved, in the background.
+    /// that sound as saved, in the background. A save again while it is
+    /// read starts the reading over on what that save wrote (Vernon on
+    /// #2067).
     pub(super) fn read_test_again(&mut self, dir: &Path, streamed: super::Streamed) {
         if streamed != super::Streamed::No {
             return;
@@ -57,11 +59,12 @@ impl TimegrapherApp {
             return;
         };
         let settings = self.entry_settings(&m);
-        let Some(t) = self
-            .guided
-            .as_mut()
-            .filter(|t| t.saved_read == guided::SavedRead::Pending)
-        else {
+        let Some(t) = self.guided.as_mut().filter(|t| {
+            matches!(
+                t.saved_read,
+                guided::SavedRead::Pending | guided::SavedRead::Reading
+            )
+        }) else {
             return;
         };
         t.saved_read = guided::SavedRead::Reading;
@@ -89,7 +92,9 @@ impl TimegrapherApp {
     /// the listening's.
     pub(super) fn poll_test_read(&mut self) {
         use std::sync::mpsc::TryRecvError;
-        let Some(job) = &self.bg.test_read else {
+        // Nothing lands while a save is written: one of the same take
+        // starts the reading over once it is done.
+        let Some(job) = self.bg.test_read.as_ref().filter(|_| self.saving.is_none()) else {
             return;
         };
         let saved = match job.rx.try_recv() {
@@ -118,14 +123,23 @@ impl TimegrapherApp {
         if let Err(why) = read {
             t.saved_read = guided::SavedRead::Failed(why);
         }
+        let dir = self.results_dir(dir);
         self.write_results_into(&dir);
     }
 
-    /// The test's results written into the take saved in `dir` again.
+    /// Where a test read again from the take saved in `read` writes its
+    /// results: where the take is now, which may have moved while it was
+    /// read (Desmond on #2067).
+    pub(super) fn results_dir(&self, read: PathBuf) -> PathBuf {
+        self.session.saved_to().map_or(read, Path::to_path_buf)
+    }
+
+    /// The test's results written into the take saved in `dir` again, each
+    /// file whole or not at all.
     fn write_results_into(&mut self, dir: &Path) {
         let written = self.results_files().and_then(|files| {
             files.iter().try_for_each(|(name, bytes)| {
-                std::fs::write(dir.join(name), bytes)
+                timegrapher_core::library::write_atomic(&dir.join(name), bytes)
                     .map_err(|e| format!("Couldn't write {name}: {e}"))
             })
         });

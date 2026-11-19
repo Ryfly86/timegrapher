@@ -782,11 +782,11 @@ impl Test {
     pub fn saved_read_note(&self) -> Option<String> {
         match &self.saved_read {
             SavedRead::Reading => {
-                Some("Reading the test again from its sound as saved…".to_string())
+                Some("Analysing the saved take: these figures may change slightly.".to_string())
             }
             SavedRead::Failed(why) => Some(format!(
-                "These are the figures heard while listening: the sound as saved couldn't be \
-                 read again ({why}), so a take opened again may differ slightly."
+                "These are the figures heard while listening: the saved take couldn't be \
+                 analysed again ({why}). Opened again, the take may read slightly differently."
             )),
             SavedRead::NotRead | SavedRead::Pending | SavedRead::Read => None,
         }

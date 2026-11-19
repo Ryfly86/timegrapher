@@ -287,8 +287,8 @@ folder in the standard layout with every audio file left out and an
 the top; its recordings, positions and masks are as for the take with its
 sound, every entry naming the whole take (`file = "."`). `session.json`
 and `clock.csv` are unchanged (`session.json`'s `segments` still name the
-files the sound was in), and `positions-test.json` or `poise-test.json` is
-kept when there is one. With no audio files, the file-order rule has nothing to order. A
+files the sound was in), and `positions-test.json`, `poise-test.json` or
+`test-marks.json` is kept when there is one. With no audio files, the file-order rule has nothing to order. A
 folder with both sound and `analysis/`, with `analysis/` but no
 `audio = false`, or with `audio = false` but no `analysis/` (nor parts,
 [below](#parts-kept-while-a-take-is-recorded)), is refused
