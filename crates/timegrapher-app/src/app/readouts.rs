@@ -481,6 +481,20 @@ fn big_stretch(average_s: f64, floored: bool) -> String {
 }
 
 impl TimegrapherApp {
+    /// Under 10 s of sound since Listen started or the latest break, no
+    /// figures yet: a word saying what they wait for, and its hover
+    /// (#2014, Hugh). A settle's own state wins.
+    fn listening(&self, r: Option<&LiveReading>) -> Option<(String, String)> {
+        r.and_then(|r| r.listening)
+            .filter(|_| heard(r) && self.settling_left().is_none())
+            .map(|since| {
+                (
+                    timegrapher_core::measure::LISTENING_TITLE.to_string(),
+                    timegrapher_core::measure::listening_text(since),
+                )
+            })
+    }
+
     /// The reading cards across the top: Current Position, Listen, then
     /// Rate, Amplitude, Beat Error and Beat Rate. Every card is the same
     /// three rows (title, figure, controls) and one height at every width;
@@ -518,7 +532,9 @@ impl TimegrapherApp {
                 ),
             )
         };
-        let unheard = (!heard).then(|| (unheard_line.clone(), unheard_hover.clone()));
+        let unheard = (!heard)
+            .then(|| (unheard_line.clone(), unheard_hover.clone()))
+            .or_else(|| self.listening(r.as_ref()));
         let r = r.as_ref().filter(|_| heard);
         let caveats = self.shown_caveats(r);
         let caveats = &caveats[..];
@@ -658,6 +674,8 @@ impl TimegrapherApp {
             } else {
                 unheard.clone()
             }
+        } else if let Some(listening) = unheard.clone() {
+            Some(listening)
         } else {
             self.stopped_in_settle().map(|at| {
                 (

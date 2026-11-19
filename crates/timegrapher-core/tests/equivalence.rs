@@ -1198,7 +1198,8 @@ const EMPTY_STAND_TAKE: &str = "ym42_DU_65h_excerpt_emptystand";
 /// built from its beat log. Opened, one 10 s reading at 390 s scattered
 /// 0.78% of a beat at 18,000 bph, under the 0.8% from which the beat sound
 /// was asked, and the stopped take's Rate card showed it: −183.6 s/d and
-/// 0.14 ms. Every reading, every 5 s, at 10, 30 and 60 s averages.
+/// 0.14 ms. In its first 8 s, opened, it read +120,000 s/d (#2014).
+/// Every reading, every 5 s from 1 s, at 10, 30 and 60 s averages.
 ///
 /// Runs where `TIMEGRAPHER_CORPUS` is set.
 #[test]
@@ -1212,18 +1213,23 @@ fn an_empty_stand_is_no_watch_however_it_is_read() {
     let pushed = pushed(&audio, audio.sample_rate as usize / 10);
     let opened = LiveAnalyzer::from_log(log, LiveConfig::default());
     for (how, live) in [("live", &pushed), ("opened", &opened)] {
-        let mut t = 10.0;
+        // From the first second: under 10 s of sound a reading gives no
+        // figures, so no rate (#2014).
+        // Each second up to 10 s, where regularity isn't judged yet and
+        // only the figures are checked, then every 5 s.
+        let mut t = 1.0;
         while t <= live.duration_s() {
             for average_s in [10.0, 30.0, 60.0] {
                 let r = live.reading_at(t, average_s);
+                let figures = [r.rate_s_per_day, r.amplitude_deg, r.beat_error_ms];
                 assert!(
-                    !r.watch_heard && r.rate_s_per_day.is_none(),
+                    (t < 10.0 || !r.watch_heard) && figures == [None; 3],
                     "{how}, {average_s} s ending at {t} s: {:?} s/d, scatter {:?}",
                     r.rate_s_per_day,
                     r.timing_scatter_fraction
                 );
             }
-            t += 5.0;
+            t += if t < 10.0 { 1.0 } else { 5.0 };
         }
     }
 }
