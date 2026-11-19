@@ -3491,8 +3491,8 @@ fn no_room_short(what: &str) -> String {
 const STACKED_NOTE_H: f32 = 18.0;
 /// The least height of the Paper Strip under its toolbar: its lane, at
 /// least 100 pt of dots and the time axis, the amplitude scale's labels
-/// apart. The strip keeps it whatever pane is opened under it; only a
-/// divider dragged by hand takes it lower.
+/// apart. The strip keeps it whatever pane is opened under it, and no
+/// divider dragged by hand takes it lower (#1976).
 const STRIP_MIN_H: f32 = STRIP_MIN_PLOT_H + 39.0;
 /// The least height of the Paper Strip's dots.
 const STRIP_MIN_PLOT_H: f32 = 100.0;

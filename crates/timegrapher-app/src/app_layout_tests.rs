@@ -1192,9 +1192,10 @@ fn a_pane_too_short_for_its_plot_says_so() {
     }
 }
 
-/// A divider the user drags stands, even into the Paper Strip's least, and
-/// is kept with the layout; showing or hiding a pane in its row shares
-/// the room out afresh.
+/// A divider the user drags stands, and is kept with the layout, short of
+/// the Paper Strip's least, which no drag takes it under (#1976): dragged
+/// to a sliver, the strip keeps its least and the map takes the rest.
+/// Showing or hiding a pane in its row shares the room out afresh.
 #[test]
 fn a_dragged_divider_stands_until_a_pane_in_its_row_changes() {
     let ctx = egui::Context::default();
@@ -1244,7 +1245,15 @@ fn a_dragged_divider_stands_until_a_pane_in_its_row_changes() {
         pass(&mut app);
     }
     let low = row_h(&app, Pane::Strip);
-    assert!(low < STRIP_MIN_H, "{low}");
+    let need = app.pane_need.get(&Pane::Strip).copied().unwrap();
+    assert!(need >= STRIP_MIN_H, "{need}");
+    assert!(low + 1.0 >= need, "{low} under the strip's least {need}");
+    // The drag stands as far as the strip's least, under its tab bar:
+    // none of the room goes back to the strip past it.
+    assert!(
+        low <= need + TAB_BAR_H + 2.0,
+        "{low} past the strip's least {need}"
+    );
     // Kept with the layout.
     let saved = app.settings();
     assert_eq!(saved.panes_dragged, vec![column]);

@@ -179,7 +179,7 @@ fn a_narrow_cards_words_show_whole() {
         for _ in 0..2 {
             let out = ctx.run(egui::RawInput::default(), |ctx| {
                 egui::CentralPanel::default().show(ctx, |ui| {
-                    readouts::figure_row(ui, rect, None, "s/d", Some(&status), "", compact);
+                    readouts::figure_row(ui, rect, None, "s/d", Some(&status), "", (compact, None));
                 });
             });
             texts = out
@@ -207,9 +207,11 @@ fn a_narrow_cards_words_show_whole() {
     }
 }
 
-/// A card too narrow for its caption (800 pt) names its reading by the
-/// short form the axes use, the whole caption on a hover, never a cut
-/// "Ampli…" (#1061); with room, the whole caption.
+/// A card too narrow for its caption with its "?" (800 pt) goes without
+/// the "?" and keeps its whole caption (Hugh on #1954); narrower still,
+/// than the window can be made, it names its reading by the short form
+/// the axes use, never a cut "Ampli…" (#1061); with room, the whole
+/// caption and its "?".
 #[test]
 fn a_narrow_cards_title_is_short_not_cut() {
     let ctx = egui::Context::default();
@@ -231,28 +233,28 @@ fn a_narrow_cards_title_is_short_not_cut() {
                     egui::Shape::Text(t) => Some(t.galley.text().to_string()),
                     _ => None,
                 })
-                .filter(|t| t != "?")
                 .collect::<Vec<_>>();
         }
         texts
     };
-    // A card's title row at 800 pt, as Walter walked it.
-    for (caption, short) in [
-        ("Amplitude", "Amp."),
-        ("Beat Error", "B.E."),
-        ("Rate", "Rate"),
-    ] {
-        assert_eq!(title(caption, 76.0), [short], "{caption}");
-        assert_eq!(title(caption, 300.0), [caption]);
+    // A card's title row at 800 pt, as Walter walked it, and narrower.
+    // "Rate" fits beside its "?" even there.
+    assert_eq!(title("Rate", 76.0), ["?", "Rate"]);
+    assert_eq!(title("Rate", 300.0), ["?", "Rate"]);
+    for (caption, short) in [("Amplitude", "Amp."), ("Beat Error", "B.E.")] {
+        assert_eq!(title(caption, 76.0), [caption], "{caption}");
+        assert_eq!(title(caption, 40.0), [short], "{caption}");
+        assert_eq!(title(caption, 300.0), ["?", caption]);
     }
 }
 
-/// The readings cards switch to their short names together (Hugh, #1061):
-/// one too narrow for its caption takes the others with it, so a row
-/// never mixes "Amplitude" with "B.E."; widened again, they are whole on
-/// the very next pass, with nothing held over (Vernon).
+/// The readings cards go without their "?" together (Hugh, #1061 and
+/// #1954): one too narrow for its caption beside its "?" takes the
+/// others with it, so a row never mixes a "?" on one card with none on
+/// the next; widened again, they have it back on the very next pass, with
+/// nothing held over (Vernon).
 #[test]
-fn the_cards_name_their_readings_short_together() {
+fn the_cards_go_without_their_help_marks_together() {
     let ctx = egui::Context::default();
     theme::install(&ctx);
     let rect = |x: f32, w: f32| egui::Rect::from_min_size(egui::pos2(x, 10.0), egui::vec2(w, 24.0));
@@ -275,13 +277,12 @@ fn the_cards_name_their_readings_short_together() {
                 egui::Shape::Text(t) => Some(t.galley.text().to_string()),
                 _ => None,
             })
-            .filter(|t| t != "?")
             .collect::<Vec<_>>()
     };
     for _ in 0..3 {
-        assert_eq!(row(76.0), ["Amp.", "B.E."]);
+        assert_eq!(row(76.0), ["Amplitude", "Beat Error"]);
     }
-    assert_eq!(row(300.0), ["Amplitude", "Beat Error"]);
+    assert_eq!(row(300.0), ["?", "Amplitude", "?", "Beat Error"]);
 }
 
 /// The texts a readings card's figure row paints in `rect`, and where.
@@ -297,7 +298,7 @@ fn figure_texts(
     for _ in 0..2 {
         let out = ctx.run(egui::RawInput::default(), |ctx| {
             egui::CentralPanel::default().show(ctx, |ui| {
-                readouts::figure_row(ui, rect, Some(value), unit, None, "", compact);
+                readouts::figure_row(ui, rect, Some(value), unit, None, "", (compact, None));
             });
         });
         texts = out
@@ -1324,4 +1325,159 @@ fn a_watch_heard_while_it_settles_is_no_missing_watch() {
     assert!(app.reading().is_none(), "nothing is read while settling");
     assert!(!app.no_watch_yet(), "its beats are heard");
     let _ = std::fs::remove_dir_all(base);
+}
+
+/// The reading cards' title rows and figures across a window `w` wide:
+/// each caption's text, where it is drawn and the "?"s right of the first
+/// reading card's left edge; and each figure's size.
+struct CardRow {
+    captions: Vec<(String, egui::Rect)>,
+    marks: usize,
+    figures: Vec<f32>,
+    /// The right edge of the rate's unit, "s/d", whole.
+    rate_unit_right: Option<f32>,
+}
+
+/// Draws the bench, its readings pinned, `w` wide, after `pointer` (if
+/// any) has rested on a spot.
+fn card_row(
+    app: &mut TimegrapherApp,
+    ctx: &egui::Context,
+    w: f32,
+    pointer: Option<egui::Pos2>,
+) -> (CardRow, String) {
+    let r = app.reading().expect("a reading");
+    let figures = [
+        readouts::rate_figure(&r).expect("rate"),
+        readouts::amplitude_figure(&r).expect("amplitude"),
+        readouts::beat_error_figure(&r).expect("beat error"),
+    ];
+    let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(w, 800.0));
+    let mut out = None;
+    for pass in 0..4 {
+        let input = egui::RawInput {
+            screen_rect: Some(screen),
+            events: pointer
+                .filter(|_| pass > 0)
+                .map(egui::Event::PointerMoved)
+                .into_iter()
+                .collect(),
+            ..Default::default()
+        };
+        out = Some(ctx.run(input, |ctx| app.panels(ctx)));
+    }
+    let out = out.expect("drawn");
+    let mut texts = Vec::new();
+    for c in &out.shapes {
+        if let egui::Shape::Text(t) = &c.shape {
+            let size = t
+                .galley
+                .job
+                .sections
+                .first()
+                .map_or(0.0, |s| s.format.font_id.size);
+            texts.push((
+                t.galley.text().to_string(),
+                t.galley.rect.translate(t.pos.to_vec2()),
+                size,
+            ));
+        }
+    }
+    let captions: Vec<(String, egui::Rect)> = ["Rate", "Amplitude", "Beat Error", "Amp.", "B.E."]
+        .iter()
+        .filter_map(|c| texts.iter().find(|t| t.0 == *c && t.1.top() < 120.0))
+        .map(|t| (t.0.clone(), t.1))
+        .collect();
+    let left = captions.first().map_or(f32::MAX, |c| c.1.left()) - 1.0;
+    let marks = texts
+        .iter()
+        .filter(|t| t.0 == "?" && t.1.left() > left && t.1.top() < 120.0)
+        .count();
+    let figures = figures
+        .iter()
+        .map(|f| {
+            texts
+                .iter()
+                .find(|t| t.0.contains(f.trim_start_matches(['-', '+', '−'])))
+                .unwrap_or_else(|| panic!("{w}: no {f} drawn in {texts:?}"))
+                .2
+        })
+        .collect();
+    let rate_unit_right = texts
+        .iter()
+        .find(|t| t.0 == "s/d" && t.1.top() < 120.0)
+        .map(|t| t.1.right());
+    (
+        CardRow {
+            captions,
+            marks,
+            figures,
+            rate_unit_right,
+        },
+        painted_text(&out),
+    )
+}
+
+/// At 800 the reading cards go without their "?": each caption is whole
+/// and carries the help the "?" gave, on a hover (Hugh on #1954).
+#[test]
+fn at_800_the_reading_cards_captions_are_whole_and_carry_the_help() {
+    let mut app = synthetic(60.0, 20.0);
+    app.readings_pinned = true;
+    let ctx = themed();
+    ctx.style_mut(|s| {
+        s.interaction.tooltip_delay = 0.0;
+        s.interaction.show_tooltips_only_when_still = false;
+    });
+    let (row, _) = card_row(&mut app, &ctx, 800.0, None);
+    let names: Vec<&str> = row.captions.iter().map(|c| c.0.as_str()).collect();
+    assert_eq!(names, ["Rate", "Amplitude", "Beat Error"]);
+    assert_eq!(row.marks, 0, "no \"?\" on the reading cards");
+    for (caption, help) in [
+        ("Rate", help::RATE[0]),
+        ("Amplitude", help::AMPLITUDE[0]),
+        ("Beat Error", help::BEAT_ERROR[0]),
+    ] {
+        let at = row
+            .captions
+            .iter()
+            .find(|c| c.0 == caption)
+            .expect("drawn")
+            .1
+            .center();
+        let (_, shown) = card_row(&mut app, &ctx, 800.0, Some(at));
+        let start: String = help.chars().take(40).collect();
+        assert!(shown.contains(&start), "{caption}'s hover: {shown}");
+    }
+    // With room, the "?"s are back.
+    let (wide, _) = card_row(&mut app, &ctx, 1000.0, None);
+    assert_eq!(wide.marks, 3);
+}
+
+/// The three reading figures share one size at every width, the largest
+/// at which each card's figure and unit fit whole; a long rate takes the
+/// others down with it rather than its unit being cut (Hugh on #1976).
+#[test]
+fn the_reading_figures_share_one_size() {
+    for rate in [20.0, -2174.4] {
+        let mut app = synthetic(60.0, rate);
+        app.readings_pinned = true;
+        let ctx = themed();
+        for w in [800.0, 1000.0, 1920.0] {
+            let (row, _) = card_row(&mut app, &ctx, w, None);
+            let f = &row.figures;
+            assert!(
+                f[0] > 0.0 && f.iter().all(|s| *s == f[0]),
+                "{rate} at {w}: {f:?}"
+            );
+            // The unit whole, inside the rate card: left of the next
+            // card's caption less the gap between cards.
+            let next = row.captions[1].1.left() - theme::GAP - 16.0;
+            let unit = row.rate_unit_right.expect("the unit drawn whole");
+            assert!(
+                unit <= next + 8.0,
+                "{rate} at {w}: s/d ends at {unit}, the card at {next}"
+            );
+        }
+    }
 }

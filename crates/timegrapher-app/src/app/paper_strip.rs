@@ -282,7 +282,9 @@ impl TimegrapherApp {
                     &SPANS,
                     fields::duration,
                     "",
-                    92.0,
+                    // Holds the longest length whole, Fit's 80 hours as
+                    // 80:00:00, its last digit clear of the ⏷ (#1976).
+                    112.0,
                 );
                 if changed {
                     self.strip_fit = false;

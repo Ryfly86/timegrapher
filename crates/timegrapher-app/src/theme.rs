@@ -428,7 +428,7 @@ pub fn help_with_key(
     let p = pal(ui);
     let size = Vec2::splat(help_size());
     let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
-    let open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
+    let open = help_open(ui, &resp);
     let fill = if open {
         p.accent
     } else if resp.hovered() {
@@ -444,6 +444,25 @@ pub fn help_with_key(
         semibold(11.0),
         if open { p.on_accent } else { p.text_secondary },
     );
+    help_on(ui, resp, (title, paragraphs, key), "the ?")
+}
+
+/// Whether the help a click on `resp` opens is open.
+pub fn help_open(ui: &Ui, resp: &Response) -> bool {
+    egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(resp))
+}
+
+/// A "?"'s help on `resp`, whatever was clicked: a "?", or a reading
+/// card's caption standing in for one on the narrowest window (Hugh on
+/// #1954). Hovering shows its start, and a click on `what` ("the ?", or
+/// the caption) keeps it all open.
+pub fn help_on(
+    ui: &mut Ui,
+    resp: Response,
+    (title, paragraphs, key): (&str, &[&str], &[(Icon, String)]),
+    what: &str,
+) -> Response {
+    let open = help_open(ui, &resp);
     // Hovering shows the first paragraph, the plain answer, so it covers
     // little; a click shows it all.
     let body = |ui: &mut Ui, pinned: bool| {
@@ -472,9 +491,9 @@ pub fn help_with_key(
         if !pinned {
             ui.label(
                 RichText::new(if paragraphs.len() > 1 {
-                    "Click the ? for more."
+                    format!("Click {what} for more.")
                 } else {
-                    "Click the ? to keep this open."
+                    format!("Click {what} to keep this open.")
                 })
                 .small()
                 .color(pal(ui).text_tertiary),
