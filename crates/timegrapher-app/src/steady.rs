@@ -1102,7 +1102,7 @@ fn readings_plot(
     }
     // What a dot is, and how many are drawn, as Charts' key.
     let read: usize = drawn.iter().map(|d| d.count).sum();
-    let key = steady_views::readings_key(g.step, drawn.len(), read, banded);
+    let key = steady_views::readings_key(g.step, read);
     let width = steady_views::chunk_s(g);
     let resp = plot.show(ui, |p| {
         grid.draw(p, pal);
@@ -1621,10 +1621,34 @@ fn independent_caption_at(white: &[[f64; 2]]) -> Option<[f64; 2]> {
     white.last().copied().filter(|_| white.len() > 1)
 }
 
+/// How strongly the Allan line is drawn through its hollow points.
+const HOLLOW_LINE: f32 = 0.4;
+
+/// The Allan deviation's points as the plot draws them, on log scales:
+/// those resting on enough differences to judge, then the rest, hollow
+/// (core's `Allan::judged`, so a point is never judged twice). The differences fall as the
+/// averaging time grows, so the hollow ones are the longest times.
+fn allan_judged(a: &steadiness::Allan) -> (Vec<[f64; 2]>, Vec<[f64; 2]>) {
+    let mut out = (Vec::new(), Vec::new());
+    for ((t, d), &judged) in a.tau_s.iter().zip(&a.deviation).zip(&a.judged) {
+        if *t > 0.0 && *d > 0.0 && d.is_finite() {
+            let at = [t.log10(), d.log10()];
+            if judged {
+                out.0.push(at);
+            } else {
+                out.1.push(at);
+            }
+        }
+    }
+    out
+}
+
 /// The Allan deviation by averaging time, against independent readings.
 fn allan_plot(ui: &mut egui::Ui, r: Row<'_>) {
     let Row {
+        i,
         c,
+        view,
         k,
         colour,
         plot_w,
@@ -1644,15 +1668,29 @@ fn allan_plot(ui: &mut egui::Ui, r: Row<'_>) {
             .map(|(t, d)| [t.log10(), d.log10()])
             .collect()
     };
-    let dev = both(&a.deviation);
     let white = both(&a.white);
+    // The averaging times resting on too few differences to judge, hollow
+    // and their line faint: the least scatter is never one of them, so a
+    // lower one further along is not mistaken for it (Norm, #1985).
+    let (judged, hollow) = allan_judged(a);
+    let short = note_short(ui, &None, (i, view));
+    let independent = "if the readings were independent";
+    let least = match (a.best_tau_s, a.best_deviation) {
+        (Some(t), Some(d)) if t > 0.0 && d > 0.0 => Some((
+            [t.log10(), d.log10()],
+            format!("least scatter at {}: {}", secs(t), k.fmt_pm(d)),
+        )),
+        _ => None,
+    };
+    let last = independent_caption_at(&white);
+    let trace: Vec<[f64; 2]> = judged.iter().chain(&hollow).copied().collect();
     let grid = strength::Grid::new(period_grid(ui.available_width()), log_grid);
-    grid.on(base)
+    let resp = grid
+        .on(base)
         .x_axis_formatter(clear_of_edge(plot_w, period_label))
         .y_axis_formatter(move |m, r| log_label(m, r, |v| unit_sig(k, v)))
         .show(ui, |p| {
             grid.draw(p, pal);
-            let last = independent_caption_at(&white);
             p.line(
                 Line::new("independent", white)
                     .color(pal.callout)
@@ -1661,37 +1699,54 @@ fn allan_plot(ui: &mut egui::Ui, r: Row<'_>) {
             );
             // Name the dashed line where it ends.
             if let Some(at) = last {
-                mark_label(
-                    p,
-                    at,
-                    "if the readings were independent".into(),
-                    pal.text_secondary,
-                    false,
-                );
+                mark_label(p, at, independent.into(), pal.text_secondary, false);
             }
+            // The line runs on through the hollow points, faint there.
+            let faint: Vec<[f64; 2]> = judged.last().into_iter().chain(&hollow).copied().collect();
             p.line(
-                Line::new("deviation", dev.clone())
+                Line::new("deviation", judged.clone())
                     .color(colour)
                     .width(DATA_W),
             );
+            if faint.len() > 1 {
+                p.line(
+                    Line::new("deviation, too few", faint)
+                        .color(colour.gamma_multiply(HOLLOW_LINE))
+                        .width(DATA_W),
+                );
+            }
             p.points(
-                Points::new("deviation points", dev)
+                Points::new("deviation points", judged)
                     .color(colour)
                     .radius(2.0_f32),
             );
-            if let (Some(t), Some(d)) = (a.best_tau_s, a.best_deviation) {
-                if t > 0.0 && d > 0.0 {
-                    let at = [t.log10(), d.log10()];
-                    mark_label(
-                        p,
-                        at,
-                        format!("least scatter at {}: {}", secs(t), k.fmt_pm(d)),
-                        pal.text,
-                        false,
-                    );
-                }
+            if !hollow.is_empty() {
+                p.points(
+                    Points::new("deviation points, too few", hollow.clone())
+                        .color(colour)
+                        .filled(false)
+                        .radius(2.5_f32),
+                );
+            }
+            if let Some((at, text)) = &least {
+                mark_label(p, *at, text.clone(), pal.text, false);
             }
         });
+    // The hollow points' note, once, at the first of them: on a plate in
+    // the nearest place clear of the trace and of the other two labels,
+    // which otherwise it would sit on (Walter on #2012).
+    if let (Some(&first), Some(note)) = (hollow.first(), a.hollow_note) {
+        let t = &resp.transform;
+        let avoid: Vec<egui::Rect> = last
+            .map(|at| (at, independent.to_string()))
+            .into_iter()
+            .chain(least)
+            .map(|(at, text)| mark_label_rect(ui, t, at, &text, false))
+            .collect();
+        let fill = ui.visuals().extreme_bg_color.gamma_multiply(0.8);
+        let id = ui.id().with(("hollow note", i, view));
+        marks::beside(ui, t, first, note, &trace, &avoid, fill, short, id);
+    }
 }
 
 /// The CUSUM over the session, with its band and where the level changes.
@@ -2273,16 +2328,32 @@ fn mark_label(
     color: Color32,
     above: bool,
 ) {
+    let (anchor, text) = mark_label_place(p.transform(), at, &text, above);
+    p.text(
+        Text::new("mark", PlotPoint::new(at[0], at[1]), text)
+            .color(color)
+            .anchor(anchor),
+    );
+}
+
+/// Where [`mark_label`] puts its note on the plot `t` maps: the anchor at
+/// the point and the text, padded on the point's side.
+fn mark_label_place(
+    t: &egui_plot::PlotTransform,
+    at: [f64; 2],
+    text: &str,
+    above: bool,
+) -> (egui::Align2, String) {
     // A line of small text and a little air, points.
     const ROOM: f32 = 18.0;
-    let frame = *p.transform().frame();
-    let y = p.screen_from_plot(PlotPoint::new(at[0], at[1])).y;
+    let frame = *t.frame();
+    let y = t.position_from_point(&PlotPoint::new(at[0], at[1])).y;
     let above = if above {
         y - frame.top() >= ROOM || frame.bottom() - y < ROOM
     } else {
         frame.bottom() - y < ROOM && y - frame.top() >= ROOM
     };
-    let b = p.plot_bounds();
+    let b = t.bounds();
     let right = at[0] > (b.min()[0] + b.max()[0]) / 2.0;
     let h = if right {
         egui::Align::Max
@@ -2299,11 +2370,25 @@ fn mark_label(
     } else {
         format!("  {text}")
     };
-    p.text(
-        Text::new("mark", PlotPoint::new(at[0], at[1]), text)
-            .color(color)
-            .anchor(egui::Align2([h, v])),
-    );
+    (egui::Align2([h, v]), text)
+}
+
+/// The screen space [`mark_label`]'s note takes on the plot `t` maps, so
+/// another note can keep off it.
+fn mark_label_rect(
+    ui: &egui::Ui,
+    t: &egui_plot::PlotTransform,
+    at: [f64; 2],
+    text: &str,
+    above: bool,
+) -> egui::Rect {
+    let (anchor, text) = mark_label_place(t, at, text, above);
+    let font = egui::TextStyle::Small.resolve(ui.style());
+    let size = ui
+        .fonts_mut(|f| f.layout_no_wrap(text, font, Color32::PLACEHOLDER))
+        .size();
+    let dot = t.position_from_point(&PlotPoint::new(at[0], at[1]));
+    anchor.anchor_size(dot, size)
 }
 
 /// A plain number for a linear axis, with no "-0.0".
