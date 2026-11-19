@@ -745,6 +745,19 @@ fn kept_while_recorded_matches_kept_after_where_the_beats_jump() {
         after.profiles.len()
     );
     assert!(after.header.jumps.len() >= 5, "{:?}", after.header.jumps);
+    // Every beat of the kept beat sound finds its beat across the jumps,
+    // and reads back in place (#2069, Norm).
+    let dir = std::env::temp_dir().join(format!("tg-eq-kept-dying-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    timegrapher_core::analysis_take::write(&dir, &after).unwrap();
+    let back = timegrapher_core::analysis_take::read(&dir).unwrap();
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(!after.log.snippets.is_empty());
+    assert_eq!(back.log.snippets.len(), after.log.snippets.len());
+    for (a, b) in after.log.snippets.iter().zip(&back.log.snippets) {
+        assert!((a.0 - b.0).abs() <= 0.5e-6 + 1e-9, "{} {}", a.0, b.0);
+        assert!(a.1 == b.1, "the window at {} s", a.0);
+    }
     let (a, b) = (files(&after).unwrap(), files(&live).unwrap());
     assert_eq!(a.len(), b.len());
     for ((name, x), (_, y)) in a.iter().zip(&b) {

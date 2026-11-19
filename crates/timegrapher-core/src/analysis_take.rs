@@ -1095,8 +1095,10 @@ pub(crate) fn parse_sound(raw: &[u8], beats: &[Beat]) -> Result<Vec<(f64, Vec<f3
         let len = u32_at(take(4)?);
         let bytes = take(len.checked_mul(4).ok_or("it is too long")?)?;
         let w: Vec<f32> = bytes
-            .chunks_exact(4)
-            .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|b| f32::from_le_bytes(*b))
             .collect();
         if w.iter().any(|v| !v.is_finite()) {
             return Err(format!("beat row {row} holds a value that is not a number"));
