@@ -1589,19 +1589,19 @@ fn engine_line() -> String {
     format!("Read by Timegrapher {version}, engine {source}")
 }
 
-/// Why the figures shown live at Stop can differ from a take's own, on
-/// the line after them (#2073; Norm's ruling 3, words Hugh's): they are
-/// the last Average Over, read as the sound came in, where the take's are
-/// its whole stretch read afterwards. An opened take's cards at its end
-/// give the take's own.
-pub(crate) const AT_STOP_LINE: &str = "The figures shown live at Stop can differ a little: they \
-     were the last Average Over, read as the sound came in.";
+/// Why the cards' figures at Stop can differ from a take's own, on the
+/// line after them (#2073; Norm's ruling 3, Hugh 5's words): they read the
+/// stretch of Average Over ending at Stop, as the sound came in, where the
+/// take's are its whole stretch read afterwards. An opened take's cards at
+/// its end give the take's own.
+pub(crate) const AT_STOP_LINE: &str = "The cards at Stop can differ a little: they read the \
+     stretch of Average Over ending there, as the sound came in.";
 
 /// A take's own figures as its hover says them, on a line of their own
 /// after its facts: which position they are of, where it has more than
 /// one, and that they are its whole stretch after settling, so they can
-/// differ from the Bench's at Stop, which the line after says (#1979,
-/// #2073). Empty for a test's take, whose figures [`figures_hover`] says,
+/// differ from the Bench's at Stop, which the line after says for a take
+/// listened to (#1979, #2073). Empty for a test's take, whose figures [`figures_hover`] says,
 /// or with nothing read.
 fn read_line(t: &Take, test: Option<TakeTest>, reading: Option<&Reading>) -> String {
     let Some(r) = reading.filter(|_| test.is_none() && t.power_reserve.is_none()) else {
@@ -1615,14 +1615,35 @@ fn read_line(t: &Take, test: Option<TakeTest>, reading: Option<&Reading>) -> Str
     if figures.is_empty() {
         return String::new();
     }
-    let of = match r.position.as_deref().and_then(Position::parse) {
-        Some(p) if t.positions.len() > 1 => format!("{}, its whole stretch", p.name()),
-        _ => "The whole take".to_string(),
+    let of = whole_named(
+        r.position.as_deref().and_then(Position::parse),
+        t.positions.len(),
+    );
+    let mut of = of.chars();
+    let of: String = of
+        .next()
+        .map(|c| c.to_uppercase().chain(of).collect())
+        .unwrap_or_default();
+    // Only a take listened to has figures shown live at Stop: its sound
+    // was kept by the recorder, whose session.json gives its start (Hugh 5
+    // on #2075).
+    let at_stop = if t.started_utc.is_some() {
+        format!("\n{AT_STOP_LINE}")
+    } else {
+        String::new()
     };
-    format!(
-        "\n{of} after settling: {}\n{AT_STOP_LINE}",
-        figures.join(" · ")
-    )
+    format!("\n{of} after settling: {}{at_stop}", figures.join(" · "))
+}
+
+/// What a take's whole reading is of, in words: "the whole take", or
+/// "Crown Up, its whole stretch" for `position` where the take has more
+/// than one of its `positions`. The one naming for a take's row and its
+/// cards' hover (#1979, #2075).
+pub(crate) fn whole_named(position: Option<Position>, positions: usize) -> String {
+    match position {
+        Some(p) if positions > 1 => format!("{}, its whole stretch", p.name()),
+        _ => "the whole take".to_string(),
+    }
 }
 
 /// A take's row as its hover says it: the take, its figures, where its

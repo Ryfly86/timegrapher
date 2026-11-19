@@ -379,6 +379,11 @@ pub struct Measurement {
     #[serde(skip_serializing_if = "is_zero")]
     pub masked_s: f64,
     pub beats: usize,
+    /// The beats the rate and beat error are fitted to: `beats` but for
+    /// those in a piece under [`timing::MIN_PIECE_S`] between cuts, which
+    /// the fit leaves out (#2075). Not written out.
+    #[serde(skip)]
+    pub beats_fitted: usize,
     /// Share of the expected beats found with a clean match, 0..1.
     pub clean_fraction: f64,
     /// Whether rate is corrected for the sound card's clock.
@@ -1214,6 +1219,7 @@ pub fn measure_reading(
             .collect(),
         masked_s,
         beats: beats.len(),
+        beats_fitted: fit.map_or(0, |f| f.beats_used),
         clean_fraction: (clean as f64 / expected.max(1.0)).min(1.0),
         calibrated: clock.is_some_and(ClockFit::corrects),
         clock_ppm: None,

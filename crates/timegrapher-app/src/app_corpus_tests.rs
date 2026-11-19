@@ -608,8 +608,18 @@ fn the_apps_panes_read_each_corpus_take_as_the_command_line_does() {
 /// `secs` of the corpus recording `flac` from `from_s` in, listened to as
 /// from a microphone whose blocks are stamped `ppm` fast against the
 /// computer's clock, stopped and saved: the saved take's folder, under
-/// `base`.
-fn listened_and_saved(base: &Path, flac: &Path, (from_s, secs): (f64, f64), ppm: f64) -> PathBuf {
+/// `base`. The input stalls for `pause` (audio seconds in, and how long by
+/// the computer's clock) where one is given, so the take holds a break
+/// there, and `silent_s` of silence follows the sound, as when the watch
+/// is taken off the stand before Stop.
+fn listened_and_saved(
+    base: &Path,
+    flac: &Path,
+    (from_s, secs): (f64, f64),
+    ppm: f64,
+    pause: Option<(f64, f64)>,
+    silent_s: f64,
+) -> PathBuf {
     std::fs::create_dir_all(base).unwrap();
     let audio = timegrapher_core::audio::load(flac).unwrap();
     let fs = audio.sample_rate as usize;
@@ -621,9 +631,12 @@ fn listened_and_saved(base: &Path, flac: &Path, (from_s, secs): (f64, f64), ppm:
     let tx = super::tests::queued_capture(&mut app, base);
     let from = (from_s * fs as f64) as usize;
     let block = fs / 50;
-    let sound = &audio.samples[from..from + (secs * fs as f64) as usize];
+    let mut sound = audio.samples[from..from + (secs * fs as f64) as usize].to_vec();
+    sound.resize(sound.len() + (silent_s * fs as f64) as usize, 0.0);
     for (k, samples) in sound.chunks(block).enumerate() {
-        let us = 3e6 + (k * block) as f64 / fs as f64 * 1e6 / (1.0 + ppm * 1e-6);
+        let heard = (k * block) as f64 / fs as f64;
+        let stalled = pause.filter(|&(at, _)| heard >= at).map_or(0.0, |(_, s)| s);
+        let us = 3e6 + (heard / (1.0 + ppm * 1e-6) + stalled) * 1e6;
         let at = std::time::UNIX_EPOCH + std::time::Duration::from_micros(us as u64);
         let samples = samples.to_vec();
         tx.send(timegrapher_core::capture::Event::Audio(
@@ -661,6 +674,97 @@ fn row_measurement(dir: &Path) -> timegrapher_core::session::Measurement {
         .measurement
 }
 
+/// Where the Watches row of the take saved in `dir` and its cards once
+/// opened, at its end with the Average Over over the whole take, differ,
+/// in words: figures, ±s, why one has none, caveats, and the beats and
+/// span they rest on. `paused` says the take should hold a break.
+fn row_against_cards(name: &str, dir: &Path, paused: bool) -> Vec<String> {
+    let mut wrong = Vec::new();
+    let row = timegrapher_core::library::reading(dir).unwrap();
+    let x = row_measurement(dir);
+    let mut app = opened(dir);
+    app.set_average(60.0);
+    // As the window does: the whole take read for the cards' hover.
+    let _ = app.whole_take();
+    let card = app.reading().expect("the opened take reads at its end");
+    let shown_be =
+        timegrapher_core::session::beat_error_signed(card.beat_error_unlock_ms, card.beat_error_ms);
+    let c = x.confidence;
+    let pairs = [
+        ("rate", row.rate_s_per_day, card.rate_s_per_day),
+        ("amplitude", row.amplitude_deg, card.amplitude_deg),
+        ("beat error", row.beat_error_ms, shown_be),
+        (
+            "rate ±",
+            c.and_then(|c| c.rate.se),
+            card.rate_error_s_per_day,
+        ),
+        (
+            "amplitude ±",
+            c.and_then(|c| c.amplitude.se),
+            card.amplitude_error_deg,
+        ),
+        (
+            "beat error ±",
+            c.and_then(|c| c.beat_error.se),
+            card.beat_error_unlock_error_ms,
+        ),
+    ];
+    for (what, row, card) in pairs {
+        eprintln!("{name}: {what} {row:?} in the row, {card:?} on the cards");
+        if row.is_none() && what.ends_with('±') {
+            continue;
+        }
+        if row.is_none() || row != card {
+            wrong.push(format!(
+                "{name}: {what} {row:?} in the row, {card:?} on the cards"
+            ));
+        }
+    }
+    // The beats and seconds the figures rest on: the fit's own (Norm).
+    let span = x.end_s - x.start_s - x.masked_s;
+    if (x.beats_fitted, span) != (card.beats_used, card.span_s) {
+        wrong.push(format!(
+            "{name}: {} beats fitted over {span} s in the row, {} over {} on the cards",
+            x.beats_fitted, card.beats_used, card.span_s
+        ));
+    }
+    if paused && x.breaks.is_empty() {
+        wrong.push(format!("{name}: the pause left no break"));
+    }
+    // Across the pause, the Rate hover names the whole take's beats, both
+    // sides of it (Hugh 5 on #2075).
+    let said = app.rate_beats_behind(Some(&card));
+    let first = said.split("\n\n").next().unwrap_or_default().to_string();
+    let whole = format!(
+        "{} beats in {} of 1 min: the beats the readings are fitted to, fewer seconds than \
+         Average Over asks for. They are the whole take after settling, fitted apart at each \
+         break, masked stretch or gap of more than 2 s with no beats, with any piece under 10 s \
+         left out.",
+        x.beats_fitted,
+        crate::fields::duration(span.round())
+    );
+    if paused && first != whole {
+        wrong.push(format!(
+            "{name}: the Rate hover says {first:?}, not {whole:?}"
+        ));
+    }
+    let why = (
+        c.and_then(|c| c.rate.no_pm),
+        c.and_then(|c| c.amplitude.no_pm),
+    );
+    if why != (card.rate_no_pm, card.amplitude_no_pm) || x.caveats != card.caveats {
+        wrong.push(format!(
+            "{name}: no-± reasons {why:?} and caveats {:?} in the row, {:?} and {:?} \
+             on the cards",
+            x.caveats,
+            (card.rate_no_pm, card.amplitude_no_pm),
+            card.caveats
+        ));
+    }
+    wrong
+}
+
 /// A saved take's Watches row and its cards once opened, at its end with
 /// the Average Over over the whole take, give one rate, amplitude and
 /// beat error, with their ±s, why one has none and the caveats, to the
@@ -669,7 +773,8 @@ fn row_measurement(dir: &Path) -> timegrapher_core::session::Measurement {
 /// the same stretch on the same clock. Each take is listened to as from a
 /// microphone, on the card's own clock (0 ppm) and on one 25 ppm fast, so
 /// a 50 s take's clock log corrects and a 5 s one's is withheld. Three
-/// corpus takes, and 5 s of the first at four places. Needs only
+/// corpus takes, one of them again with a 5 s pause, and 5 s of the first
+/// at four places; the cards' beats and span are the row's too. Needs only
 /// `TIMEGRAPHER_CORPUS`.
 #[test]
 fn a_saved_takes_row_and_its_cards_give_one_reading() {
@@ -682,75 +787,34 @@ fn a_saved_takes_row_and_its_cards_give_one_reading() {
     let file = |id: &str| root.join("takes").join(id).join("take_part01-001.flac");
     let first = file("eta2824_bare_DU_10min_g4");
     let mut cases = vec![
-        (first.clone(), (60.0, 50.0)),
-        (file("pepsi3285_DU_10min_newstand_firsttest"), (60.0, 50.0)),
-        (file("peacock1258_DU_15min_lowwind_newstand"), (60.0, 50.0)),
+        (first.clone(), (60.0, 50.0), None),
+        (
+            file("pepsi3285_DU_10min_newstand_firsttest"),
+            (60.0, 50.0),
+            None,
+        ),
+        (
+            file("peacock1258_DU_15min_lowwind_newstand"),
+            (60.0, 50.0),
+            None,
+        ),
+        // A take with a pause: the cards' beats are the whole stretch's,
+        // not the latest unbroken run's (Norm on #2075).
+        (first.clone(), (60.0, 50.0), Some((25.0, 5.0))),
     ];
-    cases.extend([0.0, 30.0, 100.0, 300.0].map(|at| (first.clone(), (at, 5.0))));
+    cases.extend([0.0, 30.0, 100.0, 300.0].map(|at| (first.clone(), (at, 5.0), None)));
     let mut wrong = Vec::new();
-    for (k, (flac, stretch)) in cases.iter().enumerate() {
+    for (k, (flac, stretch, pause)) in cases.iter().enumerate() {
         for ppm in [0.0, 25.0] {
-            let name = format!("{} {stretch:?} at {ppm} ppm", flac.display());
+            let name = format!(
+                "{} {stretch:?} at {ppm} ppm, paused {pause:?}",
+                flac.display()
+            );
             let base = std::env::temp_dir()
                 .join(format!("tg-one-reading-{k}-{ppm}-{}", std::process::id()));
             let _ = std::fs::remove_dir_all(&base);
-            let dir = listened_and_saved(&base, flac, *stretch, ppm);
-            let row = timegrapher_core::library::reading(&dir).unwrap();
-            let x = row_measurement(&dir);
-            let mut app = opened(&dir);
-            app.set_average(60.0);
-            // As the window does: the whole take read for the cards' hover.
-            let _ = app.whole_take();
-            let card = app.reading().expect("the opened take reads at its end");
-            let shown_be = timegrapher_core::session::beat_error_signed(
-                card.beat_error_unlock_ms,
-                card.beat_error_ms,
-            );
-            let c = x.confidence;
-            let pairs = [
-                ("rate", row.rate_s_per_day, card.rate_s_per_day),
-                ("amplitude", row.amplitude_deg, card.amplitude_deg),
-                ("beat error", row.beat_error_ms, shown_be),
-                (
-                    "rate ±",
-                    c.and_then(|c| c.rate.se),
-                    card.rate_error_s_per_day,
-                ),
-                (
-                    "amplitude ±",
-                    c.and_then(|c| c.amplitude.se),
-                    card.amplitude_error_deg,
-                ),
-                (
-                    "beat error ±",
-                    c.and_then(|c| c.beat_error.se),
-                    card.beat_error_unlock_error_ms,
-                ),
-            ];
-            for (what, row, card) in pairs {
-                eprintln!("{name}: {what} {row:?} in the row, {card:?} on the cards");
-                if row.is_none() && what.ends_with('±') {
-                    continue;
-                }
-                if row.is_none() || row != card {
-                    wrong.push(format!(
-                        "{name}: {what} {row:?} in the row, {card:?} on the cards"
-                    ));
-                }
-            }
-            let why = (
-                c.and_then(|c| c.rate.no_pm),
-                c.and_then(|c| c.amplitude.no_pm),
-            );
-            if why != (card.rate_no_pm, card.amplitude_no_pm) || x.caveats != card.caveats {
-                wrong.push(format!(
-                    "{name}: no-± reasons {why:?} and caveats {:?} in the row, {:?} and {:?} \
-                     on the cards",
-                    x.caveats,
-                    (card.rate_no_pm, card.amplitude_no_pm),
-                    card.caveats
-                ));
-            }
+            let dir = listened_and_saved(&base, flac, *stretch, ppm, *pause, 0.0);
+            wrong.extend(row_against_cards(&name, &dir, pause.is_some()));
             let _ = std::fs::remove_dir_all(&base);
         }
     }
@@ -759,4 +823,40 @@ fn a_saved_takes_row_and_its_cards_give_one_reading() {
         "the row and the cards differ:\n{}",
         wrong.join("\n")
     );
+}
+
+/// A saved take whose watch was taken off the stand before Stop, opened
+/// again: its cards at its end read the last stretch with a watch heard,
+/// not "no watch" over the silence, at the default Average Over and at
+/// one the silence outlasts (Vernon and Walter on #2075). Needs only
+/// `TIMEGRAPHER_CORPUS`.
+#[test]
+fn a_saved_takes_cards_read_past_a_silent_tail() {
+    let required = std::env::var_os("TIMEGRAPHER_REQUIRE_CORPUS").is_some();
+    let Some(root) = std::env::var_os("TIMEGRAPHER_CORPUS").map(PathBuf::from) else {
+        assert!(!required, "TIMEGRAPHER_CORPUS is needed");
+        eprintln!("SKIP: set TIMEGRAPHER_CORPUS to read saved takes");
+        return;
+    };
+    let flac = root.join("takes/eta2824_bare_DU_10min_g4/take_part01-001.flac");
+    for silent_s in [10.0, 70.0] {
+        let base =
+            std::env::temp_dir().join(format!("tg-silent-tail-{silent_s}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let dir = listened_and_saved(&base, &flac, (200.0, 30.0), 0.0, None, silent_s);
+        let mut app = opened(&dir);
+        for average in [10.0, 60.0] {
+            app.set_average(average);
+            let card = app.reading().expect("the opened take reads");
+            eprintln!(
+                "{silent_s} s silent, Average Over {average} s: {:?} s/d at {} s",
+                card.rate_s_per_day, card.time_s
+            );
+            assert!(
+                card.watch_heard && card.rate_s_per_day.is_some(),
+                "{silent_s} s silent, Average Over {average} s: no figures on the cards"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&base);
+    }
 }

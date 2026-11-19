@@ -212,18 +212,39 @@ impl TimegrapherApp {
 
     /// A stopped take's reading over `average` seconds: an opened take's
     /// at its end ([`Self::opened_end_s`]), as its whole reading gives it
-    /// where that is the same stretch (core's `LiveReading::at_whole_end`);
-    /// else at its last beat with a watch heard, so the silence after it
-    /// is taken off the stand doesn't change it.
+    /// where that is the same stretch (core's `LiveReading::at_whole_end`),
+    /// where a watch is heard there; else, as for a take not opened, at
+    /// its last beat with a watch heard, so the silence after the watch is
+    /// taken off the stand doesn't blank the cards (Vernon on #2075).
     pub(super) fn stopped_reading(&self, live: &LiveAnalyzer, average: f64) -> LiveReading {
+        let heard = || live.reading_at(self.latest_s().min(self.last_heard_s()), average);
         let Some(end) = self.opened_end_s() else {
-            return live.reading_at(self.latest_s().min(self.last_heard_s()), average);
+            return heard();
         };
-        let r = live.reading_at(end, average);
-        match self.whole_read() {
-            Some(Ok(Some(w))) => r.at_whole_end(&w.m, average),
-            _ => r,
+        let r = match self.whole_read() {
+            Some(Ok(Some(w))) => live.reading_at(end, average).at_whole_end(&w.m, average),
+            _ => live.reading_at(end, average),
+        };
+        if r.watch_heard {
+            r
+        } else {
+            heard()
         }
+    }
+
+    /// What the whole reading on show is of, in words, as a take's row
+    /// names it (`watches::whole_named`): the position on show where the
+    /// take has more than one.
+    pub(super) fn whole_named(&self) -> String {
+        let mut positions: Vec<Position> = self
+            .session
+            .stretches()
+            .into_iter()
+            .map(|(_, p)| p)
+            .collect();
+        positions.sort_unstable_by_key(|p| p.name());
+        positions.dedup();
+        crate::watches::whole_named(Some(self.position.core()), positions.len())
     }
 
     /// The whole take as kept (`Ok`), or what it is to be read from
