@@ -445,3 +445,41 @@ fn an_hour_held_alone_follows_a_save_into_another_folder() {
     assert!(!r.hours_reachable());
     fs::remove_dir_all(&base).unwrap();
 }
+
+/// Felix on #2060: an hour kept in the first take alone, saved into
+/// another folder whose sync fails, isn't read from there: it isn't known
+/// to be on the disk. So the first take deleted, it is gone, though the
+/// copy saved last looks whole; with the sync, the same save moves it.
+#[test]
+fn an_hour_held_alone_follows_a_save_elsewhere_only_once_checked_there() {
+    let (mut r, base) = fixture("saved-elsewhere-unsynced");
+    append_second(&mut r, 2);
+    r.pause().unwrap();
+    let first = stream(&mut r, &base.join("unsorted"));
+    tidy_all(&mut r);
+    assert_eq!(
+        sound_in(r.dir()),
+        Vec::<String>::new(),
+        "kept in the take alone"
+    );
+    let refused = |step: SaveStep, _: &Path| match step {
+        SaveStep::Sync => Err(io::Error::other("injected folder sync failure")),
+        _ => Ok(()),
+    };
+    let copy = r
+        .begin_save(&base.join("other"), "", None, &[])
+        .unwrap()
+        .write_using(refused)
+        .unwrap();
+    assert!(copy.held_whole.is_empty(), "not checked there");
+    r.note_saved(&copy);
+    assert_eq!(
+        r.segment_paths(),
+        [first.join("audio-001.flac")],
+        "read from the first"
+    );
+    fs::remove_dir_all(&first).unwrap();
+    assert!(!r.hours_reachable());
+    assert!(gone(&mut r), "its hour gone with the first take");
+    fs::remove_dir_all(&base).unwrap();
+}
