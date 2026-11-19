@@ -550,12 +550,15 @@ the estimates too small. The
 [precision assumptions and probes](../research/measurement-precision.md) explain what
 is calculated and what has been checked. The amplitude's and beat error's ± are the
 standard errors of their 2 s windows in the averaging time. The rate's ±
-comes from the scatter of 10 s windows over the run so far (back to a
-break or a move, up to five minutes), scaled to the averaging time. Each
+is the scatter of the 10 s rates from one to the next, over how many of
+them the averaging time holds. A rate that drifts over minutes, as it
+does while a watch settles after a move, doesn't widen it, since the
+reading is about the last few seconds (#1950). Each
 ± takes its scatter from at least 30 values: a reading with fewer borrows
 it from the 30 nearest in the take, so the rate's ± waits for about
 5 min of beats and the others for about a minute (#1470). The Rate
-figure's hover says how many of the 30 there are so far. What the ± can't show is named, as a
+figure's hover says how many of the 30 there are so far, and once there
+is a ±, how many of them are this run's own. What the ± can't show is named, as a
 plain fact, in a chip beside the reading's caption, with its sentence on
 hover (a click keeps it open, as the ? does; with several, the chip
 shows the first and how many more, "12 s of Beats +1", and the hover
