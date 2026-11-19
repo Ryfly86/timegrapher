@@ -46,6 +46,12 @@ test("the Cycle view colours the dots by when they came and boxes each phase's m
   assert.deepEqual(chart.rects.map((r) => [r.y0, r.y1]), [[1.05, 1.17], [3, 3]]);
   assert.ok(Math.abs(chart.rects[0].x1 - chart.rects[0].x0 - 6) < 1e-9, "0.3 of a bin either side");
   assert.equal(chart.corner.text, "30 s cycle, 24 cycles folded\nThe median line swings 2.000 s/d, its noise included; the boxes' median height is 0.060 s/d");
+  // At the search's sized line (core's sine_size) that line's sine size;
+  // at the headline's own cycle the cycle's size (#1984).
+  context.steadyPlot({ series: "rate", views: { fold: { ...fold, sine_size: "1.2 s/d" } } }, "cycle", {});
+  assert.equal(chart.corner.text, "30 s cycle, 24 cycles folded\n1.2 s/d sine peak to peak; the boxes' median height is 0.060 s/d");
+  context.steadyPlot({ series: "rate", screen_cycle_size: "2.0 s/d", views: { fold: { ...fold, at_cycle: true } } }, "cycle", {});
+  assert.equal(chart.corner.text, "30 s cycle, 24 cycles folded\n2.0 s/d peak to peak; the boxes' median height is 0.060 s/d");
   // A fold from before core gave columns draws as before, with no note.
   const old = { ...fold, columns: undefined, swing: undefined, middle_half: undefined };
   context.steadyPlot({ series: "rate", views: { fold: old } }, "cycle", {});

@@ -1896,10 +1896,12 @@ impl SeriesCheck {
     }
 
     /// Whether periods `a` and `b` are one line of the period search:
-    /// within its resolution, period² over the take, and at least 1%.
+    /// within its resolution, period² over the take, and at least
+    /// [`SEARCH_REFINE_SHARE`], within which the cycle finder refines a
+    /// search line. The one rule for "the same line" (Norm, #1984).
     pub fn same_search_line(&self, a: f64, b: f64) -> bool {
         let span = self.readings as f64 * self.step_s;
-        (a - b).abs() <= (b * b / span).max(0.01 * b)
+        (a - b).abs() <= (b * b / span).max(SEARCH_REFINE_SHARE * b)
     }
 
     /// The period search's sine peak to peak, as the headline's "also
@@ -1984,7 +1986,7 @@ fn fast_line(s: &SeriesCheck) -> Option<String> {
     let size = SeriesKind::fmt_size_in(p.size_unit, p.size);
     let also = if s.cycle.is_some() { " also" } else { "" };
     Some(format!(
-        "{what}{also} repeats every {:.1} s{wheel}, {size} peak to peak; {} readings are too coarse to show it",
+        "{what}{also} repeats every {:.1} s{wheel}, {size} sine peak to peak; {} readings are too coarse to show it",
         p.period_s,
         every_text(s.cycle_step_s)
     ))

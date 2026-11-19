@@ -124,18 +124,57 @@ fn a_runner_up_shift_under_a_slide_marks_its_corner() {
     assert_eq!(named.segments[1].start_s, 3000.0);
 }
 
-/// A cycle refined from the search's top line, within
-/// [`SEARCH_REFINE_SHARE`] of it, is that line; one more than
-/// [`stats::SAME_LINE_SHARE`] off is another.
+/// A cycle within the search's resolution of its top line (period² over
+/// the take, at least [`SEARCH_REFINE_SHARE`]) is that line, as the
+/// headline's "also finds" counts it; one just past is another. Over these
+/// 6000 s that is 1% at 60 s and 10% at 600 s.
 #[test]
-fn a_cycle_off_the_search_line_is_one_past_the_same_line_share() {
+fn a_cycle_off_the_search_line_is_one_past_its_resolution() {
     let mut s = base();
-    s.period = Some(search_at(600.0));
-    s.cycle = Some(cycle_at(600.0 * (1.0 + SEARCH_REFINE_SHARE)));
-    assert!(s.faster_than_readings().is_none());
-    assert!(s.cycle_off_search().is_none());
-    s.cycle = Some(cycle_at(600.0 * (1.0 + 1.25 * stats::SAME_LINE_SHARE)));
-    assert!(s.cycle_off_search().is_some());
+    for (line, share) in [(60.0, SEARCH_REFINE_SHARE), (600.0, 0.1)] {
+        s.period = Some(search_at(line));
+        s.cycle = Some(cycle_at(line * (1.0 + 0.99 * share)));
+        assert!(s.faster_than_readings().is_none());
+        assert!(s.cycle_off_search().is_none(), "{line} s, inside");
+        s.cycle = Some(cycle_at(line * (1.0 + 1.01 * share)));
+        assert!(s.cycle_off_search().is_some(), "{line} s, past");
+    }
+}
+
+/// One line of the period search is its resolution wide, period² over the
+/// take and at least [`SEARCH_REFINE_SHARE`]: over these 6000 s, 1% at
+/// 60 s and 10% at 600 s, either way.
+#[test]
+fn one_search_line_is_its_resolution_wide() {
+    let s = base();
+    for (line, share) in [(60.0, SEARCH_REFINE_SHARE), (600.0, 0.1)] {
+        for side in [1.0, -1.0] {
+            assert!(s.same_search_line(line * (1.0 + side * 0.99 * share), line));
+            assert!(!s.same_search_line(line * (1.0 + side * 1.01 * share), line));
+        }
+    }
+}
+
+/// A fold at the search's sized line, within its resolution, states that
+/// line's sine size as the headline's "also finds" writes it; at the
+/// headline's own cycle, or off the line, none (Norm, #1984).
+#[test]
+fn a_fold_at_the_search_line_states_the_also_finds_sine_size() {
+    let mut s = base();
+    s.period = Some(search_at(60.0));
+    s.cycle = Some(cycle_at(600.0));
+    let size = SeriesKind::fmt_size_in("s/d", 1.0);
+    for at in [60.0, 60.0 * 1.009] {
+        assert_eq!(s.search_line_size_text(at).as_deref(), Some(size.as_str()));
+    }
+    assert_eq!(s.search_line_size_text(60.0 * 1.011), None);
+    let also = search_also(&s).expect("the search's line");
+    assert!(
+        also.contains(&format!("60 s ({size} sine peak to peak)")),
+        "{also}"
+    );
+    s.cycle = Some(cycle_at(60.0));
+    assert_eq!(s.search_line_size_text(60.0), None);
 }
 
 /// A search line too fast for the readings to show is never the line a

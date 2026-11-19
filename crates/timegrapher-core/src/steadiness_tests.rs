@@ -359,7 +359,7 @@ fn a_fast_rate_line_is_stated_as_the_beat_timing_in_ms() {
     );
     assert_eq!(s.lead, Lead::Steady, "{}", s.headline);
     assert!(
-        s.headline.ends_with("; the beat timing repeats every 5.0 s, the escape wheel's period, 0.043 ms peak to peak; 10 s readings are too coarse to show it."),
+        s.headline.ends_with("; the beat timing repeats every 5.0 s, the escape wheel's period, 0.043 ms sine peak to peak; 10 s readings are too coarse to show it."),
         "{}",
         s.headline
     );
@@ -378,7 +378,7 @@ fn a_rate_line_of_30_s_or_more_is_stated_as_the_rate_in_s_per_day() {
         &Config::default(),
     );
     assert!(
-        s.headline.contains("; the rate repeats every 60.0 s, the fourth wheel's period, 1.20 s/d peak to peak; 30 s readings are too coarse to show it."),
+        s.headline.contains("; the rate repeats every 60.0 s, the fourth wheel's period, 1.20 s/d sine peak to peak; 30 s readings are too coarse to show it."),
         "{}",
         s.headline
     );
@@ -399,7 +399,7 @@ fn an_amplitude_line_is_judged_against_the_2_s_windows() {
         &Config::default(),
     );
     assert!(
-        s.headline.ends_with("; the amplitude repeats every 4.0 s, 0.8° peak to peak; 2 s readings are too coarse to show it."),
+        s.headline.ends_with("; the amplitude repeats every 4.0 s, 0.8° sine peak to peak; 2 s readings are too coarse to show it."),
         "{}",
         s.headline
     );
@@ -443,7 +443,7 @@ fn a_fast_line_beside_a_level_change_is_its_own_sentence() {
     );
     assert_eq!(s.lead, Lead::ShiftingMean, "{}", s.headline);
     assert!(
-        s.headline.ends_with(". The beat timing repeats every 4.0 s, the escape wheel's period, 0.043 ms peak to peak; 2 s readings are too coarse to show it."),
+        s.headline.ends_with(". The beat timing repeats every 4.0 s, the escape wheel's period, 0.043 ms sine peak to peak; 2 s readings are too coarse to show it."),
         "{}",
         s.headline
     );

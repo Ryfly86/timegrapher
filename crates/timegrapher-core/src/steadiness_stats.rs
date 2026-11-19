@@ -5,14 +5,6 @@ use super::{p_text, unit_after, Cycle, SeriesCheck};
 use crate::figure_text::fixed_text;
 use crate::steady_views::readings_kind;
 
-/// How far, as a share of the period search's top period, the headline's
-/// cycle may sit from that period and still be the same line (#1984). The
-/// cycle finder refines a search candidate within
-/// [`super::SEARCH_REFINE_SHARE`] of it, so a cycle from the search's top
-/// line lands within that; twice it leaves room for the search's own grid,
-/// and a cycle further off came from another line.
-pub const SAME_LINE_SHARE: f64 = 2.0 * super::SEARCH_REFINE_SHARE;
-
 impl SeriesCheck {
     /// The headline's cycle when it is not the period search's top line
     /// and that line is one the readings can show: the fold's explained
@@ -21,8 +13,7 @@ impl SeriesCheck {
     pub fn cycle_off_search(&self) -> Option<&Cycle> {
         let p = self.period.as_ref()?;
         self.cycle.as_ref().filter(|c| {
-            self.faster_than_readings().is_none()
-                && (c.period_s - p.period_s).abs() > SAME_LINE_SHARE * p.period_s
+            self.faster_than_readings().is_none() && !self.same_search_line(c.period_s, p.period_s)
         })
     }
 
