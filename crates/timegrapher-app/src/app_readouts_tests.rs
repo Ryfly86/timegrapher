@@ -746,6 +746,22 @@ fn the_rate_hover_says_what_its_plus_minus_waits_for() {
         words.starts_with("± 0.2 s/d is one standard error (0.123, rounded up)."),
         "{words}"
     );
+    // How many of the 30 are the run's own, from core (#1950).
+    with.rate_own_values = 4;
+    let words = readouts::rate_pm_words(&with).unwrap();
+    assert!(
+        words.ends_with(
+            "Its scatter comes from 30 rates of 10 s each: 4 of this run's own and the 26 \
+             nearest it in this take."
+        ),
+        "{words}"
+    );
+    with.rate_own_values = 42;
+    let words = readouts::rate_pm_words(&with).unwrap();
+    assert!(
+        words.ends_with("Its scatter comes from this run's own 42 rates of 10 s each."),
+        "{words}"
+    );
 }
 
 /// The Amplitude figure's hover says why it has no ±: too few readings

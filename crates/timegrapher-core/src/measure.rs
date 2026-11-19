@@ -908,9 +908,11 @@ pub const RATE_WINDOW_STEP_S: f64 = RATE_WINDOW_S / 2.0;
 pub const RATE_SE_MIN_S: f64 = confidence::MIN_NOISE_VALUES as f64 * RATE_WINDOW_S;
 
 /// The rate's ± for a figure averaged over `average_s` within a run whose
-/// rate windows are given: the windows' scatter scaled to that time. Over
-/// the whole run it is the standard error [`confidence::rate_se`] gives;
-/// over a shorter time it is wider, since fewer windows went into it. Its
+/// rate windows are given: the scatter of the 10 s rates over the number
+/// of them averaged ([`confidence::rate_se_of_average_or_why`]), with no
+/// allowance for a drift over the run, which isn't uncertainty about the
+/// last `average_s` (#1950). With no lag-one correlation it is the
+/// standard error [`confidence::rate_se`] gives over the whole run. Its
 /// noise is borrowed from `take` as [`confidence::rate_se`]'s.
 pub fn rate_se_over(rate_windows: &[WindowFit], take: &[WindowFit], average_s: f64) -> Option<f64> {
     rate_se_over_or_why(rate_windows, take, average_s).ok()
@@ -923,9 +925,8 @@ pub fn rate_se_over_or_why(
     average_s: f64,
 ) -> Result<f64, confidence::NoPm> {
     let independent = confidence::rate_value_count(rate_windows.len()) as f64;
-    let se = confidence::rate_se_or_why(rate_windows, take)?;
-    let averaged = (average_s / RATE_WINDOW_S).clamp(1.0, independent);
-    Ok(se * (independent / averaged).sqrt())
+    let averaged = (average_s / RATE_WINDOW_S).clamp(1.0, independent.max(1.0));
+    confidence::rate_se_of_average_or_why(rate_windows, take, averaged)
 }
 
 /// What one measurement rests on.
@@ -1399,6 +1400,76 @@ mod tests {
         assert_eq!(with(None), Some(whole));
         assert_eq!(with(Some(10.0)), Some(ten));
     }
+
+    /// `n` rates for [`rate_windows`], with a scatter of about 2 s/d and,
+    /// with `hump`, a drift over them like a watch settling after a move:
+    /// down 15 s/d and back, as CD did on the Datejust, slowly enough that
+    /// the differences between neighbours barely change (#1950).
+    fn settling(n: usize, hump: bool) -> Vec<f64> {
+        (0..n)
+            .map(|k| {
+                let noise = [2.0, -2.0, 1.0, -1.0, 0.0][k % 5];
+                let x = k as f64 / n as f64;
+                let drift = if hump {
+                    -15.0 * (std::f64::consts::PI * x).sin()
+                } else {
+                    0.0
+                };
+                noise + drift
+            })
+            .collect()
+    }
+
+    /// A set average's rate ± is the 10 s rates' scatter over how many it
+    /// averages, with no allowance for a drift over the run (#1950): a
+    /// hump in the values it borrows its noise from leaves a 10 s
+    /// reading's ± where a steady run puts it, where the run's own ± (a
+    /// whole stop's) still widens for the drift, as it should for a mean.
+    #[test]
+    fn a_drift_in_the_pool_leaves_a_ten_second_average_its_scatter() {
+        let flat = rate_windows(&settling(30, false));
+        let humped = rate_windows(&settling(30, true));
+        // A reading 5 values into its run, its noise from the 30 nearest.
+        let own = |w: &[WindowFit]| w[w.len() - 10..].to_vec();
+        let ten = |w: &[WindowFit]| rate_se_over(&own(w), w, 10.0).unwrap();
+        let (a, b) = (ten(&flat), ten(&humped));
+        // Within the 6% the hump adds to the neighbours' differences.
+        assert!((b / a - 1.0).abs() < 0.07, "{b} against {a}");
+        // Its scatter, not a multiple of it: 1.2533 s at one value, s
+        // about 2.1.
+        assert!(b < 3.0 * 2.2, "{b}");
+        // The whole run's ± carries the drift's correlation.
+        let whole = |w: &[WindowFit]| confidence::rate_se(w, w).unwrap();
+        assert!(
+            whole(&humped) > 3.0 * whole(&flat),
+            "{} {}",
+            whole(&humped),
+            whole(&flat)
+        );
+    }
+
+    /// A whole stop's rate ± (no Average Over, as `session` and Dynamic
+    /// Poise read a stop) is unchanged by #1950: a wandering stop keeps
+    /// the ± its correlation gives, pinned here as main gave it.
+    #[test]
+    fn a_wandering_stops_rate_error_is_its_own() {
+        let w = rate_windows(&settling(30, true));
+        let whole = confidence::rate_se(&w, &w).unwrap();
+        assert!((whole - WANDERING_STOP_SE).abs() < 1e-9, "{whole}");
+        let a = assess(
+            &w,
+            &[],
+            &Context {
+                average_s: None,
+                ..heard()
+            },
+        );
+        assert_eq!(a.confidence.unwrap().rate.se, Some(whole));
+    }
+
+    /// [`a_wandering_stops_rate_error_is_its_own`]'s ±, s/d, as main
+    /// (f9d3626) read it before #1950.
+    const WANDERING_STOP_SE: f64 = 9.223_227_759_400_327;
 
     #[test]
     fn under_three_windows_the_rate_error_is_unknown() {
