@@ -145,7 +145,11 @@ fn a_tests_hover_counts_the_positions_measured() {
     assert!(figures_hover(Some(6), false).contains("Mean of the six positions"));
     assert!(figures_hover(Some(2), false).contains("Mean of the 2 positions measured"));
     assert!(figures_hover(Some(1), false).contains("the one position measured"));
-    assert!(figures_hover(None, true).contains("hour by hour"));
+    assert_eq!(
+        figures_hover(None, true),
+        "\n\nRate, Amplitude and Beat Error are given hour by hour in the take: open it to \
+         see them."
+    );
     assert_eq!(figures_hover(None, false), "");
 }
 
@@ -175,14 +179,14 @@ fn a_take_line_says_what_it_measured_with_beat_error_as_a_size() {
         watch_heard: true,
     };
     let r = Some(&reading);
-    let line = take_line(&t, false, r);
+    let line = take_line(&t, None, r);
     assert!(line.starts_with("Dial Up, Crown Left · "), "{line}");
     assert!(
         line.contains("+3.5 s/d · 281° · 0.40 ms · Analysis Only · Incomplete"),
         "{line}"
     );
     // Until the reading is worked out, no figures.
-    let line = take_line(&t, false, None);
+    let line = take_line(&t, None, None);
     assert!(!line.contains("s/d") && !line.contains('°'), "{line}");
     // A Power Reserve take leads with its run, not its length.
     let r = Take {
@@ -194,13 +198,13 @@ fn a_take_line_says_what_it_measured_with_beat_error_as_a_size() {
         }),
         ..t.clone()
     };
-    let line = take_line(&r, false, Some(&reading));
+    let line = take_line(&r, None, Some(&reading));
     assert!(
         line.starts_with("Power Reserve 46 h 12 min · Crown Left · Analysis Only"),
         "{line}"
     );
     // Nor does a Positions Test's last window stand for the test.
-    let line = take_line(&t, true, Some(&reading));
+    let line = take_line(&t, Some(TakeTest::Positions), Some(&reading));
     assert!(!line.contains("+3.5") && !line.contains("281°"), "{line}");
     assert!(local_minute("2026-10-20T21:32:00Z").is_some_and(|m| m.len() == 16));
     assert_eq!(local_minute("not a time"), None);
@@ -278,4 +282,49 @@ fn positions_take_hover_explains_the_actual_beat_error_mean() {
         }
         let _ = std::fs::remove_dir_all(&dir);
     }
+}
+
+/// The take the session on the Bench writes, recording or saved, is
+/// tagged On Show and its hover says it is on the Bench, as a take opened
+/// there is, not only once it is opened (#1981).
+#[test]
+fn the_take_on_the_bench_is_tagged_on_show_while_its_session_writes_it() {
+    let take = Take {
+        name: "2026-11-18 19.56".into(),
+        bytes: 0,
+        audio: true,
+        incomplete: false,
+        started_utc: None,
+        named_start: None,
+        duration_s: Some(60.0),
+        positions: vec!["DU".into()],
+        at_end: None,
+        power_reserve: None,
+        wind_h: None,
+    };
+    let e = WatchEntry {
+        dir: "/nowhere/Pepsi".into(),
+        watch: timegrapher_core::library::Watch::new("Pepsi"),
+        takes: vec![take.clone()],
+        photos: Vec::new(),
+    };
+    let dir = e.take_dir(&take);
+    let readings = TakeReadings::default();
+    let cx = |on_show, held| TakesContext {
+        others: &[],
+        writable: true,
+        keeping: None,
+        unsorted: false,
+        picked: None,
+        on_show,
+        held,
+        readings: &readings,
+    };
+    for (on_show, held) in [(Some(dir.as_path()), None), (None, Some(dir.as_path()))] {
+        let cx = cx(on_show, held);
+        assert_eq!(take_tags(&e, &take, &cx), "On Show");
+        assert!(take_hover(&take, &cx, &dir, None, None).contains("on show on the Bench"));
+    }
+    let cx = cx(None, None);
+    assert_eq!(take_tags(&e, &take, &cx), "");
 }

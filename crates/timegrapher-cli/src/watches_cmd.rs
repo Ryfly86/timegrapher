@@ -235,19 +235,15 @@ fn print_takes(e: &WatchEntry, readings: &[Option<Reading>]) {
         library::size_text(e.bytes())
     );
     for (t, reading) in e.takes.iter().zip(readings) {
-        let positions_test = library::is_positions_test(&e.take_dir(t));
-        println!(
-            "    {}: {}",
-            t.name,
-            take_line(t, positions_test, reading.as_ref())
-        );
+        let test = library::take_test(&e.take_dir(t));
+        println!("    {}: {}", t.name, take_line(t, test, reading.as_ref()));
     }
 }
 
 /// A take's facts as the app lists them, with its own reading's figures,
 /// then its size on disk.
-fn take_line(t: &Take, positions_test: bool, reading: Option<&Reading>) -> String {
-    let mut parts = t.facts_read(positions_test, reading);
+fn take_line(t: &Take, test: Option<library::TakeTest>, reading: Option<&Reading>) -> String {
+    let mut parts = t.facts_read(test, reading);
     parts.push(library::size_text(t.bytes));
     parts.join(" · ")
 }
@@ -278,7 +274,7 @@ mod tests {
             wind_h: None,
         };
         assert_eq!(
-            take_line(&t, false, None),
+            take_line(&t, None, None),
             "Power Reserve 1 h 30 min · Dial Up · Analysis Only · 58.3 MB"
         );
         // A run the watch didn't end says how it ended, in core's words.
@@ -291,7 +287,7 @@ mod tests {
             ..t.clone()
         };
         assert_eq!(
-            take_line(&limit, false, None),
+            take_line(&limit, None, None),
             "Power Reserve 1 h 30 min · Reached the 80 h limit while the watch still ran \
              · Dial Up · Analysis Only · 58.3 MB"
         );
@@ -300,12 +296,12 @@ mod tests {
             ..t
         };
         assert_eq!(
-            take_line(&t, false, None),
+            take_line(&t, None, None),
             "Dial Up · 1:30:00 · Analysis Only · 58.3 MB"
         );
         // A Positions Test's take names its kind first, as the app does.
         assert_eq!(
-            take_line(&t, true, None),
+            take_line(&t, Some(library::TakeTest::Positions), None),
             "Positions Test · Dial Up · 1:30:00 · Analysis Only · 58.3 MB"
         );
     }

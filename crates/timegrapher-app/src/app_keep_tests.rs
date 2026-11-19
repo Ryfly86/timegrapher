@@ -1104,6 +1104,22 @@ fn a_watchs_takes_are_kept_moved_deleted_and_added() {
     // The take was on show: the window is empty again, as at the start.
     assert!(app.live.is_none() && app.opened_path.is_empty());
     assert!(app.take_on_show().is_none());
+    // Set for Daytona's next take, as Listen sets it: its calibre, lift
+    // and beat rate on the card, and no Quick Listen in the status (#1981).
+    let w = app.open_watch().unwrap().watch.clone();
+    assert_eq!((app.watch.as_str(), app.quick_listen), ("Daytona", false));
+    assert_eq!(app.calibre, w.calibre.clone().unwrap_or_default());
+    let lift = app.cal.lift(&app.calibre).or(w.lift);
+    let bph = app.cal.bph(&app.calibre).or(w.bph);
+    assert_eq!(
+        (app.lift_deg, app.bph),
+        (lift.unwrap_or(DEFAULT_LIFT_DEG), bph)
+    );
+    assert!(
+        !app.status_words().contains("Quick Listen"),
+        "{}",
+        app.status_words()
+    );
 
     // A take from outside, opened, is added by a move.
     let outside = base.join("From a USB Stick");
