@@ -46,6 +46,13 @@ const RECORDING_INSIDE: &str = "The Watches folder can't move while a take is be
      or saved into it. Stop the take if it's recording, let its save finish, then choose Move \
      Watches… again.";
 
+/// Move Watches… while a take is copied into a watch, or a take's sound
+/// removed, on a thread of its own: the old folder would be deleted under
+/// it (Trevor on #2020).
+const COPYING_INSIDE: &str = "The Watches folder can't move while a take is still being \
+     copied in or having its sound removed. Wait for that to finish, then choose Move Watches… \
+     again.";
+
 /// Move Library… while saved takes are being kept as FLAC.
 pub(super) const WAV_KEEP_WAIT: &str =
     "The library moves once its saved takes are kept as FLAC: try again when the status bar \
@@ -314,6 +321,9 @@ impl TimegrapherApp {
         let recording =
             self.running() && self.session.saved_to().is_some_and(|p| p.starts_with(root));
         let saving = self.saving.is_some() || self.analysis_save.is_some();
+        if self.take_add.is_some() || self.take_keep.is_some() {
+            return Some(COPYING_INSIDE);
+        }
         (recording || saving).then_some(RECORDING_INSIDE)
     }
 
