@@ -2166,11 +2166,11 @@ anything is in them or not. A missing figure is a "—", with what the
 reading waits on in the unit's place, in short words ("Settling, 20 s";
 "Waiting for Beats"; "Before the Move"), the full sentence in the hover.
 With no regular beat, the reading cards say "No Regular Beat" there, with
-the full sentence and the timing scatter in the hover. With under 10 s of sound since Listen started, or since the latest break
-or mask, and no watch yet shown by the beats' sound, they say "Listening":
-the timing can't tell a watch from stand noise yet, so no figure is shown
-(#2014). A settle's own words win. A figure too wide
-for its card is drawn smaller. So the cards, and every pane under them,
+the full sentence and the timing scatter in the hover. With under 10 s of
+sound since Listen started, or since the latest break or mask, and no
+watch yet shown by the beats' sound, they say "Listening": the timing
+can't tell a watch from stand noise yet, so no figure is shown (#2014). A
+settle's own words win. A figure too wide for its card is drawn smaller. So the cards, and every pane under them,
 never change height with the readings. No pane is squeezed below 120 points, so the Paper
 Strip keeps room to read on a short window.
 

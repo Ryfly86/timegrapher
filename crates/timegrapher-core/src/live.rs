@@ -1248,9 +1248,6 @@ impl LiveAnalyzer {
         Cuts::new(None, &breaks, &self.masked)
     }
 
-    /// The cuts in the sound itself: every break that is not a jump in
-    /// the beats, and every masked stretch. The watch verdict looks back
-    /// to the latest of them.
     /// What the sound heard up to `end_s` is heard since: the take's
     /// start, or the latest break or mask ([`Self::heard_cuts`]).
     fn heard_since_kind(&self, end_s: f64) -> measure::HeardSince {
@@ -1264,6 +1261,9 @@ impl LiveAnalyzer {
         }
     }
 
+    /// The cuts in the sound itself: every break that is not a jump in
+    /// the beats, and every masked stretch. The watch verdict looks back
+    /// to the latest of them.
     fn heard_cuts(&self) -> Cuts<'static> {
         let breaks: Vec<Break> = self
             .breaks

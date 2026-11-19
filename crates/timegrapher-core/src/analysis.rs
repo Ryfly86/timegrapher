@@ -377,11 +377,7 @@ fn analyze_read(
     if log.lock_template_kept {
         crate::measure::add(&mut caveats, crate::measure::Caveat::LockTemplateKept);
     }
-    let shape = (watch_heard && !heard.awaiting).then(|| {
-        let beat_s = crate::timing::beat_period_s(fits.overall.as_ref(), bph);
-        let r = crate::shape::analyze(env, fs, &beats, beat_s, &Default::default());
-        crate::shape::Measures::of(&r, &fits.clear)
-    });
+    let shape = (watch_heard && !heard.awaiting).then(|| take_shape(env, fs, &beats, &fits, bph));
     let mut summary = Summary {
         bph_set: cfg.bph,
         duration_s: duration,
@@ -423,7 +419,9 @@ fn analyze_read(
         caveats,
         shape,
     };
-    heard.awaiting.then(|| summary.withhold_readings());
+    if heard.awaiting {
+        summary.withhold_readings();
+    }
     settle_beat_error(&mut summary, fits.figures.unlock_inconsistent);
     Analysis {
         summary,
@@ -450,6 +448,19 @@ struct Heard {
     expected: f64,
     clipping: Clipping,
     usb_clock: Option<UsbClock>,
+}
+
+/// The shape of a take's beats in `env` at `fs`, on its fitted beat period.
+fn take_shape(
+    env: &[f32],
+    fs: f64,
+    beats: &[Beat],
+    fits: &Fits,
+    bph: u32,
+) -> crate::shape::Measures {
+    let beat_s = crate::timing::beat_period_s(fits.overall.as_ref(), bph);
+    let r = crate::shape::analyze(env, fs, beats, beat_s, &Default::default());
+    crate::shape::Measures::of(&r, &fits.clear)
 }
 
 /// Whether a watch is heard in `beats` at `bph`, listened to from

@@ -993,6 +993,13 @@ fn a_stretch_of_exactly_ten_seconds_is_heard() {
         };
         let m = session::measure(&log, None, 0.0, duration);
         assert!(m.watch_heard, "{duration} s: {:?}", m.caveats);
+        if duration < 10.0 {
+            // Under 10 s of sound whose beats' sound can't be judged (no
+            // snippets) there is no verdict yet, so no rate (#2014; Norm's
+            // rule, Peter's OK on #2017).
+            assert_eq!(m.rate_s_per_day, None, "{duration} s");
+            continue;
+        }
         assert!(m.rate_s_per_day.unwrap().abs() < 1e-6, "{duration} s");
         if duration >= 10.0 {
             assert!(m.jitter_us.is_some(), "{duration} s");
