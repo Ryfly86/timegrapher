@@ -349,14 +349,17 @@ fn list_size(bytes: u64) -> String {
     }
 }
 
-/// A watch's size in the list: a dash while the Bench records a take
-/// into it, as the take's row has (#2032), since the library holds only
-/// that take's first write until it stops (#2034).
-pub fn watch_size(e: &WatchEntry, writing: Option<&Path>) -> String {
-    if writing.is_some_and(|w| w.starts_with(&e.dir)) {
-        "—".to_string()
-    } else {
-        list_size(e.bytes())
+/// A list row's size and its hover `what`: a dash while the Bench
+/// records a take into `e` (`writing`), as that take's row has, since the
+/// library holds only its first write until it stops (#2034); the hover
+/// says why (Hugh on #2037).
+pub fn size_and_hover(e: &WatchEntry, writing: Option<&Path>, what: &str) -> (String, String) {
+    match writing.is_some_and(|w| w.starts_with(&e.dir)) {
+        true => (
+            "—".into(),
+            format!("{what} Its size is given once the take being recorded stops."),
+        ),
+        false => (list_size(e.bytes()), what.to_string()),
     }
 }
 
@@ -405,14 +408,15 @@ pub fn list(
         if let Some(t) = last_take(e).and_then(timegrapher_core::library::date_text) {
             below.push(format!("last {t}"));
         }
+        let (size, hover) = size_and_hover(e, writing, "Show this watch's details and takes.");
         if found_row(
             ui,
             marked == Some(w.id.as_str()),
             lead,
             &w.name,
-            &watch_size(e, writing),
+            &size,
             &below,
-            "Show this watch's details and takes",
+            &hover,
             key,
         )
         .clicked()
@@ -433,6 +437,12 @@ pub fn unsorted_row(
     marked: bool,
     writing: Option<&Path>,
 ) -> bool {
+    let (size, hover) = size_and_hover(
+        e,
+        writing,
+        "Quick Listen again: no watch, no calibre, the default lift angle and the beat rate \
+         found from the beats. Shows the takes not yet filed under a watch.",
+    );
     row(
         ui,
         marked,
@@ -442,13 +452,12 @@ pub fn unsorted_row(
             Lead::None
         },
         UNSORTED_TAKES,
-        &watch_size(e, writing),
+        &size,
         &[
             "Quick Listen, no watch".to_string(),
             count(e.takes.len(), "take", "takes"),
         ],
-        "Quick Listen again: no watch, no calibre, the default lift angle and the beat \
-         rate found from the beats. Shows the takes not yet filed under a watch.",
+        &hover,
     )
     .clicked()
 }

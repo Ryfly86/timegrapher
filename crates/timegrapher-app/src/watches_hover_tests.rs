@@ -417,8 +417,18 @@ fn a_watchs_size_waits_while_a_take_records_into_it() {
         photos: Vec::new(),
     };
     let dir = e.take_dir(&take);
-    assert_eq!(watch_size(&e, Some(dir.as_path())), "—");
+    let what = "Show this watch's details and takes.";
+    assert_eq!(
+        size_and_hover(&e, Some(dir.as_path()), what),
+        (
+            "—".to_string(),
+            "Show this watch's details and takes. Its size is given once the take being \
+             recorded stops."
+                .to_string()
+        )
+    );
     let other = std::path::Path::new("/nowhere/Pepsi 2/takes/2026-11-19 05.40");
-    assert_eq!(watch_size(&e, Some(other)), "3.9 MB");
-    assert_eq!(watch_size(&e, None), "3.9 MB");
+    let shown = ("3.9 MB".to_string(), what.to_string());
+    assert_eq!(size_and_hover(&e, Some(other), what), shown);
+    assert_eq!(size_and_hover(&e, None, what), shown);
 }
