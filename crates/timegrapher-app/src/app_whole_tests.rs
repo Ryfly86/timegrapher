@@ -115,6 +115,12 @@ fn whole_take_is_the_session_reading() {
 fn a_take_whose_breaks_are_not_its_own_lists_says_so() {
     use timegrapher_core::breaks::Unlisted;
     let mut app = synthetic(60.0, 12.0);
+    // Opened as a take is, its beats read to its end: an opened take's
+    // cards read to its end (#2073), and the engine listened to here had
+    // not yet read the last of its sound.
+    let mut log = steady::log_of(app.live.as_ref().unwrap()).unwrap();
+    log.duration_s = log.beats.last().unwrap().time;
+    app.live = Some(LiveAnalyzer::from_log(log, LiveConfig::default()));
     app.put_take_breaks(Some(Vec::new()), Some(Unlisted::Unreadable));
     let w = app.whole_take().expect("whole take");
     assert!(

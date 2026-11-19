@@ -206,6 +206,57 @@ impl TimegrapherApp {
         }
     }
 
+    /// Where an opened take's readings end once stopped: at the take's
+    /// end, as `session` and the take's Watches row read it, not at its
+    /// last beat (#2073). The one rule for the whole take and the cards;
+    /// none for a take not opened.
+    pub(super) fn opened_end_s(&self) -> Option<f64> {
+        let live = self.live.as_ref()?;
+        self.take_breaks.is_some().then(|| live.duration_s())
+    }
+
+    /// A stopped take's reading over `average` seconds: an opened take's
+    /// at its end ([`Self::opened_end_s`]), as its whole reading gives it
+    /// where that is the same stretch (core's `LiveReading::at_whole_end`),
+    /// where a watch is heard there with a verdict given (as `reading_at`
+    /// reads figures) and beats in its stretch (as the cards' "No Beats
+    /// Heard" asks); else, as for a take not opened, at its last beat with
+    /// a watch heard, so the silence after the watch is taken off the
+    /// stand doesn't blank the cards: not when that silence came after a
+    /// break and still awaits its verdict, nor when it is just under
+    /// Average Over and the verdict still hears the watch before it
+    /// (Vernon and Walter 15 on #2075).
+    pub(super) fn stopped_reading(&self, live: &LiveAnalyzer, average: f64) -> LiveReading {
+        let heard = || live.reading_at(self.latest_s().min(self.last_heard_s()), average);
+        let Some(end) = self.opened_end_s() else {
+            return heard();
+        };
+        let r = match self.whole_read() {
+            Some(Ok(Some(w))) => live.reading_at(end, average).at_whole_end(&w.m, average),
+            _ => live.reading_at(end, average),
+        };
+        if r.watch_heard && r.listening.is_none() && !super::readouts::no_beat(&r) {
+            r
+        } else {
+            heard()
+        }
+    }
+
+    /// What the whole reading on show is of, in words, as a take's row
+    /// names it (`watches::whole_named`): the position on show where the
+    /// take has more than one.
+    pub(super) fn whole_named(&self) -> String {
+        let mut positions: Vec<Position> = self
+            .session
+            .stretches()
+            .into_iter()
+            .map(|(_, p)| p)
+            .collect();
+        positions.sort_unstable_by_key(|p| p.name());
+        positions.dedup();
+        crate::watches::whole_named(Some(self.position.core()), positions.len())
+    }
+
     /// The whole take as kept (`Ok`), or what it is to be read from
     /// (`Err`); none while listening or with nothing to read.
     fn whole_read(&self) -> Option<Result<Option<WholeTake>, WholeKey>> {
@@ -213,13 +264,9 @@ impl TimegrapherApp {
             return None;
         }
         let live = self.live.as_ref()?;
-        // To the take's end, as session reads it, not its last beat.
-        let opened = self.take_breaks.is_some();
-        let end = if opened {
-            live.duration_s()
-        } else {
-            self.last_heard_s().min(live.duration_s())
-        };
+        let end = self
+            .opened_end_s()
+            .unwrap_or_else(|| self.last_heard_s().min(live.duration_s()));
         let spans: Vec<(f64, f64)> = self
             .current_spans()
             .into_iter()
