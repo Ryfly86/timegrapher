@@ -1832,7 +1832,8 @@ takes while the app doesn't have the Watches folder open
 it records where it is, so it can be moved, synced or copied whole; a
 take with sound files missing is listed as incomplete and never changed.
 Settings' **Watches Folder** category shows where it is and how many watches and
-takes it holds and their size, with **Show in Finder** (Explorer on
+takes it holds and their size (a "—" while a take is recorded into it,
+its hover saying why, #2039), with **Show in Finder** (Explorer on
 Windows, File Manager on Linux), **Move Watches…** (into a folder picked,
 asking first; onto another disk it is copied, each file with its
 modification time, checked and only then removed, and a link or a
