@@ -2184,8 +2184,8 @@ or moved or changed outside the app), Listen starts a new take, and
 Save…, Save As…, Save Again, Keep Analysis Only and Keep in a Watch… are
 refused. The status bar reads "This sound can't be saved…", and a click
 on it shows the reason under that line: "Its earlier part was kept only
-in its take, and the take no longer holds it." Keep in a Watch… > New Watch… says
-so before its form opens, not after it is filled in. The message names the take and offers **Open Take** (the take
+in its take, and the take no longer holds it." Keep in a Watch… > New Watch…
+refuses before its form opens, not after it is filled in. The message names the take and offers **Open Take** (the take
 itself, opened where it is), **Delete Copy…** (asking first, and saying
 that only those last seconds are lost) and **Later**. If that take has
 since been moved or deleted, what is left of the copy is the only one, and it is offered
