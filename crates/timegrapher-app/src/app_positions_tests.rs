@@ -876,6 +876,62 @@ fn a_positions_test_ends_by_itself_after_the_sixth_position() {
     let _ = std::fs::remove_dir_all(&base);
 }
 
+/// A finished test's stretches are fixed: Settle changed after it is for
+/// the next test, and leaves the test's settling, and so its marks, its
+/// readings and its saved state, as they were (#1956, the v1.1
+/// shakedown).
+#[test]
+fn a_settle_changed_after_a_test_leaves_the_test_alone() {
+    let base = std::env::temp_dir().join(format!("tg-app-guided-settle-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let mut app = synthetic(20.0, 0.0);
+    app.session.listen();
+    app.session.set_settle_s(0.5);
+    let tx = queued_capture(&mut app, &base);
+    let end = app.live.as_ref().unwrap().duration_s();
+    let mut test = guided::Test::new().timed(0.5, 2.0);
+    let mut t = end - 18.0;
+    test.tick(t);
+    for i in 0..guided::ORDER.len() {
+        t += 2.75;
+        assert_eq!(test.tick(t), guided::Phase::Turn, "position {i}");
+        if i + 1 < guided::ORDER.len() {
+            let (old, new) = (guided::ORDER[i], guided::ORDER[i + 1]);
+            app.session.move_to(t, old, new).unwrap();
+            test.advance(t);
+        }
+    }
+    app.guided = Some(test);
+    app.lift_deg = 53.0;
+    let ctx = egui::Context::default();
+    app.guided_tick(&ctx);
+    assert!(!app.guided_running(), "ended");
+    let settles = app.session.settles();
+    assert_eq!(settles.len(), 5, "{settles:?}");
+    // Kept: what it would save now is what was saved.
+    let info = app.info("test", 48000, 16);
+    app.session.recorder =
+        Some(timegrapher_core::recorder::Recorder::start(&base.join("live"), info).unwrap());
+    let snap = app.session.metadata_snapshot(app.save_metadata());
+    app.session.mark_saved(end, base.clone(), snap);
+    assert!(!app.metadata_unsaved());
+    let watch = std::mem::replace(&mut app.watch, "Another".into());
+    assert!(app.metadata_unsaved(), "an edit does show as unsaved");
+    app.watch = watch;
+    for s in [30.0, 10.0, 30.0] {
+        app.session.resettle(s);
+        app.positions_moved(app.position);
+        assert_eq!(app.session.settles(), settles, "Settle {s}");
+        assert!(
+            !app.metadata_unsaved(),
+            "Settle {s}: the kept take is still saved"
+        );
+    }
+    drop(tx);
+    let _ = std::fs::remove_dir_all(&base);
+}
+
 /// A Positions Test keeps the lift its positions were read at, so its
 /// amplitudes are set against full wind's only at the same lift
 /// (#1884): read as it goes at the lift in use, and read again at a new
@@ -1120,28 +1176,33 @@ fn an_opened_takes_table_can_be_saved_and_copied() {
         !text.contains("Settling") && !text.contains("Measured"),
         "{text}"
     );
-    // The toolbar says how the take was read, as the table beside it
-    // does: greyed, never the app's Each Position (Hugh, #1733; Walter on
-    // #1843). Its stops are 62 s, the first read whole, the rest less the
-    // 20 s settling after each change of position.
+    // A plain take, no guided test: the toolbar keeps the settings, for
+    // the next test, in normal ink; how long each position was read is
+    // the table's Duration (Hugh on #1969, which replaces #1733's greyed
+    // lengths for a plain take; a 67 h take showed "67:29:10" there).
+    // Its stops are 62 s, the first read whole, the rest less the 20 s
+    // settling after each change of position.
     let read = app.free_table(&ctx).expect("a table");
-    let recorded = app
-        .recorded_lengths(&ctx, guided::Kind::Positions)
-        .expect("a take on show");
-    assert_eq!(recorded, "42 to 62 s");
+    assert_eq!(app.recorded_lengths(&ctx, guided::Kind::Positions), None);
     let durations: Vec<f64> = read.six.0.iter().map(|r| r.duration_s).collect();
     let least = durations.iter().copied().fold(f64::MAX, f64::min);
     let most = durations.iter().copied().fold(f64::MIN, f64::max);
-    assert_eq!(
-        recorded,
-        fields::duration_range(least.round(), most.round())
-    );
-    assert_ne!(recorded, fields::duration(guided::MEASURE_S));
+    assert_eq!((least.round(), most.round()), (42.0, 62.0));
     let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
     let lines: Vec<&str> = drawn.lines().collect();
     let each = lines.iter().position(|l| *l == "Each Position");
     let shown = each.and_then(|i| lines.get(i + 1));
-    assert_eq!(shown, Some(&recorded.as_str()), "{drawn}");
+    assert_eq!(
+        shown,
+        Some(&fields::duration(app.guided_measure_s).as_str()),
+        "{drawn}"
+    );
+    for d in [least, most].map(guided::table_duration) {
+        assert!(
+            lines.contains(&d.as_str()),
+            "{d} in the Duration column: {drawn}"
+        );
+    }
     let _ = std::fs::remove_dir_all(&base);
 }
 

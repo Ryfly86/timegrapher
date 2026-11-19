@@ -1834,3 +1834,52 @@ fn live_profiles_go_long_with_their_amplitude_reading() {
         assert!((amp - 150.0).abs() < 10.0, "amplitude {amp}");
     }
 }
+
+/// A good watch put on the stand after its noise is a beat being found,
+/// never a verdict, until the look back holds it alone (#2008: 18 s of
+/// "No Regular Beat" after launch, the beats already shown). Read each
+/// second as the cards read it: from the watch's first fitted reading,
+/// either it is heard or it is still being found, and the finding ends
+/// within `FINDING_S`. The stand's noise alone is never a beat found.
+#[test]
+fn a_good_watch_after_the_stand_noise_is_found_not_judged() {
+    let rms = crate::synth::noise_rms(SynthConfig::default().snr_db) * crate::synth::SCALE;
+    let mut rng = crate::synth::Rng::new(5);
+    let noise_s = 30;
+    let noise: Vec<f32> = (0..noise_s * 48_000)
+        .map(|_| (rms * rng.normal()) as f32)
+        .collect();
+    let watch = generate(
+        &SynthConfig {
+            duration_s: 40.0,
+            ..Default::default()
+        },
+        |_| 280.0,
+        |_| 0.0,
+    );
+    let mut a = LiveAnalyzer::new(48_000, LiveConfig::default());
+    for second in noise.chunks(48_000) {
+        feed(&mut a, second);
+        let r = a.reading(DEFAULT_AVERAGE_S);
+        assert!(!r.finding_beat, "noise at {}: {r:?}", a.duration_s());
+    }
+    let mut found = Vec::new();
+    for second in watch.samples.chunks(48_000) {
+        feed(&mut a, second);
+        let r = a.reading(DEFAULT_AVERAGE_S);
+        let after = a.duration_s() - noise_s as f64;
+        if r.beats_used > 0 {
+            assert!(r.watch_heard || r.finding_beat, "{after} s in: {r:?}");
+        }
+        if r.finding_beat {
+            assert!(!r.watch_heard);
+            found.push(after);
+        }
+    }
+    assert!(
+        !found.is_empty(),
+        "the noise still holds the verdict at first"
+    );
+    assert!(found.iter().all(|&t| t <= FINDING_S + 1.0), "{found:?}");
+    assert!(a.reading(DEFAULT_AVERAGE_S).watch_heard);
+}
