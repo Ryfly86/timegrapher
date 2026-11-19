@@ -200,6 +200,7 @@ impl TimegrapherApp {
             (Some(t), Some(now)) if t.kind == guided::Kind::Complication => Some(t.tick(now)),
             _ => None,
         };
+        let phase = self.shown_phase(phase);
         let live = match phase {
             Some(guided::Phase::Measuring(_)) => self.guided_live(ui.ctx()),
             _ => None,

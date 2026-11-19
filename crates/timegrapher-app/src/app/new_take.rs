@@ -1,6 +1,6 @@
 //! The kinds of take New Take starts, and the buttons that start them.
 
-use super::guided;
+use super::{guided, TestKeep, TimegrapherApp};
 
 /// The kinds of take New Take starts for the watch picked.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -86,4 +86,66 @@ pub(super) const NEW_TAKES: [(NewTake, &str, &str, &str); 5] = [
 #[cfg(test)]
 pub(crate) fn new_take_names() -> Vec<(&'static str, &'static str, &'static str)> {
     NEW_TAKES.iter().map(|t| (t.1, t.2, t.3)).collect()
+}
+
+impl TimegrapherApp {
+    /// The test whose take Keep This … Test? asks about, while it asks.
+    fn test_to_keep(&self) -> Option<NewTake> {
+        match self.test_keep? {
+            TestKeep::Positions => Some(
+                self.guided
+                    .as_ref()
+                    .map_or(NewTake::Positions, |t| NewTake::of(t.kind)),
+            ),
+            TestKeep::PowerReserve => Some(NewTake::PowerReserve),
+        }
+    }
+
+    /// What the strip shows, for the status line: the take's name, its
+    /// watch and its state.
+    pub(super) fn status_words(&self) -> String {
+        // A take not yet saved or opened, with no watch, is Quick Listen's,
+        // as the Calibre card's title says (No Watch (Quick Listen)).
+        let file = self.take_name();
+        let named = self.named_watch().map_or_else(String::new, |w| w.0);
+        let quick = self.quick_listen || file.is_none() && named.is_empty();
+        let name =
+            file.unwrap_or_else(|| if quick { "Quick Listen" } else { "New Take" }.to_string());
+        let watch = if !named.is_empty() {
+            named.clone()
+        } else if quick {
+            "No watch".to_string()
+        } else {
+            "No watch picked".to_string()
+        };
+        // A test set up or under way is named, with how it stands.
+        let test = if let Some(kind) = self.ready_test() {
+            Some((kind, self.state_words().to_string()))
+        } else if self.reserve_running() {
+            Some((NewTake::PowerReserve, self.state_words().to_string()))
+        } else if let Some(kind) = self.test_to_keep() {
+            // Ended, and Keep This … Test? asked: still that test's take
+            // (#2003), never Quick Listen's, which is never asked about.
+            Some((kind, self.state_words().to_string()))
+        } else if let Some(t) = self.guided.as_ref().filter(|_| self.test_listening()) {
+            let of = t.order().len();
+            let step = (t.step + 1).min(of);
+            Some((
+                NewTake::of(t.kind),
+                format!("{}, {step} of {of}", t.step_code(t.step.min(of - 1))),
+            ))
+        } else {
+            None
+        };
+        if let Some((kind, state)) = test {
+            let name = kind.name();
+            let watch = if named.is_empty() {
+                "No watch picked".to_string()
+            } else {
+                named
+            };
+            return format!("{name} · {watch} · {state}");
+        }
+        format!("{name} · {watch} · {}", self.state_words())
+    }
 }

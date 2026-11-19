@@ -75,6 +75,15 @@ pub const TRACK_WASH: f32 = 1.0 / 6.0;
 /// Words and codes drawn on solid teal (the brush's swatch, a lit
 /// position button): dark in both themes.
 pub const ON_TEAL: Color32 = Color32::from_rgb(0x1d, 0x1d, 0x1f);
+/// What a sheet (Settings, a question) dims the window behind it with
+/// (core's [`core_palette::SHEET_BACKDROP_ALPHA`], Hugh on #2045).
+pub const SHEET_BACKDROP: Color32 = Color32::from_black_alpha(core_palette::SHEET_BACKDROP_ALPHA);
+
+/// A sheet with id `id`, over [`SHEET_BACKDROP`].
+pub fn sheet(id: egui::Id) -> egui::Modal {
+    egui::Modal::new(id).backdrop_color(SHEET_BACKDROP)
+}
+
 /// A masked stretch is hatched in the faint text colour: on the track at
 /// full strength, down the plot at [`MASK_WASH`] of it.
 pub const MASK_WASH: f32 = 0.35;

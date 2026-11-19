@@ -25,7 +25,7 @@ impl TimegrapherApp {
             return;
         }
         let mut choice = None;
-        egui::Modal::new(egui::Id::new("remove-masks")).show(ctx, |ui| {
+        theme::sheet(egui::Id::new("remove-masks")).show(ctx, |ui| {
             ui.set_width(360.0);
             ui.label(RichText::new("Remove all masks?").font(theme::semibold(15.0)));
             ui.add_space(4.0);

@@ -270,6 +270,14 @@ fn a_test_after_quick_listen_is_not_quick_listen() {
     let _ = std::fs::remove_dir_all(&base);
 }
 
+/// The status bar names `take` and its watch, then how listening stands.
+fn status_names(app: &TimegrapherApp, take: &str) {
+    assert_eq!(
+        app.status_words(),
+        format!("{take} · {}", app.state_words())
+    );
+}
+
 /// A Positions Test or Power Reserve Test that ends with no watch
 /// picked asks where it goes: Keep in Unsorted, Keep in a Watch… or
 /// Throw Away. Quick Listen's sound still goes without a question.
@@ -310,6 +318,7 @@ fn a_test_with_no_watch_asks_where_it_goes() {
     app.quick_listen = true;
     app.stop_listening();
     assert_eq!(app.test_keep, None);
+    status_names(&app, "Quick Listen · No watch");
 
     // A Positions Test: asked, with the three answers on show.
     take(&mut app, 1);
@@ -317,6 +326,8 @@ fn a_test_with_no_watch_asks_where_it_goes() {
     app.positions_take = true;
     app.stop_listening();
     assert_eq!(app.test_keep, Some(TestKeep::Positions));
+    // Asked about, it is the test's take, not Quick Listen's (#2003).
+    status_names(&app, "Positions Test · No watch picked");
     let ctx = themed();
     assert!(app.confirm.is_none() && app.watch_form.is_none());
     let mut drawn = String::new();
@@ -393,6 +404,13 @@ fn a_test_with_no_watch_asks_where_it_goes() {
     app.reserve = Some(reserve::Test::new(Position::DialUp, true, started, 0.0));
     app.stop_listening();
     assert_eq!(app.test_keep, Some(TestKeep::PowerReserve));
+    // Still the test's take (this fixture keeps Pepsi's name from the
+    // take kept before, so only the test's name is checked here).
+    assert!(
+        app.status_words().starts_with("Power Reserve Test · "),
+        "{}",
+        app.status_words()
+    );
     assert_eq!(takes_in(unsorted.clone()), 1, "not saved before the answer");
     app.keep_test(TestKeep::PowerReserve, None);
     app.wait_for_save();

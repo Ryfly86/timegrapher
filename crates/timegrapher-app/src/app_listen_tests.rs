@@ -1470,3 +1470,54 @@ fn deleting_an_earlier_take_leaves_the_one_saved_last_saved() {
     assert_eq!(status_now(&app).0, "Saved");
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// With a take recording and Settings open, a click where Stop shows
+/// closes Settings and nothing else: the take goes on, as a click outside
+/// any sheet does. The window behind is dimmed by the one sheet backdrop,
+/// so Stop doesn't read as live. Once Settings is closed, Stop stops
+/// (Hugh on #2045).
+#[test]
+fn a_click_on_stop_behind_settings_only_closes_settings() {
+    let (mut app, base) = save_failure_fixture("stop-behind-settings");
+    app.library = Err("none in this test".into());
+    let _tx = queued_capture(&mut app, &base);
+    assert!(app.running() && app.session.mic());
+    app.open_settings(crate::settings_window::Tab::General);
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    let mut time = 0.0;
+    let mut pass = |app: &mut TimegrapherApp, after: f64, events: Vec<egui::Event>| {
+        time += after;
+        let input = egui::RawInput {
+            time: Some(time),
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::vec2(1280.0, 800.0),
+            )),
+            events,
+            ..Default::default()
+        };
+        ctx.run(input, |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| app.listen_buttons(ui, false));
+            app.settings_window(ctx);
+        })
+    };
+    let stop = egui::pos2(8.0 + LISTEN_BUTTON / 2.0, 8.0 + LISTEN_BUTTON / 2.0);
+    let settled = LISTEN_SETTLE_S * 2.0;
+    // The sheet's first frame only sizes it.
+    pass(&mut app, settled, Vec::new());
+    let out = pass(&mut app, settled, Vec::new());
+    let dimmed = out.shapes.iter().any(|c| {
+        matches!(&c.shape, egui::Shape::Rect(r)
+            if r.fill == theme::SHEET_BACKDROP && r.rect.contains(stop))
+    });
+    assert!(dimmed, "Stop sits under the sheet backdrop");
+    pass(&mut app, settled, click_at(stop));
+    assert!(app.settings_tab.is_none(), "the click closes Settings");
+    assert!(app.running(), "and the take goes on");
+    pass(&mut app, settled, Vec::new());
+    pass(&mut app, settled, click_at(stop));
+    assert!(!app.running(), "Stop, now in view, stops");
+    app.capture = None;
+    let _ = std::fs::remove_dir_all(&base);
+}
