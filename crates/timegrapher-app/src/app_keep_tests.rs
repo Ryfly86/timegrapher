@@ -2704,3 +2704,52 @@ fn a_test_kept_without_its_sound_says_its_figures_are_the_listenings() {
     assert_ne!(t.saved_read, guided::SavedRead::Pending);
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// A test's take kept with Save Analysis Only… is kept: a new session
+/// after it leaves the wind its Start set, not the one before (#2001,
+/// Trevor on #2136).
+#[test]
+fn a_test_kept_as_its_analysis_keeps_its_starts_wind() {
+    use super::wind::WindPick;
+    let base = std::env::temp_dir().join(format!("tg-app-wind-analysis-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.bph = Some(28800);
+    app.reset_session(48000, "test".into());
+    app.session.listen();
+    let audio = generate(
+        &SynthConfig {
+            duration_s: 30.0,
+            ..Default::default()
+        },
+        |_| 280.0,
+        |_| 0.0,
+    );
+    let info = app.info("test", 48000, 16);
+    app.session.recorder = Some(Recorder::start(&base.join("live"), info).unwrap());
+    let began = std::time::SystemTime::now();
+    for (k, second) in audio.samples.chunks(48000).enumerate() {
+        let block = timegrapher_core::capture::Block {
+            samples: second.to_vec(),
+            at: began + std::time::Duration::from_secs(k as u64 + 1),
+        };
+        app.session
+            .recorder
+            .as_mut()
+            .unwrap()
+            .write(&block)
+            .unwrap();
+    }
+    for samples in audio.samples.chunks(960) {
+        app.live.as_mut().unwrap().push(samples);
+    }
+    app.pick_wind(WindPick::HoursAgo(5.0));
+    app.started_from_full_wind(false);
+    assert!(app.can_save_analysis());
+    app.start_analysis_save(&base.join("kept"));
+    wait_for_jobs(&mut app);
+    assert!(app.analysis_kept_to.is_some(), "{:?}", app.message);
+    app.new_session();
+    assert_eq!(app.wind_field().words.value, "Full 0.0 h ago");
+    let _ = std::fs::remove_dir_all(&base);
+}
