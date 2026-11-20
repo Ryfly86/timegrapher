@@ -2753,3 +2753,56 @@ fn a_test_kept_as_its_analysis_keeps_its_starts_wind() {
     assert_eq!(app.wind_field().words.value, "Full 0.0 h ago");
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// A Stop read that fails says so, in Hugh's words, and the cards read
+/// the live engine, as before (#2164).
+#[test]
+fn a_stop_read_that_fails_says_so() {
+    let base = std::env::temp_dir().join(format!("tg-app-stop-fails-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "test".into());
+    app.session.listen();
+    let info = app.info("test", 48000, 16);
+    app.session.recorder = Some(Recorder::start(&base.join("live"), info).unwrap());
+    let tx = super::tests::queued_capture(&mut app, &base);
+    let audio = generate(
+        &SynthConfig {
+            duration_s: 20.0,
+            ..Default::default()
+        },
+        |_| 280.0,
+        |_| 0.0,
+    );
+    for (k, samples) in audio.samples.chunks(960).enumerate() {
+        let at =
+            std::time::UNIX_EPOCH + std::time::Duration::from_micros(3_000_000 + k as u64 * 20_000);
+        let samples = samples.to_vec();
+        tx.send(timegrapher_core::capture::Event::Audio(
+            timegrapher_core::capture::Block { samples, at },
+        ))
+        .unwrap();
+    }
+    while app.poll_for(std::time::Duration::from_secs(60)) > 0 {}
+    app.stop();
+    assert!(app.stop_read_waits().is_some(), "the take stopped is read");
+    app.break_stop_read();
+    app.poll_stop_read();
+    assert_eq!(
+        app.message,
+        Some((
+            "The take stopped couldn't be analysed whole\nThe cards show the figures heard \
+             while listening (it stopped part way). Saved and opened again, the take may read \
+             slightly differently."
+                .to_string(),
+            true
+        ))
+    );
+    assert!(app.stop_read_waits().is_none() && app.stopped_take().is_none());
+    assert!(
+        app.card_reading().is_some(),
+        "the cards read live, as before"
+    );
+    let _ = std::fs::remove_dir_all(&base);
+}

@@ -315,6 +315,8 @@ impl TimegrapherApp {
                     .recording_failed(format!("Couldn't close the kept sound at the pause: {e}"));
             }
         }
+        // The cards read the take as opening its saved take does (#2151).
+        self.start_stop_read();
         // An input that failed just before the pause says so, as listening
         // would have.
         if let Some(CaptureFailure::Input(error)) = failure {
@@ -1545,10 +1547,6 @@ impl TimegrapherApp {
     /// entry) placing each on the strip: an entry for one of them gives its
     /// positions, settling and masks in seconds into its own file, so each
     /// is moved to where that file starts (#1154).
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "the strip shows the session file's positions as the take starts to open, before its TakeContext arrives, laid by core's folder layout; and the positions recorded under painting are the app's own record"
-    )]
     pub(super) fn apply_manifest_placed(
         &mut self,
         m: &Manifest,
@@ -1579,41 +1577,9 @@ impl TimegrapherApp {
         if m.bph.is_some() {
             self.put_bph(m.bph);
         }
-        // What the take masked out; its seconds are the strip's, each
-        // entry's moved to where its file starts.
-        let offset = |i: usize| layout.map_or(0.0, |w| w[i].offset_s);
-        let masked =
-            timegrapher_core::take_context::masks_in_take(entries, (0..entries.len()).map(offset));
-        self.put_masked(timegrapher_core::session::masked_spans(&masked));
+        self.put_masked(manifest_masks(entries, layout));
         self.opened_masks = Some(self.masked.clone());
-        // Each entry read once the watch has settled, from core's window
-        // for it, as `session` reads it: the app's own takes say
-        // `settle_s = 0`, a recorded one its settling, and a take shorter
-        // than twice its settling settles to halfway. Its length is known
-        // here for a take of one sound file, and for each file of a folder
-        // take laid out by core; otherwise each entry runs to its end.
-        let listed = match layout {
-            Some(windows) => entries
-                .iter()
-                .zip(windows)
-                .filter_map(|(e, w)| {
-                    timegrapher_core::take::listed_position(
-                        e,
-                        m,
-                        w.window.as_ref().ok().copied(),
-                        w.offset_s,
-                    )
-                })
-                .collect(),
-            None => {
-                let one_file = entries.windows(2).all(|w| w[0].file == w[1].file);
-                let length = duration_s.filter(|_| one_file).unwrap_or(f64::INFINITY);
-                timegrapher_core::take::listed_positions(m, entries, length)
-            }
-        };
-        let (out, settles) = timegrapher_core::take::positions_of(listed.into_iter().filter_map(
-            |(start, from, to, p, carried)| Some((start, from, to, Position::of_core(p)?, carried)),
-        ));
+        let (out, settles) = manifest_positions(m, entries, duration_s, layout);
         // What was recorded under any painting, loaded with the positions.
         self.pending_recorded = recorded_of(m);
         if let Some(&(_, p)) = out.first() {
@@ -2199,6 +2165,7 @@ impl TimegrapherApp {
         self.follow_live_usb();
         self.poll_wav_keep();
         self.poll_test_read();
+        self.poll_stop_read();
         // Asks waiting on a save go ahead on the window's frame, never on
         // the listening thread, which polls too.
         self.run_after_save();
@@ -2752,14 +2719,14 @@ fn take_label(path: &Path, count: usize) -> String {
 /// readings takes a while.
 #[derive(Debug)]
 pub(super) struct Opened {
-    live: LiveAnalyzer,
-    inputs: OpenInputs,
+    pub(super) live: LiveAnalyzer,
+    pub(super) inputs: OpenInputs,
     trend: Vec<TrendPoint>,
-    clock: Option<timegrapher_core::clock::ClockFit>,
+    pub(super) clock: Option<timegrapher_core::clock::ClockFit>,
     /// Where the clock came from, in core's words.
     clock_source: Option<String>,
-    breaks: Vec<timegrapher_core::breaks::Break>,
-    unlisted: Option<timegrapher_core::breaks::Unlisted>,
+    pub(super) breaks: Vec<timegrapher_core::breaks::Break>,
+    pub(super) unlisted: Option<timegrapher_core::breaks::Unlisted>,
     profiles: Option<Vec<analysis_take::StretchProfiles>>,
 }
 
@@ -2818,7 +2785,7 @@ pub(super) fn ready_engine(
 /// `live`, readied on `was`, brought to what changed by `now` while its
 /// take opened, as a change just after it opened would be: each setting
 /// that changed, by the engine's own setter.
-fn retune(
+pub(super) fn retune(
     live: &mut LiveAnalyzer,
     was: &OpenInputs,
     now: &OpenInputs,
@@ -2854,6 +2821,52 @@ fn retune(
 /// once the take is open (#1233).
 fn engine_masked(i: &OpenInputs) -> Vec<(f64, f64)> {
     timegrapher_core::session::with_holes(&i.masked, &i.settles)
+}
+
+/// What the take masked out, as the strip shows it: in its seconds, each
+/// entry's moved to where its file starts in `layout`, if laid out.
+pub(super) fn manifest_masks(
+    entries: &[RecordingEntry],
+    layout: Option<&[EntryWindow]>,
+) -> Vec<(f64, f64)> {
+    let offset = |i: usize| layout.map_or(0.0, |w| w[i].offset_s);
+    let masked =
+        timegrapher_core::take_context::masks_in_take(entries, (0..entries.len()).map(offset));
+    timegrapher_core::session::masked_spans(&masked)
+}
+
+/// The changes of position and settling the session file `m` lists for
+/// `entries`, as the strip shows them while a take opens. Each entry is
+/// read once the watch has settled, from core's window for it, as
+/// `session` reads it: the app's own takes say `settle_s = 0`, a recorded
+/// one its settling, and a take shorter than twice its settling settles
+/// to halfway. Its length is known for a take of one sound file, and for
+/// each file of a folder take laid out by core (`layout`); otherwise each
+/// entry runs to its end.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the strip shows the session file's positions as the take starts to open, before its TakeContext arrives, laid by core's folder layout"
+)]
+pub(super) fn manifest_positions(
+    m: &Manifest,
+    entries: &[RecordingEntry],
+    duration_s: Option<f64>,
+    layout: Option<&[EntryWindow]>,
+) -> (Stretches, Vec<(f64, f64)>) {
+    use timegrapher_core::take::listed_position;
+    let listed = match layout {
+        Some(windows) => (entries.iter().zip(windows))
+            .filter_map(|(e, w)| listed_position(e, m, w.window.as_ref().ok().copied(), w.offset_s))
+            .collect(),
+        None => {
+            let one_file = entries.windows(2).all(|w| w[0].file == w[1].file);
+            let length = duration_s.filter(|_| one_file).unwrap_or(f64::INFINITY);
+            timegrapher_core::take::listed_positions(m, entries, length)
+        }
+    };
+    timegrapher_core::take::positions_of(listed.into_iter().filter_map(
+        |(start, from, to, p, carried)| Some((start, from, to, Position::of_core(p)?, carried)),
+    ))
 }
 
 /// What a take's session file `m` says was recorded under its painting,
@@ -2906,7 +2919,7 @@ pub(super) fn load_positions(
 /// the seconds of sound read (for a take kept as its analysis alone, its
 /// length `kept_s` once read) and setting `cancel` stops it, sending
 /// nothing. Its engine and readings are readied there too, on `inputs`.
-fn open_in_background(
+pub(super) fn open_in_background(
     opening: (PathBuf, Manifest),
     settings: timegrapher_core::take::EntrySettings,
     tx: std::sync::mpsc::Sender<Result<Option<Opened>, String>>,
