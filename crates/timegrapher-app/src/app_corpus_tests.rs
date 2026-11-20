@@ -691,10 +691,33 @@ fn saved(app: &mut TimegrapherApp, base: &Path) -> PathBuf {
 fn listened(
     base: &Path,
     flac: &Path,
-    (from_s, secs): (f64, f64),
+    stretch: (f64, f64),
     ppm: f64,
     pause: Option<(f64, f64)>,
     silent_s: f64,
+) -> TimegrapherApp {
+    let fs = timegrapher_core::audio::load(flac).unwrap().sample_rate as f64;
+    // The tail is a quiet stand's hiss, not digital zero: a microphone
+    // never hears nothing.
+    let mut seed = 0x2073_u32;
+    let hiss = (0..(silent_s * fs) as usize)
+        .map(|_| {
+            seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            (seed >> 8) as f32 / (1u32 << 24) as f32 * 2e-3 - 1e-3
+        })
+        .collect();
+    listened_then(base, flac, stretch, ppm, pause, hiss)
+}
+
+/// [`listened`], with the sound `tail` after the watch's in place of a
+/// quiet stand's hiss: a stand's own noise, say.
+fn listened_then(
+    base: &Path,
+    flac: &Path,
+    (from_s, secs): (f64, f64),
+    ppm: f64,
+    pause: Option<(f64, f64)>,
+    tail: Vec<f32>,
 ) -> TimegrapherApp {
     std::fs::create_dir_all(base).unwrap();
     let audio = timegrapher_core::audio::load(flac).unwrap();
@@ -708,13 +731,7 @@ fn listened(
     let from = (from_s * fs as f64) as usize;
     let block = fs / 50;
     let mut sound = audio.samples[from..from + (secs * fs as f64) as usize].to_vec();
-    // The tail is a quiet stand's hiss, not digital zero: a microphone
-    // never hears nothing.
-    let mut seed = 0x2073_u32;
-    sound.extend((0..(silent_s * fs as f64) as usize).map(|_| {
-        seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-        (seed >> 8) as f32 / (1u32 << 24) as f32 * 2e-3 - 1e-3
-    }));
+    sound.extend(tail);
     for (k, samples) in sound.chunks(block).enumerate() {
         let heard = (k * block) as f64 / fs as f64;
         let stalled = pause.filter(|&(at, _)| heard >= at).map_or(0.0, |(_, s)| s);
@@ -1048,6 +1065,91 @@ fn a_stopped_takes_cards_read_to_the_watchs_last_beat() {
                     ));
                 }
             }
+        }
+        let _ = std::fs::remove_dir_all(&base);
+    }
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+}
+
+/// A watch heard live for a while, then the stand's own noise after its
+/// watch stopped, then Stop, as a watchmaker lifts the watch and stops a
+/// minute later (#2112, #2114). The noise is no watch: the cards keep the
+/// beat rate the watch was heard at, with figures read at it, and the
+/// Positions Test's This Take table keeps its row. Needs only
+/// `TIMEGRAPHER_CORPUS`.
+#[test]
+fn a_take_stopped_after_stand_noise_keeps_its_watchs_rate_and_table() {
+    let required = std::env::var_os("TIMEGRAPHER_REQUIRE_CORPUS").is_some();
+    let Some(root) = std::env::var_os("TIMEGRAPHER_CORPUS").map(PathBuf::from) else {
+        assert!(!required, "TIMEGRAPHER_CORPUS is needed");
+        eprintln!("SKIP: set TIMEGRAPHER_CORPUS to listen to corpus takes");
+        return;
+    };
+    let watch = root.join("takes/pepsi3285_DU_10min_newstand_firsttest/take_part01-001.flac");
+    // The stand after the YM42 stopped: its hum and hiss, no watch.
+    let stand = root.join("takes/ym42_DU_65h_excerpt_dying/take_part01-005.flac");
+    let stand = timegrapher_core::audio::load(&stand).unwrap();
+    let fs = timegrapher_core::audio::load(&watch).unwrap().sample_rate;
+    assert_eq!(
+        stand.sample_rate, fs,
+        "both takes are heard at one sample rate"
+    );
+    // The stand's noise locked on to as a 72,000 bph "watch", as Shane's
+    // first take did 1 time in 3: 8 s of the stand, then 5 s of clicks at
+    // 72,000, so Auto lets the watch's rate go and locks on to them.
+    let hum = timegrapher_core::synth::generate(
+        &timegrapher_core::synth::SynthConfig {
+            bph: 72_000,
+            duration_s: 5.0,
+            sample_rate: fs,
+            ..Default::default()
+        },
+        |_| 260.0,
+        |_| 0.0,
+    );
+    let mut locked = stand.samples[..(8.0 * f64::from(fs)) as usize].to_vec();
+    locked.extend_from_slice(&hum.samples);
+    let tails = [
+        (150.0, "the stand", stand.samples.clone()),
+        (90.0, "the stand", stand.samples.clone()),
+        (150.0, "the stand locked on to", locked),
+    ];
+    let ctx = super::tests::themed();
+    let mut wrong = Vec::new();
+    for (k, (secs, tail, sound)) in tails.into_iter().enumerate() {
+        let base = std::env::temp_dir().join(format!("tg-stand-tail-{k}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let mut app = listened_then(&base, &watch, (0.0, secs), 0.0, None, sound);
+        app.set_average(60.0);
+        let what = format!("{secs} s of the watch, then {tail}");
+        let card = app.card_reading().expect("the take reads");
+        eprintln!(
+            "{what}: {:?} bph, {:?} s/d at {} s, Auto {:?}",
+            card.bph,
+            card.rate_s_per_day,
+            card.time_s,
+            app.bph_heard()
+        );
+        if app.bph_heard() != Some(28800) {
+            wrong.push(format!("{what}: Auto {:?}, not 28800", app.bph_heard()));
+        }
+        if !card.rate_s_per_day.is_some_and(|r| r.abs() < 60.0) {
+            wrong.push(format!("{what}: rate {:?} s/d", card.rate_s_per_day));
+        }
+        // The watch's rate in the Dial Up row, as on the cards.
+        let row = app.free_table(&ctx).and_then(|t| {
+            t.rows.into_iter().find_map(|r| match r.2 {
+                guided::FreeCell::Read(rate, ..) => Some(rate),
+                _ => None,
+            })
+        });
+        eprintln!("{what}: the This Take row reads {row:?} s/d");
+        match row {
+            None => wrong.push(format!("{what}: no This Take row")),
+            Some(rate) if !rate.is_some_and(|r| r.abs() < 60.0) => {
+                wrong.push(format!("{what}: the This Take row reads {rate:?} s/d"));
+            }
+            Some(_) => {}
         }
         let _ = std::fs::remove_dir_all(&base);
     }
