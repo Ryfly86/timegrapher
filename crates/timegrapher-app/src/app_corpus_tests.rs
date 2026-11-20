@@ -714,10 +714,24 @@ fn listened(
 fn listened_then(
     base: &Path,
     flac: &Path,
+    stretch: (f64, f64),
+    ppm: f64,
+    pause: Option<(f64, f64)>,
+    tail: Vec<f32>,
+) -> TimegrapherApp {
+    listened_moved(base, flac, stretch, ppm, pause, tail, None)
+}
+
+/// [`listened_then`], with the watch moved to another position `moved.1`
+/// once `moved.0` seconds of sound are heard.
+fn listened_moved(
+    base: &Path,
+    flac: &Path,
     (from_s, secs): (f64, f64),
     ppm: f64,
     pause: Option<(f64, f64)>,
     tail: Vec<f32>,
+    mut moved: Option<(f64, Position)>,
 ) -> TimegrapherApp {
     std::fs::create_dir_all(base).unwrap();
     let audio = timegrapher_core::audio::load(flac).unwrap();
@@ -734,6 +748,10 @@ fn listened_then(
     sound.extend(tail);
     for (k, samples) in sound.chunks(block).enumerate() {
         let heard = (k * block) as f64 / fs as f64;
+        if let Some((_, to)) = moved.take_if(|(at, _)| heard >= *at) {
+            while app.poll_for(std::time::Duration::from_secs(60)) > 0 {}
+            app.change_position(to);
+        }
         let stalled = pause.filter(|&(at, _)| heard >= at).map_or(0.0, |(_, s)| s);
         let us = 3e6 + (heard / (1.0 + ppm * 1e-6) + stalled) * 1e6;
         let at = std::time::UNIX_EPOCH + std::time::Duration::from_micros(us as u64);
@@ -1275,6 +1293,18 @@ fn a_stopped_takes_cards_are_its_saved_takes_to_the_bit() {
             !text.contains("s/d"),
             "{secs} s: a figure while it is read: {text}"
         );
+        // The strip, unpinned, waits as the cards do (Trevor on #2164).
+        let live = stopped.card_reading().expect("live reads while it waits");
+        if let Some(rate) = readouts::rate_figure(&live) {
+            stopped.readings_pinned = false;
+            let strip = window_frame(&mut stopped, &ctx);
+            stopped.readings_pinned = true;
+            let digits = rate.trim_start_matches(['+', '-', '\u{2212}']);
+            assert!(
+                strip.contains("Rate") && !strip.contains(digits),
+                "{secs} s: the strip shows live's {rate} while it is read: {strip}"
+            );
+        }
         // The window's frames while it is read, and after (Gordon).
         let waited = Instant::now();
         let mut waiting = Vec::new();
@@ -1332,10 +1362,13 @@ fn a_stopped_takes_cards_are_its_saved_takes_to_the_bit() {
 }
 
 /// A stopped take's whole take and its cards' sparklines are its saved
-/// take's too (Trevor on #2164): with a break in the take, so the saved
-/// sound's time differs from the session's, and a mask put on once the
-/// take is read, which the stopped take takes as an opened one does.
-/// More sound kept after the read drops it.
+/// take's too (Trevor on #2164): with a move and then a break in the
+/// take, so the saved sound's time differs from the session's where the
+/// position's stretch starts, and a mask put on once the take is read,
+/// which the stopped take takes as an opened one does. The whole take is
+/// read before the save, as the stopped take; sparklines read while it
+/// waits are read again once it lands. More sound kept after the read
+/// drops it.
 #[test]
 fn a_stopped_takes_whole_take_and_sparklines_are_its_saved_takes() {
     let required = std::env::var_os("TIMEGRAPHER_REQUIRE_CORPUS").is_some();
@@ -1350,34 +1383,54 @@ fn a_stopped_takes_whole_take_and_sparklines_are_its_saved_takes() {
     }
     let base = std::env::temp_dir().join(format!("tg-2164-whole-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&base);
-    // A 4 s stall 30 s in: a break, so session and saved sound part.
-    let mut stopped = listened(&base, &flac, (0.0, 90.0), 0.0, Some((30.0, 4.0)), 0.0);
+    // Moved to Crown Up 10 s in, then a 4 s stall 20 s in, inside its
+    // settling: a break, so session and saved sound part, and the
+    // position's settled stretch starts at a different second in each.
+    let moved = Some((10.0, Position::CrownUp));
+    let pause = Some((20.0, 4.0));
+    let mut stopped = listened_moved(&base, &flac, (0.0, 90.0), 0.0, pause, Vec::new(), moved);
     let ctx = egui::Context::default();
     crate::theme::install(&ctx);
     // Sparklines read while it waits are not kept past it.
+    stopped.set_average(10.0);
     let waiting = stopped.card_reading().expect("live reads while it waits");
-    let _ = stopped.spark_trend(&ctx, &waiting);
+    let waited = format!("{:?}", stopped.spark_trend(&ctx, &waiting));
     stop_read_in(&mut stopped);
+    let r = stopped.card_reading().expect("a reading");
+    let landed = format!("{:?}", stopped.spark_trend(&ctx, &r));
+    assert_ne!(landed, waited, "the sparklines read live's, not the take's");
+    stopped.set_average(60.0);
+    let _ = stopped.spark_trend(&ctx, &r);
+    stopped.set_average(10.0);
+    assert_eq!(
+        format!("{:?}", stopped.spark_trend(&ctx, &r)),
+        landed,
+        "the sparklines kept from the wait"
+    );
     // A mask once it is read: retuned, as an opened take's engine is.
     stopped.put_masked(vec![(50.0, 56.0)]);
+    // What the stopped take shows, read before it is saved: saved, it
+    // reads as the take opened.
+    let shown = |app: &mut TimegrapherApp, ctx: &egui::Context| {
+        for _ in 0..2 {
+            let _ = window_frame(app, ctx);
+        }
+        let r = app.card_reading().expect("a reading");
+        let whole = app.whole_take().expect("the whole take");
+        (
+            card_bits(&r),
+            format!("{:?} {:?}", whole.m, whole.span.to_bits()),
+            format!("{:?}", app.spark_trend(ctx, &r)),
+        )
+    };
+    let mut seen = vec![shown(&mut stopped, &ctx)];
+    assert!(stopped.stopped_take().is_some(), "read as the stopped take");
     let (mut opened, ctx) = window_opened(&saved(&mut stopped, &base));
     // The saved take keeps the mask, in its sound's own time: 4 s sooner,
     // after the break.
     assert_eq!(opened.masked, vec![(46.0, 52.0)], "the saved take's mask");
-    let mut seen = Vec::new();
-    for app in [&mut stopped, &mut opened] {
-        app.set_average(10.0);
-        for _ in 0..2 {
-            let _ = window_frame(app, &ctx);
-        }
-        let r = app.card_reading().expect("a reading");
-        let whole = app.whole_take().expect("the whole take");
-        seen.push((
-            card_bits(&r),
-            format!("{:?} {:?}", whole.m, whole.span.to_bits()),
-            format!("{:?}", app.spark_trend(&ctx, &r)),
-        ));
-    }
+    opened.set_average(10.0);
+    seen.push(shown(&mut opened, &ctx));
     let (s, o) = (&seen[0], &seen[1]);
     assert_eq!(s.0, o.0, "the cards");
     assert_eq!(s.1, o.1, "the whole take");
