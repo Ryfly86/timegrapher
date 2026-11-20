@@ -445,7 +445,7 @@ impl Session {
 
     /// Whether `t` falls in a settling after a move.
     pub fn settling_at(&self, t: f64) -> bool {
-        self.settles().iter().any(|s| t > s.0 && t <= s.1)
+        settling_in(&self.settles(), t)
     }
 
     /// Seconds of settling still to come at `t`.
@@ -951,7 +951,7 @@ impl Session {
         let spans = self.position_spans(now);
         move |t| {
             anywhere
-                || !settles.iter().any(|s| t > s.0 && t <= s.1)
+                || !settling_in(&settles, t)
                     && spans.iter().any(|s| s.2 == now && t > s.0 && t <= s.1)
         }
     }
@@ -1241,6 +1241,12 @@ fn changes_in(events: &[Event]) -> Vec<(f64, Position)> {
 }
 
 /// The settling in `events`, oldest first.
+/// Whether `t` falls in one of `settles` (start, end]: one rule for
+/// [`Session::settling_at`] and [`Session::in_position_test`].
+fn settling_in(settles: &[(f64, f64)], t: f64) -> bool {
+    settles.iter().any(|s| t > s.0 && t <= s.1)
+}
+
 fn settles_in(events: &[Event]) -> Vec<(f64, f64)> {
     events
         .iter()

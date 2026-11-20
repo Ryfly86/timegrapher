@@ -20,10 +20,13 @@ const SIDE_AXIS_W: f32 = 44.0;
 
 /// What a distribution's plot rests on (#2171): the reading and how it
 /// is shown, the take's [`Revision`], the position counted, Average
-/// Over, core's readings and how far they reach, and how many 2 s
-/// stretches, breaks and positions the take has. Any change works the
-/// plot out again; while listening, each new 2 s stretch does.
-#[derive(Debug, Clone, Copy, PartialEq)]
+/// Over, core's readings and how far they reach, how many 2 s rates and
+/// amplitude windows and which breaks the take has, and its changes of
+/// position and settlings, which a reading's position is tested on. Any
+/// change works the plot out again; while listening, each new 2 s
+/// stretch does. The breaks and positions are kept whole: listening adds
+/// a break (a jump) with no [`Revision`] moved.
+#[derive(Debug, Clone, PartialEq)]
 pub(super) struct PlotKey {
     reading: SeriesKind,
     short: bool,
@@ -34,8 +37,9 @@ pub(super) struct PlotKey {
     readings: Option<(DistKey, u64)>,
     rates: usize,
     windows: usize,
-    breaks: usize,
-    stretches: usize,
+    breaks: Vec<f64>,
+    stretches: Vec<(f64, Position)>,
+    settles: Vec<(f64, f64)>,
 }
 
 /// A distribution's plot as worked out for its [`PlotKey`]: core's
@@ -298,8 +302,9 @@ impl TimegrapherApp {
             readings: self.dist_readings.as_ref().map(|d| (d.0, d.1.to_bits())),
             rates: self.dist.rate_2s.values.len(),
             windows: live.map_or(0, |l| l.amplitude_windows().len()),
-            breaks: live.map_or(0, |l| l.breaks().len()),
-            stretches: self.session.stretches().len(),
+            breaks: live.map_or_else(Vec::new, |l| l.breaks().to_vec()),
+            stretches: self.session.stretches(),
+            settles: self.session.settles(),
         }
     }
 
@@ -1045,6 +1050,84 @@ mod plot_cache_tests {
             was = now;
         }
         assert_eq!(was.n, first + 40_001);
+    }
+
+    /// The Amplitude plot is worked out again when listening brings a
+    /// new 2 s window, and for a break listening adds, a move or a
+    /// settling, none of which moves the take's [`Revision`] (#2171).
+    #[test]
+    fn the_amplitude_plot_follows_new_windows_breaks_moves_and_settling() {
+        use timegrapher_core::synth::{generate, SynthConfig};
+        // One watch heard for 40 s, the last 10 s held back.
+        let audio = generate(
+            &SynthConfig {
+                duration_s: 40.0,
+                rate_s_per_day: 12.0,
+                ..Default::default()
+            },
+            |_| 280.0,
+            |_| 0.0,
+        );
+        let (first, rest) = audio.samples.split_at(48_000 * 30);
+        let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+        app.reset_session(48_000, "syn".into());
+        let push = |app: &mut TimegrapherApp, s: &[f32]| {
+            let live = app.live.as_mut().unwrap();
+            for b in s.chunks(960) {
+                live.push(b);
+            }
+        };
+        push(&mut app, first);
+        app.hist_readings = false;
+        let ctx = super::super::tests::themed();
+        let amp = SeriesKind::Amplitude as usize;
+        let plot = |app: &mut TimegrapherApp| {
+            let _ = circles(app, &ctx, SeriesKind::Amplitude);
+            app.dist.plots[amp].clone().unwrap()
+        };
+        let mut was = plot(&mut app);
+        assert!(was.n > 5, "{}", was.n);
+        let rev = app.rev;
+        // The last 10 s heard: new windows and no break, worked out again.
+        push(&mut app, rest);
+        assert!(app.live.as_ref().unwrap().breaks().is_empty());
+        let changes: [fn(&mut TimegrapherApp); 4] = [
+            |_| {},
+            |a| a.live.as_mut().unwrap().set_breaks(vec![15.0]),
+            |a| {
+                let stretches = [(0.0, Position::DialUp), (20.0, Position::DialDown)];
+                a.session.load(&stretches, &[]);
+            },
+            |a| {
+                let stretches = [(0.0, Position::DialUp), (20.0, Position::DialDown)];
+                a.session.load(&stretches, &[(20.0, 25.0)]);
+            },
+        ];
+        for change in changes {
+            change(&mut app);
+            let now = plot(&mut app);
+            assert!(!std::sync::Arc::ptr_eq(&was, &now));
+            was = now;
+        }
+        assert_eq!(app.rev, rev, "each change above moved no revision");
+    }
+
+    /// With Values on Readings, the plot is worked out again when core's
+    /// readings come in from the background (#2171).
+    #[test]
+    fn the_readings_plot_follows_cores_readings_as_they_come() {
+        let mut app = super::super::tests::synthetic(122.0, 5.0);
+        app.average_s = 10.0;
+        app.hist_readings = true;
+        let ctx = super::super::tests::themed();
+        let rate = SeriesKind::Rate as usize;
+        let _ = circles(&mut app, &ctx, SeriesKind::Rate);
+        let before = app.dist.plots[rate].clone().unwrap();
+        assert_eq!(before.n, 0, "no readings read yet");
+        app.update_dist_readings(None);
+        let _ = circles(&mut app, &ctx, SeriesKind::Rate);
+        let after = app.dist.plots[rate].clone().unwrap();
+        assert!(after.n >= 9, "{} readings", after.n);
     }
 
     /// Thinning keeps both ends and leaves every value's point within
