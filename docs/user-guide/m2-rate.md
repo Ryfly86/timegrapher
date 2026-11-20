@@ -40,6 +40,15 @@ the strip.
 its own, and the rates are averaged weighted by the beats each used. A
 stretch whose beats span under 10 s gives no rate.
 
+**The 10 s windows** behind the rate's ± and its spread are each read
+from their two halves: the line's period, corrected by how far the
+second half's beats sit from it against the first half's. The windows
+come every 5 s, and an escape wheel's turn can take 5 s too, so a line
+through each window alone would meet the wheel at the same point every
+time and read the same small tilt from it in every window. Read from
+its halves, each window gives the watch's rate wherever the turn starts
+in it.
+
 ## Why This Way
 
 - **A line through every beat** uses all of them. Timing one beat to the
