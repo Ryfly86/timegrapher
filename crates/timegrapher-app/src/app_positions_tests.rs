@@ -231,6 +231,37 @@ fn a_positions_test_is_marked_from_its_first_position() {
 /// the steadiness tests.
 /// Each position button's bar fills with the seconds heard in that
 /// position: settled and not masked, other positions' time left out.
+/// The whole reading names the position on show only where the take
+/// reads more than one: an opening stretch moved off within the Settle is
+/// the watch being handled and not one of them (#1980, Trevor on #2148).
+#[test]
+fn a_handled_opening_is_not_a_position_the_whole_reading_names() {
+    for (opening, want) in [
+        (5.0, "the whole take"),
+        (20.5, "Dial Down, its whole stretch"),
+    ] {
+        let mut app = synthetic(opening, 0.0);
+        app.session.listen();
+        app.session.set_state(session::State::Paused {
+            since: Instant::now(),
+        });
+        let moved = app.live.as_ref().unwrap().duration_s();
+        app.set_position(Position::DialDown);
+        app.session.start_settle(moved);
+        let cfg = SynthConfig {
+            duration_s: 40.0,
+            ..Default::default()
+        };
+        let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+        let live = app.live.as_mut().unwrap();
+        for b in audio.samples.chunks(960) {
+            live.push(b);
+        }
+        assert_eq!(app.session.stretches().len(), 2, "opening {opening}");
+        assert_eq!(app.whole_named(), want, "opening {opening}");
+    }
+}
+
 #[test]
 fn each_position_counts_its_own_seconds() {
     // Dial Up just past the Settle, a position and not the watch being

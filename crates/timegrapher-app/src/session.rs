@@ -929,13 +929,10 @@ impl Session {
         if self.imported_context {
             return false;
         }
-        let stretches = self.stretches();
-        stretches.first().is_some_and(|first| {
-            timegrapher_core::take::handled(
-                stretches.len() > 1,
-                end - first.0.max(0.0),
-                self.settle_len(),
-            )
+        // Always one of several: a take's only stretch runs on with no
+        // end ([`Self::position_spans`]), so it is never handled.
+        self.stretches().first().is_some_and(|first| {
+            timegrapher_core::take::handled(true, end - first.0.max(0.0), self.settle_len())
         })
     }
 
@@ -1186,8 +1183,9 @@ impl Session {
                     // An opening stretch that is the watch being handled
                     // reads nothing: it starts where it ends (core
                     // `take::reads_nothing`), as a later one never settled.
+                    // One of several, as a next stretch follows it.
                     let handled = next.is_some_and(|n| {
-                        timegrapher_core::take::handled(!one, n.0 - at, self.settle_len())
+                        timegrapher_core::take::handled(true, n.0 - at, self.settle_len())
                     });
                     if handled {
                         end.unwrap_or(*audio)
