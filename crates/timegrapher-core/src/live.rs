@@ -1661,7 +1661,12 @@ impl LiveAnalyzer {
             )
         });
         let jitter_us = crate::session::scatter_jitter_us(&scatter);
-        let judged_s = judged_s(!scatter.is_empty(), end_s, window_from, heard_since, holes);
+        // Judged over the sound its scatter is read from, its look back,
+        // not the reading's own span: whether a watch is heard does not
+        // depend on how it is averaged. A 2 s average of an empty stand
+        // scattering 4% of a beat over its look back was not judged, so
+        // its strip drew the noise as a watch (#1965).
+        let judged_s = judged_s(!scatter.is_empty(), end_s, scatter_from, heard_since, holes);
         // Its look back always holds a whole window past a cut's first
         // SCATTER_LOOKBACK_S, before which `judged_s` is 0 (#1688).
         let assessed = measure::regularity_assessed(judged_s, true);
@@ -1695,8 +1700,14 @@ impl LiveAnalyzer {
         };
         let no_watch = match bph {
             Some(b) => measure::no_watch_reason(jitter_us, b, assessed, beat_sound),
+            // No beat rate found: judged on the sound it would have been
+            // judged over, its look back too, as a 10 s average is (#1965).
             None => {
-                measure::regularity_assessed(listened_s, true).then_some(NoWatchReason::Scatter)
+                let back_s = end_s
+                    - scatter_from
+                    - crate::session::masked_within(&self.masked, scatter_from, end_s);
+                measure::regularity_assessed(listened_s.max(back_s), true)
+                    .then_some(NoWatchReason::Scatter)
             }
         };
         Verdict {
@@ -2042,17 +2053,19 @@ impl LiveAnalyzer {
 }
 
 /// How long the watch verdict judges a reading ending at `end_s` over,
-/// seconds: none while no scatter window fits (`fitted` false) within
-/// [`SCATTER_LOOKBACK_S`] of the latest heard break, `heard_since`, or the
-/// latest of the reading's `holes`, a jump in the beats too: the windows
-/// skip a jump, so until one fits after it there may be none, and none is
-/// no verdict of noise (#1170). Past that, having none is.
-fn judged_s(fitted: bool, end_s: f64, window_from: f64, heard_since: f64, holes: &Cuts) -> f64 {
+/// seconds, from `judged_from`, where its scatter is read from
+/// ([`crate::session::scatter_look_back`]): none while no scatter window
+/// fits (`fitted` false) within [`SCATTER_LOOKBACK_S`] of the latest
+/// heard break, `heard_since`, or the latest of the reading's `holes`, a
+/// jump in the beats too: the windows skip a jump, so until one fits after
+/// it there may be none, and none is no verdict of noise (#1170). Past
+/// that, having none is.
+fn judged_s(fitted: bool, end_s: f64, judged_from: f64, heard_since: f64, holes: &Cuts) -> f64 {
     let cut_since = holes.stretch_from(end_s).max(heard_since);
     if !fitted && end_s - cut_since < SCATTER_LOOKBACK_S {
         0.0
     } else {
-        (end_s - window_from.max(heard_since)).max(0.0)
+        (end_s - judged_from.max(heard_since)).max(0.0)
     }
 }
 

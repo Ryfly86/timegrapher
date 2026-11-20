@@ -114,6 +114,25 @@ pub fn stretches_of<P: PartialEq>(
     Some(out)
 }
 
+/// Whether a cut in the beats at `j` (a settling's end, a move, a mask's
+/// end) changes nothing a reading over the stretches `spans` (in time
+/// order) reads, with the stretches `masked` by hand: at or before the
+/// first's start, at or after the last's end, or at an end of a mask
+/// (#682), or inside the time between two stretches, which is left out
+/// whole (a cut at a stretch's own end stays: the watch was handled
+/// there). Such a cut is left out of the reading, as `session` has none
+/// there: the one rule for the app's whole take and the Watches row's
+/// reading of a position whole (#2121).
+pub fn cut_at_edge(j: f64, spans: &[(f64, f64)], masked: &[(f64, f64)]) -> bool {
+    let (Some(&(from, _)), Some(&(_, to))) = (spans.first(), spans.last()) else {
+        return true;
+    };
+    j <= from
+        || j >= to
+        || masked.iter().any(|m| j == m.0 || j == m.1)
+        || spans.windows(2).any(|w| j > w[0].1 && j < w[1].0)
+}
+
 /// A take, opened once: what every surface reads it from.
 pub struct TakeContext {
     /// 0 when opened. Nothing here changes a context once opened; a
@@ -361,6 +380,31 @@ impl TakeContext {
         }
     }
 
+    /// The settled stretches the take reads in position `p`, take seconds,
+    /// in time order: each entry of `m` (the session file the context was
+    /// opened from) in `p` read from its window, as [`Self::spans`] reads
+    /// them, a file that carries on the one before it one stretch with it
+    /// ([`stretches_of`]), and the time between two stretches left out.
+    /// What the Watches list reads a take's last position over, as the
+    /// app's whole take reads the position on show (#2121). Empty when
+    /// two windows overlap.
+    pub fn spans_in(&self, m: &Manifest, p: Position) -> Vec<(f64, f64)> {
+        let windows = self.windows_read(m).into_iter().filter(|w| w.3 == Some(p));
+        let Some(s) = stretches_of(windows) else {
+            return Vec::new();
+        };
+        let mut out = Vec::new();
+        for (a, b) in s.read {
+            let mut from = a;
+            for &(h0, h1) in s.holes.iter().filter(|h| h.0 >= a && h.1 <= b) {
+                out.push((from, h0));
+                from = h1;
+            }
+            out.push((from, b));
+        }
+        out
+    }
+
     /// The take's length, seconds: where its last recording ends.
     fn length_s(&self) -> f64 {
         self.files
@@ -433,6 +477,20 @@ impl TakeContext {
     /// where the watch was just handled (#1233).
     pub fn holes(&self, m: &Manifest) -> Vec<(f64, f64)> {
         self.positions(m).1
+    }
+
+    /// [`Self::reading_breaks`] for a reading over the stretches `spans`
+    /// alone: the cuts that change nothing it reads ([`cut_at_edge`], with
+    /// the take's masks) left out, as the app's whole take leaves them
+    /// out (#2121).
+    pub fn reading_breaks_over(&self, m: &Manifest, spans: &[(f64, f64)]) -> Vec<Break> {
+        let (stretches, settles) = self.positions(m);
+        let changes: Vec<f64> = stretches.iter().map(|s| s.0).collect();
+        let cuts: Vec<f64> = take::reading_cuts(&self.breaks, &changes, &settles)
+            .into_iter()
+            .filter(|&j| !cut_at_edge(j, spans, &self.masked))
+            .collect();
+        breaks::with_jumps(self.breaks.clone(), &cuts)
     }
 
     /// The take's breaks with a cut, of no gap, wherever its readings are
