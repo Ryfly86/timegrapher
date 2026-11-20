@@ -46,7 +46,7 @@ pub(super) fn step_or_slide_text(s: &SeriesCheck, cap: &str) -> String {
         )
     };
     format!(
-        "{cap} shifts level or slides, but its readings move together too much to tell which: {first}, {second}."
+        "{cap} shifts level or slides, but its readings move together too much to tell which, so the larger share doesn't decide it: {first}, {second}."
     )
 }
 

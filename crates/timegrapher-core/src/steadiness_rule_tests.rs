@@ -241,19 +241,22 @@ fn a_step_or_slide_headline_counts_many_shifts() {
         s.trend = Some(slide(0.25, 1e-9));
         words::step_or_slide_text(&s, "Rate")
     };
-    let one = headline(&[37.6]);
-    assert!(one.contains(": a shift at 37.6 h explains "), "{one}");
-    let three = headline(&[37.6, 55.0, 60.0]);
-    assert!(
-        three.contains(": shifts at 37.6 h, 55.0 h, 60.0 h explain "),
-        "{three}"
+    let says = |shifts: &str| {
+        format!(
+            "Rate shifts level or slides, but its readings move together too much to tell which, \
+             so the larger share doesn't decide it: {shifts}, a slide 24.8%."
+        )
+    };
+    assert_eq!(headline(&[37.6]), says("a shift at 37.6 h explains 98.0%"));
+    assert_eq!(
+        headline(&[37.6, 55.0, 60.0]),
+        says("shifts at 37.6 h, 55.0 h, 60.0 h explain 98.0%")
     );
     let twelve = headline(&[
         37.6, 55.0, 60.0, 62.8, 64.6, 65.8, 66.1, 66.3, 66.4, 66.5, 66.7, 67.0,
     ]);
-    assert!(
-        twelve.contains(": 12 shifts from 37.6 h to 67.0 h explain "),
-        "{twelve}"
+    assert_eq!(
+        twelve,
+        says("12 shifts from 37.6 h to 67.0 h explain 97.9%")
     );
-    assert!(!twelve.contains("62.8 h"), "{twelve}");
 }
