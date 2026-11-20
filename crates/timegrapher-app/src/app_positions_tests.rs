@@ -236,10 +236,7 @@ fn a_positions_test_is_marked_from_its_first_position() {
 /// the watch being handled and not one of them (#1980, Trevor on #2148).
 #[test]
 fn a_handled_opening_is_not_a_position_the_whole_reading_names() {
-    for (opening, want) in [
-        (5.0, "the whole take"),
-        (20.5, "Dial Down, its whole stretch"),
-    ] {
+    for (opening, want) in [(5.0, "the whole take"), (20.5, "all of Dial Down")] {
         let mut app = synthetic(opening, 0.0);
         app.session.listen();
         app.session.set_state(session::State::Paused {
