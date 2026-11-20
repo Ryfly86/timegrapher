@@ -141,7 +141,136 @@ fn a_once_a_minute_swing_in_every_pane() {
     a_short_panes_info_scrolls_and_the_cycle_note_stays_in_its_column(&s);
     the_info_panel_opens_at_its_top(&s);
     the_readout_stays_clear_of_info_over_the_rows(&s);
+    let named = compute(
+        &log,
+        Some(vec![Wheel {
+            name: "fourth wheel".into(),
+            period_s: 60.0,
+        }]),
+    );
+    every_wheel_line_says_what_it_is(&named);
     a_once_a_minute_swing_reads_periodic_and_every_view_draws(&log, s);
+}
+
+/// Pointing at a wheel's name shows that line's hover and no other, in
+/// a tall pane and in a short one where the names take two rows: each
+/// name's box once reached over its neighbour's, and both showed (#1986).
+fn every_wheel_line_says_what_it_is(s: &Steadiness) {
+    fn texts(shape: &egui::Shape, into: &mut Vec<(String, egui::Rect)>) {
+        match shape {
+            egui::Shape::Text(t) => {
+                into.push((t.galley.text().to_string(), t.visual_bounding_rect()))
+            }
+            egui::Shape::Vec(v) => v.iter().for_each(|s| texts(s, into)),
+            _ => {}
+        }
+    }
+    let cases = [
+        (View::Periods, 700.0, [true, false, false]),
+        (View::Periods, 700.0, [true, true, true]),
+        (View::Periods, 300.0, [true, true, true]),
+        (View::Fft, 300.0, [true, true, true]),
+    ];
+    for (view, h, series) in cases {
+        let ctx = egui::Context::default();
+        theme::install(&ctx);
+        let mut clock = 0.0;
+        let mut frame = |at: Option<egui::Pos2>| {
+            clock += 1.0;
+            let time = clock;
+            let input = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    Vec2::new(900.0, h),
+                )),
+                events: at.map(egui::Event::PointerMoved).into_iter().collect(),
+                time: Some(time),
+                ..Default::default()
+            };
+            let out = ctx.run(input, |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    let opts = Opts {
+                        wheels: true,
+                        meshes: true,
+                        ..Default::default()
+                    };
+                    draw(ui, Some(s), "", view, &series, opts);
+                });
+            });
+            let mut all = Vec::new();
+            out.shapes.iter().for_each(|c| texts(&c.shape, &mut all));
+            all
+        };
+        let mut still = Vec::new();
+        for _ in 0..3 {
+            still = frame(None);
+        }
+        // Every wheel's and mesh's name, so the names other lines run
+        // through (the escape wheel's 5 s line through a mesh's) are in.
+        let names: Vec<(String, egui::Rect)> = still
+            .iter()
+            .filter(|t| t.0.ends_with("Wheel") || t.0.contains("Wheel ×") || t.0.ends_with("Mesh"))
+            // Not a peak's label ("60 s, Fourth Wheel"), which has no hover.
+            .filter(|t| !t.0.contains(", "))
+            .cloned()
+            .collect();
+        assert!(!names.is_empty(), "{view:?} {h}: no wheel named");
+        for (name, at) in names {
+            let mut shown = Vec::new();
+            frame(Some(at.center()));
+            for _ in 0..3 {
+                shown = frame(None);
+            }
+            let added: Vec<String> = shown
+                .into_iter()
+                .map(|t| t.0)
+                .filter(|t| !still.iter().any(|s| &s.0 == t))
+                .collect();
+            // A wheel's hover starts with its name; a mesh's with its
+            // period and what it is. Either way, only the one.
+            let own = format!("{name}: ");
+            assert!(
+                added.len() == 1 && (name.ends_with("Mesh") || added[0].starts_with(&own)),
+                "{view:?} {h} {series:?}: {name} shows {added:?}"
+            );
+        }
+    }
+}
+
+/// Each Steadiness view's "?" is its own (#1986): nine different texts,
+/// each with its Controls heading once, the maps ending with the Map
+/// bullet and the rest with the Series one, then Info; and only Readings,
+/// the view of dots, says what a rate dot is.
+#[test]
+fn each_view_has_its_own_help() {
+    let texts: Vec<Vec<&str>> = View::ALL
+        .iter()
+        .map(|&v| crate::help::steadiness(v))
+        .collect();
+    for (v, t) in View::ALL.iter().zip(&texts) {
+        let controls = t.iter().filter(|l| **l == "## Controls").count();
+        assert_eq!(controls, 1, "{v:?}");
+        let maps = matches!(v, View::Stft | View::Wavelet);
+        let n = t.len();
+        let series = t[n - 2].starts_with("- Series:");
+        let map = t[n - 2].starts_with("- Map:");
+        assert!(if maps { map } else { series }, "{v:?}: {}", t[n - 2]);
+        assert_eq!(
+            t.iter()
+                .filter(|l| l.starts_with("- Series:") || l.starts_with("- Map:"))
+                .count(),
+            1,
+            "{v:?}"
+        );
+        assert!(t[n - 1].starts_with("- Info"), "{v:?}");
+        let dot = t.iter().any(|l| l.contains("A rate dot"));
+        assert_eq!(dot, *v == View::Readings, "{v:?}");
+    }
+    for (i, a) in texts.iter().enumerate() {
+        for b in &texts[i + 1..] {
+            assert_ne!(a, b);
+        }
+    }
 }
 
 /// The plots carry only their titles and a key saying what a dot is;

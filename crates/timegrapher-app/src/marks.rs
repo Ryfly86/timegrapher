@@ -392,12 +392,13 @@ fn hover_and_paint(
     id: egui::Id,
     named: Vec<(&Named, egui::Rect, Arc<egui::Galley>)>,
 ) {
+    // A name and its line are two targets, not the box round both, which
+    // reached over the next name in a lane of two rows (#1986). The names
+    // sit in the lane above the plot, so no line's strip reaches one.
     for (l, rect, _) in &named {
-        let hit = rect.union(egui::Rect::from_x_y_ranges(
-            l.x - 3.0..=l.x + 3.0,
-            frame.top()..=frame.bottom(),
-        ));
-        hover(ui, id.with(("line", &l.name)), hit, &l.hover);
+        let line = egui::Rect::from_x_y_ranges(l.x - 3.0..=l.x + 3.0, frame.top()..=frame.bottom());
+        hover(ui, id.with(("line", &l.name)), line, &l.hover);
+        hover(ui, id.with(("name", &l.name)), *rect, &l.hover);
     }
     for (_, rect, g) in named {
         paint_lane_name(ui, painter, rect, g);
@@ -507,7 +508,9 @@ pub fn inside_placed(
 
 /// The hovers of lines named inside a short plot (`placed` as
 /// [`inside_placed`] gives them): each line, and its name where it has
-/// one, says `hover` for its name.
+/// one, says `hover` for its name. A name and its line are two targets,
+/// not the box round both, and over a name only that name's hover shows,
+/// never a line's that runs through it too (#1986).
 pub fn inside_hovers(
     ui: &egui::Ui,
     frame: egui::Rect,
@@ -515,10 +518,22 @@ pub fn inside_hovers(
     hover_of: &dyn Fn(&str) -> String,
     id: egui::Id,
 ) {
-    for (x, name, at, g) in placed {
-        let line = egui::Rect::from_x_y_ranges(x - 3.0..=x + 3.0, frame.top()..=frame.bottom());
-        let hit = at.map_or(line, |a| line.union(inside_rect(frame, a, g.size().x)));
-        hover(ui, id.with(("line", name)), hit, hover_of(name));
+    let names: Vec<(egui::Rect, &String)> = placed
+        .iter()
+        .filter_map(|(_, name, at, g)| at.map(|a| (inside_rect(frame, a, g.size().x), name)))
+        .collect();
+    let on_name = ui
+        .ctx()
+        .pointer_hover_pos()
+        .is_some_and(|p| names.iter().any(|(r, _)| r.contains(p)));
+    if !on_name {
+        for (x, name, _, _) in placed {
+            let line = egui::Rect::from_x_y_ranges(x - 3.0..=x + 3.0, frame.top()..=frame.bottom());
+            hover(ui, id.with(("line", name)), line, hover_of(name));
+        }
+    }
+    for (r, name) in names {
+        hover(ui, id.with(("name", name)), r, hover_of(name));
     }
 }
 
@@ -1278,5 +1293,69 @@ mod tests {
         let px = (top - 10.0) / top * 200.0;
         assert!((px - f64::from(NOTE_ROOM)).abs() < 1e-3, "{px}");
         assert_eq!(room_above(0.0, 10.0, 20.0, 200.0), 20.0);
+    }
+
+    /// What a pointer held at `at` for a few frames shows: every text
+    /// painted, tooltips among them, with `draw` drawing the hovers.
+    fn shown_at(at: egui::Pos2, draw: &dyn Fn(&mut egui::Ui)) -> Vec<String> {
+        fn texts(shape: &egui::Shape, into: &mut Vec<String>) {
+            match shape {
+                egui::Shape::Text(t) => into.push(t.galley.text().to_string()),
+                egui::Shape::Vec(v) => v.iter().for_each(|s| texts(s, into)),
+                _ => {}
+            }
+        }
+        let ctx = egui::Context::default();
+        let mut out = Vec::new();
+        for i in 0..6 {
+            let input = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(800.0, 400.0),
+                )),
+                events: if i == 0 {
+                    vec![egui::Event::PointerMoved(at)]
+                } else {
+                    Vec::new()
+                },
+                time: Some(f64::from(i) + 1.0),
+                ..Default::default()
+            };
+            let o = ctx.run(input, |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| draw(ui));
+            });
+            out.clear();
+            o.shapes.iter().for_each(|c| texts(&c.shape, &mut out));
+        }
+        out.retain(|t| t.ends_with(" says"));
+        out
+    }
+
+    /// In a short plot, over a name that another line runs through, only
+    /// the name's hover shows; along that line, away from the name, the
+    /// line's (#1986). Main's box round a line and its name took both over
+    /// the name.
+    #[test]
+    fn over_a_name_a_line_runs_through_only_the_names_hover_shows() {
+        let frame = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(600.0, 200.0));
+        let id = egui::Id::new("names");
+        // The mesh named at 90, the wheel's line at 95 through the mesh's
+        // name, the wheel's name further on.
+        let inside = |ui: &mut egui::Ui| {
+            let g = |n: &str| {
+                ui.painter()
+                    .layout_no_wrap(n.into(), egui::FontId::default(), Color32::WHITE)
+            };
+            let placed = vec![
+                (60.0, "Mesh".to_string(), Some(90.0), g("Mesh")),
+                (95.0, "Wheel".to_string(), Some(300.0), g("Wheel")),
+            ];
+            inside_hovers(ui, frame, &placed, &|n| format!("{n} says"), id);
+        };
+        let name = inside_rect(frame, 90.0, 10.0);
+        let on_name = egui::pos2(95.0, name.center().y);
+        assert!(name.contains(on_name));
+        assert_eq!(shown_at(on_name, &inside), ["Mesh says"]);
+        assert_eq!(shown_at(egui::pos2(95.0, 180.0), &inside), ["Wheel says"]);
     }
 }
