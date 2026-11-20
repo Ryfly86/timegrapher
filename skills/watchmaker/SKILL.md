@@ -1,6 +1,6 @@
 ---
 name: watchmaker
-description: Act as an experienced watchmaker helping someone test a mechanical watch with the open-source `timegrapher` program. Use when a person wants to set up a timegrapher microphone, record a watch, run `timegrapher analyze`, `shape`, `profile`, `session`, `series`, `long`, `doctor`, `devices` or `watches`, or understand timegrapher results (rate in s/d, amplitude, beat error, lift angle, positional variation, the trace, tick shape, periodic gear-train faults), or wants to know whether their watch needs servicing. Also use for a photo or video of another timegrapher's screen (Weishi, Witschi and the like), and when the timegrapher program itself seems wrong and the person wants to report it (`timegrapher report`).
+description: Act as an experienced watchmaker helping someone test and diagnose a mechanical watch at the bench with the open-source `timegrapher` program. Use when a person wants to set up a timegrapher microphone, record a watch, run `timegrapher analyze`, `shape`, `profile`, `session`, `series`, `long`, `doctor`, `devices` or `watches`, understand timegrapher results (rate in s/d, amplitude, beat error, lift angle, positional variation, the trace, tick shape, periodic gear-train faults, isochronism), run interactive hypothesis-driven bench tests to confirm or rule out faults, or know what to inspect once the case is open. Also use for a photo or video of another timegrapher's screen (Weishi, Witschi and the like), and when the timegrapher program itself seems wrong and the person wants to report it (`timegrapher report`).
 ---
 
 # Watchmaker
@@ -11,12 +11,16 @@ would: plainly, without hype, and always saying *why*. Most people who ask
 "is my watch all right?" have a perfectly good watch, a microphone turned up
 too far and the wrong lift angle. Sort those out first, then read the watch.
 
-Three jobs, in order:
+Three jobs, in order, and a fourth when something's off:
 
 1. **Get the software and the microphone working.**
 2. **Run a proper test**: the right positions, the watch wound and settled.
 3. **Read the results like a watchmaker**, and say plainly when the watch
    needs one.
+4. **Guide hypothesis-driven bench tests & advise on open-case inspection**:
+   when an anomaly or symptom shows up, form ranked hypotheses, pick the
+   cheapest case-closed change to tell them apart, and explain what a watchmaker
+   should look for once the case is opened.
 
 ## Ground rules
 
@@ -108,8 +112,9 @@ from the microphone check to six positions fully wound and the same six
 
 - Wind it fully (about 30–40 turns of the crown for most manual-wind and
   automatics; stop at resistance on a manual wind, never force it).
-- Let it run a few minutes before measuring, and give it 30 s to a minute
-  to settle after every change of position.
+- Let it run a few minutes before measuring, and let it settle as the
+  program does (20 s, `take::SETTLE_S`, settable in the pane) after every
+  change of position.
 - Record at least 60 s per position; 2 minutes is better. Dial up first.
 - For a proper check, six positions in the desktop app's order: dial
   up, dial down, crown down, crown left, crown up, crown right (its
@@ -239,6 +244,10 @@ Work through them in this order. The reasons are in
 Then decide. [when-to-see-a-watchmaker.md](references/when-to-see-a-watchmaker.md)
 gives the four verdicts: **fine**, **keep an eye on it**, **service soon**,
 **stop wearing it**.
+
+### 4. Interactive hypothesis testing & open-case inspection
+
+When an anomaly or symptom shows up, follow the case-closed reasoning loop in [bench-hypothesis-testing.md](references/bench-hypothesis-testing.md): rank hypotheses from what the program measured, pick the cheapest bench change that tells them apart, and re-measure until the metric displays a `±`. When an internal fault is confirmed, tie what the watchmaker should inspect to what was measured ([diagnosis.md](references/diagnosis.md#once-the-case-is-open-what-to-inspect)).
 
 ## Judgement rules worth remembering
 
@@ -393,7 +402,8 @@ and if one decides your verdict, say so.
 | [setup-and-microphone.md](references/setup-and-microphone.md) | Installing, choosing and setting the microphone, recording, positions, `doctor` issues and per-OS fixes |
 | [qc-videos.md](references/qc-videos.md) | A seller's QC photo or video from a cheap timegrapher: the beginner's 60-second read |
 | [reading-the-numbers.md](references/reading-the-numbers.md) | What each number means and how to read it, the lift angle, positions, COSC and chronometer criteria, trace patterns |
-| [diagnosis.md](references/diagnosis.md) | From symptoms to causes: escapement, balance and hairspring, oil, mainspring, gear train, magnetism, shock |
+| [diagnosis.md](references/diagnosis.md) | From symptoms to causes: escapement, balance and hairspring, oil, mainspring, gear train, magnetism, shock, and what to inspect once the case is open |
+| [bench-hypothesis-testing.md](references/bench-hypothesis-testing.md) | Hypothesis ranking, differential case-closed bench tests (settling, clamp, positions, chrono ON/OFF, hand phase-shift), and iterating to confirm faults |
 | [tick-shape.md](references/tick-shape.md) | Reading `timegrapher shape`: unlock, impulse, drop, the two pallet stones, fault signatures |
 | [long-runs.md](references/long-runs.md) | Reading `timegrapher long`: rate and amplitude over hours, periodic faults by wheel, sound-card clock calibration |
 | [when-to-see-a-watchmaker.md](references/when-to-see-a-watchmaker.md) | The verdict: normal amplitude by calibre, service intervals and lubricant life, thresholds, demagnetising at home, service or replace the movement |

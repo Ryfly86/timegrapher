@@ -448,6 +448,20 @@ The **Test My Watch** prompt is the skill's own
 watchmaker would run, from the calibre and the microphone through the six
 positions to a plain answer, with the watch you name added at the end.
 
+## Using the watchmaker skill at the bench
+
+At the bench, the agent uses the case-closed reasoning loop in [bench-hypothesis-testing.md](../../skills/watchmaker/references/bench-hypothesis-testing.md): it checks the measured figures, `±` uncertainties, and caveats (`no_watch`, `beats_missing`, `clipped`, `clock_unknown`, `clock_sources_disagree`), ranks candidate causes from set-up and settling down to the oscillator, and proposes the cheapest case-closed change—or the app's built-in **Positions Test**, **Dynamic Poise Test**, or **Complication Test**—to tell them apart. When an internal fault is confirmed, it maps what was measured to the inspection points in [diagnosis.md](../../skills/watchmaker/references/diagnosis.md#once-the-case-is-open-what-to-inspect).
+
+Example prompts you can use directly:
+
+- *"Analyse my last [Watch Name] recording."*
+- *"My watch loses time when the chrono is on—what are the hypotheses and how do we test it?"*
+- *"I just ran a 3-position test on my [Watch Name]. What looks off?"*
+- *"What should a watchmaker inspect once the case is open?"*
+- *"Walk me through a full 6-position test on a new watch."*
+- *"Check my microphone levels with doctor."*
+- *"What do you make of this QC video?"* (with an image or video of another timegrapher screen)
+
 ## What it never does
 
 - It never uploads anything. A report bundle is a file on your computer

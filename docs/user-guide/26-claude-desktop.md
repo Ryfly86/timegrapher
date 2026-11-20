@@ -71,6 +71,20 @@ test. Before each take the chat app says how to place the watch and
 waits for you. Each take is kept; when no regular beat was heard, or
 the sound clipped, the chat app is told so.
 
+## Working with the assistant at the bench
+
+When you record a take or describe a symptom, the chat app follows the case-closed reasoning loop in [bench-hypothesis-testing.md](../../skills/watchmaker/references/bench-hypothesis-testing.md). It checks what limits the readings first (such as clipping, missed beats from a loose clamp, or temporary settling torque after winding), ranks candidate causes from the measured figures—such as a repeating cycle the **Steadiness** pane matches to a wheel, or a vertical-to-horizontal amplitude difference—and suggests the cheapest case-closed change at the bench (or one of the app's **Positions Test**, **Dynamic Poise Test**, or **Complication Test** panes) to tell them apart. When an internal fault is confirmed, it points to what a watchmaker should inspect once the case is opened ([diagnosis.md](../../skills/watchmaker/references/diagnosis.md#once-the-case-is-open-what-to-inspect)).
+
+Example prompts you can use:
+
+- *"Analyse my last [Watch Name] recording."*
+- *"My watch loses time when the chrono is on—what are the hypotheses and how do we test it?"*
+- *"I just ran a 3-position test on my [Watch Name]. What looks off?"*
+- *"What should a watchmaker inspect once the case is open?"*
+- *"Walk me through a full 6-position test on a new watch."*
+- *"Check my microphone levels with doctor."*
+- *"What do you make of this QC video?"* (with a photo or video of another timegrapher screen)
+
 ## Charts
 
 In chat apps that show MCP Apps (Claude on the web and desktop among
