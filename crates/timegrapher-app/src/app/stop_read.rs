@@ -61,7 +61,7 @@ impl TimegrapherApp {
         let entries = m.recordings.clone();
         let opening = match take_entry(&dir, Some(&(m, entries))) {
             Ok(o) => o,
-            Err(e) => return applog::warn(&format!("the take stopped isn't read whole: {e}")),
+            Err(e) => return self.stop_read_failed(&e.to_string()),
         };
         let inputs = ready_engine_inputs(self.open_inputs(&[], &[]), &opening.1, duration_s);
         let settings = self.entry_settings(&opening.1);
@@ -134,9 +134,8 @@ impl TimegrapherApp {
             Ok(Some(o)) => s.read = Some(Box::new(StoppedTake::of(o))),
             Ok(None) => self.bg.stop_read = None,
             Err(e) => {
-                // The cards read the live engine, as before.
-                applog::warn(&format!("the take stopped couldn't be read whole: {e}"));
                 self.bg.stop_read = None;
+                self.stop_read_failed(&e);
             }
         }
     }
@@ -146,6 +145,24 @@ impl TimegrapherApp {
         self.stop_read_holds()
             .then(|| self.bg.stop_read.as_ref()?.read.as_deref())
             .flatten()
+    }
+
+    /// The take just stopped couldn't be read whole, for `e`: the cards
+    /// read the live engine, as before, and say so (Hugh on #2164).
+    fn stop_read_failed(&mut self, e: &str) {
+        self.error(format!(
+            "The take stopped couldn't be analysed whole\nThe cards show the figures heard \
+             while listening ({e}). Saved and opened again, the take may read slightly \
+             differently."
+        ));
+    }
+
+    /// A Stop read that stops part way, as one that fails does.
+    #[cfg(test)]
+    pub(in crate::app) fn break_stop_read(&mut self) {
+        if let Some(s) = self.bg.stop_read.as_mut() {
+            s.rx = std::sync::mpsc::channel().1;
+        }
     }
 
     /// The live engine, unless the take just stopped is still being read:
