@@ -1258,9 +1258,9 @@ impl LiveAnalyzer {
     /// the sound so far judges its last chunk: for a stop, so the readings
     /// then withhold the same faint sides as the take read again
     /// (#1738). Listening on, the chunk is judged again once it closes.
-    /// With Auto, the rate is the watch's again: the lock that read its
-    /// last run, never one a quiet stand's noise was locked on to after
-    /// it (#2112, #2114).
+    /// With Auto, the rate is the watch's again: the lock that heard a
+    /// watch longest, not one a quiet stand's noise was locked on to
+    /// after it (#2112, #2114).
     pub fn settle(&mut self) {
         let w = self.cfg.analysis.amplitude_window_s;
         let chunk_of = |s: f64| crate::stream::amplitude_chunk_of(s, w);

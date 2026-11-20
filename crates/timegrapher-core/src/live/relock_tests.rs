@@ -112,6 +112,10 @@ fn a_right_lock_is_never_let_go() {
 /// `lure_s` of clicks at 72,000 bph (a stand's hum locked on to), heard
 /// live with Auto and settled, as at Stop.
 fn lifted(quiet_s: f64, lure_s: f64) -> (LiveAnalyzer, Vec<Option<u32>>) {
+    lifted_to(quiet_s, 72_000, lure_s)
+}
+
+fn lifted_to(quiet_s: f64, lure_bph: u32, lure_s: f64) -> (LiveAnalyzer, Vec<Option<u32>>) {
     let at = |bph: u32, duration_s: f64, seed: u64| {
         generate(
             &SynthConfig {
@@ -129,7 +133,7 @@ fn lifted(quiet_s: f64, lure_s: f64) -> (LiveAnalyzer, Vec<Option<u32>>) {
     let mut samples = watch.samples.clone();
     samples.extend(vec![0.0; (quiet_s * fs) as usize]);
     if lure_s > 0.0 {
-        samples.extend_from_slice(&at(72_000, lure_s, 4).samples);
+        samples.extend_from_slice(&at(lure_bph, lure_s, 4).samples);
     }
     let mut live = LiveAnalyzer::new(watch.sample_rate, LiveConfig::default());
     let mut rates = Vec::new();
@@ -179,4 +183,28 @@ fn a_pause_with_the_watch_heard_changes_nothing() {
     let before = (live.bph(), live.template.clone());
     live.settle();
     assert_eq!((live.bph(), live.template.clone()), before);
+}
+
+/// A noise lock heard as a watch for longer than a piece, but not as
+/// long as the watch: its run is let go with it, and the cards read the
+/// watch at its own rate (Norm on #2142).
+#[test]
+fn a_noise_lock_heard_for_a_while_never_overrules_the_watch() {
+    for lure_s in [20.0, 40.0] {
+        let (live, rates) = lifted(8.0, lure_s);
+        assert_eq!(live.bph(), Some(28_800), "lure {lure_s} s: {rates:?}");
+        let t = beats::last_watch_beat_s(live.beats()).expect("the watch's run");
+        assert!((39.0..=40.0).contains(&t), "lure {lure_s} s: {t}");
+        let rate = live.reading_at(t, 10.0).rate_s_per_day.expect("a rate");
+        assert!((rate - 5.0).abs() < 2.0, "lure {lure_s} s: rate {rate} s/d");
+    }
+}
+
+/// A second watch put on the stand and heard longer than the first keeps
+/// its own rate at the pause (Norm on #2142).
+#[test]
+fn a_second_watch_heard_longer_keeps_its_rate() {
+    let (live, rates) = lifted_to(8.0, 21_600, 120.0);
+    assert!(rates.contains(&Some(28_800)), "{rates:?}");
+    assert_eq!(live.bph(), Some(21_600), "{rates:?}");
 }
