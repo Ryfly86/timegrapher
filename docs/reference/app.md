@@ -1719,8 +1719,8 @@ shows, a fainter dotted line marked ×2; where the calibre's tooth and leaf
 counts give it, each pinion's mesh (the time one tooth of the wheel
 driving it takes to engage, drive and leave, from core's
 `Catalog::meshes`, #1472) is a faint, loosely dashed line named
-"Fourth Pinion Mesh", or "4th Mesh" beside a map, unless a wheel or a ×2
-already marks that period. Its hover gives core's words: "Fourth Pinion
+"Fourth Pinion Mesh" under the plot, or a word to a line in the lane
+beside a map, unless a wheel or a ×2 already marks that period. Its hover gives core's words: "Fourth Pinion
 Mesh: 6.67 s, the time one tooth of the third wheel takes to pass through
 the fourth pinion's leaves."; the grid behind is pale. The
 wheels' lines are grey and dotted, and named, so they never
@@ -1728,7 +1728,10 @@ read as the grid or a reading. With no calibre picked, or none of its
 wheels known, one minute and one hour are marked in grey instead, periods
 alone named after no wheel. **Wheel Periods**, in the toolbars of
 Periods, FFT, STFT Map and Wavelet Map, shows or hides these marks in
-that pane only; it starts on. Each map's **dB Scale** is its own too. A marked point (the period found, the lag the readings repeat
+that pane only; it starts on. **Mesh**, beside it (#1764), shows or
+hides the meshes in that pane only, and starts on too; with Wheel
+Periods off each mesh is marked under its own name and no minute or hour
+is marked. Each map's **dB Scale** is its own too. A marked point (the period found, the lag the readings repeat
 at, the tallest peak) keeps its dot on the trace, and its note sits in
 the nearest clear space the trace doesn't cross, above right first, on a
 plate with a thin leader to the dot; it keeps its place until the trace
