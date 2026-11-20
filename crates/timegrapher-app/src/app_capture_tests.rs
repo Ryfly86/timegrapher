@@ -309,6 +309,50 @@ fn send_after(tx: &Sender<Event>, gap_ms: u64, n: u64) {
 }
 
 /// A 20 ms block of silence at 48 kHz stamped `ms` after the epoch.
+/// Sound fed far faster than real time while the figures are read as a
+/// file (#1987): the app's feed never waits for a read, so every second
+/// is heard and saved at once, none dropped, and Stop reads it all.
+#[test]
+fn a_fast_feed_keeps_all_its_sound() {
+    let (mut app, base) = save_failure_fixture("fast-feed");
+    let tx = queued_capture(&mut app, &base);
+    let saved = |a: &TimegrapherApp| a.session.recorder.as_ref().unwrap().duration_s();
+    let (heard_before, saved_before) = (app.heard_s(), saved(&app));
+    let watch = generate(
+        &SynthConfig {
+            duration_s: 20.0,
+            ..Default::default()
+        },
+        |_| 280.0,
+        |_| 0.0,
+    );
+    let blocks = watch.samples.chunks(960).count();
+    for (k, c) in watch.samples.chunks(960).enumerate() {
+        tx.send(Event::Audio(timegrapher_core::capture::Block {
+            samples: c.to_vec(),
+            at: std::time::UNIX_EPOCH + Duration::from_millis(2000 + 20 * k as u64),
+        }))
+        .unwrap();
+    }
+    let (mut taken, deadline) = (0, Instant::now() + Duration::from_secs(60));
+    while taken < blocks {
+        taken += app.poll_for(Duration::from_millis(20));
+        assert!(Instant::now() < deadline, "took {taken} of {blocks} blocks");
+    }
+    let (heard, kept) = (app.heard_s() - heard_before, saved(&app) - saved_before);
+    assert!((heard - 20.0).abs() < 1e-6, "{heard} s of 20 s heard");
+    assert!((kept - 20.0).abs() < 1e-6, "{kept} s of 20 s saved");
+    app.stop_listening();
+    let live = app.live.as_ref().unwrap();
+    assert_eq!(
+        live.read_as_file_to(),
+        Some(live.duration_s()),
+        "Stop reads it all"
+    );
+    drop(tx);
+    let _ = std::fs::remove_dir_all(base);
+}
+
 fn block(ms: u64) -> Event {
     Event::Audio(timegrapher_core::capture::Block {
         samples: vec![0.0; 960],
@@ -521,3 +565,4 @@ fn scope_read(app: &mut TimegrapherApp, lo: f64, hi: f64) -> Option<(f64, f64, c
 fn block_at(sp: &crate::span::Span, t: f64) -> f32 {
     sp.mono[((t - sp.t0) * sp.rate).round() as usize]
 }
+

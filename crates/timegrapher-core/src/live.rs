@@ -865,7 +865,22 @@ impl LiveAnalyzer {
     /// block it comes in: a block is cut where a pass is due, so a
     /// microphone's 100 ms blocks and a file's 20 ms ones find the same
     /// first template and read the same beats (#1720).
+    ///
+    /// While the figures are read as a file, a feed faster than real time
+    /// waits here for the read in flight once they are more than
+    /// [`READ_LAG_CAP_S`] behind (#1987).
     pub fn push(&mut self, samples: &[f32]) -> bool {
+        self.push_fed(samples, true)
+    }
+
+    /// [`Self::push`] that never waits for a read as a file: for a feed
+    /// that must not stall, such as the app's, whose figures then trail a
+    /// sped-up replay until the template is built again or it stops.
+    pub fn push_without_waiting(&mut self, samples: &[f32]) -> bool {
+        self.push_fed(samples, false)
+    }
+
+    fn push_fed(&mut self, samples: &[f32], wait: bool) -> bool {
         self.push_held(samples);
         let mut ran = false;
         let mut rest = samples;
@@ -875,7 +890,7 @@ impl LiveAnalyzer {
             ran |= self.push_part(part);
             rest = later;
         }
-        ran | self.as_file_after_push(samples)
+        ran | self.as_file_after_push(samples, wait)
     }
 
     /// [`Self::push`] for a part of a block that reaches no further than
@@ -1312,7 +1327,7 @@ impl LiveAnalyzer {
     /// Readings over the last `average_s` seconds of settled beats.
     pub fn reading(&self, average_s: f64) -> LiveReading {
         // Read as a file, to the end of the sound the newest read covered.
-        if let Some(r) = self.reading_as_file(f64::INFINITY, average_s) {
+        if let Some(r) = self.reading_as_file(self.settled_to, f64::INFINITY, average_s) {
             return r;
         }
         self.reading_at(self.settled_to, average_s)
@@ -1395,7 +1410,7 @@ impl LiveAnalyzer {
 
     /// Readings over the `average_s` seconds before `end_s`.
     pub fn reading_at(&self, end_s: f64, average_s: f64) -> LiveReading {
-        (self.reading_as_file(end_s, average_s))
+        (self.reading_as_file(end_s, end_s, average_s))
             .unwrap_or_else(|| self.own_reading_at(end_s, average_s))
     }
 
@@ -2077,6 +2092,7 @@ fn judged_s(fitted: bool, end_s: f64, window_from: f64, heard_since: f64, holes:
 }
 
 mod as_file;
+pub use as_file::{AS_FILE_MAX_S, READ_LAG_CAP_S};
 mod held;
 mod rebuild;
 

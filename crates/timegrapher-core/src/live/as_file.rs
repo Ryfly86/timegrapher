@@ -11,12 +11,22 @@
 
 use super::*;
 use std::thread::JoinHandle;
+use std::time::Instant;
 
 /// How much sound, seconds, is read again as a file at most: twice a
 /// file's first chunk. Past it the figures are live's own even if the
 /// template was never built again (the watch first heard late, or never),
 /// so a read never grows past what the lag allows.
 pub const AS_FILE_MAX_S: f64 = 2.0 * crate::stream::CHUNK_S;
+
+/// How far, seconds, the figures may fall behind the sound heard, while
+/// it is pushed faster than real time (a test, a headless read): the
+/// newest finished read's end against all heard. Past it such a push waits
+/// for the read in flight. Heard as it comes, nothing waits, so the strip
+/// never trails the watch; the figures then trail it by two reads at most,
+/// about 1.2 s for the most heard before the template is built again. The
+/// app's feed never waits (Norm's ruling on #1987).
+pub const READ_LAG_CAP_S: f64 = 0.5;
 
 /// The sound read again as a file, the read in flight, and the newest
 /// finished, ready to give the figures.
@@ -32,6 +42,8 @@ pub(super) struct AsFile {
     job: Option<(JoinHandle<BeatLog>, usize)>,
     /// The newest finished read, set as live is.
     view: Option<Box<LiveAnalyzer>>,
+    /// When the first sound came, to tell a feed faster than real time.
+    since: Option<Instant>,
 }
 
 /// A copy keeps the newest read and what was heard; a read in flight
@@ -43,6 +55,7 @@ impl Clone for AsFile {
             heard: self.heard.clone(),
             job: None,
             view: self.view.clone(),
+            since: self.since,
         }
     }
 }
@@ -92,15 +105,30 @@ impl LiveAnalyzer {
     }
 
     /// The reading over the `average_s` seconds before `end_s`, while the
-    /// figures come from reads as a file: the newest read's, ending no
-    /// later than the sound it covered, or none heard before the first.
-    pub(super) fn reading_as_file(&self, end_s: f64, average_s: f64) -> Option<LiveReading> {
+    /// figures come from reads as a file: live's listening state (the
+    /// watch heard or not, the beat being found, the sound's level and
+    /// clipping) at `end_s`, with the newest read's figures to `read_end_s`
+    /// or the end of the sound it covered if sooner, where live would show
+    /// figures at all; none before the first read.
+    pub(super) fn reading_as_file(
+        &self,
+        end_s: f64,
+        read_end_s: f64,
+        average_s: f64,
+    ) -> Option<LiveReading> {
         if !self.as_file.on {
             return None;
         }
-        Some(match &self.as_file.view {
-            Some(v) => v.reading_at(end_s.min(v.settled_to), average_s),
-            None => self.unheard().reading(average_s),
+        let own = self.own_reading_at(end_s, average_s);
+        // Live shows no figures yet: none from the read either.
+        if !own.watch_heard || own.finding_beat || own.listening.is_some() {
+            return Some(own);
+        }
+        let read = (self.as_file.view.as_ref())
+            .map(|v| v.reading_at(read_end_s.min(v.settled_to), average_s));
+        Some(match read {
+            Some(r) => with_read_figures(own, r, self.sides_known_at(end_s)),
+            None => without_figures(own),
         })
     }
 
@@ -116,9 +144,27 @@ impl LiveAnalyzer {
         })
     }
 
-    /// An analyzer set as this one that has heard nothing.
-    fn unheard(&self) -> LiveAnalyzer {
-        LiveAnalyzer::new(self.fs as u32, self.cfg.clone())
+    /// Whether the sound comes faster than real time and the figures are
+    /// more than [`READ_LAG_CAP_S`] behind it, so a push waits for the read
+    /// in flight. Takes a finished read's figures and starts the next, as
+    /// a push does. Never waits itself.
+    fn reads_behind(&mut self) -> bool {
+        if !self.as_file.on {
+            return false;
+        }
+        if self.as_file.job.as_ref().is_some_and(|j| j.0.is_finished()) {
+            self.take_read();
+        }
+        if self.as_file.job.is_none() && self.as_file.heard.len() > self.view_len() {
+            self.start_read();
+        }
+        let heard_s = self.as_file.heard.len() as f64 / self.fs;
+        let read_to = self.as_file.view.as_ref().map_or(0.0, |v| v.settled_to);
+        // Sound heard as it comes is never ahead of the clock by more than
+        // a block or two the card holds back.
+        let ahead = (self.as_file.since)
+            .is_some_and(|t| heard_s - t.elapsed().as_secs_f64() > READ_LAG_CAP_S);
+        ahead && self.as_file.job.is_some() && heard_s - read_to > READ_LAG_CAP_S
     }
 
     /// No more reads as a file: the figures are this analyzer's own.
@@ -134,9 +180,11 @@ impl LiveAnalyzer {
     }
 
     /// After a push of `samples`: keeps them, takes a finished read's
-    /// figures, and starts the next read on everything heard. True when
+    /// figures (waiting for it first, if the feed `wait`s, while the
+    /// figures are more than [`READ_LAG_CAP_S`] behind a feed faster than
+    /// real time), and starts the next read on everything heard. True when
     /// the figures changed.
-    pub(super) fn as_file_after_push(&mut self, samples: &[f32]) -> bool {
+    pub(super) fn as_file_after_push(&mut self, samples: &[f32], wait: bool) -> bool {
         if !self.as_file.on {
             return false;
         }
@@ -144,10 +192,11 @@ impl LiveAnalyzer {
             self.stop_reading_as_file();
             return true;
         }
+        let mut changed = wait && self.reads_behind() && self.take_read();
+        self.as_file.since.get_or_insert_with(Instant::now);
         self.as_file.heard.extend_from_slice(samples);
-        let mut changed = false;
         if self.as_file.job.as_ref().is_some_and(|j| j.0.is_finished()) {
-            changed = self.take_read();
+            changed |= self.take_read();
         }
         if self.as_file.job.is_none() && self.as_file.heard.len() > self.view_len() {
             self.start_read();
@@ -225,4 +274,75 @@ impl LiveAnalyzer {
         );
         self.set_view(log);
     }
+}
+
+/// Live's listening state, `own`, with the read's figures, `read`: its
+/// rate, beat error and amplitude with their ±, scatter, the beats and span
+/// behind them and its time, and its caveats on those figures. The figures
+/// that name a side wait, as live's do, until live tells the sides apart
+/// (`sided`).
+fn with_read_figures(own: LiveReading, read: LiveReading, sided: bool) -> LiveReading {
+    let sided = |v: Option<f64>| v.filter(|_| sided);
+    let mut caveats: Vec<Caveat> = (read.caveats.into_iter())
+        .filter(|c| !listening_caveat(c))
+        .collect();
+    for c in own.caveats.into_iter().filter(listening_caveat) {
+        measure::add(&mut caveats, c);
+    }
+    LiveReading {
+        bph: own.bph,
+        bph_set: own.bph_set,
+        snr: own.snr,
+        clipped_beats: own.clipped_beats,
+        clipped_fraction: own.clipped_fraction,
+        watch_heard: own.watch_heard,
+        finding_beat: own.finding_beat,
+        listening: own.listening,
+        beat_error_ms: sided(read.beat_error_ms),
+        beat_error_unlock_ms: sided(read.beat_error_unlock_ms),
+        beat_error_unlock_error_ms: sided(read.beat_error_unlock_error_ms),
+        amplitude_even_deg: sided(read.amplitude_even_deg),
+        amplitude_odd_deg: sided(read.amplitude_odd_deg),
+        caveats,
+        ..read
+    }
+}
+
+/// Live's listening state with no figures: before the first read.
+fn without_figures(own: LiveReading) -> LiveReading {
+    LiveReading {
+        rate_s_per_day: None,
+        beat_error_ms: None,
+        beat_error_unlock_ms: None,
+        beat_error_source: None,
+        amplitude_deg: None,
+        amplitude_error_deg: None,
+        amplitude_no_pm: None,
+        amplitude_even_deg: None,
+        amplitude_odd_deg: None,
+        jitter_us: None,
+        timing_scatter_fraction: None,
+        beats_used: 0,
+        span_s: 0.0,
+        whole: false,
+        rate_error_s_per_day: None,
+        rate_no_pm: None,
+        rate_noise_values: 0,
+        rate_own_values: 0,
+        amplitude_values: 0,
+        amplitude_noise_values: 0,
+        beat_error_unlock_error_ms: None,
+        caveats: own.caveats.into_iter().filter(listening_caveat).collect(),
+        whole_take: false,
+        ..own
+    }
+}
+
+/// A caveat on what is heard, not on the figures: no watch, a set rate
+/// the sound disagrees with, clipping.
+fn listening_caveat(c: &Caveat) -> bool {
+    matches!(
+        c,
+        Caveat::NoWatch { .. } | Caveat::SetRateDisagrees { .. } | Caveat::Clipped { .. }
+    )
 }

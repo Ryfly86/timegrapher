@@ -14,7 +14,7 @@
 use std::path::{Path, PathBuf};
 use timegrapher_core::analysis::{analyze, AnalysisConfig, Clipping, Summary};
 use timegrapher_core::audio::{load, write_wav, Audio};
-use timegrapher_core::live::{LiveAnalyzer, LiveConfig, LiveReading};
+use timegrapher_core::live::{LiveAnalyzer, LiveConfig, LiveReading, READ_LAG_CAP_S};
 use timegrapher_core::longrun;
 use timegrapher_core::longterm::LongConfig;
 use timegrapher_core::measure::{Caveat, NoWatchReason};
@@ -1486,6 +1486,44 @@ fn a_live_rate_takes_the_usb_lines_a_reopened_real_take_takes() {
     std::fs::remove_dir(&dir).unwrap();
 }
 
+/// A reading's figures, their ±s and the caveats on them, as text: what
+/// a read as a file gives (#1987), not the listening state.
+fn figures(r: &LiveReading) -> String {
+    let listening = |c: &&Caveat| {
+        matches!(
+            c,
+            Caveat::NoWatch { .. } | Caveat::SetRateDisagrees { .. } | Caveat::Clipped { .. }
+        )
+    };
+    let caveats: Vec<&Caveat> = r.caveats.iter().filter(|c| !listening(c)).collect();
+    format!(
+        "{} {:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?} {} {} {} {:?} {:?} {} {} {} {} {} {caveats:?}",
+        r.time_s,
+        r.rate_s_per_day,
+        r.beat_error_ms,
+        r.beat_error_unlock_ms,
+        r.beat_error_source,
+        r.amplitude_deg,
+        r.amplitude_error_deg,
+        r.amplitude_no_pm,
+        r.amplitude_even_deg,
+        r.amplitude_odd_deg,
+        r.jitter_us,
+        r.timing_scatter_fraction,
+        r.rate_error_s_per_day,
+        r.beats_used,
+        r.span_s,
+        r.whole,
+        r.rate_no_pm,
+        r.beat_error_unlock_error_ms,
+        r.rate_noise_values,
+        r.rate_own_values,
+        r.amplitude_values,
+        r.amplitude_noise_values,
+        r.whole_take,
+    )
+}
+
 /// Before live builds its template again (#1327), every figure it shows is
 /// the saved take's of the sound its reading states (#1987): listening
 /// on, the newest read of what was heard, read as a file reads it; and
@@ -1519,11 +1557,13 @@ fn live_figures_before_the_template_is_built_again_are_the_saved_takes() {
         std::fs::remove_file(&saved).unwrap();
         LiveAnalyzer::from_log(log, LiveConfig::default())
     };
+    // The figures, their ±s and caveats on them: the listening state
+    // (the watch heard, the beat being found, SNR, clipping) is live's.
     let same = |live: &LiveAnalyzer, saved: &LiveAnalyzer, what: &str| {
         for average_s in [10.0, 60.0] {
             assert_eq!(
-                format!("{:?}", live.reading(average_s)),
-                format!("{:?}", saved.reading(average_s)),
+                figures(&live.reading(average_s)),
+                figures(&saved.reading(average_s)),
                 "{what}, over {average_s} s"
             );
         }
@@ -1543,6 +1583,11 @@ fn live_figures_before_the_template_is_built_again_are_the_saved_takes() {
             break;
         }
         heard_most = n;
+        // Fed faster than real time and never asked to wait, the push
+        // waits: the figures are never more than the cap and a block old.
+        let lag = n as f64 / f64::from(fs) - l.read_as_file_to().unwrap_or(0.0);
+        let cap = READ_LAG_CAP_S + block as f64 / f64::from(fs);
+        assert!(lag <= cap + 1e-9, "{n}: the figures {lag} s behind");
         if stops
             .next_if(|&at| n as f64 >= at * f64::from(fs))
             .is_none()
@@ -1581,6 +1626,14 @@ fn live_figures_before_the_template_is_built_again_are_the_saved_takes() {
         "switch after {:.1} s heard: its read {read:.3} s, so the figures lag the sound by \
          {:.3} s at most",
         heard_most as f64 / f64::from(fs),
+        2.0 * read
+    );
+    // Heard as it comes nothing waits: the figures trail by two reads at
+    // most, which must stay within this (Norm's ruling on #1987).
+    const LIVE_LAG_MAX_S: f64 = 2.0;
+    assert!(
+        2.0 * read <= LIVE_LAG_MAX_S,
+        "the figures trail by {} s",
         2.0 * read
     );
     std::fs::remove_dir(&dir).unwrap();

@@ -2266,7 +2266,9 @@ impl TimegrapherApp {
             self.clipped_at = Some(Instant::now());
         }
         self.live_usb.iter_mut().for_each(|u| u.push(&b.samples));
-        if live.push(&b.samples) {
+        // Never stalled for the figures read as a file (#1987): a sped-up
+        // replay's catch up when the template is built again, or on Stop.
+        if live.push_without_waiting(&b.samples) {
             // A jump the beats' timing shows is found a second
             // or two after it: the points read since reached
             // across it, so they go.
