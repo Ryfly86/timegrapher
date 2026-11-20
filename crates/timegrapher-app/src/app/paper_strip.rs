@@ -592,6 +592,7 @@ impl TimegrapherApp {
             settles = vec![(from, end + 1.0, "Possible Beats")];
         }
         let rate_line = rate_line.filter(|_| !guessing);
+        let wall = self.strip_wall(ui.ctx());
         let extras = strip::Extras {
             note: note.as_deref(),
             rate_line,
@@ -621,6 +622,7 @@ impl TimegrapherApp {
                 .as_ref()
                 .filter(|_| !guessing)
                 .map(|l| l.beats_gen()),
+            wall: wall.as_ref(),
         };
         let Some(live) = &self.live else { return };
         let candidates = numbered_candidates(&candidates, period);
@@ -646,6 +648,36 @@ impl TimegrapherApp {
             self.cursor_next = input.hover_t;
         }
         self.apply_strip_input(input, end);
+    }
+
+    /// The take on this computer's clock, for Time of Day: none with it
+    /// off, or when it isn't known when the take began. A take on the
+    /// microphone began when its recording did; one opened, when its
+    /// session.json says, its breaks moving the clock on.
+    fn strip_wall(&self, ctx: &egui::Context) -> Option<timegrapher_core::time_of_day::WallClock> {
+        use timegrapher_core::time_of_day::WallClock;
+        if !self.strip.clock {
+            return None;
+        }
+        let breaks = self.take_breaks.as_deref().unwrap_or_default();
+        let breaks = breaks.iter().map(|b| (b.audio_s, b.gap_s));
+        if self.input != Input::File {
+            return Some(WallClock::new(self.began_unix()?, breaks));
+        }
+        // Its session.json read once for each take opened.
+        let id = egui::Id::new("strip opened start");
+        let path = &self.opened_path;
+        let kept: Option<(String, Option<String>)> = ctx.data(|d| d.get_temp(id));
+        let start = match kept {
+            Some((p, start)) if &p == path => start,
+            _ => {
+                let dir = compare_take::take_dir_of(Path::new(path));
+                let start = dir.and_then(|d| started_in(&d));
+                ctx.data_mut(|d| d.insert_temp(id, (path.clone(), start.clone())));
+                start
+            }
+        };
+        WallClock::of_take(&start?, breaks)
     }
 
     /// The rate line the strip draws, when Rate Line or Parallel Guides

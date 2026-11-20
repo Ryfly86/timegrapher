@@ -45,6 +45,7 @@ fn the_guides_start_where_the_session_does() {
             span_s: 86400.0,
             horizontal,
             still: false,
+            clock: false,
         };
         let extras = Extras {
             rate_line: Some(RateLine {

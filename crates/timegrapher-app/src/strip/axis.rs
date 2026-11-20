@@ -172,12 +172,18 @@ mod drawn {
     /// Every text drawn on a strip lying across, `height` points tall
     /// overall, at Width ±`half_width_ms`, with where it is drawn.
     fn texts_at(height: f32, half_width_ms: f64) -> Vec<(String, Rect)> {
+        texts_with(height, half_width_ms, &Extras::default())
+    }
+
+    /// [`texts_at`] with `extras`.
+    fn texts_with(height: f32, half_width_ms: f64, extras: &Extras) -> Vec<(String, Rect)> {
         let ctx = egui::Context::default();
         let view = StripView {
             half_width_ms,
             span_s: 100.0,
             horizontal: true,
             still: false,
+            clock: false,
         };
         let out = ctx.run(
             egui::RawInput {
@@ -193,7 +199,7 @@ mod drawn {
                         None,
                         100.0,
                         &view,
-                        &Extras::default(),
+                        extras,
                         Vec2::new(460.0, height),
                     );
                 });
@@ -294,5 +300,42 @@ mod drawn {
             "{labels:?}"
         );
         assert!(!labels.iter().any(|t| t == "0 ms"), "{labels:?}");
+    }
+
+    /// With Time of Day on, each of the take's time labels has the time
+    /// of day under it, and both are drawn; off, the take's alone.
+    #[test]
+    fn time_of_day_goes_under_the_take_time() {
+        use timegrapher_core::time_of_day::WallClock;
+        let is_take_time = |t: &str| {
+            let p: Vec<&str> = t.split(':').collect();
+            p.len() == 2 && p[0].len() == 1 && p[1].len() == 2
+        };
+        let is_clock = |t: &str| {
+            let p: Vec<&str> = t.split(':').collect();
+            p.len() == 3
+                && p.iter()
+                    .all(|x| x.len() == 2 && x.bytes().all(|b| b.is_ascii_digit()))
+        };
+        let off = texts_at(260.0, 20.0);
+        let take: Vec<_> = off.iter().filter(|t| is_take_time(&t.0)).collect();
+        assert!(take.len() >= 3, "{off:?}");
+        assert!(!off.iter().any(|t| is_clock(&t.0)), "{off:?}");
+        // 2026-11-20 14:32:17.5 UTC.
+        let wall = WallClock::new(1_795_185_137.5, []);
+        let extras = Extras {
+            wall: Some(&wall),
+            ..Default::default()
+        };
+        let on = texts_with(260.0, 20.0, &extras);
+        let take: Vec<_> = on.iter().filter(|t| is_take_time(&t.0)).collect();
+        let clock: Vec<_> = on.iter().filter(|t| is_clock(&t.0)).collect();
+        assert!(take.len() >= 3, "{on:?}");
+        assert_eq!(take.len(), clock.len(), "{on:?}");
+        // Each time of day sits under its take time, on the same line.
+        for (a, b) in take.iter().zip(&clock) {
+            assert!((a.1.center().x - b.1.center().x).abs() < 1.0, "{a:?} {b:?}");
+            assert!(b.1.top() >= a.1.bottom() - 1.0, "{a:?} {b:?}");
+        }
     }
 }

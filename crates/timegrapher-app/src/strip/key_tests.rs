@@ -25,6 +25,7 @@ fn the_key_moves_to_the_left_corner_with_fewer_dots() {
             span_s: 100.0,
             horizontal: true,
             still: false,
+            clock: false,
         };
         let extras = Extras::default();
         let mut plot_mid = 0.0;

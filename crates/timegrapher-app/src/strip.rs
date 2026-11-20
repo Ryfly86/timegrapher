@@ -63,6 +63,10 @@ pub struct StripView {
     /// every `span_s` ([`Sweep::Still`]), instead of the paper moving.
     #[serde(default)]
     pub still: bool,
+    /// Time of Day: the time of day on this computer's clock under each of
+    /// the time axis's labels ([`Extras::wall`]).
+    #[serde(default)]
+    pub clock: bool,
 }
 
 /// The most beats drawn to a point along the strip.
@@ -340,6 +344,9 @@ pub struct Extras<'a> {
     /// ([`timegrapher_core::live::LiveAnalyzer::beats_gen`]): the dots
     /// drawn from them stand only while it does (#1857).
     pub beats_gen: Option<u64>,
+    /// The take on this computer's clock, when Time of Day is on: the
+    /// time axis is labelled with the time of day in place of the take's.
+    pub wall: Option<&'a timegrapher_core::time_of_day::WallClock>,
 }
 
 /// Mark each stretch of the session in one position across the plotting
@@ -990,7 +997,8 @@ pub fn draw_strip(
         .iter()
         .map(|(o, s)| scale_column(ui, &font, o, *s))
         .collect();
-    let (r, lane) = strip_rects(resp.rect, view, extras.gutter, &cols, row_h);
+    let clock = extras.wall.is_some();
+    let (r, lane) = strip_rects(resp.rect, view, (extras.gutter, clock), &cols, row_h);
     if view.horizontal {
         crate::theme::note_time_span(ui.ctx(), r.x_range());
     }
@@ -1082,11 +1090,14 @@ fn unit_line(o: &Overlay) -> String {
 fn strip_rects(
     outer: Rect,
     view: &StripView,
-    gutter: f32,
+    (gutter, clock): (f32, bool),
     cols: &[f32],
     row_h: f32,
 ) -> (Rect, Rect) {
     let lane_h = row_h + 4.0;
+    // Time of Day: a second row of labels under the take's time, across;
+    // down, a column wide enough for "14:35:20".
+    let (under, left) = if clock { (row_h, 52.0) } else { (0.0, 36.0) };
     let overlays = cols.len();
     let r = if view.horizontal {
         // Room over the plot for each axis's second line, its unit, clear
@@ -1094,13 +1105,13 @@ fn strip_rects(
         let units = if cols.is_empty() { 0.0 } else { row_h - 4.0 };
         Rect::from_min_max(
             outer.min + Vec2::new(gutter.max(crate::theme::GUTTER_MIN), 3.0 + lane_h + units),
-            outer.max - Vec2::new(4.0 + cols.iter().sum::<f32>(), row_h + 2.0),
+            outer.max - Vec2::new(4.0 + cols.iter().sum::<f32>(), row_h + 2.0 + under),
         )
     } else {
         // Two lines under the plot: the ms numbers, and "Late" and
         // "Early" on their own line under the end ones (#1278).
         Rect::from_min_max(
-            outer.min + Vec2::new(36.0, row_h + SCALE_ROW * overlays as f32 + 4.0),
+            outer.min + Vec2::new(left, row_h + SCALE_ROW * overlays as f32 + 4.0),
             outer.max - Vec2::new(8.0 + lane_h, 2.0 * row_h + 2.0),
         )
     };
@@ -1553,15 +1564,34 @@ impl Frame<'_> {
         // label's width ("10:00:00"); down, its height with space each side.
         let gap = if g.horizontal { 90.0 } else { 40.0 };
         let tstep = time_step(g.span, gap, along_px);
+        let wall = self.extras.wall;
         for t in time_lines(g.end, self.oldest, tstep) {
             let a = g.pos(-g.half, t);
             lines.push(if g.horizontal { a.x } else { a.y });
-            let (at, align) = if g.horizontal {
-                (Pos2::new(a.x, r.bottom() + 2.0), Align2::CENTER_TOP)
+            // With Time of Day, the time of day under the take's time:
+            // across, a row lower; down, the take's above the line and the
+            // time of day under it.
+            let (at, align, under, under_align) = if g.horizontal {
+                let at = Pos2::new(a.x, r.bottom() + 2.0);
+                let under = at + Vec2::new(0.0, self.row_h);
+                (at, Align2::CENTER_TOP, under, Align2::CENTER_TOP)
+            } else if wall.is_some() {
+                let at = Pos2::new(r.left() - 4.0, a.y);
+                (at, Align2::RIGHT_BOTTOM, at, Align2::RIGHT_TOP)
             } else {
-                (Pos2::new(r.left() - 4.0, a.y), Align2::RIGHT_CENTER)
+                let at = Pos2::new(r.left() - 4.0, a.y);
+                (at, Align2::RIGHT_CENTER, at, Align2::RIGHT_TOP)
             };
             painter.text(at, align, length_text(t), self.font.clone(), text);
+            if let Some(w) = wall {
+                painter.text(
+                    under,
+                    under_align,
+                    w.label(t, tstep),
+                    self.font.clone(),
+                    text,
+                );
+            }
         }
         lines
     }
@@ -2039,11 +2069,12 @@ impl Frame<'_> {
         let painter = self.painter.with_clip_rect(r);
         let (a, b) = (g.pos(-g.half, t), g.pos(g.half, t));
         painter.line_segment([a, b], Stroke::new(1.0_f32, vis.weak_text_color()));
-        let galley = painter.layout_no_wrap(
-            fmt_time_fine(t),
-            FontId::proportional(11.0),
-            vis.strong_text_color(),
+        let label = self.extras.wall.map_or_else(
+            || fmt_time_fine(t),
+            |w| format!("{}  {}", fmt_time_fine(t), w.label_fine(t)),
         );
+        let galley =
+            painter.layout_no_wrap(label, FontId::proportional(11.0), vis.strong_text_color());
         let size = galley.size() + Vec2::splat(4.0);
         let rect = if g.horizontal {
             let x = (a.x - size.x / 2.0).clamp(r.left(), (r.right() - size.x).max(r.left()));
@@ -2132,6 +2163,7 @@ mod tests {
             span_s: 100.0,
             horizontal: true,
             still: false,
+            clock: false,
         };
         let masked = [(40.0, 60.0)];
         let extras = Extras {
@@ -2249,6 +2281,7 @@ mod tests {
             span_s: 100.0,
             horizontal: true,
             still: false,
+            clock: false,
         };
         let track = [
             (0.0, 50.0, "Dial Up (DU)", "DU"),
@@ -2402,6 +2435,7 @@ mod tests {
                 span_s: 240.0,
                 horizontal,
                 still: false,
+                clock: false,
             };
             let extras = Extras {
                 gutter: 46.0,
@@ -2450,6 +2484,7 @@ mod tests {
                 span_s: 100.0,
                 horizontal,
                 still: false,
+                clock: false,
             };
             let extras = Extras {
                 gutter: 46.0,
@@ -2517,6 +2552,7 @@ mod tests {
             span_s: 100.0,
             horizontal: true,
             still: false,
+            clock: false,
         };
         let track = [(0.0, f64::INFINITY, "Crown Up (CU, 3H)", "CU")];
         let masked = [(12.0, 20.0)];
@@ -2605,6 +2641,7 @@ mod tests {
                 span_s: 100.0,
                 horizontal: true,
                 still: false,
+                clock: false,
             };
             let track = [
                 (0.0, 50.0, "Dial Up (DU)", "DU"),

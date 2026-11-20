@@ -70,6 +70,7 @@ fn a_level_reading_close_spaced_is_drawn_without_gaps() {
             span_s: 600.0,
             horizontal,
             still: false,
+            clock: false,
         };
         let overlays = [Overlay {
             name: "Amplitude",

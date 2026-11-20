@@ -351,6 +351,11 @@ impl TimegrapherApp {
         // The panes are the Bench's: dimmed in Watches.
         let bench = self.menu_enabled(MenuCommand::ResetPanes);
         ui.add_enabled_ui(bench, |ui| self.view_menu_panes(ui));
+        ui.separator();
+        ui.checkbox(&mut self.strip.clock, "Time of Day on the Paper Strip")
+            .on_hover_text(
+                "Write the time of day on this computer's clock under the strip's time                  labels, and beside its cursor's time",
+            );
     }
 
     fn view_menu_panes(&mut self, ui: &mut egui::Ui) {

@@ -87,6 +87,7 @@ pub mod take_context;
 pub mod take_path;
 pub mod test_marks;
 pub mod text_report;
+pub mod time_of_day;
 pub mod timefreq;
 pub mod timing;
 pub mod train;

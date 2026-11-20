@@ -65,6 +65,16 @@ thousand at each end left out), so the whole take shows at once.
 strip had before the take was opened. A width or length you changed by
 hand meanwhile stays as you set it.
 
+## Time of Day
+
+**View > Time of Day on the Paper Strip** writes the time of day on this computer's clock (`14:35:20`) under each of the strip's time labels, so the take's time and the clock's show together; with Direction set to Down, the take's time is above each line and the time of day below it. The cursor shows both too (`1:23.45  14:35:20.45`). With lines six hours or more apart, the time of day names the day (`Thu 06:00`). It is kept between runs.
+
+- A take on the microphone counts from when its recording began.
+- A take opened counts from when its `session.json` says it began, and each break in its sound moves the clock on by the time that passed.
+- A recording with no start time keeps the take's own time.
+
+Why you'd use it: to match the strip to when something happened, such as a knock, a wind or the watch picked up.
+
 ## Still Paper
 
 ![Still Paper on, 1 min 18 s into a Quick Listen with a Length of 30 s, marks 1 to 3](images/paper-strip-still.png)

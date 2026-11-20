@@ -15,6 +15,7 @@ fn still_paper_writes_a_positions_name_whole_in_each_lap() {
             span_s: 100.0,
             horizontal,
             still: true,
+            clock: false,
         };
         let track = [(0.0, f64::INFINITY, "Dial Up (DU)", "DU")];
         let extras = Extras {
