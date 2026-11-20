@@ -1577,12 +1577,7 @@ impl TimegrapherApp {
         if m.bph.is_some() {
             self.put_bph(m.bph);
         }
-        // What the take masked out; its seconds are the strip's, each
-        // entry's moved to where its file starts.
-        let offset = |i: usize| layout.map_or(0.0, |w| w[i].offset_s);
-        let masked =
-            timegrapher_core::take_context::masks_in_take(entries, (0..entries.len()).map(offset));
-        self.put_masked(timegrapher_core::session::masked_spans(&masked));
+        self.put_masked(manifest_masks(entries, layout));
         self.opened_masks = Some(self.masked.clone());
         let (out, settles) = manifest_positions(m, entries, duration_s, layout);
         // What was recorded under any painting, loaded with the positions.
@@ -2824,6 +2819,18 @@ pub(super) fn retune(
 /// once the take is open (#1233).
 fn engine_masked(i: &OpenInputs) -> Vec<(f64, f64)> {
     timegrapher_core::session::with_holes(&i.masked, &i.settles)
+}
+
+/// What the take masked out, as the strip shows it: in its seconds, each
+/// entry's moved to where its file starts in `layout`, if laid out.
+pub(super) fn manifest_masks(
+    entries: &[RecordingEntry],
+    layout: Option<&[EntryWindow]>,
+) -> Vec<(f64, f64)> {
+    let offset = |i: usize| layout.map_or(0.0, |w| w[i].offset_s);
+    let masked =
+        timegrapher_core::take_context::masks_in_take(entries, (0..entries.len()).map(offset));
+    timegrapher_core::session::masked_spans(&masked)
 }
 
 /// The changes of position and settling the session file `m` lists for

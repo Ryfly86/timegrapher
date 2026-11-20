@@ -1156,8 +1156,14 @@ fn a_stopped_takes_cards_are_its_saved_takes_to_the_bit() {
             "{secs} s: the cards wait at Stop"
         );
         assert!(
-            stopped.card_reading().is_none(),
-            "{secs} s: no figure while it is read"
+            stopped.shown_on_cards().is_none(),
+            "{secs} s: no figure on the cards while it is read"
+        );
+        // The panes keep what they showed: nothing withholds with the
+        // cards while they wait (Walter 21).
+        assert!(
+            stopped.card_reading().is_some() && (secs < 30.0 || stopped.cards_unheard().is_none()),
+            "{secs} s: the panes withhold while it is read"
         );
         let ctx = egui::Context::default();
         crate::theme::install(&ctx);
@@ -1221,4 +1227,69 @@ fn a_stopped_takes_cards_are_its_saved_takes_to_the_bit() {
         }
         let _ = std::fs::remove_dir_all(&base);
     }
+}
+
+/// A stopped take's whole take and its cards' sparklines are its saved
+/// take's too (Trevor on #2164): with a break in the take, so the saved
+/// sound's time differs from the session's, and a mask put on once the
+/// take is read, which the stopped take takes as an opened one does.
+/// More sound kept after the read drops it.
+#[test]
+fn a_stopped_takes_whole_take_and_sparklines_are_its_saved_takes() {
+    let required = std::env::var_os("TIMEGRAPHER_REQUIRE_CORPUS").is_some();
+    let Some(root) = std::env::var_os("TIMEGRAPHER_CORPUS").map(PathBuf::from) else {
+        assert!(!required, "TIMEGRAPHER_CORPUS is needed");
+        return eprintln!("skipped: TIMEGRAPHER_CORPUS isn't set");
+    };
+    let flac = root.join("takes/eta2824_holder_DU_30min/take_part01-001.flac");
+    if !flac.exists() {
+        assert!(!required, "{flac:?} is needed");
+        return eprintln!("skipped: {flac:?} isn't here");
+    }
+    let base = std::env::temp_dir().join(format!("tg-2164-whole-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    // A 4 s stall 30 s in: a break, so session and saved sound part.
+    let mut stopped = listened(&base, &flac, (0.0, 90.0), 0.0, Some((30.0, 4.0)), 0.0);
+    let ctx = egui::Context::default();
+    crate::theme::install(&ctx);
+    // Sparklines read while it waits are not kept past it.
+    let waiting = stopped.card_reading().expect("live reads while it waits");
+    let _ = stopped.spark_trend(&ctx, &waiting);
+    stop_read_in(&mut stopped);
+    // A mask once it is read: retuned, as an opened take's engine is.
+    stopped.put_masked(vec![(50.0, 56.0)]);
+    let (mut opened, ctx) = window_opened(&saved(&mut stopped, &base));
+    // The saved take keeps the mask, in its sound's own time: 4 s sooner,
+    // after the break.
+    assert_eq!(opened.masked, vec![(46.0, 52.0)], "the saved take's mask");
+    let mut seen = Vec::new();
+    for app in [&mut stopped, &mut opened] {
+        app.set_average(10.0);
+        for _ in 0..2 {
+            let _ = window_frame(app, &ctx);
+        }
+        let r = app.card_reading().expect("a reading");
+        let whole = app.whole_take().expect("the whole take");
+        seen.push((
+            card_bits(&r),
+            format!("{:?} {:?}", whole.m, whole.span.to_bits()),
+            format!("{:?}", app.spark_trend(&ctx, &r)),
+        ));
+    }
+    let (s, o) = (&seen[0], &seen[1]);
+    assert_eq!(s.0, o.0, "the cards");
+    assert_eq!(s.1, o.1, "the whole take");
+    assert_eq!(s.2, o.2, "the sparklines");
+    // More sound kept after the read: it no longer holds.
+    let short = base.join("short");
+    let mut more = listened(&short, &flac, (0.0, 8.0), 0.0, None, 0.0);
+    stop_read_in(&mut more);
+    let block = timegrapher_core::capture::Block {
+        samples: vec![0.0; 48_000],
+        at: std::time::SystemTime::now(),
+    };
+    let r = more.session.recorder.as_mut().expect("the recorder");
+    r.write(&block).expect("written");
+    assert!(more.stopped_take().is_none(), "a read of less sound holds");
+    let _ = std::fs::remove_dir_all(&base);
 }

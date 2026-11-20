@@ -8,7 +8,9 @@
 //! the paused take, drops it.
 
 use super::*;
-use crate::app::take_io::{manifest_positions, open_in_background, OpenInputs, Opened};
+use crate::app::take_io::{
+    manifest_masks, manifest_positions, open_in_background, OpenInputs, Opened,
+};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering::Relaxed};
 use std::sync::Arc;
 
@@ -165,14 +167,6 @@ impl TimegrapherApp {
         }
     }
 
-    /// The live engine, unless the take just stopped is still being read:
-    /// the cards wait for that rather than read live's figures.
-    pub(in crate::app) fn live_unless_stop_read_waits(&self) -> Option<&LiveAnalyzer> {
-        self.live
-            .as_ref()
-            .filter(|_| self.stop_read_waits().is_none())
-    }
-
     /// The take just stopped, still being read: the cards wait for it.
     pub(in crate::app) fn stop_read_waits(&self) -> Option<&StopRead> {
         self.bg
@@ -219,11 +213,9 @@ impl StoppedTake {
 /// file `m` gives a take `length_s` long, as opening it reads them.
 fn ready_engine_inputs(window: OpenInputs, m: &Manifest, length_s: f64) -> OpenInputs {
     let entries = &m.recordings;
-    let masked =
-        timegrapher_core::take_context::masks_in_take(entries, entries.iter().map(|_| 0.0));
     let (stretches, settles) = manifest_positions(m, entries, Some(length_s), None);
     OpenInputs {
-        masked: timegrapher_core::session::masked_spans(&masked),
+        masked: manifest_masks(entries, None),
         changes: stretches.iter().map(|s| s.0).collect(),
         settles,
         ..window

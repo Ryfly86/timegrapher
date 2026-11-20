@@ -674,6 +674,14 @@ impl TimegrapherApp {
         (r, heard, unheard)
     }
 
+    /// The reading the cards show their figures from: none while the
+    /// take just stopped is read whole, as they wait for it (#2151). The
+    /// strip and the panes keep [`Self::card_reading`] meanwhile.
+    pub(super) fn shown_on_cards(&self) -> Option<LiveReading> {
+        self.card_reading()
+            .filter(|_| self.stop_read_waits().is_none())
+    }
+
     /// What every reading card says in its figure's place at the moment
     /// they show, or None while they show figures ([`Self::cards_state`]).
     /// Panes that describe the same beats withhold with them.
@@ -688,7 +696,7 @@ impl TimegrapherApp {
     /// Returns what the cards asked for, and where their controls go.
     pub(super) fn readouts(&self, ui: &mut egui::Ui) -> Readouts {
         let pal = theme::pal(ui);
-        let r = self.card_reading();
+        let r = self.shown_on_cards();
         let gap = theme::GAP;
         let total = ui.available_width();
         let widths = six_widths(total, gap);
@@ -1442,7 +1450,7 @@ impl TimegrapherApp {
     /// chip in the cards' step-down, each one's sentence on its hover
     /// (Hugh, #1975).
     fn shown_caveats_chip(&self, ui: &mut egui::Ui) {
-        let r = self.card_reading();
+        let r = self.shown_on_cards();
         let r = r.as_ref().filter(|r| heard(Some(r)));
         let amplitude_empty = r.and_then(|r| r.amplitude_deg).is_none();
         let caveats = self.shown_caveats(r);
