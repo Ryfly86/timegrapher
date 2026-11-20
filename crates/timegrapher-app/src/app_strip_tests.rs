@@ -873,3 +873,29 @@ fn time_of_day_on_a_segment_opened_alone_has_no_clock() {
     }
     let _ = std::fs::remove_dir_all(&take);
 }
+
+/// Time of Day's hover, in full: on for a take whose start isn't known it
+/// says only the take's own time shows; off, or with a start, what the
+/// switch does (Hugh on #2170).
+#[test]
+fn time_of_day_says_when_the_takes_start_is_not_known() {
+    let ctx = egui::Context::default();
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "test".into());
+    let does = "Write the time of day on this computer's clock under the strip's time labels, \
+                and beside the cursor's time";
+    assert_eq!(app.strip_time_of_day_hint(&ctx), does);
+    app.strip.clock = true;
+    assert!(app.session.recorder.is_none());
+    assert_eq!(
+        app.strip_time_of_day_hint(&ctx),
+        "On. This take's start time isn't known, so only its own time shows"
+    );
+    let base = std::env::temp_dir().join(format!("tg-app-strip-hint-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    app.session.recorder =
+        Some(Recorder::start(&base.join("live"), app.info("test", 48000, 16)).unwrap());
+    assert_eq!(app.strip_time_of_day_hint(&ctx), does);
+    app.session.discard_recording();
+    let _ = std::fs::remove_dir_all(&base);
+}

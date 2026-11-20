@@ -364,30 +364,31 @@ impl TimegrapherApp {
         }
     }
 
-    /// The strip settings' Direction: Down or Across. In the toolbar the
-    /// segment's words say it with no caption (Hugh, so the row fits with
-    /// Still Paper at 1000 pt); in the "…" menu it keeps its name.
+    /// The strip settings' Direction: Down or Across. In the toolbar one
+    /// arrow shows the way the paper runs and a click turns it (Hugh, on
+    /// #2170, so the row fits Still Paper and Time of Day at 1000 pt); in
+    /// the "…" menu the choice keeps its words.
     fn strip_direction(&mut self, ui: &mut egui::Ui) {
         let mut h = self.strip.horizontal;
-        let choices = [
-            (
-                false,
-                "Down",
-                "Direction the paper runs: Down, newest beats at the top, the strip beside the \
-                 charts",
-            ),
-            (
-                true,
-                "Across",
-                "Direction the paper runs: Across, newest beats at the right, the strip above \
-                 the charts",
-            ),
-        ];
-        theme::tool_words(
+        theme::tool_choice(
             ui,
             "Direction",
             "Direction the paper runs: Down or Across",
-            |ui| theme::segmented(ui, &mut h, &choices),
+            &mut h,
+            &[
+                (
+                    false,
+                    Icon::ArrowDown,
+                    "Down",
+                    "Newest beats at the top, the strip beside the charts",
+                ),
+                (
+                    true,
+                    Icon::ArrowRight,
+                    "Across",
+                    "Newest beats at the right, the strip above the charts",
+                ),
+            ],
         );
         if h != self.strip.horizontal {
             self.strip.horizontal = h;
@@ -411,6 +412,32 @@ impl TimegrapherApp {
             &mut self.strip.still,
             hint,
         );
+    }
+
+    /// The strip settings' Time of Day switch, after Still Paper: the
+    /// paper's own switches sit and fold together (Hugh, on #2170). Never
+    /// greyed: a setting kept between runs, it can be set before a take.
+    fn strip_time_of_day(&mut self, ui: &mut egui::Ui, pal: &theme::Palette) {
+        let hint = self.strip_time_of_day_hint(ui.ctx());
+        theme::tool_switch(
+            ui,
+            Icon::TimeOfDay,
+            pal.accent,
+            "Time of Day",
+            &mut self.strip.clock,
+            hint,
+        );
+    }
+
+    /// Time of Day's hover: what it does, or, on for a take whose start
+    /// isn't known, that only the take's own time shows.
+    pub(super) fn strip_time_of_day_hint(&self, ctx: &egui::Context) -> &'static str {
+        if self.strip.clock && self.live.is_some() && self.strip_wall(ctx).is_none() {
+            "On. This take's start time isn't known, so only its own time shows"
+        } else {
+            "Write the time of day on this computer's clock under the strip's time labels, \
+             and beside the cursor's time"
+        }
     }
 
     pub(super) fn strip_settings(&mut self, ui: &mut egui::Ui) {
@@ -461,6 +488,7 @@ impl TimegrapherApp {
         theme::bar_gap(ui);
         self.strip_direction(ui);
         self.strip_paper(ui, pal);
+        self.strip_time_of_day(ui, pal);
         theme::bar_gap(ui);
         self.export_button(ui, Pane::Strip);
     }

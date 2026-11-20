@@ -8,7 +8,7 @@ use eframe::egui::{self, epaint, Color32, Pos2, Rect, Shape, Stroke};
 use std::sync::OnceLock;
 
 /// Every icon, in the order of [`drawing`]'s arms.
-const ALL: [Icon; 86] = [
+const ALL: [Icon; 87] = [
     Icon::Readings,
     Icon::Watch,
     Icon::Strip,
@@ -95,6 +95,7 @@ const ALL: [Icon; 86] = [
     Icon::IsoCurve,
     Icon::IsoWalk,
     Icon::StillPaper,
+    Icon::TimeOfDay,
 ];
 
 /// The drawing behind each icon, with the pun it makes.
@@ -403,6 +404,11 @@ fn drawing(icon: Icon) -> &'static str {
         // Length.
         Icon::StillPaper => {
             r#"<rect x="3.5" y="3.5" width="17" height="17" rx="1.5"/><path d="M7 17L20.5 12M3.5 12L12 8.85" stroke-width="1.4"/><circle cx="12" cy="8.85" r="1.2" fill="currentColor"/>"#
+        }
+        // A clock face over a ticked line: the time axis with the time of
+        // day under it.
+        Icon::TimeOfDay => {
+            r#"<circle cx="12" cy="9" r="6"/><path d="M12 9V5.5M12 9l2.5 1.5"/><path d="M3 20h18M6 18v4M12 18v4M18 18v4" stroke-width="1.2"/>"#
         }
         // A watchmaker's screwdriver: Change the watch's details.
         Icon::Screwdriver => {

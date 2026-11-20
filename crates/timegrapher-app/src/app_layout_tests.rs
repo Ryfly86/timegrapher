@@ -610,12 +610,13 @@ fn a_two_way_choice_is_one_icon_wide() {
 }
 
 /// The Paper Strip's toolbar, per the Bench design: Rate, Amplitude and
-/// Beat Error at its left end, then Width and Length; Direction is a
-/// Down | Across control in words, with no caption since Still Paper
-/// joined the row (Hugh), Still Paper right after it; Unmask All is gone
-/// (Edit ▸ Remove All Masks does it).
+/// Beat Error at its left end, then Width and Length; Direction is one
+/// arrow, the way the paper runs, that a click turns (Hugh on #2170, in
+/// place of Down | Across in words, so Time of Day fits), Still Paper
+/// right after it and Time of Day after that; Unmask All is gone (Edit ▸
+/// Remove All Masks does it).
 #[test]
-fn the_strip_direction_is_down_or_across_in_words() {
+fn the_strip_direction_is_one_arrow_before_the_papers_switches() {
     let ctx = egui::Context::default();
     theme::install(&ctx);
     let mut app = TimegrapherApp::with_devices(mac_devices(), None);
@@ -642,10 +643,12 @@ fn the_strip_direction_is_down_or_across_in_words() {
             _ => None,
         })
         .collect();
-    for w in ["Down", "Across", "Width", "Length"] {
+    for w in ["Width", "Length"] {
         assert!(words.iter().any(|t| t == w), "{w} not drawn: {words:?}");
     }
-    assert!(!words.iter().any(|t| t == "Direction"), "{words:?}");
+    for w in ["Direction", "Down", "Across"] {
+        assert!(!words.iter().any(|t| t == w), "{w} drawn: {words:?}");
+    }
     let keys: Vec<String> = theme::tools_drawn_at(&ctx)
         .into_iter()
         .filter_map(|(k, _)| k.strip_prefix("Paper Strip/").map(str::to_string))
@@ -665,6 +668,38 @@ fn the_strip_direction_is_down_or_across_in_words() {
     );
     assert!(at("Mask") < at("Direction"), "{keys:?}");
     assert_eq!(at("Still Paper"), at("Direction") + 1, "{keys:?}");
+    assert_eq!(at("Time of Day"), at("Still Paper") + 1, "{keys:?}");
+}
+
+/// At 1000 pt the Paper Strip's row holds both of the paper's switches,
+/// Still Paper and Time of Day, with nothing folded into "…" (Hugh on
+/// #2170).
+#[test]
+fn the_strip_row_holds_still_paper_and_time_of_day_at_1000_pt() {
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    let mut app = TimegrapherApp::with_devices(mac_devices(), None);
+    app.reset_session(48000, "syn".into());
+    let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(1000.0, 700.0));
+    for _ in 0..4 {
+        let input = egui::RawInput {
+            screen_rect: Some(screen),
+            ..Default::default()
+        };
+        let _ = ctx.run(input, |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                app.pane_tools(ui, Pane::Strip);
+            });
+        });
+    }
+    let keys: Vec<String> = theme::tools_drawn_at(&ctx)
+        .into_iter()
+        .filter_map(|(k, _)| k.strip_prefix("Paper Strip/").map(str::to_string))
+        .collect();
+    for k in ["Still Paper", "Time of Day", "Export…"] {
+        assert!(keys.iter().any(|x| x == k), "{k} not in the row: {keys:?}");
+    }
+    assert!(!keys.iter().any(|x| x == "…"), "something folded: {keys:?}");
 }
 
 /// The strip's Width and Length fields show their widest values whole,
