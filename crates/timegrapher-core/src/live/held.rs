@@ -29,6 +29,7 @@ impl LiveAnalyzer {
         }
         let mut was = self.clone();
         was.held = Held::default();
+        was.stop_reading_as_file();
         was.cfg.analysis.bph = set;
         let until = self.total + (HELD_S * self.fs).round() as u64;
         self.held = Held(Some((Box::new(was), until)));

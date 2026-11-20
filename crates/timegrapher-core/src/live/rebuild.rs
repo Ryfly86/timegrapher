@@ -90,6 +90,12 @@ impl LiveAnalyzer {
         self.rebuild.gather.is_some() || self.rebuild.shadow.is_some()
     }
 
+    /// Whether the template is done with: built again and taken over, or
+    /// given up, with no sound being read again.
+    pub(super) fn template_settled(&self) -> bool {
+        self.rebuild.done && !self.gathering()
+    }
+
     /// Start again: the next watch heard has its template built again.
     pub(super) fn forget_rebuild(&mut self) {
         self.rebuild = Rebuild::default();
@@ -199,6 +205,7 @@ impl LiveAnalyzer {
     /// through the same passes ([`Self::catch_up`]).
     fn reread(&mut self, g0: u64, g: Vec<f32>, template: Vec<f32>) {
         let mut l = self.clone();
+        l.stop_reading_as_file();
         let since = g0 as f64 / self.fs;
         let before = |v: &[f64]| -> Vec<f64> { v.iter().copied().filter(|&t| t < since).collect() };
         // The caller's breaks all stand (set before the watch was heard,

@@ -998,6 +998,8 @@ fn clipping_shows_in_a_chip_and_the_true_clock_in_the_rate_hover() {
             .collect();
         live.push(&hot);
     }
+    // The figures read as a file are in, however busy the machine (#1987).
+    live.read_as_file_now();
     app.clock = Some(clockstore::DeviceClock {
         device: "syn".into(),
         ppm: 20.0,
@@ -2497,4 +2499,144 @@ fn under_ten_seconds_heard_and_over_says_so_on_every_card() {
     // Moved back into it, the take goes on past there: still Listening.
     app.strip_end = Some(5.0);
     assert!(cards_text(&app, &ctx).contains("Listening"));
+}
+
+/// A watch heard past its first seconds while the figures are read as a
+/// file (#1987): before a read has figures of it, the cards say the beat
+/// is being found, never a word for no beats nor live's own figures
+/// (Hugh 5 and Norm on #2133).
+#[test]
+fn a_watch_heard_never_waits_for_beats_while_its_figures_are_read() {
+    use timegrapher_core::measure::FINDING_TITLE;
+    use timegrapher_core::synth::{generate, SynthConfig};
+    let ctx = themed();
+    let base = std::env::temp_dir().join(format!("tg-read-gap-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "watch".into());
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let cfg = SynthConfig {
+        duration_s: 12.0,
+        ..Default::default()
+    };
+    let sound = generate(&cfg, |_| 280.0, |_| 0.0).samples;
+    // Heard all at once, as the app's feed takes a backlog: the first
+    // read starts on all of it, so none has landed yet.
+    let live = app.live.as_mut().expect("live");
+    live.push_without_waiting(&sound);
+    assert_eq!(live.read_as_file_to(), None, "no read has landed");
+    let r = app.reading().expect("a reading");
+    assert!(r.finding_beat && !r.watch_heard, "{r:?}");
+    assert!(r.rate_s_per_day.is_none(), "not live's own figures: {r:?}");
+    let text = cards_text(&app, &ctx);
+    for word in ["Waiting", "No Beats"] {
+        assert!(!text.contains(word), "{word}: {text}");
+    }
+    let (finding, _) = FINDING_TITLE.split_once(' ').expect("words");
+    assert!(text.contains(finding), "{text}");
+    // Once the read lands, its figures.
+    app.live.as_mut().expect("live").read_as_file_now();
+    let r = app.reading().expect("a reading");
+    assert!(r.watch_heard && r.rate_s_per_day.is_some(), "{r:?}");
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// The cards after a splice, each 0.25 s from it: Beat Error is a figure
+/// or worded, never a bare "—" beside figures on the other cards (Walter
+/// 17's hold of #2133). Where live has lost its sides the read's beat
+/// error shows (Norm); a reading with figures but no sides told apart says
+/// "Waiting for Tick and Tock" (Hugh 5). Two splices: the watch slipping
+/// half a beat, and one at 28800 followed by one at 21600, as Walter
+/// spliced the ETA 2824 into the Reverso. Returns, per splice, the frames
+/// that painted the read's beat error with live's sides lost, and those
+/// that painted the wait.
+pub(super) fn beat_error_after(first: &[f32], splice: &[f32]) -> (usize, usize) {
+    use timegrapher_core::measure::Wait;
+    let ctx = themed();
+    let base = std::env::temp_dir().join(format!(
+        "tg-relock-be-{}-{}",
+        splice.len(),
+        std::process::id()
+    ));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "watch".into());
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let live = app.live.as_mut().expect("live");
+    for c in first.chunks(960) {
+        live.push(c);
+    }
+    let (mut read_sides, mut worded, mut bare) = (0, 0, Vec::new());
+    for (k, c) in splice.chunks(12_000).enumerate() {
+        // As at 1x, where each read lands well within the next 0.25 s.
+        let live = app.live.as_mut().expect("live");
+        live.push(c);
+        live.read_as_file_now();
+        let Some(r) = app.reading() else { continue };
+        let text = cards_text(&app, &ctx);
+        let at = first.len() as f64 / 48_000.0 + 0.25 * (k + 1) as f64;
+        let live = app.live.as_ref().expect("live");
+        if r.rate_s_per_day.is_some()
+            && r.beat_error_ms.is_none()
+            && r.beat_error_unlock_ms.is_none()
+        {
+            assert!(
+                text.contains(&Wait::TickAndTock.title()),
+                "{at} s: no beat error and no wait: {text}"
+            );
+            worded += 1;
+        }
+        if r.rate_s_per_day.is_some() && painted(&text, "—") > 0 {
+            bare.push(format!("{at} s: {text}"));
+        }
+        let shown = r.beat_error_unlock_ms.or(r.beat_error_ms);
+        if shown.is_some() && !live.sides_known_at(live.duration_s()) {
+            read_sides += 1;
+        }
+    }
+    assert!(bare.is_empty(), "a bare dash beside figures: {bare:?}");
+    let _ = std::fs::remove_dir_all(base);
+    (read_sides, worded)
+}
+
+/// A synthetic watch at `bph` for `seconds`.
+fn relock_watch(bph: u32, seconds: f64) -> Vec<f32> {
+    use timegrapher_core::synth::{generate, SynthConfig};
+    let cfg = SynthConfig {
+        duration_s: seconds,
+        bph,
+        ..Default::default()
+    };
+    generate(&cfg, |_| 280.0, |_| 0.0).samples
+}
+
+#[test]
+fn beat_error_after_a_splice_is_a_figure_or_worded() {
+    // Half a beat (62.5 ms at 28800) slipped: the same watch, later.
+    let first = relock_watch(28_800, 25.0);
+    let slipped: Vec<f32> = relock_watch(28_800, 8.0)[3_000..].to_vec();
+    let slip = beat_error_after(&first, &slipped);
+    let relock = beat_error_after(&first, &relock_watch(21_600, 8.0));
+    eprintln!("slip {slip:?}, relock {relock:?} (read's sides with live's lost, worded)");
+}
+
+/// The Beat Error card with a reading that has figures but neither beat
+/// error, as a read that hasn't told the Tick from the Tock gives: it says
+/// "Waiting for Tick and Tock", never a bare dash; with either beat error
+/// it shows the figure; the cards' shared wait comes first (Norm and Hugh 5
+/// on #2133).
+#[test]
+fn a_beat_error_without_sides_waits_for_the_tick_and_the_tock() {
+    use super::readouts::beat_error_card_wait;
+    use timegrapher_core::measure::Wait;
+    let app = synthetic(30.0, 5.0);
+    let mut r = app.reading().expect("a reading");
+    assert_eq!(beat_error_card_wait(None, Some(&r)), None, "its figure");
+    r.beat_error_unlock_ms = None;
+    assert_eq!(beat_error_card_wait(None, Some(&r)), None, "from the drop");
+    r.beat_error_ms = None;
+    let wait = Some((Wait::TickAndTock.title(), Wait::TickAndTock.text()));
+    assert_eq!(beat_error_card_wait(None, Some(&r)), wait);
+    let shared = ("Listening".to_string(), "why".to_string());
+    assert_eq!(beat_error_card_wait(Some(&shared), Some(&r)), Some(shared));
 }
