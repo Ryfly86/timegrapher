@@ -46,9 +46,9 @@ it stops.
 | 14 | **Details** | The added fields and the notes. | |
 | 15 | **Photos** | The photos as thumbnails. Click one to open it in the computer's viewer; right-click to show it in its folder or delete it. | |
 
-**Each row's figures** are the take's own: its last position, read from
-its sound on the take's clock, as the command line's `timegrapher
-session` reads it. A take is read the first time the list shows it
+**Each row's figures** are the take's own: its last position, all of it
+(a take kept in ten-minute files included), read from its sound on the
+take's clock, as the Bench reads the whole take. A take is read the first time the list shows it
 (about a minute for 9 hours of sound), its row blank until then, and the
 figures are then kept. A take still being recorded is read once it stops. A Positions Test's row gives the mean of its
 positions, as its table does. A Power Reserve Test's gives its run time

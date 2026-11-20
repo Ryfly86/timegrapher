@@ -1935,3 +1935,139 @@ fn last_changed(p: &Path, t: std::time::SystemTime) {
     o.read(true);
     o.open(p).unwrap().set_modified(t).unwrap();
 }
+
+/// Sound in `parts` files of `part_s` seconds each, end to end as one
+/// recording (the watch at the rate the part gives, s/d), written into
+/// `dir` as `audio-001.wav` and on, and a session file listing each as
+/// an entry in the position the part gives, with no lift: what a take
+/// kept as one file every few minutes is.
+pub(crate) fn files_end_to_end(dir: &Path, part_s: f64, parts: &[(&str, f64)]) {
+    let rates: Vec<f64> = parts.iter().map(|p| p.1).collect();
+    let n = rates.len();
+    let audio = crate::synth::generate(
+        &crate::synth::SynthConfig {
+            duration_s: part_s * n as f64,
+            rate_s_per_day: 0.0,
+            ..Default::default()
+        },
+        |_| 270.0,
+        |t| rates[((t / part_s) as usize).min(n - 1)],
+    );
+    let per = (part_s * f64::from(audio.sample_rate)) as usize;
+    let mut session = "bph = 28800\n".to_string();
+    for (i, (position, _)) in parts.iter().enumerate() {
+        let name = format!("audio-{:03}.wav", i + 1);
+        let end = ((i + 1) * per).min(audio.samples.len());
+        let part = crate::audio::Audio {
+            samples: audio.samples[i * per..end].to_vec(),
+            sample_rate: audio.sample_rate,
+        };
+        crate::audio::write_wav(&dir.join(&name), &part).unwrap();
+        session.push_str(&format!(
+            "\n[[recording]]\nfile = '{name}'\nposition = '{position}'\n"
+        ));
+    }
+    fs::write(dir.join("session.toml"), session).unwrap();
+}
+
+/// A fresh, empty folder for a test take.
+fn take_dir(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("tg-{name}-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+/// A take listed as one file every ten minutes in one position, as a
+/// take kept from such files is, reads that whole position, as the Bench
+/// does, never its last file alone (#2121), with the caveats a reading of
+/// one entry carries (here the lift not given); another position listed
+/// after it is the take's last position, read alone.
+#[test]
+fn a_take_of_many_files_in_one_position_reads_them_all() {
+    let dir = take_dir("reading-files");
+    // Fast at first, then on time: the rate the watch settles to.
+    files_end_to_end(&dir, 90.0, &[("DU", 40.0), ("DU", 0.0)]);
+    let (whole, _) = measure_take(&dir).unwrap();
+    // Moved to Dial Down for the second file: that position alone.
+    files_end_to_end(&dir, 90.0, &[("DU", 40.0), ("DD", 0.0)]);
+    let (alone, _) = measure_take(&dir).unwrap();
+    let _ = fs::remove_dir_all(&dir);
+    let rate = whole.rate_s_per_day.expect("a rate");
+    assert_eq!(whole.position.as_deref(), Some("DU"));
+    assert!(
+        rate > 10.0 && rate < 30.0,
+        "both files read together: {rate}"
+    );
+    let rate = alone.rate_s_per_day.expect("a rate");
+    assert_eq!(alone.position.as_deref(), Some("DD"));
+    assert!(rate.abs() < 3.0, "the last position alone: {rate}");
+    for r in [&whole, &alone] {
+        assert!(
+            r.caveats.contains(&crate::measure::Caveat::LiftUnknown),
+            "{:?}",
+            r.caveats
+        );
+    }
+}
+
+/// A take back in a position it was in before reads both its stretches
+/// there, the other position and the settling after it left out: the
+/// watch moved to Dial Down at +200 s/d between two stretches on time
+/// reads on time (#2121, Trevor).
+#[test]
+fn a_position_read_whole_leaves_out_what_lies_between_its_stretches() {
+    use crate::take_context::{Masks, TakeContext};
+    let dir = take_dir("reading-holes");
+    files_end_to_end(&dir, 60.0, &[("DU", 0.0), ("DD", 200.0), ("DU", 0.0)]);
+    let m = manifest_of(&dir).unwrap();
+    let settings = crate::take::EntrySettings {
+        stream: crate::take::stream_settings(&m, None, crate::take::Given::default()),
+        card_clock: false,
+        settle_s: None,
+    };
+    let (ctx, _) = TakeContext::open(
+        &dir,
+        &m,
+        settings,
+        Masks::Cut,
+        |_| Ok(None),
+        |_| Ok(None),
+        |_, _| {},
+    )
+    .unwrap();
+    let spans = ctx.spans_in(&m, Position::parse("DU").unwrap());
+    let (r, _) = measure_take(&dir).unwrap();
+    let _ = fs::remove_dir_all(&dir);
+    assert_eq!(spans.len(), 2, "{spans:?}");
+    assert!(spans[0].1 <= 60.0 + 1e-6, "{spans:?}");
+    // The second stretch in Dial Up settles after the move back.
+    assert!(spans[1].0 > 120.0 + 1.0, "{spans:?}");
+    let rate = r.rate_s_per_day.expect("a rate");
+    assert_eq!(r.position.as_deref(), Some("DU"));
+    assert!(rate.abs() < 3.0, "Dial Down left out: {rate}");
+}
+
+/// A position read whole keeps beside its reading the correction that
+/// read asked for, for the take's first file, not the one asked for its
+/// last entry alone (#2121, Trevor).
+#[test]
+fn a_position_read_whole_keeps_the_correction_it_was_read_with() {
+    let dir = take_dir("reading-files-used");
+    files_end_to_end(&dir, 60.0, &[("DU", 5.0), ("DU", 5.0)]);
+    let (r, kept) = measure_take_with(&dir, |_, first| {
+        let name = first.file_name().unwrap().to_string_lossy().into_owned();
+        Ok(Some((50.0, name)))
+    })
+    .unwrap();
+    let _ = fs::remove_dir_all(&dir);
+    assert!(r.calibrated, "{r:?}");
+    assert_eq!(kept.correction, Some((50.0, "audio-001.wav".to_string())));
+    assert!(
+        kept.first
+            .as_deref()
+            .is_some_and(|f| f.ends_with("audio-001.wav")),
+        "{:?}",
+        kept.first
+    );
+}

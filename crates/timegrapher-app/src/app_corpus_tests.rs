@@ -277,6 +277,54 @@ fn the_empty_stand_finds_no_beat_rate() {
     assert_eq!(app.watch_facts().1, "Auto");
 }
 
+/// The empty stand opened and looked back over at every Average Over:
+/// wherever the reading cards withhold, the Tick Tock Profile draws no
+/// shape and no facts either; it showed "Beats 25" there
+/// after a change of the strip's Length (#1965, #2123). Needs only
+/// `TIMEGRAPHER_CORPUS`.
+#[test]
+fn the_empty_stands_profile_withholds_with_the_cards() {
+    let required = std::env::var_os("TIMEGRAPHER_REQUIRE_CORPUS").is_some();
+    let Some(root) = std::env::var_os("TIMEGRAPHER_CORPUS").map(PathBuf::from) else {
+        assert!(!required, "TIMEGRAPHER_CORPUS is needed");
+        eprintln!("SKIP: set TIMEGRAPHER_CORPUS to open the empty stand");
+        return;
+    };
+    let dir = root.join("takes").join("ym42_DU_65h_excerpt_emptystand");
+    let mut app = opened(&dir);
+    // Opened as File > Open Recording opens it, so the shape at a moment
+    // the session kept none for is worked out from the recording.
+    app.input = Input::File;
+    app.file_path = dir.display().to_string();
+    let latest = app.latest_s();
+    let mut withheld = 0;
+    for average in [2.0, 4.0, 10.0, 30.0] {
+        app.set_average(average);
+        let mut t = 20.0;
+        while t < latest {
+            app.strip_end = Some(t);
+            let end = app.strip_end_s();
+            // The shape worked out from the recording, waited for to the
+            // end: a wait cut short would show no shape and pass on main.
+            let working = Some("Working it out from the recording…");
+            let started = Instant::now();
+            let mut shown = app.profiles_at(end);
+            while shown.line.as_deref() == working && started.elapsed().as_secs() < OPEN_LIMIT_S {
+                std::thread::sleep(std::time::Duration::from_millis(5));
+                shown = app.profiles_at(end);
+            }
+            let at = format!("{average} s at {end:.0} s");
+            assert_ne!(shown.line.as_deref(), working, "still working, {at}");
+            if app.cards_unheard().is_some() {
+                withheld += 1;
+                assert!(shown.profiles.iter().all(Option::is_none), "{at}");
+            }
+            t += 15.0;
+        }
+    }
+    assert!(withheld > 0, "the cards withhold on the empty stand");
+}
+
 /// Each synthetic edge take (core's `edge_takes`: short, paused, slept,
 /// silent, unlisted breaks, a drifting card) reads the same on the app's
 /// cards as from `timegrapher session`. Needs only `TIMEGRAPHER_CLI`.

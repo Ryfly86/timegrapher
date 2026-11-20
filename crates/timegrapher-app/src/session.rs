@@ -887,12 +887,15 @@ impl Session {
 
     /// Each stretch ([`Self::position_spans`]) without the settling it
     /// began with, and its position; one with nothing left once settled
-    /// is left out.
+    /// is left out, and so is an opening stretch that is the watch being
+    /// handled ([`Self::opening_handled`]).
     fn settled_position_spans(&self, now: Position) -> Vec<(f64, f64, Position)> {
         let settles = self.settles();
         self.position_spans(now)
             .into_iter()
-            .filter_map(|(a, b, p)| {
+            .enumerate()
+            .filter(|&(i, (_, b, _))| i > 0 || !self.opening_handled(b))
+            .filter_map(|(_, (a, b, p))| {
                 let a = settles
                     .iter()
                     .filter(|s| s.0 >= a && s.0 < b)
@@ -900,6 +903,37 @@ impl Session {
                 (a < b).then_some((a, b, p))
             })
             .collect()
+    }
+
+    /// The positions read in the take, the watch being in `now`: those
+    /// with a settled stretch ([`Self::settled_position_spans`]), each
+    /// once, so a stretch that is the watch being handled is not one.
+    pub fn positions_read(&self, now: Position) -> Vec<Position> {
+        let mut positions: Vec<Position> = self
+            .settled_position_spans(now)
+            .into_iter()
+            .map(|s| s.2)
+            .collect();
+        positions.sort_unstable_by_key(|p| p.name());
+        positions.dedup();
+        positions
+    }
+
+    /// Whether the take's opening stretch, from its start to `end`, the
+    /// watch first moved there, is the watch being handled and not a
+    /// position (core `take::handled`, Norm on #1980): no move settles it,
+    /// so one no longer than the Settle is left out, as a later stretch
+    /// that never settled is. A take opened is read as its session file
+    /// lists it (core `take::reading_window`), its own settling kept.
+    fn opening_handled(&self, end: f64) -> bool {
+        if self.imported_context {
+            return false;
+        }
+        // Always one of several: a take's only stretch runs on with no
+        // end ([`Self::position_spans`]), so it is never handled.
+        self.stretches().first().is_some_and(|first| {
+            timegrapher_core::take::handled(true, end - first.0.max(0.0), self.settle_len())
+        })
     }
 
     /// Whether a reading ending at `t` comes from position `now`, settled.
@@ -1156,7 +1190,18 @@ impl Session {
                 let next = stretches.get(i + 1);
                 let end = next.map(|s| s.1);
                 let start = if i == 0 {
-                    *audio
+                    // An opening stretch that is the watch being handled
+                    // reads nothing: it starts where it ends (core
+                    // `take::reads_nothing`), as a later one never settled.
+                    // One of several, as a next stretch follows it.
+                    let handled = next.is_some_and(|n| {
+                        timegrapher_core::take::handled(true, n.0 - at, self.settle_len())
+                    });
+                    if handled {
+                        end.unwrap_or(*audio)
+                    } else {
+                        *audio
+                    }
                 } else {
                     let until = next.map_or(f64::INFINITY, |s| s.0);
                     // The settling that began this position may start at
@@ -1906,6 +1951,73 @@ mod tests {
                 (Some(70.0), None, "DD".into()),
             ]
         );
+        s.discard_recording();
+    }
+
+    /// #1980 (Shane, reopened): a take that starts in the last take's
+    /// position and is moved at once has an opening stretch no move
+    /// settles. One no longer than the Settle is the watch being handled:
+    /// it is saved reading nothing, as `session` and the Watches row read
+    /// it, and is in neither the table's stretches nor the positions read.
+    /// One just past the Settle is a position, read from the take's start.
+    #[test]
+    fn an_opening_stretch_no_longer_than_the_settle_is_not_a_position() {
+        for (moved_at, handled) in [(2, true), (10, true), (11, false)] {
+            let mut s = recording(&format!("opening-{moved_at}"));
+            record(&mut s, moved_at, moved_at as u64);
+            s.move_to(moved_at as f64, Position::DialUp, Position::DialDown)
+                .unwrap();
+            record(&mut s, 40, moved_at as u64 + 40);
+            let at = moved_at as f64;
+            let ranges = s.take_ranges();
+            let opening = if handled { at } else { 0.0 };
+            assert_eq!(
+                ranges,
+                [
+                    (Some(opening), Some(at), "DU".into()),
+                    (Some(at + SETTLE_S), None, "DD".into()),
+                ],
+                "moved at {moved_at}"
+            );
+            // Core reads the take's session file as saved (settle_s = 0).
+            let entry = |(start_s, end_s, code): (Option<f64>, Option<f64>, String)| {
+                timegrapher_core::session::RecordingEntry {
+                    file: ".".into(),
+                    position: Some(code),
+                    start_s,
+                    end_s,
+                    settle_s: Some(0.0),
+                    ..Default::default()
+                }
+            };
+            let m = timegrapher_core::session::Manifest {
+                recordings: ranges.into_iter().map(entry).collect(),
+                ..Default::default()
+            };
+            let unread: Vec<bool> = m
+                .recordings
+                .iter()
+                .map(|e| timegrapher_core::take::listed_unread(e, &m))
+                .collect();
+            assert_eq!(unread, [handled, false], "moved at {moved_at}");
+            let du = s.settled_spans(Position::DialDown, Position::DialUp);
+            assert_eq!(du.is_empty(), handled, "moved at {moved_at}");
+            let read = s.positions_read(Position::DialDown);
+            let want: &[Position] = if handled {
+                &[Position::DialDown]
+            } else {
+                &[Position::DialDown, Position::DialUp]
+            };
+            assert_eq!(read, want, "moved at {moved_at}");
+            s.discard_recording();
+        }
+        // A take of one stretch reads whatever it has.
+        let mut s = recording("opening-alone");
+        record(&mut s, 2, 2);
+        assert_eq!(s.take_ranges(), [(None, None, "DU".into())]);
+        assert!(!s
+            .settled_spans(Position::DialUp, Position::DialUp)
+            .is_empty());
         s.discard_recording();
     }
 

@@ -10,16 +10,22 @@ use crate::longterm::{self, Grid};
 use crate::steadiness::{chi2_tail, drop_outliers, finite_or_nan, p_text, Config};
 use serde::Serialize;
 
-/// The least-squares rate's weight on the stretch of its span from `u0`
-/// to `u1`, each a fraction of the span from 0 to 1. A line fitted
-/// through evenly spaced beat times weights the rate beat by beat as
-/// 6u(1 − u), so its weight on a stretch is the integral
-/// F(u1) − F(u0), with F(u) = 3u² − 2u³ (#951). Five 2 s windows of a
-/// 10 s reading take 0.104, 0.248, 0.296, 0.248 and 0.104.
+/// The window rate's weight on the stretch of its span from `u0` to
+/// `u1`, each a fraction of the span from 0 to 1. A rate read from the
+/// window's two halves ([`crate::timing::window_fit`]) over evenly spaced
+/// beats weights the rate beat by beat as a triangle, 4u up to the middle
+/// and 4(1 − u) after it, so its weight on a stretch is the integral
+/// F(u1) − F(u0), with F(u) = 2u² up to the middle and 1 − 2(1 − u)²
+/// after it (#951, #2089). Five 2 s windows of a 10 s reading take 0.08,
+/// 0.24, 0.36, 0.24 and 0.08.
 pub(crate) fn rate_fit_weight(u0: f64, u1: f64) -> f64 {
     let f = |u: f64| {
         let u = u.clamp(0.0, 1.0);
-        u * u * (3.0 - 2.0 * u)
+        if u <= 0.5 {
+            2.0 * u * u
+        } else {
+            1.0 - 2.0 * (1.0 - u) * (1.0 - u)
+        }
     };
     f(u1) - f(u0)
 }
@@ -37,7 +43,7 @@ pub(crate) fn rate_fit_weight(u0: f64, u1: f64) -> f64 {
 /// The window σ is read once over the take as 1.4826·MAD/√2 of the
 /// successive differences between windows within a reading, so an
 /// event's edge inside a reading barely moves it. Each reading's noise is
-/// σ²·Σw², with the weights summing to 1: about 0.232 for five windows.
+/// σ²·Σw², with the weights summing to 1: about 0.258 for five windows.
 /// The windows' noise is taken as independent from one window to the
 /// next. Noise is NaN with fewer than four differences.
 pub(crate) fn pairing_readings(fine: &Grid, medians: &Grid) -> (Grid, Vec<f64>) {
@@ -332,27 +338,27 @@ mod tests {
     use super::*;
     use crate::synth::Rng;
 
-    /// The rate's least-squares line weights five 2 s windows of a 10 s
-    /// reading by 6u(1 − u) over each (#951): 0.104, 0.248, 0.296, 0.248
-    /// and 0.104, summing to 1, with Σw²·5 about 1.16.
+    /// The window rate from its halves weights five 2 s windows of a 10 s
+    /// reading by its triangle over each (#951, #2089): 0.08, 0.24, 0.36,
+    /// 0.24 and 0.08, summing to 1, with Σw²·5 about 1.29.
     #[test]
     fn the_rate_fit_weights_five_windows_as_its_kernel() {
         let w: Vec<f64> = (0..5)
             .map(|k| rate_fit_weight(k as f64 / 5.0, (k + 1) as f64 / 5.0))
             .collect();
-        for (got, want) in w.iter().zip([0.104, 0.248, 0.296, 0.248, 0.104]) {
+        for (got, want) in w.iter().zip([0.08, 0.24, 0.36, 0.24, 0.08]) {
             assert!((got - want).abs() < 1e-9, "{w:?}");
         }
         assert!((w.iter().sum::<f64>() - 1.0).abs() < 1e-12);
         let factor = 5.0 * w.iter().map(|x| x * x).sum::<f64>();
-        assert!((factor - 1.16).abs() < 0.005, "{factor}");
+        assert!((factor - 1.288).abs() < 0.005, "{factor}");
         // Clamped to the span.
         assert_eq!(rate_fit_weight(-0.5, 0.0), 0.0);
         assert!((rate_fit_weight(-0.5, 1.5) - 1.0).abs() < 1e-12);
     }
 
     /// A drop that fills the first four windows of every 18th reading
-    /// moves the paired amplitude 0.896 of the way, as it moves the rate,
+    /// moves the paired amplitude 0.92 of the way, as it moves the rate,
     /// and its edges inside the readings leave the noise read off the
     /// windows' scatter (#951).
     #[test]
@@ -381,11 +387,11 @@ mod tests {
             moved.push(270.0 - amp.y[b]);
         }
         let mean = moved.iter().sum::<f64>() / moved.len() as f64;
-        assert!((mean - 0.896 * 15.0).abs() < 0.2, "{mean}");
-        // Unit window noise, five windows: about 0.232, not pulled up by
+        assert!((mean - 0.92 * 15.0).abs() < 0.2, "{mean}");
+        // Unit window noise, five windows: about 0.258, not pulled up by
         // the 15° edges in one reading in 18.
         let m = noise.iter().sum::<f64>() / n as f64;
-        assert!((m - 0.232).abs() < 0.03, "{m}");
+        assert!((m - 0.258).abs() < 0.03, "{m}");
         // A reading the medians leave out is left out here too.
         let mut gap = medians.clone();
         gap.y[3] = f64::NAN;

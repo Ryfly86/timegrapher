@@ -3966,13 +3966,13 @@ impl eframe::App for TimegrapherApp {
             self.save_again();
             self.wait_for_save();
         }
-        // Sound the user hasn't been asked about is kept for the next start
-        // to offer back: on macOS, Cmd+Q and Quit in the app menu or the
-        // Dock quit without the window's close being asked first, and
-        // can't be cancelled.
+        // Sound the user hasn't been asked about is kept for the next start to
+        // offer back: on macOS, Cmd+Q and Quit in the app menu or the Dock
+        // quit without the window's close being asked first, uncancellable.
         if !self.may_close && self.unsaved_s() > 5.0 && !self.quick_unsaved() {
             self.session.keep_recording();
         } else {
+            self.take_thrown_away();
             self.session.discard_recording();
         }
     }

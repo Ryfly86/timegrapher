@@ -255,17 +255,11 @@ impl TimegrapherApp {
 
     /// What the whole reading on show is of, in words, as a take's row
     /// names it (`watches::whole_named`): the position on show where the
-    /// take has more than one.
+    /// take reads more than one, as its row counts them (a stretch that is
+    /// the watch being handled is not one, #1980).
     pub(super) fn whole_named(&self) -> String {
-        let mut positions: Vec<Position> = self
-            .session
-            .stretches()
-            .into_iter()
-            .map(|(_, p)| p)
-            .collect();
-        positions.sort_unstable_by_key(|p| p.name());
-        positions.dedup();
-        crate::watches::whole_named(Some(self.position.core()), positions.len())
+        let read = self.session.positions_read(self.position).len();
+        crate::watches::whole_named(Some(self.position.core()), read)
     }
 
     /// The whole take as kept (`Ok`), or what it is to be read from
@@ -333,14 +327,14 @@ impl TimegrapherApp {
         };
         let read = move || {
             let span: f64 = spans.iter().map(|(a, b)| b - a).sum();
-            let (&(from, _), &(_, to)) = (spans.first()?, spans.last()?);
+            spans.first()?;
             let mut log = log?;
             let clock = reading_clock(take_clock.as_ref(), opened, ppm, log.duration_s);
             // The cuts the app adds (a settling's end, a move, a mask's ends)
             // at the reading's or a mask's edges change nothing it reads, and
             // session has none there (#682).
-            let edge = |j: f64| j <= from || j >= to || masks.iter().any(|m| j == m.0 || j == m.1);
-            log.jumps.retain(|&j| !edge(j));
+            log.jumps
+                .retain(|&j| !timegrapher_core::take_context::cut_at_edge(j, &spans, &masks));
             let breaks = steady::reading_breaks(take_breaks.unwrap_or_default(), &log);
             // The time between the stretches, another position or its
             // settling, is left out as a mask is (core's rule).

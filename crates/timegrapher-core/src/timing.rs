@@ -156,16 +156,56 @@ pub const fn period_s(nominal: f64, rate_s_per_day: f64) -> f64 {
 
 /// Fit rate and beat error to a run of beats.
 pub fn fit(beats: &[Beat], bph: u32) -> Option<TimingFit> {
-    let nominal = 3600.0 / bph as f64;
     let (coef, sel) = fit_coef(beats)?;
-    let res: Vec<f64> = sel.iter().map(|b| residual(b, &coef)).collect();
-    Some(TimingFit {
-        rate_s_per_day: (nominal / coef[1] - 1.0) * 86400.0,
+    Some(fit_of(&coef, &sel, coef[1], bph))
+}
+
+/// The fit `coef` of the beats `sel`, its rate read from `period` s.
+fn fit_of(coef: &[f64; 3], sel: &[&Beat], period: f64, bph: u32) -> TimingFit {
+    let nominal = 3600.0 / bph as f64;
+    let res: Vec<f64> = sel.iter().map(|b| residual(b, coef)).collect();
+    TimingFit {
+        rate_s_per_day: (nominal / period - 1.0) * 86400.0,
         beat_error_ms: coef[2] * 1000.0,
-        period_s: coef[1],
+        period_s: period,
         jitter_us: robust_sd(&res) * 1e6,
         beats_used: sel.len(),
-    })
+    }
+}
+
+/// [`fit`] of one rate window whose beats are split in two halves at
+/// `middle` s, its rate read from the halves: the beat period is the
+/// fitted one plus the mean residual of the later half less the earlier
+/// half's, over the beats between their mean indices (#2089, #2090).
+///
+/// The windows are laid on a grid of fixed step, so a cycle in the
+/// timing whose period divides the step (the escape wheel's, 5 s on an
+/// ETA 2824) meets every window at one phase. A straight-line fit through
+/// a whole number of such cycles still reads a slope from them, the same
+/// in every window, which moved a take's 10 s windows 1 to 2 s/d off its
+/// whole-take rate. The halves' difference is blind to any cycle that
+/// repeats every half window, and of the rates blind to them it has the
+/// least variance; on white timing scatter its spread is 2/sqrt(3) of
+/// the straight line's. Beat error and jitter stay the straight line's.
+/// None when either half has no beat the fit kept.
+pub fn window_fit(beats: &[Beat], bph: u32, middle: f64) -> Option<TimingFit> {
+    let (coef, sel) = fit_coef(beats)?;
+    // Sums of index and residual in each half, and its beats.
+    let mut sums = [[0.0; 3]; 2];
+    for b in &sel {
+        let h = &mut sums[usize::from(b.time >= middle)];
+        h[0] += b.index as f64;
+        h[1] += residual(b, &coef);
+        h[2] += 1.0;
+    }
+    let [early, late] = sums;
+    if early[2] == 0.0 || late[2] == 0.0 {
+        return None;
+    }
+    let mean = |h: [f64; 3], k: usize| h[k] / h[2];
+    let beats_apart = mean(late, 0) - mean(early, 0);
+    let period = coef[1] + (mean(late, 1) - mean(early, 1)) / beats_apart;
+    Some(fit_of(&coef, &sel, period, bph))
 }
 
 /// Signed beat error alone, ms, for runs too short to need the rate.

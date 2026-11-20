@@ -697,6 +697,10 @@ mod tests {
     /// pane's 5% target, on 2026-11-13 ("Raise it to 15 (5% target)",
     /// #1601): with the sloped timing detrend it names 14, the extra being
     /// chance first lines on a slow wander, and 12 and 10 on fresh seeds.
+    /// Peter raised 30 min at ρ 0.9 from 20 to 22 on 2026-11-20 (#2089):
+    /// each 10 s window's rate read from its halves names 22 of the first
+    /// 100 (19 before, three more shifting means on the rate) and 118 of
+    /// 500 (109 before).
     #[test]
     fn a_steady_watch_with_red_noise_names_little_on_the_whole_pane() {
         red_pane_within_of(&[
@@ -707,7 +711,7 @@ mod tests {
         red_pane_within(&[
             (1800.0, 0.3, 0),
             (1800.0, 0.5, 1),
-            (1800.0, 0.9, 20),
+            (1800.0, 0.9, 22),
             (7200.0, 0.9, 7),
         ]);
     }
