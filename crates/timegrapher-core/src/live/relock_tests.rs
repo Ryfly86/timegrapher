@@ -286,3 +286,40 @@ fn a_watch_put_back_is_heard_over_both_its_locks() {
     ]);
     assert_eq!(live.bph(), Some(28_800), "{rates:?}");
 }
+
+/// A watch put back after a lure Auto locked on to: the lure's beats are
+/// let go though the lock held at the pause is the watch's, so no
+/// reading over the lure has figures (Norm on #2142).
+#[test]
+fn a_lure_between_two_runs_of_the_watch_is_let_go() {
+    let w = Some(28_800);
+    let (live, rates) = heard_parts(&[
+        (w, 60.0),
+        (None, 8.0),
+        (Some(72_000), 20.0),
+        (None, 8.0),
+        (w, 40.0),
+    ]);
+    assert!(
+        rates.contains(&Some(72_000)),
+        "the lure locks on: {rates:?}"
+    );
+    assert_eq!(live.bph(), Some(28_800), "{rates:?}");
+    let lure: Vec<f64> = live
+        .beats()
+        .iter()
+        .map(|b| b.time)
+        .filter(|t| (68.0..92.0).contains(t))
+        .collect();
+    assert!(
+        lure.is_empty(),
+        "{} beats in the lure, from {:?}",
+        lure.len(),
+        lure.first()
+    );
+    let r = live.reading_at(87.0, 10.0);
+    assert!(r.rate_s_per_day.is_none(), "{r:?}");
+    let end = live.beats().last().expect("beats").time;
+    let rate = live.reading_at(end, 60.0).rate_s_per_day.expect("a rate");
+    assert!((rate - 5.0).abs() < 2.0, "rate {rate} s/d");
+}

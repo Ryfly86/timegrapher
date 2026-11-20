@@ -51,10 +51,10 @@ impl LiveAnalyzer {
     /// at its own rate); a later rate takes its place only by being heard
     /// longer. Length is all that tells a watch from noise heard as one,
     /// so a second watch heard for less than the first (120 s, then 40 s)
-    /// is read as the first, and its beats are let go. When the lock held
-    /// now is not at that rate (or none is held), the rate's latest lock
-    /// is put back, and the locks at other rates after its first are let
-    /// go with what they read.
+    /// is read as the first, and its beats are let go. The locks at other
+    /// rates after the rate's first are let go with what they read, and
+    /// when the lock held now is not at that rate (or none is held), the
+    /// rate's latest lock is put back.
     pub(super) fn back_to_watchs_lock(&mut self) {
         if self.cfg.analysis.bph.is_some() {
             return;
@@ -62,9 +62,8 @@ impl LiveAnalyzer {
         let Some(bph) = self.watchs_rate() else {
             return;
         };
-        if self.bph.is_some() && self.locks.0.last().is_some_and(|l| l.bph == bph) {
-            return;
-        }
+        // Whether the lock held now, the latest, is at the watch's rate.
+        let held = self.bph == Some(bph) && self.locks.0.last().is_some_and(|l| l.bph == bph);
         // From the rate's first lock on: what came before it stands.
         let first = self
             .locks
@@ -75,6 +74,11 @@ impl LiveAnalyzer {
         let others = self.spans_where(|l| l.bph != bph && l.from_s >= first);
         self.let_go_within(&others);
         self.locks.0.retain(|l| l.bph == bph || l.from_s < first);
+        // The lock held is the watch's already (a watch put back after a
+        // lure): it stays as it is, with only the others let go.
+        if held {
+            return;
+        }
         let Some(template) = self.locks.0.last().map(|l| l.template.clone()) else {
             return;
         };
