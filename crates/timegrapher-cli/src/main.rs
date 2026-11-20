@@ -1723,11 +1723,7 @@ fn print_summary(
         "Jitter       {} us per beat (within 10 s windows)",
         opt(s.jitter_us, 0)
     );
-    println!(
-        "Rate spread  {} to {} s/d (5th-95th percentile of 10 s windows)",
-        opt(s.rate_p05, 1),
-        opt(s.rate_p95, 1)
-    );
+    print_rate_spread(s, clock);
     // Tick and Tock have no ± of their own; they are at the amplitude's
     // place, as the figure beside them (#1470).
     let side = |x: Option<f64>| {
@@ -1755,6 +1751,32 @@ fn print_summary(
 /// error, each with its ± at the figure's place (core's `figure_with_pm`,
 /// #1470). The rate on the card's clock and the beat error from the drop
 /// take the same place as the figure beside them.
+/// The rate's spread over the 10 s windows, on the clock the rate above
+/// it is on: corrected as it is, with the card's clock beside, so the
+/// spread brackets the rate it sits under (#2089).
+fn print_rate_spread(s: &timegrapher_core::analysis::Summary, clock: Option<&(f64, String)>) {
+    const LINE: &str = "Rate spread ";
+    const OF: &str = "(5th-95th percentile of 10 s windows)";
+    match clock {
+        Some((ppm, _)) => {
+            let fix =
+                |x: Option<f64>| x.map(|x| timegrapher_core::clockstore::correct_rate(x, *ppm));
+            println!(
+                "{LINE} {} to {} s/d, corrected as the rate is {OF}; {} to {} s/d on the card's clock",
+                opt(fix(s.rate_p05), 1),
+                opt(fix(s.rate_p95), 1),
+                opt(s.rate_p05, 1),
+                opt(s.rate_p95, 1)
+            );
+        }
+        None => println!(
+            "{LINE} {} to {} s/d {OF}",
+            opt(s.rate_p05, 1),
+            opt(s.rate_p95, 1)
+        ),
+    }
+}
+
 fn print_rate(s: &timegrapher_core::analysis::Summary, clock: Option<&(f64, String)>) {
     let c = s.confidence.as_ref();
     if let Some(f) = &s.overall {
