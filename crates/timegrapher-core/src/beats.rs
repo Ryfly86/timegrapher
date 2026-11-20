@@ -1863,6 +1863,7 @@ mod tests {
     /// The watch's last beat is the end of the latest run of good beats
     /// long enough to keep: stray beats after it, a short run, a gap and a
     /// poor beat don't move it (#2081).
+
     #[test]
     fn the_watchs_last_beat_ends_the_latest_long_run_of_good_beats() {
         let run = |from: f64, to: f64, step: f64| {

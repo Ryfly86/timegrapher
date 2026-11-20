@@ -227,7 +227,7 @@ fn a_second_watch_heard_longer_keeps_its_rate() {
 
 /// `parts` heard live with Auto, then settled as at Stop: clicks at a rate
 /// for a while, or a quiet stand (`None`) for a while.
-fn heard_parts(parts: &[(Option<u32>, f64)]) -> (LiveAnalyzer, Vec<Option<u32>>) {
+pub(super) fn heard_parts(parts: &[(Option<u32>, f64)]) -> (LiveAnalyzer, Vec<Option<u32>>) {
     let fs = SynthConfig::default().sample_rate;
     let mut samples = Vec::new();
     for (k, &(bph, duration_s)) in parts.iter().enumerate() {

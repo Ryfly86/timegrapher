@@ -11,13 +11,26 @@
 
 use super::*;
 
-/// One lock Auto found: from when its beats count, its rate, and the
-/// template it heard them with.
+/// One lock Auto found: from when its beats count, its rate, the
+/// template it heard them with, and how the Tick and Tock stood before
+/// it.
 #[derive(Debug, Clone)]
 struct Lock {
     from_s: f64,
     bph: u32,
     template: Vec<f32>,
+    /// The Tick and Tock check, profiles and the snippets they are cut
+    /// from, as they stood when the lock was found: put back when the
+    /// lock is let go with every lock after it.
+    before: Box<Sided>,
+}
+
+/// How the Tick and Tock stood at a moment ([`Lock::before`]).
+#[derive(Debug, Clone)]
+struct Sided {
+    sides: beats::SideCheck,
+    profiles: [Option<TickProfile>; 2],
+    snippets: VecDeque<(f64, bool, UnlockWindow, Vec<f32>)>,
 }
 
 /// Auto's locks so far, oldest first.
@@ -33,8 +46,18 @@ impl LiveAnalyzer {
                 from_s,
                 bph,
                 template: template.clone(),
+                before: self.sided_now(),
             });
         }
+    }
+
+    /// The Tick and Tock as they stand now.
+    fn sided_now(&self) -> Box<Sided> {
+        Box::new(Sided {
+            sides: self.sides.clone(),
+            profiles: self.profiles.clone(),
+            snippets: self.snippets.clone(),
+        })
     }
 
     /// The template of the latest lock built again from the first chunk
@@ -72,6 +95,17 @@ impl LiveAnalyzer {
             .find(|l| l.bph == bph)
             .map_or(0.0, |l| l.from_s);
         let others = self.spans_where(|l| l.bph != bph && l.from_s >= first);
+        // The other-rate locks after the watch's last, let go with every
+        // lock after them: the Tick and Tock stand as before the first.
+        let tail = self
+            .locks
+            .0
+            .iter()
+            .rposition(|l| l.bph == bph)
+            .map(|i| i + 1);
+        let before = tail
+            .and_then(|i| self.locks.0.get(i))
+            .map(|l| l.before.clone());
         self.let_go_within(&others);
         self.locks.0.retain(|l| l.bph == bph || l.from_s < first);
         // The lock held is the watch's already (a watch put back after a
@@ -88,9 +122,8 @@ impl LiveAnalyzer {
         self.found_bph = true;
         self.logged_bph = self.bph;
         self.doubt = None;
-        // The Tick and Tock profiles: the watch's again, from its beats.
-        if let (false, Some(last)) = (others.is_empty(), self.beats.last()) {
-            self.update_profiles(last.time, 3600.0 / f64::from(bph));
+        if let Some(b) = before {
+            (self.sides, self.profiles, self.snippets) = (b.sides, b.profiles, b.snippets);
         }
     }
 
@@ -153,5 +186,162 @@ impl LiveAnalyzer {
     /// Auto's locks forgotten, with the beats.
     pub(super) fn forget_locks(&mut self) {
         self.locks = Locks::default();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// An analyzer with Auto, and for each part a lock at its start at its
+    /// rate (its template that rate, as a number) with good beats at that
+    /// rate up to its end; the latest lock held.
+    fn locked(parts: &[(f64, f64, u32)]) -> LiveAnalyzer {
+        let mut l = LiveAnalyzer::new(48_000, LiveConfig::default());
+        for &(from, to, bph) in parts {
+            let step = 3600.0 / f64::from(bph);
+            let mut k = 0;
+            while from + k as f64 * step <= to {
+                l.beats.push(Beat {
+                    index: k,
+                    time: from + k as f64 * step,
+                    quality: 1.0,
+                });
+                k += 1;
+            }
+            l.locks.0.push(Lock {
+                from_s: from,
+                bph,
+                template: vec![bph as f32],
+                before: l.sided_now(),
+            });
+            (l.bph, l.template) = (Some(bph), Some(vec![bph as f32]));
+        }
+        l.found_bph = true;
+        l
+    }
+
+    fn rates(l: &LiveAnalyzer) -> Vec<u32> {
+        l.locks.0.iter().map(|l| l.bph).collect()
+    }
+
+    /// How long a watch was heard: runs split at a pause, each as long as
+    /// a piece, summed; a run shorter than a piece counts for nothing.
+    #[test]
+    fn watch_heard_s_sums_the_runs_between_pauses() {
+        let run = |from: f64, n: i64| {
+            (0..n).map(move |k| Beat {
+                index: k,
+                time: from + k as f64 * 0.125,
+                quality: 1.0,
+            })
+        };
+        // 0 to 15 s, a 3 s pause, 18 to 30 s: 27 s, not the 30 s across.
+        let two: Vec<Beat> = run(0.0, 121).chain(run(18.0, 97)).collect();
+        assert_eq!(beats::watch_heard_s(&two), 27.0);
+        // A 5 s run after a pause counts for nothing.
+        let short: Vec<Beat> = run(0.0, 121).chain(run(18.0, 41)).collect();
+        assert_eq!(beats::watch_heard_s(&short), 15.0);
+        assert_eq!(beats::watch_heard_s(&[]), 0.0);
+    }
+
+    /// Two rates heard as a watch for the same time: the earlier one is
+    /// the watch's, and the later one, though held, is let go.
+    #[test]
+    fn on_a_tie_the_rate_heard_first_is_the_watchs() {
+        let mut l = locked(&[(0.0, 20.0, 28_800), (30.0, 50.0, 14_400)]);
+        l.back_to_watchs_lock();
+        assert_eq!(l.bph, Some(28_800));
+        assert_eq!(l.template, Some(vec![28_800.0]));
+        assert_eq!(rates(&l), [28_800]);
+        assert!(l.beats.iter().all(|b| b.time <= 20.0));
+    }
+
+    /// No lock heard a run as long as a piece: nothing is put back, and a
+    /// rate let go stays let go.
+    #[test]
+    fn with_no_watch_heard_nothing_is_put_back() {
+        let mut l = locked(&[(0.0, 5.0, 28_800)]);
+        (l.bph, l.template) = (None, None);
+        l.back_to_watchs_lock();
+        assert_eq!((l.bph, l.template.clone()), (None, None));
+    }
+
+    /// What came before the watch's rate's first lock stands; what the
+    /// other-rate locks after it read goes, with the locks themselves:
+    /// beats, clipped beats, and the beats' generation moves on.
+    #[test]
+    fn only_other_rate_locks_after_the_watchs_first_are_let_go() {
+        let mut l = locked(&[
+            (0.0, 20.0, 14_400),
+            (30.0, 70.0, 28_800),
+            (80.0, 90.0, 14_400),
+        ]);
+        l.clipped = vec![10.0, 50.0, 85.0];
+        let generation = l.beats_gen;
+        l.back_to_watchs_lock();
+        assert_eq!(l.bph, Some(28_800));
+        assert_eq!(rates(&l), [14_400, 28_800]);
+        assert_eq!(l.clipped, [10.0, 50.0]);
+        assert_ne!(l.beats_gen, generation);
+        let before = l.beats.iter().filter(|b| b.time <= 20.0).count();
+        assert_eq!(before, 81, "the first lock's beats stand");
+        assert!(l.beats.iter().all(|b| b.time < 80.0));
+    }
+
+    /// The locks after the watch's last let go: the Tick and Tock check,
+    /// profiles and snippets stand as they did when the first of them was
+    /// found, the watch's end, not as the lure left them.
+    #[test]
+    fn the_tick_and_tock_stand_as_at_the_watchs_end() {
+        let mut l = locked(&[(0.0, 40.0, 28_800), (50.0, 55.0, 72_000)]);
+        let snip = (39.9, true, UnlockWindow::SHORT, vec![1.0_f32]);
+        l.locks.0[1].before.snippets = VecDeque::from([snip.clone()]);
+        l.snippets = VecDeque::from([(54.0, false, UnlockWindow::SHORT, vec![2.0_f32])]);
+        l.back_to_watchs_lock();
+        assert_eq!(l.bph, Some(28_800));
+        assert_eq!(l.snippets, VecDeque::from([snip]));
+    }
+
+    /// The lock held is the watch's: it stays as it is, its template with
+    /// it, though the lock noted another.
+    #[test]
+    fn the_watchs_lock_held_stays_as_it_is() {
+        let mut l = locked(&[(0.0, 40.0, 28_800)]);
+        l.template = Some(vec![7.0]);
+        l.back_to_watchs_lock();
+        assert_eq!(l.template, Some(vec![7.0]));
+    }
+
+    /// A template built again from the first chunk (#1327) is the lock's
+    /// from then on: put back after a lure, the watch is read with it.
+    #[test]
+    fn the_template_built_again_is_the_locks() {
+        let w = Some(28_800);
+        let (l, _) = relock_tests::heard_parts(&[(w, 80.0)]);
+        assert!(l.template_switch_s().is_some(), "taken over");
+        assert_eq!(l.locks.0.last().map(|k| &k.template), l.template.as_ref());
+    }
+
+    /// After a lure heard long enough to tell its sides apart is let go,
+    /// the amplitude windows and the Tick and Tock profiles are the
+    /// watch's, as if the lure was never heard.
+    #[test]
+    fn after_a_lure_the_windows_and_profiles_are_the_watchs() {
+        let w = Some(28_800);
+        let (watch, _) = relock_tests::heard_parts(&[(w, 40.0)]);
+        let (l, rates) = relock_tests::heard_parts(&[(w, 40.0), (None, 8.0), (Some(72_000), 20.0)]);
+        assert!(rates.contains(&Some(72_000)), "{rates:?}");
+        assert!(
+            l.amp.iter().all(|a| a.start_s < 48.0),
+            "a window of the lure kept"
+        );
+        let points = |l: &LiveAnalyzer| {
+            l.profiles
+                .each_ref()
+                .map(|p| p.as_ref().map(|p| p.median.len()))
+        };
+        assert_eq!(points(&l), points(&watch));
+        assert!(points(&l)[0].is_some());
     }
 }
