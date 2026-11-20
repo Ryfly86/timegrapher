@@ -233,7 +233,9 @@ fn a_positions_test_is_marked_from_its_first_position() {
 /// position: settled and not masked, other positions' time left out.
 #[test]
 fn each_position_counts_its_own_seconds() {
-    let mut app = synthetic(20.0, 0.0);
+    // Dial Up just past the Settle, a position and not the watch being
+    // handled (#1980).
+    let mut app = synthetic(20.5, 0.0);
     app.session.listen();
     app.session.set_state(session::State::Paused {
         since: Instant::now(),
@@ -990,7 +992,9 @@ fn the_watches_power_reserve_test_waits_on_the_bench() {
     reason = "a test checking the joined beats with core's plain fit"
 )]
 fn a_new_position_marks_a_stretch_and_keeps_the_strip() {
-    let mut app = synthetic(20.0, 0.0);
+    // Dial Up just past the Settle, a position and not the watch being
+    // handled (#1980).
+    let mut app = synthetic(20.5, 0.0);
     app.session.listen();
     app.session.set_state(session::State::Paused {
         since: Instant::now(),
