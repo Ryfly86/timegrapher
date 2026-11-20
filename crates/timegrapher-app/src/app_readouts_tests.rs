@@ -1157,6 +1157,62 @@ fn the_scope_says_masked_where_the_profile_does() {
     assert!(scope.contains(&format!("Masked at {at}")), "{scope}");
 }
 
+/// The Tick Tock Profile withholds while the reading cards do: it
+/// describes the same beats as the readings, so it never shows a shape
+/// and its facts beside cards that say there is no figure (#1965, #2123).
+/// A masked moment still says so.
+#[test]
+fn the_profile_withholds_while_the_cards_do() {
+    let sides = synthetic(30.0, 0.0)
+        .live
+        .as_ref()
+        .unwrap()
+        .tick_profiles()
+        .clone();
+    assert!(sides.iter().all(Option::is_some), "a watch's profiles");
+    let kept = |k: usize| {
+        let sides = sides.clone();
+        let span_s = 10.0;
+        (2.0 * k as f64, scope_panes::Kept { span_s, sides })
+    };
+    let mut app = synthetic(30.0, 0.0);
+    app.sound_history = (5..=15).map(kept).collect();
+    let end = app.strip_end_s();
+    // Figures on the cards: the profiles.
+    assert_eq!(app.cards_unheard(), None);
+    let s = app.profiles_at(end);
+    assert!(s.line.is_none() && s.profiles.iter().all(Option::is_some));
+    // Silence after the shape was kept: the cards say no beats were
+    // heard, and the Profile shows no shape and no facts, though one was
+    // kept.
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "quiet".into());
+    let live = app.live.as_mut().unwrap();
+    for b in vec![0.0_f32; 48_000 * 30].chunks(960) {
+        live.push(b);
+    }
+    app.sound_history = (5..=15).map(kept).collect();
+    let end = app.strip_end_s();
+    let (title, _) = app.cards_unheard().expect("the cards wait");
+    assert_eq!(title, "No Beats Heard");
+    let s = app.profiles_at(end);
+    assert!(s.profiles.iter().all(Option::is_none) && !s.masked);
+    let ctx = themed();
+    let out = ctx.run(screen(), |ctx| {
+        egui::CentralPanel::default().show(ctx, |ui| app.sound_pane(ui));
+    });
+    let drawn = painted_text(&out);
+    assert!(
+        !drawn.contains("Unlock"),
+        "no facts beside the wait: {drawn}"
+    );
+    // Masked there: said as masked, as the strip's hatching says it.
+    app.masked = vec![(end - 15.0, end + 1.0)];
+    let s = app.profiles_at(end);
+    assert_eq!(s.line, Some(format!("Masked at {}", length_text(end))));
+    assert!(s.masked);
+}
+
 /// Tick's and Tock's amplitudes are at the amplitude's place, 1°, as
 /// the figure beside them and the CLI write them, whatever the ± (#1470).
 #[test]

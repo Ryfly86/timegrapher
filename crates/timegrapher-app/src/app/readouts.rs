@@ -674,6 +674,13 @@ impl TimegrapherApp {
         (r, heard, unheard)
     }
 
+    /// What every reading card says in its figure's place at the moment
+    /// they show, or None while they show figures ([`Self::cards_state`]).
+    /// Panes that describe the same beats withhold with them.
+    pub(super) fn cards_unheard(&self) -> Option<(String, String)> {
+        self.cards_state(self.card_reading()).2
+    }
+
     /// The reading cards across the top: Current Position, Listen, then
     /// Rate, Amplitude, Beat Error and Beat Rate. Every card is the same
     /// three rows (title, figure, controls) and one height at every width;

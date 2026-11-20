@@ -200,11 +200,39 @@ impl TimegrapherApp {
     }
 
     /// The Tick Tock profiles for the window ending at `end`, the strip's
-    /// newest edge: the latest while listening at the newest beats; else
-    /// what the session kept for it ([`timegrapher_core::profile::sound_at`]),
-    /// else worked out from the recording (none until that is done); or
-    /// the line to show in their place.
+    /// newest edge ([`Self::sound_shown_at`]); or, while the reading cards
+    /// show no figures, none: the profiles describe the same beats as the
+    /// readings, so their shapes and facts are withheld whenever the
+    /// cards' figures are, by the cards' one verdict
+    /// ([`Self::cards_unheard`]; #1965, #2123). The empty plots are left,
+    /// as before any beat; a masked moment still says so.
     pub(super) fn profiles_at(&mut self, end: f64) -> ShownSound {
+        if self.cards_unheard().is_none() {
+            return self.sound_shown_at(end);
+        }
+        // Core's mask rule alone: no sound kept is asked for.
+        let masked = matches!(
+            sound_at::<()>(&[], (end, self.average_s), &self.masked, &[], |_| 0.0),
+            SoundAt::Masked
+        );
+        if masked {
+            return masked_at(&length_text(end));
+        }
+        ShownSound {
+            profiles: [None, None],
+            line: None,
+            hover: None,
+            band: profiles::BAND_BEATS,
+            masked: false,
+        }
+    }
+
+    /// The Tick Tock profiles for the window ending at `end`: the latest
+    /// while listening at the newest beats; else what the session kept
+    /// for it ([`timegrapher_core::profile::sound_at`]), else worked out
+    /// from the recording (none until that is done); or the line to show
+    /// in their place.
+    fn sound_shown_at(&mut self, end: f64) -> ShownSound {
         let at = length_text(end);
         let shown = |profiles: Profiles, hover: Option<String>| ShownSound {
             profiles,
