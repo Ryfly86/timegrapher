@@ -28,6 +28,23 @@ pub(super) struct Wind {
     shown: Option<(PathBuf, Option<f64>)>,
     /// The hours typed in Full Wind [ ] h ago.
     ago: String,
+    /// The full wind a test's Start replaced, put back if the test's take
+    /// is thrown away (#2001).
+    before_test: Option<BeforeTest>,
+}
+
+/// The full wind before a test's Start set it, and what it was set on:
+/// a take thrown away leaves no facts behind, its Start's wind among
+/// them (#2001), so this goes back, for the same watch and take only.
+struct BeforeTest {
+    /// A Quick Listen's full wind before the Start, Unix seconds; none
+    /// where not given.
+    wound: Option<f64>,
+    /// The watch picked (its id) and its full wind before the Start, as
+    /// kept in Watches; none for a Quick Listen.
+    watch: Option<(String, Option<String>)>,
+    /// The take's recording folder at the Start.
+    take: Option<PathBuf>,
 }
 
 /// A choice in the Wind part of a Set menu. Once a take has begun, its
@@ -60,15 +77,23 @@ impl TimegrapherApp {
     /// Full wind at `at` (Unix seconds; none for Not Given): kept with the
     /// watch picked, else for the Quick Listen.
     pub(super) fn set_wound(&mut self, at: Option<f64>) {
-        let Some(mut w) = self.open_watch().map(|e| e.watch.clone()) else {
+        if self.open_watch().is_none() {
             self.wind.wound_at = at;
             return;
-        };
-        w.full_wind = at.map(|t| {
+        }
+        self.set_watch_wind(at.map(|t| {
             timegrapher_core::recorder::utc(
                 std::time::UNIX_EPOCH + std::time::Duration::from_secs_f64(t.max(0.0)),
             )
-        });
+        }));
+    }
+
+    /// The watch picked's full wind, UTC as kept in Watches, saved.
+    fn set_watch_wind(&mut self, utc: Option<String>) {
+        let Some(mut w) = self.open_watch().map(|e| e.watch.clone()) else {
+            return;
+        };
+        w.full_wind = utc;
         let saved = match &mut self.library {
             Ok(Some(lib)) => lib.update(&w),
             _ => Err("there is no Watches folder".into()),
@@ -99,6 +124,13 @@ impl TimegrapherApp {
     /// began gives none (Norm on #1935: never moved earlier to fill one).
     pub(super) fn started_from_full_wind(&mut self, fresh: bool) {
         if START_SETS_FULL_WIND {
+            self.wind.before_test = Some(BeforeTest {
+                wound: self.wind.wound_at,
+                watch: self
+                    .open_watch()
+                    .map(|e| (e.watch.id.clone(), e.watch.full_wind.clone())),
+                take: self.recording_dir(),
+            });
             let now = guided::unix_now();
             let began = self.recording_began_unix().filter(|_| fresh);
             self.set_wound(Some(began.unwrap_or(now)));
@@ -109,11 +141,41 @@ impl TimegrapherApp {
     /// its full wind no longer holds, and the field and the takes after
     /// say Not given. The test's own take keeps its wind from its start
     /// ([`reserve::Test::wind_h`]); thrown away, the stop still stands
-    /// (#2001). A test thrown away otherwise keeps the wind its Start
-    /// gave: the watch was wound then, whatever becomes of its sound
-    /// (Hugh on #2031).
+    /// (#2001).
     pub(super) fn wind_let_down(&mut self) {
+        self.wind.before_test = None;
         self.set_wound(None);
+    }
+
+    /// The take begun is about to go: thrown away, from the Keep question
+    /// or by a new take or session not saving it, the wind its test's
+    /// Start set goes back to what it was before (#2001). A take saved or
+    /// kept as its analysis keeps it. Called once per take, before its
+    /// recording is let go.
+    pub(super) fn take_thrown_away(&mut self) {
+        let Some(before) = self.wind.before_test.take() else {
+            return;
+        };
+        let kept = self.session.saved_to().is_some()
+            || self
+                .session
+                .recorder
+                .as_ref()
+                .is_some_and(|r| timegrapher_core::checkpoint::exists(r.dir()));
+        if kept || before.take != self.recording_dir() {
+            return;
+        }
+        let watch = self.open_watch().map(|e| e.watch.id.clone());
+        match before.watch {
+            Some((id, utc)) if watch.as_ref() == Some(&id) => self.set_watch_wind(utc),
+            None if watch.is_none() => self.wind.wound_at = before.wound,
+            _ => {}
+        }
+    }
+
+    /// The take's recording folder; none without one.
+    fn recording_dir(&self) -> Option<PathBuf> {
+        Some(self.session.recorder.as_ref()?.dir().to_path_buf())
     }
 
     /// When the take's recording began, Unix seconds; none without one.
@@ -248,6 +310,9 @@ impl TimegrapherApp {
         }
         let now = guided::unix_now();
         let began = self.began_unix().unwrap_or(now);
+        // A wind given by hand is newer than any a test's Start replaced:
+        // nothing goes back if the test is then thrown away (Vernon on #2031).
+        self.wind.before_test = None;
         self.set_wound(match pick {
             WindPick::Now => Some(now),
             WindPick::HoursAgo(h) => Some(now - h.max(0.0) * 3600.0),
