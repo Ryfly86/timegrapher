@@ -150,8 +150,9 @@ impl TimegrapherApp {
     /// The take begun is about to go: thrown away, from the Keep question
     /// or by a new take or session not saving it, the wind its test's
     /// Start set goes back to what it was before (#2001). A take saved, or
-    /// kept as its analysis (Save Analysis Only…, or as it goes), keeps it. Called once per take, before its
-    /// recording is let go.
+    /// kept as its analysis (Save Analysis Only…, or as it goes), keeps
+    /// it; so does a watch or take other than the Start's. Called once per
+    /// take, before its recording is let go.
     pub(super) fn take_thrown_away(&mut self) {
         let Some(before) = self.wind.before_test.take() else {
             return;

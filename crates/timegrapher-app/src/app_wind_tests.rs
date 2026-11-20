@@ -858,3 +858,47 @@ fn a_thrown_away_test_puts_the_watchs_wind_back() {
     assert_eq!(again.find("Explorer").unwrap().watch.full_wind, before);
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// The wind goes back only to the watch whose test's Start set it: a test
+/// stopped on watch A, then watch B picked and the take thrown away, never
+/// writes A's earlier wind into B (Trevor on #2136).
+#[test]
+fn a_thrown_away_test_never_puts_the_wind_into_another_watch() {
+    let (mut app, base) = with_watch("discard-other", "Explorer");
+    if let Ok(Some(lib)) = &mut app.library {
+        lib.add(&library::Watch::new("Pepsi")).unwrap();
+    }
+    let pepsi = match &app.library {
+        Ok(Some(lib)) => lib.find("Pepsi").unwrap().watch.id.clone(),
+        _ => panic!("no library"),
+    };
+    app.pick_wind(WindPick::HoursAgo(5.0));
+    app.begin_reserve();
+    let started = app.open_watch().unwrap().watch.full_wind.clone();
+    app.pick_watch(&pepsi);
+    assert_eq!(app.open_watch().unwrap().watch.id, pepsi);
+    app.new_session();
+    let root = base.join("Timegrapher Data");
+    let again = library::Library::read(&root).unwrap();
+    assert_eq!(again.find("Pepsi").unwrap().watch.full_wind, None);
+    assert_eq!(again.find("Explorer").unwrap().watch.full_wind, started);
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// The wind goes back only when the take its test's Start was pressed on
+/// is the one thrown away: another take begun since, then thrown away,
+/// leaves the Start's wind (Trevor on #2136).
+#[test]
+fn a_thrown_away_take_puts_back_only_its_own_tests_wind() {
+    let (mut app, base) = save_failure_fixture("wind-discard-other-take");
+    app.pick_wind(WindPick::HoursAgo(5.0));
+    app.begin_reserve();
+    if let Some(r) = app.session.recorder.take() {
+        let _ = r.finish(None);
+    }
+    app.session.recorder =
+        Some(Recorder::start(&base.join("other"), app.info("test", 48000, 16)).unwrap());
+    app.new_session();
+    assert_eq!(app.wind_field().words.value, "Full 0.0 h ago");
+    let _ = std::fs::remove_dir_all(base);
+}
