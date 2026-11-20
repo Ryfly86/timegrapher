@@ -1719,7 +1719,7 @@ shows, a fainter dotted line marked ×2; where the calibre's tooth and leaf
 counts give it, each pinion's mesh (the time one tooth of the wheel
 driving it takes to engage, drive and leave, from core's
 `Catalog::meshes`, #1472) is a faint, loosely dashed line named
-"Fourth Pinion Mesh" under the plot, or a word to a line in the lane
+"Fourth Pinion Mesh" under the plot, or one word to a line in the lane
 beside a map, unless a wheel or a ×2 already marks that period. Its hover gives core's words: "Fourth Pinion
 Mesh: 6.67 s, the time one tooth of the third wheel takes to pass through
 the fourth pinion's leaves."; the grid behind is pale. The

@@ -30,8 +30,8 @@ chapter 8, with **dB Scale** on.
 
 **Mesh**, beside Wheel Periods (not yet in the picture), marks each
 pinion's mesh where the calibre's tooth and leaf counts give it, as a
-faint dashed line across the map, named in the lane a word to a line:
-**Fourth Pinion Mesh**. On at first; this pane only. Chapter 11 explains the mesh lines.
+faint dashed line across the map, named in the lane beside it, one word
+to a line: **Fourth Pinion Mesh**. On at first; this pane only. Chapter 11 explains the mesh lines.
 
 **Export…** and **Info** are as in every Steadiness view (chapter 9).
 
