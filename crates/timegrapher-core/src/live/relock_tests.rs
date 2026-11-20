@@ -107,3 +107,76 @@ fn a_right_lock_is_never_let_go() {
         }
     }
 }
+
+/// A 28,800 bph watch heard for 40 s, then `quiet_s` of a quiet stand, then
+/// `lure_s` of clicks at 72,000 bph (a stand's hum locked on to), heard
+/// live with Auto and settled, as at Stop.
+fn lifted(quiet_s: f64, lure_s: f64) -> (LiveAnalyzer, Vec<Option<u32>>) {
+    let at = |bph: u32, duration_s: f64, seed: u64| {
+        generate(
+            &SynthConfig {
+                bph,
+                duration_s,
+                seed,
+                ..Default::default()
+            },
+            |_| 260.0,
+            |_| 0.0,
+        )
+    };
+    let watch = at(28_800, 40.0, 3);
+    let fs = watch.sample_rate as f64;
+    let mut samples = watch.samples.clone();
+    samples.extend(vec![0.0; (quiet_s * fs) as usize]);
+    if lure_s > 0.0 {
+        samples.extend_from_slice(&at(72_000, lure_s, 4).samples);
+    }
+    let mut live = LiveAnalyzer::new(watch.sample_rate, LiveConfig::default());
+    let mut rates = Vec::new();
+    for chunk in samples.chunks(960) {
+        live.push(chunk);
+        if rates.last() != Some(&live.bph()) {
+            rates.push(live.bph());
+        }
+    }
+    live.settle();
+    (live, rates)
+}
+
+/// The watch lifted and the stand's noise locked on to at 72,000: at the
+/// pause the rate is the watch's again, and its last reading is read at
+/// it, not at the noise's (#2112: −51837.4 s/d at "Auto 72000").
+#[test]
+fn a_pause_puts_back_the_watchs_rate_after_a_noise_lock() {
+    let (live, rates) = lifted(8.0, 5.0);
+    assert!(
+        rates.contains(&Some(72_000)),
+        "the noise locks on: {rates:?}"
+    );
+    assert_eq!(live.bph(), Some(28_800), "{rates:?}");
+    let t = beats::last_watch_beat_s(live.beats()).expect("the watch's run");
+    assert!((39.0..=40.0).contains(&t), "{t}");
+    let r = live.reading_at(t, 10.0);
+    assert_eq!(r.bph, Some(28_800));
+    let rate = r.rate_s_per_day.expect("a rate");
+    assert!((rate - 5.0).abs() < 2.0, "rate {rate} s/d");
+}
+
+/// The watch lifted and Auto's rate let go in the quiet: at the pause
+/// the rate is the watch's again, so the take is read at it (#2114).
+#[test]
+fn a_pause_puts_back_the_watchs_rate_let_go_in_the_quiet() {
+    let (live, rates) = lifted(12.0, 0.0);
+    assert_eq!(rates.last(), Some(&None), "the quiet lets go: {rates:?}");
+    assert_eq!(live.bph(), Some(28_800), "{rates:?}");
+}
+
+/// A watch Auto locked on to and still heard at the pause keeps its lock
+/// and its template as they are.
+#[test]
+fn a_pause_with_the_watch_heard_changes_nothing() {
+    let (mut live, _) = lifted(0.0, 0.0);
+    let before = (live.bph(), live.template.clone());
+    live.settle();
+    assert_eq!((live.bph(), live.template.clone()), before);
+}

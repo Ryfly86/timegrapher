@@ -350,6 +350,9 @@ pub struct LiveAnalyzer {
     /// still listening at its own rate, so going back brings every beat
     /// back (#1949; [`held::Held`]).
     held: held::Held,
+    /// Auto's locks so far, so a pause puts back the one that read the
+    /// watch ([`locks::Locks`], #2112).
+    locks: locks::Locks,
 }
 
 /// Good beats looked at for a step in their timing ([`beats::jumps`]) on
@@ -394,6 +397,7 @@ impl LiveAnalyzer {
             template: None,
             rebuild: Default::default(),
             held: Default::default(),
+            locks: Default::default(),
             beats: Vec::new(),
             beats_gen: fresh_gen(),
             clipped: Vec::new(),
@@ -567,6 +571,7 @@ impl LiveAnalyzer {
         self.found_bph = false;
         self.doubt = None;
         self.logged_bph = self.bph;
+        self.forget_locks();
         self.beats.clear();
         self.beats_gen = fresh_gen();
         self.clipped.clear();
@@ -1001,6 +1006,7 @@ impl LiveAnalyzer {
                     self.bph = Some(bph);
                     self.found_bph = bph_set.is_none();
                     self.logged_bph = Some(bph);
+                    self.note_lock(self.settled_to.max(off));
                 }
                 (bph, b)
             }
@@ -1252,6 +1258,9 @@ impl LiveAnalyzer {
     /// the sound so far judges its last chunk: for a stop, so the readings
     /// then withhold the same faint sides as the take read again
     /// (#1738). Listening on, the chunk is judged again once it closes.
+    /// With Auto, the rate is the watch's again: the lock that read its
+    /// last run, never one a quiet stand's noise was locked on to after
+    /// it (#2112, #2114).
     pub fn settle(&mut self) {
         let w = self.cfg.analysis.amplitude_window_s;
         let chunk_of = |s: f64| crate::stream::amplitude_chunk_of(s, w);
@@ -1262,6 +1271,7 @@ impl LiveAnalyzer {
         self.judge_amplitude(from, last + 1);
         self.in_shadow(LiveAnalyzer::settle);
         self.in_held(LiveAnalyzer::settle);
+        self.back_to_watchs_lock();
     }
 
     /// The Tick and Tock profiles from the sound kept up to `to`.
@@ -2047,6 +2057,7 @@ fn judged_s(fitted: bool, end_s: f64, window_from: f64, heard_since: f64, holes:
 }
 
 mod held;
+mod locks;
 mod rebuild;
 
 #[cfg(test)]
