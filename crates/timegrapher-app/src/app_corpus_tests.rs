@@ -304,18 +304,19 @@ fn the_empty_stands_profile_withholds_with_the_cards() {
         while t < latest {
             app.strip_end = Some(t);
             let end = app.strip_end_s();
-            // The shape worked out from the recording, waited for.
+            // The shape worked out from the recording, waited for to the
+            // end: a wait cut short would show no shape and pass on main.
+            let working = Some("Working it out from the recording…");
             let started = Instant::now();
             let mut shown = app.profiles_at(end);
-            while shown.line.as_deref() == Some("Working it out from the recording…")
-                && started.elapsed().as_secs() < 30
-            {
+            while shown.line.as_deref() == working && started.elapsed().as_secs() < OPEN_LIMIT_S {
                 std::thread::sleep(std::time::Duration::from_millis(5));
                 shown = app.profiles_at(end);
             }
+            let at = format!("{average} s at {end:.0} s");
+            assert_ne!(shown.line.as_deref(), working, "still working, {at}");
             if app.cards_unheard().is_some() {
                 withheld += 1;
-                let at = format!("{average} s at {end:.0} s");
                 assert!(shown.profiles.iter().all(Option::is_none), "{at}");
             }
             t += 15.0;
