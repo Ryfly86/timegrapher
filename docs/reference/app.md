@@ -762,6 +762,11 @@ positions test:
   Beat Error (amber).
 - **Duration** is the time marked in the position, less the Settle at
   the start of each stretch and less masked time.
+- **The opening stretch,** before the first move, has no Settle. If the
+  take then moves on and that stretch lasted no longer than the Settle,
+  it is the watch being handled, not a position: it has no row, the take's
+  Watches row doesn't list it, and the take saves it reading nothing, as
+  `timegrapher session` reads it (core `take::handled`, #1980).
 - **Readings** show once a position has 10 s. Under that it reads
   "Under 10 s"; a position never marked reads "Not marked".
 - **Info**, pinned at the toolbar's right, opens a panel with those two

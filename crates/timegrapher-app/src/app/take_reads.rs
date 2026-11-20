@@ -237,17 +237,11 @@ impl TimegrapherApp {
 
     /// What the whole reading on show is of, in words, as a take's row
     /// names it (`watches::whole_named`): the position on show where the
-    /// take has more than one.
+    /// take reads more than one, as its row counts them (a stretch that is
+    /// the watch being handled is not one, #1980).
     pub(super) fn whole_named(&self) -> String {
-        let mut positions: Vec<Position> = self
-            .session
-            .stretches()
-            .into_iter()
-            .map(|(_, p)| p)
-            .collect();
-        positions.sort_unstable_by_key(|p| p.name());
-        positions.dedup();
-        crate::watches::whole_named(Some(self.position.core()), positions.len())
+        let read = self.session.positions_read(self.position).len();
+        crate::watches::whole_named(Some(self.position.core()), read)
     }
 
     /// The whole take as kept (`Ok`), or what it is to be read from
