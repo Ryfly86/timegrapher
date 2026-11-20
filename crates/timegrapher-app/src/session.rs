@@ -1240,13 +1240,13 @@ fn changes_in(events: &[Event]) -> Vec<(f64, Position)> {
         .collect()
 }
 
-/// The settling in `events`, oldest first.
 /// Whether `t` falls in one of `settles` (start, end]: one rule for
 /// [`Session::settling_at`] and [`Session::in_position_test`].
 fn settling_in(settles: &[(f64, f64)], t: f64) -> bool {
     settles.iter().any(|s| t > s.0 && t <= s.1)
 }
 
+/// The settling in `events`, oldest first.
 fn settles_in(events: &[Event]) -> Vec<(f64, f64)> {
     events
         .iter()

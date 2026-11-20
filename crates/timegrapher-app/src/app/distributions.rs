@@ -1156,7 +1156,12 @@ mod plot_cache_tests {
                 .iter()
                 .map(|k| (at(k) - at(p)).length())
                 .fold(f32::INFINITY, f32::min);
-            assert!(near < ON_SCREEN_PT, "{p:?} is {near} pt from a drawn point");
+            assert!(near < 0.5, "{p:?} is {near} pt from a drawn point");
         }
+        // A last value within half a point of the one drawn before it is
+        // still drawn: the curve reaches its end.
+        let close = [[50.0, 0.0], [50.01, 0.001], [50.02, 0.002]];
+        let kept = on_screen(&close, &t, ([0.0, 100.0], [-3.5, 3.5]));
+        assert_eq!(kept, vec![close[0], close[2]]);
     }
 }
