@@ -135,7 +135,10 @@ its start. It is kept with the watch picked in Watches, or for a Quick
 Listen until a watch is picked. **Start Test** on a test that begins at
 full wind, the Positions Test's full-wind half or a Power Reserve Test,
 sets Full Wind Now by itself. Started on a take already listening, that
-take is left with no wind: it began before the watch was wound.
+take is left with no wind: it began before the watch was wound. If the
+test's take is thrown away, the wind goes back to what it was before
+Start, unless you set it by hand meanwhile. A Power Reserve Test that
+found the watch stopped leaves it Not Given, kept or not.
 
 Once a take has begun, or for a take opened, the box shows its hours
 from full wind to the take's start, "Began 54.1 h after full". It can

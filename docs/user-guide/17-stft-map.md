@@ -28,6 +28,11 @@ chapter 8, with **dB Scale** on.
 | 2 | **dB Scale** | Colours the sizes in decibels below the brightest, over the map's own range of up to 300 to 1, so the key reads from 0 dB down to about −50 dB at most. The key's title then ends "(dB)", and its top end gives the size 0 dB stands for. This map only. | A weak line beside a strong one still shows. |
 | 3 | **Wheel Periods** | Marks the calibre's wheels' periods across the map. On at first; this pane only. | To match a line to a wheel. |
 
+**Mesh**, beside Wheel Periods (not yet in the picture), marks each
+pinion's mesh where the calibre's tooth and leaf counts give it, as a
+faint dashed line across the map, named in the lane beside it, one word
+to a line: **Fourth Pinion Mesh**. On at first; this pane only. Chapter 11 explains the mesh lines.
+
 **Export…** and **Info** are as in every Steadiness view (chapter 9).
 
 ## The Map
@@ -82,6 +87,7 @@ M11 explains the method and its trade-offs.
 | What you see | What it can mean |
 | --- | --- |
 | A line across at a wheel's period | That wheel's swing, steady through the take. |
+| A line across at a mesh's period | A swing once per tooth of that wheel passing through that pinion. |
 | A line that fades or brightens | A swing that weakens or grows: with the mainspring, the temperature or a change in the watch. |
 | A line that starts or stops | Something that began or ended: a knock, a change of position, a part settling. |
 | A line that slopes | A period that changes. A wheel's period is fixed on the watch's own clock, so a sloping line is from something that doesn't turn with the beat, such as the room or the stand. |

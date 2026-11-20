@@ -1331,8 +1331,20 @@ fn a_poise_test_reads_the_same_live_as_reopened() {
 fn poise_test_saved(
     base: &Path,
     block: usize,
+    timing: (f64, f64, f64),
+    again: bool,
+) -> TimegrapherApp {
+    guided_test_saved(base, block, timing, again, guided::Test::poise())
+}
+
+/// The guided test `guided_test` run as [`poise_test_saved`] runs a Dynamic
+/// Poise Test, to its end, saved, and read again from its saved take.
+fn guided_test_saved(
+    base: &Path,
+    block: usize,
     (settle, measure, turn): (f64, f64, f64),
     again: bool,
+    guided_test: guided::Test,
 ) -> TimegrapherApp {
     let _ = std::fs::remove_dir_all(base);
     std::fs::create_dir_all(base).unwrap();
@@ -1349,7 +1361,7 @@ fn poise_test_saved(
     };
     let audio = generate(&cfg, |t| 300.0 - 0.1 * t, |_| 0.4);
     let tx = queued_capture(&mut app, base);
-    app.guided = Some(guided::Test::poise().timed(settle, measure));
+    app.guided = Some(guided_test.timed(settle, measure));
     (app.guided_settle_s, app.guided_measure_s) = (settle, measure);
     app.session.set_settle_s(settle);
     app.session.set_state(session::State::Listening);
@@ -1383,7 +1395,7 @@ fn poise_test_saved(
         let now = app.live.as_ref().unwrap().duration_s();
         app.guided_tick(&ctx);
         // Once the test has ended, listening has stopped: no more sound.
-        if app.poise_test().is_some_and(|t| t.readings.is_some()) {
+        if app.guided.as_ref().is_some_and(|t| t.readings.is_some()) {
             break;
         }
         let ready = app.guided.as_mut().is_some_and(|t| {
@@ -1399,7 +1411,11 @@ fn poise_test_saved(
         }
     }
     drop(tx);
-    assert!(app.poise_test().and_then(|t| t.readings.as_ref()).is_some());
+    assert!(app
+        .guided
+        .as_ref()
+        .and_then(|t| t.readings.as_ref())
+        .is_some());
     app.save_into(&base.join("saved"));
     app.wait_for_save();
     // The window draws again unprompted while it is read, so the reading
@@ -1758,5 +1774,33 @@ fn a_finished_tests_note_is_at_the_top_of_its_pane() {
     let (line, head) = (at(note).expect("the note"), at("Rate").expect("the table"));
     assert!(line.bottom() <= head.top(), "{line:?} {head:?}");
     assert_eq!(drawn.iter().filter(|(t, _)| t == note).count(), 1);
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// A Positions Test that ends by itself and is kept, with nothing touched
+/// after: once its saved take is read again and its results written into
+/// it again, the take is still saved, and nothing asks before New Test
+/// or Listen would throw it away (#2106). An edit made after still
+/// shows as unsaved.
+#[test]
+fn a_kept_positions_test_read_again_is_still_saved() {
+    let base = std::env::temp_dir().join(format!("tg-app-2106-{}", std::process::id()));
+    let mut app = guided_test_saved(&base, 960, (5.0, 30.0, 0.0), false, guided::Test::new());
+    let t = app.guided.as_ref().expect("the test");
+    assert_eq!(t.saved_read, guided::SavedRead::Read);
+    assert_eq!(
+        app.message.as_ref().map(|m| m.0.as_str()),
+        Some(super::test_read::SAVED_READ_DONE)
+    );
+    assert!(!app.metadata_unsaved(), "nothing was touched after Keep");
+    assert!(!app.needs_save_confirmation());
+    // The take holds the figures read again, not the listening's.
+    let dir = app.session.saved_to().expect("saved").to_path_buf();
+    let on_disk: guided::FullWind =
+        serde_json::from_str(&std::fs::read_to_string(dir.join(guided::RESULTS_FILE)).unwrap())
+            .unwrap();
+    assert!(!on_disk.listened);
+    app.calibre = "Another".into();
+    assert!(app.metadata_unsaved(), "an edit still shows as unsaved");
     let _ = std::fs::remove_dir_all(&base);
 }

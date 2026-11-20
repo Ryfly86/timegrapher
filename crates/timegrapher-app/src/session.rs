@@ -989,6 +989,16 @@ impl Session {
         self.saved_metadata = Some(metadata);
     }
 
+    /// A finished test's results, read again from its saved take and
+    /// written into it again: the saved copy holds `full_wind` now, so
+    /// it is no edit (#2106). Every other input keeps its saved value,
+    /// and an edit made meanwhile still shows as unsaved.
+    pub fn results_saved(&mut self, full_wind: Option<crate::guided::FullWind>) {
+        if let Some(saved) = &mut self.saved_metadata {
+            saved.key.full_wind = full_wind;
+        }
+    }
+
     /// Kept sound not in the last saved copy, seconds.
     pub fn unsaved_s(&self) -> f64 {
         match &self.recorder {

@@ -62,6 +62,35 @@ the table starts filtered to that rate and says so, with **Show All**.
 | 10 | **Add a Wheel…** | Adds another wheel by name and period. | A wheel the list leaves out. |
 | 11 | **Sources** | How the figures are known ("Derived From Tooth Counts", "Published List"), each source with what it says, then the list's notes. | To weigh a figure before you rely on it. |
 
+**Teeth and Leaves**, under Wheels and closed until you click its title
+(not yet in the picture), works the wheels' periods out from counts.
+Counting teeth and leaves is how you get the periods of a movement on the
+bench or in photos, and anyone can check the arithmetic. Each of the
+escape, fourth, third and centre wheels and the barrel has a **Teeth**
+box for the wheel's teeth and a **Leaves** box for the leaves of the
+pinion on the same arbor (the barrel has no pinion). Counts the list
+already has are filled in.
+
+- **The escape wheel** turns once in its teeth × two beats, at the
+  calibre's beat rate: 15 teeth at 28,800 bph give 3.75 s.
+- **Each wheel further out** turns in the period of the one inside it ×
+  its own teeth ÷ that one's pinion leaves. The counts work from the beat
+  rate or from a period already given, whichever is nearer. The hover on the period gives
+  the arithmetic: "37.5 s: the escape wheel's 3.75 s × the fourth wheel's
+  80 teeth ÷ the escape pinion's 8 leaves".
+- **A period the counts give** fills a Not Known row, captioned **From
+  Teeth**. Clear doesn't apply to it: change a count instead.
+- **A period already given** stays. Where the counts read otherwise, its
+  caption says what they give: "Teeth give 55.556 s".
+- **A wheel the counts can't reach** stays Not Known, its hover naming
+  the count missing. One whose two sides give different periods is
+  captioned **Neighbours disagree**, its hover giving each side: a count
+  or a typed period is wrong.
+
+The counts are kept for the calibre and go with **Share with the
+Project…**. They also give the mesh lines on Periods, FFT and the maps
+(chapter 11).
+
 At the foot of the details, **Share with the Project…** opens a GitHub
 issue in the browser, filled in with what you added, for you to look
 over and send; nothing is sent from the app. A custom calibre also has
@@ -76,7 +105,7 @@ period, two beats: 7200 ÷ bph seconds, 0.25 s at 28,800 bph.
 **The short list** starts as the list's common and modern calibres.
 **Reset the Short List**, in the star column's filter, goes back to it.
 
-**Where your additions are kept:** wheel periods and custom calibres go
+**Where your additions are kept:** wheel periods, tooth and leaf counts and custom calibres go
 in `calibres.json` in the app's settings folder, which the command line
 and the MCP (Model Context Protocol) server, which lets an AI chat app
 use the timegrapher (chapter 26), read too. If that file can't be read, the page says

@@ -21,8 +21,8 @@ read how big a swing is.
 The picture is the same 12 hours as chapter 17's, on the plain scale.
 
 The toolbar is the STFT Map's (chapter 17): the series, chosen together
-with the STFT Map, **dB Scale** for this map, **Wheel Periods** and
-**Export…**. The pointer over a cell gives its size, period and time.
+with the STFT Map, **dB Scale** for this map, **Wheel Periods**,
+**Mesh** (not yet in the picture; chapter 11) and **Export…**. The pointer over a cell gives its size, period and time.
 
 | Mark | Part | What it shows |
 | --- | --- | --- |
@@ -69,6 +69,7 @@ M11 explains the method and its trade-offs.
 | What you see | What it can mean |
 | --- | --- |
 | A line across at a wheel's period | That wheel's swing, through the take. |
+| A line across at a mesh's period | A swing once per tooth of that wheel passing through that pinion. |
 | A line that breaks off or starts | A swing that stopped or began: the map says when to within a few of its turns. |
 | A stripe up the map | A brief event: a knock, a noise in the room, a missed beat. |
 | Bright cells at the top | Slow wander or drift in the series. |
