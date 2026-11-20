@@ -1665,7 +1665,7 @@ pub fn last_watch_beat_s(beats: &[Beat]) -> Option<f64> {
 /// How long the watch was heard in `beats`, seconds: the runs of good
 /// beats ([`Beat::is_good`]) with no pause between them, each as long as a
 /// piece the fit keeps, summed; the runs [`last_watch_beat_s`] counts. At
-/// a pause Auto keeps the lock that heard the most of them (#2142).
+/// a pause Auto keeps the rate that heard the most of them (#2142).
 pub fn watch_heard_s(beats: &[Beat]) -> f64 {
     let mut good = beats.iter().filter(|b| b.is_good());
     let Some(first) = good.next() else {

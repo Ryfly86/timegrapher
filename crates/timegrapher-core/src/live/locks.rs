@@ -4,7 +4,7 @@
 //! locked on to at a rate of its own. Every reading of the take is then
 //! read at that rate, or at none, though no watch beat at it. So at a
 //! pause the rate, and the template it was heard with, go back to the
-//! lock that heard a watch longest ([`beats::watch_heard_s`]; Norm on
+//! rate heard as a watch longest ([`beats::watch_heard_s`]; Norm on
 //! #2142), so noise heard after the watch takes its place only by being
 //! heard as a watch for longer.
 //! Listening again goes on from there, as from any lock.
@@ -45,30 +45,39 @@ impl LiveAnalyzer {
         }
     }
 
-    /// At a pause, with Auto: the watch is the lock whose beats were
-    /// heard as a watch the longest ([`beats::watch_heard_s`]); a later
-    /// lock takes its place only by being heard longer. Length is all
-    /// that tells a watch from noise heard as one, so a second watch heard
-    /// for less than the first (120 s, then 40 s) is read as the first,
-    /// and its beats are let go. When that is not
-    /// the lock now (or none is held now), it is put back, and the later
-    /// ones are let go with what they read.
+    /// At a pause, with Auto: the watch is the rate heard as a watch the
+    /// longest ([`beats::watch_heard_s`], summed over every lock at that
+    /// rate, since a watch put back after a quiet is locked on to again
+    /// at its own rate); a later rate takes its place only by being heard
+    /// longer. Length is all that tells a watch from noise heard as one,
+    /// so a second watch heard for less than the first (120 s, then 40 s)
+    /// is read as the first, and its beats are let go. When the lock held
+    /// now is not at that rate (or none is held), the rate's latest lock
+    /// is put back, and the locks at other rates after its first are let
+    /// go with what they read.
     pub(super) fn back_to_watchs_lock(&mut self) {
         if self.cfg.analysis.bph.is_some() {
             return;
         }
-        let Some(i) = self.watchs_lock() else {
+        let Some(bph) = self.watchs_rate() else {
             return;
         };
-        if i + 1 == self.locks.0.len() && self.bph.is_some() {
+        if self.bph.is_some() && self.locks.0.last().is_some_and(|l| l.bph == bph) {
             return;
         }
-        let culled = self.locks.0.get(i + 1).map(|n| n.from_s);
-        if let Some(from_s) = culled {
-            self.let_go_from(from_s);
-        }
-        self.locks.0.truncate(i + 1);
-        let (bph, template) = (self.locks.0[i].bph, self.locks.0[i].template.clone());
+        // From the rate's first lock on: what came before it stands.
+        let first = self
+            .locks
+            .0
+            .iter()
+            .find(|l| l.bph == bph)
+            .map_or(0.0, |l| l.from_s);
+        let others = self.spans_where(|l| l.bph != bph && l.from_s >= first);
+        self.let_go_within(&others);
+        self.locks.0.retain(|l| l.bph == bph || l.from_s < first);
+        let Some(template) = self.locks.0.last().map(|l| l.template.clone()) else {
+            return;
+        };
         self.forget_rebuild();
         self.template = Some(template);
         self.bph = Some(bph);
@@ -76,42 +85,65 @@ impl LiveAnalyzer {
         self.logged_bph = self.bph;
         self.doubt = None;
         // The Tick and Tock profiles: the watch's again, from its beats.
-        if let (Some(_), Some(last)) = (culled, self.beats.last()) {
+        if let (false, Some(last)) = (others.is_empty(), self.beats.last()) {
             self.update_profiles(last.time, 3600.0 / f64::from(bph));
         }
     }
 
-    /// What the locks let go read from `from_s` on, let go with them:
-    /// their beats were numbered at a rate that isn't the watch's, and
-    /// their amplitude windows were cut on a template that isn't its.
-    /// Nothing is put in their place; that stretch reads as no watch.
-    fn let_go_from(&mut self, from_s: f64) {
-        let keep = self.beats.partition_point(|b| b.time < from_s);
-        if keep < self.beats.len() {
-            self.beats.truncate(keep);
-            self.beats_gen = fresh_gen();
-        }
-        self.clipped.retain(|&t| t < from_s);
-        self.amp.retain(|w| w.start_s < from_s);
-        self.sample.retain(|x| x.0 < from_s);
-        self.snippets.retain(|x| x.0 < from_s);
+    /// The stretches, start and end in seconds, that the locks `which`
+    /// picks read: each from its start to the next lock's.
+    fn spans_where(&self, which: impl Fn(&Lock) -> bool) -> Vec<(f64, f64)> {
+        let locks = &self.locks.0;
+        (locks.iter().enumerate())
+            .filter(|(_, l)| which(l))
+            .map(|(i, l)| {
+                (
+                    l.from_s,
+                    locks.get(i + 1).map_or(f64::INFINITY, |n| n.from_s),
+                )
+            })
+            .collect()
     }
 
-    /// The lock heard as a watch the longest, the earliest on a tie; none
-    /// when no lock heard a run as long as a piece.
-    fn watchs_lock(&self) -> Option<usize> {
-        let locks = &self.locks.0;
-        let mut best: Option<(usize, f64)> = None;
-        for (i, l) in locks.iter().enumerate() {
-            let to = locks.get(i + 1).map_or(f64::INFINITY, |n| n.from_s);
-            let lo = self.beats.partition_point(|b| b.time < l.from_s);
+    /// What the locks let go read in `spans`, let go with them: their
+    /// beats were numbered at a rate that isn't the watch's, and their
+    /// amplitude windows cut on a template that isn't its. Nothing is put
+    /// in their place; those stretches read as no watch. Only the
+    /// analysis: the sound kept is untouched.
+    fn let_go_within(&mut self, spans: &[(f64, f64)]) {
+        let out = |t: f64| spans.iter().any(|&(a, b)| a <= t && t < b);
+        let n = self.beats.len();
+        self.beats.retain(|b| !out(b.time));
+        if self.beats.len() < n {
+            self.beats_gen = fresh_gen();
+        }
+        self.clipped.retain(|&t| !out(t));
+        self.amp.retain(|w| !out(w.start_s));
+        self.sample.retain(|x| !out(x.0));
+        self.snippets.retain(|x| !out(x.0));
+    }
+
+    /// The rate heard as a watch the longest over all its locks, the
+    /// first heard on a tie; none when no lock heard a run as long as a
+    /// piece.
+    fn watchs_rate(&self) -> Option<u32> {
+        let mut heard: Vec<(u32, f64)> = Vec::new();
+        for (l, (from, to)) in self.locks.0.iter().zip(self.spans_where(|_| true)) {
+            let lo = self.beats.partition_point(|b| b.time < from);
             let hi = self.beats.partition_point(|b| b.time < to);
-            let heard = beats::watch_heard_s(&self.beats[lo..hi]);
-            if heard > 0.0 && best.is_none_or(|(_, h)| heard > h) {
-                best = Some((i, heard));
+            let s = beats::watch_heard_s(&self.beats[lo..hi]);
+            match heard.iter_mut().find(|h| h.0 == l.bph) {
+                Some(h) => h.1 += s,
+                None => heard.push((l.bph, s)),
             }
         }
-        best.map(|(i, _)| i)
+        let mut best: Option<(u32, f64)> = None;
+        for (bph, s) in heard {
+            if s > 0.0 && best.is_none_or(|(_, b)| s > b) {
+                best = Some((bph, s));
+            }
+        }
+        best.map(|(bph, _)| bph)
     }
 
     /// Auto's locks forgotten, with the beats.

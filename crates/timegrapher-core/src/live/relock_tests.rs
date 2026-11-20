@@ -224,3 +224,65 @@ fn a_second_watch_heard_longer_keeps_its_rate() {
     assert!(rates.contains(&Some(28_800)), "{rates:?}");
     assert_eq!(live.bph(), Some(21_600), "{rates:?}");
 }
+
+/// `parts` heard live with Auto, then settled as at Stop: clicks at a rate
+/// for a while, or a quiet stand (`None`) for a while.
+fn heard_parts(parts: &[(Option<u32>, f64)]) -> (LiveAnalyzer, Vec<Option<u32>>) {
+    let fs = SynthConfig::default().sample_rate;
+    let mut samples = Vec::new();
+    for (k, &(bph, duration_s)) in parts.iter().enumerate() {
+        match bph {
+            Some(bph) => {
+                let cfg = SynthConfig {
+                    bph,
+                    duration_s,
+                    seed: 10 + k as u64,
+                    ..Default::default()
+                };
+                samples.extend(generate(&cfg, |_| 260.0, |_| 0.0).samples);
+            }
+            None => samples.extend(vec![0.0; (duration_s * f64::from(fs)) as usize]),
+        }
+    }
+    let mut live = LiveAnalyzer::new(fs, LiveConfig::default());
+    let mut rates = Vec::new();
+    for chunk in samples.chunks(960) {
+        live.push(chunk);
+        if rates.last() != Some(&live.bph()) {
+            rates.push(live.bph());
+        }
+    }
+    live.settle();
+    (live, rates)
+}
+
+/// A watch put back after a quiet is locked on to again at its own rate:
+/// its time is summed over both locks, and none of its beats is let go
+/// (Norm on #2142).
+#[test]
+fn a_watch_put_back_is_heard_over_both_its_locks() {
+    let w = Some(28_800);
+    // 90 s, quiet, the same watch for 30 s, quiet, a 20 s lure: every
+    // beat of the watch's second run kept.
+    let (live, rates) = heard_parts(&[
+        (w, 90.0),
+        (None, 8.0),
+        (w, 30.0),
+        (None, 8.0),
+        (Some(72_000), 20.0),
+    ]);
+    assert_eq!(live.bph(), Some(28_800), "{rates:?}");
+    let t = beats::last_watch_beat_s(live.beats()).expect("the watch's run");
+    assert!((127.0..=128.0).contains(&t), "{t}");
+    let rate = live.reading_at(t, 10.0).rate_s_per_day.expect("a rate");
+    assert!((rate - 5.0).abs() < 2.0, "rate {rate} s/d");
+    // 40 s and 40 s of the watch outweigh a 50 s lure.
+    let (live, rates) = heard_parts(&[
+        (w, 40.0),
+        (None, 8.0),
+        (w, 40.0),
+        (None, 8.0),
+        (Some(72_000), 50.0),
+    ]);
+    assert_eq!(live.bph(), Some(28_800), "{rates:?}");
+}
