@@ -530,7 +530,9 @@ is one whose clock correction stored for its input, calibre as the user's
 calibres define it, sound or clock log named outside its folder, or
 program version changes. The reading is of the take's last position with
 anything to read, as `session` leaves a position out when its settling
-time covers it. The text
+time covers it. Where the take lists that position as more than one entry
+(a take in ten-minute files), every entry in it is read together as one
+reading, as the app reads the whole take in that position (#2121). The text
 output shows its figures. `at_end`, to be retired once the app shows
 `reading`, is the readings the app showed when the
 take was saved (`rate_s_per_day`, `amplitude_deg`, `beat_error_ms`

@@ -251,3 +251,73 @@ fn a_mask_between_two_stretches_counts_once_on_the_whole_take() {
         w.m.caveats
     );
 }
+
+/// A take kept as several files, its last position listed as more than
+/// one of them: its Watches row (core `library::reading`) and the Bench's
+/// whole take once it is opened give one rate, amplitude and beat error,
+/// with the same caveats, to the last bit (#2121, Trevor): the row reads
+/// the whole position as the Bench does. Two files in Dial Up, and Dial
+/// Up, Dial Down, Dial Up, where the position's stretches are apart.
+#[test]
+fn a_takes_row_reads_its_last_position_as_the_bench_does() {
+    use timegrapher_core::synth::{generate, SynthConfig};
+    let cases: [&[(&str, f64)]; 2] = [
+        &[("DU", 40.0), ("DU", 0.0)],
+        &[("DU", 0.0), ("DD", 200.0), ("DU", 6.0)],
+    ];
+    let part_s = 60.0;
+    let mut wrong = Vec::new();
+    for (k, parts) in cases.iter().enumerate() {
+        let dir = std::env::temp_dir().join(format!("tg-row-bench-{k}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let rates: Vec<f64> = parts.iter().map(|p| p.1).collect();
+        let n = rates.len();
+        let audio = generate(
+            &SynthConfig {
+                duration_s: part_s * n as f64,
+                rate_s_per_day: 0.0,
+                ..Default::default()
+            },
+            |_| 270.0,
+            |t| rates[((t / part_s) as usize).min(n - 1)],
+        );
+        let per = (part_s * f64::from(audio.sample_rate)) as usize;
+        let mut session = "bph = 28800\nlift = 52\nlift_known = true\n".to_string();
+        for (i, (position, _)) in parts.iter().enumerate() {
+            let name = format!("audio-{:03}.wav", i + 1);
+            let end = ((i + 1) * per).min(audio.samples.len());
+            let part = timegrapher_core::audio::Audio {
+                samples: audio.samples[i * per..end].to_vec(),
+                sample_rate: audio.sample_rate,
+            };
+            timegrapher_core::audio::write_wav(&dir.join(&name), &part).unwrap();
+            session.push_str(&format!(
+                "\n[[recording]]\nfile = '{name}'\nposition = '{position}'\n"
+            ));
+        }
+        std::fs::write(dir.join("session.toml"), session).unwrap();
+        let row = timegrapher_core::library::reading(&dir).unwrap();
+        let app = super::tests::reopened(&dir);
+        let w = app
+            .whole_take()
+            .expect("the whole take in the last position");
+        let _ = std::fs::remove_dir_all(&dir);
+        let bench = (
+            w.m.rate_s_per_day,
+            w.m.amplitude_deg,
+            w.m.beat_error_signed(),
+            &w.m.caveats,
+        );
+        let kept = (
+            row.rate_s_per_day,
+            row.amplitude_deg,
+            row.beat_error_ms,
+            &row.caveats,
+        );
+        if bench != kept {
+            wrong.push(format!("{parts:?}: row {kept:?}, Bench {bench:?}"));
+        }
+    }
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+}
