@@ -361,6 +361,31 @@ impl TakeContext {
         }
     }
 
+    /// The settled stretches the take reads in position `p`, take seconds,
+    /// in time order: each entry of `m` (the session file the context was
+    /// opened from) in `p` read from its window, as [`Self::spans`] reads
+    /// them, a file that carries on the one before it one stretch with it
+    /// ([`stretches_of`]), and the time between two stretches left out.
+    /// What the Watches list reads a take's last position over, as the
+    /// app's whole take reads the position on show (#2121). Empty when
+    /// two windows overlap.
+    pub fn spans_in(&self, m: &Manifest, p: Position) -> Vec<(f64, f64)> {
+        let windows = self.windows_read(m).into_iter().filter(|w| w.3 == Some(p));
+        let Some(s) = stretches_of(windows) else {
+            return Vec::new();
+        };
+        let mut out = Vec::new();
+        for (a, b) in s.read {
+            let mut from = a;
+            for &(h0, h1) in s.holes.iter().filter(|h| h.0 >= a && h.1 <= b) {
+                out.push((from, h0));
+                from = h1;
+            }
+            out.push((from, b));
+        }
+        out
+    }
+
     /// The take's length, seconds: where its last recording ends.
     fn length_s(&self) -> f64 {
         self.files

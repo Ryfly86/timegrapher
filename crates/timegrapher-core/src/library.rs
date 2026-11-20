@@ -667,8 +667,12 @@ pub fn figure_texts(
     ]
 }
 
-/// A take's own reading, as `timegrapher session` reads it: its last
-/// recorded position, after the watch settled, on the take's clock. What
+/// A take's own reading: its last recorded position, after the watch
+/// settled, on the take's clock; every entry the take lists in that
+/// position read together (a take kept as one file every ten minutes is
+/// one stretch), as the app reads the whole take in the position on show,
+/// and a position listed once read as `timegrapher session` reads it
+/// (#2121). What
 /// the Watches list shows for a take, worked out from its sound (or its
 /// kept analysis) once and kept ([`reading`]).
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -806,7 +810,9 @@ pub fn reading(take_dir: &Path) -> Result<Reading, String> {
 
 /// The take's last position with anything to read
 /// ([`crate::take::reads_nothing`]), read as `timegrapher session` reads
-/// it, with no flags: its settings from its `session.toml` and calibre
+/// its last entry there, with no flags, or, where the take lists that
+/// position more than once, every entry in it read together
+/// ([`position_whole`]): its settings from its `session.toml` and calibre
 /// ([`crate::take::stream_settings`]), its clock from its log, its USB
 /// lines, its `card_ppm_fast` or the correction stored for its input
 /// ([`crate::take::measure_entry`]). Also what it was worked out from
@@ -871,7 +877,29 @@ fn measure_take_with(
             )
         }));
     };
-    let x = &read.measurement;
+    // A position listed as more than one entry (a take kept as one file
+    // every ten minutes) is read whole, as the Bench reads it (#2121).
+    let mut whole = None;
+    if let Some(p) = e.position.as_deref().and_then(Position::parse) {
+        let in_p = |r: &&crate::session::RecordingEntry| {
+            !crate::take::reads_nothing(r)
+                && r.position.as_deref().and_then(Position::parse) == Some(p)
+        };
+        if m.recordings.iter().filter(in_p).count() > 1 {
+            let mut asked = None;
+            whole = position_whole(dir, &m, &cal, p, |first| {
+                let c = correction(&m, first);
+                if let Ok(c) = &c {
+                    asked = Some((first.to_path_buf(), c.clone()));
+                }
+                c
+            });
+            if whole.is_some() {
+                used = asked;
+            }
+        }
+    }
+    let x = whole.as_ref().unwrap_or(&read.measurement);
     let reading = Reading {
         position: e.position.clone(),
         rate_s_per_day: x.rate_s_per_day,
@@ -887,6 +915,53 @@ fn measure_take_with(
         reading,
         outside_from(cal.as_ref(), first, correction.flatten(), linked),
     ))
+}
+
+/// The take in `dir` (session file `m`, calibre `cal`) read whole in
+/// position `p`: the take opened once as one recording
+/// ([`crate::take_context::TakeContext::open`]), its settled stretches in
+/// `p` ([`crate::take_context::TakeContext::spans_in`]) read together by
+/// core [`crate::session::measure_together`], cut where its readings are
+/// cut, as the app reads the whole take in the position on show. None
+/// where the take can't be opened as one recording (entries on different
+/// clock logs) or its windows in `p` overlap: then the last entry alone
+/// is read, as `session` reads it.
+fn position_whole(
+    dir: &Path,
+    m: &Manifest,
+    cal: &Option<crate::take::Calibre>,
+    p: Position,
+    correction: impl FnOnce(&Path) -> Result<Option<(f64, String)>, String>,
+) -> Option<crate::session::Measurement> {
+    use crate::take_context::{Masks, TakeContext};
+    let settings = crate::take::EntrySettings {
+        stream: crate::take::stream_settings(m, cal.as_ref(), crate::take::Given::default()),
+        card_clock: false,
+        settle_s: None,
+    };
+    let (ctx, log) = TakeContext::open(
+        dir,
+        m,
+        settings,
+        Masks::Cut,
+        crate::take::usb,
+        correction,
+        |_, _| {},
+    )
+    .ok()?;
+    let spans = ctx.spans_in(m, p);
+    let breaks = ctx.reading_breaks(m);
+    let mut x = crate::session::measure_together(
+        &log,
+        ctx.clock.as_ref(),
+        &breaks,
+        &ctx.masked,
+        (&spans, &spans),
+    )?;
+    x.take_doubts(ctx.settings.stream.analysis.lift_known, ctx.unlisted);
+    x.clock_ppm = ctx.clock_ppm;
+    x.clock_source = ctx.clock_source;
+    Some(x)
 }
 
 /// The take in `dir`'s session file.

@@ -1935,3 +1935,59 @@ fn last_changed(p: &Path, t: std::time::SystemTime) {
     o.read(true);
     o.open(p).unwrap().set_modified(t).unwrap();
 }
+
+/// A take listed as one file every ten minutes in one position, as a
+/// take kept from such files is, reads that whole position, as the Bench
+/// does, never its last file alone (#2121); another position listed after
+/// it is the take's last position, read alone.
+#[test]
+fn a_take_of_many_files_in_one_position_reads_them_all() {
+    let dir = std::env::temp_dir().join(format!("tg-reading-files-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    // Fast at first, then on time: the rate the watch settles to.
+    let audio = crate::synth::generate(
+        &crate::synth::SynthConfig {
+            duration_s: 180.0,
+            rate_s_per_day: 0.0,
+            ..Default::default()
+        },
+        |_| 270.0,
+        |t| if t < 90.0 { 40.0 } else { 0.0 },
+    );
+    let half = audio.samples.len() / 2;
+    for (name, samples) in [
+        ("audio-001.wav", &audio.samples[..half]),
+        ("audio-002.wav", &audio.samples[half..]),
+    ] {
+        let part = crate::audio::Audio {
+            samples: samples.to_vec(),
+            sample_rate: audio.sample_rate,
+        };
+        crate::audio::write_wav(&dir.join(name), &part).unwrap();
+    }
+    let session = "bph = 28800\n\n[[recording]]\nfile = 'audio-001.wav'\nposition = 'DU'\n\n\
+                   [[recording]]\nfile = 'audio-002.wav'\nposition = 'DU'\n";
+    fs::write(dir.join("session.toml"), session).unwrap();
+    let (r, _) = measure_take(&dir).unwrap();
+    let rate = r.rate_s_per_day.expect("a rate");
+    assert_eq!(r.position.as_deref(), Some("DU"));
+    assert!(
+        rate > 10.0 && rate < 30.0,
+        "both files read together: {rate}"
+    );
+    // Moved to Dial Down for the second file: that position alone.
+    fs::write(
+        dir.join("session.toml"),
+        session.replace(
+            "audio-002.wav'\nposition = 'DU'",
+            "audio-002.wav'\nposition = 'DD'",
+        ),
+    )
+    .unwrap();
+    let (r, _) = measure_take(&dir).unwrap();
+    let _ = fs::remove_dir_all(&dir);
+    let rate = r.rate_s_per_day.expect("a rate");
+    assert_eq!(r.position.as_deref(), Some("DD"));
+    assert!(rate.abs() < 3.0, "the last position alone: {rate}");
+}
