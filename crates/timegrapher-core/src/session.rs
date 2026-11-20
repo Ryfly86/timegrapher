@@ -1203,8 +1203,12 @@ pub fn measure_reading(
             ..Default::default()
         },
     );
-    // Judged over its scatter's look back, as live's are, not its own span (#1965).
-    let judged_s = to_s - judged.from_s - masked_within(masked, judged.from_s, to_s);
+    // Judged over the look back its scatter is read from, as live's are (#1965);
+    // one that reads none, as into a settle the log left out, judges nothing.
+    let judged_s = match judged.jitter_us {
+        Some(_) => to_s - judged.from_s - masked_within(masked, judged.from_s, to_s),
+        None => listened_s,
+    };
     let assessed = crate::measure::regularity_assessed(judged_s, judged.holds_window);
     let no_watch = crate::measure::no_watch_reason(jitter_us, log.bph, assessed, beat_sound);
     // The sound behind the reading: since the latest cut, or the

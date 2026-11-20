@@ -543,8 +543,9 @@ fn a_short_average_hears_a_watch_as_a_ten_second_one_does() {
 /// [`a_short_average_hears_a_watch_as_a_ten_second_one_does`] for
 /// `engines`: the verdict at each Average Over under 10 s, every second
 /// from 10 s, is the 10 s one's, and a reading not heard shows no
-/// figures. Saved, a stretch that short over the sound of `log` gets the
-/// verdict `opened`, the engine built from `log`, gives it (#1688).
+/// figures. Saved, a stretch that short over the sound of `log`, where its
+/// look back reads a scatter, gets the verdict `opened`, the engine built
+/// from `log`, gives it (#1688).
 fn short_averages_agree(engines: &[(&str, &LiveAnalyzer)], log: &BeatLog, opened: &LiveAnalyzer) {
     let shorts = timegrapher_core::live::AVERAGES
         .into_iter()
@@ -573,7 +574,12 @@ fn short_averages_agree(engines: &[(&str, &LiveAnalyzer)], log: &BeatLog, opened
         for &s in &shorts {
             let m = session::measure(log, None, t - s, t);
             let r = opened.reading_at(t, s);
-            assert_eq!(m.watch_heard, r.watch_heard, "saved, {s} s ending at {t} s");
+            // Where its look back reads a scatter: one that reads none
+            // judges nothing, saved, where live calls it noise (#2150).
+            assert!(
+                m.jitter_us.is_none() || m.watch_heard == r.watch_heard,
+                "saved, {s} s ending at {t} s"
+            );
             assert!(m.watch_heard || m.rate_s_per_day.is_none());
         }
         t += 1.0;
