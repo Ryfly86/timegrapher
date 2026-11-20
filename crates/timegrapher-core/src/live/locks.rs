@@ -298,9 +298,23 @@ mod tests {
         let snip = (39.9, true, UnlockWindow::SHORT, vec![1.0_f32]);
         l.locks.0[1].before.snippets = VecDeque::from([snip.clone()]);
         l.snippets = VecDeque::from([(54.0, false, UnlockWindow::SHORT, vec![2.0_f32])]);
+        // As the lure left them: a profile of its own, and its jump's
+        // sides still to be checked.
+        let (watch, _) = relock_tests::heard_parts(&[(Some(28_800), 40.0)]);
+        l.profiles = watch.profiles.clone();
+        assert!(l.profiles[0].is_some());
+        l.locks.0[1].before.sides = watch.sides.clone();
+        l.sides = watch.sides.clone();
+        l.sides.jump(50.0);
+        assert_eq!(l.sides.pending_since(), Some(50.0));
         l.back_to_watchs_lock();
         assert_eq!(l.bph, Some(28_800));
         assert_eq!(l.snippets, VecDeque::from([snip]));
+        assert!(
+            l.profiles.iter().all(Option::is_none),
+            "the lure's profiles"
+        );
+        assert_eq!(l.sides.pending_since(), None, "the lure's jump");
     }
 
     /// The lock held is the watch's: it stays as it is, its template with
