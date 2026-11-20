@@ -9,6 +9,8 @@ use timegrapher_core::measure::{RATE_SE_MIN_S, RATE_WINDOW_S};
 use timegrapher_core::steadiness::{ISO_BIN_DEG, ISO_MIN_BINS, ISO_MIN_READINGS};
 use timegrapher_core::take::{DEFAULT_LIFT_DEG, SETTLE_S};
 
+use crate::steady;
+
 /// Lines that state a number core or the app sets, worded once with it,
 /// for the "?" that takes plain text.
 fn worded(lines: Vec<String>) -> Vec<&'static str> {
@@ -397,21 +399,155 @@ pub const CHARTS: &[&str] = &[
     "- Clicking a moment shows it on the strip and in the readings.",
 ];
 
-pub const STEADINESS: &[&str] = &[
-    "How the rate, the amplitude and the beat error each change over the session, in time \
-     order: cycles, steps and trends.",
+/// The Controls bullets every Steadiness view's "?" ends with (Hugh,
+/// #1986): what the series switches do, then Info.
+const STEADY_SERIES: &str = "- Series: Rate, Amplitude and Beat Error, each on or off. Turning \
+     the others off gives one the whole pane.";
+const STEADY_MAP: &str = "- Map: Rate, Amplitude or Beat Error, one map at a time, so it has room.";
+const STEADY_INFO: &str =
+    "- Info, the i at the right, gives what the tests found and their statistics.";
+
+const STEADY_READINGS: &[&str] = &[
+    "Every reading in time order: the steps, slides and two-state flips the tests look for.",
     "## What It Shows",
-    "- The tests need about 5 minutes of beats; the command line runs the same tests.",
     "- A rate dot is a 10 s reading; an amplitude or beat error dot is a 2 s window.",
-    "- The wheels' periods are dotted.",
-    "## Views",
-    "- Each view has its icon under Analysis.",
-    "- Periods: how strongly the readings repeat.",
-    "- Cycle: the readings folded at the cycle found.",
-    "- FFT: the sine wave's size at each period.",
-    "## Controls",
-    "- Info, the i at the right, gives what the tests found and their statistics.",
+    "- On a long take each dot is the mean of a few readings, over a pale band from their \
+     lowest to highest; pointing at it says how many.",
+    "- Solid lines are stretches of constant level, drawn where the headline names a level \
+     change or a slide.",
+    "- Dashed lines are the two levels, where the readings flip between two states.",
+    "- The tests need about 5 minutes of beats.",
 ];
+
+const STEADY_PERIODS: &[&str] = &[
+    "How strongly the readings repeat at each period, from the period search.",
+    "## What It Shows",
+    "- Across: the period, the time one repeat takes. Up: the search's score, how strongly \
+     the readings repeat at that period.",
+    "- The score has no unit; only its height against the dashed line matters.",
+    "- The dashed line is the score a period needs for the search to list it.",
+    "- The strongest listed period is labelled, with the wheel whose turn it matches, if any.",
+    "- The headline's cycle is marked as the headline's.",
+    "## Controls",
+    "- dB Scale shows the scores in decibels; off, linear.",
+    "- Wheel Periods and Mesh mark the wheels' turns and where their teeth meet.",
+];
+
+const STEADY_CYCLE: &[&str] = &[
+    "The readings folded at the cycle the tests found, as if every turn were laid on top of \
+     the first.",
+    "## What It Shows",
+    "- Each turn's readings as dots, coloured by when the turn came: purple first, \
+     yellow-green last.",
+    "- A box round the middle half of each phase's readings, and their median shape as the \
+     line.",
+    "- The note gives the size beside a box's median height: the cycle's own peak to peak at \
+     the headline's cycle, otherwise as the note says.",
+];
+
+const STEADY_AUTOCORRELATION: &[&str] = &[
+    "How much each reading resembles the one a given time later.",
+    "## What It Shows",
+    "- Across: the lag. Up: the correlation, from −1 to +1.",
+    "- Independent readings stay inside the dashed band. A rise back to a peak outside it \
+     can mean the readings repeat at that lag.",
+    "- The first clear repeat is marked with its lag: a peak well outside the band, after the \
+     curve fell well below it, that comes back near twice its lag.",
+    "- A lone peak isn't marked, since a cycle repeats and a chance bump doesn't.",
+    "- When the autocorrelation found the headline's cycle, that cycle's lag is marked instead.",
+    "- The note gives the Ljung–Box p-value: under 0.01, the readings are not independent.",
+];
+
+const STEADY_ALLAN: &[&str] = &[
+    "How much an average scatters as it is taken over longer and longer times: lower is \
+     steadier.",
+    "## What It Shows",
+    "- Both axes are logarithmic: across, the averaging time; up, the scatter.",
+    "- The dashed line is what independent readings would give. On or below it, the reading \
+     only jitters; above it towards the right, it wanders or drifts.",
+    "- A cycle puts a bump near 0.37 of its period.",
+    "- The averaging time of least scatter is labelled: the most repeatable average this \
+     take gives.",
+    "- Hollow dots rest on too few differences to judge, and are never the least scatter.",
+];
+
+const STEADY_CUSUM: &[&str] = &[
+    "The running sum of each reading's distance from the mean: a change of level bends it.",
+    "## What It Shows",
+    "- Scaled by the readings' long-run spread, so readings with no change of level stay \
+     inside the dashed lines about 95 times in 100, correlated or not.",
+    "- A step in the level bends the line into a V or a tent. Its corner is marked only where \
+     the headline names a level change.",
+];
+
+const STEADY_FFT: &[&str] = &[
+    "The size of the sine wave at each period, like Witschi's FFT.",
+    "## What It Shows",
+    "- Both axes are logarithmic: across, the period; up, a sine's amplitude, half its peak \
+     to peak.",
+    "- The rate's size is the swing it makes in 10 s rate readings, in s/d.",
+    "- The wheels' periods are dotted, and twice a turn more loosely.",
+    "## Controls",
+    "- Timing draws the rate as the beat timing's spectrum, in ms, at every period. It needs \
+     Rate on.",
+    "- Wheel Periods and Mesh mark the wheels' turns and where their teeth meet.",
+];
+
+const STEADY_STFT: &[&str] = &[
+    "Each period's size through the session, so a line that comes and goes shows where it is.",
+    "## What It Shows",
+    "- Across: the time in the session. Up: the period, on a log scale.",
+    "- Colour: the size, with its key.",
+    "- Each column is read from 20 minutes of readings, stepped 5 minutes, every period over \
+     the same window, so this is the map to read a line's size from.",
+    "- The rate's map is of the beat timing, in ms. A window with a reading missing is left \
+     empty.",
+    "## Controls",
+    "- dB Scale shows the sizes in decibels; off, linear.",
+    "- Wheel Periods and Mesh mark the wheels' turns and where their teeth meet.",
+];
+
+const STEADY_WAVELET: &[&str] = &[
+    "Each period's size through the session, sharpened so a line shows exactly where and \
+     when it is.",
+    "## What It Shows",
+    "- Across: the time in the session. Up: the period, on a log scale.",
+    "- Colour: the size, with its key.",
+    "- Short periods are read over short times and long ones over long, each moved to the \
+     period it really turns at.",
+    "- Under noise a line reads smaller here than it is: read its size from the STFT Map.",
+    "- Each unbroken stretch is read alone, and its ends, which a long period's wavelet \
+     can't reach, are left empty.",
+    "## Controls",
+    "- dB Scale shows the sizes in decibels; off, linear.",
+    "- Wheel Periods and Mesh mark the wheels' turns and where their teeth meet.",
+];
+
+/// The "?" of one Steadiness view (Hugh's words, #1986): its own lines,
+/// then the Controls every view shares, Series (Map, on the maps) and
+/// Info, under the view's own Controls heading when it has one.
+pub fn steadiness(view: steady::View) -> Vec<&'static str> {
+    use steady::View;
+    let own = match view {
+        View::Readings => STEADY_READINGS,
+        View::Periods => STEADY_PERIODS,
+        View::Cycle => STEADY_CYCLE,
+        View::Autocorrelation => STEADY_AUTOCORRELATION,
+        View::Allan => STEADY_ALLAN,
+        View::Cusum => STEADY_CUSUM,
+        View::Fft => STEADY_FFT,
+        View::Stft => STEADY_STFT,
+        View::Wavelet => STEADY_WAVELET,
+    };
+    let mut out = own.to_vec();
+    if !own.contains(&"## Controls") {
+        out.push("## Controls");
+    }
+    let maps = matches!(view, View::Stft | View::Wavelet);
+    out.push(if maps { STEADY_MAP } else { STEADY_SERIES });
+    out.push(STEADY_INFO);
+    out
+}
 
 pub const SCOPE: &[&str] = &[
     "The sound of the latest beats as it came in, high-passed so hum and rumble don't hide \
@@ -851,8 +987,28 @@ mod tests {
             ("STRIP", own(STRIP)),
             ("PROFILE", own(PROFILE)),
             ("CHARTS", own(CHARTS)),
-            ("STEADINESS", own(STEADINESS)),
             ("SCOPE", own(SCOPE)),
+            (
+                "steadiness(Readings)",
+                own(&steadiness(steady::View::Readings)),
+            ),
+            (
+                "steadiness(Periods)",
+                own(&steadiness(steady::View::Periods)),
+            ),
+            ("steadiness(Cycle)", own(&steadiness(steady::View::Cycle))),
+            (
+                "steadiness(Autocorrelation)",
+                own(&steadiness(steady::View::Autocorrelation)),
+            ),
+            ("steadiness(Allan)", own(&steadiness(steady::View::Allan))),
+            ("steadiness(Cusum)", own(&steadiness(steady::View::Cusum))),
+            ("steadiness(Fft)", own(&steadiness(steady::View::Fft))),
+            ("steadiness(Stft)", own(&steadiness(steady::View::Stft))),
+            (
+                "steadiness(Wavelet)",
+                own(&steadiness(steady::View::Wavelet)),
+            ),
             ("POSITIONS_TEST", own(&POSITIONS_TEST)),
             ("DYNAMIC_POISE", own(&DYNAMIC_POISE)),
             ("COMPLICATION", own(&COMPLICATION)),

@@ -86,6 +86,7 @@ impl TimegrapherApp {
     pub(super) fn reset_session(&mut self, sample_rate: u32, label: String) {
         // Never throw away the sound a save is still copying.
         self.wait_for_save();
+        self.take_thrown_away();
         self.session.discard_recording();
         self.session.clear();
         self.put_input_clock(None);
@@ -500,6 +501,7 @@ impl TimegrapherApp {
             .session
             .recording_fault()
             .and_then(|_| self.message.clone());
+        self.take_thrown_away();
         self.session.discard_recording();
         self.session.clear();
         self.live = None;

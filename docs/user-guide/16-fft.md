@@ -26,6 +26,11 @@ another timegrapher), this is where you read its size.
 | 5 | Twice a turn | A fainter dotted line marked ×2, at half a wheel's period. |
 | 6 | A wheel's period | A bold dotted line, named above the plot. |
 
+**Mesh**, beside Wheel Periods (not yet in the picture), marks each
+pinion's mesh where the calibre's tooth and leaf counts give it: a
+faint, loosely dashed line named under the plot, such as **Fourth Pinion
+Mesh**. On at first; this pane only. Chapter 11 explains the mesh lines.
+
 ## What the Sizes Mean
 
 | Series | Size | Periods drawn |
@@ -87,6 +92,7 @@ folds.
 | A peak at a wheel's period | A swing once per turn of that wheel. |
 | A peak at a wheel's ×2 | Twice a turn: what an off-centre wheel can give. |
 | Peaks at a half, a third, a quarter of a wheel's period | A sharp disturbance once a turn, spread over its harmonics. |
+| A peak at a mesh's period | A swing once per tooth of that wheel passing through that pinion. |
 | A spectrum rising towards long periods | Slow wander or drift. |
 | A spectrum flat across | Noise with no period standing out. |
 

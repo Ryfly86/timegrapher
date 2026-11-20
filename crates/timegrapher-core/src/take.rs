@@ -284,7 +284,7 @@ pub const SETTLE_S: f64 = 20.0;
 
 #[path = "take_settle.rs"]
 mod settle;
-pub use settle::{cut_from_one, listed_unread, settles_through};
+pub use settle::{cut_from_one, handled, listed_unread, settles_through};
 
 /// The settling and measuring times a session `entry` asks for: its own,
 /// else its session file's.

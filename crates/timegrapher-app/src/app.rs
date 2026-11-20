@@ -2911,7 +2911,7 @@ impl TimegrapherApp {
             Pane::Sound | Pane::Scope => self.sound_tools(ui, pane),
             p if p.steady_view().is_some() => {
                 let view = p.steady_view().unwrap_or_default();
-                let mut info = self.steady_info.on(view);
+                let (mut info, help_text) = (self.steady_info.on(view), help::steadiness(view));
                 let mut pin = |ui: &mut egui::Ui| {
                     let accent = theme::pal(ui).accent;
                     if theme::icon_toggle(ui, Icon::Info, info, accent)
@@ -2921,7 +2921,7 @@ impl TimegrapherApp {
                         info = !info;
                     }
                 };
-                theme::pane_toolbar_pinned(ui, title, help::STEADINESS, Some(&mut pin), |ui| {
+                theme::pane_toolbar_pinned(ui, title, &help_text, Some(&mut pin), |ui| {
                     self.steady_settings(ui, p);
                     self.export_button(ui, p);
                 });
@@ -3966,13 +3966,13 @@ impl eframe::App for TimegrapherApp {
             self.save_again();
             self.wait_for_save();
         }
-        // Sound the user hasn't been asked about is kept for the next start
-        // to offer back: on macOS, Cmd+Q and Quit in the app menu or the
-        // Dock quit without the window's close being asked first, and
-        // can't be cancelled.
+        // Sound the user hasn't been asked about is kept for the next start to
+        // offer back: on macOS, Cmd+Q and Quit in the app menu or the Dock
+        // quit without the window's close being asked first, uncancellable.
         if !self.may_close && self.unsaved_s() > 5.0 && !self.quick_unsaved() {
             self.session.keep_recording();
         } else {
+            self.take_thrown_away();
             self.session.discard_recording();
         }
     }

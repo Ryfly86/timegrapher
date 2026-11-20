@@ -165,8 +165,14 @@ impl TimegrapherApp {
                     .map_err(|e| format!("Couldn't write {name}: {e}"))
             })
         });
-        if let Err(e) = written {
-            self.error(e);
+        match written {
+            // The take as saved holds these results now (#2106).
+            Ok(()) if self.session.saved_to() == Some(dir) => {
+                let kept = self.save_metadata().full_wind;
+                self.session.results_saved(kept);
+            }
+            Ok(()) => {}
+            Err(e) => self.error(e),
         }
     }
 }

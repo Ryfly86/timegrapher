@@ -55,8 +55,10 @@ read while the balance settles: 20 s by default. A position that is a
 recording of its own never settles for more than half its time. A
 position you turned to while one recording kept running settles the full
 20 s; if you left it within 20 s, it reads nothing and isn't one of the
-take's positions, because the watch was being handled. A settling time
-you set is used as it is.
+take's positions, because the watch was being handled. The same goes
+for the position a take starts in: it has no settling, but if you move
+the watch within the Settle, that start isn't one of the take's
+positions. A settling time you set is used as it is.
 
 **Short stretches.** A stretch between cuts whose beats span under 10 s
 gives no rate: a few seconds of beats give a rate several s/d out.

@@ -772,35 +772,133 @@ fn a_power_reserve_test_that_runs_down_lets_the_wind_go() {
     let _ = std::fs::remove_dir_all(base);
 }
 
-/// A test ended with the watch still running and then thrown away keeps
-/// the wind its Start gave, counting on from it: the watch was wound
-/// then. Thrown away from the Keep question or discarded by New Take, the
-/// field says the same (Hugh on #2031).
+/// A test whose take is thrown away leaves no facts behind: the wind its
+/// Start set goes back to what it was before (Shane, #2001). The same from
+/// Throw Away on the Keep question and from a new session discarding a
+/// test still running; a test whose take was saved keeps its Start's wind.
 #[test]
-fn a_test_thrown_away_keeps_its_starts_wind() {
-    let field_after = |by_new_take: bool| {
-        let (mut app, base) = save_failure_fixture(if by_new_take {
-            "wind-discard-new"
-        } else {
-            "wind-discard-keep"
-        });
+fn a_test_thrown_away_puts_the_wind_back() {
+    let field_after = |how: &str| {
+        let (mut app, base) = save_failure_fixture(&format!("wind-discard-{how}"));
         app.pick_wind(WindPick::HoursAgo(5.0));
         app.begin_reserve();
-        if by_new_take {
-            // Left running, its sound discarded for a new take.
-            app.new_session();
-        } else {
-            app.reserve.as_mut().unwrap().ending = Some(power_reserve::Ending::ByHand);
-            app.end_reserve();
-            // Throw Away on the Keep question.
-            app.test_keep = None;
-            app.new_session();
+        assert_eq!(app.wind_field().words.value, "Began 0.0 h after full");
+        match how {
+            // Left running, its sound discarded for a new session.
+            "new" => app.new_session(),
+            // Ended by hand, then Throw Away on the Keep question.
+            "keep-question" => {
+                app.reserve.as_mut().unwrap().ending = Some(power_reserve::Ending::ByHand);
+                app.end_reserve();
+                app.test_keep = None;
+                app.new_session();
+            }
+            // Saved, then a new session: the take keeps its wind.
+            _ => {
+                app.save_into(&base.join("saved"));
+                app.wait_for_save();
+                assert!(app.session.saved_to().is_some(), "{:?}", app.message);
+                app.new_session();
+            }
         }
         let words = app.wind_field().words.value;
         app.session.discard_recording();
         let _ = std::fs::remove_dir_all(base);
         words
     };
-    assert_eq!(field_after(false), "Full 0.0 h ago");
-    assert_eq!(field_after(true), "Full 0.0 h ago");
+    assert_eq!(field_after("keep-question"), "Full 5.0 h ago");
+    assert_eq!(field_after("new"), "Full 5.0 h ago");
+    assert_eq!(field_after("saved"), "Full 0.0 h ago");
+}
+
+/// Shane's sequence on #2001: no wind ever given, a Positions Test begun
+/// and thrown away; the next take says Not given, not "Full 0.0 h ago".
+/// A wind given by hand during a test stands when it is thrown away
+/// (Vernon on #2031), and nothing goes back twice.
+#[test]
+fn a_thrown_away_test_leaves_no_wind_for_the_next_take() {
+    let (mut app, base) = save_failure_fixture("wind-discard-positions");
+    let _tx = queued_capture(&mut app, &base);
+    app.pick_wind(WindPick::NotGiven);
+    app.start_guided(None);
+    assert!(app.guided.is_some(), "{:?}", app.message);
+    assert!(app.wound_unix().is_some(), "Start set full wind");
+    app.new_session();
+    assert_eq!(app.wind_field().words.value, "Not given");
+    app.session.discard_recording();
+    let _ = std::fs::remove_dir_all(base);
+
+    let (mut app, base) = save_failure_fixture("wind-discard-by-hand");
+    app.pick_wind(WindPick::HoursAgo(5.0));
+    app.begin_reserve();
+    app.pick_wind(WindPick::HoursBefore(3.0));
+    app.new_session();
+    assert_eq!(app.wind_field().words.value, "Full 3.0 h ago");
+    // A second session thrown away puts nothing back.
+    app.pick_wind(WindPick::HoursAgo(2.0));
+    app.new_session();
+    assert_eq!(app.wind_field().words.value, "Full 2.0 h ago");
+    app.session.discard_recording();
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// With a watch picked, the wind put back is the watch's own, kept in
+/// Watches.
+#[test]
+fn a_thrown_away_test_puts_the_watchs_wind_back() {
+    let (mut app, base) = with_watch("discard", "Explorer");
+    app.pick_wind(WindPick::HoursAgo(5.0));
+    let before = app.open_watch().unwrap().watch.full_wind.clone();
+    app.begin_reserve();
+    assert_ne!(app.open_watch().unwrap().watch.full_wind, before);
+    app.new_session();
+    assert_eq!(app.wind_field().words.value, "Full 5.0 h ago");
+    let root = base.join("Timegrapher Data");
+    let again = library::Library::read(&root).unwrap();
+    assert_eq!(again.find("Explorer").unwrap().watch.full_wind, before);
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// The wind goes back only to the watch whose test's Start set it: a test
+/// stopped on watch A, then watch B picked and the take thrown away, never
+/// writes A's earlier wind into B (Trevor on #2136).
+#[test]
+fn a_thrown_away_test_never_puts_the_wind_into_another_watch() {
+    let (mut app, base) = with_watch("discard-other", "Explorer");
+    if let Ok(Some(lib)) = &mut app.library {
+        lib.add(&library::Watch::new("Pepsi")).unwrap();
+    }
+    let pepsi = match &app.library {
+        Ok(Some(lib)) => lib.find("Pepsi").unwrap().watch.id.clone(),
+        _ => panic!("no library"),
+    };
+    app.pick_wind(WindPick::HoursAgo(5.0));
+    app.begin_reserve();
+    let started = app.open_watch().unwrap().watch.full_wind.clone();
+    app.pick_watch(&pepsi);
+    assert_eq!(app.open_watch().unwrap().watch.id, pepsi);
+    app.new_session();
+    let root = base.join("Timegrapher Data");
+    let again = library::Library::read(&root).unwrap();
+    assert_eq!(again.find("Pepsi").unwrap().watch.full_wind, None);
+    assert_eq!(again.find("Explorer").unwrap().watch.full_wind, started);
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// The wind goes back only when the take its test's Start was pressed on
+/// is the one thrown away: another take begun since, then thrown away,
+/// leaves the Start's wind (Trevor on #2136).
+#[test]
+fn a_thrown_away_take_puts_back_only_its_own_tests_wind() {
+    let (mut app, base) = save_failure_fixture("wind-discard-other-take");
+    app.pick_wind(WindPick::HoursAgo(5.0));
+    app.begin_reserve();
+    if let Some(r) = app.session.recorder.take() {
+        let _ = r.finish(None);
+    }
+    app.session.recorder =
+        Some(Recorder::start(&base.join("other"), app.info("test", 48000, 16)).unwrap());
+    app.new_session();
+    assert_eq!(app.wind_field().words.value, "Full 0.0 h ago");
+    let _ = std::fs::remove_dir_all(base);
 }
