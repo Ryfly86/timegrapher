@@ -565,4 +565,3 @@ fn scope_read(app: &mut TimegrapherApp, lo: f64, hi: f64) -> Option<(f64, f64, c
 fn block_at(sp: &crate::span::Span, t: f64) -> f32 {
     sp.mono[((t - sp.t0) * sp.rate).round() as usize]
 }
-
