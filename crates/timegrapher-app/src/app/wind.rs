@@ -181,7 +181,7 @@ impl TimegrapherApp {
     }
 
     /// When the take's recording began, Unix seconds; none without one.
-    fn recording_began_unix(&self) -> Option<f64> {
+    pub(super) fn recording_began_unix(&self) -> Option<f64> {
         let r = self.session.recorder.as_ref()?;
         full_wind::unix_of_utc(r.started_utc())
     }

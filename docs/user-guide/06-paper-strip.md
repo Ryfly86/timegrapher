@@ -54,8 +54,9 @@ wrapped round a drum. So the strip's **Width** is its zoom.
 | 6 | **Rate Line** and **Parallel Guides** | The Rate reading drawn as a magenta line over the beats it was fitted to, and faint lines at the same slope across the strip. Both on at first. | If the dots follow the line, the reading describes them well. The eye judges whether lines are parallel better than it judges a slope. |
 | 7 | **Mask** | Leaves stretches out of the readings. See [Masking](#masking). | To take a knock or a handling stretch out of every reading. |
 | 8 | **Position Brush** | Marks a stretch as one position. See [The Position Brush](#the-position-brush). | To correct the position after the fact. |
-| 9 | **Direction** | **Across** (time left to right, the default) or **Down** (newest at the top, as on the open tg program). | Down, if you're used to a printed strip: a gaining watch leans right as it rises. |
+| 9 | **Direction** | **Across** (time left to right, the default) or **Down** (newest at the top, as on the open tg program). The arrow shows the way the paper runs, and a click turns it. | Down, if you're used to a printed strip: a gaining watch leans right as it rises. |
 | 15 | **Still Paper** | Off, the paper slides along under the pen, the newest beats at its edge. On, the paper stays put and the pen sweeps along it. See [Still Paper](#still-paper). Kept between runs. | To read a live trace without it moving under your eye. |
+| — | **Time of Day** | The time of day on this computer's clock under each of the strip's time labels. See [Time of Day](#time-of-day). Kept between runs. | To match the strip to when something happened. |
 | 10 | **Export** | Saves the strip as a PNG or SVG picture. | To share it, or put it in a report. |
 
 **Opening a take** turns Fit on and sets the width to the narrowest listed
@@ -64,6 +65,16 @@ thousand at each end left out), so the whole take shows at once.
 **Listen, or a new test,** then brings back the width, length and Fit the
 strip had before the take was opened. A width or length you changed by
 hand meanwhile stays as you set it.
+
+## Time of Day
+
+**Time of Day**, the clock in the Paper Strip's toolbar, writes the time of day on this computer's clock (`14:35:20`) under each of the strip's time labels, so the take's time and the clock's show together; with Direction set to Down, the take's time is above each line and the time of day below it. The cursor shows both too (`1:23.45  14:35:20.45`). With lines six hours or more apart, the time of day names the day (`Thu 06:00`). It is kept between runs.
+
+- A take on the microphone counts from when its recording began, and each break in its sound moves the clock on by the time that passed.
+- A take opened counts from when its `session.json` says it began, and each break in its sound moves the clock on the same way. One segment of a take opened on its own has no start time of its own.
+- A take with no start time shows its own time only.
+
+Why you'd use it: to match the strip to when something happened, such as a knock, a wind or the watch picked up.
 
 ## Still Paper
 

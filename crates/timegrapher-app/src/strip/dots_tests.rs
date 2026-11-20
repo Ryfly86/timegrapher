@@ -21,6 +21,7 @@ fn circles(ctx: &egui::Context, beats: &[Beat], end: f64, extras: &Extras) -> Ve
         span_s: end,
         horizontal: true,
         still: false,
+        clock: false,
     };
     let anchor = Anchor::centre_on(&beats[..8], 0.125, 8);
     let out = ctx.run(

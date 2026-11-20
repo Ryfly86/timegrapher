@@ -803,3 +803,99 @@ fn an_opened_take_starts_with_the_rate_line_and_guides_off() {
     app.restore_live_strip();
     assert_eq!((app.rate_line, app.rate_guides), (false, true));
 }
+
+/// Time of Day on the microphone: the breaks the recorder keeps move the
+/// clock on, so a time after a gap in the sound reads later by the gap.
+#[test]
+fn time_of_day_on_the_microphone_counts_the_recorders_breaks() {
+    let base = std::env::temp_dir().join(format!("tg-app-strip-clock-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "test".into());
+    app.strip.clock = true;
+    let mut r = Recorder::start(&base.join("live"), app.info("test", 48000, 16)).unwrap();
+    let now = std::time::SystemTime::now();
+    let block = |at| timegrapher_core::capture::Block {
+        samples: vec![0.0; 48000 * 10],
+        at,
+    };
+    r.write(&block(now)).unwrap();
+    // 100 s of sound lost between the two blocks.
+    r.sound_lost(100.0);
+    r.write(&block(now + std::time::Duration::from_secs(110)))
+        .unwrap();
+    app.session.recorder = Some(r);
+    let w = app
+        .strip_wall(&egui::Context::default())
+        .expect("a recording has a start");
+    let across = w.unix_at(15.0) - w.unix_at(5.0);
+    assert!(
+        (across - 110.0).abs() < 1e-6,
+        "{across} s from 0:05 to 0:15"
+    );
+    app.session.discard_recording();
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// Time of Day with no recording: no clock, so the strip shows the
+/// take's time alone rather than counting from now.
+#[test]
+fn time_of_day_without_a_recording_has_no_clock() {
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "test".into());
+    app.strip.clock = true;
+    assert!(app.session.recorder.is_none());
+    assert!(app.strip_wall(&egui::Context::default()).is_none());
+}
+
+/// Time of Day on one segment of a take opened alone: its second 0 isn't
+/// the take's start, so no clock; the whole take opened has one.
+#[test]
+fn time_of_day_on_a_segment_opened_alone_has_no_clock() {
+    use timegrapher_core::breaks::Unlisted;
+    let take = std::env::temp_dir().join(format!("tg-app-strip-segment-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&take);
+    std::fs::create_dir_all(&take).unwrap();
+    std::fs::write(take.join(timegrapher_core::take::MANIFEST), "").unwrap();
+    std::fs::write(
+        take.join("session.json"),
+        r#"{"started_utc": "2026-11-20T14:32:17.5Z"}"#,
+    )
+    .unwrap();
+    for (unlisted, clock) in [(None, true), (Some(Unlisted::NotTheTake), false)] {
+        let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+        app.strip.clock = true;
+        app.input = Input::File;
+        app.opened_path = take.display().to_string();
+        app.put_take_breaks(Some(Vec::new()), unlisted);
+        let wall = app.strip_wall(&egui::Context::default());
+        assert_eq!(wall.is_some(), clock, "{unlisted:?}: {wall:?}");
+    }
+    let _ = std::fs::remove_dir_all(&take);
+}
+
+/// Time of Day's hover, in full: on for a take whose start isn't known it
+/// says only the take's own time shows; off, or with a start, what the
+/// switch does (Hugh on #2170).
+#[test]
+fn time_of_day_says_when_the_takes_start_is_not_known() {
+    let ctx = egui::Context::default();
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "test".into());
+    let does = "Write the time of day on this computer's clock under the strip's time labels, \
+                and beside the cursor's time";
+    assert_eq!(app.strip_time_of_day_hint(&ctx), does);
+    app.strip.clock = true;
+    assert!(app.session.recorder.is_none());
+    assert_eq!(
+        app.strip_time_of_day_hint(&ctx),
+        "On. This take's start time isn't known, so only its own time shows"
+    );
+    let base = std::env::temp_dir().join(format!("tg-app-strip-hint-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    app.session.recorder =
+        Some(Recorder::start(&base.join("live"), app.info("test", 48000, 16)).unwrap());
+    assert_eq!(app.strip_time_of_day_hint(&ctx), does);
+    app.session.discard_recording();
+    let _ = std::fs::remove_dir_all(&base);
+}

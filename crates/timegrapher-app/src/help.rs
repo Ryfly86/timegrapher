@@ -336,6 +336,11 @@ pub const STRIP: &[&str] = &[
      a scope draws. Off, the paper slides along under the pen, the newest beats at its edge.",
     "- The time under each stretch of ink is written beside it. On still paper, dragging \
      moves the pen through time the same way it moves moving paper.",
+    "## Time of Day",
+    "- Time of Day writes the time of day on this computer's clock under each of the \
+     strip's time labels, and beside the cursor's time.",
+    "- It counts from when the take began, each break in its sound moving it on. A take \
+     with no start time shows its own time only.",
     "## Mask",
     "- Mask leaves stretches out of the readings, such as a bump of the stand. With it on, \
      drag along the strip over the beats to mask them (the pointer is a cross).",

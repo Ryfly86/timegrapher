@@ -195,6 +195,7 @@ impl Default for Settings {
                 span_s: timegrapher_core::live::DEFAULT_STRIP_S,
                 horizontal: true,
                 still: false,
+                clock: false,
             },
             rate_line: true,
             rate_guides: true,

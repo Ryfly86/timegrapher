@@ -364,30 +364,31 @@ impl TimegrapherApp {
         }
     }
 
-    /// The strip settings' Direction: Down or Across. In the toolbar the
-    /// segment's words say it with no caption (Hugh, so the row fits with
-    /// Still Paper at 1000 pt); in the "…" menu it keeps its name.
+    /// The strip settings' Direction: Down or Across. In the toolbar one
+    /// arrow shows the way the paper runs and a click turns it (Hugh, on
+    /// #2170, so the row fits Still Paper and Time of Day at 1000 pt); in
+    /// the "…" menu the choice keeps its words.
     fn strip_direction(&mut self, ui: &mut egui::Ui) {
         let mut h = self.strip.horizontal;
-        let choices = [
-            (
-                false,
-                "Down",
-                "Direction the paper runs: Down, newest beats at the top, the strip beside the \
-                 charts",
-            ),
-            (
-                true,
-                "Across",
-                "Direction the paper runs: Across, newest beats at the right, the strip above \
-                 the charts",
-            ),
-        ];
-        theme::tool_words(
+        theme::tool_choice(
             ui,
             "Direction",
             "Direction the paper runs: Down or Across",
-            |ui| theme::segmented(ui, &mut h, &choices),
+            &mut h,
+            &[
+                (
+                    false,
+                    Icon::ArrowDown,
+                    "Down",
+                    "Newest beats at the top, the strip beside the charts",
+                ),
+                (
+                    true,
+                    Icon::ArrowRight,
+                    "Across",
+                    "Newest beats at the right, the strip above the charts",
+                ),
+            ],
         );
         if h != self.strip.horizontal {
             self.strip.horizontal = h;
@@ -411,6 +412,32 @@ impl TimegrapherApp {
             &mut self.strip.still,
             hint,
         );
+    }
+
+    /// The strip settings' Time of Day switch, after Still Paper: the
+    /// paper's own switches sit and fold together (Hugh, on #2170). Never
+    /// greyed: a setting kept between runs, it can be set before a take.
+    fn strip_time_of_day(&mut self, ui: &mut egui::Ui, pal: &theme::Palette) {
+        let hint = self.strip_time_of_day_hint(ui.ctx());
+        theme::tool_switch(
+            ui,
+            Icon::TimeOfDay,
+            pal.accent,
+            "Time of Day",
+            &mut self.strip.clock,
+            hint,
+        );
+    }
+
+    /// Time of Day's hover: what it does, or, on for a take whose start
+    /// isn't known, that only the take's own time shows.
+    pub(super) fn strip_time_of_day_hint(&self, ctx: &egui::Context) -> &'static str {
+        if self.strip.clock && self.live.is_some() && self.strip_wall(ctx).is_none() {
+            "On. This take's start time isn't known, so only its own time shows"
+        } else {
+            "Write the time of day on this computer's clock under the strip's time labels, \
+             and beside the cursor's time"
+        }
     }
 
     pub(super) fn strip_settings(&mut self, ui: &mut egui::Ui) {
@@ -461,6 +488,7 @@ impl TimegrapherApp {
         theme::bar_gap(ui);
         self.strip_direction(ui);
         self.strip_paper(ui, pal);
+        self.strip_time_of_day(ui, pal);
         theme::bar_gap(ui);
         self.export_button(ui, Pane::Strip);
     }
@@ -592,6 +620,7 @@ impl TimegrapherApp {
             settles = vec![(from, end + 1.0, "Possible Beats")];
         }
         let rate_line = rate_line.filter(|_| !guessing);
+        let wall = self.strip_wall(ui.ctx());
         let extras = strip::Extras {
             note: note.as_deref(),
             rate_line,
@@ -621,6 +650,7 @@ impl TimegrapherApp {
                 .as_ref()
                 .filter(|_| !guessing)
                 .map(|l| l.beats_gen()),
+            wall: wall.as_ref(),
         };
         let Some(live) = &self.live else { return };
         let candidates = numbered_candidates(&candidates, period);
@@ -646,6 +676,54 @@ impl TimegrapherApp {
             self.cursor_next = input.hover_t;
         }
         self.apply_strip_input(input, end);
+    }
+
+    /// The take on this computer's clock, for Time of Day: none with it
+    /// off, or when it isn't known when the take's second 0 was. A take on
+    /// the microphone began when its recording did, the breaks its
+    /// recorder kept moving the clock on; with no recording, none. One
+    /// opened began when its session.json says, its breaks moving the
+    /// clock on; one segment opened alone, whose second 0 is not the
+    /// take's start, has none.
+    pub(super) fn strip_wall(
+        &self,
+        ctx: &egui::Context,
+    ) -> Option<timegrapher_core::time_of_day::WallClock> {
+        use timegrapher_core::breaks::{Break, Unlisted};
+        use timegrapher_core::time_of_day::WallClock;
+        if !self.strip.clock {
+            return None;
+        }
+        if self.input != Input::File {
+            let r = self.session.recorder.as_ref()?;
+            let breaks: Vec<Break> = r
+                .breaks()
+                .iter()
+                .map(|b| Break {
+                    audio_s: b.audio_s,
+                    gap_s: b.gap_s,
+                })
+                .collect();
+            return Some(WallClock::new(self.recording_began_unix()?, &breaks));
+        }
+        if self.take_unlisted == Some(Unlisted::NotTheTake) {
+            return None;
+        }
+        let breaks = self.take_breaks.as_deref().unwrap_or_default();
+        // Its session.json read once for each take opened.
+        let id = egui::Id::new("strip opened start");
+        let path = &self.opened_path;
+        let kept: Option<(String, Option<String>)> = ctx.data(|d| d.get_temp(id));
+        let start = match kept {
+            Some((p, start)) if &p == path => start,
+            _ => {
+                let dir = compare_take::take_dir_of(Path::new(path));
+                let start = dir.and_then(|d| started_in(&d));
+                ctx.data_mut(|d| d.insert_temp(id, (path.clone(), start.clone())));
+                start
+            }
+        };
+        WallClock::of_take(&start?, breaks)
     }
 
     /// The rate line the strip draws, when Rate Line or Parallel Guides
