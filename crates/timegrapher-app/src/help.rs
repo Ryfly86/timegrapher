@@ -415,6 +415,7 @@ const STEADY_READINGS: &[&str] = &[
      lowest to highest; pointing at it says how many.",
     "- Solid lines are stretches of constant level, drawn where the headline names a level \
      change or a slide.",
+    "- Dashed lines are the two levels, where the readings flip between two states.",
     "- The tests need about 5 minutes of beats.",
 ];
 
@@ -449,9 +450,11 @@ const STEADY_AUTOCORRELATION: &[&str] = &[
     "## What It Shows",
     "- Across: the lag. Up: the correlation, from −1 to +1.",
     "- Independent readings stay inside the dashed band. A rise back to a peak outside it \
-     means the readings repeat at that lag.",
-    "- The first such peak is marked with its lag, or, when the autocorrelation found the \
-     headline's cycle, that cycle's lag.",
+     can mean the readings repeat at that lag.",
+    "- The first clear repeat is marked with its lag: a peak well outside the band, after the \
+     curve fell well below it, that comes back near twice its lag.",
+    "- A lone peak isn't marked, since a cycle repeats and a chance bump doesn't.",
+    "- When the autocorrelation found the headline's cycle, that cycle's lag is marked instead.",
     "- The note gives the Ljung–Box p-value: under 0.01, the readings are not independent.",
 ];
 

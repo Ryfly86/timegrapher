@@ -205,9 +205,13 @@ fn every_wheel_line_says_what_it_is(s: &Steadiness) {
         for _ in 0..3 {
             still = frame(None);
         }
+        // Every wheel's and mesh's name, so the names other lines run
+        // through (the escape wheel's 5 s line through a mesh's) are in.
         let names: Vec<(String, egui::Rect)> = still
             .iter()
-            .filter(|t| t.0.starts_with("Fourth Wheel"))
+            .filter(|t| t.0.ends_with("Wheel") || t.0.contains("Wheel ×") || t.0.ends_with("Mesh"))
+            // Not a peak's label ("60 s, Fourth Wheel"), which has no hover.
+            .filter(|t| !t.0.contains(", "))
             .cloned()
             .collect();
         assert!(!names.is_empty(), "{view:?} {h}: no wheel named");
@@ -222,11 +226,49 @@ fn every_wheel_line_says_what_it_is(s: &Steadiness) {
                 .map(|t| t.0)
                 .filter(|t| !still.iter().any(|s| &s.0 == t))
                 .collect();
+            // A wheel's hover starts with its name; a mesh's with its
+            // period and what it is. Either way, only the one.
             let own = format!("{name}: ");
             assert!(
-                added.len() == 1 && added[0].starts_with(&own),
+                added.len() == 1 && (name.ends_with("Mesh") || added[0].starts_with(&own)),
                 "{view:?} {h} {series:?}: {name} shows {added:?}"
             );
+        }
+    }
+}
+
+/// Each Steadiness view's "?" is its own (#1986): nine different texts,
+/// each with its Controls heading once, the maps ending with the Map
+/// bullet and the rest with the Series one, then Info; and only Readings,
+/// the view of dots, says what a rate dot is.
+#[test]
+fn each_view_has_its_own_help() {
+    let texts: Vec<Vec<&str>> = View::ALL
+        .iter()
+        .map(|&v| crate::help::steadiness(v))
+        .collect();
+    for (v, t) in View::ALL.iter().zip(&texts) {
+        let controls = t.iter().filter(|l| **l == "## Controls").count();
+        assert_eq!(controls, 1, "{v:?}");
+        let maps = matches!(v, View::Stft | View::Wavelet);
+        let n = t.len();
+        let series = t[n - 2].starts_with("- Series:");
+        let map = t[n - 2].starts_with("- Map:");
+        assert!(if maps { map } else { series }, "{v:?}: {}", t[n - 2]);
+        assert_eq!(
+            t.iter()
+                .filter(|l| l.starts_with("- Series:") || l.starts_with("- Map:"))
+                .count(),
+            1,
+            "{v:?}"
+        );
+        assert!(t[n - 1].starts_with("- Info"), "{v:?}");
+        let dot = t.iter().any(|l| l.contains("A rate dot"));
+        assert_eq!(dot, *v == View::Readings, "{v:?}");
+    }
+    for (i, a) in texts.iter().enumerate() {
+        for b in &texts[i + 1..] {
+            assert_ne!(a, b);
         }
     }
 }
