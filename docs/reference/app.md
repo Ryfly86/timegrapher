@@ -329,9 +329,12 @@ under it its calibre, beat rate, lift angle and added fields, with
   first", then the Bench's, #2007); then the takes as a table, newest
   first: Started, Position (such as DU, or DU, CU, or All 6; Power Reserve,
   Positions Test or Dynamic Poise Test for those tests, a test's positions in the row's hover), Length, Rate (s/d), Amplitude (°), Beat Error (ms, its size) and
-  Size (MB), each unit on its own line under its title. The figures are the take's own reading, as `timegrapher
-  session` reads its last position on the take's clock, the same one
-  `timegrapher watches` gives: worked out from the take's sound the first
+  Size (MB), each unit on its own line under its title. The figures are the take's own reading of its last
+  position on the take's clock, the same one `timegrapher watches` gives:
+  as `timegrapher session` reads it, or, where the take lists that
+  position as more than one entry (a take in ten-minute files), every
+  entry in it read together, as the Bench reads the whole take there
+  (core's `library::reading`, #2121); worked out from the take's sound the first
   time the list shows it (about a minute for a 9 hour take, the row
   blank until then, its hover saying it is being read), then kept. The
   take opened shows the same reading on its cards at its end, to the last
@@ -343,7 +346,7 @@ under it its calibre, beat rate, lift angle and added fields, with
   `beats::last_watch_beat_s`, #2081), so a quiet stand after the watch
   is lifted, and any stray beat in its hiss, moves nothing. The row's
   hover says, on the line after its
-  figures, that the cards at Stop can differ a little. A test's last
+  figures, that the cards at Stop can differ, as they read only the last Average Over. A test's last
   window never stands for the test: a Positions Test's row shows its Mean row, the
   figures its table shows ("Mean of the six positions" in the row's hover),
   and a Power Reserve Test's shows its run time as its Length and a dim

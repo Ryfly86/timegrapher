@@ -1590,16 +1590,17 @@ fn engine_line() -> String {
 }
 
 /// Why the cards' figures at Stop can differ from a take's own, on the
-/// line after them (#2073; Norm's ruling 3, Hugh 5's words): they read the
-/// stretch of Average Over ending at Stop, as the sound came in, where the
-/// take's are its whole stretch read afterwards. An opened take's cards at
-/// its end give the take's own.
-pub(crate) const AT_STOP_LINE: &str = "The cards at Stop can differ a little: they read the \
-     stretch of Average Over ending there, as the sound came in.";
+/// line after them (#2073; Norm's ruling 3): they read only the last
+/// Average Over before Stop, as the sound came in, where the take's are
+/// all of its last position read afterwards, which on a long take can be
+/// far apart (#2121, Hugh's words). An opened take's cards at its end give
+/// the take's own.
+pub(crate) const AT_STOP_LINE: &str = "The cards at Stop read only the last Average Over before \
+     it, not the whole take, so they can differ from these figures.";
 
 /// A take's own figures as its hover says them, on a line of their own
 /// after its facts: which position they are of, where it has more than
-/// one, and that they are its whole stretch after settling, so they can
+/// one, and that they are all of it after settling, so they can
 /// differ from the Bench's at Stop, which the line after says for a take
 /// listened to (#1979, #2073). Empty for a test's take, whose figures [`figures_hover`] says,
 /// or with nothing read.
@@ -1636,12 +1637,12 @@ fn read_line(t: &Take, test: Option<TakeTest>, reading: Option<&Reading>) -> Str
 }
 
 /// What a take's whole reading is of, in words: "the whole take", or
-/// "Crown Up, its whole stretch" for `position` where the take has more
+/// "all of Crown Up" for `position` where the take has more
 /// than one of its `positions`. The one naming for a take's row and its
 /// cards' hover (#1979, #2075).
 pub(crate) fn whole_named(position: Option<Position>, positions: usize) -> String {
     match position {
-        Some(p) if positions > 1 => format!("{}, its whole stretch", p.name()),
+        Some(p) if positions > 1 => format!("all of {}", p.name()),
         _ => "the whole take".to_string(),
     }
 }
