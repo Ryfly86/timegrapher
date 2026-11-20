@@ -61,6 +61,24 @@ pub(super) fn card_wait(
     })
 }
 
+/// What the Beat Error card says in its figure's place, for reading `r`:
+/// the cards' shared wait, or the card's own ([`card_wait`]); and where
+/// `r` has figures but no beat error from either edge, its sides not yet
+/// told apart, core's "Waiting for Tick and Tock", never a bare dash
+/// (Norm and Hugh 5 on #2133).
+pub(super) fn beat_error_card_wait(
+    unheard: Option<&(String, String)>,
+    r: Option<&LiveReading>,
+) -> Option<(String, String)> {
+    let be = r.and_then(beat_error_figure);
+    let sides = r
+        .and_then(|r| {
+            measure::beat_error_wait(r.rate_s_per_day, r.beat_error_ms, r.beat_error_unlock_ms)
+        })
+        .map(wait_words);
+    card_wait(unheard, r, be.is_some(), false).or(sides.filter(|_| be.is_none()))
+}
+
 /// Whether a reading's stretch holds no beat at all: no beat rate found,
 /// or none of its beats in the stretch (an opened recording of silence).
 pub(super) fn no_beat(r: &LiveReading) -> bool {
@@ -1122,6 +1140,7 @@ impl TimegrapherApp {
             from = format!("{words}\n\n{from}");
         }
         let be = r.and_then(beat_error_figure);
+        let wait = beat_error_card_wait(c.unheard.as_ref(), r);
         let (fig, spark, place) = sparkline::lay(rows.inner, rows.figure, rows.controls);
         let spark = trend_chip(ui, spark, caption, &be_facts, c.short);
         let colour = theme::pal(ui).trace_beat_error;
@@ -1131,7 +1150,7 @@ impl TimegrapherApp {
             fig,
             be.as_deref(),
             &unit,
-            c.wait(be.is_some(), false).as_ref(),
+            wait.as_ref(),
             &with_moment(c.moment.as_deref(), &from),
             (compact, Some(2)),
         );

@@ -90,7 +90,7 @@ impl TimegrapherApp {
         self.session.discard_recording();
         self.session.clear();
         self.put_input_clock(None);
-        self.live = Some(LiveAnalyzer::new(sample_rate, self.live_config()));
+        self.live = Some(LiveAnalyzer::new(sample_rate, self.live_config()).with_figures_as_file());
         self.live_usb = Some(live_usb::LiveUsb::new(sample_rate));
         self.source_label = label;
         self.gutter_fresh = true;
@@ -2268,7 +2268,9 @@ impl TimegrapherApp {
             self.clipped_at = Some(Instant::now());
         }
         self.live_usb.iter_mut().for_each(|u| u.push(&b.samples));
-        if live.push(&b.samples) {
+        // Never stalled for the figures read as a file (#1987): a sped-up
+        // replay's catch up when the template is built again, or on Stop.
+        if live.push_without_waiting(&b.samples) {
             // A jump the beats' timing shows is found a second
             // or two after it: the points read since reached
             // across it, so they go.

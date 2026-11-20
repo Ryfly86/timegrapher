@@ -1189,3 +1189,42 @@ fn last_beat_differences(
     }
     wrong
 }
+
+/// Walter 17's splice on #2133: 25 s of the ETA 2824 in its holder (28800)
+/// straight into the Reverso (21600), heard live. In the seconds after it,
+/// while live has lost its sides, Beat Error shows the read's figure, the
+/// saved take's, and never a bare dash (Norm and Hugh 5).
+#[test]
+fn walters_splice_shows_the_reads_beat_error() {
+    let required = std::env::var_os("TIMEGRAPHER_REQUIRE_CORPUS").is_some();
+    let Some(root) = std::env::var_os("TIMEGRAPHER_CORPUS").map(PathBuf::from) else {
+        assert!(!required, "TIMEGRAPHER_CORPUS is needed");
+        return eprintln!("skipped: TIMEGRAPHER_CORPUS isn't set");
+    };
+    let load = |id: &str| {
+        let flac = root.join("takes").join(id).join("take_part01-001.flac");
+        flac.exists()
+            .then(|| timegrapher_core::audio::load(&flac).unwrap())
+    };
+    let (Some(eta), Some(reverso)) = (
+        load("eta2824_holder_DU_30min"),
+        load("reverso21600_DU_20min_newstand"),
+    ) else {
+        assert!(
+            !required,
+            "the ETA holder and Reverso takes' sound is needed"
+        );
+        return eprintln!("skipped: the takes' sound isn't here");
+    };
+    let fs = eta.sample_rate as usize;
+    let first = &eta.samples[..25 * fs];
+    let splice = &reverso.samples[..8 * fs];
+    let (read_sides, worded) = super::readouts_tests::beat_error_after(first, splice);
+    eprintln!(
+        "{read_sides} frames showed the read's beat error with live's sides lost, {worded} worded"
+    );
+    assert!(
+        read_sides > 0,
+        "Walter's moments: the read's beat error, live's sides lost"
+    );
+}
