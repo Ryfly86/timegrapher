@@ -1631,3 +1631,95 @@ fn every_tests_table_says_its_saved_take_is_analysed_again() {
         );
     }
 }
+
+/// The pointer jumps to a banner button and clicks it, as a mouse moved
+/// quickly does: the pane doesn't take the click for a flick of the
+/// table and coast on by itself, so the banner's title and its next
+/// button stay in view as the table grows (#2113, the v1.1 shakedown).
+#[test]
+fn a_click_on_the_banner_never_scrolls_the_pane() {
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    let all = six_readings();
+    let mut test = Test::new().timed(2.0, 4.0);
+    let (plot, mut button) = (egui::pos2(1090.0, 90.0), None::<egui::Pos2>);
+    let mut now = 0.0;
+    // Pressed, then released a frame later.
+    let mut press = None::<f64>;
+    while test.step < 4 {
+        let phase = test.tick(now);
+        let mut events = Vec::new();
+        let ev = |pos, pressed| egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: Default::default(),
+        };
+        match (phase, press, button) {
+            (Phase::Turn, None, Some(b)) => {
+                test.done = all[..=test.step].to_vec();
+                events.extend([egui::Event::PointerMoved(b), ev(b, true)]);
+                press = Some(now);
+            }
+            (_, Some(_), Some(b)) => {
+                events.extend([ev(b, false), egui::Event::PointerMoved(plot)]);
+                press = None;
+            }
+            _ => events.push(egui::Event::PointerMoved(plot)),
+        }
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                Vec2::new(2560.0, 470.0),
+            )),
+            time: Some(now),
+            events,
+            ..Default::default()
+        };
+        let mut action = None;
+        let out = ctx.run(input, |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                let card = ("Current Position", false, [true; 3], false);
+                action = pane(
+                    ui,
+                    Some(&test),
+                    Some(phase),
+                    None,
+                    None,
+                    None,
+                    None,
+                    2.0,
+                    false,
+                    None,
+                    card,
+                );
+            });
+        });
+        let at = |words: &str| {
+            out.shapes.iter().find_map(|c| match &c.shape {
+                egui::Shape::Text(s) if s.galley.text() == words => Some(s.pos),
+                _ => None,
+            })
+        };
+        let title = phase_words(&test, phase).0;
+        let shown = at(&title);
+        assert!(
+            shown.is_some_and(|p| p.y >= 0.0),
+            "step {} {phase:?} at {now} s: {title} out of view",
+            test.step
+        );
+        button = (phase == Phase::Turn)
+            .then(|| {
+                at(&format!(
+                    "Start {} Measurement",
+                    test.step_code(test.step + 1)
+                ))
+            })
+            .flatten()
+            .map(|p| p + Vec2::new(10.0, 6.0));
+        if action == Some(Action::Next) {
+            test.advance(now);
+        }
+        now += 0.5;
+    }
+}

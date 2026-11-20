@@ -4022,7 +4022,7 @@ dependencies = [
 
 [[package]]
 name = "timegrapher-app"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "chrono",
  "claxon",
@@ -4049,7 +4049,7 @@ dependencies = [
 
 [[package]]
 name = "timegrapher-cli"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "chrono",
  "clap",
@@ -4061,7 +4061,7 @@ dependencies = [
 
 [[package]]
 name = "timegrapher-core"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "chrono",
  "claxon",
@@ -4084,7 +4084,7 @@ dependencies = [
 
 [[package]]
 name = "timegrapher-mcp"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "rmcp",
  "serde",
