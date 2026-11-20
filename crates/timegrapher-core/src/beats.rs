@@ -1662,6 +1662,33 @@ pub fn last_watch_beat_s(beats: &[Beat]) -> Option<f64> {
     crate::timing::spans_piece(start, end).then_some(end.time)
 }
 
+/// How long the watch was heard in `beats`, seconds: the runs of good
+/// beats ([`Beat::is_good`]) with no pause between them, each as long as a
+/// piece the fit keeps, summed; the runs [`last_watch_beat_s`] counts. At
+/// a pause Auto keeps the rate that heard the most of them (#2142).
+pub fn watch_heard_s(beats: &[Beat]) -> f64 {
+    let mut good = beats.iter().filter(|b| b.is_good());
+    let Some(first) = good.next() else {
+        return 0.0;
+    };
+    let (mut start, mut end, mut sum) = (first, first, 0.0);
+    let run = |a: &Beat, b: &Beat| {
+        if crate::timing::spans_piece(a, b) {
+            b.time - a.time
+        } else {
+            0.0
+        }
+    };
+    for b in good {
+        if crate::clean::paused(end, b) {
+            sum += run(start, end);
+            start = b;
+        }
+        end = b;
+    }
+    sum + run(start, end)
+}
+
 /// Beats kept so far that the jump search looks back through for the good
 /// beats before a jump ([`good_tail`]): about four minutes at 28,800 bph,
 /// longer than the tracker follows noise after a dropout. The one reach for

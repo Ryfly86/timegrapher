@@ -212,6 +212,8 @@ impl LiveAnalyzer {
         l.restart();
         (l.breaks, l.intrinsic_breaks, l.by_count) = (breaks, jumps, by_count);
         (l.bph, l.found_bph, l.logged_bph) = (self.bph, self.found_bph, self.logged_bph);
+        l.locks = self.locks.clone();
+        l.relock_template(&template);
         l.template = Some(template);
         l.rebuild.done = true;
         l.buf.clear();
