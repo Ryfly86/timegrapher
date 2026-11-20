@@ -354,7 +354,8 @@ impl TimegrapherApp {
         ui.separator();
         ui.checkbox(&mut self.strip.clock, "Time of Day on the Paper Strip")
             .on_hover_text(
-                "Write the time of day on this computer's clock under the strip's time                  labels, and beside its cursor's time",
+                "Write the time of day on this computer's clock under the strip's time \
+                 labels, and beside its cursor's time",
             );
     }
 

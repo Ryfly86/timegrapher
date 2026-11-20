@@ -344,8 +344,9 @@ pub struct Extras<'a> {
     /// ([`timegrapher_core::live::LiveAnalyzer::beats_gen`]): the dots
     /// drawn from them stand only while it does (#1857).
     pub beats_gen: Option<u64>,
-    /// The take on this computer's clock, when Time of Day is on: the
-    /// time axis is labelled with the time of day in place of the take's.
+    /// The take on this computer's clock, when Time of Day is on: each of
+    /// the time axis's labels has the time of day under it, and the
+    /// cursor's has it beside it.
     pub wall: Option<&'a timegrapher_core::time_of_day::WallClock>,
 }
 

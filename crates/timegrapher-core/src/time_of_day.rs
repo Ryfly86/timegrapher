@@ -3,6 +3,7 @@
 //! sound. With the Paper Strip's Time of Day on, each of its time labels
 //! has the time of day under it.
 
+use crate::breaks::{self, Break};
 use chrono::{DateTime, Local, TimeZone};
 
 /// A take's seconds on the wall clock.
@@ -10,9 +11,9 @@ use chrono::{DateTime, Local, TimeZone};
 pub struct WallClock {
     /// Unix seconds at the take's second 0: when its recording began.
     pub start_unix: f64,
-    /// Each break in the sound, in order: the take's seconds before it,
-    /// and the true seconds that passed with no sound.
-    pub breaks: Vec<(f64, f64)>,
+    /// The breaks in the take's sound, each moving the clock on by its
+    /// gap ([`breaks::wall`]).
+    pub breaks: Vec<Break>,
 }
 
 /// From this step between labelled lines, seconds, a label names the day
@@ -23,34 +24,23 @@ impl WallClock {
     /// A take begun at `started_utc` (as `2026-10-20T21:32:00Z`) with
     /// `breaks` (the take's seconds before each, its length in true
     /// seconds); `None` when the start can't be read.
-    pub fn of_take(
-        started_utc: &str,
-        breaks: impl IntoIterator<Item = (f64, f64)>,
-    ) -> Option<Self> {
+    pub fn of_take(started_utc: &str, breaks: &[Break]) -> Option<Self> {
         let start_unix = crate::full_wind::unix_of_utc(started_utc)?;
         Some(Self::new(start_unix, breaks))
     }
 
     /// A take begun at Unix second `start_unix`, with `breaks`.
-    pub fn new(start_unix: f64, breaks: impl IntoIterator<Item = (f64, f64)>) -> Self {
-        let mut breaks: Vec<(f64, f64)> = breaks
-            .into_iter()
-            .filter(|&(_, gap)| gap.is_finite() && gap > 0.0)
-            .collect();
-        breaks.sort_by(|a, b| a.0.total_cmp(&b.0));
-        WallClock { start_unix, breaks }
+    pub fn new(start_unix: f64, breaks: &[Break]) -> Self {
+        WallClock {
+            start_unix,
+            breaks: breaks.to_vec(),
+        }
     }
 
-    /// Unix seconds at the take's second `t`: its start, `t`, and every
-    /// break before `t`.
+    /// Unix seconds at the take's second `t`: its start, and `t` on true
+    /// time ([`breaks::wall`]: every break before `t` added).
     pub fn unix_at(&self, t: f64) -> f64 {
-        let gaps: f64 = self
-            .breaks
-            .iter()
-            .take_while(|b| b.0 <= t)
-            .map(|b| b.1)
-            .sum();
-        self.start_unix + t + gaps
+        self.start_unix + breaks::wall(&self.breaks, t)
     }
 
     /// The time of day at the take's second `t`, for a line on a time
@@ -117,18 +107,19 @@ mod tests {
 
     #[test]
     fn a_take_reads_its_start() {
-        let w = WallClock::of_take("2026-11-20T14:32:17.5Z", []).unwrap();
+        let w = WallClock::of_take("2026-11-20T14:32:17.5Z", &[]).unwrap();
         assert!((w.start_unix - START).abs() < 1e-6);
         assert_eq!(label_in(w.unix_at(0.0), 1.0, &utc()), "14:32:18");
         assert_eq!(label_in(w.unix_at(42.5), 60.0, &utc()), "14:33:00");
-        assert!(WallClock::of_take("not a time", []).is_none());
+        assert!(WallClock::of_take("not a time", &[]).is_none());
     }
 
-    /// A break moves every second after it on by its length.
+    /// A break moves every second after it on by its length; one with a
+    /// negative gap moves nothing.
     #[test]
     fn breaks_move_the_clock_on() {
-        let w = WallClock::new(1000.0, [(60.0, 30.0), (10.0, 5.0), (20.0, f64::NAN)]);
-        assert_eq!(w.breaks, [(10.0, 5.0), (60.0, 30.0)]);
+        let at = |audio_s, gap_s| Break { audio_s, gap_s };
+        let w = WallClock::new(1000.0, &[at(10.0, 5.0), at(30.0, -3.0), at(60.0, 30.0)]);
         assert_eq!(w.unix_at(5.0), 1005.0);
         assert_eq!(w.unix_at(20.0), 1025.0);
         assert_eq!(w.unix_at(70.0), 1105.0);

@@ -651,19 +651,37 @@ impl TimegrapherApp {
     }
 
     /// The take on this computer's clock, for Time of Day: none with it
-    /// off, or when it isn't known when the take began. A take on the
-    /// microphone began when its recording did; one opened, when its
-    /// session.json says, its breaks moving the clock on.
-    fn strip_wall(&self, ctx: &egui::Context) -> Option<timegrapher_core::time_of_day::WallClock> {
+    /// off, or when it isn't known when the take's second 0 was. A take on
+    /// the microphone began when its recording did, the breaks its
+    /// recorder kept moving the clock on; with no recording, none. One
+    /// opened began when its session.json says, its breaks moving the
+    /// clock on; one segment opened alone, whose second 0 is not the
+    /// take's start, has none.
+    pub(super) fn strip_wall(
+        &self,
+        ctx: &egui::Context,
+    ) -> Option<timegrapher_core::time_of_day::WallClock> {
+        use timegrapher_core::breaks::{Break, Unlisted};
         use timegrapher_core::time_of_day::WallClock;
         if !self.strip.clock {
             return None;
         }
-        let breaks = self.take_breaks.as_deref().unwrap_or_default();
-        let breaks = breaks.iter().map(|b| (b.audio_s, b.gap_s));
         if self.input != Input::File {
-            return Some(WallClock::new(self.began_unix()?, breaks));
+            let r = self.session.recorder.as_ref()?;
+            let breaks: Vec<Break> = r
+                .breaks()
+                .iter()
+                .map(|b| Break {
+                    audio_s: b.audio_s,
+                    gap_s: b.gap_s,
+                })
+                .collect();
+            return Some(WallClock::new(self.recording_began_unix()?, &breaks));
         }
+        if self.take_unlisted == Some(Unlisted::NotTheTake) {
+            return None;
+        }
+        let breaks = self.take_breaks.as_deref().unwrap_or_default();
         // Its session.json read once for each take opened.
         let id = egui::Id::new("strip opened start");
         let path = &self.opened_path;

@@ -322,7 +322,7 @@ mod drawn {
         assert!(take.len() >= 3, "{off:?}");
         assert!(!off.iter().any(|t| is_clock(&t.0)), "{off:?}");
         // 2026-11-20 14:32:17.5 UTC.
-        let wall = WallClock::new(1_795_185_137.5, []);
+        let wall = WallClock::new(1_795_185_137.5, &[]);
         let extras = Extras {
             wall: Some(&wall),
             ..Default::default()

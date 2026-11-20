@@ -337,8 +337,10 @@ pub const STRIP: &[&str] = &[
     "- The time under each stretch of ink is written beside it. On still paper, dragging \
      moves the pen through time the same way it moves moving paper.",
     "## Time of Day",
-    "- View > Time of Day on the Paper Strip writes the time of day on this computer's      clock under each of the strip's time labels, and beside the cursor's time.",
-    "- It counts from when the take began, each break in a saved take's sound moving it on.      A recording with no start time keeps the take's own time.",
+    "- View > Time of Day on the Paper Strip writes the time of day on this computer's \
+     clock under each of the strip's time labels, and beside the cursor's time.",
+    "- It counts from when the take began, each break in its sound moving it on. A \
+     recording with no start time keeps the take's own time.",
     "## Mask",
     "- Mask leaves stretches out of the readings, such as a bump of the stand. With it on, \
      drag along the strip over the beats to mask them (the pointer is a cross).",
