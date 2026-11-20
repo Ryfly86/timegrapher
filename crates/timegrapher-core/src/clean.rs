@@ -438,7 +438,10 @@ impl<'a> Cuts<'a> {
     /// when each part holds a good beat ([`Beat::is_good`]) too: the fit
     /// times from good beats only, so a window whose good beats sit in a
     /// few seconds of it would read the scatter of those seconds alone
-    /// (#1432). `beats` on true time, sorted.
+    /// (#1432). Its rate is read from its two halves
+    /// ([`crate::timing::window_fit`]), so a cycle that meets every bin of
+    /// the tiling at one phase does not move them all (#2089). `beats` on
+    /// true time, sorted.
     #[allow(clippy::too_many_arguments)]
     pub fn windows(
         &self,
@@ -459,7 +462,7 @@ impl<'a> Cuts<'a> {
             if self.whole(beats, s, s + len, part) && covered(&good, s, s + len, part) {
                 let lo = beats.partition_point(|x| x.time < s);
                 let hi = beats.partition_point(|x| x.time < s + len);
-                if let Some(fit) = crate::timing::fit(&beats[lo..hi], bph) {
+                if let Some(fit) = crate::timing::window_fit(&beats[lo..hi], bph, s + len / 2.0) {
                     out.push(WindowFit {
                         start_s: s,
                         end_s: s + len,
@@ -1102,5 +1105,87 @@ mod tests {
         assert_eq!(starts, want);
         assert!(starts.contains(&90.0) && starts.contains(&130.0) && starts.contains(&320.0));
         assert!(!starts.contains(&95.0) && !starts.contains(&175.0) && !starts.contains(&185.0));
+    }
+
+    /// 30 min of a watch 5 s/d fast at 28,800 bph whose timing swings
+    /// 0.33 ms peak to peak with the escape wheel's 5 s turn, as on the
+    /// corpus's ETA 2824 (#2089), with `scatter_s` of white timing scatter
+    /// from `seed`, the wheel at phase `phase` of its turn at 0 s and
+    /// `swing_s` half its peak to peak.
+    fn wheel_beats(phase: f64, swing_s: f64, scatter_s: f64, seed: u64) -> Vec<Beat> {
+        let period = crate::timing::period_s(0.125, 5.0);
+        let mut rng = crate::synth::Rng::new(seed);
+        (0..14_400)
+            .map(|i| {
+                let t = i as f64 * period;
+                let turn = std::f64::consts::TAU * (t / 5.0 + phase);
+                Beat {
+                    index: i,
+                    time: t + swing_s * turn.sin() + scatter_s * rng.normal(),
+                    quality: 1.0,
+                }
+            })
+            .collect()
+    }
+
+    /// The median of the 10 s windows' rates on the take's tiling.
+    fn window_median(beats: &[Beat]) -> f64 {
+        let to = beats.last().unwrap().time;
+        let mut r: Vec<f64> = Cuts::none()
+            .windows(beats, 28800, 0.0, to, 10.0, 5.0, 2.0)
+            .iter()
+            .map(|w| w.fit.rate_s_per_day)
+            .collect();
+        crate::dsp::median(&mut r)
+    }
+
+    /// The tiling steps 5 s, so the escape wheel's 5 s turn meets every
+    /// window at one phase: a straight line through each read the turn's
+    /// slope, the same in every window, and moved the windows' median
+    /// over a s/d off the watch's rate by where the turn started (#2089,
+    /// #2090). Read from their halves, every phase of the turn gives the
+    /// watch's 5 s/d.
+    #[test]
+    fn a_wheel_turn_locked_to_the_tiling_leaves_the_window_rates_alone() {
+        for k in 0..8 {
+            let phase = k as f64 / 8.0;
+            let m = window_median(&wheel_beats(phase, 0.000_165, 0.0, 1));
+            assert!((m - 5.0).abs() < 0.05, "phase {phase}: median {m} s/d");
+        }
+    }
+
+    /// On white timing scatter alone the halves' rates centre on the
+    /// watch's and spread about 2/sqrt(3) as wide as a straight line's,
+    /// the cost of being blind to the wheel: seeded, 20 µs of scatter.
+    #[test]
+    fn halves_rates_on_white_scatter_centre_on_the_rate() {
+        let mut halves = Vec::new();
+        let mut line = Vec::new();
+        for seed in 1..=4 {
+            let beats = wheel_beats(0.0, 0.0, 20e-6, seed);
+            for w in Cuts::none().windows(&beats, 28800, 0.0, 1790.0, 10.0, 10.0, 2.0) {
+                halves.push(w.fit.rate_s_per_day);
+                let lo = beats.partition_point(|b| b.time < w.start_s);
+                let hi = beats.partition_point(|b| b.time < w.end_s);
+                line.push(
+                    crate::timing::fit(&beats[lo..hi], 28800)
+                        .unwrap()
+                        .rate_s_per_day,
+                );
+            }
+        }
+        let mean = |v: &[f64]| v.iter().sum::<f64>() / v.len() as f64;
+        let sd = |v: &[f64]| {
+            let m = mean(v);
+            (v.iter().map(|x| (x - m).powi(2)).sum::<f64>() / (v.len() - 1) as f64).sqrt()
+        };
+        let se = sd(&halves) / (halves.len() as f64).sqrt();
+        assert!(
+            (mean(&halves) - 5.0).abs() < 3.0 * se,
+            "mean {}",
+            mean(&halves)
+        );
+        let ratio = sd(&halves) / sd(&line);
+        assert!((ratio - 2.0 / 3f64.sqrt()).abs() < 0.08, "ratio {ratio}");
     }
 }

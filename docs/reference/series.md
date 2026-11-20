@@ -92,10 +92,10 @@ The amplitude and the beat error are measured in 2 s windows; the
 windows that fall in each rate reading make one reading, their median,
 as the session's figures take theirs (`session::window_figures`).
 The slopes against the amplitude pair each rate reading with its own
-mean of those windows instead, each window weighted as the rate's
-least-squares line weights its span, 6u(1 − u) integrated over the window
-(0.104, 0.248, 0.296, 0.248, 0.104 for five windows;
-`amplitude_slope::rate_fit_weight`). A short event inside a reading then
+mean of those windows instead, each window weighted as the rate read
+from the reading's two halves weights its span, a triangle peaking at
+the middle integrated over the window (0.08, 0.24, 0.36, 0.24, 0.08 for
+five windows; `amplitude_slope::rate_fit_weight`). A short event inside a reading then
 moves the amplitude it is paired with as far as it moves the rate. A
 median moves all the way once most windows are in the event, and a
 plain mean moves less than the rate does, so either one biases the slope
