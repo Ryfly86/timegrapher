@@ -540,6 +540,61 @@ fn a_short_average_hears_a_watch_as_a_ten_second_one_does() {
     short_averages_agree(&[("live", &live), ("opened", &opened)], &log, &opened);
 }
 
+/// A short reading's look back counts the sound heard, masked seconds
+/// left out (#1965, #2017): live, before a beat rate is found, 11 s into
+/// an empty stand with 3 s masked holds 8 s of sound, so its regularity
+/// is not assessed, and with nothing masked it is, as noise.
+#[test]
+fn a_mask_in_a_short_readings_look_back_is_no_sound_heard() {
+    let a = empty_stand();
+    let live = pushed(&a, 4800);
+    let mut masked = live.clone();
+    masked.set_masked(&[(1.0, 4.0)]);
+    let scatter = Caveat::NoWatch {
+        reason: NoWatchReason::Scatter,
+    };
+    let (r, m) = (live.reading_at(11.0, 2.0), masked.reading_at(11.0, 2.0));
+    assert_eq!((r.bph, m.bph), (None, None), "before a beat rate is found");
+    assert!(r.caveats.contains(&scatter), "12 s heard: judged, noise");
+    assert!(!m.caveats.contains(&scatter), "8 s heard: not judged");
+    assert!(m.rate_s_per_day.is_none());
+}
+
+/// A saved short stretch whose look back reads no scatter judges nothing
+/// there, and is judged on its own span (#1965, #2150): the app reads a
+/// take after a settle from a log without the settle's beats, so 5 s of a
+/// clean watch after 20 s with no beats read as noise, and the app showed
+/// no beat error where `session` showed one.
+#[test]
+fn a_look_back_with_no_beats_judges_nothing() {
+    let beats = (160..200)
+        .map(|index| timegrapher_core::beats::Beat {
+            time: index as f64 * 0.125 + if index % 2 == 1 { 0.0002 } else { 0.0 },
+            index,
+            quality: 1.0,
+        })
+        .collect();
+    let log = BeatLog {
+        lock_template_kept: false,
+        sample_rate: 48_000,
+        duration_s: 25.0,
+        bph: 28_800,
+        lift_deg: 52.0,
+        beats,
+        amplitude_windows: Vec::new(),
+        clipped_beats: Vec::new(),
+        clipped_samples: 0,
+        jumps: Vec::new(),
+        sided: Vec::new(),
+        by_count: Vec::new(),
+        snippets: Vec::new(),
+    };
+    let m = session::measure(&log, None, 20.0, 25.0);
+    assert!(m.jitter_us.is_none(), "no scatter read in the look back");
+    assert!(m.watch_heard, "{:?}", m.caveats);
+    assert!(m.rate_s_per_day.is_some());
+}
+
 /// [`a_short_average_hears_a_watch_as_a_ten_second_one_does`] for
 /// `engines`: the verdict at each Average Over under 10 s, every second
 /// from 10 s, is the 10 s one's, and a reading not heard shows no
