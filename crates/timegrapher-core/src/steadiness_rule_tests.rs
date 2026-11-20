@@ -218,3 +218,42 @@ fn a_step_or_slide_headline_names_both_detail_rows() {
     let c = s.changes.as_ref().unwrap();
     assert!(c.named && c.note.is_none(), "{:?}", c.note);
 }
+
+/// A step-or-slide headline names a few shifts one by one, with a verb
+/// that agrees; past three, their count and the first and last, never a
+/// list of a dozen times (#2120, Shane on the DayDate 36's run-down).
+#[test]
+fn a_step_or_slide_headline_counts_many_shifts() {
+    let at = |start_s: f64| Segment {
+        start_s,
+        end_s: start_s + 3600.0,
+        mean: start_s / 3600.0,
+    };
+    let headline = |hours: &[f64]| {
+        let mut s = base();
+        s.lead = Lead::StepOrSlide;
+        let mut ch = two_levels(0.98);
+        ch.segments = std::iter::once(0.0)
+            .chain(hours.iter().map(|h| h * 3600.0))
+            .map(at)
+            .collect();
+        s.changes = Some(ch);
+        s.trend = Some(slide(0.25, 1e-9));
+        words::step_or_slide_text(&s, "Rate")
+    };
+    let one = headline(&[37.6]);
+    assert!(one.contains(": a shift at 37.6 h explains "), "{one}");
+    let three = headline(&[37.6, 55.0, 60.0]);
+    assert!(
+        three.contains(": shifts at 37.6 h, 55.0 h, 60.0 h explain "),
+        "{three}"
+    );
+    let twelve = headline(&[
+        37.6, 55.0, 60.0, 62.8, 64.6, 65.8, 66.1, 66.3, 66.4, 66.5, 66.7, 67.0,
+    ]);
+    assert!(
+        twelve.contains(": 12 shifts from 37.6 h to 67.0 h explain "),
+        "{twelve}"
+    );
+    assert!(!twelve.contains("62.8 h"), "{twelve}");
+}
