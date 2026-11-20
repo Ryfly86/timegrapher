@@ -2442,3 +2442,43 @@ fn under_ten_seconds_heard_and_over_says_so_on_every_card() {
     app.strip_end = Some(5.0);
     assert!(cards_text(&app, &ctx).contains("Listening"));
 }
+
+/// A watch heard past its first seconds while the figures are read as a
+/// file (#1987): before a read has figures of it, the cards say the beat
+/// is being found, never a word for no beats nor live's own figures
+/// (Hugh 5 and Norm on #2133).
+#[test]
+fn a_watch_heard_never_waits_for_beats_while_its_figures_are_read() {
+    use timegrapher_core::measure::FINDING_TITLE;
+    use timegrapher_core::synth::{generate, SynthConfig};
+    let ctx = themed();
+    let base = std::env::temp_dir().join(format!("tg-read-gap-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "watch".into());
+    let _tx = super::tests::queued_capture(&mut app, &base);
+    let cfg = SynthConfig {
+        duration_s: 12.0,
+        ..Default::default()
+    };
+    let sound = generate(&cfg, |_| 280.0, |_| 0.0).samples;
+    // Heard all at once, as the app's feed takes a backlog: the first
+    // read starts on all of it, so none has landed yet.
+    let live = app.live.as_mut().expect("live");
+    live.push_without_waiting(&sound);
+    assert_eq!(live.read_as_file_to(), None, "no read has landed");
+    let r = app.reading().expect("a reading");
+    assert!(r.finding_beat && !r.watch_heard, "{r:?}");
+    assert!(r.rate_s_per_day.is_none(), "not live's own figures: {r:?}");
+    let text = cards_text(&app, &ctx);
+    for word in ["Waiting", "No Beats"] {
+        assert!(!text.contains(word), "{word}: {text}");
+    }
+    let (finding, _) = FINDING_TITLE.split_once(' ').expect("words");
+    assert!(text.contains(finding), "{text}");
+    // Once the read lands, its figures.
+    app.live.as_mut().expect("live").read_as_file_now();
+    let r = app.reading().expect("a reading");
+    assert!(r.watch_heard && r.rate_s_per_day.is_some(), "{r:?}");
+    let _ = std::fs::remove_dir_all(base);
+}

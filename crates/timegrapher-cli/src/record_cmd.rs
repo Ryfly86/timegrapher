@@ -745,7 +745,10 @@ impl Feed {
         }
     }
 
+    /// The done frame: everything heard read as a file once more, as the
+    /// app's Stop does, so its figures are the saved take's (#1987).
     fn finish(&mut self) {
+        self.live.settle();
         self.write(true);
     }
 
@@ -1351,6 +1354,53 @@ mod tests {
             sources.last().unwrap(),
             &doc["reading"]["beat_error_source"]
         );
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    /// The done frame's figures are the saved take's of the same sound,
+    /// to the bit, as the app's Stop gives them (#1987).
+    #[test]
+    fn the_done_frame_reads_as_the_saved_take() {
+        use timegrapher_core::synth::{generate, SynthConfig};
+        let dir = std::env::temp_dir().join(format!("tg-live-done-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("live.json");
+        let set = Settings {
+            watch: None,
+            calibre: None,
+            bph: Some(28800),
+            lift: 52.0,
+            lift_known: true,
+            lift_from: take::SettingFrom::Given,
+            settle_s: None,
+        };
+        let mut feed = Feed::new(&path, Position::CH, 20.0, 48000, &set);
+        let sound = generate(
+            &SynthConfig {
+                duration_s: 20.0,
+                rate_s_per_day: 7.0,
+                ..Default::default()
+            },
+            |_| 270.0,
+            |_| 0.0,
+        );
+        for chunk in sound.samples.chunks(960) {
+            feed.push(chunk);
+        }
+        feed.finish();
+        let cfg = feed.live.config().clone();
+        let stream = StreamConfig {
+            analysis: cfg.analysis.clone(),
+            ..Default::default()
+        };
+        let log = timegrapher_core::stream::analyze_samples(&sound.samples, 48000, &stream);
+        let saved = LiveAnalyzer::from_log(log, cfg).reading(AVERAGE_S);
+        let doc: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        let done = &doc["reading"];
+        assert_eq!(doc["done"], true);
+        assert_eq!(done["time_s"].as_f64(), Some(saved.time_s));
+        assert_eq!(done["rate_s_per_day"].as_f64(), saved.rate_s_per_day);
+        assert!(saved.rate_s_per_day.is_some());
         let _ = fs::remove_dir_all(dir);
     }
 

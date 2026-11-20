@@ -109,7 +109,7 @@ impl LiveAnalyzer {
     /// watch heard or not, the beat being found, the sound's level and
     /// clipping) at `end_s`, with the newest read's figures to `read_end_s`
     /// or the end of the sound it covered if sooner, where live would show
-    /// figures at all; none before the first read.
+    /// figures at all; finding the beat until a read has them.
     pub(super) fn reading_as_file(
         &self,
         end_s: f64,
@@ -126,10 +126,14 @@ impl LiveAnalyzer {
         }
         let read = (self.as_file.view.as_ref())
             .map(|v| v.reading_at(read_end_s.min(v.settled_to), average_s));
-        // A read heard at another beat rate than live's is no reading of
-        // this watch as live hears it.
+        // Until a read has figures of this watch as live hears it (one has
+        // landed, past its own first seconds, at live's beat rate), none:
+        // the beat is still being found, never live's own figures nor no
+        // beats (Norm on #2133).
         Some(match read {
-            Some(r) if r.bph == own.bph => with_read_figures(own, r, self.sides_known_at(end_s)),
+            Some(r) if r.bph == own.bph && r.beats_used > 0 => {
+                with_read_figures(own, r, self.sides_known_at(end_s))
+            }
             _ => without_figures(own),
         })
     }
@@ -320,7 +324,10 @@ fn with_read_figures(own: LiveReading, read: LiveReading, sided: bool) -> LiveRe
     }
 }
 
-/// Live's listening state with no figures: before the first read.
+/// Live's listening state with no figures, while no read has figures of
+/// the watch live hears: the beat is still being found, as when live
+/// itself first hears a regular run, its beats heard still counted
+/// (Norm on #2133).
 fn without_figures(own: LiveReading) -> LiveReading {
     LiveReading {
         rate_s_per_day: None,
@@ -334,8 +341,6 @@ fn without_figures(own: LiveReading) -> LiveReading {
         amplitude_odd_deg: None,
         jitter_us: None,
         timing_scatter_fraction: None,
-        beats_used: 0,
-        span_s: 0.0,
         whole: false,
         rate_error_s_per_day: None,
         rate_no_pm: None,
@@ -346,6 +351,8 @@ fn without_figures(own: LiveReading) -> LiveReading {
         beat_error_unlock_error_ms: None,
         caveats: own.caveats.into_iter().filter(listening_caveat).collect(),
         whole_take: false,
+        watch_heard: false,
+        finding_beat: true,
         ..own
     }
 }
@@ -373,10 +380,10 @@ mod tests {
         generate(&cfg, |_| 280.0, |_| 0.0).samples
     }
 
-    /// A read heard at another beat rate than live's gives the cards no
-    /// figures: they would not be this watch's as live hears it (#1987).
+    /// A read heard at another beat rate than live's gives no figures, nor
+    /// live's own: the beat is still being found (#1987, Norm on #2133).
     #[test]
-    fn a_read_at_another_beat_rate_gives_no_figures() {
+    fn a_read_at_another_beat_rate_is_still_finding_the_beat() {
         let sound = watch(28_800);
         let mut live = LiveAnalyzer::new(48_000, LiveConfig::default()).with_figures_as_file();
         for c in sound.chunks(960) {
@@ -391,10 +398,8 @@ mod tests {
         assert_ne!(other.bph, 28_800);
         live.set_view(other);
         let r = live.reading(10.0);
-        assert!(r.watch_heard, "live still hears its watch");
-        assert_eq!(
-            (r.rate_s_per_day, r.amplitude_deg, r.beats_used),
-            (None, None, 0)
-        );
+        assert!(r.finding_beat && !r.watch_heard, "{r:?}");
+        assert_eq!((r.rate_s_per_day, r.amplitude_deg), (None, None));
+        assert!(r.beats_used > 0, "its beats are heard");
     }
 }

@@ -1486,6 +1486,13 @@ fn a_live_rate_takes_the_usb_lines_a_reopened_real_take_takes() {
     std::fs::remove_dir(&dir).unwrap();
 }
 
+/// How long, seconds, `samples` take to read as a file reads them.
+fn read_time(samples: &[f32], fs: u32) -> f64 {
+    let t0 = std::time::Instant::now();
+    let _ = timegrapher_core::stream::analyze_samples(samples, fs, &StreamConfig::default());
+    t0.elapsed().as_secs_f64()
+}
+
 /// A reading's figures, their ±s and the caveats on them, as text: what
 /// a read as a file gives (#1987), not the listening state.
 fn figures(r: &LiveReading) -> String {
@@ -1576,18 +1583,26 @@ fn live_figures_before_the_template_is_built_again_are_the_saved_takes() {
     let mut l = LiveAnalyzer::new(fs, LiveConfig::default()).with_figures_as_file();
     let mut stops = [10.0, 20.0, 30.0, 46.0].into_iter().peekable();
     let (mut listening, mut heard_most) = (0, 0);
+    let (fed_from, mut most_behind) = (Instant::now(), 0.0_f64);
     for (i, c) in a.samples.chunks(block).enumerate() {
+        // How far the sound fed is ahead of the clock as this block comes.
+        let ahead = (i * block) as f64 / f64::from(fs) - fed_from.elapsed().as_secs_f64();
         l.push(c);
         let n = (i * block + c.len()).min(a.samples.len());
         if l.template_switch_s().is_some() {
             break;
         }
         heard_most = n;
-        // Fed faster than real time and never asked to wait, the push
-        // waits: the figures are never more than the cap and a block old.
+        // Fed ahead of the clock by more than the cap, the push waits, so
+        // the figures are within the cap and a block; a feed fallen back to
+        // the clock (a slow machine, a stop's read) waits for nothing.
         let lag = n as f64 / f64::from(fs) - l.read_as_file_to().unwrap_or(0.0);
         let cap = READ_LAG_CAP_S + block as f64 / f64::from(fs);
-        assert!(lag <= cap + 1e-9, "{n}: the figures {lag} s behind");
+        assert!(
+            ahead <= cap || lag <= cap + 1e-9,
+            "{n}: the figures {lag} s behind"
+        );
+        most_behind = most_behind.max(lag);
         if stops
             .next_if(|&at| n as f64 >= at * f64::from(fs))
             .is_none()
@@ -1618,16 +1633,14 @@ fn live_figures_before_the_template_is_built_again_are_the_saved_takes() {
     assert_eq!(stops.next(), None, "every stop came before the switch");
     assert!(listening > 0, "a read finished while listening");
     // The longest read: the most heard before the switch.
-    let cfg = StreamConfig::default();
-    let t0 = Instant::now();
-    let _ = timegrapher_core::stream::analyze_samples(&a.samples[..heard_most], fs, &cfg);
-    let read = t0.elapsed().as_secs_f64();
+    let read = read_time(&a.samples[..heard_most], fs);
     eprintln!(
         "switch after {:.1} s heard: its read {read:.3} s, so the figures lag the sound by \
          {:.3} s at most",
         heard_most as f64 / f64::from(fs),
         2.0 * read
     );
+    eprintln!("fed fast, the figures were {most_behind:.3} s behind at most");
     // Heard as it comes nothing waits: the figures trail by two reads at
     // most, which must stay within this (Norm's ruling on #1987).
     const LIVE_LAG_MAX_S: f64 = 2.0;

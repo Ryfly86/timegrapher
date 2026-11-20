@@ -172,18 +172,20 @@ everything heard read again as a file reads it (`stream::analyze_samples`),
 back to back on one background thread, the newest finished read giving them,
 and each reading states the end of the sound that read covered. What is heard
 (the watch or none, the beat being found, the sound's level, clipping) stays
-live's, and the figures show only where live's would. Live's own beats still
+live's, and the figures show only where live's would; until a read has figures
+of the watch live hears, the cards say the beat is being found. Live's own beats still
 draw the strip. Heard as it comes nothing waits, so the figures trail by two
 reads at most; sound pushed into core faster than real time waits for the read
 in flight once the figures are `READ_LAG_CAP_S` (0.5 s) behind, while the
 app's own feed never waits, so a sped-up replay's figures catch up at the
-takeover or on Stop. A stop reads everything heard once more, so the
-stopped figures are the saved take's. After the takeover, or once 94 s are
+takeover or on Stop. A stop, and `record`'s done frame, read everything
+heard once more, so the stopped figures are the saved take's. After the takeover, or once 94 s are
 heard, or once the take is paused, restarted, split into a new stretch or its
 rate changed, the figures are live's own as before.
 `live_figures_before_the_template_is_built_again_are_the_saved_takes` checks
 on that take that every reading listening on, and stopped at 10, 20, 30 and
-46 s, has the saved take's figures to the bit, never more than the cap behind,
+46 s, has the saved take's figures to the bit, never more than the cap behind
+while fed ahead of the clock,
 and prints the read times: about 0.6 s for the 62.6 s heard before the
 takeover, so heard live the figures lag the sound by about 1.2 s at most,
 held under 2 s. `a_live_rate_takes_the_usb_lines_a_reopened_real_take_takes`
