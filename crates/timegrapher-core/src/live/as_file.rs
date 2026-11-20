@@ -131,9 +131,7 @@ impl LiveAnalyzer {
         // the beat is still being found, never live's own figures nor no
         // beats (Norm on #2133).
         Some(match read {
-            Some(r) if r.bph == own.bph && r.beats_used > 0 => {
-                with_read_figures(own, r, self.sides_known_at(end_s))
-            }
+            Some(r) if r.bph == own.bph && r.beats_used > 0 => with_read_figures(own, r),
             _ => without_figures(own),
         })
     }
@@ -295,10 +293,9 @@ impl LiveAnalyzer {
 /// Live's listening state, `own`, with the read's figures, `read`: its
 /// rate, beat error and amplitude with their ±, scatter, the beats and span
 /// behind them and its time, and its caveats on those figures. The figures
-/// that name a side wait, as live's do, until live tells the sides apart
-/// (`sided`).
-fn with_read_figures(own: LiveReading, read: LiveReading, sided: bool) -> LiveReading {
-    let sided = |v: Option<f64>| v.filter(|_| sided);
+/// that name a side are the read's too, its sides as it tells them, as an
+/// opened take's are: never held back on live's sides (Norm on #2133).
+fn with_read_figures(own: LiveReading, read: LiveReading) -> LiveReading {
     let mut caveats: Vec<Caveat> = (read.caveats.into_iter())
         .filter(|c| !listening_caveat(c))
         .collect();
@@ -314,11 +311,6 @@ fn with_read_figures(own: LiveReading, read: LiveReading, sided: bool) -> LiveRe
         watch_heard: own.watch_heard,
         finding_beat: own.finding_beat,
         listening: own.listening,
-        beat_error_ms: sided(read.beat_error_ms),
-        beat_error_unlock_ms: sided(read.beat_error_unlock_ms),
-        beat_error_unlock_error_ms: sided(read.beat_error_unlock_error_ms),
-        amplitude_even_deg: sided(read.amplitude_even_deg),
-        amplitude_odd_deg: sided(read.amplitude_odd_deg),
         caveats,
         ..read
     }
@@ -378,6 +370,34 @@ mod tests {
             ..Default::default()
         };
         generate(&cfg, |_| 280.0, |_| 0.0).samples
+    }
+
+    /// The read's beat error and Tick and Tock amplitudes stay on show
+    /// where live has lost its sides, as after a jump it hasn't yet
+    /// checked by sound: they are the read's, the saved take's, as an
+    /// opened take shows them (Norm on Walter 17's hold of #2133).
+    #[test]
+    fn the_reads_sides_stand_where_live_lost_its_own() {
+        let mut live = LiveAnalyzer::new(48_000, LiveConfig::default()).with_figures_as_file();
+        for c in watch(28_800).chunks(960) {
+            live.push(c);
+        }
+        live.read_as_file_now();
+        let before = live.reading(10.0);
+        assert!(before.beat_error_ms.is_some(), "{before:?}");
+        let end = live.settled_to;
+        live.jump_at(end - 1.0, true);
+        assert!(!live.sides_known_at(end), "live lost its sides");
+        let r = live.reading(10.0);
+        assert!(r.rate_s_per_day.is_some(), "{r:?}");
+        for (name, v) in [
+            ("beat error", r.beat_error_ms),
+            ("from the unlock", r.beat_error_unlock_ms),
+            ("Tick amplitude", r.amplitude_even_deg),
+            ("Tock amplitude", r.amplitude_odd_deg),
+        ] {
+            assert!(v.is_some(), "{name}: {r:?}");
+        }
     }
 
     /// A read heard at another beat rate than live's gives no figures, nor

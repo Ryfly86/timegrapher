@@ -251,6 +251,17 @@ pub enum Wait {
     /// A stopped take or an opened recording with no beat in the stretch
     /// read: a fact, not a wait (Hugh on #2036).
     NoBeatsHeard,
+    /// Beat error, where the reading has figures but hasn't told the Tick
+    /// from the Tock yet (Hugh 5 on #2133).
+    TickAndTock,
+}
+
+/// The Beat Error card's own wait: a reading with a rate but neither beat
+/// error (from the unlock or the drop) hasn't told the sides apart yet,
+/// so it says so rather than showing a bare dash (Norm and Hugh 5 on
+/// #2133).
+pub fn beat_error_wait(rate: Option<f64>, drop: Option<f64>, unlock: Option<f64>) -> Option<Wait> {
+    (rate.is_some() && drop.is_none() && unlock.is_none()).then_some(Wait::TickAndTock)
 }
 
 /// The heading of [`Wait::NoBeats`].
@@ -292,6 +303,7 @@ impl Wait {
             Wait::Analysing => "Analysing".into(),
             Wait::NotListening => "Not Listening".into(),
             Wait::NoBeatsHeard => "No Beats Heard".into(),
+            Wait::TickAndTock => "Waiting for Tick and Tock".into(),
         }
     }
 
@@ -329,6 +341,9 @@ impl Wait {
             Wait::NoBeatsHeard => {
                 "The figures need a watch's beats: none were heard in this stretch.".into()
             }
+            Wait::TickAndTock => "Beat error needs the Tick and the Tock told apart: reading \
+                                  starts once they are."
+                .into(),
         }
     }
 }
@@ -1235,6 +1250,28 @@ pub fn assess_in(
 
 #[cfg(test)]
 mod tests {
+    /// Beat error with the sides not told apart says what it waits for,
+    /// in Hugh 5's words, and only where the reading has figures but no
+    /// beat error from either edge (#2133).
+    #[test]
+    fn beat_error_waits_for_the_tick_and_the_tock() {
+        use super::{beat_error_wait, Wait};
+        let w = Wait::TickAndTock;
+        assert_eq!(w.title(), "Waiting for Tick and Tock");
+        assert_eq!(
+            w.text(),
+            "Beat error needs the Tick and the Tock told apart: reading starts once they are."
+        );
+        assert_eq!(beat_error_wait(Some(3.0), None, None), Some(w));
+        assert_eq!(beat_error_wait(None, None, None), None, "no figures at all");
+        assert_eq!(
+            beat_error_wait(Some(3.0), Some(0.2), None),
+            None,
+            "from the drop"
+        );
+        assert_eq!(beat_error_wait(Some(3.0), None, Some(0.2)), None);
+    }
+
     /// Each wait has its short words and a sentence saying what the
     /// figures need; a settle counts whole seconds up, so "0 s" never
     /// shows while something is still left (#2007).
