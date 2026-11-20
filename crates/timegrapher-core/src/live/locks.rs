@@ -47,7 +47,10 @@ impl LiveAnalyzer {
 
     /// At a pause, with Auto: the watch is the lock whose beats were
     /// heard as a watch the longest ([`beats::watch_heard_s`]); a later
-    /// lock takes its place only by being heard longer. When that is not
+    /// lock takes its place only by being heard longer. Length is all
+    /// that tells a watch from noise heard as one, so a second watch heard
+    /// for less than the first (120 s, then 40 s) is read as the first,
+    /// and its beats are let go. When that is not
     /// the lock now (or none is held now), it is put back, and the later
     /// ones are let go with what they read.
     pub(super) fn back_to_watchs_lock(&mut self) {
