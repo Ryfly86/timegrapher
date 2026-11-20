@@ -1740,14 +1740,14 @@ fn noisy_amplitude(window_noise: f64, seed: u64) -> (Grid, Grid, Vec<f64>) {
 /// Noise in the amplitude readings shrinks a least-squares slope towards
 /// 0; read off the windows' scatter, it is undone, and the slope carries
 /// a ± that covers the truth (#651). Here the readings' noise of about
-/// 1.6° (five windows weighted as the rate's fit weights them) shrinks
+/// 1.7° (five windows weighted as the rate's fit weights them) shrinks
 /// the plain slope by about a quarter.
 #[test]
 fn the_isochronism_slope_is_read_off_the_amplitudes_noise() {
     let (rate, amp, noise) = noisy_amplitude(3.35, 21);
     // Each reading's noise is that of its five windows weighted as the
     // rate's fit weights them: their variance times the sum of the
-    // squared weights, about 0.232 (#951).
+    // squared weights, about 0.258 (#951, #2089).
     let mean = noise.iter().sum::<f64>() / noise.len() as f64;
     let w2: f64 = (0..5)
         .map(|k| {

@@ -84,7 +84,7 @@ Beat rate    28800 bph, 4711 beats found (98.1% of those expected)
 Rate         -0.7 ± 0.4 s/d, corrected for the sound card's clock (18.9 ppm slow, …); +0.9 s/d on the card's clock
 Beat error   0.23 ± 0.05 ms (from the unlock; 0.49 ms from the drop)
 Jitter       258 us per beat (within 10 s windows)
-Rate spread  -3.0 to 4.3 s/d (5th-95th percentile of 10 s windows)
+Rate spread  -4.8 to 2.6 s/d, corrected as the rate is (5th-95th percentile of 10 s windows); -3.2 to 4.2 s/d on the card's clock
 Amplitude    282 ± 2 deg (Tick 272, Tock 288; lift angle 55 deg)
 Clipping     on 0.0% of beats (0 of 4711, 210 samples), peak 0.0 dBFS
 ```
