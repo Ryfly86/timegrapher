@@ -872,15 +872,17 @@ impl LiveAnalyzer {
     /// first template and read the same beats (#1720).
     ///
     /// While the figures are read as a file, a feed faster than real time
-    /// waits here for the read in flight once they are more than
-    /// [`READ_LAG_CAP_S`] behind (#1987).
+    /// starts no read in the background: once more than
+    /// [`READ_LAG_CAP_S`] behind, the figures are read of everything heard
+    /// when they are asked for (#1987).
     pub fn push(&mut self, samples: &[f32]) -> bool {
         self.push_fed(samples, true)
     }
 
-    /// [`Self::push`] that never waits for a read as a file: for a feed
-    /// that must not stall, such as the app's, whose figures then trail a
-    /// sped-up replay until the template is built again or it stops.
+    /// [`Self::push`] whose figures never wait for a read as a file: for a
+    /// feed that must not stall, such as the app's, whose figures then
+    /// trail a sped-up replay until the template is built again or it
+    /// stops.
     pub fn push_without_waiting(&mut self, samples: &[f32]) -> bool {
         self.push_fed(samples, false)
     }

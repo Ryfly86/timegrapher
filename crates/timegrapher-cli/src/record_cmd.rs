@@ -738,7 +738,8 @@ impl Feed {
     }
 
     fn push(&mut self, samples: &[f32]) {
-        self.live.push(samples);
+        // As the app's feed: never held up by a read as a file (#1987).
+        self.live.push_without_waiting(samples);
         if self.live.duration_s() >= self.next_s {
             self.next_s = self.live.duration_s().floor() + 1.0;
             self.write(false);

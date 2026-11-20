@@ -123,6 +123,18 @@ fn lifted_to(
     lure_bph: u32,
     lure_s: f64,
 ) -> (LiveAnalyzer, Vec<Option<u32>>) {
+    lifted_heard(watch_s, quiet_s, lure_bph, lure_s, false)
+}
+
+/// [`lifted_to`], with the figures read as a file while listening when
+/// `as_file` (#1987).
+fn lifted_heard(
+    watch_s: f64,
+    quiet_s: f64,
+    lure_bph: u32,
+    lure_s: f64,
+    as_file: bool,
+) -> (LiveAnalyzer, Vec<Option<u32>>) {
     let at = |bph: u32, duration_s: f64, seed: u64| {
         generate(
             &SynthConfig {
@@ -143,6 +155,9 @@ fn lifted_to(
         samples.extend_from_slice(&at(lure_bph, lure_s, 4).samples);
     }
     let mut live = LiveAnalyzer::new(watch.sample_rate, LiveConfig::default());
+    if as_file {
+        live = live.with_figures_as_file();
+    }
     let mut rates = Vec::new();
     for chunk in samples.chunks(960) {
         live.push(chunk);
@@ -171,6 +186,27 @@ fn a_pause_puts_back_the_watchs_rate_after_a_noise_lock() {
     assert_eq!(r.bph, Some(28_800));
     let rate = r.rate_s_per_day.expect("a rate");
     assert!((rate - 5.0).abs() < 2.0, "rate {rate} s/d");
+}
+
+/// The watch lifted, with the figures read as a file: a noise locked on
+/// to, or Auto's rate let go in the quiet, ends the read as a file (a
+/// new guess is a new template). So Stop's cards, read at the watch's
+/// last beat, are live's own at the rate live goes back to: never a read
+/// at another rate beside it, nor Finding the Beat (Vernon and Norm on
+/// #2133).
+#[test]
+fn a_stop_after_a_lift_reads_the_watch_at_its_rate() {
+    for (quiet_s, lure_s) in [(8.0, 5.0), (12.0, 0.0)] {
+        let (live, rates) = lifted_heard(40.0, quiet_s, 72_000, lure_s, true);
+        let case = format!("{quiet_s} s quiet, {lure_s} s noise: {rates:?}");
+        assert!(rates.len() > 2, "the lock changes: {case}");
+        assert!(!live.reads_as_file(), "{case}");
+        assert_eq!(live.bph(), Some(28_800), "{case}");
+        let t = beats::last_watch_beat_s(live.beats()).expect("the watch's run");
+        let r = live.reading_at(t, 10.0);
+        assert_eq!(r.bph, Some(28_800), "{case}");
+        assert!(r.rate_s_per_day.is_some(), "the cards show figures: {case}");
+    }
 }
 
 /// The watch lifted and Auto's rate let go in the quiet: at the pause

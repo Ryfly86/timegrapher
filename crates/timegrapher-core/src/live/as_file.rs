@@ -11,7 +11,6 @@
 
 use super::*;
 use std::thread::JoinHandle;
-use std::time::Instant;
 
 /// How much sound, seconds, is read again as a file at most: twice a
 /// file's first chunk. Past it the figures are live's own even if the
@@ -20,12 +19,14 @@ use std::time::Instant;
 pub const AS_FILE_MAX_S: f64 = 2.0 * crate::stream::CHUNK_S;
 
 /// How far, seconds, the figures may fall behind the sound heard, while
-/// it is pushed faster than real time (a test, a headless read): the
-/// newest finished read's end against all heard. Past it such a push waits
-/// for the read in flight. Heard as it comes, nothing waits, so the strip
-/// never trails the watch; the figures then trail it by two reads at most,
-/// about 1.2 s for the most heard before the template is built again. The
-/// app's feed never waits (Norm's ruling on #1987).
+/// it is pushed faster than real time by [`LiveAnalyzer::push`] (a test, a
+/// headless read): the newest read's end against all heard. Past it the
+/// figures, once asked for, are read of everything heard there and then,
+/// so such a feed never waits on reads it doesn't use and the figures it
+/// is given are never further behind. Heard as it comes, nothing waits,
+/// so the strip never trails the watch; the figures then trail it by two
+/// reads at most, about 1.2 s for the most heard before the template is
+/// built again. The app's feed never waits (Norm's ruling on #1987).
 pub const READ_LAG_CAP_S: f64 = 0.5;
 
 /// The sound read again as a file, the read in flight, and the newest
@@ -42,8 +43,14 @@ pub(super) struct AsFile {
     job: Option<(JoinHandle<BeatLog>, usize)>,
     /// The newest finished read, set as live is.
     view: Option<Box<LiveAnalyzer>>,
-    /// When the first sound came, to tell a feed faster than real time.
-    since: Option<Instant>,
+    /// Fed by [`LiveAnalyzer::push`] (a test, a headless read): no read
+    /// runs in the background, and the figures are read when they are
+    /// asked for, of everything heard ([`Self::fresh`]).
+    on_ask: bool,
+    /// Everything heard when the figures were last asked for, read then,
+    /// for a feed read [`Self::on_ask`]: kept while no more than
+    /// [`READ_LAG_CAP_S`] more is heard and no setting changes.
+    fresh: std::sync::OnceLock<Box<LiveAnalyzer>>,
 }
 
 /// A copy keeps the newest read and what was heard; a read in flight
@@ -55,7 +62,8 @@ impl Clone for AsFile {
             heard: self.heard.clone(),
             job: None,
             view: self.view.clone(),
-            since: self.since,
+            on_ask: self.on_ask,
+            fresh: self.fresh.clone(),
         }
     }
 }
@@ -88,7 +96,31 @@ impl LiveAnalyzer {
     /// The figures' analyzer: the newest read as a file while those give
     /// them, else this one.
     pub(super) fn figures(&self) -> Option<&LiveAnalyzer> {
-        self.as_file.view.as_deref().filter(|_| self.as_file.on)
+        self.as_file.on.then(|| self.newest_read()).flatten()
+    }
+
+    /// The newest read. For a feed read when asked ([`AsFile::on_ask`]),
+    /// everything heard, read now when the newest read is more than
+    /// [`READ_LAG_CAP_S`] behind it.
+    fn newest_read(&self) -> Option<&LiveAnalyzer> {
+        if !self.as_file.on_ask {
+            return self.as_file.view.as_deref();
+        }
+        if let Some(f) = self.as_file.fresh.get() {
+            return Some(f);
+        }
+        let behind = self.as_file.heard.len() as f64 - self.view_len() as f64;
+        if behind <= READ_LAG_CAP_S * self.fs {
+            return self.as_file.view.as_deref();
+        }
+        Some(self.as_file.fresh.get_or_init(|| {
+            let log = crate::stream::analyze_samples(
+                &self.as_file.heard,
+                self.fs as u32,
+                &self.stream_config(),
+            );
+            Box::new(self.view_of(log))
+        }))
     }
 
     /// Whether the figures still come from reads as a file: until the
@@ -124,8 +156,8 @@ impl LiveAnalyzer {
         if !own.watch_heard || own.finding_beat || own.listening.is_some() {
             return Some(own);
         }
-        let read = (self.as_file.view.as_ref())
-            .map(|v| v.reading_at(read_end_s.min(v.settled_to), average_s));
+        let read =
+            (self.newest_read()).map(|v| v.reading_at(read_end_s.min(v.settled_to), average_s));
         // Until a read has figures of this watch as live hears it (one has
         // landed, past its own first seconds, at live's beat rate), none:
         // the beat is still being found, never live's own figures nor no
@@ -142,33 +174,10 @@ impl LiveAnalyzer {
         if !self.as_file.on {
             return None;
         }
-        Some(match &self.as_file.view {
+        Some(match self.newest_read() {
             Some(v) => v.trend(average_s),
             None => Vec::new(),
         })
-    }
-
-    /// Whether the sound comes faster than real time and the figures are
-    /// more than [`READ_LAG_CAP_S`] behind it, so a push waits for the read
-    /// in flight. Takes a finished read's figures and starts the next, as
-    /// a push does. Never waits itself.
-    fn reads_behind(&mut self) -> bool {
-        if !self.as_file.on {
-            return false;
-        }
-        if self.as_file.job.as_ref().is_some_and(|j| j.0.is_finished()) {
-            self.take_read();
-        }
-        if self.as_file.job.is_none() && self.as_file.heard.len() > self.view_len() {
-            self.start_read();
-        }
-        let heard_s = self.as_file.heard.len() as f64 / self.fs;
-        let read_to = self.as_file.view.as_ref().map_or(0.0, |v| v.settled_to);
-        // Sound heard as it comes is never ahead of the clock by more than
-        // a block or two the card holds back.
-        let ahead = (self.as_file.since)
-            .is_some_and(|t| heard_s - t.elapsed().as_secs_f64() > READ_LAG_CAP_S);
-        ahead && self.as_file.job.is_some() && heard_s - read_to > READ_LAG_CAP_S
     }
 
     /// No more reads as a file: the figures are this analyzer's own.
@@ -178,16 +187,19 @@ impl LiveAnalyzer {
 
     /// A setting changed: the newest read as a file given it too.
     pub(super) fn in_view(&mut self, f: impl FnOnce(&mut LiveAnalyzer)) {
+        self.as_file.fresh = std::sync::OnceLock::new();
         if let Some(v) = &mut self.as_file.view {
             f(v);
         }
     }
 
     /// After a push of `samples`: keeps them, takes a finished read's
-    /// figures (waiting for it first, if the feed `wait`s, while the
-    /// figures are more than [`READ_LAG_CAP_S`] behind a feed faster than
-    /// real time), and starts the next read on everything heard. True when
-    /// the figures changed.
+    /// figures and starts the next read on everything heard, in the
+    /// background. A feed that `wait`s ([`LiveAnalyzer::push`]) starts
+    /// none: its figures are read when they are asked for
+    /// ([`Self::newest_read`]), so it never waits on a read it doesn't use,
+    /// until a push that doesn't wait comes.
+    /// True when the figures changed.
     pub(super) fn as_file_after_push(&mut self, samples: &[f32], wait: bool) -> bool {
         if !self.as_file.on {
             return false;
@@ -196,9 +208,22 @@ impl LiveAnalyzer {
             self.stop_reading_as_file();
             return true;
         }
-        let mut changed = wait && self.reads_behind() && self.take_read();
-        self.as_file.since.get_or_insert_with(Instant::now);
         self.as_file.heard.extend_from_slice(samples);
+        if wait {
+            self.as_file.on_ask = true;
+            let heard = self.as_file.heard.len() as f64;
+            if (self.as_file.fresh.get())
+                .is_some_and(|f| heard - f.total as f64 > READ_LAG_CAP_S * self.fs)
+            {
+                self.as_file.fresh = std::sync::OnceLock::new();
+            }
+            return false;
+        }
+        // The newest push's feed decides: one that doesn't wait reads in
+        // the background from here on.
+        self.as_file.on_ask = false;
+        self.as_file.fresh = std::sync::OnceLock::new();
+        let mut changed = false;
         if self.as_file.job.as_ref().is_some_and(|j| j.0.is_finished()) {
             changed |= self.take_read();
         }
@@ -248,6 +273,12 @@ impl LiveAnalyzer {
     /// `log` as the figures' analyzer, set as live is: its clock, masks,
     /// known flags, profile span and the caller's breaks.
     fn set_view(&mut self, log: BeatLog) {
+        self.as_file.view = Some(Box::new(self.view_of(log)));
+        self.as_file.fresh = std::sync::OnceLock::new();
+    }
+
+    /// `log` as the figures' analyzer, set as live is.
+    fn view_of(&self, log: BeatLog) -> LiveAnalyzer {
         let mut v = LiveAnalyzer::from_log(log, self.cfg.clone());
         v.rate_clock = self.rate_clock.clone();
         v.clock_known = self.clock_known;
@@ -258,7 +289,7 @@ impl LiveAnalyzer {
         if !caller.is_empty() {
             v.set_breaks(caller);
         }
-        self.as_file.view = Some(Box::new(v));
+        v
     }
 
     /// Reads everything heard as a file now, waiting for it, so the
@@ -398,6 +429,78 @@ mod tests {
         ] {
             assert!(v.is_some(), "{name}: {r:?}");
         }
+    }
+
+    /// `sound` fed by `push` (read when asked) and by
+    /// `push_without_waiting` then read whole once more as a stop does
+    /// (the background's read, [`LiveAnalyzer::read_as_file_now`]).
+    fn fed_both(sound: &[f32]) -> (LiveAnalyzer, LiveAnalyzer) {
+        let mut asked = LiveAnalyzer::new(48_000, LiveConfig::default()).with_figures_as_file();
+        let mut whole = asked.clone();
+        for c in sound.chunks(960) {
+            asked.push(c);
+            whole.push_without_waiting(c);
+        }
+        whole.read_as_file_now();
+        (asked, whole)
+    }
+
+    /// A push fed figures asked for past the cap reads everything heard
+    /// there and then, with the background's own read: the figures are a
+    /// full read of all heard, to the bit (Norm on #2133).
+    #[test]
+    fn an_ask_past_the_cap_reads_everything_heard() {
+        let sound = watch(28_800);
+        let (asked, whole) = fed_both(&sound);
+        let got = asked.reading(10.0);
+        assert!(got.rate_s_per_day.is_some(), "{got:?}");
+        assert_eq!(format!("{got:?}"), format!("{:?}", whole.reading(10.0)));
+        assert_eq!(asked.read_as_file_to(), Some(asked.duration_s()));
+        // As a full read of all heard, set as live is.
+        let log = crate::stream::analyze_samples(&sound, 48_000, &asked.stream_config());
+        let full = asked.view_of(log);
+        let r = full.reading_at(full.settled_to, 10.0);
+        assert_eq!(
+            got.rate_s_per_day.map(f64::to_bits),
+            r.rate_s_per_day.map(f64::to_bits)
+        );
+        assert_eq!(
+            got.amplitude_deg.map(f64::to_bits),
+            r.amplitude_deg.map(f64::to_bits)
+        );
+    }
+
+    /// A setting changed while the newest read is within the cap of all
+    /// heard drops it: the next ask reads everything heard again, with the
+    /// change, to the bit (Norm on #2133).
+    #[test]
+    fn a_setting_changed_inside_the_cap_reads_again() {
+        let mut sound = watch(28_800);
+        let mut asked = LiveAnalyzer::new(48_000, LiveConfig::default()).with_figures_as_file();
+        for c in sound.chunks(960) {
+            asked.push(c);
+        }
+        let before = asked.reading(10.0);
+        // Within the cap: the read kept, and still the figures.
+        let more = watch(28_800)[..4_800].to_vec();
+        asked.push(&more);
+        sound.extend_from_slice(&more);
+        assert_eq!(asked.read_as_file_to(), Some(before.time_s));
+        asked.set_lift(44.0);
+        let after = asked.reading(10.0);
+        assert_ne!(after.amplitude_deg, before.amplitude_deg, "the lift took");
+        let log = crate::stream::analyze_samples(&sound, 48_000, &asked.stream_config());
+        let full = asked.view_of(log);
+        assert_eq!(asked.read_as_file_to(), Some(full.settled_to));
+        let r = full.reading_at(full.settled_to, 10.0);
+        assert_eq!(
+            after.amplitude_deg.map(f64::to_bits),
+            r.amplitude_deg.map(f64::to_bits)
+        );
+        assert_eq!(
+            after.rate_s_per_day.map(f64::to_bits),
+            r.rate_s_per_day.map(f64::to_bits)
+        );
     }
 
     /// A read heard at another beat rate than live's gives no figures, nor
