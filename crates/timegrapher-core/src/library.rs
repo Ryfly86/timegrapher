@@ -922,7 +922,9 @@ fn measure_take_with(
 /// ([`crate::take_context::TakeContext::open`]), its settled stretches in
 /// `p` ([`crate::take_context::TakeContext::spans_in`]) read together by
 /// core [`crate::session::measure_together`], cut where its readings are
-/// cut, as the app reads the whole take in the position on show. None
+/// cut inside them
+/// ([`crate::take_context::TakeContext::reading_breaks_over`]), as the
+/// app reads the whole take in the position on show. None
 /// where the take can't be opened as one recording (entries on different
 /// clock logs) or its windows in `p` overlap: then the last entry alone
 /// is read, as `session` reads it.
@@ -950,7 +952,7 @@ fn position_whole(
     )
     .ok()?;
     let spans = ctx.spans_in(m, p);
-    let breaks = ctx.reading_breaks(m);
+    let breaks = ctx.reading_breaks_over(m, &spans);
     let mut x = crate::session::measure_together(
         &log,
         ctx.clock.as_ref(),

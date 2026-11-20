@@ -346,7 +346,7 @@ under it its calibre, beat rate, lift angle and added fields, with
   `beats::last_watch_beat_s`, #2081), so a quiet stand after the watch
   is lifted, and any stray beat in its hiss, moves nothing. The row's
   hover says, on the line after its
-  figures, that the cards at Stop can differ a little. A test's last
+  figures, that the cards at Stop can differ, as they read only the last Average Over. A test's last
   window never stands for the test: a Positions Test's row shows its Mean row, the
   figures its table shows ("Mean of the six positions" in the row's hover),
   and a Power Reserve Test's shows its run time as its Length and a dim

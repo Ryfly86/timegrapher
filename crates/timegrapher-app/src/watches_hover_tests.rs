@@ -62,7 +62,7 @@ fn a_takes_hover_names_the_engine_that_read_it() {
 }
 
 /// A take of more than one position says which position its figures
-/// are, and that they are its whole stretch after settling, not the
+/// are, and that they are all of it after settling, not the
 /// Bench's at Stop; its facts no longer run them on after every
 /// position's name (#1979).
 #[test]
@@ -124,9 +124,7 @@ fn a_takes_hover_names_the_position_its_figures_are_of() {
     let first = h.lines().next().unwrap();
     assert!(!first.contains("s/d"), "{h}");
     assert!(
-        h.contains(
-            "\nCrown Up, its whole stretch after settling: \u{2212}12.8 s/d · 220° · 0.03 ms"
-        ),
+        h.contains("\nAll of Crown Up after settling: \u{2212}12.8 s/d · 220° · 0.03 ms"),
         "{h}"
     );
     let one = Take {
