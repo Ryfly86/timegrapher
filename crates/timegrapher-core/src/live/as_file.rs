@@ -126,9 +126,11 @@ impl LiveAnalyzer {
         }
         let read = (self.as_file.view.as_ref())
             .map(|v| v.reading_at(read_end_s.min(v.settled_to), average_s));
+        // A read heard at another beat rate than live's is no reading of
+        // this watch as live hears it.
         Some(match read {
-            Some(r) => with_read_figures(own, r, self.sides_known_at(end_s)),
-            None => without_figures(own),
+            Some(r) if r.bph == own.bph => with_read_figures(own, r, self.sides_known_at(end_s)),
+            _ => without_figures(own),
         })
     }
 
@@ -264,8 +266,18 @@ impl LiveAnalyzer {
         if !self.as_file.on {
             return;
         }
-        if let Some((job, _)) = self.as_file.job.take() {
-            let _ = job.join();
+        if self.view_len() == self.as_file.heard.len() {
+            return;
+        }
+        // A read in flight of everything heard is the one wanted: waited
+        // for, not read twice. One of less is left to finish on its own.
+        if let Some((job, n)) = self.as_file.job.take() {
+            if n == self.as_file.heard.len() {
+                if let Ok(log) = job.join() {
+                    self.set_view(log);
+                    return;
+                }
+            }
         }
         let log = crate::stream::analyze_samples(
             &self.as_file.heard,
@@ -345,4 +357,44 @@ fn listening_caveat(c: &Caveat) -> bool {
         c,
         Caveat::NoWatch { .. } | Caveat::SetRateDisagrees { .. } | Caveat::Clipped { .. }
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::synth::{generate, SynthConfig};
+
+    fn watch(bph: u32) -> Vec<f32> {
+        let cfg = SynthConfig {
+            duration_s: 20.0,
+            bph,
+            ..Default::default()
+        };
+        generate(&cfg, |_| 280.0, |_| 0.0).samples
+    }
+
+    /// A read heard at another beat rate than live's gives the cards no
+    /// figures: they would not be this watch's as live hears it (#1987).
+    #[test]
+    fn a_read_at_another_beat_rate_gives_no_figures() {
+        let sound = watch(28_800);
+        let mut live = LiveAnalyzer::new(48_000, LiveConfig::default()).with_figures_as_file();
+        for c in sound.chunks(960) {
+            live.push(c);
+        }
+        live.read_as_file_now();
+        assert!(
+            live.reading(10.0).rate_s_per_day.is_some(),
+            "read at live's rate"
+        );
+        let other = crate::stream::analyze_samples(&watch(21_600), 48_000, &live.stream_config());
+        assert_ne!(other.bph, 28_800);
+        live.set_view(other);
+        let r = live.reading(10.0);
+        assert!(r.watch_heard, "live still hears its watch");
+        assert_eq!(
+            (r.rate_s_per_day, r.amplitude_deg, r.beats_used),
+            (None, None, 0)
+        );
+    }
 }
