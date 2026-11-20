@@ -579,7 +579,7 @@ impl TimegrapherApp {
         let Some(left_s) = self.settle_left_at(at) else {
             let w = if self.ready_test().is_some() {
                 Wait::TestStart
-            } else if self.batch.is_some() {
+            } else if self.batch.is_some() || self.stop_read_waits().is_some() {
                 Wait::Analysing
             } else if self.live.is_none() {
                 Wait::NotListening
@@ -751,9 +751,32 @@ impl TimegrapherApp {
                 ],
             ),
         };
-        self.rate_card(ui, &cards[2], &c);
-        self.amplitude_card(ui, &cards[3], &c);
-        self.beat_error_card(ui, &cards[4], &c);
+        match self.stop_read_waits() {
+            // Just stopped: the open's own wait across the reading cards
+            // until the take is read as its saved take opens (Hugh on
+            // #2151), with no Cancel.
+            Some(s) => {
+                let inner = cards[2].inner.union(cards[4].inner);
+                let outer = inner.expand(f32::from(theme::CARD_PADDING));
+                ui.painter().rect_filled(
+                    outer,
+                    egui::CornerRadius::same(theme::CARD_RADIUS),
+                    pal.card,
+                );
+                let done = f64::from_bits(s.progress.load(std::sync::atomic::Ordering::Relaxed));
+                ui.scope_builder(egui::UiBuilder::new().max_rect(inner), |ui| {
+                    ui.spacing_mut().item_spacing.y = 6.0;
+                    analysing_lines(ui, pal, &s.label, done, Some(s.duration_s), s.started);
+                });
+                ui.ctx()
+                    .request_repaint_after(std::time::Duration::from_millis(250));
+            }
+            None => {
+                self.rate_card(ui, &cards[2], &c);
+                self.amplitude_card(ui, &cards[3], &c);
+                self.beat_error_card(ui, &cards[4], &c);
+            }
+        }
         // Calibre: what the readings are worked out for. The calibre on
         // the figure row, the beat rate and the lift angle under it; a
         // calibre picked that beats at another rate than the one heard says
@@ -874,12 +897,14 @@ impl TimegrapherApp {
     /// memory, so listening reads one more each second; a change to what
     /// the readings rest on, or to Average Over, reads them all again.
     pub(super) fn spark_trend(&self, ctx: &egui::Context, r: &LiveReading) -> Vec<TrendPoint> {
-        type Kept = (Revision, u64, Vec<(i64, TrendPoint)>);
-        let Some(live) = self.live.as_ref() else {
+        type Kept = (Revision, (u64, bool), Vec<(i64, TrendPoint)>);
+        // Just stopped: the take as its saved take opens (#2151).
+        let stopped = self.stopped_take();
+        let Some(live) = stopped.map(|s| &s.live).or(self.live.as_ref()) else {
             return Vec::new();
         };
         let id = egui::Id::new("reading card sparklines");
-        let key = (self.rev, self.average_s.to_bits());
+        let key = (self.rev, (self.average_s.to_bits(), stopped.is_some()));
         let mut kept: Kept = ctx.data(|d| d.get_temp(id)).unwrap_or_default();
         if (kept.0, kept.1) != key {
             kept = (key.0, key.1, Vec::new());
@@ -1706,15 +1731,22 @@ impl TimegrapherApp {
     pub(super) fn status_facts(&self, ui: &mut egui::Ui) {
         let pal = theme::pal(ui);
         self.shown_caveats_chip(ui);
-        if let Some(b) = &self.batch {
-            let done = f64::from_bits(b.progress.load(std::sync::atomic::Ordering::Relaxed));
-            let frac = b.duration_s.map_or(0.0, |d| (done / d).clamp(0.0, 1.0));
+        // A take opening, or one just stopped being read as its saved
+        // take opens (#2151): how far, as one bar.
+        let reading = match (&self.batch, self.stop_read_waits()) {
+            (Some(b), _) => Some((&b.progress, b.duration_s)),
+            (None, Some(s)) => Some((&s.progress, Some(s.duration_s))),
+            (None, None) => None,
+        };
+        if let Some((progress, duration_s)) = reading {
+            let done = f64::from_bits(progress.load(std::sync::atomic::Ordering::Relaxed));
+            let frac = duration_s.map_or(0.0, |d| (done / d).clamp(0.0, 1.0));
             ui.add(
                 egui::ProgressBar::new(frac as f32)
                     .desired_width(240.0)
                     .desired_height(14.0)
                     .fill(pal.accent)
-                    .text(RichText::new(batch_words(frac, b.duration_s.is_some())).small()),
+                    .text(RichText::new(batch_words(frac, duration_s.is_some())).small()),
             );
         }
         if let Some(k) = &self.wav_keep {
@@ -1940,37 +1972,7 @@ impl TimegrapherApp {
         let pal = theme::pal(ui);
         let Some(b) = &self.batch else { return };
         let done = f64::from_bits(b.progress.load(std::sync::atomic::Ordering::Relaxed));
-        ui.label(RichText::new(format!("Analysing {}", b.label)).font(theme::semibold(18.0)));
-        let frac = b.duration_s.map(|d| (done / d.max(1e-9)).clamp(0.0, 1.0));
-        // The bar's track in the control colour, to stand out on the card.
-        ui.scope(|ui| {
-            ui.visuals_mut().extreme_bg_color = pal.control;
-            ui.add(
-                egui::ProgressBar::new(frac.unwrap_or(0.0) as f32)
-                    .desired_width(ui.available_width())
-                    .desired_height(16.0)
-                    .fill(pal.accent)
-                    .text(RichText::new(match frac {
-                        Some(f) => format!("{:.0}%", 100.0 * f),
-                        None => String::new(),
-                    })),
-            );
-        });
-        let elapsed = b.started.elapsed().as_secs_f64();
-        let mut line = match b.duration_s {
-            Some(d) => format!(
-                "{} of {} of sound analysed",
-                length_text(done),
-                length_text(d)
-            ),
-            None => format!("{} of sound analysed", length_text(done)),
-        };
-        // Time left at the pace so far, once there is a pace to go by.
-        if let (Some(d), true) = (b.duration_s, done > 0.0 && elapsed > 3.0) {
-            let left = (d - done).max(0.0) * elapsed / done;
-            line += &format!(" · about {} to go", length_text(left));
-        }
-        ui.label(RichText::new(line).color(pal.text_secondary));
+        analysing_lines(ui, pal, &b.label, done, b.duration_s, b.started);
         if b.files > 1 {
             ui.label(
                 RichText::new(format!(
@@ -1994,6 +1996,50 @@ impl TimegrapherApp {
         ui.ctx()
             .request_repaint_after(std::time::Duration::from_millis(250));
     }
+}
+
+/// How far the reading of a take has got, as an open shows it: `Analysing
+/// {label}`, a bar with its %, and the sound read so far of the take's
+/// `duration_s`, with the time left at the pace so far.
+fn analysing_lines(
+    ui: &mut egui::Ui,
+    pal: &theme::Palette,
+    label: &str,
+    done: f64,
+    duration_s: Option<f64>,
+    started: Instant,
+) {
+    ui.label(RichText::new(format!("Analysing {label}")).font(theme::semibold(18.0)));
+    let frac = duration_s.map(|d| (done / d.max(1e-9)).clamp(0.0, 1.0));
+    // The bar's track in the control colour, to stand out on the card.
+    ui.scope(|ui| {
+        ui.visuals_mut().extreme_bg_color = pal.control;
+        ui.add(
+            egui::ProgressBar::new(frac.unwrap_or(0.0) as f32)
+                .desired_width(ui.available_width())
+                .desired_height(16.0)
+                .fill(pal.accent)
+                .text(RichText::new(match frac {
+                    Some(f) => format!("{:.0}%", 100.0 * f),
+                    None => String::new(),
+                })),
+        );
+    });
+    let elapsed = started.elapsed().as_secs_f64();
+    let mut line = match duration_s {
+        Some(d) => format!(
+            "{} of {} of sound analysed",
+            length_text(done),
+            length_text(d)
+        ),
+        None => format!("{} of sound analysed", length_text(done)),
+    };
+    // Time left at the pace so far, once there is a pace to go by.
+    if let (Some(d), true) = (duration_s, done > 0.0 && elapsed > 3.0) {
+        let left = (d - done).max(0.0) * elapsed / done;
+        line += &format!(" · about {} to go", length_text(left));
+    }
+    ui.label(RichText::new(line).color(pal.text_secondary));
 }
 
 /// Where a galley's first line sits: its baseline, down from its top.

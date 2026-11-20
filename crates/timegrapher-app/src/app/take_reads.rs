@@ -7,9 +7,13 @@
 
 use super::*;
 
+#[path = "stop_read.rs"]
+mod stop_read;
+
 /// What [`TimegrapherApp::whole_take`] was read from: the beats heard,
-/// the stretches, the masks and what the readings rest on.
-pub(super) type WholeKey = (usize, Vec<(f64, f64)>, Vec<(f64, f64)>, Revision);
+/// the stretches, the masks, what the readings rest on, and whether it is
+/// the stopped take read as its saved take opens (#2151).
+pub(super) type WholeKey = (usize, Vec<(f64, f64)>, Vec<(f64, f64)>, Revision, bool);
 
 /// What [`TimegrapherApp::free_table`] was read from: the beats heard,
 /// each position's settled stretches, the masks and the True Clock.
@@ -135,6 +139,9 @@ pub(super) struct Background {
     /// The test marks a take opened with, as they went on show: the marks
     /// on show are the take's while they are these (#1957).
     pub(super) opened_marks: Option<Vec<(f64, f64, &'static str)>>,
+    /// The take just stopped, read as opening its saved take reads it
+    /// (#2151).
+    pub(super) stop_read: Option<stop_read::StopRead>,
 }
 
 /// A Positions Test table being read in the background, and what from.
@@ -177,7 +184,7 @@ impl TimegrapherApp {
     pub(super) fn whole_take_shown(&self, ctx: &egui::Context) -> Option<WholeTake> {
         // A take just listened to is read to its last reading with a
         // watch heard: once the charts are read on what is masked now.
-        let opened = self.take_breaks.is_some();
+        let opened = self.take_breaks.is_some() || self.stopped_take().is_some();
         if !opened && self.trend_key != (self.rev, self.average_s.to_bits()) {
             return None;
         }
@@ -211,6 +218,9 @@ impl TimegrapherApp {
     /// last beat (#2073). The one rule for the whole take and the cards;
     /// none for a take not opened.
     pub(super) fn opened_end_s(&self) -> Option<f64> {
+        if let Some(s) = self.stopped_take() {
+            return Some(s.live.duration_s());
+        }
         let live = self.live.as_ref()?;
         self.take_breaks.is_some().then(|| live.duration_s())
     }
@@ -224,14 +234,22 @@ impl TimegrapherApp {
     /// stand's hiss; with no run of beats long enough for that, at the
     /// last beat with a watch heard, as before.
     pub(super) fn stopped_reading(&self, live: &LiveAnalyzer, average: f64) -> LiveReading {
+        // Just stopped: the take as its saved take opens (#2151).
+        let stopped = self.stopped_take();
+        let live = stopped.map_or(live, |s| &s.live);
         if let (Some(end), Some(Ok(Some(w)))) = (self.opened_end_s(), self.whole_read()) {
             let r = live.reading_at(end, average).at_whole_end(&w.m, average);
             if r.whole_take {
                 return r;
             }
         }
-        let at = timegrapher_core::beats::last_watch_beat_s(live.beats())
-            .unwrap_or_else(|| self.latest_s().min(self.last_heard_s()));
+        let at =
+            timegrapher_core::beats::last_watch_beat_s(live.beats()).unwrap_or_else(
+                || match stopped {
+                    Some(_) => live.duration_s(),
+                    None => self.latest_s().min(self.last_heard_s()),
+                },
+            );
         live.reading_at(at, average)
     }
 
@@ -256,21 +274,29 @@ impl TimegrapherApp {
         if self.running() {
             return None;
         }
-        let live = self.live.as_ref()?;
+        let stopped = self.stopped_take();
+        let live = stopped.map(|s| &s.live).or(self.live.as_ref())?;
         let end = self
             .opened_end_s()
             .unwrap_or_else(|| self.last_heard_s().min(live.duration_s()));
+        // The stopped take read as saved is in the saved sound's time.
+        let in_take = |t: f64| match stopped {
+            Some(_) => self.session.audio_of(t).unwrap_or(t),
+            None => t,
+        };
         let spans: Vec<(f64, f64)> = self
             .current_spans()
             .into_iter()
+            .map(|(a, b)| (in_take(a), in_take(b)))
             .map(|(a, b)| (a.max(0.0), b.min(end)))
             .filter(|(a, b)| a < b)
             .collect();
         let key: WholeKey = (
             live.beats().len(),
             spans.clone(),
-            self.masked.clone(),
+            stopped.map_or_else(|| self.masked.clone(), |s| s.masked().to_vec()),
             self.rev,
+            stopped.is_some(),
         );
         if let Some((k, w)) = self.whole_take.borrow().as_ref() {
             if *k == key {
@@ -284,15 +310,27 @@ impl TimegrapherApp {
     /// [`Self::whole_read`]), with what it reads copied in, ready to run
     /// here or in the background.
     fn whole_reader(&self, spans: Vec<(f64, f64)>) -> WholeRead {
-        let opened = self.take_breaks.is_some();
-        let log = self.live.as_ref().and_then(steady::log_of);
-        let masks = self.masked.clone();
-        let (take_clock, take_breaks, ppm) = (
-            self.take_clock.clone(),
-            self.take_breaks.clone(),
-            self.clock.as_ref().map(|c| c.ppm),
-        );
-        let (lift_known, unlisted) = (self.lift_known(), self.take_unlisted);
+        let ppm = self.clock.as_ref().map(|c| c.ppm);
+        let lift_known = self.lift_known();
+        // Just stopped: the take as its saved take opens (#2151).
+        let (opened, log, masks, take_clock, take_breaks, unlisted) = match self.stopped_take() {
+            Some(s) => (
+                true,
+                steady::log_of(&s.live),
+                s.masked().to_vec(),
+                s.clock.clone(),
+                Some(s.breaks.clone()),
+                s.unlisted,
+            ),
+            None => (
+                self.take_breaks.is_some(),
+                self.live.as_ref().and_then(steady::log_of),
+                self.masked.clone(),
+                self.take_clock.clone(),
+                self.take_breaks.clone(),
+                self.take_unlisted,
+            ),
+        };
         let read = move || {
             let span: f64 = spans.iter().map(|(a, b)| b - a).sum();
             let (&(from, _), &(_, to)) = (spans.first()?, spans.last()?);

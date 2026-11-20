@@ -2692,7 +2692,7 @@ impl TimegrapherApp {
 
     /// The newest reading, averaged over `average` seconds.
     fn reading_over(&self, average: f64) -> Option<LiveReading> {
-        let live = self.live.as_ref()?;
+        let live = self.live_unless_stop_read_waits()?;
         // Stopped inside a settle: the last readings of the position before
         // the move, rather than nothing.
         if let Some(at) = self.stopped_in_settle() {
