@@ -3,6 +3,10 @@
 
 use super::*;
 
+/// The most shifts the step-or-slide headline names one by one; past it,
+/// their count and the first and last (#2120).
+const SHIFTS_NAMED: usize = 3;
+
 /// The headline where neither a step nor a slide leads (Hugh, #1984):
 /// both adjusted shares, the larger first.
 pub(super) fn step_or_slide_text(s: &SeriesCheck, cap: &str) -> String {
@@ -19,10 +23,15 @@ pub(super) fn step_or_slide_text(s: &SeriesCheck, cap: &str) -> String {
         .skip(1)
         .map(|g| every_text(g.start_s))
         .collect();
-    let shift = if at.len() == 1 {
-        format!("a shift at {}", at[0])
-    } else {
-        format!("shifts at {}", at.join(", "))
+    // Each shift named for a few, past that their count and the first and
+    // last (#2120), with its verb agreeing.
+    let (shift, explain) = match at.as_slice() {
+        [one] => (format!("a shift at {one}"), "explains"),
+        [first, .., last] if at.len() > SHIFTS_NAMED => (
+            format!("{} shifts from {first} to {last}", at.len()),
+            "explain",
+        ),
+        _ => (format!("shifts at {}", at.join(", ")), "explain"),
     };
     let pct = |v: f64| format!("{:.1}%", 100.0 * v);
     let (first, second) = if slide >= steps {
@@ -32,12 +41,12 @@ pub(super) fn step_or_slide_text(s: &SeriesCheck, cap: &str) -> String {
         )
     } else {
         (
-            format!("{shift} explains {}", pct(steps)),
+            format!("{shift} {explain} {}", pct(steps)),
             format!("a slide {}", pct(slide)),
         )
     };
     format!(
-        "{cap} shifts level or slides, but its readings move together too much to tell which: {first}, {second}."
+        "{cap} shifts level or slides, but its readings move together too much to tell which, so the larger share doesn't decide it: {first}, {second}."
     )
 }
 
