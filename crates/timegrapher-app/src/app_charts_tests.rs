@@ -3,6 +3,7 @@
 
 use super::tests::{painted_text, synthetic, synthetic_varying, themed};
 use super::*;
+use distributions::RateTwoS;
 
 /// A trend reading's beat error as core reads one (`beat_error_signed`).
 fn trend_beat_error(p: &TrendPoint) -> Option<f64> {
@@ -61,7 +62,7 @@ fn rate_distribution_counts_two_second_stretches() {
     let _ = ctx.run(Default::default(), |ctx| {
         egui::CentralPanel::default().show(ctx, |ui| app.histogram(ui, SeriesKind::Rate));
     });
-    assert!(!app.rate_2s.values.is_empty());
+    assert!(!app.dist.rate_2s.values.is_empty());
 }
 
 /// The Charts and Distributions panes draw a plot for each reading

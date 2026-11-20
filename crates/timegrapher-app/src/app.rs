@@ -1455,61 +1455,6 @@ struct ChartLine {
     se: fn(&TrendPoint) -> Option<f64>,
 }
 
-/// The rate over each 2 seconds of beats, on a grid from the first beat,
-/// worked out on as beats arrive: (start, s/d). Whatever it was worked
-/// out from is kept, so it starts again when that changes.
-#[derive(Debug, Default)]
-struct RateTwoS {
-    first: Option<f64>,
-    beats: usize,
-    bph: Option<u32>,
-    breaks: Vec<f64>,
-    masked: Vec<(f64, f64)>,
-    /// The next stretch on the grid to work out.
-    next: usize,
-    values: Vec<(f64, f64)>,
-}
-
-impl RateTwoS {
-    /// Seconds of beats in each value, as the amplitude's stretches.
-    const STEP_S: f64 = timegrapher_core::distribution::STRETCH_S;
-
-    /// Bring the values up to `live`'s settled beats. None reaches across a
-    /// break (a jump or a new position) or into a masked stretch, as no
-    /// reading does.
-    fn refresh(&mut self, live: &LiveAnalyzer, masked: &[(f64, f64)]) {
-        let beats = live.beats();
-        let first = beats.first().map(|b| b.time);
-        if self.first != first
-            || self.beats > beats.len()
-            || self.bph != live.bph()
-            || self.breaks != live.breaks()
-            || self.masked != masked
-        {
-            *self = RateTwoS {
-                first,
-                bph: live.bph(),
-                breaks: live.breaks().to_vec(),
-                masked: masked.to_vec(),
-                ..Default::default()
-            };
-        }
-        self.beats = beats.len();
-        let (Some(t0), Some(bph)) = (first, self.bph) else {
-            return;
-        };
-        self.next = timegrapher_core::distribution::rates_2s(
-            beats,
-            bph,
-            t0,
-            self.next,
-            &self.breaks,
-            &self.masked,
-            &mut self.values,
-        );
-    }
-}
-
 /// How long the Listen button takes no tap after it replaces Stop, s: a
 /// lagging window can still show Stop for a moment after it has gone.
 const LISTEN_SETTLE_S: f64 = 0.5;
@@ -1941,7 +1886,7 @@ pub struct TimegrapherApp {
     hist_readings: bool,
     iso_view: isochronism::View,
     /// The rate over each 2 seconds of beats, for the rate's distribution.
-    rate_2s: RateTwoS,
+    dist: distributions::DistState,
     /// Core's readings the Distributions pane counts (#1144), what they were
     /// read for and up to, and the run in the background that replaces them.
     dist_readings: Option<(DistKey, f64, DistReadings)>,
@@ -2519,7 +2464,7 @@ impl TimegrapherApp {
             steady_work: (Default::default(), std::time::Instant::now()),
             hist_readings: true,
             iso_view: Default::default(),
-            rate_2s: RateTwoS::default(),
+            dist: distributions::DistState::default(),
             dist_readings: None,
             dist_job: None,
             cursor_t: None,

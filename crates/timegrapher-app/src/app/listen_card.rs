@@ -1880,7 +1880,8 @@ impl TimegrapherApp {
     }
 
     /// Whether a reading ending at `t` comes from the position the watch is
-    /// in now.
+    /// in now. Many readings read [`Session::in_position_test`] once.
+    #[cfg(test)]
     pub(super) fn in_position(&self, t: f64) -> bool {
         self.session.in_position(t, self.position)
     }

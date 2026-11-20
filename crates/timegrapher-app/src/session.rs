@@ -937,13 +937,23 @@ impl Session {
     }
 
     /// Whether a reading ending at `t` comes from position `now`, settled.
+    #[cfg(test)]
     pub fn in_position(&self, t: f64, now: Position) -> bool {
-        self.stretches().is_empty()
-            || !self.settling_at(t)
-                && self
-                    .position_spans(now)
-                    .iter()
-                    .any(|s| s.2 == now && t > s.0 && t <= s.1)
+        self.in_position_test(now)(t)
+    }
+
+    /// [`Self::in_position`] for many readings: the positions and their
+    /// settlings read once, not once a reading, as a long take's tens of
+    /// thousands of 2 s stretches need (#2171).
+    pub fn in_position_test(&self, now: Position) -> impl Fn(f64) -> bool {
+        let anywhere = self.stretches().is_empty();
+        let settles = self.settles();
+        let spans = self.position_spans(now);
+        move |t| {
+            anywhere
+                || !settles.iter().any(|s| t > s.0 && t <= s.1)
+                    && spans.iter().any(|s| s.2 == now && t > s.0 && t <= s.1)
+        }
     }
 
     /// The stretches to mark on the strip and the charts, once there is

@@ -18,6 +18,87 @@ pub(super) type DistReadings = (
 /// The width kept for the shares up the side of a distribution's plot.
 const SIDE_AXIS_W: f32 = 44.0;
 
+/// What a distribution's plot rests on (#2171): the reading and how it
+/// is shown, the take's [`Revision`], the position counted, Average
+/// Over, core's readings and how far they reach, and how many 2 s
+/// stretches, breaks and positions the take has. Any change works the
+/// plot out again; while listening, each new 2 s stretch does.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct PlotKey {
+    reading: SeriesKind,
+    short: bool,
+    cumulative: bool,
+    rev: Revision,
+    position: Position,
+    average: u64,
+    readings: Option<(DistKey, u64)>,
+    rates: usize,
+    windows: usize,
+    breaks: usize,
+    stretches: usize,
+}
+
+/// A distribution's plot as worked out for its [`PlotKey`]: core's
+/// distribution of the values, how many there were, the beat error's
+/// source, and the points drawn, on the scale's span.
+#[derive(Debug)]
+pub(super) struct DistPlot {
+    key: PlotKey,
+    n: usize,
+    kind: timegrapher_core::distribution::Kind,
+    source: Option<core_session::BeatErrorSelection>,
+    d: Option<timegrapher_core::distribution::Distribution>,
+    pts: Vec<[f64; 2]>,
+}
+
+/// What the Distributions pane keeps between frames: the 2 s rates, and
+/// each reading's plot as last worked out.
+#[derive(Debug, Default)]
+pub(super) struct DistState {
+    pub(super) rate_2s: RateTwoS,
+    plots: [Option<std::sync::Arc<DistPlot>>; 3],
+}
+
+/// A reading's colour on the charts, the strip and here.
+fn series_color(reading: SeriesKind, pal: &theme::Palette) -> Color32 {
+    match reading {
+        SeriesKind::Rate => pal.trace_rate,
+        SeriesKind::Amplitude => pal.trace_amplitude,
+        SeriesKind::BeatError => pal.trace_beat_error,
+    }
+}
+
+/// `pts` as drawn on `t`'s frame over the plot's own bounds (`x` and
+/// `y`, its default bounds, which it keeps: no zoom or drag), less any
+/// within half a point of the one kept before it, the last always kept.
+/// A long take's tens of thousands of values lie that close along the
+/// curve, and drawing each made every frame crawl (#2171); what shows is
+/// the same. The bounds are the plot's own rather than `t`'s, which on
+/// the frame the values change are still the last frame's.
+fn on_screen(
+    pts: &[[f64; 2]],
+    t: &egui_plot::PlotTransform,
+    (x, y): ([f64; 2], [f64; 2]),
+) -> Vec<[f64; 2]> {
+    let bounds = egui_plot::PlotBounds::from_min_max([x[0], y[0]], [x[1], y[1]]);
+    let t = egui_plot::PlotTransform::new(*t.frame(), bounds, egui::Vec2b::new(false, false));
+    let at = |p: &[f64; 2]| t.position_from_point(&egui_plot::PlotPoint::new(p[0], p[1]));
+    let mut kept: Vec<[f64; 2]> = Vec::new();
+    let mut last: Option<egui::Pos2> = None;
+    for (i, p) in pts.iter().enumerate() {
+        let here = at(p);
+        let near = last.is_some_and(|l| (here - l).length() < ON_SCREEN_PT);
+        if !near || i + 1 == pts.len() {
+            kept.push(*p);
+            last = Some(here);
+        }
+    }
+    kept
+}
+
+/// How close two values' points are drawn before only the first is, pt.
+const ON_SCREEN_PT: f32 = 0.5;
+
 impl TimegrapherApp {
     pub(super) fn histogram_settings(&mut self, ui: &mut egui::Ui) {
         theme::tool_choice(
@@ -125,16 +206,16 @@ impl TimegrapherApp {
         reading: SeriesKind,
         no_room: Option<&(String, String)>,
     ) {
-        use timegrapher_core::distribution as dist;
         let pal = theme::pal(ui);
         let short = !self.hist_readings;
         if reading == SeriesKind::Rate && short {
             match self.live.as_ref() {
-                Some(live) => self.rate_2s.refresh(live, &self.masked),
-                None => self.rate_2s = RateTwoS::default(),
+                Some(live) => self.dist.rate_2s.refresh(live, &self.masked),
+                None => self.dist.rate_2s = RateTwoS::default(),
             }
         }
-        let (values, kind, color, label, source) = self.hist_values(reading, short, pal);
+        let worked = self.dist_plot(reading, short);
+        let color = series_color(reading, pal);
         // The title line: the series, and the one position counted when
         // the take has positions, as the toolbar doesn't name it (#1528).
         let only = (!self.session.stretches().is_empty()).then(|| self.position.name());
@@ -155,21 +236,17 @@ impl TimegrapherApp {
         }
         // The beat error's source in a grey chip under it, core's caveats
         // in the chip's hover (#1528).
-        if let Some(src) = source.as_ref().and_then(|s| s.beat_error_source) {
+        if let Some(src) = worked.source.as_ref().and_then(|s| s.beat_error_source) {
             let label = timegrapher_core::session::beat_error_source_label(Some(src));
-            let caveats: Vec<String> = source
+            let caveats: Vec<String> = worked
+                .source
                 .iter()
                 .flat_map(|s| s.caveats())
                 .filter_map(|c| c.long(None))
                 .collect();
             theme::chip(ui, label, label, &caveats, ui.available_width());
         }
-        let step = if label == "2 s" {
-            dist::STRETCH_S
-        } else {
-            self.average_s
-        };
-        let Some(d) = dist::distribution(&values, kind, label, step) else {
+        let Some(d) = worked.d.as_ref() else {
             ui.label(
                 RichText::new("Not enough readings yet")
                     .small()
@@ -177,12 +254,11 @@ impl TimegrapherApp {
             );
             return;
         };
-        let rows = d.fact_rows(kind);
-        let shed = dist::Distribution::fact_shed(&rows);
+        let rows = d.fact_rows(worked.kind);
+        let shed = timegrapher_core::distribution::Distribution::fact_shed(&rows);
         let facts = facts_box(ui, steady::title(reading), rows, shed);
         let (x_lo, x_hi) = (d.edges[0], d.edges[d.edges.len() - 1]);
-        let unit_owned = kind.suffix.to_string();
-        let cumulative = self.hist_cumulative;
+        let unit_owned = worked.kind.suffix.to_string();
         let plot_w = f64::from(ui.available_width() - SIDE_AXIS_W);
         let plot = Plot::new(format!("{} Distribution", steady::title(reading)))
             // As short as its share of the pane, rather than spilling out.
@@ -203,10 +279,84 @@ impl TimegrapherApp {
             })
             .y_axis_min_width(SIDE_AXIS_W)
             .default_x_bounds(x_lo, x_hi);
-        if cumulative {
-            return cumulative_plot(ui, plot, &values, (x_lo, x_hi), color, facts);
+        if worked.key.cumulative {
+            return cumulative_plot(ui, plot, (&worked.pts, [x_lo, x_hi]), color, facts);
         }
-        probability_paper(ui, plot, &values, d.normal_line, (x_lo, x_hi), color, facts);
+        probability_paper(ui, plot, (&worked, [x_lo, x_hi]), color, facts);
+    }
+
+    /// What `reading`'s plot is worked out from ([`PlotKey`]).
+    fn plot_key(&self, reading: SeriesKind, short: bool) -> PlotKey {
+        let live = self.live.as_ref();
+        PlotKey {
+            reading,
+            short,
+            cumulative: self.hist_cumulative,
+            rev: self.rev,
+            position: self.position,
+            average: self.average_s.to_bits(),
+            readings: self.dist_readings.as_ref().map(|d| (d.0, d.1.to_bits())),
+            rates: self.dist.rate_2s.values.len(),
+            windows: live.map_or(0, |l| l.amplitude_windows().len()),
+            breaks: live.map_or(0, |l| l.breaks().len()),
+            stretches: self.session.stretches().len(),
+        }
+    }
+
+    /// `reading`'s plot, worked out again only when what it rests on
+    /// changes ([`PlotKey`]): a long take's every 2 s stretch, collected,
+    /// sorted and placed afresh each frame, made the app crawl (#2171).
+    fn dist_plot(&mut self, reading: SeriesKind, short: bool) -> std::sync::Arc<DistPlot> {
+        let key = self.plot_key(reading, short);
+        let i = reading as usize;
+        if let Some(p) = self.dist.plots[i].as_ref().filter(|p| p.key == key) {
+            return p.clone();
+        }
+        let worked = std::sync::Arc::new(self.work_out_plot(key));
+        self.dist.plots[i] = Some(worked.clone());
+        worked
+    }
+
+    /// A distribution's plot, worked out from the values `key` names.
+    fn work_out_plot(&self, key: PlotKey) -> DistPlot {
+        use timegrapher_core::{distribution as dist, histogram as hist};
+        let (values, kind, _, label, source) =
+            self.hist_values(key.reading, key.short, &theme::DARK);
+        let step = if label == "2 s" {
+            dist::STRETCH_S
+        } else {
+            self.average_s
+        };
+        let d = dist::distribution(&values, kind, label, step);
+        let pts = d.as_ref().map_or_else(Vec::new, |d| {
+            let (x_lo, x_hi) = (d.edges[0], d.edges[d.edges.len() - 1]);
+            let inside = |x: f64| x >= x_lo && x <= x_hi;
+            if key.cumulative {
+                // The share of values at or below each value, as a step
+                // line.
+                let mut pts: Vec<[f64; 2]> = Vec::new();
+                for [x, q] in hist::ecdf(&values).into_iter().filter(|p| inside(p[0])) {
+                    if let Some(&[_, prev]) = pts.last() {
+                        pts.push([x, prev]);
+                    }
+                    pts.push([x, q * 100.0]);
+                }
+                pts
+            } else {
+                hist::probability_plot(&values)
+                    .into_iter()
+                    .filter(|p| inside(p[0]))
+                    .collect()
+            }
+        });
+        DistPlot {
+            key,
+            n: values.len(),
+            kind,
+            source,
+            d,
+            pts,
+        }
     }
 
     /// Keeps core's readings for the pane ([`DistReadings`]) up to date
@@ -292,8 +442,8 @@ impl TimegrapherApp {
     ) {
         // Only the position the watch is in now: values from another
         // position are a different measurement.
-        let inside = |t: f64| self.in_position(t);
-        let windows = self.position_windows();
+        let inside = self.session.in_position_test(self.position);
+        let color = series_color(reading, pal);
         // The readings, one per Average Over so that no two share beats:
         // core's, as `timegrapher series` counts them (#1144).
         let core = self.dist_readings.as_ref().map(|d| &d.2 .0);
@@ -305,32 +455,30 @@ impl TimegrapherApp {
         use timegrapher_core::distribution::{AMPLITUDE, BEAT_ERROR, RATE};
         match reading {
             SeriesKind::Rate if short => (
-                self.rate_2s
+                self.dist
+                    .rate_2s
                     .values
                     .iter()
-                    .filter(|&&(a, _)| inside(a + RateTwoS::STEP_S) && self.in_position(a + 1e-6))
+                    .filter(|&&(a, _)| inside(a + RateTwoS::STEP_S) && inside(a + 1e-6))
                     .map(|&(_, v)| v)
                     .collect(),
                 RATE,
-                pal.trace_rate,
+                color,
                 "2 s",
                 None,
             ),
             SeriesKind::Rate => (readings(0), RATE, pal.trace_rate, "readings", None),
             SeriesKind::Amplitude if short => (
-                windows.iter().filter_map(|w| w.mean()).collect(),
+                self.position_windows()
+                    .iter()
+                    .filter_map(|w| w.mean())
+                    .collect(),
                 AMPLITUDE,
-                pal.trace_amplitude,
+                color,
                 "2 s",
                 None,
             ),
-            SeriesKind::Amplitude => (
-                readings(1),
-                AMPLITUDE,
-                pal.trace_amplitude,
-                "readings",
-                None,
-            ),
+            SeriesKind::Amplitude => (readings(1), AMPLITUDE, color, "readings", None),
             SeriesKind::BeatError => {
                 let selected = self.hist_beat_errors(short);
                 let values = if short {
@@ -341,7 +489,7 @@ impl TimegrapherApp {
                 (
                     values,
                     BEAT_ERROR,
-                    pal.trace_beat_error,
+                    color,
                     if short { "2 s" } else { "readings" },
                     Some(selected),
                 )
@@ -362,27 +510,14 @@ impl TimegrapherApp {
 }
 
 /// A distribution as the share of values at or below each value, as a step
-/// line between `x_lo` and `x_hi`.
+/// line (`pts`, worked out in [`TimegrapherApp::work_out_plot`]).
 fn cumulative_plot(
     ui: &mut egui::Ui,
     plot: Plot<'_>,
-    values: &[f64],
-    (x_lo, x_hi): (f64, f64),
+    (pts, x): (&[[f64; 2]], [f64; 2]),
     color: Color32,
     mut facts: FactBox,
 ) {
-    use timegrapher_core::histogram as hist;
-    // The share of values at or below each value, as a step line.
-    let mut pts: Vec<[f64; 2]> = Vec::new();
-    for [x, q] in hist::ecdf(values) {
-        if x < x_lo || x > x_hi {
-            continue;
-        }
-        if let Some(&[_, prev]) = pts.last() {
-            pts.push([x, prev]);
-        }
-        pts.push([x, q * 100.0]);
-    }
     let pal = theme::pal(ui);
     let grid = Grid::new(value_grid, |g| theme::even_grid(g, 30.0, &[]));
     let r = grid
@@ -397,6 +532,7 @@ fn cumulative_plot(
         .default_y_bounds(0.0, 100.0)
         .show(ui, |p| {
             grid.draw(p, pal);
+            let pts = on_screen(pts, p.transform(), (x, [0.0, 100.0]));
             facts.plot_h = p.transform().frame().height();
             facts.tops = pts.clone();
             p.add(facts.clone());
@@ -415,21 +551,14 @@ fn cumulative_plot(
 fn probability_paper(
     ui: &mut egui::Ui,
     plot: Plot<'_>,
-    values: &[f64],
-    normal_line: Option<timegrapher_core::distribution::NormalLine>,
-    (x_lo, x_hi): (f64, f64),
+    (worked, x): (&DistPlot, [f64; 2]),
     color: Color32,
     mut facts: FactBox,
 ) {
     use timegrapher_core::histogram as hist;
     let pal = theme::pal(ui);
-    // Probability paper: the share at or below each value on a scale of
-    // standard deviations, labelled in percent.
-    let pts: Vec<[f64; 2]> = hist::probability_plot(values)
-        .into_iter()
-        .filter(|p| p[0] >= x_lo && p[0] <= x_hi)
-        .collect();
-    let z_top = hist::normal_quantile(1.0 - 0.5 / values.len().max(2) as f64).min(3.3) + 0.25;
+    let normal_line = worked.d.as_ref().and_then(|d| d.normal_line);
+    let z_top = hist::normal_quantile(1.0 - 0.5 / worked.n.max(2) as f64).min(3.3) + 0.25;
     let line = normal_line.map(|l| {
         vec![
             [l.centre - l.spread * z_top, -z_top],
@@ -450,6 +579,7 @@ fn probability_paper(
         .default_y_bounds(-z_top, z_top)
         .show(ui, |p| {
             grid.draw(p, pal);
+            let pts = on_screen(&worked.pts, p.transform(), (x, [-z_top, z_top]));
             facts.plot_h = p.transform().frame().height();
             facts.tops = pts.clone();
             p.add(facts.clone());
@@ -547,6 +677,61 @@ const LABEL_GAP: f32 = 22.0;
 /// least 80 points apart.
 fn value_grid(g: egui_plot::GridInput) -> Vec<GridMark> {
     theme::even_grid(g, 80.0, &[])
+}
+
+/// The rate over each 2 seconds of beats, on a grid from the first beat,
+/// worked out on as beats arrive: (start, s/d). Whatever it was worked
+/// out from is kept, so it starts again when that changes.
+#[derive(Debug, Default)]
+pub(super) struct RateTwoS {
+    first: Option<f64>,
+    beats: usize,
+    bph: Option<u32>,
+    breaks: Vec<f64>,
+    masked: Vec<(f64, f64)>,
+    /// The next stretch on the grid to work out.
+    next: usize,
+    pub(super) values: Vec<(f64, f64)>,
+}
+
+impl RateTwoS {
+    /// Seconds of beats in each value, as the amplitude's stretches.
+    pub(super) const STEP_S: f64 = timegrapher_core::distribution::STRETCH_S;
+
+    /// Bring the values up to `live`'s settled beats. None reaches across a
+    /// break (a jump or a new position) or into a masked stretch, as no
+    /// reading does.
+    pub(super) fn refresh(&mut self, live: &LiveAnalyzer, masked: &[(f64, f64)]) {
+        let beats = live.beats();
+        let first = beats.first().map(|b| b.time);
+        if self.first != first
+            || self.beats > beats.len()
+            || self.bph != live.bph()
+            || self.breaks != live.breaks()
+            || self.masked != masked
+        {
+            *self = RateTwoS {
+                first,
+                bph: live.bph(),
+                breaks: live.breaks().to_vec(),
+                masked: masked.to_vec(),
+                ..Default::default()
+            };
+        }
+        self.beats = beats.len();
+        let (Some(t0), Some(bph)) = (first, self.bph) else {
+            return;
+        };
+        self.next = timegrapher_core::distribution::rates_2s(
+            beats,
+            bph,
+            t0,
+            self.next,
+            &self.breaks,
+            &self.masked,
+            &mut self.values,
+        );
+    }
 }
 
 #[cfg(test)]
@@ -782,5 +967,113 @@ mod source_tests {
             "{} rate readings at 20 s",
             longer.len()
         );
+    }
+}
+
+#[cfg(test)]
+mod plot_cache_tests {
+    use super::*;
+
+    /// One frame of `reading`'s distribution on an 800 × 400 panel: the
+    /// circles it painted.
+    fn circles(app: &mut TimegrapherApp, ctx: &egui::Context, reading: SeriesKind) -> usize {
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                Vec2::new(800.0, 400.0),
+            )),
+            ..Default::default()
+        };
+        let out = ctx.run(input, |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| app.histogram(ui, reading));
+        });
+        out.shapes
+            .iter()
+            .filter(|s| matches!(s.shape, egui::Shape::Circle(_)))
+            .count()
+    }
+
+    /// A long take's 2 s rates, 40,000 of them, as a 22 h take has: what
+    /// the plot draws is thinned to the screen, and a frame with nothing
+    /// new works nothing out again (#2171). Each was done afresh every
+    /// frame, 40,000 circles and a sort each time.
+    #[test]
+    fn a_long_takes_plot_is_worked_out_once_and_drawn_at_screen_size() {
+        let mut app = super::super::tests::synthetic(30.0, 12.0);
+        app.hist_readings = false;
+        let ctx = super::super::tests::themed();
+        let _ = circles(&mut app, &ctx, SeriesKind::Rate);
+        let first = app.dist.rate_2s.values.len();
+        assert!(first > 5, "{first}");
+        // 40,000 more 2 s rates spread like a real watch's.
+        let more = (0..40_000).map(|i| {
+            let i = f64::from(i);
+            (
+                30.0 + 2.0 * i,
+                12.0 + 8.0 * (i * 0.7).sin() + 3.0 * (i * 0.13).cos(),
+            )
+        });
+        app.dist.rate_2s.values.extend(more);
+        let drawn = circles(&mut app, &ctx, SeriesKind::Rate);
+        let plot = app.dist.plots[SeriesKind::Rate as usize].clone().unwrap();
+        assert_eq!(plot.n, first + 40_000);
+        assert!(plot.pts.len() > 39_000, "{}", plot.pts.len());
+        // The plot is about 740 × 350 pt: a curve across it needs no
+        // more than a point every half a point along its length, even
+        // on the frame the values change.
+        assert!((100..4_400).contains(&drawn), "{drawn} circles");
+        // Nothing new: the same plot, not worked out again.
+        let _ = circles(&mut app, &ctx, SeriesKind::Rate);
+        let again = app.dist.plots[SeriesKind::Rate as usize].clone().unwrap();
+        assert!(std::sync::Arc::ptr_eq(&plot, &again));
+        // A new stretch, the other view, another Average Over, another
+        // position, or a new mask: worked out again.
+        app.dist.rate_2s.values.push((80_100.0, 12.0));
+        let changes: [fn(&mut TimegrapherApp); 5] = [
+            |_| {},
+            |a| a.hist_cumulative = true,
+            |a| a.average_s = 20.0,
+            |a| a.position = Position::DialDown,
+            |a| a.rev.masks += 1,
+        ];
+        let mut was = again;
+        for change in changes {
+            change(&mut app);
+            let _ = circles(&mut app, &ctx, SeriesKind::Rate);
+            let now = app.dist.plots[SeriesKind::Rate as usize].clone().unwrap();
+            assert!(!std::sync::Arc::ptr_eq(&was, &now));
+            was = now;
+        }
+        assert_eq!(was.n, first + 40_001);
+    }
+
+    /// Thinning keeps both ends and leaves every value's point within
+    /// half a point of one drawn, so what shows is the same.
+    #[test]
+    fn thinning_leaves_every_point_within_half_a_point_of_one_drawn() {
+        let t = egui_plot::PlotTransform::new(
+            egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(600.0, 300.0)),
+            egui_plot::PlotBounds::from_min_max([0.0, -3.5], [100.0, 3.5]),
+            egui::Vec2b::new(false, false),
+        );
+        let pts: Vec<[f64; 2]> = (0..20_000)
+            .map(|i| {
+                let q = (f64::from(i) + 0.5) / 20_000.0;
+                let z = timegrapher_core::histogram::normal_quantile(q);
+                [50.0 + 12.0 * z, z]
+            })
+            .collect();
+        let kept = on_screen(&pts, &t, ([0.0, 100.0], [-3.5, 3.5]));
+        assert_eq!(kept.first(), pts.first());
+        assert_eq!(kept.last(), pts.last());
+        assert!(kept.len() < 3_000, "{}", kept.len());
+        let at = |p: &[f64; 2]| t.position_from_point(&egui_plot::PlotPoint::new(p[0], p[1]));
+        for p in &pts {
+            let near = kept
+                .iter()
+                .map(|k| (at(k) - at(p)).length())
+                .fold(f32::INFINITY, f32::min);
+            assert!(near < ON_SCREEN_PT, "{p:?} is {near} pt from a drawn point");
+        }
     }
 }
