@@ -1723,7 +1723,10 @@ fn print_summary(
         "Jitter       {} us per beat (within 10 s windows)",
         opt(s.jitter_us, 0)
     );
-    print_rate_spread(s, clock);
+    println!(
+        "{}",
+        rate_spread_line(s.rate_p05, s.rate_p95, clock.map(|c| c.0))
+    );
     // Tick and Tock have no ± of their own; they are at the amplitude's
     // place, as the figure beside them (#1470).
     let side = |x: Option<f64>| {
@@ -1747,36 +1750,36 @@ fn print_summary(
     print_shape_and_periods(s);
 }
 
+/// The rate's spread over the 10 s windows, `p05` and `p95` on the card's
+/// clock, put on the clock the rate above it is on: corrected at `ppm`
+/// as the rate is, with the card's clock beside, so the spread brackets
+/// the rate it sits under (#2089).
+fn rate_spread_line(p05: Option<f64>, p95: Option<f64>, ppm: Option<f64>) -> String {
+    let of = format!(
+        "Rate spread  {} to {} s/d (5th-95th percentile of 10 s windows)",
+        opt(p05, 1),
+        opt(p95, 1)
+    );
+    match ppm {
+        Some(ppm) => {
+            let fix =
+                |x: Option<f64>| x.map(|x| timegrapher_core::clockstore::correct_rate(x, ppm));
+            format!(
+                "Rate spread  {} to {} s/d (5th-95th percentile of 10 s windows), corrected for the sound card's clock; {} to {} s/d on the card's clock",
+                opt(fix(p05), 1),
+                opt(fix(p95), 1),
+                opt(p05, 1),
+                opt(p95, 1)
+            )
+        }
+        None => of,
+    }
+}
+
 /// The rate, corrected for the card's clock where it can be, and the beat
 /// error, each with its ± at the figure's place (core's `figure_with_pm`,
 /// #1470). The rate on the card's clock and the beat error from the drop
 /// take the same place as the figure beside them.
-/// The rate's spread over the 10 s windows, on the clock the rate above
-/// it is on: corrected as it is, with the card's clock beside, so the
-/// spread brackets the rate it sits under (#2089).
-fn print_rate_spread(s: &timegrapher_core::analysis::Summary, clock: Option<&(f64, String)>) {
-    const LINE: &str = "Rate spread ";
-    const OF: &str = "(5th-95th percentile of 10 s windows)";
-    match clock {
-        Some((ppm, _)) => {
-            let fix =
-                |x: Option<f64>| x.map(|x| timegrapher_core::clockstore::correct_rate(x, *ppm));
-            println!(
-                "{LINE} {} to {} s/d, corrected as the rate is {OF}; {} to {} s/d on the card's clock",
-                opt(fix(s.rate_p05), 1),
-                opt(fix(s.rate_p95), 1),
-                opt(s.rate_p05, 1),
-                opt(s.rate_p95, 1)
-            );
-        }
-        None => println!(
-            "{LINE} {} to {} s/d {OF}",
-            opt(s.rate_p05, 1),
-            opt(s.rate_p95, 1)
-        ),
-    }
-}
-
 fn print_rate(s: &timegrapher_core::analysis::Summary, clock: Option<&(f64, String)>) {
     let c = s.confidence.as_ref();
     if let Some(f) = &s.overall {
@@ -2299,6 +2302,31 @@ mod report_clock_context {
         assert_eq!(
             clock_json(ppm, &from, None)["rate_s_per_day"],
             serde_json::Value::Null
+        );
+    }
+}
+
+#[cfg(test)]
+mod rate_spread_tests {
+    use super::*;
+
+    /// The spread is on the rate's clock, said so, with the card's clock
+    /// beside it; with no correction it stays as read (#2089).
+    #[test]
+    fn the_spread_is_on_the_rate_s_clock() {
+        let ppm = -19.3;
+        let fix = |x: f64| timegrapher_core::clockstore::correct_rate(x, ppm);
+        assert_eq!(
+            rate_spread_line(Some(7.2), Some(14.7), Some(ppm)),
+            format!(
+                "Rate spread  {} to {} s/d (5th-95th percentile of 10 s windows), corrected for the sound card's clock; 7.2 to 14.7 s/d on the card's clock",
+                opt(Some(fix(7.2)), 1),
+                opt(Some(fix(14.7)), 1)
+            )
+        );
+        assert_eq!(
+            rate_spread_line(Some(-3.0), Some(4.3), None),
+            "Rate spread  -3.0 to 4.3 s/d (5th-95th percentile of 10 s windows)"
         );
     }
 }
