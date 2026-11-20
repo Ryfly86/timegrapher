@@ -523,6 +523,63 @@ fn an_empty_stand_replayed_gives_no_readings() {
     );
 }
 
+/// Whether a watch is heard does not depend on how it is averaged (#1965).
+/// An average under 10 s is judged over the sound its scatter is read
+/// from, its 10 s look back, as a 10 s average is: opened at 2 s, an empty
+/// stand scattering 4% of a beat was not judged, and its strip drew the
+/// noise as a watch at 125,000 s/d. Every second from 10 s, live, opened
+/// and saved, at each Average Over under 10 s against 10 s.
+#[test]
+fn a_short_average_hears_a_watch_as_a_ten_second_one_does() {
+    let a = empty_stand();
+    let path = on_disk(&a, "t1965");
+    let log = stream(&path, 47.0);
+    std::fs::remove_file(&path).ok();
+    let opened = LiveAnalyzer::from_log(log.clone(), LiveConfig::default());
+    let live = pushed(&a, 4800);
+    short_averages_agree(&[("live", &live), ("opened", &opened)], &log, &opened);
+}
+
+/// [`a_short_average_hears_a_watch_as_a_ten_second_one_does`] for
+/// `engines`: the verdict at each Average Over under 10 s, every second
+/// from 10 s, is the 10 s one's, and a reading not heard shows no
+/// figures. Saved, a stretch that short over the sound of `log` gets the
+/// verdict `opened`, the engine built from `log`, gives it (#1688).
+fn short_averages_agree(engines: &[(&str, &LiveAnalyzer)], log: &BeatLog, opened: &LiveAnalyzer) {
+    let shorts = timegrapher_core::live::AVERAGES
+        .into_iter()
+        .filter(|&s| s < 10.0);
+    let shorts: Vec<f64> = shorts.collect();
+    assert!(!shorts.is_empty());
+    for &(how, live) in engines {
+        let mut t = 10.0;
+        while t <= live.duration_s() {
+            let ten = live.reading_at(t, 10.0);
+            for &s in &shorts {
+                let r = live.reading_at(t, s);
+                assert_eq!(
+                    (r.watch_heard, r.timing_scatter_fraction),
+                    (ten.watch_heard, ten.timing_scatter_fraction),
+                    "{how}, {s} s ending at {t} s: {:?} s/d",
+                    r.rate_s_per_day
+                );
+                assert!(r.watch_heard || r.rate_s_per_day.is_none());
+            }
+            t += 1.0;
+        }
+    }
+    let mut t = 10.0;
+    while t <= log.duration_s {
+        for &s in &shorts {
+            let m = session::measure(log, None, t - s, t);
+            let r = opened.reading_at(t, s);
+            assert_eq!(m.watch_heard, r.watch_heard, "saved, {s} s ending at {t} s");
+            assert!(m.watch_heard || m.rate_s_per_day.is_none());
+        }
+        t += 1.0;
+    }
+}
+
 /// The first `seconds` of a recording.
 fn cut(mut a: Audio, seconds: f64) -> Audio {
     a.samples
@@ -1212,7 +1269,8 @@ const EMPTY_STAND_TAKE: &str = "ym42_DU_65h_excerpt_emptystand";
 /// 0.78% of a beat at 18,000 bph, under the 0.8% from which the beat sound
 /// was asked, and the stopped take's Rate card showed it: −183.6 s/d and
 /// 0.14 ms. In its first 8 s, opened, it read +120,000 s/d (#2014).
-/// Every reading, every 5 s from 1 s, at 10, 30 and 60 s averages.
+/// Every reading, every 5 s from 1 s, at every Average Over: at 2 and 4 s,
+/// opened, it read 125,000 s/d and its strip drew a watch (#1965).
 ///
 /// Runs where `TIMEGRAPHER_CORPUS` is set.
 #[test]
@@ -1224,7 +1282,7 @@ fn an_empty_stand_is_no_watch_however_it_is_read() {
     assert!(!whole(&log).watch_heard, "the take as a whole");
     let audio = load(&path).unwrap();
     let pushed = pushed(&audio, audio.sample_rate as usize / 10);
-    let opened = LiveAnalyzer::from_log(log, LiveConfig::default());
+    let opened = LiveAnalyzer::from_log(log.clone(), LiveConfig::default());
     for (how, live) in [("live", &pushed), ("opened", &opened)] {
         // From the first second: under 10 s of sound a reading gives no
         // figures, so no rate (#2014).
@@ -1232,7 +1290,7 @@ fn an_empty_stand_is_no_watch_however_it_is_read() {
         // only the figures are checked, then every 5 s.
         let mut t = 1.0;
         while t <= live.duration_s() {
-            for average_s in [10.0, 30.0, 60.0] {
+            for average_s in timegrapher_core::live::AVERAGES {
                 let r = live.reading_at(t, average_s);
                 let figures = [r.rate_s_per_day, r.amplitude_deg, r.beat_error_ms];
                 assert!(
@@ -1245,12 +1303,13 @@ fn an_empty_stand_is_no_watch_however_it_is_read() {
             t += if t < 10.0 { 1.0 } else { 5.0 };
         }
     }
+    short_averages_agree(&[("live", &pushed), ("opened", &opened)], &log, &opened);
 }
 
 /// Kept as its analysis alone, an empty stand still reads no watch, with
 /// no figures in its first seconds (#2014), now that the beats' sound the
 /// verdict reads is kept with it (#2069): as opened with its sound, every
-/// second up to 10 s and every 5 s after, at 10, 30 and 60 s averages.
+/// second up to 10 s and every 5 s after, at every Average Over (#1965).
 /// The beat sound kept stays within its budget, whatever the length.
 ///
 /// Runs where `TIMEGRAPHER_CORPUS` is set.
@@ -1281,7 +1340,7 @@ fn an_empty_stand_kept_as_its_analysis_is_still_no_watch() {
     let opened = LiveAnalyzer::from_log(kept, LiveConfig::default());
     let mut t = 1.0;
     while t <= opened.duration_s() {
-        for average_s in [10.0, 30.0, 60.0] {
+        for average_s in timegrapher_core::live::AVERAGES {
             let (a, r) = (
                 sound.reading_at(t, average_s),
                 opened.reading_at(t, average_s),
