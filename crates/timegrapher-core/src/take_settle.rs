@@ -11,7 +11,19 @@ use super::*;
 /// on #1980). A recording of its own keeps [`measured`]'s halving, so a
 /// short take still reads, alone or in a session of such takes.
 pub fn settles_through(e: &RecordingEntry, m: &Manifest, length_s: f64) -> bool {
-    cut_from_one(e, m) && length_s <= SETTLE_S
+    handled(cut_from_one(e, m), length_s, SETTLE_S)
+}
+
+/// Whether a stretch `length_s` long, one of `several` in its take, is the
+/// watch being handled and not a position: it is no longer than the
+/// `settle_s` it would settle for, so nothing of it is settled (Norm on
+/// #1980). The one rule for a stretch of a session file
+/// ([`settles_through`]) and for a take's opening stretch, the one before
+/// the watch is first moved, in the app, which no move settles: a take
+/// started in the last take's position and moved at once (Shane on #1980).
+/// A take of one stretch reads whatever it has.
+pub fn handled(several: bool, length_s: f64, settle_s: f64) -> bool {
+    several && length_s <= settle_s
 }
 
 /// Whether entry `e` is one of several stretches the take `m` cuts from
@@ -116,5 +128,19 @@ mod tests {
         assert!(!listed_unread(&one.recordings[0], &one));
         let w = reading_window(&one.recordings[0], &one, None, 600.0).unwrap();
         assert_eq!((w.from_s, w.to_s), (1.0, 2.0));
+    }
+
+    /// A take's opening stretch, one of several, no longer than its settle
+    /// is the watch being handled; one past it, or a take's only stretch,
+    /// is a position (Norm and Shane on #1980).
+    #[test]
+    fn an_opening_stretch_no_longer_than_the_settle_is_handled() {
+        assert!(handled(true, 1.0, SETTLE_S));
+        assert!(handled(true, 10.0, SETTLE_S));
+        assert!(handled(true, SETTLE_S, SETTLE_S));
+        assert!(!handled(true, SETTLE_S + 1.0, SETTLE_S));
+        assert!(!handled(false, 1.0, SETTLE_S));
+        // The Settle set stands, not Witschi's 20 s.
+        assert!(handled(true, 25.0, 30.0) && !handled(true, 25.0, 20.0));
     }
 }

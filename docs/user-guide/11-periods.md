@@ -33,6 +33,31 @@ regular beat.
 With no calibre picked, or none of its wheels known, one minute and one
 hour are marked in grey instead.
 
+## Mesh Lines
+
+**Mesh**, beside **Wheel Periods** in the toolbar (not yet in the
+picture), marks each pinion's **mesh**: the time one tooth of a wheel
+takes to engage, drive and leave the pinion it drives. That is the
+wheel's turn ÷ its teeth, the same as the pinion's turn ÷ its leaves. A
+line at a mesh's period points at that wheel and pinion, where the
+amplitude can step as each tooth passes.
+
+- **Where they come from.** The calibre's tooth and leaf counts
+  (chapter 24, Teeth and Leaves). A calibre with no counts has no mesh
+  lines.
+- **How they look.** A faint, loosely dashed line, named under the plot
+  by its pinion: **Fourth Pinion Mesh**, **Third Pinion Mesh**. The
+  pointer on one says what it is: "Fourth Pinion Mesh: 6.67 s, the time
+  one tooth of the third wheel takes to pass through the fourth pinion's
+  leaves."
+- **Left to a wheel.** A mesh within 3% of a wheel's or a ×2's period is
+  left to that line while Wheel Periods is on. With Wheel Periods off,
+  each mesh is marked under its own name, and the minute and hour lines
+  don't show.
+- **On at first,** and one setting for this pane only, like Wheel Periods.
+  A mesh faster than the plot's shortest period isn't drawn, such as the
+  escape pinion's, which is under a second.
+
 **In the picture** are the first 12 hours of the Dandong 3235 run-down
 from chapter 8. Two lines stand far above the rest, each exactly on a
 wheel's mark. The tallest is at 5 s, the escape wheel's turn (it turns
@@ -90,6 +115,7 @@ The amplitude and the beat error are searched on their 2 s windows, from
 | A line at a wheel's period | The readings repeat once per turn of that wheel. |
 | A line at half a wheel's period | Twice a turn: what an off-centre wheel can give. |
 | Lines at a half, a third and a quarter of a wheel's period | A sharp disturbance once per turn of that wheel. |
+| A line at a mesh's period | A repeat once per tooth of that wheel passing through that pinion. |
 | A line at no wheel's period | A repeat from something else: the room, the stand, or a wheel the calibre table doesn't list. |
 
 ## What It Can't Tell You

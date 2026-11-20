@@ -759,6 +759,11 @@ positions test:
   Beat Error (amber).
 - **Duration** is the time marked in the position, less the Settle at
   the start of each stretch and less masked time.
+- **The opening stretch,** before the first move, has no Settle. If the
+  take then moves on and that stretch lasted no longer than the Settle,
+  it is the watch being handled, not a position: it has no row, the take's
+  Watches row doesn't list it, and the take saves it reading nothing, as
+  `timegrapher session` reads it (core `take::handled`, #1980).
 - **Readings** show once a position has 10 s. Under that it reads
   "Under 10 s"; a position never marked reads "Not marked".
 - **Info**, pinned at the toolbar's right, opens a panel with those two
@@ -1719,8 +1724,8 @@ shows, a fainter dotted line marked ×2; where the calibre's tooth and leaf
 counts give it, each pinion's mesh (the time one tooth of the wheel
 driving it takes to engage, drive and leave, from core's
 `Catalog::meshes`, #1472) is a faint, loosely dashed line named
-"Fourth Pinion Mesh", or "4th Mesh" beside a map, unless a wheel or a ×2
-already marks that period. Its hover gives core's words: "Fourth Pinion
+"Fourth Pinion Mesh" under the plot, or one word to a line in the lane
+beside a map, unless a wheel or a ×2 already marks that period. Its hover gives core's words: "Fourth Pinion
 Mesh: 6.67 s, the time one tooth of the third wheel takes to pass through
 the fourth pinion's leaves."; the grid behind is pale. The
 wheels' lines are grey and dotted, and named, so they never
@@ -1728,7 +1733,10 @@ read as the grid or a reading. With no calibre picked, or none of its
 wheels known, one minute and one hour are marked in grey instead, periods
 alone named after no wheel. **Wheel Periods**, in the toolbars of
 Periods, FFT, STFT Map and Wavelet Map, shows or hides these marks in
-that pane only; it starts on. Each map's **dB Scale** is its own too. A marked point (the period found, the lag the readings repeat
+that pane only; it starts on. **Mesh**, beside it (#1764), shows or
+hides the meshes in that pane only, and starts on too; with Wheel
+Periods off each mesh is marked under its own name and no minute or hour
+is marked. Each map's **dB Scale** is its own too. A marked point (the period found, the lag the readings repeat
 at, the tallest peak) keeps its dot on the trace, and its note sits in
 the nearest clear space the trace doesn't cross, above right first, on a
 plate with a thin leader to the dot; it keeps its place until the trace
