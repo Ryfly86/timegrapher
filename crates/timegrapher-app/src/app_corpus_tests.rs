@@ -1094,7 +1094,9 @@ fn last_beat_differences(
 /// saved take's, and never a bare dash (Norm and Hugh 5).
 #[test]
 fn walters_splice_shows_the_reads_beat_error() {
+    let required = std::env::var_os("TIMEGRAPHER_REQUIRE_CORPUS").is_some();
     let Some(root) = std::env::var_os("TIMEGRAPHER_CORPUS").map(PathBuf::from) else {
+        assert!(!required, "TIMEGRAPHER_CORPUS is needed");
         return eprintln!("skipped: TIMEGRAPHER_CORPUS isn't set");
     };
     let load = |id: &str| {
@@ -1106,6 +1108,10 @@ fn walters_splice_shows_the_reads_beat_error() {
         load("eta2824_holder_DU_30min"),
         load("reverso21600_DU_20min_newstand"),
     ) else {
+        assert!(
+            !required,
+            "the ETA holder and Reverso takes' sound is needed"
+        );
         return eprintln!("skipped: the takes' sound isn't here");
     };
     let fs = eta.sample_rate as usize;
