@@ -438,9 +438,17 @@ impl ServerHandler for Server {
 }
 
 fn main() -> std::process::ExitCode {
-    if std::env::args().nth(1).as_deref() == Some("--version") {
-        println!("timegrapher-mcp {}", env!("CARGO_PKG_VERSION"));
-        return std::process::ExitCode::SUCCESS;
+    match std::env::args().nth(1).as_deref() {
+        Some("--version") => {
+            println!("timegrapher-mcp {}", env!("CARGO_PKG_VERSION"));
+            return std::process::ExitCode::SUCCESS;
+        }
+        // Help, not a server waiting for a chat app's `initialize` (#2186).
+        Some("--help" | "-h") => {
+            print!("{}", cli::help());
+            return std::process::ExitCode::SUCCESS;
+        }
+        _ => {}
     }
     let policy = match cli::Policy::load() {
         Ok(policy) => policy,

@@ -482,7 +482,8 @@ Example prompts you can use directly:
   the whole path.
 - **No tools in the chat app**: check the path in the config file, and that
   you quit and reopened the app. Running `timegrapher-mcp --version` in a
-  terminal shows whether the program starts at all.
+  terminal shows whether the program starts at all; `timegrapher-mcp --help`
+  lists the environment variables it reads.
 
 FFT charts show available/total input-grid sample counts and qualify missing-data
 peak heights. The structured result retains compact `spectrum_support` when large

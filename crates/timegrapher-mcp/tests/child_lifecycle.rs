@@ -300,3 +300,23 @@ fn invalid_startup_configuration_fails_before_starting_any_cli() {
         assert!(!fixture.0.join("analyze.pid").exists());
     }
 }
+
+/// `--help` prints help and exits, naming every limit it reads, rather
+/// than waiting as a server and saying "connection closed" (#2186).
+#[test]
+fn help_prints_usage_instead_of_serving() {
+    for flag in ["--help", "-h"] {
+        let out = Command::new(env!("CARGO_BIN_EXE_timegrapher-mcp"))
+            .arg(flag)
+            .stdin(Stdio::null())
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "{flag}");
+        let text = String::from_utf8_lossy(&out.stdout);
+        assert!(text.contains("Usage: timegrapher-mcp"), "{flag}: {text}");
+        for name in ["TIMEGRAPHER_CLI", PROCESSING, GRACE, PROFILE] {
+            assert!(text.contains(name), "{flag}: {name}");
+        }
+        assert!(out.stderr.is_empty(), "{flag}");
+    }
+}

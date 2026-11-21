@@ -284,12 +284,20 @@ pub fn wait_short_title(title: &str) -> Option<String> {
     (title == format!("{under} Heard")).then_some(under)
 }
 
+/// How far over a whole second a settle's time left may be and still
+/// count as that second: the time left is a settle's end less now, and
+/// `(start + 10.0) - start` can come out a few ulps over 10 s, which
+/// rounded up would say "11 s" for a 10 s settle (#2152). A microsecond
+/// is far above that error and far below anything a countdown shows.
+pub const SETTLE_COUNT_SLACK_S: f64 = 1e-6;
+
 /// The whole seconds of a settle still to come, as every countdown says
 /// them: rounded up, so it reads 1 s until the settle is over, never 0 s
 /// (#2044: the cards and the Positions pane said the same settle 1 s
-/// apart).
+/// apart), and starts at the settle's own length, not one over it
+/// ([`SETTLE_COUNT_SLACK_S`], #2152).
 pub fn settle_seconds(left_s: f64) -> f64 {
-    left_s.ceil()
+    (left_s - SETTLE_COUNT_SLACK_S).ceil().max(1.0)
 }
 
 impl Wait {
@@ -1251,6 +1259,22 @@ pub fn assess_in(
 
 #[cfg(test)]
 mod tests {
+    /// A 10 s settle counts down from 10 s, though its end less its start
+    /// can come out a few ulps over 10 s (#2152), and still reads 1 s,
+    /// never 0 s, to its end (#2044).
+    #[test]
+    fn a_settle_counts_down_from_its_own_length() {
+        use super::settle_seconds;
+        for start in [6.1, 6.17, 6.24, 6.35] {
+            let left: f64 = (start + 10.0) - start;
+            assert_eq!(settle_seconds(left), 10.0, "{start}: {left}");
+        }
+        assert_eq!(settle_seconds(9.4), 10.0);
+        assert_eq!(settle_seconds(1.0), 1.0);
+        assert_eq!(settle_seconds(0.3), 1.0);
+        assert_eq!(settle_seconds(1e-9), 1.0);
+    }
+
     /// The Finding the Beat hover names the wait for the Average Over in
     /// use, in the Measure field's words (Hugh on #2187, #2178).
     #[test]

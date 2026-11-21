@@ -1333,7 +1333,7 @@ headers (`span.rs`). No crosshair, as on the other sound plots.
 Error (Draw Over the Strip, below); Width and Length, each one field with
 its presets under its ▾, then Fit; Centre and Auto-Centre; Rate Line and
 Parallel Guides; the Mask tool (scissors) and the Position Brush;
-Direction and Still Paper; and Export. One dot per beat, tick and tock in two colours. Across
+Direction, Still Paper and Time of Day; and Export. One dot per beat, tick and tock in two colours. Across
 the strip is how early or late each beat came against a perfect clock
 beating exactly at the nominal beat rate (every 125 ms at 28,800 bph): a
 beat before that clock's beat is early, after it late, drawn as Witschi's
@@ -1393,6 +1393,19 @@ take the pen is at the strip's end, and dragging or the wheel moves it
 through time the same way it moves moving paper. Fit is greyed while the
 paper is still, with nothing to fit; zooming changes the Length about the
 pen. The choice is kept between runs.
+
+**Time of Day**, the switch after Still Paper (a clock, never greyed),
+writes the time of day on this computer's clock (`14:35:20`) under each
+of the strip's time labels, and beside the cursor's time
+(`1:23.45  14:35:20.45`); with Direction set to Down, the take's time is
+above each line and the time of day below it. With lines six hours or
+more apart, the time of day names the day (`Thu 06:00`). A take on the
+microphone counts from when its recording began, and an opened take from
+when its `session.json` says it began; each break in the sound moves the
+clock on by the time that passed. A take with no start time (one segment
+of a take opened on its own, say) shows its own time only, and the
+switch's hover says so while it is on. The choice is kept between runs
+(#2169).
 
 **Fit**, the switch beside Length (arrows out to two edges, lit while
 on), shows the whole session so far along the strip, up to the take's

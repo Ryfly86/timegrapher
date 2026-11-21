@@ -302,8 +302,8 @@ fn plots_hover_id() -> egui::Id {
 /// What the pane says before a test: how the test runs.
 fn about_text(settle_s: f64, measure_s: f64) -> String {
     format!(
-        "Start Test, on the Listen card, measures the watch in the position the card shows, \
-         with its complication off, on, then off again:\n\
+        "New Test sets the test up, then Start Test, on the Listen card, measures the watch \
+         in the position the card shows, with its complication off, on, then off again:\n\
          1. It says when to turn the complication on or off.\n\
          2. It lets the watch settle {settle_s:.0} s.\n\
          3. It measures it for {measure_s:.0} s and fills in its row.\n\
@@ -825,5 +825,15 @@ mod tests {
         assert_eq!(time_step(180.0), 30.0);
         assert_eq!(time_step(400.0), 120.0);
         assert!(theme::TIME_STEPS.contains(&time_step(5000.0)));
+    }
+
+    /// The intro puts New Test before Start Test, as the Positions and
+    /// Power Reserve tests do: the Listen card shows Start Test only once
+    /// New Test has set the test up (#2184).
+    #[test]
+    fn the_intro_names_new_test_before_start_test() {
+        let about = about_text(10.0, 60.0);
+        assert!(about.starts_with("New Test"), "{about}");
+        assert!(about.find("New Test") < about.find("Start Test"), "{about}");
     }
 }

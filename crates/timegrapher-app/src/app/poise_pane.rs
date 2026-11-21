@@ -451,8 +451,8 @@ fn picture_room(ui: &egui::Ui, bottom: f32) -> f32 {
 /// What the pane says before a test: how the test runs.
 fn about_text(settle_s: f64, measure_s: f64) -> String {
     format!(
-        "Start Test, on the Listen card, leads you through the eight upright positions, \
-         45° apart, from 9H at the top, turning the watch the same way round each time:\n\
+        "New Test sets the test up, then Start Test, on the Listen card, leads you through \
+         the eight upright positions, 45° apart, from 9H at the top, turning the watch the same way round each time:\n\
          1. It says which hour to turn to the top.\n\
          2. It lets the watch settle {settle_s:.0} s.\n\
          3. It measures it for {measure_s:.0} s and fills in its row.\n\
@@ -1350,6 +1350,16 @@ fn clear_of(at: egui::Pos2, size: Vec2, others: &[egui::Rect]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The intro puts New Test before Start Test, as the Positions and
+    /// Power Reserve tests do: the Listen card shows Start Test only once
+    /// New Test has set the test up (#2184).
+    #[test]
+    fn the_intro_names_new_test_before_start_test() {
+        let about = about_text(10.0, 60.0);
+        assert!(about.starts_with("New Test"), "{about}");
+        assert!(about.find("New Test") < about.find("Start Test"), "{about}");
+    }
 
     /// The words over the picture and in Info show core's figures with a
     /// true minus, the twice-round terms' too, and the band's chip names

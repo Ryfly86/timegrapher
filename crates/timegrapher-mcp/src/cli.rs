@@ -43,6 +43,37 @@ const PROCESSING: &str = "TIMEGRAPHER_MCP_PROCESSING_TIMEOUT_SECONDS";
 const GRACE: &str = "TIMEGRAPHER_MCP_ACQUISITION_GRACE_SECONDS";
 const PROFILE: &str = "TIMEGRAPHER_MCP_PROFILE_TIMEOUT_SECONDS";
 
+/// Each limit's variable, its default in seconds, and what it bounds, as
+/// `parse` reads them and `--help` lists them (docs/reference/mcp.md).
+const LIMITS: [(&str, f64, &str); 3] = [
+    (PROCESSING, 21600.0, "offline tool execution"),
+    (GRACE, 120.0, "extra acquisition setup and processing time"),
+    (PROFILE, 60.0, "the auxiliary Tick/Tock profile"),
+];
+
+/// What `timegrapher-mcp --help` prints: what the program is, how it is
+/// run, and the environment it reads (#2186).
+pub fn help() -> String {
+    let mut text = format!(
+        "timegrapher-mcp {}\n\
+         The timegrapher's MCP server, for chat apps without a command line.\n\
+         A chat app starts it and speaks MCP to it over stdin and stdout;\n\
+         see docs/reference/mcp.md to set one up.\n\n\
+         Usage: timegrapher-mcp [--help | --version]\n\n\
+         Environment:\n  \
+         TIMEGRAPHER_CLI\n      \
+         The timegrapher program to run (default: the one beside this\n      \
+         server, else timegrapher on PATH).\n",
+        env!("CARGO_PKG_VERSION")
+    );
+    for (name, default, bounds) in LIMITS {
+        text.push_str(&format!(
+            "  {name}\n      Seconds allowed for {bounds} (default {default}).\n"
+        ));
+    }
+    text
+}
+
 impl Policy {
     pub fn load() -> Result<Self, String> {
         Self::parse(|name| match std::env::var(name) {
@@ -66,10 +97,11 @@ impl Policy {
             deadline(duration).map_err(|e| format!("{name}: {e}"))?;
             Ok(duration)
         };
+        let [processing, grace, profile] = LIMITS.map(|(name, default, _)| (name, default));
         Ok(Self {
-            processing: duration(PROCESSING, 21600.0)?,
-            grace: duration(GRACE, 120.0)?,
-            profile: duration(PROFILE, 60.0)?,
+            processing: duration(processing.0, processing.1)?,
+            grace: duration(grace.0, grace.1)?,
+            profile: duration(profile.0, profile.1)?,
         })
     }
 
