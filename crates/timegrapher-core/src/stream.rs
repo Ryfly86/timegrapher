@@ -295,12 +295,9 @@ impl State {
                 }
             }
             self.beats.push(Beat { time: t, ..b });
-            if let Some(w) =
-                profile::snippet(env, fs, b.time, crate::amplitude::UnlockWindow::SHORT)
-            {
-                if b.is_good() {
-                    self.snippets
-                        .push(t, b.index.rem_euclid(2) == 0, w.to_vec());
+            if let Some(w) = beat_window(env, fs, &b) {
+                if let Some((tick, w)) = sound_snippet(&b, w) {
+                    self.snippets.push(t, tick, w.to_vec());
                 }
                 self.sides.beat(t, b.index, b.quality, w);
             }
@@ -1006,6 +1003,21 @@ impl State {
     }
 }
 
+/// Beat `b`'s envelope window on the short template
+/// ([`crate::profile::snippet`]), times from the start of `env`: the
+/// window the beat sound sample and the side check keep.
+fn beat_window<'a>(env: &'a [f32], fs: f64, b: &Beat) -> Option<&'a [f32]> {
+    profile::snippet(env, fs, b.time, crate::amplitude::UnlockWindow::SHORT)
+}
+
+/// Beat `b`'s window `w` as the beat sound is judged from it: only a good
+/// beat's ([`Beat::is_good`]), with whether it is a Tick (an even beat).
+/// The one choice for the take's beat sound sample and the first chunk's
+/// watch test ([`watch_heard_in`]).
+fn sound_snippet<'a>(b: &Beat, w: &'a [f32]) -> Option<(bool, &'a [f32])> {
+    b.is_good().then_some((b.index.rem_euclid(2) == 0, w))
+}
+
 /// Whether the first stretch's `beats` (times from the start of `env`)
 /// are a watch's, as every reading judges a stretch: by their timing
 /// scatter (`jitter_us`) and, where that is in doubt
@@ -1023,11 +1035,7 @@ fn watch_heard_in(
     let sound = || {
         let snips: Vec<(bool, &[f32])> = beats
             .iter()
-            .filter(|b| b.is_good())
-            .filter_map(|b| {
-                let w = profile::snippet(env, fs, b.time, crate::amplitude::UnlockWindow::SHORT)?;
-                Some((b.index.rem_euclid(2) == 0, w))
-            })
+            .filter_map(|b| sound_snippet(b, beat_window(env, fs, b)?))
             .collect();
         let osc_period_s = 2.0 * crate::timing::beat_period_s(None, bph);
         crate::measure::beat_sound_found(snips, fs, osc_period_s, cfg)
@@ -1335,6 +1343,72 @@ mod tests {
             jitter_us,
             &cfg.amplitude
         ));
+    }
+
+    /// [`first_beats_in`] keeps no template where its beats pass on timing
+    /// alone but their sound shows no watch (#2189): 10 s of exact zeros,
+    /// then clicks every beat at 28,800 bph, each set off at random by
+    /// about 1.5% of a beat, in noise. A click has no unlock or drop, as
+    /// the stand's sound had none.
+    #[test]
+    fn exact_zeros_then_regular_clicks_in_noise_give_no_template() {
+        let (fs, bph) = (48000.0, 28800);
+        let cfg = AnalysisConfig::default();
+        let beat = 3600.0 / bph as f64;
+        let mut rng = crate::synth::Rng::new(11);
+        let n = (47.0 * fs) as usize;
+        let zeros = (10.0 * fs) as usize;
+        let mut x: Vec<f32> = (0..n)
+            .map(|i| {
+                if i < zeros {
+                    0.0
+                } else {
+                    (0.02 * rng.normal()) as f32
+                }
+            })
+            .collect();
+        let mut t = 10.0 + 0.5 * beat;
+        while t < 46.5 {
+            let at = ((t + SCATTER * beat * rng.normal()) * fs) as usize;
+            x[at] = 1.0;
+            t += beat;
+        }
+        let env = envelope(&x, fs, &cfg.envelope);
+        let f = first_beats_in(&env, fs, Some(bph), &cfg).expect("sound");
+        let w = crate::session::scatter_windows(
+            &crate::clean::Cuts::new(None, &[], &[]),
+            &f.beats,
+            bph,
+            0.0,
+            env.len() as f64 / fs,
+            cfg.amplitude_window_s,
+        );
+        let jitter_us = crate::session::scatter_jitter_us(&w);
+        assert!(beats::watch_heard(jitter_us, bph), "passes on timing alone");
+        assert!(crate::measure::beat_sound_needed(jitter_us, bph, true));
+        assert!(f.template.is_none(), "a template kept from clicks");
+    }
+
+    /// How far each click is set off, SD as a share of a beat
+    /// ([`exact_zeros_then_regular_clicks_in_noise_give_no_template`]):
+    /// the clicks' scatter comes out about 1.3%, in the doubt zone.
+    const SCATTER: f64 = 0.012;
+
+    /// The beat sound is judged from good beats' windows only, Tick from
+    /// the even beats, for the take's sample and the first chunk's watch
+    /// test alike ([`sound_snippet`]).
+    #[test]
+    fn only_a_good_beats_window_is_a_sound_snippet() {
+        let w = [0.0f32; 4];
+        let beat = |index, quality| Beat {
+            index,
+            time: 0.0,
+            quality,
+        };
+        assert_eq!(sound_snippet(&beat(4, 1.0), &w).map(|s| s.0), Some(true));
+        assert_eq!(sound_snippet(&beat(5, 1.0), &w).map(|s| s.0), Some(false));
+        let bad = beats::JUMP_QUALITY * 0.5;
+        assert!(sound_snippet(&beat(4, bad), &w).is_none());
     }
 
     /// A long take's worth of chunks, more than the queues hold.
