@@ -295,12 +295,9 @@ impl State {
                 }
             }
             self.beats.push(Beat { time: t, ..b });
-            if let Some(w) =
-                profile::snippet(env, fs, b.time, crate::amplitude::UnlockWindow::SHORT)
-            {
-                if b.is_good() {
-                    self.snippets
-                        .push(t, b.index.rem_euclid(2) == 0, w.to_vec());
+            if let Some(w) = beat_window(env, fs, &b) {
+                if let Some((tick, w)) = sound_snippet(&b, w) {
+                    self.snippets.push(t, tick, w.to_vec());
                 }
                 self.sides.beat(t, b.index, b.quality, w);
             }
@@ -323,7 +320,7 @@ impl State {
     /// where the chunk holds no sound.
     fn first_beats(&mut self, env: &[f32]) -> Option<(Vec<Beat>, bool)> {
         let a = &self.cfg.analysis;
-        let f = first_beats_in(env, self.fs, a.bph, a.amplitude_window_s)?;
+        let f = first_beats_in(env, self.fs, a.bph, a)?;
         self.bph = f.bph;
         let mut heard_first = false;
         let mut found = f.beats;
@@ -1006,6 +1003,49 @@ impl State {
     }
 }
 
+/// Beat `b`'s envelope window on the short template
+/// ([`crate::profile::snippet`]), times from the start of `env`: the
+/// window the beat sound sample and the side check keep.
+fn beat_window<'a>(env: &'a [f32], fs: f64, b: &Beat) -> Option<&'a [f32]> {
+    profile::snippet(env, fs, b.time, crate::amplitude::UnlockWindow::SHORT)
+}
+
+/// Beat `b`'s window `w` as the beat sound is judged from it: only a good
+/// beat's ([`Beat::is_good`]), with whether it is a Tick (an even beat).
+/// The one choice for the take's beat sound sample and the first chunk's
+/// watch test ([`watch_heard_in`]).
+fn sound_snippet<'a>(b: &Beat, w: &'a [f32]) -> Option<(bool, &'a [f32])> {
+    b.is_good().then_some((b.index.rem_euclid(2) == 0, w))
+}
+
+/// Whether the first stretch's `beats` (times from the start of `env`)
+/// are a watch's, as every reading judges a stretch: by their timing
+/// scatter (`jitter_us`) and, where that is in doubt
+/// ([`crate::measure::beat_sound_needed`]), by their averaged sound
+/// ([`crate::measure::no_watch_reason`]). The stretch holds whole scatter
+/// windows wherever it has a scatter, so its regularity is assessed.
+fn watch_heard_in(
+    env: &[f32],
+    fs: f64,
+    bph: u32,
+    beats: &[Beat],
+    jitter_us: Option<f64>,
+    cfg: &crate::amplitude::AmplitudeConfig,
+) -> bool {
+    let sound = || {
+        let snips: Vec<(bool, &[f32])> = beats
+            .iter()
+            .filter_map(|b| sound_snippet(b, beat_window(env, fs, b)?))
+            .collect();
+        let osc_period_s = 2.0 * crate::timing::beat_period_s(None, bph);
+        crate::measure::beat_sound_found(snips, fs, osc_period_s, cfg)
+    };
+    let sound = crate::measure::beat_sound_needed(jitter_us, bph, true)
+        .then(sound)
+        .flatten();
+    crate::measure::no_watch_reason(jitter_us, bph, true, sound).is_none()
+}
+
 /// The template live locks on with, from the envelope `env` of the chunk
 /// a watch is first heard in at `bph`: the beats of its first
 /// [`crate::live::LiveConfig`] window from where its sound starts, when
@@ -1037,13 +1077,23 @@ pub struct FirstBeats {
 /// The beat template as a file's reading builds it, from the envelope
 /// `env` of its first chunk: looked at from where its sound starts, at
 /// the rate set (`bph`) or a guessed one, and kept only once its beats
-/// are a watch's (#476), judged as every reading judges a stretch: the
-/// median timing scatter of its `window_s` windows. Silence or noise
+/// are a watch's (#476), judged as every reading judges a stretch
+/// ([`crate::measure::no_watch_reason`]): the median timing scatter of
+/// its `a.amplitude_window_s` windows, and, where that scatter is in doubt,
+/// the beats' averaged sound. Stand noise after exact zeros scattered
+/// 1.9% of a beat at a given 28,800 bph and passed on timing alone;
+/// its template then read the watch after it, so no step onto the
+/// watch was found and the lead was read in (#2189). Silence or noise
 /// before the watch is placed sets neither the rate nor the beat's sound.
 /// Live builds its template again this way once it has a chunk's sound
 /// (#1327), so both read with the same template. None when `env` holds
 /// no sound.
-pub fn first_beats_in(env: &[f32], fs: f64, bph: Option<u32>, window_s: f64) -> Option<FirstBeats> {
+pub fn first_beats_in(
+    env: &[f32],
+    fs: f64,
+    bph: Option<u32>,
+    a: &AnalysisConfig,
+) -> Option<FirstBeats> {
     let from = beats::sound_onset(env, fs)?;
     let bph = bph.unwrap_or_else(|| beats::guess_bph(env, fs));
     let (b, t, level) = beats::detect_levelled(&env[from..], fs, bph);
@@ -1061,10 +1111,10 @@ pub fn first_beats_in(env: &[f32], fs: f64, bph: Option<u32>, window_s: f64) -> 
         bph,
         0.0,
         env.len() as f64 / fs,
-        window_s,
+        a.amplitude_window_s,
     );
     let jitter_us = crate::session::scatter_jitter_us(&windows);
-    let heard = beats::watch_heard(jitter_us, bph);
+    let heard = watch_heard_in(env, fs, bph, &beats, jitter_us, &a.amplitude);
     Some(FirstBeats {
         bph,
         beats,
@@ -1239,6 +1289,126 @@ mod tests {
             let _ = tx.send(r.is_err());
         });
         rx.recv_timeout(std::time::Duration::from_secs(60)) == Ok(true)
+    }
+
+    /// The first chunk's beats are a watch's only as every reading judges
+    /// a stretch (#2189): stand noise whose beats scatter 1.9% of a beat,
+    /// under the 2% line, as Walter's after exact zeros did at a given
+    /// 28,800 bph, shows no watch's sound, so it is no watch and gives no
+    /// template; a watch at the same scatter still is one.
+    #[test]
+    fn noise_scattering_under_the_line_gives_no_template_where_its_sound_shows_no_watch() {
+        let (fs, bph) = (48000.0, 28800);
+        let cfg = AnalysisConfig::default();
+        let beat = 3600.0 / bph as f64;
+        // 1.9% of a beat, in the doubt zone.
+        let jitter_us = Some(0.019 * beat * 1e6);
+        assert!(crate::measure::beat_sound_needed(jitter_us, bph, true));
+        assert!(beats::watch_heard(jitter_us, bph), "passes on timing alone");
+        let mut rng = crate::synth::Rng::new(7);
+        let noise: Vec<f32> = (0..(30.0 * fs) as usize)
+            .map(|_| (0.05 * rng.normal()) as f32)
+            .collect();
+        let env = envelope(&noise, fs, &cfg.envelope);
+        let on_grid: Vec<Beat> = (1..230)
+            .map(|k| Beat {
+                index: k,
+                time: k as f64 * beat,
+                quality: 1.0,
+            })
+            .collect();
+        assert!(!watch_heard_in(
+            &env,
+            fs,
+            bph,
+            &on_grid,
+            jitter_us,
+            &cfg.amplitude
+        ));
+        let watch = generate(
+            &SynthConfig {
+                duration_s: 30.0,
+                ..Default::default()
+            },
+            |_| 270.0,
+            |_| 0.0,
+        );
+        let env = envelope(&watch.samples, fs, &cfg.envelope);
+        let (heard, _) = beats::detect(&env, fs, bph);
+        assert!(watch_heard_in(
+            &env,
+            fs,
+            bph,
+            &heard,
+            jitter_us,
+            &cfg.amplitude
+        ));
+    }
+
+    /// [`first_beats_in`] keeps no template where its beats pass on timing
+    /// alone but their sound shows no watch (#2189): 10 s of exact zeros,
+    /// then clicks every beat at 28,800 bph, each set off at random by
+    /// about 1.5% of a beat, in noise. A click has no unlock or drop, as
+    /// the stand's sound had none.
+    #[test]
+    fn exact_zeros_then_regular_clicks_in_noise_give_no_template() {
+        let (fs, bph) = (48000.0, 28800);
+        let cfg = AnalysisConfig::default();
+        let beat = 3600.0 / bph as f64;
+        let mut rng = crate::synth::Rng::new(11);
+        let n = (47.0 * fs) as usize;
+        let zeros = (10.0 * fs) as usize;
+        let mut x: Vec<f32> = (0..n)
+            .map(|i| {
+                if i < zeros {
+                    0.0
+                } else {
+                    (0.02 * rng.normal()) as f32
+                }
+            })
+            .collect();
+        let mut t = 10.0 + 0.5 * beat;
+        while t < 46.5 {
+            let at = ((t + SCATTER * beat * rng.normal()) * fs) as usize;
+            x[at] = 1.0;
+            t += beat;
+        }
+        let env = envelope(&x, fs, &cfg.envelope);
+        let f = first_beats_in(&env, fs, Some(bph), &cfg).expect("sound");
+        let w = crate::session::scatter_windows(
+            &crate::clean::Cuts::new(None, &[], &[]),
+            &f.beats,
+            bph,
+            0.0,
+            env.len() as f64 / fs,
+            cfg.amplitude_window_s,
+        );
+        let jitter_us = crate::session::scatter_jitter_us(&w);
+        assert!(beats::watch_heard(jitter_us, bph), "passes on timing alone");
+        assert!(crate::measure::beat_sound_needed(jitter_us, bph, true));
+        assert!(f.template.is_none(), "a template kept from clicks");
+    }
+
+    /// How far each click is set off, SD as a share of a beat
+    /// ([`exact_zeros_then_regular_clicks_in_noise_give_no_template`]):
+    /// the clicks' scatter comes out about 1.3%, in the doubt zone.
+    const SCATTER: f64 = 0.012;
+
+    /// The beat sound is judged from good beats' windows only, Tick from
+    /// the even beats, for the take's sample and the first chunk's watch
+    /// test alike ([`sound_snippet`]).
+    #[test]
+    fn only_a_good_beats_window_is_a_sound_snippet() {
+        let w = [0.0f32; 4];
+        let beat = |index, quality| Beat {
+            index,
+            time: 0.0,
+            quality,
+        };
+        assert_eq!(sound_snippet(&beat(4, 1.0), &w).map(|s| s.0), Some(true));
+        assert_eq!(sound_snippet(&beat(5, 1.0), &w).map(|s| s.0), Some(false));
+        let bad = beats::JUMP_QUALITY * 0.5;
+        assert!(sound_snippet(&beat(4, bad), &w).is_none());
     }
 
     /// A long take's worth of chunks, more than the queues hold.

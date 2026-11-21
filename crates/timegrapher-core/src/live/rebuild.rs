@@ -188,8 +188,8 @@ impl LiveAnalyzer {
         self.rebuild.done = true;
         let a = &self.cfg.analysis;
         let env = envelope(&g[..chunk], self.fs, &a.envelope);
-        let Some(t) = crate::stream::first_beats_in(&env, self.fs, Some(bph), a.amplitude_window_s)
-            .and_then(|f| f.template)
+        let Some(t) =
+            crate::stream::first_beats_in(&env, self.fs, Some(bph), a).and_then(|f| f.template)
         else {
             self.rebuild.given_up = Some("no watch heard in the first chunk");
             return;
