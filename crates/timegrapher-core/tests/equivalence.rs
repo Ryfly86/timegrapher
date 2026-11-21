@@ -1365,6 +1365,137 @@ fn an_empty_stand_is_no_watch_however_it_is_read() {
         }
     }
     short_averages_agree(&[("live", &pushed), ("opened", &opened)], &log, &opened);
+    // The charts' run, the strip's verdict: no point of it hears a watch,
+    // at any Average Over. At 2 s and 4 s, opened, the first seconds'
+    // readings waiting for their verdict counted as heard, and the strip
+    // drew the noise as a watch (#1965). Opened as the app opens it too,
+    // at the take's 28,800 bph and 55° from its session.json.
+    let mut cfg = LiveConfig::default();
+    cfg.analysis.bph = Some(28_800);
+    cfg.analysis.amplitude.lift_deg = 55.0;
+    let set = LiveAnalyzer::from_log(log, cfg);
+    for (how, live) in [
+        ("live", &pushed),
+        ("opened", &opened),
+        ("opened at 28800", &set),
+    ] {
+        for average_s in timegrapher_core::live::AVERAGES {
+            let heard: Vec<f64> = live
+                .trend(average_s)
+                .iter()
+                .filter(|p| p.heard)
+                .map(|p| p.t)
+                .collect();
+            assert!(
+                heard.is_empty(),
+                "{how}, {average_s} s: heard at {heard:?} s"
+            );
+        }
+    }
+}
+
+/// A take that starts and ends on the empty stand, a watch heard between,
+/// as the commonest first use goes (press Listen, put the watch on, take it
+/// off, Stop): read as one stretch, as the app reads its whole take and a
+/// Positions Test row (`session::measure_together`), its lead of noise is
+/// left out, as `analyze` and a take's entries leave it out (#844). It read
+/// +449 s/d in the app's whole take, against +50.5 s/d everywhere else
+/// (#2177). The reading is the watch's stretch alone, with the caveat.
+///
+/// Runs where `TIMEGRAPHER_CORPUS` is set.
+#[test]
+fn a_take_between_two_empty_stands_reads_the_watch_alone() {
+    let paths = corpus_takes(&["silence_empty_stand", "ym42_DU_25min_newstand"]);
+    let [stand, watch] = paths.as_slice() else {
+        return;
+    };
+    let (stand, watch) = (load(stand).unwrap(), load(watch).unwrap());
+    assert_eq!(stand.sample_rate, watch.sample_rate);
+    let fs = stand.sample_rate as usize;
+    let mut samples = stand.samples[..70 * fs].to_vec();
+    samples.extend_from_slice(&watch.samples[..100 * fs]);
+    samples.extend_from_slice(&stand.samples[..60 * fs]);
+    let audio = Audio {
+        samples,
+        sample_rate: stand.sample_rate,
+    };
+    let path = on_disk(&audio, "t2177");
+    let log = stream(&path, 47.0);
+    std::fs::remove_file(&path).ok();
+    let d = log.duration_s;
+    let m = session::measure_together(&log, None, &[], &[], (&[(0.0, d)], &[(0.0, d)])).unwrap();
+    let lead = session::lead_s(&log, None, &[], &[], 0.0, d).expect("a lead of noise");
+    // All of the stand left out, and the watch's stretch kept.
+    assert!((69.0..120.0).contains(&lead), "the watch from {lead} s");
+    assert!(
+        m.caveats
+            .iter()
+            .any(|c| matches!(c, Caveat::LeadLeftOut { seconds } if *seconds == lead)),
+        "{:?}",
+        m.caveats
+    );
+    let alone = session::measure(&log, None, lead, d);
+    assert_eq!(
+        m.rate_s_per_day.map(f64::to_bits),
+        alone.rate_s_per_day.map(f64::to_bits),
+        "{:?} s/d over the whole take, {:?} s/d from the watch on",
+        m.rate_s_per_day,
+        alone.rate_s_per_day
+    );
+    let watch_only = session::measure(&log, None, lead, 169.0);
+    let (r, w) = (
+        m.rate_s_per_day.unwrap(),
+        watch_only.rate_s_per_day.unwrap(),
+    );
+    assert!((r - w).abs() < 3.0, "{r} s/d against the watch's {w} s/d");
+}
+
+/// A watch put on the stand after 40 s of its noise, heard live: once its
+/// beat is being found, every later reading finds it or reads it, at every
+/// Average Over, never "No Regular Beat" between. At 1 min its "Finding the
+/// Beat" ended 20 s in while the minute judged still held the noise, and
+/// for 10 to 15 s the cards said "No Regular Beat" and its dots left the
+/// strip (#2178). Each second from 1 s.
+///
+/// Runs where `TIMEGRAPHER_CORPUS` is set.
+#[test]
+fn an_arriving_watch_is_found_until_it_is_read() {
+    let paths = corpus_takes(&["silence_empty_stand", "ym42_DU_25min_newstand"]);
+    let [stand, watch] = paths.as_slice() else {
+        return;
+    };
+    let (stand, watch) = (load(stand).unwrap(), load(watch).unwrap());
+    let fs = stand.sample_rate as usize;
+    let mut samples = stand.samples[..40 * fs].to_vec();
+    samples.extend_from_slice(&watch.samples[..120 * fs]);
+    let audio = Audio {
+        samples,
+        sample_rate: stand.sample_rate,
+    };
+    let live = pushed(&audio, fs / 10);
+    for average_s in timegrapher_core::live::AVERAGES {
+        let mut found = None;
+        let mut t = 1.0;
+        while t <= live.duration_s() {
+            let r = live.reading_at(t, average_s);
+            let waits = r.finding_beat || r.watch_heard;
+            if found.is_none() && r.finding_beat && t > 40.0 {
+                found = Some(t);
+            }
+            if let Some(from) = found {
+                assert!(
+                    waits,
+                    "{average_s} s: found at {from} s, No Regular Beat at {t} s"
+                );
+            }
+            t += 1.0;
+        }
+        let read = live.reading_at(live.duration_s(), average_s);
+        assert!(
+            read.watch_heard && read.rate_s_per_day.is_some(),
+            "{average_s} s"
+        );
+    }
 }
 
 /// Kept as its analysis alone, an empty stand still reads no watch, with

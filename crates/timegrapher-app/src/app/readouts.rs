@@ -673,7 +673,7 @@ impl TimegrapherApp {
         let (unheard_line, unheard_hover) = if finding {
             (
                 timegrapher_core::measure::FINDING_TITLE.to_string(),
-                timegrapher_core::measure::finding_text(),
+                timegrapher_core::measure::finding_text(self.average_s),
             )
         } else {
             (

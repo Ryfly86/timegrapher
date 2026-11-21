@@ -212,12 +212,13 @@ pub fn listening_text(since: HeardSince) -> String {
 /// #2008): a wait, not a verdict.
 pub const FINDING_TITLE: &str = "Finding the Beat";
 
-/// Why a reading waits while the beat is being found, for a hover.
-pub fn finding_text() -> String {
+/// Why a reading at Average Over `average_s` waits while the beat is
+/// being found, for a hover: the wait is [`crate::live::finding_s`] long.
+pub fn finding_text(average_s: f64) -> String {
     format!(
         "A regular beat is heard. The figures wait until the last {:.0} s \
          hold the watch alone, so the sound before it isn't counted against it.",
-        crate::live::FINDING_S
+        crate::live::finding_s(average_s)
     )
 }
 
