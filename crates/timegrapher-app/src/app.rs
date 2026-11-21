@@ -2678,7 +2678,7 @@ impl TimegrapherApp {
             if let Some(bph) = l.bph() {
                 let beats = l.beats();
                 let breaks = self.take_breaks.as_deref().unwrap_or_default();
-                let hi = beats.partition_point(|b| b.time <= end);
+                let hi = self.watch_beats_to(beats, end);
                 let clock = Self::rate_clock(&self.take_clock);
                 if let Some(a) =
                     Anchor::centre_on_true(&beats[..hi], 3600.0 / bph as f64, 8, breaks, clock)

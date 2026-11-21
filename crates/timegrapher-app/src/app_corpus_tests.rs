@@ -1487,3 +1487,75 @@ fn walters_splice_shows_the_reads_beat_error() {
         "Walter's moments: the read's beat error, live's sides lost"
     );
 }
+
+/// The empty stand, the Yacht-Master put on it, then the stand again, as
+/// Shane played them (#2177): 70 s of `silence_empty_stand`, 100 s of
+/// `ym42_DU_2h`, 60 s of the stand, opened. The stand's beats, where no
+/// reading hears a watch (core's `live::unheard_spans`), are drawn as
+/// possible beats, not Tick and Tock; Fit spans the watch's beats alone,
+/// not the noise's scattered across the strip, which widened it to
+/// +/-10 s; and the whole take's "over" is the stretch it read, the
+/// stand's lead left out, not the whole 230 s. Needs only `TIMEGRAPHER_CORPUS`.
+#[test]
+fn the_stand_at_both_ends_is_possible_beats_and_left_out_of_fit() {
+    let required = std::env::var_os("TIMEGRAPHER_REQUIRE_CORPUS").is_some();
+    let Some(root) = std::env::var_os("TIMEGRAPHER_CORPUS").map(PathBuf::from) else {
+        assert!(!required, "TIMEGRAPHER_CORPUS is needed");
+        eprintln!("SKIP: set TIMEGRAPHER_CORPUS to open the stand at both ends");
+        return;
+    };
+    let file = |take: &str| root.join("takes").join(take).join("take_part01-001.flac");
+    let stand = timegrapher_core::audio::load(&file("silence_empty_stand")).unwrap();
+    let watch = timegrapher_core::audio::load(&file("ym42_DU_2h")).unwrap();
+    let fs = stand.sample_rate as usize;
+    let mut sound = stand.clone();
+    sound.samples = [
+        &stand.samples[..70 * fs],
+        &watch.samples[..100 * fs],
+        &stand.samples[100 * fs..160 * fs],
+    ]
+    .concat();
+    let dir = std::env::temp_dir().join(format!("tg-app-stand-ends-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    timegrapher_core::audio::write_wav(&dir.join("take.wav"), &sound).unwrap();
+    std::fs::write(
+        dir.join(timegrapher_core::take::MANIFEST),
+        "bph = 28800\nlift = 55\n\n[[recording]]\nfile = \"take.wav\"\nposition = \"DU\"\n",
+    )
+    .unwrap();
+    let app = opened(&dir);
+    let _ = std::fs::remove_dir_all(&dir);
+    let live = app.live.as_ref().unwrap();
+    let faint: Vec<(f64, f64)> = app
+        .strip_faint(None)
+        .into_iter()
+        .filter(|s| s.2 == "Possible Beats")
+        .map(|s| (s.0, s.1))
+        .collect();
+    let possible = |t: f64| timegrapher_core::live::in_spans(&faint, t);
+    let noise = live
+        .beats()
+        .iter()
+        .filter(|b| b.time < 65.0 || b.time > 175.0);
+    assert!(noise.clone().count() > 50, "the stand has beats to draw");
+    assert!(noise.clone().all(|b| possible(b.time)), "{faint:?}");
+    let on = live
+        .beats()
+        .iter()
+        .filter(|b| b.time > 85.0 && b.time < 165.0);
+    assert!(!on.clone().any(|b| possible(b.time)), "{faint:?}");
+    // About +50 s/d drifts some 60 ms over the watch's 100 s.
+    assert!(
+        app.strip.half_width_ms <= 100.0,
+        "{}",
+        app.strip.half_width_ms
+    );
+    let w = app.whole_take().expect("whole take");
+    // Read from the watch's start, after the stand's 70 s that the reading
+    // leaves out, to the take's end, as `session` reads it (#2073).
+    assert!(w.span > 150.0 && w.span < 165.0, "over {} s", w.span);
+    let rate = w.m.rate_s_per_day.unwrap();
+    assert!((rate - 50.0).abs() < 10.0, "{rate}");
+    assert_eq!(w.span, w.m.measured_s());
+}
