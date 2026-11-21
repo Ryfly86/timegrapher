@@ -105,7 +105,13 @@ pub fn watch_lead_s(windows: &[WindowFit], bph: u32, jumps: &[f64]) -> Option<f6
 /// (audio seconds), read on its scatter windows as [`measure_masked`]
 /// reads them: where the watch starts after a lead of noise, as the audio
 /// time of the first beat there. Every whole reading (`analyze`, and a
-/// take's entries) leaves its lead out from here.
+/// take's entries) leaves its lead out from here. A lead is the sound
+/// before the watch is first heard, so it is looked for only up to the
+/// first of the `masked` stretches inside the stretch: a mask breaks the
+/// windows' grid, and a clean watch's first window, its pair across the
+/// mask, would read as a lead up to the mask's end. A Positions Test
+/// position read in two stretches, the time between them masked, lost
+/// its first stretch that way (#2187).
 pub fn lead_s(
     log: &BeatLog,
     clock: Option<&ClockFit>,
@@ -115,6 +121,11 @@ pub fn lead_s(
     to_s: f64,
 ) -> Option<f64> {
     let to_s = to_s.min(log.duration_s).max(0.0);
+    let to_s = masked
+        .iter()
+        .map(|m| m.0)
+        .filter(|&a| a > from_s && a < to_s)
+        .fold(to_s, f64::min);
     let from_s = from_s.max(0.0).min(to_s);
     let holes = Cuts::new(clock, breaks, masked);
     let map = |t: f64| holes.true_time(t);

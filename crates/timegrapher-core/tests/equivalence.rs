@@ -1450,6 +1450,38 @@ fn a_take_between_two_empty_stands_reads_the_watch_alone() {
     assert!((r - w).abs() < 3.0, "{r} s/d against the watch's {w} s/d");
 }
 
+/// A clean watch read in two stretches with the time between them masked,
+/// as a Positions Test reads a position heard twice: no lead of noise is
+/// found, and nothing before the mask is left out. Looked for across the
+/// mask, the watch's first window, its pair on the far side, read as a
+/// lead up to the mask's end (#2187).
+#[test]
+fn a_mask_is_not_a_lead_of_noise() {
+    let audio = generate(
+        &SynthConfig {
+            duration_s: 60.0,
+            ..Default::default()
+        },
+        |_| 280.0,
+        |_| 0.0,
+    );
+    let path = on_disk(&audio, "t2187mask");
+    let log = stream(&path, 47.0);
+    std::fs::remove_file(&path).ok();
+    let masked = [(15.0, 40.0)];
+    assert_eq!(session::lead_s(&log, None, &[], &masked, 5.0, 60.0), None);
+    let spans = [(5.0, 20.0), (35.0, 60.0)];
+    let m = session::measure_together(&log, None, &[], &masked, (&spans, &spans)).unwrap();
+    assert!(
+        !m.caveats
+            .iter()
+            .any(|c| matches!(c, Caveat::LeadLeftOut { .. })),
+        "{:?}",
+        m.caveats
+    );
+    assert!((m.masked_s - 25.0).abs() < 1e-9, "{}", m.masked_s);
+}
+
 /// A watch put on the stand after 40 s of its noise, heard live: once its
 /// beat is being found, every later reading finds it or reads it, at every
 /// Average Over, never "No Regular Beat" between. At 1 min its "Finding the
@@ -1567,15 +1599,19 @@ fn an_empty_stand_is_never_a_beat_being_found() {
     let pushed = pushed(&audio, audio.sample_rate as usize / 10);
     let opened = LiveAnalyzer::from_log(log, LiveConfig::default());
     for (how, live) in [("live", &pushed), ("opened", &opened)] {
-        let mut t = 1.0;
-        while t <= live.duration_s() {
-            let r = live.reading_at(t, 10.0);
-            assert!(
-                !r.finding_beat,
-                "{how}, ending at {t} s: scatter {:?}",
-                r.timing_scatter_fraction
-            );
-            t += 1.0;
+        // At every Average Over: the wait is longer at 30 s and 1 min
+        // (`live::finding_s`, #2178).
+        for average_s in timegrapher_core::live::AVERAGES {
+            let mut t = 1.0;
+            while t <= live.duration_s() {
+                let r = live.reading_at(t, average_s);
+                assert!(
+                    !r.finding_beat,
+                    "{how}, {average_s} s ending at {t} s: scatter {:?}",
+                    r.timing_scatter_fraction
+                );
+                t += 1.0;
+            }
         }
     }
 }

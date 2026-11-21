@@ -216,9 +216,9 @@ pub const FINDING_TITLE: &str = "Finding the Beat";
 /// being found, for a hover: the wait is [`crate::live::finding_s`] long.
 pub fn finding_text(average_s: f64) -> String {
     format!(
-        "A regular beat is heard. The figures wait until the last {:.0} s \
-         hold the watch alone, so the sound before it isn't counted against it.",
-        crate::live::finding_s(average_s)
+        "A regular beat is heard. The figures wait until the watch alone fills \
+         the last {}, so the sound before it isn't counted against it.",
+        crate::figure_text::duration_text(crate::live::finding_s(average_s))
     )
 }
 
@@ -1251,6 +1251,22 @@ pub fn assess_in(
 
 #[cfg(test)]
 mod tests {
+    /// The Finding the Beat hover names the wait for the Average Over in
+    /// use, in the Measure field's words (Hugh on #2187, #2178).
+    #[test]
+    fn finding_text_names_the_wait_for_the_average() {
+        assert_eq!(
+            super::finding_text(10.0),
+            "A regular beat is heard. The figures wait until the watch alone fills \
+             the last 20 s, so the sound before it isn't counted against it."
+        );
+        assert_eq!(
+            super::finding_text(60.0),
+            "A regular beat is heard. The figures wait until the watch alone fills \
+             the last 1 min, so the sound before it isn't counted against it."
+        );
+    }
+
     /// Beat error with the sides not told apart says what it waits for,
     /// in Hugh 5's words, and only where the reading has figures but no
     /// beat error from either edge (#2133).
