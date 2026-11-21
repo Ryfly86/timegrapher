@@ -2321,8 +2321,9 @@ Stopped during a settle, the Rate card says "Before the Move".
 With no regular beat, the reading cards say "No Regular Beat" there, with
 the full sentence and the timing scatter in the hover. A regular beat
 heard after noise or silence, at launch or a New Session, says "Finding
-the Beat" instead, never that verdict, until the last 20 s
-(`live::FINDING_S`) hold the watch alone (#2008). With under 10 s of
+the Beat" instead, never that verdict, until the stretch it is judged
+over is mostly the watch's: the last 20 s (`live::FINDING_S`), or the
+Average Over where that is longer (`live::finding_s`; #2008, #2178). With under 10 s of
 sound since Listen started or the latest break (a masked stretch's
 seconds don't count, but a mask doesn't start the count again), and no
 watch yet shown by the beats' sound, they say "Listening": the timing

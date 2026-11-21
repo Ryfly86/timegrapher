@@ -56,6 +56,18 @@ pub const SCATTER_LOOKBACK_S: f64 = 15.0;
 /// back holds the run alone and its verdict stands (#2008).
 pub const FINDING_S: f64 = SCATTER_LOOKBACK_S + measure::RATE_WINDOW_STEP_S;
 
+/// How long a regular run is a beat still being found at Average Over
+/// `average_s`: as long as the reading's scatter look back can still
+/// reach before it, which is the averaging time itself once that is
+/// longer than [`FINDING_S`] ([`crate::session::scatter_look_back`]). At
+/// 1 min, a watch put on the stand after 40 s of its noise lost its
+/// "Finding the Beat" 20 s in, while the minute it is judged over still
+/// held the noise: its dots vanished from the strip and the cards said
+/// "No Regular Beat" until the watch outweighed it (#2178).
+pub fn finding_s(average_s: f64) -> f64 {
+    FINDING_S.max(average_s)
+}
+
 /// The rate windows' length and step, as every reading lays them
 /// ([`measure::RATE_WINDOW_S`], [`measure::RATE_WINDOW_STEP_S`]).
 const RATE_W: f64 = measure::RATE_WINDOW_S;
@@ -1457,7 +1469,8 @@ impl LiveAnalyzer {
             });
         let verdict = self.verdict_at(holes, bph, window_from, end_s, st.listened_s);
         let (no_watch, watch_heard) = (verdict.no_watch, verdict.no_watch.is_none());
-        let finding_beat = !watch_heard && self.young_regular_run(fit.as_ref(), bph, end_s, holes);
+        let finding_beat =
+            !watch_heard && self.young_regular_run(fit.as_ref(), bph, (end_s, average_s), holes);
         let listening = self.listening_at(watch_heard && verdict.awaiting, end_s);
         let read = watch_heard && listening.is_none();
         let heard = |v: Option<f64>| v.filter(|_| read);
@@ -1629,13 +1642,13 @@ impl LiveAnalyzer {
         &self,
         fit: Option<&crate::timing::TimingFit>,
         bph: Option<u32>,
-        end_s: f64,
+        (end_s, average_s): (f64, f64),
         holes: &Cuts,
     ) -> bool {
         let (Some(fit), Some(b)) = (fit, bph) else {
             return false;
         };
-        let look_from = end_s - FINDING_S;
+        let look_from = end_s - finding_s(average_s);
         let cut = holes.run_cut(&self.beats, look_from, end_s).max(look_from);
         let first = self.beats.partition_point(|x| x.time < cut);
         let Some(start) = self.beats.get(first).map(|x| x.time) else {
@@ -2017,7 +2030,9 @@ pub struct TrendReading {
     pub rate_error_s_per_day: Option<f64>,
     pub amplitude_error_deg: Option<f64>,
     pub beat_error_unlock_error_ms: Option<f64>,
-    /// The beats were spaced like a watch's, not scattered like noise.
+    /// The beats were spaced like a watch's, not scattered like noise: a
+    /// watch was heard. Never while the reading waits for its verdict
+    /// ([`LiveReading::listening`]).
     pub heard: bool,
 }
 
@@ -2080,7 +2095,12 @@ impl TrendReading {
             rate_error_s_per_day: r.rate_error_s_per_day,
             amplitude_error_deg: r.amplitude_error_deg,
             beat_error_unlock_error_ms: r.beat_error_unlock_error_ms,
-            heard: r.beats_used > 0 && r.watch_heard,
+            // A reading still waiting for its verdict (under 10 s of
+            // sound, #2014) has heard no watch yet: counted as heard, an
+            // empty stand opened at Average Over 2 or 4 s had its first
+            // seconds' readings say a watch was found, and the strip drew
+            // its noise as one (#1965).
+            heard: r.beats_used > 0 && r.watch_heard && r.listening.is_none(),
         }
     }
 }

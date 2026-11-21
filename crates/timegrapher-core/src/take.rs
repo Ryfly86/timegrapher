@@ -1547,23 +1547,16 @@ pub fn measure_opened(
         to_s: end_s,
     } = reading_window(e, m, s.settle_s, log.duration_s).map_err(EntryError::NoReading)?;
     // A lead of noise before the watch is left out of the reading (#844).
-    let lead = session::lead_s(&log, fit.as_ref(), &breaks, &masked, settle_s, end_s);
     let read = read_stretches(m, &e.file, s.settle_s, log.duration_s);
-    let mut measurement = session::measure_reading(
+    let mut measurement = session::measure_from_lead(
         &log,
         fit.as_ref(),
         &breaks,
         &masked,
-        (lead.unwrap_or(settle_s), end_s),
+        (settle_s, end_s),
         &read,
+        start_s,
     );
-    if let Some(t) = lead {
-        let seconds = t - start_s;
-        crate::measure::add(
-            &mut measurement.caveats,
-            crate::measure::Caveat::LeadLeftOut { seconds },
-        );
-    }
     measurement.take_doubts(cfg.analysis.lift_known, unlisted);
     measurement.clock_ppm = clock_ppm;
     measurement.clock_source = clock_source.clone();
