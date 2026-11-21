@@ -92,13 +92,11 @@ impl TimegrapherApp {
         let Some(live) = &self.live else { return };
         let Some(bph) = live.bph() else { return };
         let period = 3600.0 / bph as f64;
-        // The watch's beats only: the stand's noise where no reading hears
-        // a watch is neither centred on nor fitted (#2177).
+        // Fit's width holds the watch's beats alone: the stand's noise,
+        // where no reading hears a watch, is left out (#2177).
         let unheard = self.strip_unheard();
         let watch = |b: &&Beat| !in_spans(&unheard, b.time);
-        let all = live.beats();
-        let first = all.iter().position(|b| watch(&b)).unwrap_or(0);
-        let beats = &all[first..self.watch_beats_to(all, f64::INFINITY).max(first)];
+        let beats = live.beats();
         let breaks = self.take_breaks.as_deref().unwrap_or_default();
         let clock = self.take_rate_clock();
         let centred = if self.follow {
@@ -143,8 +141,8 @@ impl TimegrapherApp {
 
     /// Where no reading of the take on show hears a watch (core's
     /// `live::unheard_spans` over the charts' readings): its beats are the
-    /// stand's noise, drawn as possible beats and left out of what the
-    /// strip fits and centres on (#2177). None while listening, when the
+    /// stand's noise, drawn faintly as possible beats and left out of
+    /// what the strip fits to (#2177). None while listening, when the
     /// newest beats have no reading yet.
     pub(super) fn strip_unheard(&self) -> Vec<(f64, f64)> {
         match &self.live {
@@ -152,20 +150,6 @@ impl TimegrapherApp {
                 unheard_spans(&self.trend, self.average_s, live.duration_s())
             }
             _ => Vec::new(),
-        }
-    }
-
-    /// How many of `beats`, from the first, to the watch's last at or
-    /// before `end`: a stretch of possible beats ending there
-    /// ([`Self::strip_unheard`]) is passed over, unless all of them are.
-    pub(super) fn watch_beats_to(&self, beats: &[Beat], end: f64) -> usize {
-        let hi = beats.partition_point(|b| b.time <= end);
-        let last = hi.checked_sub(1).map(|i| beats[i].time);
-        let unheard = self.strip_unheard();
-        let from = last.and_then(|t| unheard.iter().find(|s| t >= s.0 && t <= s.1));
-        match from.map(|s| beats.partition_point(|b| b.time < s.0)) {
-            Some(watch) if watch > 0 => watch,
-            _ => hi,
         }
     }
 
