@@ -1491,6 +1491,13 @@ fn a_mask_is_not_a_lead_of_noise() {
         m.caveats
     );
     assert!((m.masked_s - 25.0).abs() < 1e-9, "{}", m.masked_s);
+    // With the beats' jumps inside the mask and at its ends, where the
+    // app's reading cuts sit (a stretch's end at 20 s, the next stretch's
+    // start at 35 s): those are in the sound the mask leaves out, so still
+    // no lead (Vernon 4 on #2187).
+    let mut cut = log.clone();
+    cut.jumps = vec![15.0, 20.0, 35.0, 40.0];
+    assert_eq!(session::lead_s(&cut, None, &[], &masked, 5.0, 60.0), None);
 }
 
 /// A take that opens with 70 s of the stand's noise, then the watch, with
