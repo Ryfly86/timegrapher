@@ -216,8 +216,8 @@ pub const FINDING_TITLE: &str = "Finding the Beat";
 /// being found, for a hover: the wait is [`crate::live::finding_s`] long.
 pub fn finding_text(average_s: f64) -> String {
     format!(
-        "A regular beat is heard. The figures wait until the watch alone fills \
-         the last {}, so the sound before it isn't counted against it.",
+        "A regular beat is heard. The figures wait until the last {} is mostly \
+         the watch's, so the sound before it isn't counted against it.",
         crate::figure_text::duration_text(crate::live::finding_s(average_s))
     )
 }
@@ -1257,13 +1257,13 @@ mod tests {
     fn finding_text_names_the_wait_for_the_average() {
         assert_eq!(
             super::finding_text(10.0),
-            "A regular beat is heard. The figures wait until the watch alone fills \
-             the last 20 s, so the sound before it isn't counted against it."
+            "A regular beat is heard. The figures wait until the last 20 s is mostly \
+             the watch's, so the sound before it isn't counted against it."
         );
         assert_eq!(
             super::finding_text(60.0),
-            "A regular beat is heard. The figures wait until the watch alone fills \
-             the last 1 min, so the sound before it isn't counted against it."
+            "A regular beat is heard. The figures wait until the last 1 min is mostly \
+             the watch's, so the sound before it isn't counted against it."
         );
     }
 

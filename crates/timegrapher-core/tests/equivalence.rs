@@ -1434,6 +1434,17 @@ fn a_take_between_two_empty_stands_reads_the_watch_alone() {
         "{:?}",
         m.caveats
     );
+    // Read from a later start, as a take's entry reads from its settle's
+    // end, the caveat still counts from where the entry starts.
+    let settled = session::measure_from_lead(&log, None, &[], &[], (20.0, d), &[], 0.0);
+    assert!(
+        settled
+            .caveats
+            .iter()
+            .any(|c| matches!(c, Caveat::LeadLeftOut { seconds } if *seconds == lead)),
+        "{:?}",
+        settled.caveats
+    );
     let alone = session::measure(&log, None, lead, d);
     assert_eq!(
         m.rate_s_per_day.map(f64::to_bits),
@@ -1480,6 +1491,74 @@ fn a_mask_is_not_a_lead_of_noise() {
         m.caveats
     );
     assert!((m.masked_s - 25.0).abs() < 1e-9, "{}", m.masked_s);
+}
+
+/// A take that opens with 70 s of the stand's noise, then the watch, with
+/// a 5 s mask by hand in the noise, just after the watch arrives, or well
+/// into it: the lead is found as with no mask, and the whole reading is
+/// the watch's. Stopping the lead's search at the first mask found none
+/// for a mask in the first minute, and the reading took in the noise,
+/// −2,253 and −3,829 s/d against −58.7 (Norm 4 on #2187).
+///
+/// Runs where `TIMEGRAPHER_CORPUS` is set.
+#[test]
+fn a_mask_by_hand_keeps_the_lead_of_noise_out() {
+    let paths = corpus_takes(&["silence_empty_stand", "ym42_DU_25min_newstand"]);
+    let [stand, watch] = paths.as_slice() else {
+        return;
+    };
+    let (stand, watch) = (load(stand).unwrap(), load(watch).unwrap());
+    let fs = stand.sample_rate as usize;
+    let mut samples = stand.samples[..70 * fs].to_vec();
+    samples.extend_from_slice(&watch.samples[..300 * fs]);
+    let audio = Audio {
+        samples,
+        sample_rate: stand.sample_rate,
+    };
+    let path = on_disk(&audio, "t2187masks");
+    let log = stream(&path, 47.0);
+    std::fs::remove_file(&path).ok();
+    let d = log.duration_s;
+    let read = |masked: &[(f64, f64)]| {
+        let lead = session::lead_s(&log, None, &[], masked, 0.0, d);
+        let m = session::measure_together(&log, None, &[], masked, (&[(0.0, d)], &[(0.0, d)]));
+        (lead, m.unwrap().rate_s_per_day.unwrap())
+    };
+    let (lead, rate) = read(&[]);
+    let lead = lead.expect("a lead of noise");
+    // In the noise, over the watch going on the stand, just after it, and
+    // well into it (Norm 4's and Vernon 4's cases on #2187).
+    for mask in [
+        (30.0, 35.0),
+        (66.0, 74.0),
+        (80.0, 85.0),
+        (100.0, 105.0),
+        (200.0, 205.0),
+    ] {
+        let (l, r) = read(&[mask]);
+        let l = l.unwrap_or_else(|| panic!("mask {mask:?}: no lead, {r} s/d"));
+        if mask.1 < lead {
+            assert_eq!(l, lead, "mask {mask:?}");
+        } else {
+            // Inside the watch: the lead ends where it did, or at the
+            // mask's end where the mask took the watch's first windows.
+            assert!(
+                (lead..=mask.1 + 1.0).contains(&l),
+                "mask {mask:?}: lead {l} s"
+            );
+        }
+        // The watch's own reading from there, the mask left out.
+        let alone = session::measure_masked(&log, None, &[], &[mask], l, d);
+        let want = alone.rate_s_per_day.unwrap();
+        assert!(
+            (r - want).abs() < 0.1,
+            "mask {mask:?}: {r} s/d against {want}"
+        );
+        assert!(
+            (r - rate).abs() < 3.0,
+            "mask {mask:?}: {r} s/d against {rate}"
+        );
+    }
 }
 
 /// A watch put on the stand after 40 s of its noise, heard live: once its

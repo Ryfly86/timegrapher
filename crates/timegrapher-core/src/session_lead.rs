@@ -48,6 +48,44 @@ pub const LEAD_SCATTER_FLOOR: f64 = 0.0002;
 /// saved) does not, so a watch heard briefly after noise there is still
 /// no watch.
 pub fn watch_lead_s(windows: &[WindowFit], bph: u32, jumps: &[f64]) -> Option<f64> {
+    watch_lead_masked(windows, bph, jumps, &[])
+}
+
+/// [`watch_lead_s`] where the stretch holds `masked` stretches (on the
+/// windows' time): a grid slot whose window would overlap one is left out
+/// by the mask, not missing, so a pair across a mask is unbroken. Counted
+/// as missing, a clean watch's first window, its pair across a mask, read
+/// as noise, and the first window past the mask as the watch's start: a
+/// position read in two masked-apart stretches lost its first (#2187).
+/// A jump in masked time, or at a mask's ends, is left out with it.
+fn watch_lead_masked(
+    windows: &[WindowFit],
+    bph: u32,
+    jumps: &[f64],
+    masked: &[(f64, f64)],
+) -> Option<f64> {
+    let step = RATE_WINDOW_STEP_S;
+    let width = windows.first().map_or(0.0, |w| w.end_s - w.start_s);
+    let masked_slot = |t: f64| masked.iter().any(|&(a, b)| t < b && t + width > a);
+    // A jump inside a mask, or at its ends (where a reading's cuts sit),
+    // is in sound the mask leaves out.
+    let jumps: Vec<f64> = jumps
+        .iter()
+        .copied()
+        .filter(|&j| !masked.iter().any(|&(a, b)| j >= a - 1e-9 && j <= b + 1e-9))
+        .collect();
+    let jumps = jumps.as_slice();
+    // Every grid slot between two windows is there or masked.
+    let joined = |a: &WindowFit, b: &WindowFit| {
+        let mut t = a.start_s + step;
+        while t < b.start_s - 1e-9 {
+            if !masked_slot(t) {
+                return false;
+            }
+            t += step;
+        }
+        true
+    };
     let fraction =
         |w: &[WindowFit]| crate::beats::timing_scatter_fraction(scatter_jitter_us(w), bph);
     let clear =
@@ -73,9 +111,7 @@ pub fn watch_lead_s(windows: &[WindowFit], bph: u32, jumps: &[f64]) -> Option<f6
         else {
             return false;
         };
-        let unbroken = windows[k..=c]
-            .windows(2)
-            .all(|p| p[1].start_s - p[0].start_s <= RATE_WINDOW_STEP_S + 1e-9);
+        let unbroken = windows[k..=c].windows(2).all(|p| joined(&p[0], &p[1]));
         let (from, to) = (windows[k].start_s, windows[c].end_s);
         unbroken && !jumps.iter().any(|&j| j > from && j <= to) && passes(k) && passes(c)
     };
@@ -105,13 +141,8 @@ pub fn watch_lead_s(windows: &[WindowFit], bph: u32, jumps: &[f64]) -> Option<f6
 /// (audio seconds), read on its scatter windows as [`measure_masked`]
 /// reads them: where the watch starts after a lead of noise, as the audio
 /// time of the first beat there. Every whole reading (`analyze`, and a
-/// take's entries) leaves its lead out from here. A lead is the sound
-/// before the watch is first heard, so it is looked for only up to the
-/// first of the `masked` stretches inside the stretch: a mask breaks the
-/// windows' grid, and a clean watch's first window, its pair across the
-/// mask, would read as a lead up to the mask's end. A Positions Test
-/// position read in two stretches, the time between them masked, lost
-/// its first stretch that way (#2187).
+/// take's entries) leaves its lead out from here. The windows a mask
+/// leaves out are masked, not missing ([`watch_lead_masked`], #2187).
 pub fn lead_s(
     log: &BeatLog,
     clock: Option<&ClockFit>,
@@ -121,11 +152,6 @@ pub fn lead_s(
     to_s: f64,
 ) -> Option<f64> {
     let to_s = to_s.min(log.duration_s).max(0.0);
-    let to_s = masked
-        .iter()
-        .map(|m| m.0)
-        .filter(|&a| a > from_s && a < to_s)
-        .fold(to_s, f64::min);
     let from_s = from_s.max(0.0).min(to_s);
     let holes = Cuts::new(clock, breaks, masked);
     let map = |t: f64| holes.true_time(t);
@@ -134,7 +160,8 @@ pub fn lead_s(
     let part = window_part_s(&log.amplitude_windows);
     let windows = scatter_windows(&holes, &beats, log.bph, map(from_s), map(to_s), part);
     let jumps: Vec<f64> = log.jumps.iter().map(|&j| map(j)).collect();
-    let lead_t = watch_lead_s(&windows, log.bph, &jumps)?;
+    let on_time: Vec<(f64, f64)> = masked.iter().map(|&(a, b)| (map(a), map(b))).collect();
+    let lead_t = watch_lead_masked(&windows, log.bph, &jumps, &on_time)?;
     in_range
         .iter()
         .find(|b| map(b.time) >= lead_t - 1e-9)
