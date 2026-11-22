@@ -1520,7 +1520,7 @@ impl TimegrapherApp {
         let mut t = reserve::Test::new(position, r.sound_kept, r.started_utc.clone(), 0.0);
         t.ending = Some(r.ending);
         t.saved = Some(dir.to_path_buf());
-        let h = reserve::run_h(&r.hours, false, self.reserve_series);
+        let h = reserve::run_h(&r.hours, false, self.panes_view.reserve_series);
         t.results = Some(r);
         self.reserve = Some(t);
         self.reveal_pane(Pane::PowerReserve);

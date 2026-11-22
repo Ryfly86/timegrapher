@@ -1330,7 +1330,9 @@ fn the_maps_show_one_map_at_a_time_and_share_it() {
     assert_eq!(app.series_shown(View::Stft), [true, false, false]);
     assert_eq!(app.series_shown(View::Wavelet), [true, false, false]);
     assert_eq!(app.series_shown(View::Fft), [true, false, false]);
-    app.steady_series.insert(View::Stft, [false, true, false]);
+    app.panes_view
+        .steady_series
+        .insert(View::Stft, [false, true, false]);
     assert_eq!(app.series_shown(View::Wavelet), [false, true, false]);
     let ctx = egui::Context::default();
     theme::install(&ctx);
@@ -1347,7 +1349,10 @@ fn the_maps_show_one_map_at_a_time_and_share_it() {
             .collect();
     }
     assert!(keys.iter().any(|k| k == "Wavelet Map/Series"), "{keys:?}");
-    assert_eq!(app.steady_series[&View::Stft], [false, true, false]);
+    assert_eq!(
+        app.panes_view.steady_series[&View::Stft],
+        [false, true, false]
+    );
 }
 
 /// Settings > Microphone puts the menu on its own line under its name, the

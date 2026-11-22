@@ -97,10 +97,10 @@ fn a_poise_test_measures_eight_stops_and_core_fits_the_wave(app: &TimegrapherApp
 #[test]
 fn a_measured_poise_test_passes_each_check() {
     let (mut app, base, tx) = measured("measured-checks");
-    let fresh = (app.poise_views, app.poise_info);
+    let fresh = (app.panes_view.poise_views, app.panes_view.poise_info);
     let reset = |app: &mut TimegrapherApp| {
-        app.poise_views = fresh.0;
-        app.poise_info = fresh.1;
+        app.panes_view.poise_views = fresh.0;
+        app.panes_view.poise_info = fresh.1;
     };
     a_poise_test_measures_eight_stops_and_core_fits_the_wave(&app);
     a_measured_poise_tests_take_is_marked_as_one(&app);
@@ -391,7 +391,7 @@ fn the_pane_says_the_fit_waits_for_five_stops_in_both_views() {
     let mut app = synthetic_varying(30.0, 0.0, |_| 0.0);
     app.guided = Some(guided::Test::poise().timed(1.0, 5.0));
     for view in [PoiseView::Plot, PoiseView::Dial] {
-        app.poise_views = [view == PoiseView::Plot, view == PoiseView::Dial];
+        app.panes_view.poise_views = [view == PoiseView::Plot, view == PoiseView::Dial];
         let drawn = draw(&mut app, Pane::DynamicPoise);
         assert!(drawn.contains(&poise_pending()), "{view:?}: {drawn}");
         for label in ["Crown Down (CD, 9H)", "7:30 Up (7H30)", "10:30 Up (10H30)"] {
@@ -410,7 +410,7 @@ fn info_shows_cores_note_on_the_band() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     let note = timegrapher_core::poise::null_band_note();
     assert!(!draw(&mut app, Pane::DynamicPoise).contains(&note));
-    app.poise_info = true;
+    app.panes_view.poise_info = true;
     assert!(draw(&mut app, Pane::DynamicPoise).contains(&note));
 }
 
@@ -424,7 +424,7 @@ fn the_picture_has_its_key_and_mean_and_info_says_each_fact_once(app: &mut Timeg
         .mean_rate
         .unwrap();
     assert!(mean.starts_with("Mean ") && mean.contains(&format!("{:.1}", row.abs())));
-    app.poise_views = [true, false];
+    app.panes_view.poise_views = [true, false];
     let plot = draw(app, Pane::DynamicPoise);
     for word in ["Upright positions (8)", "Fitted wave", mean.as_str()] {
         assert!(plot.contains(word), "{word}: {plot}");
@@ -433,13 +433,13 @@ fn the_picture_has_its_key_and_mean_and_info_says_each_fact_once(app: &mut Timeg
     // across the plot, apart from the grid's full-width lines.
     let dashes = plot_dashes(app);
     assert!(dashes > 20, "{dashes} dashes");
-    app.poise_views = [false, true];
+    app.panes_view.poise_views = [false, true];
     let dial = draw(app, Pane::DynamicPoise);
     assert!(
         dial.contains(&mean) && dial.contains("Fastest 6H"),
         "{dial}"
     );
-    app.poise_info = true;
+    app.panes_view.poise_info = true;
     let info = draw(app, Pane::DynamicPoise);
     assert_eq!(info.matches("least at 219.5°").count(), 1, "{info}");
 }
@@ -455,8 +455,8 @@ fn the_heavy_spot_is_in_a_facts_box_and_the_notes_in_info(app: &mut TimegrapherA
     let notes = guided::poise_table_notes(&readings);
     let caveat = fit.caveat_line();
     for view in [PoiseView::Plot, PoiseView::Dial] {
-        app.poise_views = [view == PoiseView::Plot, view == PoiseView::Dial];
-        app.poise_info = false;
+        app.panes_view.poise_views = [view == PoiseView::Plot, view == PoiseView::Dial];
+        app.panes_view.poise_info = false;
         let texts = draw_at(app, Pane::DynamicPoise, Vec2::new(1280.0, 820.0));
         let at = |want: &str| texts.iter().find(|(t, _)| t == want).map(|(_, r)| *r);
         let n = at(&name).unwrap_or_else(|| panic!("{view:?}: {texts:?}"));
@@ -474,7 +474,7 @@ fn the_heavy_spot_is_in_a_facts_box_and_the_notes_in_info(app: &mut TimegrapherA
             let hour = at(timegrapher_core::poise::hour_code(0.0)).expect("12H");
             assert!(v.bottom() < hour.top(), "{v:?} over {hour:?}");
         }
-        app.poise_info = true;
+        app.panes_view.poise_info = true;
         let info = draw(app, Pane::DynamicPoise);
         for note in &notes {
             assert_eq!(info.matches(note.as_str()).count(), 1, "{note}: {info}");
@@ -500,9 +500,9 @@ fn the_key_never_covers_the_heavy_spot() {
         timegrapher_core::poise_picture::points_key(5),
         timegrapher_core::poise_picture::WAVE_KEY.to_string(),
     ];
-    app.poise_info = false;
+    app.panes_view.poise_info = false;
     for views in [[true, true], [true, false]] {
-        app.poise_views = views;
+        app.panes_view.poise_views = views;
         for w in [1600.0, 1400.0, 1100.0, 1050.0, 1000.0, 950.0] {
             let texts = draw_at(app, Pane::DynamicPoise, Vec2::new(w, 820.0));
             let at = |want: &str| texts.iter().find(|(t, _)| t == want).map(|(_, r)| *r);
@@ -526,7 +526,7 @@ fn the_key_never_covers_the_heavy_spot() {
 /// the crown; in both themes, and in a short wide pane as in a tall one.
 fn the_dial_has_its_watch_case_behind_it(app: &mut TimegrapherApp) {
     use timegrapher_core::poise_case;
-    app.poise_views = [false, true];
+    app.panes_view.poise_views = [false, true];
     for (dark, size) in [
         (true, Vec2::new(1280.0, 820.0)),
         (false, Vec2::new(1280.0, 820.0)),
@@ -910,7 +910,7 @@ fn draw_at(app: &mut TimegrapherApp, pane: Pane, size: Vec2) -> Vec<(String, egu
             })
             .collect();
         // A picture of both views for review (#1729).
-        if let (Ok(d), [true, true]) = (std::env::var("SHOT_DIR"), app.poise_views) {
+        if let (Ok(d), [true, true]) = (std::env::var("SHOT_DIR"), app.panes_view.poise_views) {
             let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, size);
             let back = ctx.style().visuals.window_fill;
             let svg = crate::export::svg(&out.shapes, screen, back);
@@ -1554,7 +1554,7 @@ fn a_test_opened_again_keeps_its_marks() {
 /// there is room, the Plot left of the Dial, and one over the other
 /// where there is not.
 fn both_views_sit_side_by_side_where_there_is_room(app: &mut TimegrapherApp) {
-    app.poise_views = [true, true];
+    app.panes_view.poise_views = [true, true];
     // The plot names the fastest hour too: the dial's is the other one.
     let at = |app: &mut TimegrapherApp, w: f32| {
         let texts = draw_at(app, Pane::DynamicPoise, Vec2::new(w, 820.0));
@@ -1675,12 +1675,12 @@ fn both_views_off_leave_the_table_and_words() {
     let key = timegrapher_core::poise_picture::DIAL_KEY;
     // The take's table read first, as the pane reads it.
     app.free_table(&egui::Context::default()).expect("a table");
-    app.poise_views = [false, false];
+    app.panes_view.poise_views = [false, false];
     let drawn = draw(&mut app, Pane::DynamicPoise);
     assert!(!drawn.contains(axis) && !drawn.contains(key), "{drawn}");
     assert!(drawn.contains("Crown Down (CD, 9H)"), "the table: {drawn}");
     assert!(drawn.contains("Once-round wave"), "the words: {drawn}");
-    app.poise_views = [false, true];
+    app.panes_view.poise_views = [false, true];
     let drawn = draw(&mut app, Pane::DynamicPoise);
     assert!(drawn.contains(key) && !drawn.contains(axis), "{drawn}");
     let _ = std::fs::remove_dir_all(base);

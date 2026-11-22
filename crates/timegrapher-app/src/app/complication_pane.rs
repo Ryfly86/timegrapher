@@ -126,7 +126,7 @@ impl TimegrapherApp {
         // The quantities first, at the left, always there, as on every
         // pane that plots them; all off leaves the table and words
         // (design guide section 9, #1852).
-        crate::steady::chart_switches(ui, &mut self.complication_series);
+        crate::steady::chart_switches(ui, &mut self.panes_view.complication_series);
         theme::bar_gap(ui);
         if !running {
             if self.ready_test() == Some(NewTake::Complication) {
@@ -179,13 +179,13 @@ impl TimegrapherApp {
 
     /// The pane's toolbar, with the Info toggle pinned at its right.
     pub(super) fn complication_tools(&mut self, ui: &mut egui::Ui, title: &str) {
-        let mut info = self.complication_info;
+        let mut info = self.panes_view.complication_info;
         let hint = "Info: how On less Off and its ± are worked out";
         theme::pane_toolbar_info(ui, title, &help::COMPLICATION, (&mut info, hint), |ui| {
             self.complication_settings(ui);
             self.export_button(ui, Pane::Complication);
         });
-        self.complication_info = info;
+        self.panes_view.complication_info = info;
     }
 
     /// The pane: the banner while the test runs, then the table and the
@@ -219,7 +219,10 @@ impl TimegrapherApp {
             ui,
             (test, phase, live.as_ref()),
             (now, lengths),
-            (self.complication_info, self.complication_series),
+            (
+                self.panes_view.complication_info,
+                self.panes_view.complication_series,
+            ),
             self.rev.opens,
         );
         if let (Some(action), Some(now)) = (action, now) {

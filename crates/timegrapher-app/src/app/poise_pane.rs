@@ -112,12 +112,12 @@ impl TimegrapherApp {
                 .into_iter()
                 .enumerate()
                 {
-                    let mut on = self.poise_views[i];
+                    let mut on = self.panes_view.poise_views[i];
                     if theme::toggle(ui, name, &mut on)
                         .on_hover_text(hint)
                         .clicked()
                     {
-                        self.poise_views[i] = !self.poise_views[i];
+                        self.panes_view.poise_views[i] = !self.panes_view.poise_views[i];
                     }
                 }
             },
@@ -226,14 +226,14 @@ impl TimegrapherApp {
 
     /// The pane's toolbar, with the Info toggle pinned at its right.
     pub(super) fn poise_tools(&mut self, ui: &mut egui::Ui, title: &str) {
-        let mut info = self.poise_info;
+        let mut info = self.panes_view.poise_info;
         let hint = "Info: the fit in full, the twice-round check, and why near 220° the heavy \
                     spot is not stated";
         theme::pane_toolbar_info(ui, title, &help::DYNAMIC_POISE, (&mut info, hint), |ui| {
             self.poise_settings(ui);
             self.export_button(ui, Pane::DynamicPoise);
         });
-        self.poise_info = info;
+        self.panes_view.poise_info = info;
     }
 
     /// The pane: the banner while the test runs, then the table and the
@@ -268,8 +268,8 @@ impl TimegrapherApp {
             });
         let kept = self.poise_kept(ui.ctx());
         let short = self.poise_short(ui.ctx());
-        let info = self.poise_info;
-        let view = self.poise_views;
+        let info = self.panes_view.poise_info;
+        let view = self.panes_view.poise_views;
         let settle = (self.guided_settle_s, self.guided_measure_s);
         let action = poise_body(
             ui,

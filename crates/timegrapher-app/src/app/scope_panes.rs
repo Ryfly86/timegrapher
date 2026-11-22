@@ -179,7 +179,7 @@ impl TimegrapherApp {
             if pane == Pane::Sound {
                 self.profile_settings(ui);
             } else {
-                scope::settings(ui, &mut self.scope_view);
+                scope::settings(ui, &mut self.panes_view.scope_view);
                 self.export_button(ui, pane);
             }
         });
@@ -360,7 +360,7 @@ impl TimegrapherApp {
     /// what the live engine still holds, else read from the recording.
     pub(super) fn scope_pane(&mut self, ui: &mut egui::Ui) {
         let pal = theme::pal(ui);
-        let view = self.scope_view;
+        let view = self.panes_view.scope_view;
         let end = self.strip_end_s();
         let shown = self.profiles_at(end);
         // Masked out where the profile says so, by the same rule.

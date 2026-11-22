@@ -1338,7 +1338,7 @@ fn an_ordinary_take_of_the_six_positions_loads_to_compare_with() {
             .filter_map(|c| core_session::Position::parse(c))
             .collect::<Vec<_>>()
     });
-    app.positions_series = [false; 3];
+    app.panes_view.positions_series = [false; 3];
     let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
     let labels: Vec<String> = guided::card_order()
         .into_iter()
@@ -1369,7 +1369,7 @@ fn every_chart_off_leaves_the_positions_table() {
     let lanes = |drawn: &str| drawn.lines().filter(|l| *l == "Horizontal").count();
     let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
     assert!(lanes(&drawn) > 0, "{drawn}");
-    app.positions_series = [false; 3];
+    app.panes_view.positions_series = [false; 3];
     let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
     assert_eq!(lanes(&drawn), 0, "{drawn}");
     assert!(drawn.contains("Crown Down (CD, 9H)"), "the table: {drawn}");
@@ -1493,7 +1493,7 @@ fn a_45_degree_stop_gets_its_own_row_outside_the_average() {
         t.extra[0].3,
         guided::FreeCell::Read(Some(_), Some(_), _)
     ));
-    app.positions_series = [false; 3];
+    app.panes_view.positions_series = [false; 3];
     let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
     let lines: Vec<&str> = drawn.lines().collect();
     let at = |s: &str| lines.iter().position(|l| *l == s);

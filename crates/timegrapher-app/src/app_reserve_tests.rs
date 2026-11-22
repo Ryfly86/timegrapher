@@ -1561,19 +1561,19 @@ fn a_long_quick_listen_shows_its_run_so_far_in_the_power_reserve_pane() {
 #[test]
 fn the_reserve_info_is_kept_in_the_settings() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    assert!(!app.reserve_info);
-    app.reserve_info = true;
+    assert!(!app.panes_view.reserve_info);
+    app.panes_view.reserve_info = true;
     let mut back = TimegrapherApp::with_devices(Vec::new(), None);
     back.apply_settings(app.settings());
-    assert!(back.reserve_info);
-    app.reserve_info = false;
+    assert!(back.panes_view.reserve_info);
+    app.panes_view.reserve_info = false;
     back.apply_settings(app.settings());
-    assert!(!back.reserve_info);
+    assert!(!back.panes_view.reserve_info);
     // The Positions Test pane's Info, the same way (#1528).
-    assert!(!back.positions_info);
-    app.positions_info = true;
+    assert!(!back.panes_view.positions_info);
+    app.panes_view.positions_info = true;
     back.apply_settings(app.settings());
-    assert!(back.positions_info && !back.reserve_info);
+    assert!(back.panes_view.positions_info && !back.panes_view.reserve_info);
 }
 
 /// A Power Reserve Test with Analysis Only picked, its 28 s of a ticking

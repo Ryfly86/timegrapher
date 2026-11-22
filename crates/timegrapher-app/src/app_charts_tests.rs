@@ -56,13 +56,13 @@ fn rate_distribution_counts_two_second_stretches() {
     r.refresh(live, &[]);
     assert!(r.values.len() > n);
     // The pane follows Values for rate too.
-    app.hist_readings = false;
+    app.panes_view.hist_readings = false;
     // The app's fonts: the pane's title line is in its semibold.
     let ctx = themed();
     let _ = ctx.run(Default::default(), |ctx| {
         egui::CentralPanel::default().show(ctx, |ui| app.histogram(ui, SeriesKind::Rate));
     });
-    assert!(!app.dist.rate_2s.values.is_empty());
+    assert!(!app.panes_view.dist.rate_2s.values.is_empty());
 }
 
 /// The Charts and Distributions panes draw a plot for each reading
@@ -104,7 +104,7 @@ fn the_charts_and_distributions_draw_the_readings_turned_on() {
     // At first only the rate: no amplitude or beat error plot in
     // either pane.
     assert_eq!(
-        (app.panes_view.chart_series, app.dist_series),
+        (app.panes_view.chart_series, app.panes_view.dist_series),
         (RATE_ONLY, RATE_ONLY)
     );
     let one = draw(&mut app);
@@ -117,7 +117,7 @@ fn the_charts_and_distributions_draw_the_readings_turned_on() {
     let named = |text: &str, name: &str| text.lines().filter(|l| *l == name).count();
     // All three turned on.
     app.panes_view.chart_series = [true; 3];
-    app.dist_series = [true; 3];
+    app.panes_view.dist_series = [true; 3];
     let text = draw(&mut app);
     for t in ["Charts", "Distributions", "s/d"] {
         assert!(text.contains(t), "{t}: {text}");
@@ -152,7 +152,7 @@ fn a_distributions_axis_labels_stay_apart() {
     // reading's rate steps to another level.
     let spread = |t: f64| -12.45 + 0.7 * (((t / 10.0) as usize * 7) % 30) as f64 / 29.0;
     let mut app = synthetic_varying(300.0, 12.0, spread);
-    app.hist_readings = true;
+    app.panes_view.hist_readings = true;
     app.update_dist_readings(None);
     let ctx = themed();
     fn texts(shape: &egui::Shape, into: &mut Vec<(String, egui::Rect)>) {
@@ -778,7 +778,8 @@ fn readings_over_time_charts_share_one_gutter() {
     let mut app = synthetic(310.0, 20.0);
     app.panes_view.strip.horizontal = true;
     app.panes_view.strip_fit = true;
-    app.steady_series
+    app.panes_view
+        .steady_series
         .insert(steady::View::Readings, [true, true, true]);
     for p in [Pane::Strip, Pane::SteadyReadings] {
         set_pane_visible(&mut app.panes.tiles, p, true);
@@ -837,7 +838,8 @@ fn time_panes_under_the_strip_put_a_late_time_at_one_place() {
         app.panes_view.strip.horizontal = true;
         app.panes_view.strip_fit = true;
         app.panes_view.chart_series = [true, false, false];
-        app.steady_series
+        app.panes_view
+            .steady_series
             .insert(steady::View::Readings, [true, false, false]);
         for p in [Pane::Strip, pane] {
             set_pane_visible(&mut app.panes.tiles, p, true);
@@ -922,7 +924,8 @@ fn joined_readings_over_time_says_whose_time_it_is() {
     for joined in [false, true] {
         let mut app = synthetic(310.0, 20.0);
         app.panes_view.strip.horizontal = true;
-        app.steady_series
+        app.panes_view
+            .steady_series
             .insert(steady::View::Readings, [true, false, false]);
         for p in [Pane::Strip, Pane::SteadyReadings] {
             set_pane_visible(&mut app.panes.tiles, p, true);
@@ -1044,7 +1047,7 @@ fn the_distributions_facts_give_negative_figures_a_true_minus() {
 fn negative_axis_numbers_carry_a_true_minus() {
     let spread = |t: f64| 0.7 * (((t / 10.0) as usize * 7) % 30) as f64 / 29.0;
     let mut app = synthetic_varying(300.0, -12.0, spread);
-    app.hist_readings = true;
+    app.panes_view.hist_readings = true;
     app.update_dist_readings(None);
     let ctx = themed();
     fn texts(shape: &egui::Shape, into: &mut Vec<String>) {

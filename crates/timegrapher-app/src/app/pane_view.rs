@@ -1,6 +1,7 @@
 //! How the panes look: the Paper Strip's view, follow and fit, its
-//! overlays and rate line, the charts drawn and their fit and follow, and
-//! the shared time cursor (#1988). One per bench, once benches come.
+//! overlays and rate line, the charts drawn and their fit and follow, the
+//! shared time cursor, and the test, Steadiness, Scope and Distributions
+//! panes' series and Info switches (#1988). One per bench, once benches come.
 
 use super::*;
 
@@ -59,6 +60,46 @@ pub(super) struct PaneView {
     pub(super) strip_zoom_s: Option<f64>,
     /// Whether Fit was on before an opened take was fitted.
     pub(super) live_fit: bool,
+    /// The Dynamic Poise pane's Plot and Dial on or off, and its Info.
+    pub(super) poise_views: [bool; 2],
+    pub(super) poise_info: bool,
+    /// Whether the Complication pane's Info panel shows.
+    pub(super) complication_info: bool,
+    /// The readings the Distributions pane draws.
+    pub(super) dist_series: [bool; 3],
+    /// The charts the Power Reserve, Positions and Complication panes draw (#1729).
+    pub(super) reserve_series: [bool; 3],
+    pub(super) positions_series: [bool; 3],
+    pub(super) complication_series: [bool; 3],
+    /// Show the cumulative share instead of the probability plot.
+    pub(super) hist_cumulative: bool,
+    /// The Power Reserve and Positions Test panes' Info panels open (#1528).
+    pub(super) reserve_info: bool,
+    pub(super) positions_info: bool,
+    /// The histograms count the readings rather than each 2 seconds of beats.
+    pub(super) hist_readings: bool,
+    pub(super) iso_view: isochronism::View,
+    /// The rate over each 2 seconds of beats, for the rate's distribution.
+    pub(super) dist: distributions::DistState,
+    /// The series each Steadiness pane shows: rate, amplitude, beat error.
+    pub(super) steady_series: std::collections::BTreeMap<steady::View, [bool; 3]>,
+    /// The Periods pane's scores in dB.
+    pub(super) periods_db: bool,
+    /// The FFT pane's rate as the beat timing's spectrum, in ms.
+    pub(super) fft_timing: bool,
+    /// Each STFT and Wavelet Map pane's colours in dB.
+    pub(super) maps_db: steady::PerPane,
+    /// The calibre's wheels and meshes marked on each pane's period axes.
+    pub(super) show_marks: steady::MarkSwitches,
+    /// Each Steadiness pane's Info panel open.
+    pub(super) steady_info: steady::PerPane,
+    pub(super) scope_view: scope::View,
+    /// Watches view groups folded down to their caption.
+    pub(super) folded: std::collections::BTreeSet<String>,
+    /// The rate, amplitude and beat error figures above the panes.
+    pub(super) show_readings: bool,
+    /// Those cards pinned open in the layout, else a strip that opens them.
+    pub(super) readings_pinned: bool,
 }
 
 impl Default for PaneView {
@@ -85,6 +126,29 @@ impl Default for PaneView {
             strip_fit: false,
             strip_zoom_s: None,
             live_fit: false,
+            poise_views: POISE_VIEWS,
+            poise_info: false,
+            complication_info: false,
+            dist_series: RATE_ONLY,
+            reserve_series: [true; 3],
+            positions_series: [true; 3],
+            complication_series: [true; 3],
+            hist_cumulative: false,
+            reserve_info: false,
+            positions_info: false,
+            hist_readings: true,
+            iso_view: Default::default(),
+            dist: distributions::DistState::default(),
+            steady_series: Default::default(),
+            periods_db: false,
+            fft_timing: false,
+            maps_db: steady::PerPane::new(Vec::new(), false),
+            show_marks: steady::MarkSwitches::new(Default::default()),
+            steady_info: steady::PerPane::new(Vec::new(), false),
+            scope_view: scope::View::default(),
+            folded: Default::default(),
+            show_readings: true,
+            readings_pinned: true,
         }
     }
 }

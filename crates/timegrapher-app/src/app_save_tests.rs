@@ -539,7 +539,7 @@ fn saved_metadata_edits_warn_without_new_sound_and_reverts_are_clean() {
     app.calibre = "another calibre".into();
     assert!(app.metadata_unsaved());
     app.calibre = original.calibre.clone();
-    app.hist_cumulative = !app.hist_cumulative;
+    app.panes_view.hist_cumulative = !app.panes_view.hist_cumulative;
     assert!(
         !app.metadata_unsaved(),
         "view preferences are not saved take edits"
