@@ -1594,12 +1594,6 @@ pub struct TimegrapherApp {
     /// The form was opened from Keep in a Watch…: Done keeps what is on
     /// show in the new watch.
     keep_after_form: bool,
-    /// A test ended with no watch picked: where it goes, asked.
-    test_keep: Option<TestKeep>,
-    /// This take ran a Positions Test.
-    positions_take: bool,
-    /// The position card's title as last drawn, for the words naming it.
-    position_card_title: &'static str,
     /// The watch (or Unsorted) picked before Keep in a Watch… showed the
     /// one it keeps into, put back if its question is cancelled.
     keep_back: Option<(Option<String>, bool)>,
@@ -1610,49 +1604,6 @@ pub struct TimegrapherApp {
     report: ReportDialog,
     updates: crate::update::Updates,
     update_dialog: Option<dialogs::UpdateDialog>,
-    /// The Positions Test, while it runs and once finished, until a new
-    /// test or a new session.
-    guided: Option<guided::Test>,
-    /// The time the Positions Test didn't use, marked on the strip; kept
-    /// after the test ends, until a new session.
-    guided_unused: Vec<(f64, f64, &'static str)>,
-    /// The stretches the Positions Test measured, the one under way
-    /// included, kept like `guided_unused`.
-    guided_measured: Vec<(f64, f64)>,
-    /// The full-wind test's results the next test is set against as its
-    /// 24 hour half: picked from `guided_choices`, or loaded from a file.
-    guided_earlier: Option<guided::FullWind>,
-    /// An opened 24 hour half's saved results, which the pane shows again.
-    guided_saved: Option<guided::FullWind>,
-    /// For a watch set up for 24 Hours After, its full-wind tests from 12
-    /// to 36 hours ago, newest first, for Compare With to pick from.
-    guided_choices: Vec<guided::FullWind>,
-    /// Whether `guided_earlier` was loaded from a file, so it stays when
-    /// the watch's takes are searched again.
-    guided_earlier_file: bool,
-    /// A take that is no saved Positions Test, being read to compare
-    /// with (#1851).
-    compare_take: Option<compare_take::Reading>,
-    /// What `guided_choices` was found for: the watch, the Wind setting,
-    /// the minute and the watch's takes folder. Any of them otherwise, it
-    /// is searched for again, so a test passing the 12 hour mark, or a
-    /// take added or removed, is seen.
-    guided_earlier_for: Option<FullWindKey>,
-    /// For a watch, the next Positions Test is its 24 hours after half,
-    /// set against the watch's own full-wind test (Wind on its toolbar).
-    guided_after: bool,
-    /// A test set up on a clear Bench, waiting for Start Test on the
-    /// Listen card: the Positions Test or the Power Reserve Test.
-    test_ready: Option<NewTake>,
-    /// Stop Test… pressed on the Listen card, its question open.
-    stop_test_ask: bool,
-    /// Seconds of settling and of measuring in each position, for the
-    /// next test.
-    /// The Current Position card offers ten positions, the four 45°
-    /// stops too, rather than six (its 6 | 10 switch, kept).
-    ten_positions: bool,
-    guided_settle_s: f64,
-    guided_measure_s: f64,
     /// Look for a newer release each time the app starts.
     check_at_start: bool,
     /// Keep the computer from sleeping on its own while listening.
@@ -1883,10 +1834,6 @@ pub struct TimegrapherApp {
     /// Masks on the recording on show let go by the answer to the ask
     /// before listening, so starting doesn't ask again.
     masks_let_go: bool,
-    /// The guided test to begin once the ask before listening is
-    /// answered, and for the Positions Test whether just after winding
-    /// (`None`) or the 24 hour half.
-    guided_after_ask: Option<(guided::Kind, Option<guided::FullWind>)>,
     sound_job: Option<(f64, u64, std::sync::mpsc::Receiver<Profiles>)>,
     /// Offer every input the system lists, not just one per microphone.
     all_inputs: bool,
@@ -1903,6 +1850,7 @@ pub struct TimegrapherApp {
     watches_view: watches_view::WatchesView,
     /// How the strip and charts look and follow.
     panes_view: pane_view::PaneView,
+    /// The guided tests for this bench.
     test: guided_test::GuidedTest,
 }
 
@@ -1971,12 +1919,12 @@ impl TimegrapherApp {
             marks: self.panes_view.show_marks.saved(),
             steady_info: self.panes_view.steady_info.unset,
             steady_info_set: self.panes_view.steady_info.saved(),
-            positions_settle_s: self.guided_settle_s,
-            ten_positions: self.ten_positions,
+            positions_settle_s: self.test.guided_settle_s,
+            ten_positions: self.test.ten_positions,
             poise_views: self.panes_view.poise_views,
             poise_info: self.panes_view.poise_info,
             complication_info: self.panes_view.complication_info,
-            positions_measure_s: self.guided_measure_s,
+            positions_measure_s: self.test.guided_measure_s,
             scope: self.panes_view.scope_view,
             panes: Some(self.panes_view.panes.clone()),
             panes_dragged: self.panes_view.panes_dragged.iter().copied().collect(),
@@ -2064,7 +2012,7 @@ impl TimegrapherApp {
         } = s;
         (self.after_save_command, self.agc_on) = (after_save_command, agc_on);
         self.settings_last = Tab::from_key(&settings_section);
-        (self.listen_at_open, self.ten_positions) = (listen_at_open, ten_positions);
+        (self.listen_at_open, self.test.ten_positions) = (listen_at_open, ten_positions);
         (self.mic_set_up, self.setup_declined) = (mic_set_up, setup_declined);
         // A layout from before the panes moved starts afresh.
         let panes = panes.filter(|_| layout >= LAYOUT);
@@ -2126,10 +2074,10 @@ impl TimegrapherApp {
     /// The Positions Test's settle and measure times, each kept in its
     /// range.
     fn set_positions_times(&mut self, settle_s: f64, measure_s: f64) {
-        self.guided_settle_s =
+        self.test.guided_settle_s =
             settle_s.clamp(*guided::SETTLE_RANGE.start(), *guided::SETTLE_RANGE.end());
-        self.session.set_settle_s(self.guided_settle_s);
-        self.guided_measure_s =
+        self.session.set_settle_s(self.test.guided_settle_s);
+        self.test.guided_measure_s =
             measure_s.clamp(*guided::MEASURE_RANGE.start(), *guided::MEASURE_RANGE.end());
     }
 
@@ -2172,22 +2120,7 @@ impl TimegrapherApp {
             report: ReportDialog::default(),
             updates: Default::default(),
             update_dialog: None,
-            guided: None,
             test: guided_test::GuidedTest::default(),
-            guided_unused: Vec::new(),
-            guided_measured: Vec::new(),
-            guided_earlier: None,
-            guided_saved: None,
-            guided_choices: Vec::new(),
-            guided_earlier_file: false,
-            compare_take: None,
-            guided_earlier_for: None,
-            guided_after: false,
-            test_ready: None,
-            stop_test_ask: false,
-            guided_settle_s: guided::SETTLE_S,
-            ten_positions: false,
-            guided_measure_s: guided::MEASURE_S,
             check_at_start: true,
             keep_awake: true,
             listen_at_open: true,
@@ -2219,9 +2152,6 @@ impl TimegrapherApp {
             panes_view: pane_view::PaneView::default(),
             quick_listen: false,
             keep_after_form: false,
-            test_keep: None,
-            positions_take: false,
-            position_card_title: "Current Position",
             keep_back: None,
             take_keep: None,
             take_add: None,
@@ -2291,7 +2221,6 @@ impl TimegrapherApp {
             jumps_seen: Vec::new(),
             rebuild_seen: (None, None),
             masks_let_go: false,
-            guided_after_ask: None,
             sound_job: None,
             all_inputs: false,
             opened_at: Instant::now(),
@@ -2486,14 +2415,14 @@ impl TimegrapherApp {
                 egui::ComboBox::from_id_salt("compare with")
                     .selected_text(shown)
                     .show_ui(ui, |ui| {
-                        for (i, f) in self.guided_choices.iter().enumerate() {
-                            let on = !self.guided_earlier_file
-                                && self.guided_earlier.as_ref() == Some(f);
+                        for (i, f) in self.test.guided_choices.iter().enumerate() {
+                            let on = !self.test.guided_earlier_file
+                                && self.test.guided_earlier.as_ref() == Some(f);
                             if ui.selectable_label(on, guided::choice_text(f)).clicked() {
                                 picked = Some(i);
                             }
                         }
-                        if !self.guided_choices.is_empty() {
+                        if !self.test.guided_choices.is_empty() {
                             ui.separator();
                         }
                         if ui
@@ -3595,7 +3524,7 @@ impl eframe::App for TimegrapherApp {
         crate::frame_built();
         let was_working = self.repaint_every().is_some();
         // One settling for every change of position: the pane's Settle.
-        self.session.set_settle_s(self.guided_settle_s);
+        self.session.set_settle_s(self.test.guided_settle_s);
         if std::mem::take(&mut self.listen_pending) && !self.running() {
             self.quick_listen(false);
         }

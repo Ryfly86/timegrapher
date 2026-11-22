@@ -65,7 +65,7 @@ impl TimegrapherApp {
             return;
         };
         let settings = self.entry_settings(&m);
-        let Some(t) = self.guided.as_mut().filter(|t| {
+        let Some(t) = self.test.guided.as_mut().filter(|t| {
             matches!(
                 t.saved_read,
                 guided::SavedRead::Pending
@@ -116,10 +116,10 @@ impl TimegrapherApp {
         else {
             return;
         };
-        let Some(t) = self
-            .guided
-            .as_mut()
-            .filter(|t| t.began_unix == began_unix && t.saved_read == guided::SavedRead::Reading)
+        let Some(t) =
+            self.test.guided.as_mut().filter(|t| {
+                t.began_unix == began_unix && t.saved_read == guided::SavedRead::Reading
+            })
         else {
             return;
         };
@@ -141,6 +141,7 @@ impl TimegrapherApp {
     /// (#2070). One read again already, or under way, is left as it is.
     pub(super) fn test_kept_without_sound(&mut self) {
         if let Some(t) = self
+            .test
             .guided
             .as_mut()
             .filter(|t| t.saved_read == guided::SavedRead::Pending)
@@ -233,7 +234,7 @@ impl TimegrapherApp {
     /// The guided test's marks for its take's files, in the saved sound's
     /// own seconds; none with no test, or nothing yet in the sound.
     pub(super) fn test_marks(&self) -> Option<TestMarks> {
-        let t = self.guided.as_ref()?;
+        let t = self.test.guided.as_ref()?;
         let now = self.live.as_ref().map_or(0.0, |l| l.duration_s());
         let audio = |a: f64, b: f64| -> Option<(f64, f64)> {
             let (a, b) = (self.session.audio_of(a)?, self.session.audio_of(b)?);
@@ -266,9 +267,9 @@ impl TimegrapherApp {
     pub(super) fn load_test_marks(&mut self, dir: &Path) {
         match TestMarks::read(dir) {
             Ok(Some(m)) => {
-                self.guided_unused = unused_of(&m);
-                self.guided_measured = m.measured;
-                self.bg.opened_marks = Some(self.guided_unused.clone());
+                self.test.guided_unused = unused_of(&m);
+                self.test.guided_measured = m.measured;
+                self.bg.opened_marks = Some(self.test.guided_unused.clone());
             }
             Ok(None) => {}
             Err(e) => self.info_msg(format!("The test's marks weren't read: {e}")),
@@ -279,8 +280,8 @@ impl TimegrapherApp {
     /// test on the Bench: what each stretch was is then the marks' word,
     /// over the settling the session file's gaps give.
     pub(super) fn marks_opened(&self) -> bool {
-        self.guided.is_none()
-            && !self.guided_unused.is_empty()
-            && self.bg.opened_marks.as_ref() == Some(&self.guided_unused)
+        self.test.guided.is_none()
+            && !self.test.guided_unused.is_empty()
+            && self.bg.opened_marks.as_ref() == Some(&self.test.guided_unused)
     }
 }

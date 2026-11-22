@@ -2697,24 +2697,24 @@ fn a_test_kept_without_its_sound_says_its_figures_are_the_listenings() {
     }
     // A test not finished is left as it is, with no note (Trevor on
     // #2080).
-    app.guided = Some(guided::Test::poise());
+    app.test.guided = Some(guided::Test::poise());
     assert!(app.can_save_analysis());
     app.start_analysis_save(&base.join("unfinished"));
     wait_for_jobs(&mut app);
     assert!(app.analysis_kept_to.is_some(), "{:?}", app.message);
-    let t = app.guided.as_ref().unwrap();
+    let t = app.test.guided.as_ref().unwrap();
     assert_eq!(t.saved_read, guided::SavedRead::NotRead);
     assert_eq!(t.saved_read_note(), None);
     app.analysis_kept_to = None;
     let mut test = guided::Test::poise();
     test.saved_read = guided::SavedRead::Pending;
-    app.guided = Some(test);
-    assert_eq!(app.guided.as_ref().unwrap().saved_read_note(), None);
+    app.test.guided = Some(test);
+    assert_eq!(app.test.guided.as_ref().unwrap().saved_read_note(), None);
     assert!(app.can_save_analysis());
     app.start_analysis_save(&base.join("kept"));
     wait_for_jobs(&mut app);
     assert!(app.analysis_kept_to.is_some(), "{:?}", app.message);
-    let t = app.guided.as_ref().unwrap();
+    let t = app.test.guided.as_ref().unwrap();
     assert_eq!(t.saved_read, guided::SavedRead::NoSound);
     assert!(t.listened());
     assert_eq!(
@@ -2730,7 +2730,7 @@ fn a_test_kept_without_its_sound_says_its_figures_are_the_listenings() {
     app.save_into(&base.join("full"));
     app.wait_for_save();
     assert!(app.session.saved_to().is_some());
-    let t = app.guided.as_ref().unwrap();
+    let t = app.test.guided.as_ref().unwrap();
     assert_ne!(t.saved_read, guided::SavedRead::NoSound);
     assert_ne!(t.saved_read, guided::SavedRead::Pending);
     let _ = std::fs::remove_dir_all(&base);
