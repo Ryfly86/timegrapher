@@ -7,7 +7,7 @@ use super::*;
 #[test]
 fn moving_steadiness_out_leaves_the_profile_showing() {
     let app = synthetic(40.0, 0.0);
-    let mut tree = app.panes.clone();
+    let mut tree = app.panes_view.panes.clone();
     let steady = tree.tiles.find_pane(&Pane::SteadyReadings).unwrap();
     let sound = tree.tiles.find_pane(&Pane::Sound).unwrap();
     let tabs = tree.tiles.parent_of(steady).unwrap();

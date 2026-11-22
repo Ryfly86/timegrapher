@@ -335,7 +335,7 @@ fn a_test_with_no_watch_asks_where_it_goes() {
     let full = screen().screen_rect.unwrap();
     let (upper, lower) = full.split_top_bottom_at_fraction(0.5);
     for (pane, clear) in [(lower, upper), (upper, lower)] {
-        app.results_rects[0] = Some(pane.shrink(8.0));
+        app.panes_view.results_rects[0] = Some(pane.shrink(8.0));
         let mut title = None;
         for _ in 0..3 {
             let out = ctx.run(screen(), |ctx| app.test_keep_dialog(ctx));

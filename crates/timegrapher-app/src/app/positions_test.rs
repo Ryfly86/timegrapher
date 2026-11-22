@@ -683,7 +683,7 @@ impl TimegrapherApp {
     }
 
     pub(super) fn positions_pane(&mut self, ui: &mut egui::Ui) {
-        self.results_rects[0] = Some(ui.max_rect());
+        self.panes_view.results_rects[0] = Some(ui.max_rect());
         let now = self.live.as_ref().map(|l| l.duration_s());
         // A Dynamic Poise test is its own pane's: this one shows only how
         // the Positions Test runs.

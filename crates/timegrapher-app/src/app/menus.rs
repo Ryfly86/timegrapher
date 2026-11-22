@@ -133,7 +133,7 @@ impl TimegrapherApp {
             MenuCommand::View(v) => self.watches_view.view == v,
             MenuCommand::Readings => self.panes_view.show_readings,
             MenuCommand::CompactReadings => !self.panes_view.readings_pinned,
-            MenuCommand::Pane(p) => pane_visible(&self.panes.tiles, p),
+            MenuCommand::Pane(p) => pane_visible(&self.panes_view.panes.tiles, p),
             _ => false,
         }
     }
@@ -177,13 +177,13 @@ impl TimegrapherApp {
                 self.panes_view.readings_pinned = !self.panes_view.readings_pinned
             }
             MenuCommand::Pane(p) => {
-                let on = pane_visible(&self.panes.tiles, p);
+                let on = pane_visible(&self.panes_view.panes.tiles, p);
                 self.show_pane(p, !on);
             }
             MenuCommand::ResetPanes => {
                 self.panes_view.show_readings = true;
-                self.panes = default_layout(self.panes_view.strip.horizontal);
-                self.panes_dragged.clear();
+                self.panes_view.panes = default_layout(self.panes_view.strip.horizontal);
+                self.panes_view.panes_dragged.clear();
             }
             MenuCommand::NewWatch => self.open_new_watch_form(),
             MenuCommand::FindInWatches => self.find_in_watches(),

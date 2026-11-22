@@ -355,7 +355,7 @@ impl TimegrapherApp {
             let h = self.reserve.as_ref().map_or(0.0, |t| {
                 reserve::run_h(&t.so_far, true, self.panes_view.reserve_series)
             });
-            grow_row(&mut self.panes.tiles, Pane::PowerReserve, h);
+            grow_row(&mut self.panes_view.panes.tiles, Pane::PowerReserve, h);
         }
     }
 
@@ -410,11 +410,11 @@ impl TimegrapherApp {
         let pane = Pane::PowerReserve;
         match self.reserve.as_ref().and_then(|t| t.results.as_ref()) {
             Some(r) => grow_row(
-                &mut self.panes.tiles,
+                &mut self.panes_view.panes.tiles,
                 pane,
                 reserve::run_h(&r.hours, false, self.panes_view.reserve_series),
             ),
-            None => fit_row(&mut self.panes.tiles, pane, MIN_PANE_H),
+            None => fit_row(&mut self.panes_view.panes.tiles, pane, MIN_PANE_H),
         }
     }
 
@@ -526,7 +526,7 @@ impl TimegrapherApp {
             t.results = results;
         }
         if let Some(h) = h {
-            grow_row(&mut self.panes.tiles, Pane::PowerReserve, h);
+            grow_row(&mut self.panes_view.panes.tiles, Pane::PowerReserve, h);
         }
         // The watch ran down: its wind no longer holds (#2001).
         if stopped {
@@ -756,10 +756,12 @@ impl TimegrapherApp {
         // Its charts at a readable height, never a sliver under the strip.
         let shown = self.panes_view.reserve_series;
         if let Some(least) = reserve::least_h(self.reserve.as_ref(), shown) {
-            let above = ui.cursor().top() - self.pane_top;
-            self.pane_need.insert(Pane::PowerReserve, above + least);
+            let above = ui.cursor().top() - self.panes_view.pane_top;
+            self.panes_view
+                .pane_need
+                .insert(Pane::PowerReserve, above + least);
         } else {
-            self.pane_need.remove(&Pane::PowerReserve);
+            self.panes_view.pane_need.remove(&Pane::PowerReserve);
         }
         reserve::pane(
             ui,

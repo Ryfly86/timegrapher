@@ -1595,9 +1595,6 @@ pub struct TimegrapherApp {
     keep_after_form: bool,
     /// A test ended with no watch picked: where it goes, asked.
     test_keep: Option<TestKeep>,
-    /// Where the Positions Test and Power Reserve panes were last drawn,
-    /// for the question to sit clear of the results it asks about.
-    results_rects: [Option<egui::Rect>; 2],
     /// This take ran a Positions Test.
     positions_take: bool,
     /// The position card's title as last drawn, for the words naming it.
@@ -1802,17 +1799,6 @@ pub struct TimegrapherApp {
     open_note: Option<String>,
     /// The window may close: the user has said what to do with the sound.
     may_close: bool,
-    /// The height each pane with plots needed last frame for its toolbar
-    /// and one plot at a readable size, kept clear by [`keep_room`].
-    pane_need: std::collections::HashMap<Pane, f32>,
-    /// Rows and columns of panes whose divider the user dragged: their
-    /// sizes stand, a pane's least apart, until a pane in them is shown
-    /// or hidden.
-    panes_dragged: std::collections::HashSet<TileId>,
-    /// Panes drawn too short for their plot, last frame.
-    panes_short: std::collections::HashSet<Pane>,
-    /// The top of the pane being drawn, for working out its need.
-    pane_top: f32,
     /// Core's readings the Distributions pane counts (#1144), what they were
     /// read for and up to, and the run in the background that replaces them.
     dist_readings: Option<(DistKey, f64, DistReadings)>,
@@ -1835,7 +1821,6 @@ pub struct TimegrapherApp {
     ),
     /// Light, dark or following the system, kept for the next start.
     theme: egui::ThemePreference,
-    panes: Tree<Pane>,
 
     capture: Option<Capture>,
     live: Option<LiveAnalyzer>,
@@ -1877,13 +1862,8 @@ pub struct TimegrapherApp {
     /// arrives: offered to keep once it has run long enough.
     clock_track: Option<ClockTrack>,
     message: Option<(String, bool)>,
-    /// A pane being saved as a picture, and the folder the last one went to.
-    export: Option<PaneExport>,
-    export_dir: Option<PathBuf>,
-    /// The tick and tock sound: how it is drawn, what it was every few
-    /// seconds of this session, and one worked out from the file for a
-    /// moment that history doesn't cover.
-    sound_opts: profiles::Options,
+    /// The tick and tock sound every few seconds of this session, and one
+    /// worked out from the file for a moment that history doesn't cover.
     sound_history: Vec<(f64, scope_panes::Kept)>,
     /// The profiles worked out from the recording at a moment, at the
     /// settings revision they were read with.
@@ -1986,7 +1966,7 @@ impl TimegrapherApp {
             positions_info: self.panes_view.positions_info,
             hist_readings: self.panes_view.hist_readings,
             iso_view: self.panes_view.iso_view,
-            sound: self.sound_opts,
+            sound: self.panes_view.sound_opts,
             folded: self.panes_view.folded.iter().cloned().collect(),
             theme: self.theme,
             steady_series: RATE_ONLY,
@@ -2010,8 +1990,8 @@ impl TimegrapherApp {
             complication_info: self.panes_view.complication_info,
             positions_measure_s: self.guided_measure_s,
             scope: self.panes_view.scope_view,
-            panes: Some(self.panes.clone()),
-            panes_dragged: self.panes_dragged.iter().copied().collect(),
+            panes: Some(self.panes_view.panes.clone()),
+            panes_dragged: self.panes_view.panes_dragged.iter().copied().collect(),
             layout: LAYOUT,
             // Drop legacy entries only after their user-catalogue save succeeds.
             custom_calibres: self.cal.pending_legacy().to_vec(),
@@ -2115,7 +2095,7 @@ impl TimegrapherApp {
         strip.set_span(strip.span_s);
         // One left on is kept: a pane with none shown would be empty.
         let on = |s: [bool; 3]| if s.contains(&true) { s } else { RATE_ONLY };
-        (self.sound_opts, self.theme) = (sound, theme);
+        (self.panes_view.sound_opts, self.theme) = (sound, theme);
         self.set_positions_times(positions_settle_s, positions_measure_s);
         let v = &mut self.panes_view;
         (v.strip, v.readings_pinned) = (strip, readings_pinned);
@@ -2136,9 +2116,9 @@ impl TimegrapherApp {
         (v.complication_series, v.scope_view) = (complication_series, scope);
         (v.poise_views, v.poise_info) = (poise_views, poise_info);
         (v.complication_info, v.show_readings) = (complication_info, show_readings);
-        self.panes = match panes.map(upgraded_layout) {
+        self.panes_view.panes = match panes.map(upgraded_layout) {
             Some(p) if layout_is_whole(&p) => {
-                self.panes_dragged = panes_dragged.into_iter().collect();
+                self.panes_view.panes_dragged = panes_dragged.into_iter().collect();
                 p
             }
             _ => default_layout(self.panes_view.strip.horizontal),
@@ -2256,7 +2236,6 @@ impl TimegrapherApp {
             quick_listen: false,
             keep_after_form: false,
             test_keep: None,
-            results_rects: [None; 2],
             positions_take: false,
             position_card_title: "Current Position",
             keep_back: None,
@@ -2285,10 +2264,6 @@ impl TimegrapherApp {
             may_close: false,
             save_dir: home.join("Timegrapher recordings").display().to_string(),
             // As the settings first are.
-            pane_need: std::collections::HashMap::new(),
-            panes_dragged: std::collections::HashSet::new(),
-            panes_short: std::collections::HashSet::new(),
-            pane_top: 0.0,
             scope_audio: None,
             scope_traces: std::collections::VecDeque::new(),
             scope_job: None,
@@ -2298,7 +2273,6 @@ impl TimegrapherApp {
             dist_readings: None,
             dist_job: None,
             theme: egui::ThemePreference::System,
-            panes: default_layout(true),
             capture: None,
             live: None,
             source_label: String::new(),
@@ -2320,9 +2294,6 @@ impl TimegrapherApp {
             clock_track: None,
             agc_on: Vec::new(),
             message: None,
-            export: None,
-            export_dir: None,
-            sound_opts: profiles::Options::default(),
             sound_history: Vec::new(),
             sound_at: None,
             analysis_save: None,
@@ -2762,7 +2733,7 @@ impl TimegrapherApp {
     fn folded_group(&mut self, ui: &mut egui::Ui, name: &str, hint: &str, panes: &[Pane]) {
         let on = panes
             .iter()
-            .filter(|&&p| pane_visible(&self.panes.tiles, p))
+            .filter(|&&p| pane_visible(&self.panes_view.panes.tiles, p))
             .count();
         let label = if on > 0 {
             format!("{name} ({on}) ⏷")
@@ -2781,7 +2752,7 @@ impl TimegrapherApp {
             ));
         egui::Popup::menu(&button).show(|ui| {
             for &pane in panes {
-                let mut shown = pane_visible(&self.panes.tiles, pane);
+                let mut shown = pane_visible(&self.panes_view.panes.tiles, pane);
                 if ui
                     .checkbox(&mut shown, pane.title())
                     .on_hover_text(pane.hint())
@@ -2802,7 +2773,7 @@ impl TimegrapherApp {
                 .on_hover_text(hint);
         }
         for &pane in panes {
-            let on = pane_visible(&self.panes.tiles, pane);
+            let on = pane_visible(&self.panes_view.panes.tiles, pane);
             let icon = pane_icon(pane);
             if theme::icon_toggle_off(ui, icon, on, pal.accent, pal.text_secondary)
                 .on_hover_text(format!("{}: {}", pane.title(), pane.hint()))
@@ -2823,37 +2794,37 @@ impl TimegrapherApp {
             self.reveal_pane(pane);
         } else {
             self.undrag(pane);
-            set_pane_visible(&mut self.panes.tiles, pane, false);
+            set_pane_visible(&mut self.panes_view.panes.tiles, pane, false);
         }
     }
 
     /// A pane shown or hidden: the rows holding it share their room out
     /// afresh, each pane at its least, rather than as last dragged.
     fn undrag(&mut self, pane: Pane) {
-        let mut at = self.panes.tiles.find_pane(&pane);
+        let mut at = self.panes_view.panes.tiles.find_pane(&pane);
         while let Some(id) = at {
-            self.panes_dragged.remove(&id);
-            at = self.panes.tiles.parent_of(id);
+            self.panes_view.panes_dragged.remove(&id);
+            at = self.panes_view.panes.tiles.parent_of(id);
         }
     }
 
     /// Show a pane and bring its tab to the front.
     fn reveal_pane(&mut self, pane: Pane) {
-        let was = pane_visible(&self.panes.tiles, pane);
+        let was = pane_visible(&self.panes_view.panes.tiles, pane);
         if !was {
             self.undrag(pane);
         }
-        set_pane_visible(&mut self.panes.tiles, pane, true);
+        set_pane_visible(&mut self.panes_view.panes.tiles, pane, true);
         // A test's pane opens at its content's height, or its run's.
         if pane == Pane::PowerReserve && !was {
             self.fit_reserve_row();
         }
-        let Some(id) = self.panes.tiles.find_pane(&pane) else {
+        let Some(id) = self.panes_view.panes.tiles.find_pane(&pane) else {
             return;
         };
-        if let Some(parent) = self.panes.tiles.parent_of(id) {
+        if let Some(parent) = self.panes_view.panes.tiles.parent_of(id) {
             if let Some(egui_tiles::Tile::Container(egui_tiles::Container::Tabs(t))) =
-                self.panes.tiles.get_mut(parent)
+                self.panes_view.panes.tiles.get_mut(parent)
             {
                 t.set_active(id);
             }
@@ -2884,10 +2855,10 @@ impl TimegrapherApp {
         }
 
         // A drag can leave a container holding only hidden panes.
-        sync_containers(&mut self.panes.tiles);
+        sync_containers(&mut self.panes_view.panes.tiles);
         if Pane::ALL
             .iter()
-            .all(|&p| !pane_visible(&self.panes.tiles, p))
+            .all(|&p| !pane_visible(&self.panes_view.panes.tiles, p))
         {
             ui.add_space(40.0);
             ui.vertical_centered(|ui| {
@@ -2903,13 +2874,13 @@ impl TimegrapherApp {
             return;
         }
         self.panes_view.charts_to_live_now = std::mem::take(&mut self.panes_view.charts_to_live);
-        let mut panes = std::mem::replace(&mut self.panes, Tree::empty("panes-swap"));
+        let mut panes = std::mem::replace(&mut self.panes_view.panes, Tree::empty("panes-swap"));
         repair_tabs(&mut panes);
-        let need = self.pane_need.clone();
+        let need = self.panes_view.pane_need.clone();
         keep_room(
             &mut panes.tiles,
             |p| need.get(&p).copied(),
-            &self.panes_dragged,
+            &self.panes_view.panes_dragged,
         );
         let before = shares_of(&panes.tiles);
         panes.ui(
@@ -2922,10 +2893,10 @@ impl TimegrapherApp {
         // Shares changed while drawn were dragged by hand: they stand.
         for (id, s) in shares_of(&panes.tiles) {
             if before.get(&id).is_some_and(|b| *b != s) {
-                self.panes_dragged.insert(id);
+                self.panes_view.panes_dragged.insert(id);
             }
         }
-        self.panes = panes;
+        self.panes_view.panes = panes;
     }
 
     /// Whether `pane`'s plot would be under [`SHORT_PLOT_H`] tall here
@@ -2944,13 +2915,13 @@ impl TimegrapherApp {
             Pane::SteadyStft | Pane::SteadyWavelet => crate::tfmap::KEY_H,
             _ => 0.0,
         };
-        let was = self.panes_short.contains(&pane);
+        let was = self.panes_view.panes_short.contains(&pane);
         let least = SHORT_PLOT_H + below + if was { SHORT_PLOT_GIVE } else { 0.0 };
         if ui.available_height() >= least {
-            self.panes_short.remove(&pane);
+            self.panes_view.panes_short.remove(&pane);
             return false;
         }
-        self.panes_short.insert(pane);
+        self.panes_view.panes_short.insert(pane);
         let pal = theme::pal(ui);
         ui.centered_and_justified(|ui| {
             ui.label(
@@ -2967,8 +2938,9 @@ impl TimegrapherApp {
     /// Keep the height `pane` needs: what is above its plots, one plot
     /// `least` tall, the line naming those with no room, and the margin.
     fn note_need(&mut self, ui: &egui::Ui, pane: Pane, least: f32) {
-        let above = ui.cursor().top() - self.pane_top;
-        self.pane_need
+        let above = ui.cursor().top() - self.panes_view.pane_top;
+        self.panes_view
+            .pane_need
             .insert(pane, above + least + STACKED_NOTE_H + 6.0);
     }
 }

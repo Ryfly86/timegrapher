@@ -193,7 +193,7 @@ impl TimegrapherApp {
     pub(super) fn complication_pane(&mut self, ui: &mut egui::Ui) {
         // Where Keep This Test? keeps clear of, as the other tests'.
         if self.complication_test().is_some() {
-            self.results_rects[0] = Some(ui.max_rect());
+            self.panes_view.results_rects[0] = Some(ui.max_rect());
         }
         let now = self.live.as_ref().map(|l| l.duration_s());
         let phase = match (self.guided.as_mut(), now) {

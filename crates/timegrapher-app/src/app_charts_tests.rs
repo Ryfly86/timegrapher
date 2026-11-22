@@ -71,12 +71,12 @@ fn rate_distribution_counts_two_second_stretches() {
 fn the_charts_and_distributions_draw_the_readings_turned_on() {
     let mut app = synthetic(30.0, 20.0);
     for p in [Pane::Charts, Pane::Distributions] {
-        set_pane_visible(&mut app.panes.tiles, p, true);
+        set_pane_visible(&mut app.panes_view.panes.tiles, p, true);
     }
     // Room for every plot: the strip, the profile and the Scope out of
     // the way.
     for p in [Pane::Strip, Pane::Sound, Pane::Scope] {
-        set_pane_visible(&mut app.panes.tiles, p, false);
+        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
     }
     let ctx = themed();
     // Each pane in turn: they are tabs side by side, one on show.
@@ -84,7 +84,7 @@ fn the_charts_and_distributions_draw_the_readings_turned_on() {
         let mut all = String::new();
         for p in [Pane::Charts, Pane::Distributions] {
             for q in [Pane::Charts, Pane::Distributions] {
-                set_pane_visible(&mut app.panes.tiles, q, q == p);
+                set_pane_visible(&mut app.panes_view.panes.tiles, q, q == p);
             }
             let mut text = String::new();
             for _ in 0..3 {
@@ -204,9 +204,9 @@ fn a_distributions_axis_labels_stay_apart() {
 #[test]
 fn a_charts_scale_neither_zooms_nor_pans() {
     let mut app = synthetic(60.0, 20.0);
-    set_pane_visible(&mut app.panes.tiles, Pane::Charts, true);
+    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Charts, true);
     for p in [Pane::Strip, Pane::Sound, Pane::Scope, Pane::Distributions] {
-        set_pane_visible(&mut app.panes.tiles, p, false);
+        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
     }
     let ctx = themed();
     let pass = |app: &mut TimegrapherApp, events: Vec<egui::Event>| {
@@ -288,9 +288,9 @@ fn a_charts_scale_neither_zooms_nor_pans() {
 #[test]
 fn the_charts_wheel_pans_time_and_a_zoom_zooms_it() {
     let mut app = synthetic(120.0, 20.0);
-    set_pane_visible(&mut app.panes.tiles, Pane::Charts, true);
+    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Charts, true);
     for p in [Pane::Strip, Pane::Sound, Pane::Scope, Pane::Distributions] {
-        set_pane_visible(&mut app.panes.tiles, p, false);
+        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
     }
     let ctx = themed();
     let pass_held = |app: &mut TimegrapherApp, events: Vec<egui::Event>, modifiers| {
@@ -439,9 +439,9 @@ fn the_values_box_writes_figures_as_the_cards_do() {
 #[test]
 fn the_lanes_read_the_pointers_time_on_every_chart() {
     let mut app = synthetic(60.0, 20.0);
-    set_pane_visible(&mut app.panes.tiles, Pane::Charts, true);
+    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Charts, true);
     for p in [Pane::Strip, Pane::Sound, Pane::Scope, Pane::Distributions] {
-        set_pane_visible(&mut app.panes.tiles, p, false);
+        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
     }
     app.panes_view.chart_series = [true, true, false];
     let ctx = themed();
@@ -500,9 +500,9 @@ fn the_lanes_read_the_pointers_time_on_every_chart() {
 #[test]
 fn the_charts_panned_to_the_newest_reading_follow_new_ones() {
     let mut app = synthetic(120.0, 20.0);
-    set_pane_visible(&mut app.panes.tiles, Pane::Charts, true);
+    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Charts, true);
     for p in [Pane::Strip, Pane::Sound, Pane::Scope, Pane::Distributions] {
-        set_pane_visible(&mut app.panes.tiles, p, false);
+        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
     }
     let ctx = themed();
     let pass = |app: &mut TimegrapherApp, events: Vec<egui::Event>| {
@@ -576,10 +576,10 @@ fn the_charts_panned_to_the_newest_reading_follow_new_ones() {
 fn the_strip_and_the_charts_share_a_fitted_gutter() {
     let mut app = synthetic(120.0, 20.0);
     app.panes_view.strip.horizontal = true;
-    set_pane_visible(&mut app.panes.tiles, Pane::Charts, true);
-    set_pane_visible(&mut app.panes.tiles, Pane::Strip, true);
+    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Charts, true);
+    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Strip, true);
     for p in [Pane::Sound, Pane::Scope, Pane::Distributions] {
-        set_pane_visible(&mut app.panes.tiles, p, false);
+        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
     }
     let ctx = themed();
     let mut out = None;
@@ -666,7 +666,7 @@ fn a_take_opened_after_a_wide_one_fits_the_gutter_afresh() {
     let wav = base.join("narrow.wav");
     timegrapher_core::audio::write_wav(&wav, &audio).unwrap();
     let mut app = synthetic(120.0, 20.0);
-    set_pane_visible(&mut app.panes.tiles, Pane::Charts, true);
+    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Charts, true);
     let ctx = themed();
     let frame = |app: &mut TimegrapherApp| {
         let input = egui::RawInput {
@@ -714,10 +714,10 @@ fn stacked_charts_put_the_takes_start_at_one_place() {
     // The strip across, showing the whole session as the charts do.
     app.panes_view.strip.horizontal = true;
     app.panes_view.strip_fit = true;
-    set_pane_visible(&mut app.panes.tiles, Pane::Charts, true);
-    set_pane_visible(&mut app.panes.tiles, Pane::Strip, true);
+    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Charts, true);
+    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Strip, true);
     for p in [Pane::Sound, Pane::Scope, Pane::Distributions] {
-        set_pane_visible(&mut app.panes.tiles, p, false);
+        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
     }
     // The rate read from 20 s on, the amplitude from the start.
     for p in app.trend.iter_mut().filter(|p| p.t < 20.0) {
@@ -782,10 +782,10 @@ fn readings_over_time_charts_share_one_gutter() {
         .steady_series
         .insert(steady::View::Readings, [true, true, true]);
     for p in [Pane::Strip, Pane::SteadyReadings] {
-        set_pane_visible(&mut app.panes.tiles, p, true);
+        set_pane_visible(&mut app.panes_view.panes.tiles, p, true);
     }
     for p in [Pane::Charts, Pane::Sound, Pane::Scope, Pane::Distributions] {
-        set_pane_visible(&mut app.panes.tiles, p, false);
+        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
     }
     let ctx = themed();
     let pass = |app: &mut TimegrapherApp| {
@@ -842,7 +842,7 @@ fn time_panes_under_the_strip_put_a_late_time_at_one_place() {
             .steady_series
             .insert(steady::View::Readings, [true, false, false]);
         for p in [Pane::Strip, pane] {
-            set_pane_visible(&mut app.panes.tiles, p, true);
+            set_pane_visible(&mut app.panes_view.panes.tiles, p, true);
         }
         for p in [
             Pane::Charts,
@@ -852,7 +852,7 @@ fn time_panes_under_the_strip_put_a_late_time_at_one_place() {
             Pane::Distributions,
         ] {
             if p != pane {
-                set_pane_visible(&mut app.panes.tiles, p, false);
+                set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
             }
         }
         let ctx = themed();
@@ -928,10 +928,10 @@ fn joined_readings_over_time_says_whose_time_it_is() {
             .steady_series
             .insert(steady::View::Readings, [true, false, false]);
         for p in [Pane::Strip, Pane::SteadyReadings] {
-            set_pane_visible(&mut app.panes.tiles, p, true);
+            set_pane_visible(&mut app.panes_view.panes.tiles, p, true);
         }
         for p in [Pane::Charts, Pane::Sound, Pane::Scope, Pane::Distributions] {
-            set_pane_visible(&mut app.panes.tiles, p, false);
+            set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
         }
         if joined {
             app.brush = Some(Position::DialDown);

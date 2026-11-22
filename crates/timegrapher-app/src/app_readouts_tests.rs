@@ -518,7 +518,7 @@ fn the_profiles_marks_keep_off_the_names() {
             p.median[..n].fill(0.9 * top);
         }
     }
-    app.sound_opts.side_by_side = true;
+    app.panes_view.sound_opts.side_by_side = true;
     let (_, rings, bars, facts) = run(&mut app, 1440.0, 788.0);
     let plots: Vec<egui::Rect> = (0..2usize)
         .filter_map(|k| {
@@ -559,7 +559,7 @@ fn the_profiles_marks_keep_off_the_names() {
         );
     }
     app.sound_history = kept;
-    app.sound_opts.side_by_side = false;
+    app.panes_view.sound_opts.side_by_side = false;
     let (names, rings, bars, _) = run(&mut app, 1440.0, 1000.0);
     assert!(!names.is_empty(), "the edges named");
     assert!(!rings.is_empty() && !bars.is_empty(), "{rings:?} {bars:?}");
@@ -852,7 +852,7 @@ fn draws_a_synthetic_watch_headless() {
     let ctx = themed();
     for horizontal in [false, true] {
         app.panes_view.strip.horizontal = horizontal;
-        app.panes = default_layout(horizontal);
+        app.panes_view.panes = default_layout(horizontal);
         app.panes_view.follow = horizontal;
         for _ in 0..2 {
             let input = egui::RawInput {
@@ -888,7 +888,7 @@ fn a_pane_is_exported_as_an_svg_drawing() {
         app.export_tick(ctx);
         app.panels(ctx)
     });
-    assert!(app.export.is_none(), "export still waiting");
+    assert!(app.panes_view.export.is_none(), "export still waiting");
     let doc = std::fs::read_to_string(&path).unwrap();
     assert!(doc.starts_with("<svg "), "{doc}");
     assert!(doc.contains(">Paper Strip<") || doc.contains(&format!(">{}<", Pane::Strip.title())));
@@ -929,6 +929,7 @@ fn a_pane_is_exported_as_a_png_from_a_screenshot() {
         .any(|c| matches!(c, egui::ViewportCommand::Screenshot(_)));
     assert!(asked, "no screenshot asked for");
     let rect = app
+        .panes_view
         .export
         .as_ref()
         .and_then(|e| e.rect)
@@ -947,7 +948,7 @@ fn a_pane_is_exported_as_a_png_from_a_screenshot() {
         app.export_tick(ctx);
         app.panels(ctx)
     });
-    assert!(app.export.is_none(), "export still waiting");
+    assert!(app.panes_view.export.is_none(), "export still waiting");
     let dec = png::Decoder::new(std::io::BufReader::new(std::fs::File::open(&path).unwrap()));
     let mut r = dec.read_info().unwrap();
     let mut buf = vec![0; r.output_buffer_size().unwrap()];
@@ -967,7 +968,7 @@ fn an_export_that_cannot_be_drawn_gives_up() {
     for _ in 0..61 {
         let _ = ctx.run(screen(), |ctx| app.export_tick(ctx));
     }
-    assert!(app.export.is_none());
+    assert!(app.panes_view.export.is_none());
     assert!(matches!(&app.message, Some((_, true))));
 }
 

@@ -1851,12 +1851,12 @@ impl TimegrapherApp {
     pub(super) fn relayout(&mut self, horizontal: bool) {
         let shown: Vec<(Pane, bool)> = Pane::ALL
             .into_iter()
-            .map(|p| (p, pane_visible(&self.panes.tiles, p)))
+            .map(|p| (p, pane_visible(&self.panes_view.panes.tiles, p)))
             .collect();
-        self.panes = default_layout(horizontal);
-        self.panes_dragged.clear();
+        self.panes_view.panes = default_layout(horizontal);
+        self.panes_view.panes_dragged.clear();
         for (p, on) in shown {
-            set_pane_visible(&mut self.panes.tiles, p, on);
+            set_pane_visible(&mut self.panes_view.panes.tiles, p, on);
         }
     }
 
