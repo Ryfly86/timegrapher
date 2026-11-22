@@ -1166,7 +1166,7 @@ fn a_power_reserve_test_records_into_its_folder_as_it_goes() {
     let started = r.started_utc().to_string();
     app.session.recorder = Some(r);
     let _tx = queued_capture(&mut app, &base);
-    app.reserve = Some(reserve::Test::new(app.position, true, started, 0.0));
+    app.test.reserve = Some(reserve::Test::new(app.position, true, started, 0.0));
     assert!(app.streams(), "a test of a watch picked records as it goes");
     app.stream_tick();
     app.wait_for_save();

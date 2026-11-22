@@ -403,7 +403,7 @@ fn a_new_lift_rereads_it(again: &mut TimegrapherApp) {
         "the opened take's test"
     );
     let amps = |app: &TimegrapherApp| -> Vec<f64> {
-        let kept = app.complication_saved.as_ref().expect("its test");
+        let kept = app.test.complication_saved.as_ref().expect("its test");
         kept.readings
             .as_ref()
             .expect("read")
@@ -513,7 +513,7 @@ fn a_saved_complication_take_opened_again_shows_its_results() {
         "{texts:?}"
     );
     // The same stretches read the same way as at the end of the run.
-    let kept = again.complication_saved.as_ref().expect("its test");
+    let kept = again.test.complication_saved.as_ref().expect("its test");
     let back: Vec<_> = kept
         .readings
         .as_ref()

@@ -76,7 +76,7 @@ impl TimegrapherApp {
                 test.reread(&log, clock.as_ref(), &self.masked);
             }
         }
-        if let Some(t) = self.complication_saved.as_mut() {
+        if let Some(t) = self.test.complication_saved.as_mut() {
             t.readings = None;
         }
     }

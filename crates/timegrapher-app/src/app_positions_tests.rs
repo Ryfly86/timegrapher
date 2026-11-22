@@ -1011,7 +1011,7 @@ fn the_watches_power_reserve_test_waits_on_the_bench() {
     app.watches_view.view = View::Watches;
     set_pane_visible(&mut app.panes_view.panes.tiles, Pane::PowerReserve, false);
     app.new_take(NewTake::PowerReserve, false);
-    assert!(app.reserve.is_none() && !app.running());
+    assert!(app.test.reserve.is_none() && !app.running());
     assert_eq!(app.watches_view.view, View::Bench);
     assert!(pane_visible(
         &app.panes_view.panes.tiles,

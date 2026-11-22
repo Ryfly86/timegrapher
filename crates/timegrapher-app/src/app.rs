@@ -56,6 +56,7 @@ use new_take::{NewTake, NEW_TAKES};
 mod dialogs;
 mod distributions;
 mod dock;
+mod guided_test;
 mod input_meter;
 mod kept_analysis;
 mod unsaved;
@@ -1612,17 +1613,6 @@ pub struct TimegrapherApp {
     /// The Positions Test, while it runs and once finished, until a new
     /// test or a new session.
     guided: Option<guided::Test>,
-    /// The Power Reserve Test, while it runs and once ended, until a new
-    /// test or a new session.
-    reserve: Option<reserve::Test>,
-    /// The keeping picked for the next Power Reserve Test. It runs in the
-    /// Current Position card's position: there is no second setting.
-    reserve_keep_sound: bool,
-    /// When the running test last read the beats, audio seconds.
-    reserve_read_s: f64,
-    /// When the running Power Reserve Test's hours were last measured,
-    /// audio seconds.
-    reserve_hours_s: f64,
     /// The time the Positions Test didn't use, marked on the strip; kept
     /// after the test ends, until a new session.
     guided_unused: Vec<(f64, f64, &'static str)>,
@@ -1634,9 +1624,6 @@ pub struct TimegrapherApp {
     guided_earlier: Option<guided::FullWind>,
     /// An opened 24 hour half's saved results, which the pane shows again.
     guided_saved: Option<guided::FullWind>,
-    /// An opened take's Complication Test, its three stretches from the
-    /// session file, read again once the take's beats are in (#1620).
-    complication_saved: Option<guided::Test>,
     /// For a watch set up for 24 Hours After, its full-wind tests from 12
     /// to 36 hours ago, newest first, for Compare With to pick from.
     guided_choices: Vec<guided::FullWind>,
@@ -1916,6 +1903,7 @@ pub struct TimegrapherApp {
     watches_view: watches_view::WatchesView,
     /// How the strip and charts look and follow.
     panes_view: pane_view::PaneView,
+    test: guided_test::GuidedTest,
 }
 
 impl TimegrapherApp {
@@ -2185,15 +2173,11 @@ impl TimegrapherApp {
             updates: Default::default(),
             update_dialog: None,
             guided: None,
-            reserve: None,
-            reserve_keep_sound: true,
-            reserve_read_s: 0.0,
-            reserve_hours_s: f64::NEG_INFINITY,
+            test: guided_test::GuidedTest::default(),
             guided_unused: Vec::new(),
             guided_measured: Vec::new(),
             guided_earlier: None,
             guided_saved: None,
-            complication_saved: None,
             guided_choices: Vec::new(),
             guided_earlier_file: false,
             compare_take: None,

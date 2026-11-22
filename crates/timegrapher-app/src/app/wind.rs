@@ -215,7 +215,7 @@ impl TimegrapherApp {
         self.guided
             .as_ref()
             .and_then(|t| t.wind_h())
-            .or_else(|| self.reserve.as_ref().and_then(|t| t.wind_h))
+            .or_else(|| self.test.reserve.as_ref().and_then(|t| t.wind_h))
             .or_else(|| self.take_wind_h())
     }
 
@@ -281,7 +281,7 @@ impl TimegrapherApp {
         if self.live.is_some() {
             // The Positions Test and a Power Reserve Test set their own
             // wind; a Dynamic Poise or Complication Test doesn't (Gus).
-            let own = self.reserve.is_some()
+            let own = self.test.reserve.is_some()
                 || self
                     .guided
                     .as_ref()
