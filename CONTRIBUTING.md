@@ -15,7 +15,8 @@ often have work in progress, or a design that still needs deciding.
 An issue gets the label only when it is small (about one pull request), says
 which files and tests it needs, and does not touch work in progress. While the
 app refactor ([#1988](https://github.com/peterhudson/timegrapher/issues/1988))
-is open, no issue in `crates/timegrapher-app` gets the label. A change to how
+is open, nothing else lands and no issue gets the label, so outside pull
+requests wait until it is done. A change to how
 a reading is computed gets it only once the issue spells out the method.
 
 **Claiming.** Comment "I'd like to take this" on the issue. A maintainer
@@ -33,7 +34,9 @@ without the fix. It also needs:
   request from a fork);
 - one line saying where the bug came from: "Introduced by #N", "Latent" (it
   was always there) or "Design gap" (nothing was meant to handle the case);
-- if an AI agent wrote any of it, an `Assisted-by: <tool>` line in the body.
+- if an AI agent wrote any of it, an `Assisted-by: <tool>` line in the body,
+  naming the tool only, with no model or version (for example
+  `Assisted-by: Codex`).
 
 You are responsible for the pull request, whoever or whatever typed it: read
 the diff, run the checks yourself, and answer review comments. Outside pull

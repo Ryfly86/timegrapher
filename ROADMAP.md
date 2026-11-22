@@ -15,8 +15,8 @@ code yourself or with an AI agent.
 the desktop app's code so that each part of its state has one clear owner,
 with no change in what the app does. This makes the app easier to change and
 gets it ready for one bench per microphone. It is an internal step, not a release. Until it is done, nothing
-else lands in the desktop app crate (`crates/timegrapher-app`), so outside
-pull requests there will wait.
+else lands, and no issue is labelled `agent-ready`, so outside pull requests
+wait until then.
 
 Version 1.1.0 is the current release.
 
@@ -36,9 +36,11 @@ Also in 1.2:
 - Live and saved readings agree: [#1819](https://github.com/peterhudson/timegrapher/issues/1819), [#1817](https://github.com/peterhudson/timegrapher/issues/1817), [#1827](https://github.com/peterhudson/timegrapher/issues/1827), [#1730](https://github.com/peterhudson/timegrapher/issues/1730), [#1917](https://github.com/peterhudson/timegrapher/issues/1917).
 - Amplitude edge cases: [#1704](https://github.com/peterhudson/timegrapher/issues/1704), [#1707](https://github.com/peterhudson/timegrapher/issues/1707), [#1709](https://github.com/peterhudson/timegrapher/issues/1709), [#1788](https://github.com/peterhudson/timegrapher/issues/1788), [#1791](https://github.com/peterhudson/timegrapher/issues/1791).
 - Error bars (±) and confidence: [#1696](https://github.com/peterhudson/timegrapher/issues/1696), [#1739](https://github.com/peterhudson/timegrapher/issues/1739), [#1802](https://github.com/peterhudson/timegrapher/issues/1802), and ± in the Positions Test ([#2085](https://github.com/peterhudson/timegrapher/issues/2085)).
+- Period search: [#1793](https://github.com/peterhudson/timegrapher/issues/1793), [#1795](https://github.com/peterhudson/timegrapher/issues/1795), [#1848](https://github.com/peterhudson/timegrapher/issues/1848), [#1844](https://github.com/peterhudson/timegrapher/issues/1844).
+- Replace the unmaintained `chrono` dependency flagged by a security advisory ([#1856](https://github.com/peterhudson/timegrapher/issues/1856)).
 - Guided tests: a poise dial ([#1993](https://github.com/peterhudson/timegrapher/issues/1993)) and a choice of position names ([#1994](https://github.com/peterhudson/timegrapher/issues/1994)).
 - Stop listening by itself after a stretch with no beat ([#1934](https://github.com/peterhudson/timegrapher/issues/1934)).
-- Bugs found in testing 1.1, gathered in [#2130](https://github.com/peterhudson/timegrapher/issues/2130).
+- Bugs found in testing 1.1, gathered in [#2130](https://github.com/peterhudson/timegrapher/issues/2130), plus others filed for 1.2 since.
 
 ## Later: version 1.3
 
