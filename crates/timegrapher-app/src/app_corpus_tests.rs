@@ -1296,9 +1296,9 @@ fn a_stopped_takes_cards_are_its_saved_takes_to_the_bit() {
         // The strip, unpinned, waits as the cards do (Trevor on #2164).
         let live = stopped.card_reading().expect("live reads while it waits");
         if let Some(rate) = readouts::rate_figure(&live) {
-            stopped.readings_pinned = false;
+            stopped.panes_view.readings_pinned = false;
             let strip = window_frame(&mut stopped, &ctx);
-            stopped.readings_pinned = true;
+            stopped.panes_view.readings_pinned = true;
             let digits = rate.trim_start_matches(['+', '-', '\u{2212}']);
             assert!(
                 strip.contains("Rate") && !strip.contains(digits),

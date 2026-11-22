@@ -131,8 +131,8 @@ impl TimegrapherApp {
     pub(super) fn menu_checked(&self, c: MenuCommand) -> bool {
         match c {
             MenuCommand::View(v) => self.watches_view.view == v,
-            MenuCommand::Readings => self.show_readings,
-            MenuCommand::CompactReadings => !self.readings_pinned,
+            MenuCommand::Readings => self.panes_view.show_readings,
+            MenuCommand::CompactReadings => !self.panes_view.readings_pinned,
             MenuCommand::Pane(p) => pane_visible(&self.panes.tiles, p),
             _ => false,
         }
@@ -172,14 +172,16 @@ impl TimegrapherApp {
             MenuCommand::RemoveMasks => self.remove_masks_asked = true,
             MenuCommand::Settings => self.open_settings(self.settings_last),
             MenuCommand::View(v) => self.watches_view.view = v,
-            MenuCommand::Readings => self.show_readings = !self.show_readings,
-            MenuCommand::CompactReadings => self.readings_pinned = !self.readings_pinned,
+            MenuCommand::Readings => self.panes_view.show_readings = !self.panes_view.show_readings,
+            MenuCommand::CompactReadings => {
+                self.panes_view.readings_pinned = !self.panes_view.readings_pinned
+            }
             MenuCommand::Pane(p) => {
                 let on = pane_visible(&self.panes.tiles, p);
                 self.show_pane(p, !on);
             }
             MenuCommand::ResetPanes => {
-                self.show_readings = true;
+                self.panes_view.show_readings = true;
                 self.panes = default_layout(self.panes_view.strip.horizontal);
                 self.panes_dragged.clear();
             }

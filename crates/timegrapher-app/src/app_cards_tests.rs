@@ -128,20 +128,20 @@ fn settings_come_back_as_they_were_left() {
     // Down, now that Across is the default: a saved Down stays.
     app.panes_view.strip.horizontal = false;
     app.relayout(false);
-    app.show_readings = false;
+    app.panes_view.show_readings = false;
     app.sound_opts.scale = profiles::Scale::Decibels;
-    app.hist_cumulative = true;
-    app.folded.insert("Window".into());
+    app.panes_view.hist_cumulative = true;
+    app.panes_view.folded.insert("Window".into());
     set_pane_visible(&mut app.panes.tiles, Pane::Distributions, true);
     app.set_average(30.0);
     let json = serde_json::to_string(&app.settings()).unwrap();
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.apply_settings(serde_json::from_str(&json).unwrap());
     assert!(!again.panes_view.strip.horizontal);
-    assert!(!again.show_readings);
+    assert!(!again.panes_view.show_readings);
     assert_eq!(again.sound_opts.scale, profiles::Scale::Decibels);
-    assert!(again.hist_cumulative);
-    assert!(again.folded.contains("Window"));
+    assert!(again.panes_view.hist_cumulative);
+    assert!(again.panes_view.folded.contains("Window"));
     assert_eq!(again.average_s, 30.0);
     assert!(pane_visible(&again.panes.tiles, Pane::Distributions));
     // Settings from an older app, with fields missing, fill in the rest.
@@ -292,7 +292,7 @@ fn an_old_layout_with_a_pane_for_each_chart_reads_back() {
         assert_eq!(old, pane, "{name}");
     }
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    app.hist_cumulative = true;
+    app.panes_view.hist_cumulative = true;
     // An older app's file, naming a chart and a distribution the old
     // way, with Match Strip on.
     let json = serde_json::to_string(&app.settings()).unwrap();
@@ -308,7 +308,7 @@ fn an_old_layout_with_a_pane_for_each_chart_reads_back() {
     let old: Settings = serde_json::from_value(value).unwrap();
     let mut back = TimegrapherApp::with_devices(Vec::new(), None);
     back.apply_settings(old);
-    assert!(back.hist_cumulative, "the rest is kept");
+    assert!(back.panes_view.hist_cumulative, "the rest is kept");
     assert_eq!(back.panes_view.chart_series, RATE_ONLY);
     for p in [Pane::Charts, Pane::Distributions] {
         let n = back
@@ -322,11 +322,11 @@ fn an_old_layout_with_a_pane_for_each_chart_reads_back() {
     }
     // Each pane's readings come back as they were left.
     app.panes_view.chart_series = [false, true, false];
-    app.dist_series = [true, false, true];
+    app.panes_view.dist_series = [true, false, true];
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.apply_settings(app.settings());
     assert_eq!(again.panes_view.chart_series, [false, true, false]);
-    assert_eq!(again.dist_series, [true, false, true]);
+    assert_eq!(again.panes_view.dist_series, [true, false, true]);
 }
 
 /// A layout saved before Quick Listen's starts afresh once; one saved
@@ -747,7 +747,7 @@ fn readings_hides_the_cards() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     let shown = window_texts(&mut app, &ctx, 1440.0);
     assert!(shown.iter().any(|t| t == "Listen"), "{shown:?}");
-    app.show_readings = false;
+    app.panes_view.show_readings = false;
     let hidden = window_texts(&mut app, &ctx, 1440.0);
     for card in ["Current Position", "Listen", "Beat Rate"] {
         assert!(!hidden.iter().any(|t| t == card), "{card}: {hidden:?}");
@@ -1425,12 +1425,12 @@ fn a_menu_item_and_its_shortcut_run_one_command() {
     assert!(!app.remove_masks_asked);
     // Panes are the Bench's: in Watches their items are dimmed.
     app.watches_view.view = View::Watches;
-    let shown = app.show_readings;
+    let shown = app.panes_view.show_readings;
     app.run_menu_command(&ctx, MenuCommand::Readings);
-    assert_eq!(app.show_readings, shown);
+    assert_eq!(app.panes_view.show_readings, shown);
     app.watches_view.view = View::Bench;
     app.run_menu_command(&ctx, MenuCommand::Readings);
-    assert_eq!(app.show_readings, !shown);
+    assert_eq!(app.panes_view.show_readings, !shown);
     assert_eq!(app.menu_checked(MenuCommand::Readings), !shown);
 }
 
@@ -1508,9 +1508,9 @@ fn the_readings_strip_opens_its_cards_over_the_panes() {
     // The pin is kept.
     let mut back = TimegrapherApp::with_devices(Vec::new(), None);
     back.apply_settings(app.settings());
-    assert!(!back.readings_pinned);
+    assert!(!back.panes_view.readings_pinned);
     // View ▸ Readings hides the strip.
-    app.show_readings = false;
+    app.panes_view.show_readings = false;
     pass(&mut app, Vec::new());
     let (hidden, _) = pass(&mut app, Vec::new());
     assert!(!hidden.contains("52° · Auto 28800"), "{hidden}");
@@ -1644,7 +1644,7 @@ fn a_found_beat_rate_is_auto_then_the_rate() {
 #[test]
 fn the_strip_watch_cell_shows_one_tooltip() {
     let mut app = synthetic(40.0, 5.0);
-    app.readings_pinned = false;
+    app.panes_view.readings_pinned = false;
     let ctx = themed();
     // A second a frame, so a still pointer is past the hover's delay.
     let mut time = 0.0;

@@ -11,13 +11,18 @@ impl TimegrapherApp {
     pub(super) fn series_shown(&self, view: steady::View) -> [bool; 3] {
         if view.is_map() {
             steady::one_series(
-                self.steady_series
+                self.panes_view
+                    .steady_series
                     .get(&steady::View::Stft)
                     .copied()
                     .unwrap_or(RATE_ONLY),
             )
         } else {
-            self.steady_series.get(&view).copied().unwrap_or(RATE_ONLY)
+            self.panes_view
+                .steady_series
+                .get(&view)
+                .copied()
+                .unwrap_or(RATE_ONLY)
         }
     }
 
@@ -28,12 +33,19 @@ impl TimegrapherApp {
         if view.is_map() {
             steady::series_choice(
                 ui,
-                self.steady_series
+                self.panes_view
+                    .steady_series
                     .entry(steady::View::Stft)
                     .or_insert(RATE_ONLY),
             );
         } else {
-            steady::series_switches(ui, self.steady_series.entry(view).or_insert(RATE_ONLY));
+            steady::series_switches(
+                ui,
+                self.panes_view
+                    .steady_series
+                    .entry(view)
+                    .or_insert(RATE_ONLY),
+            );
         }
         let accent = theme::pal(ui).accent;
         if view == steady::View::Periods {
@@ -43,7 +55,7 @@ impl TimegrapherApp {
                 Icon::Db,
                 accent,
                 "dB Scale",
-                &mut self.periods_db,
+                &mut self.panes_view.periods_db,
                 "Show the scores in decibels. Off: linear.",
             );
         }
@@ -57,7 +69,7 @@ impl TimegrapherApp {
                 Icon::Stopwatch,
                 accent,
                 "Timing",
-                &mut self.fft_timing,
+                &mut self.panes_view.fft_timing,
                 "Draw rate as the beat timing's spectrum, in ms, at every period, rather than \
                  the swing it makes in 10 s rate readings, in s/d",
                 (!rate_shown).then_some("Turn Rate on to draw it as the beat timing's spectrum."),
@@ -65,7 +77,7 @@ impl TimegrapherApp {
         }
         if matches!(view, steady::View::Stft | steady::View::Wavelet) {
             theme::bar_gap(ui);
-            let mut db = self.maps_db.on(view);
+            let mut db = self.panes_view.maps_db.on(view);
             theme::tool_switch(
                 ui,
                 Icon::Db,
@@ -74,13 +86,13 @@ impl TimegrapherApp {
                 &mut db,
                 "Show the sizes in decibels. Off: linear.",
             );
-            self.maps_db.set(view, db);
+            self.panes_view.maps_db.set(view, db);
         }
         if matches!(
             view,
             steady::View::Periods | steady::View::Fft | steady::View::Stft | steady::View::Wavelet
         ) {
-            let marks = &mut self.show_marks;
+            let marks = &mut self.panes_view.show_marks;
             let mut wheels = marks.wheels.on(view);
             theme::tool_switch(
                 ui,
@@ -280,7 +292,7 @@ impl TimegrapherApp {
         match self.isochronism_shown() {
             Some((curve, walk)) => {
                 let walk = walk.and_then(timegrapher_core::steady_views::walk_view);
-                isochronism::ui(ui, curve, walk.as_ref(), self.iso_view);
+                isochronism::ui(ui, curve, walk.as_ref(), self.panes_view.iso_view);
             }
             None if self.steady_job.is_some() => {}
             None => {
@@ -345,12 +357,12 @@ impl TimegrapherApp {
     pub(super) fn steady_opts(&self, view: steady::View) -> steady::Opts {
         let joined = !self.session.stretches().is_empty();
         steady::Opts {
-            periods_db: self.periods_db,
-            fft_timing: self.fft_timing,
-            maps_db: self.maps_db.on(view),
-            wheels: self.show_marks.wheels.on(view),
-            meshes: self.show_marks.meshes.on(view),
-            info: self.steady_info.on(view),
+            periods_db: self.panes_view.periods_db,
+            fft_timing: self.panes_view.fft_timing,
+            maps_db: self.panes_view.maps_db.on(view),
+            wheels: self.panes_view.show_marks.wheels.on(view),
+            meshes: self.panes_view.show_marks.meshes.on(view),
+            info: self.panes_view.steady_info.on(view),
             take_span: self.take_span().filter(|_| !joined),
             joined_in: joined.then(|| self.position.code()),
         }

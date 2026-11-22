@@ -262,7 +262,7 @@ fn a_panes_item_toggles_it_and_reset_panes_puts_them_back() {
     app.run_menu_command(&ctx, strip);
     assert!(!app.menu_checked(strip));
     app.run_menu_command(&ctx, MenuCommand::Readings);
-    assert!(!app.show_readings);
+    assert!(!app.panes_view.show_readings);
     app.watches_view.view = View::Watches;
     assert!(!app.menu_enabled(MenuCommand::ResetPanes));
     assert!(!app.menu_enabled(charts));
@@ -270,7 +270,7 @@ fn a_panes_item_toggles_it_and_reset_panes_puts_them_back() {
     assert!(!app.menu_checked(strip), "Reset Panes ran in Watches");
     app.watches_view.view = View::Bench;
     app.run_menu_command(&ctx, MenuCommand::ResetPanes);
-    assert!(app.show_readings);
+    assert!(app.panes_view.show_readings);
     assert!(app.menu_checked(strip));
     assert!(!app.menu_checked(charts));
 }

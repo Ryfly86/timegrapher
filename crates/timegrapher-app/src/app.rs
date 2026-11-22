@@ -1667,11 +1667,6 @@ pub struct TimegrapherApp {
     /// The Current Position card offers ten positions, the four 45°
     /// stops too, rather than six (its 6 | 10 switch, kept).
     ten_positions: bool,
-    /// The Dynamic Poise pane's Plot and Dial on or off, and its Info.
-    poise_views: [bool; 2],
-    poise_info: bool,
-    /// Whether the Complication pane's Info panel shows.
-    complication_info: bool,
     guided_settle_s: f64,
     guided_measure_s: f64,
     /// Look for a newer release each time the app starts.
@@ -1807,12 +1802,6 @@ pub struct TimegrapherApp {
     open_note: Option<String>,
     /// The window may close: the user has said what to do with the sound.
     may_close: bool,
-    /// The readings the Distributions pane draws.
-    dist_series: [bool; 3],
-    /// The charts the Power Reserve, Positions and Complication panes draw (#1729).
-    reserve_series: [bool; 3],
-    positions_series: [bool; 3],
-    complication_series: [bool; 3],
     /// The height each pane with plots needed last frame for its toolbar
     /// and one plot at a readable size, kept clear by [`keep_room`].
     pane_need: std::collections::HashMap<Pane, f32>,
@@ -1824,33 +1813,10 @@ pub struct TimegrapherApp {
     panes_short: std::collections::HashSet<Pane>,
     /// The top of the pane being drawn, for working out its need.
     pane_top: f32,
-    /// Show the cumulative share instead of the probability plot.
-    hist_cumulative: bool,
-    /// The Power Reserve and Positions Test panes' Info panels open (#1528).
-    reserve_info: bool,
-    positions_info: bool,
-    /// The histograms count the readings rather than each 2 seconds of beats.
-    hist_readings: bool,
-    iso_view: isochronism::View,
-    /// The rate over each 2 seconds of beats, for the rate's distribution.
-    dist: distributions::DistState,
     /// Core's readings the Distributions pane counts (#1144), what they were
     /// read for and up to, and the run in the background that replaces them.
     dist_readings: Option<(DistKey, f64, DistReadings)>,
     dist_job: Option<(DistKey, f64, std::sync::mpsc::Receiver<DistReadings>)>,
-    /// The series each Steadiness pane shows: rate, amplitude, beat error.
-    steady_series: std::collections::BTreeMap<steady::View, [bool; 3]>,
-    /// The Periods pane's scores in dB.
-    periods_db: bool,
-    /// The FFT pane's rate as the beat timing's spectrum, in ms.
-    fft_timing: bool,
-    /// Each STFT and Wavelet Map pane's colours in dB.
-    maps_db: steady::PerPane,
-    /// The calibre's wheels and meshes marked on each pane's period axes.
-    show_marks: steady::MarkSwitches,
-    /// Each Steadiness pane's Info panel open.
-    steady_info: steady::PerPane,
-    scope_view: scope::View,
     /// Sound read from the recording for the Scope once stopped: the
     /// stretch asked for (seconds) and what was read of it.
     scope_audio: Option<ScopeCut>,
@@ -1869,12 +1835,6 @@ pub struct TimegrapherApp {
     ),
     /// Light, dark or following the system, kept for the next start.
     theme: egui::ThemePreference,
-    /// Watches view groups folded down to their caption.
-    folded: std::collections::BTreeSet<String>,
-    /// The rate, amplitude and beat error figures above the panes.
-    show_readings: bool,
-    /// Those cards pinned open in the layout, else a strip that opens them.
-    readings_pinned: bool,
     panes: Tree<Pane>,
 
     capture: Option<Capture>,
@@ -2017,34 +1977,39 @@ impl TimegrapherApp {
             overlays: self.panes_view.overlays,
             follow: self.panes_view.follow,
             chart_series: self.panes_view.chart_series,
-            dist_series: self.dist_series,
-            reserve_series: self.reserve_series,
-            positions_series: self.positions_series,
-            complication_series: self.complication_series,
-            hist_cumulative: self.hist_cumulative,
-            reserve_info: self.reserve_info,
-            positions_info: self.positions_info,
-            hist_readings: self.hist_readings,
-            iso_view: self.iso_view,
+            dist_series: self.panes_view.dist_series,
+            reserve_series: self.panes_view.reserve_series,
+            positions_series: self.panes_view.positions_series,
+            complication_series: self.panes_view.complication_series,
+            hist_cumulative: self.panes_view.hist_cumulative,
+            reserve_info: self.panes_view.reserve_info,
+            positions_info: self.panes_view.positions_info,
+            hist_readings: self.panes_view.hist_readings,
+            iso_view: self.panes_view.iso_view,
             sound: self.sound_opts,
-            folded: self.folded.iter().cloned().collect(),
+            folded: self.panes_view.folded.iter().cloned().collect(),
             theme: self.theme,
             steady_series: RATE_ONLY,
-            steady_shown: self.steady_series.iter().map(|(v, s)| (*v, *s)).collect(),
-            periods_db: self.periods_db,
-            fft_timing: self.fft_timing,
-            maps_db: self.maps_db.unset,
-            maps_db_set: self.maps_db.saved(),
-            marks: self.show_marks.saved(),
-            steady_info: self.steady_info.unset,
-            steady_info_set: self.steady_info.saved(),
+            steady_shown: self
+                .panes_view
+                .steady_series
+                .iter()
+                .map(|(v, s)| (*v, *s))
+                .collect(),
+            periods_db: self.panes_view.periods_db,
+            fft_timing: self.panes_view.fft_timing,
+            maps_db: self.panes_view.maps_db.unset,
+            maps_db_set: self.panes_view.maps_db.saved(),
+            marks: self.panes_view.show_marks.saved(),
+            steady_info: self.panes_view.steady_info.unset,
+            steady_info_set: self.panes_view.steady_info.saved(),
             positions_settle_s: self.guided_settle_s,
             ten_positions: self.ten_positions,
-            poise_views: self.poise_views,
-            poise_info: self.poise_info,
-            complication_info: self.complication_info,
+            poise_views: self.panes_view.poise_views,
+            poise_info: self.panes_view.poise_info,
+            complication_info: self.panes_view.complication_info,
             positions_measure_s: self.guided_measure_s,
-            scope: self.scope_view,
+            scope: self.panes_view.scope_view,
             panes: Some(self.panes.clone()),
             panes_dragged: self.panes_dragged.iter().copied().collect(),
             layout: LAYOUT,
@@ -2058,8 +2023,8 @@ impl TimegrapherApp {
             listen_at_open: self.listen_at_open,
             mic_set_up: self.mic_set_up,
             setup_declined: self.setup_declined,
-            show_readings: self.show_readings,
-            readings_pinned: self.readings_pinned,
+            show_readings: self.panes_view.show_readings,
+            readings_pinned: self.panes_view.readings_pinned,
             library: self.library_dir.clone(),
             settings_section: self.settings_last.key().into(),
             agc_on: self.agc_on.clone(),
@@ -2129,17 +2094,14 @@ impl TimegrapherApp {
             watch_list_shows,
             after_save_command,
         } = s;
-        self.after_save_command = after_save_command;
+        (self.after_save_command, self.agc_on) = (after_save_command, agc_on);
         self.settings_last = Tab::from_key(&settings_section);
         (self.listen_at_open, self.ten_positions) = (listen_at_open, ten_positions);
-        (self.poise_views, self.poise_info) = (poise_views, poise_info);
-        (self.complication_info, self.agc_on) = (complication_info, agc_on);
         (self.mic_set_up, self.setup_declined) = (mic_set_up, setup_declined);
         // A layout from before the panes moved starts afresh.
         let panes = panes.filter(|_| layout >= LAYOUT);
         (self.library_dir, self.watches_view.watch_list_shows) = (library, watch_list_shows);
         (self.check_at_start, self.keep_awake) = (check_updates, keep_awake);
-        (self.show_readings, self.readings_pinned) = (show_readings, readings_pinned);
         // One Average Over for every pane; a pane's own time, saved by an
         // older app, is read and left out.
         if AVERAGES.contains(&average_s) {
@@ -2151,26 +2113,29 @@ impl TimegrapherApp {
         self.restore_device(device);
         strip.set_half_width(strip.half_width_ms);
         strip.set_span(strip.span_s);
-        self.panes_view.strip = strip;
-        (self.panes_view.rate_line, self.panes_view.rate_guides) = (rate_line, rate_guides);
-        (self.panes_view.overlays, self.panes_view.follow) = (overlays, follow);
         // One left on is kept: a pane with none shown would be empty.
         let on = |s: [bool; 3]| if s.contains(&true) { s } else { RATE_ONLY };
-        (self.panes_view.chart_series, self.dist_series) = (on(chart_series), on(dist_series));
+        (self.sound_opts, self.theme) = (sound, theme);
+        self.set_positions_times(positions_settle_s, positions_measure_s);
+        let v = &mut self.panes_view;
+        (v.strip, v.readings_pinned) = (strip, readings_pinned);
+        (v.rate_line, v.rate_guides) = (rate_line, rate_guides);
+        (v.overlays, v.follow) = (overlays, follow);
+        (v.chart_series, v.dist_series) = (on(chart_series), on(dist_series));
         // A test pane's charts may all be off: its table and words stand
         // alone (#1852).
-        (self.reserve_series, self.positions_series) = (reserve_series, positions_series);
-        (self.hist_cumulative, self.reserve_info) = (hist_cumulative, reserve_info);
-        (self.positions_info, self.sound_opts) = (positions_info, sound);
-        (self.hist_readings, self.iso_view) = (hist_readings, iso_view);
-        (self.folded, self.theme) = (folded.into_iter().collect(), theme);
-        (self.periods_db, self.fft_timing) = (periods_db, fft_timing);
-        self.maps_db = steady::PerPane::new(maps_db_set, maps_db);
-        self.show_marks = steady::MarkSwitches::new(marks);
-        self.steady_info = steady::PerPane::new(steady_info_set, steady_info);
-        self.set_positions_times(positions_settle_s, positions_measure_s);
-        self.steady_series = steady_series_from(steady_shown, steady_series);
-        (self.complication_series, self.scope_view) = (complication_series, scope);
+        (v.reserve_series, v.positions_series) = (reserve_series, positions_series);
+        (v.hist_cumulative, v.reserve_info) = (hist_cumulative, reserve_info);
+        (v.positions_info, v.hist_readings) = (positions_info, hist_readings);
+        (v.iso_view, v.folded) = (iso_view, folded.into_iter().collect());
+        (v.periods_db, v.fft_timing) = (periods_db, fft_timing);
+        v.maps_db = steady::PerPane::new(maps_db_set, maps_db);
+        v.show_marks = steady::MarkSwitches::new(marks);
+        v.steady_info = steady::PerPane::new(steady_info_set, steady_info);
+        v.steady_series = steady_series_from(steady_shown, steady_series);
+        (v.complication_series, v.scope_view) = (complication_series, scope);
+        (v.poise_views, v.poise_info) = (poise_views, poise_info);
+        (v.complication_info, v.show_readings) = (complication_info, show_readings);
         self.panes = match panes.map(upgraded_layout) {
             Some(p) if layout_is_whole(&p) => {
                 self.panes_dragged = panes_dragged.into_iter().collect();
@@ -2258,9 +2223,6 @@ impl TimegrapherApp {
             stop_test_ask: false,
             guided_settle_s: guided::SETTLE_S,
             ten_positions: false,
-            poise_views: POISE_VIEWS,
-            poise_info: false,
-            complication_info: false,
             guided_measure_s: guided::MEASURE_S,
             check_at_start: true,
             keep_awake: true,
@@ -2323,40 +2285,20 @@ impl TimegrapherApp {
             may_close: false,
             save_dir: home.join("Timegrapher recordings").display().to_string(),
             // As the settings first are.
-            dist_series: RATE_ONLY,
-            reserve_series: [true; 3],
-            positions_series: [true; 3],
-            complication_series: [true; 3],
             pane_need: std::collections::HashMap::new(),
             panes_dragged: std::collections::HashSet::new(),
             panes_short: std::collections::HashSet::new(),
             pane_top: 0.0,
-            hist_cumulative: false,
-            reserve_info: false,
-            positions_info: false,
-            steady_series: Default::default(),
-            periods_db: false,
-            fft_timing: false,
-            maps_db: steady::PerPane::new(Vec::new(), false),
-            show_marks: steady::MarkSwitches::new(Default::default()),
-            steady_info: steady::PerPane::new(Vec::new(), false),
-            scope_view: scope::View::default(),
             scope_audio: None,
             scope_traces: std::collections::VecDeque::new(),
             scope_job: None,
             steady: None,
             steady_job: None,
             steady_work: (Default::default(), std::time::Instant::now()),
-            hist_readings: true,
-            iso_view: Default::default(),
-            dist: distributions::DistState::default(),
             dist_readings: None,
             dist_job: None,
-            folded: Default::default(),
             theme: egui::ThemePreference::System,
             panes: default_layout(true),
-            show_readings: true,
-            readings_pinned: true,
             capture: None,
             live: None,
             source_label: String::new(),
@@ -2720,7 +2662,8 @@ impl TimegrapherApp {
             Pane::Sound | Pane::Scope => self.sound_tools(ui, pane),
             p if p.steady_view().is_some() => {
                 let view = p.steady_view().unwrap_or_default();
-                let (mut info, help_text) = (self.steady_info.on(view), help::steadiness(view));
+                let (mut info, help_text) =
+                    (self.panes_view.steady_info.on(view), help::steadiness(view));
                 let mut pin = |ui: &mut egui::Ui| {
                     let accent = theme::pal(ui).accent;
                     if theme::icon_toggle(ui, Icon::Info, info, accent)
@@ -2734,10 +2677,10 @@ impl TimegrapherApp {
                     self.steady_settings(ui, p);
                     self.export_button(ui, p);
                 });
-                self.steady_info.set(view, info);
+                self.panes_view.steady_info.set(view, info);
             }
             Pane::Isochronism => isochronism::toolbar(ui, title, |ui| {
-                isochronism::view_choice(ui, &mut self.iso_view);
+                isochronism::view_choice(ui, &mut self.panes_view.iso_view);
                 self.export_button(ui, pane)
             }),
             Pane::PositionsTest => self.positions_tools(ui, title),
@@ -2745,7 +2688,7 @@ impl TimegrapherApp {
             Pane::Complication => self.complication_tools(ui, title),
             Pane::PowerReserve => self.reserve_toolbar(ui, title),
             Pane::Distributions => theme::pane_toolbar(ui, title, &help::HISTOGRAMS, |ui| {
-                steady::series_switches(ui, &mut self.dist_series);
+                steady::series_switches(ui, &mut self.panes_view.dist_series);
                 theme::bar_gap(ui);
                 self.histogram_settings(ui);
                 self.export_button(ui, pane);
@@ -2785,14 +2728,19 @@ impl TimegrapherApp {
         // The readings' cards, which are no pane, then the core panes,
         // Watches first, the analysis views and the tests, each group under
         // its name.
-        if theme::icon_toggle(ui, Icon::Readings, self.show_readings, pal.accent)
-            .on_hover_text(
-                "Readings: the Position, Listen, Rate, Amplitude, Beat Error and Beat Rate \
+        if theme::icon_toggle(
+            ui,
+            Icon::Readings,
+            self.panes_view.show_readings,
+            pal.accent,
+        )
+        .on_hover_text(
+            "Readings: the Position, Listen, Rate, Amplitude, Beat Error and Beat Rate \
                  cards across the top",
-            )
-            .clicked()
+        )
+        .clicked()
         {
-            self.show_readings = !self.show_readings;
+            self.panes_view.show_readings = !self.panes_view.show_readings;
         }
         let groups = pane_groups();
         let folded = folded_groups(ui, &groups);
@@ -2931,7 +2879,7 @@ impl TimegrapherApp {
         // Nothing appears above the readings: notices are in the status
         // bar, so the window never moves under the pointer.
         // The readings, and on them what a take needs, unless hidden.
-        if self.show_readings {
+        if self.panes_view.show_readings {
             self.readings(ui);
         }
 

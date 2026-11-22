@@ -12,15 +12,15 @@ impl TimegrapherApp {
     pub(super) fn reserve_toolbar(&mut self, ui: &mut egui::Ui, title: &str) {
         let help = help::power_reserve(self.position_card_title);
         let help: Vec<&str> = help.iter().map(String::as_str).collect();
-        let mut info = self.reserve_info;
+        let mut info = self.panes_view.reserve_info;
         theme::pane_toolbar_info(ui, title, &help, (&mut info, RESERVE_INFO_HINT), |ui| {
             // The quantities first, at the left, as on every pane that
             // plots them; all off leaves the table (#1852).
-            steady::chart_switches(ui, &mut self.reserve_series);
+            steady::chart_switches(ui, &mut self.panes_view.reserve_series);
             theme::bar_gap(ui);
             self.reserve_settings(ui);
         });
-        self.reserve_info = info;
+        self.panes_view.reserve_info = info;
     }
 
     /// Whether the pane holds a Power Reserve Test, under way or ended,
@@ -353,7 +353,7 @@ impl TimegrapherApp {
         }
         if first_chart {
             let h = self.reserve.as_ref().map_or(0.0, |t| {
-                reserve::run_h(&t.so_far, true, self.reserve_series)
+                reserve::run_h(&t.so_far, true, self.panes_view.reserve_series)
             });
             grow_row(&mut self.panes.tiles, Pane::PowerReserve, h);
         }
@@ -412,7 +412,7 @@ impl TimegrapherApp {
             Some(r) => grow_row(
                 &mut self.panes.tiles,
                 pane,
-                reserve::run_h(&r.hours, false, self.reserve_series),
+                reserve::run_h(&r.hours, false, self.panes_view.reserve_series),
             ),
             None => fit_row(&mut self.panes.tiles, pane, MIN_PANE_H),
         }
@@ -518,7 +518,7 @@ impl TimegrapherApp {
         }
         let h = results
             .as_ref()
-            .map(|r| reserve::run_h(&r.hours, false, self.reserve_series));
+            .map(|r| reserve::run_h(&r.hours, false, self.panes_view.reserve_series));
         let mut stopped = false;
         if let Some(t) = self.reserve.as_mut() {
             stopped = [results.as_ref().map(|r| r.ending), t.ending]
@@ -754,7 +754,7 @@ impl TimegrapherApp {
         };
         let watch = self.watch.trim().to_string();
         // Its charts at a readable height, never a sliver under the strip.
-        let shown = self.reserve_series;
+        let shown = self.panes_view.reserve_series;
         if let Some(least) = reserve::least_h(self.reserve.as_ref(), shown) {
             let above = ui.cursor().top() - self.pane_top;
             self.pane_need.insert(Pane::PowerReserve, above + least);
@@ -767,7 +767,7 @@ impl TimegrapherApp {
             free,
             (self.position_card_title, &watch),
             self.ready_test() == Some(NewTake::PowerReserve),
-            (self.reserve_info, shown),
+            (self.panes_view.reserve_info, shown),
         );
     }
 }

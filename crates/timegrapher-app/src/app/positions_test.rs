@@ -299,7 +299,7 @@ impl TimegrapherApp {
         // The quantities first, at the left, always there, as on every
         // pane that plots them (design guide section 9, #1852): with no
         // gap after them, so the row still fits at 1000 pt.
-        crate::steady::chart_switches(ui, &mut self.positions_series);
+        crate::steady::chart_switches(ui, &mut self.panes_view.positions_series);
         // While it runs, the step panel and the Listen card carry its
         // buttons; set up, Cancel Test leaves the Bench as it was.
         if !running {
@@ -673,13 +673,13 @@ impl TimegrapherApp {
     /// buttons ask for.
     /// The pane's toolbar, with the Info toggle pinned at its right.
     pub(super) fn positions_tools(&mut self, ui: &mut egui::Ui, title: &str) {
-        let mut info = self.positions_info;
+        let mut info = self.panes_view.positions_info;
         let hint = "Info: how the table for a take is read";
         theme::pane_toolbar_info(ui, title, &help::POSITIONS_TEST, (&mut info, hint), |ui| {
             self.positions_settings(ui);
             self.export_button(ui, Pane::PositionsTest);
         });
-        self.positions_info = info;
+        self.panes_view.positions_info = info;
     }
 
     pub(super) fn positions_pane(&mut self, ui: &mut egui::Ui) {
@@ -732,8 +732,8 @@ impl TimegrapherApp {
             note.as_deref(),
             (
                 self.position_card_title,
-                self.positions_info,
-                self.positions_series,
+                self.panes_view.positions_info,
+                self.panes_view.positions_series,
                 self.ready_test() == Some(NewTake::Positions),
             ),
         );

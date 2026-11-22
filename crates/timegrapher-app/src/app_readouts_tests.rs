@@ -1577,7 +1577,7 @@ fn card_row(
 #[test]
 fn at_800_the_reading_cards_captions_are_whole_and_carry_the_help() {
     let mut app = synthetic(60.0, 20.0);
-    app.readings_pinned = true;
+    app.panes_view.readings_pinned = true;
     let ctx = themed();
     ctx.style_mut(|s| {
         s.interaction.tooltip_delay = 0.0;
@@ -1635,7 +1635,7 @@ fn at_800_a_caveat_leaves_the_reading_cards_captions_whole() {
     }
     app.poll();
     app.refresh_trend();
-    app.readings_pinned = true;
+    app.panes_view.readings_pinned = true;
     let caveats = app.reading().expect("a reading").caveats;
     assert!(
         reading_limits("Rate", &caveats, 52.0, 30, false).is_empty()
@@ -1679,7 +1679,7 @@ fn at_800_a_caveat_leaves_the_reading_cards_captions_whole() {
 fn the_reading_figures_share_one_size() {
     for rate in [20.0, -2174.4] {
         let mut app = synthetic(60.0, rate);
-        app.readings_pinned = true;
+        app.panes_view.readings_pinned = true;
         let ctx = themed();
         for w in [800.0, 1000.0, 1920.0] {
             let (row, _) = card_row(&mut app, &ctx, w, None);
