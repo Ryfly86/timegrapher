@@ -233,10 +233,19 @@ fn failed(command: &str, out: cli::Outcome) -> Value {
     let code = out
         .exit_code
         .map_or("no exit code".to_string(), |c| format!("exit code {c}"));
+    // The tool's error gives the command line's own error lines; the rest
+    // of its stderr goes to this server's log, as it went nowhere else
+    // (#2103).
     let said = if out.stderr.is_empty() {
         "nothing".to_string()
     } else {
-        out.stderr
+        if cli::said(&out.stderr) != out.stderr {
+            eprintln!(
+                "timegrapher-mcp: timegrapher {command} said:\n{}",
+                out.stderr
+            );
+        }
+        cli::failure_text(&out.stderr)
     };
     let mut result = json!({
         "content": [{ "type": "text", "text": format!(

@@ -502,3 +502,53 @@ printf '%s\n' '{"schema":"timegrapher.analyze/2","watch_heard":false}'
     assert!(args.contains("--lift=52"));
     assert!(args.contains("--bph=28800"));
 }
+
+/// A command line that fails as `doctor` did on a computer with no sound
+/// card (#2103): ALSA's lines on stderr, then its own `error:` line.
+fn no_sound_card_double(dir: &Path) -> PathBuf {
+    std::fs::create_dir_all(dir).unwrap();
+    let cli = dir.join("cli");
+    std::fs::write(
+        &cli,
+        r#"#!/bin/sh
+i=0
+while [ $i -lt 24 ]; do
+    echo "ALSA lib confmisc.c:855:(parse_card) cannot find card '0'" >&2
+    i=$((i + 1))
+done
+echo "error: The requested audio device is not available. It may have been disconnected." >&2
+exit 1
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&cli, std::fs::Permissions::from_mode(0o755)).unwrap();
+    cli
+}
+
+/// `check_microphone` with no microphone: the tool's error is the command
+/// line's own error line and the one hint naming `list_sound_inputs`,
+/// without ALSA's 24 lines (#2103).
+#[test]
+fn a_missing_microphone_error_is_the_clis_line_and_a_hint() {
+    let dir = Scratch(std::env::temp_dir().join(format!(
+        "timegrapher-mcp-no-microphone-{}",
+        std::process::id()
+    )));
+    let cli = no_sound_card_double(&dir.0);
+    let mut client = Client::start(&cli, &dir.0.join("config"));
+    let result = client.request(
+        "tools/call",
+        json!({ "name": "check_microphone", "arguments": {} }),
+    );
+    assert_eq!(result["isError"], true, "{result}");
+    let text = result["content"][0]["text"].as_str().unwrap();
+    assert!(!text.contains("ALSA"), "{text}");
+    assert!(
+        text.contains(
+            "error: The requested audio device is not available. It may have been disconnected."
+        ),
+        "{text}"
+    );
+    assert!(text.contains("list_sound_inputs"), "{text}");
+    assert_eq!(text.lines().count(), 2, "{text}");
+}
