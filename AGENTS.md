@@ -1,7 +1,7 @@
 # Project standards for outside agents
 
-This file is for any coding agent that is not one of the maintainer's own Claude
-threads: the project's own Codex agent, or an agent working for an outside contributor. It sets out how the project works,
+This file is for any coding agent from outside the maintainer's own team: the
+project's own Codex agent, or an agent working for an outside contributor. It sets out how the project works,
 what a pull request must contain, and how review happens. Codex reads this file
 on its own; other agents should read it before starting.
 
