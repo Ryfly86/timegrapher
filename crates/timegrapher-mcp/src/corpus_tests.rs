@@ -325,3 +325,83 @@ fn the_mcp_server_reads_each_edge_take_as_session_does() {
     let _ = std::fs::remove_dir_all(&root);
     assert_same(&root, found);
 }
+
+/// `tick_tock_profile` called with `args`: the command line the server
+/// runs for that call, run.
+fn profile(cli: &Path, args: Value) -> Value {
+    let tool = tools::find("tick_tock_profile").expect("the profile tool");
+    let line = tools::command_line(tool, args.as_object().unwrap()).expect("a command line");
+    run(cli, &line)
+}
+
+/// The lift angle a profile was read at.
+fn lift_read(doc: &Value) -> Option<f64> {
+    doc["input"]["settings"]["lift_deg"].as_f64()
+}
+
+/// A sound file of a take, profiled with no lift angle given, is read at
+/// the take's own lift angle, as `timegrapher profile` reads it, not the
+/// 52° the tool's description once promised (#2102).
+#[test]
+fn a_profile_with_no_lift_reads_at_the_takes_own() {
+    let Some((root, cli)) = corpus_and_cli() else {
+        return;
+    };
+    let file = root.join("takes/eta2824_holder_DU_30min/take_part01-001.flac");
+    let (listed, _) = timegrapher_core::take_path::take_of(&file)
+        .unwrap()
+        .expect("the take's session file lists the file");
+    let own = listed.lift.expect("the take's lift angle");
+    let doc = profile(&cli, json!({ "recording": file }));
+    assert_eq!(lift_read(&doc), Some(own));
+    let at_own = profile(&cli, json!({ "recording": file, "lift_deg": own }));
+    assert_eq!(doc["a"]["amplitude_deg"], at_own["a"]["amplitude_deg"]);
+    assert_eq!(doc["b"]["amplitude_deg"], at_own["b"]["amplitude_deg"]);
+}
+
+/// A sound file no take lists, profiled with a calibre and no lift
+/// angle, is read at the calibre's lift angle from the table (#2102).
+#[test]
+fn a_profile_with_a_calibre_reads_at_its_lift() {
+    let Some(cli) = cli() else {
+        return;
+    };
+    let name = "DD3235";
+    let lift = timegrapher_core::calibres::find(name)
+        .and_then(|c| c.lift_angle_deg)
+        .expect("the table's lift angle");
+    let default = profile_of_synthetic(&cli, None);
+    assert_ne!(
+        lift_read(&default),
+        Some(lift),
+        "pick a calibre off the default"
+    );
+    let doc = profile_of_synthetic(&cli, Some(name));
+    assert_eq!(lift_read(&doc), Some(lift));
+}
+
+/// `tick_tock_profile` on a synthetic recording in a folder of its own,
+/// with `calibre` if given.
+fn profile_of_synthetic(cli: &Path, calibre: Option<&str>) -> Value {
+    let dir = std::env::temp_dir().join(format!(
+        "tg-mcp-profile-calibre-{}-{}",
+        calibre.unwrap_or("none"),
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("plain.wav");
+    let cfg = timegrapher_core::synth::SynthConfig {
+        duration_s: 20.0,
+        ..Default::default()
+    };
+    let audio = timegrapher_core::synth::generate(&cfg, |_| 270.0, |_| 0.0);
+    timegrapher_core::audio::write_wav(&file, &audio).unwrap();
+    let mut args = json!({ "recording": file });
+    if let Some(c) = calibre {
+        args["calibre"] = json!(c);
+    }
+    let doc = profile(cli, args);
+    let _ = std::fs::remove_dir_all(&dir);
+    doc
+}

@@ -115,21 +115,18 @@ const BPH: Param = p(
     false,
     "Beat rate in beats per hour, e.g. 28800 (guessed from the sound if left out).",
 );
-const LIFT: Param = p(
-    "lift_deg",
-    Kind::LiftAngle,
-    Arg::Flag("--lift"),
-    false,
-    "Lift angle of the calibre in degrees (52 if left out). Amplitude depends on it.",
-);
-/// For tools that also take a calibre, whose lift angle fills in.
+/// For tools that also take a calibre, whose lift angle fills in: the
+/// order the command line reads a recording with (`resolve_for`, core
+/// `take::stream_settings`), the take's own lift before the calibre's
+/// (#2102).
 const LIFT_OR_CALIBRE: Param = p(
     "lift_deg",
     Kind::LiftAngle,
     Arg::Flag("--lift"),
     false,
-    "Lift angle of the calibre in degrees (the calibre's if one is given and the table \
-     has its lift angle, else 52). Amplitude depends on it.",
+    "Lift angle of the calibre in degrees. Left out: the take's own, where the recording \
+     is a take (or one of its sound files) that has one; else the calibre's, if one is \
+     given and the table has its lift angle; else 52. Amplitude depends on it.",
 );
 /// The charts over time in the view, averaged as the app's Average Over.
 const AVERAGE: Param = p(
@@ -321,8 +318,9 @@ pub const TOOLS: &[ToolSpec] = &[
                 false,
                 "Length of the stretch, seconds (10 if left out).",
             ),
+            CALIBRE_READING,
             BPH,
-            LIFT,
+            LIFT_OR_CALIBRE,
         ],
         charts: true,
         read_only: true,
@@ -336,7 +334,7 @@ pub const TOOLS: &[ToolSpec] = &[
             timing and level for the Tick (even beats) and the Tock (odd beats), the \
             evidence for escapement faults.",
         command: &["shape"],
-        params: &[RECORDING, BPH, LIFT],
+        params: &[RECORDING, CALIBRE_READING, BPH, LIFT_OR_CALIBRE],
         charts: false,
         read_only: true,
         idempotent: true,
@@ -984,6 +982,29 @@ mod tests {
             .join(name)
             .to_string_lossy()
             .into_owned()
+    }
+
+    /// `tick_tock_profile` and `beat_shape` take a calibre, as the other
+    /// tools that read a recording do, passed on as `--calibre`, and their
+    /// lift angle says what a left-out one is: the take's, else the
+    /// calibre's, else 52 (#2102).
+    #[test]
+    fn the_profile_and_shape_tools_take_a_calibre() {
+        for name in ["tick_tock_profile", "beat_shape"] {
+            let tool = find(name).unwrap();
+            let line = command_line(
+                tool,
+                &args(json!({"recording": full("a.wav"), "calibre": "ETA 2824-2"})),
+            )
+            .unwrap();
+            assert!(line.iter().any(|a| a == "--calibre=ETA 2824-2"), "{line:?}");
+            let lift = tool.params.iter().find(|p| p.name == "lift_deg").unwrap();
+            assert_eq!(lift.description, LIFT_OR_CALIBRE.description, "{name}");
+            let take = lift.description.find("the take's own").expect(name);
+            let calibre = lift.description.find("the calibre's").expect(name);
+            assert!(take < calibre, "{name}");
+            assert!(!lift.description.contains("52 if left out"), "{name}");
+        }
     }
 
     #[test]

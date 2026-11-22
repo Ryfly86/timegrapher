@@ -112,10 +112,12 @@ That route has not been tried with this server yet.
 | `make_report_bundle` | `report` | A zip for a GitHub issue, saved in your home folder unless told otherwise |
 | `read_guide` | (none) | The watchmaker skill and its pages, for the chat app to read |
 
-`analyze_recording`, `long_run` and `check_steadiness` accept the custom
-calibre names/aliases and wheel overrides returned by `list_calibres`.
-`analyze_recording` uses the catalogue's beat rate and lift angle unless
-they are given. `long_run` and `check_steadiness` use the catalogue's train
+`analyze_recording`, `tick_tock_profile`, `beat_shape`, `long_run` and
+`check_steadiness` accept the custom calibre names/aliases and wheel
+overrides returned by `list_calibres`. `analyze_recording`,
+`tick_tock_profile` and `beat_shape` use the catalogue's beat rate and lift
+angle unless they are given. For a take, or one of its sound files, the
+take's own lift angle comes before the calibre's. `long_run` and `check_steadiness` use the catalogue's train
 to name periodic changes and its lift angle unless one is given; their beat
 rate comes only from `bph` or the sound. Where the catalogue has no lift
 angle for a calibre, 52° is used. `record_position` and
