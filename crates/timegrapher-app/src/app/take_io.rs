@@ -93,10 +93,10 @@ impl TimegrapherApp {
         self.live = Some(LiveAnalyzer::new(sample_rate, self.live_config()).with_figures_as_file());
         self.live_usb = Some(live_usb::LiveUsb::new(sample_rate));
         self.source_label = label;
-        self.gutter_fresh = true;
+        self.panes_view.gutter_fresh = true;
         self.anchor = None;
         self.clear_trends();
-        self.strip_end = None;
+        self.panes_view.strip_end = None;
         self.meter.level = Level::default();
         self.meter.clipped_at = None;
         self.message = None;
@@ -444,7 +444,7 @@ impl TimegrapherApp {
                 self.opened_at = Instant::now();
                 self.audio_at = None;
                 self.gaps = None;
-                self.strip_end = None;
+                self.panes_view.strip_end = None;
                 self.message = None;
                 applog::info(&format!("microphone resumed at {} Hz", c.sample_rate));
                 self.input_fault = None;
@@ -1357,7 +1357,7 @@ impl TimegrapherApp {
         }
         // The five minutes up to the strip's newest edge, when the strip
         // has been moved back; else the start.
-        let end = match self.strip_end {
+        let end = match self.panes_view.strip_end {
             Some(_) if self.live.is_some() => self.strip_end_s(),
             _ => report::SPAN_S,
         }
@@ -2611,7 +2611,7 @@ impl TimegrapherApp {
         self.live = Some(live);
         // The opened take's labels, not those drawn while it opened
         // (Walter's HOLD on #1239).
-        self.gutter_fresh = true;
+        self.panes_view.gutter_fresh = true;
         self.rev.new_take();
         // Readings not readied with the engine are read in the
         // background by the next frame (#1014).
@@ -2621,7 +2621,7 @@ impl TimegrapherApp {
         }
         self.source_label = label;
         self.anchor = None;
-        self.strip_end = None;
+        self.panes_view.strip_end = None;
         self.fit_take();
         // A long take that isn't a test: its run, read as one in the
         // background.
