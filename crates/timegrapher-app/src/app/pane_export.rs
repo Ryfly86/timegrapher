@@ -44,7 +44,7 @@ impl TimegrapherApp {
                     .color(pal.text),
             );
             let key = if pane == Pane::Charts {
-                chart_key(self.charts_drawn, pal)
+                chart_key(self.panes_view.charts_drawn, pal)
             } else {
                 Vec::new()
             };

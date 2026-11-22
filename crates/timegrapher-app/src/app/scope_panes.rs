@@ -188,7 +188,8 @@ impl TimegrapherApp {
     /// When the strip has been moved off the newest beats, the time at its
     /// newest edge, which the sound panes show.
     pub(super) fn sound_moment(&self) -> Option<String> {
-        self.strip_end
+        self.panes_view
+            .strip_end
             .is_some()
             .then(|| format!("at {}", length_text(self.strip_end_s())))
     }
@@ -242,7 +243,7 @@ impl TimegrapherApp {
             masked: false,
         };
         let line = |l: String| not_shown(l, false);
-        if self.running() && self.strip_end.is_none() {
+        if self.running() && self.panes_view.strip_end.is_none() {
             let p = self
                 .live
                 .as_ref()
@@ -288,7 +289,7 @@ impl TimegrapherApp {
                     }
                     // At the newest beats, before any sound is kept: the
                     // empty plots.
-                    None if self.strip_end.is_none() => shown([None, None], None),
+                    None if self.panes_view.strip_end.is_none() => shown([None, None], None),
                     None => none_kept_at(&at),
                 }
             }

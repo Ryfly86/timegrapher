@@ -79,12 +79,12 @@ impl TimegrapherApp {
     /// at once when the pointer moves or leaves and every chart's line
     /// follows.
     pub(super) fn draw_again(&mut self, ctx: &egui::Context, was_working: bool) {
-        let next = self.cursor_next.take();
+        let next = self.panes_view.cursor_next.take();
         let moved = ctx.input(|i| i.pointer.delta() != egui::Vec2::ZERO);
-        if cursor_redraw(self.cursor_t, next, moved, self.running()) {
+        if cursor_redraw(self.panes_view.cursor_t, next, moved, self.running()) {
             ctx.request_repaint();
         }
-        self.cursor_t = next;
+        self.panes_view.cursor_t = next;
         let in_use = ctx.input(|i| {
             let v = i.viewport();
             v.focused != Some(false) && v.minimized != Some(true)

@@ -95,7 +95,7 @@ fn unsaved_legacy_calibres_remain_in_app_settings() {
 #[test]
 fn a_first_start_lays_the_strip_across() {
     let fresh = TimegrapherApp::with_devices(Vec::new(), None);
-    assert!(fresh.strip.horizontal);
+    assert!(fresh.panes_view.strip.horizontal);
     // The first row or column above the strip: a column (the strip
     // over the charts) for Across, a row for Down.
     let holder = |t: &Tree<Pane>| {
@@ -126,7 +126,7 @@ fn settings_come_back_as_they_were_left() {
     // Change a few views, keep them, and open a new app with them.
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     // Down, now that Across is the default: a saved Down stays.
-    app.strip.horizontal = false;
+    app.panes_view.strip.horizontal = false;
     app.relayout(false);
     app.show_readings = false;
     app.sound_opts.scale = profiles::Scale::Decibels;
@@ -137,7 +137,7 @@ fn settings_come_back_as_they_were_left() {
     let json = serde_json::to_string(&app.settings()).unwrap();
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.apply_settings(serde_json::from_str(&json).unwrap());
-    assert!(!again.strip.horizontal);
+    assert!(!again.panes_view.strip.horizontal);
     assert!(!again.show_readings);
     assert_eq!(again.sound_opts.scale, profiles::Scale::Decibels);
     assert!(again.hist_cumulative);
@@ -166,10 +166,13 @@ fn settings_come_back_as_they_were_left() {
     tree.tiles.remove(id);
     assert!(!layout_is_whole(&tree));
     before.panes = Some(tree);
-    again.strip.horizontal = true;
+    again.panes_view.strip.horizontal = true;
     again.apply_settings(before);
     assert!(layout_is_whole(&again.panes));
-    assert!(!again.strip.horizontal, "the saved arrangement was kept");
+    assert!(
+        !again.panes_view.strip.horizontal,
+        "the saved arrangement was kept"
+    );
     let sound = again.panes.tiles.find_pane(&Pane::Sound).unwrap();
     let steady = again.panes.tiles.find_pane(&Pane::SteadyReadings).unwrap();
     assert_eq!(
@@ -213,7 +216,7 @@ fn the_app_opens_on_the_quick_listen_layout() {
         .collect();
     assert_eq!(shown, [Pane::Strip, Pane::Sound, Pane::Scope]);
     assert!(app.panes.tiles.find_pane(&Pane::Watch).is_none());
-    assert!(app.rate_line && app.rate_guides);
+    assert!(app.panes_view.rate_line && app.panes_view.rate_guides);
     // The Scope shares the profile's tabs, behind it.
     let sound = app.panes.tiles.find_pane(&Pane::Sound).unwrap();
     let scope = app.panes.tiles.find_pane(&Pane::Scope).unwrap();
@@ -306,7 +309,7 @@ fn an_old_layout_with_a_pane_for_each_chart_reads_back() {
     let mut back = TimegrapherApp::with_devices(Vec::new(), None);
     back.apply_settings(old);
     assert!(back.hist_cumulative, "the rest is kept");
-    assert_eq!(back.chart_series, RATE_ONLY);
+    assert_eq!(back.panes_view.chart_series, RATE_ONLY);
     for p in [Pane::Charts, Pane::Distributions] {
         let n = back
             .panes
@@ -318,11 +321,11 @@ fn an_old_layout_with_a_pane_for_each_chart_reads_back() {
         assert!(!pane_visible(&back.panes.tiles, p), "{p:?}");
     }
     // Each pane's readings come back as they were left.
-    app.chart_series = [false, true, false];
+    app.panes_view.chart_series = [false, true, false];
     app.dist_series = [true, false, true];
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.apply_settings(app.settings());
-    assert_eq!(again.chart_series, [false, true, false]);
+    assert_eq!(again.panes_view.chart_series, [false, true, false]);
     assert_eq!(again.dist_series, [true, false, true]);
 }
 
@@ -872,14 +875,14 @@ fn gaining_log(gain: f64) -> BeatLog {
 fn an_opened_take_fits_the_strip() {
     for follow in [false, true] {
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-        app.follow = follow;
-        app.strip.set_span(10.0);
-        app.strip.set_half_width(1.0);
+        app.panes_view.follow = follow;
+        app.panes_view.strip.set_span(10.0);
+        app.panes_view.strip.set_half_width(1.0);
         // 12 ms gained over the two minutes.
         app.show_log(gaining_log(1e-4), "gaining".into(), vec![], vec![]);
-        assert!((app.strip.span_s - app.latest_s()).abs() < 1e-9);
-        assert!(app.strip.span_s > 119.0);
-        let half = app.strip.half_width_ms;
+        assert!((app.panes_view.strip.span_s - app.latest_s()).abs() < 1e-9);
+        assert!(app.panes_view.strip.span_s > 119.0);
+        let half = app.panes_view.strip.half_width_ms;
         // Centred, the spread is ±6 ms; kept on the newest beats, it
         // reaches 12 ms on one side.
         assert_eq!(half, if follow { 20.0 } else { 10.0 }, "follow {follow}");
@@ -895,7 +898,7 @@ fn an_opened_take_fits_the_strip() {
             (app.live_view().span_s, app.live_view().half_width_ms),
             (10.0, 1.0)
         );
-        app.strip.set_half_width(5.0);
+        app.panes_view.strip.set_half_width(5.0);
         assert_eq!(
             (app.live_view().span_s, app.live_view().half_width_ms),
             (10.0, 5.0)
@@ -921,17 +924,17 @@ fn a_new_test_starts_from_the_strip_as_it_was_before_the_open() {
         (NewTake::Listen, listen, None, None),
     ] {
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-        app.strip.set_span(30.0);
-        app.strip.set_half_width(10.0);
-        let mut fit = app.strip_fit;
+        app.panes_view.strip.set_span(30.0);
+        app.panes_view.strip.set_half_width(10.0);
+        let mut fit = app.panes_view.strip_fit;
         app.show_log(gaining_log(1e-4), "gaining".into(), vec![], vec![]);
-        assert!(app.strip.span_s > 119.0, "fitted to the take");
+        assert!(app.panes_view.strip.span_s > 119.0, "fitted to the take");
         if let Some(w) = width {
-            app.strip.set_half_width(w);
+            app.panes_view.strip.set_half_width(w);
         }
         if let Some(s) = span {
-            app.strip.set_span(s);
-            fit = app.strip_fit;
+            app.panes_view.strip.set_span(s);
+            fit = app.panes_view.strip_fit;
         }
         match start {
             Some(true) => {
@@ -943,9 +946,13 @@ fn a_new_test_starts_from_the_strip_as_it_was_before_the_open() {
         }
         let case = format!("{kind:?} {start:?}, by hand {width:?} {span:?}");
         // The take's pair is gone: a later test has nothing stale to restore.
-        assert!(app.live_strip.is_none(), "{case}");
+        assert!(app.panes_view.live_strip.is_none(), "{case}");
         assert_eq!(
-            (app.strip.span_s, app.strip.half_width_ms, app.strip_fit),
+            (
+                app.panes_view.strip.span_s,
+                app.panes_view.strip.half_width_ms,
+                app.panes_view.strip_fit
+            ),
             (span.unwrap_or(30.0), width.unwrap_or(10.0), fit),
             "{case}"
         );
@@ -1711,7 +1718,7 @@ fn the_beat_rate_found_comes_from_the_reading_shown() {
     app.calibre = "Hangzhou HZ2B00A".into();
     assert_eq!(app.calibre_chips().len(), 1);
     app.calibre.clear();
-    app.strip_end = Some(15.0);
+    app.panes_view.strip_end = Some(15.0);
     let r = app.card_reading().unwrap();
     assert!(!r.watch_heard, "{} s: {:?}", r.time_s, r.caveats);
     assert_eq!(r.bph, Some(28800), "the rate listened at");

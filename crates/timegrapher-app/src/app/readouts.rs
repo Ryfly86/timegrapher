@@ -566,7 +566,7 @@ impl TimegrapherApp {
     /// an opened recording, at its newest moment. Earlier in it, the strip
     /// moved back, its first 10 s are still "Listening" (#2053).
     fn sound_over(&self) -> bool {
-        !self.running() && self.strip_end.is_none()
+        !self.running() && self.panes_view.strip_end.is_none()
     }
 
     /// Why the cards have no reading, or a reading with no beat at all:
@@ -590,7 +590,7 @@ impl TimegrapherApp {
         }
         // At the moment the cards show: the strip's newest edge when it
         // is moved back, as `card_reading` reads it.
-        let at = match self.strip_end {
+        let at = match self.panes_view.strip_end {
             Some(_) => self.strip_end_s(),
             None => self.latest_s(),
         };
@@ -917,7 +917,7 @@ impl TimegrapherApp {
     /// moved off the newest beats, the one ending at its newest edge, as
     /// the sound panes show that moment.
     pub(super) fn card_reading(&self) -> Option<LiveReading> {
-        match self.strip_end {
+        match self.panes_view.strip_end {
             Some(_) => self.reading_at_time(self.strip_end_s()),
             None => self.reading(),
         }

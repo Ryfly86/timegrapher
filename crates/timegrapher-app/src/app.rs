@@ -74,6 +74,7 @@ mod menus;
 mod new_take;
 mod pane_export;
 mod pane_room;
+mod pane_view;
 mod paper_strip;
 mod picks;
 mod poise_pane;
@@ -1586,9 +1587,6 @@ pub struct TimegrapherApp {
     wind: wind::Wind,
     /// The kept sound Delete… is asking about.
     kept_delete_ask: Option<PathBuf>,
-    /// A take started or opened: the time panes' gutter fits its labels
-    /// afresh (Hugh on #1239).
-    gutter_fresh: bool,
     /// This session began with Quick Listen: kept only by Keep in a
     /// Watch…, or by Save… into Unsorted.
     quick_listen: bool,
@@ -1809,26 +1807,12 @@ pub struct TimegrapherApp {
     open_note: Option<String>,
     /// The window may close: the user has said what to do with the sound.
     may_close: bool,
-    strip: StripView,
-    /// Keep the newest beats on the centre line, sliding the rest.
-    follow: bool,
-    /// Draw the rate reading as a line over the strip.
-    rate_line: bool,
-    /// Faint parallels to the rate line across the strip.
-    rate_guides: bool,
-    /// Amplitude, rate and beat error drawn over the strip.
-    overlays: [bool; 3],
-    /// The readings the Charts pane draws: rate, amplitude, beat error.
-    chart_series: [bool; 3],
     /// The readings the Distributions pane draws.
     dist_series: [bool; 3],
     /// The charts the Power Reserve, Positions and Complication panes draw (#1729).
     reserve_series: [bool; 3],
     positions_series: [bool; 3],
     complication_series: [bool; 3],
-    /// The charts drawn last frame: those turned on that had room. The
-    /// key names only these.
-    charts_drawn: [bool; 3],
     /// The height each pane with plots needed last frame for its toolbar
     /// and one plot at a readable size, kept clear by [`keep_room`].
     pane_need: std::collections::HashMap<Pane, f32>,
@@ -1883,10 +1867,6 @@ pub struct TimegrapherApp {
         std::sync::Arc<std::sync::atomic::AtomicU8>,
         std::time::Instant,
     ),
-    /// The time under the pointer on the strip or a chart, drawn as a
-    /// cursor on all of them: last frame's, and this frame's so far.
-    cursor_t: Option<f64>,
-    cursor_next: Option<f64>,
     /// Light, dark or following the system, kept for the next start.
     theme: egui::ThemePreference,
     /// Watches view groups folded down to their caption.
@@ -1895,27 +1875,6 @@ pub struct TimegrapherApp {
     show_readings: bool,
     /// Those cards pinned open in the layout, else a strip that opens them.
     readings_pinned: bool,
-    /// Asked to put the charts back on the whole session, following new
-    /// beats: set by the button, applied by every chart on the next frame.
-    charts_to_live: bool,
-    charts_to_live_now: bool,
-    /// Whether the charts show the whole session, as the pane's Fit
-    /// switch shows (#1063).
-    charts_fit: bool,
-    /// The time under the pointer over any chart last frame, which every
-    /// chart's lane reads its values at (#1063).
-    charts_over: Option<f64>,
-    /// The charts, panned or zoomed, end at the newest reading and follow
-    /// new ones at the length they show (Hugh, #1070).
-    charts_follow: bool,
-    /// The averaging time each chart last drew with: a new one rescales
-    /// its values, which spread wider or narrower with it.
-    chart_average_drawn: std::collections::HashMap<&'static str, f64>,
-    /// `None` follows the newest beat; otherwise the time at the newest
-    /// edge of the strip. The strip, the chart marker for it and the sound
-    /// panes (the Tick Tock Profile and the Scope) follow this; the
-    /// readings show the newest.
-    strip_end: Option<f64>,
     panes: Tree<Pane>,
 
     capture: Option<Capture>,
@@ -1932,17 +1891,6 @@ pub struct TimegrapherApp {
     /// While a take opens: a beat rate its settings change reads nothing
     /// again, the take before least of all (#1241).
     opening: bool,
-    /// The strip's view and Rate Line and Parallel Guides before an opened
-    /// take was fitted, and the fitted view: Listen brings them back.
-    live_strip: Option<(StripView, StripView, [bool; 2])>,
-    /// Fit, on the Paper Strip: while on, the strip's length is the whole
-    /// session so far, growing as beats arrive. Any zoom or pan of the
-    /// strip's time turns it off.
-    strip_fit: bool,
-    /// The unrounded length a run of strip zooms is heading for.
-    strip_zoom_s: Option<f64>,
-    /// Whether Fit was on before an opened take was fitted.
-    live_fit: bool,
     trend: Vec<TrendPoint>,
     /// What the readings in [`Self::trend`] were read on: the revision
     /// and Average Over.
@@ -2026,6 +1974,8 @@ pub struct TimegrapherApp {
     polled_at: Instant,
     /// The Watches view's own state.
     watches_view: watches_view::WatchesView,
+    /// How the strip and charts look and follow.
+    panes_view: pane_view::PaneView,
 }
 
 impl TimegrapherApp {
@@ -2064,9 +2014,9 @@ impl TimegrapherApp {
             strip: self.live_view(),
             rate_line: self.live_rate_marks()[0],
             rate_guides: self.live_rate_marks()[1],
-            overlays: self.overlays,
-            follow: self.follow,
-            chart_series: self.chart_series,
+            overlays: self.panes_view.overlays,
+            follow: self.panes_view.follow,
+            chart_series: self.panes_view.chart_series,
             dist_series: self.dist_series,
             reserve_series: self.reserve_series,
             positions_series: self.positions_series,
@@ -2201,12 +2151,12 @@ impl TimegrapherApp {
         self.restore_device(device);
         strip.set_half_width(strip.half_width_ms);
         strip.set_span(strip.span_s);
-        self.strip = strip;
-        (self.rate_line, self.rate_guides) = (rate_line, rate_guides);
-        (self.overlays, self.follow) = (overlays, follow);
+        self.panes_view.strip = strip;
+        (self.panes_view.rate_line, self.panes_view.rate_guides) = (rate_line, rate_guides);
+        (self.panes_view.overlays, self.panes_view.follow) = (overlays, follow);
         // One left on is kept: a pane with none shown would be empty.
         let on = |s: [bool; 3]| if s.contains(&true) { s } else { RATE_ONLY };
-        (self.chart_series, self.dist_series) = (on(chart_series), on(dist_series));
+        (self.panes_view.chart_series, self.dist_series) = (on(chart_series), on(dist_series));
         // A test pane's charts may all be off: its table and words stand
         // alone (#1852).
         (self.reserve_series, self.positions_series) = (reserve_series, positions_series);
@@ -2226,7 +2176,7 @@ impl TimegrapherApp {
                 self.panes_dragged = panes_dragged.into_iter().collect();
                 p
             }
-            _ => default_layout(self.strip.horizontal),
+            _ => default_layout(self.panes_view.strip.horizontal),
         };
     }
 
@@ -2340,7 +2290,7 @@ impl TimegrapherApp {
             library_move_ask: None,
             library_moving: None,
             watches_view: watches_view::WatchesView::default(),
-            gutter_fresh: false,
+            panes_view: pane_view::PaneView::default(),
             quick_listen: false,
             keep_after_form: false,
             test_keep: None,
@@ -2373,17 +2323,10 @@ impl TimegrapherApp {
             may_close: false,
             save_dir: home.join("Timegrapher recordings").display().to_string(),
             // As the settings first are.
-            strip: Settings::default().strip,
-            follow: false,
-            rate_line: true,
-            rate_guides: true,
-            overlays: [true, false, false],
-            chart_series: RATE_ONLY,
             dist_series: RATE_ONLY,
             reserve_series: [true; 3],
             positions_series: [true; 3],
             complication_series: [true; 3],
-            charts_drawn: [true; 3],
             pane_need: std::collections::HashMap::new(),
             panes_dragged: std::collections::HashSet::new(),
             panes_short: std::collections::HashSet::new(),
@@ -2409,20 +2352,11 @@ impl TimegrapherApp {
             dist: distributions::DistState::default(),
             dist_readings: None,
             dist_job: None,
-            cursor_t: None,
-            cursor_next: None,
             folded: Default::default(),
             theme: egui::ThemePreference::System,
-            strip_end: None,
             panes: default_layout(true),
             show_readings: true,
             readings_pinned: true,
-            charts_to_live: false,
-            charts_to_live_now: false,
-            charts_fit: true,
-            charts_over: None,
-            charts_follow: false,
-            chart_average_drawn: Default::default(),
             capture: None,
             live: None,
             source_label: String::new(),
@@ -2431,10 +2365,6 @@ impl TimegrapherApp {
             anchor: None,
             reread_with: None,
             opening: false,
-            live_strip: None,
-            strip_fit: false,
-            strip_zoom_s: None,
-            live_fit: false,
             trend: Vec::new(),
             trend_key: (Revision::default(), 10.0f64.to_bits()),
             rev: Revision::default(),
@@ -2560,8 +2490,8 @@ impl TimegrapherApp {
     /// With Fit on, the strip's length is the session so far.
     fn follow_fit(&mut self) {
         if self.strip_fitted() {
-            self.strip_end = None;
-            self.strip.set_span(self.strip_end_s());
+            self.panes_view.strip_end = None;
+            self.panes_view.strip.set_span(self.strip_end_s());
         }
     }
 
@@ -2821,7 +2751,7 @@ impl TimegrapherApp {
                 self.export_button(ui, pane);
             }),
             Pane::Charts => theme::pane_toolbar(ui, title, help::CHARTS, |ui| {
-                steady::series_switches(ui, &mut self.chart_series);
+                steady::series_switches(ui, &mut self.panes_view.chart_series);
                 theme::bar_gap(ui);
                 self.charts_fit_switch(ui);
                 theme::bar_gap(ui);
@@ -3024,7 +2954,7 @@ impl TimegrapherApp {
             });
             return;
         }
-        self.charts_to_live_now = std::mem::take(&mut self.charts_to_live);
+        self.panes_view.charts_to_live_now = std::mem::take(&mut self.panes_view.charts_to_live);
         let mut panes = std::mem::replace(&mut self.panes, Tree::empty("panes-swap"));
         repair_tabs(&mut panes);
         let need = self.pane_need.clone();
@@ -3650,7 +3580,7 @@ impl TimegrapherApp {
     /// with the content in cards.
     fn panels(&mut self, ctx: &egui::Context) {
         self.poll_updates(ctx);
-        if std::mem::take(&mut self.gutter_fresh) {
+        if std::mem::take(&mut self.panes_view.gutter_fresh) {
             theme::reset_time_gutter(ctx);
         }
         crate::pump::timed("charts' readings", || self.take_reads_shown(ctx));

@@ -851,9 +851,9 @@ fn draws_a_synthetic_watch_headless() {
 
     let ctx = themed();
     for horizontal in [false, true] {
-        app.strip.horizontal = horizontal;
+        app.panes_view.strip.horizontal = horizontal;
         app.panes = default_layout(horizontal);
-        app.follow = horizontal;
+        app.panes_view.follow = horizontal;
         for _ in 0..2 {
             let input = egui::RawInput {
                 screen_rect: Some(egui::Rect::from_min_size(
@@ -1145,7 +1145,7 @@ fn a_cards_sparkline_is_its_figure_over_the_last_minute() {
 fn the_scope_says_masked_where_the_profile_does() {
     let mut app = synthetic(30.0, 0.0);
     let end = app.latest_s() - 5.0;
-    app.strip_end = Some(end);
+    app.panes_view.strip_end = Some(end);
     let end = app.strip_end_s();
     app.masked = vec![(end - 15.0, end + 1.0)];
     let at = length_text(end);
@@ -1739,7 +1739,7 @@ fn the_cards_say_listening_until_ten_seconds_are_heard() {
         });
         painted_text(&out)
     };
-    app.strip_end = Some(6.0);
+    app.panes_view.strip_end = Some(6.0);
     let r = app.card_reading().expect("a reading");
     assert_eq!(r.listening, Some(HeardSince::Start), "{r:?}");
     assert_eq!(r.rate_s_per_day, None);
@@ -1751,7 +1751,7 @@ fn the_cards_say_listening_until_ten_seconds_are_heard() {
         "{}",
         listening_text(HeardSince::Start)
     );
-    app.strip_end = Some(25.0);
+    app.panes_view.strip_end = Some(25.0);
     let r = app.card_reading().expect("a reading");
     assert_eq!(r.listening, None);
     assert!(r.rate_s_per_day.is_some(), "{r:?}");
@@ -2234,7 +2234,7 @@ fn an_opened_recording_of_silence_says_no_beats_heard() {
         log,
         timegrapher_core::live::LiveConfig::default(),
     ));
-    app.strip_end = Some(40.0);
+    app.panes_view.strip_end = Some(40.0);
     assert!(!app.running());
     let r = app.card_reading().expect("a reading");
     assert_eq!(r.beats_used, 0, "{r:?}");
@@ -2460,7 +2460,7 @@ fn under_ten_seconds_heard_and_over_says_so_on_every_card() {
         log,
         timegrapher_core::live::LiveConfig::default(),
     ));
-    app.strip_end = None;
+    app.panes_view.strip_end = None;
     assert!(!app.running());
     let r = app.card_reading().expect("a reading");
     assert_eq!(r.listening, Some(HeardSince::Start), "{r:?}");
@@ -2497,7 +2497,7 @@ fn under_ten_seconds_heard_and_over_says_so_on_every_card() {
         )
     );
     // Moved back into it, the take goes on past there: still Listening.
-    app.strip_end = Some(5.0);
+    app.panes_view.strip_end = Some(5.0);
     assert!(cards_text(&app, &ctx).contains("Listening"));
 }
 

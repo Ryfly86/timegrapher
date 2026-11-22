@@ -103,7 +103,10 @@ fn the_charts_and_distributions_draw_the_readings_turned_on() {
     };
     // At first only the rate: no amplitude or beat error plot in
     // either pane.
-    assert_eq!((app.chart_series, app.dist_series), (RATE_ONLY, RATE_ONLY));
+    assert_eq!(
+        (app.panes_view.chart_series, app.dist_series),
+        (RATE_ONLY, RATE_ONLY)
+    );
     let one = draw(&mut app);
     assert!(one.contains("Rate"), "{one}");
     for t in ["From the Unlock", "From Tick"] {
@@ -113,7 +116,7 @@ fn the_charts_and_distributions_draw_the_readings_turned_on() {
     // its switch.
     let named = |text: &str, name: &str| text.lines().filter(|l| *l == name).count();
     // All three turned on.
-    app.chart_series = [true; 3];
+    app.panes_view.chart_series = [true; 3];
     app.dist_series = [true; 3];
     let text = draw(&mut app);
     for t in ["Charts", "Distributions", "s/d"] {
@@ -131,14 +134,14 @@ fn the_charts_and_distributions_draw_the_readings_turned_on() {
     // Rates in s/d, as everywhere else (#815).
     assert!(!text.contains("s/day"), "{text}");
     assert!(!text.contains("Match Strip"), "{text}");
-    app.chart_series = RATE_ONLY;
+    app.panes_view.chart_series = RATE_ONLY;
     // The last one on stays on; another comes on beside it.
-    steady::flip_series(&mut app.chart_series, 0);
-    assert_eq!(app.chart_series, [true, false, false]);
-    steady::flip_series(&mut app.chart_series, 2);
-    assert_eq!(app.chart_series, [true, false, true]);
-    steady::flip_series(&mut app.chart_series, 0);
-    assert_eq!(app.chart_series, [false, false, true]);
+    steady::flip_series(&mut app.panes_view.chart_series, 0);
+    assert_eq!(app.panes_view.chart_series, [true, false, false]);
+    steady::flip_series(&mut app.panes_view.chart_series, 2);
+    assert_eq!(app.panes_view.chart_series, [true, false, true]);
+    steady::flip_series(&mut app.panes_view.chart_series, 0);
+    assert_eq!(app.panes_view.chart_series, [false, false, true]);
 }
 
 /// No two words a Distributions plot draws lie on one another: the first
@@ -374,12 +377,12 @@ fn the_charts_wheel_pans_time_and_a_zoom_zooms_it() {
         assert!(end[0] >= 0.0 && end[end.len() - 1] <= 120.0, "{end:?}");
         assert!((span(&end) - span(&z)).abs() <= 10.0, "{z:?} {end:?}");
         look(&mut app, Vec::new());
-        assert!(!app.charts_fit, "{end:?}");
+        assert!(!app.panes_view.charts_fit, "{end:?}");
     }
     // Zoomed out past the take, it shows the whole session again.
     let out = look(&mut app, vec![egui::Event::Zoom(0.1)]);
     assert_eq!(time_labels(&out), b);
-    assert!(app.charts_fit);
+    assert!(app.panes_view.charts_fit);
     // The pane's one Fit, and no button on any chart (#1063).
     assert!(!out
         .lines()
@@ -440,7 +443,7 @@ fn the_lanes_read_the_pointers_time_on_every_chart() {
     for p in [Pane::Strip, Pane::Sound, Pane::Scope, Pane::Distributions] {
         set_pane_visible(&mut app.panes.tiles, p, false);
     }
-    app.chart_series = [true, true, false];
+    app.panes_view.chart_series = [true, true, false];
     let ctx = themed();
     let pass = |app: &mut TimegrapherApp, events: Vec<egui::Event>| {
         let input = egui::RawInput {
@@ -480,11 +483,11 @@ fn the_lanes_read_the_pointers_time_on_every_chart() {
     };
     assert!(value(" s/d") && value("°"), "{text}");
     assert!(!text.contains("Scroll or drag"), "{text}");
-    assert!(app.charts_over.is_some(), "{text}");
+    assert!(app.panes_view.charts_over.is_some(), "{text}");
     for _ in 0..3 {
         out = pass(&mut app, vec![egui::Event::PointerGone]);
     }
-    assert_eq!(app.charts_over, None);
+    assert_eq!(app.panes_view.charts_over, None);
     // The card's own figures stay; the lane's three amplitudes go.
     let degrees = |t: &str| t.lines().filter(|l| l.ends_with('°')).count();
     let gone = painted_text(&out);
@@ -572,7 +575,7 @@ fn the_charts_panned_to_the_newest_reading_follow_new_ones() {
 #[test]
 fn the_strip_and_the_charts_share_a_fitted_gutter() {
     let mut app = synthetic(120.0, 20.0);
-    app.strip.horizontal = true;
+    app.panes_view.strip.horizontal = true;
     set_pane_visible(&mut app.panes.tiles, Pane::Charts, true);
     set_pane_visible(&mut app.panes.tiles, Pane::Strip, true);
     for p in [Pane::Sound, Pane::Scope, Pane::Distributions] {
@@ -709,8 +712,8 @@ fn a_take_opened_after_a_wide_one_fits_the_gutter_afresh() {
 fn stacked_charts_put_the_takes_start_at_one_place() {
     let mut app = synthetic(60.0, 20.0);
     // The strip across, showing the whole session as the charts do.
-    app.strip.horizontal = true;
-    app.strip_fit = true;
+    app.panes_view.strip.horizontal = true;
+    app.panes_view.strip_fit = true;
     set_pane_visible(&mut app.panes.tiles, Pane::Charts, true);
     set_pane_visible(&mut app.panes.tiles, Pane::Strip, true);
     for p in [Pane::Sound, Pane::Scope, Pane::Distributions] {
@@ -724,7 +727,7 @@ fn stacked_charts_put_the_takes_start_at_one_place() {
         .trend
         .iter()
         .any(|p| p.t < 20.0 && p.amplitude_deg.is_some()));
-    app.chart_series = [true, true, false];
+    app.panes_view.chart_series = [true, true, false];
     let ctx = themed();
     let mut out = None;
     for _ in 0..4 {
@@ -773,8 +776,8 @@ fn stacked_charts_put_the_takes_start_at_one_place() {
 fn readings_over_time_charts_share_one_gutter() {
     // Steadiness reads a take of five minutes or more.
     let mut app = synthetic(310.0, 20.0);
-    app.strip.horizontal = true;
-    app.strip_fit = true;
+    app.panes_view.strip.horizontal = true;
+    app.panes_view.strip_fit = true;
     app.steady_series
         .insert(steady::View::Readings, [true, true, true]);
     for p in [Pane::Strip, Pane::SteadyReadings] {
@@ -831,9 +834,9 @@ fn readings_over_time_charts_share_one_gutter() {
 fn time_panes_under_the_strip_put_a_late_time_at_one_place() {
     for pane in [Pane::Charts, Pane::SteadyReadings] {
         let mut app = synthetic(370.0, 20.0);
-        app.strip.horizontal = true;
-        app.strip_fit = true;
-        app.chart_series = [true, false, false];
+        app.panes_view.strip.horizontal = true;
+        app.panes_view.strip_fit = true;
+        app.panes_view.chart_series = [true, false, false];
         app.steady_series
             .insert(steady::View::Readings, [true, false, false]);
         for p in [Pane::Strip, pane] {
@@ -918,7 +921,7 @@ fn readings_over_time_ends_where_its_clock_does() {
 fn joined_readings_over_time_says_whose_time_it_is() {
     for joined in [false, true] {
         let mut app = synthetic(310.0, 20.0);
-        app.strip.horizontal = true;
+        app.panes_view.strip.horizontal = true;
         app.steady_series
             .insert(steady::View::Readings, [true, false, false]);
         for p in [Pane::Strip, Pane::SteadyReadings] {
@@ -1089,7 +1092,7 @@ fn negative_axis_numbers_carry_a_true_minus() {
 #[test]
 fn the_last_charts_time_labels_stay_inside_the_pane() {
     let mut app = synthetic(300.0, 5.0);
-    app.chart_series = [true; 3];
+    app.panes_view.chart_series = [true; 3];
     let ctx = themed();
     fn bottoms(shape: &egui::Shape, into: &mut Vec<(f32, String)>) {
         match shape {
@@ -1124,7 +1127,7 @@ fn the_last_charts_time_labels_stay_inside_the_pane() {
                 .iter()
                 .for_each(|c| bottoms(&c.shape, &mut texts));
         }
-        assert_eq!(app.charts_drawn, [true; 3], "{w}x{h}");
+        assert_eq!(app.panes_view.charts_drawn, [true; 3], "{w}x{h}");
         let lowest = texts.iter().max_by(|a, b| a.0.total_cmp(&b.0)).unwrap();
         // The lowest text is a time label, and it ends inside the pane.
         assert!(lowest.1.contains(':'), "{w}x{h}: lowest text {lowest:?}");

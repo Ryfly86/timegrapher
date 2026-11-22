@@ -712,8 +712,8 @@ fn the_width_and_length_fields_show_their_units_whole() {
     app.reset_session(48000, "syn".into());
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(1440.0, 700.0));
     for (width, length) in [(888.8, 8888.0), (58.8, 35_999.0)] {
-        app.strip.set_half_width(width);
-        app.strip.set_span(length);
+        app.panes_view.strip.set_half_width(width);
+        app.panes_view.strip.set_span(length);
         let mut out = None;
         for _ in 0..3 {
             let input = egui::RawInput {
@@ -803,7 +803,7 @@ fn the_profiles_toolbar_leaves_the_moment_to_the_strip() {
         theme::tools_drawn_at(&ctx)
     };
     let live = drawn_with(&mut app);
-    app.strip_end = Some(10.0);
+    app.panes_view.strip_end = Some(10.0);
     let drawn = drawn_with(&mut app);
     let moment = app.sound_moment().expect("moved back");
     assert!(
@@ -1429,7 +1429,7 @@ fn the_length_field_holds_eighty_hours_whole() {
     // Fit's length to the latest beat, a second short of the 80 hours:
     // the widest it reads (whole hours read "80 h").
     let longest = StripView::MAX_SPAN_S - 1.0;
-    app.strip.set_span(longest);
+    app.panes_view.strip.set_span(longest);
     let shown = fields::duration(longest);
     assert_eq!(shown, "79:59:59");
     let mut drawn = None;

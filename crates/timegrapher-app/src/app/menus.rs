@@ -180,7 +180,7 @@ impl TimegrapherApp {
             }
             MenuCommand::ResetPanes => {
                 self.show_readings = true;
-                self.panes = default_layout(self.strip.horizontal);
+                self.panes = default_layout(self.panes_view.strip.horizontal);
                 self.panes_dragged.clear();
             }
             MenuCommand::NewWatch => self.open_new_watch_form(),
