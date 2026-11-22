@@ -25,15 +25,21 @@ Version 1.1.0 is the current release.
 
 ## Next: one headline per point release
 
-After the refactor, each point release carries one large feature. These are
-the candidates; their order is being decided, and version numbers follow it.
+After the refactor, each point release carries one large feature, in this
+order:
 
-- [#1862](https://github.com/peterhudson/timegrapher/issues/1862) One bench per microphone, so several watches can be timed at once, each in its own tab.
-- [#2201](https://github.com/peterhudson/timegrapher/issues/2201) Compare two takes of the same watch, for example before and after a service or a mainspring change.
-- [#1866](https://github.com/peterhudson/timegrapher/issues/1866) A watch report as a PDF, with the workshop's own name and logo.
-- A multi-day series in the style of chronometer certification.
-- [#1513](https://github.com/peterhudson/timegrapher/issues/1513) Translations, first wave of six languages (best last, once the wording is settled).
+| Release | Headline |
+|---|---|
+| 1.2 | [#1862](https://github.com/peterhudson/timegrapher/issues/1862) One bench per microphone, so several watches can be timed at once, each in its own tab. |
+| 1.3 | [#1866](https://github.com/peterhudson/timegrapher/issues/1866) A watch report as a PDF, with the workshop's own name and logo. |
+| 1.4 | [#2201](https://github.com/peterhudson/timegrapher/issues/2201) Compare two takes of the same watch, for example before and after a service or a mainspring change. |
+| 1.5 | [#1513](https://github.com/peterhudson/timegrapher/issues/1513) Translations, first wave of six languages. |
+
+Later, in this order, with no version yet:
+
+- [#2202](https://github.com/peterhudson/timegrapher/issues/2202) A multi-day series in the style of chronometer certification.
 - [#739](https://github.com/peterhudson/timegrapher/issues/739) Temperature logging alongside a take (waits for the probe hardware).
+- [#2203](https://github.com/peterhudson/timegrapher/issues/2203) Lift angle measured from slow-motion video.
 
 Every point release also carries smaller work:
 
@@ -58,7 +64,6 @@ scheduled: the design usually needs deciding first.
 
 - [#1515](https://github.com/peterhudson/timegrapher/issues/1515) Extend a saved take instead of only replaying it.
 - A Positions Test at a third of the power reserve.
-- Lift angle measured from slow-motion video.
 - A motorised stand, or a stand that reports its own angle.
 - [#401](https://github.com/peterhudson/timegrapher/issues/401), [#402](https://github.com/peterhudson/timegrapher/issues/402) A public calibre table website and download.
 
