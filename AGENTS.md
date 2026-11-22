@@ -1,7 +1,7 @@
 # Project standards for outside agents
 
-This file is for any coding agent that works on this repository from outside the
-maintainer's own team, such as a Codex task. It sets out how the project works,
+This file is for any coding agent from outside the maintainer's own team: the
+project's own Codex agent, or an agent working for an outside contributor. It sets out how the project works,
 what a pull request must contain, and how review happens. Codex reads this file
 on its own; other agents should read it before starting.
 
@@ -16,7 +16,13 @@ The full guides are in the repository, and they win over this summary:
 
 ## How work reaches you, and how review works
 
-- **Issues labelled `for Astra` are yours to pick up.** Work only on open issues
+- **If you are working for an outside contributor,** pick only open issues labelled
+  `agent-ready`, and only one your contributor has claimed and been assigned, as
+  `CONTRIBUTING.md` says under "Picking up an issue". Add an `Assisted-by: <tool>`
+  line to the PR body, naming the tool only, with no model or version. For a bug fix,
+  add the origin line too: "Introduced by #N", "Latent" or "Design gap".
+  The rest of this file applies to you in full, apart from the `for Astra` rule below.
+- **Issues labelled `for Astra` are yours to pick up** if you are the project's own Codex agent. Work only on open issues
   with that label. Skip one that already has an open PR that names it (`Closes #N`
   or `Part of #N`), and skip one whose newest comment says to wait. The label is
   added only once an issue has a scope comment and no collision with other work;
