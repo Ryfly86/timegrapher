@@ -186,7 +186,7 @@ impl TimegrapherApp {
                 let w = ui.available_width();
                 self.level_control(ui, w);
             });
-            if self.agc_read.is_some() {
+            if self.meter.agc_read.is_some() {
                 sheet_field(ui, "Automatic Gain", AGC_HINT, |ui| {
                     ui.horizontal_top(|ui| {
                         self.agc_control(ui);
@@ -313,7 +313,7 @@ impl TimegrapherApp {
         let pal = theme::pal(ui);
         let failure = match &self.message {
             Some((m, true)) => Some(m.clone()),
-            _ => self.gain_error.clone(),
+            _ => self.meter.gain_error.clone(),
         };
         let listening = self.running() && self.session.mic();
         let w = ui.available_width();

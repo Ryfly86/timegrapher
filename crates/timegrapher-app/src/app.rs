@@ -38,7 +38,7 @@ use timegrapher_core::library;
 use timegrapher_core::library::{length_text, size_text};
 use timegrapher_core::live::{profile_span_s, LiveAnalyzer, LiveConfig, LiveReading, AVERAGES};
 use timegrapher_core::measure::Caveat;
-use timegrapher_core::mixer::{self, GainState, InputGain};
+use timegrapher_core::mixer::{self, InputGain};
 use timegrapher_core::periodicity::Wheel;
 use timegrapher_core::power_reserve;
 use timegrapher_core::profile::TickProfile;
@@ -56,6 +56,7 @@ use new_take::{NewTake, NEW_TAKES};
 mod dialogs;
 mod distributions;
 mod dock;
+mod input_meter;
 mod kept_analysis;
 mod unsaved;
 use unsaved::{kept_sounds, move_kept, KeptSound};
@@ -1720,9 +1721,6 @@ pub struct TimegrapherApp {
     after_save_command: String,
     /// The inputs whose automatic gain is left on (Settings > Microphone).
     agc_on: Vec<String>,
-    /// The selected input's automatic gain switch as last read back, when
-    /// it has one.
-    agc_read: Option<bool>,
     /// The microphone has been set up, or opened once.
     mic_set_up: bool,
     /// Not Now was pressed on Set Up the Microphone: it doesn't come back
@@ -1997,23 +1995,14 @@ pub struct TimegrapherApp {
     whole_job: std::cell::RefCell<Option<take_reads::Job<WholeKey, Option<WholeTake>>>>,
     /// The charts' run and a long take's run being read in the background.
     bg: take_reads::Background,
-    level: Level,
-    level_at: Instant,
-    /// When the input last clipped.
-    clipped_at: Option<Instant>,
-    /// The selected input's level control, and its state when last read.
-    gain: Option<InputGain>,
-    gain_state: Option<GainState>,
-    gain_read_at: Instant,
-    /// The device the level control was read for.
-    gain_device: Option<String>,
+    /// The input's level meter, level control and automatic gain switch.
+    meter: input_meter::InputMeter,
     /// The stored clock error of the input this session listens to, if one
     /// was measured (`timegrapher clock measure --save`).
     clock: Option<clockstore::DeviceClock>,
     /// The microphone's clock timed against the computer's as its audio
     /// arrives: offered to keep once it has run long enough.
     clock_track: Option<ClockTrack>,
-    gain_error: Option<String>,
     message: Option<(String, bool)>,
     /// A pane being saved as a picture, and the folder the last one went to.
     export: Option<PaneExport>,
@@ -2501,18 +2490,10 @@ impl TimegrapherApp {
             free_job: Default::default(),
             whole_job: Default::default(),
             bg: Default::default(),
-            level: Level::default(),
-            level_at: Instant::now(),
-            clipped_at: None,
-            gain: None,
-            gain_state: None,
-            gain_read_at: Instant::now(),
-            gain_device: None,
+            meter: input_meter::InputMeter::default(),
             clock: None,
             clock_track: None,
-            gain_error: None,
             agc_on: Vec::new(),
-            agc_read: None,
             message: None,
             export: None,
             export_dir: None,
