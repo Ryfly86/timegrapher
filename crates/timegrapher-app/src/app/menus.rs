@@ -96,14 +96,14 @@ impl TimegrapherApp {
                 ui.add_space(6.0);
                 ui.separator();
             }
-            let mut view = self.view;
+            let mut view = self.watches_view.view;
             theme::segmented(ui, &mut view, &VIEWS);
-            self.view = view;
+            self.watches_view.view = view;
             ui.add_space(6.0);
             ui.separator();
             // The pane icons are the Bench's: in Watches they hide and
             // leave their room, so the gear stays where it is.
-            self.pane_icons(ui, self.view == View::Bench);
+            self.pane_icons(ui, self.watches_view.view == View::Bench);
         });
     }
 
@@ -122,7 +122,7 @@ impl TimegrapherApp {
             MenuCommand::Readings
             | MenuCommand::CompactReadings
             | MenuCommand::Pane(_)
-            | MenuCommand::ResetPanes => self.view == View::Bench,
+            | MenuCommand::ResetPanes => self.watches_view.view == View::Bench,
             _ => true,
         }
     }
@@ -130,7 +130,7 @@ impl TimegrapherApp {
     /// Whether `c`'s item is ticked: the view on show, and what is shown.
     pub(super) fn menu_checked(&self, c: MenuCommand) -> bool {
         match c {
-            MenuCommand::View(v) => self.view == v,
+            MenuCommand::View(v) => self.watches_view.view == v,
             MenuCommand::Readings => self.show_readings,
             MenuCommand::CompactReadings => !self.readings_pinned,
             MenuCommand::Pane(p) => pane_visible(&self.panes.tiles, p),
@@ -171,7 +171,7 @@ impl TimegrapherApp {
             MenuCommand::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             MenuCommand::RemoveMasks => self.remove_masks_asked = true,
             MenuCommand::Settings => self.open_settings(self.settings_last),
-            MenuCommand::View(v) => self.view = v,
+            MenuCommand::View(v) => self.watches_view.view = v,
             MenuCommand::Readings => self.show_readings = !self.show_readings,
             MenuCommand::CompactReadings => self.readings_pinned = !self.readings_pinned,
             MenuCommand::Pane(p) => {
@@ -237,11 +237,14 @@ impl TimegrapherApp {
 
     /// The Watches view's list, its search field ready to type in.
     pub(super) fn find_in_watches(&mut self) {
-        self.view = View::Watches;
+        self.watches_view.view = View::Watches;
         if !self.list_shown() {
-            self.list_for = Some((self.watch_open.clone(), self.unsorted_open));
+            self.watches_view.list_for = Some((
+                self.watches_view.watch_open.clone(),
+                self.watches_view.unsorted_open,
+            ));
         }
-        self.watch_search_focus = true;
+        self.watches_view.watch_search_focus = true;
     }
 
     fn file_menu(&mut self, ui: &mut egui::Ui) {
@@ -505,6 +508,7 @@ impl TimegrapherApp {
             },
         };
         let watch = self
+            .watches_view
             .watch_open
             .clone()
             .filter(|id| l.watches.iter().any(|e| &e.watch.id == id));

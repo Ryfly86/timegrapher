@@ -25,7 +25,7 @@ fn the_watches_view_puts_the_list_beside_the_watch_when_wide() {
     for name in ["Rolex", "Pepsi"] {
         let mut w = library::Watch::new(name);
         w.notes = Some(String::new());
-        app.watch_form = Some(watches::Form {
+        app.watches_view.watch_form = Some(watches::Form {
             watch: w,
             new: true,
             error: None,
@@ -117,7 +117,7 @@ fn the_watches_view_is_the_watches_content_in_the_whole_window() {
     app.use_library(Some(base.join("Timegrapher Data")));
     let mut w = library::Watch::new("Pepsi");
     w.notes = Some(String::new());
-    app.watch_form = Some(watches::Form {
+    app.watches_view.watch_form = Some(watches::Form {
         watch: w,
         new: true,
         error: None,
@@ -136,7 +136,7 @@ fn the_watches_view_is_the_watches_content_in_the_whole_window() {
     };
     for listed in [false, true] {
         if listed {
-            app.list_for = Some((app.watch_open.clone(), false));
+            app.watches_view.list_for = Some((app.watches_view.watch_open.clone(), false));
         }
         let mut content = String::new();
         for _ in 0..3 {
@@ -153,7 +153,7 @@ fn the_watches_view_is_the_watches_content_in_the_whole_window() {
                 egui::CentralPanel::default().show(ctx, |ui| app.status_bar(ui));
             }));
         }
-        app.view = View::Watches;
+        app.watches_view.view = View::Watches;
         let mut window = String::new();
         for _ in 0..3 {
             window = painted_text(&ctx.run(wide(), |ctx| app.panels(ctx)));
@@ -174,8 +174,8 @@ fn the_watches_view_is_the_watches_content_in_the_whole_window() {
         assert!(added.is_empty(), "added {added:?}");
         assert!(!window.contains("Analysis"), "pane icons shown");
         assert!(!window.contains("Average Over"), "cards shown");
-        assert_eq!(app.view, View::Watches, "the view stays put");
-        app.view = View::Bench;
+        assert_eq!(app.watches_view.view, View::Watches, "the view stays put");
+        app.watches_view.view = View::Bench;
     }
     drop(app);
     let _ = std::fs::remove_dir_all(&base);
@@ -189,24 +189,27 @@ fn find_in_watches_readies_the_search_and_open_goes_to_the_bench() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     let ctx = themed();
     let _ = ctx.run(screen(), |ctx| app.panels(ctx));
-    app.watch_search = "Pepsi".into();
+    app.watches_view.watch_search = "Pepsi".into();
     app.find_in_watches();
-    assert_eq!(app.view, View::Watches);
+    assert_eq!(app.watches_view.view, View::Watches);
     assert!(app.list_shown());
     for _ in 0..2 {
         let _ = ctx.run(screen(), |ctx| app.panels(ctx));
     }
-    assert!(!app.watch_search_focus);
+    assert!(!app.watches_view.watch_search_focus);
     assert!(ctx.wants_keyboard_input(), "search field focused");
     let typed = egui::RawInput {
         events: vec![egui::Event::Text("S".into())],
         ..screen()
     };
     let _ = ctx.run(typed, |ctx| app.panels(ctx));
-    assert_eq!(app.watch_search, "S", "the old search was selected");
+    assert_eq!(
+        app.watches_view.watch_search, "S",
+        "the old search was selected"
+    );
     let missing = std::env::temp_dir().join("tg-app-no-such-take");
     app.take_action(Some(watches::TakeAction::Open(missing)));
-    assert_eq!(app.view, View::Bench);
+    assert_eq!(app.watches_view.view, View::Bench);
 }
 
 /// A library in a folder of its own holding these watches, the first
@@ -221,7 +224,7 @@ fn line_app(tag: &str, names: &[&str], calibre: Option<&str>) -> (TimegrapherApp
         if i == 0 {
             w.calibre = calibre.map(str::to_string);
         }
-        app.watch_form = Some(watches::Form {
+        app.watches_view.watch_form = Some(watches::Form {
             watch: w,
             new: true,
             error: None,
@@ -261,13 +264,13 @@ fn a_watch_picked_over_a_quick_listen_asks_then_stops() {
     let (mut app, base) = line_app("list-pick", &["Pepsi"], None);
     let pepsi = watch_id(&app, "Pepsi");
     app.list_pick(pepsi.clone());
-    assert_eq!(app.watch_open.as_deref(), Some(pepsi.as_str()));
+    assert_eq!(app.watches_view.watch_open.as_deref(), Some(pepsi.as_str()));
     app.pick_unsorted();
     app.confirmed(
         Confirm::PickWatch(Some(pepsi.clone())),
         &egui::Context::default(),
     );
-    assert_eq!(app.watch_open.as_deref(), Some(pepsi.as_str()));
+    assert_eq!(app.watches_view.watch_open.as_deref(), Some(pepsi.as_str()));
     let _ = std::fs::remove_dir_all(base);
 }
 
@@ -276,7 +279,7 @@ fn a_watch_picked_over_a_quick_listen_asks_then_stops() {
 #[test]
 fn list_shows_is_kept_between_runs() {
     let (mut app, base) = line_app("list-shows", &["Pepsi"], None);
-    app.watch_list_shows = Some("Customer".into());
+    app.watches_view.watch_list_shows = Some("Customer".into());
     assert_eq!(app.list_shows(), None, "no watch has Customer");
     if let Ok(Some(l)) = &mut app.library {
         l.watches[0].watch.fields.push(library::Field {
@@ -288,7 +291,10 @@ fn list_shows_is_kept_between_runs() {
     assert_eq!(app.list_shows(), Some("Customer"));
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.apply_settings(app.settings());
-    assert_eq!(again.watch_list_shows.as_deref(), Some("Customer"));
+    assert_eq!(
+        again.watches_view.watch_list_shows.as_deref(),
+        Some("Customer")
+    );
     let _ = std::fs::remove_dir_all(base);
 }
 
@@ -628,7 +634,7 @@ fn the_gear_stays_where_it_is_in_the_watches_view() {
         (right, text)
     };
     let (bench, shown) = bar(&mut app);
-    app.view = View::Watches;
+    app.watches_view.view = View::Watches;
     let (watches, hidden) = bar(&mut app);
     assert_eq!(bench, watches);
     assert!(shown.contains("Analysis") && !hidden.contains("Analysis"));
@@ -684,7 +690,7 @@ fn a_take_of_a_watch_asks_about_quick_listens_sound() {
     app.pick_watch(&pepsi);
     assert!(app.quick_unsaved(), "picking keeps the readings on show");
     // New Watch… then Add Watch picks the watch it adds.
-    app.watch_form = Some(watches::Form {
+    app.watches_view.watch_form = Some(watches::Form {
         watch: library::Watch::new("Speedy"),
         new: true,
         error: None,
@@ -972,7 +978,7 @@ fn the_watch_form_takes_lift_and_beat_rate_from_the_calibre_or_from_you() {
     let mut w = library::Watch::new("Diver");
     w.calibre = Some(c.calibre.clone());
     w.lift = Some(55.0);
-    app.watch_form = Some(watches::Form {
+    app.watches_view.watch_form = Some(watches::Form {
         watch: w,
         new: true,
         error: None,
@@ -982,11 +988,11 @@ fn the_watch_form_takes_lift_and_beat_rate_from_the_calibre_or_from_you() {
     assert!(d.contains(&from), "{d}");
     assert!(d.contains(&format!("{bph} bph from the calibre")), "{d}");
     assert!(!d.contains("Clear"), "{d}");
-    let w = &app.watch_form.as_ref().unwrap().watch;
+    let w = &app.watches_view.watch_form.as_ref().unwrap().watch;
     assert_eq!((w.lift, w.bph), (Some(lift), Some(bph)), "the calibre's");
 
     let mut bare = library::Watch::new("Pepsi");
-    app.watch_form = Some(watches::Form {
+    app.watches_view.watch_form = Some(watches::Form {
         watch: bare.clone(),
         new: true,
         error: None,
@@ -994,7 +1000,7 @@ fn the_watch_form_takes_lift_and_beat_rate_from_the_calibre_or_from_you() {
     let d = drawn(&mut app);
     assert!(d.contains("52°") && d.contains("(default)"), "{d}");
     bare.lift = Some(48.0);
-    app.watch_form = Some(watches::Form {
+    app.watches_view.watch_form = Some(watches::Form {
         watch: bare,
         new: true,
         error: None,
@@ -1239,14 +1245,14 @@ fn a_take_is_recording_only_while_its_microphone_runs() {
     let ctx = egui::Context::default();
     assert_eq!(app.take_writing(), Some(dir.clone()));
     app.want_take_readings(&e, &ctx);
-    assert_eq!(app.take_readings.of(&dir), None);
+    assert_eq!(app.watches_view.take_readings.of(&dir), None);
 
     app.stop();
     assert!(app.session.paused());
     assert_eq!(app.take_held(), Some(dir.clone()));
     assert_eq!(app.take_writing(), None);
     app.want_take_readings(&e, &ctx);
-    assert!(app.take_readings.of(&dir).is_some());
+    assert!(app.watches_view.take_readings.of(&dir).is_some());
     app.session.discard_recording();
     let _ = std::fs::remove_dir_all(base);
 }

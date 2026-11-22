@@ -167,7 +167,7 @@ impl super::TimegrapherApp {
     /// to 10 ([`super::App::change_position`]).
     pub(super) fn position_keys(&mut self, ctx: &egui::Context) {
         let dialog = ctx.memory(|m| m.top_modal_layer().is_some());
-        if self.view != super::View::Bench || ctx.wants_keyboard_input() || dialog {
+        if self.watches_view.view != super::View::Bench || ctx.wants_keyboard_input() || dialog {
             return;
         }
         let pressed = ctx.input(|i| {

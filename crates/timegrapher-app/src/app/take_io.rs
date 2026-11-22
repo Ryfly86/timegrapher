@@ -1631,8 +1631,8 @@ impl TimegrapherApp {
             // Not one of a watch's takes, so no watch stays picked: the
             // bar, the cards and Watches say so alike, and the next
             // Listen is a Quick Listen (Hugh).
-            self.watch_open = None;
-            self.unsorted_open = false;
+            self.watches_view.watch_open = None;
+            self.watches_view.unsorted_open = false;
             self.mic_setup = Some(WatchSetup::default());
         }
         self.start_batch(path);

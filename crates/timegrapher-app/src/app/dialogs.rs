@@ -366,7 +366,7 @@ impl TimegrapherApp {
         let Some(kind) = self.test_keep else {
             return;
         };
-        if self.watch_form.is_some() || self.confirm.is_some() {
+        if self.watches_view.watch_form.is_some() || self.confirm.is_some() {
             return;
         }
         let watches: Vec<(String, String)> = match &self.library {
@@ -450,13 +450,13 @@ impl TimegrapherApp {
         match (kind, watch) {
             (TestKeep::Positions, Some(id)) => self.keep_in_watch(id),
             (TestKeep::Positions, None) => {
-                self.watch_open = None;
-                self.unsorted_open = true;
+                self.watches_view.watch_open = None;
+                self.watches_view.unsorted_open = true;
                 self.save_again();
             }
             (TestKeep::PowerReserve, watch) => {
-                self.watch_open = watch.map(str::to_string);
-                self.unsorted_open = watch.is_none();
+                self.watches_view.watch_open = watch.map(str::to_string);
+                self.watches_view.unsorted_open = watch.is_none();
                 // The take is named for the watch it goes into.
                 if let Some(e) = self.open_watch() {
                     self.watch = e.watch.name.clone();
@@ -578,8 +578,8 @@ impl TimegrapherApp {
         match self.add_opened(&a, need) {
             Ok((take, id, fill_error)) => {
                 self.keep_back = None;
-                self.watch_open = Some(id);
-                self.unsorted_open = false;
+                self.watches_view.watch_open = Some(id);
+                self.watches_view.unsorted_open = false;
                 match fill_error {
                     Some(e) => self.error(e),
                     None => self.info_msg(format!(

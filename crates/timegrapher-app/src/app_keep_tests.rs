@@ -51,7 +51,7 @@ fn the_watches_pane_adds_a_watch_and_saves_its_takes_into_it() {
     w.lift = Some(53.0);
     w.bph = Some(28800);
     w.notes = Some(String::new());
-    app.watch_form = Some(watches::Form {
+    app.watches_view.watch_form = Some(watches::Form {
         watch: w,
         new: true,
         error: None,
@@ -66,7 +66,7 @@ fn the_watches_pane_adds_a_watch_and_saves_its_takes_into_it() {
     // a_recording_on_show_is_kept_in_a_new_watch_with_its_charts.)
     app.new_session();
     app.save_watch_form();
-    assert!(app.watch_form.is_none());
+    assert!(app.watches_view.watch_form.is_none());
     assert!(library::Library::is_library(&root));
     assert_eq!(
         (app.watch.as_str(), app.lift_deg, app.bph),
@@ -124,16 +124,20 @@ fn the_watches_pane_adds_a_watch_and_saves_its_takes_into_it() {
     assert_eq!(std::fs::read_dir(&takes).unwrap().count(), 1);
 
     // The list says so; a name already in use is refused.
-    app.watch_open = None;
+    app.watches_view.watch_open = None;
     let drawn = pane(&ctx, &mut app);
     assert!(drawn.contains("1 take"), "{drawn}");
-    app.watch_form = Some(watches::Form {
+    app.watches_view.watch_form = Some(watches::Form {
         watch: library::Watch::new("pepsi"),
         new: true,
         error: None,
     });
     app.save_watch_form();
-    let refused = app.watch_form.as_ref().and_then(|f| f.error.clone());
+    let refused = app
+        .watches_view
+        .watch_form
+        .as_ref()
+        .and_then(|f| f.error.clone());
     assert!(refused.is_some_and(|e| e.contains("already")));
     drop(app);
     let _ = std::fs::remove_dir_all(&base);
@@ -147,12 +151,13 @@ fn a_take_being_read_for_the_list_waits_to_be_moved() {
     let app = TimegrapherApp::with_devices(Vec::new(), None);
     let take = std::env::temp_dir().join("Takes").join("2026-10-20 14.32");
     assert_eq!(app.take_busy(&take, false), None);
-    app.take_readings.set_now(Some(take.clone()));
+    app.watches_view.take_readings.set_now(Some(take.clone()));
     for keep in [false, true] {
         let why = app.take_busy(&take, keep).unwrap();
         assert!(why.contains("being read for the Watches list"), "{why}");
     }
-    app.take_readings
+    app.watches_view
+        .take_readings
         .set_now(Some(take.with_file_name("another")));
     assert_eq!(app.take_busy(&take, false), None);
 }
@@ -208,10 +213,10 @@ fn a_takes_row_shows_its_own_reading_from_core() {
         format!("{:?}", out.shapes)
     };
     pane(&mut app);
-    app.take_readings.wait();
+    app.watches_view.take_readings.wait();
     let drawn = pane(&mut app);
     let want = library::reading(&take).unwrap();
-    assert_eq!(app.take_readings.reading(&take), Some(&want));
+    assert_eq!(app.watches_view.take_readings.reading(&take), Some(&want));
     let t = app.open_watch().unwrap().takes[0].clone();
     let cells = watches::take_cells(&t, None, Some(&want));
     for c in &cells[3..6] {
@@ -225,10 +230,12 @@ fn a_takes_row_shows_its_own_reading_from_core() {
     let report = take.join(timegrapher_core::take::REPORT_DIR);
     std::fs::create_dir_all(&report).unwrap();
     std::fs::write(report.join("summary.json"), "{}").unwrap();
-    app.take_readings.want(&take, t.bytes + 2, &ctx);
-    assert_eq!(app.take_readings.reading(&take), Some(&want));
-    app.take_readings.wait();
-    assert_eq!(app.take_readings.reading(&take), Some(&want));
+    app.watches_view
+        .take_readings
+        .want(&take, t.bytes + 2, &ctx);
+    assert_eq!(app.watches_view.take_readings.reading(&take), Some(&want));
+    app.watches_view.take_readings.wait();
+    assert_eq!(app.watches_view.take_readings.reading(&take), Some(&want));
     drop(app);
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -272,10 +279,16 @@ fn a_watchs_photos_show_as_thumbnails_and_one_can_be_deleted() {
     pane(&ctx, &mut app);
     app.pick_watch(&id);
     let ready = |app: &mut TimegrapherApp, p: &Path| {
-        matches!(app.thumbs.get(&ctx, p), photos::Thumb::Ready(_))
+        matches!(
+            app.watches_view.thumbs.get(&ctx, p),
+            photos::Thumb::Ready(_)
+        )
     };
     let failed = |app: &mut TimegrapherApp, p: &Path| {
-        matches!(app.thumbs.get(&ctx, p), photos::Thumb::Failed(_))
+        matches!(
+            app.watches_view.thumbs.get(&ctx, p),
+            photos::Thumb::Failed(_)
+        )
     };
     for _ in 0..200 {
         pane(&ctx, &mut app);
@@ -289,11 +302,11 @@ fn a_watchs_photos_show_as_thumbnails_and_one_can_be_deleted() {
     for t in ["Add Photos…", "broken.jpg", "Can't be shown"] {
         assert!(drawn.contains(t), "{t}: {drawn}");
     }
-    app.take_ask = Some(watches::Ask::DeletePhoto { photo: bad.clone() });
+    app.watches_view.take_ask = Some(watches::Ask::DeletePhoto { photo: bad.clone() });
     pane(&ctx, &mut app);
     let asked = pane(&ctx, &mut app);
     assert!(asked.contains("Delete \\\"broken.jpg\\\"?"), "{asked}");
-    let ask = app.take_ask.take().unwrap();
+    let ask = app.watches_view.take_ask.take().unwrap();
     app.answer_take_ask(ask);
     assert!(!bad.exists() && good.exists());
     assert_eq!(app.open_watch().unwrap().photos, [good]);
@@ -488,7 +501,7 @@ fn keeping_a_recording_asks_only_what_is_not_on_show() {
     }
     // The watch shows while asked; Esc (as Cancel) puts back what was
     // picked before, here no watch.
-    assert_eq!(app.watch_open.as_deref(), Some(pepsi.as_str()));
+    assert_eq!(app.watches_view.watch_open.as_deref(), Some(pepsi.as_str()));
     let esc = egui::RawInput {
         events: vec![egui::Event::Key {
             key: egui::Key::Escape,
@@ -501,7 +514,7 @@ fn keeping_a_recording_asks_only_what_is_not_on_show() {
     };
     let _ = ctx.run(esc, |ctx| app.open_ask_dialog(ctx));
     assert!(app.open_ask.is_none());
-    assert_eq!(app.watch_open, None);
+    assert_eq!(app.watches_view.watch_open, None);
     app.keep_into(&pepsi);
     let mut a = app.open_ask.take().expect("asked when it started");
     a.started.clear();
@@ -559,15 +572,19 @@ fn one_part_of_a_take_is_kept_alone() {
     // Alone in its folder, the take goes in whole.
     app.keep_into(&pepsi);
     assert!(
-        matches!(&app.take_ask, Some(watches::Ask::Add { from, .. }) if *from == take),
+        matches!(&app.watches_view.take_ask, Some(watches::Ask::Add { from, .. }) if *from == take),
         "{:?}",
-        app.take_ask
+        app.watches_view.take_ask
     );
-    app.take_ask = None;
+    app.watches_view.take_ask = None;
     // One of two: it goes in alone, asked as a recording.
     part(2);
     app.keep_into(&pepsi);
-    assert!(app.take_ask.is_none(), "{:?}", app.take_ask);
+    assert!(
+        app.watches_view.take_ask.is_none(),
+        "{:?}",
+        app.watches_view.take_ask
+    );
     let shown = app.open_ask.as_ref().map(|a| a.path.clone());
     assert!(shown.is_none() || shown == Some(first.clone()), "{shown:?}");
     let _ = std::fs::remove_dir_all(&base);
@@ -602,12 +619,12 @@ fn a_recording_on_show_is_kept_in_a_new_watch_with_its_charts() {
 
     // Keep in a Watch… > New Watch…, filled in, then Done.
     app.keep_in_new_watch();
-    let f = app.watch_form.as_mut().unwrap();
+    let f = app.watches_view.watch_form.as_mut().unwrap();
     f.watch.name = "Meteorite".into();
     f.watch.bph = Some(21600);
     f.watch.lift = Some(50.0);
     app.save_watch_form();
-    assert!(app.watch_form.is_none() && !app.keep_after_form);
+    assert!(app.watches_view.watch_form.is_none() && !app.keep_after_form);
     // The readings on show keep the settings they were measured with.
     assert_eq!(
         (app.trend.len(), app.bph, app.lift_deg, app.watch.clone()),
@@ -710,12 +727,17 @@ fn quick_listen_keeps_its_take_in_unsorted_until_filed() {
     record(&mut app, &base.join("unsaved-1"));
     assert!(!app.quick_listen_ready(false));
     assert!(matches!(app.confirm, Some(Confirm::QuickListen)));
-    assert!(!app.quick_listen && app.watch_open.is_some(), "nothing yet");
+    assert!(
+        !app.quick_listen && app.watches_view.watch_open.is_some(),
+        "nothing yet"
+    );
     // Answered (no input is opened here: the test touches no device).
     app.confirm = None;
     assert!(app.quick_listen_ready(true));
     assert!(app.session.recorder.is_none(), "the unsaved session went");
-    assert!(app.quick_listen && app.unsorted_open && app.watch_open.is_none());
+    assert!(
+        app.quick_listen && app.watches_view.unsorted_open && app.watches_view.watch_open.is_none()
+    );
     assert_eq!(app.watch, "");
     assert!(!app.running());
     // The list, Unsorted Takes marked; its row shows its takes.
@@ -724,7 +746,7 @@ fn quick_listen_keeps_its_take_in_unsorted_until_filed() {
     for t in ["Unsorted Takes", "Quick Listen, no watch", "Pepsi"] {
         assert!(drawn.contains(t), "{t}: {drawn}");
     }
-    app.list_for = None;
+    app.watches_view.list_for = None;
     let drawn = pane(&ctx, &mut app);
     for t in ["Unsorted Takes", "No takes here", "Takes"] {
         assert!(drawn.contains(t), "{t}: {drawn}");
@@ -762,17 +784,17 @@ fn quick_listen_keeps_its_take_in_unsorted_until_filed() {
     assert!(drawn.contains(&row), "{row}: {drawn}");
 
     // The list shows Unsorted at its top, with Quick Listen.
-    app.unsorted_open = false;
+    app.watches_view.unsorted_open = false;
     let drawn = pane(&ctx, &mut app);
     for t in ["Unsorted Takes", "Quick Listen, no watch · 1 take", "Pepsi"] {
         assert!(drawn.contains(t), "{t}: {drawn}");
     }
-    app.unsorted_open = true;
+    app.watches_view.unsorted_open = true;
     let e = app.open_group().unwrap();
     assert!(e.watch.id.is_empty() && e.takes.len() == 1);
 
     // Filed under Pepsi while stopped: Save Again follows it there.
-    app.take_readings.wait();
+    app.watches_view.take_readings.wait();
     app.move_take(&saved[0], &pepsi);
     let filed = root.join("Pepsi").join(library::TAKES).join(&name);
     assert!(filed.join(MANIFEST).is_file() && !saved[0].exists());
@@ -801,20 +823,20 @@ fn quick_listen_keeps_its_take_in_unsorted_until_filed() {
     assert_eq!(app.session.saved_to(), None);
 
     // Unsorted Takes shows its takes at once, not a list left over.
-    app.list_for = Some((None, true));
+    app.watches_view.list_for = Some((None, true));
     app.pick_unsorted();
     assert!(!app.list_shown());
 
     // Picking a watch ends Quick Listen: Save… saves into the watch.
-    app.list_for = Some((None, true));
+    app.watches_view.list_for = Some((None, true));
     app.pick_watch(&pepsi);
-    assert!(!app.quick_listen && !app.unsorted_open);
-    assert!(app.list_for.is_none());
+    assert!(!app.quick_listen && !app.watches_view.unsorted_open);
+    assert!(app.watches_view.list_for.is_none());
     assert_eq!(
         app.watch_takes_dir(),
         Some(root.join("Pepsi").join(library::TAKES))
     );
-    app.watch_open = None;
+    app.watches_view.watch_open = None;
     assert_eq!(app.watch_takes_dir(), None, "no watch: Save… asks where");
     drop(app);
     let _ = std::fs::remove_dir_all(&base);
@@ -872,7 +894,7 @@ fn a_watchs_take_is_kept_at_stop_and_quick_listen_is_kept_in_a_watch() {
     app.keep_in_watch(&pepsi);
     app.wait_for_save();
     assert_eq!(count(), 2);
-    assert!(!app.quick_listen && app.watch_open.as_deref() == Some(pepsi.as_str()));
+    assert!(!app.quick_listen && app.watches_view.watch_open.as_deref() == Some(pepsi.as_str()));
     assert_eq!(app.watch, "Pepsi");
     assert!(!app.needs_save_confirmation());
     drop(app);
@@ -1024,7 +1046,7 @@ fn a_watchs_takes_are_kept_moved_deleted_and_added() {
     app.pick_watch(&pepsi_id);
 
     // Keep Analysis Only: the sound goes only once the analysis is in place.
-    app.take_readings.wait();
+    app.watches_view.take_readings.wait();
     app.start_take_keep(take.clone());
     assert!(app.take_busy(&take, false).is_some());
     let t = Instant::now();
@@ -1070,14 +1092,17 @@ fn a_watchs_takes_are_kept_moved_deleted_and_added() {
     let name = file_name(&take);
 
     // Moved to Daytona, then deleted there.
-    app.take_readings.wait();
+    app.watches_view.take_readings.wait();
     app.move_take(&take, &daytona_id);
     let d = root.join("Daytona").join(library::TAKES).join(&name);
     assert!(d.is_dir() && !take.exists());
     assert_eq!(Path::new(&app.opened_path), d);
     // On show, it is Daytona's now: the Bench's card and the status line
     // name it (#1280).
-    assert_eq!(app.watch_open.as_deref(), Some(daytona_id.as_str()));
+    assert_eq!(
+        app.watches_view.watch_open.as_deref(),
+        Some(daytona_id.as_str())
+    );
     assert_eq!(app.watch, "Daytona");
     assert!(
         app.status_words().contains("· Daytona ·"),
@@ -1177,12 +1202,12 @@ fn the_take_on_show_filed_from_unsorted_takes_the_bench_to_its_watch() {
         std::thread::sleep(Duration::from_millis(20));
     }
     assert_eq!(app.take_on_show().as_ref(), Some(&take));
-    assert!(app.unsorted_open && app.watch_open.is_none());
+    assert!(app.watches_view.unsorted_open && app.watches_view.watch_open.is_none());
 
-    app.take_readings.wait();
+    app.watches_view.take_readings.wait();
     app.move_take(&take, &pepsi);
-    assert!(!app.unsorted_open);
-    assert_eq!(app.watch_open.as_deref(), Some(pepsi.as_str()));
+    assert!(!app.watches_view.unsorted_open);
+    assert_eq!(app.watches_view.watch_open.as_deref(), Some(pepsi.as_str()));
     assert_eq!(app.watch, "Pepsi");
     assert!(
         app.status_words().contains("· Pepsi ·"),
@@ -1216,10 +1241,10 @@ fn a_quick_listen_kept_then_filed_takes_the_bench_to_its_watch() {
     app.wait_for_save();
     let kept = app.session.saved_to().expect("kept").to_path_buf();
     assert!(app.take_on_show().is_none(), "the session's own take");
-    app.take_readings.wait();
+    app.watches_view.take_readings.wait();
     app.move_take(&kept, &id);
-    assert!(!app.unsorted_open, "{:?}", app.message);
-    assert_eq!(app.watch_open.as_deref(), Some(id.as_str()));
+    assert!(!app.watches_view.unsorted_open, "{:?}", app.message);
+    assert_eq!(app.watches_view.watch_open.as_deref(), Some(id.as_str()));
     assert_eq!(app.watch, "Yacht-Master 42");
     assert!(
         app.status_words().contains("Yacht-Master 42") && !app.status_words().contains("No watch"),
@@ -1297,7 +1322,7 @@ fn a_moved_take_takes_its_new_watchs_settings() {
     assert_eq!(app.lift_deg, 52.0);
 
     // Into a watch of a calibre the table knows: its lift and beat rate.
-    app.take_readings.wait();
+    app.watches_view.take_readings.wait();
     app.move_take(&take, &eta_id);
     let at = root
         .join("Explorer")
@@ -1326,7 +1351,7 @@ fn a_moved_take_takes_its_new_watchs_settings() {
 
     // Into a watch of its own lift and beat rate and no calibre: those
     // two, and the calibre stays.
-    app.take_readings.wait();
+    app.watches_view.take_readings.wait();
     app.move_take(&at, &own_id);
     let at = root.join("Own").join(library::TAKES).join(file_name(&take));
     let m: Manifest = toml::from_str(&std::fs::read_to_string(at.join(MANIFEST)).unwrap()).unwrap();
@@ -1376,7 +1401,7 @@ fn picking_or_adding_a_watch_keeps_a_recording_opened_from_outside() {
     app.pick_watch(&pepsi);
     assert_eq!(app.take_on_show(), Some(shown.clone()));
     assert!(app.live.is_some());
-    assert_eq!(app.watch_open.as_deref(), Some(pepsi.as_str()));
+    assert_eq!(app.watches_view.watch_open.as_deref(), Some(pepsi.as_str()));
     // Picked on the Watch line: nothing asked, nothing put away, and the
     // position stays.
     drop(app);
@@ -1395,7 +1420,10 @@ fn picking_or_adding_a_watch_keeps_a_recording_opened_from_outside() {
     let daydate = lib.find("DayDate 36").unwrap().watch.id.clone();
     app.pick_watch(&daydate);
     assert_eq!(app.take_on_show(), Some(shown));
-    assert_eq!(app.watch_open.as_deref(), Some(daydate.as_str()));
+    assert_eq!(
+        app.watches_view.watch_open.as_deref(),
+        Some(daydate.as_str())
+    );
     let _ = std::fs::remove_dir_all(&base);
 }
 
@@ -1468,7 +1496,10 @@ fn picking_another_watch_puts_the_take_on_show_away() {
     app.pick_watch(&daytona_id);
     assert!(matches!(&app.confirm, Some(Confirm::PickWatch(Some(i))) if *i == daytona_id));
     assert_eq!(app.take_on_show().as_ref(), Some(&take));
-    assert_eq!(app.watch_open.as_deref(), Some(pepsi_id.as_str()));
+    assert_eq!(
+        app.watches_view.watch_open.as_deref(),
+        Some(pepsi_id.as_str())
+    );
     assert!(
         app.status_words().contains("Pepsi") && !app.status_words().contains("Daytona"),
         "{}",
@@ -1525,7 +1556,7 @@ fn a_take_with_no_session_toml_is_filed_without_one() {
     .unwrap();
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.use_library(Some(root.clone()));
-    app.take_readings.wait();
+    app.watches_view.take_readings.wait();
     app.move_take(&take, &pepsi);
     let filed = root
         .join("Pepsi")
@@ -2080,7 +2111,7 @@ fn just_open_it_lets_the_watch_picked_go() {
     while app.batch.is_some() && t.elapsed().as_secs() < 120 {
         app.poll();
     }
-    assert!(app.watch_open.is_none() && !app.unsorted_open);
+    assert!(app.watches_view.watch_open.is_none() && !app.watches_view.unsorted_open);
     assert_eq!(app.status_words(), "outside take · Yacht-Master · Opened");
     assert_eq!(app.calibre, "3235");
     // The next take starts from Quick Listen's settings, not Alpha's.

@@ -329,7 +329,7 @@ fn a_test_with_no_watch_asks_where_it_goes() {
     // Asked about, it is the test's take, not Quick Listen's (#2003).
     status_names(&app, "Positions Test · No watch picked");
     let ctx = themed();
-    assert!(app.confirm.is_none() && app.watch_form.is_none());
+    assert!(app.confirm.is_none() && app.watches_view.watch_form.is_none());
     let mut drawn = String::new();
     // Clear of the test's pane, top or foot, leaving its table in view.
     let full = screen().screen_rect.unwrap();
@@ -371,7 +371,7 @@ fn a_test_with_no_watch_asks_where_it_goes() {
     // Keep in a Watch: Pepsi.
     take(&mut app, 2);
     app.positions_take = true;
-    app.watch_open = None;
+    app.watches_view.watch_open = None;
     app.stop_listening();
     assert_eq!(app.test_keep, Some(TestKeep::Positions));
     app.keep_test(TestKeep::Positions, Some(&pepsi));
@@ -381,7 +381,7 @@ fn a_test_with_no_watch_asks_where_it_goes() {
     // Throw Away: nothing kept, nothing left to ask about.
     take(&mut app, 3);
     app.positions_take = true;
-    app.watch_open = None;
+    app.watches_view.watch_open = None;
     app.stop_listening();
     assert_eq!(app.test_keep, Some(TestKeep::Positions));
     app.new_session();
@@ -393,7 +393,7 @@ fn a_test_with_no_watch_asks_where_it_goes() {
     // A Power Reserve Test with no watch: asked before it is saved,
     // then kept in Unsorted.
     take(&mut app, 4);
-    app.watch_open = None;
+    app.watches_view.watch_open = None;
     let started = app
         .session
         .recorder
