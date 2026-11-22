@@ -656,13 +656,16 @@ fn a_positions_tests_stop_keeps_its_rows_and_stops_listening() {
 fn a_new_positions_test_waits_ready_on_the_bench() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.watches_view.view = View::Watches;
-    set_pane_visible(&mut app.panes.tiles, Pane::PositionsTest, false);
+    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::PositionsTest, false);
     app.set_position(Position::CrownDown);
     app.new_take(NewTake::Positions, false);
     assert_eq!(app.ready_test(), Some(NewTake::Positions));
     assert!(app.guided.is_none() && !app.running());
     assert_eq!(app.watches_view.view, View::Bench);
-    assert!(pane_visible(&app.panes.tiles, Pane::PositionsTest));
+    assert!(pane_visible(
+        &app.panes_view.panes.tiles,
+        Pane::PositionsTest
+    ));
     assert_eq!(app.position, Position::DialUp);
     let words = app.status_words();
     assert!(
@@ -1006,11 +1009,14 @@ fn a_positions_test_keeps_the_lift_it_was_read_at() {
 fn the_watches_power_reserve_test_waits_on_the_bench() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.watches_view.view = View::Watches;
-    set_pane_visible(&mut app.panes.tiles, Pane::PowerReserve, false);
+    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::PowerReserve, false);
     app.new_take(NewTake::PowerReserve, false);
     assert!(app.reserve.is_none() && !app.running());
     assert_eq!(app.watches_view.view, View::Bench);
-    assert!(pane_visible(&app.panes.tiles, Pane::PowerReserve));
+    assert!(pane_visible(
+        &app.panes_view.panes.tiles,
+        Pane::PowerReserve
+    ));
     assert!(app.position_editable(), "the card sets it");
 }
 
@@ -1089,7 +1095,7 @@ fn a_new_position_marks_a_stretch_and_keeps_the_strip() {
     // And it all draws, bands and all.
     let ctx = themed();
     for p in [Pane::Charts, Pane::Distributions] {
-        set_pane_visible(&mut app.panes.tiles, p, true);
+        set_pane_visible(&mut app.panes_view.panes.tiles, p, true);
     }
     frames(&mut app, &ctx, 2);
     app.relayout(false);

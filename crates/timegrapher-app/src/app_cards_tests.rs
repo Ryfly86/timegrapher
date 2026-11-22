@@ -109,8 +109,14 @@ fn a_first_start_lays_the_strip_across() {
             }
         }
     };
-    assert_eq!(holder(&fresh.panes), holder(&default_layout(true)));
-    assert_ne!(holder(&fresh.panes), holder(&default_layout(false)));
+    assert_eq!(
+        holder(&fresh.panes_view.panes),
+        holder(&default_layout(true))
+    );
+    assert_ne!(
+        holder(&fresh.panes_view.panes),
+        holder(&default_layout(false))
+    );
 }
 
 #[test]
@@ -129,21 +135,24 @@ fn settings_come_back_as_they_were_left() {
     app.panes_view.strip.horizontal = false;
     app.relayout(false);
     app.panes_view.show_readings = false;
-    app.sound_opts.scale = profiles::Scale::Decibels;
+    app.panes_view.sound_opts.scale = profiles::Scale::Decibels;
     app.panes_view.hist_cumulative = true;
     app.panes_view.folded.insert("Window".into());
-    set_pane_visible(&mut app.panes.tiles, Pane::Distributions, true);
+    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Distributions, true);
     app.set_average(30.0);
     let json = serde_json::to_string(&app.settings()).unwrap();
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.apply_settings(serde_json::from_str(&json).unwrap());
     assert!(!again.panes_view.strip.horizontal);
     assert!(!again.panes_view.show_readings);
-    assert_eq!(again.sound_opts.scale, profiles::Scale::Decibels);
+    assert_eq!(again.panes_view.sound_opts.scale, profiles::Scale::Decibels);
     assert!(again.panes_view.hist_cumulative);
     assert!(again.panes_view.folded.contains("Window"));
     assert_eq!(again.average_s, 30.0);
-    assert!(pane_visible(&again.panes.tiles, Pane::Distributions));
+    assert!(pane_visible(
+        &again.panes_view.panes.tiles,
+        Pane::Distributions
+    ));
     // Settings from an older app, with fields missing, fill in the rest.
     let old: Settings = serde_json::from_str(r#"{"hist_cumulative": true}"#).unwrap();
     assert!(old.hist_cumulative && old.rate_line);
@@ -153,11 +162,11 @@ fn settings_come_back_as_they_were_left() {
     let only = tiles.insert_pane(Pane::Strip);
     broken.panes = Some(Tree::new("panes", only, tiles));
     again.apply_settings(broken);
-    assert!(layout_is_whole(&again.panes));
+    assert!(layout_is_whole(&again.panes_view.panes));
     // A layout from before the Steadiness pane keeps its arrangement
     // and gains the pane as a tab beside the profile.
     let mut before = app.settings();
-    let mut tree = app.panes.clone();
+    let mut tree = app.panes_view.panes.clone();
     let id = tree.tiles.find_pane(&Pane::SteadyReadings).unwrap();
     let tabs = tree.tiles.parent_of(id).unwrap();
     if let Some(egui_tiles::Tile::Container(c)) = tree.tiles.get_mut(tabs) {
@@ -168,16 +177,26 @@ fn settings_come_back_as_they_were_left() {
     before.panes = Some(tree);
     again.panes_view.strip.horizontal = true;
     again.apply_settings(before);
-    assert!(layout_is_whole(&again.panes));
+    assert!(layout_is_whole(&again.panes_view.panes));
     assert!(
         !again.panes_view.strip.horizontal,
         "the saved arrangement was kept"
     );
-    let sound = again.panes.tiles.find_pane(&Pane::Sound).unwrap();
-    let steady = again.panes.tiles.find_pane(&Pane::SteadyReadings).unwrap();
+    let sound = again
+        .panes_view
+        .panes
+        .tiles
+        .find_pane(&Pane::Sound)
+        .unwrap();
+    let steady = again
+        .panes_view
+        .panes
+        .tiles
+        .find_pane(&Pane::SteadyReadings)
+        .unwrap();
     assert_eq!(
-        again.panes.tiles.parent_of(sound),
-        again.panes.tiles.parent_of(steady)
+        again.panes_view.panes.tiles.parent_of(sound),
+        again.panes_view.panes.tiles.parent_of(steady)
     );
 }
 
@@ -212,17 +231,18 @@ fn the_app_opens_on_the_quick_listen_layout() {
     let app = TimegrapherApp::with_devices(Vec::new(), None);
     let shown: Vec<Pane> = Pane::ALL
         .into_iter()
-        .filter(|&p| pane_visible(&app.panes.tiles, p))
+        .filter(|&p| pane_visible(&app.panes_view.panes.tiles, p))
         .collect();
     assert_eq!(shown, [Pane::Strip, Pane::Sound, Pane::Scope]);
-    assert!(app.panes.tiles.find_pane(&Pane::Watch).is_none());
+    assert!(app.panes_view.panes.tiles.find_pane(&Pane::Watch).is_none());
     assert!(app.panes_view.rate_line && app.panes_view.rate_guides);
     // The Scope shares the profile's tabs, behind it.
-    let sound = app.panes.tiles.find_pane(&Pane::Sound).unwrap();
-    let scope = app.panes.tiles.find_pane(&Pane::Scope).unwrap();
-    let tabs = app.panes.tiles.parent_of(sound).unwrap();
-    assert_eq!(app.panes.tiles.parent_of(scope), Some(tabs));
-    let Some(egui_tiles::Container::Tabs(t)) = app.panes.tiles.get_container(tabs) else {
+    let sound = app.panes_view.panes.tiles.find_pane(&Pane::Sound).unwrap();
+    let scope = app.panes_view.panes.tiles.find_pane(&Pane::Scope).unwrap();
+    let tabs = app.panes_view.panes.tiles.parent_of(sound).unwrap();
+    assert_eq!(app.panes_view.panes.tiles.parent_of(scope), Some(tabs));
+    let Some(egui_tiles::Container::Tabs(t)) = app.panes_view.panes.tiles.get_container(tabs)
+    else {
         panic!("the profile sits in tabs");
     };
     assert_eq!(t.active, Some(sound));
@@ -312,13 +332,14 @@ fn an_old_layout_with_a_pane_for_each_chart_reads_back() {
     assert_eq!(back.panes_view.chart_series, RATE_ONLY);
     for p in [Pane::Charts, Pane::Distributions] {
         let n = back
+            .panes_view
             .panes
             .tiles
             .tiles()
             .filter(|t| matches!(t, egui_tiles::Tile::Pane(q) if *q == p))
             .count();
         assert_eq!(n, 1, "{p:?}");
-        assert!(!pane_visible(&back.panes.tiles, p), "{p:?}");
+        assert!(!pane_visible(&back.panes_view.panes.tiles, p), "{p:?}");
     }
     // Each pane's readings come back as they were left.
     app.panes_view.chart_series = [false, true, false];
@@ -334,19 +355,25 @@ fn an_old_layout_with_a_pane_for_each_chart_reads_back() {
 #[test]
 fn an_old_layout_starts_afresh_on_the_quick_listen_layout() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    set_pane_visible(&mut app.panes.tiles, Pane::Charts, true);
+    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Charts, true);
     let mut before = app.settings();
     assert_eq!(before.layout, LAYOUT);
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.apply_settings(before.clone());
-    assert!(pane_visible(&again.panes.tiles, Pane::Charts), "kept");
+    assert!(
+        pane_visible(&again.panes_view.panes.tiles, Pane::Charts),
+        "kept"
+    );
     // A file from before the version was kept reads as the oldest.
     let none: Settings = serde_json::from_str("{}").unwrap();
     assert_eq!(none.layout, 0);
     before.layout = LAYOUT - 1;
     let mut old = TimegrapherApp::with_devices(Vec::new(), None);
     old.apply_settings(before);
-    assert!(!pane_visible(&old.panes.tiles, Pane::Charts), "afresh");
+    assert!(
+        !pane_visible(&old.panes_view.panes.tiles, Pane::Charts),
+        "afresh"
+    );
 }
 
 /// The Current Position card's six buttons stay big enough to read and

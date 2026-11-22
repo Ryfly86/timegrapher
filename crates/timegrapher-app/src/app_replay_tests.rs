@@ -11,16 +11,19 @@ fn hidden_panes_stay_hidden_through_a_new_direction() {
     let ctx = themed();
     frames(&mut app, &ctx, 2);
     for p in [Pane::Charts, Pane::Distributions, Pane::Strip] {
-        set_pane_visible(&mut app.panes.tiles, p, false);
+        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
     }
     frames(&mut app, &ctx, 2);
     app.panes_view.strip.horizontal = true;
     app.relayout(true);
     frames(&mut app, &ctx, 3);
     for p in [Pane::Charts, Pane::Distributions, Pane::Strip] {
-        assert!(!pane_visible(&app.panes.tiles, p), "{p:?} came back");
+        assert!(
+            !pane_visible(&app.panes_view.panes.tiles, p),
+            "{p:?} came back"
+        );
     }
-    assert!(pane_visible(&app.panes.tiles, Pane::Sound));
+    assert!(pane_visible(&app.panes_view.panes.tiles, Pane::Sound));
 }
 
 #[test]
@@ -97,22 +100,28 @@ fn hidden_panes_leave_no_empty_frames_and_come_back() {
 
     // A new strip direction keeps the choice.
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    set_pane_visible(&mut app.panes.tiles, Pane::Sound, false);
+    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Sound, false);
     app.relayout(true);
-    assert!(!pane_visible(&app.panes.tiles, Pane::Sound));
-    assert!(pane_visible(&app.panes.tiles, Pane::Strip));
+    assert!(!pane_visible(&app.panes_view.panes.tiles, Pane::Sound));
+    assert!(pane_visible(&app.panes_view.panes.tiles, Pane::Strip));
 }
 
 #[test]
 fn histograms_start_hidden_and_keep_their_switch_through_a_relayout() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    assert!(!pane_visible(&app.panes.tiles, Pane::Distributions));
+    assert!(!pane_visible(
+        &app.panes_view.panes.tiles,
+        Pane::Distributions
+    ));
     // The charts start hidden too, in Quick Listen's layout.
-    assert!(!pane_visible(&app.panes.tiles, Pane::Charts));
-    set_pane_visible(&mut app.panes.tiles, Pane::Distributions, true);
+    assert!(!pane_visible(&app.panes_view.panes.tiles, Pane::Charts));
+    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Distributions, true);
     app.relayout(true);
-    assert!(pane_visible(&app.panes.tiles, Pane::Distributions));
-    assert!(!pane_visible(&app.panes.tiles, Pane::Charts));
+    assert!(pane_visible(
+        &app.panes_view.panes.tiles,
+        Pane::Distributions
+    ));
+    assert!(!pane_visible(&app.panes_view.panes.tiles, Pane::Charts));
 }
 
 #[test]
@@ -460,7 +469,7 @@ fn the_cards_read_at_the_strips_newest_edge() {
     app.poll();
     // The sound panes still say the moment too (#1068): out of the way.
     for p in [Pane::Sound, Pane::Scope] {
-        set_pane_visible(&mut app.panes.tiles, p, false);
+        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
     }
     let ctx = themed();
     let amp = |app: &TimegrapherApp| app.card_reading().and_then(|r| r.amplitude_deg);

@@ -241,7 +241,7 @@ impl TimegrapherApp {
     pub(super) fn poise_pane(&mut self, ui: &mut egui::Ui) {
         // Where Keep This Test? keeps clear of, as the Positions Test's.
         if self.poise_test().is_some() {
-            self.results_rects[0] = Some(ui.max_rect());
+            self.panes_view.results_rects[0] = Some(ui.max_rect());
         }
         let now = self.live.as_ref().map(|l| l.duration_s());
         let phase = match (self.guided.as_mut(), now) {

@@ -68,7 +68,7 @@ fn no_sound_line(ui: &mut egui::Ui, line: &str) {
 impl TimegrapherApp {
     pub(super) fn profile_settings(&mut self, ui: &mut egui::Ui) {
         let accent = theme::pal(ui).accent;
-        let o = &mut self.sound_opts;
+        let o = &mut self.panes_view.sound_opts;
         theme::tool_choice(
             ui,
             "Layout",
@@ -160,7 +160,7 @@ impl TimegrapherApp {
         profiles::draw(
             ui,
             &shown.profiles,
-            self.sound_opts,
+            self.panes_view.sound_opts,
             drop_be,
             note.as_deref(),
             shown.band,

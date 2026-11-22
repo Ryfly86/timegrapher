@@ -665,7 +665,7 @@ fn overlay_axis_columns_lie_side_by_side() {
 fn masked_beats_are_faint_under_the_hatching() {
     let mut app = synthetic(40.0, 0.0);
     for p in [Pane::Sound, Pane::Scope, Pane::Charts, Pane::Distributions] {
-        set_pane_visible(&mut app.panes.tiles, p, false);
+        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
     }
     app.mask(20.0, 30.0);
     let ctx = themed();

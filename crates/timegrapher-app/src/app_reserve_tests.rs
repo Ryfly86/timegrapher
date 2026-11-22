@@ -1022,9 +1022,14 @@ fn a_long_take_shows_its_run_in_the_power_reserve_pane() {
     pass(&mut app);
     app.reveal_pane(Pane::PowerReserve);
     pass(&mut app);
-    let id = app.panes.tiles.find_pane(&Pane::PowerReserve).unwrap();
-    let tabs = app.panes.tiles.parent_of(id).unwrap();
-    let tall = app.panes.tiles.rect(tabs).unwrap().height();
+    let id = app
+        .panes_view
+        .panes
+        .tiles
+        .find_pane(&Pane::PowerReserve)
+        .unwrap();
+    let tabs = app.panes_view.panes.tiles.parent_of(id).unwrap();
+    let tall = app.panes_view.panes.tiles.rect(tabs).unwrap().height();
     assert!(tall > MIN_PANE_H + 40.0, "{tall}");
 
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);

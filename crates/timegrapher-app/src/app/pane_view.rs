@@ -100,6 +100,26 @@ pub(super) struct PaneView {
     pub(super) show_readings: bool,
     /// Those cards pinned open in the layout, else a strip that opens them.
     pub(super) readings_pinned: bool,
+    /// Where the Positions Test and Power Reserve panes were last drawn,
+    /// for the question to sit clear of the results it asks about.
+    pub(super) results_rects: [Option<egui::Rect>; 2],
+    /// The height each pane with plots needed last frame for its toolbar
+    /// and one plot at a readable size, kept clear by [`keep_room`].
+    pub(super) pane_need: std::collections::HashMap<Pane, f32>,
+    /// Rows and columns of panes whose divider the user dragged: their
+    /// sizes stand, a pane's least apart, until a pane in them is shown
+    /// or hidden.
+    pub(super) panes_dragged: std::collections::HashSet<TileId>,
+    /// Panes drawn too short for their plot, last frame.
+    pub(super) panes_short: std::collections::HashSet<Pane>,
+    /// The top of the pane being drawn, for working out its need.
+    pub(super) pane_top: f32,
+    pub(super) panes: Tree<Pane>,
+    /// A pane being saved as a picture, and the folder the last one went to.
+    pub(super) export: Option<PaneExport>,
+    pub(super) export_dir: Option<PathBuf>,
+    /// How the tick and tock sound is drawn.
+    pub(super) sound_opts: profiles::Options,
 }
 
 impl Default for PaneView {
@@ -149,6 +169,15 @@ impl Default for PaneView {
             folded: Default::default(),
             show_readings: true,
             readings_pinned: true,
+            results_rects: [None; 2],
+            pane_need: std::collections::HashMap::new(),
+            panes_dragged: std::collections::HashSet::new(),
+            panes_short: std::collections::HashSet::new(),
+            pane_top: 0.0,
+            panes: default_layout(true),
+            export: None,
+            export_dir: None,
+            sound_opts: profiles::Options::default(),
         }
     }
 }

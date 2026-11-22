@@ -1525,7 +1525,7 @@ impl TimegrapherApp {
         self.reserve = Some(t);
         self.reveal_pane(Pane::PowerReserve);
         // The run's charts and table, not the line before a test.
-        grow_row(&mut self.panes.tiles, Pane::PowerReserve, h);
+        grow_row(&mut self.panes_view.panes.tiles, Pane::PowerReserve, h);
     }
 
     /// Take what a session file says about a recording: the watch, its
