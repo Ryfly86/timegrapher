@@ -13,10 +13,10 @@ impl TimegrapherApp {
         let wide = ui.available_width() >= WATCHES_SIDE_BY_SIDE;
         // The toolbar, drawn first, goes by this: drawn again at once when
         // it changes.
-        if wide != self.watches_wide {
+        if wide != self.watches_view.watches_wide {
             ui.ctx().request_repaint();
         }
-        self.watches_wide = wide;
+        self.watches_view.watches_wide = wide;
         let scroll = |ui: &mut egui::Ui, id: &str, add: &mut dyn FnMut(&mut egui::Ui)| {
             egui::ScrollArea::vertical()
                 .id_salt(id)
@@ -30,7 +30,8 @@ impl TimegrapherApp {
         };
         if !wide {
             // One at a time: the list, or the watch with ‹ All Watches.
-            let one = !self.list_shown() && (self.open_watch().is_some() || self.unsorted_open);
+            let one = !self.list_shown()
+                && (self.open_watch().is_some() || self.watches_view.unsorted_open);
             scroll(ui, "watch pane", &mut |ui| {
                 if one {
                     self.watch_side(ui);
@@ -80,9 +81,9 @@ impl TimegrapherApp {
         if let Some(e) = self.open_watch().cloned() {
             let writable = matches!(&self.library, Ok(Some(l)) if l.read_only.is_none());
             let locked = (!writable).then_some("This copy of the app can only read your watches");
-            match watches::header(ui, &e, &self.cal, &mut self.thumbs, locked) {
+            match watches::header(ui, &e, &self.cal, &mut self.watches_view.thumbs, locked) {
                 Some(watches::HeaderAction::Edit) => {
-                    self.watch_form = Some(watches::Form {
+                    self.watches_view.watch_form = Some(watches::Form {
                         watch: e.watch.clone(),
                         new: false,
                         error: None,
@@ -105,7 +106,7 @@ impl TimegrapherApp {
                 .map(|(t, hint)| (t.1, hint.as_str(), t.3))
                 .collect();
             if let Some(i) = watches::new_take_buttons(ui, &names, busy) {
-                self.view = View::Bench;
+                self.watches_view.view = View::Bench;
                 self.new_take(NEW_TAKES[i].0, false);
             }
             self.watch_takes_section(ui, &e, busy);
@@ -139,7 +140,7 @@ impl TimegrapherApp {
 
     /// The watch picked in the Watches view, as the library last read it.
     pub(super) fn open_watch(&self) -> Option<&library::WatchEntry> {
-        let id = self.watch_open.as_ref()?;
+        let id = self.watches_view.watch_open.as_ref()?;
         match &self.library {
             Ok(Some(l)) => l.watches.iter().find(|e| &e.watch.id == id),
             _ => None,
@@ -149,7 +150,9 @@ impl TimegrapherApp {
     /// The watch picked, or Unsorted when the pane shows it.
     pub(super) fn open_group(&self) -> Option<library::WatchEntry> {
         match &self.library {
-            Ok(Some(l)) if self.unsorted_open && self.watch_open.is_none() => {
+            Ok(Some(l))
+                if self.watches_view.unsorted_open && self.watches_view.watch_open.is_none() =>
+            {
                 Some(l.unsorted.clone())
             }
             _ => self.open_watch().cloned(),
@@ -163,7 +166,9 @@ impl TimegrapherApp {
         match &self.library {
             Ok(Some(l)) if l.read_only.is_none() => match self.open_watch() {
                 Some(e) => Some(e.dir.join(library::TAKES)),
-                None if self.quick_listen || self.unsorted_open => l.unsorted_dir().ok(),
+                None if self.quick_listen || self.watches_view.unsorted_open => {
+                    l.unsorted_dir().ok()
+                }
                 None => None,
             },
             _ => None,
@@ -178,15 +183,19 @@ impl TimegrapherApp {
         let writing = self.take_writing();
         let picked = match &self.library {
             Ok(Some(l)) => {
-                let shown = watches::shown(l, &self.watch_search, self.watch_sort);
+                let shown = watches::shown(
+                    l,
+                    &self.watches_view.watch_search,
+                    self.watches_view.watch_sort,
+                );
                 // Unsorted Takes first, any word about the list under it.
                 let tiled = shown.iter().any(|e| !e.photos.is_empty());
-                let marked = self.watch_open.as_deref();
+                let marked = self.watches_view.watch_open.as_deref();
                 if watches::unsorted_row(
                     ui,
                     &l.unsorted,
                     tiled,
-                    marked.is_none() && self.unsorted_open,
+                    marked.is_none() && self.watches_view.unsorted_open,
                     writing.as_deref(),
                 ) {
                     show_unsorted = true;
@@ -208,13 +217,13 @@ impl TimegrapherApp {
                     ui,
                     &shown,
                     marked,
-                    &mut self.thumbs,
+                    &mut self.watches_view.thumbs,
                     shows.as_deref(),
-                    &self.watch_search,
+                    &self.watches_view.watch_search,
                     writing.as_deref(),
                 );
                 // How many the search hid.
-                if !self.watch_search.trim().is_empty() && !l.watches.is_empty() {
+                if !self.watches_view.watch_search.trim().is_empty() && !l.watches.is_empty() {
                     ui.label(
                         RichText::new(format!(
                             "{} of {} {}",
@@ -293,7 +302,7 @@ impl TimegrapherApp {
     /// The picked watch's photos, as a strip.
     fn watch_photos(&mut self, ui: &mut egui::Ui, e: &library::WatchEntry) {
         let writable = matches!(&self.library, Ok(Some(l)) if l.read_only.is_none());
-        match watches::photo_strip(ui, e, &mut self.thumbs, writable) {
+        match watches::photo_strip(ui, e, &mut self.watches_view.thumbs, writable) {
             Some(watches::PhotoAction::Open(p)) => {
                 if let Err(err) = reveal(&p) {
                     self.error(format!("Couldn't open {}: {err}", p.display()));
@@ -306,7 +315,7 @@ impl TimegrapherApp {
                 }
             }
             Some(watches::PhotoAction::Delete(photo)) => {
-                self.take_ask = Some(watches::Ask::DeletePhoto { photo });
+                self.watches_view.take_ask = Some(watches::Ask::DeletePhoto { photo });
             }
             None => {}
         }
@@ -392,7 +401,7 @@ impl TimegrapherApp {
             on_show: on_show.as_deref(),
             held: held.as_deref(),
             writing: writing.as_deref(),
-            readings: &self.take_readings,
+            readings: &self.watches_view.take_readings,
         };
         let mut act = None;
         watches::title_row(ui, "Takes", Some(e.takes.len()), |ui| {
@@ -411,10 +420,10 @@ impl TimegrapherApp {
             // The take on show is not read again.
             Some(watches::TakeAction::Open(dir)) if self.take_on_show().as_ref() == Some(&dir) => {
                 self.take_picked = Some(dir);
-                self.view = View::Bench;
+                self.watches_view.view = View::Bench;
             }
             Some(watches::TakeAction::Open(dir)) => {
-                self.view = View::Bench;
+                self.watches_view.view = View::Bench;
                 self.take_picked = Some(dir.clone());
                 self.input = Input::File;
                 self.file_path = dir.display().to_string();
@@ -428,7 +437,7 @@ impl TimegrapherApp {
             Some(watches::TakeAction::SetWind(take, wind_h)) => self.set_take_wind(&take, wind_h),
             Some(watches::TakeAction::Delete(take)) => {
                 let bytes = folder_size(&take);
-                self.take_ask = Some(watches::Ask::Delete { take, bytes });
+                self.watches_view.take_ask = Some(watches::Ask::Delete { take, bytes });
             }
             Some(watches::TakeAction::KeepAnalysis(take)) => {
                 let sound = recordings_in(&take)
@@ -438,7 +447,7 @@ impl TimegrapherApp {
                     .map(|m| m.len())
                     .sum();
                 let bytes = folder_size(&take);
-                self.take_ask = Some(watches::Ask::Keep { take, bytes, sound });
+                self.watches_view.take_ask = Some(watches::Ask::Keep { take, bytes, sound });
             }
             Some(watches::TakeAction::MoveTo(take, id)) => self.move_take(&take, &id),
             Some(watches::TakeAction::CancelKeep) => self.take_keep = None,
@@ -526,9 +535,12 @@ impl TimegrapherApp {
     pub(super) fn keep_into(&mut self, id: &str) {
         if let Some(from) = self.addable_take() {
             // The pane shows the watch it goes into, until a Cancel.
-            self.keep_back = Some((self.watch_open.clone(), self.unsorted_open));
-            self.watch_open = Some(id.to_string());
-            self.unsorted_open = false;
+            self.keep_back = Some((
+                self.watches_view.watch_open.clone(),
+                self.watches_view.unsorted_open,
+            ));
+            self.watches_view.watch_open = Some(id.to_string());
+            self.watches_view.unsorted_open = false;
             // A take folder with its session file goes in whole, copied
             // or moved.
             let dir = if from.is_dir() {
@@ -542,7 +554,7 @@ impl TimegrapherApp {
             if !one_of_several
                 && (dir.join(MANIFEST).is_file() || dir.join("session.json").is_file())
             {
-                self.take_ask = Some(watches::Ask::Add {
+                self.watches_view.take_ask = Some(watches::Ask::Add {
                     from: dir,
                     watch: Some(id.to_string()),
                     keep_original: true,
@@ -602,7 +614,7 @@ impl TimegrapherApp {
                     .into(),
             );
         }
-        if self.take_readings.being_read(take) {
+        if self.watches_view.take_readings.being_read(take) {
             return Some(
                 "This take is being read for the Watches list. Wait for its figures, then try \
                  again."
@@ -635,8 +647,8 @@ impl TimegrapherApp {
                 _ => None,
             };
             if let Some((id, name)) = went {
-                self.watch_open = Some(id);
-                self.unsorted_open = false;
+                self.watches_view.watch_open = Some(id);
+                self.watches_view.unsorted_open = false;
                 self.watch = name;
             }
         }
@@ -669,7 +681,7 @@ impl TimegrapherApp {
 
     /// The question about a take, while it is open, and what follows a yes.
     pub(super) fn take_ask_dialog(&mut self, ctx: &egui::Context) {
-        let Some(ask) = self.take_ask.as_mut() else {
+        let Some(ask) = self.watches_view.take_ask.as_mut() else {
             return;
         };
         let watches: Vec<(String, String)> = match &self.library {
@@ -682,12 +694,12 @@ impl TimegrapherApp {
         };
         match watches::ask_dialog(ctx, ask, &watches) {
             Some(true) => {
-                if let Some(ask) = self.take_ask.take() {
+                if let Some(ask) = self.watches_view.take_ask.take() {
                     self.answer_take_ask(ask);
                 }
             }
             Some(false) => {
-                self.take_ask = None;
+                self.watches_view.take_ask = None;
                 self.keep_cancelled();
             }
             None => {}
@@ -698,8 +710,8 @@ impl TimegrapherApp {
     /// is picked again.
     pub(super) fn keep_cancelled(&mut self) {
         if let Some((watch, unsorted)) = self.keep_back.take() {
-            self.watch_open = watch;
-            self.unsorted_open = unsorted;
+            self.watches_view.watch_open = watch;
+            self.watches_view.unsorted_open = unsorted;
         }
     }
 
@@ -751,7 +763,7 @@ impl TimegrapherApp {
             watches::Ask::Keep { take, .. } => self.start_take_keep(take),
             watches::Ask::DeletePhoto { photo } => match lib.delete_photo(&photo) {
                 Ok(()) => {
-                    self.thumbs.forget(&photo);
+                    self.watches_view.thumbs.forget(&photo);
                     self.info_msg(format!("Deleted \"{}\".", file_name(&photo)));
                 }
                 Err(e) => self.error(format!("The photo couldn't be deleted: {e}")),
@@ -904,14 +916,14 @@ impl TimegrapherApp {
             self.confirm = Some(Confirm::PickWatch(Some(id.to_string())));
             return;
         }
-        self.watch_open = Some(id.to_string());
+        self.watches_view.watch_open = Some(id.to_string());
         self.forget_quick_wind();
-        self.unsorted_open = false;
+        self.watches_view.unsorted_open = false;
         // The watch picked shows, not the list left over from before.
-        self.list_for = None;
-        self.quick_defaults = false;
+        self.watches_view.list_for = None;
+        self.watches_view.quick_defaults = false;
         let Some(w) = self.open_watch().map(|e| e.watch.clone()) else {
-            self.watch_open = None;
+            self.watches_view.watch_open = None;
             return;
         };
         if elsewhere {
@@ -941,9 +953,9 @@ impl TimegrapherApp {
 
     /// Whether the pane shows the list over what is picked.
     pub(super) fn list_shown(&self) -> bool {
-        self.list_for
-            .as_ref()
-            .is_some_and(|(w, u)| *w == self.watch_open && *u == self.unsorted_open)
+        self.watches_view.list_for.as_ref().is_some_and(|(w, u)| {
+            *w == self.watches_view.watch_open && *u == self.watches_view.unsorted_open
+        })
     }
 
     /// Whether picking `what` is refused, while listening: the readings
@@ -975,21 +987,21 @@ impl TimegrapherApp {
         }
         // A watch's take on show, all of it saved, is put away: Unsorted
         // Takes starts again from Quick Listen's settings.
-        let watch_take = self.watch_open.is_some()
+        let watch_take = self.watches_view.watch_open.is_some()
             && self.live.is_some()
             && !self.needs_save_confirmation()
             && self.session.unsaved_s() < 0.5;
-        self.watch_open = None;
-        self.unsorted_open = true;
+        self.watches_view.watch_open = None;
+        self.watches_view.unsorted_open = true;
         // Its takes show, not the list left over from before.
-        self.list_for = None;
+        self.watches_view.list_for = None;
         self.quick_listen = false;
         if watch_take {
             self.new_session();
         }
         // Other readings on show keep the settings they were measured with.
         if self.live.is_some() {
-            self.quick_defaults = true;
+            self.watches_view.quick_defaults = true;
         } else {
             self.quick_listen_defaults();
         }
@@ -1031,7 +1043,7 @@ impl TimegrapherApp {
     /// Quick Listen's settings: no watch, no calibre, the default lift
     /// angle and the beat rate found from the beats.
     fn quick_listen_defaults(&mut self) {
-        self.quick_defaults = false;
+        self.watches_view.quick_defaults = false;
         self.watch.clear();
         self.put_calibre(String::new());
         if self.lift_deg != DEFAULT_LIFT_DEG {
@@ -1072,10 +1084,10 @@ impl TimegrapherApp {
     /// In a narrow window, one at a time: a watch or Unsorted Takes shown
     /// has only the way back to the list in its toolbar. Whether it did.
     fn watches_back(&mut self, ui: &mut egui::Ui) -> bool {
-        if self.watches_wide || self.list_shown() {
+        if self.watches_view.watches_wide || self.list_shown() {
             return false;
         }
-        if self.unsorted_open && self.watch_open.is_none() {
+        if self.watches_view.unsorted_open && self.watches_view.watch_open.is_none() {
             theme::keep_next(ui);
             if theme::tool_word_button(
                 ui,
@@ -1085,7 +1097,7 @@ impl TimegrapherApp {
                 false,
                 None,
             ) {
-                self.list_for = Some((None, true));
+                self.watches_view.list_for = Some((None, true));
             }
             return true;
         } else if self.open_watch().is_some() {
@@ -1099,7 +1111,7 @@ impl TimegrapherApp {
                 false,
                 None,
             ) {
-                self.list_for = Some((self.watch_open.clone(), false));
+                self.watches_view.list_for = Some((self.watches_view.watch_open.clone(), false));
             }
             return true;
         }
@@ -1142,14 +1154,14 @@ impl TimegrapherApp {
                 let w = (ui.available_width() - 48.0).clamp(72.0, 120.0);
                 let field = ui
                     .add(
-                        egui::TextEdit::singleline(&mut self.watch_search)
+                        egui::TextEdit::singleline(&mut self.watches_view.watch_search)
                             .hint_text("Search")
                             .desired_width(w),
                     )
                     .on_hover_text(
                         "Show the watches whose name, calibre, notes or fields hold this",
                     );
-                if std::mem::take(&mut self.watch_search_focus) {
+                if std::mem::take(&mut self.watches_view.watch_search_focus) {
                     // Its text selected, as Find does, so typing replaces it.
                     field.request_focus();
                     let mut state =
@@ -1158,13 +1170,15 @@ impl TimegrapherApp {
                         .cursor
                         .set_char_range(Some(egui::text::CCursorRange::two(
                             egui::text::CCursor::default(),
-                            egui::text::CCursor::new(self.watch_search.chars().count()),
+                            egui::text::CCursor::new(
+                                self.watches_view.watch_search.chars().count(),
+                            ),
                         )));
                     state.store(ui.ctx(), field.id);
                 }
             },
         );
-        let mut sort = self.watch_sort;
+        let mut sort = self.watches_view.watch_sort;
         theme::tool_field(ui, "Sort", "The order of the list", |ui| {
             egui::ComboBox::from_id_salt("watch sort")
                 .selected_text(sort.words())
@@ -1174,7 +1188,7 @@ impl TimegrapherApp {
                     }
                 });
         });
-        self.watch_sort = sort;
+        self.watches_view.watch_sort = sort;
         // What each row shows under the watch's name: the calibre, or one
         // of the fields added to the watches.
         let labels: Vec<String> = match &self.library {
@@ -1211,14 +1225,14 @@ impl TimegrapherApp {
             },
         );
         if shows != was {
-            self.watch_list_shows = shows;
+            self.watches_view.watch_list_shows = shows;
         }
     }
 
     /// The field the list shows under each name, while some watch has it;
     /// `None` is the calibre.
     pub(super) fn list_shows(&self) -> Option<&str> {
-        let label = self.watch_list_shows.as_deref()?;
+        let label = self.watches_view.watch_list_shows.as_deref()?;
         match &self.library {
             Ok(Some(l)) => l
                 .watches
@@ -1231,11 +1245,11 @@ impl TimegrapherApp {
 
     /// The form for a new watch: only its name is needed.
     pub(super) fn open_new_watch_form(&mut self) {
-        self.new_watch_on_mic = false;
+        self.watches_view.new_watch_on_mic = false;
         let mut w = library::Watch::new("");
         w.calibre = Some(String::new());
         w.notes = Some(String::new());
-        self.watch_form = Some(watches::Form {
+        self.watches_view.watch_form = Some(watches::Form {
             watch: w,
             new: true,
             error: None,
@@ -1244,13 +1258,13 @@ impl TimegrapherApp {
 
     /// The form for a watch's details, while it is open.
     pub(super) fn watch_form_dialog(&mut self, ctx: &egui::Context) {
-        let Some(f) = self.watch_form.as_mut() else {
+        let Some(f) = self.watches_view.watch_form.as_mut() else {
             return;
         };
         match watches::form(ctx, f, &mut self.cal) {
             Some(watches::FormAction::Save) => self.save_watch_form(),
             Some(watches::FormAction::Cancel) => {
-                self.watch_form = None;
+                self.watches_view.watch_form = None;
                 self.keep_after_form = false;
             }
             None => {}
@@ -1286,12 +1300,12 @@ impl TimegrapherApp {
     /// gives it; a test's figures are its own, and a take still being
     /// recorded is read once it stops (#2027).
     pub(super) fn want_take_readings(&mut self, e: &library::WatchEntry, ctx: &egui::Context) {
-        self.take_readings.poll();
+        self.watches_view.take_readings.poll();
         let writing = self.take_writing();
         for t in &e.takes {
             let dir = e.take_dir(t);
             if watches::TakeReadings::read_for(t, &dir) && writing.as_ref() != Some(&dir) {
-                self.take_readings.want(&dir, t.bytes, ctx);
+                self.watches_view.take_readings.want(&dir, t.bytes, ctx);
             }
         }
     }
@@ -1349,13 +1363,13 @@ impl TimegrapherApp {
         if self.live.is_some() || self.session.recorder.is_some() {
             self.new_session();
         }
-        if self.quick_defaults {
+        if self.watches_view.quick_defaults {
             self.quick_listen_defaults();
         }
-        self.watch_open = None;
-        self.unsorted_open = true;
+        self.watches_view.watch_open = None;
+        self.watches_view.unsorted_open = true;
         // The Watches view shows the list, Unsorted Takes marked.
-        self.list_for = Some((None, true));
+        self.watches_view.list_for = Some((None, true));
         self.quick_listen = true;
         self.input = Input::Microphone;
         self.watch.clear();
@@ -1366,7 +1380,7 @@ impl TimegrapherApp {
     /// Write the form's watch into the library, making the library first
     /// for the first watch.
     pub(super) fn save_watch_form(&mut self) {
-        let Some(f) = self.watch_form.clone() else {
+        let Some(f) = self.watches_view.watch_form.clone() else {
             return;
         };
         let mut w = f.watch;
@@ -1388,19 +1402,19 @@ impl TimegrapherApp {
         };
         match done {
             Ok(()) => {
-                self.watch_form = None;
+                self.watches_view.watch_form = None;
                 if f.new && std::mem::take(&mut self.keep_after_form) {
                     match self.test_keep.take() {
                         Some(kind) => self.keep_test(kind, Some(&w.id)),
                         None => self.keep_into(&w.id),
                     }
-                } else if f.new && std::mem::take(&mut self.new_watch_on_mic) {
+                } else if f.new && std::mem::take(&mut self.watches_view.new_watch_on_mic) {
                     self.line_pick(Some(w.id.clone()), false);
                 } else if f.new {
                     // As a click on it in the list picks it, while
                     // listening too (#1981).
                     self.list_pick(w.id.clone());
-                } else if self.watch_open.as_ref() == Some(&w.id)
+                } else if self.watches_view.watch_open.as_ref() == Some(&w.id)
                     && !self.running()
                     && self.live.is_none()
                 {
@@ -1409,7 +1423,7 @@ impl TimegrapherApp {
                 }
             }
             Err(e) => {
-                if let Some(f) = self.watch_form.as_mut() {
+                if let Some(f) = self.watches_view.watch_form.as_mut() {
                     f.error = Some(e);
                 }
             }

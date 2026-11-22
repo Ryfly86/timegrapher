@@ -776,13 +776,13 @@ fn unsorted_takes_goes_back_to_quick_listen() {
     assert_eq!(app.bph, Some(21600));
 
     // ‹ All Watches: the list, Pepsi still picked.
-    app.list_for = Some((app.watch_open.clone(), false));
+    app.watches_view.list_for = Some((app.watches_view.watch_open.clone(), false));
     assert!(app.list_shown());
-    assert_eq!(app.watch_open.as_deref(), Some(pepsi.as_str()));
+    assert_eq!(app.watches_view.watch_open.as_deref(), Some(pepsi.as_str()));
 
     app.pick_unsorted();
     assert!(!app.list_shown(), "Unsorted Takes on show");
-    assert!(app.watch_open.is_none() && app.unsorted_open);
+    assert!(app.watches_view.watch_open.is_none() && app.watches_view.unsorted_open);
     assert!(app.calibre.is_empty() && app.watch.is_empty());
     assert_eq!(app.lift_deg, DEFAULT_LIFT_DEG);
     assert!(!app.lift_known());
@@ -795,10 +795,10 @@ fn unsorted_takes_goes_back_to_quick_listen() {
     shown.set_lift(55.0);
     shown.pick_unsorted();
     assert_eq!(shown.lift_deg, 55.0, "the readings keep their lift");
-    assert!(shown.quick_defaults);
+    assert!(shown.watches_view.quick_defaults);
     assert!(shown.quick_listen_ready(true));
     assert_eq!(shown.lift_deg, DEFAULT_LIFT_DEG);
-    assert!(!shown.quick_defaults);
+    assert!(!shown.watches_view.quick_defaults);
     drop(shown);
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -822,13 +822,13 @@ fn an_archived_watch_is_listed_and_saving_clears_the_mark() {
         let Ok(Some(l)) = &app.library else {
             panic!("no library")
         };
-        let listed = watches::shown(l, "", app.watch_sort);
+        let listed = watches::shown(l, "", app.watches_view.watch_sort);
         assert_eq!(listed.len(), 1, "the archived watch is listed");
         l.find("Old Seiko").unwrap().watch.clone()
     };
     app.pick_watch(&id);
-    assert_eq!(app.watch_open.as_deref(), Some(id.as_str()));
-    app.watch_form = Some(watches::Form {
+    assert_eq!(app.watches_view.watch_open.as_deref(), Some(id.as_str()));
+    app.watches_view.watch_form = Some(watches::Form {
         watch,
         new: false,
         error: None,
@@ -983,7 +983,7 @@ fn unsorted_takes_after_a_watch_take_resets_the_settings() {
     assert!(app.calibre.is_empty());
     assert_eq!(app.bph, None);
     assert_eq!(app.lift_deg, DEFAULT_LIFT_DEG);
-    assert!(!app.quick_defaults);
+    assert!(!app.watches_view.quick_defaults);
     drop(app);
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -1242,7 +1242,7 @@ fn each_hour_key_picks_its_position_and_a_45_degree_one_turns_the_card_to_10() {
 fn keys_one_to_six_wait_behind_a_dialog() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     let ctx = themed();
-    app.watch_form = Some(crate::watches::Form {
+    app.watches_view.watch_form = Some(crate::watches::Form {
         watch: timegrapher_core::library::Watch::new("Test"),
         new: true,
         error: None,
@@ -1258,13 +1258,16 @@ fn keys_one_to_six_wait_behind_a_dialog() {
     frame(&mut app, screen());
     frame(&mut app, screen());
     frame(&mut app, key_frame(egui::Key::Num3, egui::Modifiers::NONE));
-    assert!(app.watch_form.is_some(), "the dialog stays open");
+    assert!(
+        app.watches_view.watch_form.is_some(),
+        "the dialog stays open"
+    );
     assert_eq!(
         app.position, start,
         "a key moved the watch behind the dialog"
     );
     // Closed, the key works again.
-    app.watch_form = None;
+    app.watches_view.watch_form = None;
     frame(&mut app, screen());
     frame(&mut app, screen());
     frame(&mut app, key_frame(egui::Key::Num3, egui::Modifiers::NONE));
@@ -1295,25 +1298,32 @@ fn cmd_1_and_2_pick_the_view_and_the_digits_alone_the_position() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     let ctx = themed();
     let _ = ctx.run(screen(), |ctx| app.panels(ctx));
-    assert_eq!(app.view, View::Bench);
+    assert_eq!(app.watches_view.view, View::Bench);
     let start = app.position;
     assert_ne!(start, Position::ALL[2]);
     let press = |app: &mut TimegrapherApp, key, m| {
         let _ = ctx.run(key_frame(key, m), |ctx| app.panels(ctx));
     };
     press(&mut app, egui::Key::Num2, egui::Modifiers::COMMAND);
-    assert_eq!((app.view, app.position), (View::Watches, start));
+    assert_eq!(
+        (app.watches_view.view, app.position),
+        (View::Watches, start)
+    );
     press(&mut app, egui::Key::Num3, egui::Modifiers::NONE);
     assert_eq!(app.position, start, "no positions in Watches");
     press(&mut app, egui::Key::Num1, egui::Modifiers::COMMAND);
-    assert_eq!((app.view, app.position), (View::Bench, start));
+    assert_eq!((app.watches_view.view, app.position), (View::Bench, start));
     for held in [
         egui::Modifiers::SHIFT,
         egui::Modifiers::ALT,
         egui::Modifiers::CTRL,
     ] {
         press(&mut app, egui::Key::Num3, held);
-        assert_eq!((app.view, app.position), (View::Bench, start), "{held:?}");
+        assert_eq!(
+            (app.watches_view.view, app.position),
+            (View::Bench, start),
+            "{held:?}"
+        );
         // Pressed and let go within the frame: only the key event
         // carries the modifier, the frame's are none.
         let quick = egui::RawInput {
@@ -1379,7 +1389,7 @@ fn the_menus_switch_and_icons_share_one_row() {
     // The readings' titles sit just under the one row.
     let listen = find(&bench, "Listen");
     assert!(listen.top() < file.bottom() + 40.0, "{listen:?} {file:?}");
-    app.view = View::Watches;
+    app.watches_view.view = View::Watches;
     let watches = at(&mut app);
     let file = find(&watches, "File");
     let sort = find(&watches, "Sort");
@@ -1407,11 +1417,11 @@ fn a_menu_item_and_its_shortcut_run_one_command() {
     app.run_menu_command(&ctx, MenuCommand::RemoveMasks);
     assert!(!app.remove_masks_asked);
     // Panes are the Bench's: in Watches their items are dimmed.
-    app.view = View::Watches;
+    app.watches_view.view = View::Watches;
     let shown = app.show_readings;
     app.run_menu_command(&ctx, MenuCommand::Readings);
     assert_eq!(app.show_readings, shown);
-    app.view = View::Bench;
+    app.watches_view.view = View::Bench;
     app.run_menu_command(&ctx, MenuCommand::Readings);
     assert_eq!(app.show_readings, !shown);
     assert_eq!(app.menu_checked(MenuCommand::Readings), !shown);

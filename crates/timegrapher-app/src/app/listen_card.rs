@@ -1043,7 +1043,7 @@ impl TimegrapherApp {
             ui.label(RichText::new("Recent").small().color(pal.text_tertiary));
         }
         for (id, name) in recent.into_iter().take(RECENT_WATCHES) {
-            let on = self.watch_open.as_deref() == Some(id.as_str());
+            let on = self.watches_view.watch_open.as_deref() == Some(id.as_str());
             if ui
                 .add_enabled_ui(keeps, |ui| theme::menu_item(ui, on, &name))
                 .inner
@@ -1064,7 +1064,7 @@ impl TimegrapherApp {
             .clicked()
         {
             self.open_new_watch_form();
-            self.new_watch_on_mic = true;
+            self.watches_view.new_watch_on_mic = true;
         }
         if ui
             .button("Find in Watches…")
@@ -1427,7 +1427,7 @@ impl TimegrapherApp {
     fn get_ready(&mut self, kind: NewTake) {
         self.test_ready = Some(kind);
         self.message = None;
-        self.view = View::Bench;
+        self.watches_view.view = View::Bench;
         if kind == NewTake::Positions {
             // Where the test begins.
             self.set_position(guided::ORDER[0]);
@@ -1539,7 +1539,7 @@ impl TimegrapherApp {
             .unwrap_or_default();
         takes.sort();
         let key = (
-            self.watch_open.clone(),
+            self.watches_view.watch_open.clone(),
             self.guided_after,
             (now / 60.0).floor() as i64,
             changed,
@@ -1634,8 +1634,8 @@ impl TimegrapherApp {
         .map(|e| e.watch.name.clone()) else {
             return;
         };
-        self.watch_open = Some(id.to_string());
-        self.unsorted_open = false;
+        self.watches_view.watch_open = Some(id.to_string());
+        self.watches_view.unsorted_open = false;
         self.quick_listen = false;
         self.watch = name;
         if let Some(w) = self.open_watch().map(|e| e.watch.clone()) {
@@ -1660,7 +1660,7 @@ impl TimegrapherApp {
         let (Ok(Some(l)), Some(take), Some(id)) = (
             &mut self.library,
             self.session.saved_to(),
-            self.watch_open.as_deref(),
+            self.watches_view.watch_open.as_deref(),
         ) else {
             return;
         };

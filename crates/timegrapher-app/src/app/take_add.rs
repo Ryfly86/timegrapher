@@ -116,8 +116,8 @@ impl TimegrapherApp {
     fn added_in_use(&mut self, id: String, done: Result<(PathBuf, Option<String>), String>) {
         match done {
             Ok((to, _)) => {
-                self.watch_open = Some(id);
-                self.unsorted_open = false;
+                self.watches_view.watch_open = Some(id);
+                self.watches_view.unsorted_open = false;
                 self.info_msg(in_use_words(&file_name(&to)));
             }
             Err(e) => self.error(format!("The take couldn't be added: {e}")),
@@ -136,8 +136,8 @@ impl TimegrapherApp {
                 // What is on show is now the watch's take, copied or
                 // moved.
                 self.take_moved(from, &to);
-                self.watch_open = Some(id);
-                self.unsorted_open = false;
+                self.watches_view.watch_open = Some(id);
+                self.watches_view.unsorted_open = false;
                 match left {
                     Some(why) => self.error(why),
                     None => self.info_msg(format!(
@@ -306,7 +306,7 @@ mod tests {
         wait(&mut app);
         let m = app.message.clone().unwrap().0;
         assert!(m.starts_with("Added \""), "{m}");
-        assert_eq!(app.watch_open.as_deref(), Some(id.as_str()));
+        assert_eq!(app.watches_view.watch_open.as_deref(), Some(id.as_str()));
         assert_eq!(lib(&mut app).find("Pepsi").unwrap().takes.len(), 1);
         assert!(from.is_dir());
 
@@ -324,7 +324,7 @@ mod tests {
         let mut plan = lib(&mut app).plan_add(&from, &id, true).unwrap();
         plan.keep_original = false;
         let copied = library::copy_add(&plan, &mut |_| {}, &never);
-        app.take_readings.set_now(Some(from.clone()));
+        app.watches_view.take_readings.set_now(Some(from.clone()));
         ended(&mut app, plan.clone(), &id, copied, false);
         let m = app.message.clone().unwrap().0;
         assert!(
@@ -335,7 +335,7 @@ mod tests {
         assert_eq!(lib(&mut app).find("Pepsi").unwrap().takes.len(), 2);
 
         // Not in use, a move's original goes.
-        app.take_readings.set_now(None);
+        app.watches_view.take_readings.set_now(None);
         let mut plan = lib(&mut app).plan_add(&from, &id, true).unwrap();
         plan.keep_original = false;
         let copied = library::copy_add(&plan, &mut |_| {}, &never);

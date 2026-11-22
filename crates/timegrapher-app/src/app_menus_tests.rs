@@ -232,18 +232,18 @@ fn the_view_and_watches_items_go_where_they_say() {
     let ctx = themed();
     assert!(app.menu_checked(MenuCommand::View(View::Bench)));
     app.run_menu_command(&ctx, MenuCommand::View(View::Watches));
-    assert_eq!(app.view, View::Watches);
+    assert_eq!(app.watches_view.view, View::Watches);
     assert!(app.menu_checked(MenuCommand::View(View::Watches)));
     assert!(!app.menu_checked(MenuCommand::View(View::Bench)));
     app.run_menu_command(&ctx, MenuCommand::View(View::Bench));
-    assert_eq!(app.view, View::Bench);
-    assert!(!app.watch_search_focus);
+    assert_eq!(app.watches_view.view, View::Bench);
+    assert!(!app.watches_view.watch_search_focus);
     app.run_menu_command(&ctx, MenuCommand::FindInWatches);
-    assert_eq!(app.view, View::Watches);
-    assert!(app.watch_search_focus);
-    assert!(app.watch_form.is_none());
+    assert_eq!(app.watches_view.view, View::Watches);
+    assert!(app.watches_view.watch_search_focus);
+    assert!(app.watches_view.watch_form.is_none());
     app.run_menu_command(&ctx, MenuCommand::NewWatch);
-    assert!(app.watch_form.is_some());
+    assert!(app.watches_view.watch_form.is_some());
 }
 
 /// A pane's item shows a hidden pane and hides a shown one, its tick
@@ -263,12 +263,12 @@ fn a_panes_item_toggles_it_and_reset_panes_puts_them_back() {
     assert!(!app.menu_checked(strip));
     app.run_menu_command(&ctx, MenuCommand::Readings);
     assert!(!app.show_readings);
-    app.view = View::Watches;
+    app.watches_view.view = View::Watches;
     assert!(!app.menu_enabled(MenuCommand::ResetPanes));
     assert!(!app.menu_enabled(charts));
     app.run_menu_command(&ctx, MenuCommand::ResetPanes);
     assert!(!app.menu_checked(strip), "Reset Panes ran in Watches");
-    app.view = View::Bench;
+    app.watches_view.view = View::Bench;
     app.run_menu_command(&ctx, MenuCommand::ResetPanes);
     assert!(app.show_readings);
     assert!(app.menu_checked(strip));

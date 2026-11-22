@@ -12,11 +12,11 @@ use timegrapher_core::synth::{generate, SynthConfig};
 #[test]
 fn a_complication_test_is_set_up_in_the_cards_position() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    app.view = View::Watches;
+    app.watches_view.view = View::Watches;
     app.set_position(Position::CrownUp);
     assert!(!pane_visible(&app.panes.tiles, Pane::Complication));
     app.new_take(NewTake::Complication, false);
-    assert_eq!(app.view, View::Bench);
+    assert_eq!(app.watches_view.view, View::Bench);
     assert_eq!(app.ready_test(), Some(NewTake::Complication));
     assert!(pane_visible(&app.panes.tiles, Pane::Complication));
     assert_eq!(app.position, Position::CrownUp, "the card stays");

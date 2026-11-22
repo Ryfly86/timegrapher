@@ -59,6 +59,7 @@ mod dock;
 mod input_meter;
 mod kept_analysis;
 mod unsaved;
+mod watches_view;
 use unsaved::{kept_sounds, move_kept, KeptSound};
 mod library_folder;
 mod listen_card;
@@ -1585,40 +1586,12 @@ pub struct TimegrapherApp {
     wind: wind::Wind,
     /// The kept sound Delete… is asking about.
     kept_delete_ask: Option<PathBuf>,
-    /// Which view fills the window. The app always opens on the Bench.
-    view: View,
-    /// Find in Watches… asked for the search field's focus.
-    watch_search_focus: bool,
-    /// The watch the New Watch form adds goes on the microphone, as the
-    /// Watch line picks it: New Watch… there opened the form.
-    new_watch_on_mic: bool,
-    /// The Watches view: the watch picked (its id), the list's search,
-    /// order, and the details form.
-    watch_open: Option<String>,
     /// A take started or opened: the time panes' gutter fits its labels
     /// afresh (Hugh on #1239).
     gutter_fresh: bool,
-    /// The pane shows Unsorted's takes instead of the list.
-    unsorted_open: bool,
-    /// The list shown over the watch picked, or Unsorted, by ‹ All
-    /// Watches: kept with what was picked then, so picking anything else
-    /// shows that instead. Its row is marked in the list.
-    list_for: Option<(Option<String>, bool)>,
-    /// Unsorted Takes was picked with readings on show: the Quick Listen
-    /// settings wait for the next Listen, so the readings keep theirs.
-    quick_defaults: bool,
     /// This session began with Quick Listen: kept only by Keep in a
     /// Watch…, or by Save… into Unsorted.
     quick_listen: bool,
-    watch_search: String,
-    watch_sort: watches::Sort,
-    /// The added field the list shows under each watch's name, by its
-    /// label; none, the calibre.
-    watch_list_shows: Option<String>,
-    /// The Watches view was wide enough last frame for the list and the
-    /// watch side by side.
-    watches_wide: bool,
-    watch_form: Option<watches::Form>,
     /// The form was opened from Keep in a Watch…: Done keeps what is on
     /// show in the new watch.
     keep_after_form: bool,
@@ -1631,20 +1604,12 @@ pub struct TimegrapherApp {
     positions_take: bool,
     /// The position card's title as last drawn, for the words naming it.
     position_card_title: &'static str,
-    /// A question about a take (Delete, Keep Analysis Only, Add to
-    /// a Watch), and the take being kept as its analysis in the background.
-    take_ask: Option<watches::Ask>,
     /// The watch (or Unsorted) picked before Keep in a Watch… showed the
     /// one it keeps into, put back if its question is cancelled.
     keep_back: Option<(Option<String>, bool)>,
     take_keep: Option<(PathBuf, AnalysisSave)>,
     /// A take being copied into a watch by Keep in a Watch… (#1970).
     take_add: Option<take_add::TakeAdd>,
-    /// The takes' own readings the Watches list shows, worked out on a
-    /// thread of their own.
-    take_readings: watches::TakeReadings,
-    /// The watches' photos as thumbnails, read in the background.
-    thumbs: photos::Thumbs,
     /// Report a Problem.
     report: ReportDialog,
     updates: crate::update::Updates,
@@ -2059,6 +2024,8 @@ pub struct TimegrapherApp {
     /// When the sound was last taken in, to tell when nothing ran at all
     /// (the computer asleep, a dialog open) from an input gone quiet.
     polled_at: Instant,
+    /// The Watches view's own state.
+    watches_view: watches_view::WatchesView,
 }
 
 impl TimegrapherApp {
@@ -2146,7 +2113,7 @@ impl TimegrapherApp {
             library: self.library_dir.clone(),
             settings_section: self.settings_last.key().into(),
             agc_on: self.agc_on.clone(),
-            watch_list_shows: self.watch_list_shows.clone(),
+            watch_list_shows: self.watches_view.watch_list_shows.clone(),
             after_save_command: self.after_save_command.clone(),
         }
     }
@@ -2212,7 +2179,7 @@ impl TimegrapherApp {
             watch_list_shows,
             after_save_command,
         } = s;
-        (self.watch_list_shows, self.after_save_command) = (watch_list_shows, after_save_command);
+        self.after_save_command = after_save_command;
         self.settings_last = Tab::from_key(&settings_section);
         (self.listen_at_open, self.ten_positions) = (listen_at_open, ten_positions);
         (self.poise_views, self.poise_info) = (poise_views, poise_info);
@@ -2220,7 +2187,7 @@ impl TimegrapherApp {
         (self.mic_set_up, self.setup_declined) = (mic_set_up, setup_declined);
         // A layout from before the panes moved starts afresh.
         let panes = panes.filter(|_| layout >= LAYOUT);
-        self.library_dir = library;
+        (self.library_dir, self.watches_view.watch_list_shows) = (library, watch_list_shows);
         (self.check_at_start, self.keep_awake) = (check_updates, keep_awake);
         (self.show_readings, self.readings_pinned) = (show_readings, readings_pinned);
         // One Average Over for every pane; a pane's own time, saved by an
@@ -2372,31 +2339,17 @@ impl TimegrapherApp {
             wav_keep: None,
             library_move_ask: None,
             library_moving: None,
-            view: View::Bench,
-            watch_search_focus: false,
-            new_watch_on_mic: false,
-            watch_open: None,
+            watches_view: watches_view::WatchesView::default(),
             gutter_fresh: false,
-            unsorted_open: false,
-            list_for: None,
-            quick_defaults: false,
             quick_listen: false,
-            watch_search: String::new(),
-            watch_sort: watches::Sort::default(),
-            watch_list_shows: None,
-            watches_wide: true,
-            watch_form: None,
             keep_after_form: false,
             test_keep: None,
             results_rects: [None; 2],
             positions_take: false,
             position_card_title: "Current Position",
-            take_ask: None,
             keep_back: None,
             take_keep: None,
             take_add: None,
-            take_readings: watches::TakeReadings::default(),
-            thumbs: Default::default(),
             strip_points: None,
             masked: Vec::new(),
             opened_masks: None,
@@ -3739,7 +3692,7 @@ impl TimegrapherApp {
                 top: 8,
                 bottom: 12,
             }))
-            .show(ctx, |ui| match self.view {
+            .show(ctx, |ui| match self.watches_view.view {
                 View::Bench => self.main_view(ui),
                 View::Watches => self.watches_view(ui),
             });

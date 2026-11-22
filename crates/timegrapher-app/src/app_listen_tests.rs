@@ -175,7 +175,7 @@ fn a_quick_listen_heard_is_kept_in_a_watch_from_the_watch_line() {
     pass(&mut app, Vec::new());
     assert!(app.running(), "listening goes on");
     assert!(!app.quick_listen && app.watch == "Pepsi");
-    assert_eq!(app.watch_open.as_deref(), Some(pepsi.as_str()));
+    assert_eq!(app.watches_view.watch_open.as_deref(), Some(pepsi.as_str()));
     app.capture = None;
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -232,7 +232,7 @@ fn keep_in_a_watch_waits_for_a_played_recording_to_end() {
     // A click on it keeps nothing and changes no watch.
     pass(&mut app, click_at(pepsi));
     pass(&mut app, Vec::new());
-    assert!(app.watch_open.is_none() && app.keep_back.is_none());
+    assert!(app.watches_view.watch_open.is_none() && app.keep_back.is_none());
     app.capture = None;
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -267,7 +267,7 @@ fn a_watchs_take_heard_keeps_its_watch() {
     assert!(app.running() && !app.quick_listen);
     app.line_pick(Some(diver.clone()), false);
     app.keep_in_watch(&diver);
-    assert_eq!(app.watch_open.as_deref(), Some(pepsi.as_str()));
+    assert_eq!(app.watches_view.watch_open.as_deref(), Some(pepsi.as_str()));
     assert_eq!(app.watch, "Pepsi");
     app.capture = None;
     let _ = std::fs::remove_dir_all(&base);
@@ -540,7 +540,7 @@ fn a_kept_quick_listen_stopped_keeps_its_sound_in_its_take_alone() {
     let pepsi = add_watch(&mut app, "Pepsi");
     app.message = None;
     app.keep_in_watch(&pepsi);
-    assert!(app.quick_listen && app.watch_open.is_none());
+    assert!(app.quick_listen && app.watches_view.watch_open.is_none());
     assert!(app.saving.is_none() && app.after_save.is_empty());
     let said = app.message.as_ref().map(|m| m.0.as_str());
     let why = "This sound can't be saved\nIts earlier part was kept only in its take, \
@@ -554,7 +554,7 @@ fn a_kept_quick_listen_stopped_keeps_its_sound_in_its_take_alone() {
     // refusal comes first (#2058).
     app.message = None;
     app.keep_in_new_watch();
-    assert!(app.watch_form.is_none() && !app.keep_after_form);
+    assert!(app.watches_view.watch_form.is_none() && !app.keep_after_form);
     assert_eq!(app.message.as_ref().map(|m| m.0.as_str()), Some(why));
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -1180,9 +1180,9 @@ fn a_power_reserve_test_records_into_its_folder_as_it_goes() {
     assert!(!take.join(timegrapher_core::power_reserve::FILE).exists());
     assert!(app.message.is_none(), "{:?}", app.message);
     // With no watch picked, the end asks where it goes: nothing until then.
-    app.watch_open = None;
+    app.watches_view.watch_open = None;
     assert!(!app.streams());
-    app.watch_open = Some(pepsi.clone());
+    app.watches_view.watch_open = Some(pepsi.clone());
     // Its end saves into the same folder, and nothing more streams.
     app.end_reserve();
     app.wait_for_save();
@@ -1199,7 +1199,7 @@ fn just_open_it_called_off_leaves_the_watch_of_the_take_heard() {
     let (mut app, base, _capture) = listening("just-open-off");
     let alpha = add_watch(&mut app, "Alpha");
     // A take of Alpha's, still heard, 13 s of it not saved.
-    app.watch_open = Some(alpha.clone());
+    app.watches_view.watch_open = Some(alpha.clone());
     app.quick_listen = false;
     let r = app.session.recorder.as_mut().unwrap();
     r.write(&silence(10, 3)).unwrap();
@@ -1226,7 +1226,7 @@ fn just_open_it_called_off_leaves_the_watch_of_the_take_heard() {
     );
     // Called off: nothing changed.
     app.confirm = None;
-    assert_eq!(app.watch_open.as_deref(), Some(alpha.as_str()));
+    assert_eq!(app.watches_view.watch_open.as_deref(), Some(alpha.as_str()));
     assert_eq!(app.mic_setup, setup_before);
     assert!(app.running());
     // Asked again and answered: it opens with no watch picked.
@@ -1245,7 +1245,7 @@ fn just_open_it_called_off_leaves_the_watch_of_the_take_heard() {
             app.confirmed(w, ctx);
         }
     });
-    assert!(app.watch_open.is_none() && !app.unsorted_open);
+    assert!(app.watches_view.watch_open.is_none() && !app.watches_view.unsorted_open);
     assert_eq!(app.mic_setup, Some(WatchSetup::default()));
     let _ = std::fs::remove_dir_all(&base);
 }

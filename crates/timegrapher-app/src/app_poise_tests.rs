@@ -13,11 +13,11 @@ use timegrapher_core::synth::{generate, SynthConfig};
 #[test]
 fn a_dynamic_poise_test_is_set_up_at_9h_with_the_card_at_10() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    app.view = View::Watches;
+    app.watches_view.view = View::Watches;
     assert!(!pane_visible(&app.panes.tiles, Pane::DynamicPoise));
     assert!(!app.ten_positions);
     app.new_take(NewTake::Poise, false);
-    assert_eq!(app.view, View::Bench);
+    assert_eq!(app.watches_view.view, View::Bench);
     assert_eq!(app.ready_test(), Some(NewTake::Poise));
     assert!(pane_visible(&app.panes.tiles, Pane::DynamicPoise));
     assert_eq!(app.position, Position::CrownDown);
