@@ -29,7 +29,8 @@ impl TimegrapherApp {
     }
 
     pub(super) fn clipping(&self) -> bool {
-        self.clipped_at
+        self.meter
+            .clipped_at
             .is_some_and(|t| t.elapsed().as_secs_f64() < 3.0)
     }
 
@@ -53,7 +54,7 @@ impl TimegrapherApp {
             pal.text_tertiary.gamma_multiply(0.35),
         );
         if self.running() {
-            let peak = self.level.peak_dbfs.max(-60.0);
+            let peak = self.meter.level.peak_dbfs.max(-60.0);
             let frac = ((peak + 60.0) / 60.0).clamp(0.0, 1.0) as f32;
             let mut fill = rect;
             fill.set_width((rect.width() * frac).max(height));
@@ -74,7 +75,7 @@ impl TimegrapherApp {
 
     /// Find the selected input's level control and read it.
     fn read_gain(&mut self) {
-        self.gain_device = self.device.clone();
+        self.meter.gain_device = self.device.clone();
         // Before the inputs are listed, the system default's level control:
         // reading a mixer does not open the input.
         let id = match (&self.device, self.devices_listed) {
@@ -82,10 +83,10 @@ impl TimegrapherApp {
             (None, false) => Some("default"),
             (None, true) => None,
         };
-        self.gain = id.and_then(InputGain::for_device);
-        self.gain_state = self.gain.as_ref().and_then(|g| g.read());
-        self.gain_read_at = Instant::now();
-        self.agc_read = self.input_agc(None).and_then(Result::ok);
+        self.meter.gain = id.and_then(InputGain::for_device);
+        self.meter.gain_state = self.meter.gain.as_ref().and_then(|g| g.read());
+        self.meter.gain_read_at = Instant::now();
+        self.meter.agc_read = self.input_agc(None).and_then(Result::ok);
     }
 
     /// The key Settings keeps the selected input's automatic gain under.
@@ -156,8 +157,8 @@ impl TimegrapherApp {
                 }),
             });
         }
-        let g = self.gain.as_ref()?;
-        self.gain_state.as_ref()?.agc?;
+        let g = self.meter.gain.as_ref()?;
+        self.meter.gain_state.as_ref()?.agc?;
         if let Some(want) = set {
             if let Err(e) = g.set_agc(want) {
                 return Some(Err(e));
@@ -171,25 +172,25 @@ impl TimegrapherApp {
     /// turns it back on when it is plugged in.
     pub(super) fn apply_agc(&mut self) {
         let want = self.agc_on.contains(&self.agc_key());
-        if self.gain_device != self.device {
+        if self.meter.gain_device != self.device {
             self.read_gain();
         }
         match self.input_agc(Some(want)) {
             Some(Ok(now)) => {
-                self.agc_read = Some(now);
+                self.meter.agc_read = Some(now);
                 applog::info(&format!(
                     "automatic gain {}",
                     if now { "on" } else { "off" }
                 ));
             }
             Some(Err(e)) => {
-                self.agc_read = None;
-                self.gain_error = Some(format!(
+                self.meter.agc_read = None;
+                self.meter.gain_error = Some(format!(
                     "Couldn't turn the microphone's automatic gain {}: {e}",
                     if want { "on" } else { "off" }
                 ));
             }
-            None => self.agc_read = None,
+            None => self.meter.agc_read = None,
         }
     }
 
@@ -197,7 +198,9 @@ impl TimegrapherApp {
     /// been read for a while.
     pub(super) fn refresh_gain(&mut self) {
         let every = if self.running() { 2.0 } else { 10.0 };
-        if self.gain_device != self.device || self.gain_read_at.elapsed().as_secs_f64() > every {
+        if self.meter.gain_device != self.device
+            || self.meter.gain_read_at.elapsed().as_secs_f64() > every
+        {
             self.read_gain();
         }
     }
@@ -213,7 +216,7 @@ impl TimegrapherApp {
             egui::Layout::left_to_right(egui::Align::Center),
             |ui| {
                 ui.set_min_size(Vec2::new(w, h));
-                match (self.gain.clone(), self.gain_state.clone()) {
+                match (self.meter.gain.clone(), self.meter.gain_state.clone()) {
                     (Some(g), Some(st)) => {
                         let mut pct = st.level * 100.0;
                         ui.spacing_mut().slider_width = (w - 64.0).max(60.0);
@@ -228,11 +231,11 @@ impl TimegrapherApp {
                         // Set it once the drag ends (or on a click or key),
                         // not on every pixel.
                         if (r.changed() && !r.dragged()) || r.drag_stopped() {
-                            self.gain_error = g.set_level(pct / 100.0).err();
+                            self.meter.gain_error = g.set_level(pct / 100.0).err();
                             applog::info(&format!("input level set to {pct:.0}%"));
                             self.read_gain();
                         } else if r.changed() {
-                            if let Some(s) = self.gain_state.as_mut() {
+                            if let Some(s) = self.meter.gain_state.as_mut() {
                                 s.level = pct / 100.0;
                             }
                         }
@@ -244,7 +247,7 @@ impl TimegrapherApp {
                             .on_hover_text(SOUND_SETTINGS_HINT)
                             .clicked()
                         {
-                            self.gain_error = open_sound_settings()
+                            self.meter.gain_error = open_sound_settings()
                                 .err()
                                 .map(|e| format!("Couldn't open the sound settings: {e}"));
                         }
@@ -261,7 +264,7 @@ impl TimegrapherApp {
     /// The Automatic Gain switch, for an input whose own automatic gain
     /// the app can reach; false (and nothing drawn) for any other.
     pub(super) fn agc_control(&mut self, ui: &mut egui::Ui) -> bool {
-        if self.agc_read.is_none() {
+        if self.meter.agc_read.is_none() {
             return false;
         }
         let key = self.agc_key();
@@ -279,7 +282,7 @@ impl TimegrapherApp {
     /// What the microphone says of its automatic gain, where it isn't
     /// what was asked.
     pub(super) fn agc_message(&self) -> Option<String> {
-        let now = self.agc_read?;
+        let now = self.meter.agc_read?;
         let on = self.agc_on.contains(&self.agc_key());
         (now != on).then(|| {
             format!(
@@ -309,7 +312,7 @@ impl TimegrapherApp {
     /// The latest peak, "−11 dBFS", or a dash while nothing is heard.
     fn peak_words(&self) -> String {
         if self.running() {
-            let peak = self.level.peak_dbfs.max(-99.0);
+            let peak = self.meter.level.peak_dbfs.max(-99.0);
             true_minus(&format!("{peak:.0} dBFS"))
         } else {
             "–".into()
@@ -481,7 +484,7 @@ impl TimegrapherApp {
                 |ui| theme::switch(ui, &mut self.all_inputs).on_hover_text(hint),
             );
         });
-        let gain_error = self.gain_error.clone();
+        let gain_error = self.meter.gain_error.clone();
         let agc = self.agc_message();
         let clipping = self.running() && self.clipping();
         theme::group(ui, "Level", None, |g| {
@@ -496,7 +499,7 @@ impl TimegrapherApp {
                     self.level_control(ui, 240.0);
                 },
             );
-            if self.agc_read.is_some() {
+            if self.meter.agc_read.is_some() {
                 g.row(
                     "Automatic Gain",
                     theme::Caption::Alert(

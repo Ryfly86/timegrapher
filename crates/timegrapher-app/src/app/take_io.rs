@@ -97,8 +97,8 @@ impl TimegrapherApp {
         self.anchor = None;
         self.clear_trends();
         self.strip_end = None;
-        self.level = Level::default();
-        self.clipped_at = None;
+        self.meter.level = Level::default();
+        self.meter.clipped_at = None;
         self.message = None;
         self.sound_history.clear();
         self.no_sound = None;
@@ -2227,12 +2227,14 @@ impl TimegrapherApp {
             t.push(b.samples.len(), b.at);
         }
         let l = Level::of(&b.samples);
-        if self.level_at.elapsed().as_secs_f64() > 0.5 || l.peak_dbfs > self.level.peak_dbfs {
-            self.level = l;
-            self.level_at = Instant::now();
+        if self.meter.level_at.elapsed().as_secs_f64() > 0.5
+            || l.peak_dbfs > self.meter.level.peak_dbfs
+        {
+            self.meter.level = l;
+            self.meter.level_at = Instant::now();
         }
         if l.clipped_fraction > 0.0 {
-            self.clipped_at = Some(Instant::now());
+            self.meter.clipped_at = Some(Instant::now());
         }
         self.live_usb.iter_mut().for_each(|u| u.push(&b.samples));
         // Never stalled for the figures read as a file (#1987): a sped-up
