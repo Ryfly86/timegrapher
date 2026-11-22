@@ -13,8 +13,9 @@ yourself or with an AI coding agent. Please work only on those: other issues
 often have work in progress, or a design that still needs deciding.
 
 An issue gets the label only when it is small (about one pull request), says
-which files and tests it needs, and does not touch work in progress. While "Now" in the
-[roadmap](ROADMAP.md) says outside pull requests wait, no issue has the label.
+which files and tests it needs, and does not touch work in progress. Parts of the code
+that are being reworked, listed under "Now" in the [roadmap](ROADMAP.md),
+get no labelled issues until that work is done.
 An issue that changes how a reading is computed gets the label only once it
 spells out the method.
 
