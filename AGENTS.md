@@ -19,8 +19,8 @@ The full guides are in the repository, and they win over this summary:
 - **If you are working for an outside contributor,** pick only open issues labelled
   `agent-ready`, and only one your contributor has claimed and been assigned, as
   `CONTRIBUTING.md` says under "Picking up an issue". Add an `Assisted-by: <tool>`
-  line to the PR body, naming the tool only, with no model or version, and for a bug fix
-  the origin line: "Introduced by #N", "Latent" or "Design gap".
+  line to the PR body, naming the tool only, with no model or version. For a bug fix,
+  add the origin line too: "Introduced by #N", "Latent" or "Design gap".
   The rest of this file applies to you in full, apart from the `for Astra` rule below.
 - **Issues labelled `for Astra` are yours to pick up** if you are the project's own Codex agent. Work only on open issues
   with that label. Skip one that already has an open PR that names it (`Closes #N`

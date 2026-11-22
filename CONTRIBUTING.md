@@ -13,11 +13,10 @@ yourself or with an AI coding agent. Please work only on those: other issues
 often have work in progress, or a design that still needs deciding.
 
 An issue gets the label only when it is small (about one pull request), says
-which files and tests it needs, and does not touch work in progress. While the
-app refactor ([#1988](https://github.com/peterhudson/timegrapher/issues/1988))
-is open, nothing else lands and no issue gets the label, so outside pull
-requests wait until it is done. A change to how
-a reading is computed gets it only once the issue spells out the method.
+which files and tests it needs, and does not touch work in progress. While "Now" in the
+[roadmap](ROADMAP.md) says outside pull requests wait, no issue has the label.
+An issue that changes how a reading is computed gets the label only once it
+spells out the method.
 
 **Claiming.** Comment "I'd like to take this" on the issue. A maintainer
 assigns it to you, usually within a day. Hold one claimed issue at a time.
@@ -32,7 +31,7 @@ without the fix. It also needs:
 - the [CLA](CLA.md) accepted before the first merge;
 - all eight required checks green (a maintainer starts CI on a first pull
   request from a fork);
-- one line saying where the bug came from: "Introduced by #N", "Latent" (it
+- for a bug fix, one line saying where the bug came from: "Introduced by #N", "Latent" (it
   was always there) or "Design gap" (nothing was meant to handle the case);
 - if an AI agent wrote any of it, an `Assisted-by: <tool>` line in the body,
   naming the tool only, with no model or version (for example

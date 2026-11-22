@@ -1,7 +1,7 @@
 # Roadmap
 
 What the project is working on, what comes next, and ideas that are not yet
-scheduled. Each line links to its issue, and the issue is the live record:
+scheduled. Where a line links to an issue, the issue is the live record:
 when they differ, the issue wins. Updated 22 November 2026.
 
 If you'd like to help, read [CONTRIBUTING.md](CONTRIBUTING.md) first. Issues
@@ -13,10 +13,10 @@ code yourself or with an AI agent.
 
 [#1988](https://github.com/peterhudson/timegrapher/issues/1988) reorganises
 the desktop app's code so that each part of its state has one clear owner,
-with no change in what the app does. This makes the app easier to change and
-gets it ready for one bench per microphone. It is an internal step, not a release. Until it is done, nothing
-else lands, and no issue is labelled `agent-ready`, so outside pull requests
-wait until then.
+with no change in what the app does. This makes the app easier to change, and
+gets it ready for timing several watches at once. It is an internal step, not
+a release. Until it is done, no other changes are merged and no issue is
+labelled `agent-ready`, so outside pull requests wait until then.
 
 Version 1.1.0 is the current release.
 
@@ -48,8 +48,10 @@ Also in 1.2:
 
 ## Ideas, not scheduled
 
-These have been suggested but not yet chosen. A comment on the issue saying
-why it would help you is welcome. Please don't start code for one until it is
+These have been suggested but not yet chosen. If one would help you, say why
+in a comment on its issue, or file it through the
+[idea form](https://github.com/peterhudson/timegrapher/issues/new/choose) if
+it has none yet. Please don't start code for one until it is
 scheduled: the design usually needs deciding first.
 
 - Compare two takes of the same watch, for example before and after a service or a mainspring change.
@@ -62,5 +64,5 @@ scheduled: the design usually needs deciding first.
 
 ## Not planned
 
-Touch and mobile versions ([#1585](https://github.com/peterhudson/timegrapher/issues/1585)
-records why). Escapements other than the Swiss lever.
+- Touch and mobile versions ([#1585](https://github.com/peterhudson/timegrapher/issues/1585) records why).
+- Escapements other than the Swiss lever.
