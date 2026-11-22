@@ -569,7 +569,7 @@ impl TimegrapherApp {
         };
         match wanted.as_ref().filter(|j| j.key == key).map(Job::done) {
             Some(Ok(t)) => {
-                self.reserve = t;
+                self.test.reserve = t;
                 self.bg.reserve = None;
                 self.bg.reserve_of = Some(key);
             }
@@ -595,7 +595,7 @@ impl TimegrapherApp {
         if let Some(job) = &self.bg.reserve_live {
             match job.done() {
                 Ok(t) => {
-                    self.reserve = t;
+                    self.test.reserve = t;
                     self.bg.reserve_live = None;
                 }
                 Err(true) => return,

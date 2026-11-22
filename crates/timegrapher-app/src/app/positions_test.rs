@@ -99,7 +99,7 @@ impl TimegrapherApp {
         self.stop_test_ask = false;
         let now = self.live.as_ref().map_or(0.0, |l| l.duration_s());
         if self.reserve_running() {
-            if let Some(t) = self.reserve.as_mut() {
+            if let Some(t) = self.test.reserve.as_mut() {
                 t.stop();
             }
             self.end_reserve();
@@ -123,7 +123,7 @@ impl TimegrapherApp {
             None => String::new(),
         };
         let (title, body) = if self.reserve_running() {
-            let run = self.reserve.as_ref().map_or(0.0, |t| t.run_so_far_s());
+            let run = self.test.reserve.as_ref().map_or(0.0, |t| t.run_so_far_s());
             (
                 "Stop the Power Reserve Test?".to_string(),
                 format!(
@@ -487,7 +487,7 @@ impl TimegrapherApp {
             return None;
         }
         let lengths: Vec<f64> = if kind == guided::Kind::Complication {
-            let t = self.complication_saved.as_ref()?;
+            let t = self.test.complication_saved.as_ref()?;
             t.stretches().iter().map(|s| s.2 - s.1).collect()
         } else if !self.positions_take {
             // A plain take: the toolbar keeps the settings, for the next

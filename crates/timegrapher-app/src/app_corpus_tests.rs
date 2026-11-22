@@ -556,6 +556,7 @@ fn pane_differences(id: &str, root: &Path, cli: &Path) -> (Vec<(String, String)>
     }
     app.reserve_from_long_take();
     let ours = app
+        .test
         .reserve
         .as_ref()
         .and_then(|t| t.results.as_ref())

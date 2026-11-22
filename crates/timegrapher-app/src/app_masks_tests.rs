@@ -717,7 +717,7 @@ fn the_brush_waits_for_a_power_reserve_run() {
         })
         .collect();
     t.update(&beats, 0.125, 20.0);
-    app.reserve = Some(t);
+    app.test.reserve = Some(t);
     assert!(app.reserve_running());
     draw(&mut app);
     assert_eq!(app.brush, None);

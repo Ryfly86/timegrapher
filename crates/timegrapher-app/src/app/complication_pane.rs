@@ -71,7 +71,8 @@ impl TimegrapherApp {
     /// take's once read (Walter on #1799).
     pub(super) fn complication_shown(&self) -> Option<&guided::Test> {
         self.complication_test().or_else(|| {
-            self.complication_saved
+            self.test
+                .complication_saved
                 .as_ref()
                 .filter(|t| t.readings.is_some())
         })
@@ -84,12 +85,12 @@ impl TimegrapherApp {
         let m: Option<Manifest> = std::fs::read_to_string(dir.join(MANIFEST))
             .ok()
             .and_then(|t| toml::from_str(&t).ok());
-        self.complication_saved = m
+        self.test.complication_saved = m
             .as_ref()
             .and_then(complication::saved_stretches)
             .and_then(|(p, spans)| Some((Position::of_core(p)?, spans)))
             .and_then(|(p, spans)| guided::Test::saved_complication(p, &spans));
-        if self.complication_saved.is_some() {
+        if self.test.complication_saved.is_some() {
             self.reveal_pane(Pane::Complication);
         }
     }
@@ -101,6 +102,7 @@ impl TimegrapherApp {
             return None;
         }
         let unread = self
+            .test
             .complication_saved
             .as_ref()
             .is_some_and(|t| t.readings.is_none());
@@ -109,12 +111,13 @@ impl TimegrapherApp {
             let clock = self.reading_clock(log.duration_s);
             let bph = self.live.as_ref().and_then(|l| l.config().analysis.bph);
             let masked = self.masked.clone();
-            if let Some(t) = self.complication_saved.as_mut() {
+            if let Some(t) = self.test.complication_saved.as_mut() {
                 t.bph_set = bph;
                 t.finish(&log, clock.as_ref(), &masked);
             }
         }
-        self.complication_saved
+        self.test
+            .complication_saved
             .as_ref()
             .filter(|t| t.readings.is_some())
     }
@@ -211,7 +214,8 @@ impl TimegrapherApp {
             let _ = self.saved_complication_read();
         }
         let test = self.complication_test().or_else(|| {
-            self.complication_saved
+            self.test
+                .complication_saved
                 .as_ref()
                 .filter(|t| self.guided.is_none() && t.readings.is_some())
         });

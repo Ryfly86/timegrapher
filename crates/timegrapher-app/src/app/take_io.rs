@@ -104,7 +104,7 @@ impl TimegrapherApp {
         self.no_sound = None;
         self.analysis_kept_to = None;
         self.guided = None;
-        self.reserve = None;
+        self.test.reserve = None;
         self.bg.reserve_live = None;
         self.bg.reserve_live_s = 0.0;
         self.guided_unused.clear();
@@ -331,7 +331,7 @@ impl TimegrapherApp {
     pub(super) fn stop_listening(&mut self) {
         // Stop during a Power Reserve Test ends the test, which keeps its take.
         if self.reserve_running() {
-            if let Some(t) = self.reserve.as_mut() {
+            if let Some(t) = self.test.reserve.as_mut() {
                 t.stop();
             }
             return self.end_reserve();
@@ -520,12 +520,12 @@ impl TimegrapherApp {
         self.no_sound = None;
         self.analysis_kept_to = None;
         self.guided = None;
-        self.reserve = None;
+        self.test.reserve = None;
         self.bg.reserve_live = None;
         self.bg.reserve_live_s = 0.0;
         self.positions_take = false;
         self.guided_saved = None;
-        self.complication_saved = None;
+        self.test.complication_saved = None;
         self.test_keep = None;
         self.guided_unused.clear();
         self.guided_measured.clear();
@@ -949,6 +949,7 @@ impl TimegrapherApp {
         }
         // A long take's run read as one is never written into the take.
         if let Some(r) = self
+            .test
             .reserve
             .as_ref()
             .and_then(|t| t.results.as_ref())
@@ -1522,7 +1523,7 @@ impl TimegrapherApp {
         t.saved = Some(dir.to_path_buf());
         let h = reserve::run_h(&r.hours, false, self.panes_view.reserve_series);
         t.results = Some(r);
-        self.reserve = Some(t);
+        self.test.reserve = Some(t);
         self.reveal_pane(Pane::PowerReserve);
         // The run's charts and table, not the line before a test.
         grow_row(&mut self.panes_view.panes.tiles, Pane::PowerReserve, h);

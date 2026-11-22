@@ -613,7 +613,7 @@ fn the_wind_is_set_from_a_takes_start_once_it_has_begun() {
     assert!(app.wind_field().settable);
     app.guided = None;
     // A test that sets its own wind keeps the field fixed.
-    app.reserve = Some(reserve::Test::new(
+    app.test.reserve = Some(reserve::Test::new(
         Position::CrownLeft,
         true,
         String::new(),
@@ -757,7 +757,7 @@ fn a_power_reserve_test_that_runs_down_lets_the_wind_go() {
     let (mut app, base) = save_failure_fixture("wind-run-down");
     app.pick_wind(WindPick::HoursAgo(30.0));
     app.begin_reserve();
-    app.reserve.as_mut().unwrap().ending = Some(power_reserve::Ending::Stopped);
+    app.test.reserve.as_mut().unwrap().ending = Some(power_reserve::Ending::Stopped);
     app.end_reserve();
     assert_eq!(app.wound_unix(), None);
     assert!(app
@@ -788,7 +788,7 @@ fn a_test_thrown_away_puts_the_wind_back() {
             "new" => app.new_session(),
             // Ended by hand, then Throw Away on the Keep question.
             "keep-question" => {
-                app.reserve.as_mut().unwrap().ending = Some(power_reserve::Ending::ByHand);
+                app.test.reserve.as_mut().unwrap().ending = Some(power_reserve::Ending::ByHand);
                 app.end_reserve();
                 app.test_keep = None;
                 app.new_session();

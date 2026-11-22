@@ -401,7 +401,7 @@ fn a_test_with_no_watch_asks_where_it_goes() {
         .unwrap()
         .started_utc()
         .to_string();
-    app.reserve = Some(reserve::Test::new(Position::DialUp, true, started, 0.0));
+    app.test.reserve = Some(reserve::Test::new(Position::DialUp, true, started, 0.0));
     app.stop_listening();
     assert_eq!(app.test_keep, Some(TestKeep::PowerReserve));
     // Still the test's take (this fixture keeps Pepsi's name from the
