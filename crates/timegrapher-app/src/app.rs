@@ -58,6 +58,7 @@ mod distributions;
 mod dock;
 mod guided_test;
 mod input_meter;
+mod keeping;
 mod kept_analysis;
 mod unsaved;
 mod watches_view;
@@ -1572,26 +1573,9 @@ pub struct TimegrapherApp {
     devices_listed: bool,
     device: Option<String>,
     file_path: String,
-    /// A crash record from an earlier run not yet looked at, and whether
-    /// its text is showing.
-    crash: Option<PathBuf>,
-    crash_shown: bool,
-    /// Sound kept from earlier sessions, offered back one at a time.
-    kept: Vec<KeptSound>,
-    /// The kept sound Delete… is asking about.
-    kept_delete_ask: Option<PathBuf>,
     /// This session began with Quick Listen: kept only by Keep in a
     /// Watch…, or by Save… into Unsorted.
     quick_listen: bool,
-    /// The form was opened from Keep in a Watch…: Done keeps what is on
-    /// show in the new watch.
-    keep_after_form: bool,
-    /// The watch (or Unsorted) picked before Keep in a Watch… showed the
-    /// one it keeps into, put back if its question is cancelled.
-    keep_back: Option<(Option<String>, bool)>,
-    take_keep: Option<(PathBuf, AnalysisSave)>,
-    /// A take being copied into a watch by Keep in a Watch… (#1970).
-    take_add: Option<take_add::TakeAdd>,
     /// Report a Problem.
     report: ReportDialog,
     updates: crate::update::Updates,
@@ -1651,28 +1635,10 @@ pub struct TimegrapherApp {
     /// The library as read when Settings opened or it last changed:
     /// `Ok(None)` while there is none at its folder.
     library: Result<Option<library::Library>, String>,
-    /// Saved hours still WAVs being kept as FLAC, from start-up (#503).
-    wav_keep: Option<library_folder::WavKeep>,
-    /// Where Move Library… is asking to move it to.
-    library_move_ask: Option<PathBuf>,
-    /// A move under way: where to, and its outcome when done.
-    library_moving: Option<(PathBuf, LibraryMove)>,
     /// The USB lines of the sound heard here, read as it comes (#1721).
     live_usb: Option<live_usb::LiveUsb>,
-    /// Where the last Save put the session, if it has been saved.
-    /// The folder Save offers first.
-    save_dir: String,
     /// Asking before something throws away unsaved sound.
     confirm: Option<Confirm>,
-    /// Open Recording… or Open Folder… asking where the recording goes.
-    open_ask: Option<OpenAsk>,
-    /// The recording last opened, which the path box goes back to when
-    /// another can't be opened.
-    opened_path: String,
-    /// The take picked in the Watches view's list.
-    take_picked: Option<PathBuf>,
-    /// Said with the result once the recording opening is analysed.
-    open_note: Option<String>,
     /// The window may close: the user has said what to do with the sound.
     may_close: bool,
     /// Light, dark or following the system, kept for the next start.
@@ -1698,25 +1664,8 @@ pub struct TimegrapherApp {
     /// arrives: offered to keep once it has run long enough.
     clock_track: Option<ClockTrack>,
     message: Option<(String, bool)>,
-    /// Keeping the session as its analysis alone, while that is worked out.
-    analysis_save: Option<AnalysisSave>,
     /// A take kept as its analysis alone as it records (#1514).
     kept_live: kept_analysis::Kept,
-    /// Saving the session's sound, while the copy is written.
-    saving: Option<Saving>,
-    /// When a save of a take recording into its folder last failed, until
-    /// the next is tried.
-    stream_wait: Option<Instant>,
-    /// Quitting once the save that ends a take recording into its folder
-    /// is written.
-    close_after_save: bool,
-    /// What was asked while a take's save into its folder was written.
-    after_save: Vec<take_io::AfterSave>,
-    /// Kept as its analysis alone: the 2 s profiles in its sound's place.
-    no_sound: Option<Vec<analysis_take::StretchProfiles>>,
-    /// Where this session's analysis was last kept without its sound, and
-    /// the seconds of sound it covers. The sound itself stays unsaved.
-    analysis_kept_to: Option<(PathBuf, f64)>,
     /// The jumps in the live sound's beats as of the last pass, to see a
     /// new one.
     jumps_seen: Vec<f64>,
@@ -1745,6 +1694,9 @@ pub struct TimegrapherApp {
     /// What the take on show is read with: the watch, its beat rate and
     /// lift, the positions, masks and clock, and what its readings rest on.
     take: take_settings::TakeSettings,
+    /// Keeping and saving the take on show: kept sounds, Keep in a
+    /// Watch…, saves under way, opening and the crash note.
+    keeping: keeping::Keeping,
 }
 
 impl TimegrapherApp {
@@ -1757,8 +1709,8 @@ impl TimegrapherApp {
             app.apply_settings(s);
         }
         app.at_launch();
-        app.crash = applog::dir().and_then(|d| applog::unseen_crashes(&d).pop());
-        app.kept = kept_sounds(&scratch_dir());
+        app.keeping.crash = applog::dir().and_then(|d| applog::unseen_crashes(&d).pop());
+        app.keeping.kept = kept_sounds(&scratch_dir());
         app.read_library();
         app.keep_saved_wavs();
         app.check_pending = app.check_at_start;
@@ -1976,16 +1928,8 @@ impl TimegrapherApp {
 
     /// The app with a given device list. Tests pass an empty one: listing
     /// devices from several test threads at once crashes on Windows.
-    #[expect(
-        clippy::too_many_lines,
-        reason = "the app's one struct literal, a line a field: shorter needs its state grouped, which waits for a need (#514)"
-    )]
     fn with_devices(devices: Vec<InputDevice>, file: Option<PathBuf>) -> Self {
         let device = capture::choices(&devices).first().map(|c| c.id.clone());
-        let home = std::env::var_os("HOME")
-            .or_else(|| std::env::var_os("USERPROFILE"))
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("."));
         let mut app = TimegrapherApp {
             input: if file.is_some() {
                 Input::File
@@ -2001,10 +1945,7 @@ impl TimegrapherApp {
                 .unwrap_or_default(),
             take: take_settings::TakeSettings::default(),
             session: Session::default(),
-            crash: None,
-            crash_shown: false,
-            kept: Vec::new(),
-            kept_delete_ask: None,
+            keeping: keeping::Keeping::default(),
             report: ReportDialog::default(),
             updates: Default::default(),
             update_dialog: None,
@@ -2030,25 +1971,13 @@ impl TimegrapherApp {
             forget_ask: None,
             library_dir: None,
             library: Ok(None),
-            wav_keep: None,
-            library_move_ask: None,
-            library_moving: None,
             watches_view: watches_view::WatchesView::default(),
             panes_view: pane_view::PaneView::default(),
             quick_listen: false,
-            keep_after_form: false,
-            keep_back: None,
-            take_keep: None,
-            take_add: None,
             results: results::Results::default(),
             live_usb: None,
             confirm: None,
-            open_ask: None,
-            opened_path: String::new(),
-            take_picked: None,
-            open_note: None,
             may_close: false,
-            save_dir: home.join("Timegrapher recordings").display().to_string(),
             // As the settings first are.
             theme: egui::ThemePreference::System,
             capture: None,
@@ -2063,14 +1992,7 @@ impl TimegrapherApp {
             clock_track: None,
             agc_on: Vec::new(),
             message: None,
-            analysis_save: None,
             kept_live: Default::default(),
-            saving: None,
-            stream_wait: None,
-            close_after_save: false,
-            after_save: Vec::new(),
-            no_sound: None,
-            analysis_kept_to: None,
             jumps_seen: Vec::new(),
             rebuild_seen: (None, None),
             all_inputs: false,
@@ -3326,7 +3248,7 @@ impl TimegrapherApp {
         // Closing the window while the library is being moved is refused,
         // and the app stays open: stopping a copy part way would leave half
         // a library behind.
-        if ctx.input(|i| i.viewport().close_requested()) && self.library_moving.is_some() {
+        if ctx.input(|i| i.viewport().close_requested()) && self.keeping.library_moving.is_some() {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             self.info_msg(
                 "Your watches are still being moved: Timegrapher can be closed once it is done."
@@ -3337,23 +3259,23 @@ impl TimegrapherApp {
         // which saves the last seconds, then close once that is written.
         // Nothing is unsaved, so nothing is asked.
         if ctx.input(|i| i.viewport().close_requested())
-            && self.library_moving.is_none()
+            && self.keeping.library_moving.is_none()
             && self.streams()
         {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             self.stop_listening();
-            self.close_after_save = true;
+            self.keeping.close_after_save = true;
         }
         if self.closes_after_save() {
-            self.close_after_save = false;
+            self.keeping.close_after_save = false;
             self.may_close = true;
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
         // Closing the window while a save is written waits for it: the
         // take would be left half copied.
         if ctx.input(|i| i.viewport().close_requested())
-            && self.saving.is_some()
-            && self.library_moving.is_none()
+            && self.keeping.saving.is_some()
+            && self.keeping.library_moving.is_none()
         {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             self.info_msg(
@@ -3363,7 +3285,7 @@ impl TimegrapherApp {
         }
         // Closing the window with unsaved sound asks first.
         if ctx.input(|i| i.viewport().close_requested())
-            && self.saving.is_none()
+            && self.keeping.saving.is_none()
             && !self.may_close
             && self.needs_save_confirmation()
         {
@@ -3457,7 +3379,7 @@ impl eframe::App for TimegrapherApp {
         // leave half a take, and the sound it copies is let go below.
         self.wait_for_save();
         // Asks waiting on it are let go, but a Stop's save is made below.
-        let asked = !std::mem::take(&mut self.after_save).is_empty();
+        let asked = !std::mem::take(&mut self.keeping.after_save).is_empty();
         if (streamed || asked) && self.kept_take() {
             self.save_again();
             self.wait_for_save();

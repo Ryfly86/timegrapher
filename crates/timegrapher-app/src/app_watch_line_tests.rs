@@ -1098,7 +1098,7 @@ fn a_refused_pick_is_not_still_said_once_a_pick_works() {
     app.use_library(Some(root));
     assert!(app.live.is_some());
     // A take of the microphone's, not one opened from a folder.
-    app.opened_path.clear();
+    app.keeping.opened_path.clear();
     let said = |app: &TimegrapherApp| app.message.as_ref().map(|(m, _)| m.clone());
     for unsorted in [false, true] {
         app.session.listen();

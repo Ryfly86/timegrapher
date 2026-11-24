@@ -786,7 +786,7 @@ impl TimegrapherApp {
         let breaks = self.take.take_breaks.as_deref().unwrap_or_default();
         // Its session.json read once for each take opened.
         let id = egui::Id::new("strip opened start");
-        let path = &self.opened_path;
+        let path = &self.keeping.opened_path;
         let kept: Option<(String, Option<String>)> = ctx.data(|d| d.get_temp(id));
         let start = match kept {
             Some((p, start)) if &p == path => start,

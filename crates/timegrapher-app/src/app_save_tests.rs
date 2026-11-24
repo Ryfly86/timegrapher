@@ -446,7 +446,7 @@ fn save_copies_in_the_background_while_listening_carries_on() {
     append_save_test_second(&mut app, 2);
     app.save_into(&base.join("saved"));
     assert!(
-        app.saving.is_some(),
+        app.keeping.saving.is_some(),
         "the copy is written on its own thread"
     );
     assert_eq!(
@@ -461,7 +461,7 @@ fn save_copies_in_the_background_while_listening_carries_on() {
         app.session.recorder.is_some(),
         "the sound being copied is kept"
     );
-    assert!(app.saving.is_some());
+    assert!(app.keeping.saving.is_some());
     app.wait_for_save();
     let dest = app.session.saved_to().unwrap().to_path_buf();
     let audio = timegrapher_core::audio::load(&dest.join("audio-001.wav")).unwrap();
@@ -469,7 +469,7 @@ fn save_copies_in_the_background_while_listening_carries_on() {
     assert_eq!(app.unsaved_s(), 1.0);
     // The Save asked while it was written waits its turn (#1216), then
     // adds the second since.
-    assert_eq!(app.after_save.len(), 1);
+    assert_eq!(app.keeping.after_save.len(), 1);
     app.run_after_save();
     app.wait_for_save();
     assert_eq!(app.session.saved_to(), Some(dest.as_path()));
@@ -658,7 +658,7 @@ fn successful_save_keeps_the_callers_path_for_messages_and_save_again() {
             false
         ))
     );
-    assert_eq!(app.save_dir, parent.display().to_string());
+    assert_eq!(app.keeping.save_dir, parent.display().to_string());
     assert!(dest.join(MANIFEST).is_file());
     app.session.discard_recording();
     std::fs::remove_dir_all(base).unwrap();
@@ -1031,7 +1031,10 @@ fn save_again_after_move_watches_saves_where_the_take_went() {
     let tx = queued_capture(&mut app, &base);
     assert!(app.running());
     app.move_library(root.clone(), base.join("refused"));
-    assert!(app.library_moving.is_none(), "refused while recording");
+    assert!(
+        app.keeping.library_moving.is_none(),
+        "refused while recording"
+    );
     assert!(app
         .message
         .as_ref()
@@ -1046,7 +1049,7 @@ fn save_again_after_move_watches_saves_where_the_take_went() {
     app.move_library(root.clone(), to.clone());
     let ctx = egui::Context::default();
     let t = Instant::now();
-    while app.library_moving.is_some() && t.elapsed().as_secs() < 30 {
+    while app.keeping.library_moving.is_some() && t.elapsed().as_secs() < 30 {
         app.poll_library_move(&ctx);
         std::thread::sleep(std::time::Duration::from_millis(10));
     }

@@ -411,15 +411,17 @@ impl TimegrapherApp {
         if let Some(to) = self.session.saved_to() {
             return Some(file_name(to));
         }
-        if self.input != Input::File || self.opened_path.is_empty() {
+        if self.input != Input::File || self.keeping.opened_path.is_empty() {
             return None;
         }
-        let path = Path::new(&self.opened_path);
+        let path = Path::new(&self.keeping.opened_path);
         // Only a take kept as its analysis alone is looked in.
-        Some(match self.no_sound.is_some() && checkpoint::only(path) {
-            true => kept_label(path, ""),
-            false => file_name(path),
-        })
+        Some(
+            match self.keeping.no_sound.is_some() && checkpoint::only(path) {
+                true => kept_label(path, ""),
+                false => file_name(path),
+            },
+        )
     }
 }
 
