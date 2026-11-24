@@ -84,6 +84,7 @@ mod positions_test;
 mod power_reserve_pane;
 mod readings_strip;
 mod readouts;
+mod results;
 use readouts::caveat_facts;
 mod redraw;
 mod scope_panes;
@@ -1670,9 +1671,6 @@ pub struct TimegrapherApp {
     library_move_ask: Option<PathBuf>,
     /// A move under way: where to, and its outcome when done.
     library_moving: Option<(PathBuf, LibraryMove)>,
-    /// Readings worked out afresh over the strip's window when the run kept
-    /// for the whole take is too sparse there, with what they were for.
-    strip_points: Option<(StripKey, Vec<TrendPoint>)>,
     /// Stretches masked out of the readings on the strip, start and end in
     /// the session's seconds, sorted and apart. Saved with the take.
     masked: Vec<(f64, f64)>,
@@ -1737,26 +1735,6 @@ pub struct TimegrapherApp {
     open_note: Option<String>,
     /// The window may close: the user has said what to do with the sound.
     may_close: bool,
-    /// Core's readings the Distributions pane counts (#1144), what they were
-    /// read for and up to, and the run in the background that replaces them.
-    dist_readings: Option<(DistKey, f64, DistReadings)>,
-    dist_job: Option<(DistKey, f64, std::sync::mpsc::Receiver<DistReadings>)>,
-    /// Sound read from the recording for the Scope once stopped: the
-    /// stretch asked for (seconds) and what was read of it.
-    scope_audio: Option<ScopeCut>,
-    /// Each beat's trace once drawn, so a beat stays on the Scope (fading
-    /// as newer ones come) after the live engine has let its sound go.
-    scope_traces: std::collections::VecDeque<(ScopeKey, Vec<f32>)>,
-    scope_job: Option<std::sync::mpsc::Receiver<ScopeCut>>,
-    /// The steadiness tests' latest answer over the session, and the run
-    /// in the background that will replace it.
-    steady: Option<(Revision, Steadiness)>,
-    steady_job: Option<(Revision, std::sync::mpsc::Receiver<steady::Answer>)>,
-    /// The step the steadiness run under way is on, and when it started.
-    steady_work: (
-        std::sync::Arc<std::sync::atomic::AtomicU8>,
-        std::time::Instant,
-    ),
     /// Light, dark or following the system, kept for the next start.
     theme: egui::ThemePreference,
 
@@ -1774,23 +1752,8 @@ pub struct TimegrapherApp {
     /// While a take opens: a beat rate its settings change reads nothing
     /// again, the take before least of all (#1241).
     opening: bool,
-    trend: Vec<TrendPoint>,
-    /// What the readings in [`Self::trend`] were read on: the revision
-    /// and Average Over.
-    trend_key: TrendKey,
     /// What the take on show's readings rest on.
     rev: Revision,
-    /// The last [`Self::whole_take`] and what it was read from.
-    whole_take: std::cell::RefCell<Option<(WholeKey, Option<WholeTake>)>>,
-    /// The last [`Self::free_table`] and what it was read from.
-    free_table: std::cell::RefCell<Option<(FreeKey, Option<guided::FreeTable>)>>,
-    /// The next table while listening, read in the background, and what
-    /// it is read from.
-    free_job: std::cell::RefCell<Option<FreeJob>>,
-    /// The whole take being read in the background for the window.
-    whole_job: std::cell::RefCell<Option<take_reads::Job<WholeKey, Option<WholeTake>>>>,
-    /// The charts' run and a long take's run being read in the background.
-    bg: take_reads::Background,
     /// The input's level meter, level control and automatic gain switch.
     meter: input_meter::InputMeter,
     /// The stored clock error of the input this session listens to, if one
@@ -1800,12 +1763,6 @@ pub struct TimegrapherApp {
     /// arrives: offered to keep once it has run long enough.
     clock_track: Option<ClockTrack>,
     message: Option<(String, bool)>,
-    /// The tick and tock sound every few seconds of this session, and one
-    /// worked out from the file for a moment that history doesn't cover.
-    sound_history: Vec<(f64, scope_panes::Kept)>,
-    /// The profiles worked out from the recording at a moment, at the
-    /// settings revision they were read with.
-    sound_at: Option<(f64, u64, Profiles)>,
     /// Keeping the session as its analysis alone, while that is worked out.
     analysis_save: Option<AnalysisSave>,
     /// A take kept as its analysis alone as it records (#1514).
@@ -1834,7 +1791,6 @@ pub struct TimegrapherApp {
     /// Masks on the recording on show let go by the answer to the ask
     /// before listening, so starting doesn't ask again.
     masks_let_go: bool,
-    sound_job: Option<(f64, u64, std::sync::mpsc::Receiver<Profiles>)>,
     /// Offer every input the system lists, not just one per microphone.
     all_inputs: bool,
     /// When the microphone was opened and when it last sent audio.
@@ -1852,6 +1808,8 @@ pub struct TimegrapherApp {
     panes_view: pane_view::PaneView,
     /// The guided tests for this bench.
     test: guided_test::GuidedTest,
+    /// The take's readings and the runs in the background that read them.
+    results: results::Results,
 }
 
 impl TimegrapherApp {
@@ -2155,7 +2113,7 @@ impl TimegrapherApp {
             keep_back: None,
             take_keep: None,
             take_add: None,
-            strip_points: None,
+            results: results::Results::default(),
             masked: Vec::new(),
             opened_masks: None,
             masking: false,
@@ -2178,14 +2136,6 @@ impl TimegrapherApp {
             may_close: false,
             save_dir: home.join("Timegrapher recordings").display().to_string(),
             // As the settings first are.
-            scope_audio: None,
-            scope_traces: std::collections::VecDeque::new(),
-            scope_job: None,
-            steady: None,
-            steady_job: None,
-            steady_work: (Default::default(), std::time::Instant::now()),
-            dist_readings: None,
-            dist_job: None,
             theme: egui::ThemePreference::System,
             capture: None,
             live: None,
@@ -2195,21 +2145,12 @@ impl TimegrapherApp {
             anchor: None,
             reread_with: None,
             opening: false,
-            trend: Vec::new(),
-            trend_key: (Revision::default(), 10.0f64.to_bits()),
             rev: Revision::default(),
-            whole_take: Default::default(),
-            free_table: Default::default(),
-            free_job: Default::default(),
-            whole_job: Default::default(),
-            bg: Default::default(),
             meter: input_meter::InputMeter::default(),
             clock: None,
             clock_track: None,
             agc_on: Vec::new(),
             message: None,
-            sound_history: Vec::new(),
-            sound_at: None,
             analysis_save: None,
             kept_live: Default::default(),
             saving: None,
@@ -2221,7 +2162,6 @@ impl TimegrapherApp {
             jumps_seen: Vec::new(),
             rebuild_seen: (None, None),
             masks_let_go: false,
-            sound_job: None,
             all_inputs: false,
             opened_at: Instant::now(),
             audio_at: None,
@@ -2262,16 +2202,16 @@ impl TimegrapherApp {
     /// The charts from the engine's readings at the averaging time,
     /// `points`, read here or off the window's thread.
     fn put_trend(&mut self, mut points: Vec<TrendPoint>) {
-        self.strip_points = None;
+        self.results.strip_points = None;
         points.retain(|p| self.session.replay_reading_allowed(p.t));
-        self.trend = points;
-        self.trend_key = (self.rev, self.average_s.to_bits());
+        self.results.trend = points;
+        self.results.trend_key = (self.rev, self.average_s.to_bits());
     }
 
     /// Read the run of readings again when what it rests on changed since: the take's settings,
     /// clock, breaks or masks, or Average Over. While listening the next frame reads it (#1825).
     fn refresh_trend(&mut self) {
-        if self.trend_key != (self.rev, self.average_s.to_bits()) && !self.running() {
+        if self.results.trend_key != (self.rev, self.average_s.to_bits()) && !self.running() {
             self.rebuild_trend();
         }
     }
@@ -2285,8 +2225,8 @@ impl TimegrapherApp {
         };
         let now = (live.template_switch_s(), live.template_rebuild_given_up());
         if now.0 != self.rebuild_seen.0 {
-            self.bg.trend = None;
-            self.trend = live.trend(self.average_s);
+            self.results.bg.trend = None;
+            self.results.trend = live.trend(self.average_s);
             if let (Some(a), Some((dt, di))) = (self.anchor.as_mut(), live.template_shift()) {
                 (a.time, a.index) = (a.time + dt, a.index + di);
             }
@@ -2306,7 +2246,8 @@ impl TimegrapherApp {
     /// The end of the last reading with a watch heard; the end when none
     /// was.
     fn last_heard_s(&self) -> f64 {
-        self.trend
+        self.results
+            .trend
             .iter()
             .rev()
             .find(|p| p.heard)

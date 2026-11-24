@@ -448,7 +448,7 @@ fn the_profiles_marks_keep_off_the_names() {
     let end = app.latest_s();
     let sides = app.live.as_ref().unwrap().tick_profiles().clone();
     let span_s = app.average_s;
-    app.sound_history = vec![(end, scope_panes::Kept { span_s, sides })];
+    app.results.sound_history = vec![(end, scope_panes::Kept { span_s, sides })];
     let ctx = egui::Context::default();
     theme::install(&ctx);
     let run = |app: &mut TimegrapherApp, w: f32, h: f32| {
@@ -510,8 +510,8 @@ fn the_profiles_marks_keep_off_the_names() {
     // Where the facts box is two rows, over a trace that rises under
     // the left corner and is low on the right, it takes the right, and
     // keeps off the marks.
-    let kept = app.sound_history.clone();
-    for (_, k) in &mut app.sound_history {
+    let kept = app.results.sound_history.clone();
+    for (_, k) in &mut app.results.sound_history {
         for p in k.sides.iter_mut().flatten() {
             let top = p.p90.iter().copied().fold(0.0f32, f32::max);
             let n = p.median.len() / 5;
@@ -544,7 +544,7 @@ fn the_profiles_marks_keep_off_the_names() {
     // Over a trace high under both top corners, the box is still drawn
     // in each plot, in a bottom corner or else top left: a fact is never
     // dropped (Hugh, #1626).
-    for (_, k) in &mut app.sound_history {
+    for (_, k) in &mut app.results.sound_history {
         for p in k.sides.iter_mut().flatten() {
             let top = p.p90.iter().copied().fold(0.0f32, f32::max);
             let n = p.median.len();
@@ -558,7 +558,7 @@ fn the_profiles_marks_keep_off_the_names() {
             "{p:?}: {facts:?}"
         );
     }
-    app.sound_history = kept;
+    app.results.sound_history = kept;
     app.panes_view.sound_opts.side_by_side = false;
     let (names, rings, bars, _) = run(&mut app, 1440.0, 1000.0);
     assert!(!names.is_empty(), "the edges named");
@@ -584,18 +584,18 @@ fn a_calibre_picked_while_listening_keeps_what_was_heard() {
     let mut app = synthetic(30.0, 0.0);
     assert_eq!(app.bph, None);
     let heard = app.live.as_ref().unwrap().beats().len();
-    let trend = app.trend.len();
+    let trend = app.results.trend.len();
     assert!(heard > 100 && trend > 5, "{heard} {trend}");
     assert_eq!(app.cal.bph("ETA 2824-2"), Some(28_800));
     app.set_calibre("ETA 2824-2".into());
     assert_eq!(app.bph, Some(28_800));
     assert_eq!(app.live.as_ref().unwrap().beats().len(), heard);
-    assert_eq!(app.trend.len(), trend);
+    assert_eq!(app.results.trend.len(), trend);
     // Auto again, with no calibre: still all of it.
     app.set_calibre(String::new());
     assert_eq!(app.bph, None);
     assert_eq!(app.live.as_ref().unwrap().beats().len(), heard);
-    assert_eq!(app.trend.len(), trend);
+    assert_eq!(app.results.trend.len(), trend);
     let other = ["Seiko 7S26", "Seiko 7S26A", "Miyota 8215", "Seiko NH35"]
         .into_iter()
         .find(|c| app.cal.bph(c).is_some_and(|b| b != 28_800))
@@ -621,7 +621,7 @@ fn noise_shows_its_possible_beats_on_the_strip() {
     for b in x.chunks(960) {
         if live.push(b) {
             let r = live.reading(app.average_s);
-            app.trend.push(TrendPoint::of(r.time_s, &r));
+            app.results.trend.push(TrendPoint::of(r.time_s, &r));
         }
     }
     app.poll();
@@ -661,7 +661,7 @@ fn noise_while_settling_is_still_no_watch() {
     }
     app.session.set_settle_s(30.0);
     app.session.start_settle(0.0);
-    app.trend.clear();
+    app.results.trend.clear();
     assert!(app.settling_left().is_some());
     assert!(app.no_watch_yet(), "noise is no watch, settling or not");
     let _ = std::fs::remove_dir_all(base);
@@ -715,7 +715,7 @@ fn stopping_keeps_the_last_heard_readings() {
     for b in noise.chunks(960) {
         if live.push(b) {
             let r = live.reading(app.average_s);
-            app.trend.push(TrendPoint::of(r.time_s, &r));
+            app.results.trend.push(TrendPoint::of(r.time_s, &r));
         }
     }
     let after = app.reading().unwrap();
@@ -1179,7 +1179,7 @@ fn the_profile_withholds_while_the_cards_do() {
         (2.0 * k as f64, scope_panes::Kept { span_s, sides })
     };
     let mut app = synthetic(30.0, 0.0);
-    app.sound_history = (5..=15).map(kept).collect();
+    app.results.sound_history = (5..=15).map(kept).collect();
     let end = app.strip_end_s();
     // Figures on the cards: the profiles.
     assert_eq!(app.cards_unheard(), None);
@@ -1194,7 +1194,7 @@ fn the_profile_withholds_while_the_cards_do() {
     for b in vec![0.0_f32; 48_000 * 30].chunks(960) {
         live.push(b);
     }
-    app.sound_history = (5..=15).map(kept).collect();
+    app.results.sound_history = (5..=15).map(kept).collect();
     let end = app.strip_end_s();
     let (title, _) = app.cards_unheard().expect("the cards wait");
     assert_eq!(title, "No Beats Heard");
@@ -1433,7 +1433,7 @@ fn a_watch_heard_while_it_settles_is_no_missing_watch() {
     app.session.set_settle_s(30.0);
     app.session.start_settle(0.0);
     // Nothing read while settling: no reading kept as heard.
-    app.trend.clear();
+    app.results.trend.clear();
     assert!(app.settling_left().is_some());
     assert!(app.reading().is_none(), "nothing is read while settling");
     assert!(!app.no_watch_yet(), "its beats are heard");
@@ -1631,7 +1631,7 @@ fn at_800_a_caveat_leaves_the_reading_cards_captions_whole() {
     for b in audio.samples.chunks(960) {
         if live.push(b) {
             let r = live.reading(app.average_s);
-            app.trend.push(TrendPoint::of(r.time_s, &r));
+            app.results.trend.push(TrendPoint::of(r.time_s, &r));
         }
     }
     app.poll();
@@ -2339,7 +2339,7 @@ fn silence_gives_the_strip_and_the_cards_one_verdict() {
         log,
         timegrapher_core::live::LiveConfig::default(),
     ));
-    app.trend.clear();
+    app.results.trend.clear();
     assert!(app.no_watch_yet());
     said(&strip_text(&mut app, &ctx, true), Wait::NoBeatsHeard);
 }

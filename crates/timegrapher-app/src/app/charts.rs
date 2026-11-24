@@ -43,7 +43,7 @@ impl TimegrapherApp {
             Some("Opening the take: its charts appear once it is read.")
         } else if self.live.is_none() {
             Some("Listen to a watch or open a recording to see its readings here.")
-        } else if self.trend.is_empty() {
+        } else if self.results.trend.is_empty() {
             Some("The charts begin with the first reading.")
         } else {
             None
@@ -84,7 +84,7 @@ impl TimegrapherApp {
             egui::Sense::hover(),
         );
         let average = self.average_s;
-        let (series, unit, decimals) = chart_lines(reading, &self.trend, average, pal);
+        let (series, unit, decimals) = chart_lines(reading, &self.results.trend, average, pal);
         let (mut plot, grid) = chart_plot(reading, theme::time_gutter(ui.ctx()));
         // One time axis for every chart in the pane: the take's, from its
         // start to its end or now, not each chart's own first and last
@@ -139,9 +139,9 @@ impl TimegrapherApp {
             egui::pos2(frame.left(), lane.top()),
             egui::pos2(frame.right(), lane.bottom()),
         );
-        let at = hover.or(self.panes_view.charts_over);
+        let (at, trend) = (hover.or(self.panes_view.charts_over), &self.results.trend);
         let values = at.map_or_else(Vec::new, |x| {
-            lane_values(&lookup, (x, &self.trend), (reading, unit, decimals), pal)
+            lane_values(&lookup, (x, trend), (reading, unit, decimals), pal)
         });
         let only = steady::SERIES.map(|k| k == reading);
         paint_lane(

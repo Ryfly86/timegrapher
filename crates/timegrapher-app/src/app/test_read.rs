@@ -87,7 +87,7 @@ impl TimegrapherApp {
             t.saved_read = guided::SavedRead::Failed(e.to_string());
             return;
         }
-        self.bg.test_read = Some(TestRead {
+        self.results.bg.test_read = Some(TestRead {
             began_unix: t.began_unix,
             dir: dir.to_path_buf(),
             rx,
@@ -102,7 +102,13 @@ impl TimegrapherApp {
         use std::sync::mpsc::TryRecvError;
         // Nothing lands while a save is written: one of the same take
         // starts the reading over once it is done.
-        let Some(job) = self.bg.test_read.as_ref().filter(|_| self.saving.is_none()) else {
+        let Some(job) = self
+            .results
+            .bg
+            .test_read
+            .as_ref()
+            .filter(|_| self.saving.is_none())
+        else {
             return;
         };
         let saved = match job.rx.try_recv() {
@@ -112,7 +118,7 @@ impl TimegrapherApp {
         };
         let Some(TestRead {
             began_unix, dir, ..
-        }) = self.bg.test_read.take()
+        }) = self.results.bg.test_read.take()
         else {
             return;
         };
@@ -269,7 +275,7 @@ impl TimegrapherApp {
             Ok(Some(m)) => {
                 self.test.guided_unused = unused_of(&m);
                 self.test.guided_measured = m.measured;
-                self.bg.opened_marks = Some(self.test.guided_unused.clone());
+                self.results.bg.opened_marks = Some(self.test.guided_unused.clone());
             }
             Ok(None) => {}
             Err(e) => self.info_msg(format!("The test's marks weren't read: {e}")),
@@ -282,6 +288,6 @@ impl TimegrapherApp {
     pub(super) fn marks_opened(&self) -> bool {
         self.test.guided.is_none()
             && !self.test.guided_unused.is_empty()
-            && self.bg.opened_marks.as_ref() == Some(&self.test.guided_unused)
+            && self.results.bg.opened_marks.as_ref() == Some(&self.test.guided_unused)
     }
 }

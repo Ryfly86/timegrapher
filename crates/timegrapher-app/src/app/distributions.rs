@@ -299,7 +299,11 @@ impl TimegrapherApp {
             rev: self.rev,
             position: self.position,
             average: self.average_s.to_bits(),
-            readings: self.dist_readings.as_ref().map(|d| (d.0, d.1.to_bits())),
+            readings: self
+                .results
+                .dist_readings
+                .as_ref()
+                .map(|d| (d.0, d.1.to_bits())),
             rates: self.panes_view.dist.rate_2s.values.len(),
             windows: live.map_or(0, |l| l.amplitude_windows().len()),
             breaks: live.map_or_else(Vec::new, |l| l.breaks().to_vec()),
@@ -375,19 +379,24 @@ impl TimegrapherApp {
     /// reading can have come.
     pub(super) fn update_dist_readings(&mut self, ctx: Option<&egui::Context>) {
         let key = (self.rev, self.position, self.average_s.to_bits());
-        if self.dist_job.as_ref().is_some_and(|j| j.0 != key) {
-            self.dist_job = None;
+        if self.results.dist_job.as_ref().is_some_and(|j| j.0 != key) {
+            self.results.dist_job = None;
         }
-        if self.dist_readings.as_ref().is_some_and(|d| d.0 != key) {
-            self.dist_readings = None;
+        if self
+            .results
+            .dist_readings
+            .as_ref()
+            .is_some_and(|d| d.0 != key)
+        {
+            self.results.dist_readings = None;
         }
-        if let Some((k, upto, rx)) = &self.dist_job {
+        if let Some((k, upto, rx)) = &self.results.dist_job {
             match rx.try_recv() {
                 Ok(d) => {
-                    self.dist_readings = Some((*k, *upto, d));
-                    self.dist_job = None;
+                    self.results.dist_readings = Some((*k, *upto, d));
+                    self.results.dist_job = None;
                 }
-                Err(TryRecvError::Disconnected) => self.dist_job = None,
+                Err(TryRecvError::Disconnected) => self.results.dist_job = None,
                 Err(TryRecvError::Empty) => {}
             }
         }
@@ -403,10 +412,11 @@ impl TimegrapherApp {
             clock.as_ref().filter(|_| joined),
         );
         let due = self
+            .results
             .dist_readings
             .as_ref()
             .is_none_or(|d| dur - d.1 >= self.average_s);
-        if self.dist_job.is_some() || !due {
+        if self.results.dist_job.is_some() || !due {
             return;
         }
         let Some((log, breaks)) =
@@ -426,9 +436,9 @@ impl TimegrapherApp {
                     let _ = tx.send(read());
                     ctx.request_repaint();
                 });
-                self.dist_job = Some((key, dur, rx));
+                self.results.dist_job = Some((key, dur, rx));
             }
-            None => self.dist_readings = Some((key, dur, read())),
+            None => self.results.dist_readings = Some((key, dur, read())),
         }
     }
 
@@ -454,7 +464,7 @@ impl TimegrapherApp {
         let color = series_color(reading, pal);
         // The readings, one per Average Over so that no two share beats:
         // core's, as `timegrapher series` counts them (#1144).
-        let core = self.dist_readings.as_ref().map(|d| &d.2 .0);
+        let core = self.results.dist_readings.as_ref().map(|d| &d.2 .0);
         let readings = |i: usize| -> Vec<f64> {
             core.map_or_else(Vec::new, |g| {
                 g[i].y.iter().copied().filter(|v| v.is_finite()).collect()
@@ -511,7 +521,7 @@ impl TimegrapherApp {
         }
         // The source core chose over the windows the readings are made
         // of, with its caveats.
-        self.dist_readings.as_ref().map_or_else(
+        self.results.dist_readings.as_ref().map_or_else(
             || core_session::select_beat_errors(std::iter::empty()),
             |d| d.2 .1.clone(),
         )
@@ -963,7 +973,7 @@ mod source_tests {
         assert!(amps.iter().all(|a| (a - 280.0).abs() < 10.0), "{amps:?}");
         let (bes, .., selected) = app.hist_values(SeriesKind::BeatError, false, &theme::DARK);
         assert_eq!(bes.len(), rates.len());
-        let core = app.dist_readings.as_ref().unwrap();
+        let core = app.results.dist_readings.as_ref().unwrap();
         assert_eq!(
             selected.unwrap().beat_error_source,
             core.2 .1.beat_error_source
