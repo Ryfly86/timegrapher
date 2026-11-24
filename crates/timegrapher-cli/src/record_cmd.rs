@@ -421,16 +421,17 @@ fn settings_with(
     };
     let table = selected.calibre.as_ref();
     let bph = o.bph.or(table.and_then(|c| c.bph));
-    let lift = o.lift.or(table.and_then(|c| c.lift_angle_deg));
     let calibre = table.map(|c| c.name.clone());
+    // The lift every reader reads (#2226).
+    let lift = take::lift_setting(o.lift, m.as_ref(), table);
     let Some(m) = m else {
         return Ok(Settings {
             watch: o.watch.clone(),
             calibre,
             bph,
-            lift: lift.unwrap_or(take::DEFAULT_LIFT_DEG),
-            lift_known: lift.is_some(),
-            lift_from: take::SettingFrom::of(o.lift, None, table.and_then(|c| c.lift_angle_deg)),
+            lift: lift.lift_deg,
+            lift_known: lift.known,
+            lift_from: lift.from,
             settle_s: None,
         });
     };
@@ -464,10 +465,9 @@ fn settings_with(
             return Err(differs("lift", format!("{a}"), format!("{b}")));
         }
     }
-    // A persisted numeric value wins, along with its context, read as
-    // every reader reads it (#685).
-    let lift_known = take::file_lift_known(&m, table).unwrap_or(lift.is_some());
-    if given_lift.is_some() && m.lift.is_some() && !lift_known {
+    // A lift supplied for this take cannot join a session that recorded
+    // an assumed one (#685).
+    if given_lift.is_some() && take::file_lift_known(&m, table) == Some(false) {
         return Err(format!(
             "{} records an assumed lift, but this take supplies one; edit lift_known = true \
              only if that context applies to all its takes, or record into another folder",
@@ -478,9 +478,9 @@ fn settings_with(
         watch: m.watch.or(o.watch.clone()),
         calibre: m.calibre.or(calibre),
         bph: m.bph.or(bph),
-        lift: m.lift.or(lift).unwrap_or(take::DEFAULT_LIFT_DEG),
-        lift_known,
-        lift_from: take::SettingFrom::of(o.lift, m.lift, table.and_then(|c| c.lift_angle_deg)),
+        lift: lift.lift_deg,
+        lift_known: lift.known,
+        lift_from: lift.from,
         settle_s: m.settle_s,
     })
 }
@@ -1947,6 +1947,31 @@ mod tests {
         assert_eq!(from(&o, Some(eta)), (48.0, true, SettingFrom::Take));
     }
 
+    /// A session file's assumed lift gives way to the lift of the calibre
+    /// it names; one it was given stands (#2226).
+    #[test]
+    fn record_reads_a_calibres_lift_over_a_session_files_assumed_one() {
+        use timegrapher_core::take::SettingFrom;
+        let user = UserCalibres::default();
+        let o = options(PathBuf::from("unused-settings-folder"));
+        let file = |known: bool| {
+            toml::from_str::<Manifest>(&format!(
+                "calibre = \"Unitas 6497-2\"\nlift = 52\nlift_known = {known}\n"
+            ))
+            .unwrap()
+        };
+        let set = settings_with(&o, Some(file(false)), &user).unwrap();
+        assert_eq!(
+            (set.lift, set.lift_known, set.lift_from),
+            (44.0, true, SettingFrom::Calibre)
+        );
+        let set = settings_with(&o, Some(file(true)), &user).unwrap();
+        assert_eq!(
+            (set.lift, set.lift_known, set.lift_from),
+            (52.0, true, SettingFrom::Take)
+        );
+    }
+
     #[test]
     fn custom_record_settings_inherit_only_missing_manifest_values_and_context() {
         let user: UserCalibres = serde_json::from_value(json!({
@@ -1984,9 +2009,10 @@ mod tests {
                 .unwrap()
         };
         let set = settings_with(&o, Some(persisted()), &user).unwrap();
+        // An assumed lift gives way to the calibre's (#2226).
         assert_eq!(
             (set.bph, set.lift, set.lift_known),
-            (Some(18000), 52.0, false)
+            (Some(18000), 44.0, true)
         );
         o.lift = Some(52.0);
         assert!(settings_with(&o, Some(persisted()), &user)
