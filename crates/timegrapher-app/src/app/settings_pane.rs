@@ -575,10 +575,7 @@ impl TimegrapherApp {
                 choice = Some(i == 0);
             }
         });
-        if choice.is_none() && modal.should_close() {
-            choice = Some(false);
-        }
-        if let Some(go) = choice {
+        if let Some(go) = dialogs::yes_no(choice, &modal) {
             self.forget_ask = None;
             if go {
                 self.forget_clock(&device);

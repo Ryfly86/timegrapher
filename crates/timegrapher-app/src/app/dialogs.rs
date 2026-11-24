@@ -865,10 +865,7 @@ impl TimegrapherApp {
                 choice = Some(i == 0);
             }
         });
-        if choice.is_none() && modal.should_close() {
-            choice = Some(false);
-        }
-        if let Some(go) = choice {
+        if let Some(go) = yes_no(choice, &modal) {
             self.keeping.kept_delete_ask = None;
             if go {
                 timegrapher_core::recorder::remove_stale_lock(&dir);
@@ -976,6 +973,12 @@ impl TimegrapherApp {
             self.message = None;
         }
     }
+}
+
+/// A yes/no sheet's answer: the button picked, or No once the sheet is
+/// closed any other way (Escape or a click outside it).
+pub(super) fn yes_no<R>(choice: Option<bool>, modal: &egui::ModalResponse<R>) -> Option<bool> {
+    choice.or_else(|| modal.should_close().then_some(false))
 }
 
 /// The question before throwing away unsaved sound, for what was asked.
