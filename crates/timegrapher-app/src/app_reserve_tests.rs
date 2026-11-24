@@ -1061,19 +1061,22 @@ fn a_long_take_lands_with_its_run_and_charts_read_in_the_background() {
         app.test.reserve.is_none(),
         "the run isn't read as the take lands"
     );
-    assert!(app.trend.is_empty(), "nor are the charts");
+    assert!(app.results.trend.is_empty(), "nor are the charts");
     let ctx = egui::Context::default();
     theme::install(&ctx);
     let start = Instant::now();
-    while app.test.reserve.is_none() || app.bg.trend.is_some() || app.trend.is_empty() {
+    while app.test.reserve.is_none()
+        || app.results.bg.trend.is_some()
+        || app.results.trend.is_empty()
+    {
         app.take_reads_shown(&ctx);
         assert!(start.elapsed() < Duration::from_secs(60), "never came");
         std::thread::sleep(Duration::from_millis(5));
     }
-    assert!(app.bg.reserve.is_none());
+    assert!(app.results.bg.reserve.is_none());
     let mut here = TimegrapherApp::with_devices(Vec::new(), None);
     here.show_log(long_log(run), "long".into(), vec![], vec![]);
-    assert_eq!(app.trend, here.trend);
+    assert_eq!(app.results.trend, here.results.trend);
     let text = |a: &TimegrapherApp| {
         let r = a
             .test
@@ -1100,7 +1103,7 @@ fn a_long_takes_run_is_read_again_when_its_masks_change() {
         let start = Instant::now();
         loop {
             app.take_reads_shown(&ctx);
-            if app.bg.reserve.is_none() && app.test.reserve.is_some() == shown {
+            if app.results.bg.reserve.is_none() && app.test.reserve.is_some() == shown {
                 return;
             }
             assert!(start.elapsed() < Duration::from_secs(60), "never came");
@@ -1156,12 +1159,15 @@ fn the_window_draws_again_only_while_work_is_under_way() {
     let slow: [(&str, Set); 6] = [
         (
             "sound",
-            Box::new(|a| a.sound_job = Some((0.0, 0, channel().1))),
+            Box::new(|a| a.results.sound_job = Some((0.0, 0, channel().1))),
         ),
-        ("scope", Box::new(|a| a.scope_job = Some(channel().1))),
+        (
+            "scope",
+            Box::new(|a| a.results.scope_job = Some(channel().1)),
+        ),
         (
             "steady",
-            Box::new(|a| a.steady_job = Some((Revision::default(), channel().1))),
+            Box::new(|a| a.results.steady_job = Some((Revision::default(), channel().1))),
         ),
         (
             "save",
@@ -1510,7 +1516,7 @@ fn a_long_quick_listen_shows_its_run_so_far_in_the_power_reserve_pane() {
     let settle = |app: &mut TimegrapherApp| {
         let start = Instant::now();
         app.take_reads_shown(&ctx);
-        while app.bg.reserve_live.is_some() {
+        while app.results.bg.reserve_live.is_some() {
             assert!(start.elapsed() < Duration::from_secs(60), "never came");
             std::thread::sleep(Duration::from_millis(5));
             app.take_reads_shown(&ctx);
@@ -1576,17 +1582,20 @@ fn a_long_quick_listen_shows_its_run_so_far_in_the_power_reserve_pane() {
     assert!(app.results_files().unwrap().is_empty());
     // Not read again until a minute of take has come.
     app.take_reads_shown(&ctx);
-    assert!(app.bg.reserve_live.is_none());
-    app.bg.reserve_live_s -= power_reserve::READ_AGAIN_S;
+    assert!(app.results.bg.reserve_live.is_none());
+    app.results.bg.reserve_live_s -= power_reserve::READ_AGAIN_S;
     app.take_reads_shown(&ctx);
-    assert!(app.bg.reserve_live.is_some(), "read again a minute on");
+    assert!(
+        app.results.bg.reserve_live.is_some(),
+        "read again a minute on"
+    );
     settle(&mut app);
     assert_eq!(text(&app), so_far(&here));
     // Stopped: read once more, and kept.
     app.capture = None;
-    assert!(app.bg.reserve.is_some());
+    assert!(app.results.bg.reserve.is_some());
     let start = Instant::now();
-    while app.bg.reserve.is_some() {
+    while app.results.bg.reserve.is_some() {
         assert!(start.elapsed() < Duration::from_secs(60), "never came");
         std::thread::sleep(Duration::from_millis(5));
         app.take_reads_shown(&ctx);

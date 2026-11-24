@@ -154,7 +154,7 @@ impl TimegrapherApp {
     pub(super) fn strip_unheard(&self) -> Vec<(f64, f64)> {
         match &self.live {
             Some(live) if !self.running() => {
-                unheard_spans(&self.trend, self.average_s, live.duration_s())
+                unheard_spans(&self.results.trend, self.average_s, live.duration_s())
             }
             _ => Vec::new(),
         }
@@ -179,7 +179,12 @@ impl TimegrapherApp {
     /// later (a reading's time is its window's end). None before there is
     /// any (Hugh, #1252).
     pub(super) fn take_span(&self) -> Option<(f64, f64)> {
-        let end = self.trend.last().map_or(0.0, |p| p.t).max(self.latest_s());
+        let end = self
+            .results
+            .trend
+            .last()
+            .map_or(0.0, |p| p.t)
+            .max(self.latest_s());
         (end > 0.0).then_some((0.0, end))
     }
 
@@ -575,6 +580,7 @@ impl TimegrapherApp {
     ) -> (Vec<TrendPoint>, f64) {
         let step = strip_step(end - from);
         let kept: Vec<TrendPoint> = self
+            .results
             .trend
             .iter()
             .filter(|p| p.t >= from && p.t <= end)
@@ -592,8 +598,8 @@ impl TimegrapherApp {
         // again while listening is sparse up to then and dense since, and
         // its average spacing hides the stretch with none.
         let around = (
-            self.trend.first().map_or(from, |p| p.t),
-            self.trend.last().map_or(end, |p| p.t),
+            self.results.trend.first().map_or(from, |p| p.t),
+            self.results.trend.last().map_or(end, |p| p.t),
         );
         let quiet = super::masks::settlings(&self.session, &self.test.guided_unused);
         if spacing <= 2.0 * step && widest_hole(&kept, from, end, around, &quiet) <= 2.0 * step {
@@ -619,7 +625,7 @@ impl TimegrapherApp {
             },
             self.rev,
         );
-        if let Some((k, pts)) = &self.strip_points {
+        if let Some((k, pts)) = &self.results.strip_points {
             if *k == key {
                 return (pts.clone(), step);
             }
@@ -632,7 +638,7 @@ impl TimegrapherApp {
             }
             t += step;
         }
-        self.strip_points = Some((key, pts.clone()));
+        self.results.strip_points = Some((key, pts.clone()));
         (pts, step)
     }
 

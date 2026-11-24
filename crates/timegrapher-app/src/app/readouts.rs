@@ -1905,7 +1905,7 @@ impl TimegrapherApp {
         };
         self.batch.is_none()
             && live.duration_s() > 6.0
-            && !self.trend.iter().any(|p| p.heard)
+            && !self.results.trend.iter().any(|p| p.heard)
             && self
                 .reading()
                 .is_none_or(|r| !r.watch_heard && !r.finding_beat)

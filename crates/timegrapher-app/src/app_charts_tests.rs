@@ -550,9 +550,9 @@ fn the_charts_panned_to_the_newest_reading_follow_new_ones() {
     // the charts move with it, the length kept.
     let more = |app: &mut TimegrapherApp, s: usize| {
         for _ in 0..s {
-            let mut p = *app.trend.last().unwrap();
+            let mut p = *app.results.trend.last().unwrap();
             p.t += 1.0;
-            app.trend.push(p);
+            app.results.trend.push(p);
         }
     };
     more(&mut app, 60);
@@ -720,10 +720,11 @@ fn stacked_charts_put_the_takes_start_at_one_place() {
         set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
     }
     // The rate read from 20 s on, the amplitude from the start.
-    for p in app.trend.iter_mut().filter(|p| p.t < 20.0) {
+    for p in app.results.trend.iter_mut().filter(|p| p.t < 20.0) {
         p.rate_s_per_day = None;
     }
     assert!(app
+        .results
         .trend
         .iter()
         .any(|p| p.t < 20.0 && p.amplitude_deg.is_some()));
@@ -800,7 +801,7 @@ fn readings_over_time_charts_share_one_gutter() {
     };
     // Read here rather than on its own thread.
     let log = steady::log_of(app.live.as_ref().unwrap()).unwrap();
-    app.steady = Some((app.rev, steady::compute(&log, None)));
+    app.results.steady = Some((app.rev, steady::compute(&log, None)));
     let mut out = pass(&mut app);
     for _ in 0..3 {
         out = pass(&mut app);
@@ -871,7 +872,7 @@ fn time_panes_under_the_strip_put_a_late_time_at_one_place() {
         // Time still ends where the strip does, at the take's end.
         let short = synthetic(310.0, 20.0);
         let log = steady::log_of(short.live.as_ref().unwrap()).unwrap();
-        app.steady = Some((app.rev, steady::compute(&log, None)));
+        app.results.steady = Some((app.rev, steady::compute(&log, None)));
         let mut out = pass(&mut app);
         for _ in 0..3 {
             out = pass(&mut app);
@@ -939,7 +940,7 @@ fn joined_readings_over_time_says_whose_time_it_is() {
             app.paint_position(0.0, end);
         }
         let log = steady::log_of(app.live.as_ref().unwrap()).unwrap();
-        app.steady = Some((app.rev, steady::compute(&log, None)));
+        app.results.steady = Some((app.rev, steady::compute(&log, None)));
         let ctx = themed();
         let mut out = None;
         for _ in 0..3 {
@@ -1186,11 +1187,11 @@ fn the_charts_draw_no_scales_before_there_is_a_reading() {
     assert!(!scales(&text), "{text}");
     // A take with no reading yet, then with its readings.
     let mut app = synthetic(60.0, 20.0);
-    let trend = std::mem::take(&mut app.trend);
+    let trend = std::mem::take(&mut app.results.trend);
     let text = draw(&mut app);
     assert!(text.contains("begin with the first reading"), "{text}");
     assert!(!scales(&text), "{text}");
-    app.trend = trend;
+    app.results.trend = trend;
     let text = draw(&mut app);
     assert!(app.charts_waiting().is_none());
     assert!(scales(&text), "{text}");

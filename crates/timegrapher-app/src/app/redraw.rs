@@ -33,14 +33,14 @@ impl TimegrapherApp {
     /// what it gives shows (and a take kept as its analysis only lets its
     /// sound go, #1221) without waiting for the pointer to move.
     pub(super) fn repaint_every(&self) -> Option<Duration> {
-        let working = self.sound_job.is_some()
-            || self.scope_job.is_some()
-            || self.steady_job.is_some()
+        let working = self.results.sound_job.is_some()
+            || self.results.scope_job.is_some()
+            || self.results.steady_job.is_some()
             || self.saving.is_some()
             || self.take_keep.is_some()
             || self.take_add.is_some()
             || self.analysis_save.is_some()
-            || self.bg.test_read.is_some()
+            || self.results.bg.test_read.is_some()
             || self.kept_writing()
             || self
                 .session
