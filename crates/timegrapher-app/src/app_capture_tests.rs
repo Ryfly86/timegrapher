@@ -389,8 +389,8 @@ fn a_run_read_before_the_takeover_is_never_shown_after_it() {
             if planted.is_none() && live.duration_s() > 20.0 && live.template_switch_s().is_none() {
                 // A new Average Over, its run read on the old template.
                 let stale = TrendPoint::of(0.123, &live.reading_at(20.0, 1.0));
-                app.average_s *= 2.0;
-                let key = (app.rev, app.average_s.to_bits());
+                app.take.average_s *= 2.0;
+                let key = (app.take.rev, app.take.average_s.to_bits());
                 let job = take_reads::Job::start(key, &ctx, move || (vec![stale], 0.0));
                 app.results.bg.trend = Some(job);
                 planted = Some(stale);
@@ -412,7 +412,7 @@ fn a_run_read_before_the_takeover_is_never_shown_after_it() {
     // capture, which would drop the job by itself; on a long take nothing
     // else changes, so the job keeps the footing the app has now.
     if let Some(job) = app.results.bg.trend.as_mut() {
-        job.key = (app.rev, app.average_s.to_bits());
+        job.key = (app.take.rev, app.take.average_s.to_bits());
     }
     let start = Instant::now();
     app.refresh_trend_shown(&ctx);

@@ -68,7 +68,7 @@ impl TimegrapherApp {
         }
         // The Complication Test stays where the card is.
         if let Some(&first) = kind.order().first() {
-            if self.position != first {
+            if self.take.position != first {
                 self.change_position(first);
             }
         }
@@ -78,7 +78,7 @@ impl TimegrapherApp {
         }
         let test = match (kind, half) {
             (guided::Kind::Poise, _) => guided::Test::poise(),
-            (guided::Kind::Complication, _) => guided::Test::complication(self.position),
+            (guided::Kind::Complication, _) => guided::Test::complication(self.take.position),
             (_, Some(full)) => guided::Test::after(full),
             (_, None) => guided::Test::new(),
         };
@@ -186,8 +186,8 @@ impl TimegrapherApp {
                 let clock = self.reading_clock(log.duration_s);
                 if let Some(test) = self.test.guided.as_mut() {
                     test.bph_set = self.live.as_ref().and_then(|l| l.config().analysis.bph);
-                    test.lift_deg = Some(self.lift_deg);
-                    test.read_new(&log, clock.as_ref(), &self.masked);
+                    test.lift_deg = Some(self.take.lift_deg);
+                    test.read_new(&log, clock.as_ref(), &self.take.masked);
                 }
             }
         }
@@ -231,8 +231,8 @@ impl TimegrapherApp {
             Some(log) => {
                 let clock = self.reading_clock(log.duration_s);
                 test.bph_set = self.live.as_ref().and_then(|l| l.config().analysis.bph);
-                test.lift_deg = Some(self.lift_deg);
-                test.finish(&log, clock.as_ref(), &self.masked);
+                test.lift_deg = Some(self.take.lift_deg);
+                test.finish(&log, clock.as_ref(), &self.take.masked);
                 // Read again from its sound as saved, as `timegrapher
                 // session` reads it, once its take is saved (#1958).
                 test.saved_read = guided::SavedRead::Pending;
@@ -254,10 +254,10 @@ impl TimegrapherApp {
     /// results.
     pub(super) fn guided_about(&self) -> guided::About {
         guided::About {
-            watch: self.watch.trim().to_string(),
-            calibre: self.calibre.clone(),
-            bph: self.bph.or(self.live.as_ref().and_then(|l| l.bph())),
-            lift_angle_deg: self.lift_deg,
+            watch: self.take.watch.trim().to_string(),
+            calibre: self.take.calibre.clone(),
+            bph: self.take.bph.or(self.live.as_ref().and_then(|l| l.bph())),
+            lift_angle_deg: self.take.lift_deg,
         }
     }
 
@@ -435,7 +435,7 @@ impl TimegrapherApp {
                     self.test.guided_settle_s = v;
                     // Every settle band redraws, and the table with it.
                     self.session.resettle(v);
-                    self.positions_moved(self.position);
+                    self.positions_moved(self.take.position);
                 }
             })
             .response

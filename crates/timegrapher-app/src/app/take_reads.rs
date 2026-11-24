@@ -187,8 +187,8 @@ impl TimegrapherApp {
     pub(super) fn whole_take_shown(&self, ctx: &egui::Context) -> Option<WholeTake> {
         // A take just listened to is read to its last reading with a
         // watch heard: once the charts are read on what is masked now.
-        let opened = self.take_breaks.is_some() || self.stopped_take().is_some();
-        if !opened && self.results.trend_key != (self.rev, self.average_s.to_bits()) {
+        let opened = self.take.take_breaks.is_some() || self.stopped_take().is_some();
+        if !opened && self.results.trend_key != (self.take.rev, self.take.average_s.to_bits()) {
             return None;
         }
         let key = match self.whole_read()? {
@@ -225,7 +225,7 @@ impl TimegrapherApp {
             return Some(s.live.duration_s());
         }
         let live = self.live.as_ref()?;
-        self.take_breaks.is_some().then(|| live.duration_s())
+        self.take.take_breaks.is_some().then(|| live.duration_s())
     }
 
     /// A stopped take's reading over `average` seconds (Norm on #2081):
@@ -261,8 +261,8 @@ impl TimegrapherApp {
     /// take reads more than one, as its row counts them (a stretch that is
     /// the watch being handled is not one, #1980).
     pub(super) fn whole_named(&self) -> String {
-        let read = self.session.positions_read(self.position).len();
-        crate::watches::whole_named(Some(self.position.core()), read)
+        let read = self.session.positions_read(self.take.position).len();
+        crate::watches::whole_named(Some(self.take.position.core()), read)
     }
 
     /// The whole take as kept (`Ok`), or what it is to be read from
@@ -291,8 +291,8 @@ impl TimegrapherApp {
         let key: WholeKey = (
             live.beats().len(),
             spans.clone(),
-            stopped.map_or_else(|| self.masked.clone(), |s| s.masked().to_vec()),
-            self.rev,
+            stopped.map_or_else(|| self.take.masked.clone(), |s| s.masked().to_vec()),
+            self.take.rev,
             stopped.is_some(),
         );
         if let Some((k, w)) = self.results.whole_take.borrow().as_ref() {
@@ -320,12 +320,12 @@ impl TimegrapherApp {
                 s.unlisted,
             ),
             None => (
-                self.take_breaks.is_some(),
+                self.take.take_breaks.is_some(),
                 self.live.as_ref().and_then(steady::log_of),
-                self.masked.clone(),
-                self.take_clock.clone(),
-                self.take_breaks.clone(),
-                self.take_unlisted,
+                self.take.masked.clone(),
+                self.take.take_clock.clone(),
+                self.take.take_breaks.clone(),
+                self.take.take_unlisted,
             ),
         };
         let read = move || {
@@ -379,7 +379,7 @@ impl TimegrapherApp {
 
     /// Each position's settled stretches, in the table's order.
     fn free_stretches(&self) -> Vec<(core_session::Position, f64, f64)> {
-        stretches_in(&self.session, self.position)
+        stretches_in(&self.session, self.take.position)
     }
 
     /// The guided test's figures for the position being measured, so far:
@@ -418,20 +418,25 @@ impl TimegrapherApp {
         };
         let stretches = clipped(stretches, end);
         let masked = core_session::masked_spans(
-            &self.masked.iter().map(|&(a, b)| [a, b]).collect::<Vec<_>>(),
+            &self
+                .take
+                .masked
+                .iter()
+                .map(|&(a, b)| [a, b])
+                .collect::<Vec<_>>(),
         );
         let beats = if running {
             (end / FREE_TABLE_STEP_S) as usize
         } else {
             live.beats().len()
         };
-        let key: FreeKey = (beats, stretches.clone(), masked.clone(), self.rev);
+        let key: FreeKey = (beats, stretches.clone(), masked.clone(), self.take.rev);
         let mut job = self.results.free_job.borrow_mut();
         // A table being read on what the readings rested on before is let
         // go; so is one of a take on show read from anything else.
         if job
             .as_ref()
-            .is_some_and(|j| j.key.3 != self.rev || !running && j.key != key)
+            .is_some_and(|j| j.key.3 != self.take.rev || !running && j.key != key)
         {
             *job = None;
         }
@@ -457,8 +462,8 @@ impl TimegrapherApp {
             return None;
         }
         let (take_clock, opened, ppm) = (
-            self.take_clock.clone(),
-            self.take_breaks.clone(),
+            self.take.take_clock.clone(),
+            self.take.take_breaks.clone(),
             self.clock.as_ref().map(|c| c.ppm),
         );
         let bph_set = live.config().analysis.bph;
@@ -501,7 +506,7 @@ impl TimegrapherApp {
     /// #1825). The readings heard after the sound it was read on are on
     /// the new footing already and are kept after it.
     pub(super) fn refresh_trend_shown(&mut self, ctx: &egui::Context) {
-        let key: TrendKey = (self.rev, self.average_s.to_bits());
+        let key: TrendKey = (self.take.rev, self.take.average_s.to_bits());
         if self.live.is_none() {
             self.results.bg.trend = None;
             self.refresh_trend();
@@ -515,7 +520,7 @@ impl TimegrapherApp {
             self.results.bg.trend = None;
         }
         let Some(job) = &self.results.bg.trend else {
-            let (live, average_s) = (self.live.clone(), self.average_s);
+            let (live, average_s) = (self.live.clone(), self.take.average_s);
             self.results.bg.trend = Some(Job::start(key, ctx, move || {
                 live.map_or_else(
                     || (Vec::new(), 0.0),
@@ -565,7 +570,7 @@ impl TimegrapherApp {
             return;
         }
         self.results.bg.reserve_live = None;
-        let key = self.rev;
+        let key = self.take.rev;
         if self.results.bg.reserve.is_none()
             && self.results.bg.reserve_of.is_some_and(|of| of != key)
         {

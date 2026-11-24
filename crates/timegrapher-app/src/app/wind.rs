@@ -70,7 +70,7 @@ impl TimegrapherApp {
                 .full_wind
                 .as_deref()
                 .and_then(full_wind::unix_of_utc),
-            None => self.wind.wound_at,
+            None => self.take.wind.wound_at,
         }
     }
 
@@ -78,7 +78,7 @@ impl TimegrapherApp {
     /// watch picked, else for the Quick Listen.
     pub(super) fn set_wound(&mut self, at: Option<f64>) {
         if self.open_watch().is_none() {
-            self.wind.wound_at = at;
+            self.take.wind.wound_at = at;
             return;
         }
         self.set_watch_wind(at.map(|t| {
@@ -114,7 +114,7 @@ impl TimegrapherApp {
 
     /// A watch picked: a Quick Listen's wind is let go.
     pub(super) fn forget_quick_wind(&mut self) {
-        self.wind.wound_at = None;
+        self.take.wind.wound_at = None;
     }
 
     /// A test that begins at full wind has started, where
@@ -124,8 +124,8 @@ impl TimegrapherApp {
     /// began gives none (Norm on #1935: never moved earlier to fill one).
     pub(super) fn started_from_full_wind(&mut self, fresh: bool) {
         if START_SETS_FULL_WIND {
-            self.wind.before_test = Some(BeforeTest {
-                wound: self.wind.wound_at,
+            self.take.wind.before_test = Some(BeforeTest {
+                wound: self.take.wind.wound_at,
                 watch: self
                     .open_watch()
                     .map(|e| (e.watch.id.clone(), e.watch.full_wind.clone())),
@@ -143,7 +143,7 @@ impl TimegrapherApp {
     /// ([`reserve::Test::wind_h`]); thrown away, the stop still stands
     /// (#2001).
     pub(super) fn wind_let_down(&mut self) {
-        self.wind.before_test = None;
+        self.take.wind.before_test = None;
         self.set_wound(None);
     }
 
@@ -154,7 +154,7 @@ impl TimegrapherApp {
     /// it; so does a watch or take other than the Start's. Called once per
     /// take, before its recording is let go.
     pub(super) fn take_thrown_away(&mut self) {
-        let Some(before) = self.wind.before_test.take() else {
+        let Some(before) = self.take.wind.before_test.take() else {
             return;
         };
         let kept = self.session.saved_to().is_some()
@@ -170,7 +170,7 @@ impl TimegrapherApp {
         let watch = self.open_watch().map(|e| e.watch.id.clone());
         match before.watch {
             Some((id, utc)) if watch.as_ref() == Some(&id) => self.set_watch_wind(utc),
-            None if watch.is_none() => self.wind.wound_at = before.wound,
+            None if watch.is_none() => self.take.wind.wound_at = before.wound,
             _ => {}
         }
     }
@@ -224,17 +224,17 @@ impl TimegrapherApp {
     /// given), or none with no take on show.
     pub(super) fn shown_wind(&mut self) -> Option<Option<f64>> {
         let Some(take) = self.take_on_show() else {
-            self.wind.shown = None;
+            self.take.wind.shown = None;
             return None;
         };
-        if self.wind.shown.as_ref().map(|s| &s.0) != Some(&take) {
+        if self.take.wind.shown.as_ref().map(|s| &s.0) != Some(&take) {
             let h = read_manifest(&take)
                 .ok()
                 .flatten()
                 .and_then(|(m, _)| full_wind::take_wind_h(&m));
-            self.wind.shown = Some((take, h));
+            self.take.wind.shown = Some((take, h));
         }
-        self.wind.shown.as_ref().map(|s| s.1)
+        self.take.wind.shown.as_ref().map(|s| s.1)
     }
 
     /// Set Wind on the take `take`: its hours since full wind given
@@ -264,7 +264,7 @@ impl TimegrapherApp {
         if let Err(e) = full_wind::set_take_wind_h(take, wind_h) {
             return self.error(format!("Couldn't set the take's wind: {e}"));
         }
-        self.wind.shown = None;
+        self.take.wind.shown = None;
         if let Ok(Some(l)) = &mut self.library {
             l.scan();
         }
@@ -316,7 +316,7 @@ impl TimegrapherApp {
         let began = self.began_unix().unwrap_or(now);
         // A wind given by hand is newer than any a test's Start replaced:
         // nothing goes back if the test is then thrown away (Vernon on #2031).
-        self.wind.before_test = None;
+        self.take.wind.before_test = None;
         self.set_wound(match pick {
             WindPick::Now => Some(now),
             WindPick::HoursAgo(h) => Some(now - h.max(0.0) * 3600.0),
@@ -342,17 +342,17 @@ impl TimegrapherApp {
     pub(super) fn wind_menu(&mut self, ui: &mut egui::Ui) -> Option<WindPick> {
         let shown = self.shown_wind();
         let begun = shown.is_some() || self.live.is_some();
-        if self.wind.ago.is_empty() {
+        if self.take.wind.ago.is_empty() {
             let h = match shown {
                 Some(h) => h,
                 None if begun => self.entry_wind_h(),
                 None => self.wind_h_at(guided::unix_now()),
             };
-            self.wind.ago = fields::plain(h.unwrap_or(0.0));
+            self.take.wind.ago = fields::plain(h.unwrap_or(0.0));
         }
-        let picked = wind_choices(ui, &mut self.wind.ago, begun);
+        let picked = wind_choices(ui, &mut self.take.wind.ago, begun);
         if picked.is_some() {
-            self.wind.ago.clear();
+            self.take.wind.ago.clear();
             ui.close();
         }
         picked

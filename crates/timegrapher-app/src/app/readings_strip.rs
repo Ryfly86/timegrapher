@@ -227,7 +227,7 @@ impl TimegrapherApp {
     pub(super) fn watch_facts(&self) -> (String, String, String) {
         let heard = self.bph_heard();
         let set = self.bph_set_by_calibre();
-        let angle = format!("{}°", fields::plain(self.lift_deg));
+        let angle = format!("{}°", fields::plain(self.take.lift_deg));
         let (how, rate) = self.bph_parts(set, heard);
         let bare = if rate.is_empty() {
             how.unwrap_or_default().to_string()
@@ -241,10 +241,10 @@ impl TimegrapherApp {
     /// "Not Set · 52° · Auto 28800".
     pub(super) fn watch_detail(&self) -> String {
         let (angle, bph, _) = self.watch_facts();
-        let calibre = if self.calibre.is_empty() {
+        let calibre = if self.take.calibre.is_empty() {
             "Not Set"
         } else {
-            &self.calibre
+            &self.take.calibre
         };
         format!("{calibre} · {angle} · {bph}")
     }

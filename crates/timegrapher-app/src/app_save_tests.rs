@@ -16,7 +16,7 @@ fn a_move_settles_before_it_is_read() {
     app.session.set_settle_s(SETTLE_S);
     app.session
         .load(&[(0.0, Position::DialUp), (30.0, Position::DialDown)], &[]);
-    app.position = Position::DialDown;
+    app.take.position = Position::DialDown;
     app.session.start_settle(30.0);
     assert_eq!(app.session.settles(), [(30.0, 30.0 + SETTLE_S)]);
     assert!(!app.in_position(35.0) && app.in_position(45.0));
@@ -511,7 +511,7 @@ fn a_save_from_the_question_carries_on_once_it_is_written() {
 #[test]
 fn saved_metadata_edits_warn_without_new_sound_and_reverts_are_clean() {
     let (mut app, base) = save_failure_fixture("metadata-edits");
-    app.watch = "original".into();
+    app.take.watch = "original".into();
     app.save_into(&base.join("saved"));
     app.wait_for_save();
     app.session
@@ -520,7 +520,7 @@ fn saved_metadata_edits_warn_without_new_sound_and_reverts_are_clean() {
         .unwrap();
     assert!(!app.needs_save_confirmation());
     let original = app.save_metadata();
-    app.watch = "renamed".into();
+    app.take.watch = "renamed".into();
     assert!(app.metadata_unsaved());
     assert!(app.needs_save_confirmation());
     assert_eq!(app.unsaved_s(), 0.0);
@@ -528,17 +528,17 @@ fn saved_metadata_edits_warn_without_new_sound_and_reverts_are_clean() {
     assert!(matches!(app.confirm, Some(Confirm::Open { .. })));
     assert!(app.session.recorder.is_some());
     app.confirm = None;
-    app.watch = original.watch.clone();
+    app.take.watch = original.watch.clone();
     assert!(!app.needs_save_confirmation());
-    app.bph = Some(21600);
+    app.take.bph = Some(21600);
     assert!(app.metadata_unsaved());
-    app.bph = original.bph;
+    app.take.bph = original.bph;
     app.set_lift(original.lift_deg + 1.0);
     assert!(app.metadata_unsaved());
     app.set_lift(original.lift_deg);
-    app.calibre = "another calibre".into();
+    app.take.calibre = "another calibre".into();
     assert!(app.metadata_unsaved());
-    app.calibre = original.calibre.clone();
+    app.take.calibre = original.calibre.clone();
     app.panes_view.hist_cumulative = !app.panes_view.hist_cumulative;
     assert!(
         !app.metadata_unsaved(),
@@ -588,7 +588,7 @@ fn failed_metadata_only_save_retains_dirty_state_and_the_saved_bytes() {
         .pause(app.live.as_ref().unwrap().duration_s())
         .unwrap()
         .unwrap();
-    app.watch = "Updated watch".into();
+    app.take.watch = "Updated watch".into();
     let previous = std::fs::read(dest.join(MANIFEST)).unwrap();
     std::fs::remove_file(dest.join(MANIFEST)).unwrap();
     std::fs::create_dir(dest.join(MANIFEST)).unwrap();
@@ -1053,7 +1053,7 @@ fn save_again_after_move_watches_saves_where_the_take_went() {
     assert!(!root.exists() && library::Library::is_library(&to));
     let now = to.join(saved.strip_prefix(&root).unwrap());
     assert_eq!(app.session.saved_to(), Some(now.as_path()));
-    app.watch = "Saved again".into();
+    app.take.watch = "Saved again".into();
     app.save_again();
     app.wait_for_save();
     assert!(!app.needs_save_confirmation(), "{:?}", app.message);
