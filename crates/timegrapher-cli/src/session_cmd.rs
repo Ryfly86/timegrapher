@@ -120,12 +120,19 @@ impl Options {
                 from(self.bph.is_some())
             ));
         }
-        if let (Some(l), Some(cl)) = (self.lift.or(m.lift), c.lift_angle_deg) {
+        // The lift read by core's one rule (#2226): an assumed lift in the
+        // session file gives way to the calibre's, so it is no conflict.
+        let lift = take::lift_setting(self.lift, Some(m), Some(c));
+        if let Some(cl) = c
+            .lift_angle_deg
+            .filter(|_| lift.from != take::SettingFrom::Calibre)
+        {
+            let l = lift.lift_deg;
             if (l - cl).abs() > 1e-9 {
                 notes.push(format!(
                     "the {}'s lift angle is {cl}°, {} says {l}°; using {l}°",
                     c.name,
-                    from(self.lift.is_some())
+                    from(lift.from == take::SettingFrom::Given)
                 ));
             }
         }
@@ -323,9 +330,7 @@ fn init(paths: &[PathBuf], o: &Options) -> Result<(), String> {
     ));
     t.push_str(&format!(
         "lift = {}\n",
-        o.lift
-            .or(cal.and_then(|c| c.lift_angle_deg))
-            .unwrap_or(take::DEFAULT_LIFT_DEG)
+        take::lift_setting(o.lift, None, cal).lift_deg
     ));
     t.push_str("# seconds skipped at the start of each recording while the watch settles\n");
     t.push_str(&format!(
@@ -1669,6 +1674,27 @@ mod tests {
         assert_eq!(notes.len(), 3, "{notes:?}");
     }
 
+    /// A session file's assumed lift gives way to its calibre's, with no
+    /// note of a disagreement; one it was given stands (#2226).
+    #[test]
+    fn a_calibres_lift_outranks_a_session_files_assumed_one() {
+        let o = options(None, None, None);
+        let assumed: Manifest =
+            toml::from_str("calibre = \"Unitas 6497-2\"\nlift = 52\nlift_known = false\n").unwrap();
+        let selection = o.calibre(&assumed).unwrap();
+        let a = analysis_of(&assumed, &selection, &o);
+        assert_eq!((a.amplitude.lift_deg, a.lift_known), (44.0, true));
+        assert!(o.calibre_notes(&assumed, &selection).is_empty());
+        let given: Manifest =
+            toml::from_str("calibre = \"Unitas 6497-2\"\nlift = 52\nlift_known = true\n").unwrap();
+        let selection = o.calibre(&given).unwrap();
+        let a = analysis_of(&given, &selection, &o);
+        assert_eq!((a.amplitude.lift_deg, a.lift_known), (52.0, true));
+        let notes = o.calibre_notes(&given, &selection);
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].contains("the session file says 52°"), "{notes:?}");
+    }
+
     /// The user catalogue the custom-calibre tests read: a custom calibre
     /// with an alias and a wheel, and a wheel override for a shipped one.
     fn custom_user() -> UserCalibres {
@@ -1708,10 +1734,11 @@ mod tests {
                 (Some(21600), 44.0, true),
             ),
             (
+                // An assumed lift gives way to the calibre's (#2226).
                 "calibre = \"Workshop-A\"\nbph = 18000\nlift = 52\nlift_known = false",
                 None,
                 None,
-                (Some(18000), 52.0, false),
+                (Some(18000), 44.0, true),
             ),
             (
                 "calibre = \"Workshop-A\"\nbph = 18000\nlift = 52\nlift_known = false",
