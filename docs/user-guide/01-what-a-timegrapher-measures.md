@@ -32,13 +32,15 @@ The app calls the two kinds of beat **Tick** (blue) and **Tock**
 
 ## The Three Sounds of a Beat
 
-Each tick is really three sounds close together:
+Each tick is really five sounds close together. On a healthy watch two
+pairs of them land so close that they merge, so a timegrapher hears three.
+This guide and the app use those three:
 
 | Sound | What happens | Why it matters |
 | --- | --- | --- |
-| **Unlock** | The impulse pin strikes the fork and starts to move the lever. The pallet stone slides off the escape-wheel tooth. | The start of the lift. Amplitude and beat error are timed from here. |
+| **Unlock** | Two sounds: the impulse pin strikes the fork, then the pallet stone slides off the escape-wheel tooth. | The start of the lift. Amplitude and beat error are timed from here. |
 | **Impulse** | The escape-wheel tooth pushes on the pallet stone's impulse face, and the fork pushes the balance. | Usually the quietest. It sits between the other two. |
-| **Drop** | The escape wheel turns freely, then a tooth lands on the other pallet stone, and the lever reaches its banking. | Usually the loudest. The end of the lift. |
+| **Drop** | Two sounds: after the escape wheel turns freely, a tooth lands on the other pallet stone, and the lever strikes its banking. | Usually the loudest. The end of the lift. |
 
 ![One beat's sound envelope, with the Unlock, Impulse and Drop sound groups, and the time from unlock to drop](images/beat-sounds.svg)
 
@@ -46,12 +48,17 @@ Each tick is really three sounds close together:
   the knock at its end.
 - The three sounds don't always show as three clean peaks. The case, the
   holder and the microphone change how loud each one sounds.
+- On a watch with a fault, the merged sounds can come apart and show as
+  extra peaks. So can a low amplitude, which slows the balance through
+  the lift and spreads each beat out. Witschi: "Additional minor pulses
+  may be present and can be attributed to specific mechanical events
+  within the escapement."
 
 Sources:
 
 - Witschi, _Testing Methods for Mechanical Watches_ (2025,
   [PDF](https://www.witschi.com/wp-content/uploads/firmwares/8Z1UtLGf/20251118_witschi_testing-methods-for-mechanical-watches_en.pdf)),
-  p. 10, on the sound groups.
+  p. 10, on the sound groups, the two events in the drop and the minor pulses.
 - Horopedia, [Swiss lever escapement](https://horopedia.org/distribution-mechanism-swiss-lever-escapement/),
   sections 6 and 9, on the mechanical sequence.
 
