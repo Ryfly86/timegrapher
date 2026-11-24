@@ -35,7 +35,7 @@ order:
 | 1.4 | [#2201](https://github.com/peterhudson/timegrapher/issues/2201) Compare two takes of the same watch, for example before and after a service or a mainspring change. |
 | 1.5 | [#1513](https://github.com/peterhudson/timegrapher/issues/1513) Translations, first wave of six languages. |
 
-1.2 also carries one user request: [#2236](https://github.com/peterhudson/timegrapher/issues/2236) Listen to the tick, to hear the microphone live with a push to listen and a volume.
+1.2 also carries one user request: [#2236](https://github.com/peterhudson/timegrapher/issues/2236) Listen to the tick, to hear the microphone live, switched on and off from the Listen card, with a volume.
 
 Later, in this order, with no version yet:
 
