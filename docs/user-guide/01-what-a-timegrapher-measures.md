@@ -32,13 +32,15 @@ The app calls the two kinds of beat **Tick** (blue) and **Tock**
 
 ## The Three Sounds of a Beat
 
-Each tick is really three sounds close together:
+Each beat is really five sounds close together. On a healthy watch two
+pairs of them land so close that they merge, so a timegrapher hears three.
+This guide and the app use those three:
 
 | Sound | What happens | Why it matters |
 | --- | --- | --- |
-| **Unlock** | The impulse pin strikes the fork and starts to move the lever. The pallet stone slides off the escape-wheel tooth. | The start of the lift. Amplitude and beat error are timed from here. |
-| **Impulse** | The escape-wheel tooth pushes on the pallet stone's impulse face, and the fork pushes the balance. | Usually the quietest. It sits between the other two. |
-| **Drop** | The escape wheel turns freely, then a tooth lands on the other pallet stone, and the lever reaches its banking. | Usually the loudest. The end of the lift. |
+| **Unlock** | The impulse pin strikes the fork, which starts the unlocking. The pallet stone slides off the escape-wheel tooth. | The start of the lift. Amplitude and beat error are timed from here. |
+| **Impulse** | Two sounds: an escape-wheel tooth falls onto the pallet stone's impulse face, then the fork catches up with the impulse pin and pushes the balance. | Usually the quietest. It sits between the other two. |
+| **Drop** | Two sounds: after the escape wheel turns freely, a tooth lands on the other pallet stone, and the lever strikes its banking. | Usually the loudest. The end of the lift. |
 
 ![One beat's sound envelope, with the Unlock, Impulse and Drop sound groups, and the time from unlock to drop](images/beat-sounds.svg)
 
@@ -46,14 +48,19 @@ Each tick is really three sounds close together:
   the knock at its end.
 - The three sounds don't always show as three clean peaks. The case, the
   holder and the microphone change how loud each one sounds.
+- On a watch with a fault, the merged sounds can come apart, or change in
+  loudness and spacing. Horopedia reads faults from the five sounds'
+  intensity "and the spacing between them".
+- A low amplitude spreads the whole beat out: at 28,800 bph and 52° lift,
+  unlock to drop takes about 10.4 ms at 200° against 7.7 ms at 270°.
 
 Sources:
 
 - Witschi, _Testing Methods for Mechanical Watches_ (2025,
   [PDF](https://www.witschi.com/wp-content/uploads/firmwares/8Z1UtLGf/20251118_witschi_testing-methods-for-mechanical-watches_en.pdf)),
-  p. 10, on the sound groups.
+  p. 10, on the three main pulses and the events in each.
 - Horopedia, [Swiss lever escapement](https://horopedia.org/distribution-mechanism-swiss-lever-escapement/),
-  sections 6 and 9, on the mechanical sequence.
+  section 6 on the mechanical sequence, and section 9 on the five impacts.
 
 ## The Four Things It Measures
 
