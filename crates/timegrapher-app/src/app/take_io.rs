@@ -1563,16 +1563,17 @@ impl TimegrapherApp {
             self.cal.adopt(c, &wheels);
             self.set_calibre(c.clone());
         }
-        if let Some(l) = m.lift {
-            self.set_lift(l);
-            // Whether that lift was supplied, by core's one rule for
-            // session files (#685): older ones did not record it.
+        if m.lift.is_some() {
+            // The lift by core's one rule, as `session` reads it (#2232):
+            // a supplied lift stands, an assumed one gives way to the
+            // calibre's, and an older file's is read by #685.
             let cal = m
                 .calibre
                 .as_deref()
                 .and_then(|n| timegrapher_core::take::calibre_named(n, &self.cal.user));
-            let known = timegrapher_core::take::file_lift_known(m, cal.as_ref());
-            self.take.lift_context = (l, known.unwrap_or(false));
+            let lift = timegrapher_core::take::lift_setting(None, Some(m), cal.as_ref());
+            self.set_lift(lift.lift_deg);
+            self.take.lift_context = (lift.lift_deg, lift.known);
         }
         if m.bph.is_some() {
             self.put_bph(m.bph);

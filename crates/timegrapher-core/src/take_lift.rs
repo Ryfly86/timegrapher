@@ -25,8 +25,8 @@ pub struct LiftSetting {
     pub from: SettingFrom,
 }
 
-/// The one rule for a take's lift angle (#2226), which core and the CLI
-/// ask (the desktop's take opening is #2232): the lift `given` for this command, else the session
+/// The one rule for a take's lift angle (#2226), which core, the CLI and
+/// the desktop's take opening ask (#2232): the lift `given` for this command, else the session
 /// file `m`'s where [`file_lift_known`] says it was supplied, else its
 /// calibre `cal`'s, else the lift the session file assumed, else
 /// [`DEFAULT_LIFT_DEG`]. Only the last two are not known: an assumed lift
