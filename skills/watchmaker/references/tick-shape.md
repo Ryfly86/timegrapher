@@ -16,8 +16,11 @@ look at, not to give a diagnosis.
 
 ## The three sounds
 
-Each tick of a Swiss lever escapement is three sounds a few milliseconds
-apart:
+Each beat of a Swiss lever escapement is five sounds a few milliseconds
+apart (Horopedia, Swiss lever escapement, section 9). On a healthy watch
+two pairs merge, the tooth on the impulse face with the fork catching the
+pin, and the tooth landing with the fork on its banking, so a timegrapher
+hears three. A fault can pull them apart. The three:
 
 1. **Unlock**: the impulse pin enters the fork slot and knocks the fork,
    which pulls the pallet stone off the escape tooth. Quiet. Its timing is
