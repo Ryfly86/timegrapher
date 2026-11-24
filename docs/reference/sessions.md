@@ -104,8 +104,11 @@ New desktop and `record` session files pair `lift` with `lift_known = true`
 (supplied or taken from an actual calibre lift value) or `false` (assumed).
 This records the setting's context, not a verified physical lift angle. The
 marker applies only to its accompanying numeric `lift`; an explicit CLI
-`--lift`, including 52, wins over both. A calibre name without a lift value
-does not make an assumed angle known.
+`--lift`, including 52, wins over both. An assumed lift gives way to the
+lift of the calibre the file names, when the calibre table gives one
+(`take::lift_setting`); a calibre name without a lift value does not make an
+assumed angle known. The desktop does not follow this yet when it opens a
+take (#2232).
 
 Older files have no marker. Core, the CLI and the desktop read them by one
 rule (`take::file_lift_known`): a lift of 52°, the default, is assumed unless
@@ -166,8 +169,9 @@ the app's picker, `calibres` and `long --calibre` use; "3235", "2824-2" and
 where the session file leaves them out, and the train's wheels in the cycle
 search. A name the table does not know is only a label. `--calibre NAME`
 picks a calibre from the table in its place (an unknown name lists the
-known ones). `--bph` and `--lift`, then the session file's `bph`, `lift`
-and `escape_teeth`, win over the calibre's; where they disagree with it,
+known ones). `--bph` and `--lift`, then the session file's `bph`, a lift
+it supplied, and `escape_teeth`, win over the calibre's (an assumed lift,
+`lift_known = false`, gives way to the calibre's); where they disagree with it,
 `session` says so (`note: the Dandong 4130's lift angle is 52°, the session
 file says 55°; using 55°`), and `summary.json` lists the same notes under
 `input.settings.calibre_notes`, beside the `calibre` used. With none of
