@@ -96,7 +96,7 @@ impl TimegrapherApp {
             Some(1) => {}
             Some(_) => {
                 self.confirm = None;
-                self.guided_after_ask = None;
+                self.test.guided_after_ask = None;
                 return;
             }
             None => return,
@@ -152,7 +152,7 @@ impl TimegrapherApp {
         ctx.request_repaint_after(std::time::Duration::from_millis(100));
         if cancel {
             self.confirm = None;
-            self.guided_after_ask = None;
+            self.test.guided_after_ask = None;
         }
     }
 
@@ -363,7 +363,7 @@ impl TimegrapherApp {
     /// A test that ended with no watch picked: Keep in Unsorted, Keep in a
     /// Watch… or Throw Away.
     pub(super) fn test_keep_dialog(&mut self, ctx: &egui::Context) {
-        let Some(kind) = self.test_keep else {
+        let Some(kind) = self.test.test_keep else {
             return;
         };
         if self.watches_view.watch_form.is_some() || self.confirm.is_some() {
@@ -380,6 +380,7 @@ impl TimegrapherApp {
         let name = match kind {
             // A guided test: the Positions Test or the Dynamic Poise Test.
             TestKeep::Positions => self
+                .test
                 .guided
                 .as_ref()
                 .map_or("Positions Test", |t| t.kind.name()),
@@ -433,11 +434,11 @@ impl TimegrapherApp {
         }
         match answer {
             Some(Some(watch)) => {
-                self.test_keep = None;
+                self.test.test_keep = None;
                 self.keep_test(kind, watch.as_deref());
             }
             Some(None) => {
-                self.test_keep = None;
+                self.test.test_keep = None;
                 self.new_session();
             }
             None => {}
@@ -446,7 +447,7 @@ impl TimegrapherApp {
 
     /// Keep the test's take in the watch `watch`, or in Unsorted with none.
     pub(super) fn keep_test(&mut self, kind: TestKeep, watch: Option<&str>) {
-        self.test_keep = None;
+        self.test.test_keep = None;
         match (kind, watch) {
             (TestKeep::Positions, Some(id)) => self.keep_in_watch(id),
             (TestKeep::Positions, None) => {

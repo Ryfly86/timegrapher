@@ -98,8 +98,8 @@ impl TimegrapherApp {
                 }
             });
             // The position card named by its title at this width.
-            let hints =
-                NEW_TAKES.map(|(_, _, hint, _)| hint.replace("{card}", self.position_card_title));
+            let hints = NEW_TAKES
+                .map(|(_, _, hint, _)| hint.replace("{card}", self.test.position_card_title));
             let names: Vec<(&str, &str, &str)> = NEW_TAKES
                 .iter()
                 .zip(&hints)
@@ -1404,7 +1404,7 @@ impl TimegrapherApp {
             Ok(()) => {
                 self.watches_view.watch_form = None;
                 if f.new && std::mem::take(&mut self.keep_after_form) {
-                    match self.test_keep.take() {
+                    match self.test.test_keep.take() {
                         Some(kind) => self.keep_test(kind, Some(&w.id)),
                         None => self.keep_into(&w.id),
                     }

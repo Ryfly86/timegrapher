@@ -872,7 +872,7 @@ fn a_power_reserve_test_runs_in_the_cards_position() {
                 ui,
                 None,
                 None,
-                (app.position_card_title, ""),
+                (app.test.position_card_title, ""),
                 true,
                 (false, [true; 3]),
             );

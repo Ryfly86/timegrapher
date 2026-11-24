@@ -10,7 +10,7 @@ impl TimegrapherApp {
     /// The Power Reserve pane's toolbar: its settings, its "?" naming the
     /// position card as captioned, and its Info button pinned at the right.
     pub(super) fn reserve_toolbar(&mut self, ui: &mut egui::Ui, title: &str) {
-        let help = help::power_reserve(self.position_card_title);
+        let help = help::power_reserve(self.test.position_card_title);
         let help: Vec<&str> = help.iter().map(String::as_str).collect();
         let mut info = self.panes_view.reserve_info;
         theme::pane_toolbar_info(ui, title, &help, (&mut info, RESERVE_INFO_HINT), |ui| {
@@ -80,7 +80,7 @@ impl TimegrapherApp {
                 "Runs in {} ({}), set on the {} card",
                 p.name(),
                 p.code(),
-                self.position_card_title
+                self.test.position_card_title
             )
         };
         ui.add(egui::Label::new(
@@ -94,7 +94,7 @@ impl TimegrapherApp {
             format!(
                 "The one position the watch runs down in, from wind to stop: the one set on \
                  the {} card (or its key) when Start Test is pressed.",
-                self.position_card_title
+                self.test.position_card_title
             )
         });
         theme::bar_gap(ui);
@@ -498,7 +498,7 @@ impl TimegrapherApp {
         self.finish_reserve();
         // With no watch picked, asked where it goes before it is saved.
         if self.open_watch().is_none() {
-            self.test_keep = Some(TestKeep::PowerReserve);
+            self.test.test_keep = Some(TestKeep::PowerReserve);
             return;
         }
         self.save_reserve();
@@ -769,7 +769,7 @@ impl TimegrapherApp {
             ui,
             self.test.reserve.as_ref(),
             free,
-            (self.position_card_title, &watch),
+            (self.test.position_card_title, &watch),
             self.ready_test() == Some(NewTake::PowerReserve),
             (self.panes_view.reserve_info, shown),
         );

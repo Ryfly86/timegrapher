@@ -337,7 +337,7 @@ fn positions_test_manifest_maps_paused_elapsed_time_to_recorded_sound() {
         let mut test = guided::Test::new().timed(20.0, measure);
         test.tick(0.0);
         test.tick(130.0);
-        app.guided = Some(test);
+        app.test.guided = Some(test);
         let m = app.take_manifest();
         assert_eq!(m.recordings.len(), 1);
         assert_eq!(m.recordings[0].position.as_deref(), Some("DU"));
@@ -389,7 +389,7 @@ fn a_positions_test_take_lists_its_measured_stretches() {
             at: std::time::SystemTime::now() + std::time::Duration::from_secs(80),
         })
         .unwrap();
-    app.guided = Some(test);
+    app.test.guided = Some(test);
     let m = app.take_manifest();
     let got: Vec<_> = m
         .recordings
@@ -406,7 +406,7 @@ fn a_positions_test_take_lists_its_measured_stretches() {
     assert!(m.recordings.iter().all(|e| e.wind_h.is_none()), "full wind");
     // Finished, the session's folder keeps its results for the 24
     // hour half.
-    app.guided.as_mut().unwrap().readings = Some(Vec::new());
+    app.test.guided.as_mut().unwrap().readings = Some(Vec::new());
     app.save_into(&base.join("saved"));
     app.wait_for_save();
     let dir = app.session.saved_to().unwrap().to_path_buf();
@@ -437,7 +437,7 @@ fn a_positions_test_take_lists_its_measured_stretches() {
     let mut half = guided::Test::after(full);
     half.tick(0.0);
     half.tick(guided::SETTLE_S + guided::MEASURE_S);
-    app.guided = Some(half);
+    app.test.guided = Some(half);
     let m = app.take_manifest();
     assert_eq!(m.recordings.len(), 1);
     assert_eq!(m.recordings[0].wind_h, Some(24.0));

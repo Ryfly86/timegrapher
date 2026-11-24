@@ -18,7 +18,7 @@ fn a_dynamic_poise_test_is_set_up_at_9h_with_the_card_at_10() {
         &app.panes_view.panes.tiles,
         Pane::DynamicPoise
     ));
-    assert!(!app.ten_positions);
+    assert!(!app.test.ten_positions);
     app.new_take(NewTake::Poise, false);
     assert_eq!(app.watches_view.view, View::Bench);
     assert_eq!(app.ready_test(), Some(NewTake::Poise));
@@ -29,10 +29,10 @@ fn a_dynamic_poise_test_is_set_up_at_9h_with_the_card_at_10() {
     assert_eq!(app.position, Position::CrownDown);
     assert_eq!(app.position.witschi(), "9H");
     assert!(
-        app.ten_positions,
+        app.test.ten_positions,
         "Start was pressed: the card shows the eight"
     );
-    assert!(app.guided.is_none() && !app.running());
+    assert!(app.test.guided.is_none() && !app.running());
     assert_eq!(NewTake::Poise.name(), "Dynamic Poise Test");
 }
 
@@ -185,7 +185,7 @@ fn measured(name: &str) -> (TimegrapherApp, std::path::PathBuf, impl Sized) {
             assert_eq!(test.advance(t), Some(order[i + 1]));
         }
     }
-    app.guided = Some(test);
+    app.test.guided = Some(test);
     assert!(app.test_listening());
     assert!(app.positions_test().is_none(), "not the Positions Test's");
     let ctx = egui::Context::default();
@@ -285,7 +285,7 @@ pub(super) fn saved_and_opened_after(
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     assert!(again.live.is_some(), "{:?}", again.message);
-    assert!(again.guided.is_none(), "no test on the Bench");
+    assert!(again.test.guided.is_none(), "no test on the Bench");
     (again, base)
 }
 
@@ -379,7 +379,7 @@ fn a_take_still_listening_with_four_stops_waits_for_five() {
     let (mut app, base) = listened("four-live", &four);
     // Sound still coming in.
     let tx = queued_capture(&mut app, &base);
-    assert!(app.running() && app.guided.is_none());
+    assert!(app.running() && app.test.guided.is_none());
     let t = app.free_table(&egui::Context::default()).expect("a table");
     assert_eq!(t.upright.0.len(), 4, "{t:?}");
     let drawn = draw(&mut app, Pane::DynamicPoise);
@@ -395,7 +395,7 @@ fn a_take_still_listening_with_four_stops_waits_for_five() {
 #[test]
 fn the_pane_says_the_fit_waits_for_five_stops_in_both_views() {
     let mut app = synthetic_varying(30.0, 0.0, |_| 0.0);
-    app.guided = Some(guided::Test::poise().timed(1.0, 5.0));
+    app.test.guided = Some(guided::Test::poise().timed(1.0, 5.0));
     for view in [PoiseView::Plot, PoiseView::Dial] {
         app.panes_view.poise_views = [view == PoiseView::Plot, view == PoiseView::Dial];
         let drawn = draw(&mut app, Pane::DynamicPoise);
@@ -943,10 +943,10 @@ fn the_panes_start_button_turns_to_the_next_stop() {
     let mut test = guided::Test::poise().timed(2.0, each - 2.0);
     test.tick(t0);
     assert_eq!(test.tick(t0 + each), guided::Phase::Turn);
-    app.guided = Some(test);
+    app.test.guided = Some(test);
     app.set_position(order[0]);
-    app.guided_measured.clear();
-    app.guided_unused.clear();
+    app.test.guided_measured.clear();
+    app.test.guided_unused.clear();
     app.live.as_mut().unwrap().set_masked(&[]);
     let size = Vec2::new(1280.0, 900.0);
     let drawn = draw_at(&mut app, Pane::DynamicPoise, size);
@@ -959,15 +959,16 @@ fn the_panes_start_button_turns_to_the_next_stop() {
     assert_eq!(app.position, order[1]);
     assert_eq!(app.poise_test().map(|t| t.step), Some(1));
     assert!(
-        !app.guided_measured.is_empty(),
+        !app.test.guided_measured.is_empty(),
         "the strip follows the test"
     );
     assert!(
-        app.guided_unused
+        app.test
+            .guided_unused
             .iter()
             .any(|&(a, b, _)| a == 0.0 && b == t0),
         "the time before the test reads as not used: {:?}",
-        app.guided_unused
+        app.test.guided_unused
     );
     let engine = app.live.as_ref().unwrap().masked().to_vec();
     assert!(!engine.is_empty(), "the engine leaves the unused time out");
@@ -1251,9 +1252,9 @@ fn a_poise_test_reads_the_same_live_as_reopened() {
     };
     let audio = generate(&cfg, |_| 310.0, |_| 0.0);
     let tx = queued_capture(&mut app, &base);
-    app.guided = Some(guided::Test::poise().timed(settle, measure));
+    app.test.guided = Some(guided::Test::poise().timed(settle, measure));
     // The pane's Settle and Each Position, as each frame gives the session.
-    (app.guided_settle_s, app.guided_measure_s) = (settle, measure);
+    (app.test.guided_settle_s, app.test.guided_measure_s) = (settle, measure);
     app.session.set_settle_s(settle);
     app.session.set_state(session::State::Listening);
     let ctx = egui::Context::default();
@@ -1278,7 +1279,7 @@ fn a_poise_test_reads_the_same_live_as_reopened() {
         let now = app.live.as_ref().unwrap().duration_s();
         app.guided_tick(&ctx);
         // Next, as the pane's button gives it, once the stop is read.
-        let next = app.guided.as_mut().is_some_and(|t| {
+        let next = app.test.guided.as_mut().is_some_and(|t| {
             t.tick(now) == guided::Phase::Turn && !t.needs_reading() && t.next_position().is_some()
         });
         if next {
@@ -1367,8 +1368,8 @@ fn guided_test_saved(
     };
     let audio = generate(&cfg, |t| 300.0 - 0.1 * t, |_| 0.4);
     let tx = queued_capture(&mut app, base);
-    app.guided = Some(guided_test.timed(settle, measure));
-    (app.guided_settle_s, app.guided_measure_s) = (settle, measure);
+    app.test.guided = Some(guided_test.timed(settle, measure));
+    (app.test.guided_settle_s, app.test.guided_measure_s) = (settle, measure);
     app.session.set_settle_s(settle);
     app.session.set_state(session::State::Listening);
     let ctx = egui::Context::default();
@@ -1389,7 +1390,10 @@ fn guided_test_saved(
                     "listening stopped at {:?}: {:?} {:?}",
                     app.live.as_ref().map(|l| l.duration_s()),
                     app.message,
-                    app.guided.as_ref().map(|t| (t.step, t.readings.is_some()))
+                    app.test
+                        .guided
+                        .as_ref()
+                        .map(|t| (t.step, t.readings.is_some()))
                 )
             });
         }
@@ -1401,10 +1405,15 @@ fn guided_test_saved(
         let now = app.live.as_ref().unwrap().duration_s();
         app.guided_tick(&ctx);
         // Once the test has ended, listening has stopped: no more sound.
-        if app.guided.as_ref().is_some_and(|t| t.readings.is_some()) {
+        if app
+            .test
+            .guided
+            .as_ref()
+            .is_some_and(|t| t.readings.is_some())
+        {
             break;
         }
-        let ready = app.guided.as_mut().is_some_and(|t| {
+        let ready = app.test.guided.as_mut().is_some_and(|t| {
             t.tick(now) == guided::Phase::Turn && !t.needs_reading() && t.next_position().is_some()
         });
         // Next once the turn has taken its time.
@@ -1418,6 +1427,7 @@ fn guided_test_saved(
     }
     drop(tx);
     assert!(app
+        .test
         .guided
         .as_ref()
         .and_then(|t| t.readings.as_ref())
@@ -1774,7 +1784,7 @@ fn a_finished_tests_note_is_at_the_top_of_its_pane() {
     );
     app.reveal_pane(Pane::DynamicPoise);
     let note = "Analysing the saved take: these figures may change slightly.";
-    app.guided.as_mut().unwrap().saved_read = guided::SavedRead::Reading;
+    app.test.guided.as_mut().unwrap().saved_read = guided::SavedRead::Reading;
     let drawn = draw_at(&mut app, Pane::DynamicPoise, Vec2::new(1920.0, 1080.0));
     let at = |s: &str| drawn.iter().find(|(t, _)| t == s).map(|(_, r)| *r);
     let (line, head) = (at(note).expect("the note"), at("Rate").expect("the table"));
@@ -1792,7 +1802,7 @@ fn a_finished_tests_note_is_at_the_top_of_its_pane() {
 fn a_kept_positions_test_read_again_is_still_saved() {
     let base = std::env::temp_dir().join(format!("tg-app-2106-{}", std::process::id()));
     let mut app = guided_test_saved(&base, 960, (5.0, 30.0, 0.0), false, guided::Test::new());
-    let t = app.guided.as_ref().expect("the test");
+    let t = app.test.guided.as_ref().expect("the test");
     assert_eq!(t.saved_read, guided::SavedRead::Read);
     assert_eq!(
         app.message.as_ref().map(|m| m.0.as_str()),

@@ -627,7 +627,7 @@ fn completed_guided_metadata_is_unsaved_until_the_required_file_succeeds() {
     app.wait_for_save();
     let mut test = guided::Test::new();
     test.readings = Some(Vec::new());
-    app.guided = Some(test);
+    app.test.guided = Some(test);
     assert!(app.metadata_unsaved());
     let dest = app.session.saved_to().unwrap().to_path_buf();
     std::fs::create_dir(dest.join(guided::RESULTS_FILE)).unwrap();
@@ -720,7 +720,7 @@ fn failed_required_guided_result_preserves_the_previous_save_and_unsaved_sound()
     // required result persistence, not the measurement of guided positions.
     let mut test = guided::Test::new();
     test.readings = Some(Vec::new());
-    app.guided = Some(test);
+    app.test.guided = Some(test);
     std::fs::create_dir(dest.join(guided::RESULTS_FILE)).unwrap();
     app.save_into(&parent);
     app.wait_for_save();
@@ -740,7 +740,7 @@ fn failed_required_guided_result_preserves_the_previous_save_and_unsaved_sound()
     assert_eq!(json["format"], guided::RESULTS_FORMAT);
     // A later unfinished test (like a 24-hour half) supplies no new full-wind
     // result. Preserve the earlier result as a separate comparison artifact.
-    app.guided = Some(guided::Test::new());
+    app.test.guided = Some(guided::Test::new());
     app.save_into(&parent);
     app.wait_for_save();
     assert_eq!(

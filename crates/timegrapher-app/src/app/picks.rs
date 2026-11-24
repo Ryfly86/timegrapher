@@ -87,8 +87,8 @@ impl TimegrapherApp {
             if let Some(dir) = super::compare_take::take_dir_of(&path).filter(|_| !results) {
                 a.read_compare_take(dir);
             } else if let Some(full) = a.read_full_wind(&path) {
-                a.guided_earlier = Some(full);
-                a.guided_earlier_file = true;
+                a.test.guided_earlier = Some(full);
+                a.test.guided_earlier_file = true;
             }
         }));
     }

@@ -103,12 +103,12 @@ impl TimegrapherApp {
         self.sound_history.clear();
         self.no_sound = None;
         self.analysis_kept_to = None;
-        self.guided = None;
+        self.test.guided = None;
         self.test.reserve = None;
         self.bg.reserve_live = None;
         self.bg.reserve_live_s = 0.0;
-        self.guided_unused.clear();
-        self.guided_measured.clear();
+        self.test.guided_unused.clear();
+        self.test.guided_measured.clear();
         // Its masks, once nothing of the last test's is left.
         self.mask_engine();
         self.rev.new_take();
@@ -143,7 +143,7 @@ impl TimegrapherApp {
     /// them to save.
     pub(super) fn listen_after_ask(&mut self) {
         self.masks_let_go = true;
-        match self.guided_after_ask.take() {
+        match self.test.guided_after_ask.take() {
             Some((kind, half)) => self.start_guided_test(kind, half),
             None => self.start_microphone(),
         }
@@ -338,12 +338,12 @@ impl TimegrapherApp {
         }
         self.pause();
         // A Positions Test with no watch picked: asked where it goes.
-        if self.positions_take
+        if self.test.positions_take
             && self.open_watch().is_none()
             && self.session.saved_to().is_none()
             && self.session.allows(Action::Save)
         {
-            self.test_keep = Some(TestKeep::Positions);
+            self.test.test_keep = Some(TestKeep::Positions);
             return;
         }
         // Never a folder dialog at a Stop: only where Save… needs none.
@@ -519,16 +519,16 @@ impl TimegrapherApp {
         self.sound_history.clear();
         self.no_sound = None;
         self.analysis_kept_to = None;
-        self.guided = None;
+        self.test.guided = None;
         self.test.reserve = None;
         self.bg.reserve_live = None;
         self.bg.reserve_live_s = 0.0;
-        self.positions_take = false;
-        self.guided_saved = None;
+        self.test.positions_take = false;
+        self.test.guided_saved = None;
         self.test.complication_saved = None;
-        self.test_keep = None;
-        self.guided_unused.clear();
-        self.guided_measured.clear();
+        self.test.test_keep = None;
+        self.test.guided_unused.clear();
+        self.test.guided_measured.clear();
         self.mask_engine();
         self.source_label.clear();
         // The recording opened goes too: what follows is a new take.
@@ -560,12 +560,10 @@ impl TimegrapherApp {
     /// Memory-only saved-edit inputs. Continuing audio must not make a short
     /// tail look like a settings edit by extending a clipped position range.
     pub(super) fn save_metadata(&self) -> session::Metadata {
-        let guided_ranges = self
-            .guided
-            .as_ref()
-            .map_or_else(Vec::new, |t| t.stretches().to_vec());
+        let guided = self.test.guided.as_ref();
+        let guided_ranges = guided.map_or_else(Vec::new, |t| t.stretches().to_vec());
         let guided_wind_h = (!guided_ranges.is_empty())
-            .then(|| self.guided.as_ref().and_then(|t| t.wind_h()))
+            .then(|| guided.and_then(|t| t.wind_h()))
             .flatten();
         let mut about = self.guided_about();
         // Auto detection may evolve with sound. Track the selected setting,
@@ -587,7 +585,7 @@ impl TimegrapherApp {
                 .collect(),
             guided_ranges,
             guided_wind_h,
-            full_wind: self.guided.as_ref().and_then(|t| t.kept(&about)),
+            full_wind: guided.and_then(|t| t.kept(&about)),
             masked: self.masked.clone(),
         }
     }
@@ -936,7 +934,7 @@ impl TimegrapherApp {
     pub(super) fn results_files(&self) -> Result<Vec<(&'static str, Vec<u8>)>, String> {
         let about = self.guided_about();
         let mut files = Vec::new();
-        if let Some(k) = self.guided.as_ref().and_then(|t| t.kept(&about)) {
+        if let Some(k) = self.test.guided.as_ref().and_then(|t| t.kept(&about)) {
             let text = serde_json::to_string_pretty(&k)
                 .map_err(|e| format!("Couldn't prepare {}: {e}", guided::RESULTS_FILE))?;
             files.push((guided::RESULTS_FILE, (text + "\n").into_bytes()));
@@ -944,7 +942,7 @@ impl TimegrapherApp {
         // A Dynamic Poise Test's take is marked as one, so its row names the
         // test and never one stop's figures (#2002).
         let poise = |t: &guided::Test| t.kind == guided::Kind::Poise && t.readings.is_some();
-        if self.guided.as_ref().is_some_and(poise) {
+        if self.test.guided.as_ref().is_some_and(poise) {
             files.push((library::POISE_TEST_FILE, library::POISE_TEST_TEXT.into()));
         }
         // A long take's run read as one is never written into the take.
@@ -1429,13 +1427,15 @@ impl TimegrapherApp {
         // A Complication Test's stretches say which is Off and which On,
         // so its results come back when the take is opened (#1620).
         let step = |i: usize| {
-            self.guided
+            self.test
+                .guided
                 .as_ref()
                 .filter(|t| t.kind == guided::Kind::Complication)
                 .and_then(|_| timegrapher_core::complication::ORDER.get(i))
                 .map(|s| s.saved_name().to_string())
         };
         let test: Vec<RecordingEntry> = self
+            .test
             .guided
             .as_ref()
             .map_or(&[][..], |t| t.stretches())
@@ -1499,11 +1499,11 @@ impl TimegrapherApp {
     /// `power-reserve.json`, so its pane shows the run.
     pub(super) fn load_reserve(&mut self, path: &Path) {
         let dir = take_dir(path).unwrap_or(path);
-        self.positions_take = timegrapher_core::library::is_positions_test(dir);
+        self.test.positions_take = timegrapher_core::library::is_positions_test(dir);
         self.load_saved_test(dir);
         self.load_saved_complication(dir);
         // A test's take opens on its results.
-        if self.positions_take {
+        if self.test.positions_take {
             self.reveal_pane(Pane::PositionsTest);
         }
         let Ok(text) = std::fs::read_to_string(dir.join(power_reserve::FILE)) else {
@@ -2210,7 +2210,7 @@ impl TimegrapherApp {
                     live.set_masked(&super::masks::engine_masks(
                         &self.masked,
                         &self.session,
-                        &self.guided_unused,
+                        &self.test.guided_unused,
                     ));
                 }
                 if let Some(t) = self.clock_track.as_mut() {

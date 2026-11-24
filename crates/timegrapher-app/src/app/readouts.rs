@@ -647,7 +647,8 @@ impl TimegrapherApp {
 
     /// A guided test's own settle still to come at `at`, while it listens.
     pub(super) fn test_settle_left(&self, at: f64) -> Option<f64> {
-        self.guided
+        self.test
+            .guided
             .as_ref()
             .filter(|_| self.test_listening())
             .and_then(|t| t.settling_left(at))

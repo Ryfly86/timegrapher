@@ -386,7 +386,7 @@ impl TimegrapherApp {
     /// its measuring up to now read as [`Self::free_table`] reads a
     /// position, every second. None until it has 10 s.
     pub(super) fn guided_live(&self, ctx: &egui::Context) -> Option<guided::FreeCell> {
-        let t = self.guided.as_ref()?;
+        let t = self.test.guided.as_ref()?;
         let now = self.live.as_ref()?.duration_s();
         let &(from, to) = t.measured(now).get(t.stretches().len())?;
         let p = core_session::Position::parse(t.position().code())?;

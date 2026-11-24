@@ -62,7 +62,8 @@ struct Point<'a> {
 impl TimegrapherApp {
     /// The Complication Test, if that is the guided test on the Bench.
     pub(super) fn complication_test(&self) -> Option<&guided::Test> {
-        self.guided
+        self.test
+            .guided
             .as_ref()
             .filter(|t| t.kind == guided::Kind::Complication)
     }
@@ -98,7 +99,7 @@ impl TimegrapherApp {
     /// The opened take's Complication Test, read once its beats are in
     /// and no test is on the Bench.
     fn saved_complication_read(&mut self) -> Option<&guided::Test> {
-        if self.guided.is_some() || self.running() {
+        if self.test.guided.is_some() || self.running() {
             return None;
         }
         let unread = self
@@ -199,7 +200,7 @@ impl TimegrapherApp {
             self.panes_view.results_rects[0] = Some(ui.max_rect());
         }
         let now = self.live.as_ref().map(|l| l.duration_s());
-        let phase = match (self.guided.as_mut(), now) {
+        let phase = match (self.test.guided.as_mut(), now) {
             (Some(t), Some(now)) if t.kind == guided::Kind::Complication => Some(t.tick(now)),
             _ => None,
         };
@@ -208,7 +209,7 @@ impl TimegrapherApp {
             Some(guided::Phase::Measuring(_)) => self.guided_live(ui.ctx()),
             _ => None,
         };
-        let lengths = (self.guided_settle_s, self.guided_measure_s);
+        let lengths = (self.test.guided_settle_s, self.test.guided_measure_s);
         // No test on the Bench: an opened take's own, read again (#1620).
         if self.complication_test().is_none() {
             let _ = self.saved_complication_read();
@@ -217,7 +218,7 @@ impl TimegrapherApp {
             self.test
                 .complication_saved
                 .as_ref()
-                .filter(|t| self.guided.is_none() && t.readings.is_some())
+                .filter(|t| self.test.guided.is_none() && t.readings.is_some())
         });
         let action = complication_body(
             ui,

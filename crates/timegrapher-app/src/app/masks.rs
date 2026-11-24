@@ -71,7 +71,7 @@ impl TimegrapherApp {
     pub(super) fn reread_guided(&mut self) {
         if let Some(log) = self.live.as_ref().and_then(steady::log_of) {
             let clock = self.reading_clock(log.duration_s);
-            if let Some(test) = self.guided.as_mut() {
+            if let Some(test) = self.test.guided.as_mut() {
                 test.lift_deg = Some(self.lift_deg);
                 test.reread(&log, clock.as_ref(), &self.masked);
             }
@@ -122,7 +122,7 @@ impl TimegrapherApp {
             Some("Not during a Positions Test: the test sets each position.")
         } else if self.reserve_running() {
             Some("Not during a Power Reserve Test: it runs in one position.")
-        } else if test || self.positions_take {
+        } else if test || self.test.positions_take {
             Some(POSITIONS_TAKE_PAINT)
         } else {
             None
@@ -245,7 +245,7 @@ impl TimegrapherApp {
                 .clicked()
             {
                 self.brush = Some(p);
-                self.ten_positions |= p.is_half_hour();
+                self.test.ten_positions |= p.is_half_hour();
                 self.masking = false;
                 ui.close();
             }
@@ -335,7 +335,7 @@ impl TimegrapherApp {
     /// the strip shades, so no reading falls where the watch was just
     /// handled (#1233).
     pub(super) fn engine_masked(&self) -> Vec<(f64, f64)> {
-        engine_masks(&self.masked, &self.session, &self.guided_unused)
+        engine_masks(&self.masked, &self.session, &self.test.guided_unused)
     }
 
     /// Give the engine its masks ([`Self::engine_masked`]).

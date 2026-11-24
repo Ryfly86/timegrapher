@@ -102,8 +102,8 @@ fn a_new_test_after_one_is_a_new_take() {
     app.session.set_state(session::State::Paused {
         since: Instant::now(),
     });
-    app.guided = Some(guided::Test::new());
-    app.positions_take = true;
+    app.test.guided = Some(guided::Test::new());
+    app.test.positions_take = true;
     assert!(app.can_resume());
     app.start_guided(None);
     assert!(!app.running(), "the stopped take isn't carried on");
@@ -111,7 +111,10 @@ fn a_new_test_after_one_is_a_new_take() {
         app.confirm,
         Some(Confirm::NewTake(NewTake::Positions))
     ));
-    assert!(app.guided.is_some(), "nothing let go before the answer");
+    assert!(
+        app.test.guided.is_some(),
+        "nothing let go before the answer"
+    );
     let _ = std::fs::remove_dir_all(&base);
 }
 
@@ -175,7 +178,10 @@ fn listening_asks_before_unsaved_masks_go() {
     app.confirm = None;
     app.start_guided(None);
     assert!(matches!(app.confirm, Some(Confirm::Microphone)));
-    assert_eq!(app.guided_after_ask, Some((guided::Kind::Positions, None)));
+    assert_eq!(
+        app.test.guided_after_ask,
+        Some((guided::Kind::Positions, None))
+    );
     // Answered, with an input that can't be opened: the masks stay on
     // show, still to save.
     app.devices_listed = true;
@@ -185,7 +191,7 @@ fn listening_asks_before_unsaved_masks_go() {
     assert!(!app.running());
     assert_eq!(app.masked, [(2.0, 5.0)]);
     assert!(app.marks_unsaved());
-    assert_eq!(app.guided_after_ask, None);
+    assert_eq!(app.test.guided_after_ask, None);
     assert!(!app.masks_let_go);
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -455,7 +461,7 @@ fn the_position_brush_paints_and_moves_changes() {
     // Not during a Positions Test.
     app.masking = false;
     app.brush = Some(Position::DialUp);
-    app.guided_measured = vec![(0.0, 10.0)];
+    app.test.guided_measured = vec![(0.0, 10.0)];
     let _ = ctx.run(Default::default(), |ctx| {
         egui::CentralPanel::default().show(ctx, |ui| {
             theme::pane_toolbar(ui, "Paper Strip", &[], |ui| app.strip_settings(ui))
@@ -494,11 +500,15 @@ fn results_loaded_from_a_file_stay_while_the_test_waits() {
     let now = guided::unix_now();
     app.find_full_wind_at(now);
     // As Load Full-Wind Results… leaves it.
-    app.guided_earlier = Some(full.clone());
-    app.guided_earlier_file = true;
+    app.test.guided_earlier = Some(full.clone());
+    app.test.guided_earlier_file = true;
     for later in [60.0, 120.0, 3600.0] {
         app.find_full_wind_at(now + later);
-        assert_eq!(app.guided_earlier.as_ref(), Some(&full), "{later} s on");
+        assert_eq!(
+            app.test.guided_earlier.as_ref(),
+            Some(&full),
+            "{later} s on"
+        );
     }
 }
 
@@ -524,16 +534,16 @@ fn a_cancelled_test_leaves_no_full_wind_results() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.new_take(NewTake::Positions, false);
     app.find_full_wind_at(guided::unix_now());
-    app.guided_earlier = Some(full.clone());
-    app.guided_earlier_file = true;
+    app.test.guided_earlier = Some(full.clone());
+    app.test.guided_earlier_file = true;
     app.leave_ready_test();
-    assert_eq!(app.test_ready, None);
-    assert_eq!(app.guided_earlier, None);
-    assert!(!app.guided_earlier_file);
+    assert_eq!(app.test.test_ready, None);
+    assert_eq!(app.test.guided_earlier, None);
+    assert!(!app.test.guided_earlier_file);
     // Set up again, it starts with nothing loaded.
     app.new_take(NewTake::Positions, false);
     app.find_full_wind_at(guided::unix_now());
-    assert_eq!(app.guided_earlier, None);
+    assert_eq!(app.test.guided_earlier, None);
 }
 
 /// Load Full-Wind Results… reads the results the test just after
@@ -591,16 +601,16 @@ fn full_wind_results_load_and_the_next_test_is_set_against_them() {
             vec![pick]
         }));
         app = held.into_inner().unwrap();
-        assert_eq!(app.guided_earlier.is_some(), loaded);
-        assert_eq!(app.guided_earlier_file, loaded);
+        assert_eq!(app.test.guided_earlier.is_some(), loaded);
+        assert_eq!(app.test.guided_earlier_file, loaded);
     }
-    assert_eq!(app.guided_earlier, read);
+    assert_eq!(app.test.guided_earlier, read);
     // Loaded, the next test runs against them.
     app.reset_session(48000, "test".into());
     app.session.listen();
     let _tx = queued_capture(&mut app, &base);
-    app.start_guided(app.guided_earlier.clone());
-    let test = app.guided.as_ref().expect("the test runs");
+    app.start_guided(app.test.guided_earlier.clone());
+    let test = app.test.guided.as_ref().expect("the test runs");
     assert_eq!(test.full.as_ref().map(|f| &f.0), Some(&full));
     app.capture = None;
     let _ = std::fs::remove_dir_all(&base);
@@ -626,18 +636,18 @@ fn a_positions_test_take_takes_no_brush() {
     let take = dir.join("take.flac");
     // A plain take: the brush stays in the hand.
     app.load_reserve(&take);
-    assert!(!app.positions_take);
+    assert!(!app.test.positions_take);
     app.brush = Some(Position::DialUp);
     draw(&mut app);
     assert_eq!(app.brush, Some(Position::DialUp));
     // A Positions Test's results beside it: put down, and greyed.
     std::fs::write(dir.join(guided::RESULTS_FILE), "{}").unwrap();
     app.load_reserve(&take);
-    assert!(app.positions_take);
+    assert!(app.test.positions_take);
     assert!(!app.in_test(), "the test itself is over");
     draw(&mut app);
     assert_eq!(app.brush, None);
-    assert!(app.guided_saved.is_none(), "not a 24 hour half's");
+    assert!(app.test.guided_saved.is_none(), "not a 24 hour half's");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -679,12 +689,12 @@ fn an_opened_24_hour_half_brings_back_its_results() {
     let take = dir.join("take.flac");
     std::fs::write(dir.join(guided::RESULTS_FILE), half.to_json()).unwrap();
     app.load_reserve(&take);
-    assert!(app.positions_take);
-    assert_eq!(app.guided_saved.as_ref(), Some(&half));
+    assert!(app.test.positions_take);
+    assert_eq!(app.test.guided_saved.as_ref(), Some(&half));
     std::fs::write(dir.join(guided::RESULTS_FILE), full.to_json()).unwrap();
     app.load_reserve(&take);
-    assert!(app.positions_take);
-    assert_eq!(app.guided_saved, None);
+    assert!(app.test.positions_take);
+    assert_eq!(app.test.guided_saved, None);
     // Load Full-Wind Results… takes no 24 hour half.
     let file = dir.join("half.json");
     std::fs::write(&file, half.to_json()).unwrap();
