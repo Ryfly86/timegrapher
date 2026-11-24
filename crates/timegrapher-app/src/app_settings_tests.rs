@@ -564,13 +564,13 @@ fn settings_moves_the_library_and_keeps_its_place() {
 
     // Move it into another folder, and it is used there.
     let to = base.join("there").join("Timegrapher Data");
-    app.library_move_ask = Some(to.clone());
+    app.keeping.library_move_ask = Some(to.clone());
     let asked = text(&ctx, &mut app);
     assert!(asked.contains("Move your watches to"), "{asked}");
-    app.library_move_ask = None;
+    app.keeping.library_move_ask = None;
     app.move_library(root.clone(), to.clone());
     let t = Instant::now();
-    while app.library_moving.is_some() && t.elapsed().as_secs() < 30 {
+    while app.keeping.library_moving.is_some() && t.elapsed().as_secs() < 30 {
         app.poll_library_move(&ctx);
         std::thread::sleep(Duration::from_millis(10));
     }

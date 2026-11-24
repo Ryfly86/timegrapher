@@ -158,7 +158,7 @@ impl TimegrapherApp {
             return;
         };
         let kept = self.session.saved_to().is_some()
-            || self.analysis_kept_to.is_some()
+            || self.keeping.analysis_kept_to.is_some()
             || self
                 .session
                 .recorder

@@ -29,7 +29,7 @@ impl TimegrapherApp {
         self.session
             .saved_to()
             .and_then(|p| p.parent().map(Path::to_path_buf))
-            .unwrap_or_else(|| PathBuf::from(&self.save_dir))
+            .unwrap_or_else(|| PathBuf::from(&self.keeping.save_dir))
     }
 
     /// Open a recording, or a folder of segments, chosen in a dialog.
@@ -65,7 +65,7 @@ impl TimegrapherApp {
         self.file_path = p.display().to_string();
         self.input = Input::File;
         match self.open_ask_for(&p) {
-            Some(a) => self.open_ask = Some(a),
+            Some(a) => self.keeping.open_ask = Some(a),
             None => self.open_recording(&p, true),
         }
     }

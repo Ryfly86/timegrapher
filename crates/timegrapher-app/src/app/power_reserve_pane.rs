@@ -467,13 +467,14 @@ impl TimegrapherApp {
         // (#1233); the run still starts at its first beat, so the log
         // leaves out only the masks by hand.
         let (by_hand, masked) = (self.take.masked.clone(), self.engine_masked());
-        let (position, sound) = (self.take.position, self.no_sound.is_none());
+        let (position, sound) = (self.take.position, self.keeping.no_sound.is_none());
         // The take opened kept as its analysis alone, whose folder says how
         // (core `power_reserve::of_take`); none for one heard here.
         let take = self
+            .keeping
             .no_sound
             .as_ref()
-            .map(|_| PathBuf::from(&self.opened_path));
+            .map(|_| PathBuf::from(&self.keeping.opened_path));
         Some(move || {
             let log = steady::log_masked(&live, &by_hand)?;
             let fit = reading_clock(take_clock.as_ref(), opened, ppm, log.duration_s);
@@ -700,7 +701,7 @@ impl TimegrapherApp {
         }
         self.save_into(&takes);
         if let Some(t) = self.test.reserve.as_mut() {
-            t.saving = self.saving.is_some();
+            t.saving = self.keeping.saving.is_some();
         }
         self.reserve_saved();
     }
@@ -727,7 +728,7 @@ impl TimegrapherApp {
     /// Once the test's take is written: note where, and keep it as its
     /// analysis only if so picked.
     pub(super) fn reserve_saved(&mut self) {
-        if self.saving.is_some() {
+        if self.keeping.saving.is_some() {
             return;
         }
         let Some(t) = self.test.reserve.as_mut().filter(|t| t.saving) else {

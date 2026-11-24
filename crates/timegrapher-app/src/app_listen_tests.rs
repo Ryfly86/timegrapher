@@ -196,7 +196,7 @@ fn keep_in_a_watch_waits_for_a_played_recording_to_end() {
     app.use_library(Some(root.clone()));
     let _tx = queued_capture(&mut app, &base);
     app.input = Input::File;
-    app.opened_path = base.join("empty-input.wav").display().to_string();
+    app.keeping.opened_path = base.join("empty-input.wav").display().to_string();
     assert!(app.running() && !app.quick_listen);
     assert!(app.addable_take().is_some());
     let ctx = theme_ctx();
@@ -232,7 +232,7 @@ fn keep_in_a_watch_waits_for_a_played_recording_to_end() {
     // A click on it keeps nothing and changes no watch.
     pass(&mut app, click_at(pepsi));
     pass(&mut app, Vec::new());
-    assert!(app.watches_view.watch_open.is_none() && app.keep_back.is_none());
+    assert!(app.watches_view.watch_open.is_none() && app.keeping.keep_back.is_none());
     app.capture = None;
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -392,7 +392,7 @@ fn a_kept_quick_listen_records_into_its_take() {
     // Not kept yet: nothing is saved as it goes.
     assert!(!app.streams());
     app.stream_tick();
-    assert!(app.saving.is_none());
+    assert!(app.keeping.saving.is_none());
     // Kept in Unsorted Takes, as the Save menu's Unsorted Takes does.
     assert!(app.saves_into_unsorted());
     app.save_again();
@@ -409,12 +409,12 @@ fn a_kept_quick_listen_records_into_its_take() {
     // Under STREAM_EVERY_S more: not yet.
     hear(app.session.recorder.as_mut().unwrap(), 4);
     app.stream_tick();
-    assert!(app.saving.is_none());
+    assert!(app.keeping.saving.is_none());
     // Past it: the sound since is added, saying nothing.
     hear(app.session.recorder.as_mut().unwrap(), 2);
     app.message = None;
     app.stream_tick();
-    assert!(app.saving.is_some(), "a save of the sound since");
+    assert!(app.keeping.saving.is_some(), "a save of the sound since");
     app.wait_for_save();
     assert!(app.message.is_none(), "{:?}", app.message);
     assert_eq!(samples(&wav), 9 * 48000);
@@ -518,7 +518,7 @@ fn a_kept_quick_listen_stopped_keeps_its_sound_in_its_take_alone() {
     ] {
         app.message = None;
         save(&mut app, &other);
-        assert!(app.saving.is_none());
+        assert!(app.keeping.saving.is_none());
         let said = app.message.as_ref().map(|m| m.0.as_str());
         let why = "This sound can't be saved\nIts earlier part was kept only in its take, \
                    and the take no longer holds it.";
@@ -541,7 +541,7 @@ fn a_kept_quick_listen_stopped_keeps_its_sound_in_its_take_alone() {
     app.message = None;
     app.keep_in_watch(&pepsi);
     assert!(app.quick_listen && app.watches_view.watch_open.is_none());
-    assert!(app.saving.is_none() && app.after_save.is_empty());
+    assert!(app.keeping.saving.is_none() && app.keeping.after_save.is_empty());
     let said = app.message.as_ref().map(|m| m.0.as_str());
     let why = "This sound can't be saved\nIts earlier part was kept only in its take, \
                and the take no longer holds it.";
@@ -554,7 +554,7 @@ fn a_kept_quick_listen_stopped_keeps_its_sound_in_its_take_alone() {
     // refusal comes first (#2058).
     app.message = None;
     app.keep_in_new_watch();
-    assert!(app.watches_view.watch_form.is_none() && !app.keep_after_form);
+    assert!(app.watches_view.watch_form.is_none() && !app.keeping.keep_after_form);
     assert_eq!(app.message.as_ref().map(|m| m.0.as_str()), Some(why));
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -598,7 +598,7 @@ fn sound_left_with_its_earlier_hours_gone_says_only_its_last_part_is_here() {
     let notice = kept[0].notice();
     assert!(notice.contains("Only its last part is here"), "{notice}");
     assert!(!notice.contains(" long"), "{notice}");
-    app.kept = kept;
+    app.keeping.kept = kept;
     let ctx = theme_ctx();
     let said = delete_says(&ctx, &mut app);
     assert!(
@@ -638,13 +638,13 @@ struct HeldSave {
 /// the sender returned sends (or 10 s pass).
 fn hold_save(app: &mut TimegrapherApp) -> std::sync::mpsc::Sender<()> {
     let (go, held) = std::sync::mpsc::channel::<()>();
-    let mut s = app.saving.take().expect("a save into the take");
+    let mut s = app.keeping.saving.take().expect("a save into the take");
     let copy = s.thread;
     s.thread = std::thread::spawn(move || {
         let _ = held.recv_timeout(std::time::Duration::from_secs(10));
         copy.join().unwrap()
     });
-    app.saving = Some(s);
+    app.keeping.saving = Some(s);
     go
 }
 
@@ -702,7 +702,10 @@ fn held_save(name: &str) -> HeldSave {
     let rec = app.session.recorder.as_mut().unwrap();
     rec.write(&silence(6, 3)).unwrap();
     app.stream_tick();
-    assert_eq!(app.saving.as_ref().map(|s| s.streamed), Some(Streamed::Yes));
+    assert_eq!(
+        app.keeping.saving.as_ref().map(|s| s.streamed),
+        Some(Streamed::Yes)
+    );
     let go = hold_save(&mut app);
     let rec = app.session.recorder.as_mut().unwrap();
     rec.write(&silence(2, 9)).unwrap();
@@ -726,6 +729,7 @@ impl HeldSave {
 
     fn held(&self) -> bool {
         self.app
+            .keeping
             .saving
             .as_ref()
             .is_some_and(|s| s.streamed == Streamed::Yes)
@@ -758,13 +762,13 @@ fn a_stop_waits_its_turn_behind_a_save_into_its_take() {
     let mut h = held_save("stream-turn");
     h.app.stop_listening();
     assert!(h.held(), "the Stop didn't wait on the copy");
-    assert_eq!(h.app.after_save.len(), 1);
+    assert_eq!(h.app.keeping.after_save.len(), 1);
     assert!(
         h.app.saving_busy(),
         "nothing jumps the Stop waiting its turn"
     );
     // Closing the window waits for it too.
-    h.app.close_after_save = true;
+    h.app.keeping.close_after_save = true;
     assert!(!h.app.closes_after_save());
     let opened = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let then = opened.clone();
@@ -772,17 +776,21 @@ fn a_stop_waits_its_turn_behind_a_save_into_its_take() {
     assert!(h.app.behind_save(open));
     h.release();
     // Asks run on the window's frame, not the listening thread's.
-    assert_eq!(h.app.after_save.len(), 2);
+    assert_eq!(h.app.keeping.after_save.len(), 2);
     h.app.run_after_save();
     assert!(
-        h.app.saving.is_some(),
+        h.app.keeping.saving.is_some(),
         "the Stop's save, once the other is written"
     );
-    assert_eq!(h.app.after_save.len(), 1, "the next ask waits for it");
+    assert_eq!(
+        h.app.keeping.after_save.len(),
+        1,
+        "the next ask waits for it"
+    );
     assert!(!h.app.closes_after_save());
     h.app.wait_for_save();
     h.app.run_after_save();
-    assert!(h.app.after_save.is_empty());
+    assert!(h.app.keeping.after_save.is_empty());
     assert!(opened.load(std::sync::atomic::Ordering::SeqCst));
     assert!(h.app.closes_after_save(), "{:?}", h.app.message);
     assert!(!h.app.needs_save_confirmation(), "{:?}", h.app.message);
@@ -797,21 +805,21 @@ fn a_stop_waits_its_turn_behind_a_save_into_its_take() {
 fn a_save_into_the_take_failing_after_the_stop_leaves_it_to_the_stops_save() {
     let mut h = held_save("stream-lost");
     h.app.stop_listening();
-    h.app.close_after_save = true;
+    h.app.keeping.close_after_save = true;
     let _ = h.go.send(());
-    let mut s = h.app.saving.take().expect("the save into the take");
+    let mut s = h.app.keeping.saving.take().expect("the save into the take");
     let copy = s.thread;
     s.thread = std::thread::spawn(move || {
         let _ = copy.join();
         Err(std::io::Error::other("the hour was kept as FLAC"))
     });
-    h.app.saving = Some(s);
+    h.app.keeping.saving = Some(s);
     h.app.wait_for_save();
     let said = h.app.message.clone();
     assert!(!said.is_some_and(|m| m.1), "the Stop's save answers for it");
-    assert!(h.app.stream_wait.is_none(), "nothing to try again");
+    assert!(h.app.keeping.stream_wait.is_none(), "nothing to try again");
     h.app.run_after_save();
-    assert!(h.app.saving.is_some(), "the Stop's save");
+    assert!(h.app.keeping.saving.is_some(), "the Stop's save");
     h.app.wait_for_save();
     h.app.run_after_save();
     assert!(h.app.closes_after_save(), "{:?}", h.app.message);
@@ -845,19 +853,26 @@ fn a_stop_during_a_takes_first_save_saves_the_rest_after_it() {
     let _tx = queued_capture(&mut app, &base);
     // Kept in Unsorted Takes: the user's own save, held part way.
     app.save_again();
-    assert_eq!(app.saving.as_ref().map(|s| s.streamed), Some(Streamed::No));
+    assert_eq!(
+        app.keeping.saving.as_ref().map(|s| s.streamed),
+        Some(Streamed::No)
+    );
     let go = hold_save(&mut app);
     let rec = app.session.recorder.as_mut().unwrap();
     rec.write(&block(2, 3)).unwrap();
     app.stop_listening();
-    assert_eq!(app.after_save.len(), 1, "the Stop waits for the first save");
+    assert_eq!(
+        app.keeping.after_save.len(),
+        1,
+        "the Stop waits for the first save"
+    );
     go.send(()).unwrap();
-    while app.saving.is_some() {
+    while app.keeping.saving.is_some() {
         app.poll_saving();
     }
     app.run_after_save();
     assert!(
-        app.saving.is_some(),
+        app.keeping.saving.is_some(),
         "the Stop's save, once the first is written"
     );
     app.wait_for_save();
@@ -887,7 +902,11 @@ fn a_kept_quick_listen_picked_into_a_watch_is_filed_under_it() {
     // Picked while its save into Unsorted Takes is still written.
     h.app.line_pick(Some(alpha.clone()), false);
     assert!(h.app.open_watch().is_some_and(|w| w.watch.id == alpha));
-    assert_eq!(h.app.after_save.len(), 1, "filed once the save is written");
+    assert_eq!(
+        h.app.keeping.after_save.len(),
+        1,
+        "filed once the save is written"
+    );
     h.release();
     h.app.run_after_save();
     let filed = h.app.session.saved_to().expect("kept").to_path_buf();
@@ -915,7 +934,11 @@ fn a_quick_listen_picked_into_a_watch_during_its_first_save_is_filed_under_it() 
     let go = hold_save(&mut app);
     assert_eq!(app.session.saved_to(), None, "the first copy still written");
     app.line_pick(Some(alpha), false);
-    assert_eq!(app.after_save.len(), 1, "filed once the copy is written");
+    assert_eq!(
+        app.keeping.after_save.len(),
+        1,
+        "filed once the copy is written"
+    );
     go.send(()).unwrap();
     app.wait_for_save();
     app.run_after_save();
@@ -941,9 +964,9 @@ fn two_watches_picked_during_a_save_file_the_take_under_the_last() {
     h.app.pause();
     h.app.keep_in_watch(&alpha);
     h.app.keep_in_watch(&beta);
-    assert!(h.app.after_save.len() >= 2, "both wait on the save");
+    assert!(h.app.keeping.after_save.len() >= 2, "both wait on the save");
     h.release();
-    while h.app.saving.is_some() || !h.app.after_save.is_empty() {
+    while h.app.keeping.saving.is_some() || !h.app.keeping.after_save.is_empty() {
         h.app.wait_for_save();
         h.app.run_after_save();
     }
@@ -978,11 +1001,11 @@ fn two_watches_picked_during_a_save_file_the_take_under_the_last() {
 fn a_quit_with_a_stop_waiting_saves_the_last_seconds() {
     let mut h = held_save("stream-quit");
     h.app.stop_listening();
-    assert_eq!(h.app.after_save.len(), 1);
+    assert_eq!(h.app.keeping.after_save.len(), 1);
     let _ = h.go.send(());
     eframe::App::on_exit(&mut h.app, None);
-    assert!(h.app.after_save.is_empty());
-    assert!(h.app.saving.is_none());
+    assert!(h.app.keeping.after_save.is_empty());
+    assert!(h.app.keeping.saving.is_none());
     assert_eq!(h.take_s(), 11.0);
 }
 
@@ -1007,25 +1030,25 @@ fn each_ask_waits_its_turn_behind_a_save_into_its_take() {
         ("Quick Listen", Box::new(|a| a.quick_listen(true))),
     ];
     for (name, ask) in asks {
-        h.app.after_save.clear();
+        h.app.keeping.after_save.clear();
         let at = std::time::Instant::now();
         ask(&mut h.app);
         assert!(h.held(), "{name} waited on the copy");
         assert!(at.elapsed() < std::time::Duration::from_secs(5), "{name}");
-        assert_eq!(h.app.after_save.len(), 1, "{name} waits its turn");
+        assert_eq!(h.app.keeping.after_save.len(), 1, "{name} waits its turn");
     }
-    h.app.after_save.clear();
+    h.app.keeping.after_save.clear();
     h.release();
 }
 
 /// What the delete dialog for the first kept sound says.
 fn delete_says(ctx: &egui::Context, app: &mut TimegrapherApp) -> Vec<(String, egui::Pos2)> {
-    app.kept_delete_ask = Some(app.kept[0].dir.clone());
+    app.keeping.kept_delete_ask = Some(app.keeping.kept[0].dir.clone());
     let mut drawn = Vec::new();
     for _ in 0..2 {
         drawn = drawn_at(&ctx.run(egui::RawInput::default(), |ctx| app.kept_delete_dialog(ctx)));
     }
-    app.kept_delete_ask = None;
+    app.keeping.kept_delete_ask = None;
     drawn
 }
 
@@ -1104,7 +1127,7 @@ fn a_watchs_take_records_into_its_folder_as_it_goes() {
     assert_eq!(kept.len(), 1);
     assert_eq!(kept[0].streamed_to.as_deref(), Some(take.as_path()));
     // Its notice offers the take, not the copy as sound never saved.
-    app.kept = kept;
+    app.keeping.kept = kept;
     let ctx = theme_ctx();
     let mut drawn = Vec::new();
     for _ in 0..2 {
@@ -1125,8 +1148,8 @@ fn a_watchs_take_records_into_its_folder_as_it_goes() {
     // Vernon's HOLD: with the take gone, the copy is the only one, and
     // everything says so; the note goes, so a move takes none with it.
     std::fs::remove_dir_all(&take).unwrap();
-    app.kept = kept_sounds(&left);
-    assert_eq!(app.kept[0].streamed_to, None);
+    app.keeping.kept = kept_sounds(&left);
+    assert_eq!(app.keeping.kept[0].streamed_to, None);
     assert!(!copy.join(note).exists());
     let said = delete_says(&ctx, &mut app);
     assert!(
@@ -1270,7 +1293,10 @@ fn the_command_set_runs_once_listening_stops_not_on_saves_as_it_goes() {
     let rec = app.session.recorder.as_mut().unwrap();
     rec.write(&silence(6, 3)).unwrap();
     app.stream_tick();
-    assert_eq!(app.saving.as_ref().map(|s| s.streamed), Some(Streamed::Yes));
+    assert_eq!(
+        app.keeping.saving.as_ref().map(|s| s.streamed),
+        Some(Streamed::Yes)
+    );
     app.wait_for_save();
     app.stop_listening();
     app.run_after_save();
@@ -1376,18 +1402,18 @@ fn a_take_deleted_while_recorded_into_is_put_back_by_its_next_write() {
     // Felix on #2063: a streamed write failed (waiting a minute), then the
     // take deleted, every hour still here, and the window in front. A
     // minute on, the take is written back: streaming never stops quietly.
-    app.stream_wait = Some(std::time::Instant::now());
+    app.keeping.stream_wait = Some(std::time::Instant::now());
     std::fs::remove_dir_all(&take).unwrap();
     window_back(&mut app);
     assert_eq!(status_now(&app).0, "Not saved");
     let r = app.session.recorder.as_mut().unwrap();
     r.write(&silence(6, 9)).unwrap();
     app.stream_tick();
-    assert!(app.saving.is_none(), "a minute's wait first");
+    assert!(app.keeping.saving.is_none(), "a minute's wait first");
     let long_ago = std::time::Instant::now().checked_sub(2 * STREAM_RETRY);
-    app.stream_wait = long_ago;
+    app.keeping.stream_wait = long_ago;
     app.stream_tick();
-    assert!(app.saving.is_some(), "written back a minute on");
+    assert!(app.keeping.saving.is_some(), "written back a minute on");
     app.wait_for_save();
     assert_eq!(status_now(&app).0, "Saved");
     let heard = timegrapher_core::audio::load(&wav).unwrap().samples.len();
@@ -1424,7 +1450,7 @@ fn a_take_deleted_with_its_hours_while_recorded_into_cant_be_saved() {
     app.message = None;
     app.stream_tick();
     assert!(
-        app.saving.is_none() && app.stream_wait.is_some(),
+        app.keeping.saving.is_none() && app.keeping.stream_wait.is_some(),
         "refused, then waits"
     );
     let why = "This sound can't be saved\nIts earlier part was kept only in its take, \
@@ -1441,17 +1467,17 @@ fn a_take_deleted_with_its_hours_while_recorded_into_cant_be_saved() {
     app.stream_tick();
     assert!(app.message.is_none(), "not refused every frame");
     let long_ago = std::time::Instant::now().checked_sub(2 * STREAM_RETRY);
-    app.stream_wait = Some(long_ago.unwrap());
+    app.keeping.stream_wait = Some(long_ago.unwrap());
     app.stream_tick();
     assert!(app.message.is_none(), "not refused again a minute on");
     assert_eq!(status_now(&app).0, "Can't be saved");
     // The take put back, and the window in front: written into again.
     std::fs::rename(&aside, &take).unwrap();
     window_back(&mut app);
-    app.stream_wait = Some(long_ago.unwrap());
+    app.keeping.stream_wait = Some(long_ago.unwrap());
     app.stream_tick();
     assert!(
-        app.saving.is_some(),
+        app.keeping.saving.is_some(),
         "the take holds it again: written into"
     );
     app.wait_for_save();
@@ -1497,7 +1523,7 @@ fn deleting_an_earlier_take_leaves_the_one_saved_last_saved() {
     r.write(&silence(2, 300)).unwrap();
     app.message = None;
     app.save_again();
-    assert!(app.saving.is_some(), "{:?}", app.message);
+    assert!(app.keeping.saving.is_some(), "{:?}", app.message);
     app.wait_for_save();
     assert!(
         app.message.as_ref().is_none_or(|m| !m.1),

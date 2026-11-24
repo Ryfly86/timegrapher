@@ -36,7 +36,7 @@ impl TimegrapherApp {
     /// same disk, else copied on a thread of its own, once core has found
     /// room for it.
     pub(super) fn start_take_add(&mut self, from: PathBuf, id: String, keep_original: bool) {
-        if self.take_add.is_some() {
+        if self.keeping.take_add.is_some() {
             return self.info_msg(self.adding_already());
         }
         let Ok(Some(lib)) = &mut self.library else {
@@ -58,7 +58,7 @@ impl TimegrapherApp {
             let copied = library::copy_add(&p2, &mut |n| d2.store(n, Ordering::Relaxed), &c2);
             let _ = tx.send(copied);
         });
-        self.take_add = Some(TakeAdd {
+        self.keeping.take_add = Some(TakeAdd {
             plan,
             watch: id,
             rx,
@@ -70,14 +70,14 @@ impl TimegrapherApp {
     /// Stop the copy under way: what was copied goes, and the original
     /// is as it was.
     pub(super) fn cancel_take_add(&mut self) {
-        if let Some(a) = &self.take_add {
+        if let Some(a) = &self.keeping.take_add {
             a.cancel.store(true, Ordering::Relaxed);
         }
     }
 
     /// The copy, once it ends, finished: in the watch, or why not.
     pub(super) fn poll_take_add(&mut self) {
-        let Some(a) = &self.take_add else {
+        let Some(a) = &self.keeping.take_add else {
             return;
         };
         let copied = match a.rx.try_recv() {
@@ -85,7 +85,7 @@ impl TimegrapherApp {
             Err(TryRecvError::Empty) => return,
             Err(TryRecvError::Disconnected) => Err("it stopped part way".into()),
         };
-        let Some(mut a) = self.take_add.take() else {
+        let Some(mut a) = self.keeping.take_add.take() else {
             return;
         };
         let stopped = a.cancel.load(Ordering::Relaxed) && copied.is_err();
@@ -154,10 +154,14 @@ impl TimegrapherApp {
     /// one is copied in: the watch it goes into named, where its Cancel
     /// is (Hugh on #2020).
     pub(super) fn adding_already(&self) -> String {
-        let into = self.take_add.as_ref().and_then(|a| match &self.library {
-            Ok(Some(l)) => l.watches.iter().find(|w| w.watch.id == a.watch),
-            _ => None,
-        });
+        let into = self
+            .keeping
+            .take_add
+            .as_ref()
+            .and_then(|a| match &self.library {
+                Ok(Some(l)) => l.watches.iter().find(|w| w.watch.id == a.watch),
+                _ => None,
+            });
         match into {
             Some(w) => format!(
                 "A take is being copied into \"{}\". Wait for it to finish, or press Cancel there.",
@@ -170,7 +174,7 @@ impl TimegrapherApp {
     /// The copy under way into the watch `id`, if any: its progress bar,
     /// how far it is in words, and Cancel.
     pub(super) fn take_add_row(&mut self, ui: &mut egui::Ui, id: &str) {
-        let Some(a) = self.take_add.as_ref().filter(|a| a.watch == id) else {
+        let Some(a) = self.keeping.take_add.as_ref().filter(|a| a.watch == id) else {
             return;
         };
         let (done, all) = a.progress();
@@ -250,7 +254,7 @@ mod tests {
     fn wait(app: &mut TimegrapherApp) {
         for _ in 0..1000 {
             app.poll_take_add();
-            if app.take_add.is_none() {
+            if app.keeping.take_add.is_none() {
                 return;
             }
             std::thread::sleep(Duration::from_millis(10));
@@ -269,7 +273,7 @@ mod tests {
     ) {
         let (tx, rx) = std::sync::mpsc::channel();
         tx.send(copied).unwrap();
-        app.take_add = Some(TakeAdd {
+        app.keeping.take_add = Some(TakeAdd {
             plan,
             watch: id.to_string(),
             rx,
@@ -277,7 +281,7 @@ mod tests {
             cancel: Arc::new(AtomicBool::new(stop)),
         });
         app.poll_take_add();
-        assert!(app.take_add.is_none());
+        assert!(app.keeping.take_add.is_none());
     }
 
     /// Keep in a Watch… copies on a thread of its own: a second add waits
@@ -288,7 +292,7 @@ mod tests {
     fn a_take_is_copied_in_on_a_thread_of_its_own() {
         let (mut app, base, id, from) = with_take("thread");
         app.start_take_add(from.clone(), id.clone(), true);
-        assert!(app.take_add.is_some(), "{:?}", app.message);
+        assert!(app.keeping.take_add.is_some(), "{:?}", app.message);
         let busy = "A take is being copied into \"Pepsi\". Wait for it to finish, or press \
                     Cancel there.";
         assert_eq!(app.take_busy(&from, true).as_deref(), Some(busy));
