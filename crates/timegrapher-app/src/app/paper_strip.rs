@@ -104,7 +104,7 @@ impl TimegrapherApp {
         let unheard = self.strip_unheard();
         let watch = |b: &&Beat| !in_spans(&unheard, b.time);
         let beats = live.beats();
-        let breaks = self.take_breaks.as_deref().unwrap_or_default();
+        let breaks = self.take.take_breaks.as_deref().unwrap_or_default();
         let clock = self.take_rate_clock();
         let centred = if self.panes_view.follow {
             Anchor::centre_on_true(beats, period, 8, breaks, clock)
@@ -154,7 +154,7 @@ impl TimegrapherApp {
     pub(super) fn strip_unheard(&self) -> Vec<(f64, f64)> {
         match &self.live {
             Some(live) if !self.running() => {
-                unheard_spans(&self.results.trend, self.average_s, live.duration_s())
+                unheard_spans(&self.results.trend, self.take.average_s, live.duration_s())
             }
             _ => Vec::new(),
         }
@@ -414,27 +414,27 @@ impl TimegrapherApp {
         theme::bar_item(ui, "Mask", |ui| {
             ui.add_enabled_ui(live, |ui| {
                 if theme::in_toolbar(ui) {
-                    let r = theme::icon_toggle(ui, Icon::Masks, self.masking, pal.accent);
+                    let r = theme::icon_toggle(ui, Icon::Masks, self.take.masking, pal.accent);
                     if r.clicked() {
-                        self.masking = !self.masking;
+                        self.take.masking = !self.take.masking;
                     }
                     r.on_hover_text(format!("Mask: {MASK_HINT}{}", self.masked_words()))
                         .on_disabled_hover_text(
                             "Mask: Nothing to mask yet. Listen, or open a recording.",
                         );
                 } else {
-                    theme::switch_row(ui, "Mask", &mut self.masking, MASK_HINT);
+                    theme::switch_row(ui, "Mask", &mut self.take.masking, MASK_HINT);
                 }
             });
         });
         // The Mask tool and the Position Brush exclude each other.
-        if self.masking {
-            self.brush = None;
+        if self.take.masking {
+            self.take.brush = None;
         }
         theme::note_icon(ui, Icon::Highlighter, "Position Brush");
         theme::bar_item(ui, "Position Brush", |ui| self.brush_control(ui, live));
-        if self.brush.is_some() {
-            self.masking = false;
+        if self.take.brush.is_some() {
+            self.take.masking = false;
         }
     }
 
@@ -623,7 +623,7 @@ impl TimegrapherApp {
             } else {
                 live.duration_s().to_bits()
             },
-            self.rev,
+            self.take.rev,
         );
         if let Some((k, pts)) = &self.results.strip_points {
             if *k == key {
@@ -681,7 +681,7 @@ impl TimegrapherApp {
         let dots = dots_in_view(&candidates, end - self.panes_view.strip.span_s, end);
         let note = strip_note(guessing, (wait.as_deref(), dots), looking_back, end);
         let from = end - self.panes_view.strip.span_s - 5.0;
-        let (trend, _) = self.strip_trend(from, end, self.average_s);
+        let (trend, _) = self.strip_trend(from, end, self.take.average_s);
         let Some(live) = &self.live else { return };
         let period = live.bph().map_or(0.125, |b| 3600.0 / b as f64);
         let rate_line = self.strip_rate_line();
@@ -706,15 +706,15 @@ impl TimegrapherApp {
             bands: &bands,
             settles: &settles,
             measured: &self.test.guided_measured,
-            masked: &self.masked,
-            masking: self.masking,
+            masked: &self.take.masked,
+            masking: self.take.masking,
             track: &track,
-            brush: self.brush.map(Position::code),
+            brush: self.take.brush.map(Position::code),
             painted: &painted,
             breaks: if guessing {
                 &[]
             } else {
-                self.take_breaks.as_deref().unwrap_or_default()
+                self.take.take_breaks.as_deref().unwrap_or_default()
             },
             // The clock the rate line's reading is on: the live engine's.
             clock: self.take_rate_clock(),
@@ -780,10 +780,10 @@ impl TimegrapherApp {
                 .collect();
             return Some(WallClock::new(self.recording_began_unix()?, &breaks));
         }
-        if self.take_unlisted == Some(Unlisted::NotTheTake) {
+        if self.take.take_unlisted == Some(Unlisted::NotTheTake) {
             return None;
         }
-        let breaks = self.take_breaks.as_deref().unwrap_or_default();
+        let breaks = self.take.take_breaks.as_deref().unwrap_or_default();
         // Its session.json read once for each take opened.
         let id = egui::Id::new("strip opened start");
         let path = &self.opened_path;
@@ -804,7 +804,7 @@ impl TimegrapherApp {
     /// is on: the guides follow its slope, so it is worked out for either.
     pub(super) fn strip_rate_line(&self) -> Option<strip::RateLine> {
         (self.panes_view.rate_line || self.panes_view.rate_guides)
-            .then(|| self.reading_over(self.average_s))
+            .then(|| self.reading_over(self.take.average_s))
             .flatten()
             .and_then(|r| {
                 Some(strip::RateLine {
@@ -820,13 +820,13 @@ impl TimegrapherApp {
     fn strip_tracks(&self) -> (StripTrack, Vec<(f64, f64)>) {
         let track: StripTrack = self
             .session
-            .position_spans(self.position)
+            .position_spans(self.take.position)
             .into_iter()
             .map(|(a, b, p)| (a.max(0.0), b, p.label(), p.code()))
             .collect();
         let painted: Vec<(f64, f64)> = self
             .session
-            .painted_spans(self.position)
+            .painted_spans(self.take.position)
             .into_iter()
             .map(|(a, b, _)| (a, b))
             .collect();

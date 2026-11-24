@@ -94,6 +94,7 @@ mod steadiness_panes;
 mod take_add;
 mod take_io;
 mod take_reads;
+mod take_settings;
 mod test_body;
 mod test_read;
 mod watches_pane;
@@ -1571,22 +1572,12 @@ pub struct TimegrapherApp {
     devices_listed: bool,
     device: Option<String>,
     file_path: String,
-    bph: Option<u32>,
-    lift_deg: f64,
-    /// (value, supplied): restored/resolved context applies at this value;
-    /// numeric edits away from it retain the existing default-angle inference.
-    lift_context: (f64, bool),
-    position: Position,
-    /// The beat rate the live engine had locked on to, to log a change.
-    locked_bph: Option<u32>,
     /// A crash record from an earlier run not yet looked at, and whether
     /// its text is showing.
     crash: Option<PathBuf>,
     crash_shown: bool,
     /// Sound kept from earlier sessions, offered back one at a time.
     kept: Vec<KeptSound>,
-    /// When the watch was last fully wound, for a Quick Listen (#1665).
-    wind: wind::Wind,
     /// The kept sound Delete… is asking about.
     kept_delete_ask: Option<PathBuf>,
     /// This session began with Quick Listen: kept only by Keep in a
@@ -1644,11 +1635,6 @@ pub struct TimegrapherApp {
     /// Listening, paused, the positions and settling, the kept sound and
     /// what of it is saved.
     session: Session,
-    average_s: f64,
-    watch: String,
-    /// The calibre picked on the Calibre card: a name in the table or one of the
-    /// user's own, or empty when not set.
-    calibre: String,
     /// The user's calibres, the short list and the recent picks.
     cal: calibre_ui::Calibres,
     /// The Settings window, open at a section, and the kept clocks as read
@@ -1671,56 +1657,13 @@ pub struct TimegrapherApp {
     library_move_ask: Option<PathBuf>,
     /// A move under way: where to, and its outcome when done.
     library_moving: Option<(PathBuf, LibraryMove)>,
-    /// Stretches masked out of the readings on the strip, start and end in
-    /// the session's seconds, sorted and apart. Saved with the take.
-    masked: Vec<(f64, f64)>,
-    /// For a recording opened from disk: the stretches its session file
-    /// masked when it was opened or last saved to, so a change can be
-    /// asked about before it is thrown away. None for a microphone session.
-    opened_masks: Option<Vec<(f64, f64)>>,
-    /// The strip's Mask tool is on: dragging along it masks a stretch, and
-    /// a click on a masked one brings it back.
-    masking: bool,
-    /// For a recording opened from disk: the positions and settling its
-    /// session file gave when it was opened or last saved to, so a change
-    /// made with the Position Brush can be asked about before it is thrown
-    /// away. None for a microphone session.
-    opened_positions: Option<Layers>,
-    /// Read again at a new beat rate: the positions as they were, and as
-    /// the session file gave them, to put back once it is in.
-    carried_positions: Option<(Layers, Option<Layers>)>,
-    /// The positions as recorded under the painting, from the session file
-    /// of the recording being opened, to load with the positions shown.
-    pending_recorded: Option<Positions>,
-    /// The sound card's clock for the take on show, as core's
-    /// `take::open_entry` reads it for every surface: from its clock log,
-    /// USB lines or the correction stored for the input it was recorded
-    /// on. The readings, tables and True Clock use it in place of the
-    /// clock kept for the input.
-    take_clock: Option<timegrapher_core::clock::ClockFit>,
-    /// Where [`Self::take_clock`] came from, in core's words
-    /// (`OpenedEntry::clock_source`), so the Rate's hover names it.
-    take_clock_source: Option<String>,
     /// The USB lines of the sound heard here, read as it comes (#1721).
     live_usb: Option<live_usb::LiveUsb>,
-    /// The take on show's breaks, as core reads them with its beats: the
-    /// pauses it lists, its clock's steps and the jumps in its beats.
-    /// `None` for a session heard here, whose readings go by the clock
-    /// kept for the input.
-    take_breaks: Option<Vec<timegrapher_core::breaks::Break>>,
-    /// Why those breaks are not all the take's own list's, where they
-    /// aren't (core's `breaks::Unlisted`), for the caveat that says so.
-    take_unlisted: Option<timegrapher_core::breaks::Unlisted>,
-    /// The strip's Position Brush is on, with this position: dragging
-    /// along the strip sets that stretch to it.
-    brush: Option<Position>,
     /// Where the last Save put the session, if it has been saved.
     /// The folder Save offers first.
     save_dir: String,
     /// Asking before something throws away unsaved sound.
     confirm: Option<Confirm>,
-    /// Edit ▸ Remove All Masks asked, waiting on its yes.
-    remove_masks_asked: bool,
     /// Open Recording… or Open Folder… asking where the recording goes.
     open_ask: Option<OpenAsk>,
     /// The recording last opened, which the path box goes back to when
@@ -1728,9 +1671,6 @@ pub struct TimegrapherApp {
     opened_path: String,
     /// The take picked in the Watches view's list.
     take_picked: Option<PathBuf>,
-    /// The watch set up for the microphone, kept while a recording with
-    /// its own (or no) settings is open, and put back on listening again.
-    mic_setup: Option<WatchSetup>,
     /// Said with the result once the recording opening is analysed.
     open_note: Option<String>,
     /// The window may close: the user has said what to do with the sound.
@@ -1746,14 +1686,9 @@ pub struct TimegrapherApp {
     /// [`listen_tap`] (#725).
     listen_tap: Option<(f64, bool)>,
     anchor: Option<Anchor>,
-    /// The settings a take on show is read again with, for a new beat
-    /// rate, in place of what the take saved.
-    reread_with: Option<WatchSetup>,
     /// While a take opens: a beat rate its settings change reads nothing
     /// again, the take before least of all (#1241).
     opening: bool,
-    /// What the take on show's readings rest on.
-    rev: Revision,
     /// The input's level meter, level control and automatic gain switch.
     meter: input_meter::InputMeter,
     /// The stored clock error of the input this session listens to, if one
@@ -1788,9 +1723,6 @@ pub struct TimegrapherApp {
     /// When live's first chunk read again took over and why it was not,
     /// as last seen (#1327).
     rebuild_seen: (Option<f64>, Option<&'static str>),
-    /// Masks on the recording on show let go by the answer to the ask
-    /// before listening, so starting doesn't ask again.
-    masks_let_go: bool,
     /// Offer every input the system lists, not just one per microphone.
     all_inputs: bool,
     /// When the microphone was opened and when it last sent audio.
@@ -1810,6 +1742,9 @@ pub struct TimegrapherApp {
     test: guided_test::GuidedTest,
     /// The take's readings and the runs in the background that read them.
     results: results::Results,
+    /// What the take on show is read with: the watch, its beat rate and
+    /// lift, the positions, masks and clock, and what its readings rest on.
+    take: take_settings::TakeSettings,
 }
 
 impl TimegrapherApp {
@@ -1844,7 +1779,7 @@ impl TimegrapherApp {
     pub fn settings(&self) -> Settings {
         Settings {
             device: self.device.clone(),
-            average_s: self.average_s,
+            average_s: self.take.average_s,
             strip: self.live_view(),
             rate_line: self.live_rate_marks()[0],
             rate_guides: self.live_rate_marks()[1],
@@ -2064,16 +1999,11 @@ impl TimegrapherApp {
                 .as_ref()
                 .map(|p| p.display().to_string())
                 .unwrap_or_default(),
-            bph: None,
-            lift_deg: DEFAULT_LIFT_DEG,
-            lift_context: (DEFAULT_LIFT_DEG, false),
-            position: Position::DialUp,
+            take: take_settings::TakeSettings::default(),
             session: Session::default(),
-            locked_bph: None,
             crash: None,
             crash_shown: false,
             kept: Vec::new(),
-            wind: Default::default(),
             kept_delete_ask: None,
             report: ReportDialog::default(),
             updates: Default::default(),
@@ -2093,9 +2023,6 @@ impl TimegrapherApp {
             pump_fault: None,
             picker: None,
             check_pending: false,
-            average_s: timegrapher_core::live::DEFAULT_AVERAGE_S,
-            watch: String::new(),
-            calibre: String::new(),
             cal: calibre_ui::Calibres::in_memory(),
             settings_tab: None,
             settings_last: Tab::General,
@@ -2114,24 +2041,11 @@ impl TimegrapherApp {
             take_keep: None,
             take_add: None,
             results: results::Results::default(),
-            masked: Vec::new(),
-            opened_masks: None,
-            masking: false,
-            opened_positions: None,
-            carried_positions: None,
-            pending_recorded: None,
-            take_clock: None,
-            take_clock_source: None,
             live_usb: None,
-            take_breaks: None,
-            take_unlisted: None,
-            brush: None,
             confirm: None,
-            remove_masks_asked: false,
             open_ask: None,
             opened_path: String::new(),
             take_picked: None,
-            mic_setup: None,
             open_note: None,
             may_close: false,
             save_dir: home.join("Timegrapher recordings").display().to_string(),
@@ -2143,9 +2057,7 @@ impl TimegrapherApp {
             batch: None,
             listen_tap: None,
             anchor: None,
-            reread_with: None,
             opening: false,
-            rev: Revision::default(),
             meter: input_meter::InputMeter::default(),
             clock: None,
             clock_track: None,
@@ -2161,7 +2073,6 @@ impl TimegrapherApp {
             analysis_kept_to: None,
             jumps_seen: Vec::new(),
             rebuild_seen: (None, None),
-            masks_let_go: false,
             all_inputs: false,
             opened_at: Instant::now(),
             audio_at: None,
@@ -2195,7 +2106,7 @@ impl TimegrapherApp {
         let points = self
             .live
             .as_ref()
-            .map_or_else(Vec::new, |l| l.trend(self.average_s));
+            .map_or_else(Vec::new, |l| l.trend(self.take.average_s));
         self.put_trend(points);
     }
 
@@ -2205,13 +2116,15 @@ impl TimegrapherApp {
         self.results.strip_points = None;
         points.retain(|p| self.session.replay_reading_allowed(p.t));
         self.results.trend = points;
-        self.results.trend_key = (self.rev, self.average_s.to_bits());
+        self.results.trend_key = (self.take.rev, self.take.average_s.to_bits());
     }
 
     /// Read the run of readings again when what it rests on changed since: the take's settings,
     /// clock, breaks or masks, or Average Over. While listening the next frame reads it (#1825).
     fn refresh_trend(&mut self) {
-        if self.results.trend_key != (self.rev, self.average_s.to_bits()) && !self.running() {
+        if self.results.trend_key != (self.take.rev, self.take.average_s.to_bits())
+            && !self.running()
+        {
             self.rebuild_trend();
         }
     }
@@ -2226,7 +2139,7 @@ impl TimegrapherApp {
         let now = (live.template_switch_s(), live.template_rebuild_given_up());
         if now.0 != self.rebuild_seen.0 {
             self.results.bg.trend = None;
-            self.results.trend = live.trend(self.average_s);
+            self.results.trend = live.trend(self.take.average_s);
             if let (Some(a), Some((dt, di))) = (self.anchor.as_mut(), live.template_shift()) {
                 (a.time, a.index) = (a.time + dt, a.index + di);
             }
@@ -2263,7 +2176,7 @@ impl TimegrapherApp {
     }
 
     fn reading(&self) -> Option<LiveReading> {
-        self.reading_over(self.average_s)
+        self.reading_over(self.take.average_s)
     }
 
     /// The newest reading, averaged over `average` seconds.
@@ -2296,7 +2209,7 @@ impl TimegrapherApp {
         if self.settle_left_at(t).is_some() {
             return None;
         }
-        let reading = live.reading_at(t, self.average_s);
+        let reading = live.reading_at(t, self.take.average_s);
         self.session
             .replay_reading_allowed(reading.time_s)
             .then_some(reading)
@@ -2308,9 +2221,9 @@ impl TimegrapherApp {
         if let Some(l) = &self.live {
             if let Some(bph) = l.bph() {
                 let beats = l.beats();
-                let breaks = self.take_breaks.as_deref().unwrap_or_default();
+                let breaks = self.take.take_breaks.as_deref().unwrap_or_default();
                 let hi = beats.partition_point(|b| b.time <= end);
-                let clock = Self::rate_clock(&self.take_clock);
+                let clock = Self::rate_clock(&self.take.take_clock);
                 if let Some(a) =
                     Anchor::centre_on_true(&beats[..hi], 3600.0 / bph as f64, 8, breaks, clock)
                 {
@@ -3372,12 +3285,12 @@ impl TimegrapherApp {
             .frame(bar.inner_margin(egui::Margin::symmetric(14, 5)))
             .show(ctx, |ui| self.status_bar(ui));
         // Esc puts the tool in hand down: the Position Brush or Mask.
-        if (self.brush.is_some() || self.masking)
+        if (self.take.brush.is_some() || self.take.masking)
             && !egui::Popup::is_any_open(ctx)
             && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
         {
-            self.brush = None;
-            self.masking = false;
+            self.take.brush = None;
+            self.take.masking = false;
         }
         // The menus' shortcuts, Cmd+1 and Cmd+2 before the bare digits
         // are read.

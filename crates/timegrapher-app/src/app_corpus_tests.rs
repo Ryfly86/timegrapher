@@ -417,7 +417,11 @@ fn split_entries_clock_probe(metadata: &str, folder: bool) {
         dir.join("take.wav")
     };
     let mut app = opened(&path);
-    let clock = app.take_clock.as_ref().expect("the app retains the clock");
+    let clock = app
+        .take
+        .take_clock
+        .as_ref()
+        .expect("the app retains the clock");
     assert!((clock.ppm + 20.0).abs() < 0.1);
     assert_eq!(clock.breaks.len(), 1);
     assert!((clock.breaks[0].gap_s - 60.0).abs() < 0.01);
@@ -425,7 +429,7 @@ fn split_entries_clock_probe(metadata: &str, folder: bool) {
         .into_iter()
         .zip(&readings)
     {
-        app.position = position;
+        app.take.position = position;
         let wrong = differences(metadata, &app.whole_take(), reading);
         assert!(wrong.is_empty(), "{}", wrong.join("\n"));
     }
@@ -539,7 +543,7 @@ fn pane_differences(id: &str, root: &Path, cli: &Path) -> (Vec<(String, String)>
         let step = if short {
             dist::STRETCH_S
         } else {
-            app.average_s
+            app.take.average_s
         };
         let ours = dist::distribution(&values, kind, label, step)
             .map(|d| dist_figures(&serde_json::to_value(d).unwrap()));
@@ -1429,7 +1433,11 @@ fn a_stopped_takes_whole_take_and_sparklines_are_its_saved_takes() {
     let (mut opened, ctx) = window_opened(&saved(&mut stopped, &base));
     // The saved take keeps the mask, in its sound's own time: 4 s sooner,
     // after the break.
-    assert_eq!(opened.masked, vec![(46.0, 52.0)], "the saved take's mask");
+    assert_eq!(
+        opened.take.masked,
+        vec![(46.0, 52.0)],
+        "the saved take's mask"
+    );
     opened.set_average(10.0);
     seen.push(shown(&mut opened, &ctx));
     let (s, o) = (&seen[0], &seen[1]);
@@ -1558,7 +1566,7 @@ fn widest_lead(app: &TimegrapherApp, from: f64, to: f64) -> f64 {
     let live = app.live.as_ref().unwrap();
     let period = 3600.0 / live.bph().unwrap() as f64;
     let anchor = app.anchor.expect("anchored");
-    let breaks = app.take_breaks.as_deref().unwrap_or_default();
+    let breaks = app.take.take_breaks.as_deref().unwrap_or_default();
     live.beats()
         .iter()
         .filter(|b| b.time > from && b.time < to)
@@ -1673,7 +1681,7 @@ fn fit_is_made_again_when_the_run_comes_after_the_take_opens() {
     let read_again = |app: &mut TimegrapherApp| {
         // The run not read yet, as for a take opened without one.
         app.results.trend.clear();
-        app.results.trend_key = (app.rev, 0);
+        app.results.trend_key = (app.take.rev, 0);
         app.fit_take();
         let t = Instant::now();
         while app.results.trend.is_empty() && t.elapsed().as_secs() < 120 {
@@ -1695,7 +1703,7 @@ fn fit_is_made_again_when_the_run_comes_after_the_take_opens() {
     assert!(wide > 100.0, "every beat: {wide}");
     app.panes_view.strip.set_half_width(wide / 2.0);
     let by_hand = app.panes_view.strip.half_width_ms;
-    app.results.trend_key = (app.rev, 0);
+    app.results.trend_key = (app.take.rev, 0);
     let t = Instant::now();
     while app.results.trend.is_empty() && t.elapsed().as_secs() < 120 {
         app.take_reads_shown(&ctx);

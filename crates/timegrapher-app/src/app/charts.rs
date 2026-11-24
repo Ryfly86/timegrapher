@@ -83,7 +83,7 @@ impl TimegrapherApp {
             Vec2::new(ui.available_width(), font.size + 6.0),
             egui::Sense::hover(),
         );
-        let average = self.average_s;
+        let average = self.take.average_s;
         let (series, unit, decimals) = chart_lines(reading, &self.results.trend, average, pal);
         let (mut plot, grid) = chart_plot(reading, theme::time_gutter(ui.ctx()));
         // One time axis for every chart in the pane: the take's, from its

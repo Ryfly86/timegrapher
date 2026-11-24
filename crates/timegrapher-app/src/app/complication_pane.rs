@@ -111,7 +111,7 @@ impl TimegrapherApp {
             let log = self.live.as_ref().and_then(steady::log_of)?;
             let clock = self.reading_clock(log.duration_s);
             let bph = self.live.as_ref().and_then(|l| l.config().analysis.bph);
-            let masked = self.masked.clone();
+            let masked = self.take.masked.clone();
             if let Some(t) = self.test.complication_saved.as_mut() {
                 t.bph_set = bph;
                 t.finish(&log, clock.as_ref(), &masked);
@@ -228,7 +228,7 @@ impl TimegrapherApp {
                 self.panes_view.complication_info,
                 self.panes_view.complication_series,
             ),
-            self.rev.opens,
+            self.take.rev.opens,
         );
         if let (Some(action), Some(now)) = (action, now) {
             self.apply_guided_action(action, now);

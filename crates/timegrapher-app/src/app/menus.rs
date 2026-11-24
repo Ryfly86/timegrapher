@@ -117,7 +117,7 @@ impl TimegrapherApp {
             MenuCommand::SaveAs => can_save && self.session.saved_to().is_some() && !saving,
             MenuCommand::SaveAnalysisOnly => self.can_save_analysis(),
             MenuCommand::NewSession => self.live.is_some(),
-            MenuCommand::RemoveMasks => !self.masked.is_empty(),
+            MenuCommand::RemoveMasks => !self.take.masked.is_empty(),
             // The panes are the Bench's: dimmed in Watches.
             MenuCommand::Readings
             | MenuCommand::CompactReadings
@@ -169,7 +169,7 @@ impl TimegrapherApp {
             }
             MenuCommand::NewSession => self.new_session(),
             MenuCommand::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
-            MenuCommand::RemoveMasks => self.remove_masks_asked = true,
+            MenuCommand::RemoveMasks => self.take.remove_masks_asked = true,
             MenuCommand::Settings => self.open_settings(self.settings_last),
             MenuCommand::View(v) => self.watches_view.view = v,
             MenuCommand::Readings => self.panes_view.show_readings = !self.panes_view.show_readings,

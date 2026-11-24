@@ -157,7 +157,7 @@ impl TimegrapherApp {
     /// The runs in the position the watch is in now that the distributions
     /// and the steadiness tests read, joined ([`Session::current_runs`]).
     pub(super) fn current_runs(&self) -> timegrapher_core::take_context::Stretches<Position> {
-        self.session.current_runs(self.position)
+        self.session.current_runs(self.take.position)
     }
 
     /// The 2-second stretches of amplitude and beat error in the position
@@ -214,7 +214,11 @@ impl TimegrapherApp {
         let short = !self.panes_view.hist_readings;
         if reading == SeriesKind::Rate && short {
             match self.live.as_ref() {
-                Some(live) => self.panes_view.dist.rate_2s.refresh(live, &self.masked),
+                Some(live) => self
+                    .panes_view
+                    .dist
+                    .rate_2s
+                    .refresh(live, &self.take.masked),
                 None => self.panes_view.dist.rate_2s = RateTwoS::default(),
             }
         }
@@ -222,7 +226,7 @@ impl TimegrapherApp {
         let color = series_color(reading, pal);
         // The title line: the series, and the one position counted when
         // the take has positions, as the toolbar doesn't name it (#1528).
-        let only = (!self.session.stretches().is_empty()).then(|| self.position.name());
+        let only = (!self.session.stretches().is_empty()).then(|| self.take.position.name());
         let title = match only {
             Some(p) => format!("{} \u{b7} {p} only", steady::title(reading)),
             None => steady::title(reading).to_string(),
@@ -296,9 +300,9 @@ impl TimegrapherApp {
             reading,
             short,
             cumulative: self.panes_view.hist_cumulative,
-            rev: self.rev,
-            position: self.position,
-            average: self.average_s.to_bits(),
+            rev: self.take.rev,
+            position: self.take.position,
+            average: self.take.average_s.to_bits(),
             readings: self
                 .results
                 .dist_readings
@@ -337,7 +341,7 @@ impl TimegrapherApp {
         let step = if label == "2 s" {
             dist::STRETCH_S
         } else {
-            self.average_s
+            self.take.average_s
         };
         let d = dist::distribution(&values, kind, label, step);
         let pts = d.as_ref().map_or_else(Vec::new, |d| {
@@ -378,7 +382,11 @@ impl TimegrapherApp {
     /// and now without. While listening they are read again once a new
     /// reading can have come.
     pub(super) fn update_dist_readings(&mut self, ctx: Option<&egui::Context>) {
-        let key = (self.rev, self.position, self.average_s.to_bits());
+        let key = (
+            self.take.rev,
+            self.take.position,
+            self.take.average_s.to_bits(),
+        );
         if self.results.dist_job.as_ref().is_some_and(|j| j.0 != key) {
             self.results.dist_job = None;
         }
@@ -401,7 +409,7 @@ impl TimegrapherApp {
             }
         }
         let runs = self.current_runs();
-        let clock = Self::rate_clock(&self.take_clock).cloned();
+        let clock = Self::rate_clock(&self.take.take_clock).cloned();
         let joined = !self.session.stretches().is_empty();
         let Some(live) = self.live.as_ref() else {
             return;
@@ -415,7 +423,7 @@ impl TimegrapherApp {
             .results
             .dist_readings
             .as_ref()
-            .is_none_or(|d| dur - d.1 >= self.average_s);
+            .is_none_or(|d| dur - d.1 >= self.take.average_s);
         if self.results.dist_job.is_some() || !due {
             return;
         }
@@ -425,7 +433,7 @@ impl TimegrapherApp {
             return;
         };
         let clock = clock.filter(|_| !joined); // A joined log is on it.
-        let r = self.average_s;
+        let r = self.take.average_s;
         let read =
             move || timegrapher_core::steadiness::reading_grids(&log, clock.as_ref(), &breaks, r);
         match ctx {
@@ -460,7 +468,7 @@ impl TimegrapherApp {
     ) {
         // Only the position the watch is in now: values from another
         // position are a different measurement.
-        let inside = self.session.in_position_test(self.position);
+        let inside = self.session.in_position_test(self.take.position);
         let color = series_color(reading, pal);
         // The readings, one per Average Over so that no two share beats:
         // core's, as `timegrapher series` counts them (#1144).
@@ -958,7 +966,7 @@ mod source_tests {
     #[test]
     fn readings_are_cores_one_per_average_over() {
         let mut app = super::super::tests::synthetic(122.0, 5.0);
-        app.average_s = 10.0;
+        app.take.average_s = 10.0;
         app.update_dist_readings(None);
         let count = |app: &TimegrapherApp, k| app.hist_values(k, false, &theme::DARK).0;
         let rates = count(&app, SeriesKind::Rate);
@@ -978,7 +986,7 @@ mod source_tests {
             selected.unwrap().beat_error_source,
             core.2 .1.beat_error_source
         );
-        app.average_s = 20.0;
+        app.take.average_s = 20.0;
         app.update_dist_readings(None);
         let longer = count(&app, SeriesKind::Rate);
         assert!(
@@ -1055,9 +1063,9 @@ mod plot_cache_tests {
         let changes: [fn(&mut TimegrapherApp); 5] = [
             |_| {},
             |a| a.panes_view.hist_cumulative = true,
-            |a| a.average_s = 20.0,
-            |a| a.position = Position::DialDown,
-            |a| a.rev.masks += 1,
+            |a| a.take.average_s = 20.0,
+            |a| a.take.position = Position::DialDown,
+            |a| a.take.rev.masks += 1,
         ];
         let mut was = again;
         for change in changes {
@@ -1107,7 +1115,7 @@ mod plot_cache_tests {
         };
         let mut was = plot(&mut app);
         assert!(was.n > 5, "{}", was.n);
-        let rev = app.rev;
+        let rev = app.take.rev;
         // The last 10 s heard: new windows and no break, worked out again.
         push(&mut app, rest);
         assert!(app.live.as_ref().unwrap().breaks().is_empty());
@@ -1129,7 +1137,7 @@ mod plot_cache_tests {
             assert!(!std::sync::Arc::ptr_eq(&was, &now));
             was = now;
         }
-        assert_eq!(app.rev, rev, "each change above moved no revision");
+        assert_eq!(app.take.rev, rev, "each change above moved no revision");
     }
 
     /// With Values on Readings, the plot is worked out again when core's
@@ -1137,7 +1145,7 @@ mod plot_cache_tests {
     #[test]
     fn the_readings_plot_follows_cores_readings_as_they_come() {
         let mut app = super::super::tests::synthetic(122.0, 5.0);
-        app.average_s = 10.0;
+        app.take.average_s = 10.0;
         app.panes_view.hist_readings = true;
         let ctx = super::super::tests::themed();
         let rate = SeriesKind::Rate as usize;

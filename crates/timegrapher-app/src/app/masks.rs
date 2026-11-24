@@ -6,11 +6,11 @@ impl TimegrapherApp {
     /// How many stretches are masked and how long they add up to, after a
     /// space, for the Mask tool's hover; nothing when none is.
     pub(super) fn masked_words(&self) -> String {
-        if self.masked.is_empty() {
+        if self.take.masked.is_empty() {
             return String::new();
         }
-        let total: f64 = self.masked.iter().map(|m| m.1 - m.0).sum();
-        let n = self.masked.len();
+        let total: f64 = self.take.masked.iter().map(|m| m.1 - m.0).sum();
+        let n = self.take.masked.len();
         format!(
             " {n} {} masked, {} in all.",
             if n == 1 { "stretch" } else { "stretches" },
@@ -21,7 +21,7 @@ impl TimegrapherApp {
     /// Edit ▸ Remove All Masks' question: every masked stretch back into
     /// the readings, once the user says so.
     pub(super) fn remove_masks_dialog(&mut self, ctx: &egui::Context) {
-        if !self.remove_masks_asked {
+        if !self.take.remove_masks_asked {
             return;
         }
         let mut choice = None;
@@ -44,7 +44,7 @@ impl TimegrapherApp {
             .map(|i| i == 0);
         });
         if let Some(yes) = choice {
-            self.remove_masks_asked = false;
+            self.take.remove_masks_asked = false;
             if yes {
                 self.set_masked(Vec::new());
             }
@@ -72,8 +72,8 @@ impl TimegrapherApp {
         if let Some(log) = self.live.as_ref().and_then(steady::log_of) {
             let clock = self.reading_clock(log.duration_s);
             if let Some(test) = self.test.guided.as_mut() {
-                test.lift_deg = Some(self.lift_deg);
-                test.reread(&log, clock.as_ref(), &self.masked);
+                test.lift_deg = Some(self.take.lift_deg);
+                test.reread(&log, clock.as_ref(), &self.take.masked);
             }
         }
         if let Some(t) = self.test.complication_saved.as_mut() {
@@ -88,7 +88,7 @@ impl TimegrapherApp {
         if b - a < 0.5 {
             return;
         }
-        let mut v = self.masked.clone();
+        let mut v = self.take.masked.clone();
         v.push((a, b));
         self.set_masked(v);
     }
@@ -97,10 +97,10 @@ impl TimegrapherApp {
     /// left under half a second is brought back. Stretches it now
     /// overlaps join it.
     pub(super) fn reshape_mask(&mut self, was: (f64, f64), now: (f64, f64)) {
-        let Some(i) = self.masked.iter().position(|&m| m == was) else {
+        let Some(i) = self.take.masked.iter().position(|&m| m == was) else {
             return;
         };
-        let mut v = self.masked.clone();
+        let mut v = self.take.masked.clone();
         v.remove(i);
         let (a, b) = (now.0.max(0.0), now.1.min(self.latest_s().max(0.0)));
         if b - a >= 0.5 {
@@ -128,9 +128,9 @@ impl TimegrapherApp {
             None
         };
         if why_not.is_some() {
-            self.brush = None;
+            self.take.brush = None;
         }
-        let shown = self.brush.unwrap_or(self.position);
+        let shown = self.take.brush.unwrap_or(self.take.position);
         ui.add_enabled_ui(why_not.is_none(), |ui| {
             if !theme::in_toolbar(ui) {
                 ui.menu_button("Position Brush", |ui| self.brush_items(ui, pal))
@@ -145,7 +145,7 @@ impl TimegrapherApp {
                 .layout_no_wrap(shown.code().to_string(), font, theme::ON_TEAL);
             let w = 4.0 + 18.0 + 4.0 + 3.0 + code.size().x + 3.0 + 4.0 + 10.0 + 4.0;
             let (rect, resp) = ui.allocate_exact_size(Vec2::new(w, 26.0), egui::Sense::click());
-            let on = self.brush.is_some();
+            let on = self.take.brush.is_some();
             let open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
             let radius = egui::CornerRadius::same(theme::CONTROL_RADIUS);
             if on {
@@ -235,7 +235,7 @@ impl TimegrapherApp {
                 egui::TextFormat::simple(font.clone(), pal.text),
             );
             // The one in use framed, its code still readable.
-            let picked = self.brush == Some(p);
+            let picked = self.take.brush == Some(p);
             if ui
                 .add(egui::Button::new(job).frame_when_inactive(picked))
                 .on_hover_text(format!(
@@ -244,13 +244,13 @@ impl TimegrapherApp {
                 ))
                 .clicked()
             {
-                self.brush = Some(p);
+                self.take.brush = Some(p);
                 self.test.ten_positions |= p.is_half_hour();
-                self.masking = false;
+                self.take.masking = false;
                 ui.close();
             }
         }
-        if self.brush.is_some() {
+        if self.take.brush.is_some() {
             ui.separator();
             if ui
                 .add(
@@ -260,7 +260,7 @@ impl TimegrapherApp {
                 )
                 .clicked()
             {
-                self.brush = None;
+                self.take.brush = None;
                 ui.close();
             }
         }
@@ -271,7 +271,7 @@ impl TimegrapherApp {
     /// stretch reaching the newest beat (within a second) puts the watch
     /// in that position from then on.
     pub(super) fn paint_position(&mut self, a: f64, b: f64) {
-        let Some(pos) = self.brush else { return };
+        let Some(pos) = self.take.brush else { return };
         let latest = self.latest_s().max(0.0);
         let (a, mut b) = (a.min(b).max(0.0), a.max(b).min(latest));
         // To a tenth of a second: finer than a pointer can place it.
@@ -283,7 +283,7 @@ impl TimegrapherApp {
         if b >= latest - 1.0 {
             b = latest;
         }
-        let now = self.session.paint(a, b, pos, self.position, latest);
+        let now = self.session.paint(a, b, pos, self.take.position, latest);
         self.positions_moved(now);
     }
 
@@ -291,7 +291,7 @@ impl TimegrapherApp {
     /// recorded there come back, with their changes and settling.
     pub(super) fn remove_painting(&mut self, t: f64) {
         let latest = self.latest_s().max(0.0);
-        if let Some(now) = self.session.remove_painting(t, self.position, latest) {
+        if let Some(now) = self.session.remove_painting(t, self.take.position, latest) {
             self.positions_moved(now);
         }
     }
@@ -301,7 +301,7 @@ impl TimegrapherApp {
         let latest = self.latest_s().max(0.0);
         let at = self
             .session
-            .move_change(was, tenth(now), self.position, latest);
+            .move_change(was, tenth(now), self.take.position, latest);
         self.positions_moved(at);
     }
 
@@ -310,7 +310,7 @@ impl TimegrapherApp {
     /// charts, the steadiness tests and the Positions Test table worked
     /// out afresh.
     pub(super) fn positions_moved(&mut self, now: Position) {
-        self.position = now;
+        self.take.position = now;
         if let Some(live) = self.live.as_mut() {
             let heard = live.duration_s();
             let stretches = self.session.stretches();
@@ -326,7 +326,7 @@ impl TimegrapherApp {
             live.set_breaks(breaks);
         }
         self.mask_engine();
-        self.rev.breaks += 1;
+        self.take.rev.breaks += 1;
         self.refresh_trend();
     }
 
@@ -335,7 +335,7 @@ impl TimegrapherApp {
     /// the strip shades, so no reading falls where the watch was just
     /// handled (#1233).
     pub(super) fn engine_masked(&self) -> Vec<(f64, f64)> {
-        engine_masks(&self.masked, &self.session, &self.test.guided_unused)
+        engine_masks(&self.take.masked, &self.session, &self.test.guided_unused)
     }
 
     /// Give the engine its masks ([`Self::engine_masked`]).
@@ -349,12 +349,13 @@ impl TimegrapherApp {
     /// Bring back the masked stretch over `t`, if there is one.
     pub(super) fn unmask_at(&mut self, t: f64) {
         let v: Vec<(f64, f64)> = self
+            .take
             .masked
             .iter()
             .copied()
             .filter(|&(a, b)| !(t >= a && t <= b))
             .collect();
-        if v.len() != self.masked.len() {
+        if v.len() != self.take.masked.len() {
             self.set_masked(v);
         }
     }

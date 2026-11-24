@@ -174,7 +174,9 @@ mod tests {
         assert!(not_yet.contains("USB lines"), "{not_yet}");
         let rate = |app: &TimegrapherApp| {
             let l = app.live.as_ref().unwrap();
-            l.reading(app.average_s).rate_s_per_day.expect("a rate")
+            l.reading(app.take.average_s)
+                .rate_s_per_day
+                .expect("a rate")
         };
         let heard = rate(&app);
         let before = table_rate(&app);
@@ -195,7 +197,7 @@ mod tests {
         let opened = timegrapher_core::take::clock(None, 0, 0, Some(-19.3), None, d)
             .unwrap()
             .unwrap();
-        let fit = reading_clock(app.take_clock.as_ref(), false, None, d).expect("the lines'");
+        let fit = reading_clock(app.take.take_clock.as_ref(), false, None, d).expect("the lines'");
         assert_eq!(format!("{fit:?}"), format!("{opened:?}"));
         // A card 19.3 ppm slow reads the watch 1.67 s/d fast: on the lines'
         // clock the rate falls by that, as in Paul's report (#1720).

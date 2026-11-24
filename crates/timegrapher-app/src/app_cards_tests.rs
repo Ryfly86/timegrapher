@@ -15,7 +15,7 @@ fn a_calibre_names_the_wheels_and_a_typed_one_is_kept() {
     let wheels = app.calibre_wheels().expect("wheels");
     assert_eq!(wheels.len(), c.wheels.len());
     if let Some(l) = c.lift_angle_deg {
-        assert_eq!(app.lift_deg, l);
+        assert_eq!(app.take.lift_deg, l);
     }
     // Typed in: tidied for the tests; the recent picks are kept with
     // the settings, the calibre itself in the user calibre file.
@@ -41,7 +41,7 @@ fn a_calibre_names_the_wheels_and_a_typed_one_is_kept() {
     );
     assert!(app.settings().custom_calibres.is_empty());
     // The pick itself is about the watch on the stand, so it isn't kept.
-    assert!(next.calibre.is_empty());
+    assert!(next.take.calibre.is_empty());
 }
 
 #[test]
@@ -148,7 +148,7 @@ fn settings_come_back_as_they_were_left() {
     assert_eq!(again.panes_view.sound_opts.scale, profiles::Scale::Decibels);
     assert!(again.panes_view.hist_cumulative);
     assert!(again.panes_view.folded.contains("Window"));
-    assert_eq!(again.average_s, 30.0);
+    assert_eq!(again.take.average_s, 30.0);
     assert!(pane_visible(
         &again.panes_view.panes.tiles,
         Pane::Distributions
@@ -806,7 +806,7 @@ fn unsorted_takes_goes_back_to_quick_listen() {
     app.pick_watch(&pepsi);
     app.set_calibre("ETA 2824-2".into());
     app.set_lift(55.0);
-    assert_eq!(app.bph, Some(21600));
+    assert_eq!(app.take.bph, Some(21600));
 
     // ‹ All Watches: the list, Pepsi still picked.
     app.watches_view.list_for = Some((app.watches_view.watch_open.clone(), false));
@@ -816,10 +816,10 @@ fn unsorted_takes_goes_back_to_quick_listen() {
     app.pick_unsorted();
     assert!(!app.list_shown(), "Unsorted Takes on show");
     assert!(app.watches_view.watch_open.is_none() && app.watches_view.unsorted_open);
-    assert!(app.calibre.is_empty() && app.watch.is_empty());
-    assert_eq!(app.lift_deg, DEFAULT_LIFT_DEG);
+    assert!(app.take.calibre.is_empty() && app.take.watch.is_empty());
+    assert_eq!(app.take.lift_deg, DEFAULT_LIFT_DEG);
     assert!(!app.lift_known());
-    assert_eq!(app.bph, None);
+    assert_eq!(app.take.bph, None);
 
     // With readings on show, the settings wait for the next Listen.
     drop(app);
@@ -827,10 +827,10 @@ fn unsorted_takes_goes_back_to_quick_listen() {
     shown.use_library(Some(root.clone()));
     shown.set_lift(55.0);
     shown.pick_unsorted();
-    assert_eq!(shown.lift_deg, 55.0, "the readings keep their lift");
+    assert_eq!(shown.take.lift_deg, 55.0, "the readings keep their lift");
     assert!(shown.watches_view.quick_defaults);
     assert!(shown.quick_listen_ready(true));
-    assert_eq!(shown.lift_deg, DEFAULT_LIFT_DEG);
+    assert_eq!(shown.take.lift_deg, DEFAULT_LIFT_DEG);
     assert!(!shown.watches_view.quick_defaults);
     drop(shown);
     let _ = std::fs::remove_dir_all(&base);
@@ -1012,14 +1012,14 @@ fn unsorted_takes_after_a_watch_take_resets_the_settings() {
     app.input = Input::File;
     app.opened_path = base.join("take.flac").display().to_string();
     assert!(app.take_on_show().is_some());
-    assert_eq!(app.bph, Some(28800));
+    assert_eq!(app.take.bph, Some(28800));
 
     app.pick_unsorted();
     assert!(app.take_on_show().is_none(), "the watch's take is put away");
     assert!(app.live.is_none());
-    assert!(app.calibre.is_empty());
-    assert_eq!(app.bph, None);
-    assert_eq!(app.lift_deg, DEFAULT_LIFT_DEG);
+    assert!(app.take.calibre.is_empty());
+    assert_eq!(app.take.bph, None);
+    assert_eq!(app.take.lift_deg, DEFAULT_LIFT_DEG);
     assert!(!app.watches_view.quick_defaults);
     drop(app);
     let _ = std::fs::remove_dir_all(&base);
@@ -1061,9 +1061,9 @@ fn a_new_beat_rate_reads_the_take_again() {
         app.take_on_show().is_some(),
         "still on show, no Open needed"
     );
-    assert_eq!(app.bph, Some(21600));
+    assert_eq!(app.take.bph, Some(21600));
     assert_eq!(app.live.as_ref().unwrap().bph(), Some(21600));
-    assert_eq!(app.lift_deg, 49.0, "the settings as they were");
+    assert_eq!(app.take.lift_deg, 49.0, "the settings as they were");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -1264,7 +1264,7 @@ fn each_hour_key_picks_its_position_and_a_45_degree_one_turns_the_card_to_10() {
             },
             |ctx| app.panels(ctx),
         );
-        assert_eq!(app.position, p, "{key:?}");
+        assert_eq!(app.take.position, p, "{key:?}");
         assert_eq!(app.test.ten_positions, p.is_half_hour(), "{key:?} at 6");
     }
     // Keys 5 and 8 are no one's.
@@ -1284,7 +1284,7 @@ fn keys_one_to_six_wait_behind_a_dialog() {
         new: true,
         error: None,
     });
-    let start = app.position;
+    let start = app.take.position;
     assert_ne!(start, Position::ALL[2]);
     let frame = |app: &mut TimegrapherApp, input| {
         let _ = ctx.run(input, |ctx| {
@@ -1300,7 +1300,7 @@ fn keys_one_to_six_wait_behind_a_dialog() {
         "the dialog stays open"
     );
     assert_eq!(
-        app.position, start,
+        app.take.position, start,
         "a key moved the watch behind the dialog"
     );
     // Closed, the key works again.
@@ -1308,7 +1308,7 @@ fn keys_one_to_six_wait_behind_a_dialog() {
     frame(&mut app, screen());
     frame(&mut app, screen());
     frame(&mut app, key_frame(egui::Key::Num3, egui::Modifiers::NONE));
-    assert_eq!(app.position, Position::ALL[2]);
+    assert_eq!(app.take.position, Position::ALL[2]);
 }
 
 /// A key press, alone or with modifiers held, for one frame.
@@ -1336,20 +1336,23 @@ fn cmd_1_and_2_pick_the_view_and_the_digits_alone_the_position() {
     let ctx = themed();
     let _ = ctx.run(screen(), |ctx| app.panels(ctx));
     assert_eq!(app.watches_view.view, View::Bench);
-    let start = app.position;
+    let start = app.take.position;
     assert_ne!(start, Position::ALL[2]);
     let press = |app: &mut TimegrapherApp, key, m| {
         let _ = ctx.run(key_frame(key, m), |ctx| app.panels(ctx));
     };
     press(&mut app, egui::Key::Num2, egui::Modifiers::COMMAND);
     assert_eq!(
-        (app.watches_view.view, app.position),
+        (app.watches_view.view, app.take.position),
         (View::Watches, start)
     );
     press(&mut app, egui::Key::Num3, egui::Modifiers::NONE);
-    assert_eq!(app.position, start, "no positions in Watches");
+    assert_eq!(app.take.position, start, "no positions in Watches");
     press(&mut app, egui::Key::Num1, egui::Modifiers::COMMAND);
-    assert_eq!((app.watches_view.view, app.position), (View::Bench, start));
+    assert_eq!(
+        (app.watches_view.view, app.take.position),
+        (View::Bench, start)
+    );
     for held in [
         egui::Modifiers::SHIFT,
         egui::Modifiers::ALT,
@@ -1357,7 +1360,7 @@ fn cmd_1_and_2_pick_the_view_and_the_digits_alone_the_position() {
     ] {
         press(&mut app, egui::Key::Num3, held);
         assert_eq!(
-            (app.watches_view.view, app.position),
+            (app.watches_view.view, app.take.position),
             (View::Bench, start),
             "{held:?}"
         );
@@ -1368,10 +1371,10 @@ fn cmd_1_and_2_pick_the_view_and_the_digits_alone_the_position() {
             ..key_frame(egui::Key::Num3, held)
         };
         let _ = ctx.run(quick, |ctx| app.panels(ctx));
-        assert_eq!(app.position, start, "{held:?} on the event only");
+        assert_eq!(app.take.position, start, "{held:?} on the event only");
     }
     press(&mut app, egui::Key::Num3, egui::Modifiers::NONE);
-    assert_eq!(app.position, Position::ALL[2]);
+    assert_eq!(app.take.position, Position::ALL[2]);
 }
 
 /// The top of the window is one row (#1000): the menus, the Bench |
@@ -1452,7 +1455,7 @@ fn a_menu_item_and_its_shortcut_run_one_command() {
     // Nothing is masked: Remove All Masks… is dimmed and asks nothing.
     assert!(!app.menu_enabled(MenuCommand::RemoveMasks));
     app.run_menu_command(&ctx, MenuCommand::RemoveMasks);
-    assert!(!app.remove_masks_asked);
+    assert!(!app.take.remove_masks_asked);
     // Panes are the Bench's: in Watches their items are dimmed.
     app.watches_view.view = View::Watches;
     let shown = app.panes_view.show_readings;
@@ -1656,13 +1659,13 @@ fn the_strip_keeps_the_lift_beside_the_beat_rate_with_no_watch() {
 #[test]
 fn a_found_beat_rate_is_auto_then_the_rate() {
     let mut app = synthetic(40.0, 5.0);
-    app.bph = None;
+    app.take.bph = None;
     let found = |rate: &str| (Some("Auto"), rate.to_string());
     assert_eq!(app.bph_parts(false, Some(28800)), found("28800"));
     assert_eq!(app.bph_shown(false, Some(28800)), "Auto 28800");
     assert_eq!(app.bph_parts(false, None), found(""));
     assert_eq!(app.bph_shown(false, None), "Auto");
-    app.bph = Some(21600);
+    app.take.bph = Some(21600);
     let set = (None, "21600 bph".to_string());
     assert_eq!(app.bph_parts(false, Some(28800)), set);
     assert_eq!(app.bph_parts(true, Some(28800)), set);
@@ -1745,9 +1748,9 @@ fn the_beat_rate_found_comes_from_the_reading_shown() {
     app.poll();
     assert_eq!(app.watch_facts().1, "Auto 28800");
     // A calibre that beats at another rate says so beside a watch heard.
-    app.calibre = "Hangzhou HZ2B00A".into();
+    app.take.calibre = "Hangzhou HZ2B00A".into();
     assert_eq!(app.calibre_chips().len(), 1);
-    app.calibre.clear();
+    app.take.calibre.clear();
     app.panes_view.strip_end = Some(15.0);
     let r = app.card_reading().unwrap();
     assert!(!r.watch_heard, "{} s: {:?}", r.time_s, r.caveats);
@@ -1755,7 +1758,7 @@ fn the_beat_rate_found_comes_from_the_reading_shown() {
     assert_eq!(app.live.as_ref().unwrap().bph(), Some(28800));
     assert_eq!(app.bph_heard(), None);
     assert_eq!(app.watch_facts().1, "Auto");
-    app.calibre = "Hangzhou HZ2B00A".into();
+    app.take.calibre = "Hangzhou HZ2B00A".into();
     assert!(app.calibre_chips().is_empty(), "no watch heard to differ");
 }
 

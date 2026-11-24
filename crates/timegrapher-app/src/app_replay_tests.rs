@@ -221,7 +221,7 @@ fn whole_recording_viewer_keeps_known_jumps_with_or_without_position_cuts() {
     for case in 0..3 {
         let with_positions = case == 1;
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-        app.average_s = 60.0;
+        app.take.average_s = 60.0;
         let log = BeatLog {
             lock_template_kept: false,
             sample_rate: 48000,
@@ -317,11 +317,11 @@ fn replay_restores_saved_history_and_a_position_change_preserves_it() {
     assert_eq!(app.session.settles(), settles);
     assert_eq!(app.live.as_ref().unwrap().breaks(), breaks);
     assert_eq!(
-        (app.watch.as_str(), app.lift_deg, app.bph),
+        (app.take.watch.as_str(), app.take.lift_deg, app.take.bph),
         ("Replay Watch", 49.0, Some(28800))
     );
     app.change_position(Position::DialDown);
-    assert_eq!(app.position, Position::DialDown);
+    assert_eq!(app.take.position, Position::DialDown);
     assert_eq!(app.session.stretches(), positions);
     assert_eq!(app.session.settles(), settles);
     assert_eq!(app.live.as_ref().unwrap().breaks(), breaks);
@@ -359,8 +359,11 @@ fn replay_uses_the_same_matching_file_manifest_as_whole_take_analysis() {
     assert_eq!(drain_replay_source(&replay), 9000);
     assert_eq!(replay.session.stretches(), positions);
     assert_eq!(replay.session.settles(), settles);
-    assert_eq!(replay.watch, batch.watch);
-    assert_eq!((replay.lift_deg, replay.bph), (batch.lift_deg, batch.bph));
+    assert_eq!(replay.take.watch, batch.take.watch);
+    assert_eq!(
+        (replay.take.lift_deg, replay.take.bph),
+        (batch.take.lift_deg, batch.take.bph)
+    );
     replay.stop();
     std::fs::remove_dir_all(dir).unwrap();
 }
@@ -388,7 +391,12 @@ fn replay_poll_does_not_publish_readings_inside_saved_settling() {
     }))
     .unwrap();
     app.poll();
-    let at = app.live.as_ref().unwrap().reading(app.average_s).time_s;
+    let at = app
+        .live
+        .as_ref()
+        .unwrap()
+        .reading(app.take.average_s)
+        .time_s;
     assert!(
         at > 8.0 && at <= 14.0,
         "fixture must read within the saved settle: {at}"

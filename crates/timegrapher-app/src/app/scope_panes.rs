@@ -215,7 +215,13 @@ impl TimegrapherApp {
         }
         // Core's mask rule alone: no sound kept is asked for.
         let masked = matches!(
-            sound_at::<()>(&[], (end, self.average_s), &self.masked, &[], |_| 0.0),
+            sound_at::<()>(
+                &[],
+                (end, self.take.average_s),
+                &self.take.masked,
+                &[],
+                |_| 0.0
+            ),
             SoundAt::Masked
         );
         if masked {
@@ -256,11 +262,11 @@ impl TimegrapherApp {
             return self.kept_average(kept, end);
         }
         let beats = self.live.as_ref().map_or(&[][..], |l| l.beats());
-        let window = (end, self.average_s);
+        let window = (end, self.take.average_s);
         match sound_at(
             &self.results.sound_history,
             window,
-            &self.masked,
+            &self.take.masked,
             beats,
             |k| k.span_s,
         ) {
@@ -283,7 +289,9 @@ impl TimegrapherApp {
             SoundAt::NotKept => {
                 self.poll_sound_job();
                 let worked_out = match &self.results.sound_at {
-                    Some((t, rev, p)) if (t - end).abs() < 0.5 && *rev == self.rev.settings => {
+                    Some((t, rev, p))
+                        if (t - end).abs() < 0.5 && *rev == self.take.rev.settings =>
+                    {
                         Some(p.clone())
                     }
                     _ => None,
@@ -319,9 +327,9 @@ impl TimegrapherApp {
         let osc_period_s = 2.0 * timegrapher_core::power_reserve::beat_s(live.bph());
         let sides = match profile_at(
             kept,
-            (end, self.average_s),
-            &self.masked,
-            self.take_breaks.as_deref().unwrap_or_default(),
+            (end, self.take.average_s),
+            &self.take.masked,
+            self.take.take_breaks.as_deref().unwrap_or_default(),
             live.beats(),
             osc_period_s,
             &live.config().analysis.amplitude,
@@ -644,7 +652,7 @@ impl TimegrapherApp {
             };
             let _ = tx.send(p);
         });
-        self.results.sound_job = Some((end, self.rev.settings, rx));
+        self.results.sound_job = Some((end, self.take.rev.settings, rx));
         true
     }
 
@@ -654,7 +662,7 @@ impl TimegrapherApp {
             .results
             .sound_job
             .as_ref()
-            .is_some_and(|j| j.1 != self.rev.settings)
+            .is_some_and(|j| j.1 != self.take.rev.settings)
         {
             self.results.sound_job = None;
         }

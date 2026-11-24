@@ -234,7 +234,7 @@ impl TimegrapherApp {
         let kept = self.results_files()?;
         let mut required = vec![(MANIFEST, text.as_bytes())];
         required.extend(kept.iter().map(|(n, b)| (*n, b.as_slice())));
-        let calibre = self.calibre.clone();
+        let calibre = self.take.calibre.clone();
         let r = self
             .session
             .recorder
