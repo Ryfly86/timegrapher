@@ -130,4 +130,11 @@ impl TimegrapherApp {
                 .map(|c| c.id.clone());
         }
     }
+
+    /// The input didn't open: why, kept for its row in Settings, and said.
+    pub(super) fn input_failed(&mut self, e: &str) {
+        let m = format!("Can't open the input. {}", capture::explain_error(e));
+        self.recording.input_fault = Some(m.clone());
+        self.error(m);
+    }
 }

@@ -209,11 +209,7 @@ impl TimegrapherApp {
                 self.recording.capture = Some(c);
                 self.apply_agc();
             }
-            Err(e) => {
-                let m = format!("Can't open the input. {}", capture::explain_error(&e));
-                self.recording.input_fault = Some(m.clone());
-                self.error(m);
-            }
+            Err(e) => self.input_failed(&e),
         }
     }
 
@@ -428,11 +424,7 @@ impl TimegrapherApp {
                 self.recording.capture = Some(c);
                 self.apply_agc();
             }
-            Err(e) => {
-                let m = format!("Can't open the input. {}", capture::explain_error(&e));
-                self.recording.input_fault = Some(m.clone());
-                self.error(m);
-            }
+            Err(e) => self.input_failed(&e),
         }
     }
 
