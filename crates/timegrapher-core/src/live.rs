@@ -255,16 +255,31 @@ impl LiveReading {
     /// take's cards at its end give what its Watches row gives, to the last
     /// bit (#2073, Norm). The engine corrects a rate fitted on the sound's
     /// time by the clock's slope, where `session` fits it on the clock's
-    /// time: the same rate, but not the same float. With a shorter
-    /// averaging time, or no watch heard in either, this reading stands.
+    /// time: the same rate, but not the same float. A watch still being
+    /// found at the end is read the same: whether a run is read is the
+    /// whole's to say, so the stopped take reads as `analyze` does, figures
+    /// or no regular beat with its reason (Norm on #2257). With a shorter
+    /// averaging time, or no watch heard nor being found, this reading
+    /// stands.
     #[must_use]
     pub fn at_whole_end(self, whole: &crate::session::Measurement, average_s: f64) -> Self {
         let holds = whole.end_s == self.time_s && whole.start_s >= self.time_s - average_s;
-        if !holds || !self.watch_heard || !whole.watch_heard || self.listening.is_some() {
+        if !holds || !(self.watch_heard || self.finding_beat) || self.listening.is_some() {
             return self;
+        }
+        if !whole.watch_heard {
+            return Self {
+                jitter_us: whole.jitter_us,
+                caveats: whole.caveats.clone(),
+                finding_beat: false,
+                whole_take: true,
+                ..as_file::without_figures(self)
+            };
         }
         let c = whole.confidence;
         Self {
+            watch_heard: true,
+            finding_beat: false,
             rate_s_per_day: whole.rate_s_per_day,
             rate_error_s_per_day: c.and_then(|c| c.rate.se),
             rate_no_pm: c.and_then(|c| c.rate.no_pm),
@@ -1480,9 +1495,9 @@ impl LiveAnalyzer {
                 w.mean()
             });
         let verdict = self.verdict_at(holes, bph, window_from, end_s, st.listened_s);
-        let (no_watch, watch_heard) = (verdict.no_watch, verdict.no_watch.is_none());
-        let finding_beat =
-            !watch_heard && self.young_regular_run(fit.as_ref(), bph, (end_s, average_s), holes);
+        let no_watch = verdict.no_watch;
+        let (watch_heard, finding_beat) =
+            self.heard_or_found(&verdict, fit.as_ref(), bph, (end_s, average_s), holes);
         let listening = self.listening_at(watch_heard && verdict.awaiting, end_s);
         let read = watch_heard && listening.is_none();
         let heard = |v: Option<f64>| v.filter(|_| read);
@@ -1647,6 +1662,37 @@ impl LiveAnalyzer {
         self.add_rebuild_caveat(caveats);
     }
 
+    /// Whether a watch is heard by `verdict`, and where not, whether the
+    /// run fitted as `fit` is a beat being found ([`Self::young_regular_run`]).
+    /// One arriving after a pause is not heard until it is read (#2257).
+    fn heard_or_found(
+        &self,
+        verdict: &Verdict,
+        fit: Option<&crate::timing::TimingFit>,
+        bph: Option<u32>,
+        at: (f64, f64),
+        holes: &Cuts,
+    ) -> (bool, bool) {
+        let Some(pause) = verdict.arriving else {
+            let heard = verdict.no_watch.is_none();
+            return (heard, !heard && self.young_regular_run(fit, bph, at, holes));
+        };
+        // Arriving: found while its run since the pause is regular, or too
+        // short yet to fit, by the test the stopped read's reason uses.
+        let lo = self.beats.partition_point(|b| b.time < pause);
+        let hi = self.beats.partition_point(|b| b.time <= at.0);
+        let good: Vec<Beat> = self.beats[lo..hi]
+            .iter()
+            .filter(|b| b.is_good())
+            .copied()
+            .collect();
+        let found = bph.is_some_and(|b| {
+            let run = crate::timing::fit(&good, b);
+            run.is_none() || measure::regular_run(run.as_ref(), b)
+        });
+        (false, found)
+    }
+
     /// Whether the run a reading ending at `end_s` is fitted on is heard
     /// on its own and began within [`FINDING_S`]: after a pause in the
     /// beats, or after the take's start, inside that time (#2008).
@@ -1672,7 +1718,7 @@ impl LiveAnalyzer {
         // stand noise scatters under 2% often, #675). Not yet judged on a
         // whole window, it says a beat is heard only where its sound says
         // a watch, not merely where nothing says otherwise (#2014).
-        if !began_after_quiet || !beats::watch_heard(Some(fit.jitter_us), b) {
+        if !began_after_quiet || !measure::regular_run(Some(fit), b) {
             return false;
         }
         let v = self.verdict_since(holes, bph, (start, end_s), end_s - start, start);
@@ -1746,7 +1792,7 @@ impl LiveAnalyzer {
         // the beats the scatter is read from, as a saved reading judges
         // its stretch's ([`BeatLog::beat_sound`]), not the latest run's.
         let sound_beats = crate::session::stretch_beats(&self.beats, scatter_from, end_s);
-        let beat_sound = match (bph, &self.beats[sound_beats]) {
+        let beat_sound = match (bph, &self.beats[sound_beats.clone()]) {
             (Some(b), [first, .., last]) if measure::beat_sound_needed(jitter_us, b, assessed) => {
                 let snips: Vec<(f64, bool, &[f32])> = self
                     .sample
@@ -1768,7 +1814,12 @@ impl LiveAnalyzer {
             _ => None,
         };
         let no_watch = match bph {
-            Some(b) => measure::no_watch_reason(jitter_us, b, assessed, beat_sound),
+            Some(b) => measure::no_watch_reason_of(
+                jitter_us,
+                b,
+                (assessed, beat_sound),
+                &self.beats[sound_beats],
+            ),
             // No beat rate found: judged on the sound it would have been
             // judged over, its look back too, as a 10 s average is (#1965).
             None => {
@@ -1782,11 +1833,49 @@ impl LiveAnalyzer {
         Verdict {
             jitter_us,
             timing_scatter_fraction,
+            arriving: self.arriving(&scatter, heard_since, end_s),
             no_watch,
             awaiting: measure::awaiting_verdict(self.heard_cuts().heard_s(end_s), beat_sound),
             assessed,
             beat_sound,
         }
+    }
+
+    /// Where the watch heard by `end_s` is arriving from, after a pause of
+    /// [`ARRIVING_PAUSE_S`] or more in its good beats since `heard_since`:
+    /// the first beat after it, where no `scatter` window has fitted over
+    /// the beats after the pause, and the pause ended under
+    /// [`SCATTER_LOOKBACK_S`] ago. A saved read's verdict rests on the
+    /// windows it fits, and none fits across a pause, so the run after one
+    /// is read once a window fits over it; until then it adds nothing to
+    /// the figures, however long the sound before the pause (Norm on
+    /// #2257). A jump in the beats, with a shorter pause or none, is not
+    /// one (#1170).
+    fn arriving(
+        &self,
+        scatter: &[crate::timing::WindowFit],
+        heard_since: f64,
+        end_s: f64,
+    ) -> Option<f64> {
+        let lo = self.beats.partition_point(|b| b.time < heard_since);
+        let hi = self.beats.partition_point(|b| b.time <= end_s);
+        let good: Vec<Beat> = self.beats[lo..hi]
+            .iter()
+            .filter(|b| b.is_good())
+            .copied()
+            .collect();
+        // A pause a mask lies in is the mask's, not the watch's (#2257).
+        let pause = good
+            .windows(2)
+            .rev()
+            .find(|w| {
+                w[1].time - w[0].time >= ARRIVING_PAUSE_S
+                    && crate::session::masked_within(&self.masked, w[0].time, w[1].time) == 0.0
+            })
+            .map(|w| w[1].time)?;
+        // A window fitted over the beats after the pause: none spans it.
+        (end_s - pause < SCATTER_LOOKBACK_S && !scatter.iter().any(|w| w.end_s > pause))
+            .then_some(pause)
     }
 
     /// The beats from `from_s` up to the stretch's end: no window
@@ -1937,6 +2026,10 @@ struct Verdict {
     timing_scatter_fraction: Option<f64>,
     /// Why no watch is heard; none when one is.
     no_watch: Option<NoWatchReason>,
+    /// Where a watch heard again after a pause in its beats is heard from,
+    /// not yet read ([`LiveAnalyzer::arriving`]): no figures, found where
+    /// regular.
+    arriving: Option<f64>,
     /// No verdict yet: regularity not judged and the beats' sound can't
     /// be ([`measure::awaiting_verdict`]). No figures then (#2014).
     awaiting: bool,
@@ -2130,6 +2223,15 @@ impl LiveAnalyzer {
             .collect()
     }
 }
+
+/// The shortest pause in a watch's good beats after which it is a watch
+/// arriving ([`LiveAnalyzer::arriving`]), seconds: a rate window,
+/// [`measure::RATE_WINDOW_S`]. A shorter pause is a beat lost at a jump or
+/// a short hole, the run before it still in the window, read across it as
+/// a hole (#1170, #2240); one a window long or more is the watch gone
+/// (Norm on #2257). The pause live hears includes its 2 to 3.5 s re-lock,
+/// so a gap of 7 to 9 s of noise sits on the line.
+pub const ARRIVING_PAUSE_S: f64 = measure::RATE_WINDOW_S;
 
 /// How long the watch verdict judges a reading ending at `end_s` over,
 /// seconds, from `judged_from`, where its scatter is read from

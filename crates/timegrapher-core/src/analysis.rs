@@ -479,7 +479,7 @@ fn hear(
     let assessed = crate::measure::regularity_assessed(listened_s, fits.holds_window);
     Heard {
         jitter_us,
-        no_watch: crate::measure::no_watch_reason(jitter_us, bph, assessed, beat_sound),
+        no_watch: crate::measure::no_watch_reason_of(jitter_us, bph, (assessed, beat_sound), beats),
         awaiting: crate::measure::awaiting_verdict(audio.duration(), beat_sound),
         listened_s,
         expected: crate::beats::expected_beats(listened_s, bph),

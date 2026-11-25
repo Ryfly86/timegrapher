@@ -27,17 +27,21 @@ pub fn fact(c: &Value, lift_deg: Option<f64>) -> Option<String> {
 /// timing scatter of the beats, in ms and as a share of the beat period,
 /// when the measurement gives it (`jitter_us`, with the beat rate).
 pub fn no_regular_beat(m: &Value, bph: Option<f64>) -> String {
-    let no_sound = m["caveats"]
+    use timegrapher_core::measure::NoWatchReason;
+    let reason = m["caveats"]
         .as_array()
         .into_iter()
         .flatten()
-        .any(|c| c["code"] == "no_watch" && c["reason"] == "no_beat_sound");
+        .find(|c| c["code"] == "no_watch")
+        .and_then(|c| match c["reason"].as_str()? {
+            "no_beat_sound" => Some(NoWatchReason::NoBeatSound),
+            "too_short" => Some(NoWatchReason::TooShort),
+            _ => None,
+        });
     let said = match bph.filter(|b| *b > 0.0) {
-        _ if no_sound => timegrapher_core::measure::no_watch_text(
-            timegrapher_core::measure::NoWatchReason::NoBeatSound,
-            None,
-            None,
-        ),
+        _ if reason.is_some() => {
+            timegrapher_core::measure::no_watch_text(reason.unwrap_or_default(), None, None)
+        }
         Some(b) => timegrapher_core::session::no_regular_beat(
             m["jitter_us"].as_f64(),
             Some(b.round() as u32),
