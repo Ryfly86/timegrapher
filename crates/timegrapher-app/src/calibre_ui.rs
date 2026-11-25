@@ -18,6 +18,7 @@ use crate::theme;
 use eframe::egui::{self, RichText, Vec2};
 use std::path::PathBuf;
 use std::sync::OnceLock;
+use timegrapher_core::calibre_page::{figure_words, source_parts, with_maker_name};
 use timegrapher_core::calibre_store::{
     Catalog, CustomCalibre, CustomWheel, Entry, Origin, Slot, UserCalibres,
 };
@@ -2580,128 +2581,9 @@ fn hint(e: Entry<'_>) -> String {
 /// Maker, beat rate, lift angle and escape wheel in one line, saying
 /// which the list doesn't give.
 fn summary(e: Entry<'_>) -> String {
-    let mut parts: Vec<String> = Vec::new();
-    if let Some(m) = e.maker() {
-        parts.push(m.to_string());
-    }
-    parts.push(match e.bph() {
-        Some(b) => format!("{b} bph"),
-        None => "beat rate not given".into(),
-    });
-    parts.push(match e.lift_angle_deg() {
-        Some(l) => format!("lift angle {}°", fields::plain(l)),
-        None => "lift angle not given".into(),
-    });
-    if let Some(t) = e.escape_teeth() {
-        parts.push(format!("{t}-tooth escape wheel"));
-    }
+    let mut parts: Vec<String> = e.maker().map(str::to_string).into_iter().collect();
+    parts.extend(figure_words(e.bph(), e.lift_angle_deg(), e.escape_teeth()));
     parts.join(" · ")
-}
-
-/// A source as its name, its address when it has one, and what it says.
-/// "https://watchguy.co.uk/… (A. Schild 1017, 51°)" is watchguy.co.uk
-/// saying "51°" (the calibre's own name, first, is dropped: the panel
-/// is headed by it); a source with a description before what it says,
-/// "https://docs.google.com/… (lift angle sheet linked from
-/// watchrepairtalk.com/topic/…) (…)", is named "Lift angle sheet
-/// (watchrepairtalk.com)".
-pub fn source_parts(s: &str) -> (String, Option<String>, String) {
-    let (url, rest) = match s.split_once(' ') {
-        Some((u, r)) if u.starts_with("http") => (Some(u.to_string()), r.trim()),
-        None if s.starts_with("http") => (Some(s.to_string()), ""),
-        _ => (None, s.trim()),
-    };
-    let host = |u: &str| {
-        u.trim_start_matches("https://")
-            .trim_start_matches("http://")
-            .trim_start_matches("www.")
-            .split('/')
-            .next()
-            .unwrap_or(u)
-            .to_string()
-    };
-    let Some(url) = url else {
-        return (rest.to_string(), None, String::new());
-    };
-    let groups = paren_groups(rest);
-    let (name, says) = match groups.as_deref() {
-        Some([one]) => (host(&url), one.clone()),
-        Some([first, .., last]) => {
-            let name = match first.split_once(" linked from ") {
-                Some((what, from)) => format!("{} ({})", capitalised(what), host(from)),
-                None => capitalised(first),
-            };
-            (name, last.clone())
-        }
-        _ => (host(&url), rest.to_string()),
-    };
-    (name, Some(url), drop_calibre_name(&says))
-}
-
-/// `s` as nothing but bracketed groups, "(a) (b (c))", each group's
-/// inside; `None` for anything else.
-fn paren_groups(s: &str) -> Option<Vec<String>> {
-    let mut groups = Vec::new();
-    let mut depth = 0;
-    let mut cur = String::new();
-    for ch in s.chars() {
-        match ch {
-            '(' => {
-                if depth > 0 {
-                    cur.push(ch);
-                }
-                depth += 1;
-            }
-            ')' => {
-                depth -= 1;
-                if depth < 0 {
-                    return None;
-                }
-                if depth == 0 {
-                    groups.push(std::mem::take(&mut cur));
-                } else {
-                    cur.push(ch);
-                }
-            }
-            c if depth == 0 => {
-                if !c.is_whitespace() {
-                    return None;
-                }
-            }
-            c => cur.push(c),
-        }
-    }
-    (depth == 0 && !groups.is_empty()).then_some(groups)
-}
-
-/// What a source says, without the calibre's name in front: "A. Schild
-/// 1017, 51°, 18000 vph" is "51°, 18000 vph". A first part holding a
-/// figure (a degree sign or vph) is kept.
-fn drop_calibre_name(says: &str) -> String {
-    let mut depth = 0;
-    for (i, ch) in says.char_indices() {
-        match ch {
-            '(' => depth += 1,
-            ')' => depth -= 1,
-            ',' if depth == 0 => {
-                let first = &says[..i];
-                if first.contains('°') || first.contains("vph") || first.contains("bph") {
-                    return says.to_string();
-                }
-                return says[i + 1..].trim().to_string();
-            }
-            _ => {}
-        }
-    }
-    says.to_string()
-}
-
-/// "lift angle sheet" as "Lift angle sheet".
-fn capitalised(s: &str) -> String {
-    let mut c = s.chars();
-    c.next()
-        .map(|f| f.to_uppercase().collect::<String>() + c.as_str())
-        .unwrap_or_default()
 }
 
 /// The widest period a box shows whole: six figures of seconds, about
@@ -2832,55 +2714,6 @@ fn star(painter: &egui::Painter, c: egui::Pos2, r: f32, ink: egui::Color32) {
             egui::Stroke::NONE,
         ));
     }
-}
-
-/// A calibre's name with its maker in front, unless the name already
-/// starts with the maker under one of its names ("Rolex 3235", not "Rolex
-/// Rolex 3235"; "Seagull ST36", not "Tianjin Seagull Seagull ST36").
-fn with_maker_name(maker: &str, name: &str) -> String {
-    // A clone maker's marker is already in a name such as "Patek 240 Clone",
-    // so only the maker itself goes in front.
-    if let Some(outer) = maker.strip_suffix("(clone)").map(str::trim_end) {
-        if name
-            .split(|ch: char| !ch.is_alphanumeric())
-            .any(|word| word.eq_ignore_ascii_case("clone"))
-        {
-            return match outer {
-                "" => name.to_string(),
-                outer => format!("{outer} {name}"),
-            };
-        }
-    }
-    let starts_with = |word: &str| {
-        !word.is_empty()
-            && name
-                .get(..word.len())
-                .is_some_and(|head| head.eq_ignore_ascii_case(word))
-            && name[word.len()..]
-                .chars()
-                .next()
-                .is_none_or(|c| !c.is_alphanumeric())
-    };
-    if maker_words(maker).iter().any(|w| starts_with(w)) {
-        // The maker goes, but not what it says about the calibre.
-        match maker.strip_suffix(" (clone)") {
-            Some(_) => format!("{name} (clone)"),
-            None => name.to_string(),
-        }
-    } else {
-        format!("{maker} {name}")
-    }
-}
-
-/// The names a maker goes by: its own, its other names, and the parts of
-/// a name like "Peacock (Dandong)".
-fn maker_words(maker: &str) -> Vec<&str> {
-    let mut words = calibres::maker_names(maker);
-    if let Some((outer, inner)) = maker.split_once(" (") {
-        words.push(outer);
-        words.push(inner.trim_end_matches(')'));
-    }
-    words
 }
 
 #[cfg(test)]
