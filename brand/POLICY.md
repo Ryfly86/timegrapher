@@ -25,8 +25,9 @@ otherwise gets out of the way.
   domain.
 - Suggest that the project endorses you, your product or your service
   when it hasn't.
-- Change the logo (see "Don't" in [GUIDE.md](GUIDE.md#dont)), except to
-  scale it or to use one of the one-colour versions.
+- Change the logo and still use it for Open Timegrapher (see "Don't" in
+  [GUIDE.md](GUIDE.md#dont)). Scaling it and the one-colour versions are
+  fine.
 
 If you're not sure, open an issue and ask. The answer is usually yes.
 
