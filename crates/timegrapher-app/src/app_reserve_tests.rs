@@ -1154,6 +1154,14 @@ fn a_long_takes_run_is_read_again_when_its_masks_change() {
     assert_eq!(text(&app), before);
 }
 
+/// A steadiness run under way that never answers.
+fn steady_job_waiting() -> results::SteadyJob {
+    results::SteadyJob {
+        rev: Revision::default(),
+        rx: std::sync::mpsc::channel().1,
+    }
+}
+
 /// An idle window draws only when asked; one listening or reading a
 /// batch draws every 100 ms; work on a thread of its own, each kind on its
 /// own, every 100 ms, so what it gives shows with no input (Trevor's HOLD
@@ -1193,7 +1201,7 @@ fn the_window_draws_again_only_while_work_is_under_way() {
         ),
         (
             "steady",
-            Box::new(|a| a.bench.results.steady_job = Some((Revision::default(), channel().1))),
+            Box::new(|a| a.bench.results.steady_job = Some(steady_job_waiting())),
         ),
         (
             "save",
