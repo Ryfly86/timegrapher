@@ -77742,20 +77742,14 @@
   {
     "calibre": "Rolex 160",
     "maker": "Rolex",
-    "bph": 17886,
     "lift_angle_deg": 53.0,
-    "wheels": [
-      {
-        "name": "balance",
-        "period_s": 0.402549,
-        "basis": "derived from the beat rate"
-      }
-    ],
+    "wheels": [],
     "sources": [
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 160, 53°)",
       "https://watchdoctor.biz/movements-and-calibers/ (Watch Doctor, Rolex calibre chart, Beats / hour column) (REF. 160 (4″ 113) [Size 1131] | ... | 17J | 17,886 | 1945)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Beat rate not settled, so none is given: Watch Doctor's chart prints 17,886, a single figure off the usual beat rates, and no second source was found (timegrapher-calibres#4)."
   },
   {
     "calibre": "Rolex 270",
