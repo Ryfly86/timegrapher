@@ -446,9 +446,16 @@ fn the_profiles_marks_keep_off_the_names() {
     let mut app = synthetic(30.0, 0.0);
     // Stopped, the profile is the one kept at the end.
     let end = app.latest_s();
-    let sides = app.recording.live.as_ref().unwrap().tick_profiles().clone();
-    let span_s = app.take.average_s;
-    app.results.sound_history = vec![(end, scope_panes::Kept { span_s, sides })];
+    let sides = app
+        .bench
+        .recording
+        .live
+        .as_ref()
+        .unwrap()
+        .tick_profiles()
+        .clone();
+    let span_s = app.bench.take.average_s;
+    app.bench.results.sound_history = vec![(end, scope_panes::Kept { span_s, sides })];
     let ctx = egui::Context::default();
     theme::install(&ctx);
     let run = |app: &mut TimegrapherApp, w: f32, h: f32| {
@@ -510,15 +517,15 @@ fn the_profiles_marks_keep_off_the_names() {
     // Where the facts box is two rows, over a trace that rises under
     // the left corner and is low on the right, it takes the right, and
     // keeps off the marks.
-    let kept = app.results.sound_history.clone();
-    for (_, k) in &mut app.results.sound_history {
+    let kept = app.bench.results.sound_history.clone();
+    for (_, k) in &mut app.bench.results.sound_history {
         for p in k.sides.iter_mut().flatten() {
             let top = p.p90.iter().copied().fold(0.0f32, f32::max);
             let n = p.median.len() / 5;
             p.median[..n].fill(0.9 * top);
         }
     }
-    app.panes_view.sound_opts.side_by_side = true;
+    app.bench.panes_view.sound_opts.side_by_side = true;
     let (_, rings, bars, facts) = run(&mut app, 1440.0, 788.0);
     let plots: Vec<egui::Rect> = (0..2usize)
         .filter_map(|k| {
@@ -544,7 +551,7 @@ fn the_profiles_marks_keep_off_the_names() {
     // Over a trace high under both top corners, the box is still drawn
     // in each plot, in a bottom corner or else top left: a fact is never
     // dropped (Hugh, #1626).
-    for (_, k) in &mut app.results.sound_history {
+    for (_, k) in &mut app.bench.results.sound_history {
         for p in k.sides.iter_mut().flatten() {
             let top = p.p90.iter().copied().fold(0.0f32, f32::max);
             let n = p.median.len();
@@ -558,8 +565,8 @@ fn the_profiles_marks_keep_off_the_names() {
             "{p:?}: {facts:?}"
         );
     }
-    app.results.sound_history = kept;
-    app.panes_view.sound_opts.side_by_side = false;
+    app.bench.results.sound_history = kept;
+    app.bench.panes_view.sound_opts.side_by_side = false;
     let (names, rings, bars, _) = run(&mut app, 1440.0, 1000.0);
     assert!(!names.is_empty(), "the edges named");
     assert!(!rings.is_empty() && !bars.is_empty(), "{rings:?} {bars:?}");
@@ -582,26 +589,39 @@ fn the_profiles_marks_keep_off_the_names() {
 #[test]
 fn a_calibre_picked_while_listening_keeps_what_was_heard() {
     let mut app = synthetic(30.0, 0.0);
-    assert_eq!(app.take.bph, None);
-    let heard = app.recording.live.as_ref().unwrap().beats().len();
-    let trend = app.results.trend.len();
+    assert_eq!(app.bench.take.bph, None);
+    let heard = app.bench.recording.live.as_ref().unwrap().beats().len();
+    let trend = app.bench.results.trend.len();
     assert!(heard > 100 && trend > 5, "{heard} {trend}");
     assert_eq!(app.cal.bph("ETA 2824-2"), Some(28_800));
     app.set_calibre("ETA 2824-2".into());
-    assert_eq!(app.take.bph, Some(28_800));
-    assert_eq!(app.recording.live.as_ref().unwrap().beats().len(), heard);
-    assert_eq!(app.results.trend.len(), trend);
+    assert_eq!(app.bench.take.bph, Some(28_800));
+    assert_eq!(
+        app.bench.recording.live.as_ref().unwrap().beats().len(),
+        heard
+    );
+    assert_eq!(app.bench.results.trend.len(), trend);
     // Auto again, with no calibre: still all of it.
     app.set_calibre(String::new());
-    assert_eq!(app.take.bph, None);
-    assert_eq!(app.recording.live.as_ref().unwrap().beats().len(), heard);
-    assert_eq!(app.results.trend.len(), trend);
+    assert_eq!(app.bench.take.bph, None);
+    assert_eq!(
+        app.bench.recording.live.as_ref().unwrap().beats().len(),
+        heard
+    );
+    assert_eq!(app.bench.results.trend.len(), trend);
     let other = ["Seiko 7S26", "Seiko 7S26A", "Miyota 8215", "Seiko NH35"]
         .into_iter()
         .find(|c| app.cal.bph(c).is_some_and(|b| b != 28_800))
         .expect("a calibre at another rate");
     app.set_calibre(other.into());
-    assert!(app.recording.live.as_ref().unwrap().beats().is_empty());
+    assert!(app
+        .bench
+        .recording
+        .live
+        .as_ref()
+        .unwrap()
+        .beats()
+        .is_empty());
 }
 
 /// Noise with no regular beat: the strip shows the peaks heard,
@@ -617,16 +637,23 @@ fn noise_shows_its_possible_beats_on_the_strip() {
             (seed >> 8) as f32 / (1 << 24) as f32 * 0.02 - 0.01
         })
         .collect();
-    let live = app.recording.live.as_mut().unwrap();
+    let live = app.bench.recording.live.as_mut().unwrap();
     for b in x.chunks(960) {
         if live.push(b) {
-            let r = live.reading(app.take.average_s);
-            app.results.trend.push(TrendPoint::of(r.time_s, &r));
+            let r = live.reading(app.bench.take.average_s);
+            app.bench.results.trend.push(TrendPoint::of(r.time_s, &r));
         }
     }
     app.poll();
     assert!(app.no_watch_yet());
-    assert!(!app.recording.live.as_ref().unwrap().candidates().is_empty());
+    assert!(!app
+        .bench
+        .recording
+        .live
+        .as_ref()
+        .unwrap()
+        .candidates()
+        .is_empty());
     let ctx = egui::Context::default();
     theme::install(&ctx);
     let out = ctx.run(egui::RawInput::default(), |ctx| {
@@ -655,13 +682,13 @@ fn noise_while_settling_is_still_no_watch() {
             (seed >> 8) as f32 / (1 << 24) as f32 * 0.02 - 0.01
         })
         .collect();
-    let live = app.recording.live.as_mut().unwrap();
+    let live = app.bench.recording.live.as_mut().unwrap();
     for b in x.chunks(960) {
         live.push(b);
     }
     app.session.set_settle_s(30.0);
     app.session.start_settle(0.0);
-    app.results.trend.clear();
+    app.bench.results.trend.clear();
     assert!(app.settling_left().is_some());
     assert!(app.no_watch_yet(), "noise is no watch, settling or not");
     let _ = std::fs::remove_dir_all(base);
@@ -672,8 +699,8 @@ fn noise_while_settling_is_still_no_watch() {
 #[test]
 fn resuming_on_another_input_is_refused() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    app.recording.live = Some(LiveAnalyzer::new(48_000, LiveConfig::default()));
-    app.recording.clock_track = Some(ClockTrack {
+    app.bench.recording.live = Some(LiveAnalyzer::new(48_000, LiveConfig::default()));
+    app.bench.recording.clock_track = Some(ClockTrack {
         device: "Mic A".into(),
         shown: "Mic A (default)".into(),
         tracker: timegrapher_core::clock::ClockTracker::new(48_000),
@@ -711,11 +738,11 @@ fn stopping_keeps_the_last_heard_readings() {
             (seed >> 8) as f32 / (1u32 << 24) as f32 * 0.02 - 0.01
         })
         .collect();
-    let live = app.recording.live.as_mut().unwrap();
+    let live = app.bench.recording.live.as_mut().unwrap();
     for b in noise.chunks(960) {
         if live.push(b) {
-            let r = live.reading(app.take.average_s);
-            app.results.trend.push(TrendPoint::of(r.time_s, &r));
+            let r = live.reading(app.bench.take.average_s);
+            app.bench.results.trend.push(TrendPoint::of(r.time_s, &r));
         }
     }
     let after = app.reading().unwrap();
@@ -844,16 +871,16 @@ fn a_figure_whose_readings_repeat_says_so() {
 #[test]
 fn draws_a_synthetic_watch_headless() {
     let mut app = synthetic(12.0, 20.0);
-    assert!(app.recording.anchor.is_some(), "strip not anchored");
+    assert!(app.bench.recording.anchor.is_some(), "strip not anchored");
     let r = app.reading().unwrap();
     let rate = r.rate_s_per_day.unwrap();
     assert!((rate - 20.0).abs() < 2.0, "rate {rate}");
 
     let ctx = themed();
     for horizontal in [false, true] {
-        app.panes_view.strip.horizontal = horizontal;
-        app.panes_view.panes = default_layout(horizontal);
-        app.panes_view.follow = horizontal;
+        app.bench.panes_view.strip.horizontal = horizontal;
+        app.bench.panes_view.panes = default_layout(horizontal);
+        app.bench.panes_view.follow = horizontal;
         for _ in 0..2 {
             let input = egui::RawInput {
                 screen_rect: Some(egui::Rect::from_min_size(
@@ -888,7 +915,10 @@ fn a_pane_is_exported_as_an_svg_drawing() {
         app.export_tick(ctx);
         app.panels(ctx)
     });
-    assert!(app.panes_view.export.is_none(), "export still waiting");
+    assert!(
+        app.bench.panes_view.export.is_none(),
+        "export still waiting"
+    );
     let doc = std::fs::read_to_string(&path).unwrap();
     assert!(doc.starts_with("<svg "), "{doc}");
     assert!(doc.contains(">Paper Strip<") || doc.contains(&format!(">{}<", Pane::Strip.title())));
@@ -929,6 +959,7 @@ fn a_pane_is_exported_as_a_png_from_a_screenshot() {
         .any(|c| matches!(c, egui::ViewportCommand::Screenshot(_)));
     assert!(asked, "no screenshot asked for");
     let rect = app
+        .bench
         .panes_view
         .export
         .as_ref()
@@ -948,7 +979,10 @@ fn a_pane_is_exported_as_a_png_from_a_screenshot() {
         app.export_tick(ctx);
         app.panels(ctx)
     });
-    assert!(app.panes_view.export.is_none(), "export still waiting");
+    assert!(
+        app.bench.panes_view.export.is_none(),
+        "export still waiting"
+    );
     let dec = png::Decoder::new(std::io::BufReader::new(std::fs::File::open(&path).unwrap()));
     let mut r = dec.read_info().unwrap();
     let mut buf = vec![0; r.output_buffer_size().unwrap()];
@@ -968,7 +1002,7 @@ fn an_export_that_cannot_be_drawn_gives_up() {
     for _ in 0..61 {
         let _ = ctx.run(screen(), |ctx| app.export_tick(ctx));
     }
-    assert!(app.panes_view.export.is_none());
+    assert!(app.bench.panes_view.export.is_none());
     assert!(matches!(&app.message, Some((_, true))));
 }
 
@@ -991,7 +1025,7 @@ fn clipping_shows_in_a_chip_and_the_true_clock_in_the_rate_hover() {
         |_| 0.0,
     );
     let peak = audio.samples.iter().fold(0f32, |m, v| m.max(v.abs()));
-    let live = app.recording.live.as_mut().unwrap();
+    let live = app.bench.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         let hot: Vec<f32> = b
             .iter()
@@ -1001,7 +1035,7 @@ fn clipping_shows_in_a_chip_and_the_true_clock_in_the_rate_hover() {
     }
     // The figures read as a file are in, however busy the machine (#1987).
     live.read_as_file_now();
-    app.recording.clock = Some(clockstore::DeviceClock {
+    app.bench.recording.clock = Some(clockstore::DeviceClock {
         device: "syn".into(),
         ppm: 20.0,
         ppm_sd: None,
@@ -1052,7 +1086,7 @@ fn draws_the_empty_and_error_states() {
         frames(&mut app, &ctx, 2);
     }
     app.message = None;
-    app.recording.input = Input::File;
+    app.bench.recording.input = Input::File;
     frames(&mut app, &ctx, 1);
 }
 
@@ -1146,9 +1180,9 @@ fn a_cards_sparkline_is_its_figure_over_the_last_minute() {
 fn the_scope_says_masked_where_the_profile_does() {
     let mut app = synthetic(30.0, 0.0);
     let end = app.latest_s() - 5.0;
-    app.panes_view.strip_end = Some(end);
+    app.bench.panes_view.strip_end = Some(end);
     let end = app.strip_end_s();
-    app.take.masked = vec![(end - 15.0, end + 1.0)];
+    app.bench.take.masked = vec![(end - 15.0, end + 1.0)];
     let at = length_text(end);
     let line = Some(format!("Masked at {at}"));
     assert_eq!(app.profiles_at(end).line, line);
@@ -1167,6 +1201,7 @@ fn the_scope_says_masked_where_the_profile_does() {
 #[test]
 fn the_profile_withholds_while_the_cards_do() {
     let sides = synthetic(30.0, 0.0)
+        .bench
         .recording
         .live
         .as_ref()
@@ -1180,7 +1215,7 @@ fn the_profile_withholds_while_the_cards_do() {
         (2.0 * k as f64, scope_panes::Kept { span_s, sides })
     };
     let mut app = synthetic(30.0, 0.0);
-    app.results.sound_history = (5..=15).map(kept).collect();
+    app.bench.results.sound_history = (5..=15).map(kept).collect();
     let end = app.strip_end_s();
     // Figures on the cards: the profiles.
     assert_eq!(app.cards_unheard(), None);
@@ -1191,11 +1226,11 @@ fn the_profile_withholds_while_the_cards_do() {
     // kept.
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.reset_session(48000, "quiet".into());
-    let live = app.recording.live.as_mut().unwrap();
+    let live = app.bench.recording.live.as_mut().unwrap();
     for b in vec![0.0_f32; 48_000 * 30].chunks(960) {
         live.push(b);
     }
-    app.results.sound_history = (5..=15).map(kept).collect();
+    app.bench.results.sound_history = (5..=15).map(kept).collect();
     let end = app.strip_end_s();
     let (title, _) = app.cards_unheard().expect("the cards wait");
     assert_eq!(title, "No Beats Heard");
@@ -1211,7 +1246,7 @@ fn the_profile_withholds_while_the_cards_do() {
         "no facts beside the wait: {drawn}"
     );
     // Masked there: said as masked, as the strip's hatching says it.
-    app.take.masked = vec![(end - 15.0, end + 1.0)];
+    app.bench.take.masked = vec![(end - 15.0, end + 1.0)];
     let s = app.profiles_at(end);
     assert_eq!(s.line, Some(format!("Masked at {}", length_text(end))));
     assert!(s.masked);
@@ -1434,7 +1469,7 @@ fn a_watch_heard_while_it_settles_is_no_missing_watch() {
     app.session.set_settle_s(30.0);
     app.session.start_settle(0.0);
     // Nothing read while settling: no reading kept as heard.
-    app.results.trend.clear();
+    app.bench.results.trend.clear();
     assert!(app.settling_left().is_some());
     assert!(app.reading().is_none(), "nothing is read while settling");
     assert!(!app.no_watch_yet(), "its beats are heard");
@@ -1579,7 +1614,7 @@ fn card_row(
 #[test]
 fn at_800_the_reading_cards_captions_are_whole_and_carry_the_help() {
     let mut app = synthetic(60.0, 20.0);
-    app.panes_view.readings_pinned = true;
+    app.bench.panes_view.readings_pinned = true;
     let ctx = themed();
     ctx.style_mut(|s| {
         s.interaction.tooltip_delay = 0.0;
@@ -1628,16 +1663,16 @@ fn at_800_a_caveat_leaves_the_reading_cards_captions_whole() {
     };
     cfg.sounds[0].gain = 0.0;
     let audio = generate(&cfg, |_| 280.0, |_| 0.0);
-    let live = app.recording.live.as_mut().unwrap();
+    let live = app.bench.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         if live.push(b) {
-            let r = live.reading(app.take.average_s);
-            app.results.trend.push(TrendPoint::of(r.time_s, &r));
+            let r = live.reading(app.bench.take.average_s);
+            app.bench.results.trend.push(TrendPoint::of(r.time_s, &r));
         }
     }
     app.poll();
     app.refresh_trend();
-    app.panes_view.readings_pinned = true;
+    app.bench.panes_view.readings_pinned = true;
     let caveats = app.reading().expect("a reading").caveats;
     assert!(
         reading_limits("Rate", &caveats, 52.0, 30, false).is_empty()
@@ -1681,7 +1716,7 @@ fn at_800_a_caveat_leaves_the_reading_cards_captions_whole() {
 fn the_reading_figures_share_one_size() {
     for rate in [20.0, -2174.4] {
         let mut app = synthetic(60.0, rate);
-        app.panes_view.readings_pinned = true;
+        app.bench.panes_view.readings_pinned = true;
         let ctx = themed();
         for w in [800.0, 1000.0, 1920.0] {
             let (row, _) = card_row(&mut app, &ctx, w, None);
@@ -1713,7 +1748,7 @@ fn the_cards_say_listening_until_ten_seconds_are_heard() {
     // A watch's beats opened with no snippets: their sound can't be
     // judged, so under 10 s of sound there is no verdict yet.
     let mut app = synthetic(30.0, 20.0);
-    let live = app.recording.live.as_ref().expect("live");
+    let live = app.bench.recording.live.as_ref().expect("live");
     let log = timegrapher_core::stream::BeatLog {
         lock_template_kept: false,
         sample_rate: 48_000,
@@ -1729,7 +1764,7 @@ fn the_cards_say_listening_until_ten_seconds_are_heard() {
         by_count: Vec::new(),
         snippets: Vec::new(),
     };
-    app.recording.live = Some(timegrapher_core::live::LiveAnalyzer::from_log(
+    app.bench.recording.live = Some(timegrapher_core::live::LiveAnalyzer::from_log(
         log,
         timegrapher_core::live::LiveConfig::default(),
     ));
@@ -1741,7 +1776,7 @@ fn the_cards_say_listening_until_ten_seconds_are_heard() {
         });
         painted_text(&out)
     };
-    app.panes_view.strip_end = Some(6.0);
+    app.bench.panes_view.strip_end = Some(6.0);
     let r = app.card_reading().expect("a reading");
     assert_eq!(r.listening, Some(HeardSince::Start), "{r:?}");
     assert_eq!(r.rate_s_per_day, None);
@@ -1753,7 +1788,7 @@ fn the_cards_say_listening_until_ten_seconds_are_heard() {
         "{}",
         listening_text(HeardSince::Start)
     );
-    app.panes_view.strip_end = Some(25.0);
+    app.bench.panes_view.strip_end = Some(25.0);
     let r = app.card_reading().expect("a reading");
     assert_eq!(r.listening, None);
     assert!(r.rate_s_per_day.is_some(), "{r:?}");
@@ -1797,14 +1832,19 @@ fn every_reading_card_counts_the_settle_down_and_the_signal_stays() {
     let (before, after) = audio.samples.split_at(30 * 48_000);
     let (during, rest) = after.split_at(5 * 48_000);
     let push = |app: &mut TimegrapherApp, x: &[f32]| {
-        let live = app.recording.live.as_mut().expect("live");
+        let live = app.bench.recording.live.as_mut().expect("live");
         x.chunks(960).for_each(|b| {
             live.push(b);
         });
     };
     push(&mut app, before);
     app.session.set_settle_s(20.0);
-    app.recording.live.as_mut().expect("live").new_stretch();
+    app.bench
+        .recording
+        .live
+        .as_mut()
+        .expect("live")
+        .new_stretch();
     app.session.start_settle(30.0);
     push(&mut app, during);
     let left = app.settling_left().expect("settling");
@@ -1859,7 +1899,12 @@ fn silence_waits_for_beats_on_every_card() {
     let _tx = super::tests::queued_capture(&mut app, &base);
     let quiet = vec![0.0_f32; 960];
     for _ in 0..15 * 50 {
-        app.recording.live.as_mut().expect("live").push(&quiet);
+        app.bench
+            .recording
+            .live
+            .as_mut()
+            .expect("live")
+            .push(&quiet);
     }
     let r = app.reading().expect("a reading");
     assert!(r.bph.is_none() && r.listening.is_none(), "{r:?}");
@@ -1883,7 +1928,7 @@ fn silence_waits_for_beats_on_every_card() {
     );
     // Stopped after the silence: a fact, not a wait (Hugh on #2036).
     app.stop();
-    assert!(!app.running() && app.recording.live.is_some());
+    assert!(!app.running() && app.bench.recording.live.is_some());
     let r = app.card_reading().expect("a reading");
     assert!(r.bph.is_none(), "{r:?}");
     let text = cards_text(&app, &ctx);
@@ -1908,8 +1953,8 @@ fn a_test_set_up_waits_for_its_start_on_every_card() {
     use timegrapher_core::measure::Wait;
     let ctx = themed();
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    app.recording.live = None;
-    app.test.test_ready = Some(NewTake::Positions);
+    app.bench.recording.live = None;
+    app.bench.test.test_ready = Some(NewTake::Positions);
     assert!(app.ready_test().is_some());
     let text = cards_text(&app, &ctx);
     let title = Wait::TestStart.title();
@@ -1966,7 +2011,7 @@ fn after_new_session_while_stopped_the_cards_say_not_listening() {
     let mut app = synthetic(30.0, 5.0);
     assert!(!app.running());
     app.new_session();
-    assert!(app.recording.live.is_none() && !app.running());
+    assert!(app.bench.recording.live.is_none() && !app.running());
     let text = cards_text(&app, &ctx);
     // "Not" over "Listening" on each of the three cards.
     assert_eq!(painted(&text, "Not"), 3, "{text}");
@@ -1987,7 +2032,12 @@ fn after_new_session_while_stopped_the_cards_say_not_listening() {
     assert!(app.running());
     let quiet = vec![0.0_f32; 960];
     for _ in 0..15 * 50 {
-        app.recording.live.as_mut().expect("live").push(&quiet);
+        app.bench
+            .recording
+            .live
+            .as_mut()
+            .expect("live")
+            .push(&quiet);
     }
     let text = cards_text(&app, &ctx);
     assert_eq!(painted(&text, "Waiting"), 3, "{text}");
@@ -2101,14 +2151,14 @@ fn a_tests_opening_settle_counts_down_on_every_card() {
         ..Default::default()
     };
     let audio = generate(&cfg, |_| 280.0, |_| 0.0);
-    let live = app.recording.live.as_mut().expect("live");
+    let live = app.bench.recording.live.as_mut().expect("live");
     audio.samples.chunks(960).for_each(|b| {
         live.push(b);
     });
     // Started at 2 s with a 20 s settle, which ends at 22 s.
     let mut test = guided::Test::new().timed(20.0, 60.0);
     test.tick(2.0);
-    app.test.guided = Some(test);
+    app.bench.test.guided = Some(test);
     let now = app.latest_s();
     assert!(app.session.settling_left(now).is_none(), "no move");
     let left = app.test_settle_left(now).expect("settling");
@@ -2148,17 +2198,23 @@ fn pausing_in_a_tests_opening_settle_stops_its_count() {
         ..Default::default()
     };
     let audio = generate(&cfg, |_| 280.0, |_| 0.0);
-    let live = app.recording.live.as_mut().expect("live");
+    let live = app.bench.recording.live.as_mut().expect("live");
     audio.samples.chunks(960).for_each(|b| {
         live.push(b);
     });
     let mut test = guided::Test::new().timed(20.0, 60.0);
     test.tick(2.0);
-    app.test.guided = Some(test);
+    app.bench.test.guided = Some(test);
     let now = app.latest_s();
     assert!(app.settling_left().is_some(), "settling before the pause");
-    app.test.guided.as_mut().expect("test").pause(now - 1.0);
+    app.bench
+        .test
+        .guided
+        .as_mut()
+        .expect("test")
+        .pause(now - 1.0);
     assert!(app
+        .bench
         .test
         .guided
         .as_ref()
@@ -2168,7 +2224,7 @@ fn pausing_in_a_tests_opening_settle_stops_its_count() {
     assert!(app.settling_left().is_none(), "paused, nothing settles");
     let text = cards_text(&app, &ctx);
     assert!(!text.contains("Settling"), "{text}");
-    app.test.guided.as_mut().expect("test").resume(now);
+    app.bench.test.guided.as_mut().expect("test").resume(now);
     let left = app.settling_left().expect("settling again");
     assert!((left - 20.0).abs() < 1e-9, "{left}");
     drop(_tx);
@@ -2191,16 +2247,22 @@ fn a_tests_pane_counts_the_settle_as_the_cards_do() {
         ..Default::default()
     };
     let audio = generate(&cfg, |_| 280.0, |_| 0.0);
-    let live = app.recording.live.as_mut().expect("live");
+    let live = app.bench.recording.live.as_mut().expect("live");
     audio.samples.chunks(960).for_each(|b| {
         live.push(b);
     });
     let mut test = guided::Test::new().timed(20.0, 60.0);
     test.tick(2.0);
-    app.test.guided = Some(test);
-    let sound = app.recording.live.as_ref().expect("live").duration_s();
+    app.bench.test.guided = Some(test);
+    let sound = app
+        .bench
+        .recording
+        .live
+        .as_ref()
+        .expect("live")
+        .duration_s();
     assert!(sound > app.latest_s(), "{sound} after the last beat");
-    let ticked = app.test.guided.as_mut().expect("test").tick(sound);
+    let ticked = app.bench.test.guided.as_mut().expect("test").tick(sound);
     let cards = app.settling_left().expect("settling");
     assert_eq!(ticked, guided::Phase::Settling(22.0 - sound));
     assert_eq!(
@@ -2233,11 +2295,11 @@ fn an_opened_recording_of_silence_says_no_beats_heard() {
         by_count: Vec::new(),
         snippets: Vec::new(),
     };
-    app.recording.live = Some(timegrapher_core::live::LiveAnalyzer::from_log(
+    app.bench.recording.live = Some(timegrapher_core::live::LiveAnalyzer::from_log(
         log,
         timegrapher_core::live::LiveConfig::default(),
     ));
-    app.panes_view.strip_end = Some(40.0);
+    app.bench.panes_view.strip_end = Some(40.0);
     assert!(!app.running());
     let r = app.card_reading().expect("a reading");
     assert_eq!(r.beats_used, 0, "{r:?}");
@@ -2254,7 +2316,7 @@ fn an_opened_recording_of_silence_says_no_beats_heard() {
 fn a_wait_carries_no_clock_line() {
     let mut app = synthetic(30.0, 5.0);
     app.new_session();
-    app.recording.live_usb = Some(super::live_usb::LiveUsb::new(48_000));
+    app.bench.recording.live_usb = Some(super::live_usb::LiveUsb::new(48_000));
     assert!(app.live_usb_not_yet().is_some());
     assert_eq!(app.clock_not_yet(None), None);
     assert_eq!(app.clock_not_yet(Some(5.0)), app.live_usb_not_yet());
@@ -2291,7 +2353,12 @@ fn silence_gives_the_strip_and_the_cards_one_verdict() {
     let _tx = super::tests::queued_capture(&mut app, &base);
     let quiet = vec![0.0_f32; 960];
     for _ in 0..15 * 50 {
-        app.recording.live.as_mut().expect("live").push(&quiet);
+        app.bench
+            .recording
+            .live
+            .as_mut()
+            .expect("live")
+            .push(&quiet);
     }
     assert!(app.no_watch_yet());
     let r = app.reading().expect("a reading");
@@ -2336,11 +2403,11 @@ fn silence_gives_the_strip_and_the_cards_one_verdict() {
         by_count: Vec::new(),
         snippets: Vec::new(),
     };
-    app.recording.live = Some(timegrapher_core::live::LiveAnalyzer::from_log(
+    app.bench.recording.live = Some(timegrapher_core::live::LiveAnalyzer::from_log(
         log,
         timegrapher_core::live::LiveConfig::default(),
     ));
-    app.results.trend.clear();
+    app.bench.results.trend.clear();
     assert!(app.no_watch_yet());
     said(&strip_text(&mut app, &ctx, true), Wait::NoBeatsHeard);
 }
@@ -2352,7 +2419,7 @@ fn silence_gives_the_strip_and_the_cards_one_verdict() {
 #[test]
 fn a_whole_readings_rate_hover_says_its_beats_are_the_whole_takes() {
     let mut app = synthetic(30.0, 5.0);
-    app.take.average_s = 60.0;
+    app.bench.take.average_s = 60.0;
     let mut r = app.reading().expect("a reading");
     r.whole_take = true;
     let said = app.rate_beats_behind(Some(&r));
@@ -2376,9 +2443,9 @@ fn a_whole_readings_rate_hover_says_its_beats_are_the_whole_takes() {
 #[test]
 fn a_short_stretch_says_which_beats_the_readings_are_fitted_to() {
     let mut app = synthetic(30.0, 5.0);
-    app.take.average_s = 60.0;
+    app.bench.take.average_s = 60.0;
     let r = app.reading().expect("a reading");
-    assert!(r.span_s + 1.0 < app.take.average_s, "{r:?}");
+    assert!(r.span_s + 1.0 < app.bench.take.average_s, "{r:?}");
     let gap = crate::fields::duration(timegrapher_core::clean::GAP_S);
     assert_eq!(gap, "2 s");
     let said = app.rate_beats_behind(Some(&r));
@@ -2409,7 +2476,12 @@ fn a_listen_stopped_early_on_silence_says_no_beats_heard() {
     let _tx = super::tests::queued_capture(&mut app, &base);
     let quiet = vec![0.0_f32; 960];
     for _ in 0..6 * 50 {
-        app.recording.live.as_mut().expect("live").push(&quiet);
+        app.bench
+            .recording
+            .live
+            .as_mut()
+            .expect("live")
+            .push(&quiet);
     }
     let text = cards_text(&app, &ctx);
     assert_eq!(painted(&text, "Listening"), 3, "listening first: {text}");
@@ -2437,7 +2509,7 @@ fn under_ten_seconds_heard_and_over_says_so_on_every_card() {
     use timegrapher_core::measure::{HeardSince, Wait};
     let ctx = themed();
     let app = synthetic(30.0, 20.0);
-    let live = app.recording.live.as_ref().expect("live");
+    let live = app.bench.recording.live.as_ref().expect("live");
     let log = timegrapher_core::stream::BeatLog {
         lock_template_kept: false,
         sample_rate: 48_000,
@@ -2459,11 +2531,11 @@ fn under_ten_seconds_heard_and_over_says_so_on_every_card() {
         snippets: Vec::new(),
     };
     let mut app = synthetic(30.0, 20.0);
-    app.recording.live = Some(timegrapher_core::live::LiveAnalyzer::from_log(
+    app.bench.recording.live = Some(timegrapher_core::live::LiveAnalyzer::from_log(
         log,
         timegrapher_core::live::LiveConfig::default(),
     ));
-    app.panes_view.strip_end = None;
+    app.bench.panes_view.strip_end = None;
     assert!(!app.running());
     let r = app.card_reading().expect("a reading");
     assert_eq!(r.listening, Some(HeardSince::Start), "{r:?}");
@@ -2500,7 +2572,7 @@ fn under_ten_seconds_heard_and_over_says_so_on_every_card() {
         )
     );
     // Moved back into it, the take goes on past there: still Listening.
-    app.panes_view.strip_end = Some(5.0);
+    app.bench.panes_view.strip_end = Some(5.0);
     assert!(cards_text(&app, &ctx).contains("Listening"));
 }
 
@@ -2525,7 +2597,7 @@ fn a_watch_heard_never_waits_for_beats_while_its_figures_are_read() {
     let sound = generate(&cfg, |_| 280.0, |_| 0.0).samples;
     // Heard all at once, as the app's feed takes a backlog: the first
     // read starts on all of it, so none has landed yet.
-    let live = app.recording.live.as_mut().expect("live");
+    let live = app.bench.recording.live.as_mut().expect("live");
     live.push_without_waiting(&sound);
     assert_eq!(live.read_as_file_to(), None, "no read has landed");
     let r = app.reading().expect("a reading");
@@ -2538,7 +2610,8 @@ fn a_watch_heard_never_waits_for_beats_while_its_figures_are_read() {
     let (finding, _) = FINDING_TITLE.split_once(' ').expect("words");
     assert!(text.contains(finding), "{text}");
     // Once the read lands, its figures.
-    app.recording
+    app.bench
+        .recording
         .live
         .as_mut()
         .expect("live")
@@ -2569,20 +2642,20 @@ pub(super) fn beat_error_after(first: &[f32], splice: &[f32]) -> (usize, usize) 
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.reset_session(48000, "watch".into());
     let _tx = super::tests::queued_capture(&mut app, &base);
-    let live = app.recording.live.as_mut().expect("live");
+    let live = app.bench.recording.live.as_mut().expect("live");
     for c in first.chunks(960) {
         live.push(c);
     }
     let (mut read_sides, mut worded, mut bare) = (0, 0, Vec::new());
     for (k, c) in splice.chunks(12_000).enumerate() {
         // As at 1x, where each read lands well within the next 0.25 s.
-        let live = app.recording.live.as_mut().expect("live");
+        let live = app.bench.recording.live.as_mut().expect("live");
         live.push(c);
         live.read_as_file_now();
         let Some(r) = app.reading() else { continue };
         let text = cards_text(&app, &ctx);
         let at = first.len() as f64 / 48_000.0 + 0.25 * (k + 1) as f64;
-        let live = app.recording.live.as_ref().expect("live");
+        let live = app.bench.recording.live.as_ref().expect("live");
         if r.rate_s_per_day.is_some()
             && r.beat_error_ms.is_none()
             && r.beat_error_unlock_ms.is_none()

@@ -15,7 +15,7 @@ fn a_calibre_names_the_wheels_and_a_typed_one_is_kept() {
     let wheels = app.calibre_wheels().expect("wheels");
     assert_eq!(wheels.len(), c.wheels.len());
     if let Some(l) = c.lift_angle_deg {
-        assert_eq!(app.take.lift_deg, l);
+        assert_eq!(app.bench.take.lift_deg, l);
     }
     // Typed in: tidied for the tests; the recent picks are kept with
     // the settings, the calibre itself in the user calibre file.
@@ -41,7 +41,7 @@ fn a_calibre_names_the_wheels_and_a_typed_one_is_kept() {
     );
     assert!(app.settings().custom_calibres.is_empty());
     // The pick itself is about the watch on the stand, so it isn't kept.
-    assert!(next.take.calibre.is_empty());
+    assert!(next.bench.take.calibre.is_empty());
 }
 
 #[test]
@@ -95,7 +95,7 @@ fn unsaved_legacy_calibres_remain_in_app_settings() {
 #[test]
 fn a_first_start_lays_the_strip_across() {
     let fresh = TimegrapherApp::with_devices(Vec::new(), None);
-    assert!(fresh.panes_view.strip.horizontal);
+    assert!(fresh.bench.panes_view.strip.horizontal);
     // The first row or column above the strip: a column (the strip
     // over the charts) for Across, a row for Down.
     let holder = |t: &Tree<Pane>| {
@@ -110,11 +110,11 @@ fn a_first_start_lays_the_strip_across() {
         }
     };
     assert_eq!(
-        holder(&fresh.panes_view.panes),
+        holder(&fresh.bench.panes_view.panes),
         holder(&default_layout(true))
     );
     assert_ne!(
-        holder(&fresh.panes_view.panes),
+        holder(&fresh.bench.panes_view.panes),
         holder(&default_layout(false))
     );
 }
@@ -132,25 +132,32 @@ fn settings_come_back_as_they_were_left() {
     // Change a few views, keep them, and open a new app with them.
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     // Down, now that Across is the default: a saved Down stays.
-    app.panes_view.strip.horizontal = false;
+    app.bench.panes_view.strip.horizontal = false;
     app.relayout(false);
-    app.panes_view.show_readings = false;
-    app.panes_view.sound_opts.scale = profiles::Scale::Decibels;
-    app.panes_view.hist_cumulative = true;
-    app.panes_view.folded.insert("Window".into());
-    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Distributions, true);
+    app.bench.panes_view.show_readings = false;
+    app.bench.panes_view.sound_opts.scale = profiles::Scale::Decibels;
+    app.bench.panes_view.hist_cumulative = true;
+    app.bench.panes_view.folded.insert("Window".into());
+    set_pane_visible(
+        &mut app.bench.panes_view.panes.tiles,
+        Pane::Distributions,
+        true,
+    );
     app.set_average(30.0);
     let json = serde_json::to_string(&app.settings()).unwrap();
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.apply_settings(serde_json::from_str(&json).unwrap());
-    assert!(!again.panes_view.strip.horizontal);
-    assert!(!again.panes_view.show_readings);
-    assert_eq!(again.panes_view.sound_opts.scale, profiles::Scale::Decibels);
-    assert!(again.panes_view.hist_cumulative);
-    assert!(again.panes_view.folded.contains("Window"));
-    assert_eq!(again.take.average_s, 30.0);
+    assert!(!again.bench.panes_view.strip.horizontal);
+    assert!(!again.bench.panes_view.show_readings);
+    assert_eq!(
+        again.bench.panes_view.sound_opts.scale,
+        profiles::Scale::Decibels
+    );
+    assert!(again.bench.panes_view.hist_cumulative);
+    assert!(again.bench.panes_view.folded.contains("Window"));
+    assert_eq!(again.bench.take.average_s, 30.0);
     assert!(pane_visible(
-        &again.panes_view.panes.tiles,
+        &again.bench.panes_view.panes.tiles,
         Pane::Distributions
     ));
     // Settings from an older app, with fields missing, fill in the rest.
@@ -162,11 +169,11 @@ fn settings_come_back_as_they_were_left() {
     let only = tiles.insert_pane(Pane::Strip);
     broken.panes = Some(Tree::new("panes", only, tiles));
     again.apply_settings(broken);
-    assert!(layout_is_whole(&again.panes_view.panes));
+    assert!(layout_is_whole(&again.bench.panes_view.panes));
     // A layout from before the Steadiness pane keeps its arrangement
     // and gains the pane as a tab beside the profile.
     let mut before = app.settings();
-    let mut tree = app.panes_view.panes.clone();
+    let mut tree = app.bench.panes_view.panes.clone();
     let id = tree.tiles.find_pane(&Pane::SteadyReadings).unwrap();
     let tabs = tree.tiles.parent_of(id).unwrap();
     if let Some(egui_tiles::Tile::Container(c)) = tree.tiles.get_mut(tabs) {
@@ -175,28 +182,30 @@ fn settings_come_back_as_they_were_left() {
     tree.tiles.remove(id);
     assert!(!layout_is_whole(&tree));
     before.panes = Some(tree);
-    again.panes_view.strip.horizontal = true;
+    again.bench.panes_view.strip.horizontal = true;
     again.apply_settings(before);
-    assert!(layout_is_whole(&again.panes_view.panes));
+    assert!(layout_is_whole(&again.bench.panes_view.panes));
     assert!(
-        !again.panes_view.strip.horizontal,
+        !again.bench.panes_view.strip.horizontal,
         "the saved arrangement was kept"
     );
     let sound = again
+        .bench
         .panes_view
         .panes
         .tiles
         .find_pane(&Pane::Sound)
         .unwrap();
     let steady = again
+        .bench
         .panes_view
         .panes
         .tiles
         .find_pane(&Pane::SteadyReadings)
         .unwrap();
     assert_eq!(
-        again.panes_view.panes.tiles.parent_of(sound),
-        again.panes_view.panes.tiles.parent_of(steady)
+        again.bench.panes_view.panes.tiles.parent_of(sound),
+        again.bench.panes_view.panes.tiles.parent_of(steady)
     );
 }
 
@@ -231,17 +240,38 @@ fn the_app_opens_on_the_quick_listen_layout() {
     let app = TimegrapherApp::with_devices(Vec::new(), None);
     let shown: Vec<Pane> = Pane::ALL
         .into_iter()
-        .filter(|&p| pane_visible(&app.panes_view.panes.tiles, p))
+        .filter(|&p| pane_visible(&app.bench.panes_view.panes.tiles, p))
         .collect();
     assert_eq!(shown, [Pane::Strip, Pane::Sound, Pane::Scope]);
-    assert!(app.panes_view.panes.tiles.find_pane(&Pane::Watch).is_none());
-    assert!(app.panes_view.rate_line && app.panes_view.rate_guides);
+    assert!(app
+        .bench
+        .panes_view
+        .panes
+        .tiles
+        .find_pane(&Pane::Watch)
+        .is_none());
+    assert!(app.bench.panes_view.rate_line && app.bench.panes_view.rate_guides);
     // The Scope shares the profile's tabs, behind it.
-    let sound = app.panes_view.panes.tiles.find_pane(&Pane::Sound).unwrap();
-    let scope = app.panes_view.panes.tiles.find_pane(&Pane::Scope).unwrap();
-    let tabs = app.panes_view.panes.tiles.parent_of(sound).unwrap();
-    assert_eq!(app.panes_view.panes.tiles.parent_of(scope), Some(tabs));
-    let Some(egui_tiles::Container::Tabs(t)) = app.panes_view.panes.tiles.get_container(tabs)
+    let sound = app
+        .bench
+        .panes_view
+        .panes
+        .tiles
+        .find_pane(&Pane::Sound)
+        .unwrap();
+    let scope = app
+        .bench
+        .panes_view
+        .panes
+        .tiles
+        .find_pane(&Pane::Scope)
+        .unwrap();
+    let tabs = app.bench.panes_view.panes.tiles.parent_of(sound).unwrap();
+    assert_eq!(
+        app.bench.panes_view.panes.tiles.parent_of(scope),
+        Some(tabs)
+    );
+    let Some(egui_tiles::Container::Tabs(t)) = app.bench.panes_view.panes.tiles.get_container(tabs)
     else {
         panic!("the profile sits in tabs");
     };
@@ -312,7 +342,7 @@ fn an_old_layout_with_a_pane_for_each_chart_reads_back() {
         assert_eq!(old, pane, "{name}");
     }
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    app.panes_view.hist_cumulative = true;
+    app.bench.panes_view.hist_cumulative = true;
     // An older app's file, naming a chart and a distribution the old
     // way, with Match Strip on.
     let json = serde_json::to_string(&app.settings()).unwrap();
@@ -328,10 +358,11 @@ fn an_old_layout_with_a_pane_for_each_chart_reads_back() {
     let old: Settings = serde_json::from_value(value).unwrap();
     let mut back = TimegrapherApp::with_devices(Vec::new(), None);
     back.apply_settings(old);
-    assert!(back.panes_view.hist_cumulative, "the rest is kept");
-    assert_eq!(back.panes_view.chart_series, RATE_ONLY);
+    assert!(back.bench.panes_view.hist_cumulative, "the rest is kept");
+    assert_eq!(back.bench.panes_view.chart_series, RATE_ONLY);
     for p in [Pane::Charts, Pane::Distributions] {
         let n = back
+            .bench
             .panes_view
             .panes
             .tiles
@@ -339,15 +370,18 @@ fn an_old_layout_with_a_pane_for_each_chart_reads_back() {
             .filter(|t| matches!(t, egui_tiles::Tile::Pane(q) if *q == p))
             .count();
         assert_eq!(n, 1, "{p:?}");
-        assert!(!pane_visible(&back.panes_view.panes.tiles, p), "{p:?}");
+        assert!(
+            !pane_visible(&back.bench.panes_view.panes.tiles, p),
+            "{p:?}"
+        );
     }
     // Each pane's readings come back as they were left.
-    app.panes_view.chart_series = [false, true, false];
-    app.panes_view.dist_series = [true, false, true];
+    app.bench.panes_view.chart_series = [false, true, false];
+    app.bench.panes_view.dist_series = [true, false, true];
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.apply_settings(app.settings());
-    assert_eq!(again.panes_view.chart_series, [false, true, false]);
-    assert_eq!(again.panes_view.dist_series, [true, false, true]);
+    assert_eq!(again.bench.panes_view.chart_series, [false, true, false]);
+    assert_eq!(again.bench.panes_view.dist_series, [true, false, true]);
 }
 
 /// A layout saved before Quick Listen's starts afresh once; one saved
@@ -355,13 +389,13 @@ fn an_old_layout_with_a_pane_for_each_chart_reads_back() {
 #[test]
 fn an_old_layout_starts_afresh_on_the_quick_listen_layout() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Charts, true);
+    set_pane_visible(&mut app.bench.panes_view.panes.tiles, Pane::Charts, true);
     let mut before = app.settings();
     assert_eq!(before.layout, LAYOUT);
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.apply_settings(before.clone());
     assert!(
-        pane_visible(&again.panes_view.panes.tiles, Pane::Charts),
+        pane_visible(&again.bench.panes_view.panes.tiles, Pane::Charts),
         "kept"
     );
     // A file from before the version was kept reads as the oldest.
@@ -371,7 +405,7 @@ fn an_old_layout_starts_afresh_on_the_quick_listen_layout() {
     let mut old = TimegrapherApp::with_devices(Vec::new(), None);
     old.apply_settings(before);
     assert!(
-        !pane_visible(&old.panes_view.panes.tiles, Pane::Charts),
+        !pane_visible(&old.bench.panes_view.panes.tiles, Pane::Charts),
         "afresh"
     );
 }
@@ -601,7 +635,7 @@ fn the_position_card_turns_to_ten_and_back() {
         texts.iter().find(|(t, _)| t == words).map(|(_, p)| *p)
     };
     let six = frame(&mut app, Vec::new());
-    assert!(!app.test.ten_positions);
+    assert!(!app.bench.test.ten_positions);
     assert!(Position::HALF_HOURS
         .iter()
         .all(|p| at(&six, p.code()).is_none()));
@@ -616,7 +650,7 @@ fn the_position_card_turns_to_ten_and_back() {
         vec![egui::Event::PointerMoved(pos), button(true), button(false)]
     };
     let texts = frame(&mut app, click(ten));
-    assert!(app.test.ten_positions, "10 clicked");
+    assert!(app.bench.test.ten_positions, "10 clicked");
     let row = |p: Position| at(&texts, p.code()).unwrap_or_else(|| panic!("{p:?}: {texts:?}"));
     let first = row(Position::DialUp).y;
     for pair in Position::HALF_HOURS.windows(2) {
@@ -647,13 +681,13 @@ fn the_position_card_turns_to_ten_and_back() {
         .next()
         .expect("the 6");
     let texts = frame(&mut app, click(six_at));
-    assert!(!app.test.ten_positions);
+    assert!(!app.bench.test.ten_positions);
     assert!(at(&texts, "1H30").is_none());
     // A 45° stop on show keeps the card at 10, its code once.
     app.set_position(Position::Up4h30);
     let texts = frame(&mut app, Vec::new());
     assert!(
-        !app.test.ten_positions,
+        !app.bench.test.ten_positions,
         "showing it doesn't change the setting"
     );
     assert!(at(&texts, "1H30").is_some(), "{texts:?}");
@@ -777,7 +811,7 @@ fn readings_hides_the_cards() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     let shown = window_texts(&mut app, &ctx, 1440.0);
     assert!(shown.iter().any(|t| t == "Listen"), "{shown:?}");
-    app.panes_view.show_readings = false;
+    app.bench.panes_view.show_readings = false;
     let hidden = window_texts(&mut app, &ctx, 1440.0);
     for card in ["Current Position", "Listen", "Beat Rate"] {
         assert!(!hidden.iter().any(|t| t == card), "{card}: {hidden:?}");
@@ -806,7 +840,7 @@ fn unsorted_takes_goes_back_to_quick_listen() {
     app.pick_watch(&pepsi);
     app.set_calibre("ETA 2824-2".into());
     app.set_lift(55.0);
-    assert_eq!(app.take.bph, Some(21600));
+    assert_eq!(app.bench.take.bph, Some(21600));
 
     // ‹ All Watches: the list, Pepsi still picked.
     app.watches_view.list_for = Some((app.watches_view.watch_open.clone(), false));
@@ -816,10 +850,10 @@ fn unsorted_takes_goes_back_to_quick_listen() {
     app.pick_unsorted();
     assert!(!app.list_shown(), "Unsorted Takes on show");
     assert!(app.watches_view.watch_open.is_none() && app.watches_view.unsorted_open);
-    assert!(app.take.calibre.is_empty() && app.take.watch.is_empty());
-    assert_eq!(app.take.lift_deg, DEFAULT_LIFT_DEG);
+    assert!(app.bench.take.calibre.is_empty() && app.bench.take.watch.is_empty());
+    assert_eq!(app.bench.take.lift_deg, DEFAULT_LIFT_DEG);
     assert!(!app.lift_known());
-    assert_eq!(app.take.bph, None);
+    assert_eq!(app.bench.take.bph, None);
 
     // With readings on show, the settings wait for the next Listen.
     drop(app);
@@ -827,10 +861,13 @@ fn unsorted_takes_goes_back_to_quick_listen() {
     shown.use_library(Some(root.clone()));
     shown.set_lift(55.0);
     shown.pick_unsorted();
-    assert_eq!(shown.take.lift_deg, 55.0, "the readings keep their lift");
+    assert_eq!(
+        shown.bench.take.lift_deg, 55.0,
+        "the readings keep their lift"
+    );
     assert!(shown.watches_view.quick_defaults);
     assert!(shown.quick_listen_ready(true));
-    assert_eq!(shown.take.lift_deg, DEFAULT_LIFT_DEG);
+    assert_eq!(shown.bench.take.lift_deg, DEFAULT_LIFT_DEG);
     assert!(!shown.watches_view.quick_defaults);
     drop(shown);
     let _ = std::fs::remove_dir_all(&base);
@@ -905,19 +942,19 @@ fn gaining_log(gain: f64) -> BeatLog {
 fn an_opened_take_fits_the_strip() {
     for follow in [false, true] {
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-        app.panes_view.follow = follow;
-        app.panes_view.strip.set_span(10.0);
-        app.panes_view.strip.set_half_width(1.0);
+        app.bench.panes_view.follow = follow;
+        app.bench.panes_view.strip.set_span(10.0);
+        app.bench.panes_view.strip.set_half_width(1.0);
         // 12 ms gained over the two minutes.
         app.show_log(gaining_log(1e-4), "gaining".into(), vec![], vec![]);
-        assert!((app.panes_view.strip.span_s - app.latest_s()).abs() < 1e-9);
-        assert!(app.panes_view.strip.span_s > 119.0);
-        let half = app.panes_view.strip.half_width_ms;
+        assert!((app.bench.panes_view.strip.span_s - app.latest_s()).abs() < 1e-9);
+        assert!(app.bench.panes_view.strip.span_s > 119.0);
+        let half = app.bench.panes_view.strip.half_width_ms;
         // Centred, the spread is ±6 ms; kept on the newest beats, it
         // reaches 12 ms on one side.
         assert_eq!(half, if follow { 20.0 } else { 10.0 }, "follow {follow}");
-        let live = app.recording.live.as_ref().unwrap();
-        let anchor = app.recording.anchor.unwrap();
+        let live = app.bench.recording.live.as_ref().unwrap();
+        let anchor = app.bench.recording.anchor.unwrap();
         for b in live.beats() {
             let lead = anchor.lead_ms(b, 0.125);
             assert!(lead.abs() < half, "{lead} outside ±{half}");
@@ -928,7 +965,7 @@ fn an_opened_take_fits_the_strip() {
             (app.live_view().span_s, app.live_view().half_width_ms),
             (10.0, 1.0)
         );
-        app.panes_view.strip.set_half_width(5.0);
+        app.bench.panes_view.strip.set_half_width(5.0);
         assert_eq!(
             (app.live_view().span_s, app.live_view().half_width_ms),
             (10.0, 5.0)
@@ -954,17 +991,20 @@ fn a_new_test_starts_from_the_strip_as_it_was_before_the_open() {
         (NewTake::Listen, listen, None, None),
     ] {
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-        app.panes_view.strip.set_span(30.0);
-        app.panes_view.strip.set_half_width(10.0);
-        let mut fit = app.panes_view.strip_fit;
+        app.bench.panes_view.strip.set_span(30.0);
+        app.bench.panes_view.strip.set_half_width(10.0);
+        let mut fit = app.bench.panes_view.strip_fit;
         app.show_log(gaining_log(1e-4), "gaining".into(), vec![], vec![]);
-        assert!(app.panes_view.strip.span_s > 119.0, "fitted to the take");
+        assert!(
+            app.bench.panes_view.strip.span_s > 119.0,
+            "fitted to the take"
+        );
         if let Some(w) = width {
-            app.panes_view.strip.set_half_width(w);
+            app.bench.panes_view.strip.set_half_width(w);
         }
         if let Some(s) = span {
-            app.panes_view.strip.set_span(s);
-            fit = app.panes_view.strip_fit;
+            app.bench.panes_view.strip.set_span(s);
+            fit = app.bench.panes_view.strip_fit;
         }
         match start {
             Some(true) => {
@@ -976,12 +1016,12 @@ fn a_new_test_starts_from_the_strip_as_it_was_before_the_open() {
         }
         let case = format!("{kind:?} {start:?}, by hand {width:?} {span:?}");
         // The take's pair is gone: a later test has nothing stale to restore.
-        assert!(app.panes_view.live_strip.is_none(), "{case}");
+        assert!(app.bench.panes_view.live_strip.is_none(), "{case}");
         assert_eq!(
             (
-                app.panes_view.strip.span_s,
-                app.panes_view.strip.half_width_ms,
-                app.panes_view.strip_fit
+                app.bench.panes_view.strip.span_s,
+                app.bench.panes_view.strip.half_width_ms,
+                app.bench.panes_view.strip_fit
             ),
             (span.unwrap_or(30.0), width.unwrap_or(10.0), fit),
             "{case}"
@@ -1009,17 +1049,17 @@ fn unsorted_takes_after_a_watch_take_resets_the_settings() {
     app.pick_watch(&pepsi);
     app.set_calibre("ETA 2824-2".into());
     app.show_log(gaining_log(0.0), "take".into(), vec![], vec![]);
-    app.recording.input = Input::File;
-    app.keeping.opened_path = base.join("take.flac").display().to_string();
+    app.bench.recording.input = Input::File;
+    app.bench.keeping.opened_path = base.join("take.flac").display().to_string();
     assert!(app.take_on_show().is_some());
-    assert_eq!(app.take.bph, Some(28800));
+    assert_eq!(app.bench.take.bph, Some(28800));
 
     app.pick_unsorted();
     assert!(app.take_on_show().is_none(), "the watch's take is put away");
-    assert!(app.recording.live.is_none());
-    assert!(app.take.calibre.is_empty());
-    assert_eq!(app.take.bph, None);
-    assert_eq!(app.take.lift_deg, DEFAULT_LIFT_DEG);
+    assert!(app.bench.recording.live.is_none());
+    assert!(app.bench.take.calibre.is_empty());
+    assert_eq!(app.bench.take.bph, None);
+    assert_eq!(app.bench.take.lift_deg, DEFAULT_LIFT_DEG);
     assert!(!app.watches_view.quick_defaults);
     drop(app);
     let _ = std::fs::remove_dir_all(&base);
@@ -1045,7 +1085,7 @@ fn a_new_beat_rate_reads_the_take_again() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     let finish = |app: &mut TimegrapherApp| {
         let t = Instant::now();
-        while app.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
+        while app.bench.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
             app.poll();
             std::thread::sleep(std::time::Duration::from_millis(20));
         }
@@ -1055,15 +1095,18 @@ fn a_new_beat_rate_reads_the_take_again() {
     assert!(app.take_on_show().is_some());
     app.set_lift(49.0);
     app.change_bph(Some(21600));
-    assert!(app.recording.batch.is_some(), "read again");
+    assert!(app.bench.recording.batch.is_some(), "read again");
     finish(&mut app);
     assert!(
         app.take_on_show().is_some(),
         "still on show, no Open needed"
     );
-    assert_eq!(app.take.bph, Some(21600));
-    assert_eq!(app.recording.live.as_ref().unwrap().bph(), Some(21600));
-    assert_eq!(app.take.lift_deg, 49.0, "the settings as they were");
+    assert_eq!(app.bench.take.bph, Some(21600));
+    assert_eq!(
+        app.bench.recording.live.as_ref().unwrap().bph(),
+        Some(21600)
+    );
+    assert_eq!(app.bench.take.lift_deg, 49.0, "the settings as they were");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -1249,7 +1292,7 @@ fn each_hour_key_picks_its_position_and_a_45_degree_one_turns_the_card_to_10() {
         assert_eq!(p.key(), Some(key), "{p:?}");
     }
     for (key, p) in keys.into_iter().rev() {
-        app.test.ten_positions = false;
+        app.bench.test.ten_positions = false;
         let press = |pressed| egui::Event::Key {
             key,
             physical_key: None,
@@ -1264,8 +1307,12 @@ fn each_hour_key_picks_its_position_and_a_45_degree_one_turns_the_card_to_10() {
             },
             |ctx| app.panels(ctx),
         );
-        assert_eq!(app.take.position, p, "{key:?}");
-        assert_eq!(app.test.ten_positions, p.is_half_hour(), "{key:?} at 6");
+        assert_eq!(app.bench.take.position, p, "{key:?}");
+        assert_eq!(
+            app.bench.test.ten_positions,
+            p.is_half_hour(),
+            "{key:?} at 6"
+        );
     }
     // Keys 5 and 8 are no one's.
     for key in [Key::Num5, Key::Num8] {
@@ -1284,7 +1331,7 @@ fn keys_one_to_six_wait_behind_a_dialog() {
         new: true,
         error: None,
     });
-    let start = app.take.position;
+    let start = app.bench.take.position;
     assert_ne!(start, Position::ALL[2]);
     let frame = |app: &mut TimegrapherApp, input| {
         let _ = ctx.run(input, |ctx| {
@@ -1300,7 +1347,7 @@ fn keys_one_to_six_wait_behind_a_dialog() {
         "the dialog stays open"
     );
     assert_eq!(
-        app.take.position, start,
+        app.bench.take.position, start,
         "a key moved the watch behind the dialog"
     );
     // Closed, the key works again.
@@ -1308,7 +1355,7 @@ fn keys_one_to_six_wait_behind_a_dialog() {
     frame(&mut app, screen());
     frame(&mut app, screen());
     frame(&mut app, key_frame(egui::Key::Num3, egui::Modifiers::NONE));
-    assert_eq!(app.take.position, Position::ALL[2]);
+    assert_eq!(app.bench.take.position, Position::ALL[2]);
 }
 
 /// A key press, alone or with modifiers held, for one frame.
@@ -1336,21 +1383,21 @@ fn cmd_1_and_2_pick_the_view_and_the_digits_alone_the_position() {
     let ctx = themed();
     let _ = ctx.run(screen(), |ctx| app.panels(ctx));
     assert_eq!(app.watches_view.view, View::Bench);
-    let start = app.take.position;
+    let start = app.bench.take.position;
     assert_ne!(start, Position::ALL[2]);
     let press = |app: &mut TimegrapherApp, key, m| {
         let _ = ctx.run(key_frame(key, m), |ctx| app.panels(ctx));
     };
     press(&mut app, egui::Key::Num2, egui::Modifiers::COMMAND);
     assert_eq!(
-        (app.watches_view.view, app.take.position),
+        (app.watches_view.view, app.bench.take.position),
         (View::Watches, start)
     );
     press(&mut app, egui::Key::Num3, egui::Modifiers::NONE);
-    assert_eq!(app.take.position, start, "no positions in Watches");
+    assert_eq!(app.bench.take.position, start, "no positions in Watches");
     press(&mut app, egui::Key::Num1, egui::Modifiers::COMMAND);
     assert_eq!(
-        (app.watches_view.view, app.take.position),
+        (app.watches_view.view, app.bench.take.position),
         (View::Bench, start)
     );
     for held in [
@@ -1360,7 +1407,7 @@ fn cmd_1_and_2_pick_the_view_and_the_digits_alone_the_position() {
     ] {
         press(&mut app, egui::Key::Num3, held);
         assert_eq!(
-            (app.watches_view.view, app.take.position),
+            (app.watches_view.view, app.bench.take.position),
             (View::Bench, start),
             "{held:?}"
         );
@@ -1371,10 +1418,10 @@ fn cmd_1_and_2_pick_the_view_and_the_digits_alone_the_position() {
             ..key_frame(egui::Key::Num3, held)
         };
         let _ = ctx.run(quick, |ctx| app.panels(ctx));
-        assert_eq!(app.take.position, start, "{held:?} on the event only");
+        assert_eq!(app.bench.take.position, start, "{held:?} on the event only");
     }
     press(&mut app, egui::Key::Num3, egui::Modifiers::NONE);
-    assert_eq!(app.take.position, Position::ALL[2]);
+    assert_eq!(app.bench.take.position, Position::ALL[2]);
 }
 
 /// The top of the window is one row (#1000): the menus, the Bench |
@@ -1455,15 +1502,15 @@ fn a_menu_item_and_its_shortcut_run_one_command() {
     // Nothing is masked: Remove All Masks… is dimmed and asks nothing.
     assert!(!app.menu_enabled(MenuCommand::RemoveMasks));
     app.run_menu_command(&ctx, MenuCommand::RemoveMasks);
-    assert!(!app.take.remove_masks_asked);
+    assert!(!app.bench.take.remove_masks_asked);
     // Panes are the Bench's: in Watches their items are dimmed.
     app.watches_view.view = View::Watches;
-    let shown = app.panes_view.show_readings;
+    let shown = app.bench.panes_view.show_readings;
     app.run_menu_command(&ctx, MenuCommand::Readings);
-    assert_eq!(app.panes_view.show_readings, shown);
+    assert_eq!(app.bench.panes_view.show_readings, shown);
     app.watches_view.view = View::Bench;
     app.run_menu_command(&ctx, MenuCommand::Readings);
-    assert_eq!(app.panes_view.show_readings, !shown);
+    assert_eq!(app.bench.panes_view.show_readings, !shown);
     assert_eq!(app.menu_checked(MenuCommand::Readings), !shown);
 }
 
@@ -1541,9 +1588,9 @@ fn the_readings_strip_opens_its_cards_over_the_panes() {
     // The pin is kept.
     let mut back = TimegrapherApp::with_devices(Vec::new(), None);
     back.apply_settings(app.settings());
-    assert!(!back.panes_view.readings_pinned);
+    assert!(!back.bench.panes_view.readings_pinned);
     // View ▸ Readings hides the strip.
-    app.panes_view.show_readings = false;
+    app.bench.panes_view.show_readings = false;
     pass(&mut app, Vec::new());
     let (hidden, _) = pass(&mut app, Vec::new());
     assert!(!hidden.contains("52° · Auto 28800"), "{hidden}");
@@ -1561,7 +1608,7 @@ fn the_compact_pop_up_offers_ten_while_a_45_degree_stop_is_current() {
         app.panels(ctx)
     });
     // The switch put back at 6 by hand: the 45° stop still holds ten.
-    app.test.ten_positions = false;
+    app.bench.test.ten_positions = false;
     let run = |app: &mut TimegrapherApp, events: Vec<egui::Event>| {
         let input = egui::RawInput {
             screen_rect: Some(egui::Rect::from_min_size(
@@ -1659,13 +1706,13 @@ fn the_strip_keeps_the_lift_beside_the_beat_rate_with_no_watch() {
 #[test]
 fn a_found_beat_rate_is_auto_then_the_rate() {
     let mut app = synthetic(40.0, 5.0);
-    app.take.bph = None;
+    app.bench.take.bph = None;
     let found = |rate: &str| (Some("Auto"), rate.to_string());
     assert_eq!(app.bph_parts(false, Some(28800)), found("28800"));
     assert_eq!(app.bph_shown(false, Some(28800)), "Auto 28800");
     assert_eq!(app.bph_parts(false, None), found(""));
     assert_eq!(app.bph_shown(false, None), "Auto");
-    app.take.bph = Some(21600);
+    app.bench.take.bph = Some(21600);
     let set = (None, "21600 bph".to_string());
     assert_eq!(app.bph_parts(false, Some(28800)), set);
     assert_eq!(app.bph_parts(true, Some(28800)), set);
@@ -1677,7 +1724,7 @@ fn a_found_beat_rate_is_auto_then_the_rate() {
 #[test]
 fn the_strip_watch_cell_shows_one_tooltip() {
     let mut app = synthetic(40.0, 5.0);
-    app.panes_view.readings_pinned = false;
+    app.bench.panes_view.readings_pinned = false;
     let ctx = themed();
     // A second a frame, so a still pointer is past the hover's delay.
     let mut time = 0.0;
@@ -1741,24 +1788,27 @@ fn the_beat_rate_found_comes_from_the_reading_shown() {
         ..Default::default()
     };
     sound.extend(generate(&watch, |_| 280.0, |_| 0.0).samples);
-    let live = app.recording.live.as_mut().unwrap();
+    let live = app.bench.recording.live.as_mut().unwrap();
     for b in sound.chunks(960) {
         live.push(b);
     }
     app.poll();
     assert_eq!(app.watch_facts().1, "Auto 28800");
     // A calibre that beats at another rate says so beside a watch heard.
-    app.take.calibre = "Hangzhou HZ2B00A".into();
+    app.bench.take.calibre = "Hangzhou HZ2B00A".into();
     assert_eq!(app.calibre_chips().len(), 1);
-    app.take.calibre.clear();
-    app.panes_view.strip_end = Some(15.0);
+    app.bench.take.calibre.clear();
+    app.bench.panes_view.strip_end = Some(15.0);
     let r = app.card_reading().unwrap();
     assert!(!r.watch_heard, "{} s: {:?}", r.time_s, r.caveats);
     assert_eq!(r.bph, Some(28800), "the rate listened at");
-    assert_eq!(app.recording.live.as_ref().unwrap().bph(), Some(28800));
+    assert_eq!(
+        app.bench.recording.live.as_ref().unwrap().bph(),
+        Some(28800)
+    );
     assert_eq!(app.bph_heard(), None);
     assert_eq!(app.watch_facts().1, "Auto");
-    app.take.calibre = "Hangzhou HZ2B00A".into();
+    app.bench.take.calibre = "Hangzhou HZ2B00A".into();
     assert!(app.calibre_chips().is_empty(), "no watch heard to differ");
 }
 

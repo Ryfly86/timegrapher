@@ -41,7 +41,7 @@ impl TimegrapherApp {
         // A Positions Test finished, while listening goes on, sets nothing.
         let testing = (self.running() && self.guided_running()) || self.reserve_running();
         let listening = self.running() && self.session.mic();
-        !testing && (listening || self.recording.live.is_none())
+        !testing && (listening || self.bench.recording.live.is_none())
     }
 
     /// Why the Position card's buttons can't be pressed now.
@@ -60,7 +60,7 @@ impl TimegrapherApp {
     /// set, else the take's at the moment the readings show.
     pub(super) fn shown_position(&self) -> Position {
         if self.position_editable() || self.running() {
-            return self.take.position;
+            return self.bench.take.position;
         }
         let at = self.latest_s();
         self.session
@@ -68,7 +68,7 @@ impl TimegrapherApp {
             .into_iter()
             .take_while(|&(t, _)| t <= at + 1e-6)
             .last()
-            .map_or(self.take.position, |(_, p)| p)
+            .map_or(self.bench.take.position, |(_, p)| p)
     }
 
     /// The readings cards' height: [`theme::READINGS_CARD_H`], or taller
@@ -104,7 +104,7 @@ impl TimegrapherApp {
     /// the buttons. The buttons set the position in a free live take; on a
     /// take on show or during a test they only show it.
     pub(super) fn position_card(&mut self, ui: &mut egui::Ui, compact: bool) {
-        self.test.position_card_title = if compact {
+        self.bench.test.position_card_title = if compact {
             "Position"
         } else {
             "Current Position"
@@ -115,7 +115,7 @@ impl TimegrapherApp {
         let settle = format!(
             "Each change of position settles for {} s (Settle, on the Positions Test pane), \
              and those seconds are left out of the readings.",
-            fields::plain(self.test.guided_settle_s)
+            fields::plain(self.bench.test.guided_settle_s)
         );
         let codes = position_codes(here);
         let ten = self.card_ten();
@@ -162,7 +162,7 @@ impl TimegrapherApp {
         );
         let picked = self.position_buttons(ui, &[(track, &Position::ALL)], &settle);
         if let Some(p) = picked {
-            if p != self.take.position {
+            if p != self.bench.take.position {
                 self.change_position(p);
             }
         }
@@ -300,7 +300,7 @@ impl TimegrapherApp {
             settle,
         );
         if let Some(p) = picked {
-            if p != self.take.position {
+            if p != self.bench.take.position {
                 self.change_position(p);
             }
         }
@@ -317,7 +317,7 @@ impl TimegrapherApp {
         } else {
             "The six standard positions"
         };
-        let drawn = caption_row(ui, rect, self.test.position_card_title, |ui| {
+        let drawn = caption_row(ui, rect, self.bench.test.position_card_title, |ui| {
             // Laid right to left from the help, so given 10 first to read
             // 6 | 10.
             switched = theme::segmented_in_title(
@@ -331,7 +331,7 @@ impl TimegrapherApp {
         });
         // A 45° stop on show keeps the card at 10 until it is left.
         if switched && (ten || !held) {
-            self.test.ten_positions = ten;
+            self.bench.test.ten_positions = ten;
             self.note_settings();
         }
         drawn
@@ -352,7 +352,7 @@ impl TimegrapherApp {
         let here = self.shown_position();
         let editable = self.position_editable();
         let painter = ui.painter().clone();
-        compact_caption(ui, rows.title, self.test.position_card_title);
+        compact_caption(ui, rows.title, self.bench.test.position_card_title);
         // The code beside the picture, the name in its hover: a name
         // doesn't fit a compact card whole. A 45° stop's longer code
         // ("10H30") is set smaller to fit whole.
@@ -415,7 +415,7 @@ impl TimegrapherApp {
             } else {
                 format!("{codes}: {}", self.position_lock_words())
             });
-        if picked != here && picked != self.take.position {
+        if picked != here && picked != self.bench.take.position {
             self.change_position(picked);
         }
     }
@@ -483,12 +483,12 @@ impl TimegrapherApp {
             // at the Positions Test's Measure time; the code centred above
             // it, clear of it (#1752).
             let heard = self.recorded_in(p);
-            let full = heard / self.test.guided_measure_s;
+            let full = heard / self.bench.test.guided_measure_s;
             let bar = egui::Rect::from_min_max(
                 egui::pos2(r.left() + 4.0, r.bottom() - 5.5),
                 egui::pos2(r.right() - 4.0, r.bottom() - 2.0),
             );
-            let live = self.recording.live.is_some();
+            let live = self.bench.recording.live.is_some();
             let code_y = if live {
                 (r.top() + bar.top()) / 2.0
             } else {
@@ -516,7 +516,7 @@ impl TimegrapherApp {
                 position_codes(p).replace(" · ", ", "),
                 p.key_name(),
                 fields::duration(heard.floor()),
-                fields::duration(self.test.guided_measure_s)
+                fields::duration(self.bench.test.guided_measure_s)
             );
             let resp = if editable {
                 resp.on_hover_text(format!("{tip}. {settle}"))
@@ -533,7 +533,13 @@ impl TimegrapherApp {
     /// Listen's hover.
     pub(super) fn listen_buttons(&mut self, ui: &mut egui::Ui, compact: bool) {
         let area = ui.max_rect();
-        let length = length_text(self.recording.live.as_ref().map_or(0.0, |l| l.duration_s()));
+        let length = length_text(
+            self.bench
+                .recording
+                .live
+                .as_ref()
+                .map_or(0.0, |l| l.duration_s()),
+        );
         let state = self.state_words();
         let top = egui::Rect::from_min_size(area.min, Vec2::new(area.width(), theme::FIGURE_ROW_H));
         let foot = egui::Rect::from_min_max(
@@ -552,7 +558,7 @@ impl TimegrapherApp {
         self.listen_go(ui_b, compact.then_some(length_hint.as_str()));
         // A watch's take saves itself as it goes, and a test's at its end.
         let testing = self.ready_test().is_some() || self.test_listening();
-        if (!self.session.mic() || self.recording.quick_listen) && !testing {
+        if (!self.session.mic() || self.bench.recording.quick_listen) && !testing {
             self.save_menu(ui_b, LISTEN_BUTTON);
         }
         if !compact {
@@ -586,7 +592,7 @@ impl TimegrapherApp {
         let word = |ui: &mut egui::Ui, b: egui::Button<'_>| {
             ui.add(b.min_size(Vec2::new(0.0, LISTEN_BUTTON)))
         };
-        let was_listen = self.recording.listen_tap.take();
+        let was_listen = self.bench.recording.listen_tap.take();
         if let Some(kind) = self.ready_test() {
             self.listen_start_test(ui_b, kind, length_hint);
         } else if self.test_listening() {
@@ -598,7 +604,7 @@ impl TimegrapherApp {
                 .on_hover_text(hint)
                 .clicked()
             {
-                self.test.stop_test_ask = true;
+                self.bench.test.stop_test_ask = true;
             }
         } else if self.running() && self.session.mic() {
             let mut hint = STOP_HINT.to_string();
@@ -627,15 +633,26 @@ impl TimegrapherApp {
             }
             let (now, pressed) = ui_b.input(|i| (i.time, i.pointer.any_pressed()));
             let tap = listen_tap(was_listen, now, pressed);
-            self.recording.listen_tap = Some(tap);
+            self.bench.recording.listen_tap = Some(tap);
             if tap.0.is_infinite() {
                 ui_b.ctx().request_repaint(); // so the count starts unprompted
             }
             let armed = tap.1;
             if ui_b
-                .add_enabled_ui(!self.running() && self.recording.batch.is_none(), |ui| {
-                    theme::icon_button(ui, Icon::Listen, LISTEN_BUTTON, 8, pal.accent, true, false)
-                })
+                .add_enabled_ui(
+                    !self.running() && self.bench.recording.batch.is_none(),
+                    |ui| {
+                        theme::icon_button(
+                            ui,
+                            Icon::Listen,
+                            LISTEN_BUTTON,
+                            8,
+                            pal.accent,
+                            true,
+                            false,
+                        )
+                    },
+                )
                 .inner
                 .on_hover_text(hint)
                 .clicked()
@@ -669,7 +686,7 @@ impl TimegrapherApp {
                 (_, None) => format!(
                     "Start the {name} in the position on the {} card, with the \
                      complication off",
-                    self.test.position_card_title
+                    self.bench.test.position_card_title
                 ),
             }
         } else {
@@ -677,7 +694,7 @@ impl TimegrapherApp {
                 "Start the {name} in the position on the {} card and run until the watch \
                  stops, keeping the computer awake. A closed lid or Sleep from a menu still \
                  stops the computer; a laptop is best left on mains power.",
-                self.test.position_card_title
+                self.bench.test.position_card_title
             )
         };
         if let Some(h) = length_hint {
@@ -713,7 +730,7 @@ impl TimegrapherApp {
         );
         row.spacing_mut().item_spacing.x = 8.0;
         row.spacing_mut().interact_size.y = theme::CONTROL_H;
-        let avg_now = fields::duration(self.take.average_s);
+        let avg_now = fields::duration(self.bench.take.average_s);
         let form = fit_form(&row, &avg_now, &field.words, foot.width());
         if !form.arrows {
             row.spacing_mut().icon_width = 0.0;
@@ -736,7 +753,7 @@ impl TimegrapherApp {
         if form.labels {
             label(&mut row, AVERAGE_LABEL);
         }
-        let mut avg = self.take.average_s;
+        let mut avg = self.bench.take.average_s;
         let avg_text = form.average(&avg_now);
         arrows(egui::ComboBox::from_id_salt("card average"))
             .width(combo_w(&row, &avg_text))
@@ -753,7 +770,7 @@ impl TimegrapherApp {
                 // No arrow says it's a menu (Hugh on #1915).
                 format!("Average Over: {avg_now}. Click to change. {AVERAGE_REACH}")
             });
-        if avg != self.take.average_s {
+        if avg != self.bench.take.average_s {
             self.set_average(avg);
         }
         if form.labels {
@@ -790,7 +807,7 @@ impl TimegrapherApp {
     /// Whether the Save menu offers Unsorted Takes: a Quick Listen not
     /// saved yet goes there, as File > Save puts it.
     pub(super) fn saves_into_unsorted(&self) -> bool {
-        self.recording.quick_listen
+        self.bench.recording.quick_listen
             && self.session.saved_to().is_none()
             && self.watch_takes_dir().is_some()
     }
@@ -806,7 +823,7 @@ impl TimegrapherApp {
             Ok(Some(l)) if l.read_only.is_none() => self.recent_watches(),
             _ => Vec::new(),
         };
-        let into_watch = self.addable_take().is_some() || self.recording.quick_listen;
+        let into_watch = self.addable_take().is_some() || self.bench.recording.quick_listen;
         let into_unsorted = can && self.saves_into_unsorted();
         let listening = self.running();
         // A take opened with painting or masks changed: kept in its folder.
@@ -855,9 +872,9 @@ impl TimegrapherApp {
                     }
                     if into_watch {
                         // A Quick Listen heard is kept in one and goes on.
-                        let keeps = !listening || self.recording.quick_listen;
-                        let heard =
-                            (listening && self.recording.quick_listen).then_some(KEEP_HEARD_HINT);
+                        let keeps = !listening || self.bench.recording.quick_listen;
+                        let heard = (listening && self.bench.recording.quick_listen)
+                            .then_some(KEEP_HEARD_HINT);
                         save_menu_watches(ui, &watches, keeps, heard, can, &mut picked, &mut new);
                     }
                     if let Some(place) = &recording_in {
@@ -992,27 +1009,27 @@ impl TimegrapherApp {
             .on_hover_text(self.bph_hint());
             // Short, as the menu is the watch's: the rate set, Auto, and
             // the other standard rates one level down.
-            let mut bph = self.take.bph;
+            let mut bph = self.bench.take.bph;
             let item = |ui: &mut egui::Ui, bph: &mut Option<u32>, v: Option<u32>, words: &str| {
-                let r = theme::menu_item(ui, v == self.take.bph, words);
+                let r = theme::menu_item(ui, v == self.bench.take.bph, words);
                 if r.clicked() {
                     *bph = v;
                 }
                 r
             };
-            if let Some(b) = self.take.bph {
+            if let Some(b) = self.bench.take.bph {
                 item(ui, &mut bph, Some(b), &format!("{b} bph"));
             }
             item(ui, &mut bph, None, "Auto").on_hover_text("Found from the first seconds of beats");
             ui.menu_button("Other Rates", |ui| {
                 for b in STANDARD_BPH
                     .into_iter()
-                    .filter(|&b| Some(b) != self.take.bph)
+                    .filter(|&b| Some(b) != self.bench.take.bph)
                 {
                     item(ui, &mut bph, Some(b), &format!("{b} bph"));
                 }
             });
-            if bph != self.take.bph {
+            if bph != self.bench.take.bph {
                 self.change_bph(bph);
                 self.save_card_to_watch();
             }
@@ -1020,7 +1037,7 @@ impl TimegrapherApp {
         }
         let free = !self.running();
         // A Quick Listen heard can still be given its watch.
-        let keeps = free || self.recording.quick_listen;
+        let keeps = free || self.bench.recording.quick_listen;
         if !free {
             // Said once, above what it dims, so no hint covers a row.
             ui.label(
@@ -1088,7 +1105,7 @@ impl TimegrapherApp {
     pub(super) fn line_pick(&mut self, id: Option<String>, asked: bool) {
         if self.running() {
             // A Quick Listen heard is kept in the watch, and goes on.
-            if let Some(id) = id.filter(|_| self.recording.quick_listen) {
+            if let Some(id) = id.filter(|_| self.bench.recording.quick_listen) {
                 self.keep_in_watch(&id);
             }
             return;
@@ -1100,7 +1117,7 @@ impl TimegrapherApp {
         // A recording opened from outside the Watches folder stays, as it
         // was measured, to be kept in the watch picked (#1966).
         let keeps = id.is_some() && self.shown_outside_watches();
-        if !keeps && (self.recording.live.is_some() || self.session.recorder.is_some()) {
+        if !keeps && (self.bench.recording.live.is_some() || self.session.recorder.is_some()) {
             if !asked && self.line_pick_asks() {
                 self.confirm = Some(Confirm::PickWatch(id));
                 return;
@@ -1150,12 +1167,12 @@ impl TimegrapherApp {
         }
         let heard = self.bph_heard();
         // The rate Manage Calibres… starts its table at.
-        let rate = match self.take.bph {
+        let rate = match self.bench.take.bph {
             Some(b) => Some((b, "the beat rate set on the Calibre card")),
             None => heard.map(|b| (b, "the rate found from the beats")),
         };
-        let current = self.take.calibre.clone();
-        let mut bph = self.take.bph;
+        let current = self.bench.take.calibre.clone();
+        let mut bph = self.bench.take.bph;
         let picked = if ui.available_width() >= TWO_FIELDS_W || self.bph_set_by_calibre() {
             self.cal.picker(ui, &current, rate)
         } else {
@@ -1188,7 +1205,7 @@ impl TimegrapherApp {
         };
         if let Some(p) = picked {
             self.set_calibre(p);
-        } else if bph != self.take.bph {
+        } else if bph != self.bench.take.bph {
             self.change_bph(bph);
         }
     }
@@ -1196,13 +1213,13 @@ impl TimegrapherApp {
     /// Whether the calibre sets the beat rate: a watch's calibre the
     /// table knows, or a calibre picked whose beat rate it gives.
     pub(super) fn bph_set_by_calibre(&self) -> bool {
-        !self.take_shows_rate_and_lift() || self.cal.bph(&self.take.calibre).is_some()
+        !self.take_shows_rate_and_lift() || self.cal.bph(&self.bench.take.calibre).is_some()
     }
 
     /// What the beat rate's pop-up is, for its hover.
     fn bph_hint(&self) -> &'static str {
         let heard = self.bph_heard();
-        match (self.take.bph, heard) {
+        match (self.bench.take.bph, heard) {
             (Some(_), _) => {
                 "Beats per hour, set here, so the readings use it rather than finding it from \
                  the beats. Auto finds it again."
@@ -1253,14 +1270,15 @@ impl TimegrapherApp {
         const AUTO: &str = "Auto";
         if bph_set {
             let rate = self
+                .bench
                 .take
                 .bph
-                .or_else(|| self.cal.bph(&self.take.calibre))
+                .or_else(|| self.cal.bph(&self.bench.take.calibre))
                 .or(heard)
                 .map_or_else(|| "Found When Heard".to_string(), |b| format!("{b} bph"));
             (None, rate)
         } else {
-            match (self.take.bph, heard) {
+            match (self.bench.take.bph, heard) {
                 (Some(b), _) => (None, format!("{b} bph")),
                 (None, Some(h)) => (Some(AUTO), h.to_string()),
                 _ => (Some(AUTO), String::new()),
@@ -1277,7 +1295,7 @@ impl TimegrapherApp {
         let heard = self.bph_heard();
         let both = ui.available_width() >= TWO_FIELDS_W;
         let watch_sets = !self.take_shows_rate_and_lift();
-        let calibre = self.take.calibre.clone();
+        let calibre = self.bench.take.calibre.clone();
         let set_by = move |what: &str| {
             if watch_sets {
                 format!("The watch's calibre sets the {what}. Edit… on the watch changes it.")
@@ -1338,7 +1356,7 @@ impl TimegrapherApp {
             card_fact(
                 ui,
                 "Lift",
-                format!("{}°", fields::plain(self.take.lift_deg)),
+                format!("{}°", fields::plain(self.bench.take.lift_deg)),
                 &set_by("lift angle"),
                 lift_w,
             );
@@ -1350,7 +1368,7 @@ impl TimegrapherApp {
             card_fact(ui, "", shown, &set_by("beat rate"), ui.available_width());
             return;
         }
-        let mut bph = self.take.bph;
+        let mut bph = self.bench.take.bph;
         egui::ComboBox::from_id_salt("bph")
             // The rest of the row, so it ends on the card's right edge as
             // the Calibre pop-up does (its width is the outer width).
@@ -1361,7 +1379,7 @@ impl TimegrapherApp {
             .show_ui(ui, |ui| bph_choices(ui, &mut bph))
             .response
             .on_hover_text(format!("{}{saved_to}", self.bph_hint()));
-        if bph != self.take.bph {
+        if bph != self.bench.take.bph {
             self.change_bph(bph);
             self.save_card_to_watch();
         }
@@ -1371,7 +1389,7 @@ impl TimegrapherApp {
     /// watch with no calibre the table knows, so what is set here is
     /// saved to it, as Edit Watch would.
     pub(super) fn watch_sets_here(&self) -> bool {
-        self.open_watch().is_some() && self.cal.find(&self.take.calibre).is_none()
+        self.open_watch().is_some() && self.cal.find(&self.bench.take.calibre).is_none()
     }
 
     /// The card's lift angle and beat rate saved to the watch picked, when
@@ -1383,11 +1401,11 @@ impl TimegrapherApp {
         let Some(mut w) = self.open_watch().map(|e| e.watch.clone()) else {
             return;
         };
-        if w.lift == Some(self.take.lift_deg) && w.bph == self.take.bph {
+        if w.lift == Some(self.bench.take.lift_deg) && w.bph == self.bench.take.bph {
             return;
         }
-        w.lift = Some(self.take.lift_deg);
-        w.bph = self.take.bph;
+        w.lift = Some(self.bench.take.lift_deg);
+        w.bph = self.bench.take.bph;
         let saved = match &mut self.library {
             Ok(Some(lib)) => lib.update(&w),
             _ => Err("there is no Watches folder".into()),
@@ -1403,7 +1421,8 @@ impl TimegrapherApp {
     pub(super) fn new_take(&mut self, kind: NewTake, asked: bool) {
         // A test is set up over a Quick Listen still listening, which
         // stops once its sound is asked about; never over a test.
-        let over = kind == NewTake::Listen || self.test_listening() || !self.recording.quick_listen;
+        let over =
+            kind == NewTake::Listen || self.test_listening() || !self.bench.recording.quick_listen;
         if self.behind_save(move |a| a.new_take(kind, asked))
             || self.saving_busy()
             || (self.running() && over)
@@ -1432,19 +1451,19 @@ impl TimegrapherApp {
     /// Set a test up on the clear Bench: its pane shown, the Position
     /// card live, waiting for Start Test on the Listen card.
     fn get_ready(&mut self, kind: NewTake) {
-        self.test.test_ready = Some(kind);
+        self.bench.test.test_ready = Some(kind);
         self.message = None;
         self.watches_view.view = View::Bench;
         if kind == NewTake::Positions {
             // Where the test begins.
             self.set_position(guided::ORDER[0]);
-            self.test.guided_earlier_for = None;
+            self.bench.test.guided_earlier_for = None;
             self.find_full_wind();
             self.reveal_pane(Pane::PositionsTest);
         } else if kind == NewTake::Poise {
             // The card shows the eight with its buttons for them (Hugh's
             // spec): at 10 from here on, until switched back.
-            self.test.ten_positions = true;
+            self.bench.test.ten_positions = true;
             self.set_position(guided::POISE_ORDER[0]);
             self.reveal_pane(Pane::DynamicPoise);
         } else if kind == NewTake::Complication {
@@ -1459,18 +1478,20 @@ impl TimegrapherApp {
     /// picked or loaded for it goes too, so it isn't shown on the Bench
     /// after.
     pub(super) fn leave_ready_test(&mut self) {
-        self.test.test_ready = None;
-        self.test.guided_earlier = None;
-        self.test.guided_earlier_file = false;
-        self.test.guided_choices.clear();
-        self.test.guided_earlier_for = None;
+        self.bench.test.test_ready = None;
+        self.bench.test.guided_earlier = None;
+        self.bench.test.guided_earlier_file = false;
+        self.bench.test.guided_choices.clear();
+        self.bench.test.guided_earlier_for = None;
     }
 
     /// The test set up and waiting for Start Test, while the Bench stays
     /// clear.
     pub(super) fn ready_test(&self) -> Option<NewTake> {
-        self.test.test_ready.filter(|_| {
-            self.recording.live.is_none() && !self.running() && self.recording.batch.is_none()
+        self.bench.test.test_ready.filter(|_| {
+            self.bench.recording.live.is_none()
+                && !self.running()
+                && self.bench.recording.batch.is_none()
         })
     }
 
@@ -1484,12 +1505,12 @@ impl TimegrapherApp {
     pub(super) fn start_test_why_not(&self) -> Option<String> {
         let w = self.open_watch()?;
         if self.ready_test() != Some(NewTake::Positions)
-            || !self.test.guided_after
-            || self.test.guided_earlier.is_some()
+            || !self.bench.test.guided_after
+            || self.bench.test.guided_earlier.is_some()
         {
             return None;
         }
-        Some(if self.test.guided_choices.is_empty() {
+        Some(if self.bench.test.guided_choices.is_empty() {
             format!(
                 "{} has no Full Wind Positions Test from {}.",
                 w.watch.name,
@@ -1509,9 +1530,9 @@ impl TimegrapherApp {
         if self.start_test_why_not().is_some() {
             return;
         }
-        self.test.test_ready = None;
+        self.bench.test.test_ready = None;
         match kind {
-            NewTake::Positions => self.start_guided(self.test.guided_earlier.clone()),
+            NewTake::Positions => self.start_guided(self.bench.test.guided_earlier.clone()),
             NewTake::Poise => self.start_poise(),
             NewTake::Complication => self.start_complication(),
             _ => self.start_reserve_asked(true),
@@ -1532,7 +1553,7 @@ impl TimegrapherApp {
     pub(super) fn find_full_wind_at(&mut self, now: f64) {
         // For a test set up, and wherever Compare With shows, a test done
         // or none set up yet included (#1714).
-        if self.test.test_ready != Some(NewTake::Positions) && !self.compare_with_shown() {
+        if self.bench.test.test_ready != Some(NewTake::Positions) && !self.compare_with_shown() {
             return;
         }
         let dir = self.open_watch().map(|e| e.dir.join(library::TAKES));
@@ -1548,30 +1569,31 @@ impl TimegrapherApp {
         takes.sort();
         let key = (
             self.watches_view.watch_open.clone(),
-            self.test.guided_after,
+            self.bench.test.guided_after,
             (now / 60.0).floor() as i64,
             changed,
             takes,
         );
-        if self.test.guided_earlier_for.as_ref() == Some(&key) {
+        if self.bench.test.guided_earlier_for.as_ref() == Some(&key) {
             return;
         }
         // Another watch, or Wind changed: nothing picked carries over.
         let same = self
+            .bench
             .test
             .guided_earlier_for
             .as_ref()
             .is_some_and(|k| (&k.0, k.1) == (&key.0, key.1));
-        self.test.guided_earlier_for = Some(key);
-        self.test.guided_choices = match dir {
-            Some(dir) if self.test.guided_after => guided::full_winds_in(&dir, now),
+        self.bench.test.guided_earlier_for = Some(key);
+        self.bench.test.guided_choices = match dir {
+            Some(dir) if self.bench.test.guided_after => guided::full_winds_in(&dir, now),
             _ => Vec::new(),
         };
-        let from_file = self.test.guided_earlier_file;
-        let listed = |e: &guided::FullWind| self.test.guided_choices.contains(e);
-        if !same || !(from_file || self.test.guided_earlier.as_ref().is_some_and(listed)) {
-            self.test.guided_earlier = None;
-            self.test.guided_earlier_file = false;
+        let from_file = self.bench.test.guided_earlier_file;
+        let listed = |e: &guided::FullWind| self.bench.test.guided_choices.contains(e);
+        if !same || !(from_file || self.bench.test.guided_earlier.as_ref().is_some_and(listed)) {
+            self.bench.test.guided_earlier = None;
+            self.bench.test.guided_earlier_file = false;
         }
     }
 
@@ -1583,14 +1605,14 @@ impl TimegrapherApp {
     pub(super) fn full_wind_recheck(&self, now: f64) -> Option<Duration> {
         (self.ready_test() == Some(NewTake::Positions) || self.compare_with_shown())
             .then_some(())
-            .filter(|_| self.test.guided_after && self.open_watch().is_some())
+            .filter(|_| self.bench.test.guided_after && self.open_watch().is_some())
             .map(|_| Duration::from_secs_f64(60.0 - now.rem_euclid(60.0) + 0.05))
     }
 
     /// Whether the Positions Test's toolbar shows Compare With: a watch
     /// set for 24 Hours After, no Positions Test under way.
     pub(super) fn compare_with_shown(&self) -> bool {
-        self.test.guided_after && self.open_watch().is_some() && !self.guided_running()
+        self.bench.test.guided_after && self.open_watch().is_some() && !self.guided_running()
     }
 
     /// Whether a new take asks first: a take of a watch asks about Quick
@@ -1607,19 +1629,19 @@ impl TimegrapherApp {
     /// What a new take starts from: an empty session and the open watch's
     /// details. Opens no input, so tests can check it.
     pub(super) fn take_setup(&mut self) {
-        if self.recording.live.is_some() || self.session.recorder.is_some() {
+        if self.bench.recording.live.is_some() || self.session.recorder.is_some() {
             self.new_session();
         }
         if let Some(w) = self.open_watch().map(|e| e.watch.clone()) {
             // The watch's details over what the microphone had before a
             // recording was opened.
-            if let Some(s) = self.take.mic_setup.take() {
+            if let Some(s) = self.bench.take.mic_setup.take() {
                 self.set_watch_setup(s);
             }
-            self.recording.quick_listen = false;
+            self.bench.recording.quick_listen = false;
             self.apply_watch(&w);
         }
-        self.recording.input = Input::Microphone;
+        self.bench.recording.input = Input::Microphone;
     }
 
     /// Save the unsaved Quick Listen take into the watch `id`, as a take of
@@ -1628,7 +1650,7 @@ impl TimegrapherApp {
         // A Quick Listen still heard goes on: it is the watch's take from
         // now, saved into it as it goes.
         let heard = self.running();
-        if heard && !self.recording.quick_listen {
+        if heard && !self.bench.recording.quick_listen {
             return;
         }
         // Its earlier hours gone with its take: nothing can be kept, so the
@@ -1645,8 +1667,8 @@ impl TimegrapherApp {
         };
         self.watches_view.watch_open = Some(id.to_string());
         self.watches_view.unsorted_open = false;
-        self.recording.quick_listen = false;
-        self.take.watch = name;
+        self.bench.recording.quick_listen = false;
+        self.bench.take.watch = name;
         if let Some(w) = self.open_watch().map(|e| e.watch.clone()) {
             self.take_watch_details(&w);
         }
@@ -1695,14 +1717,14 @@ impl TimegrapherApp {
         if let Some(c) = w.calibre.clone().filter(|c| !c.is_empty()) {
             self.set_calibre(c);
         }
-        if let Some(l) = self.cal.lift(&self.take.calibre).or(w.lift) {
-            if l != self.take.lift_deg {
+        if let Some(l) = self.cal.lift(&self.bench.take.calibre).or(w.lift) {
+            if l != self.bench.take.lift_deg {
                 self.set_lift(l);
             }
-            self.take.lift_context = (l, true);
+            self.bench.take.lift_context = (l, true);
         }
-        let bph = self.cal.bph(&self.take.calibre).or(w.bph);
-        let heard = self.recording.live.as_ref().and_then(|l| l.bph());
+        let bph = self.cal.bph(&self.bench.take.calibre).or(w.bph);
+        let heard = self.bench.recording.live.as_ref().and_then(|l| l.bph());
         if bph.is_some() && heard.is_none_or(|h| Some(h) == bph) {
             self.put_bph(bph);
         }
@@ -1713,17 +1735,17 @@ impl TimegrapherApp {
     /// Whether the lift angle can be typed: not when a watch's calibre or
     /// a calibre picked in Quick Listen sets it.
     pub(super) fn lift_settable(&self) -> bool {
-        self.take_shows_rate_and_lift() && self.cal.lift(&self.take.calibre).is_none()
+        self.take_shows_rate_and_lift() && self.cal.lift(&self.bench.take.calibre).is_none()
     }
 
     pub(super) fn take_shows_rate_and_lift(&self) -> bool {
-        self.open_watch().is_none() || self.cal.find(&self.take.calibre).is_none()
+        self.open_watch().is_none() || self.cal.find(&self.bench.take.calibre).is_none()
     }
 
     /// The lift angle field on the Calibre card, `w` wide, `tail` added to
     /// its hover: where it is saved, and what the row hides.
     fn lift_field(&mut self, ui: &mut egui::Ui, w: f32, tail: &str) {
-        let mut lift = self.take.lift_deg;
+        let mut lift = self.bench.take.lift_deg;
         let (resp, changed) = fields::combo(
             ui,
             "lift",
@@ -1738,7 +1760,7 @@ impl TimegrapherApp {
         let hint = if self.lift_known() {
             "The lift angle: type it, or pick one with ⏷.".to_string()
         } else {
-            lift_hint(&self.take.calibre)
+            lift_hint(&self.bench.take.calibre)
         };
         resp.on_hover_text(format!("{hint}{tail}"));
         if changed {
@@ -1750,7 +1772,7 @@ impl TimegrapherApp {
     /// The calibre's escapement when Timegrapher doesn't measure it yet
     /// (#1872): the sentence, and with its source for the hover.
     fn escapement_unsupported(&self) -> Option<(String, String)> {
-        let x = self.cal.find(&self.take.calibre)?.escapement()?;
+        let x = self.cal.find(&self.bench.take.calibre)?.escapement()?;
         let sentence = x.sentence();
         let why = format!("{sentence}\n\nSource: {}", x.source);
         Some((sentence, why))
@@ -1761,7 +1783,7 @@ impl TimegrapherApp {
     fn calibre_line(&mut self, ui: &mut egui::Ui) {
         let pal = theme::pal(ui);
         let heard = self.bph_heard();
-        let bph = match (self.take.bph, heard) {
+        let bph = match (self.bench.take.bph, heard) {
             (Some(b), _) => format!("{b} bph"),
             (None, Some(b)) => format!("{b} bph, found"),
             (None, None) => "beat rate found when heard".to_string(),
@@ -1771,22 +1793,22 @@ impl TimegrapherApp {
         // its height. A calibre whose beat rate isn't the one heard says its
         // own beside the name, the whole sentence in the hover.
         let other = heard
-            .zip(self.cal.bph(&self.take.calibre))
+            .zip(self.cal.bph(&self.bench.take.calibre))
             .filter(|&(b, cb)| b != cb);
         let line = match other {
-            Some((_, cb)) => format!("{} is {cb} bph", self.take.calibre),
-            None => self.take.calibre.clone(),
+            Some((_, cb)) => format!("{} is {cb} bph", self.bench.take.calibre),
+            None => self.bench.take.calibre.clone(),
         };
         let mut hover = format!(
             "{}: {bph}, lift {}°. The watch's calibre sets the beat rate and lift angle. \
              Edit… on the watch changes them.",
-            self.take.calibre,
-            fields::plain(self.take.lift_deg)
+            self.bench.take.calibre,
+            fields::plain(self.bench.take.lift_deg)
         );
         if let Some((b, cb)) = other {
             hover = format!(
                 "The {} beats at {cb} bph, but this watch beats at {b}.\n\n{hover}",
-                self.take.calibre
+                self.bench.take.calibre
             );
         }
         if let Some((sentence, _)) = self.escapement_unsupported() {
@@ -1800,7 +1822,7 @@ impl TimegrapherApp {
         if self.refuse_faulted_recording() {
             return;
         }
-        if self.reserve_running() && pos != self.take.position {
+        if self.reserve_running() && pos != self.bench.take.position {
             self.info_msg(
                 "A Power Reserve Test runs in one position: stop the test to change it.".into(),
             );
@@ -1808,7 +1830,7 @@ impl TimegrapherApp {
         }
         self.set_position(pos);
         // A 45° stop turns the card to 10, so it has a button for it.
-        self.test.ten_positions |= pos.is_half_hour();
+        self.bench.test.ten_positions |= pos.is_half_hour();
         if let Some(r) = self.session.recorder.as_mut() {
             // note appends in memory before writing session.json, so the
             // change is kept and written next time even if this write
@@ -1827,15 +1849,15 @@ impl TimegrapherApp {
     /// the stretch, and the readings, the profile, the distributions and the
     /// steadiness tests take only the beats in the new position.
     pub(super) fn set_position(&mut self, pos: Position) {
-        let old = self.take.position;
+        let old = self.bench.take.position;
         applog::info(&format!("position {} to {}", old.code(), pos.code()));
-        self.take.position = pos;
+        self.bench.take.position = pos;
         let going = self.session.allows(Action::Move);
-        if let (Some(l), true) = (self.recording.live.as_mut(), going) {
+        if let (Some(l), true) = (self.bench.recording.live.as_mut(), going) {
             l.new_stretch();
             let at = l.duration_s();
             let _ = self.session.move_to(at, old, pos);
-            self.take.rev.breaks += 1;
+            self.bench.take.rev.breaks += 1;
         }
     }
 
@@ -1864,19 +1886,20 @@ impl TimegrapherApp {
     /// The stretches in the position the watch is in now, which the
     /// profile, the distributions and the steadiness tests are made over.
     pub(super) fn current_spans(&self) -> Vec<(f64, f64)> {
-        self.session.current_spans(self.take.position)
+        self.session.current_spans(self.bench.take.position)
     }
 
     /// The seconds heard so far in position `p`, settled and not masked,
     /// in a live take or the take on show: what each position button's
     /// bar fills with.
     pub(super) fn recorded_in(&self, p: Position) -> f64 {
-        if self.recording.live.is_none() {
+        if self.bench.recording.live.is_none() {
             return 0.0;
         }
         let end = self.latest_s();
         let masked = timegrapher_core::session::masked_spans(
             &self
+                .bench
                 .take
                 .masked
                 .iter()
@@ -1884,7 +1907,7 @@ impl TimegrapherApp {
                 .collect::<Vec<_>>(),
         );
         self.session
-            .settled_spans(self.take.position, p)
+            .settled_spans(self.bench.take.position, p)
             .into_iter()
             .map(|(a, b)| (a.max(0.0), b.min(end)))
             .filter(|(a, b)| a < b)
@@ -1897,18 +1920,18 @@ impl TimegrapherApp {
     /// in now. Many readings read [`Session::in_position_test`] once.
     #[cfg(test)]
     pub(super) fn in_position(&self, t: f64) -> bool {
-        self.session.in_position(t, self.take.position)
+        self.session.in_position(t, self.bench.take.position)
     }
 
     /// The stretches to mark on the strip and the charts, once there is
     /// more than one or a Positions Test has begun: start, end and the
     /// position's name.
     pub(super) fn position_bands(&self) -> Vec<(f64, f64, &'static str)> {
-        let bands = self.session.position_bands(self.take.position);
+        let bands = self.session.position_bands(self.bench.take.position);
         if bands.is_empty() && self.in_test() {
             return self
                 .session
-                .position_spans(self.take.position)
+                .position_spans(self.bench.take.position)
                 .into_iter()
                 .map(|(a, b, p)| (a.max(0.0), b, p.label()))
                 .collect();
@@ -1919,7 +1942,7 @@ impl TimegrapherApp {
     /// Whether the strip and charts mark a Positions Test's phases: from
     /// its start until the next test or a new session.
     pub(super) fn in_test(&self) -> bool {
-        !self.test.guided_unused.is_empty() || !self.test.guided_measured.is_empty()
+        !self.bench.test.guided_unused.is_empty() || !self.bench.test.guided_measured.is_empty()
     }
 
     /// What is wrong with keeping the computer awake or taking sound in
@@ -1945,12 +1968,12 @@ impl TimegrapherApp {
     /// The train the Steadiness tests name cycles after, when a calibre is
     /// picked; `None` leaves them to the beat rate's usual wheels.
     pub(super) fn calibre_wheels(&self) -> Option<Vec<Wheel>> {
-        self.cal.wheels(&self.take.calibre)
+        self.cal.wheels(&self.bench.take.calibre)
     }
 
     /// The picked calibre's meshes, marked beside its wheels.
     pub(super) fn calibre_meshes(&self) -> Vec<timegrapher_core::train::MeshLine> {
-        self.cal.meshes(&self.take.calibre)
+        self.cal.meshes(&self.bench.take.calibre)
     }
 
     /// Pick a calibre: its lift angle, where the list or the user gives
@@ -1960,14 +1983,16 @@ impl TimegrapherApp {
         let name = self.cal.current_name(&name);
         // Recent is what the app was last set to, even set again.
         self.cal.remember(&name);
-        if name == self.take.calibre {
+        if name == self.bench.take.calibre {
             return;
         }
         self.put_calibre(name);
-        if let Some(l) = self.cal.lift(&self.take.calibre) {
+        if let Some(l) = self.cal.lift(&self.bench.take.calibre) {
             self.set_lift(l);
-            self.take.lift_context = (l, true);
-        } else if self.take.calibre.is_empty() || self.take.lift_deg == self.take.lift_context.0 {
+            self.bench.take.lift_context = (l, true);
+        } else if self.bench.take.calibre.is_empty()
+            || self.bench.take.lift_deg == self.bench.take.lift_context.0
+        {
             // No calibre, or one with no lift of its own: not the last
             // calibre's lift, kept as if known (#1877). The open watch's
             // own lift, else the default lift angle, assumed, as Quick
@@ -1975,17 +2000,17 @@ impl TimegrapherApp {
             // last calibre gave, and stays.
             let own = self.open_watch().and_then(|e| e.watch.lift);
             let l = own.unwrap_or(DEFAULT_LIFT_DEG);
-            if self.take.lift_deg != l {
+            if self.bench.take.lift_deg != l {
                 self.set_lift(l);
             }
-            self.take.lift_context = (l, own.is_some());
+            self.bench.take.lift_context = (l, own.is_some());
         }
         // In Quick Listen, the calibre's beat rate, else Auto again with
         // none picked; a watch's own beat rate stays the watch's.
-        let bph = self.cal.bph(&self.take.calibre);
+        let bph = self.cal.bph(&self.bench.take.calibre);
         if self.open_watch().is_none()
-            && (bph.is_some() || self.take.calibre.is_empty())
-            && bph != self.take.bph
+            && (bph.is_some() || self.bench.take.calibre.is_empty())
+            && bph != self.bench.take.bph
         {
             self.change_bph(bph);
         }

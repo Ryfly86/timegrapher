@@ -110,22 +110,23 @@ impl TimegrapherApp {
     /// List the inputs, once, and keep the chosen one if it is still there,
     /// else take the first.
     pub(super) fn ensure_devices(&mut self) {
-        if !self.recording.devices_listed {
+        if !self.bench.recording.devices_listed {
             self.rescan();
         }
     }
 
     /// List the inputs again, after one is plugged in.
     pub(super) fn rescan(&mut self) {
-        self.recording.devices = capture::list().unwrap_or_default();
-        self.recording.devices_listed = true;
+        self.bench.recording.devices = capture::list().unwrap_or_default();
+        self.bench.recording.devices_listed = true;
         let there = self
+            .bench
             .recording
             .device
             .as_ref()
-            .is_some_and(|d| self.recording.devices.iter().any(|x| &x.id == d));
+            .is_some_and(|d| self.bench.recording.devices.iter().any(|x| &x.id == d));
         if !there {
-            self.recording.device = capture::choices(&self.recording.devices)
+            self.bench.recording.device = capture::choices(&self.bench.recording.devices)
                 .first()
                 .map(|c| c.id.clone());
         }
@@ -134,7 +135,7 @@ impl TimegrapherApp {
     /// The input didn't open: why, kept for its row in Settings, and said.
     pub(super) fn input_failed(&mut self, e: &str) {
         let m = format!("Can't open the input. {}", capture::explain_error(e));
-        self.recording.input_fault = Some(m.clone());
+        self.bench.recording.input_fault = Some(m.clone());
         self.error(m);
     }
 }

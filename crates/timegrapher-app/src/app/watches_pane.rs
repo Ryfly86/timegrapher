@@ -70,7 +70,7 @@ impl TimegrapherApp {
     /// Why a new take can't start or a take be opened from the Watches
     /// view: the Bench holds one take at a time.
     pub(super) fn watches_busy(&self) -> Option<&'static str> {
-        (self.running() || self.recording.batch.is_some())
+        (self.running() || self.bench.recording.batch.is_some())
             .then_some("Stop the take on the Bench first.")
     }
 
@@ -100,7 +100,7 @@ impl TimegrapherApp {
             });
             // The position card named by its title at this width.
             let hints = NEW_TAKES
-                .map(|(_, _, hint, _)| hint.replace("{card}", self.test.position_card_title));
+                .map(|(_, _, hint, _)| hint.replace("{card}", self.bench.test.position_card_title));
             let names: Vec<(&str, &str, &str)> = NEW_TAKES
                 .iter()
                 .zip(&hints)
@@ -167,7 +167,7 @@ impl TimegrapherApp {
         match &self.library {
             Ok(Some(l)) if l.read_only.is_none() => match self.open_watch() {
                 Some(e) => Some(e.dir.join(library::TAKES)),
-                None if self.recording.quick_listen || self.watches_view.unsorted_open => {
+                None if self.bench.recording.quick_listen || self.watches_view.unsorted_open => {
                     l.unsorted_dir().ok()
                 }
                 None => None,
@@ -288,7 +288,7 @@ impl TimegrapherApp {
         }
         match list_pick_route(
             self.running(),
-            self.recording.quick_listen && !self.saving_busy(),
+            self.bench.recording.quick_listen && !self.saving_busy(),
             self.line_pick_asks(),
         ) {
             ListPick::Pick => self.pick_watch(&id),
@@ -379,7 +379,7 @@ impl TimegrapherApp {
             _ => (Vec::new(), false),
         };
         self.want_take_readings(e, ui.ctx());
-        let keeping = self.keeping.take_keep.as_ref().map(|(t, job)| {
+        let keeping = self.bench.keeping.take_keep.as_ref().map(|(t, job)| {
             let read = f64::from_bits(job.progress.load(std::sync::atomic::Ordering::Relaxed));
             (
                 t.as_path(),
@@ -392,7 +392,7 @@ impl TimegrapherApp {
         let on_show = self.take_on_show();
         let held = self.take_held();
         let writing = self.take_writing();
-        let picked = self.keeping.take_picked.clone();
+        let picked = self.bench.keeping.take_picked.clone();
         let cx = watches::TakesContext {
             others: &others,
             writable,
@@ -417,17 +417,17 @@ impl TimegrapherApp {
     /// Do what was asked of a take in the Watches view's list.
     pub(super) fn take_action(&mut self, act: Option<watches::TakeAction>) {
         match act {
-            Some(watches::TakeAction::Pick(dir)) => self.keeping.take_picked = Some(dir),
+            Some(watches::TakeAction::Pick(dir)) => self.bench.keeping.take_picked = Some(dir),
             // The take on show is not read again.
             Some(watches::TakeAction::Open(dir)) if self.take_on_show().as_ref() == Some(&dir) => {
-                self.keeping.take_picked = Some(dir);
+                self.bench.keeping.take_picked = Some(dir);
                 self.watches_view.view = View::Bench;
             }
             Some(watches::TakeAction::Open(dir)) => {
                 self.watches_view.view = View::Bench;
-                self.keeping.take_picked = Some(dir.clone());
-                self.recording.input = Input::File;
-                self.recording.file_path = dir.display().to_string();
+                self.bench.keeping.take_picked = Some(dir.clone());
+                self.bench.recording.input = Input::File;
+                self.bench.recording.file_path = dir.display().to_string();
                 self.open_recording(&dir, true);
             }
             Some(watches::TakeAction::Show(dir)) => {
@@ -451,7 +451,7 @@ impl TimegrapherApp {
                 self.watches_view.take_ask = Some(watches::Ask::Keep { take, bytes, sound });
             }
             Some(watches::TakeAction::MoveTo(take, id)) => self.move_take(&take, &id),
-            Some(watches::TakeAction::CancelKeep) => self.keeping.take_keep = None,
+            Some(watches::TakeAction::CancelKeep) => self.bench.keeping.take_keep = None,
             None => {}
         }
     }
@@ -499,8 +499,8 @@ impl TimegrapherApp {
                 if read_again && shown {
                     // Opened as Open opens it, so the status line names it
                     // (Walter on #1999).
-                    self.recording.input = Input::File;
-                    self.recording.file_path = to.display().to_string();
+                    self.bench.recording.input = Input::File;
+                    self.bench.recording.file_path = to.display().to_string();
                     self.open_recording(&to, false);
                 }
                 if filed {
@@ -516,10 +516,10 @@ impl TimegrapherApp {
     /// The recording opened, a lone file or a take, when it is outside
     /// the library and the library can take it.
     pub(super) fn addable_take(&self) -> Option<PathBuf> {
-        if self.recording.input != Input::File || self.keeping.opened_path.is_empty() {
+        if self.bench.recording.input != Input::File || self.bench.keeping.opened_path.is_empty() {
             return None;
         }
-        let p = PathBuf::from(&self.keeping.opened_path);
+        let p = PathBuf::from(&self.bench.keeping.opened_path);
         let root = match &self.library {
             Ok(Some(l)) if l.read_only.is_none() => l.root.clone(),
             // Made with the first watch.
@@ -536,7 +536,7 @@ impl TimegrapherApp {
     pub(super) fn keep_into(&mut self, id: &str) {
         if let Some(from) = self.addable_take() {
             // The pane shows the watch it goes into, until a Cancel.
-            self.keeping.keep_back = Some((
+            self.bench.keeping.keep_back = Some((
                 self.watches_view.watch_open.clone(),
                 self.watches_view.unsorted_open,
             ));
@@ -574,15 +574,15 @@ impl TimegrapherApp {
             a.new_watch = false;
             // What is on show is not asked again: its position, its beat
             // rate (set or heard) and its lift angle.
-            a.position = a.position.or(Some(self.take.position));
-            a.bph = a.bph.or(self.take.bph).or(self.bph_heard());
-            a.lift = self.take.lift_deg;
+            a.position = a.position.or(Some(self.bench.take.position));
+            a.bph = a.bph.or(self.bench.take.bph).or(self.bph_heard());
+            a.lift = self.bench.take.lift_deg;
             a.lift_set = true;
             let need = self.open_need(&a);
             if Self::open_asks(&a, need) == OpenNeed::default() {
                 self.answer_open_ask(a, need);
             } else {
-                self.keeping.open_ask = Some(a);
+                self.bench.keeping.open_ask = Some(a);
             }
         } else {
             self.keep_in_watch(id);
@@ -598,10 +598,11 @@ impl TimegrapherApp {
         if self.running() && self.session.saved_to().is_some_and(inside) {
             return Some("This take is still being recorded. Press Stop first.".into());
         }
-        if self.running() && inside(Path::new(&self.keeping.opened_path)) {
+        if self.running() && inside(Path::new(&self.bench.keeping.opened_path)) {
             return Some("This take is being played. Press Stop first.".into());
         }
         if self
+            .bench
             .keeping
             .take_add
             .as_ref()
@@ -610,6 +611,7 @@ impl TimegrapherApp {
             return Some(self.adding_already());
         }
         if self
+            .bench
             .keeping
             .take_keep
             .as_ref()
@@ -628,7 +630,10 @@ impl TimegrapherApp {
                     .into(),
             );
         }
-        if !keep && self.recording.batch.is_some() && inside(Path::new(&self.keeping.opened_path)) {
+        if !keep
+            && self.bench.recording.batch.is_some()
+            && inside(Path::new(&self.bench.keeping.opened_path))
+        {
             return Some(
                 "This take is still being analysed. Wait for it to finish, or press Cancel.".into(),
             );
@@ -641,7 +646,7 @@ impl TimegrapherApp {
     pub(super) fn take_moved(&mut self, from: &Path, to: &Path) {
         // The take on show: opened, or the one the session saved (a Quick
         // Listen kept, then filed: #1978).
-        let opened = Path::new(&self.keeping.opened_path).starts_with(from)
+        let opened = Path::new(&self.bench.keeping.opened_path).starts_with(from)
             || self.session.saved_to().is_some_and(|s| s.starts_with(from));
         self.paths_moved(from, to);
         if opened {
@@ -656,7 +661,7 @@ impl TimegrapherApp {
             if let Some((id, name)) = went {
                 self.watches_view.watch_open = Some(id);
                 self.watches_view.unsorted_open = false;
-                self.take.watch = name;
+                self.bench.take.watch = name;
             }
         }
     }
@@ -678,11 +683,11 @@ impl TimegrapherApp {
             }
         }
         self.session.saved_moved(from, to);
-        if let Ok(rest) = Path::new(&self.keeping.opened_path).strip_prefix(from) {
-            self.keeping.opened_path = to.join(rest).display().to_string();
+        if let Ok(rest) = Path::new(&self.bench.keeping.opened_path).strip_prefix(from) {
+            self.bench.keeping.opened_path = to.join(rest).display().to_string();
         }
-        if let Ok(rest) = Path::new(self.recording.file_path.trim()).strip_prefix(from) {
-            self.recording.file_path = to.join(rest).display().to_string();
+        if let Ok(rest) = Path::new(self.bench.recording.file_path.trim()).strip_prefix(from) {
+            self.bench.recording.file_path = to.join(rest).display().to_string();
         }
     }
 
@@ -716,14 +721,14 @@ impl TimegrapherApp {
     /// Keep in a Watch…'s question cancelled: the watch picked before it
     /// is picked again.
     pub(super) fn keep_cancelled(&mut self) {
-        if let Some((watch, unsorted)) = self.keeping.keep_back.take() {
+        if let Some((watch, unsorted)) = self.bench.keeping.keep_back.take() {
             self.watches_view.watch_open = watch;
             self.watches_view.unsorted_open = unsorted;
         }
     }
 
     pub(super) fn answer_take_ask(&mut self, ask: watches::Ask) {
-        self.keeping.keep_back = None;
+        self.bench.keeping.keep_back = None;
         // The session just saved into the take, stopped, lets go of it:
         // nothing more is saved there, and what is on show goes.
         let changed = match &ask {
@@ -760,7 +765,9 @@ impl TimegrapherApp {
                     // empty, as at the start, rather than showing sound
                     // that is gone: set for the next take of the watch
                     // picked, as Listen sets it (#1981).
-                    if !self.running() && Path::new(&self.keeping.opened_path).starts_with(&take) {
+                    if !self.running()
+                        && Path::new(&self.bench.keeping.opened_path).starts_with(&take)
+                    {
                         self.take_setup();
                     }
                     self.info_msg(format!("Deleted \"{}\".", file_name(&take)))
@@ -799,7 +806,7 @@ impl TimegrapherApp {
     /// then puts it in the take's place. Only a take whose session file
     /// names the whole folder in each entry, as the app's own takes do.
     pub(super) fn start_take_keep(&mut self, take: PathBuf) {
-        if self.keeping.take_keep.is_some() {
+        if self.bench.keeping.take_keep.is_some() {
             return;
         }
         let plan = match timegrapher_core::analysis_take::plan_keep(&take, &self.cal.user) {
@@ -836,7 +843,7 @@ impl TimegrapherApp {
                 Err(e) => std::panic::resume_unwind(e),
             }
         });
-        self.keeping.take_keep = Some((
+        self.bench.keeping.take_keep = Some((
             take,
             AnalysisSave {
                 rx,
@@ -856,12 +863,14 @@ impl TimegrapherApp {
             .map(|e| e.watch.name.clone())
             .filter(|n| !n.is_empty())
             .map(|n| (n, true))
-            .or_else(|| (!self.take.watch.is_empty()).then(|| (self.take.watch.clone(), false)))
+            .or_else(|| {
+                (!self.bench.take.watch.is_empty()).then(|| (self.bench.take.watch.clone(), false))
+            })
     }
 
     /// The kept analysis, once written, put in its take's place.
     pub(super) fn poll_take_keep(&mut self) {
-        let Some((_, job)) = &self.keeping.take_keep else {
+        let Some((_, job)) = &self.bench.keeping.take_keep else {
             return;
         };
         let done = match job.rx.try_recv() {
@@ -870,7 +879,7 @@ impl TimegrapherApp {
             Err(TryRecvError::Disconnected) => Err("it stopped part way".into()),
         };
         // Its outcome taken, the job has nothing left to clean up.
-        let Some((take, _)) = self.keeping.take_keep.take() else {
+        let Some((take, _)) = self.bench.keeping.take_keep.take() else {
             return;
         };
         let before = folder_size(&take);
@@ -938,10 +947,10 @@ impl TimegrapherApp {
         }
         // Readings on show keep the settings they were measured with; the
         // watch's apply to its next take.
-        if self.recording.live.is_some() {
+        if self.bench.recording.live.is_some() {
             return;
         }
-        self.recording.quick_listen = false;
+        self.bench.recording.quick_listen = false;
         self.apply_watch(&w);
     }
 
@@ -995,19 +1004,19 @@ impl TimegrapherApp {
         // A watch's take on show, all of it saved, is put away: Unsorted
         // Takes starts again from Quick Listen's settings.
         let watch_take = self.watches_view.watch_open.is_some()
-            && self.recording.live.is_some()
+            && self.bench.recording.live.is_some()
             && !self.needs_save_confirmation()
             && self.session.unsaved_s() < 0.5;
         self.watches_view.watch_open = None;
         self.watches_view.unsorted_open = true;
         // Its takes show, not the list left over from before.
         self.watches_view.list_for = None;
-        self.recording.quick_listen = false;
+        self.bench.recording.quick_listen = false;
         if watch_take {
             self.new_session();
         }
         // Other readings on show keep the settings they were measured with.
-        if self.recording.live.is_some() {
+        if self.bench.recording.live.is_some() {
             self.watches_view.quick_defaults = true;
         } else {
             self.quick_listen_defaults();
@@ -1018,20 +1027,22 @@ impl TimegrapherApp {
     /// with the settings and masks as they are now, since its readings
     /// were worked out at the old one; one opening is read at it anyway.
     pub(super) fn change_bph(&mut self, bph: Option<u32>) {
-        let shown = (!self.running() && !self.recording.opening)
+        let shown = (!self.running() && !self.bench.recording.opening)
             .then(|| self.take_on_show())
             .flatten();
         if !self.set_live_bph(bph) || shown.is_some() {
-            self.recording.anchor = None;
+            self.bench.recording.anchor = None;
             self.clear_trends();
         }
         if let Some(take) = shown {
-            let masked = self.take.masked.clone();
-            self.take.carried_positions =
-                Some((self.positions_now(), self.take.opened_positions.clone()));
-            self.take.reread_with = Some(self.watch_setup());
+            let masked = self.bench.take.masked.clone();
+            self.bench.take.carried_positions = Some((
+                self.positions_now(),
+                self.bench.take.opened_positions.clone(),
+            ));
+            self.bench.take.reread_with = Some(self.watch_setup());
             self.analyse_whole(&take, None);
-            self.take.reread_with = None;
+            self.bench.take.reread_with = None;
             self.put_masked(masked);
         }
     }
@@ -1042,7 +1053,7 @@ impl TimegrapherApp {
     /// core's `set_bph` says), so the strip and trends keep all heard so far.
     fn set_live_bph(&mut self, bph: Option<u32>) -> bool {
         self.put_bph(bph);
-        let Some(l) = self.recording.live.as_mut() else {
+        let Some(l) = self.bench.recording.live.as_mut() else {
             return false;
         };
         l.set_bph(bph)
@@ -1052,14 +1063,14 @@ impl TimegrapherApp {
     /// angle and the beat rate found from the beats.
     fn quick_listen_defaults(&mut self) {
         self.watches_view.quick_defaults = false;
-        self.take.watch.clear();
+        self.bench.take.watch.clear();
         self.put_calibre(String::new());
-        if self.take.lift_deg != DEFAULT_LIFT_DEG {
+        if self.bench.take.lift_deg != DEFAULT_LIFT_DEG {
             self.set_lift(DEFAULT_LIFT_DEG);
         }
-        self.take.lift_context = (DEFAULT_LIFT_DEG, false);
-        if self.take.bph.is_some() && !self.set_live_bph(None) {
-            self.recording.anchor = None;
+        self.bench.take.lift_context = (DEFAULT_LIFT_DEG, false);
+        if self.bench.take.bph.is_some() && !self.set_live_bph(None) {
+            self.bench.recording.anchor = None;
             self.clear_trends();
         }
         self.note_settings();
@@ -1067,7 +1078,7 @@ impl TimegrapherApp {
 
     /// A watch's details as this take's settings.
     pub(super) fn apply_watch(&mut self, w: &library::Watch) {
-        self.take.watch = w.name.clone();
+        self.bench.take.watch = w.name.clone();
         match w.calibre.clone().filter(|c| !c.is_empty()) {
             Some(c) => self.set_calibre(c),
             // Not the calibre of the watch picked before.
@@ -1075,15 +1086,15 @@ impl TimegrapherApp {
         }
         // The calibre's lift angle and beat rate, else the watch's own,
         // else 52° and Auto: nothing kept from the watch picked before.
-        let lift = self.cal.lift(&self.take.calibre).or(w.lift);
+        let lift = self.cal.lift(&self.bench.take.calibre).or(w.lift);
         let l = lift.unwrap_or(DEFAULT_LIFT_DEG);
-        if l != self.take.lift_deg {
+        if l != self.bench.take.lift_deg {
             self.set_lift(l);
         }
-        self.take.lift_context = (l, lift.is_some());
-        let bph = self.cal.bph(&self.take.calibre).or(w.bph);
-        if bph != self.take.bph && !self.set_live_bph(bph) {
-            self.recording.anchor = None;
+        self.bench.take.lift_context = (l, lift.is_some());
+        let bph = self.cal.bph(&self.bench.take.calibre).or(w.bph);
+        if bph != self.bench.take.bph && !self.set_live_bph(bph) {
+            self.bench.recording.anchor = None;
             self.clear_trends();
         }
         self.note_settings();
@@ -1273,7 +1284,7 @@ impl TimegrapherApp {
             Some(watches::FormAction::Save) => self.save_watch_form(),
             Some(watches::FormAction::Cancel) => {
                 self.watches_view.watch_form = None;
-                self.keeping.keep_after_form = false;
+                self.bench.keeping.keep_after_form = false;
             }
             None => {}
         }
@@ -1284,8 +1295,8 @@ impl TimegrapherApp {
         (matches!(
             self.session.state(),
             session::State::Analysing | session::State::Analysed
-        ) && !self.keeping.opened_path.is_empty())
-        .then(|| PathBuf::from(&self.keeping.opened_path))
+        ) && !self.bench.keeping.opened_path.is_empty())
+        .then(|| PathBuf::from(&self.bench.keeping.opened_path))
     }
 
     /// The take the session saved into: Set Wind… there would be undone
@@ -1368,7 +1379,7 @@ impl TimegrapherApp {
         if self.saving_busy() {
             return false;
         }
-        if self.recording.live.is_some() || self.session.recorder.is_some() {
+        if self.bench.recording.live.is_some() || self.session.recorder.is_some() {
             self.new_session();
         }
         if self.watches_view.quick_defaults {
@@ -1378,9 +1389,9 @@ impl TimegrapherApp {
         self.watches_view.unsorted_open = true;
         // The Watches view shows the list, Unsorted Takes marked.
         self.watches_view.list_for = Some((None, true));
-        self.recording.quick_listen = true;
-        self.recording.input = Input::Microphone;
-        self.take.watch.clear();
+        self.bench.recording.quick_listen = true;
+        self.bench.recording.input = Input::Microphone;
+        self.bench.take.watch.clear();
         self.note_settings();
         true
     }
@@ -1411,8 +1422,8 @@ impl TimegrapherApp {
         match done {
             Ok(()) => {
                 self.watches_view.watch_form = None;
-                if f.new && std::mem::take(&mut self.keeping.keep_after_form) {
-                    match self.test.test_keep.take() {
+                if f.new && std::mem::take(&mut self.bench.keeping.keep_after_form) {
+                    match self.bench.test.test_keep.take() {
                         Some(kind) => self.keep_test(kind, Some(&w.id)),
                         None => self.keep_into(&w.id),
                     }
@@ -1424,7 +1435,7 @@ impl TimegrapherApp {
                     self.list_pick(w.id.clone());
                 } else if self.watches_view.watch_open.as_ref() == Some(&w.id)
                     && !self.running()
-                    && self.recording.live.is_none()
+                    && self.bench.recording.live.is_none()
                 {
                     // The take not yet started follows the watch's new details.
                     self.apply_watch(&w);
