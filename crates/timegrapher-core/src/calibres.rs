@@ -657,7 +657,7 @@ mod tests {
             ("Rolex 3255 (53°)", Some(53.0)),
             ("VR3235", Some(52.0)),
             ("VR3285", None),
-            ("DD3135", None),
+            ("DD3135", Some(52.0)),
             ("DD324", Some(52.0)),
         ] {
             let c = find(name).unwrap();
@@ -1116,7 +1116,24 @@ mod tests {
                 .iter()
                 .any(|s| s.contains("31xx-train-wheel-counts.md")));
         }
-        assert_eq!(find("DD3135").unwrap().lift_angle_deg, None);
+        // #2299: this project's bench report gives the DD31xx the genuine
+        // 3135's 52° lift; every DD31xx row and alias carries it and cites it.
+        for name in [
+            "Dandong 3135",
+            "Dandong 3130",
+            "Dandong 3186",
+            "Dandong 3187",
+        ] {
+            let c = find(name).unwrap();
+            assert_eq!(c.lift_angle_deg, Some(52.0), "{name}");
+            assert!(
+                c.sources.iter().any(|s| s.contains("issues/2299")),
+                "{name}"
+            );
+            for alias in &c.family {
+                assert_eq!(find(alias).unwrap().lift_angle_deg, Some(52.0), "{alias}");
+            }
+        }
         assert_eq!(find("Rolex 3135").unwrap().lift_angle_deg, Some(52.0));
         assert_eq!(find("VR3135").unwrap().lift_angle_deg, Some(52.0));
         // A shared number/family must not assign these measurements to SH,

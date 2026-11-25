@@ -318,8 +318,13 @@ The train is barrel 100, second 81/12, third 96/12, fourth 120/18, escape
 The second wheel occupies the established `centre wheel` slot at 36 minutes;
 the cannon pinion is a separate one-hour entry. This corrects the prior
 one-hour second-wheel assumption. The new Dandong 3135 entry has DD/VS
-aliases and leaves lift angle unspecified. Existing Rolex 3131, Rolex
+aliases and left lift angle unspecified. Existing Rolex 3131, Rolex
 3135 and VR3135 lift settings remain; SH3135 is unchanged.
+
+Since #2299 (2026-11-25) the four DD31xx rows (Dandong 3130, 3135, 3186
+and 3187) carry the genuine 3135's 52° lift angle, from this project's
+bench report that their pallet forks can be swapped for genuine ones. It
+is not a maker figure.
 
 ## How far to trust it
 
