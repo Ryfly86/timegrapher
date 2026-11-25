@@ -197,8 +197,9 @@ pub struct WheelLine {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub period: Option<String>,
     /// The cells, of "teeth", "leaves" and "period", that apply to this
-    /// wheel but are not known yet. A cell neither filled nor here does
-    /// not apply (a barrel's pinion, a balance's teeth).
+    /// wheel but are not known yet: every wheel but the balance has teeth
+    /// and every one but the barrel and the balance a pinion. A cell
+    /// neither filled nor here does not apply.
     pub blank: Vec<&'static str>,
 }
 
@@ -688,12 +689,23 @@ fn wheel_lines(c: &Calibre) -> Vec<WheelLine> {
         .iter()
         .filter(|w| !train::ARBORS.contains(&w.name.as_str()))
     {
+        // Every stored wheel but the balance has teeth and a pinion, known
+        // or not (Norm on #2306).
+        let mut blank = Vec::new();
+        if w.name != "balance" {
+            if w.teeth.is_none() {
+                blank.push("teeth");
+            }
+            if w.pinion.is_none() {
+                blank.push("leaves");
+            }
+        }
         let line = WheelLine {
             name: title_case(&w.name),
             teeth: w.teeth,
             leaves: w.pinion,
             period: Some(period_words(w.period_s)),
-            blank: Vec::new(),
+            blank,
         };
         lines.push((wheel_rank(&w.name), line));
     }

@@ -484,6 +484,29 @@ fn counts_are_shown_as_stored() {
     assert!(cannon.blank.is_empty());
 }
 
+/// A stored wheel outside the going train has teeth and a pinion, so a
+/// count the table lacks is blank; the balance has neither (Norm, #2306).
+#[test]
+fn other_wheels_mark_their_missing_counts_blank() {
+    let c = row(r#", "wheels": [{"name": "balance", "period_s": 0.25},
+            {"name": "cannon pinion", "period_s": 3600},
+            {"name": "seconds wheel", "period_s": 60, "teeth": 70}]"#);
+    let w = page_of(&c).wheels;
+    let get = |n: &str| w.iter().find(|l| l.name == n).unwrap();
+    assert_eq!(get("Cannon Pinion").blank, ["teeth", "leaves"]);
+    assert_eq!(get("Seconds Wheel").blank, ["leaves"]);
+    assert!(get("Balance").blank.is_empty());
+    let stored = find("ETA 2892-A2").expect("2892-A2 in the table");
+    let cannon = page_of(stored)
+        .wheels
+        .into_iter()
+        .find(|l| l.name == "Cannon Pinion")
+        .expect("2892-A2 stores its cannon pinion");
+    // The table stores its period only.
+    assert_eq!((cannon.teeth, cannon.leaves), (None, None));
+    assert_eq!(cannon.blank, ["teeth", "leaves"]);
+}
+
 /// The ETA 2824-2 in the shipped table has its whole going train counted.
 #[test]
 fn a_counted_train_has_no_blank_counts() {
