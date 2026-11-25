@@ -13268,7 +13268,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Buren Watch 1280, 48°)",
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (BUREN WATCH 1280, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "height_mm": {
+      "value": "2.85",
+      "source": "https://reference.grail-watch.com/movement/buren-1280/ (Grail Watch reference, Buren 1280; Watch Wiki https://www.watch-wiki.net/doku.php?id=buren_1280 gives the same) (\"Height: 2.85 mm\" … \"H 2,85 mm\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://reference.grail-watch.com/movement/buren-1280/ (Grail Watch reference, Buren 1280; Watch Wiki https://www.watch-wiki.net/doku.php?id=buren_1280 gives the same) (\"Winding: Automatic, Micro-Rotor Automatic Winding\" … \"self-winding movement with microrotor\")"
+    }
   },
   {
     "calibre": "Buren 1281",
@@ -18948,7 +18958,13 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Ebosa 86, 63°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Ebosa 86, 63°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "hand winding"
+      ],
+      "source": "https://17jewels.info/movements/e/ebosa/ebosa-86/ (17jewels, Ebosa 86; Swiss Watch House https://swisswh.com/product/ebosa-86-movement/ gives the same) (\"manual wind movement\" … \"Winding System | Manual Winding\")"
+    }
   },
   {
     "calibre": "Ebosa 87",
@@ -38281,7 +38297,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Oris 645, 44°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Oris 645, 44°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://www.oris.ch/en-US/worldoforis/about-us/where-joy-mechanics-comes-life (Oris history) (\"led to the breakthrough Automatic Caliber 645 in 1966\")"
+    },
+    "years": {
+      "from": 1966,
+      "source": "https://www.oris.ch/en-US/worldoforis/about-us/where-joy-mechanics-comes-life (Oris history) (\"led to the breakthrough Automatic Caliber 645 in 1966\")"
+    }
   },
   {
     "calibre": "Oris 648",
@@ -40943,7 +40969,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Poljot 2609, 51°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Poljot 2609, 51°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://17jewels.info/movements/p/poljot/poljot-2609/ (17jewels, Poljot 2609; urss.watch https://urss.watch/2020/09/11/poljot-2609-1093286/ gives the same) (\"Number of jewels: 17\" … \"Mécanisme : Poljot 2609 à 17 rubis\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding"
+      ],
+      "source": "https://watch-movements-archive.com/watch-movement/poljot-2609/ (Watch Movements Archive, Poljot 2609; 17jewels https://17jewels.info/movements/p/poljot/poljot-2609/ gives the same) (\"Winding: Manual (Crown)\" … \"a large 11 1/2 ligne windup caliber, Poljot 2609\")"
+    }
   },
   {
     "calibre": "Poljot 2614",
@@ -56438,7 +56474,14 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Blancpain 1151, 53°)",
       "https://www.blancpain.com/en-us/taxonomy/term/10506 (Blancpain, Caliber 1151) (3Hz)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date"
+      ],
+      "source": "https://dials.co/calibers/blancpain/1151 (dials.co, Blancpain 1151; Darry Chen https://www.darrychen.com/blancpain-caliber-1151/ gives the same) (\"Type Automatic … Complications Date, Hours, Minutes, Seconds\" … \"Automatic (self-winding) … Hours, minutes, central seconds, date\")"
+    }
   },
   {
     "calibre": "BRAC 152",
@@ -58389,7 +58432,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Durowe 89, 56°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Durowe 89, 56°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://17jewels.info/movements/d/durowe/durowe-89/ (17jewels, Durowe 89; Watch Movements Archive https://watch-movements-archive.com/watch-movement/durowe-89/ gives the same) (\"Number of jewels: 17\" … \"Jewels: 17\")"
+    }
   },
   {
     "calibre": "Durowe 89-1",
@@ -63456,7 +63503,17 @@
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (H, Moser & Cie, HMC 200, 49°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "power_reserve_h": {
+      "value": "72",
+      "source": "https://h-moser.com/en/heritage/heritage-centre-seconds-8200-1201 (H. Moser & Cie., Heritage Centre Seconds 8200-1201 with calibre HMC 200) (\"Power Reserve … 72 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://h-moser.com/en/heritage/heritage-centre-seconds-8200-1201 (H. Moser & Cie., Heritage Centre Seconds 8200-1201 with calibre HMC 200) (\"With an incorporated automatic winding system, the HMC 200\")"
+    }
   },
   {
     "calibre": "IWC 30110",
@@ -65432,7 +65489,13 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Marvin 310, 53°)",
       "https://watch-movements-archive.com/watch-movement/marvin-310/ (Watch Movements Archive, Marvin 310) (Beats per hour: 18,000)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "hand winding"
+      ],
+      "source": "https://watch-movements-archive.com/watch-movement/marvin-310/ (Watch Movements Archive, Marvin 310; 17jewels https://17jewels.info/movements/m/marvin/marvin-310/ gives the same) (\"Winding: Manual (Crown)\" … \"a 8 3/4 ligne windup movement\")"
+    }
   },
   {
     "calibre": "Marvin 310S",
@@ -65511,7 +65574,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Marvin 580, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Marvin 580, 52°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 25,
+      "source": "https://www.marvinwatch.com/pages/marvin-movement (Marvin movement history) (\"The 580 caliber featured 25 jewels\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://www.marvinwatch.com/pages/marvin-movement (Marvin movement history) (\"Marvin 580 - 25-jewel automatic platform\")"
+    }
   },
   {
     "calibre": "Marvin 620",
@@ -67288,7 +67361,27 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Nomos alpha, 52°)",
       "https://reference.grail-watch.com/movement/nomos-alpha/ (Grail Watch, Nomos Alpha) (Frequency: 21,600 A/h)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://nomos-glashuette.com/en/caliber/alpha-alpha-mit-duw-reguliersystem (NOMOS, Alpha caliber page) (\"17 jewels\")"
+    },
+    "diameter": {
+      "mm": "23.3",
+      "lignes": "10½",
+      "source": "https://nomos-glashuette.com/en/caliber/alpha-alpha-mit-duw-reguliersystem (NOMOS, Alpha caliber page) (\"10 ½ lines (23.3 mm)\")"
+    },
+    "height_mm": {
+      "value": "2.6",
+      "source": "https://nomos-glashuette.com/en/caliber/alpha-alpha-mit-duw-reguliersystem (NOMOS, Alpha caliber page) (\"movement height … 2.6 mm\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "hacking"
+      ],
+      "source": "https://nomos-glashuette.com/en/caliber/alpha-alpha-mit-duw-reguliersystem (NOMOS, Alpha caliber page) (\"in-house built NOMOS caliber with manual winding … stop-seconds mechanism\")"
+    }
   },
   {
     "calibre": "Nomos DUW4101",
@@ -67306,7 +67399,28 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Nomos DUW4101, 52°)",
       "https://chronospex.com/nomos/calibers-nomos/duw-4101/ (Chronospex, NOMOS Glashütte DUW 4101) (Frequency 21,600 vph (3Hz))"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 23,
+      "source": "https://nomos-glashuette.com/en/caliber/duw-4101-duw-4101 (NOMOS, DUW 4101 caliber page) (\"23 jewels\")"
+    },
+    "diameter": {
+      "mm": "32.1",
+      "lignes": "14¼",
+      "source": "https://nomos-glashuette.com/en/caliber/duw-4101-duw-4101 (NOMOS, DUW 4101 caliber page) (\"14 ¼ lines (32.1 mm)\")"
+    },
+    "height_mm": {
+      "value": "2.8",
+      "source": "https://nomos-glashuette.com/en/caliber/duw-4101-duw-4101 (NOMOS, DUW 4101 caliber page) (\"movement height … 2.8 mm\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "hacking",
+        "date"
+      ],
+      "source": "https://nomos-glashuette.com/en/caliber/duw-4101-duw-4101 (NOMOS, DUW 4101 caliber page) (\"in-house built NOMOS caliber with manual winding and date indicator … stop-seconds mechanism\")"
+    }
   },
   {
     "calibre": "Omega 1000",
@@ -76456,7 +76570,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Tissot 709, 51°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Tissot 709, 51°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://watch-movements-archive.com/watch-movement/tissot-709/ (Watch Movements Archive, Tissot 709; 17jewels https://17jewels.info/movements/t/tissot/tissot-709/ gives the same) (\"Jewels: 17\" … \"Number of jewels: 17\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding"
+      ],
+      "source": "https://watch-movements-archive.com/watch-movement/tissot-709/ (Watch Movements Archive, Tissot 709; 17jewels https://17jewels.info/movements/t/tissot/tissot-709/ gives the same) (\"Winding: Manual (Crown)\" … \"a tiny handwound movement for ladies’ watches\")"
+    }
   },
   {
     "calibre": "Tissot 871",
@@ -77132,7 +77256,29 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Yema 2000, 52°)",
       "https://yema.com/products/yema-flygraf-flieger-french-air-force-yfly24aa-ggs (Yema, Flygraf Flieger with the YEMA2000 In-house caliber) (28,800 A/h)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 29,
+      "source": "https://yema.com/pages/pages-in-house-calibers-yema2000-3000 (YEMA, in-house calibers YEMA2000 and YEMA3000, shared specification card) (\"JEWELS … 29\")"
+    },
+    "power_reserve_h": {
+      "value": "42",
+      "source": "https://yema.com/pages/pages-in-house-calibers-yema2000-3000 (YEMA, in-house calibers YEMA2000 and YEMA3000, shared specification card) (\"POWER RESERVE … 42 Hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "hacking"
+      ],
+      "source": "https://yema.com/pages/pages-in-house-calibers-yema2000-3000 (YEMA, in-house calibers YEMA2000 and YEMA3000, shared specification card) (\"Mechanical self-winding bidirectional movement … HACKING SECONDS … YES\")"
+    },
+    "related": [
+      {
+        "calibre": "Yema MBP1000",
+        "relation": "successor of",
+        "source": "https://yema.com/pages/pages-in-house-calibers-yema2000-3000 (YEMA, in-house calibers page) (\"YEMA's In-house Calibers YEMA2000 and YEMA3000 are an evolution of our first caliber MBP1000\")"
+      }
+    ]
   },
   {
     "calibre": "Yema MBP1000",
@@ -78152,7 +78298,12 @@
     "sources": [
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Enicar 160, 52°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "diameter": {
+      "mm": "26.80",
+      "lignes": "11¾",
+      "source": "https://myretrowatches.co.uk/wp-content/uploads/2023/11/Enicar-160.pdf (Enicar list of materials, calibre 11 3/4''' 160, 161, 163, 165, 166, 167 AR (myretrowatches copy)) (\"Calibre 11 3/4'''- 160, 161, 163, 165, 166, 167 AR … total 26,80 mm\")"
+    }
   },
   {
     "calibre": "Enicar 161",
@@ -78169,7 +78320,12 @@
     "sources": [
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Enicar 161, 52°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "diameter": {
+      "mm": "26.80",
+      "lignes": "11¾",
+      "source": "https://myretrowatches.co.uk/wp-content/uploads/2023/11/Enicar-160.pdf (Enicar list of materials, calibre 11 3/4''' 160, 161, 163, 165, 166, 167 AR (myretrowatches copy)) (\"Calibre 11 3/4'''- 160, 161, 163, 165, 166, 167 AR … total 26,80 mm\")"
+    }
   },
   {
     "calibre": "Enicar 163",
@@ -78186,7 +78342,12 @@
     "sources": [
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Enicar 163, 52°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "diameter": {
+      "mm": "26.80",
+      "lignes": "11¾",
+      "source": "https://myretrowatches.co.uk/wp-content/uploads/2023/11/Enicar-160.pdf (Enicar list of materials, calibre 11 3/4''' 160, 161, 163, 165, 166, 167 AR (myretrowatches copy)) (\"Calibre 11 3/4'''- 160, 161, 163, 165, 166, 167 AR … total 26,80 mm\")"
+    }
   },
   {
     "calibre": "Enicar 165",
@@ -78203,7 +78364,12 @@
     "sources": [
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Enicar 165, 52°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "diameter": {
+      "mm": "26.80",
+      "lignes": "11¾",
+      "source": "https://myretrowatches.co.uk/wp-content/uploads/2023/11/Enicar-160.pdf (Enicar list of materials, calibre 11 3/4''' 160, 161, 163, 165, 166, 167 AR (myretrowatches copy)) (\"Calibre 11 3/4'''- 160, 161, 163, 165, 166, 167 AR … total 26,80 mm\")"
+    }
   },
   {
     "calibre": "Enicar 166",
@@ -78220,7 +78386,12 @@
     "sources": [
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Enicar 166, 52°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "diameter": {
+      "mm": "26.80",
+      "lignes": "11¾",
+      "source": "https://myretrowatches.co.uk/wp-content/uploads/2023/11/Enicar-160.pdf (Enicar list of materials, calibre 11 3/4''' 160, 161, 163, 165, 166, 167 AR (myretrowatches copy)) (\"Calibre 11 3/4'''- 160, 161, 163, 165, 166, 167 AR … total 26,80 mm\")"
+    }
   },
   {
     "calibre": "Enicar 167",
@@ -78237,7 +78408,12 @@
     "sources": [
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Enicar 167, 52°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "diameter": {
+      "mm": "26.80",
+      "lignes": "11¾",
+      "source": "https://myretrowatches.co.uk/wp-content/uploads/2023/11/Enicar-160.pdf (Enicar list of materials, calibre 11 3/4''' 160, 161, 163, 165, 166, 167 AR (myretrowatches copy)) (\"Calibre 11 3/4'''- 160, 161, 163, 165, 166, 167 AR … total 26,80 mm\")"
+    }
   },
   {
     "calibre": "Enicar 410",
@@ -82426,7 +82602,31 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 18,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW210-1 a and SW210-1 b) (\"18 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW210-1 a and SW210-1 b) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "3.35",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW210-1 a and SW210-1 b) (\"H 3.35 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "45",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW210-1 a and SW210-1 b) (\"Typical power reserve: 45 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "hacking"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW210-1 a and SW210-1 b) (\"Manual winding … Stop second device\")"
+    }
   },
   {
     "calibre": "Tissot 13.6",
@@ -87749,7 +87949,24 @@
     "confidence": "inferred family transfer",
     "notes": "28,800 bph 2824 base train only. The centre wheel slot denotes the off-centre second/intermediate wheel (77/17), not the one-hour cannon pinion. The third pinion (13) drives the cannon wheel (78): 600 x 78/13 = 3600 s. Barrel running period is 4666200/221 s; this is not power reserve. See the evidence document for applicability and exclusions. Train counts are transferred from the photographed base, not separately measured on this variant. Seagull publishes the beat rate; equality of the base train is a family inference under contributor coverage. The 50° lift angle is Peter Hudson's figure for all 2824-2 movements and their derivatives, clones and variations (2026-10-22); it is not inferred from the shared train.",
     "escape_teeth": 20,
-    "lift_angle_deg": 50
+    "lift_angle_deg": 50,
+    "jewels": {
+      "value": 28,
+      "source": "https://en.seagullwatch.com/products/hands-date-movement-ty2100-st2100 (Sea-Gull product page, ST2100) (\"Number of Jewels: 28\")"
+    },
+    "power_reserve_h": {
+      "value": "40",
+      "source": "https://en.seagullwatch.com/products/hands-date-movement-ty2100-st2100 (Sea-Gull product page, ST2100) (\"Reserve Hours: 40\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "hacking",
+        "date",
+        "day"
+      ],
+      "source": "https://en.seagullwatch.com/products/hands-date-movement-ty2100-st2100 (Sea-Gull product page, ST2100) (\"Winding Mode: Automatic Winding … Week & date at 3H … Stop-second\")"
+    }
   },
   {
     "calibre": "Seagull ST8000",
@@ -87904,7 +88121,24 @@
     "confidence": "inferred family transfer",
     "notes": "28,800 bph 2824 base train only. The centre wheel slot denotes the off-centre second/intermediate wheel (77/17), not the one-hour cannon pinion. The third pinion (13) drives the cannon wheel (78): 600 x 78/13 = 3600 s. Barrel running period is 4666200/221 s; this is not power reserve. See the evidence document for applicability and exclusions. Train counts are transferred from the photographed base, not separately measured on this variant. Seagull publishes the beat rate; equality of the base train is a family inference under contributor coverage. The 50° lift angle is Peter Hudson's figure for all 2824-2 movements and their derivatives, clones and variations (2026-10-22); it is not inferred from the shared train.",
     "escape_teeth": 20,
-    "lift_angle_deg": 50
+    "lift_angle_deg": 50,
+    "jewels": {
+      "value": 28,
+      "source": "https://en.seagullwatch.com/products/multifunction-moon-phase-movement-ty2108-st2108 (Sea-Gull product page, ST2108) (\"Number of Jewels: 28\")"
+    },
+    "power_reserve_h": {
+      "value": "40",
+      "source": "https://en.seagullwatch.com/products/multifunction-moon-phase-movement-ty2108-st2108 (Sea-Gull product page, ST2108) (\"Reserve Hours: 40\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "hacking",
+        "date",
+        "moon phase"
+      ],
+      "source": "https://en.seagullwatch.com/products/multifunction-moon-phase-movement-ty2108-st2108 (Sea-Gull product page, ST2108) (\"Winding Mode: Automatic Winding … Date & moon phase at 6H … Stop-second\")"
+    }
   },
   {
     "calibre": "Seagull ST2553JK1",
@@ -88537,7 +88771,34 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 31,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW260-1) (\"31 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW260-1) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "5.60",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW260-1) (\"H 5.60 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "41",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW260-1) (\"Typical power reserve: 41 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW260-1) (\"Self-winding - 3 hands - small second - date … Date with quick setting … Self-winding mechanism with ball bearing … Stop second device … 1) Manual winding\")"
+    }
   },
   {
     "calibre": "Sellita SW261-1",
@@ -88609,7 +88870,34 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 31,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW261-1) (\"31 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW261-1) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "5.60",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW261-1) (\"H 5.60 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "41",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW261-1) (\"Typical power reserve: 41 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW261-1) (\"Self-winding - 3 hands - small second - date … Date with quick setting … Self-winding mechanism with ball bearing … Stop second device … 1) Manual winding\")"
+    }
   },
   {
     "calibre": "Sellita SW266-1",
@@ -88681,7 +88969,34 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 31,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW266-1) (\"31 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW266-1) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "5.60",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW266-1) (\"H 5.60 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "41",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW266-1) (\"Typical power reserve: 41 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW266-1) (\"Self-winding - 3 hands - regulator - date … Date with quick setting … Self-winding mechanism with ball bearing … Stop second device … 1) Manual winding\")"
+    }
   },
   {
     "calibre": "Sellita SW290-1",
@@ -88753,7 +89068,34 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 31,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW290-1) (\"31 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW290-1) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "5.60",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW290-1) (\"H 5.60 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "41",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW290-1) (\"Typical power reserve: 41 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW290-1) (\"Self-winding - 3 hands - small second - date … Date with quick setting … Self-winding mechanism with ball bearing … Stop second device … 1) Manual winding\")"
+    }
   },
   {
     "calibre": "Sellita SW221-1",
@@ -88825,7 +89167,34 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 26,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW221-1) (\"26 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW221-1) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "5.05",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW221-1) (\"H 5.05 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "41",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW221-1) (\"Typical power reserve: 41 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW221-1) (\"Self-winding - 4 hands - pointer date … Date by central hand with quick setting … Self-winding mechanism with ball bearing … Stop second device … 1) Manual winding\")"
+    }
   },
   {
     "calibre": "Sellita SW280-1",
@@ -88897,7 +89266,35 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 26,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW280-1) (\"26 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW280-1) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "5.40",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW280-1) (\"H 5.40 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "41",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW280-1) (\"Typical power reserve: 41 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date",
+        "moon phase"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW280-1) (\"Self-winding - 3 hands - date - moon phase … Date and moon phase at 6 o’clock with quick setting … Self-winding mechanism with ball bearing … Stop second device … 1) Manual winding\")"
+    }
   },
   {
     "calibre": "Sellita SW285-1",
@@ -88971,7 +89368,35 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 26,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW285-1 a and SW285-1 b) (\"26 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW285-1 a and SW285-1 b) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "5.40",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW285-1 a and SW285-1 b) (\"H 5.40 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "41",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW285-1 a and SW285-1 b) (\"Typical power reserve: 41 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date",
+        "moon phase"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW285-1 a and SW285-1 b) (\"Self-winding - 4 hands - date - moon phase - day/night … Date and moon phase at 6 o’clock with quick setting … Self-winding mechanism with ball bearing … Stop second device … 1) Manual winding … Self-winding - 3 hands - date - moon phase - day/night\")"
+    }
   },
   {
     "calibre": "Sellita SW288-1",
@@ -89045,7 +89470,35 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 26,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW288-1 a and SW288-1 b) (\"26 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW288-1 a and SW288-1 b) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "5.65",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW288-1 a and SW288-1 b) (\"H 5.65 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "41",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW288-1 a and SW288-1 b) (\"Typical power reserve: 41 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date",
+        "moon phase"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW288-1 a and SW288-1 b) (\"Self-winding - 3 hands - date - moon phase … Date and big central moon phase with quick setting … Self-winding mechanism with ball bearing … Stop second device … 1) Manual winding … Date and big moon phase at 6 o’clock with quick setting\")"
+    }
   },
   {
     "calibre": "Sellita SW270-1",
@@ -89117,7 +89570,35 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 26,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW270-1) (\"26 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW270-1) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "5.60",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW270-1) (\"H 5.60 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "41",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW270-1) (\"Typical power reserve: 41 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date",
+        "power reserve indicator"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW270-1) (\"Self-winding - 4 hands - date - power reserve indicator … Power reserve indicator at 6 o’clock (pivot point distance: 7.60 mm) … Date with quick setting … Self-winding mechanism with ball bearing … Stop second device … 1) Manual winding\")"
+    }
   },
   {
     "calibre": "Sellita SW279-1",
@@ -89189,7 +89670,35 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 31,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW279-1) (\"31 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW279-1) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "5.60",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW279-1) (\"H 5.60 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "41",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW279-1) (\"Typical power reserve: 41 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date",
+        "power reserve indicator"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW279-1) (\"Self-winding - 4 hands - small second - date - power reserve … Power reserve indicator at 6 o’clock (pivot point distance: 7.60 mm) … Date with quick setting … Self-winding mechanism with ball bearing … Stop second device … 1) Manual winding\")"
+    }
   },
   {
     "calibre": "Sellita SW216-1",
@@ -89261,7 +89770,33 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 23,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW216-1) (\"23 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW216-1) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "4.35",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW216-1) (\"H 4.35 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "45",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW216-1) (\"Typical power reserve: 45 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW216-1) (\"Manual winding - 3 hands - small second - date … Date with quick setting … Manual winding … Stop second device\")"
+    }
   },
   {
     "calibre": "Sellita SW219-1",
@@ -89333,7 +89868,33 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 23,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW219-1) (\"23 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW219-1) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "4.35",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW219-1) (\"H 4.35 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "45",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW219-1) (\"Typical power reserve: 45 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW219-1) (\"Manual winding - 3 hands - small second - date … Date with quick setting … Manual winding … Stop second device\")"
+    }
   },
   {
     "calibre": "Sellita SW261-1 M",
@@ -89405,7 +89966,33 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 23,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW261-1 M) (\"23 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW261-1 M) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "4.35",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW261-1 M) (\"H 4.35 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "45",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW261-1 M) (\"Typical power reserve: 45 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW261-1 M) (\"Manual winding - 3 hands - small second - date … Date with quick setting … Manual winding … Stop second device\")"
+    }
   },
   {
     "calibre": "Sellita SW266-1 M",
@@ -89477,7 +90064,33 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 23,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW266-1 M) (\"23 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW266-1 M) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "4.35",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW266-1 M) (\"H 4.35 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "45",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW266-1 M) (\"Typical power reserve: 45 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW266-1 M) (\"Manual winding - 3 hands - regulator - date … Date with quick setting … Manual winding … Stop second device\")"
+    }
   },
   {
     "calibre": "Sellita SW220-1 M",
@@ -89549,7 +90162,34 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 18,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW220-1 M) (\"18 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW220-1 M) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "3.80",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW220-1 M) (\"H 3.80 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "45",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW220-1 M) (\"Typical power reserve: 45 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "hacking",
+        "date",
+        "quickset date",
+        "day"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW220-1 M) (\"Manual winding - 3 hands - date - day … Date and day with quick setting … Manual winding … Stop second device\")"
+    }
   },
   {
     "calibre": "Sellita SW240-1 M",
@@ -89621,7 +90261,34 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 18,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW240-1 M) (\"18 jewels\")"
+    },
+    "diameter": {
+      "mm": "29.00",
+      "lignes": "13",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW240-1 M) (\"13’’’ … Ø 29.00 mm\")"
+    },
+    "height_mm": {
+      "value": "3.80",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW240-1 M) (\"H 3.80 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "45",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW240-1 M) (\"Typical power reserve: 45 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "hacking",
+        "date",
+        "quickset date",
+        "day"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW240-1 M) (\"Manual winding - 3 hands - date - day … Date and day with quick setting … Manual winding … Stop second device\")"
+    }
   },
   {
     "calibre": "Sellita SW221-1 M",
@@ -89693,7 +90360,33 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 18,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW221-1 M) (\"18 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW221-1 M) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "3.80",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW221-1 M) (\"H 3.80 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "45",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW221-1 M) (\"Typical power reserve: 45 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW221-1 M) (\"Manual winding - 4 hands - pointer date … Date by central hand with quick setting … Manual winding … Stop second device\")"
+    }
   },
   {
     "calibre": "Sellita SW280-1 M",
@@ -89765,7 +90458,34 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 18,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW280-1 M) (\"18 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW280-1 M) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "4.15",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW280-1 M) (\"H 4.15 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "45",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW280-1 M) (\"Typical power reserve: 45 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "hacking",
+        "date",
+        "quickset date",
+        "moon phase"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW280-1 M) (\"Manual winding - 3 hands - date - moon phase … Date and moon phase (at 6 o’clock) with quick setting … Manual winding … Stop second device\")"
+    }
   },
   {
     "calibre": "Sellita SW285-1 M",
@@ -89839,7 +90559,34 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 18,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW285-1 M a and SW285-1 M b) (\"18 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW285-1 M a and SW285-1 M b) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "4.15",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW285-1 M a and SW285-1 M b) (\"H 4.15 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "45",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW285-1 M a and SW285-1 M b) (\"Typical power reserve: 45 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "hacking",
+        "date",
+        "quickset date",
+        "moon phase"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW285-1 M a and SW285-1 M b) (\"Manual winding - 4 hands - date - moon phase - day/night … Date and moon phase (at 6 o’clock) with quick setting … Manual winding … Stop second device … Manual winding - 3 hands - date - moon phase - day/night\")"
+    }
   },
   {
     "calibre": "Sellita SW288-1 M",
@@ -89913,7 +90660,34 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 18,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW288-1 M a and SW288-1 M b) (\"18 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW288-1 M a and SW288-1 M b) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "4.40",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW288-1 M a and SW288-1 M b) (\"H 4.40 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "45",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW288-1 M a and SW288-1 M b) (\"Typical power reserve: 45 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "hacking",
+        "date",
+        "quickset date",
+        "moon phase"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW288-1 M a and SW288-1 M b) (\"Manual winding - 3 hands - date - moon phase … Date and big central moon phase with quick setting … Manual winding … Stop second device … Date and big moon phase at 6 o’clock with quick setting\")"
+    }
   },
   {
     "calibre": "Sellita SW270-1 M",
@@ -89985,7 +90759,34 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 18,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW270-1 M) (\"18 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW270-1 M) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "4.35",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW270-1 M) (\"H 4.35 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "45",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW270-1 M) (\"Typical power reserve: 45 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "hacking",
+        "date",
+        "quickset date",
+        "power reserve indicator"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW270-1 M) (\"Manual winding - 4 hands - date - power reserve indicator … Power reserve indicator at 6 o’clock (pivot point distance: 7.60 mm) … Date with quick setting … Manual winding … Stop second device\")"
+    }
   },
   {
     "calibre": "Sellita SW279-1 M",
@@ -90057,7 +90858,34 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 23,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW279-1 M) (\"23 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW279-1 M) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "4.35",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW279-1 M) (\"H 4.35 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "45",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW279-1 M) (\"Typical power reserve: 45 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "hacking",
+        "date",
+        "quickset date",
+        "power reserve indicator"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW279-1 M) (\"Manual winding - 4 hands - small second - date - power … Power reserve indicator at 6 o’clock (pivot point distance: 7.60 mm) … Date with quick setting … Manual winding … Stop second device\")"
+    }
   },
   {
     "calibre": "Sellita SW400-1",
@@ -90131,7 +90959,32 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 26,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW400-1 a and SW400-1 b) (\"26 jewels\")"
+    },
+    "diameter": {
+      "mm": "31.00",
+      "lignes": "13¾",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW400-1 a and SW400-1 b) (\"13¾’’’ … Ø 31.00 mm\")"
+    },
+    "height_mm": {
+      "value": "4.67",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW400-1 a and SW400-1 b) (\"H 4.67 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "41",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW400-1 a and SW400-1 b) (\"Typical power reserve: 41 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW400-1 a and SW400-1 b) (\"Self-winding mechanism with ball bearing … Stop second device … 1) Manual winding\")"
+    }
   },
   {
     "calibre": "Sellita SW461-1",
@@ -90203,7 +91056,34 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 31,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW461-1) (\"31 jewels\")"
+    },
+    "diameter": {
+      "mm": "31.00",
+      "lignes": "13¾",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW461-1) (\"13¾’’’ … Ø 31.00 mm\")"
+    },
+    "height_mm": {
+      "value": "5.67",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW461-1) (\"H 5.67 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "41",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW461-1) (\"Typical power reserve: 41 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW461-1) (\"Self-winding - 3 hands - small second - date … Date with quick setting … Self-winding mechanism with ball bearing … Stop second device … 1) Manual winding\")"
+    }
   },
   {
     "calibre": "HK Precision PT5000",
@@ -90399,7 +91279,20 @@
       }
     ],
     "confidence": "inferred family transfer",
-    "notes": "28,800 bph 2824 base train only. The centre wheel slot denotes the off-centre second/intermediate wheel (77/17), not the one-hour cannon pinion. The third pinion (13) drives the cannon wheel (78): 600 x 78/13 = 3600 s. Barrel running period is 4666200/221 s; this is not power reserve. See the evidence document for applicability and exclusions. Train counts are transferred from the photographed base, not separately measured on this variant. The 50° lift angle is Peter Hudson's figure for all 2824-2 movements and their derivatives, clones and variations (2026-10-22); it is not inferred from the shared train."
+    "notes": "28,800 bph 2824 base train only. The centre wheel slot denotes the off-centre second/intermediate wheel (77/17), not the one-hour cannon pinion. The third pinion (13) drives the cannon wheel (78): 600 x 78/13 = 3600 s. Barrel running period is 4666200/221 s; this is not power reserve. See the evidence document for applicability and exclusions. Train counts are transferred from the photographed base, not separately measured on this variant. The 50° lift angle is Peter Hudson's figure for all 2824-2 movements and their derivatives, clones and variations (2026-10-22); it is not inferred from the shared train.",
+    "jewels": {
+      "value": 25,
+      "source": "https://calibercorner.com/soprod-caliber-p024/ (Caliber Corner, Soprod P024; Trotteuse https://trotteuse.fr/calibres/soprod-p024/ gives the same) (\"Jewels | 25\" … \"Rubis | 25\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "hand winding",
+        "hacking",
+        "date"
+      ],
+      "source": "https://calibercorner.com/soprod-caliber-p024/ (Caliber Corner, Soprod P024; Trotteuse https://trotteuse.fr/calibres/soprod-p024/ gives the same) (\"Automatic, self-winding mechanical … Hand Windable? | Yes … Hacking Seconds? | Yes … date at 3:00\" … \"Type | automatique … Remontage à la main | oui … Stop-seconde | oui … date à correction rapide\")"
+    }
   },
   {
     "calibre": "Hangzhou 6300",
@@ -90557,7 +91450,16 @@
       }
     ],
     "confidence": "inferred family transfer",
-    "notes": "28,800 bph 2824 base train only. The centre wheel slot denotes the off-centre second/intermediate wheel (77/17), not the one-hour cannon pinion. The third pinion (13) drives the cannon wheel (78): 600 x 78/13 = 3600 s. Barrel running period is 4666200/221 s; this is not power reserve. See the evidence document for applicability and exclusions. Train counts are transferred from the photographed base, not separately measured on this variant. The 50° lift angle is Peter Hudson's figure for all 2824-2 movements and their derivatives, clones and variations (2026-10-22); it is not inferred from the shared train."
+    "notes": "28,800 bph 2824 base train only. The centre wheel slot denotes the off-centre second/intermediate wheel (77/17), not the one-hour cannon pinion. The third pinion (13) drives the cannon wheel (78): 600 x 78/13 = 3600 s. Barrel running period is 4666200/221 s; this is not power reserve. See the evidence document for applicability and exclusions. Train counts are transferred from the photographed base, not separately measured on this variant. The 50° lift angle is Peter Hudson's figure for all 2824-2 movements and their derivatives, clones and variations (2026-10-22); it is not inferred from the shared train.",
+    "functions": {
+      "value": [
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://watch-movements-archive.com/watch-movement/valanvron-val24/ (Watch Movements Archive, Valanvron VAL24; Grail Watch wiki https://wiki.grail-watch.com/index.php/Valanvron_VAL-24 gives the same) (\"Winding: Automatic … Date quick-setting … Sweeping seconds with hacking\" … \"is self-winding with ball bearings … It includes a quickset date … hacking second hand\")"
+    }
   },
   {
     "calibre": "SH31xx (ETA 2824 base)",
