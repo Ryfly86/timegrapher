@@ -123,13 +123,13 @@ impl TimegrapherApp {
     /// longer holds hours it held alone is said once (#2061): it is looked
     /// at again each minute, quietly, and written into once it holds them.
     pub(super) fn stream_tick(&mut self) {
-        if self.keeping.saving.is_some()
+        if self.bench.keeping.saving.is_some()
             || !self.streams()
             || self.session.unsaved_s() < STREAM_EVERY_S
         {
             return;
         }
-        if let Some(t) = self.keeping.stream_wait {
+        if let Some(t) = self.bench.keeping.stream_wait {
             if t.elapsed() < STREAM_RETRY {
                 return;
             }
@@ -141,14 +141,14 @@ impl TimegrapherApp {
             // Felix on #2063: only a write that would be refused waits on;
             // one the take's deletion alone stopped puts the take back.
             if gone && !self.saved_hours_reachable() {
-                self.keeping.stream_wait = Some(Instant::now());
+                self.bench.keeping.stream_wait = Some(Instant::now());
                 return;
             }
         }
-        self.keeping.stream_wait = None;
+        self.bench.keeping.stream_wait = None;
         self.save_again_as(Streamed::Yes);
         // Refused (its take's hours gone, say): not tried every frame.
-        self.keeping.stream_wait = self.keeping.saving.is_none().then(Instant::now);
+        self.bench.keeping.stream_wait = self.bench.keeping.saving.is_none().then(Instant::now);
     }
 
     /// Keep in a Watch > New Watch…: the form, and the keep once it is
@@ -159,7 +159,7 @@ impl TimegrapherApp {
             return;
         }
         self.open_new_watch_form();
-        self.keeping.keep_after_form = true;
+        self.bench.keeping.keep_after_form = true;
     }
 
     /// Whether every hour the session keeps in its take alone is still

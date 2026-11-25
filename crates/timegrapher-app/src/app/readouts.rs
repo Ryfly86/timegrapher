@@ -566,7 +566,7 @@ impl TimegrapherApp {
     /// an opened recording, at its newest moment. Earlier in it, the strip
     /// moved back, its first 10 s are still "Listening" (#2053).
     fn sound_over(&self) -> bool {
-        !self.running() && self.panes_view.strip_end.is_none()
+        !self.running() && self.bench.panes_view.strip_end.is_none()
     }
 
     /// Why the cards have no reading, or a reading with no beat at all:
@@ -590,16 +590,16 @@ impl TimegrapherApp {
         }
         // At the moment the cards show: the strip's newest edge when it
         // is moved back, as `card_reading` reads it.
-        let at = match self.panes_view.strip_end {
+        let at = match self.bench.panes_view.strip_end {
             Some(_) => self.strip_end_s(),
             None => self.latest_s(),
         };
         let Some(left_s) = self.settle_left_at(at) else {
             let w = if self.ready_test().is_some() {
                 Wait::TestStart
-            } else if self.batch.is_some() || self.stop_read_waits().is_some() {
+            } else if self.bench.recording.batch.is_some() || self.stop_read_waits().is_some() {
                 Wait::Analysing
-            } else if self.live.is_none() {
+            } else if self.bench.recording.live.is_none() {
                 Wait::NotListening
             } else {
                 quiet
@@ -647,7 +647,8 @@ impl TimegrapherApp {
 
     /// A guided test's own settle still to come at `at`, while it listens.
     pub(super) fn test_settle_left(&self, at: f64) -> Option<f64> {
-        self.test
+        self.bench
+            .test
             .guided
             .as_ref()
             .filter(|_| self.test_listening())
@@ -674,7 +675,7 @@ impl TimegrapherApp {
         let (unheard_line, unheard_hover) = if finding {
             (
                 timegrapher_core::measure::FINDING_TITLE.to_string(),
-                timegrapher_core::measure::finding_text(self.take.average_s),
+                timegrapher_core::measure::finding_text(self.bench.take.average_s),
             )
         } else {
             (
@@ -732,7 +733,7 @@ impl TimegrapherApp {
         // (core `measure`).
         let pm = r.and_then(|r| r.rate_error_s_per_day);
         let be_pm = r.and_then(|r| r.beat_error_unlock_error_ms);
-        let lift_now = self.take.lift_deg;
+        let lift_now = self.bench.take.lift_deg;
         let beats = r.map_or(0, |r| r.beats_used);
         // Over the whole take, once it is stopped: `session`'s reading of
         // it beside the last window's figure.
@@ -744,7 +745,8 @@ impl TimegrapherApp {
         // A compact Listen card has no room beside its buttons for the
         // take's length: it goes in the title row, before the "?".
         let length = listen_compact.then(|| {
-            let length = length_text(self.live.as_ref().map_or(0.0, |l| l.duration_s()));
+            let live = self.bench.recording.live.as_ref();
+            let length = length_text(live.map_or(0.0, |l| l.duration_s()));
             (
                 length.clone(),
                 format!(
@@ -866,7 +868,7 @@ impl TimegrapherApp {
                 &c.whole_breaks,
                 true_minus(&format!("{} s/d", with_pm(v, se, base::RATE, true))),
                 spread,
-                (w.span, &big_stretch(self.take.average_s, false)),
+                (w.span, &big_stretch(self.bench.take.average_s, false)),
             );
         }
         // In the unit's place: what the reading waits on, as every card
@@ -918,7 +920,7 @@ impl TimegrapherApp {
     /// moved off the newest beats, the one ending at its newest edge, as
     /// the sound panes show that moment.
     pub(super) fn card_reading(&self) -> Option<LiveReading> {
-        match self.panes_view.strip_end {
+        match self.bench.panes_view.strip_end {
             Some(_) => self.reading_at_time(self.strip_end_s()),
             None => self.reading(),
         }
@@ -934,13 +936,16 @@ impl TimegrapherApp {
         type Kept = (Revision, (u64, bool), Vec<(i64, TrendPoint)>);
         // Just stopped: the take as its saved take opens (#2151).
         let stopped = self.stopped_take();
-        let Some(live) = stopped.map(|s| &s.live).or(self.live.as_ref()) else {
+        let Some(live) = stopped
+            .map(|s| &s.live)
+            .or(self.bench.recording.live.as_ref())
+        else {
             return Vec::new();
         };
         let id = egui::Id::new("reading card sparklines");
         let key = (
-            self.take.rev,
-            (self.take.average_s.to_bits(), stopped.is_some()),
+            self.bench.take.rev,
+            (self.bench.take.average_s.to_bits(), stopped.is_some()),
         );
         let mut kept: Kept = ctx.data(|d| d.get_temp(id)).unwrap_or_default();
         if (kept.0, kept.1) != key {
@@ -955,7 +960,7 @@ impl TimegrapherApp {
                 let t = s as f64;
                 kept.2.push((
                     s,
-                    TrendPoint::of(t, &live.reading_at(t, self.take.average_s)),
+                    TrendPoint::of(t, &live.reading_at(t, self.bench.take.average_s)),
                 ));
             }
         }
@@ -993,7 +998,7 @@ impl TimegrapherApp {
 
     /// The beats behind the Rate figure, and their jitter, for its hover.
     fn beats_behind(&self, r: &LiveReading) -> String {
-        let short = r.span_s + 1.0 < self.take.average_s;
+        let short = r.span_s + 1.0 < self.bench.take.average_s;
         let mut t = if short && r.whole_take {
             // The take's whole reading at its end: its beats are the whole
             // stretch's fitted pieces (Hugh 5 and Norm on #2075).
@@ -1004,7 +1009,7 @@ impl TimegrapherApp {
                  of more than {} with no beats, with any piece under {} left out.",
                 r.beats_used,
                 fields::duration(r.span_s.round()),
-                fields::duration(self.take.average_s),
+                fields::duration(self.bench.take.average_s),
                 self.whole_named(),
                 fields::duration(timegrapher_core::clean::GAP_S),
                 fields::duration(timegrapher_core::timing::MIN_PIECE_S)
@@ -1017,7 +1022,7 @@ impl TimegrapherApp {
                  stretch or gap of more than {} with no beats.",
                 r.beats_used,
                 fields::duration(r.span_s.round()),
-                fields::duration(self.take.average_s),
+                fields::duration(self.bench.take.average_s),
                 fields::duration(timegrapher_core::clean::GAP_S)
             )
         } else {
@@ -1025,7 +1030,7 @@ impl TimegrapherApp {
                 "{} beats in {}: the beats the readings are fitted to, over \
                  Average Over.",
                 r.beats_used,
-                fields::duration(self.take.average_s)
+                fields::duration(self.bench.take.average_s)
             )
         };
         if let Some(j) = r.jitter_us {
@@ -1076,7 +1081,8 @@ impl TimegrapherApp {
             behind = sides_text(a, b, amp_pm);
         }
         // Read over at least 10 s where Average Over is shorter (#1951).
-        if let Some(note) = r.and_then(|_| measure::amplitude_span_note(self.take.average_s)) {
+        if let Some(note) = r.and_then(|_| measure::amplitude_span_note(self.bench.take.average_s))
+        {
             behind += &format!(" {note}");
         }
         if let Some((w, v)) = whole.as_ref().and_then(|w| Some((w, w.m.amplitude_deg?))) {
@@ -1086,7 +1092,7 @@ impl TimegrapherApp {
                 format!("2 s windows {}° to {}°", deg(a), deg(b))
             });
             let text = format!("{}°", with_pm(v, se, base::AMPLITUDE, false));
-            let big = big_stretch(self.take.average_s, true);
+            let big = big_stretch(self.bench.take.average_s, true);
             behind += &whole_text(&c.whole_breaks, text, spread, (w.span, &big));
         }
         behind += &format!(
@@ -1095,7 +1101,7 @@ impl TimegrapherApp {
         );
         if let Some(t) = r
             .filter(|_| c.heard)
-            .and_then(|r| amplitude_pm_words(r, self.take.average_s))
+            .and_then(|r| amplitude_pm_words(r, self.bench.take.average_s))
         {
             behind += &format!("\n\n{t}");
         }
@@ -1154,14 +1160,16 @@ impl TimegrapherApp {
             (None, Some(_)) => "From the drop: the unlock couldn't be timed.".into(),
             _ => "From the unlock, the usual reading, as tg shows it.".into(),
         };
-        if let Some(note) = unlock.and_then(|_| measure::unlock_span_note(self.take.average_s)) {
+        if let Some(note) =
+            unlock.and_then(|_| measure::unlock_span_note(self.bench.take.average_s))
+        {
             from += &format!(" {note}");
         }
         if let Some((w, v)) = whole.as_ref().and_then(|w| Some((w, w.m.beat_error()?))) {
             let se = w.m.confidence.and_then(|c| c.beat_error.se);
             let text = format!("{} ms", with_pm(v, se, base::BEAT_ERROR, false));
             // The unlock's stretch where it gives the figure (#1951).
-            let big = big_stretch(self.take.average_s, unlock.is_some());
+            let big = big_stretch(self.bench.take.average_s, unlock.is_some());
             from += &whole_text(&c.whole_breaks, text, None, (w.span, &big));
             if w.m.caveats.contains(&Caveat::BeatErrorAsSize) {
                 from += &format!(
@@ -1199,14 +1207,14 @@ impl TimegrapherApp {
     /// a chip on the Calibre card.
     pub(super) fn calibre_chips(&self) -> Vec<(String, String)> {
         self.bph_heard()
-            .zip(self.cal.bph(&self.take.calibre))
+            .zip(self.cal.bph(&self.bench.take.calibre))
             .filter(|&(b, cb)| b != cb && self.take_shows_rate_and_lift())
             .map(|(b, cb)| {
                 (
-                    format!("{} is {cb} bph", self.take.calibre),
+                    format!("{} is {cb} bph", self.bench.take.calibre),
                     format!(
                         "The {} beats at {cb} bph; this watch beats at {b}.",
-                        self.take.calibre
+                        self.bench.take.calibre
                     ),
                 )
             })
@@ -1221,9 +1229,9 @@ impl TimegrapherApp {
         duration_s: f64,
     ) -> Option<timegrapher_core::clock::ClockFit> {
         reading_clock(
-            self.take.take_clock.as_ref(),
-            self.take.take_breaks.is_some(),
-            self.clock.as_ref().map(|c| c.ppm),
+            self.bench.take.take_clock.as_ref(),
+            self.bench.take.take_breaks.is_some(),
+            self.bench.recording.clock.as_ref().map(|c| c.ppm),
             duration_s,
         )
     }
@@ -1233,7 +1241,7 @@ impl TimegrapherApp {
     /// mask's ends) as a break of no length, as core's `take::breaks`
     /// adds the jumps.
     pub(super) fn reading_breaks(&self, log: &BeatLog) -> Vec<timegrapher_core::breaks::Break> {
-        steady::reading_breaks(self.take.take_breaks.clone().unwrap_or_default(), log)
+        steady::reading_breaks(self.bench.take.take_breaks.clone().unwrap_or_default(), log)
     }
 
     /// The take's own clock error the readings are corrected by, ppm fast:
@@ -1246,7 +1254,7 @@ impl TimegrapherApp {
     /// The take's own clock the readings are corrected on, where it
     /// corrects: its mapping, which may drift over the take.
     pub(super) fn take_rate_clock(&self) -> Option<&timegrapher_core::clock::ClockFit> {
-        Self::rate_clock(&self.take.take_clock)
+        Self::rate_clock(&self.bench.take.take_clock)
     }
 
     /// A clock where it corrects (core's `ClockFit::corrects`), the one
@@ -1266,7 +1274,7 @@ impl TimegrapherApp {
     /// before the first poll puts the readings on it (a take opened keeps
     /// no input clock, Walter).
     pub(super) fn true_clock_words(&self, rate: f64) -> Option<String> {
-        if let Some(f) = &self.take.take_clock {
+        if let Some(f) = &self.bench.take.take_clock {
             // What a log measured but doesn't apply, and why, in core's words.
             let note = f.withheld.map(|w| {
                 let note = w.note();
@@ -1284,6 +1292,7 @@ impl TimegrapherApp {
             }
             let ppm = timegrapher_core::clock::ppm_words(f.ppm, Some(f.ppm_sd));
             let from = self
+                .bench
                 .take
                 .take_clock_source
                 .as_deref()
@@ -1297,7 +1306,7 @@ impl TimegrapherApp {
                  clock."
             ));
         }
-        let c = self.clock.as_ref()?;
+        let c = self.bench.recording.clock.as_ref()?;
         let v = true_minus(&format!("{:+.1}", c.correct_rate(rate)));
         Some(format!(
             "True Clock {v} seconds per day, with the clock kept {}: the rate corrected \
@@ -1310,11 +1319,11 @@ impl TimegrapherApp {
     /// timed: how much sound it has heard, and once timed, the error,
     /// offered to keep. None while not listening.
     pub(super) fn clock_timing(&self) -> Option<settings_window::Timing> {
-        let t = self.clock_track.as_ref()?;
+        let t = self.bench.recording.clock_track.as_ref()?;
         if !(self.running() && self.session.mic()) {
             return None;
         }
-        let words = self.clock_words(self.clock_measured(), self.clock.as_ref());
+        let words = self.clock_words(self.clock_measured(), self.bench.recording.clock.as_ref());
         Some(settings_window::Timing {
             shown: t.shown.clone(),
             heard_s: t.tracker.audio_s(),
@@ -1413,7 +1422,9 @@ impl TimegrapherApp {
     /// The microphone's clock as timed so far, once it has run
     /// [`CLOCK_MEASURE_S`] of audio and is known to half a ppm.
     pub(super) fn clock_measured(&self) -> Option<&timegrapher_core::clock::ClockFit> {
-        self.clock_track
+        self.bench
+            .recording
+            .clock_track
             .as_ref()?
             .fit
             .as_ref()
@@ -1425,7 +1436,9 @@ impl TimegrapherApp {
     /// from it.
     pub(super) fn clock_offer(&self) -> Option<&timegrapher_core::clock::ClockFit> {
         self.clock_measured().filter(|f| {
-            self.clock
+            self.bench
+                .recording
+                .clock
                 .as_ref()
                 .is_none_or(|c| (f.ppm - c.ppm).abs() > CLOCK_DIFFERS_PPM)
         })
@@ -1434,7 +1447,10 @@ impl TimegrapherApp {
     /// Keep the microphone's clock as timed: corrected rates from now on,
     /// for the command line and the MCP server too.
     pub(super) fn keep_clock(&mut self) {
-        let (Some(fit), Some(t)) = (self.clock_measured(), self.clock_track.as_ref()) else {
+        let (Some(fit), Some(t)) = (
+            self.clock_measured(),
+            self.bench.recording.clock_track.as_ref(),
+        ) else {
             return;
         };
         let d = clockstore::DeviceClock::from_fit(
@@ -1465,7 +1481,7 @@ impl TimegrapherApp {
     /// too.
     pub(super) fn shown_caveats(&self, r: Option<&LiveReading>) -> Vec<Caveat> {
         let mut caveats = r.map_or_else(Vec::new, |r| r.caveats.clone());
-        if let (Some(why), Some(_)) = (self.take.take_unlisted, r) {
+        if let (Some(why), Some(_)) = (self.bench.take.take_unlisted, r) {
             timegrapher_core::measure::add(&mut caveats, Caveat::BreaksUnlisted { why });
         }
         caveats
@@ -1481,7 +1497,7 @@ impl TimegrapherApp {
         let amplitude_empty = r.and_then(|r| r.amplitude_deg).is_none();
         let caveats = self.shown_caveats(r);
         let beats = r.map_or(0, |r| r.beats_used);
-        let limits = take_limits(&caveats, self.take.lift_deg, beats, amplitude_empty);
+        let limits = take_limits(&caveats, self.bench.take.lift_deg, beats, amplitude_empty);
         if limits.is_empty() {
             return;
         }
@@ -1512,10 +1528,10 @@ impl TimegrapherApp {
     /// caveat for it, short and long, in core's words. The rates stay
     /// corrected by the USB lines.
     pub(super) fn clock_disagreement(&self) -> Option<(String, String)> {
-        let caveat = Caveat::from(self.take.take_clock.as_ref()?.sources_disagree()?);
+        let caveat = Caveat::from(self.bench.take.take_clock.as_ref()?.sources_disagree()?);
         Some((
-            caveat.short(self.take.lift_deg, 0)?,
-            caveat.long(Some(self.take.lift_deg))?,
+            caveat.short(self.bench.take.lift_deg, 0)?,
+            caveat.long(Some(self.bench.take.lift_deg))?,
         ))
     }
 
@@ -1545,7 +1561,7 @@ impl TimegrapherApp {
             );
             popover(&resp, &mut |ui| self.update_notice(ui));
         }
-        if let Some(k) = self.keeping.kept.first() {
+        if let Some(k) = self.bench.keeping.kept.first() {
             // Named by what the first one offered is (Hugh on #1806).
             let tip = match k.parts {
                 true => {
@@ -1557,7 +1573,7 @@ impl TimegrapherApp {
             let resp = status_item(ui, "Unsaved Take Found…", Some(theme::Alert::Warning), tip);
             popover(&resp, &mut |ui| self.kept_notice(ui));
         }
-        if self.keeping.crash.is_some() {
+        if self.bench.keeping.crash.is_some() {
             let resp = status_item(
                 ui,
                 "Closed Unexpectedly…",
@@ -1601,7 +1617,7 @@ impl TimegrapherApp {
     fn status_left(&mut self, ui: &mut egui::Ui) {
         let pal = theme::pal(ui);
         ui.spacing_mut().item_spacing.x = 12.0;
-        if let Some(job) = &self.keeping.analysis_save {
+        if let Some(job) = &self.bench.keeping.analysis_save {
             let done = f64::from_bits(job.progress.load(std::sync::atomic::Ordering::Relaxed));
             // The sound is read twice: once for the beats, once more for
             // the profiles and the shape.
@@ -1620,10 +1636,10 @@ impl TimegrapherApp {
             ui.ctx()
                 .request_repaint_after(std::time::Duration::from_millis(250));
             if cancel {
-                self.keeping.analysis_save = None;
+                self.bench.keeping.analysis_save = None;
             }
         }
-        if let Some(s) = &self.keeping.saving {
+        if let Some(s) = &self.bench.keeping.saving {
             ui.add(egui::Spinner::new().size(12.0).color(pal.text_secondary));
             ui.label(RichText::new("Saving…").small().color(pal.text_secondary))
                 .on_hover_text(format!(
@@ -1678,10 +1694,16 @@ impl TimegrapherApp {
                 label.on_hover_text(text);
             }
         };
-        if self.batch.is_none() && self.running() && !self.source_label.is_empty() {
+        if self.bench.recording.batch.is_none()
+            && self.running()
+            && !self.bench.recording.source_label.is_empty()
+        {
             // The input listened to; a take opened is named on the left
             // already.
-            passing(ui, &format!("Listening to {}", self.source_label));
+            passing(
+                ui,
+                &format!("Listening to {}", self.bench.recording.source_label),
+            );
         }
         // Errors are a notice at the right instead.
         if let Some((m, false)) = &self.message {
@@ -1732,9 +1754,13 @@ impl TimegrapherApp {
                         p.display()
                     ),
                 ),
-                None if self.keeping.analysis_kept_to.is_some() => {
-                    let (dir, through_s) =
-                        self.keeping.analysis_kept_to.clone().unwrap_or_default();
+                None if self.bench.keeping.analysis_kept_to.is_some() => {
+                    let (dir, through_s) = self
+                        .bench
+                        .keeping
+                        .analysis_kept_to
+                        .clone()
+                        .unwrap_or_default();
                     let kept = if r.duration_s() - through_s >= 1.0 {
                         format!("the analysis of its first {} kept", length_text(through_s))
                     } else {
@@ -1775,7 +1801,7 @@ impl TimegrapherApp {
         self.shown_caveats_chip(ui);
         // A take opening, or one just stopped being read as its saved
         // take opens (#2151): how far, as one bar.
-        let reading = match (&self.batch, self.stop_read_waits()) {
+        let reading = match (&self.bench.recording.batch, self.stop_read_waits()) {
             (Some(b), _) => Some((&b.progress, b.duration_s)),
             (None, Some(s)) => Some((&s.progress, Some(s.duration_s))),
             (None, None) => None,
@@ -1791,7 +1817,7 @@ impl TimegrapherApp {
                     .text(RichText::new(batch_words(frac, duration_s.is_some())).small()),
             );
         }
-        if let Some(k) = &self.keeping.wav_keep {
+        if let Some(k) = &self.bench.keeping.wav_keep {
             // Its count moves and its end comes with no input to wake the
             // window (Walter's walk of #1120).
             ui.ctx()
@@ -1849,7 +1875,14 @@ impl TimegrapherApp {
     pub(super) fn signal(&self) -> Option<f32> {
         match (self.reading(), self.settling_left()) {
             (Some(r), _) => r.snr,
-            (None, Some(_)) => self.live.as_ref()?.reading(self.take.average_s).snr,
+            (None, Some(_)) => {
+                self.bench
+                    .recording
+                    .live
+                    .as_ref()?
+                    .reading(self.bench.take.average_s)
+                    .snr
+            }
             (None, None) => None,
         }
     }
@@ -1859,12 +1892,12 @@ impl TimegrapherApp {
     pub(super) fn relayout(&mut self, horizontal: bool) {
         let shown: Vec<(Pane, bool)> = Pane::ALL
             .into_iter()
-            .map(|p| (p, pane_visible(&self.panes_view.panes.tiles, p)))
+            .map(|p| (p, pane_visible(&self.bench.panes_view.panes.tiles, p)))
             .collect();
-        self.panes_view.panes = default_layout(horizontal);
-        self.panes_view.panes_dragged.clear();
+        self.bench.panes_view.panes = default_layout(horizontal);
+        self.bench.panes_view.panes_dragged.clear();
         for (p, on) in shown {
-            set_pane_visible(&mut self.panes_view.panes.tiles, p, on);
+            set_pane_visible(&mut self.bench.panes_view.panes.tiles, p, on);
         }
     }
 
@@ -1887,7 +1920,7 @@ impl TimegrapherApp {
                     ui.set_width(w - 28.0);
                     ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
                         ui.spacing_mut().item_spacing.y = 10.0;
-                        if self.batch.is_some() {
+                        if self.bench.recording.batch.is_some() {
                             self.batch_progress(ui);
                         } else {
                             self.ways_in(ui);
@@ -1907,12 +1940,12 @@ impl TimegrapherApp {
     /// few seconds of listening: one sentence then, not empty charts and
     /// cards of figures that would describe noise.
     pub(super) fn no_watch_yet(&self) -> bool {
-        let Some(live) = &self.live else {
+        let Some(live) = &self.bench.recording.live else {
             return false;
         };
-        self.batch.is_none()
+        self.bench.recording.batch.is_none()
             && live.duration_s() > 6.0
-            && !self.results.trend.iter().any(|p| p.heard)
+            && !self.bench.results.trend.iter().any(|p| p.heard)
             && self
                 .reading()
                 .is_none_or(|r| !r.watch_heard && !r.finding_beat)
@@ -1926,7 +1959,7 @@ impl TimegrapherApp {
     fn heard_while_settling(&self, live: &LiveAnalyzer) -> bool {
         self.settling_left().is_some()
             && live
-                .reading_at(live.duration_s(), self.take.average_s)
+                .reading_at(live.duration_s(), self.bench.take.average_s)
                 .watch_heard
     }
 
@@ -1977,7 +2010,7 @@ impl TimegrapherApp {
     /// screen offers a recording instead of showing the session's figures
     /// as if they were one. The session is kept.
     pub(super) fn mic_session_set_aside(&self) -> bool {
-        self.input == Input::File && self.session.mic() && !self.running()
+        self.bench.recording.input == Input::File && self.session.mic() && !self.running()
     }
 
     /// Before anything is open: where to start, since the Watches view
@@ -2012,7 +2045,9 @@ impl TimegrapherApp {
     /// How far the analysis of a recording has got, and a way to stop it.
     fn batch_progress(&mut self, ui: &mut egui::Ui) {
         let pal = theme::pal(ui);
-        let Some(b) = &self.batch else { return };
+        let Some(b) = &self.bench.recording.batch else {
+            return;
+        };
         let done = f64::from_bits(b.progress.load(std::sync::atomic::Ordering::Relaxed));
         analysing_lines(ui, pal, &b.label, done, b.duration_s, b.started);
         if b.files > 1 {

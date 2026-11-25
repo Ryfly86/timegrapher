@@ -4,9 +4,6 @@ use super::*;
 use crate::fact_box::FactBox;
 use crate::strength::{self, Grid, Strength};
 
-/// What core's readings for the Distributions pane were read for: the
-/// take's revision, the position on show and Average Over (its bits).
-pub(super) type DistKey = (Revision, Position, u64);
 /// Core's readings for the Distributions pane (#1144): the rate's, and the
 /// amplitude and the beat error averaged into them, with the beat error's
 /// source ([`timegrapher_core::steadiness::reading_grids`]).
@@ -109,7 +106,7 @@ impl TimegrapherApp {
             ui,
             "Show",
             "The values on probability paper, or their cumulative share",
-            &mut self.panes_view.hist_cumulative,
+            &mut self.bench.panes_view.hist_cumulative,
             &[
                 (
                     false,
@@ -133,7 +130,7 @@ impl TimegrapherApp {
             ui,
             "Values",
             "What the distributions count",
-            &mut self.panes_view.hist_readings,
+            &mut self.bench.panes_view.hist_readings,
             &[
                 (
                     true,
@@ -157,7 +154,7 @@ impl TimegrapherApp {
     /// The runs in the position the watch is in now that the distributions
     /// and the steadiness tests read, joined ([`Session::current_runs`]).
     pub(super) fn current_runs(&self) -> timegrapher_core::take_context::Stretches<Position> {
-        self.session.current_runs(self.take.position)
+        self.session.current_runs(self.bench.take.position)
     }
 
     /// The 2-second stretches of amplitude and beat error in the position
@@ -166,7 +163,7 @@ impl TimegrapherApp {
     /// overlaps a masked stretch or reaches across a break, as the
     /// readings do.
     pub(super) fn position_windows(&self) -> Vec<&timegrapher_core::amplitude::AmplitudeWindow> {
-        let Some(live) = self.live.as_ref() else {
+        let Some(live) = self.bench.recording.live.as_ref() else {
             return Vec::new();
         };
         let cuts = live.cuts();
@@ -184,10 +181,10 @@ impl TimegrapherApp {
     /// The Distributions pane: a plot for each reading shown, one above
     /// the other, sharing the pane's height.
     pub(super) fn distributions_pane(&mut self, ui: &mut egui::Ui) {
-        if self.panes_view.hist_readings {
+        if self.bench.panes_view.hist_readings {
             self.update_dist_readings(Some(ui.ctx()));
         }
-        let shown = self.panes_view.dist_series;
+        let shown = self.bench.panes_view.dist_series;
         self.note_need(ui, Pane::Distributions, DIST_MIN_H);
         stacked(ui, shown, (DIST_MIN_H, true), |ui, k, no_room| {
             self.histogram_with(ui, k, no_room)
@@ -211,22 +208,23 @@ impl TimegrapherApp {
         no_room: Option<&(String, String)>,
     ) {
         let pal = theme::pal(ui);
-        let short = !self.panes_view.hist_readings;
+        let short = !self.bench.panes_view.hist_readings;
         if reading == SeriesKind::Rate && short {
-            match self.live.as_ref() {
+            match self.bench.recording.live.as_ref() {
                 Some(live) => self
+                    .bench
                     .panes_view
                     .dist
                     .rate_2s
-                    .refresh(live, &self.take.masked),
-                None => self.panes_view.dist.rate_2s = RateTwoS::default(),
+                    .refresh(live, &self.bench.take.masked),
+                None => self.bench.panes_view.dist.rate_2s = RateTwoS::default(),
             }
         }
         let worked = self.dist_plot(reading, short);
         let color = series_color(reading, pal);
         // The title line: the series, and the one position counted when
         // the take has positions, as the toolbar doesn't name it (#1528).
-        let only = (!self.session.stretches().is_empty()).then(|| self.take.position.name());
+        let only = (!self.session.stretches().is_empty()).then(|| self.bench.take.position.name());
         let title = match only {
             Some(p) => format!("{} \u{b7} {p} only", steady::title(reading)),
             None => steady::title(reading).to_string(),
@@ -295,20 +293,21 @@ impl TimegrapherApp {
 
     /// What `reading`'s plot is worked out from ([`PlotKey`]).
     fn plot_key(&self, reading: SeriesKind, short: bool) -> PlotKey {
-        let live = self.live.as_ref();
+        let live = self.bench.recording.live.as_ref();
         PlotKey {
             reading,
             short,
-            cumulative: self.panes_view.hist_cumulative,
-            rev: self.take.rev,
-            position: self.take.position,
-            average: self.take.average_s.to_bits(),
+            cumulative: self.bench.panes_view.hist_cumulative,
+            rev: self.bench.take.rev,
+            position: self.bench.take.position,
+            average: self.bench.take.average_s.to_bits(),
             readings: self
+                .bench
                 .results
                 .dist_readings
                 .as_ref()
                 .map(|d| (d.0, d.1.to_bits())),
-            rates: self.panes_view.dist.rate_2s.values.len(),
+            rates: self.bench.panes_view.dist.rate_2s.values.len(),
             windows: live.map_or(0, |l| l.amplitude_windows().len()),
             breaks: live.map_or_else(Vec::new, |l| l.breaks().to_vec()),
             stretches: self.session.stretches(),
@@ -322,14 +321,14 @@ impl TimegrapherApp {
     fn dist_plot(&mut self, reading: SeriesKind, short: bool) -> std::sync::Arc<DistPlot> {
         let key = self.plot_key(reading, short);
         let i = reading as usize;
-        if let Some(p) = self.panes_view.dist.plots[i]
+        if let Some(p) = self.bench.panes_view.dist.plots[i]
             .as_ref()
             .filter(|p| p.key == key)
         {
             return p.clone();
         }
         let worked = std::sync::Arc::new(self.work_out_plot(key));
-        self.panes_view.dist.plots[i] = Some(worked.clone());
+        self.bench.panes_view.dist.plots[i] = Some(worked.clone());
         worked
     }
 
@@ -341,7 +340,7 @@ impl TimegrapherApp {
         let step = if label == "2 s" {
             dist::STRETCH_S
         } else {
-            self.take.average_s
+            self.bench.take.average_s
         };
         let d = dist::distribution(&values, kind, label, step);
         let pts = d.as_ref().map_or_else(Vec::new, |d| {
@@ -382,36 +381,43 @@ impl TimegrapherApp {
     /// and now without. While listening they are read again once a new
     /// reading can have come.
     pub(super) fn update_dist_readings(&mut self, ctx: Option<&egui::Context>) {
-        let key = (
-            self.take.rev,
-            self.take.position,
-            self.take.average_s.to_bits(),
-        );
-        if self.results.dist_job.as_ref().is_some_and(|j| j.0 != key) {
-            self.results.dist_job = None;
+        let key = DistKey {
+            rev: self.bench.take.rev,
+            position: self.bench.take.position,
+            average: self.bench.take.average_s.to_bits(),
+        };
+        if self
+            .bench
+            .results
+            .dist_job
+            .as_ref()
+            .is_some_and(|j| j.0 != key)
+        {
+            self.bench.results.dist_job = None;
         }
         if self
+            .bench
             .results
             .dist_readings
             .as_ref()
             .is_some_and(|d| d.0 != key)
         {
-            self.results.dist_readings = None;
+            self.bench.results.dist_readings = None;
         }
-        if let Some((k, upto, rx)) = &self.results.dist_job {
+        if let Some((k, upto, rx)) = &self.bench.results.dist_job {
             match rx.try_recv() {
                 Ok(d) => {
-                    self.results.dist_readings = Some((*k, *upto, d));
-                    self.results.dist_job = None;
+                    self.bench.results.dist_readings = Some((*k, *upto, d));
+                    self.bench.results.dist_job = None;
                 }
-                Err(TryRecvError::Disconnected) => self.results.dist_job = None,
+                Err(TryRecvError::Disconnected) => self.bench.results.dist_job = None,
                 Err(TryRecvError::Empty) => {}
             }
         }
         let runs = self.current_runs();
-        let clock = Self::rate_clock(&self.take.take_clock).cloned();
+        let clock = Self::rate_clock(&self.bench.take.take_clock).cloned();
         let joined = !self.session.stretches().is_empty();
-        let Some(live) = self.live.as_ref() else {
+        let Some(live) = self.bench.recording.live.as_ref() else {
             return;
         };
         let dur = steady::joined_duration(
@@ -420,11 +426,12 @@ impl TimegrapherApp {
             clock.as_ref().filter(|_| joined),
         );
         let due = self
+            .bench
             .results
             .dist_readings
             .as_ref()
-            .is_none_or(|d| dur - d.1 >= self.take.average_s);
-        if self.results.dist_job.is_some() || !due {
+            .is_none_or(|d| dur - d.1 >= self.bench.take.average_s);
+        if self.bench.results.dist_job.is_some() || !due {
             return;
         }
         let Some((log, breaks)) =
@@ -433,7 +440,7 @@ impl TimegrapherApp {
             return;
         };
         let clock = clock.filter(|_| !joined); // A joined log is on it.
-        let r = self.take.average_s;
+        let r = self.bench.take.average_s;
         let read =
             move || timegrapher_core::steadiness::reading_grids(&log, clock.as_ref(), &breaks, r);
         match ctx {
@@ -444,9 +451,9 @@ impl TimegrapherApp {
                     let _ = tx.send(read());
                     ctx.request_repaint();
                 });
-                self.results.dist_job = Some((key, dur, rx));
+                self.bench.results.dist_job = Some((key, dur, rx));
             }
-            None => self.results.dist_readings = Some((key, dur, read())),
+            None => self.bench.results.dist_readings = Some((key, dur, read())),
         }
     }
 
@@ -468,11 +475,11 @@ impl TimegrapherApp {
     ) {
         // Only the position the watch is in now: values from another
         // position are a different measurement.
-        let inside = self.session.in_position_test(self.take.position);
+        let inside = self.session.in_position_test(self.bench.take.position);
         let color = series_color(reading, pal);
         // The readings, one per Average Over so that no two share beats:
         // core's, as `timegrapher series` counts them (#1144).
-        let core = self.results.dist_readings.as_ref().map(|d| &d.2 .0);
+        let core = self.bench.results.dist_readings.as_ref().map(|d| &d.2 .0);
         let readings = |i: usize| -> Vec<f64> {
             core.map_or_else(Vec::new, |g| {
                 g[i].y.iter().copied().filter(|v| v.is_finite()).collect()
@@ -481,7 +488,8 @@ impl TimegrapherApp {
         use timegrapher_core::distribution::{AMPLITUDE, BEAT_ERROR, RATE};
         match reading {
             SeriesKind::Rate if short => (
-                self.panes_view
+                self.bench
+                    .panes_view
                     .dist
                     .rate_2s
                     .values
@@ -529,7 +537,7 @@ impl TimegrapherApp {
         }
         // The source core chose over the windows the readings are made
         // of, with its caveats.
-        self.results.dist_readings.as_ref().map_or_else(
+        self.bench.results.dist_readings.as_ref().map_or_else(
             || core_session::select_beat_errors(std::iter::empty()),
             |d| d.2 .1.clone(),
         )
@@ -883,7 +891,7 @@ mod source_tests {
     #[test]
     fn the_last_plots_axis_stays_inside_the_pane() {
         let mut app = super::super::tests::synthetic(300.0, 5.0);
-        app.panes_view.dist_series = [true; 3];
+        app.bench.panes_view.dist_series = [true; 3];
         app.update_dist_readings(None);
         let ctx = egui::Context::default();
         crate::theme::install(&ctx);
@@ -922,7 +930,7 @@ mod source_tests {
     #[test]
     fn no_room_is_a_chip_under_the_first_title() {
         let mut app = super::super::tests::synthetic(122.0, 5.0);
-        app.panes_view.dist_series = [true; 3];
+        app.bench.panes_view.dist_series = [true; 3];
         let ctx = egui::Context::default();
         crate::theme::install(&ctx);
         let mut texts = Vec::new();
@@ -966,7 +974,7 @@ mod source_tests {
     #[test]
     fn readings_are_cores_one_per_average_over() {
         let mut app = super::super::tests::synthetic(122.0, 5.0);
-        app.take.average_s = 10.0;
+        app.bench.take.average_s = 10.0;
         app.update_dist_readings(None);
         let count = |app: &TimegrapherApp, k| app.hist_values(k, false, &theme::DARK).0;
         let rates = count(&app, SeriesKind::Rate);
@@ -981,12 +989,12 @@ mod source_tests {
         assert!(amps.iter().all(|a| (a - 280.0).abs() < 10.0), "{amps:?}");
         let (bes, .., selected) = app.hist_values(SeriesKind::BeatError, false, &theme::DARK);
         assert_eq!(bes.len(), rates.len());
-        let core = app.results.dist_readings.as_ref().unwrap();
+        let core = app.bench.results.dist_readings.as_ref().unwrap();
         assert_eq!(
             selected.unwrap().beat_error_source,
             core.2 .1.beat_error_source
         );
-        app.take.average_s = 20.0;
+        app.bench.take.average_s = 20.0;
         app.update_dist_readings(None);
         let longer = count(&app, SeriesKind::Rate);
         assert!(
@@ -1027,10 +1035,10 @@ mod plot_cache_tests {
     #[test]
     fn a_long_takes_plot_is_worked_out_once_and_drawn_at_screen_size() {
         let mut app = super::super::tests::synthetic(30.0, 12.0);
-        app.panes_view.hist_readings = false;
+        app.bench.panes_view.hist_readings = false;
         let ctx = super::super::tests::themed();
         let _ = circles(&mut app, &ctx, SeriesKind::Rate);
-        let first = app.panes_view.dist.rate_2s.values.len();
+        let first = app.bench.panes_view.dist.rate_2s.values.len();
         assert!(first > 5, "{first}");
         // 40,000 more 2 s rates spread like a real watch's.
         let more = (0..40_000).map(|i| {
@@ -1040,9 +1048,9 @@ mod plot_cache_tests {
                 12.0 + 8.0 * (i * 0.7).sin() + 3.0 * (i * 0.13).cos(),
             )
         });
-        app.panes_view.dist.rate_2s.values.extend(more);
+        app.bench.panes_view.dist.rate_2s.values.extend(more);
         let drawn = circles(&mut app, &ctx, SeriesKind::Rate);
-        let plot = app.panes_view.dist.plots[SeriesKind::Rate as usize]
+        let plot = app.bench.panes_view.dist.plots[SeriesKind::Rate as usize]
             .clone()
             .unwrap();
         assert_eq!(plot.n, first + 40_000);
@@ -1053,25 +1061,30 @@ mod plot_cache_tests {
         assert!((100..4_400).contains(&drawn), "{drawn} circles");
         // Nothing new: the same plot, not worked out again.
         let _ = circles(&mut app, &ctx, SeriesKind::Rate);
-        let again = app.panes_view.dist.plots[SeriesKind::Rate as usize]
+        let again = app.bench.panes_view.dist.plots[SeriesKind::Rate as usize]
             .clone()
             .unwrap();
         assert!(std::sync::Arc::ptr_eq(&plot, &again));
         // A new stretch, the other view, another Average Over, another
         // position, or a new mask: worked out again.
-        app.panes_view.dist.rate_2s.values.push((80_100.0, 12.0));
+        app.bench
+            .panes_view
+            .dist
+            .rate_2s
+            .values
+            .push((80_100.0, 12.0));
         let changes: [fn(&mut TimegrapherApp); 5] = [
             |_| {},
-            |a| a.panes_view.hist_cumulative = true,
-            |a| a.take.average_s = 20.0,
-            |a| a.take.position = Position::DialDown,
-            |a| a.take.rev.masks += 1,
+            |a| a.bench.panes_view.hist_cumulative = true,
+            |a| a.bench.take.average_s = 20.0,
+            |a| a.bench.take.position = Position::DialDown,
+            |a| a.bench.take.rev.masks += 1,
         ];
         let mut was = again;
         for change in changes {
             change(&mut app);
             let _ = circles(&mut app, &ctx, SeriesKind::Rate);
-            let now = app.panes_view.dist.plots[SeriesKind::Rate as usize]
+            let now = app.bench.panes_view.dist.plots[SeriesKind::Rate as usize]
                 .clone()
                 .unwrap();
             assert!(!std::sync::Arc::ptr_eq(&was, &now));
@@ -1100,28 +1113,42 @@ mod plot_cache_tests {
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
         app.reset_session(48_000, "syn".into());
         let push = |app: &mut TimegrapherApp, s: &[f32]| {
-            let live = app.live.as_mut().unwrap();
+            let live = app.bench.recording.live.as_mut().unwrap();
             for b in s.chunks(960) {
                 live.push(b);
             }
         };
         push(&mut app, first);
-        app.panes_view.hist_readings = false;
+        app.bench.panes_view.hist_readings = false;
         let ctx = super::super::tests::themed();
         let amp = SeriesKind::Amplitude as usize;
         let plot = |app: &mut TimegrapherApp| {
             let _ = circles(app, &ctx, SeriesKind::Amplitude);
-            app.panes_view.dist.plots[amp].clone().unwrap()
+            app.bench.panes_view.dist.plots[amp].clone().unwrap()
         };
         let mut was = plot(&mut app);
         assert!(was.n > 5, "{}", was.n);
-        let rev = app.take.rev;
+        let rev = app.bench.take.rev;
         // The last 10 s heard: new windows and no break, worked out again.
         push(&mut app, rest);
-        assert!(app.live.as_ref().unwrap().breaks().is_empty());
+        assert!(app
+            .bench
+            .recording
+            .live
+            .as_ref()
+            .unwrap()
+            .breaks()
+            .is_empty());
         let changes: [fn(&mut TimegrapherApp); 4] = [
             |_| {},
-            |a| a.live.as_mut().unwrap().set_breaks(vec![15.0]),
+            |a| {
+                a.bench
+                    .recording
+                    .live
+                    .as_mut()
+                    .unwrap()
+                    .set_breaks(vec![15.0])
+            },
             |a| {
                 let stretches = [(0.0, Position::DialUp), (20.0, Position::DialDown)];
                 a.session.load(&stretches, &[]);
@@ -1137,7 +1164,10 @@ mod plot_cache_tests {
             assert!(!std::sync::Arc::ptr_eq(&was, &now));
             was = now;
         }
-        assert_eq!(app.take.rev, rev, "each change above moved no revision");
+        assert_eq!(
+            app.bench.take.rev, rev,
+            "each change above moved no revision"
+        );
     }
 
     /// With Values on Readings, the plot is worked out again when core's
@@ -1145,16 +1175,16 @@ mod plot_cache_tests {
     #[test]
     fn the_readings_plot_follows_cores_readings_as_they_come() {
         let mut app = super::super::tests::synthetic(122.0, 5.0);
-        app.take.average_s = 10.0;
-        app.panes_view.hist_readings = true;
+        app.bench.take.average_s = 10.0;
+        app.bench.panes_view.hist_readings = true;
         let ctx = super::super::tests::themed();
         let rate = SeriesKind::Rate as usize;
         let _ = circles(&mut app, &ctx, SeriesKind::Rate);
-        let before = app.panes_view.dist.plots[rate].clone().unwrap();
+        let before = app.bench.panes_view.dist.plots[rate].clone().unwrap();
         assert_eq!(before.n, 0, "no readings read yet");
         app.update_dist_readings(None);
         let _ = circles(&mut app, &ctx, SeriesKind::Rate);
-        let after = app.panes_view.dist.plots[rate].clone().unwrap();
+        let after = app.bench.panes_view.dist.plots[rate].clone().unwrap();
         assert!(after.n >= 9, "{} readings", after.n);
     }
 

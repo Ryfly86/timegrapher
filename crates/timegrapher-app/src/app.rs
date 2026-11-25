@@ -21,16 +21,17 @@ use crate::steady::{self, Steadiness};
 use crate::strip::{self, Anchor, StripInput, StripView};
 use crate::theme::{self, DialogButton, Icon, Role};
 use crate::watches;
-use distributions::{DistKey, DistReadings};
+use distributions::DistReadings;
 use eframe::egui::{self, Color32, RichText, Vec2};
 use egui_plot::{GridMark, Line, LineStyle, Plot, Points};
 use egui_tiles::{Linear, LinearDir, SimplificationOptions, TileId, Tiles, Tree, UiResponse};
+use result_keys::{DistKey, FreeKey, ScopeKey, ScopeRead, SoundKey, StripKey, TrendKey, WholeKey};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::TryRecvError;
 use std::time::{Duration, Instant};
 #[cfg(test)]
 use take_io::order_warning;
-use take_reads::{FreeJob, FreeKey, TrendKey, WholeKey, WholeTake};
+use take_reads::{FreeJob, WholeTake};
 use timegrapher_core::beats::STANDARD_BPH;
 use timegrapher_core::breaks::{GapWatch, Live};
 use timegrapher_core::capture::{self, Capture, Event, InputDevice, Level};
@@ -45,6 +46,7 @@ use timegrapher_core::profile::TickProfile;
 use timegrapher_core::steadiness::SeriesKind;
 use timegrapher_core::{checkpoint, clockstore};
 
+mod bench;
 mod charts;
 use charts::chart_key;
 pub use charts::{lane_text, lane_width, paint_key, LANE_AFTER_TITLE, LANE_GAP};
@@ -85,6 +87,8 @@ mod positions_test;
 mod power_reserve_pane;
 mod readings_strip;
 mod readouts;
+mod recording;
+mod result_keys;
 mod results;
 use readouts::caveat_facts;
 mod redraw;
@@ -1481,11 +1485,6 @@ fn trend_key(seconds: f64) -> u64 {
     (seconds * 1000.0).round() as u64
 }
 
-/// What the strip's own readings were worked out for: the window and the
-/// spacing in steps, the averaging time, how much sound there was (in
-/// whole steps while listening) and what the readings rest on.
-type StripKey = (i64, i64, u64, u64, u64, Revision);
-
 /// A reading of a chart over time: core's trend reading.
 type TrendPoint = timegrapher_core::live::TrendReading;
 
@@ -1564,18 +1563,6 @@ type FullWindKey = (
 );
 
 pub struct TimegrapherApp {
-    input: Input,
-    devices: Vec<InputDevice>,
-    /// Whether `devices` has been filled. Listing the inputs asks each one
-    /// what it supports, which briefly opens it and can disturb another
-    /// program recording from it, so the app lists them only when the
-    /// microphone menu opens, Rescan is pressed or listening starts.
-    devices_listed: bool,
-    device: Option<String>,
-    file_path: String,
-    /// This session began with Quick Listen: kept only by Keep in a
-    /// Watch…, or by Save… into Unsorted.
-    quick_listen: bool,
     /// Report a Problem.
     report: ReportDialog,
     updates: crate::update::Updates,
@@ -1598,24 +1585,14 @@ pub struct TimegrapherApp {
     setup_declined: bool,
     /// Set Up the Microphone is open (the first launch).
     setup_sheet: bool,
-    /// Quick Listen starts on the first frame (Listen When the App Opens).
-    listen_pending: bool,
     /// Set Up the Microphone has tried listening once.
     setup_tried: bool,
     /// Why the computer isn't being kept awake although asked, set by the
     /// listening thread.
     pub(crate) awake_fault: Option<String>,
-    /// Why the input last failed to open, for its row in Settings; none
-    /// once one opens.
-    input_fault: Option<String>,
     /// Why the listening thread didn't start, if it didn't: then sound is
     /// only taken while the window draws.
     pub(crate) pump_fault: Option<String>,
-    /// The file dialog asked for, shown once the frame lets the app go.
-    picker: Option<crate::pick::Picker>,
-    /// The check at start is still to be made (on the first frame, which
-    /// has the context it repaints).
-    check_pending: bool,
     /// Listening, paused, the positions and settling, the kept sound and
     /// what of it is saved.
     session: Session,
@@ -1635,8 +1612,6 @@ pub struct TimegrapherApp {
     /// The library as read when Settings opened or it last changed:
     /// `Ok(None)` while there is none at its folder.
     library: Result<Option<library::Library>, String>,
-    /// The USB lines of the sound heard here, read as it comes (#1721).
-    live_usb: Option<live_usb::LiveUsb>,
     /// Asking before something throws away unsaved sound.
     confirm: Option<Confirm>,
     /// The window may close: the user has said what to do with the sound.
@@ -1644,76 +1619,28 @@ pub struct TimegrapherApp {
     /// Light, dark or following the system, kept for the next start.
     theme: egui::ThemePreference,
 
-    capture: Option<Capture>,
-    live: Option<LiveAnalyzer>,
-    source_label: String,
-    batch: Option<Batch>,
-    /// The Listen button since it last stood in for Stop: see
-    /// [`listen_tap`] (#725).
-    listen_tap: Option<(f64, bool)>,
-    anchor: Option<Anchor>,
-    /// While a take opens: a beat rate its settings change reads nothing
-    /// again, the take before least of all (#1241).
-    opening: bool,
-    /// The input's level meter, level control and automatic gain switch.
-    meter: input_meter::InputMeter,
-    /// The stored clock error of the input this session listens to, if one
-    /// was measured (`timegrapher clock measure --save`).
-    clock: Option<clockstore::DeviceClock>,
-    /// The microphone's clock timed against the computer's as its audio
-    /// arrives: offered to keep once it has run long enough.
-    clock_track: Option<ClockTrack>,
     message: Option<(String, bool)>,
-    /// A take kept as its analysis alone as it records (#1514).
-    kept_live: kept_analysis::Kept,
-    /// The jumps in the live sound's beats as of the last pass, to see a
-    /// new one.
-    jumps_seen: Vec<f64>,
-    /// When live's first chunk read again took over and why it was not,
-    /// as last seen (#1327).
-    rebuild_seen: (Option<f64>, Option<&'static str>),
-    /// Offer every input the system lists, not just one per microphone.
-    all_inputs: bool,
-    /// When the microphone was opened and when it last sent audio.
-    opened_at: Instant,
-    audio_at: Option<Instant>,
-    /// Core's gap rule over a live input's blocks: a break where the
-    /// computer slept or the input stalled.
-    gaps: Option<GapWatch>,
-    /// When the sound was last taken in, to tell when nothing ran at all
-    /// (the computer asleep, a dialog open) from an input gone quiet.
-    polled_at: Instant,
     /// The Watches view's own state.
     watches_view: watches_view::WatchesView,
-    /// How the strip and charts look and follow.
-    panes_view: pane_view::PaneView,
-    /// The guided tests for this bench.
-    test: guided_test::GuidedTest,
-    /// The take's readings and the runs in the background that read them.
-    results: results::Results,
-    /// What the take on show is read with: the watch, its beat rate and
-    /// lift, the positions, masks and clock, and what its readings rest on.
-    take: take_settings::TakeSettings,
-    /// Keeping and saving the take on show: kept sounds, Keep in a
-    /// Watch…, saves under way, opening and the crash note.
-    keeping: keeping::Keeping,
+    /// The bench: the take on show, recorded, read, tested, drawn and kept.
+    bench: bench::Bench,
 }
 
 impl TimegrapherApp {
     pub fn new(file: Option<PathBuf>, saved: Option<Settings>) -> Self {
         // No device is touched at launch: see `devices_listed`.
         let mut app = Self::with_devices(Vec::new(), file);
-        app.devices_listed = false;
+        app.bench.recording.devices_listed = false;
         app.cal = calibre_ui::Calibres::open(timegrapher_core::calibre_store::default_path());
         if let Some(s) = saved {
             app.apply_settings(s);
         }
         app.at_launch();
-        app.keeping.crash = applog::dir().and_then(|d| applog::unseen_crashes(&d).pop());
-        app.keeping.kept = kept_sounds(&scratch_dir());
+        app.bench.keeping.crash = applog::dir().and_then(|d| applog::unseen_crashes(&d).pop());
+        app.bench.keeping.kept = kept_sounds(&scratch_dir());
         app.read_library();
         app.keep_saved_wavs();
-        app.check_pending = app.check_at_start;
+        app.bench.recording.check_pending = app.check_at_start;
         app
     }
 
@@ -1721,8 +1648,8 @@ impl TimegrapherApp {
     /// time it asks which microphone first. A recording asked for opens
     /// instead.
     fn at_launch(&mut self) {
-        if self.input != Input::File {
-            self.listen_pending = self.mic_set_up && self.listen_at_open;
+        if self.bench.recording.input != Input::File {
+            self.bench.recording.listen_pending = self.mic_set_up && self.listen_at_open;
             self.setup_sheet = !self.mic_set_up && !self.setup_declined;
         }
     }
@@ -1730,49 +1657,56 @@ impl TimegrapherApp {
     /// The views and choices kept from the last time the app ran.
     pub fn settings(&self) -> Settings {
         Settings {
-            device: self.device.clone(),
-            average_s: self.take.average_s,
+            device: self.bench.recording.device.clone(),
+            average_s: self.bench.take.average_s,
             strip: self.live_view(),
             rate_line: self.live_rate_marks()[0],
             rate_guides: self.live_rate_marks()[1],
-            overlays: self.panes_view.overlays,
-            follow: self.panes_view.follow,
-            chart_series: self.panes_view.chart_series,
-            dist_series: self.panes_view.dist_series,
-            reserve_series: self.panes_view.reserve_series,
-            positions_series: self.panes_view.positions_series,
-            complication_series: self.panes_view.complication_series,
-            hist_cumulative: self.panes_view.hist_cumulative,
-            reserve_info: self.panes_view.reserve_info,
-            positions_info: self.panes_view.positions_info,
-            hist_readings: self.panes_view.hist_readings,
-            iso_view: self.panes_view.iso_view,
-            sound: self.panes_view.sound_opts,
-            folded: self.panes_view.folded.iter().cloned().collect(),
+            overlays: self.bench.panes_view.overlays,
+            follow: self.bench.panes_view.follow,
+            chart_series: self.bench.panes_view.chart_series,
+            dist_series: self.bench.panes_view.dist_series,
+            reserve_series: self.bench.panes_view.reserve_series,
+            positions_series: self.bench.panes_view.positions_series,
+            complication_series: self.bench.panes_view.complication_series,
+            hist_cumulative: self.bench.panes_view.hist_cumulative,
+            reserve_info: self.bench.panes_view.reserve_info,
+            positions_info: self.bench.panes_view.positions_info,
+            hist_readings: self.bench.panes_view.hist_readings,
+            iso_view: self.bench.panes_view.iso_view,
+            sound: self.bench.panes_view.sound_opts,
+            folded: self.bench.panes_view.folded.iter().cloned().collect(),
             theme: self.theme,
             steady_series: RATE_ONLY,
             steady_shown: self
+                .bench
                 .panes_view
                 .steady_series
                 .iter()
                 .map(|(v, s)| (*v, *s))
                 .collect(),
-            periods_db: self.panes_view.periods_db,
-            fft_timing: self.panes_view.fft_timing,
-            maps_db: self.panes_view.maps_db.unset,
-            maps_db_set: self.panes_view.maps_db.saved(),
-            marks: self.panes_view.show_marks.saved(),
-            steady_info: self.panes_view.steady_info.unset,
-            steady_info_set: self.panes_view.steady_info.saved(),
-            positions_settle_s: self.test.guided_settle_s,
-            ten_positions: self.test.ten_positions,
-            poise_views: self.panes_view.poise_views,
-            poise_info: self.panes_view.poise_info,
-            complication_info: self.panes_view.complication_info,
-            positions_measure_s: self.test.guided_measure_s,
-            scope: self.panes_view.scope_view,
-            panes: Some(self.panes_view.panes.clone()),
-            panes_dragged: self.panes_view.panes_dragged.iter().copied().collect(),
+            periods_db: self.bench.panes_view.periods_db,
+            fft_timing: self.bench.panes_view.fft_timing,
+            maps_db: self.bench.panes_view.maps_db.unset,
+            maps_db_set: self.bench.panes_view.maps_db.saved(),
+            marks: self.bench.panes_view.show_marks.saved(),
+            steady_info: self.bench.panes_view.steady_info.unset,
+            steady_info_set: self.bench.panes_view.steady_info.saved(),
+            positions_settle_s: self.bench.test.guided_settle_s,
+            ten_positions: self.bench.test.ten_positions,
+            poise_views: self.bench.panes_view.poise_views,
+            poise_info: self.bench.panes_view.poise_info,
+            complication_info: self.bench.panes_view.complication_info,
+            positions_measure_s: self.bench.test.guided_measure_s,
+            scope: self.bench.panes_view.scope_view,
+            panes: Some(self.bench.panes_view.panes.clone()),
+            panes_dragged: self
+                .bench
+                .panes_view
+                .panes_dragged
+                .iter()
+                .copied()
+                .collect(),
             layout: LAYOUT,
             // Drop legacy entries only after their user-catalogue save succeeds.
             custom_calibres: self.cal.pending_legacy().to_vec(),
@@ -1784,8 +1718,8 @@ impl TimegrapherApp {
             listen_at_open: self.listen_at_open,
             mic_set_up: self.mic_set_up,
             setup_declined: self.setup_declined,
-            show_readings: self.panes_view.show_readings,
-            readings_pinned: self.panes_view.readings_pinned,
+            show_readings: self.bench.panes_view.show_readings,
+            readings_pinned: self.bench.panes_view.readings_pinned,
             library: self.library_dir.clone(),
             settings_section: self.settings_last.key().into(),
             agc_on: self.agc_on.clone(),
@@ -1857,7 +1791,7 @@ impl TimegrapherApp {
         } = s;
         (self.after_save_command, self.agc_on) = (after_save_command, agc_on);
         self.settings_last = Tab::from_key(&settings_section);
-        (self.listen_at_open, self.test.ten_positions) = (listen_at_open, ten_positions);
+        (self.listen_at_open, self.bench.test.ten_positions) = (listen_at_open, ten_positions);
         (self.mic_set_up, self.setup_declined) = (mic_set_up, setup_declined);
         // A layout from before the panes moved starts afresh.
         let panes = panes.filter(|_| layout >= LAYOUT);
@@ -1876,9 +1810,9 @@ impl TimegrapherApp {
         strip.set_span(strip.span_s);
         // One left on is kept: a pane with none shown would be empty.
         let on = |s: [bool; 3]| if s.contains(&true) { s } else { RATE_ONLY };
-        (self.panes_view.sound_opts, self.theme) = (sound, theme);
+        (self.bench.panes_view.sound_opts, self.theme) = (sound, theme);
         self.set_positions_times(positions_settle_s, positions_measure_s);
-        let v = &mut self.panes_view;
+        let v = &mut self.bench.panes_view;
         (v.strip, v.readings_pinned) = (strip, readings_pinned);
         (v.rate_line, v.rate_guides) = (rate_line, rate_guides);
         (v.overlays, v.follow) = (overlays, follow);
@@ -1897,12 +1831,12 @@ impl TimegrapherApp {
         (v.complication_series, v.scope_view) = (complication_series, scope);
         (v.poise_views, v.poise_info) = (poise_views, poise_info);
         (v.complication_info, v.show_readings) = (complication_info, show_readings);
-        self.panes_view.panes = match panes.map(upgraded_layout) {
+        self.bench.panes_view.panes = match panes.map(upgraded_layout) {
             Some(p) if layout_is_whole(&p) => {
-                self.panes_view.panes_dragged = panes_dragged.into_iter().collect();
+                self.bench.panes_view.panes_dragged = panes_dragged.into_iter().collect();
                 p
             }
-            _ => default_layout(self.panes_view.strip.horizontal),
+            _ => default_layout(self.bench.panes_view.strip.horizontal),
         };
     }
 
@@ -1910,46 +1844,34 @@ impl TimegrapherApp {
     /// when they are listed.
     fn restore_device(&mut self, device: Option<String>) {
         if let Some(d) = device.filter(|d| {
-            !self.devices_listed || capture::choices(&self.devices).iter().any(|c| &c.id == d)
+            !self.bench.recording.devices_listed
+                || capture::choices(&self.bench.recording.devices)
+                    .iter()
+                    .any(|c| &c.id == d)
         }) {
-            self.device = Some(d);
+            self.bench.recording.device = Some(d);
         }
     }
 
     /// The Positions Test's settle and measure times, each kept in its
     /// range.
     fn set_positions_times(&mut self, settle_s: f64, measure_s: f64) {
-        self.test.guided_settle_s =
+        self.bench.test.guided_settle_s =
             settle_s.clamp(*guided::SETTLE_RANGE.start(), *guided::SETTLE_RANGE.end());
-        self.session.set_settle_s(self.test.guided_settle_s);
-        self.test.guided_measure_s =
+        self.session.set_settle_s(self.bench.test.guided_settle_s);
+        self.bench.test.guided_measure_s =
             measure_s.clamp(*guided::MEASURE_RANGE.start(), *guided::MEASURE_RANGE.end());
     }
 
     /// The app with a given device list. Tests pass an empty one: listing
     /// devices from several test threads at once crashes on Windows.
     fn with_devices(devices: Vec<InputDevice>, file: Option<PathBuf>) -> Self {
-        let device = capture::choices(&devices).first().map(|c| c.id.clone());
         let mut app = TimegrapherApp {
-            input: if file.is_some() {
-                Input::File
-            } else {
-                Input::Microphone
-            },
-            devices,
-            devices_listed: true,
-            device,
-            file_path: file
-                .as_ref()
-                .map(|p| p.display().to_string())
-                .unwrap_or_default(),
-            take: take_settings::TakeSettings::default(),
+            bench: bench::Bench::new(devices, file.as_ref()),
             session: Session::default(),
-            keeping: keeping::Keeping::default(),
             report: ReportDialog::default(),
             updates: Default::default(),
             update_dialog: None,
-            test: guided_test::GuidedTest::default(),
             check_at_start: true,
             keep_awake: true,
             listen_at_open: true,
@@ -1957,13 +1879,9 @@ impl TimegrapherApp {
             mic_set_up: false,
             setup_declined: false,
             setup_sheet: false,
-            listen_pending: false,
             setup_tried: false,
             awake_fault: None,
-            input_fault: None,
             pump_fault: None,
-            picker: None,
-            check_pending: false,
             cal: calibre_ui::Calibres::in_memory(),
             settings_tab: None,
             settings_last: Tab::General,
@@ -1972,34 +1890,12 @@ impl TimegrapherApp {
             library_dir: None,
             library: Ok(None),
             watches_view: watches_view::WatchesView::default(),
-            panes_view: pane_view::PaneView::default(),
-            quick_listen: false,
-            results: results::Results::default(),
-            live_usb: None,
             confirm: None,
             may_close: false,
             // As the settings first are.
             theme: egui::ThemePreference::System,
-            capture: None,
-            live: None,
-            source_label: String::new(),
-            batch: None,
-            listen_tap: None,
-            anchor: None,
-            opening: false,
-            meter: input_meter::InputMeter::default(),
-            clock: None,
-            clock_track: None,
             agc_on: Vec::new(),
             message: None,
-            kept_live: Default::default(),
-            jumps_seen: Vec::new(),
-            rebuild_seen: (None, None),
-            all_inputs: false,
-            opened_at: Instant::now(),
-            audio_at: None,
-            gaps: None,
-            polled_at: Instant::now(),
         };
         if let Some(f) = file {
             app.start_batch(&f);
@@ -2008,7 +1904,7 @@ impl TimegrapherApp {
     }
 
     pub(crate) fn running(&self) -> bool {
-        self.capture.is_some()
+        self.bench.recording.capture.is_some()
     }
 
     /// Whether to hold the computer awake now: listening to the
@@ -2019,34 +1915,38 @@ impl TimegrapherApp {
 
     /// Seconds of sound heard so far in this session, for the log.
     pub(crate) fn heard_s(&self) -> f64 {
-        self.live.as_ref().map_or(0.0, |l| l.duration_s())
+        self.bench
+            .recording
+            .live
+            .as_ref()
+            .map_or(0.0, |l| l.duration_s())
     }
 
     /// Work the charts out again over the whole session, for a new
     /// averaging time or lift angle.
     fn rebuild_trend(&mut self) {
         let points = self
+            .bench
+            .recording
             .live
             .as_ref()
-            .map_or_else(Vec::new, |l| l.trend(self.take.average_s));
+            .map_or_else(Vec::new, |l| l.trend(self.bench.take.average_s));
         self.put_trend(points);
     }
 
     /// The charts from the engine's readings at the averaging time,
     /// `points`, read here or off the window's thread.
     fn put_trend(&mut self, mut points: Vec<TrendPoint>) {
-        self.results.strip_points = None;
+        self.bench.results.strip_points = None;
         points.retain(|p| self.session.replay_reading_allowed(p.t));
-        self.results.trend = points;
-        self.results.trend_key = (self.take.rev, self.take.average_s.to_bits());
+        self.bench.results.trend = points;
+        self.bench.results.trend_key = self.trend_now();
     }
 
     /// Read the run of readings again when what it rests on changed since: the take's settings,
     /// clock, breaks or masks, or Average Over. While listening the next frame reads it (#1825).
     fn refresh_trend(&mut self) {
-        if self.results.trend_key != (self.take.rev, self.take.average_s.to_bits())
-            && !self.running()
-        {
+        if self.bench.results.trend_key != self.trend_now() && !self.running() {
             self.rebuild_trend();
         }
     }
@@ -2055,25 +1955,32 @@ impl TimegrapherApp {
     /// points are read again, a run being read in the background on the old one dropped, and
     /// the strip's anchor moves with the beats, so the view stays. A given-up rebuild is logged.
     fn follow_rebuild(&mut self) {
-        let Some(live) = &self.live else {
+        let Some(live) = &self.bench.recording.live else {
             return;
         };
         let now = (live.template_switch_s(), live.template_rebuild_given_up());
-        if now.0 != self.rebuild_seen.0 {
-            self.results.bg.trend = None;
-            self.results.trend = live.trend(self.take.average_s);
-            if let (Some(a), Some((dt, di))) = (self.anchor.as_mut(), live.template_shift()) {
+        if now.0 != self.bench.recording.rebuild_seen.0 {
+            self.bench.results.bg.trend = None;
+            self.bench.results.trend = live.trend(self.bench.take.average_s);
+            if let (Some(a), Some((dt, di))) =
+                (self.bench.recording.anchor.as_mut(), live.template_shift())
+            {
                 (a.time, a.index) = (a.time + dt, a.index + di);
             }
         }
-        if let Some(why) = now.1.filter(|_| now.1 != self.rebuild_seen.1) {
+        if let Some(why) = now
+            .1
+            .filter(|_| now.1 != self.bench.recording.rebuild_seen.1)
+        {
             applog::info(&format!("Live kept its first beat template: {why}"));
         }
-        self.rebuild_seen = now;
+        self.bench.recording.rebuild_seen = now;
     }
 
     fn latest_s(&self) -> f64 {
-        self.live
+        self.bench
+            .recording
+            .live
             .as_ref()
             .map_or(0.0, |l| l.beats().last().map_or(l.duration_s(), |b| b.time))
     }
@@ -2081,7 +1988,8 @@ impl TimegrapherApp {
     /// The end of the last reading with a watch heard; the end when none
     /// was.
     fn last_heard_s(&self) -> f64 {
-        self.results
+        self.bench
+            .results
             .trend
             .iter()
             .rev()
@@ -2092,18 +2000,18 @@ impl TimegrapherApp {
     /// With Fit on, the strip's length is the session so far.
     fn follow_fit(&mut self) {
         if self.strip_fitted() {
-            self.panes_view.strip_end = None;
-            self.panes_view.strip.set_span(self.strip_end_s());
+            self.bench.panes_view.strip_end = None;
+            self.bench.panes_view.strip.set_span(self.strip_end_s());
         }
     }
 
     fn reading(&self) -> Option<LiveReading> {
-        self.reading_over(self.take.average_s)
+        self.reading_over(self.bench.take.average_s)
     }
 
     /// The newest reading, averaged over `average` seconds.
     fn reading_over(&self, average: f64) -> Option<LiveReading> {
-        let live = self.live.as_ref()?;
+        let live = self.bench.recording.live.as_ref()?;
         // Stopped inside a settle: the last readings of the position before
         // the move, rather than nothing.
         if let Some(at) = self.stopped_in_settle() {
@@ -2127,11 +2035,11 @@ impl TimegrapherApp {
     /// while the watch settles. The reading cards show it at the strip's
     /// newest edge when the strip is moved off the newest beats.
     fn reading_at_time(&self, t: f64) -> Option<LiveReading> {
-        let live = self.live.as_ref()?;
+        let live = self.bench.recording.live.as_ref()?;
         if self.settle_left_at(t).is_some() {
             return None;
         }
-        let reading = live.reading_at(t, self.take.average_s);
+        let reading = live.reading_at(t, self.bench.take.average_s);
         self.session
             .replay_reading_allowed(reading.time_s)
             .then_some(reading)
@@ -2140,16 +2048,16 @@ impl TimegrapherApp {
     /// Put the beats just before the strip's newest edge on the centre line.
     fn centre(&mut self) {
         let end = self.strip_end_s();
-        if let Some(l) = &self.live {
+        if let Some(l) = &self.bench.recording.live {
             if let Some(bph) = l.bph() {
                 let beats = l.beats();
-                let breaks = self.take.take_breaks.as_deref().unwrap_or_default();
+                let breaks = self.bench.take.take_breaks.as_deref().unwrap_or_default();
                 let hi = beats.partition_point(|b| b.time <= end);
-                let clock = Self::rate_clock(&self.take.take_clock);
+                let clock = Self::rate_clock(&self.bench.take.take_clock);
                 if let Some(a) =
                     Anchor::centre_on_true(&beats[..hi], 3600.0 / bph as f64, 8, breaks, clock)
                 {
-                    self.anchor = Some(a);
+                    self.bench.recording.anchor = Some(a);
                 }
             }
         }
@@ -2157,8 +2065,10 @@ impl TimegrapherApp {
 
     /// The inputs the device menu offers.
     fn input_choices(&self) -> Vec<capture::InputChoice> {
-        if self.all_inputs {
-            self.devices
+        if self.bench.recording.all_inputs {
+            self.bench
+                .recording
+                .devices
                 .iter()
                 .map(|d| capture::InputChoice {
                     id: d.id.clone(),
@@ -2168,7 +2078,7 @@ impl TimegrapherApp {
                 })
                 .collect()
         } else {
-            capture::choices(&self.devices)
+            capture::choices(&self.bench.recording.devices)
         }
     }
 
@@ -2191,14 +2101,14 @@ impl TimegrapherApp {
                 egui::ComboBox::from_id_salt("compare with")
                     .selected_text(shown)
                     .show_ui(ui, |ui| {
-                        for (i, f) in self.test.guided_choices.iter().enumerate() {
-                            let on = !self.test.guided_earlier_file
-                                && self.test.guided_earlier.as_ref() == Some(f);
+                        for (i, f) in self.bench.test.guided_choices.iter().enumerate() {
+                            let on = !self.bench.test.guided_earlier_file
+                                && self.bench.test.guided_earlier.as_ref() == Some(f);
                             if ui.selectable_label(on, guided::choice_text(f)).clicked() {
                                 picked = Some(i);
                             }
                         }
-                        if !self.test.guided_choices.is_empty() {
+                        if !self.bench.test.guided_choices.is_empty() {
                             ui.separator();
                         }
                         if ui
@@ -2220,12 +2130,12 @@ impl TimegrapherApp {
 
     /// The microphone picked, as its menu names it.
     fn picked_label(&self) -> String {
-        let listed = self.devices_listed;
+        let listed = self.bench.recording.devices_listed;
         self.input_choices()
             .iter()
-            .find(|c| Some(&c.id) == self.device.as_ref())
+            .find(|c| Some(&c.id) == self.bench.recording.device.as_ref())
             .map_or_else(
-                || match (&self.device, listed) {
+                || match (&self.bench.recording.device, listed) {
                     // Not listed yet: name the one kept from last time, when
                     // its id is a name (ALSA's are; Core Audio's and
                     // WASAPI's are not).
@@ -2244,7 +2154,7 @@ impl TimegrapherApp {
     /// for it cut in the middle where `middle`, else at its end.
     fn device_menu(&mut self, ui: &mut egui::Ui, w: f32, middle: bool) {
         let choices = self.input_choices();
-        let listed = self.devices_listed;
+        let listed = self.bench.recording.devices_listed;
         let sel = self.picked_label();
         let mut opened = false;
         let row = egui::vec2(w, ui.spacing().interact_size.y);
@@ -2289,8 +2199,11 @@ impl TimegrapherApp {
                             ui.weak("Looking for microphones…");
                         }
                         for c in &choices {
-                            let r =
-                                ui.selectable_value(&mut self.device, Some(c.id.clone()), &c.label);
+                            let r = ui.selectable_value(
+                                &mut self.bench.recording.device,
+                                Some(c.id.clone()),
+                                &c.label,
+                            );
                             if !c.detail.is_empty() {
                                 r.on_hover_text(&c.detail);
                             }
@@ -2322,8 +2235,10 @@ impl TimegrapherApp {
             Pane::Sound | Pane::Scope => self.sound_tools(ui, pane),
             p if p.steady_view().is_some() => {
                 let view = p.steady_view().unwrap_or_default();
-                let (mut info, help_text) =
-                    (self.panes_view.steady_info.on(view), help::steadiness(view));
+                let (mut info, help_text) = (
+                    self.bench.panes_view.steady_info.on(view),
+                    help::steadiness(view),
+                );
                 let mut pin = |ui: &mut egui::Ui| {
                     let accent = theme::pal(ui).accent;
                     if theme::icon_toggle(ui, Icon::Info, info, accent)
@@ -2337,10 +2252,10 @@ impl TimegrapherApp {
                     self.steady_settings(ui, p);
                     self.export_button(ui, p);
                 });
-                self.panes_view.steady_info.set(view, info);
+                self.bench.panes_view.steady_info.set(view, info);
             }
             Pane::Isochronism => isochronism::toolbar(ui, title, |ui| {
-                isochronism::view_choice(ui, &mut self.panes_view.iso_view);
+                isochronism::view_choice(ui, &mut self.bench.panes_view.iso_view);
                 self.export_button(ui, pane)
             }),
             Pane::PositionsTest => self.positions_tools(ui, title),
@@ -2348,13 +2263,13 @@ impl TimegrapherApp {
             Pane::Complication => self.complication_tools(ui, title),
             Pane::PowerReserve => self.reserve_toolbar(ui, title),
             Pane::Distributions => theme::pane_toolbar(ui, title, &help::HISTOGRAMS, |ui| {
-                steady::series_switches(ui, &mut self.panes_view.dist_series);
+                steady::series_switches(ui, &mut self.bench.panes_view.dist_series);
                 theme::bar_gap(ui);
                 self.histogram_settings(ui);
                 self.export_button(ui, pane);
             }),
             Pane::Charts => theme::pane_toolbar(ui, title, help::CHARTS, |ui| {
-                steady::series_switches(ui, &mut self.panes_view.chart_series);
+                steady::series_switches(ui, &mut self.bench.panes_view.chart_series);
                 theme::bar_gap(ui);
                 self.charts_fit_switch(ui);
                 theme::bar_gap(ui);
@@ -2391,7 +2306,7 @@ impl TimegrapherApp {
         if theme::icon_toggle(
             ui,
             Icon::Readings,
-            self.panes_view.show_readings,
+            self.bench.panes_view.show_readings,
             pal.accent,
         )
         .on_hover_text(
@@ -2400,7 +2315,7 @@ impl TimegrapherApp {
         )
         .clicked()
         {
-            self.panes_view.show_readings = !self.panes_view.show_readings;
+            self.bench.panes_view.show_readings = !self.bench.panes_view.show_readings;
         }
         let groups = pane_groups();
         let folded = folded_groups(ui, &groups);
@@ -2422,7 +2337,7 @@ impl TimegrapherApp {
     fn folded_group(&mut self, ui: &mut egui::Ui, name: &str, hint: &str, panes: &[Pane]) {
         let on = panes
             .iter()
-            .filter(|&&p| pane_visible(&self.panes_view.panes.tiles, p))
+            .filter(|&&p| pane_visible(&self.bench.panes_view.panes.tiles, p))
             .count();
         let label = if on > 0 {
             format!("{name} ({on}) ⏷")
@@ -2441,7 +2356,7 @@ impl TimegrapherApp {
             ));
         egui::Popup::menu(&button).show(|ui| {
             for &pane in panes {
-                let mut shown = pane_visible(&self.panes_view.panes.tiles, pane);
+                let mut shown = pane_visible(&self.bench.panes_view.panes.tiles, pane);
                 if ui
                     .checkbox(&mut shown, pane.title())
                     .on_hover_text(pane.hint())
@@ -2462,7 +2377,7 @@ impl TimegrapherApp {
                 .on_hover_text(hint);
         }
         for &pane in panes {
-            let on = pane_visible(&self.panes_view.panes.tiles, pane);
+            let on = pane_visible(&self.bench.panes_view.panes.tiles, pane);
             let icon = pane_icon(pane);
             if theme::icon_toggle_off(ui, icon, on, pal.accent, pal.text_secondary)
                 .on_hover_text(format!("{}: {}", pane.title(), pane.hint()))
@@ -2483,37 +2398,37 @@ impl TimegrapherApp {
             self.reveal_pane(pane);
         } else {
             self.undrag(pane);
-            set_pane_visible(&mut self.panes_view.panes.tiles, pane, false);
+            set_pane_visible(&mut self.bench.panes_view.panes.tiles, pane, false);
         }
     }
 
     /// A pane shown or hidden: the rows holding it share their room out
     /// afresh, each pane at its least, rather than as last dragged.
     fn undrag(&mut self, pane: Pane) {
-        let mut at = self.panes_view.panes.tiles.find_pane(&pane);
+        let mut at = self.bench.panes_view.panes.tiles.find_pane(&pane);
         while let Some(id) = at {
-            self.panes_view.panes_dragged.remove(&id);
-            at = self.panes_view.panes.tiles.parent_of(id);
+            self.bench.panes_view.panes_dragged.remove(&id);
+            at = self.bench.panes_view.panes.tiles.parent_of(id);
         }
     }
 
     /// Show a pane and bring its tab to the front.
     fn reveal_pane(&mut self, pane: Pane) {
-        let was = pane_visible(&self.panes_view.panes.tiles, pane);
+        let was = pane_visible(&self.bench.panes_view.panes.tiles, pane);
         if !was {
             self.undrag(pane);
         }
-        set_pane_visible(&mut self.panes_view.panes.tiles, pane, true);
+        set_pane_visible(&mut self.bench.panes_view.panes.tiles, pane, true);
         // A test's pane opens at its content's height, or its run's.
         if pane == Pane::PowerReserve && !was {
             self.fit_reserve_row();
         }
-        let Some(id) = self.panes_view.panes.tiles.find_pane(&pane) else {
+        let Some(id) = self.bench.panes_view.panes.tiles.find_pane(&pane) else {
             return;
         };
-        if let Some(parent) = self.panes_view.panes.tiles.parent_of(id) {
+        if let Some(parent) = self.bench.panes_view.panes.tiles.parent_of(id) {
             if let Some(egui_tiles::Tile::Container(egui_tiles::Container::Tabs(t))) =
-                self.panes_view.panes.tiles.get_mut(parent)
+                self.bench.panes_view.panes.tiles.get_mut(parent)
             {
                 t.set_active(id);
             }
@@ -2539,15 +2454,15 @@ impl TimegrapherApp {
         // Nothing appears above the readings: notices are in the status
         // bar, so the window never moves under the pointer.
         // The readings, and on them what a take needs, unless hidden.
-        if self.panes_view.show_readings {
+        if self.bench.panes_view.show_readings {
             self.readings(ui);
         }
 
         // A drag can leave a container holding only hidden panes.
-        sync_containers(&mut self.panes_view.panes.tiles);
+        sync_containers(&mut self.bench.panes_view.panes.tiles);
         if Pane::ALL
             .iter()
-            .all(|&p| !pane_visible(&self.panes_view.panes.tiles, p))
+            .all(|&p| !pane_visible(&self.bench.panes_view.panes.tiles, p))
         {
             ui.add_space(40.0);
             ui.vertical_centered(|ui| {
@@ -2562,14 +2477,16 @@ impl TimegrapherApp {
             });
             return;
         }
-        self.panes_view.charts_to_live_now = std::mem::take(&mut self.panes_view.charts_to_live);
-        let mut panes = std::mem::replace(&mut self.panes_view.panes, Tree::empty("panes-swap"));
+        self.bench.panes_view.charts_to_live_now =
+            std::mem::take(&mut self.bench.panes_view.charts_to_live);
+        let mut panes =
+            std::mem::replace(&mut self.bench.panes_view.panes, Tree::empty("panes-swap"));
         repair_tabs(&mut panes);
-        let need = self.panes_view.pane_need.clone();
+        let need = self.bench.panes_view.pane_need.clone();
         keep_room(
             &mut panes.tiles,
             |p| need.get(&p).copied(),
-            &self.panes_view.panes_dragged,
+            &self.bench.panes_view.panes_dragged,
         );
         let before = shares_of(&panes.tiles);
         panes.ui(
@@ -2582,10 +2499,10 @@ impl TimegrapherApp {
         // Shares changed while drawn were dragged by hand: they stand.
         for (id, s) in shares_of(&panes.tiles) {
             if before.get(&id).is_some_and(|b| *b != s) {
-                self.panes_view.panes_dragged.insert(id);
+                self.bench.panes_view.panes_dragged.insert(id);
             }
         }
-        self.panes_view.panes = panes;
+        self.bench.panes_view.panes = panes;
     }
 
     /// Whether `pane`'s plot would be under [`SHORT_PLOT_H`] tall here
@@ -2604,13 +2521,13 @@ impl TimegrapherApp {
             Pane::SteadyStft | Pane::SteadyWavelet => crate::tfmap::KEY_H,
             _ => 0.0,
         };
-        let was = self.panes_view.panes_short.contains(&pane);
+        let was = self.bench.panes_view.panes_short.contains(&pane);
         let least = SHORT_PLOT_H + below + if was { SHORT_PLOT_GIVE } else { 0.0 };
         if ui.available_height() >= least {
-            self.panes_view.panes_short.remove(&pane);
+            self.bench.panes_view.panes_short.remove(&pane);
             return false;
         }
-        self.panes_view.panes_short.insert(pane);
+        self.bench.panes_view.panes_short.insert(pane);
         let pal = theme::pal(ui);
         ui.centered_and_justified(|ui| {
             ui.label(
@@ -2627,8 +2544,9 @@ impl TimegrapherApp {
     /// Keep the height `pane` needs: what is above its plots, one plot
     /// `least` tall, the line naming those with no room, and the margin.
     fn note_need(&mut self, ui: &egui::Ui, pane: Pane, least: f32) {
-        let above = ui.cursor().top() - self.panes_view.pane_top;
-        self.panes_view
+        let above = ui.cursor().top() - self.bench.panes_view.pane_top;
+        self.bench
+            .panes_view
             .pane_need
             .insert(pane, above + least + STACKED_NOTE_H + 6.0);
     }
@@ -3189,7 +3107,7 @@ impl TimegrapherApp {
     /// with the content in cards.
     fn panels(&mut self, ctx: &egui::Context) {
         self.poll_updates(ctx);
-        if std::mem::take(&mut self.panes_view.gutter_fresh) {
+        if std::mem::take(&mut self.bench.panes_view.gutter_fresh) {
             theme::reset_time_gutter(ctx);
         }
         crate::pump::timed("charts' readings", || self.take_reads_shown(ctx));
@@ -3207,12 +3125,12 @@ impl TimegrapherApp {
             .frame(bar.inner_margin(egui::Margin::symmetric(14, 5)))
             .show(ctx, |ui| self.status_bar(ui));
         // Esc puts the tool in hand down: the Position Brush or Mask.
-        if (self.take.brush.is_some() || self.take.masking)
+        if (self.bench.take.brush.is_some() || self.bench.take.masking)
             && !egui::Popup::is_any_open(ctx)
             && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
         {
-            self.take.brush = None;
-            self.take.masking = false;
+            self.bench.take.brush = None;
+            self.bench.take.masking = false;
         }
         // The menus' shortcuts, Cmd+1 and Cmd+2 before the bare digits
         // are read.
@@ -3248,7 +3166,9 @@ impl TimegrapherApp {
         // Closing the window while the library is being moved is refused,
         // and the app stays open: stopping a copy part way would leave half
         // a library behind.
-        if ctx.input(|i| i.viewport().close_requested()) && self.keeping.library_moving.is_some() {
+        if ctx.input(|i| i.viewport().close_requested())
+            && self.bench.keeping.library_moving.is_some()
+        {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             self.info_msg(
                 "Your watches are still being moved: Timegrapher can be closed once it is done."
@@ -3259,23 +3179,23 @@ impl TimegrapherApp {
         // which saves the last seconds, then close once that is written.
         // Nothing is unsaved, so nothing is asked.
         if ctx.input(|i| i.viewport().close_requested())
-            && self.keeping.library_moving.is_none()
+            && self.bench.keeping.library_moving.is_none()
             && self.streams()
         {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             self.stop_listening();
-            self.keeping.close_after_save = true;
+            self.bench.keeping.close_after_save = true;
         }
         if self.closes_after_save() {
-            self.keeping.close_after_save = false;
+            self.bench.keeping.close_after_save = false;
             self.may_close = true;
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
         // Closing the window while a save is written waits for it: the
         // take would be left half copied.
         if ctx.input(|i| i.viewport().close_requested())
-            && self.keeping.saving.is_some()
-            && self.keeping.library_moving.is_none()
+            && self.bench.keeping.saving.is_some()
+            && self.bench.keeping.library_moving.is_none()
         {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             self.info_msg(
@@ -3285,7 +3205,7 @@ impl TimegrapherApp {
         }
         // Closing the window with unsaved sound asks first.
         if ctx.input(|i| i.viewport().close_requested())
-            && self.keeping.saving.is_none()
+            && self.bench.keeping.saving.is_none()
             && !self.may_close
             && self.needs_save_confirmation()
         {
@@ -3300,8 +3220,8 @@ impl eframe::App for TimegrapherApp {
         crate::frame_built();
         let was_working = self.repaint_every().is_some();
         // One settling for every change of position: the pane's Settle.
-        self.session.set_settle_s(self.test.guided_settle_s);
-        if std::mem::take(&mut self.listen_pending) && !self.running() {
+        self.session.set_settle_s(self.bench.test.guided_settle_s);
+        if std::mem::take(&mut self.bench.recording.listen_pending) && !self.running() {
             self.quick_listen(false);
         }
         // A microphone that opened is one set up.
@@ -3311,8 +3231,8 @@ impl eframe::App for TimegrapherApp {
         // What the readings rest on: a calibre's lift angle and a measured
         // clock.
         let lift_known = self.lift_known();
-        let clock_known = self.clock.is_some();
-        if let Some(l) = &mut self.live {
+        let clock_known = self.bench.recording.clock.is_some();
+        if let Some(l) = &mut self.bench.recording.live {
             l.set_known(lift_known, clock_known);
         }
         // A file dropped on the window is opened, where the desktop passes
@@ -3325,8 +3245,8 @@ impl eframe::App for TimegrapherApp {
                 .collect()
         });
         if let Some(p) = dropped.into_iter().next() {
-            self.input = Input::File;
-            self.file_path = p.display().to_string();
+            self.bench.recording.input = Input::File;
+            self.bench.recording.file_path = p.display().to_string();
             self.open_recording(&p, true);
         }
 
@@ -3379,7 +3299,7 @@ impl eframe::App for TimegrapherApp {
         // leave half a take, and the sound it copies is let go below.
         self.wait_for_save();
         // Asks waiting on it are let go, but a Stop's save is made below.
-        let asked = !std::mem::take(&mut self.keeping.after_save).is_empty();
+        let asked = !std::mem::take(&mut self.bench.keeping.after_save).is_empty();
         if (streamed || asked) && self.kept_take() {
             self.save_again();
             self.wait_for_save();
@@ -3423,10 +3343,6 @@ fn notice(
         .response
 }
 
-/// A beat on the Scope: its index, its time's bits (so a new session's
-/// beat of the same index is another) and the span drawn.
-type ScopeKey = (i64, u64, scope::Zoom, u64);
-
 /// Everything Average Over sets, and what it leaves alone.
 const AVERAGE_REACH: &str = "How much of the latest beats each reading is fitted over. It sets: \
      the three readings and their ±; every point on the Rate, \
@@ -3438,11 +3354,6 @@ const AVERAGE_REACH: &str = "How much of the latest beats each reading is fitted
 
 /// How many beats' traces the Scope keeps: the most it draws, both sides.
 const SCOPE_KEPT: usize = 40;
-
-/// A stretch of a recording read for the scope: the start and end asked
-/// for, s, and the sound read (shorter at the end of the recording), or why
-/// it couldn't be.
-type ScopeCut = (f64, f64, Result<crate::span::Span, String>);
 
 /// The lift angle used until a calibre is picked or one is typed in.
 pub use timegrapher_core::take::DEFAULT_LIFT_DEG;

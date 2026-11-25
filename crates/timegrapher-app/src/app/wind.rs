@@ -70,7 +70,7 @@ impl TimegrapherApp {
                 .full_wind
                 .as_deref()
                 .and_then(full_wind::unix_of_utc),
-            None => self.take.wind.wound_at,
+            None => self.bench.take.wind.wound_at,
         }
     }
 
@@ -78,7 +78,7 @@ impl TimegrapherApp {
     /// watch picked, else for the Quick Listen.
     pub(super) fn set_wound(&mut self, at: Option<f64>) {
         if self.open_watch().is_none() {
-            self.take.wind.wound_at = at;
+            self.bench.take.wind.wound_at = at;
             return;
         }
         self.set_watch_wind(at.map(|t| {
@@ -106,15 +106,15 @@ impl TimegrapherApp {
     /// Set the next test against the `i`th of the watch's full-wind tests
     /// on offer.
     pub(super) fn pick_full_wind(&mut self, i: usize) {
-        if let Some(f) = self.test.guided_choices.get(i) {
-            self.test.guided_earlier = Some(f.clone());
-            self.test.guided_earlier_file = false;
+        if let Some(f) = self.bench.test.guided_choices.get(i) {
+            self.bench.test.guided_earlier = Some(f.clone());
+            self.bench.test.guided_earlier_file = false;
         }
     }
 
     /// A watch picked: a Quick Listen's wind is let go.
     pub(super) fn forget_quick_wind(&mut self) {
-        self.take.wind.wound_at = None;
+        self.bench.take.wind.wound_at = None;
     }
 
     /// A test that begins at full wind has started, where
@@ -124,8 +124,8 @@ impl TimegrapherApp {
     /// began gives none (Norm on #1935: never moved earlier to fill one).
     pub(super) fn started_from_full_wind(&mut self, fresh: bool) {
         if START_SETS_FULL_WIND {
-            self.take.wind.before_test = Some(BeforeTest {
-                wound: self.take.wind.wound_at,
+            self.bench.take.wind.before_test = Some(BeforeTest {
+                wound: self.bench.take.wind.wound_at,
                 watch: self
                     .open_watch()
                     .map(|e| (e.watch.id.clone(), e.watch.full_wind.clone())),
@@ -143,7 +143,7 @@ impl TimegrapherApp {
     /// ([`reserve::Test::wind_h`]); thrown away, the stop still stands
     /// (#2001).
     pub(super) fn wind_let_down(&mut self) {
-        self.take.wind.before_test = None;
+        self.bench.take.wind.before_test = None;
         self.set_wound(None);
     }
 
@@ -154,11 +154,11 @@ impl TimegrapherApp {
     /// it; so does a watch or take other than the Start's. Called once per
     /// take, before its recording is let go.
     pub(super) fn take_thrown_away(&mut self) {
-        let Some(before) = self.take.wind.before_test.take() else {
+        let Some(before) = self.bench.take.wind.before_test.take() else {
             return;
         };
         let kept = self.session.saved_to().is_some()
-            || self.keeping.analysis_kept_to.is_some()
+            || self.bench.keeping.analysis_kept_to.is_some()
             || self
                 .session
                 .recorder
@@ -170,7 +170,7 @@ impl TimegrapherApp {
         let watch = self.open_watch().map(|e| e.watch.id.clone());
         match before.watch {
             Some((id, utc)) if watch.as_ref() == Some(&id) => self.set_watch_wind(utc),
-            None if watch.is_none() => self.take.wind.wound_at = before.wound,
+            None if watch.is_none() => self.bench.take.wind.wound_at = before.wound,
             _ => {}
         }
     }
@@ -189,7 +189,7 @@ impl TimegrapherApp {
     /// When the take begun began, Unix seconds: its recording's start,
     /// else now while it listens; none before a take.
     pub(super) fn began_unix(&self) -> Option<f64> {
-        self.live.as_ref()?;
+        self.bench.recording.live.as_ref()?;
         Some(self.recording_began_unix().unwrap_or_else(guided::unix_now))
     }
 
@@ -212,11 +212,12 @@ impl TimegrapherApp {
     /// Power Reserve Test's its own from its start (#2001); any other
     /// take the card's.
     pub(super) fn entry_wind_h(&self) -> Option<f64> {
-        self.test
+        self.bench
+            .test
             .guided
             .as_ref()
             .and_then(|t| t.wind_h())
-            .or_else(|| self.test.reserve.as_ref().and_then(|t| t.wind_h))
+            .or_else(|| self.bench.test.reserve.as_ref().and_then(|t| t.wind_h))
             .or_else(|| self.take_wind_h())
     }
 
@@ -224,17 +225,17 @@ impl TimegrapherApp {
     /// given), or none with no take on show.
     pub(super) fn shown_wind(&mut self) -> Option<Option<f64>> {
         let Some(take) = self.take_on_show() else {
-            self.take.wind.shown = None;
+            self.bench.take.wind.shown = None;
             return None;
         };
-        if self.take.wind.shown.as_ref().map(|s| &s.0) != Some(&take) {
+        if self.bench.take.wind.shown.as_ref().map(|s| &s.0) != Some(&take) {
             let h = read_manifest(&take)
                 .ok()
                 .flatten()
                 .and_then(|(m, _)| full_wind::take_wind_h(&m));
-            self.take.wind.shown = Some((take, h));
+            self.bench.take.wind.shown = Some((take, h));
         }
-        self.take.wind.shown.as_ref().map(|s| s.1)
+        self.bench.take.wind.shown.as_ref().map(|s| s.1)
     }
 
     /// Set Wind on the take `take`: its hours since full wind given
@@ -264,7 +265,7 @@ impl TimegrapherApp {
         if let Err(e) = full_wind::set_take_wind_h(take, wind_h) {
             return self.error(format!("Couldn't set the take's wind: {e}"));
         }
-        self.take.wind.shown = None;
+        self.bench.take.wind.shown = None;
         if let Ok(Some(l)) = &mut self.library {
             l.scan();
         }
@@ -279,11 +280,12 @@ impl TimegrapherApp {
         if let Some(h) = self.shown_wind() {
             return WindField::began(h, true);
         }
-        if self.live.is_some() {
+        if self.bench.recording.live.is_some() {
             // The Positions Test and a Power Reserve Test set their own
             // wind; a Dynamic Poise or Complication Test doesn't (Gus).
-            let own = self.test.reserve.is_some()
+            let own = self.bench.test.reserve.is_some()
                 || self
+                    .bench
                     .test
                     .guided
                     .as_ref()
@@ -316,7 +318,7 @@ impl TimegrapherApp {
         let began = self.began_unix().unwrap_or(now);
         // A wind given by hand is newer than any a test's Start replaced:
         // nothing goes back if the test is then thrown away (Vernon on #2031).
-        self.take.wind.before_test = None;
+        self.bench.take.wind.before_test = None;
         self.set_wound(match pick {
             WindPick::Now => Some(now),
             WindPick::HoursAgo(h) => Some(now - h.max(0.0) * 3600.0),
@@ -324,7 +326,7 @@ impl TimegrapherApp {
             WindPick::HoursBefore(h) => Some(began - h.max(0.0) * 3600.0),
             WindPick::NotGiven => None,
         });
-        if self.live.is_some() {
+        if self.bench.recording.live.is_some() {
             self.resave_take_wind();
         }
     }
@@ -341,18 +343,18 @@ impl TimegrapherApp {
     /// closed.
     pub(super) fn wind_menu(&mut self, ui: &mut egui::Ui) -> Option<WindPick> {
         let shown = self.shown_wind();
-        let begun = shown.is_some() || self.live.is_some();
-        if self.take.wind.ago.is_empty() {
+        let begun = shown.is_some() || self.bench.recording.live.is_some();
+        if self.bench.take.wind.ago.is_empty() {
             let h = match shown {
                 Some(h) => h,
                 None if begun => self.entry_wind_h(),
                 None => self.wind_h_at(guided::unix_now()),
             };
-            self.take.wind.ago = fields::plain(h.unwrap_or(0.0));
+            self.bench.take.wind.ago = fields::plain(h.unwrap_or(0.0));
         }
-        let picked = wind_choices(ui, &mut self.take.wind.ago, begun);
+        let picked = wind_choices(ui, &mut self.bench.take.wind.ago, begun);
         if picked.is_some() {
-            self.take.wind.ago.clear();
+            self.bench.take.wind.ago.clear();
             ui.close();
         }
         picked

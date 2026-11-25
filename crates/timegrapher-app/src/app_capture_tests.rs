@@ -50,7 +50,7 @@ fn pause_reports_an_input_failure_already_queued() {
     tx.send(Event::Error("device unplugged".into())).unwrap();
     app.pause();
     let after = app.session.recorder.as_ref().unwrap().duration_s();
-    let fault = app.input_fault.clone();
+    let fault = app.bench.recording.input_fault.clone();
     drop(app);
     drop(tx);
     let _ = std::fs::remove_dir_all(base);
@@ -223,7 +223,7 @@ fn a_glitch_is_a_break_not_a_stop() {
     send_after(&tx, 0, 500);
     while app.poll_for(Duration::from_secs(60)) > 0 {}
     assert!(app.running());
-    assert!(app.input_fault.is_none());
+    assert!(app.bench.recording.input_fault.is_none());
     let breaks = app.session.recorder.as_ref().unwrap().breaks();
     assert_eq!(breaks.len(), 1, "{breaks:?}");
     assert_eq!(breaks[0].gap_s, 0.0);
@@ -244,11 +244,11 @@ fn sound_held_after_a_jump_is_heard() {
     let (mut app, base, tx, _) = listened("held-heard");
     // The last block heard long enough ago that silence would stop
     // listening, then half a second of sound after a 1 s jump: held.
-    app.audio_at = Some(Instant::now() - Duration::from_secs(10));
+    app.bench.recording.audio_at = Some(Instant::now() - Duration::from_secs(10));
     send_after(&tx, 1000, 25);
     while app.poll_for(Duration::from_secs(60)) > 0 {}
     assert!(app.running());
-    assert!(app.audio_at.unwrap().elapsed() < Duration::from_secs(3));
+    assert!(app.bench.recording.audio_at.unwrap().elapsed() < Duration::from_secs(3));
     drop(tx);
     let _ = std::fs::remove_dir_all(base);
 }
@@ -343,7 +343,7 @@ fn a_fast_feed_keeps_all_its_sound() {
     assert!((heard - 20.0).abs() < 1e-6, "{heard} s of 20 s heard");
     assert!((kept - 20.0).abs() < 1e-6, "{kept} s of 20 s saved");
     app.stop_listening();
-    let live = app.live.as_ref().unwrap();
+    let live = app.bench.recording.live.as_ref().unwrap();
     assert_eq!(
         live.read_as_file_to(),
         Some(live.duration_s()),
@@ -385,47 +385,54 @@ fn a_run_read_before_the_takeover_is_never_shown_after_it() {
         .unwrap();
         if k % 50 == 49 {
             app.poll();
-            let live = app.live.as_ref().unwrap();
+            let live = app.bench.recording.live.as_ref().unwrap();
             if planted.is_none() && live.duration_s() > 20.0 && live.template_switch_s().is_none() {
                 // A new Average Over, its run read on the old template.
                 let stale = TrendPoint::of(0.123, &live.reading_at(20.0, 1.0));
-                app.take.average_s *= 2.0;
-                let key = (app.take.rev, app.take.average_s.to_bits());
+                app.bench.take.average_s *= 2.0;
+                let key = app.trend_now();
                 let job = take_reads::Job::start(key, &ctx, move || (vec![stale], 0.0));
-                app.results.bg.trend = Some(job);
+                app.bench.results.bg.trend = Some(job);
                 planted = Some(stale);
             }
         }
     }
     for _ in 0..1000 {
         app.poll();
-        if app.live.as_ref().unwrap().duration_s() >= 79.9 {
+        if app.bench.recording.live.as_ref().unwrap().duration_s() >= 79.9 {
             break;
         }
     }
     let stale = planted.expect("taken over before a run was asked for");
     assert!(
-        app.live.as_ref().unwrap().template_switch_s().is_some(),
+        app.bench
+            .recording
+            .live
+            .as_ref()
+            .unwrap()
+            .template_switch_s()
+            .is_some(),
         "not taken over"
     );
     // The clock's first measurements move the take's footing early in a
     // capture, which would drop the job by itself; on a long take nothing
     // else changes, so the job keeps the footing the app has now.
-    if let Some(job) = app.results.bg.trend.as_mut() {
-        job.key = (app.take.rev, app.take.average_s.to_bits());
+    let now = app.trend_now();
+    if let Some(job) = app.bench.results.bg.trend.as_mut() {
+        job.key = now;
     }
     let start = Instant::now();
     app.refresh_trend_shown(&ctx);
-    while app.results.bg.trend.is_some() {
+    while app.bench.results.bg.trend.is_some() {
         assert!(start.elapsed() < Duration::from_secs(60), "never read");
         std::thread::sleep(Duration::from_millis(10));
         app.refresh_trend_shown(&ctx);
     }
     assert!(
-        !app.results.trend.contains(&stale),
+        !app.bench.results.trend.contains(&stale),
         "the old template's run shown"
     );
-    assert!(!app.results.trend.is_empty());
+    assert!(!app.bench.results.trend.is_empty());
     drop(tx);
     let _ = std::fs::remove_dir_all(base);
 }
@@ -451,9 +458,13 @@ fn listening_carries_on_when_the_first_chunk_read_again_takes_over() {
         }))
         .unwrap();
         if k % 50 == 49 {
-            let live = app.live.as_ref().unwrap();
+            let live = app.bench.recording.live.as_ref().unwrap();
             if live.template_switch_s().is_none() {
-                before = app.anchor.map(|a| (a, live.beats().to_vec()));
+                before = app
+                    .bench
+                    .recording
+                    .anchor
+                    .map(|a| (a, live.beats().to_vec()));
             }
             app.poll();
         }
@@ -461,18 +472,18 @@ fn listening_carries_on_when_the_first_chunk_read_again_takes_over() {
     // Each poll takes in what a frame's time allows: all of it, in time.
     for _ in 0..1000 {
         app.poll();
-        if app.live.as_ref().unwrap().duration_s() >= 79.9 {
+        if app.bench.recording.live.as_ref().unwrap().duration_s() >= 79.9 {
             break;
         }
     }
-    let live = app.live.as_ref().unwrap();
+    let live = app.bench.recording.live.as_ref().unwrap();
     assert!(live.template_switch_s().is_some(), "not taken over");
     assert!(app.reading().and_then(|r| r.amplitude_deg).is_some());
-    assert!(app.results.trend.windows(2).all(|w| w[0].t < w[1].t));
+    assert!(app.bench.results.trend.windows(2).all(|w| w[0].t < w[1].t));
     // A beat 30 s in stands where it stood on the strip, within the
     // scatter of a beat's time between two templates.
     let (a0, beats0) = before.expect("an anchor before the takeover");
-    let a1 = app.anchor.expect("an anchor after");
+    let a1 = app.bench.recording.anchor.expect("an anchor after");
     let period = 3600.0 / live.bph().unwrap() as f64;
     let lead = |a: &timegrapher_core::timing::Anchor, beats: &[timegrapher_core::beats::Beat]| {
         let b = beats
@@ -552,17 +563,18 @@ fn numbered_after_a_break(name: &str) -> (TimegrapherApp, PathBuf, Sender<Event>
 /// What the Scope reads for `lo` to `hi` while listening: the stretch
 /// read and its sound, or none when it reads nothing.
 fn scope_read(app: &mut TimegrapherApp, lo: f64, hi: f64) -> Option<(f64, f64, crate::span::Span)> {
-    app.results.scope_job = None;
+    app.bench.results.scope_job = None;
     if !app.start_scope_job(lo, hi) {
         return None;
     }
-    let (a, b, got) = app
+    let read = app
+        .bench
         .results
         .scope_job
         .take()?
         .recv_timeout(Duration::from_secs(30))
         .unwrap();
-    Some((a, b, got.unwrap()))
+    Some((read.from, read.to, read.got.unwrap()))
 }
 
 /// The numbered block's value in `sp` at the take's time `t`.

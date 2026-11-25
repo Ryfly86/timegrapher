@@ -193,13 +193,13 @@ impl TimegrapherApp {
         std::thread::spawn(move || {
             let _ = tx.send(full_wind_of_take(&dir, &m, settings));
         });
-        self.test.compare_take = Some(Reading { name, rx });
+        self.bench.test.compare_take = Some(Reading { name, rx });
     }
 
     /// The take being read to compare with, once read: set against, or
     /// said why not.
     pub(super) fn poll_compare_take(&mut self) {
-        let Some(r) = &self.test.compare_take else {
+        let Some(r) = &self.bench.test.compare_take else {
             return;
         };
         let read = match r.rx.try_recv() {
@@ -208,11 +208,11 @@ impl TimegrapherApp {
             Err(TryRecvError::Disconnected) => Err("its reading stopped".into()),
         };
         let name = r.name.clone();
-        self.test.compare_take = None;
+        self.bench.test.compare_take = None;
         match read {
             Ok(full) => {
-                self.test.guided_earlier = Some(full);
-                self.test.guided_earlier_file = true;
+                self.bench.test.guided_earlier = Some(full);
+                self.bench.test.guided_earlier_file = true;
             }
             Err(e) => self.error(format!(
                 "Couldn't read the take {name} to compare with: {e}"
@@ -224,17 +224,17 @@ impl TimegrapherApp {
     /// is set against, from the watch's own or a file, else none.
     pub(super) fn compare_with_text(&mut self, ui: &egui::Ui) -> String {
         self.poll_compare_take();
-        if let Some(r) = &self.test.compare_take {
+        if let Some(r) = &self.bench.test.compare_take {
             ui.ctx()
                 .request_repaint_after(std::time::Duration::from_millis(250));
             return format!("Reading {}…", r.name);
         }
-        match &self.test.guided_earlier {
-            Some(e) if self.test.guided_earlier_file => {
+        match &self.bench.test.guided_earlier {
+            Some(e) if self.bench.test.guided_earlier_file => {
                 format!("{} (from a file)", guided::choice_text(e))
             }
             Some(e) => guided::choice_text(e),
-            None if self.test.guided_choices.is_empty() => {
+            None if self.bench.test.guided_choices.is_empty() => {
                 "None from 12 to 36 hours ago".to_string()
             }
             None => "Pick a full-wind test".to_string(),
