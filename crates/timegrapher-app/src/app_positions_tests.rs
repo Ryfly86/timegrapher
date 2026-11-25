@@ -985,7 +985,8 @@ fn a_settle_changed_after_a_test_leaves_the_test_alone() {
 
 /// The Settle is one record, the session's (#1988): re-settled as the
 /// pane's Settle does it, the strip's settling after a move, the saved
-/// Settings and the next guided test all read the new value.
+/// Settings and the next guided test all read the new value, and Settings
+/// loaded again give it back to the session.
 #[test]
 fn the_strip_and_the_test_read_one_settle() {
     let base = std::env::temp_dir().join(format!("tg-app-one-settle-{}", std::process::id()));
@@ -1007,6 +1008,10 @@ fn the_strip_and_the_test_read_one_settle() {
     app.start_guided(None);
     let test = app.bench.test.guided.as_ref().expect("the test runs");
     assert_eq!(test.settle_s, 12.0, "the test settles as the strip does");
+    // Saved and loaded again, as at the next launch: the session has it.
+    let mut again = TimegrapherApp::with_devices(Vec::new(), None);
+    again.apply_settings(app.settings());
+    assert_eq!(again.session.settle_len(), 12.0, "loaded from Settings");
     drop(tx);
     let _ = std::fs::remove_dir_all(&base);
 }
