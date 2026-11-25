@@ -841,8 +841,9 @@ impl LiveAnalyzer {
                 // A swing is two beats, at the balance's own period (#2228).
                 let osc_period_s = 2.0 * crate::timing::own_beat_period_s(&self.beats, bph);
                 amplitude::relift(&mut self.amp, osc_period_s, old, lift_deg);
-                // Each profile read again from its own edges at the new
-                // lift, through the same gate, not scaled (#1539).
+                // Each profile at the new lift (`TickProfile::at_lift`): an
+                // amplitude it has is scaled to it, through the same gate;
+                // one with none is read from its own edges (#1539, #2228).
                 for p in self.profiles.iter_mut().flatten() {
                     p.amplitude_deg = p.at_lift(osc_period_s, old, lift_deg);
                 }
