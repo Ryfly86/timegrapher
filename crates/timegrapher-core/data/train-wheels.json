@@ -26782,10 +26782,11 @@
     "wheels": [],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 106, 20222 vph)",
-      "https://ranfft.org/caliber/6058-Gruen-106 (Ranfft: Gruen 106, read 2026-11-17) (20160 bph)"
+      "https://ranfft.org/caliber/6058-Gruen-106 (Ranfft: Gruen 106, read 2026-11-17) (20160 bph)",
+      "https://www.collezionismo.org/angoli_di_levata_orologi.htm (Collezionismo lift-angle table, GRUEN WATCH 106) (20222)"
     ],
     "confidence": "published list",
-    "notes": "Beat rate left blank: the lift-angle sheet gives 20222 vph and Ranfft 20160 bph, and no third source settles it."
+    "notes": "Beat rate left blank: the lift-angle sheet gives 20222 vph and Ranfft 20160 bph, and no third source settles it. Collezionismo also lists 20222, on the lift-angle sheet's side against Ranfft's 20160 (timegrapher-calibres#6)."
   },
   {
     "calibre": "Gruen 107",
@@ -26793,10 +26794,11 @@
     "wheels": [],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 107, 20222 vph)",
-      "https://ranfft.org/caliber/6059-Gruen-107 (Ranfft: Gruen 107, read 2026-11-17) (20160 bph)"
+      "https://ranfft.org/caliber/6059-Gruen-107 (Ranfft: Gruen 107, read 2026-11-17) (20160 bph)",
+      "https://www.collezionismo.org/angoli_di_levata_orologi.htm (Collezionismo lift-angle table, GRUEN WATCH 107) (20222)"
     ],
     "confidence": "published list",
-    "notes": "Beat rate left blank: the lift-angle sheet gives 20222 vph and Ranfft 20160 bph, and no third source settles it."
+    "notes": "Beat rate left blank: the lift-angle sheet gives 20222 vph and Ranfft 20160 bph, and no third source settles it. Collezionismo also lists 20222, on the lift-angle sheet's side against Ranfft's 20160 (timegrapher-calibres#6)."
   },
   {
     "calibre": "Gruen 109",
@@ -102557,6 +102559,7 @@
       "G100"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51,
     "wheels": [
       {
         "name": "balance",
@@ -102565,9 +102568,11 @@
       }
     ],
     "sources": [
-      "https://www.fhs.swiss/eng/2021_09_16_04_La_Joux-Perret.html (Federation of the Swiss Watch Industry FH news, G100 and L100 movements by La Joux-Perret) (\"maintaining a frequency of 4Hz\")"
+      "https://www.fhs.swiss/eng/2021_09_16_04_La_Joux-Perret.html (Federation of the Swiss Watch Industry FH news, G100 and L100 movements by La Joux-Perret) (\"maintaining a frequency of 4Hz\")",
+      "https://www.cousinsuk.com/pdf/skus/10106_g100%20tech%20sheet.pdf (Manufacture La Joux-Perret technical sheet MLJP-G100, p. 1, on a supplier's site) (Angle lift of balance 51°; 28'800 A/H (4 Hz))"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Lift angle 51° from La Joux-Perret's own technical sheet for the G100 (timegrapher-calibres#6)."
   },
   {
     "calibre": "La Joux-Perret L100",
@@ -102596,6 +102601,7 @@
       "6T27"
     ],
     "bph": 28800,
+    "lift_angle_deg": 50,
     "wheels": [
       {
         "name": "balance",
@@ -102604,10 +102610,11 @@
       }
     ],
     "sources": [
-      "https://miyotamovement.com/product/6T27/ (Miyota product page, Cal. 6T27) (\"Vibration Frequency 28800\")"
+      "https://miyotamovement.com/product/6T27/ (Miyota product page, Cal. 6T27) (\"Vibration Frequency 28800\")",
+      "https://miyotamovement.com/uploads/product/product_YlJ6nFBdfLCarZxpX5.pdf (Miyota specification sheet for the 6T27) (50 degree Lift Angle)"
     ],
     "confidence": "maker's page",
-    "notes": "8 3/4''', 5.23 mm, 21 jewels, automatic and hand winding, 3 hands, about 40 h."
+    "notes": "8 3/4''', 5.23 mm, 21 jewels, automatic and hand winding, 3 hands, about 40 h. Lift angle 50° from Miyota's own specification sheet for this calibre (timegrapher-calibres#6)."
   },
   {
     "calibre": "Miyota 6T15",
@@ -102616,6 +102623,7 @@
       "6T15"
     ],
     "bph": 28800,
+    "lift_angle_deg": 50,
     "wheels": [
       {
         "name": "balance",
@@ -102624,10 +102632,11 @@
       }
     ],
     "sources": [
-      "https://miyotamovement.com/product/6T15/ (Miyota product page, Cal. 6T15) (\"Vibration Frequency 28800 per hour\")"
+      "https://miyotamovement.com/product/6T15/ (Miyota product page, Cal. 6T15) (\"Vibration Frequency 28800 per hour\")",
+      "https://miyotamovement.com/uploads/product/product_GgP7ApScX2r8amT4Vk.pdf (Miyota specification sheet for the 6T15) (50 degree Lift Angle)"
     ],
     "confidence": "maker's page",
-    "notes": "8 3/4''', 5.98 mm, 21 jewels, automatic and hand winding, 3 hands date, about 40 h."
+    "notes": "8 3/4''', 5.98 mm, 21 jewels, automatic and hand winding, 3 hands date, about 40 h. Lift angle 50° from Miyota's own specification sheet for this calibre (timegrapher-calibres#6)."
   },
   {
     "calibre": "Miyota 6T28",
@@ -102636,6 +102645,7 @@
       "6T28"
     ],
     "bph": 28800,
+    "lift_angle_deg": 50,
     "wheels": [
       {
         "name": "balance",
@@ -102644,10 +102654,11 @@
       }
     ],
     "sources": [
-      "https://miyotamovement.com/product/6T28/ (Miyota product page, Cal. 6T28) (\"Vibration Frequency 28800 per hour\")"
+      "https://miyotamovement.com/product/6T28/ (Miyota product page, Cal. 6T28) (\"Vibration Frequency 28800 per hour\")",
+      "https://miyotamovement.com/uploads/product/product_A9Ufpm4yEDGvoHPlkg.pdf (Miyota specification sheet for the 6T28) (50 degree Lift Angle)"
     ],
     "confidence": "maker's page",
-    "notes": "8 3/4''', 5.23 mm, 21 jewels, automatic and hand winding, 3 hands, open heart, about 40 h."
+    "notes": "8 3/4''', 5.23 mm, 21 jewels, automatic and hand winding, 3 hands, open heart, about 40 h. Lift angle 50° from Miyota's own specification sheet for this calibre (timegrapher-calibres#6)."
   },
   {
     "calibre": "Citizen 0200",
@@ -102724,10 +102735,11 @@
       }
     ],
     "sources": [
-      "https://www.fhs.swiss/eng/2016_04_14_01_ronda.html (Federation of the Swiss Watch Industry FH news, Ronda launches a new mechanical calibre) (\"the R150 beats at a frequency of 28,800 vibrations per hour\")"
+      "https://www.fhs.swiss/eng/2016_04_14_01_ronda.html (Federation of the Swiss Watch Industry FH news, Ronda launches a new mechanical calibre) (\"the R150 beats at a frequency of 28,800 vibrations per hour\")",
+      "https://watch-movements.eu/blog/en/2018/04/15/the-ronda-r150-under-the-loupe/ (Watch movements – A passion, the Ronda R150 under the loupe) (Lift angle of balance 51°)"
     ],
     "confidence": "maker's page",
-    "notes": "Lever escapement, ball-bearing rotor."
+    "notes": "Lever escapement, ball-bearing rotor. Lift angle not settled, so none is given: a blog review lists 51°; no maker figure found (timegrapher-calibres#6)."
   },
   {
     "calibre": "Ronda R01",
@@ -102736,6 +102748,7 @@
       "R01"
     ],
     "bph": 25200,
+    "lift_angle_deg": 53,
     "wheels": [
       {
         "name": "balance",
@@ -102744,10 +102757,11 @@
       }
     ],
     "sources": [
-      "https://wornandwound.com/industry-news-ronda-returns-to-mechanical-movements-with-the-impressive-r01/ (Worn & Wound, Ronda returns to mechanical movements with the R01) (\"Ronda went for 25,200bph or 3.5hz\")"
+      "https://wornandwound.com/industry-news-ronda-returns-to-mechanical-movements-with-the-impressive-r01/ (Worn & Wound, Ronda returns to mechanical movements with the R01) (\"Ronda went for 25,200bph or 3.5hz\")",
+      "https://ronda.ronda.hausformat.net/en/watch-movement-finder/caliber/r0102 (Ronda movement finder, R01-02) (Lift angle 53°; 25'200 A/h (3.5 Hz))"
     ],
     "confidence": "press article",
-    "notes": "3.5 Hz."
+    "notes": "3.5 Hz. Lift angle 53° from Ronda's own page for the R01-02; the R01-01 page could not be read (timegrapher-calibres#6)."
   },
   {
     "calibre": "Seiko 4R34",
@@ -102764,10 +102778,11 @@
       }
     ],
     "sources": [
-      "https://www.seikowatches.com/instructions/html/SEIKO_4R34_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 4R34 specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")"
+      "https://www.seikowatches.com/instructions/html/SEIKO_4R34_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 4R34 specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")",
+      "https://diywatch.club/en/blog/specs-and-measurements-of-seiko-sii-caliber-nh34-nh34a (DIY Watch Club, NH34A / 4R34 specifications) (Lift angle: 53 degrees)"
     ],
     "confidence": "maker's page",
-    "notes": "24 jewels, about 41 h."
+    "notes": "24 jewels, about 41 h. Lift angle not settled, so none is given: DIY Watch Club lists 53° for the NH34A / 4R34; no maker figure found (timegrapher-calibres#6)."
   },
   {
     "calibre": "Seiko 4R57",
@@ -102776,6 +102791,7 @@
       "4R57"
     ],
     "bph": 21600,
+    "lift_angle_deg": 53,
     "wheels": [
       {
         "name": "balance",
@@ -102784,10 +102800,11 @@
       }
     ],
     "sources": [
-      "https://www.seikowatches.com/instructions/html/SEIKO_4R57_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 4R57 specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")"
+      "https://www.seikowatches.com/instructions/html/SEIKO_4R57_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 4R57 specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")",
+      "https://www.seikoserviceusa.com/uploads/datasheets/4R57A.pdf (Seiko technical guide, Cal. 4R57A) (Lift angle of the escapement 53°)"
     ],
     "confidence": "maker's page",
-    "notes": "29 jewels, about 41 h."
+    "notes": "29 jewels, about 41 h. Lift angle 53° from Seiko's technical guide for the 4R57A (timegrapher-calibres#6)."
   },
   {
     "calibre": "Seiko 4R71",
@@ -102796,6 +102813,7 @@
       "4R71"
     ],
     "bph": 21600,
+    "lift_angle_deg": 53,
     "wheels": [
       {
         "name": "balance",
@@ -102804,10 +102822,11 @@
       }
     ],
     "sources": [
-      "https://www.seikowatches.com/instructions/html/SEIKO_4R35_4R36_4R37_4R38_4R39_4R71_4R72_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 4R35/4R36/4R37/4R38/4R39/4R71/4R72 specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")"
+      "https://www.seikowatches.com/instructions/html/SEIKO_4R35_4R36_4R37_4R38_4R39_4R71_4R72_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 4R35/4R36/4R37/4R38/4R39/4R71/4R72 specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")",
+      "https://seikoserviceusa.com/uploads/datasheets/4R71A.pdf (Seiko technical guide, Cal. 4R71A) (Lift angle of the escapement 53°)"
     ],
     "confidence": "maker's page",
-    "notes": "The manual prints one figure across all its calibre columns."
+    "notes": "The manual prints one figure across all its calibre columns. Lift angle 53° from Seiko's technical guide for the 4R71A (timegrapher-calibres#6)."
   },
   {
     "calibre": "Seiko 4R72",
@@ -102876,6 +102895,7 @@
       "6R5H"
     ],
     "bph": 21600,
+    "lift_angle_deg": 53,
     "wheels": [
       {
         "name": "balance",
@@ -102884,10 +102904,11 @@
       }
     ],
     "sources": [
-      "https://www.seikowatches.com/instructions/html/SEIKO_6R51_6R55_6R5H_6R5J_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 6R51/6R55/6R5H/6R5J specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")"
+      "https://www.seikowatches.com/instructions/html/SEIKO_6R51_6R55_6R5H_6R5J_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 6R51/6R55/6R5H/6R5J specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")",
+      "https://seikoserviceusa.com/uploads/datasheets/6R5A1_54A_55A_5JA_5HA.pdf (Seiko technical guide, Cal. 6R5 series: 6R51A, 6R54A, 6R55A, 6R5JA, 6R5HA) (Lift angle of the escapement 53°)"
     ],
     "confidence": "maker's page",
-    "notes": "The manual prints one figure across all its calibre columns; about 72 h."
+    "notes": "The manual prints one figure across all its calibre columns; about 72 h. Lift angle 53° from Seiko's technical guide for the 6R5 series, which prints the figure once for all its calibres (timegrapher-calibres#6)."
   },
   {
     "calibre": "Seiko 6R5J",
@@ -102896,6 +102917,7 @@
       "6R5J"
     ],
     "bph": 21600,
+    "lift_angle_deg": 53,
     "wheels": [
       {
         "name": "balance",
@@ -102904,10 +102926,11 @@
       }
     ],
     "sources": [
-      "https://www.seikowatches.com/instructions/html/SEIKO_6R51_6R55_6R5H_6R5J_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 6R51/6R55/6R5H/6R5J specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")"
+      "https://www.seikowatches.com/instructions/html/SEIKO_6R51_6R55_6R5H_6R5J_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 6R51/6R55/6R5H/6R5J specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")",
+      "https://seikoserviceusa.com/uploads/datasheets/6R5A1_54A_55A_5JA_5HA.pdf (Seiko technical guide, Cal. 6R5 series: 6R51A, 6R54A, 6R55A, 6R5JA, 6R5HA) (Lift angle of the escapement 53°)"
     ],
     "confidence": "maker's page",
-    "notes": "The manual prints one figure across all its calibre columns; about 72 h."
+    "notes": "The manual prints one figure across all its calibre columns; about 72 h. Lift angle 53° from Seiko's technical guide for the 6R5 series, which prints the figure once for all its calibres (timegrapher-calibres#6)."
   },
   {
     "calibre": "Seiko 6R64",
@@ -102984,10 +103007,11 @@
       }
     ],
     "sources": [
-      "https://www.seikowatches.com/instructions/html/SEIKO_8L35_8L55_D_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 8L35/8L55 specifications) (\"Vibrations per hour 28,800\")"
+      "https://www.seikowatches.com/instructions/html/SEIKO_8L35_8L55_D_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 8L35/8L55 specifications) (\"Vibrations per hour 28,800\")",
+      "https://watchscope.app/calibers/seiko-8l35 (WatchScope, 8L35 page) (Lift angle 53°)"
     ],
     "confidence": "maker's page",
-    "notes": "26 jewels, about 50 h."
+    "notes": "26 jewels, about 50 h. Lift angle not settled, so none is given: WatchScope lists 53°; no maker figure found (timegrapher-calibres#6)."
   },
   {
     "calibre": "Seiko 8L55",
@@ -103004,10 +103028,11 @@
       }
     ],
     "sources": [
-      "https://www.seikowatches.com/instructions/html/SEIKO_8L35_8L55_D_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 8L35/8L55 specifications) (\"Vibrations per hour 36,000\")"
+      "https://www.seikowatches.com/instructions/html/SEIKO_8L35_8L55_D_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 8L35/8L55 specifications) (\"Vibrations per hour 36,000\")",
+      "https://www.theseikoguy.com/seiko-62mas (The Seiko Guy, 62MAS guide, Caliber 8L55) (Lift Angle 53°; Beats/hour 36.000)"
     ],
     "confidence": "maker's page",
-    "notes": "37 jewels, about 55 h."
+    "notes": "37 jewels, about 55 h. Lift angle not settled, so none is given: The Seiko Guy lists 53°; no maker figure found (timegrapher-calibres#6)."
   },
   {
     "calibre": "Seiko 8L45",
@@ -103076,6 +103101,7 @@
       "SW100"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51,
     "wheels": [
       {
         "name": "balance",
@@ -103084,10 +103110,11 @@
       }
     ],
     "sources": [
-      "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, calibre SW100 technical data) (\"28’800 vibrations per hour (4 Hz)\")"
+      "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, calibre SW100 technical data) (\"28’800 vibrations per hour (4 Hz)\")",
+      "https://www.sellita.ch/scripts/calibres/images/Brochure_technique-SW100.pdf (Sellita technical documentation, SW100, p. 4) (Lift angle 51°)"
     ],
     "confidence": "maker's page",
-    "notes": "Grades a, b and c share this row."
+    "notes": "Grades a, b and c share this row. Lift angle 51° from Sellita's technical documentation for this calibre (timegrapher-calibres#6)."
   },
   {
     "calibre": "Sellita SW305-1",
@@ -103116,6 +103143,7 @@
       "SW330-2"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51,
     "wheels": [
       {
         "name": "balance",
@@ -103124,10 +103152,11 @@
       }
     ],
     "sources": [
-      "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, calibre SW330-2 technical data) (\"28’800 vibrations per hour (4 Hz)\")"
+      "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, calibre SW330-2 technical data) (\"28’800 vibrations per hour (4 Hz)\")",
+      "https://www.sellita.ch/scripts/calibres/images/DocTec_SW330-2.pdf (Sellita technical documentation, SW330-2, p. 5) (Lift angle 51°)"
     ],
     "confidence": "maker's page",
-    "notes": "Grades a, b and c share this row."
+    "notes": "Grades a, b and c share this row. Lift angle 51° from Sellita's technical documentation for this calibre (timegrapher-calibres#6)."
   },
   {
     "calibre": "Sellita SW331-2",
@@ -103222,6 +103251,7 @@
       "SW510 MPC"
     ],
     "bph": 28800,
+    "lift_angle_deg": 50,
     "wheels": [
       {
         "name": "balance",
@@ -103230,10 +103260,11 @@
       }
     ],
     "sources": [
-      "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, calibre SW510 technical data) (\"28’800 vibrations per hour (4 Hz)\")"
+      "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, calibre SW510 technical data) (\"28’800 vibrations per hour (4 Hz)\")",
+      "https://www.sellita.ch/scripts/calibres/images/DocTec_SW510.pdf (Sellita technical documentation, SW510, p. 5) (Lift angle 50°)"
     ],
     "confidence": "maker's page",
-    "notes": "Grades a, b and c share this row."
+    "notes": "Grades a, b and c share this row. Lift angle 50° from Sellita's technical documentation for this calibre (timegrapher-calibres#6)."
   },
   {
     "calibre": "Sellita SW511",
@@ -103923,10 +103954,11 @@
       }
     ],
     "sources": [
-      "https://media.tudorwatch.com/image/upload/fl_attachment/v1/tudorwatch/pressroom/products/black-bay-31-36-39-41/pdf/t23rp-blackbay31-36-39-41-en.pdf (Tudor press release, Black Bay 31/36/39/41, Manufacture Calibres MT5201, MT5400, MT5602, MT5601) (\"Frequency: 28,800 beats/hour (4 Hz)\")"
+      "https://media.tudorwatch.com/image/upload/fl_attachment/v1/tudorwatch/pressroom/products/black-bay-31-36-39-41/pdf/t23rp-blackbay31-36-39-41-en.pdf (Tudor press release, Black Bay 31/36/39/41, Manufacture Calibres MT5201, MT5400, MT5602, MT5601) (\"Frequency: 28,800 beats/hour (4 Hz)\")",
+      "https://calibercorner.com/tudor-caliber-mt5400/ (Caliber Corner, Tudor MT5400) (Lift Angle 49 degrees; 28,800 bph)"
     ],
     "confidence": "maker's page",
-    "notes": "COSC chronometer."
+    "notes": "COSC chronometer. Lift angle not settled, so none is given: Caliber Corner lists 49°; no maker figure found (timegrapher-calibres#6)."
   },
   {
     "calibre": "Tudor MT5601",
