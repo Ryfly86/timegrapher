@@ -70,12 +70,12 @@ fn opened(dir: &Path) -> TimegrapherApp {
     app.set_average(10.0);
     app.start_batch(dir);
     let t = Instant::now();
-    while app.batch.is_some() && t.elapsed().as_secs() < OPEN_LIMIT_S {
+    while app.bench.recording.batch.is_some() && t.elapsed().as_secs() < OPEN_LIMIT_S {
         app.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     assert!(
-        app.batch.is_none(),
+        app.bench.recording.batch.is_none(),
         "{dir:?} still opening after {OPEN_LIMIT_S} s"
     );
     app
@@ -294,15 +294,15 @@ fn the_empty_stands_profile_withholds_with_the_cards() {
     let mut app = opened(&dir);
     // Opened as File > Open Recording opens it, so the shape at a moment
     // the session kept none for is worked out from the recording.
-    app.input = Input::File;
-    app.file_path = dir.display().to_string();
+    app.bench.recording.input = Input::File;
+    app.bench.recording.file_path = dir.display().to_string();
     let latest = app.latest_s();
     let mut withheld = 0;
     for average in [2.0, 4.0, 10.0, 30.0] {
         app.set_average(average);
         let mut t = 20.0;
         while t < latest {
-            app.panes_view.strip_end = Some(t);
+            app.bench.panes_view.strip_end = Some(t);
             let end = app.strip_end_s();
             // The shape worked out from the recording, waited for to the
             // end: a wait cut short would show no shape and pass on main.
@@ -418,6 +418,7 @@ fn split_entries_clock_probe(metadata: &str, folder: bool) {
     };
     let mut app = opened(&path);
     let clock = app
+        .bench
         .take
         .take_clock
         .as_ref()
@@ -429,7 +430,7 @@ fn split_entries_clock_probe(metadata: &str, folder: bool) {
         .into_iter()
         .zip(&readings)
     {
-        app.take.position = position;
+        app.bench.take.position = position;
         let wrong = differences(metadata, &app.whole_take(), reading);
         assert!(wrong.is_empty(), "{}", wrong.join("\n"));
     }
@@ -543,7 +544,7 @@ fn pane_differences(id: &str, root: &Path, cli: &Path) -> (Vec<(String, String)>
         let step = if short {
             dist::STRETCH_S
         } else {
-            app.take.average_s
+            app.bench.take.average_s
         };
         let ours = dist::distribution(&values, kind, label, step)
             .map(|d| dist_figures(&serde_json::to_value(d).unwrap()));
@@ -560,6 +561,7 @@ fn pane_differences(id: &str, root: &Path, cli: &Path) -> (Vec<(String, String)>
     }
     app.reserve_from_long_take();
     let ours = app
+        .bench
         .test
         .reserve
         .as_ref()
@@ -574,7 +576,12 @@ fn pane_differences(id: &str, root: &Path, cli: &Path) -> (Vec<(String, String)>
             format!("{ours} in the app, {theirs} from session"),
         ));
     }
-    let length = app.live.as_ref().map_or(0.0, |l| l.duration_s());
+    let length = app
+        .bench
+        .recording
+        .live
+        .as_ref()
+        .map_or(0.0, |l| l.duration_s());
     (out, run, length)
 }
 
@@ -953,7 +960,7 @@ fn window_opened(dir: &Path) -> (TimegrapherApp, egui::Context) {
     let t = Instant::now();
     loop {
         let _ = window_frame(&mut app, &ctx);
-        if app.live.is_some() && app.batch.is_none() {
+        if app.bench.recording.live.is_some() && app.bench.recording.batch.is_none() {
             break;
         }
         assert!(
@@ -1079,7 +1086,7 @@ fn a_stopped_takes_cards_read_to_the_watchs_last_beat() {
                 // its saved take opens (#2151).
                 let live = app
                     .stopped_take()
-                    .map_or(app.live.as_ref().unwrap(), |s| &s.live);
+                    .map_or(app.bench.recording.live.as_ref().unwrap(), |s| &s.live);
                 let t = timegrapher_core::beats::last_watch_beat_s(live.beats())
                     .expect("the watch's run is long enough");
                 let want = live.reading_at(t, average);
@@ -1301,9 +1308,9 @@ fn a_stopped_takes_cards_are_its_saved_takes_to_the_bit() {
         // The strip, unpinned, waits as the cards do (Trevor on #2164).
         let live = stopped.card_reading().expect("live reads while it waits");
         if let Some(rate) = readouts::rate_figure(&live) {
-            stopped.panes_view.readings_pinned = false;
+            stopped.bench.panes_view.readings_pinned = false;
             let strip = window_frame(&mut stopped, &ctx);
-            stopped.panes_view.readings_pinned = true;
+            stopped.bench.panes_view.readings_pinned = true;
             let digits = rate.trim_start_matches(['+', '-', '\u{2212}']);
             assert!(
                 strip.contains("Rate") && !strip.contains(digits),
@@ -1434,7 +1441,7 @@ fn a_stopped_takes_whole_take_and_sparklines_are_its_saved_takes() {
     // The saved take keeps the mask, in its sound's own time: 4 s sooner,
     // after the break.
     assert_eq!(
-        opened.take.masked,
+        opened.bench.take.masked,
         vec![(46.0, 52.0)],
         "the saved take's mask"
     );
@@ -1563,10 +1570,10 @@ fn possible_beats(app: &TimegrapherApp) -> Vec<(f64, f64)> {
 /// The largest lead, ms, of the beats from `from` to `to` s on the strip
 /// as it is anchored now.
 fn widest_lead(app: &TimegrapherApp, from: f64, to: f64) -> f64 {
-    let live = app.live.as_ref().unwrap();
+    let live = app.bench.recording.live.as_ref().unwrap();
     let period = 3600.0 / live.bph().unwrap() as f64;
-    let anchor = app.anchor.expect("anchored");
-    let breaks = app.take.take_breaks.as_deref().unwrap_or_default();
+    let anchor = app.bench.recording.anchor.expect("anchored");
+    let breaks = app.bench.take.take_breaks.as_deref().unwrap_or_default();
     live.beats()
         .iter()
         .filter(|b| b.time > from && b.time < to)
@@ -1591,7 +1598,7 @@ fn the_stand_at_both_ends_is_possible_beats_and_left_out_of_fit() {
     let Some(app) = stand_both_ends("stand-ends") else {
         return;
     };
-    let live = app.live.as_ref().unwrap();
+    let live = app.bench.recording.live.as_ref().unwrap();
     let faint = possible_beats(&app);
     let possible = |t: f64| timegrapher_core::live::in_spans(&faint, t);
     let noise = live
@@ -1607,9 +1614,9 @@ fn the_stand_at_both_ends_is_possible_beats_and_left_out_of_fit() {
     assert!(!on.clone().any(|b| possible(b.time)), "{faint:?}");
     // About +50 s/d drifts some 60 ms over the watch's 100 s.
     assert!(
-        app.panes_view.strip.half_width_ms <= 100.0,
+        app.bench.panes_view.strip.half_width_ms <= 100.0,
         "{}",
-        app.panes_view.strip.half_width_ms
+        app.bench.panes_view.strip.half_width_ms
     );
     let w = app.whole_take().expect("whole take");
     // Read from the watch's start, after the stand's 70 s that the reading
@@ -1642,9 +1649,9 @@ fn the_stand_between_two_stretches_of_the_watch_is_left_out_of_fit() {
         "the stand in the middle: {faint:?}"
     );
     assert!(
-        app.panes_view.strip.half_width_ms <= 100.0,
+        app.bench.panes_view.strip.half_width_ms <= 100.0,
         "{}",
-        app.panes_view.strip.half_width_ms
+        app.bench.panes_view.strip.half_width_ms
     );
 }
 
@@ -1657,12 +1664,12 @@ fn auto_centre_centres_on_the_watch_not_the_stand_after_it() {
     let Some(mut app) = stand_both_ends("stand-follow") else {
         return;
     };
-    app.panes_view.follow = true;
+    app.bench.panes_view.follow = true;
     app.fit_take();
     // The watch's last seconds lie near the centre line.
     let fitted = widest_lead(&app, 165.0, 170.0);
     assert!(fitted < 20.0, "Fit with Auto-Centre: {fitted} ms");
-    app.anchor = None;
+    app.bench.recording.anchor = None;
     app.centre();
     let centred = widest_lead(&app, 165.0, 170.0);
     assert!(centred < 20.0, "Auto-Centre: {centred} ms");
@@ -1680,37 +1687,37 @@ fn fit_is_made_again_when_the_run_comes_after_the_take_opens() {
     let ctx = egui::Context::default();
     let read_again = |app: &mut TimegrapherApp| {
         // The run not read yet, as for a take opened without one.
-        app.results.trend.clear();
-        app.results.trend_key = (app.take.rev, 0);
+        app.bench.results.trend.clear();
+        app.bench.results.trend_key = (app.bench.take.rev, 0);
         app.fit_take();
         let t = Instant::now();
-        while app.results.trend.is_empty() && t.elapsed().as_secs() < 120 {
+        while app.bench.results.trend.is_empty() && t.elapsed().as_secs() < 120 {
             app.take_reads_shown(&ctx);
             std::thread::sleep(std::time::Duration::from_millis(20));
         }
-        assert!(!app.results.trend.is_empty(), "the run came");
+        assert!(!app.bench.results.trend.is_empty(), "the run came");
     };
     read_again(&mut app);
     assert!(
-        app.panes_view.strip.half_width_ms <= 100.0,
+        app.bench.panes_view.strip.half_width_ms <= 100.0,
         "fitted again: {}",
-        app.panes_view.strip.half_width_ms
+        app.bench.panes_view.strip.half_width_ms
     );
     // Fitted before the run, with every beat; then set by hand.
-    app.results.trend.clear();
+    app.bench.results.trend.clear();
     app.fit_take();
-    let wide = app.panes_view.strip.half_width_ms;
+    let wide = app.bench.panes_view.strip.half_width_ms;
     assert!(wide > 100.0, "every beat: {wide}");
-    app.panes_view.strip.set_half_width(wide / 2.0);
-    let by_hand = app.panes_view.strip.half_width_ms;
-    app.results.trend_key = (app.take.rev, 0);
+    app.bench.panes_view.strip.set_half_width(wide / 2.0);
+    let by_hand = app.bench.panes_view.strip.half_width_ms;
+    app.bench.results.trend_key = (app.bench.take.rev, 0);
     let t = Instant::now();
-    while app.results.trend.is_empty() && t.elapsed().as_secs() < 120 {
+    while app.bench.results.trend.is_empty() && t.elapsed().as_secs() < 120 {
         app.take_reads_shown(&ctx);
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     assert_eq!(
-        app.panes_view.strip.half_width_ms, by_hand,
+        app.bench.panes_view.strip.half_width_ms, by_hand,
         "kept as set by hand"
     );
 }

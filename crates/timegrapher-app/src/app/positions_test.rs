@@ -9,11 +9,12 @@ impl TimegrapherApp {
     fn note_test_span(&mut self, began: Option<f64>) {
         let Some(began) = began else { return };
         let end = self
+            .bench
             .test
             .guided_measured
             .iter()
             .map(|m| m.1)
-            .chain(self.test.guided_unused.iter().map(|u| u.1))
+            .chain(self.bench.test.guided_unused.iter().map(|u| u.1))
             .fold(began, f64::max);
         self.session.note_test(began, end);
     }
@@ -28,7 +29,7 @@ impl TimegrapherApp {
     /// Begin the Dynamic Poise test, as the Positions Test begins, from
     /// the first of its eight upright stops, with the card at 10.
     pub(super) fn start_poise(&mut self) {
-        self.test.ten_positions = true;
+        self.bench.test.ten_positions = true;
         self.start_guided_test(guided::Kind::Poise, None);
     }
 
@@ -43,12 +44,12 @@ impl TimegrapherApp {
     pub(super) fn start_guided_test(&mut self, kind: guided::Kind, half: Option<guided::FullWind>) {
         // One test to a take: after one, a new take (asking first about
         // sound not saved), never the stopped one carried on.
-        if self.test.guided.is_some() && !self.running() {
+        if self.bench.test.guided.is_some() && !self.running() {
             return self.new_take(NewTake::of(kind), false);
         }
         // A test is never Quick Listen: its sound is saved or asked about,
         // not let go, even when it follows Quick Listen or runs on from it.
-        self.quick_listen = false;
+        self.bench.recording.quick_listen = false;
         // Whether this Start begins the take, or runs on in one listening.
         let fresh = !self.running() && !self.can_resume();
         if !self.running() {
@@ -58,7 +59,7 @@ impl TimegrapherApp {
                 self.start_microphone();
                 if self.confirm == Some(Confirm::Microphone) {
                     // The test begins once the masks are answered for.
-                    self.test.guided_after_ask = Some((kind, half));
+                    self.bench.test.guided_after_ask = Some((kind, half));
                     return;
                 }
             }
@@ -68,7 +69,7 @@ impl TimegrapherApp {
         }
         // The Complication Test stays where the card is.
         if let Some(&first) = kind.order().first() {
-            if self.take.position != first {
+            if self.bench.take.position != first {
                 self.change_position(first);
             }
         }
@@ -78,14 +79,17 @@ impl TimegrapherApp {
         }
         let test = match (kind, half) {
             (guided::Kind::Poise, _) => guided::Test::poise(),
-            (guided::Kind::Complication, _) => guided::Test::complication(self.take.position),
+            (guided::Kind::Complication, _) => guided::Test::complication(self.bench.take.position),
             (_, Some(full)) => guided::Test::after(full),
             (_, None) => guided::Test::new(),
         };
-        self.test.guided = Some(test.timed(self.test.guided_settle_s, self.test.guided_measure_s));
-        self.test.positions_take = true;
-        self.test.guided_unused.clear();
-        self.test.guided_measured.clear();
+        self.bench.test.guided = Some(test.timed(
+            self.bench.test.guided_settle_s,
+            self.bench.test.guided_measure_s,
+        ));
+        self.bench.test.positions_take = true;
+        self.bench.test.guided_unused.clear();
+        self.bench.test.guided_measured.clear();
         self.mask_engine();
         self.reveal_pane(match kind {
             guided::Kind::Positions => Pane::PositionsTest,
@@ -97,10 +101,15 @@ impl TimegrapherApp {
     /// Stop Test… answered Stop Test: the test ends now, keeping what it
     /// measured, as its natural end does.
     pub(super) fn stop_test(&mut self) {
-        self.test.stop_test_ask = false;
-        let now = self.live.as_ref().map_or(0.0, |l| l.duration_s());
+        self.bench.test.stop_test_ask = false;
+        let now = self
+            .bench
+            .recording
+            .live
+            .as_ref()
+            .map_or(0.0, |l| l.duration_s());
         if self.reserve_running() {
-            if let Some(t) = self.test.reserve.as_mut() {
+            if let Some(t) = self.bench.test.reserve.as_mut() {
                 t.stop();
             }
             self.end_reserve();
@@ -112,11 +121,11 @@ impl TimegrapherApp {
     /// The question Stop Test… on the Listen card asks once: Keep
     /// Measuring, the default, or Stop Test, keeping what was measured.
     pub(super) fn stop_test_dialog(&mut self, ctx: &egui::Context) {
-        if !self.test.stop_test_ask {
+        if !self.bench.test.stop_test_ask {
             return;
         }
         if !self.test_listening() {
-            self.test.stop_test_ask = false;
+            self.bench.test.stop_test_ask = false;
             return;
         }
         let kept = match self.open_watch() {
@@ -124,7 +133,12 @@ impl TimegrapherApp {
             None => String::new(),
         };
         let (title, body) = if self.reserve_running() {
-            let run = self.test.reserve.as_ref().map_or(0.0, |t| t.run_so_far_s());
+            let run = self
+                .bench
+                .test
+                .reserve
+                .as_ref()
+                .map_or(0.0, |t| t.run_so_far_s());
             (
                 "Stop the Power Reserve Test?".to_string(),
                 format!(
@@ -135,13 +149,19 @@ impl TimegrapherApp {
             )
         } else {
             // Each position measured, read or not: what Stop Test keeps.
-            let n = self.test.guided.as_ref().map_or(0, |t| t.stretches().len());
+            let n = self
+                .bench
+                .test
+                .guided
+                .as_ref()
+                .map_or(0, |t| t.stretches().len());
             let what = match n {
                 0 => "The take so far is kept, with no position measured yet".to_string(),
                 1 => "The 1 position measured so far is kept".to_string(),
                 n => format!("The {n} positions measured so far are kept"),
             };
             let name = self
+                .bench
                 .test
                 .guided
                 .as_ref()
@@ -164,7 +184,7 @@ impl TimegrapherApp {
             );
         });
         match choice {
-            Some(0) => self.test.stop_test_ask = false,
+            Some(0) => self.bench.test.stop_test_ask = false,
             Some(_) => self.stop_test(),
             None => {}
         }
@@ -174,28 +194,33 @@ impl TimegrapherApp {
     /// or not: read each position as it is measured, and keep what the
     /// strip marks.
     pub(super) fn guided_tick(&mut self, ctx: &egui::Context) {
-        let Some(now) = self.live.as_ref().map(|l| l.duration_s()) else {
+        let Some(now) = self.bench.recording.live.as_ref().map(|l| l.duration_s()) else {
             return;
         };
-        let Some(test) = self.test.guided.as_mut() else {
+        let Some(test) = self.bench.test.guided.as_mut() else {
             return;
         };
         let phase = test.tick(now);
         if test.needs_reading() {
-            if let Some(log) = self.live.as_ref().and_then(steady::log_of) {
+            if let Some(log) = self.bench.recording.live.as_ref().and_then(steady::log_of) {
                 let clock = self.reading_clock(log.duration_s);
-                if let Some(test) = self.test.guided.as_mut() {
-                    test.bph_set = self.live.as_ref().and_then(|l| l.config().analysis.bph);
-                    test.lift_deg = Some(self.take.lift_deg);
-                    test.read_new(&log, clock.as_ref(), &self.take.masked);
+                if let Some(test) = self.bench.test.guided.as_mut() {
+                    test.bph_set = self
+                        .bench
+                        .recording
+                        .live
+                        .as_ref()
+                        .and_then(|l| l.config().analysis.bph);
+                    test.lift_deg = Some(self.bench.take.lift_deg);
+                    test.read_new(&log, clock.as_ref(), &self.bench.take.masked);
                 }
             }
         }
-        let Some(test) = self.test.guided.as_mut() else {
+        let Some(test) = self.bench.test.guided.as_mut() else {
             return;
         };
-        self.test.guided_unused = test.unused(now);
-        self.test.guided_measured = test.measured(now);
+        self.bench.test.guided_unused = test.unused(now);
+        self.bench.test.guided_measured = test.measured(now);
         let began = test.began_s();
         if matches!(
             phase,
@@ -219,7 +244,7 @@ impl TimegrapherApp {
     /// stopped part way: the positions measured stay in the table, read
     /// together, and listening stops as at Stop, keeping the take.
     fn end_guided(&mut self, now: f64, whole: bool) {
-        let Some(mut test) = self.test.guided.take() else {
+        let Some(mut test) = self.bench.test.guided.take() else {
             return;
         };
         if whole {
@@ -227,12 +252,17 @@ impl TimegrapherApp {
         } else {
             test.stop(now);
         }
-        match self.live.as_ref().and_then(steady::log_of) {
+        match self.bench.recording.live.as_ref().and_then(steady::log_of) {
             Some(log) => {
                 let clock = self.reading_clock(log.duration_s);
-                test.bph_set = self.live.as_ref().and_then(|l| l.config().analysis.bph);
-                test.lift_deg = Some(self.take.lift_deg);
-                test.finish(&log, clock.as_ref(), &self.take.masked);
+                test.bph_set = self
+                    .bench
+                    .recording
+                    .live
+                    .as_ref()
+                    .and_then(|l| l.config().analysis.bph);
+                test.lift_deg = Some(self.bench.take.lift_deg);
+                test.finish(&log, clock.as_ref(), &self.bench.take.masked);
                 // Read again from its sound as saved, as `timegrapher
                 // session` reads it, once its take is saved (#1958).
                 test.saved_read = guided::SavedRead::Pending;
@@ -241,11 +271,11 @@ impl TimegrapherApp {
             // keeping the positions already read (#1888).
             None => test.end_unread(),
         }
-        self.test.guided_unused = test.unused(now);
-        self.test.guided_measured = test.measured(now);
+        self.bench.test.guided_unused = test.unused(now);
+        self.bench.test.guided_measured = test.measured(now);
         let began = test.began_s();
         self.note_test_span(began);
-        self.test.guided = Some(test);
+        self.bench.test.guided = Some(test);
         self.mask_engine();
         self.stop_listening();
     }
@@ -254,10 +284,14 @@ impl TimegrapherApp {
     /// results.
     pub(super) fn guided_about(&self) -> guided::About {
         guided::About {
-            watch: self.take.watch.trim().to_string(),
-            calibre: self.take.calibre.clone(),
-            bph: self.take.bph.or(self.live.as_ref().and_then(|l| l.bph())),
-            lift_angle_deg: self.take.lift_deg,
+            watch: self.bench.take.watch.trim().to_string(),
+            calibre: self.bench.take.calibre.clone(),
+            bph: self
+                .bench
+                .take
+                .bph
+                .or(self.bench.recording.live.as_ref().and_then(|l| l.bph())),
+            lift_angle_deg: self.bench.take.lift_deg,
         }
     }
 
@@ -265,7 +299,7 @@ impl TimegrapherApp {
     /// results, so its pane shows the run's table and comparison again,
     /// and the test's marks, so its strip shows it as it ran (#1957).
     pub(super) fn load_saved_test(&mut self, dir: &Path) {
-        self.test.guided_saved = std::fs::read_to_string(dir.join(guided::RESULTS_FILE))
+        self.bench.test.guided_saved = std::fs::read_to_string(dir.join(guided::RESULTS_FILE))
             .ok()
             .and_then(|t| guided::FullWind::from_json(&t).ok())
             .filter(|f| f.against.is_some());
@@ -274,7 +308,8 @@ impl TimegrapherApp {
 
     /// The Positions Test, if that is the guided test on the Bench.
     pub(super) fn positions_test(&self) -> Option<&guided::Test> {
-        self.test
+        self.bench
+            .test
             .guided
             .as_ref()
             .filter(|t| t.kind == guided::Kind::Positions)
@@ -282,7 +317,8 @@ impl TimegrapherApp {
 
     /// Whether a Positions Test is under way, not yet finished.
     pub(super) fn guided_running(&self) -> bool {
-        self.test
+        self.bench
+            .test
             .guided
             .as_ref()
             .is_some_and(|t| t.readings.is_none())
@@ -294,7 +330,7 @@ impl TimegrapherApp {
         self.session
             .saved_to()
             .and_then(|p| p.parent().map(Path::to_path_buf))
-            .unwrap_or_else(|| PathBuf::from(&self.save_dir))
+            .unwrap_or_else(|| PathBuf::from(&self.bench.keeping.save_dir))
     }
 
     /// The Positions Test pane's toolbar: start the test, load the
@@ -305,7 +341,7 @@ impl TimegrapherApp {
         // The quantities first, at the left, always there, as on every
         // pane that plots them (design guide section 9, #1852): with no
         // gap after them, so the row still fits at 1000 pt.
-        crate::steady::chart_switches(ui, &mut self.panes_view.positions_series);
+        crate::steady::chart_switches(ui, &mut self.bench.panes_view.positions_series);
         // While it runs, the step panel and the Listen card carry its
         // buttons; set up, Cancel Test leaves the Bench as it was.
         if !running {
@@ -345,7 +381,7 @@ impl TimegrapherApp {
     /// with Compare With, or, with no watch open, Load Full-Wind Results….
     fn positions_wind(&mut self, ui: &mut egui::Ui, running: bool) {
         if self.open_watch().is_some() {
-            let was = self.test.guided_after;
+            let was = self.bench.test.guided_after;
             ui.add_enabled_ui(!running, |ui| {
                 theme::tool_choice(
                     ui,
@@ -355,7 +391,7 @@ impl TimegrapherApp {
                          set against the watch's full-wind test from {}",
                         guided::full_wind_ago()
                     ),
-                    &mut self.test.guided_after,
+                    &mut self.bench.test.guided_after,
                     &[
                         (
                             false,
@@ -375,7 +411,7 @@ impl TimegrapherApp {
             })
             .response
             .on_disabled_hover_text(FIXED_IN_TEST);
-            if self.test.guided_after != was {
+            if self.bench.test.guided_after != was {
                 self.find_full_wind();
             }
             if self.compare_with_shown() {
@@ -419,7 +455,7 @@ impl TimegrapherApp {
         (each, kind): (&str, guided::Kind),
     ) {
         let recorded = self.recorded_lengths(ui.ctx(), kind);
-        let settle_hint = if self.test.guided.is_none() && self.take_on_show().is_some() {
+        let settle_hint = if self.bench.test.guided.is_none() && self.take_on_show().is_some() {
             "How this take is read. Change it to read the take again."
         } else {
             "Seconds the watch is left to settle after every change of position, in any take \
@@ -428,14 +464,14 @@ impl TimegrapherApp {
         };
         theme::tool_field(ui, "Settle", settle_hint, |ui| {
             ui.add_enabled_ui(!running, |ui| {
-                let mut v = self.test.guided_settle_s;
+                let mut v = self.bench.test.guided_settle_s;
                 let a = fields::entry(ui, "settle", &mut v, guided::SETTLE_RANGE, &DURATION, 48.0);
                 let b = fields::presets(ui, "settle-presets", &mut v, &SETTLES, fields::duration);
                 if a || b {
-                    self.test.guided_settle_s = v;
+                    self.bench.test.guided_settle_s = v;
                     // Every settle band redraws, and the table with it.
                     self.session.resettle(v);
-                    self.positions_moved(self.take.position);
+                    self.positions_moved(self.bench.take.position);
                 }
             })
             .response
@@ -456,7 +492,7 @@ impl TimegrapherApp {
              rate's ± down; a minute gives about half a second a day.",
             |ui| {
                 ui.add_enabled_ui(!running, |ui| {
-                    let mut v = self.test.guided_measure_s;
+                    let mut v = self.bench.test.guided_measure_s;
                     let a = fields::entry(
                         ui,
                         "measure",
@@ -468,7 +504,7 @@ impl TimegrapherApp {
                     let b =
                         fields::presets(ui, "measure-presets", &mut v, &MEASURES, fields::duration);
                     if a || b {
-                        self.test.guided_measure_s = v;
+                        self.bench.test.guided_measure_s = v;
                     }
                 })
                 .response
@@ -489,13 +525,13 @@ impl TimegrapherApp {
         ctx: &egui::Context,
         kind: guided::Kind,
     ) -> Option<String> {
-        if self.test.guided.is_some() || self.take_on_show().is_none() {
+        if self.bench.test.guided.is_some() || self.take_on_show().is_none() {
             return None;
         }
         let lengths: Vec<f64> = if kind == guided::Kind::Complication {
-            let t = self.test.complication_saved.as_ref()?;
+            let t = self.bench.test.complication_saved.as_ref()?;
             t.stretches().iter().map(|s| s.2 - s.1).collect()
-        } else if !self.test.positions_take {
+        } else if !self.bench.test.positions_take {
             // A plain take: the toolbar keeps the settings, for the next
             // test; its lengths are in the table's Duration (Hugh on
             // #1969: a 67 h take showed "67:29:10" as Each Position).
@@ -588,7 +624,7 @@ impl TimegrapherApp {
         // Only a full-wind test's results are for the 24 hour half, and
         // only when it read a position (#1911).
         let kept = (nothing.is_none())
-            .then(|| self.test.guided.as_ref().and_then(|t| t.kept(&about)))
+            .then(|| self.bench.test.guided.as_ref().and_then(|t| t.kept(&about)))
             .flatten();
         if let Some(k) = kept.filter(|k| k.wind_h.is_none()) {
             let hint = format!(
@@ -613,10 +649,11 @@ impl TimegrapherApp {
     /// An opened 24 hour half's saved results, as the pane shows them with
     /// no test on the Bench (#1706).
     pub(super) fn positions_saved(&self) -> Option<&guided::FullWind> {
-        self.test
+        self.bench
+            .test
             .guided_saved
             .as_ref()
-            .filter(|_| self.test.guided.is_none())
+            .filter(|_| self.bench.test.guided.is_none())
     }
 
     /// An opened take's six positions as the pane's This Take shows them,
@@ -626,7 +663,7 @@ impl TimegrapherApp {
         &self,
         ctx: &egui::Context,
     ) -> Option<Vec<timegrapher_core::session::Reading>> {
-        if self.test.guided.is_some() || self.test.guided_saved.is_some() {
+        if self.bench.test.guided.is_some() || self.bench.test.guided_saved.is_some() {
             return None;
         }
         self.free_table_shown(ctx)
@@ -656,7 +693,7 @@ impl TimegrapherApp {
             .or_else(|| self.take_on_show())
             .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()));
         let lift_known = self.lift_known();
-        let test = self.test.guided.as_ref().filter(|t| t.kind == kind);
+        let test = self.bench.test.guided.as_ref().filter(|t| t.kind == kind);
         let text = match (test, saved_test, kept) {
             (Some(t), ..) => {
                 let take = saved.unwrap_or_else(|| guided::began_name(t));
@@ -682,34 +719,34 @@ impl TimegrapherApp {
     /// buttons ask for.
     /// The pane's toolbar, with the Info toggle pinned at its right.
     pub(super) fn positions_tools(&mut self, ui: &mut egui::Ui, title: &str) {
-        let mut info = self.panes_view.positions_info;
+        let mut info = self.bench.panes_view.positions_info;
         let hint = "Info: how the table for a take is read";
         theme::pane_toolbar_info(ui, title, &help::POSITIONS_TEST, (&mut info, hint), |ui| {
             self.positions_settings(ui);
             self.export_button(ui, Pane::PositionsTest);
         });
-        self.panes_view.positions_info = info;
+        self.bench.panes_view.positions_info = info;
     }
 
     pub(super) fn positions_pane(&mut self, ui: &mut egui::Ui) {
-        self.panes_view.results_rects[0] = Some(ui.max_rect());
-        let now = self.live.as_ref().map(|l| l.duration_s());
+        self.bench.panes_view.results_rects[0] = Some(ui.max_rect());
+        let now = self.bench.recording.live.as_ref().map(|l| l.duration_s());
         // A Dynamic Poise test is its own pane's: this one shows only how
         // the Positions Test runs.
         let ours = |t: &guided::Test| t.kind == guided::Kind::Positions;
-        let phase = match (self.test.guided.as_mut().filter(|t| ours(t)), now) {
+        let phase = match (self.bench.test.guided.as_mut().filter(|t| ours(t)), now) {
             (Some(t), Some(now)) => Some(t.tick(now)),
             _ => None,
         };
         let phase = self.shown_phase(phase);
-        let free = if self.test.guided.is_none() {
+        let free = if self.bench.test.guided.is_none() {
             self.free_table_shown(ui.ctx())
         } else {
             None
         };
         // A take on show being read again: that alone, not the words for
         // a pane with no take.
-        if self.test.guided.is_none() && free.is_none() && self.free_table_reading() {
+        if self.bench.test.guided.is_none() && free.is_none() && self.free_table_reading() {
             let pal = theme::pal(ui);
             ui.horizontal(|ui| {
                 ui.add(egui::Spinner::new().size(12.0).color(pal.text_secondary));
@@ -730,27 +767,27 @@ impl TimegrapherApp {
         let note = self.start_test_why_not();
         let action = guided::pane(
             ui,
-            self.test.guided.as_ref().filter(|t| ours(t)),
+            self.bench.test.guided.as_ref().filter(|t| ours(t)),
             phase,
-            self.test.guided_earlier.as_ref(),
-            self.test.guided_saved.as_ref(),
+            self.bench.test.guided_earlier.as_ref(),
+            self.bench.test.guided_saved.as_ref(),
             free.as_ref(),
             live.as_ref(),
-            self.test.guided_settle_s,
+            self.bench.test.guided_settle_s,
             self.open_watch().is_some(),
             note.as_deref(),
             (
-                self.test.position_card_title,
-                self.panes_view.positions_info,
-                self.panes_view.positions_series,
+                self.bench.test.position_card_title,
+                self.bench.panes_view.positions_info,
+                self.bench.panes_view.positions_series,
                 self.ready_test() == Some(NewTake::Positions),
             ),
         );
         let Some(action) = action else { return };
         if action == guided::Action::ClearEarlier {
-            self.test.guided_earlier = None;
-            self.test.guided_earlier_file = false;
-            self.test.guided_after = false;
+            self.bench.test.guided_earlier = None;
+            self.bench.test.guided_earlier_file = false;
+            self.bench.test.guided_after = false;
             return;
         }
         let Some(now) = now else { return };
@@ -761,7 +798,7 @@ impl TimegrapherApp {
     /// the step it asks for, then the strip's not-used and measured
     /// stretches and the mask follow the test.
     pub(super) fn apply_guided_action(&mut self, action: guided::Action, now: f64) {
-        let Some(mut test) = self.test.guided.take() else {
+        let Some(mut test) = self.bench.test.guided.take() else {
             return;
         };
         match action {
@@ -778,11 +815,11 @@ impl TimegrapherApp {
             guided::Action::Resume => test.resume(now),
             guided::Action::ClearEarlier => {}
         }
-        self.test.guided_unused = test.unused(now);
-        self.test.guided_measured = test.measured(now);
+        self.bench.test.guided_unused = test.unused(now);
+        self.bench.test.guided_measured = test.measured(now);
         let began = test.began_s();
         self.note_test_span(began);
-        self.test.guided = Some(test);
+        self.bench.test.guided = Some(test);
         self.mask_engine();
     }
 }

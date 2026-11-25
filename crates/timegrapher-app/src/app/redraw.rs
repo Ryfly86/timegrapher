@@ -33,21 +33,21 @@ impl TimegrapherApp {
     /// what it gives shows (and a take kept as its analysis only lets its
     /// sound go, #1221) without waiting for the pointer to move.
     pub(super) fn repaint_every(&self) -> Option<Duration> {
-        let working = self.results.sound_job.is_some()
-            || self.results.scope_job.is_some()
-            || self.results.steady_job.is_some()
-            || self.saving.is_some()
-            || self.take_keep.is_some()
-            || self.take_add.is_some()
-            || self.analysis_save.is_some()
-            || self.results.bg.test_read.is_some()
+        let working = self.bench.results.sound_job.is_some()
+            || self.bench.results.scope_job.is_some()
+            || self.bench.results.steady_job.is_some()
+            || self.bench.keeping.saving.is_some()
+            || self.bench.keeping.take_keep.is_some()
+            || self.bench.keeping.take_add.is_some()
+            || self.bench.keeping.analysis_save.is_some()
+            || self.bench.results.bg.test_read.is_some()
             || self.kept_writing()
             || self
                 .session
                 .recorder
                 .as_ref()
                 .is_some_and(Recorder::releasing);
-        if self.running() || self.batch.is_some() {
+        if self.running() || self.bench.recording.batch.is_some() {
             Some(LIVE_EVERY)
         } else {
             working
@@ -79,12 +79,12 @@ impl TimegrapherApp {
     /// at once when the pointer moves or leaves and every chart's line
     /// follows.
     pub(super) fn draw_again(&mut self, ctx: &egui::Context, was_working: bool) {
-        let next = self.panes_view.cursor_next.take();
+        let next = self.bench.panes_view.cursor_next.take();
         let moved = ctx.input(|i| i.pointer.delta() != egui::Vec2::ZERO);
-        if cursor_redraw(self.panes_view.cursor_t, next, moved, self.running()) {
+        if cursor_redraw(self.bench.panes_view.cursor_t, next, moved, self.running()) {
             ctx.request_repaint();
         }
-        self.panes_view.cursor_t = next;
+        self.bench.panes_view.cursor_t = next;
         let in_use = ctx.input(|i| {
             let v = i.viewport();
             v.focused != Some(false) && v.minimized != Some(true)

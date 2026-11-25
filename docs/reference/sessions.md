@@ -106,10 +106,9 @@ This records the setting's context, not a verified physical lift angle. The
 marker applies only to its accompanying numeric `lift`; an explicit CLI
 `--lift`, including 52, wins over both. An assumed lift gives way to the
 lift of the calibre it is read with (the file's, or `--calibre`), when the
-calibre table gives one
-(`take::lift_setting`); a calibre name without a lift value does not make an
-assumed angle known. The desktop does not follow this yet when it opens a
-take (#2232).
+calibre table gives one (`take::lift_setting`), in the CLI and when the
+desktop opens a take; a calibre name without a lift value does not make an
+assumed angle known.
 
 Older files have no marker. Core, the CLI and the desktop read them by one
 rule (`take::file_lift_known`): a lift of 52°, the default, is assumed unless

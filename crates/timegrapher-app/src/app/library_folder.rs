@@ -108,7 +108,7 @@ impl TimegrapherApp {
         let count = done.clone();
         let open = Arc::new(Mutex::new(self.take_on_show()));
         let on_show = open.clone();
-        self.wav_keep = Some(WavKeep {
+        self.bench.keeping.wav_keep = Some(WavKeep {
             done,
             of: dirs.len(),
             rx,
@@ -132,7 +132,9 @@ impl TimegrapherApp {
     /// for its takes' sizes, and any take it couldn't convert logged and
     /// said.
     pub(super) fn poll_wav_keep(&mut self) {
-        let Some(k) = &self.wav_keep else { return };
+        let Some(k) = &self.bench.keeping.wav_keep else {
+            return;
+        };
         if let Ok(mut o) = k.open.lock() {
             *o = self.take_on_show();
         }
@@ -146,7 +148,7 @@ impl TimegrapherApp {
                 vec!["the conversion stopped before it finished".to_string()],
             ),
         };
-        self.wav_keep = None;
+        self.bench.keeping.wav_keep = None;
         let unit = if hours == 1 { "hour" } else { "hours" };
         applog::info(&format!("Kept {hours} saved {unit} as FLAC"));
         for e in &failed {
@@ -175,7 +177,7 @@ impl TimegrapherApp {
                     return;
                 };
                 // Its takes are being converted where they are now.
-                if self.wav_keep.is_some() {
+                if self.bench.keeping.wav_keep.is_some() {
                     self.message = Some((WAV_KEEP_WAIT.into(), false));
                     return;
                 }
@@ -191,7 +193,7 @@ impl TimegrapherApp {
                     .file_name()
                     .map_or_else(|| library::DEFAULT_NAME.into(), |n| n.to_owned());
                 self.pick(Picker::one(d, Pick::Folder, move |a, parent| {
-                    a.library_move_ask = Some(parent.join(name));
+                    a.bench.keeping.library_move_ask = Some(parent.join(name));
                 }));
             }
             LibraryAction::Choose => {
@@ -247,7 +249,10 @@ impl TimegrapherApp {
 
     /// Move Library… asks first, saying what moves and where.
     pub(super) fn library_move_dialog(&mut self, ctx: &egui::Context) {
-        let (Some(to), Some(from)) = (self.library_move_ask.clone(), self.library_root()) else {
+        let (Some(to), Some(from)) = (
+            self.bench.keeping.library_move_ask.clone(),
+            self.library_root(),
+        ) else {
             return;
         };
         let what = match &self.library {
@@ -286,11 +291,8 @@ impl TimegrapherApp {
                 choice = Some(i == 0);
             }
         });
-        if choice.is_none() && modal.should_close() {
-            choice = Some(false);
-        }
-        if let Some(go) = choice {
-            self.library_move_ask = None;
+        if let Some(go) = dialogs::yes_no(choice, &modal) {
+            self.bench.keeping.library_move_ask = None;
             if go {
                 self.move_library(from, to);
             }
@@ -315,7 +317,7 @@ impl TimegrapherApp {
         std::thread::spawn(move || {
             let _ = tx.send(library::move_library(&from, &dest));
         });
-        self.library_moving = Some((to, rx));
+        self.bench.keeping.library_moving = Some((to, rx));
     }
 
     /// Why the library at `root` can't be moved now, if it can't: a take
@@ -325,8 +327,9 @@ impl TimegrapherApp {
     fn move_refused(&self, root: &Path) -> Option<&'static str> {
         let recording =
             self.running() && self.session.saved_to().is_some_and(|p| p.starts_with(root));
-        let saving = self.saving.is_some() || self.analysis_save.is_some();
-        if self.take_add.is_some() || self.take_keep.is_some() {
+        let saving =
+            self.bench.keeping.saving.is_some() || self.bench.keeping.analysis_save.is_some();
+        if self.bench.keeping.take_add.is_some() || self.bench.keeping.take_keep.is_some() {
             return Some(COPYING_INSIDE);
         }
         (recording || saving).then_some(RECORDING_INSIDE)
@@ -334,7 +337,7 @@ impl TimegrapherApp {
 
     /// The move's outcome, once it is done.
     pub(super) fn poll_library_move(&mut self, ctx: &egui::Context) {
-        let Some((to, rx)) = &self.library_moving else {
+        let Some((to, rx)) = &self.bench.keeping.library_moving else {
             return;
         };
         let to = to.clone();
@@ -343,7 +346,7 @@ impl TimegrapherApp {
             Ok(Ok(left)) => {
                 // The whole library is at `to` either way, so it is used
                 // there, and so is every take open from it (#1646).
-                self.library_moving = None;
+                self.bench.keeping.library_moving = None;
                 if let Some(from) = self.library_root() {
                     self.paths_moved(&from, &to);
                 }
@@ -354,12 +357,12 @@ impl TimegrapherApp {
                 }
             }
             Ok(Err(e)) => {
-                self.library_moving = None;
+                self.bench.keeping.library_moving = None;
                 self.read_library();
                 self.error(format!("Your watches couldn't be moved: {e}"));
             }
             Err(TryRecvError::Disconnected) => {
-                self.library_moving = None;
+                self.bench.keeping.library_moving = None;
                 self.read_library();
                 self.error("Moving your watches stopped without finishing.".into());
             }
@@ -378,14 +381,14 @@ mod tests {
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
         let (tx, rx) = mpsc::channel();
         drop(tx);
-        app.wav_keep = Some(WavKeep {
+        app.bench.keeping.wav_keep = Some(WavKeep {
             done: Arc::new(AtomicUsize::new(0)),
             of: 2,
             rx,
             open: Arc::default(),
         });
         app.poll_wav_keep();
-        assert!(app.wav_keep.is_none());
+        assert!(app.bench.keeping.wav_keep.is_none());
         let (m, bad) = app.message.clone().expect("said");
         assert!(bad && m.contains("stopped before it finished"), "{m}");
     }
@@ -397,7 +400,7 @@ mod tests {
     fn the_window_draws_again_while_it_works() {
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
         let (_tx, rx) = mpsc::channel();
-        app.wav_keep = Some(WavKeep {
+        app.bench.keeping.wav_keep = Some(WavKeep {
             done: Arc::new(AtomicUsize::new(0)),
             of: 2,
             rx,

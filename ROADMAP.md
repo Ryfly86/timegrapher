@@ -2,7 +2,7 @@
 
 What the project is working on, what comes next, and ideas that are not yet
 scheduled. Where a line links to an issue, the issue is the live record:
-when they differ, the issue wins. Updated 22 November 2026.
+when they differ, the issue wins. Updated 24 November 2026.
 
 If you'd like to help, read [CONTRIBUTING.md](CONTRIBUTING.md) first. Issues
 labelled [`agent-ready`](https://github.com/peterhudson/timegrapher/labels/agent-ready)
@@ -34,6 +34,8 @@ order:
 | 1.3 | [#1866](https://github.com/peterhudson/timegrapher/issues/1866) A watch report as a PDF, with the workshop's own name and logo. |
 | 1.4 | [#2201](https://github.com/peterhudson/timegrapher/issues/2201) Compare two takes of the same watch, for example before and after a service or a mainspring change. |
 | 1.5 | [#1513](https://github.com/peterhudson/timegrapher/issues/1513) Translations, first wave of six languages. |
+
+1.2 also carries one user request: [#2236](https://github.com/peterhudson/timegrapher/issues/2236) Listen to the tick, to hear the microphone live, switched on and off from the Listen card, with a volume.
 
 Later, in this order, with no version yet:
 

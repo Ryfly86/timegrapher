@@ -38,7 +38,7 @@ fn a_readings_beat_error_falls_back_to_the_drop() {
 #[test]
 fn rate_distribution_counts_two_second_stretches() {
     let mut app = synthetic(30.0, 12.0);
-    let live = app.live.as_mut().unwrap();
+    let live = app.bench.recording.live.as_mut().unwrap();
     live.set_breaks(vec![15.0]);
     let mut r = RateTwoS::default();
     r.refresh(live, &[(5.0, 7.5)]);
@@ -56,13 +56,13 @@ fn rate_distribution_counts_two_second_stretches() {
     r.refresh(live, &[]);
     assert!(r.values.len() > n);
     // The pane follows Values for rate too.
-    app.panes_view.hist_readings = false;
+    app.bench.panes_view.hist_readings = false;
     // The app's fonts: the pane's title line is in its semibold.
     let ctx = themed();
     let _ = ctx.run(Default::default(), |ctx| {
         egui::CentralPanel::default().show(ctx, |ui| app.histogram(ui, SeriesKind::Rate));
     });
-    assert!(!app.panes_view.dist.rate_2s.values.is_empty());
+    assert!(!app.bench.panes_view.dist.rate_2s.values.is_empty());
 }
 
 /// The Charts and Distributions panes draw a plot for each reading
@@ -71,12 +71,12 @@ fn rate_distribution_counts_two_second_stretches() {
 fn the_charts_and_distributions_draw_the_readings_turned_on() {
     let mut app = synthetic(30.0, 20.0);
     for p in [Pane::Charts, Pane::Distributions] {
-        set_pane_visible(&mut app.panes_view.panes.tiles, p, true);
+        set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, true);
     }
     // Room for every plot: the strip, the profile and the Scope out of
     // the way.
     for p in [Pane::Strip, Pane::Sound, Pane::Scope] {
-        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
+        set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, false);
     }
     let ctx = themed();
     // Each pane in turn: they are tabs side by side, one on show.
@@ -84,7 +84,7 @@ fn the_charts_and_distributions_draw_the_readings_turned_on() {
         let mut all = String::new();
         for p in [Pane::Charts, Pane::Distributions] {
             for q in [Pane::Charts, Pane::Distributions] {
-                set_pane_visible(&mut app.panes_view.panes.tiles, q, q == p);
+                set_pane_visible(&mut app.bench.panes_view.panes.tiles, q, q == p);
             }
             let mut text = String::new();
             for _ in 0..3 {
@@ -104,7 +104,10 @@ fn the_charts_and_distributions_draw_the_readings_turned_on() {
     // At first only the rate: no amplitude or beat error plot in
     // either pane.
     assert_eq!(
-        (app.panes_view.chart_series, app.panes_view.dist_series),
+        (
+            app.bench.panes_view.chart_series,
+            app.bench.panes_view.dist_series
+        ),
         (RATE_ONLY, RATE_ONLY)
     );
     let one = draw(&mut app);
@@ -116,8 +119,8 @@ fn the_charts_and_distributions_draw_the_readings_turned_on() {
     // its switch.
     let named = |text: &str, name: &str| text.lines().filter(|l| *l == name).count();
     // All three turned on.
-    app.panes_view.chart_series = [true; 3];
-    app.panes_view.dist_series = [true; 3];
+    app.bench.panes_view.chart_series = [true; 3];
+    app.bench.panes_view.dist_series = [true; 3];
     let text = draw(&mut app);
     for t in ["Charts", "Distributions", "s/d"] {
         assert!(text.contains(t), "{t}: {text}");
@@ -134,14 +137,14 @@ fn the_charts_and_distributions_draw_the_readings_turned_on() {
     // Rates in s/d, as everywhere else (#815).
     assert!(!text.contains("s/day"), "{text}");
     assert!(!text.contains("Match Strip"), "{text}");
-    app.panes_view.chart_series = RATE_ONLY;
+    app.bench.panes_view.chart_series = RATE_ONLY;
     // The last one on stays on; another comes on beside it.
-    steady::flip_series(&mut app.panes_view.chart_series, 0);
-    assert_eq!(app.panes_view.chart_series, [true, false, false]);
-    steady::flip_series(&mut app.panes_view.chart_series, 2);
-    assert_eq!(app.panes_view.chart_series, [true, false, true]);
-    steady::flip_series(&mut app.panes_view.chart_series, 0);
-    assert_eq!(app.panes_view.chart_series, [false, false, true]);
+    steady::flip_series(&mut app.bench.panes_view.chart_series, 0);
+    assert_eq!(app.bench.panes_view.chart_series, [true, false, false]);
+    steady::flip_series(&mut app.bench.panes_view.chart_series, 2);
+    assert_eq!(app.bench.panes_view.chart_series, [true, false, true]);
+    steady::flip_series(&mut app.bench.panes_view.chart_series, 0);
+    assert_eq!(app.bench.panes_view.chart_series, [false, false, true]);
 }
 
 /// No two words a Distributions plot draws lie on one another: the first
@@ -152,7 +155,7 @@ fn a_distributions_axis_labels_stay_apart() {
     // reading's rate steps to another level.
     let spread = |t: f64| -12.45 + 0.7 * (((t / 10.0) as usize * 7) % 30) as f64 / 29.0;
     let mut app = synthetic_varying(300.0, 12.0, spread);
-    app.panes_view.hist_readings = true;
+    app.bench.panes_view.hist_readings = true;
     app.update_dist_readings(None);
     let ctx = themed();
     fn texts(shape: &egui::Shape, into: &mut Vec<(String, egui::Rect)>) {
@@ -204,9 +207,9 @@ fn a_distributions_axis_labels_stay_apart() {
 #[test]
 fn a_charts_scale_neither_zooms_nor_pans() {
     let mut app = synthetic(60.0, 20.0);
-    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Charts, true);
+    set_pane_visible(&mut app.bench.panes_view.panes.tiles, Pane::Charts, true);
     for p in [Pane::Strip, Pane::Sound, Pane::Scope, Pane::Distributions] {
-        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
+        set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, false);
     }
     let ctx = themed();
     let pass = |app: &mut TimegrapherApp, events: Vec<egui::Event>| {
@@ -288,9 +291,9 @@ fn a_charts_scale_neither_zooms_nor_pans() {
 #[test]
 fn the_charts_wheel_pans_time_and_a_zoom_zooms_it() {
     let mut app = synthetic(120.0, 20.0);
-    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Charts, true);
+    set_pane_visible(&mut app.bench.panes_view.panes.tiles, Pane::Charts, true);
     for p in [Pane::Strip, Pane::Sound, Pane::Scope, Pane::Distributions] {
-        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
+        set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, false);
     }
     let ctx = themed();
     let pass_held = |app: &mut TimegrapherApp, events: Vec<egui::Event>, modifiers| {
@@ -377,12 +380,12 @@ fn the_charts_wheel_pans_time_and_a_zoom_zooms_it() {
         assert!(end[0] >= 0.0 && end[end.len() - 1] <= 120.0, "{end:?}");
         assert!((span(&end) - span(&z)).abs() <= 10.0, "{z:?} {end:?}");
         look(&mut app, Vec::new());
-        assert!(!app.panes_view.charts_fit, "{end:?}");
+        assert!(!app.bench.panes_view.charts_fit, "{end:?}");
     }
     // Zoomed out past the take, it shows the whole session again.
     let out = look(&mut app, vec![egui::Event::Zoom(0.1)]);
     assert_eq!(time_labels(&out), b);
-    assert!(app.panes_view.charts_fit);
+    assert!(app.bench.panes_view.charts_fit);
     // The pane's one Fit, and no button on any chart (#1063).
     assert!(!out
         .lines()
@@ -439,11 +442,11 @@ fn the_values_box_writes_figures_as_the_cards_do() {
 #[test]
 fn the_lanes_read_the_pointers_time_on_every_chart() {
     let mut app = synthetic(60.0, 20.0);
-    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Charts, true);
+    set_pane_visible(&mut app.bench.panes_view.panes.tiles, Pane::Charts, true);
     for p in [Pane::Strip, Pane::Sound, Pane::Scope, Pane::Distributions] {
-        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
+        set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, false);
     }
-    app.panes_view.chart_series = [true, true, false];
+    app.bench.panes_view.chart_series = [true, true, false];
     let ctx = themed();
     let pass = |app: &mut TimegrapherApp, events: Vec<egui::Event>| {
         let input = egui::RawInput {
@@ -483,11 +486,11 @@ fn the_lanes_read_the_pointers_time_on_every_chart() {
     };
     assert!(value(" s/d") && value("°"), "{text}");
     assert!(!text.contains("Scroll or drag"), "{text}");
-    assert!(app.panes_view.charts_over.is_some(), "{text}");
+    assert!(app.bench.panes_view.charts_over.is_some(), "{text}");
     for _ in 0..3 {
         out = pass(&mut app, vec![egui::Event::PointerGone]);
     }
-    assert_eq!(app.panes_view.charts_over, None);
+    assert_eq!(app.bench.panes_view.charts_over, None);
     // The card's own figures stay; the lane's three amplitudes go.
     let degrees = |t: &str| t.lines().filter(|l| l.ends_with('°')).count();
     let gone = painted_text(&out);
@@ -500,9 +503,9 @@ fn the_lanes_read_the_pointers_time_on_every_chart() {
 #[test]
 fn the_charts_panned_to_the_newest_reading_follow_new_ones() {
     let mut app = synthetic(120.0, 20.0);
-    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Charts, true);
+    set_pane_visible(&mut app.bench.panes_view.panes.tiles, Pane::Charts, true);
     for p in [Pane::Strip, Pane::Sound, Pane::Scope, Pane::Distributions] {
-        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
+        set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, false);
     }
     let ctx = themed();
     let pass = |app: &mut TimegrapherApp, events: Vec<egui::Event>| {
@@ -550,9 +553,9 @@ fn the_charts_panned_to_the_newest_reading_follow_new_ones() {
     // the charts move with it, the length kept.
     let more = |app: &mut TimegrapherApp, s: usize| {
         for _ in 0..s {
-            let mut p = *app.results.trend.last().unwrap();
+            let mut p = *app.bench.results.trend.last().unwrap();
             p.t += 1.0;
-            app.results.trend.push(p);
+            app.bench.results.trend.push(p);
         }
     };
     more(&mut app, 60);
@@ -575,11 +578,11 @@ fn the_charts_panned_to_the_newest_reading_follow_new_ones() {
 #[test]
 fn the_strip_and_the_charts_share_a_fitted_gutter() {
     let mut app = synthetic(120.0, 20.0);
-    app.panes_view.strip.horizontal = true;
-    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Charts, true);
-    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Strip, true);
+    app.bench.panes_view.strip.horizontal = true;
+    set_pane_visible(&mut app.bench.panes_view.panes.tiles, Pane::Charts, true);
+    set_pane_visible(&mut app.bench.panes_view.panes.tiles, Pane::Strip, true);
     for p in [Pane::Sound, Pane::Scope, Pane::Distributions] {
-        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
+        set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, false);
     }
     let ctx = themed();
     let mut out = None;
@@ -666,7 +669,7 @@ fn a_take_opened_after_a_wide_one_fits_the_gutter_afresh() {
     let wav = base.join("narrow.wav");
     timegrapher_core::audio::write_wav(&wav, &audio).unwrap();
     let mut app = synthetic(120.0, 20.0);
-    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Charts, true);
+    set_pane_visible(&mut app.bench.panes_view.panes.tiles, Pane::Charts, true);
     let ctx = themed();
     let frame = |app: &mut TimegrapherApp| {
         let input = egui::RawInput {
@@ -689,7 +692,7 @@ fn a_take_opened_after_a_wide_one_fits_the_gutter_afresh() {
     // Opened as File > Open does.
     app.open_recording(&wav, false);
     let t = Instant::now();
-    while app.batch.is_some() && t.elapsed().as_secs() < 120 {
+    while app.bench.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
         // What is drawn while it opens: wide labels, as the take before's.
         frame(&mut app);
         let _ = ctx.run(egui::RawInput::default(), |ctx| {
@@ -697,7 +700,7 @@ fn a_take_opened_after_a_wide_one_fits_the_gutter_afresh() {
         });
         app.poll();
     }
-    assert!(app.batch.is_none(), "{:?}", app.message);
+    assert!(app.bench.recording.batch.is_none(), "{:?}", app.message);
     for _ in 0..3 {
         frame(&mut app);
     }
@@ -712,23 +715,24 @@ fn a_take_opened_after_a_wide_one_fits_the_gutter_afresh() {
 fn stacked_charts_put_the_takes_start_at_one_place() {
     let mut app = synthetic(60.0, 20.0);
     // The strip across, showing the whole session as the charts do.
-    app.panes_view.strip.horizontal = true;
-    app.panes_view.strip_fit = true;
-    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Charts, true);
-    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Strip, true);
+    app.bench.panes_view.strip.horizontal = true;
+    app.bench.panes_view.strip_fit = true;
+    set_pane_visible(&mut app.bench.panes_view.panes.tiles, Pane::Charts, true);
+    set_pane_visible(&mut app.bench.panes_view.panes.tiles, Pane::Strip, true);
     for p in [Pane::Sound, Pane::Scope, Pane::Distributions] {
-        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
+        set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, false);
     }
     // The rate read from 20 s on, the amplitude from the start.
-    for p in app.results.trend.iter_mut().filter(|p| p.t < 20.0) {
+    for p in app.bench.results.trend.iter_mut().filter(|p| p.t < 20.0) {
         p.rate_s_per_day = None;
     }
     assert!(app
+        .bench
         .results
         .trend
         .iter()
         .any(|p| p.t < 20.0 && p.amplitude_deg.is_some()));
-    app.panes_view.chart_series = [true, true, false];
+    app.bench.panes_view.chart_series = [true, true, false];
     let ctx = themed();
     let mut out = None;
     for _ in 0..4 {
@@ -777,16 +781,17 @@ fn stacked_charts_put_the_takes_start_at_one_place() {
 fn readings_over_time_charts_share_one_gutter() {
     // Steadiness reads a take of five minutes or more.
     let mut app = synthetic(310.0, 20.0);
-    app.panes_view.strip.horizontal = true;
-    app.panes_view.strip_fit = true;
-    app.panes_view
+    app.bench.panes_view.strip.horizontal = true;
+    app.bench.panes_view.strip_fit = true;
+    app.bench
+        .panes_view
         .steady_series
         .insert(steady::View::Readings, [true, true, true]);
     for p in [Pane::Strip, Pane::SteadyReadings] {
-        set_pane_visible(&mut app.panes_view.panes.tiles, p, true);
+        set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, true);
     }
     for p in [Pane::Charts, Pane::Sound, Pane::Scope, Pane::Distributions] {
-        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
+        set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, false);
     }
     let ctx = themed();
     let pass = |app: &mut TimegrapherApp| {
@@ -800,8 +805,8 @@ fn readings_over_time_charts_share_one_gutter() {
         ctx.run(input, |ctx| app.panels(ctx))
     };
     // Read here rather than on its own thread.
-    let log = steady::log_of(app.live.as_ref().unwrap()).unwrap();
-    app.results.steady = Some((app.take.rev, steady::compute(&log, None)));
+    let log = steady::log_of(app.bench.recording.live.as_ref().unwrap()).unwrap();
+    app.bench.results.steady = Some((app.bench.take.rev, steady::compute(&log, None)));
     let mut out = pass(&mut app);
     for _ in 0..3 {
         out = pass(&mut app);
@@ -836,14 +841,15 @@ fn readings_over_time_charts_share_one_gutter() {
 fn time_panes_under_the_strip_put_a_late_time_at_one_place() {
     for pane in [Pane::Charts, Pane::SteadyReadings] {
         let mut app = synthetic(370.0, 20.0);
-        app.panes_view.strip.horizontal = true;
-        app.panes_view.strip_fit = true;
-        app.panes_view.chart_series = [true, false, false];
-        app.panes_view
+        app.bench.panes_view.strip.horizontal = true;
+        app.bench.panes_view.strip_fit = true;
+        app.bench.panes_view.chart_series = [true, false, false];
+        app.bench
+            .panes_view
             .steady_series
             .insert(steady::View::Readings, [true, false, false]);
         for p in [Pane::Strip, pane] {
-            set_pane_visible(&mut app.panes_view.panes.tiles, p, true);
+            set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, true);
         }
         for p in [
             Pane::Charts,
@@ -853,7 +859,7 @@ fn time_panes_under_the_strip_put_a_late_time_at_one_place() {
             Pane::Distributions,
         ] {
             if p != pane {
-                set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
+                set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, false);
             }
         }
         let ctx = themed();
@@ -871,8 +877,8 @@ fn time_panes_under_the_strip_put_a_late_time_at_one_place() {
         // listening they read again only every so often: Readings Over
         // Time still ends where the strip does, at the take's end.
         let short = synthetic(310.0, 20.0);
-        let log = steady::log_of(short.live.as_ref().unwrap()).unwrap();
-        app.results.steady = Some((app.take.rev, steady::compute(&log, None)));
+        let log = steady::log_of(short.bench.recording.live.as_ref().unwrap()).unwrap();
+        app.bench.results.steady = Some((app.bench.take.rev, steady::compute(&log, None)));
         let mut out = pass(&mut app);
         for _ in 0..3 {
             out = pass(&mut app);
@@ -902,7 +908,7 @@ fn time_panes_under_the_strip_put_a_late_time_at_one_place() {
 #[test]
 fn readings_over_time_ends_where_its_clock_does() {
     let app = synthetic(310.0, 20.0);
-    let log = steady::log_of(app.live.as_ref().unwrap()).unwrap();
+    let log = steady::log_of(app.bench.recording.live.as_ref().unwrap()).unwrap();
     let mut s = steady::compute(&log, None);
     let joined = steady::Opts::default();
     s.upto_s = 0.0;
@@ -924,23 +930,24 @@ fn readings_over_time_ends_where_its_clock_does() {
 fn joined_readings_over_time_says_whose_time_it_is() {
     for joined in [false, true] {
         let mut app = synthetic(310.0, 20.0);
-        app.panes_view.strip.horizontal = true;
-        app.panes_view
+        app.bench.panes_view.strip.horizontal = true;
+        app.bench
+            .panes_view
             .steady_series
             .insert(steady::View::Readings, [true, false, false]);
         for p in [Pane::Strip, Pane::SteadyReadings] {
-            set_pane_visible(&mut app.panes_view.panes.tiles, p, true);
+            set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, true);
         }
         for p in [Pane::Charts, Pane::Sound, Pane::Scope, Pane::Distributions] {
-            set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
+            set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, false);
         }
         if joined {
-            app.take.brush = Some(Position::DialDown);
+            app.bench.take.brush = Some(Position::DialDown);
             let end = app.latest_s();
             app.paint_position(0.0, end);
         }
-        let log = steady::log_of(app.live.as_ref().unwrap()).unwrap();
-        app.results.steady = Some((app.take.rev, steady::compute(&log, None)));
+        let log = steady::log_of(app.bench.recording.live.as_ref().unwrap()).unwrap();
+        app.bench.results.steady = Some((app.bench.take.rev, steady::compute(&log, None)));
         let ctx = themed();
         let mut out = None;
         for _ in 0..3 {
@@ -975,7 +982,7 @@ fn joined_readings_over_time_keeps_its_own_span_and_width() {
     let take = app.steady_opts(steady::View::Readings);
     assert_eq!(take.take_span, app.take_span());
     assert!(take.take_span.is_some() && take.joined_in.is_none());
-    app.take.brush = Some(Position::DialDown);
+    app.bench.take.brush = Some(Position::DialDown);
     let end = app.latest_s();
     app.paint_position(0.0, end);
     let joined = app.steady_opts(steady::View::Readings);
@@ -1048,7 +1055,7 @@ fn the_distributions_facts_give_negative_figures_a_true_minus() {
 fn negative_axis_numbers_carry_a_true_minus() {
     let spread = |t: f64| 0.7 * (((t / 10.0) as usize * 7) % 30) as f64 / 29.0;
     let mut app = synthetic_varying(300.0, -12.0, spread);
-    app.panes_view.hist_readings = true;
+    app.bench.panes_view.hist_readings = true;
     app.update_dist_readings(None);
     let ctx = themed();
     fn texts(shape: &egui::Shape, into: &mut Vec<String>) {
@@ -1096,7 +1103,7 @@ fn negative_axis_numbers_carry_a_true_minus() {
 #[test]
 fn the_last_charts_time_labels_stay_inside_the_pane() {
     let mut app = synthetic(300.0, 5.0);
-    app.panes_view.chart_series = [true; 3];
+    app.bench.panes_view.chart_series = [true; 3];
     let ctx = themed();
     fn bottoms(shape: &egui::Shape, into: &mut Vec<(f32, String)>) {
         match shape {
@@ -1131,7 +1138,7 @@ fn the_last_charts_time_labels_stay_inside_the_pane() {
                 .iter()
                 .for_each(|c| bottoms(&c.shape, &mut texts));
         }
-        assert_eq!(app.panes_view.charts_drawn, [true; 3], "{w}x{h}");
+        assert_eq!(app.bench.panes_view.charts_drawn, [true; 3], "{w}x{h}");
         let lowest = texts.iter().max_by(|a, b| a.0.total_cmp(&b.0)).unwrap();
         // The lowest text is a time label, and it ends inside the pane.
         assert!(lowest.1.contains(':'), "{w}x{h}: lowest text {lowest:?}");
@@ -1168,7 +1175,7 @@ fn the_charts_draw_no_scales_before_there_is_a_reading() {
     assert!(!scales(&text), "{text}");
     // Opening a take.
     let (_tx, rx) = std::sync::mpsc::channel();
-    app.batch = Some(Batch {
+    app.bench.recording.batch = Some(Batch {
         rx,
         progress: Default::default(),
         cancel: Default::default(),
@@ -1187,11 +1194,11 @@ fn the_charts_draw_no_scales_before_there_is_a_reading() {
     assert!(!scales(&text), "{text}");
     // A take with no reading yet, then with its readings.
     let mut app = synthetic(60.0, 20.0);
-    let trend = std::mem::take(&mut app.results.trend);
+    let trend = std::mem::take(&mut app.bench.results.trend);
     let text = draw(&mut app);
     assert!(text.contains("begin with the first reading"), "{text}");
     assert!(!scales(&text), "{text}");
-    app.results.trend = trend;
+    app.bench.results.trend = trend;
     let text = draw(&mut app);
     assert!(app.charts_waiting().is_none());
     assert!(scales(&text), "{text}");

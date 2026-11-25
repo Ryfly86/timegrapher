@@ -16,7 +16,7 @@ fn the_app_asks_for_a_microphone_once_then_opens_listening() {
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
         app.apply_settings(s);
         app.at_launch();
-        (app.setup_sheet, app.listen_pending)
+        (app.setup_sheet, app.bench.recording.listen_pending)
     };
     assert_eq!(launch(Settings::default()), (true, false), "first launch");
     let set_up = Settings {
@@ -43,9 +43,9 @@ fn the_app_asks_for_a_microphone_once_then_opens_listening() {
     );
     let mut opening = TimegrapherApp::with_devices(Vec::new(), None);
     opening.apply_settings(set_up);
-    opening.input = Input::File;
+    opening.bench.recording.input = Input::File;
     opening.at_launch();
-    assert!(!opening.setup_sheet && !opening.listen_pending);
+    assert!(!opening.setup_sheet && !opening.bench.recording.listen_pending);
 }
 
 /// Where each text is painted, its top left.
@@ -172,7 +172,7 @@ fn an_input_that_wont_open_says_so_in_its_rows_caption() {
         .any(|(t, _)| t == "The input the watch sits on."));
     let m = "Can't open the input. A backend-specific error has occurred: ALSA \
              function 'snd_pcm_open' failed with error 'Connection refused (111)'";
-    app.input_fault = Some(m.into());
+    app.bench.recording.input_fault = Some(m.into());
     let failed = draw(&mut app);
     assert!(failed.iter().any(|(t, _)| t == m), "{failed:?}");
     assert!(!failed
@@ -262,10 +262,10 @@ fn a_test_after_quick_listen_is_not_quick_listen() {
     // Changed masks make the test ask before it opens an input, so no
     // input is opened here.
     app.mask(2.0, 5.0);
-    app.quick_listen = true;
+    app.bench.recording.quick_listen = true;
     app.start_guided(None);
     assert!(matches!(app.confirm, Some(Confirm::Microphone)));
-    assert!(!app.quick_listen);
+    assert!(!app.bench.recording.quick_listen);
     drop(app);
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -315,17 +315,17 @@ fn a_test_with_no_watch_asks_where_it_goes() {
 
     // Quick Listen: no question.
     take(&mut app, 0);
-    app.quick_listen = true;
+    app.bench.recording.quick_listen = true;
     app.stop_listening();
-    assert_eq!(app.test.test_keep, None);
+    assert_eq!(app.bench.test.test_keep, None);
     status_names(&app, "Quick Listen · No watch");
 
     // A Positions Test: asked, with the three answers on show.
     take(&mut app, 1);
-    app.quick_listen = false;
-    app.test.positions_take = true;
+    app.bench.recording.quick_listen = false;
+    app.bench.test.positions_take = true;
     app.stop_listening();
-    assert_eq!(app.test.test_keep, Some(TestKeep::Positions));
+    assert_eq!(app.bench.test.test_keep, Some(TestKeep::Positions));
     // Asked about, it is the test's take, not Quick Listen's (#2003).
     status_names(&app, "Positions Test · No watch picked");
     let ctx = themed();
@@ -335,7 +335,7 @@ fn a_test_with_no_watch_asks_where_it_goes() {
     let full = screen().screen_rect.unwrap();
     let (upper, lower) = full.split_top_bottom_at_fraction(0.5);
     for (pane, clear) in [(lower, upper), (upper, lower)] {
-        app.panes_view.results_rects[0] = Some(pane.shrink(8.0));
+        app.bench.panes_view.results_rects[0] = Some(pane.shrink(8.0));
         let mut title = None;
         for _ in 0..3 {
             let out = ctx.run(screen(), |ctx| app.test_keep_dialog(ctx));
@@ -365,27 +365,27 @@ fn a_test_with_no_watch_asks_where_it_goes() {
     // Keep in Unsorted.
     app.keep_test(TestKeep::Positions, None);
     app.wait_for_save();
-    assert_eq!(app.test.test_keep, None);
+    assert_eq!(app.bench.test.test_keep, None);
     assert_eq!(takes_in(unsorted.clone()), 1);
 
     // Keep in a Watch: Pepsi.
     take(&mut app, 2);
-    app.test.positions_take = true;
+    app.bench.test.positions_take = true;
     app.watches_view.watch_open = None;
     app.stop_listening();
-    assert_eq!(app.test.test_keep, Some(TestKeep::Positions));
+    assert_eq!(app.bench.test.test_keep, Some(TestKeep::Positions));
     app.keep_test(TestKeep::Positions, Some(&pepsi));
     app.wait_for_save();
     assert_eq!(takes_in(in_pepsi.clone()), 1);
 
     // Throw Away: nothing kept, nothing left to ask about.
     take(&mut app, 3);
-    app.test.positions_take = true;
+    app.bench.test.positions_take = true;
     app.watches_view.watch_open = None;
     app.stop_listening();
-    assert_eq!(app.test.test_keep, Some(TestKeep::Positions));
+    assert_eq!(app.bench.test.test_keep, Some(TestKeep::Positions));
     app.new_session();
-    assert_eq!(app.test.test_keep, None);
+    assert_eq!(app.bench.test.test_keep, None);
     assert!(!app.needs_save_confirmation());
     assert_eq!(takes_in(unsorted.clone()), 1);
     assert_eq!(takes_in(in_pepsi.clone()), 1);
@@ -401,9 +401,9 @@ fn a_test_with_no_watch_asks_where_it_goes() {
         .unwrap()
         .started_utc()
         .to_string();
-    app.test.reserve = Some(reserve::Test::new(Position::DialUp, true, started, 0.0));
+    app.bench.test.reserve = Some(reserve::Test::new(Position::DialUp, true, started, 0.0));
     app.stop_listening();
-    assert_eq!(app.test.test_keep, Some(TestKeep::PowerReserve));
+    assert_eq!(app.bench.test.test_keep, Some(TestKeep::PowerReserve));
     // Still the test's take (this fixture keeps Pepsi's name from the
     // take kept before, so only the test's name is checked here).
     assert!(
@@ -564,13 +564,13 @@ fn settings_moves_the_library_and_keeps_its_place() {
 
     // Move it into another folder, and it is used there.
     let to = base.join("there").join("Timegrapher Data");
-    app.library_move_ask = Some(to.clone());
+    app.bench.keeping.library_move_ask = Some(to.clone());
     let asked = text(&ctx, &mut app);
     assert!(asked.contains("Move your watches to"), "{asked}");
-    app.library_move_ask = None;
+    app.bench.keeping.library_move_ask = None;
     app.move_library(root.clone(), to.clone());
     let t = Instant::now();
-    while app.library_moving.is_some() && t.elapsed().as_secs() < 30 {
+    while app.bench.keeping.library_moving.is_some() && t.elapsed().as_secs() < 30 {
         app.poll_library_move(&ctx);
         std::thread::sleep(Duration::from_millis(10));
     }
@@ -692,11 +692,11 @@ fn settings_forgets_a_kept_clock() {
         return;
     }
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    app.clock = clockstore::ClockStore::load()
+    app.bench.recording.clock = clockstore::ClockStore::load()
         .unwrap()
         .get("USB Mic")
         .cloned();
-    assert!(app.clock.is_some());
+    assert!(app.bench.recording.clock.is_some());
     app.open_settings(Tab::Microphone);
     let listed = app.kept_clocks.as_ref().unwrap();
     assert_eq!(listed.devices.len(), 2);
@@ -730,7 +730,7 @@ fn settings_forgets_a_kept_clock() {
     // Under Microphone, as Quartz Correction, kept per input: the input
     // listening is marked, and a kept clock is under its own input.
     assert!(text.iter().any(|t| t == "Quartz Correction"), "{text:?}");
-    app.clock_track = Some(ClockTrack {
+    app.bench.recording.clock_track = Some(ClockTrack {
         device: "USB Mic".into(),
         shown: "USB Mic".into(),
         tracker: timegrapher_core::clock::ClockTracker::new(48_000),
@@ -755,14 +755,14 @@ fn settings_forgets_a_kept_clock() {
         "{text:?}"
     );
     // An input listening with none kept says so, beside the others'.
-    app.clock_track.as_mut().unwrap().device = "Line In".into();
+    app.bench.recording.clock_track.as_mut().unwrap().device = "Line In".into();
     let out = ctx.run(egui::RawInput::default(), |ctx| app.settings_window(ctx));
     let said = out.shapes.iter().any(|s| match &s.shape {
         egui::Shape::Text(t) => t.galley.text().starts_with("None kept for \"Line In\""),
         _ => false,
     });
     assert!(said, "the input listening with no correction kept is named");
-    app.clock_track = None;
+    app.bench.recording.clock_track = None;
     // Forget asks first, saying what is lost; nothing goes until it is
     // confirmed.
     app.forget_ask = Some("USB Mic".into());
@@ -776,12 +776,12 @@ fn settings_forgets_a_kept_clock() {
         _ => false,
     });
     assert!(asked, "the question names the input, its error and its day");
-    assert!(app.clock.is_some() && app.forget_ask.is_some());
+    assert!(app.bench.recording.clock.is_some() && app.forget_ask.is_some());
     assert_eq!(app.kept_clocks.as_ref().unwrap().devices.len(), 2);
     app.forget_ask = None;
     app.forget_clock("USB Mic");
     assert!(
-        app.clock.is_none(),
+        app.bench.recording.clock.is_none(),
         "the input listening loses its True Clock"
     );
     assert_eq!(app.kept_clocks.as_ref().unwrap().devices.len(), 1);
@@ -850,23 +850,26 @@ fn invalid_clock_store_blocks_fresh_listening_and_keep_without_hardware() {
         "legacy".into(),
         "set",
     );
-    app.clock = Some(old.clone());
-    app.devices_listed = false;
+    app.bench.recording.clock = Some(old.clone());
+    app.bench.recording.devices_listed = false;
     app.start_microphone();
-    assert!(app.capture.is_none() && app.batch.is_none());
-    assert!(app.devices.is_empty());
+    assert!(app.bench.recording.capture.is_none() && app.bench.recording.batch.is_none());
+    assert!(app.bench.recording.devices.is_empty());
     assert!(
-        !app.devices_listed,
+        !app.bench.recording.devices_listed,
         "invalid store must prevent device enumeration"
     );
-    assert_eq!(app.clock, Some(old.clone()));
-    assert_eq!(app.live.as_ref().unwrap().sample_rate(), 48_000);
+    assert_eq!(app.bench.recording.clock, Some(old.clone()));
+    assert_eq!(
+        app.bench.recording.live.as_ref().unwrap().sample_rate(),
+        48_000
+    );
     let (message, error) = app.message.as_ref().unwrap();
     assert!(
         *error && message.contains("clocks.json") && message.contains("ppm"),
         "{message}"
     );
-    app.clock_track = Some(ClockTrack {
+    app.bench.recording.clock_track = Some(ClockTrack {
         device: "USB".into(),
         shown: "USB".into(),
         tracker: timegrapher_core::clock::ClockTracker::new(48_000),
@@ -874,7 +877,7 @@ fn invalid_clock_store_blocks_fresh_listening_and_keep_without_hardware() {
         fit: Some(timegrapher_core::clock::ClockFit::fixed(20.0, 1200.0)),
     });
     app.keep_clock();
-    assert_eq!(app.clock, Some(old));
+    assert_eq!(app.bench.recording.clock, Some(old));
     let (message, error) = app.message.as_ref().unwrap();
     assert!(
         *error && message.contains("couldn't be kept") && message.contains("ppm"),
@@ -888,21 +891,21 @@ fn invalid_clock_store_blocks_fresh_listening_and_keep_without_hardware() {
 #[test]
 fn a_calibre_picked_sets_the_beat_rate_and_not_set_puts_back_auto() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    assert_eq!(app.take.bph, None);
+    assert_eq!(app.bench.take.bph, None);
     app.set_calibre("ETA 2824-2".into());
     let bph = app
         .cal
-        .bph(&app.take.calibre)
+        .bph(&app.bench.take.calibre)
         .expect("the 2824-2's beat rate");
-    assert_eq!(app.take.bph, Some(bph));
+    assert_eq!(app.bench.take.bph, Some(bph));
     assert!(app.bph_set_by_calibre());
-    if let Some(l) = app.cal.lift(&app.take.calibre) {
-        assert_eq!(app.take.lift_deg, l);
+    if let Some(l) = app.cal.lift(&app.bench.take.calibre) {
+        assert_eq!(app.bench.take.lift_deg, l);
         assert!(!app.lift_settable());
     }
     app.set_calibre(String::new());
-    assert_eq!(app.take.bph, None);
-    assert_eq!(app.take.lift_deg, DEFAULT_LIFT_DEG);
+    assert_eq!(app.bench.take.bph, None);
+    assert_eq!(app.bench.take.lift_deg, DEFAULT_LIFT_DEG);
     assert!(!app.bph_set_by_calibre() && app.lift_settable());
 }
 
@@ -932,7 +935,7 @@ fn the_input_clock_is_offered_after_twenty_minutes() {
     let f = t.fit.as_ref().expect("timed at 20 minutes");
     assert!((f.ppm + 20.0).abs() < 0.5, "{} ppm", f.ppm);
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    app.clock_track = Some(t);
+    app.bench.recording.clock_track = Some(t);
     assert!(app.clock_measured().is_some());
     assert!(app.clock_offer().is_some(), "offered with none kept");
     // One kept for the same name: offered again only when it is more
@@ -945,9 +948,9 @@ fn the_input_clock_is_offered_after_twenty_minutes() {
         measured_utc: "2026-10-12T20:00:00Z".into(),
         source: "measure".into(),
     };
-    app.clock = Some(kept(-21.0));
+    app.bench.recording.clock = Some(kept(-21.0));
     assert!(app.clock_offer().is_none(), "the kept clock agrees");
-    app.clock = Some(kept(14.0));
+    app.bench.recording.clock = Some(kept(14.0));
     assert!(app.clock_offer().is_some(), "the kept clock is 34 ppm off");
     assert_eq!(day_of("2026-10-12T20:00:00Z"), "2026-10-12");
 }
@@ -959,15 +962,15 @@ fn the_input_clock_is_offered_after_twenty_minutes() {
 fn one_average_over_sets_every_pane() {
     let mut app = synthetic(40.0, 0.0);
     app.set_average(30.0);
-    assert!(!app.results.trend.is_empty());
-    assert!(app.results.trend.last().unwrap().t > 30.0);
+    assert!(!app.bench.results.trend.is_empty());
+    assert!(app.bench.results.trend.last().unwrap().t > 30.0);
     let mut s = app.settings();
     let mut json = serde_json::to_value(&s).unwrap();
     json["pane_average"] = serde_json::json!([["Charts", 5.0]]);
     s = serde_json::from_value(json).unwrap();
     let mut back = TimegrapherApp::with_devices(Vec::new(), None);
     back.apply_settings(s);
-    assert_eq!(back.take.average_s, 30.0);
+    assert_eq!(back.bench.take.average_s, 30.0);
 }
 
 #[test]
@@ -981,15 +984,15 @@ fn a_long_take_still_draws_over_a_short_strip() {
         let mut t = 0.0;
         let mut thin = Vec::new();
         while t <= 40.0 {
-            if let Some(p) = app.results.trend.iter().find(|p| p.t >= t) {
+            if let Some(p) = app.bench.results.trend.iter().find(|p| p.t >= t) {
                 thin.push(*p);
             }
             t += step;
         }
-        app.results.trend = thin;
+        app.bench.results.trend = thin;
     };
     thin(&mut app);
-    let (pts, spacing) = app.strip_trend(5.0, 40.0, app.take.average_s);
+    let (pts, spacing) = app.strip_trend(5.0, 40.0, app.bench.take.average_s);
     assert_eq!(spacing, strip_step(35.0));
     assert!(pts.len() >= 60, "{} points", pts.len());
     assert!(pts.iter().filter(|p| p.rate_s_per_day.is_some()).count() >= 40);
@@ -997,16 +1000,16 @@ fn a_long_take_still_draws_over_a_short_strip() {
     // amplitude line follows it at once.
     let amplitude = |pts: &[TrendPoint]| pts.iter().find_map(|p| p.amplitude_deg).unwrap();
     let before = amplitude(&pts);
-    app.set_lift(app.take.lift_deg + 10.0);
-    assert!(app.results.strip_points.is_none());
+    app.set_lift(app.bench.take.lift_deg + 10.0);
+    assert!(app.bench.results.strip_points.is_none());
     thin(&mut app);
-    let (pts, _) = app.strip_trend(5.0, 40.0, app.take.average_s);
+    let (pts, _) = app.strip_trend(5.0, 40.0, app.bench.take.average_s);
     assert!(amplitude(&pts) != before, "amplitude {before} kept");
     // The kept run serves when it is fine enough.
     let mut app = synthetic(40.0, 20.0);
-    let kept = app.results.trend.len();
-    let (pts, _) = app.strip_trend(0.0, 40.0, app.take.average_s);
-    assert!(app.results.strip_points.is_none());
+    let kept = app.bench.results.trend.len();
+    let (pts, _) = app.strip_trend(0.0, 40.0, app.bench.take.average_s);
+    assert!(app.bench.results.strip_points.is_none());
     assert!(pts.len() <= kept);
 }
 
@@ -1026,37 +1029,47 @@ fn the_strips_own_readings_wait_for_a_whole_step_of_sound() {
     let mut t = 0.0;
     let mut thin = Vec::new();
     while t <= 40.0 {
-        if let Some(p) = app.results.trend.iter().find(|p| p.t >= t) {
+        if let Some(p) = app.bench.results.trend.iter().find(|p| p.t >= t) {
             thin.push(*p);
         }
         t += step;
     }
-    app.results.trend = thin;
+    app.bench.results.trend = thin;
     let block = |app: &mut TimegrapherApp, n: usize| {
         for _ in 0..n {
-            app.live.as_mut().unwrap().push(&[0.0; 960]);
+            app.bench.recording.live.as_mut().unwrap().push(&[0.0; 960]);
         }
     };
-    let (pts, _) = app.strip_trend(5.0, 40.0, app.take.average_s);
-    let key = app.results.strip_points.as_ref().expect("worked out").0;
+    let (pts, _) = app.strip_trend(5.0, 40.0, app.bench.take.average_s);
+    let key = app
+        .bench
+        .results
+        .strip_points
+        .as_ref()
+        .expect("worked out")
+        .0;
     // A block of 20 ms: the same step, the same readings, not worked out.
     block(&mut app, 1);
-    app.results.strip_points.as_mut().unwrap().1.clear();
-    let (again, _) = app.strip_trend(5.0, 40.0, app.take.average_s);
-    assert_eq!(app.results.strip_points.as_ref().unwrap().0, key);
+    app.bench.results.strip_points.as_mut().unwrap().1.clear();
+    let (again, _) = app.strip_trend(5.0, 40.0, app.bench.take.average_s);
+    assert_eq!(app.bench.results.strip_points.as_ref().unwrap().0, key);
     assert!(again.is_empty(), "worked out again within a step");
     // A whole step more: worked out again, as many readings as before.
     block(&mut app, 30);
-    let (fresh, _) = app.strip_trend(5.0, 40.0, app.take.average_s);
-    assert_ne!(app.results.strip_points.as_ref().unwrap().0, key);
+    let (fresh, _) = app.strip_trend(5.0, 40.0, app.bench.take.average_s);
+    assert_ne!(app.bench.results.strip_points.as_ref().unwrap().0, key);
     assert_eq!(fresh.len(), pts.len());
     // Stopped: a block within the step is worked out at once.
-    app.capture = None;
-    let _ = app.strip_trend(5.0, 40.0, app.take.average_s);
-    let key = app.results.strip_points.as_ref().unwrap().0;
+    app.bench.recording.capture = None;
+    let _ = app.strip_trend(5.0, 40.0, app.bench.take.average_s);
+    let key = app.bench.results.strip_points.as_ref().unwrap().0;
     block(&mut app, 1);
-    let _ = app.strip_trend(5.0, 40.0, app.take.average_s);
-    assert_ne!(app.results.strip_points.as_ref().unwrap().0, key, "stopped");
+    let _ = app.strip_trend(5.0, 40.0, app.bench.take.average_s);
+    assert_ne!(
+        app.bench.results.strip_points.as_ref().unwrap().0,
+        key,
+        "stopped"
+    );
     let _ = std::fs::remove_dir_all(&base);
 }
 
@@ -1073,28 +1086,54 @@ fn listening_the_charts_are_read_again_in_the_background() {
     assert!(app.running());
     let ctx = themed();
     app.refresh_trend_shown(&ctx);
-    let before = app.results.trend.clone();
+    let before = app.bench.results.trend.clone();
     // Neither the setting, polling nor the frame reads the run here.
-    let average_s = app.take.average_s;
+    let average_s = app.bench.take.average_s;
     app.set_average(2.0 * average_s);
-    assert_eq!(app.results.trend, before, "read as Average Over was set");
+    assert_eq!(
+        app.bench.results.trend, before,
+        "read as Average Over was set"
+    );
     app.poll();
-    assert_eq!(app.results.trend, before, "read on the polling thread");
+    assert_eq!(
+        app.bench.results.trend, before,
+        "read on the polling thread"
+    );
     app.refresh_trend_shown(&ctx);
-    assert!(app.results.bg.trend.is_some());
-    assert_eq!(app.results.trend, before, "read on the window's thread");
+    assert!(app.bench.results.bg.trend.is_some());
+    assert_eq!(
+        app.bench.results.trend, before,
+        "read on the window's thread"
+    );
     // A reading heard meanwhile, after the sound the run is read on.
-    let late = TrendPoint::of(1e6, &app.live.as_ref().unwrap().reading_at(40.0, 1.0));
-    app.results.trend.push(late);
+    let late = TrendPoint::of(
+        1e6,
+        &app.bench
+            .recording
+            .live
+            .as_ref()
+            .unwrap()
+            .reading_at(40.0, 1.0),
+    );
+    app.bench.results.trend.push(late);
     let start = Instant::now();
-    while app.results.bg.trend.is_some() {
+    while app.bench.results.bg.trend.is_some() {
         assert!(start.elapsed() < Duration::from_secs(60), "never read");
         std::thread::sleep(Duration::from_millis(10));
         app.refresh_trend_shown(&ctx);
     }
-    let fresh = app.live.as_ref().unwrap().trend(app.take.average_s);
-    assert_eq!(app.results.trend[..app.results.trend.len() - 1], fresh[..]);
-    assert_eq!(app.results.trend.last(), Some(&late));
+    let fresh = app
+        .bench
+        .recording
+        .live
+        .as_ref()
+        .unwrap()
+        .trend(app.bench.take.average_s);
+    assert_eq!(
+        app.bench.results.trend[..app.bench.results.trend.len() - 1],
+        fresh[..]
+    );
+    assert_eq!(app.bench.results.trend.last(), Some(&late));
     let _ = std::fs::remove_dir_all(&base);
 }
 
@@ -1109,11 +1148,11 @@ fn a_run_read_again_while_listening_leaves_no_blank_on_the_strip() {
     // still), every reading read live since.
     let sparse: Vec<TrendPoint> = [7.0, 25.0, 43.0]
         .iter()
-        .filter_map(|&t| app.results.trend.iter().find(|p| p.t >= t).copied())
+        .filter_map(|&t| app.bench.results.trend.iter().find(|p| p.t >= t).copied())
         .collect();
-    app.results.trend.retain(|p| p.t >= 50.0);
-    app.results.trend.splice(0..0, sparse);
-    let (pts, _) = app.strip_trend(15.0, 80.0, app.take.average_s);
+    app.bench.results.trend.retain(|p| p.t >= 50.0);
+    app.bench.results.trend.splice(0..0, sparse);
+    let (pts, _) = app.strip_trend(15.0, 80.0, app.bench.take.average_s);
     let drawn = |a: f64, b: f64| {
         pts.iter()
             .filter(|p| p.t >= a && p.t < b && p.rate_s_per_day.is_some())
@@ -1128,23 +1167,23 @@ fn a_run_read_again_while_listening_leaves_no_blank_on_the_strip() {
     // The run read live throughout serves as it is, the window reaching
     // past the take's ends too.
     let mut app = synthetic(80.0, 20.0);
-    let _ = app.strip_trend(15.0, 80.0, app.take.average_s);
-    assert!(app.results.strip_points.is_none());
-    let _ = app.strip_trend(-20.0, 100.0, app.take.average_s);
-    assert!(app.results.strip_points.is_none());
+    let _ = app.strip_trend(15.0, 80.0, app.bench.take.average_s);
+    assert!(app.bench.results.strip_points.is_none());
+    let _ = app.strip_trend(-20.0, 100.0, app.bench.take.average_s);
+    assert!(app.bench.results.strip_points.is_none());
     // At half-second steps the line is a second: a hole just under it
     // serves, one just over is worked out afresh.
-    let live = app.results.trend.clone();
+    let live = app.bench.results.trend.clone();
     for (hole, fresh) in [(0.95, false), (1.05, true)] {
         let mut trend = live.clone();
         let i = trend.iter().position(|p| p.t >= 60.0).unwrap();
         trend.remove(i);
         trend[i].t = trend[i - 1].t + hole;
-        app.results.trend = trend;
-        app.results.strip_points = None;
-        let _ = app.strip_trend(15.0, 80.0, app.take.average_s);
+        app.bench.results.trend = trend;
+        app.bench.results.strip_points = None;
+        let _ = app.strip_trend(15.0, 80.0, app.bench.take.average_s);
         assert_eq!(
-            app.results.strip_points.is_some(),
+            app.bench.results.strip_points.is_some(),
             fresh,
             "a hole of {hole} s"
         );
@@ -1158,17 +1197,23 @@ fn a_run_read_again_while_listening_leaves_no_blank_on_the_strip() {
 #[test]
 fn a_settling_leaves_the_strip_drawing_the_run_read_live() {
     let mut app = synthetic(80.0, 20.0);
-    app.results.trend.retain(|p| !(40.0..55.0).contains(&p.t));
-    let _ = app.strip_trend(-5.0, 80.0, app.take.average_s);
-    assert!(app.results.strip_points.is_some(), "a gap with no settling");
-    app.results.strip_points = None;
+    app.bench
+        .results
+        .trend
+        .retain(|p| !(40.0..55.0).contains(&p.t));
+    let _ = app.strip_trend(-5.0, 80.0, app.bench.take.average_s);
+    assert!(
+        app.bench.results.strip_points.is_some(),
+        "a gap with no settling"
+    );
+    app.bench.results.strip_points = None;
     app.session.load(
         &[(0.0, Position::DialUp), (40.0, Position::DialDown)],
         &[(40.0, 55.0)],
     );
-    let _ = app.strip_trend(-5.0, 80.0, app.take.average_s);
+    let _ = app.strip_trend(-5.0, 80.0, app.bench.take.average_s);
     assert!(
-        app.results.strip_points.is_none(),
+        app.bench.results.strip_points.is_none(),
         "a settling taken for a hole"
     );
 }
@@ -1190,10 +1235,17 @@ fn the_strips_own_readings_stay_put_as_fit_grows() {
     let mut app = synthetic(260.0, 20.0);
     // As sparse as a long take's run opened whole, so the strip works
     // out its own.
-    app.results.trend = app.results.trend.iter().step_by(14).copied().collect();
+    app.bench.results.trend = app
+        .bench
+        .results
+        .trend
+        .iter()
+        .step_by(14)
+        .copied()
+        .collect();
     let times = |pts: &[TrendPoint]| pts.iter().map(|p| p.t.to_bits()).collect::<Vec<_>>();
-    let (a, step) = app.strip_trend(-5.0, 250.0, app.take.average_s);
-    let (b, again) = app.strip_trend(-5.0, 250.4, app.take.average_s);
+    let (a, step) = app.strip_trend(-5.0, 250.0, app.bench.take.average_s);
+    let (b, again) = app.strip_trend(-5.0, 250.4, app.bench.take.average_s);
     assert_eq!(step, again);
     assert!(a.len() > 200, "{} readings", a.len());
     assert_eq!(times(&a), times(&b[..a.len()]));
@@ -1291,7 +1343,7 @@ fn a_take_saved_under_a_former_calibre_name_picks_the_new_one() {
         .expect("a renamed calibre in the table");
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.set_calibre(c.former_names[0].clone());
-    assert_eq!(app.take.calibre, c.calibre);
+    assert_eq!(app.bench.take.calibre, c.calibre);
     assert_eq!(app.cal.recent.first(), Some(&c.calibre));
 }
 

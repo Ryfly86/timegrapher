@@ -116,8 +116,8 @@ impl TimegrapherApp {
             MenuCommand::Save => self.marks_unsaved() || (can_save && !saving && !self.streams()),
             MenuCommand::SaveAs => can_save && self.session.saved_to().is_some() && !saving,
             MenuCommand::SaveAnalysisOnly => self.can_save_analysis(),
-            MenuCommand::NewSession => self.live.is_some(),
-            MenuCommand::RemoveMasks => !self.take.masked.is_empty(),
+            MenuCommand::NewSession => self.bench.recording.live.is_some(),
+            MenuCommand::RemoveMasks => !self.bench.take.masked.is_empty(),
             // The panes are the Bench's: dimmed in Watches.
             MenuCommand::Readings
             | MenuCommand::CompactReadings
@@ -131,9 +131,9 @@ impl TimegrapherApp {
     pub(super) fn menu_checked(&self, c: MenuCommand) -> bool {
         match c {
             MenuCommand::View(v) => self.watches_view.view == v,
-            MenuCommand::Readings => self.panes_view.show_readings,
-            MenuCommand::CompactReadings => !self.panes_view.readings_pinned,
-            MenuCommand::Pane(p) => pane_visible(&self.panes_view.panes.tiles, p),
+            MenuCommand::Readings => self.bench.panes_view.show_readings,
+            MenuCommand::CompactReadings => !self.bench.panes_view.readings_pinned,
+            MenuCommand::Pane(p) => pane_visible(&self.bench.panes_view.panes.tiles, p),
             _ => false,
         }
     }
@@ -169,21 +169,24 @@ impl TimegrapherApp {
             }
             MenuCommand::NewSession => self.new_session(),
             MenuCommand::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
-            MenuCommand::RemoveMasks => self.take.remove_masks_asked = true,
+            MenuCommand::RemoveMasks => self.bench.take.remove_masks_asked = true,
             MenuCommand::Settings => self.open_settings(self.settings_last),
             MenuCommand::View(v) => self.watches_view.view = v,
-            MenuCommand::Readings => self.panes_view.show_readings = !self.panes_view.show_readings,
+            MenuCommand::Readings => {
+                self.bench.panes_view.show_readings = !self.bench.panes_view.show_readings
+            }
             MenuCommand::CompactReadings => {
-                self.panes_view.readings_pinned = !self.panes_view.readings_pinned
+                self.bench.panes_view.readings_pinned = !self.bench.panes_view.readings_pinned
             }
             MenuCommand::Pane(p) => {
-                let on = pane_visible(&self.panes_view.panes.tiles, p);
+                let on = pane_visible(&self.bench.panes_view.panes.tiles, p);
                 self.show_pane(p, !on);
             }
             MenuCommand::ResetPanes => {
-                self.panes_view.show_readings = true;
-                self.panes_view.panes = default_layout(self.panes_view.strip.horizontal);
-                self.panes_view.panes_dragged.clear();
+                self.bench.panes_view.show_readings = true;
+                self.bench.panes_view.panes =
+                    default_layout(self.bench.panes_view.strip.horizontal);
+                self.bench.panes_view.panes_dragged.clear();
             }
             MenuCommand::NewWatch => self.open_new_watch_form(),
             MenuCommand::FindInWatches => self.find_in_watches(),
@@ -301,7 +304,7 @@ impl TimegrapherApp {
             "Save once first; Save… asks where"
         };
         self.menu_item(ui, MenuCommand::SaveAs, "Save As…", SAVE_AS_HINT, off);
-        let off = if self.analysis_save.is_some() {
+        let off = if self.bench.keeping.analysis_save.is_some() {
             "The analysis is being kept now"
         } else if can_save {
             "Stop listening first: the whole take's sound is read again"

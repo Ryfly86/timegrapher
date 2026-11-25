@@ -70,7 +70,7 @@ impl TimegrapherApp {
     /// Whether the take records into a reading of its own, its sound never
     /// written.
     pub(super) fn kept_running(&self) -> bool {
-        self.kept_live.run.is_some()
+        self.bench.recording.kept_live.run.is_some()
     }
 
     /// Record the session just started as its analysis alone: none of its
@@ -108,7 +108,7 @@ impl TimegrapherApp {
             ));
             return false;
         }
-        self.kept_live = Kept {
+        self.bench.recording.kept_live = Kept {
             run: Some(Keeper::start(KeepAs {
                 sample_rate: r.info().sample_rate,
                 bytes_per_frame: r.bytes_per_frame(),
@@ -129,9 +129,9 @@ impl TimegrapherApp {
     /// can't be kept on the disk, take in its write once done, and write
     /// it again a minute after a write failed.
     pub(super) fn kept_follow(&mut self) {
-        if let Some(k) = &self.kept_live.run {
+        if let Some(k) = &self.bench.recording.kept_live.run {
             let failed = k.checkpointed().failed;
-            if failed != self.kept_live.said {
+            if failed != self.bench.recording.kept_live.said {
                 if let Some(e) = &failed {
                     let m = format!(
                         "The test's analysis couldn't be kept on the disk as it goes ({e}). \
@@ -140,17 +140,19 @@ impl TimegrapherApp {
                     applog::error(&m);
                     self.message = Some((m, true));
                 }
-                self.kept_live.said = failed;
+                self.bench.recording.kept_live.said = failed;
             }
         }
         self.kept_written();
         let again = self
+            .bench
+            .recording
             .kept_live
             .unwritten
             .as_ref()
             .is_some_and(|(_, at)| at.elapsed() >= STREAM_RETRY);
         if again {
-            if let Some((u, _)) = self.kept_live.unwritten.take() {
+            if let Some((u, _)) = self.bench.recording.kept_live.unwritten.take() {
                 let at = u.recording.clone();
                 self.write_kept(at, Box::new(move || Ok(u)));
             }
@@ -160,7 +162,7 @@ impl TimegrapherApp {
     /// How long until a failed write is tried again, for the window to
     /// draw then on its own.
     pub(super) fn kept_retry_in(&self) -> Option<std::time::Duration> {
-        let (_, at) = self.kept_live.unwritten.as_ref()?;
+        let (_, at) = self.bench.recording.kept_live.unwritten.as_ref()?;
         Some(STREAM_RETRY.saturating_sub(at.elapsed()))
     }
 
@@ -168,7 +170,7 @@ impl TimegrapherApp {
     /// `dest`: its analysis finished, and the take written beside the
     /// recording's other files on a thread of its own.
     pub(super) fn save_kept(&mut self, dest: PathBuf) {
-        let Some(keeper) = self.kept_live.run.take() else {
+        let Some(keeper) = self.bench.recording.kept_live.run.take() else {
             return;
         };
         let prepared = self.kept_companions();
@@ -199,7 +201,7 @@ impl TimegrapherApp {
                 ));
             }
         };
-        if let Some(t) = self.test.reserve.as_mut() {
+        if let Some(t) = self.bench.test.reserve.as_mut() {
             t.saving = true;
         }
         let at = recording.clone();
@@ -234,7 +236,7 @@ impl TimegrapherApp {
         let kept = self.results_files()?;
         let mut required = vec![(MANIFEST, text.as_bytes())];
         required.extend(kept.iter().map(|(n, b)| (*n, b.as_slice())));
-        let calibre = self.take.calibre.clone();
+        let calibre = self.bench.take.calibre.clone();
         let r = self
             .session
             .recorder
@@ -263,14 +265,14 @@ impl TimegrapherApp {
             };
             let _ = tx.send(written);
         });
-        self.kept_live.writing = Some((rx, recording));
+        self.bench.recording.kept_live.writing = Some((rx, recording));
     }
 
     /// The take written, once it is: the session saved there, and the
     /// analysis kept on the disk as it went let go; or, when it couldn't
     /// be, kept to write again.
     fn kept_written(&mut self) {
-        let Some((rx, recording)) = &self.kept_live.writing else {
+        let Some((rx, recording)) = &self.bench.recording.kept_live.writing else {
             return;
         };
         let recording = recording.clone();
@@ -279,7 +281,7 @@ impl TimegrapherApp {
             Err(TryRecvError::Empty) => return,
             Err(TryRecvError::Disconnected) => (Err("it stopped part way".into()), None),
         };
-        self.kept_live.writing = None;
+        self.bench.recording.kept_live.writing = None;
         match written {
             (Ok(dir), Some(u)) => {
                 self.info_msg(format!(
@@ -299,7 +301,7 @@ impl TimegrapherApp {
                      the app and written again in a minute: keep the app open until it's kept.",
                     u.dest.display()
                 ));
-                self.kept_live.unwritten = Some((u, Instant::now()));
+                self.bench.recording.kept_live.unwritten = Some((u, Instant::now()));
             }
             (r, None) => {
                 let e = r.err().unwrap_or_default();
@@ -309,7 +311,7 @@ impl TimegrapherApp {
                     recording.display()
                 ));
                 if self.is_recording(&recording) {
-                    if let Some(t) = self.test.reserve.as_mut() {
+                    if let Some(t) = self.bench.test.reserve.as_mut() {
                         t.saving = false;
                     }
                 }
@@ -344,7 +346,7 @@ impl TimegrapherApp {
         if let Err(e) = timegrapher_core::checkpoint::remove(&u.recording) {
             applog::warn(&format!("the analysis kept as it went stays: {e}"));
         }
-        if let Some(t) = self.test.reserve.as_mut() {
+        if let Some(t) = self.bench.test.reserve.as_mut() {
             t.saving = false;
             t.saved = Some(dir);
         }
@@ -353,7 +355,7 @@ impl TimegrapherApp {
     /// A failed write tried again at the next follow, as a minute on.
     #[cfg(test)]
     pub(super) fn kept_write_now(&mut self) {
-        if let Some((_, at)) = self.kept_live.unwritten.as_mut() {
+        if let Some((_, at)) = self.bench.recording.kept_live.unwritten.as_mut() {
             *at -= STREAM_RETRY;
         }
     }
@@ -361,13 +363,13 @@ impl TimegrapherApp {
     /// Whether a take kept as its analysis alone is being written, for
     /// the window to draw until it is and show it saved.
     pub(super) fn kept_writing(&self) -> bool {
-        self.kept_live.writing.is_some()
+        self.bench.recording.kept_live.writing.is_some()
     }
 
     /// Whether a take kept as its analysis alone is being written: what
     /// would begin a new session waits until it is, and says so.
     pub(super) fn kept_writing_busy(&mut self) -> bool {
-        if self.kept_live.writing.is_none() {
+        if self.bench.recording.kept_live.writing.is_none() {
             return false;
         }
         self.info_msg("Writing the test's take: wait until it is kept.".into());
@@ -411,15 +413,17 @@ impl TimegrapherApp {
         if let Some(to) = self.session.saved_to() {
             return Some(file_name(to));
         }
-        if self.input != Input::File || self.opened_path.is_empty() {
+        if self.bench.recording.input != Input::File || self.bench.keeping.opened_path.is_empty() {
             return None;
         }
-        let path = Path::new(&self.opened_path);
+        let path = Path::new(&self.bench.keeping.opened_path);
         // Only a take kept as its analysis alone is looked in.
-        Some(match self.no_sound.is_some() && checkpoint::only(path) {
-            true => kept_label(path, ""),
-            false => file_name(path),
-        })
+        Some(
+            match self.bench.keeping.no_sound.is_some() && checkpoint::only(path) {
+                true => kept_label(path, ""),
+                false => file_name(path),
+            },
+        )
     }
 }
 
@@ -483,5 +487,174 @@ pub(super) fn keep_block(
             "the analysis of the sound stopped".into(),
         )),
         _ => Ok(()),
+    }
+}
+
+impl TimegrapherApp {
+    /// While the session is being kept as its analysis alone, say so and
+    /// refuse what would throw its sound away or add to it.
+    pub(super) fn analysis_save_busy(&mut self) -> bool {
+        if self.bench.keeping.analysis_save.is_none() {
+            return self.kept_writing_busy();
+        }
+        self.info_msg(
+            "Keeping the analysis of this session: it is reading the session's sound and \
+             writing its analysis, so wait until it is done, or press Cancel beside its \
+             progress."
+                .into(),
+        );
+        true
+    }
+
+    /// Whether the session can be kept as its analysis alone now: a
+    /// microphone session with sound, not listening.
+    pub(super) fn can_save_analysis(&self) -> bool {
+        self.session.allows(Action::Save)
+            && !self.running()
+            && self.bench.keeping.analysis_save.is_none()
+            && self.session.recorder.is_some()
+    }
+
+    /// Keep the session as its analysis alone, in a new folder inside one
+    /// the user picks.
+    pub(super) fn save_analysis_only(&mut self) {
+        if self.refuse_faulted_recording() || self.refuse_hours_gone() || !self.can_save_analysis()
+        {
+            return;
+        }
+        let mut d = rfd::FileDialog::new()
+            .set_title("Choose Where to Keep the Analysis (the Take Gets Its Own Folder Inside)");
+        let start = self.save_start();
+        if start.is_dir() {
+            d = d.set_directory(&start);
+        }
+        self.pick(Picker::one(d, Pick::Folder, |a, parent| {
+            if a.can_save_analysis() {
+                a.start_analysis_save(&parent);
+            }
+        }));
+    }
+
+    /// Read the session's sound again for its analysis, in the background,
+    /// then write it as a take with no sound inside `parent`.
+    pub(super) fn start_analysis_save(&mut self, parent: &Path) {
+        let mut manifest = self.take_manifest();
+        manifest.audio = Some(false);
+        let prepared = (|| -> Result<_, String> {
+            let result = self
+                .reading()
+                .map(serde_json::to_value)
+                .transpose()
+                .map_err(|e| format!("Couldn't prepare the saved reading: {e}"))?;
+            let text = toml::to_string_pretty(&manifest)
+                .map_err(|e| format!("Couldn't prepare {MANIFEST}: {e}"))?;
+            let kept = self.results_files()?;
+            Ok((result, text, kept))
+        })();
+        let (result, text, kept) = match prepared {
+            Ok(p) => p,
+            Err(e) => return self.error(e),
+        };
+        self.note_settings();
+        let Some(r) = self.session.recorder.as_mut() else {
+            return;
+        };
+        let total_s = r.duration_s();
+        let mut required = vec![(MANIFEST, text.as_bytes())];
+        required.extend(kept.iter().map(|(n, b)| (*n, b.as_slice())));
+        let (name, companions) =
+            match r.analysis_copy_files(&self.bench.take.calibre, result.as_ref(), &required) {
+                Ok(c) => c,
+                Err(e) => return self.error(format!("Keeping the analysis failed: {e}")),
+            };
+        let files = r.segment_paths();
+        let dest = parent.join(name);
+        // Read as the take on show is read: its beat rate and lift, and
+        // the escape teeth core gives its session file and calibre (#1324).
+        let cfg = self.entry_settings(&manifest).stream;
+        let shapes = timegrapher_core::analysis_take::shape_stretches(&manifest, total_s);
+        let software = report::software();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let progress = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+        let cancel = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let (p2, c2) = (progress.clone(), cancel.clone());
+        std::thread::spawn(move || {
+            let paths: Vec<&Path> = files.iter().map(|f| f.as_path()).collect();
+            let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let stored = timegrapher_core::analysis_take::measure(
+                    &paths,
+                    &cfg,
+                    &shapes,
+                    software,
+                    |s| {
+                        p2.store(s.to_bits(), std::sync::atomic::Ordering::Relaxed);
+                        if c2.load(std::sync::atomic::Ordering::Relaxed) {
+                            std::panic::resume_unwind(Box::new(Cancelled));
+                        }
+                    },
+                )
+                .map_err(|e| e.to_string())?;
+                let cancelled = || c2.load(std::sync::atomic::Ordering::Relaxed);
+                if cancelled() {
+                    std::panic::resume_unwind(Box::new(Cancelled));
+                }
+                let dir = timegrapher_core::analysis_take::save(&dest, &companions, &stored)
+                    .map_err(|e| e.to_string())?;
+                // Cancelled while it was being written: the folder is this
+                // job's own (the save refuses one already there), so it goes.
+                if cancelled() {
+                    let _ = std::fs::remove_dir_all(&dir);
+                    std::panic::resume_unwind(Box::new(Cancelled));
+                }
+                Ok(dir)
+            }));
+            match r {
+                Ok(r) => {
+                    // No one left to tell (cancelled after its last check):
+                    // the folder it wrote goes too.
+                    if let Err(std::sync::mpsc::SendError(Ok(dir))) = tx.send(r) {
+                        let _ = std::fs::remove_dir_all(dir);
+                    }
+                }
+                Err(e) if e.is::<Cancelled>() => {}
+                Err(e) => std::panic::resume_unwind(e),
+            }
+        });
+        self.bench.keeping.save_dir = parent.display().to_string();
+        self.bench.keeping.analysis_save = Some(AnalysisSave {
+            rx,
+            progress,
+            cancel,
+            total_s,
+        });
+    }
+
+    /// The analysis being kept, once it is written.
+    pub(super) fn poll_analysis_save(&mut self) {
+        let Some(job) = &self.bench.keeping.analysis_save else {
+            return;
+        };
+        let done = match job.rx.try_recv() {
+            Ok(r) => r,
+            Err(TryRecvError::Empty) => return,
+            Err(TryRecvError::Disconnected) => Err("it stopped part way".into()),
+        };
+        let Some(job) = self.bench.keeping.analysis_save.take() else {
+            return;
+        };
+        match done {
+            Ok(dir) => {
+                let size = folder_size(&dir);
+                self.info_msg(format!(
+                    "Kept the analysis of {} of sound in {}, without the sound ({}).",
+                    length_text(job.total_s),
+                    dir.display(),
+                    size_text(size)
+                ));
+                self.bench.keeping.analysis_kept_to = Some((dir, job.total_s));
+                self.test_kept_without_sound();
+            }
+            Err(e) => self.error(format!("Keeping the analysis failed: {e}")),
+        }
     }
 }
