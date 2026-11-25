@@ -21,6 +21,7 @@ build has them):
 ```
 timegrapher calibres [NAME] [--json]       the built-in calibre table: bph, lift angle, escape wheel teeth, wheel turn periods, sources
 timegrapher calibres --search QUERY        the calibres that answer QUERY, best first (a name, another name or the maker: "dd 3235", "AP 3120")
+timegrapher calibres export --json         every calibre's reference page as opentimegrapher.org shows it (made, specs, summary, sources)
 timegrapher analyze FILE --calibre NAME    beat rate, lift angle and wheel names from the table; --bph, --lift, --escape-teeth win
 timegrapher session FOLDER --calibre NAME  the same for a session: the flag, then session.toml, then the calibre, then the defaults
 ```

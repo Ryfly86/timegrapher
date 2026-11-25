@@ -145,6 +145,10 @@ pub struct Years {
     /// The source gives the years as approximate ("about 1970").
     #[serde(default)]
     pub approx: bool,
+    /// The source says the calibre is still made; only with `from` and
+    /// never with `to` (Hugh on #1861).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub current: bool,
     pub source: String,
 }
 

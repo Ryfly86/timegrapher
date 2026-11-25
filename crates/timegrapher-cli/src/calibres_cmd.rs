@@ -168,6 +168,23 @@ pub fn run(name: Option<&str>, search: Option<&str>, json: bool) -> Result<(), S
     Ok(())
 }
 
+/// `timegrapher calibres export [--json]`: every calibre in the shipped
+/// table as its page on opentimegrapher.org shows it
+/// ([`timegrapher_core::calibre_page::export`]); without `--json`, how
+/// many pages and makers that is.
+pub fn export(json: bool) -> Result<(), String> {
+    let e = timegrapher_core::calibre_page::export();
+    if json {
+        return output::print("calibres-export", output::input(&[], json!({})), &e);
+    }
+    println!(
+        "{} calibre pages from {} makers. `timegrapher calibres export --json` writes them.",
+        e.calibres.len(),
+        e.makers.len()
+    );
+    Ok(())
+}
+
 /// The calibres listed, as JSON: the table's and the user's apart, and a
 /// named one's wheel slots.
 fn print_json(

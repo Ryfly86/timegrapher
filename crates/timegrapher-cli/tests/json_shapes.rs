@@ -338,6 +338,21 @@ fn calibres_keep_their_fields() {
     let _ = std::fs::remove_dir_all(&config);
 }
 
+/// The export the website's calibre pages are built from (#401): its
+/// schema and every field the site's templates read.
+#[test]
+fn calibres_export_keeps_its_fields() {
+    let config = scratch("calibres-export");
+    let doc = json(&config, &["calibres", "export", "--json"]);
+    assert_eq!(doc["schema"], "timegrapher.calibres-export/1");
+    assert_eq!(
+        doc["calibres"].as_array().map(Vec::len),
+        Some(timegrapher_core::calibres::all().len())
+    );
+    check("calibres_export", &doc);
+    let _ = std::fs::remove_dir_all(&config);
+}
+
 #[test]
 fn train_keeps_its_fields() {
     let config = scratch("train");
