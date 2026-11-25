@@ -94,9 +94,9 @@ pub struct Calibre {
     /// Diameter in mm, lignes or both, as stated; never converted.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub diameter: Option<Diameter>,
-    /// Height in mm, to the source's decimals (at most 0.01 mm).
+    /// Height in mm as the source writes it ("4.60"), at most 0.01 mm.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub height_mm: Option<Stated<f64>>,
+    pub height_mm: Option<Stated<String>>,
     /// Power reserve in hours: one figure, "about" one, or a range.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub power_reserve_h: Option<PowerReserve>,
