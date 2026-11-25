@@ -588,9 +588,9 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
-    /// For developers: check the engine against tg on stored takes: every reading of every
-    /// session file under ROOT is measured again and compared with its tg
-    /// reference and a baseline. Exit code 3 when a value moved away from
+    /// For developers: check the engine against tg on stored takes. Every
+    /// reading of every session file under ROOT is measured again and
+    /// compared with its tg reference and a baseline. Exit code 3 when a value moved away from
     /// tg by more than its margin, a reading lost beats or a value, required
     /// evidence is missing/unreadable, or an existing recording label changed.
     #[command(display_order = DEVELOPER_ORDER)]
