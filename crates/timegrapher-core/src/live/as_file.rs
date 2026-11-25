@@ -8,9 +8,19 @@
 //! saved take of that length. Live's own beats still draw the strip.
 //! A stop reads everything heard once more, so the stopped figures are
 //! the saved take's (Norm's ruling on #1987).
+//! Once the first chunk and its margin are heard, each read resumes from
+//! the state the last read left after that chunk and reads only the sound
+//! after it ([`crate::stream::analyze_samples_resumed`]): the same log to
+//! the bit as a read from the start (#2261).
 
 use super::*;
+use crate::stream::Resume;
+use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
+
+/// A read as a file: its log, and the state to resume the next read from
+/// ([`crate::stream::analyze_samples_resumed`]).
+type Read = (BeatLog, Option<Arc<Resume>>);
 
 /// How much sound, seconds, is read again as a file at most: twice a
 /// file's first chunk. Past it the figures are live's own even if the
@@ -40,7 +50,11 @@ pub(super) struct AsFile {
     /// Everything heard since the start.
     heard: Vec<f32>,
     /// The read in flight, and how many samples of `heard` it reads.
-    job: Option<(JoinHandle<BeatLog>, usize)>,
+    job: Option<(JoinHandle<Read>, usize)>,
+    /// The state the newest read left after the first chunk, the next
+    /// read resumed from it (#2261): dropped on any setting changed, and
+    /// used by a read only for the same first chunk read the same way.
+    resume: Mutex<Option<Arc<Resume>>>,
     /// The newest finished read, set as live is.
     view: Option<Box<LiveAnalyzer>>,
     /// Fed by [`LiveAnalyzer::push`] (a test, a headless read): no read
@@ -57,6 +71,20 @@ pub(super) struct AsFile {
     reads: std::sync::atomic::AtomicUsize,
 }
 
+impl AsFile {
+    /// The state the next read resumes from, if any.
+    fn resume_from(&self) -> Option<Arc<Resume>> {
+        self.resume.lock().ok().and_then(|r| r.clone())
+    }
+
+    /// `resume` kept for the next read.
+    fn keep_resume(&self, resume: Option<Arc<Resume>>) {
+        if let Ok(mut r) = self.resume.lock() {
+            *r = resume;
+        }
+    }
+}
+
 /// A copy keeps the newest read and what was heard; a read in flight
 /// stays with the original.
 impl Clone for AsFile {
@@ -65,6 +93,7 @@ impl Clone for AsFile {
             on: self.on,
             heard: self.heard.clone(),
             job: None,
+            resume: Mutex::new(self.resume_from()),
             view: self.view.clone(),
             on_ask: self.on_ask,
             fresh: self.fresh.clone(),
@@ -122,11 +151,19 @@ impl LiveAnalyzer {
         Some((self.as_file.fresh).get_or_init(|| Box::new(self.view_of(self.read_heard()))))
     }
 
-    /// Everything heard, read as a file now, on this thread.
+    /// Everything heard, read as a file now, on this thread, resumed
+    /// after the first chunk where the last read left it.
     fn read_heard(&self) -> BeatLog {
         #[cfg(test)]
         (self.as_file.reads).fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        crate::stream::analyze_samples(&self.as_file.heard, self.fs as u32, &self.stream_config())
+        let (log, resume) = crate::stream::analyze_samples_resumed(
+            &self.as_file.heard,
+            self.fs as u32,
+            &self.stream_config(),
+            self.as_file.resume_from(),
+        );
+        self.as_file.keep_resume(resume);
+        log
     }
 
     /// Whether the figures still come from reads as a file: until the
@@ -194,6 +231,7 @@ impl LiveAnalyzer {
     /// A setting changed: the newest read as a file given it too.
     pub(super) fn in_view(&mut self, f: impl FnOnce(&mut LiveAnalyzer)) {
         self.as_file.fresh = std::sync::OnceLock::new();
+        self.as_file.keep_resume(None);
         if let Some(v) = &mut self.as_file.view {
             f(v);
         }
@@ -249,7 +287,10 @@ impl LiveAnalyzer {
         let n = sound.len();
         let fs = self.fs as u32;
         let cfg = self.stream_config();
-        let job = std::thread::spawn(move || crate::stream::analyze_samples(&sound, fs, &cfg));
+        let from = self.as_file.resume_from();
+        let job = std::thread::spawn(move || {
+            crate::stream::analyze_samples_resumed(&sound, fs, &cfg, from)
+        });
         self.as_file.job = Some((job, n));
     }
 
@@ -268,12 +309,19 @@ impl LiveAnalyzer {
             return false;
         };
         match job.join() {
-            Ok(log) => {
-                self.set_view(log);
+            Ok(read) => {
+                self.set_read(read);
                 true
             }
             Err(_) => false,
         }
+    }
+
+    /// A read from the background as the figures, and its state to resume
+    /// the next from.
+    fn set_read(&mut self, (log, resume): Read) {
+        self.as_file.keep_resume(resume);
+        self.set_view(log);
     }
 
     /// `log` as the figures' analyzer, set as live is: its clock, masks,
@@ -321,8 +369,8 @@ impl LiveAnalyzer {
         // for, not read twice. One of less is left to finish on its own.
         if let Some((job, n)) = self.as_file.job.take() {
             if n == self.as_file.heard.len() {
-                if let Ok(log) = job.join() {
-                    self.set_view(log);
+                if let Ok(read) = job.join() {
+                    self.set_read(read);
                     return;
                 }
             }
@@ -404,6 +452,7 @@ fn listening_caveat(c: &Caveat) -> bool {
 mod tests {
     use super::*;
     use crate::synth::{generate, SynthConfig};
+    use std::sync::Arc;
 
     fn watch(bph: u32) -> Vec<f32> {
         let cfg = SynthConfig {
@@ -518,6 +567,101 @@ mod tests {
         let got = asked.reading(10.0);
         assert!(got.rate_s_per_day.is_some(), "{got:?}");
         assert_eq!(format!("{got:?}"), format!("{:?}", whole.reading(10.0)));
+    }
+
+    /// Asks past the first chunk resume the reads from where the last
+    /// read left it (#2261), and the figures are still a full read's of
+    /// everything heard, to the bit; a setting changed drops the resume.
+    #[test]
+    fn asks_past_the_first_chunk_resume_the_read() {
+        let cfg = SynthConfig {
+            duration_s: 60.0,
+            bph: 28_800,
+            ..Default::default()
+        };
+        let sound = generate(&cfg, |_| 280.0, |_| 0.0).samples;
+        let mut asked = LiveAnalyzer::new(48_000, LiveConfig::default()).with_figures_as_file();
+        let (mut fed, mut firsts) = (0, Vec::new());
+        for at_s in [49.0, 55.0, 60.0] {
+            let to = (at_s as usize * 48_000).min(sound.len());
+            for c in sound[fed..to].chunks(960) {
+                asked.push(c);
+            }
+            fed = to;
+            if at_s == 55.0 {
+                asked.set_lift(50.0);
+                assert!(asked.as_file.resume_from().is_none(), "dropped");
+            }
+            let got = asked.reading(10.0);
+            assert!(
+                asked.reads_as_file() && got.rate_s_per_day.is_some(),
+                "{got:?}"
+            );
+            let log = crate::stream::analyze_samples(&sound[..to], 48_000, &asked.stream_config());
+            let full = asked.view_of(log);
+            assert_eq!(asked.read_as_file_to(), Some(full.settled_to));
+            let r = full.reading_at(full.settled_to, 10.0);
+            for (name, a, b) in [
+                ("rate", got.rate_s_per_day, r.rate_s_per_day),
+                ("amplitude", got.amplitude_deg, r.amplitude_deg),
+                ("beat error", got.beat_error_ms, r.beat_error_ms),
+            ] {
+                assert_eq!(a.map(f64::to_bits), b.map(f64::to_bits), "{at_s} s: {name}");
+            }
+            firsts.push(asked.as_file.resume_from().expect("kept past 48 s"));
+        }
+        assert!(
+            !Arc::ptr_eq(&firsts[0], &firsts[1]),
+            "read again on the new lift"
+        );
+        assert!(Arc::ptr_eq(&firsts[1], &firsts[2]), "resumed");
+    }
+
+    /// A take fed in the background past the first chunk: each read in
+    /// the background keeps its resume, the next resumes from it, and the
+    /// figures are a full read's of everything heard, to the bit (Vernon
+    /// on #2265).
+    #[test]
+    fn background_reads_past_the_first_chunk_resume() {
+        let cfg = SynthConfig {
+            duration_s: 56.0,
+            bph: 28_800,
+            ..Default::default()
+        };
+        let sound = generate(&cfg, |_| 280.0, |_| 0.0).samples;
+        let mut live = LiveAnalyzer::new(48_000, LiveConfig::default()).with_figures_as_file();
+        // A read in the background of everything heard to `to`, waited for.
+        let read_to = |live: &mut LiveAnalyzer, fed: &mut usize, to: usize| {
+            for c in sound[*fed..to].chunks(960) {
+                live.push_without_waiting(c);
+            }
+            *fed = to;
+            if let Some((job, _)) = live.as_file.job.take() {
+                let _ = job.join();
+            }
+            live.start_read();
+            assert!(live.take_read(), "the background read landed");
+        };
+        let mut fed = 0;
+        read_to(&mut live, &mut fed, 50 * 48_000);
+        let first = live.as_file.resume_from().expect("kept past 48 s");
+        read_to(&mut live, &mut fed, sound.len());
+        let next = live.as_file.resume_from().expect("kept");
+        assert!(Arc::ptr_eq(&first, &next), "resumed");
+        assert!(live.reads_as_file());
+        let got = live.reading(10.0);
+        assert!(got.rate_s_per_day.is_some(), "{got:?}");
+        let log = crate::stream::analyze_samples(&sound, 48_000, &live.stream_config());
+        let full = live.view_of(log);
+        assert_eq!(live.read_as_file_to(), Some(full.settled_to));
+        let r = full.reading_at(full.settled_to, 10.0);
+        for (name, a, b) in [
+            ("rate", got.rate_s_per_day, r.rate_s_per_day),
+            ("amplitude", got.amplitude_deg, r.amplitude_deg),
+            ("beat error", got.beat_error_ms, r.beat_error_ms),
+        ] {
+            assert_eq!(a.map(f64::to_bits), b.map(f64::to_bits), "{name}");
+        }
     }
 
     /// A setting changed while the newest read is within the cap of all
