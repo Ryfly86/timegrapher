@@ -179,7 +179,7 @@ colour.
   grades, verdicts or advice in the software's voice.
 - **Footer,** on every page: the shop's own footer text, if it set one;
   under it, "Made with Open Timegrapher · opentimegrapher.org" at the left
-  and the take's name and page *n* of *m* at the right. The domain is a
+  and the report's title and page *n* of *m* at the right. The domain is a
   live link, in Link blue and underlined. Every report carries the credit,
   and a shop's settings can't remove it (#1866).
 
