@@ -71,6 +71,25 @@ pub const SPECS_SEPARATOR: &str = " · ";
 pub struct SpecPart {
     pub text: String,
     pub hover: String,
+    /// The source's number in a page's numbered Sources, for a
+    /// superscript where there is no hover (`calibre_page`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<usize>,
+    /// The source as the row writes it.
+    #[serde(skip)]
+    pub cites: String,
+}
+
+impl SpecPart {
+    /// `text`, with "{label}: from {source}" in its hover.
+    pub fn new(text: String, label: &str, source: &str) -> Self {
+        SpecPart {
+            text,
+            hover: hover(label, source),
+            source: None,
+            cites: source.to_string(),
+        }
+    }
 }
 
 fn hover(label: &str, source: &str) -> String {
@@ -102,31 +121,27 @@ fn reserve_text(p: &PowerReserve) -> Option<String> {
 pub fn spec_parts(c: &Calibre) -> Vec<SpecPart> {
     let mut parts = Vec::new();
     if let Some(j) = &c.jewels {
-        parts.push(SpecPart {
-            text: format!("{} jewels", j.value),
-            hover: hover("Jewels", &j.source),
-        });
+        parts.push(SpecPart::new(
+            format!("{} jewels", j.value),
+            "Jewels",
+            &j.source,
+        ));
     }
     if let Some(d) = &c.diameter {
         if let Some(text) = diameter_text(d) {
-            parts.push(SpecPart {
-                text,
-                hover: hover("Diameter", &d.source),
-            });
+            parts.push(SpecPart::new(text, "Diameter", &d.source));
         }
     }
     if let Some(h) = &c.height_mm {
-        parts.push(SpecPart {
-            text: format!("{} mm high", h.value),
-            hover: hover("Height", &h.source),
-        });
+        parts.push(SpecPart::new(
+            format!("{} mm high", h.value),
+            "Height",
+            &h.source,
+        ));
     }
     if let Some(p) = &c.power_reserve_h {
         if let Some(text) = reserve_text(p) {
-            parts.push(SpecPart {
-                text,
-                hover: hover("Power reserve", &p.source),
-            });
+            parts.push(SpecPart::new(text, "Power reserve", &p.source));
         }
     }
     parts
@@ -158,10 +173,11 @@ pub fn functions_line(c: &Calibre) -> Option<SpecPart> {
     let line = names.join(", ");
     let mut chars = line.chars();
     let first = chars.next()?;
-    Some(SpecPart {
-        text: first.to_uppercase().chain(chars).collect(),
-        hover: hover("Functions", &f.source),
-    })
+    Some(SpecPart::new(
+        first.to_uppercase().chain(chars).collect(),
+        "Functions",
+        &f.source,
+    ))
 }
 
 /// The "Made" line: "Made 1971 to 1985", "Made until 1985", "First made
@@ -184,10 +200,7 @@ pub fn made_line(y: &Years) -> Option<String> {
 /// gives no years.
 pub fn made_part(c: &Calibre) -> Option<SpecPart> {
     let y = c.years.as_ref()?;
-    Some(SpecPart {
-        text: made_line(y)?,
-        hover: hover("Made", &y.source),
-    })
+    Some(SpecPart::new(made_line(y)?, "Made", &y.source))
 }
 
 /// `s` as a positive number written with at most `places` decimals, or

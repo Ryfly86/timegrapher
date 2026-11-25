@@ -1722,7 +1722,7 @@ impl Calibres {
         // The name alone: every fact in the row stays in the row.
         ui.label(RichText::new(title).strong().size(15.0));
         if let Entry::Table(c) = e {
-            if let Some(aka) = calibre_page::also_known_as(&c.family) {
+            if let Some(aka) = calibre_page::also_known_as(c) {
                 ui.label(RichText::new(aka).small().color(pal.text_tertiary));
             }
         }

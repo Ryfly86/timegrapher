@@ -132,8 +132,8 @@ pub struct Page {
     pub issues: Vec<Cited>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub related: Vec<RelatedLine>,
-    /// "Sources · Maker's Page": the heading and the row's confidence.
-    pub sources_heading: String,
+    /// The row's best basis as a sentence, under the Sources heading.
+    pub basis: String,
     /// Numbered from 1; `Cited::source` and `RelatedLine::source` point here.
     pub sources: Vec<SourceLine>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -202,14 +202,15 @@ pub struct More {
 }
 
 /// A numbered source: its name, its address when it has one, and what it
-/// says, as the pane's Sources list shows them.
+/// says, as the pane's Sources list shows them. One address is one
+/// source, with each thing quoted from it (Hugh on #2281).
 #[derive(Debug, Clone, Serialize)]
 pub struct SourceLine {
     pub number: usize,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
-    pub says: String,
+    pub quotes: Vec<String>,
 }
 
 /// Beat rate, lift angle and escape wheel, saying which aren't given:
@@ -227,9 +228,24 @@ pub fn figure_words(bph: Option<u32>, lift: Option<f64>, escape_teeth: Option<u3
     parts
 }
 
-/// "Also known as …", the row's other names, or `None` when it has none.
-pub fn also_known_as(family: &[String]) -> Option<String> {
-    (!family.is_empty()).then(|| format!("Also known as {}", family.join(", ")))
+/// "Also known as …", the row's other names, leaving out one that is
+/// only its own name without the maker ("3135" on Rolex 3135), or `None`
+/// when no other is left (Hugh on #2281).
+pub fn also_known_as(c: &Calibre) -> Option<String> {
+    let own = calibres::key(short_name(&c.maker, &c.calibre));
+    let others: Vec<&str> = c
+        .family
+        .iter()
+        .filter(|f| calibres::key(f) != own)
+        .map(String::as_str)
+        .collect();
+    (!others.is_empty()).then(|| format!("Also known as {}", others.join(", ")))
+}
+
+/// What the row's `confidence` says, as a sentence under its Sources:
+/// "Best basis among these sources: derived from tooth counts."
+pub fn basis_sentence(confidence: &str) -> String {
+    format!("Best basis among these sources: {confidence}.")
 }
 
 /// The Sources heading with the row's confidence: "Sources · Maker's Page".
@@ -243,6 +259,8 @@ pub fn escapement_part(x: &calibres::Escapement) -> SpecPart {
     SpecPart {
         text: x.sentence(),
         hover: format!("Source: {}", x.source),
+        source: None,
+        cites: x.source.clone(),
     }
 }
 
@@ -309,11 +327,23 @@ fn spelt_word(ch: char) -> Option<&'static str> {
     })
 }
 
-/// A calibre's name without its maker in front, as its page's slug takes
-/// it ("2824-2" for ETA 2824-2); the whole name when nothing is left.
+/// A calibre's name without its maker in front under any of the maker's
+/// names, as its page's slug takes it ("2824-2" for ETA 2824-2, "8215"
+/// for Miyota 8215 by Miyota (Citizen)); the whole name when nothing is
+/// left.
 fn short_name<'a>(maker: &str, name: &'a str) -> &'a str {
-    name.strip_prefix(maker)
-        .and_then(|rest| rest.strip_prefix(' '))
+    let mut words = maker_words(maker);
+    // The longest first, so "Tianjin Seagull" goes before "Tianjin".
+    words.sort_by_key(|w| std::cmp::Reverse(w.len()));
+    words
+        .iter()
+        .filter(|w| !w.is_empty())
+        .find_map(|w| {
+            let head = name.get(..w.len())?;
+            let rest = &name[w.len()..];
+            (head.eq_ignore_ascii_case(w) && rest.starts_with(|ch: char| !ch.is_alphanumeric()))
+                .then_some(rest)
+        })
         .filter(|rest| !slug(rest).is_empty())
         .unwrap_or(name)
 }
@@ -346,32 +376,61 @@ fn inverse_label(relation: &str) -> Option<&'static str> {
     }
 }
 
-/// The sources of a page, numbered in the order they are first cited.
+/// The sources of a page, numbered in the order they are first cited,
+/// one number per address.
 #[derive(Default)]
-struct Numbered(Vec<String>);
+struct Numbered(Vec<(String, Vec<String>)>);
+
+/// What a source is numbered by: its address, or the whole text when it
+/// has none.
+fn address(s: &str) -> &str {
+    match s.split_once(' ') {
+        Some((u, _)) if u.starts_with("http") => u,
+        _ => s,
+    }
+}
 
 impl Numbered {
     fn number(&mut self, s: &str) -> usize {
-        match self.0.iter().position(|x| x == s) {
-            Some(i) => i + 1,
+        let at = address(s);
+        match self.0.iter().position(|(a, _)| a == at) {
+            Some(i) => {
+                if !self.0[i].1.iter().any(|x| x == s) {
+                    self.0[i].1.push(s.to_string());
+                }
+                i + 1
+            }
             None => {
-                self.0.push(s.to_string());
+                self.0.push((at.to_string(), vec![s.to_string()]));
                 self.0.len()
             }
         }
     }
 
+    /// `p` with its source's number.
+    fn part(&mut self, mut p: SpecPart) -> SpecPart {
+        p.source = Some(self.number(&p.cites));
+        p
+    }
+
     fn lines(self) -> Vec<SourceLine> {
         self.0
-            .iter()
+            .into_iter()
             .enumerate()
-            .map(|(i, s)| {
-                let (name, url, says) = source_parts(s);
+            .map(|(i, (_, texts))| {
+                let (name, url, _) = source_parts(&texts[0]);
+                let mut quotes: Vec<String> = Vec::new();
+                for t in &texts {
+                    let says = source_parts(t).2;
+                    if !says.is_empty() && !quotes.contains(&says) {
+                        quotes.push(says);
+                    }
+                }
                 SourceLine {
                     number: i + 1,
                     name,
                     url,
-                    says,
+                    quotes,
                 }
             })
             .collect()
@@ -492,6 +551,17 @@ fn files(c: &Calibre, title: &str) -> (Vec<Picture>, Vec<Document>) {
     (pictures, documents)
 }
 
+/// Where a wheel goes in the Wheels list: the going train from the barrel
+/// to the balance (`calibre_store::WHEEL_SLOTS`, read the other way), then
+/// every other wheel, the motion works among them, as the table lists them.
+fn wheel_rank(name: &str) -> usize {
+    let slots = crate::calibre_store::WHEEL_SLOTS;
+    slots
+        .iter()
+        .position(|s| *s == name)
+        .map_or(slots.len(), |i| slots.len() - 1 - i)
+}
+
 /// The page of `c`; `inv` holds the relations other rows state about it.
 fn page(c: &Calibre, inv: &Inverses) -> Page {
     let title = with_maker_name(&c.maker, &c.calibre);
@@ -518,7 +588,15 @@ fn page(c: &Calibre, inv: &Inverses) -> Page {
             former_paths.push(p);
         }
     }
-    let parts = calibre_specs::spec_parts(c);
+    let parts: Vec<SpecPart> = calibre_specs::spec_parts(c)
+        .into_iter()
+        .map(|p| cite.part(p))
+        .collect();
+    let made = calibre_specs::made_part(c).map(|p| cite.part(p));
+    let functions = calibre_specs::functions_line(c).map(|p| cite.part(p));
+    let escapement = c.escapement.as_ref().map(|x| cite.part(escapement_part(x)));
+    let mut wheels: Vec<&calibres::TrainWheel> = c.wheels.iter().collect();
+    wheels.sort_by_key(|w| wheel_rank(&w.name));
     Page {
         name: c.calibre.clone(),
         maker: c.maker.clone(),
@@ -527,15 +605,14 @@ fn page(c: &Calibre, inv: &Inverses) -> Page {
         path: path(c),
         former_paths,
         common: c.common,
-        also_known_as: also_known_as(&c.family),
-        escapement: c.escapement.as_ref().map(escapement_part),
+        also_known_as: also_known_as(c),
+        escapement,
         figures: figure_words(c.bph, c.lift_angle_deg, c.escape_teeth).join(" · "),
-        made: calibre_specs::made_part(c),
+        made,
         specs: calibre_specs::specs_line(c).map(|text| Specs { text, parts }),
-        functions: calibre_specs::functions_line(c),
-        wheels: c
-            .wheels
-            .iter()
+        functions,
+        wheels: wheels
+            .into_iter()
             .map(|w| WheelLine {
                 name: title_case(&w.name),
                 period: format!("{} s", period_text(w.period_s)),
@@ -546,7 +623,7 @@ fn page(c: &Calibre, inv: &Inverses) -> Page {
         documents,
         issues,
         related,
-        sources_heading: sources_heading(&c.confidence),
+        basis: basis_sentence(&c.confidence),
         sources: cite.lines(),
         notes: c.notes.clone(),
         title,

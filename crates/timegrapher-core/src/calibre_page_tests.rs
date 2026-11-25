@@ -66,7 +66,7 @@ fn a_page_carries_the_formatters_lines_and_numbered_sources() {
            "summary": [{{"text": "One.", "source": "https://example.com/a (a) (one)"}},
                        {{"text": "Two.", "source": "{src}"}}],
            "issues": [{{"text": "Worn pivots.", "source": "https://example.com/b (b) (worn)"}}],
-           "family": ["T1"], "former_names": ["Test 0"],
+           "family": ["T1", "1"], "former_names": ["Test 0"],
            "assets": [{{"path": "test/test-1/front.jpg", "kind": "photo (dial side)"}},
                       {{"path": "test/test-1/sheet.pdf", "kind": "spec sheet"}}]"#
     ));
@@ -82,8 +82,13 @@ fn a_page_carries_the_formatters_lines_and_numbered_sources() {
     );
     assert_eq!(p.specs.as_ref().unwrap().text, "25 jewels");
     assert_eq!(p.functions.as_ref().unwrap().text, "Date");
+    // "1" is the page's own name without its maker.
     assert_eq!(p.also_known_as.as_deref(), Some("Also known as T1"));
-    assert_eq!(p.sources_heading, "Sources · Maker's Page");
+    assert_eq!(p.basis, "Best basis among these sources: maker's page.");
+    // Each spec, functions and Made line carries its source's number.
+    assert_eq!(p.made.as_ref().unwrap().source, Some(2));
+    assert_eq!(p.specs.as_ref().unwrap().parts[0].source, Some(3));
+    assert_eq!(p.functions.as_ref().unwrap().source, Some(3));
     // The row's own source first, then the fields', each once.
     let urls: Vec<_> = p
         .sources
@@ -226,10 +231,11 @@ fn makers_are_listed_by_name_with_the_big_ones_marked() {
 #[test]
 fn the_pane_and_the_page_share_their_words() {
     assert_eq!(
-        also_known_as(&["2824".into(), "SW200".into()]).as_deref(),
+        also_known_as(&row(r#", "family": ["2824", "SW200"]"#)).as_deref(),
         Some("Also known as 2824, SW200")
     );
-    assert_eq!(also_known_as(&[]), None);
+    assert_eq!(also_known_as(&row("")), None);
+    assert_eq!(also_known_as(&row(r#", "family": ["1"]"#)), None);
     assert_eq!(sources_heading("maker's page"), "Sources · Maker's Page");
     let x = calibres::Escapement {
         kind: "co-axial".into(),
@@ -384,5 +390,64 @@ fn no_row_in_the_table_names_its_maker_twice() {
         "{} rows: {:?}",
         twice.len(),
         &twice[..twice.len().min(10)]
+    );
+}
+
+/// One address is one numbered source, listing each thing quoted from it
+/// (Hugh on #2281: Miyota 8215 had five numbers for one page).
+#[test]
+fn one_address_is_one_source_with_its_quotes() {
+    let c = row(
+        r#", "jewels": {"value": 21, "source": "https://example.com/8215 (maker's page) (21 jewels)"},
+           "height_mm": {"value": "5.67", "source": "https://example.com/8215 (maker's page) (5.67 mm)"}"#,
+    );
+    let p = page_of(&c);
+    assert_eq!(p.sources.len(), 2);
+    assert_eq!(p.sources[1].quotes, ["21 jewels", "5.67 mm"]);
+    let parts = &p.specs.as_ref().unwrap().parts;
+    assert_eq!(parts[0].source, Some(2));
+    assert_eq!(parts[1].source, Some(2));
+}
+
+/// Wheels run barrel to balance, then the rest as the table lists them.
+#[test]
+fn wheels_are_listed_in_train_order() {
+    let c = row(
+        r#", "wheels": [{"name": "escape wheel", "period_s": 5}, {"name": "cannon pinion", "period_s": 3600},
+            {"name": "barrel", "period_s": 25200}, {"name": "balance", "period_s": 0.25},
+            {"name": "centre wheel", "period_s": 3600}]"#,
+    );
+    let names: Vec<_> = page_of(&c).wheels.into_iter().map(|w| w.name).collect();
+    assert_eq!(
+        names,
+        [
+            "Barrel",
+            "Centre Wheel",
+            "Escape Wheel",
+            "Balance",
+            "Cannon Pinion"
+        ]
+    );
+}
+
+/// The page's address leaves out the maker under any of its names.
+#[test]
+fn the_address_names_the_maker_once() {
+    let c = row(r#""#);
+    assert_eq!(
+        page_path("Miyota (Citizen)", "Miyota 8215"),
+        "/calibres/miyota-citizen/8215/"
+    );
+    assert_eq!(page_path("Rolex", "Rolex 3135"), "/calibres/rolex/3135/");
+    assert_eq!(page_path("ETA", "eta 2824-2"), "/calibres/eta/2824-2/");
+    assert_eq!(
+        page_path("Seiko", "SeikoMatic 6218"),
+        "/calibres/seiko/seikomatic-6218/"
+    );
+    assert_eq!(path(&c), "/calibres/test/1/");
+    // The longer name goes first: not "piguet-15202".
+    assert_eq!(
+        page_path("Audemars Piguet", "Audemars Piguet 15202"),
+        "/calibres/audemars-piguet/15202/"
     );
 }
