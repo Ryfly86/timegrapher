@@ -117,26 +117,6 @@
     ]
   },
   {
-    "maker": "APS (clone)",
-    "common": true,
-    "aliases": [
-      "APS"
-    ],
-    "sources": [
-      "The APS prefix in clone calibre names (APS 4401)"
-    ]
-  },
-  {
-    "maker": "APS / ZF (clone)",
-    "common": true,
-    "aliases": [
-      "ZF"
-    ],
-    "sources": [
-      "The ZF prefix in clone calibre names (ZF 3120)"
-    ]
-  },
-  {
     "maker": "Various Chinese makers",
     "common": true,
     "aliases": [
