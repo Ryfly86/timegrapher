@@ -428,8 +428,8 @@ jobs:
       # without the corpus, so they run here where it is whole (#1362).
       - name: Required real-recording analyze/session equivalence
         if: matrix.check == 'engine' && steps.changes.outputs.full != 'false'
-        # 5.3 minutes at 7b311d7 (run 45669855332). The multi-position take's
-        # test above adds about 400 s on four cores, run beside the others.
+        # 5.3 minutes at 7b311d7 (run 45669855332). The test binaries run one
+        # after another, so the multi-position take's test adds about 400 s.
         timeout-minutes: 20
         run: |
           set -o pipefail
