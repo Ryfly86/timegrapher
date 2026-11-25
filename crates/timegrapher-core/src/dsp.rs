@@ -554,6 +554,55 @@ fn normal_equations<const N: usize>(
 mod tests {
     use super::*;
 
+    /// The scaled MAD is taken about the centre it is given, every value
+    /// counting (a NaN sorts last); the robust SD keeps the finite values
+    /// and takes their own median (#1988 N4).
+    #[test]
+    fn the_scaled_mad_is_about_the_centre_given() {
+        let v = [1.0, 2.0, 3.0, 4.0, 100.0];
+        assert_eq!(robust_sd_about(&v, 3.0), MAD_TO_SD);
+        assert_eq!(robust_sd_about(&v, 0.0), 3.0 * MAD_TO_SD);
+        assert_eq!(robust_sd_about(&[f64::NAN, 1.0, 2.0], 0.0), 2.0 * MAD_TO_SD);
+        assert!(robust_sd_about(&[], 0.0).is_nan());
+        let wild = [1.0, f64::NAN, 2.0, 3.0, f64::INFINITY, 4.0, 100.0];
+        assert_eq!(robust_sd(&wild), MAD_TO_SD);
+        let steps = [0.5, -1.0, 2.0, -0.25, 1.5];
+        assert_eq!(
+            robust_sd_from_steps(&steps),
+            robust_sd(&steps) / 2f64.sqrt()
+        );
+    }
+
+    /// The upper median is the order statistic a sort and the middle
+    /// index give, bit for bit, at either parity and with ties and signed
+    /// zeros: the sites that read it moved onto it unchanged (#1988 N4).
+    #[test]
+    fn the_upper_median_is_the_sorted_middle_value() {
+        assert_eq!(upper_median(&mut [3.0, 1.0, 4.0, 2.0]), 3.0);
+        assert_eq!(upper_median(&mut [5.0, 1.0, 3.0]), 3.0);
+        assert!(upper_median(&mut []).is_nan());
+        assert_eq!(upper_median_ord(&mut [4i64, 1, 3, 2]), Some(3));
+        assert_eq!(upper_median_ord::<i64>(&mut []), None);
+        let mut x = 0.37f64;
+        for n in 1..40 {
+            let v: Vec<f64> = (0..n)
+                .map(|i| {
+                    x = (x * 997.0 + 0.123).fract();
+                    match i % 7 {
+                        0 => 0.0,
+                        1 => -0.0,
+                        2 => 0.5,
+                        _ => x - 0.5,
+                    }
+                })
+                .collect();
+            let mut sorted = v.clone();
+            sorted.sort_by(f64::total_cmp);
+            let got = upper_median(&mut v.clone());
+            assert_eq!(got.to_bits(), sorted[n / 2].to_bits(), "n = {n}");
+        }
+    }
+
     /// A body of 1000 values over 0 to 99.9 and `tail` past it, sorted,
     /// with the body's interquartile range. Values past the upper quartile
     /// move no quartile, so the range is the body's at any tail.
