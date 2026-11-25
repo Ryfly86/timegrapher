@@ -258,7 +258,7 @@ JSON body:
 | `overall.period_s` | Fitted beat period |
 | `overall.jitter_us`, `jitter_us` | Scatter of single beats, microseconds (overall, and the median within 10 s windows) |
 | `overall.beats_used` | Beats in the fit |
-| `rate_p05`, `rate_p95` | 5th and 95th percentile of the rate in 10 s windows: how much the trace wanders. On the sound card's clock, like `rate_s_per_day`; correct them with `usb_clock`, as `rate_corrected_s_per_day` is corrected, before setting them beside it |
+| `rate_p05`, `rate_p95` | 5th and 95th percentile of the rate in 10 s windows: how much the trace wanders. On the sound card's clock, like `rate_s_per_day`; correct them with `usb_clock` unless it is `withheld`, as `rate_corrected_s_per_day` is corrected, before setting them beside it |
 | `amplitude_deg` | Median amplitude, degrees |
 | `amplitude_even_deg`, `amplitude_odd_deg` | Per side (the two pallet stones) |
 | `lift_deg` | Lift angle used |

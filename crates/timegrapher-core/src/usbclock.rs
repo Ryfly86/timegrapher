@@ -9,12 +9,19 @@
 //! NTP clock logs within about 1 ppm (0.1 s/d), the host's own crystal
 //! error. A card with no such lines (a non-USB input, a clean supply) gives
 //! no answer.
+//!
+//! The lines time the card against whichever crystal makes the 1 ms
+//! frames: behind a hub, dock or Thunderbolt device with its own USB
+//! controller, that one's, not the computer's. A reading no sound card's
+//! crystal could give ([`MAX_CARD_PPM`]) is kept, but not applied
+//! ([`UsbClock::applies`], #2283).
 
 use realfft::num_complex::Complex;
 use serde::Serialize;
 
-/// The card's error from the USB lines.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+/// The card's error from the USB lines. Written with a `withheld` reason,
+/// [`IMPLAUSIBLE`], when it is not applied ([`UsbClock::applies`]).
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct UsbClock {
     /// Positive: the card's clock runs fast, as in [`crate::clockstore`].
     pub ppm: f64,
@@ -24,7 +31,84 @@ pub struct UsbClock {
     pub spread_ppm: f64,
 }
 
+/// Largest sound-card clock error, ppm either way, the USB lines are
+/// applied with (Norm on #2283): an ordinary crystal's tolerance,
+/// temperature and ageing approach but stay under it, where cards are
+/// typically 10 to 50 ppm off ([`crate::clock`]). A reading past it times
+/// the card against another crystal, such as a hub's or a Thunderbolt
+/// device's USB controller (#2291 read +151.1 ppm through one; #2292, the
+/// same microphone plugged in direct, +9.3 ppm). It lies inside the
+/// search, the ±200 ppm `SEARCH_PPM`.
+pub const MAX_CARD_PPM: f64 = 100.0;
+
+/// Why a USB-line reading is not applied: it is past [`MAX_CARD_PPM`].
+pub const IMPLAUSIBLE: &str = "usb_lines_implausible";
+
+impl Serialize for UsbClock {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+        let withheld = self.withheld();
+        let mut st = s.serialize_struct("UsbClock", 3 + usize::from(withheld.is_some()))?;
+        st.serialize_field("ppm", &self.ppm)?;
+        st.serialize_field("lines", &self.lines)?;
+        st.serialize_field("spread_ppm", &self.spread_ppm)?;
+        if let Some(w) = withheld {
+            st.serialize_field("withheld", w)?;
+        }
+        st.end()
+    }
+}
+
 impl UsbClock {
+    /// Whether the reading corrects the rates: the one check every surface
+    /// takes it through, live and saved alike (#2283). Kept within
+    /// [`MAX_CARD_PPM`] either way, exactly at it included.
+    pub fn applies(&self) -> bool {
+        self.ppm.abs() <= MAX_CARD_PPM
+    }
+
+    /// The reading when it applies ([`UsbClock::applies`]).
+    pub fn applied(self) -> Option<UsbClock> {
+        self.applies().then_some(self)
+    }
+
+    /// Why the reading is not applied, [`IMPLAUSIBLE`]; `None` when it is.
+    pub fn withheld(&self) -> Option<&'static str> {
+        (!self.applies()).then_some(IMPLAUSIBLE)
+    }
+
+    /// The card's error read, whole ppm, with no sign; one within half a
+    /// ppm past [`MAX_CARD_PPM`] is rounded up, so it never reads as within
+    /// it (Hugh on #2297).
+    fn whole_ppm(&self) -> String {
+        let size = self.ppm.abs();
+        let whole = if size.round() <= MAX_CARD_PPM {
+            size.ceil()
+        } else {
+            size.round()
+        };
+        format!("{whole:.0}")
+    }
+
+    /// What a reader is told of a reading not applied, in a line (Hugh on
+    /// #2283); `None` when it applies.
+    pub fn not_used_short(&self) -> Option<String> {
+        self.withheld()?;
+        Some(format!(
+            "USB lines not used: card read {} ppm off",
+            self.whole_ppm()
+        ))
+    }
+
+    /// [`UsbClock::not_used_short`] in full, with what the user can do.
+    pub fn not_used_text(&self) -> Option<String> {
+        self.withheld()?;
+        Some(format!(
+            "The USB lines read the card {} ppm off, more than a sound card's clock should be, so they are not used. If the mic is plugged into a hub, dock or Thunderbolt device, plug it straight into the computer.",
+            self.whole_ppm()
+        ))
+    }
+
     /// The correction and source text used in analysis documents.
     pub fn correction(&self) -> (f64, String) {
         (
@@ -183,10 +267,14 @@ pub enum LiveClock {
     /// The first `over_s` of sound holds no lines that stand clear and
     /// agree, so a take saved then reads none either.
     NoLines { over_s: f64 },
+    /// The lines of the first `over_s` of sound read a card error past
+    /// [`MAX_CARD_PPM`]: kept, and not applied, as a take saved then
+    /// keeps them (#2283).
+    Implausible { clock: UsbClock, over_s: f64 },
 }
 
 impl LiveClock {
-    /// The lines' correction, ppm, when they were found.
+    /// The lines' correction, ppm, when they were found and apply.
     pub fn usb_ppm(&self) -> Option<f64> {
         match self {
             LiveClock::Measured { clock, .. } => Some(clock.ppm),
@@ -212,6 +300,49 @@ impl LiveClock {
             heard_s.max(0.0).floor()
         ))
     }
+
+    /// The length of sound measured, once it is.
+    fn over_s(&self) -> Option<f64> {
+        match *self {
+            LiveClock::Measured { over_s, .. }
+            | LiveClock::NoLines { over_s }
+            | LiveClock::Implausible { over_s, .. } => Some(over_s),
+            LiveClock::NotMeasured { .. } => None,
+        }
+    }
+
+    /// What a live rate must say beside it once the lines are read (#2283):
+    /// for lines not applied, [`UsbClock::not_used_text`]; for lines that
+    /// put the rate on another clock than `kept_ppm`'s (the correction
+    /// kept for the input, or none: the card's own), by how much the shown
+    /// rate moved, when that is 0.1 s/d or more as written. `None` before
+    /// the lines are read ([`LiveClock::not_yet`] says so then), with no
+    /// lines, or when the rate stays where it was.
+    pub fn read_note(&self, kept_ppm: Option<f64>) -> Option<String> {
+        match self {
+            LiveClock::Implausible { clock, .. } => clock.not_used_text(),
+            LiveClock::Measured { clock, .. } => step_note(clock.ppm, kept_ppm),
+            _ => None,
+        }
+    }
+}
+
+/// [`LiveClock::read_note`] for lines read at `ppm` fast, after a rate on
+/// `kept_ppm`'s clock: the card's error whole and signed, and the shown
+/// rate's move, signed, at the rate's place ([`crate::figure_text`]).
+fn step_note(ppm: f64, kept_ppm: Option<f64>) -> Option<String> {
+    use crate::clock::rate_error_s_per_day;
+    use crate::figure_text::{base_digits, figure, is_zero_text, signed_text};
+    // A rate corrected by a clock moves by minus its rate error.
+    let moved = rate_error_s_per_day(kept_ppm.unwrap_or(0.0)) - rate_error_s_per_day(ppm);
+    let moved = figure(moved, None, base_digits::RATE, true);
+    if is_zero_text(&moved) {
+        return None;
+    }
+    Some(format!(
+        "USB lines corrected the clock (card {} ppm), moving the rate by {moved} s/d",
+        signed_text(ppm, 0)
+    ))
 }
 
 /// The USB-line clock read while the sound is heard (#1721): the first
@@ -259,12 +390,7 @@ impl Live {
     }
 
     fn over_s(&self) -> Option<f64> {
-        match self.clock {
-            Some(LiveClock::Measured { over_s, .. } | LiveClock::NoLines { over_s }) => {
-                Some(over_s)
-            }
-            _ => None,
-        }
+        self.clock.as_ref().and_then(LiveClock::over_s)
     }
 
     /// The longest length of [`LIVE_READS_S`] heard and not yet measured.
@@ -286,10 +412,7 @@ impl Live {
 
     /// A measurement's answer, kept unless a longer one is already in.
     pub fn set(&mut self, clock: LiveClock) {
-        let over = |c: &LiveClock| match c {
-            LiveClock::Measured { over_s, .. } | LiveClock::NoLines { over_s } => *over_s,
-            LiveClock::NotMeasured { .. } => f64::NEG_INFINITY,
-        };
+        let over = |c: &LiveClock| c.over_s().unwrap_or(f64::NEG_INFINITY);
         if self.clock.as_ref().is_none_or(|c| over(&clock) > over(c)) {
             self.clock = Some(clock);
         }
@@ -314,10 +437,16 @@ impl Live {
 }
 
 /// [`measure`] on `x`, the first `over_s` of a reading's sound, as a
-/// [`LiveClock`].
+/// [`LiveClock`], judged by [`UsbClock::applies`] as a saved take's is.
 pub fn measure_at(x: &[f32], fs: u32, over_s: f64) -> LiveClock {
-    match measure(x, fs) {
-        Some(clock) => LiveClock::Measured { clock, over_s },
+    judged(measure(x, fs), over_s)
+}
+
+/// A measurement of the first `over_s` of sound as a [`LiveClock`].
+fn judged(clock: Option<UsbClock>, over_s: f64) -> LiveClock {
+    match clock {
+        Some(clock) if clock.applies() => LiveClock::Measured { clock, over_s },
+        Some(clock) => LiveClock::Implausible { clock, over_s },
         None => LiveClock::NoLines { over_s },
     }
 }
@@ -428,6 +557,129 @@ mod tests {
             LiveClock::Measured { over_s: 120.0, .. }
         ));
         assert_eq!(live.kept().len(), n);
+    }
+
+    fn at(ppm: f64) -> UsbClock {
+        UsbClock {
+            ppm,
+            lines: 6,
+            spread_ppm: 0.05,
+        }
+    }
+
+    /// A reading `ppm` off that applies, live and saved alike.
+    fn assert_kept(ppm: f64) {
+        let c = at(ppm);
+        assert!(c.applies(), "{ppm}");
+        assert_eq!(c.applied(), Some(c));
+        assert_eq!(c.withheld(), None);
+        assert_eq!(c.not_used_text(), None);
+        let live = judged(Some(c), 30.0);
+        assert_eq!(
+            live,
+            LiveClock::Measured {
+                clock: c,
+                over_s: 30.0
+            }
+        );
+        assert_eq!(live.usb_ppm(), Some(ppm));
+        let json = serde_json::to_value(c).unwrap();
+        assert!(json.get("withheld").is_none(), "{json}");
+        assert!(crate::take::live_clock(&live, None, 300.0).is_some());
+    }
+
+    /// A reading `ppm` off, 100.1 either way, kept with its reason and
+    /// applied nowhere, live and saved alike.
+    fn assert_withheld(ppm: f64) {
+        let c = at(ppm);
+        assert!(!c.applies(), "{ppm}");
+        assert_eq!(c.applied(), None);
+        assert_eq!(c.withheld(), Some(IMPLAUSIBLE));
+        let live = judged(Some(c), 30.0);
+        assert_eq!(
+            live,
+            LiveClock::Implausible {
+                clock: c,
+                over_s: 30.0
+            }
+        );
+        assert_eq!(live.usb_ppm(), None);
+        assert_eq!(live.not_yet(false), None);
+        // Nothing measured is lost.
+        let json = serde_json::to_value(c).unwrap();
+        assert_eq!(json["withheld"], "usb_lines_implausible");
+        assert_eq!(json["ppm"], ppm);
+        assert_eq!(json["lines"], 6);
+        // The card's own clock, or a kept correction, stays.
+        assert!(crate::take::live_clock(&live, None, 300.0).is_none());
+        let kept = crate::take::live_clock(&live, Some(5.0), 300.0).expect("the kept one");
+        assert_eq!(kept.ppm, 5.0);
+        assert_eq!(
+            live.read_note(None).as_deref(),
+            Some(
+                "The USB lines read the card 101 ppm off, more than a sound card's clock \
+                 should be, so they are not used. If the mic is plugged into a hub, dock or \
+                 Thunderbolt device, plug it straight into the computer."
+            )
+        );
+        assert_eq!(
+            c.not_used_short().as_deref(),
+            Some("USB lines not used: card read 101 ppm off")
+        );
+    }
+
+    /// Norm's bound on #2283, at its edge: a card read 100.0 ppm off either
+    /// way is kept and applied; 100.1 ppm is kept with its reason and
+    /// corrects nothing, live and saved alike.
+    #[test]
+    fn usb_lines_past_a_cards_largest_error_are_kept_and_not_applied() {
+        for ppm in [MAX_CARD_PPM, -MAX_CARD_PPM, 100.0, -100.0] {
+            assert_kept(ppm);
+        }
+        for ppm in [100.1, -100.1] {
+            assert_withheld(ppm);
+        }
+        // A later read, judged alone, replaces a withheld one.
+        let mut live = Live::new(48_000);
+        live.set(judged(Some(at(151.1)), 30.0));
+        live.set(judged(Some(at(9.3)), 60.0));
+        assert_eq!(live.clock().usb_ppm(), Some(9.3));
+        live.set(judged(Some(at(151.1)), 120.0));
+        assert_eq!(live.clock().usb_ppm(), None);
+    }
+
+    /// Hugh's words on #2283: the rate's move when the lines move the
+    /// clock, fast and slow, and none when it stays where it was.
+    #[test]
+    fn a_read_that_moves_the_clock_says_by_how_much() {
+        let read = |ppm: f64| LiveClock::Measured {
+            clock: UsbClock {
+                ppm,
+                lines: 6,
+                spread_ppm: 0.16,
+            },
+            over_s: 30.0,
+        };
+        assert_eq!(
+            read(9.3).read_note(None).as_deref(),
+            Some("USB lines corrected the clock (card +9 ppm), moving the rate by +0.8 s/d")
+        );
+        assert_eq!(
+            read(-19.3).read_note(None).as_deref(),
+            Some("USB lines corrected the clock (card -19 ppm), moving the rate by -1.7 s/d")
+        );
+        // From a kept correction of +20 ppm to the lines' +9.3.
+        assert_eq!(
+            read(9.3).read_note(Some(20.0)).as_deref(),
+            Some("USB lines corrected the clock (card +9 ppm), moving the rate by -0.9 s/d")
+        );
+        assert_eq!(read(9.3).read_note(Some(9.3)), None);
+        assert_eq!(read(0.4).read_note(None), None, "under 0.05 s/d");
+        assert_eq!(LiveClock::NoLines { over_s: 30.0 }.read_note(None), None);
+        assert_eq!(
+            LiveClock::NotMeasured { heard_s: 3.0 }.read_note(None),
+            None
+        );
     }
 
     #[test]

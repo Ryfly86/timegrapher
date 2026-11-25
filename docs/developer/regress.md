@@ -160,7 +160,7 @@ parsed is an error and is not replaced.
 
 The `regress (engine)` job in `.github/workflows/ci.yml` checks out the public
 corpus at the full commit in its `CORPUS_REVISION` setting, currently
-`f92d274d60d53856642f4ea376918ccfbeb01eba`. It verifies the checkout's actual
+`14b5e38d0aa954bf2c2c5ebb9f374a1f97ab6af1`. It verifies the checkout's actual
 commit and records that commit, the engine revision and `corpus.json`'s SHA-256
 in the job log and summary before fetching audio. New corpus commits therefore
 do not silently change an existing engine revision's CI inputs.

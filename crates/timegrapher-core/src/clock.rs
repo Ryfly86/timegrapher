@@ -148,7 +148,7 @@ pub fn ppm_pm_text(ppm: f64, sd: Option<f64>) -> String {
 pub fn ppm_words(ppm: f64, sd: Option<f64>) -> String {
     use crate::figure_text::{base_digits, figure};
     let size = figure(ppm.abs(), sd, base_digits::CLOCK, false);
-    if size.bytes().all(|b| b == b'0' || b == b'.') {
+    if crate::figure_text::is_zero_text(&size) {
         format!("{size} ppm")
     } else {
         format!("{size} ppm {}", if ppm > 0.0 { "fast" } else { "slow" })
@@ -166,7 +166,7 @@ pub fn card_error_words(ppm: f64, sd: Option<f64>, against: &str) -> String {
     let card = ppm_words(ppm, sd);
     let err = rate_error_s_per_day(ppm);
     let size = figure(err.abs(), None, base_digits::RATE, false);
-    if size.bytes().all(|b| b == b'0' || b == b'.') {
+    if crate::figure_text::is_zero_text(&size) {
         format!("sound card {card} against {against}, which leaves rates as they read")
     } else {
         let way = if err < 0.0 { "slow" } else { "fast" };
