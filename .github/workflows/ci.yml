@@ -181,13 +181,16 @@ jobs:
 
   # The required check `test (ubuntu-24.04)` (branch protection, and the
   # Release gate's .github/scripts/release_ci_gate.py): green only when
-  # both of Linux's halves are. It always runs, even when the run is
-  # cancelled, so a failed or cancelled half fails it: a skipped required
-  # check would count as a pass.
+  # both of Linux's halves are. On a pull request it always runs, even when
+  # the run is cancelled, so a failed or cancelled half fails it: a skipped
+  # required check would count as a pass. On main, where no branch rule
+  # reads it and the Release gate needs a success, a run cancelled for a
+  # newer merge skips it: run there, it waited for a runner while the
+  # newer merge's run waited for it (6bedbea's run, 25 Nov).
   test-linux-result:
     name: test (ubuntu-24.04)
     needs: test-linux
-    if: ${{ always() }}
+    if: ${{ always() && (github.event_name == 'pull_request' || !cancelled()) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -217,11 +220,11 @@ jobs:
     steps: *test-steps
 
   # The required check `test (macos-latest)`, as test-linux-result is
-  # Linux's: it always runs, and passes only when both halves did.
+  # Linux's, and runs when that does: it passes only when both halves did.
   test-macos-result:
     name: test (macos-latest)
     needs: test-macos
-    if: ${{ always() }}
+    if: ${{ always() && (github.event_name == 'pull_request' || !cancelled()) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
