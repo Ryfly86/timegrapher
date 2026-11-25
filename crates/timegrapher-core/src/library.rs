@@ -1455,7 +1455,7 @@ impl Library {
         let folder = file_name(dir);
         let mut takes = Vec::new();
         for t in subfolders(&dir.join(TAKES)) {
-            if !(t.join(take::MANIFEST).is_file() || t.join(take::RECORD).is_file()) {
+            if !is_take_folder(&t) {
                 continue;
             }
             let key = format!("{folder}/{TAKES}/{}", file_name(&t));
@@ -1837,22 +1837,10 @@ impl Library {
         self.finish_add(&plan, copied)
     }
 
-    /// The one guard both imports use (#1656), before anything is staged:
-    /// `from` is refused when it is already inside the watches folder, or
-    /// holds it, where the copy would be made inside what it copies and
-    /// copy itself again and again (#1642).
+    /// [`not_already_in`] this library's folder: the guard both imports
+    /// use, before anything is staged.
     fn not_already_in(&self, from: &Path) -> Result<(), String> {
-        let (from_at, root) = (resolved(from), resolved(&self.root));
-        if from_at.starts_with(&root) {
-            return Err(format!("{} is already in your watches", from.display()));
-        }
-        if root.starts_with(&from_at) {
-            return Err(format!(
-                "{} holds your watches folder: add the take's own folder instead",
-                from.display()
-            ));
-        }
-        Ok(())
+        not_already_in(from, &self.root)
     }
 
     /// Add a recording from outside the library that has no session file
@@ -1903,6 +1891,34 @@ impl Library {
         self.scan();
         Ok(to)
     }
+}
+
+/// The one import-path guard (#1656), for the app, the CLI and both
+/// imports: `from` can't be added to the watches folder `root` when it
+/// is already inside it, or holds it, where the copy would be made
+/// inside what it copies and copy itself again and again (#1642). Links
+/// are followed ([`resolved`]), so a path through a link into the
+/// watches folder is inside it too. `root` need not exist yet (the
+/// watches folder is made with the first watch).
+pub fn not_already_in(from: &Path, root: &Path) -> Result<(), String> {
+    let (from_at, root) = (resolved(from), resolved(root));
+    if from_at.starts_with(&root) {
+        return Err(format!("{} is already in your watches", from.display()));
+    }
+    if root.starts_with(&from_at) {
+        return Err(format!(
+            "{} holds your watches folder: add the take's own folder instead",
+            from.display()
+        ));
+    }
+    Ok(())
+}
+
+/// Whether `dir` is a take folder: it holds a session file
+/// ([`take::MANIFEST`]) or a recorder's [`take::RECORD`]. The one test
+/// for a watch's takes, Add to Watch and Keep in a Watch.
+pub fn is_take_folder(dir: &Path) -> bool {
+    dir.join(take::MANIFEST).is_file() || dir.join(take::RECORD).is_file()
 }
 
 /// Whether `p` names a folder plainly: no `.` or `..` in it, and a name

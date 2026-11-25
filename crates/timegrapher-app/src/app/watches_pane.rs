@@ -513,8 +513,9 @@ impl TimegrapherApp {
         }
     }
 
-    /// The recording opened, a lone file or a take, when it is outside
-    /// the library and the library can take it.
+    /// The recording opened, a lone file or a take, when the library can
+    /// take it: outside the library by core's one import-path guard
+    /// ([`library::not_already_in`], links followed).
     pub(super) fn addable_take(&self) -> Option<PathBuf> {
         if self.bench.recording.input != Input::File || self.bench.keeping.opened_path.is_empty() {
             return None;
@@ -526,7 +527,7 @@ impl TimegrapherApp {
             Ok(None) => self.library_root()?,
             _ => return None,
         };
-        (!p.starts_with(root)).then_some(p)
+        library::not_already_in(&p, &root).is_ok().then_some(p)
     }
 
     /// Keep what is on show in the watch `id`: the unsaved Quick Listen
@@ -552,9 +553,7 @@ impl TimegrapherApp {
             // One part of a take of several opened alone goes in alone,
             // with what is on show.
             let one_of_several = from.is_file() && recordings_in(&dir).is_ok_and(|r| r.len() > 1);
-            if !one_of_several
-                && (dir.join(MANIFEST).is_file() || dir.join("session.json").is_file())
-            {
+            if !one_of_several && library::is_take_folder(&dir) {
                 self.watches_view.take_ask = Some(watches::Ask::Add {
                     from: dir,
                     watch: Some(id.to_string()),
