@@ -125,9 +125,9 @@ const LIFT_OR_CALIBRE: Param = p(
     Arg::Flag("--lift"),
     false,
     "Lift angle of the calibre in degrees. Left out: the take's own, where the recording \
-     is a take (or one of its sound files) that was given one; else the calibre's, if one \
-     is given and the table has its lift angle; else the lift the take assumed; else 52. \
-     Amplitude depends on it.",
+     is a take (or one of its sound files) that was given one; else the calibre's (the one \
+     given, or the take's own), where the table has its lift angle; else the lift the take \
+     assumed; else 52. Amplitude depends on it.",
 );
 /// The charts over time in the view, averaged as the app's Average Over.
 const AVERAGE: Param = p(
