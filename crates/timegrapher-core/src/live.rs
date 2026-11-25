@@ -1410,13 +1410,25 @@ impl LiveAnalyzer {
     /// the candidates where no regular beat was being logged, in time
     /// order and counted on as one run, as a saved reading's beat log
     /// holds them. With no candidates there, the settled beats as they
-    /// are.
+    /// are. Noise heard between two runs of the watch's beats is a hole
+    /// in them, as a saved log holds it (its peaks there are no good
+    /// beats, so no window reads them): the watch either side is read
+    /// with its beats missing, not judged by the noise's scatter (Norm on
+    /// #2240). Noise before the first beat, or after the latest by `to_s`,
+    /// is heard as it is (#679, #680).
     fn heard_peaks(&self, from_s: f64, to_s: f64) -> Vec<Beat> {
         let beats = &self.beats[crate::session::stretch_beats(&self.beats, from_s, to_s)];
+        // The beats heard by `to_s`: a reading of the past reads it as it
+        // was heard then.
+        let heard = &self.beats[..self.beats.partition_point(|b| b.time < to_s)];
+        let between = match (heard.first(), heard.last()) {
+            (Some(a), Some(b)) => a.time..b.time,
+            _ => 0.0..0.0,
+        };
         let mut peaks: Vec<Beat> = self
             .candidates
             .iter()
-            .filter(|c| c.time >= from_s && c.time < to_s)
+            .filter(|c| c.time >= from_s && c.time < to_s && !between.contains(&c.time))
             .copied()
             .collect();
         if peaks.is_empty() {
