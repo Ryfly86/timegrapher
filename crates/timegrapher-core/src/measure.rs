@@ -127,14 +127,14 @@ pub fn stretch_beat_sound(
     first_s: f64,
     last_s: f64,
     fs: f64,
-    osc_period_s: f64,
+    bph: u32,
     cfg: &crate::amplitude::AmplitudeConfig,
 ) -> Option<bool> {
     let kept = snippets.last()?.0 - snippets.first()?.0;
     if kept < 0.5 * (last_s - first_s) {
         return None;
     }
-    beat_sound_found(snippets.iter().map(|s| (s.1, s.2)), fs, osc_period_s, cfg)
+    beat_sound_found(snippets.iter().map(|s| (s.1, s.2)), fs, bph, cfg)
 }
 
 /// Whether the beats' averaged Tick and Tock sounds show a watch's sound:
@@ -142,12 +142,17 @@ pub fn stretch_beat_sound(
 /// the same template amplitude uses. `snippets` are each beat's envelope
 /// window ([`crate::profile::snippet`]) with whether it is a Tick (an even
 /// beat). `None` when neither side has enough beats for a profile.
+///
+/// No period moves the verdict: the edges are found on the sound alone,
+/// and the period, at `bph`'s nominal one, only turns them into the
+/// profile's amplitude, which the verdict does not read (Trevor on #2252).
 pub fn beat_sound_found<'a>(
     snippets: impl IntoIterator<Item = (bool, &'a [f32])>,
     fs: f64,
-    osc_period_s: f64,
+    bph: u32,
     cfg: &crate::amplitude::AmplitudeConfig,
 ) -> Option<bool> {
+    let osc_period_s = 2.0 * crate::timing::beat_period_s(None, bph.max(1));
     let (tick, tock): (Vec<_>, Vec<_>) = snippets.into_iter().partition(|s| s.0);
     // Whether there is a sound at all, not where its unlock lies: the
     // windows are kept on the short template ([`crate::sound_sample`]).

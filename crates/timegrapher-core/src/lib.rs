@@ -27,6 +27,7 @@ pub mod beats;
 #[cfg(test)]
 mod break_fixture;
 pub mod breaks;
+pub mod calibre_specs;
 pub mod calibre_store;
 pub mod calibres;
 pub mod capture;

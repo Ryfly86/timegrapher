@@ -2720,3 +2720,30 @@ fn a_beat_error_without_sides_waits_for_the_tick_and_the_tock() {
     let shared = ("Listening".to_string(), "why".to_string());
     assert_eq!(beat_error_card_wait(Some(&shared), Some(&r)), Some(shared));
 }
+
+/// The Beat Error card's BE angle of a reading off its set rate is at
+/// the balance's own period, from the reading's rate, not the set rate's
+/// (Trevor on #2252): 2.0 ms at 280° on 18,000 that reads −2059 s/d.
+#[test]
+fn the_be_angle_line_is_at_the_readings_own_period() {
+    use timegrapher_core::be_angle::{card_words, Angle};
+    let app = synthetic(60.0, 12.0);
+    let mut r = app.reading().unwrap();
+    r.bph = Some(18_000);
+    r.rate_s_per_day = Some(-2059.1);
+    r.amplitude_deg = Some(280.0);
+    r.amplitude_error_deg = None;
+    r.beat_error_ms = Some(2.0);
+    r.beat_error_unlock_ms = None;
+    r.beat_error_unlock_error_ms = None;
+    let words = |period: f64| {
+        let angle = Angle::at((280.0, None), (2.0, None), period).unwrap();
+        card_words(&angle, 280.0, 52.0)
+    };
+    let own = words(timegrapher_core::timing::period_s(0.2, -2059.1));
+    assert_ne!(own, words(0.2), "the set rate's angle is told apart");
+    assert_eq!(
+        readouts::be_angle_words(&r, 52.0).as_deref(),
+        Some(own.as_str())
+    );
+}

@@ -711,10 +711,11 @@
     "sources": [
       "https://www.watchuseek.com/threads/questions-about-eta-c07-powermatic-80-h-10-etc.5104577/",
       "https://ranfft.org/caliber/12742-ETA-C07-111 (Ranfft: ETA C07.111, read 2026-11-17) (21600 bph)",
-      "https://www.tissotwatches.com/en-se/magazine-news-tissot-making-of-a-watch.html (Tissot, making of a watch: the Powermatic 80) (By oscillating at 3 Hz)"
+      "https://www.tissotwatches.com/en-se/magazine-news-tissot-making-of-a-watch.html (Tissot, making of a watch: the Powermatic 80) (By oscillating at 3 Hz)",
+      "https://watchscope.app/de/calibers/eta-c07-611-powermatic-80 (WatchScope, ETA C07.611 Powermatic 80) (Hebungswinkel 50°)"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "80 h power reserve from a slimmer barrel arbor with a longer mainspring and a slower beat, on the 2824 architecture. No tooth counts, escape wheel count or lift angle found (the C07.111 uses a synthetic escape wheel and pallet fork, the C07.611 a conventional one)."
+    "notes": "80 h power reserve from a slimmer barrel arbor with a longer mainspring and a slower beat, on the 2824 architecture. No tooth counts, escape wheel count or lift angle found (the C07.111 uses a synthetic escape wheel and pallet fork, the C07.611 a conventional one). WatchScope lists a lift angle of 50° for the C07.611; it is not given as a figure because no maker figure was found (timegrapher-calibres#7)."
   },
   {
     "calibre": "Rolex 3135",
@@ -8087,13 +8088,21 @@
   {
     "calibre": "Bifora 70",
     "maker": "Bifora",
+    "bph": 18000,
     "lift_angle_deg": 58.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (BIDLING-MAIER 70, 58°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bidling-Maier 70, 58°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bifora 70, 58°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 70, 58°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bidling Maier 70, 58°)",
+      "https://www.uhrwerksarchiv.de/movements/b/bifora/bifora-70/ (Das Uhrwerksarchiv, Bifora 70 technical description) (Halbschwingungen pro Stunde: 18000; Hebewinkel: 58°)"
     ],
     "confidence": "published list"
   },
@@ -14623,10 +14632,18 @@
   {
     "calibre": "Certina 320/330",
     "maker": "Certina",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (CERTINA 320/330, 52°)"
+      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (CERTINA 320/330, 52°)",
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Watchmaking Tools; Watch Caliber, Lift Angle, BPH) (Certina 320, 52°, 18,000; Certina 330, 52°, 18,000)"
     ],
     "confidence": "published list"
   },
@@ -18507,10 +18524,11 @@
     "wheels": [],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (ELGIN 905, 21600 vph)",
-      "https://ranfft.org/caliber/3537-Elgin-905 (Ranfft: Elgin 905, read 2026-11-17) (18000 bph)"
+      "https://ranfft.org/caliber/3537-Elgin-905 (Ranfft: Elgin 905, read 2026-11-17) (18000 bph)",
+      "https://www.collezionismo.org/angoli_di_levata_orologi.htm (Collezionismo, angoli di levata; Brand Caliber Size VPH Lift Angle) (ELGIN 905 20/0 21600)"
     ],
     "confidence": "published list",
-    "notes": "Beat rate left blank: the lift-angle sheet gives 21600 vph and Ranfft 18000 bph, and no third source settles it."
+    "notes": "Beat rate left blank: the lift-angle sheet gives 21600 vph and Ranfft 18000 bph, and no third source settles it. Collezionismo also lists 21600 (timegrapher-calibres#5)."
   },
   {
     "calibre": "Elgin 906",
@@ -18518,10 +18536,11 @@
     "wheels": [],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (ELGIN 906, 21600 vph)",
-      "https://ranfft.org/caliber/3538-Elgin-906 (Ranfft: Elgin 906, read 2026-11-17) (18000 bph)"
+      "https://ranfft.org/caliber/3538-Elgin-906 (Ranfft: Elgin 906, read 2026-11-17) (18000 bph)",
+      "https://www.collezionismo.org/angoli_di_levata_orologi.htm (Collezionismo, angoli di levata; Brand Caliber Size VPH Lift Angle) (ELGIN 906 20/0 21600)"
     ],
     "confidence": "published list",
-    "notes": "Beat rate left blank: the lift-angle sheet gives 21600 vph and Ranfft 18000 bph, and no third source settles it."
+    "notes": "Beat rate left blank: the lift-angle sheet gives 21600 vph and Ranfft 18000 bph, and no third source settles it. Collezionismo also lists 21600 (timegrapher-calibres#5)."
   },
   {
     "calibre": "Elgin 907",
@@ -18529,10 +18548,11 @@
     "wheels": [],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (ELGIN 907, 21600 vph)",
-      "https://ranfft.org/caliber/3539-Elgin-907 (Ranfft: Elgin 907, read 2026-11-17) (18000 bph)"
+      "https://ranfft.org/caliber/3539-Elgin-907 (Ranfft: Elgin 907, read 2026-11-17) (18000 bph)",
+      "https://www.collezionismo.org/angoli_di_levata_orologi.htm (Collezionismo, angoli di levata; Brand Caliber Size VPH Lift Angle) (ELGIN 907 20/0 21600)"
     ],
     "confidence": "published list",
-    "notes": "Beat rate left blank: the lift-angle sheet gives 21600 vph and Ranfft 18000 bph, and no third source settles it."
+    "notes": "Beat rate left blank: the lift-angle sheet gives 21600 vph and Ranfft 18000 bph, and no third source settles it. Collezionismo also lists 21600 (timegrapher-calibres#5)."
   },
   {
     "calibre": "Elgin 927",
@@ -23293,9 +23313,11 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (FHF (FONTAINEMELON) 26, 52°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Font [FHF] 26, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (FHF 26, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (FHF 26, 52°)",
+      "https://www.iletaitunemontre.be/shop/468-verdal-type-tour-de-france-ref-91231-cal-fhf-26-1958-729 (Il était une montre, Verdal with Calibre FHF 26) (18 000 alternances par heure)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Beat rate not settled, so none is given: Il était une montre gives 18,000 for the FHF 26, and another list gives 21,600 (timegrapher-calibres#5)."
   },
   {
     "calibre": "Fontainemelon 34-21",
@@ -25045,12 +25067,20 @@
   {
     "calibre": "Forster 197",
     "maker": "Forster",
+    "bph": 18000,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (FORSTER 197, 50°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Forster 197, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Forster 197, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Forster 197, 50°)",
+      "https://uhrwerksarchiv.de/movements/f/foerster/foerster-197/ (Das Uhrwerksarchiv, Förster 197 technical description) (Halbschwingungen pro Stunde: 18000; Hebewinkel: 50°)"
     ],
     "confidence": "published list"
   },
@@ -26782,10 +26812,11 @@
     "wheels": [],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 106, 20222 vph)",
-      "https://ranfft.org/caliber/6058-Gruen-106 (Ranfft: Gruen 106, read 2026-11-17) (20160 bph)"
+      "https://ranfft.org/caliber/6058-Gruen-106 (Ranfft: Gruen 106, read 2026-11-17) (20160 bph)",
+      "https://www.collezionismo.org/angoli_di_levata_orologi.htm (Collezionismo lift-angle table, GRUEN WATCH 106) (20222)"
     ],
     "confidence": "published list",
-    "notes": "Beat rate left blank: the lift-angle sheet gives 20222 vph and Ranfft 20160 bph, and no third source settles it."
+    "notes": "Beat rate left blank: the lift-angle sheet gives 20222 vph and Ranfft 20160 bph, and no third source settles it. Collezionismo also lists 20222, on the lift-angle sheet's side against Ranfft's 20160 (timegrapher-calibres#6)."
   },
   {
     "calibre": "Gruen 107",
@@ -26793,10 +26824,11 @@
     "wheels": [],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 107, 20222 vph)",
-      "https://ranfft.org/caliber/6059-Gruen-107 (Ranfft: Gruen 107, read 2026-11-17) (20160 bph)"
+      "https://ranfft.org/caliber/6059-Gruen-107 (Ranfft: Gruen 107, read 2026-11-17) (20160 bph)",
+      "https://www.collezionismo.org/angoli_di_levata_orologi.htm (Collezionismo lift-angle table, GRUEN WATCH 107) (20222)"
     ],
     "confidence": "published list",
-    "notes": "Beat rate left blank: the lift-angle sheet gives 20222 vph and Ranfft 20160 bph, and no third source settles it."
+    "notes": "Beat rate left blank: the lift-angle sheet gives 20222 vph and Ranfft 20160 bph, and no third source settles it. Collezionismo also lists 20222, on the lift-angle sheet's side against Ranfft's 20160 (timegrapher-calibres#6)."
   },
   {
     "calibre": "Gruen 109",
@@ -29729,12 +29761,21 @@
   {
     "calibre": "Junghans 674",
     "maker": "Junghans",
+    "bph": 18000,
     "lift_angle_deg": 57.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (JUNGHANS 674, 57°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Junghans 674, 57°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Junghans 674, 57°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Junghans 674, 57°)",
+      "https://update2025.junghans-vintage.de/de/uhren/junghans-armbanduhr-kaliber/kaliberfamilie-junghans-674/junghans-67420-diehl-d674.html (Junghans Vintage, Kaliber 674.20) (Schwingungen: 18.000 A/h)",
+      "https://update2025.junghans-vintage.de/de/uhren/junghans-armbanduhr-kaliber/junghans-67410-17-steine.html (Junghans Vintage, Kaliber 674.10) (Schwingungen: 18.000 A/h)"
     ],
     "confidence": "published list"
   },
@@ -29955,14 +29996,23 @@
   {
     "calibre": "Kienzle 51",
     "maker": "Kienzle",
+    "bph": 18000,
     "lift_angle_deg": 57.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (KIENZLE 51, 57°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Kienzle 51, 57°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Kienzle 51, 57°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Kienzle 51, 57°)",
+      "https://www.emmywatch.com/db/movement/kienzle--51_/ (EmmyWatch, Kienzle 51 Watch Movement) (Frequency: 18000 vph; Lift Angle: 52°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Lift angle: EmmyWatch gives 52° (timegrapher-calibres#5)."
   },
   {
     "calibre": "Kienzle 58",
@@ -50488,12 +50538,20 @@
   {
     "calibre": "Vacheron Constantin 1003",
     "maker": "Vacheron Constantin",
+    "bph": 18000,
     "lift_angle_deg": 53.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (VACHERON & CONSTANTIN 1003, 53°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Vacheron Constantin 1003, 53°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Vacheron Constantin 1003, 53°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Vacheron Constantin 1003, 53°)",
+      "https://ottuhr.com/index/vacheron-constantin/calibers/vacheron-constantin-1003/ (OTTUHR, Vacheron Constantin 1003) (Frequency 18,000 vph / 2.5 Hz)"
     ],
     "confidence": "published list"
   },
@@ -50543,9 +50601,11 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (VACHERON & CONSTANTIN 1071, 53°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Vacheron Constantin 1071, 53°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Vacheron Constantin 1071, 53°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Vacheron Constantin 1071, 53°)",
+      "https://ottuhr.com/index/vacheron-constantin/calibers/vacheron-constantin-1071/ (OTTUHR, Vacheron Constantin 1071) (Frequency 18,800 vph / 2.63 Hz)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Beat rate not settled, so none is given: OTTUHR gives 18,800 vph, which is not a usual beat rate, and another list gives 18,000 (timegrapher-calibres#5)."
   },
   {
     "calibre": "Vacheron Constantin 1072",
@@ -50562,12 +50622,20 @@
   {
     "calibre": "Vacheron Constantin 1120",
     "maker": "Vacheron Constantin",
+    "bph": 19800,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.36363636363636365,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (VACHERON & CONSTANTIN 1120, 52°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Vacheron Constantin 1120, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Vacheron Constantin 1120, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Vacheron Constantin 1120, 52°)",
+      "https://monochrome-watches.com/vacheron-constantin-overseas-ultra-thin-2000v-calibre-1120-sihh2016/ (Monochrome Watches, Vacheron Constantin calibre 1120) (19,800 vibrations per hour (2.75 Hz))"
     ],
     "confidence": "published list"
   },
@@ -53957,11 +54025,19 @@
   {
     "calibre": "A. Schild 1001",
     "maker": "A. Schild",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (A. Schild [AS] 1001, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (A. Schild 1001, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (A. Schild 1001, 52°)",
+      "https://www.emmywatch.com/db/movement/a_schild--1001_/ (EmmyWatch, A. Schild 1001 Watch Movement) (Frequency: 18000 vph)"
     ],
     "confidence": "published list"
   },
@@ -54206,11 +54282,19 @@
   {
     "calibre": "A. Schild 1852",
     "maker": "A. Schild",
+    "bph": 36000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.2,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (A. Schild [AS] 1852, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (A. Schild 1852, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (A. Schild 1852, 52°)",
+      "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (under CYMA: AS 1852 11 1/2 36000)"
     ],
     "confidence": "published list"
   },
@@ -54250,10 +54334,18 @@
   {
     "calibre": "Ebauches Bettlach 8021N",
     "maker": "Ebauches Bettlach",
+    "bph": 18000,
     "lift_angle_deg": 43.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Bettlach 8021N, 43°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Bettlach 8021N, 43°)",
+      "https://uhrwerksarchiv.de/movements/e/eb/eb-8021n/ (Das Uhrwerksarchiv, EB 8021N technical description) (Halbschwingungen pro Stunde: 18000)"
     ],
     "confidence": "published list"
   },
@@ -54520,22 +54612,38 @@
   {
     "calibre": "Blancpain 1106",
     "maker": "Blancpain",
+    "bph": 21600,
     "lift_angle_deg": 53.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.3333333333333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Blancpain 1106, 53°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Blancpain 1106, 53°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Blancpain 1106, 53°)",
+      "https://www.nyjchicago.com/product/11403/blancpain-villeret-ultra-slim-18k-yellow-gold-black-dial-36mm-circa-2000 (New York Jewelers Chicago, Blancpain Villeret Ultra Slim with caliber 1106) (The mechanism oscillates at a frequency of 21,600 vph (3Hz).)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Blancpain 1151",
     "maker": "Blancpain",
+    "bph": 21600,
     "lift_angle_deg": 53.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.3333333333333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Blancpain 1151, 53°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Blancpain 1151, 53°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Blancpain 1151, 53°)",
+      "https://www.blancpain.com/en-us/taxonomy/term/10506 (Blancpain, Caliber 1151) (3Hz)"
     ],
     "confidence": "published list"
   },
@@ -55014,10 +55122,18 @@
   {
     "calibre": "Cartier 120",
     "maker": "Cartier",
+    "bph": 28800,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Cartier 120, 50°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Cartier 120, 50°)",
+      "https://chronospex.com/cartier/calibers-cartier/120/ (Chronospex, Cartier Caliber 120) (Frequency 28,800 vph (4Hz))"
     ],
     "confidence": "published list"
   },
@@ -55420,22 +55536,38 @@
   {
     "calibre": "Certina 25-02",
     "maker": "Certina",
+    "bph": 21600,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.3333333333333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Certina 25-02, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Certina 25-02, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Certina 25-02, 52°)",
+      "https://www.collezionismo.org/angoli_di_levata_orologi.htm (Collezionismo, angoli di levata; Brand Caliber Size VPH Lift Angle) (CERTINA 25-02/25-021 21600 52)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Certina 25-021",
     "maker": "Certina",
+    "bph": 21600,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.3333333333333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Certina 25-021, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Certina 25-021, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Certina 25-021, 52°)",
+      "https://www.collezionismo.org/angoli_di_levata_orologi.htm (Collezionismo, angoli di levata; Brand Caliber Size VPH Lift Angle) (CERTINA 25-02/25-021 21600 52)"
     ],
     "confidence": "published list"
   },
@@ -56620,11 +56752,19 @@
   {
     "calibre": "ETA 1150",
     "maker": "ETA",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 1150, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1150, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1150, 52°)",
+      "https://www.uhrwerksarchiv.de/movements/e/eta/eta-1150/ (Das Uhrwerksarchiv, ETA 1150 technical description) (Halbschwingungen pro Stunde: 18000; Hebewinkel: 52.47°)"
     ],
     "confidence": "published list"
   },
@@ -56952,11 +57092,19 @@
   {
     "calibre": "ETA 2000-1",
     "maker": "ETA",
+    "bph": 28800,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2000-1, 50°)",
-      "https://ranfft.org/caliber/11436-ETA-2000-1 (Ranfft: ETA 2000-1, read 2026-11-17) (50°)"
+      "https://ranfft.org/caliber/11436-ETA-2000-1 (Ranfft: ETA 2000-1, read 2026-11-17) (50°)",
+      "https://portal.eta.ch/en/2000-1-2000-1-5.html (ETA, 2000-1 technical specifications) (Frequency: 28'800 vibrations per hour; 4 Hz)"
     ],
     "confidence": "published list"
   },
@@ -60033,11 +60181,19 @@
   {
     "calibre": "ETA A07161",
     "maker": "ETA",
+    "bph": 28800,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA A07161, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA A07161, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA A07161, 52°)",
+      "https://www.files.masteroftime.ch/A07.161%20ETA%20Manufacturing%20information.pdf (ETA manufacturing information for the A07.161, mirrored by Master of Time) (28’800 vibrations per hour (4 Hz).)"
     ],
     "confidence": "published list"
   },
@@ -60117,10 +60273,18 @@
   {
     "calibre": "Eterna 12821",
     "maker": "Eterna",
+    "bph": 28800,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Eterna 12821, 52°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Eterna 12821, 52°)",
+      "https://oldswisswatches.com/tag/eterna-watch-movements/page/5/ (Old Swiss Watches, Eterna movements tag page, entry Eterna 12821) (f = 28800 A/h)"
     ],
     "confidence": "published list"
   },
@@ -60161,9 +60325,11 @@
     "wheels": [],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Favre Leuba 101, 48°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Favre Leuba 101, 48°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Favre Leuba 101, 48°)",
+      "https://www.collezionismo.org/angoli_di_levata_orologi.htm (Collezionismo, angoli di levata; Brand Caliber Size VPH Lift Angle) (FAVRE 101 48 50’)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Lift angle: Collezionismo's table gives 48° 50′ (timegrapher-calibres#5)."
   },
   {
     "calibre": "Favre-Leuba 102",
@@ -60194,9 +60360,11 @@
     "wheels": [],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Favre Leuba 15, 55°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Favre Leuba 15, 55°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Favre Leuba 15, 55°)",
+      "https://www.collezionismo.org/angoli_di_levata_orologi.htm (Collezionismo, angoli di levata; Brand Caliber Size VPH Lift Angle) (FAVRE 15 55 50’)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Lift angle: Collezionismo's table gives 55° 50′ (timegrapher-calibres#5)."
   },
   {
     "calibre": "Favre-Leuba 180",
@@ -60312,10 +60480,18 @@
   {
     "calibre": "France Ebauches 4612 A",
     "maker": "France Ebauches",
+    "bph": 21600,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.3333333333333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (F,E France Ebauche 4612 A, 52°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (F,E France Ebauche 4612 A, 52°)",
+      "https://www.emmywatch.com/db/movement/france_ebauches--4612a_/ (EmmyWatch, France Ebauches 4612A Watch Movement) (Frequency: 21600 vph)"
     ],
     "confidence": "published list"
   },
@@ -60704,11 +60880,20 @@
   {
     "calibre": "Frederic Piguet 1185",
     "maker": "Frederic Piguet",
+    "bph": 21600,
     "lift_angle_deg": 53.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.3333333333333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Frederic Piguet 1185, 53°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Frederic Piguet 1185, 53°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Frederic Piguet 1185, 53°)",
+      "https://tempuseuropa.com/en/movement/frederic-piguet-1185 (Tempus Europa, Frédéric Piguet Calibre 1185) (3 Hz (21,600 vph))",
+      "https://www.emmywatch.com/db/movement/frederic_piguet--1185/ (EmmyWatch, Frederic Piguet 1185 Watch Movement) (Frequency: 21600 vph)"
     ],
     "confidence": "published list"
   },
@@ -61331,10 +61516,18 @@
   {
     "calibre": "IWC 37526",
     "maker": "IWC",
+    "bph": 28800,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (IWC 37526, 52°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (IWC 37526, 52°)",
+      "https://www.lepage.fr/en/24622-iwc-pilots-watch-utc-automatic-39-mm-full-set-2001-iw325102.html (Lepage, IWC Pilot UTC IW325102, Movement model IWC 37526) (28 800 Vibrations per hour (VpH) (4 Hz))"
     ],
     "confidence": "published list"
   },
@@ -61460,10 +61653,18 @@
   {
     "calibre": "IWC 79350",
     "maker": "IWC",
+    "bph": 28800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (IWC 79350, 49°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (IWC 79350, 49°)",
+      "https://www.iwc.com/ww-en/past-collections/portugieser/iw371445-portugieser-chronograph (IWC, Portugieser Chronograph IW371445 with Caliber 79350) (Frequency 28800 Vph (4 Hz))"
     ],
     "confidence": "published list"
   },
@@ -61524,22 +61725,38 @@
   {
     "calibre": "Jaeger-LeCoultre 448",
     "maker": "Jaeger-LeCoultre",
+    "bph": 28800,
     "lift_angle_deg": 48.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Jaeger LeCoultre 448, 48°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Jaeger LeCoultre 448, 48°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Jaeger LeCoultre 448, 48°)",
+      "https://www.collezionismo.org/angoli_di_levata_orologi.htm (Collezionismo, angoli di levata; Brand Caliber Size VPH Lift Angle) (JAEGER LE COULTRE 891/2/448 28800 48)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Jaeger-LeCoultre 449",
     "maker": "Jaeger-LeCoultre",
+    "bph": 18000,
     "lift_angle_deg": 45.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Jaeger LeCoultre 449, 45°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Jaeger LeCoultre 449, 45°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Jaeger LeCoultre 449, 45°)",
+      "https://www.emmywatch.com/db/movement/jaeger_lecoultre--449_/ (EmmyWatch, Jaeger Lecoultre 449 Watch Movement) (Frequency: 18000 vph)"
     ],
     "confidence": "published list"
   },
@@ -61590,11 +61807,19 @@
   {
     "calibre": "Jaeger-LeCoultre 463",
     "maker": "Jaeger-LeCoultre",
+    "bph": 18000,
     "lift_angle_deg": 45.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Jaeger LeCoultre 463, 45°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Jaeger LeCoultre 463, 45°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Jaeger LeCoultre 463, 45°)",
+      "https://www.emmywatch.com/db/movement/jaeger_lecoultre--463/ (EmmyWatch, Jaeger Lecoultre 463 Watch Movement) (Frequency: 18000 vph)"
     ],
     "confidence": "published list"
   },
@@ -61605,9 +61830,11 @@
     "wheels": [],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Jaeger LeCoultre 476, 46°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Jaeger LeCoultre 476, 46°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Jaeger LeCoultre 476, 46°)",
+      "https://www.watch-wiki.net/doku.php?id=jlc_476 (Watch Wiki, JLC 476) (18,000 A/h)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Beat rate not settled, so none is given: Watch Wiki gives 18,000 A/h, and another list gives 21,600 (timegrapher-calibres#5)."
   },
   {
     "calibre": "Jaeger-LeCoultre 478",
@@ -61634,22 +61861,38 @@
   {
     "calibre": "Jaeger-LeCoultre 480",
     "maker": "Jaeger-LeCoultre",
+    "bph": 18000,
     "lift_angle_deg": 46.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Jaeger LeCoultre 480, 46°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Jaeger LeCoultre 480, 46°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Jaeger LeCoultre 480, 46°)",
+      "https://www.emmywatch.com/db/movement/jaeger_lecoultre--480_/ (EmmyWatch, Jaeger Lecoultre 480 Watch Movement) (Frequency: 18000 vph)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Jaeger-LeCoultre 481",
     "maker": "Jaeger-LeCoultre",
+    "bph": 18000,
     "lift_angle_deg": 56.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Jaeger LeCoultre 481, 56°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Jaeger LeCoultre 481, 56°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Jaeger LeCoultre 481, 56°)",
+      "https://castafiore.fr/products/jaeger-lecoultre-power-reserve-40-heures-calibre-481-bumper-or-jaune-18-carats-1953 (Castafiore, dealer page for a watch with Jaeger-LeCoultre Calibre 481) (Fréquence : 18 000 alternances/heure)"
     ],
     "confidence": "published list"
   },
@@ -61678,21 +61921,37 @@
   {
     "calibre": "Jaeger-LeCoultre 489",
     "maker": "Jaeger-LeCoultre",
+    "bph": 18000,
     "lift_angle_deg": 40.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Jaeger LeCoultre 489, 40°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Jaeger LeCoultre 489, 40°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Jaeger LeCoultre 489, 40°)",
+      "https://tempuseuropa.com/en/movement/jaeger-lecoultre-489 (Tempus Europa, Jaeger-LeCoultre Calibre 489) (18,000 vph (2.5 Hz))"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Jaeger-LeCoultre 489/1",
     "maker": "Jaeger-LeCoultre",
+    "bph": 18000,
     "lift_angle_deg": 40.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Jaeger LeCoultre 489/1, 40°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Jaeger LeCoultre 489/1, 40°)",
+      "https://reference.grail-watch.com/movement/jlc-489/ (Grail Watch, JLC 489/1) (Frequency: 18,000 A/h)"
     ],
     "confidence": "published list"
   },
@@ -61804,10 +62063,18 @@
   {
     "calibre": "Jaeger-LeCoultre 878",
     "maker": "Jaeger-LeCoultre",
+    "bph": 28800,
     "lift_angle_deg": 48.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Jaeger LeCoultre 878, 48°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Jaeger LeCoultre 878, 48°)",
+      "https://www.watch-wiki.net/doku.php?id=jlc_878 (Watch Wiki, JLC 878) (Calibre 878 runs at 28,800 vph and has 35 jewels.)"
     ],
     "confidence": "published list"
   },
@@ -62642,9 +62909,11 @@
     "wheels": [],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Lanco 857, 53°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Lanco 857, 53°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Lanco 857, 53°)",
+      "https://www.collezionismo.org/angoli_di_levata_orologi.htm (Collezionismo, angoli di levata; Brand Caliber Size VPH Lift Angle) (LANCO 857/858/859 53 40’)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Lift angle: Collezionismo's table gives 53° 40′ (timegrapher-calibres#5)."
   },
   {
     "calibre": "Lanco 858",
@@ -62803,11 +63072,19 @@
   {
     "calibre": "Landeron 48",
     "maker": "Landeron",
+    "bph": 18000,
     "lift_angle_deg": 42.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Landeron 48, 42°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Landeron 48, 42°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Landeron 48, 42°)",
+      "https://reference.grail-watch.com/movement/landeron-48/ (Grail Watch, Landeron 48) (Frequency: 18,000 A/h)"
     ],
     "confidence": "published list"
   },
@@ -62882,10 +63159,18 @@
   {
     "calibre": "Lemania 2310",
     "maker": "Lemania",
+    "bph": 18000,
     "lift_angle_deg": 40.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Lemania 2310, 40°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Lemania 2310, 40°)",
+      "https://www.wristbuzz.com/watch-calibers/lemania-2310/ (WristBuzz, Lemania 2310) (Frequency 2.5 Hz (18,000 vph))"
     ],
     "confidence": "published list"
   },
@@ -63158,11 +63443,19 @@
   {
     "calibre": "Marvin 310",
     "maker": "Marvin",
+    "bph": 18000,
     "lift_angle_deg": 53.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Marvin 310, 53°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Marvin 310, 53°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Marvin 310, 53°)",
+      "https://watch-movements-archive.com/watch-movement/marvin-310/ (Watch Movements Archive, Marvin 310) (Beats per hour: 18,000)"
     ],
     "confidence": "published list"
   },
@@ -64935,20 +65228,36 @@
   {
     "calibre": "Nomos alpha",
     "maker": "Nomos",
+    "bph": 21600,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.3333333333333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Nomos alpha, 52°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Nomos alpha, 52°)",
+      "https://reference.grail-watch.com/movement/nomos-alpha/ (Grail Watch, Nomos Alpha) (Frequency: 21,600 A/h)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Nomos DUW4101",
     "maker": "Nomos",
+    "bph": 21600,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.3333333333333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Nomos DUW4101, 52°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Nomos DUW4101, 52°)",
+      "https://chronospex.com/nomos/calibers-nomos/duw-4101/ (Chronospex, NOMOS Glashütte DUW 4101) (Frequency 21,600 vph (3Hz))"
     ],
     "confidence": "published list"
   },
@@ -67635,12 +67944,21 @@
   {
     "calibre": "Patek Philippe 315",
     "maker": "Patek Philippe",
+    "bph": 21600,
     "lift_angle_deg": 51.0,
-    "wheels": [],
-    "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Patek-Philippe 315, 51°)"
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.3333333333333333,
+        "basis": "derived from the beat rate"
+      }
     ],
-    "confidence": "published list"
+    "sources": [
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Patek-Philippe 315, 51°)",
+      "https://static.patek.com/pdf/pressreleases/en/2007_PatekPhilippe_Aquanaut.pdf (Patek Philippe press release, Aquanaut 2007, Movement: Caliber 315 S C) (Frequency: 21,600 semi-oscillations per hour (3 Hz))"
+    ],
+    "confidence": "published list",
+    "notes": "Beat rate from Patek Philippe's figure for the 315 S C (timegrapher-calibres#5)."
   },
   {
     "calibre": "Patek Philippe 324SC (51°)",
@@ -72004,9 +72322,11 @@
     "wheels": [],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Slava 5498, 47°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Slava 5498, 47°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Slava 5498, 47°)",
+      "https://watch-movements-archive.com/watch-movement/slava-5498/ (Watch Movements Archive, Slava 5498) (Beats per hour: 36,000; Movement also available with 18,000 bph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Beat rate depends on the version, so none is given: Watch Movements Archive gives 36,000 bph and a version at 18,000 bph (timegrapher-calibres#5)."
   },
   {
     "calibre": "Standard 1800",
@@ -72697,11 +73017,19 @@
   {
     "calibre": "Vacheron Constantin 1121",
     "maker": "Vacheron Constantin",
+    "bph": 19800,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Vacheron Constantin 1121, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Vacheron Constantin 1121, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Vacheron Constantin 1121, 52°)",
+      "https://watchcodex.com/qa/en/calibre/vacheron-constantin-1121/ (Watch Codex, Vacheron Constantin 1121) (Frequency 19,800 vph / 2.75 Hz)"
     ],
     "confidence": "published list"
   },
@@ -72730,20 +73058,36 @@
   {
     "calibre": "Valjoux 7751",
     "maker": "Valjoux",
+    "bph": 28800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Valjoux 7751, 49°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Valjoux 7751, 49°)",
+      "https://portal.eta.ch/en/mecaline/phased-out/7751-7751-5.html (ETA, 7751 VALJOUX technical specifications) (Frequency: 28'800 vibrations per hour; 4 Hz)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Valjoux 7753",
     "maker": "Valjoux",
+    "bph": 28800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Valjoux 7753, 49°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Valjoux 7753, 49°)",
+      "https://portal.eta.ch/fr/7753-7753-3.html (ETA, 7753 VALJOUX caractéristiques techniques) (Fréquence: 28'800 alternances par heure; 4 Hz)"
     ],
     "confidence": "published list"
   },
@@ -72865,10 +73209,18 @@
   {
     "calibre": "Yema 2000",
     "maker": "Yema",
+    "bph": 28800,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Yema 2000, 52°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Yema 2000, 52°)",
+      "https://yema.com/products/yema-flygraf-flieger-french-air-force-yfly24aa-ggs (Yema, Flygraf Flieger with the YEMA2000 In-house caliber) (28,800 A/h)"
     ],
     "confidence": "published list"
   },
@@ -74119,9 +74471,11 @@
     "lift_angle_deg": 43.0,
     "wheels": [],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Enicar 853, 43°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Enicar 853, 43°)",
+      "https://www.collezionismo.org/angoli_di_levata_orologi.htm (Collezionismo, angoli di levata; Brand Caliber Size VPH Lift Angle) (ENICAR 853 14 43 30’)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Lift angle: Collezionismo's table gives 43° 30′ (timegrapher-calibres#5)."
   },
   {
     "calibre": "Enicar 1180",
@@ -74147,9 +74501,11 @@
     "lift_angle_deg": 48.0,
     "wheels": [],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Enicar 1100, 48°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Enicar 1100, 48°)",
+      "https://www.collezionismo.org/angoli_di_levata_orologi.htm (Collezionismo, angoli di levata; Brand Caliber Size VPH Lift Angle) (ENICAR 1100 12 48 57’)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Lift angle: Collezionismo's table gives 48° 57′ (timegrapher-calibres#5)."
   },
   {
     "calibre": "Enicar 1140",
@@ -74549,9 +74905,11 @@
     "lift_angle_deg": 53.0,
     "wheels": [],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Favre Leuba 5, 53°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Favre Leuba 5, 53°)",
+      "https://www.collezionismo.org/angoli_di_levata_orologi.htm (Collezionismo, angoli di levata; Brand Caliber Size VPH Lift Angle) (FAVRE 5 53 30’)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Lift angle: Collezionismo's table gives 53° 30′ (timegrapher-calibres#5)."
   },
   {
     "calibre": "Favre-Leuba 40",
@@ -75751,10 +76109,18 @@
   {
     "calibre": "IWC 32111",
     "maker": "IWC",
+    "bph": 28800,
     "lift_angle_deg": 53.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (IWC 32111, 53°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (IWC 32111, 53°)",
+      "https://www.iwc.com/gb-en/watches/pilot-watches/iw328201-pilots-watch-mark-xx (IWC, Pilot's Watch Mark XX IW328201 with Caliber 32111) (Frequency 28800 Vph (4 Hz))"
     ],
     "confidence": "published list"
   },
@@ -78938,10 +79304,18 @@
   {
     "calibre": "Venus 180",
     "maker": "Venus",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Venus 180, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Venus 180, 52°)",
+      "https://reference.grail-watch.com/movement/venus-180/ (Grail Watch, Venus 180) (Frequency: 18,000 A/h)"
     ],
     "confidence": "published list"
   },
@@ -78960,10 +79334,18 @@
   {
     "calibre": "Venus 220",
     "maker": "Venus",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Venus 220, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Venus 220, 52°)",
+      "https://www.boldtimepieces.co.uk/product-page/1950s-rotary-triple-date-pointer-watch-two-tone-texture-guilloche-dial-venus-220 (Bold Timepieces, Rotary with a Venus 220) (operates at a frequency of 18,000 bph)"
     ],
     "confidence": "published list"
   },
@@ -102557,6 +102939,7 @@
       "G100"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51,
     "wheels": [
       {
         "name": "balance",
@@ -102565,9 +102948,11 @@
       }
     ],
     "sources": [
-      "https://www.fhs.swiss/eng/2021_09_16_04_La_Joux-Perret.html (Federation of the Swiss Watch Industry FH news, G100 and L100 movements by La Joux-Perret) (\"maintaining a frequency of 4Hz\")"
+      "https://www.fhs.swiss/eng/2021_09_16_04_La_Joux-Perret.html (Federation of the Swiss Watch Industry FH news, G100 and L100 movements by La Joux-Perret) (\"maintaining a frequency of 4Hz\")",
+      "https://www.cousinsuk.com/pdf/skus/10106_g100%20tech%20sheet.pdf (Manufacture La Joux-Perret technical sheet MLJP-G100, p. 1, on a supplier's site) (Angle lift of balance 51°; 28'800 A/H (4 Hz))"
     ],
-    "confidence": "maker's page"
+    "confidence": "maker's page",
+    "notes": "Lift angle 51° from La Joux-Perret's own technical sheet for the G100 (timegrapher-calibres#6)."
   },
   {
     "calibre": "La Joux-Perret L100",
@@ -102596,6 +102981,7 @@
       "6T27"
     ],
     "bph": 28800,
+    "lift_angle_deg": 50,
     "wheels": [
       {
         "name": "balance",
@@ -102604,10 +102990,11 @@
       }
     ],
     "sources": [
-      "https://miyotamovement.com/product/6T27/ (Miyota product page, Cal. 6T27) (\"Vibration Frequency 28800\")"
+      "https://miyotamovement.com/product/6T27/ (Miyota product page, Cal. 6T27) (\"Vibration Frequency 28800\")",
+      "https://miyotamovement.com/uploads/product/product_YlJ6nFBdfLCarZxpX5.pdf (Miyota specification sheet for the 6T27) (50 degree Lift Angle)"
     ],
     "confidence": "maker's page",
-    "notes": "8 3/4''', 5.23 mm, 21 jewels, automatic and hand winding, 3 hands, about 40 h."
+    "notes": "8 3/4''', 5.23 mm, 21 jewels, automatic and hand winding, 3 hands, about 40 h. Lift angle 50° from Miyota's own specification sheet for this calibre (timegrapher-calibres#6)."
   },
   {
     "calibre": "Miyota 6T15",
@@ -102616,6 +103003,7 @@
       "6T15"
     ],
     "bph": 28800,
+    "lift_angle_deg": 50,
     "wheels": [
       {
         "name": "balance",
@@ -102624,10 +103012,11 @@
       }
     ],
     "sources": [
-      "https://miyotamovement.com/product/6T15/ (Miyota product page, Cal. 6T15) (\"Vibration Frequency 28800 per hour\")"
+      "https://miyotamovement.com/product/6T15/ (Miyota product page, Cal. 6T15) (\"Vibration Frequency 28800 per hour\")",
+      "https://miyotamovement.com/uploads/product/product_GgP7ApScX2r8amT4Vk.pdf (Miyota specification sheet for the 6T15) (50 degree Lift Angle)"
     ],
     "confidence": "maker's page",
-    "notes": "8 3/4''', 5.98 mm, 21 jewels, automatic and hand winding, 3 hands date, about 40 h."
+    "notes": "8 3/4''', 5.98 mm, 21 jewels, automatic and hand winding, 3 hands date, about 40 h. Lift angle 50° from Miyota's own specification sheet for this calibre (timegrapher-calibres#6)."
   },
   {
     "calibre": "Miyota 6T28",
@@ -102636,6 +103025,7 @@
       "6T28"
     ],
     "bph": 28800,
+    "lift_angle_deg": 50,
     "wheels": [
       {
         "name": "balance",
@@ -102644,10 +103034,11 @@
       }
     ],
     "sources": [
-      "https://miyotamovement.com/product/6T28/ (Miyota product page, Cal. 6T28) (\"Vibration Frequency 28800 per hour\")"
+      "https://miyotamovement.com/product/6T28/ (Miyota product page, Cal. 6T28) (\"Vibration Frequency 28800 per hour\")",
+      "https://miyotamovement.com/uploads/product/product_A9Ufpm4yEDGvoHPlkg.pdf (Miyota specification sheet for the 6T28) (50 degree Lift Angle)"
     ],
     "confidence": "maker's page",
-    "notes": "8 3/4''', 5.23 mm, 21 jewels, automatic and hand winding, 3 hands, open heart, about 40 h."
+    "notes": "8 3/4''', 5.23 mm, 21 jewels, automatic and hand winding, 3 hands, open heart, about 40 h. Lift angle 50° from Miyota's own specification sheet for this calibre (timegrapher-calibres#6)."
   },
   {
     "calibre": "Citizen 0200",
@@ -102664,10 +103055,11 @@
       }
     ],
     "sources": [
-      "https://citizenwatch.eu/info/the-citizen/line-up/mechanical-model/detailed-specifications (Citizen Europe, The Citizen mechanical model detailed specifications, Cal. 0200) (\"Frequency: 28,800 vph\")"
+      "https://citizenwatch.eu/info/the-citizen/line-up/mechanical-model/detailed-specifications (Citizen Europe, The Citizen mechanical model detailed specifications, Cal. 0200) (\"Frequency: 28,800 vph\")",
+      "https://horologysearch.com/caliber/citizen-0200/ (Caliber Browser, Citizen 0200) (Lift angle esc.lift_angle_deg 51 deg)"
     ],
     "confidence": "maker's page",
-    "notes": "The Citizen automatic."
+    "notes": "The Citizen automatic. Lift angle not settled, so none is given: Caliber Browser lists 51°; no maker figure found (timegrapher-calibres#7)."
   },
   {
     "calibre": "Citizen 0210",
@@ -102724,10 +103116,11 @@
       }
     ],
     "sources": [
-      "https://www.fhs.swiss/eng/2016_04_14_01_ronda.html (Federation of the Swiss Watch Industry FH news, Ronda launches a new mechanical calibre) (\"the R150 beats at a frequency of 28,800 vibrations per hour\")"
+      "https://www.fhs.swiss/eng/2016_04_14_01_ronda.html (Federation of the Swiss Watch Industry FH news, Ronda launches a new mechanical calibre) (\"the R150 beats at a frequency of 28,800 vibrations per hour\")",
+      "https://watch-movements.eu/blog/en/2018/04/15/the-ronda-r150-under-the-loupe/ (Watch movements – A passion, the Ronda R150 under the loupe) (Lift angle of balance 51°)"
     ],
     "confidence": "maker's page",
-    "notes": "Lever escapement, ball-bearing rotor."
+    "notes": "Lever escapement, ball-bearing rotor. Lift angle not settled, so none is given: a blog review lists 51°; no maker figure found (timegrapher-calibres#6)."
   },
   {
     "calibre": "Ronda R01",
@@ -102736,6 +103129,7 @@
       "R01"
     ],
     "bph": 25200,
+    "lift_angle_deg": 53,
     "wheels": [
       {
         "name": "balance",
@@ -102744,10 +103138,11 @@
       }
     ],
     "sources": [
-      "https://wornandwound.com/industry-news-ronda-returns-to-mechanical-movements-with-the-impressive-r01/ (Worn & Wound, Ronda returns to mechanical movements with the R01) (\"Ronda went for 25,200bph or 3.5hz\")"
+      "https://wornandwound.com/industry-news-ronda-returns-to-mechanical-movements-with-the-impressive-r01/ (Worn & Wound, Ronda returns to mechanical movements with the R01) (\"Ronda went for 25,200bph or 3.5hz\")",
+      "https://ronda.ronda.hausformat.net/en/watch-movement-finder/caliber/r0102 (Ronda movement finder, R01-02) (Lift angle 53°; 25'200 A/h (3.5 Hz))"
     ],
     "confidence": "press article",
-    "notes": "3.5 Hz."
+    "notes": "3.5 Hz. Lift angle 53° from Ronda's own page for the R01-02; the R01-01 page could not be read (timegrapher-calibres#6)."
   },
   {
     "calibre": "Seiko 4R34",
@@ -102764,10 +103159,11 @@
       }
     ],
     "sources": [
-      "https://www.seikowatches.com/instructions/html/SEIKO_4R34_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 4R34 specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")"
+      "https://www.seikowatches.com/instructions/html/SEIKO_4R34_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 4R34 specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")",
+      "https://diywatch.club/en/blog/specs-and-measurements-of-seiko-sii-caliber-nh34-nh34a (DIY Watch Club, NH34A / 4R34 specifications) (Lift angle: 53 degrees)"
     ],
     "confidence": "maker's page",
-    "notes": "24 jewels, about 41 h."
+    "notes": "24 jewels, about 41 h. Lift angle not settled, so none is given: DIY Watch Club lists 53° for the NH34A / 4R34; no maker figure found (timegrapher-calibres#6)."
   },
   {
     "calibre": "Seiko 4R57",
@@ -102776,6 +103172,7 @@
       "4R57"
     ],
     "bph": 21600,
+    "lift_angle_deg": 53,
     "wheels": [
       {
         "name": "balance",
@@ -102784,10 +103181,11 @@
       }
     ],
     "sources": [
-      "https://www.seikowatches.com/instructions/html/SEIKO_4R57_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 4R57 specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")"
+      "https://www.seikowatches.com/instructions/html/SEIKO_4R57_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 4R57 specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")",
+      "https://www.seikoserviceusa.com/uploads/datasheets/4R57A.pdf (Seiko technical guide, Cal. 4R57A) (Lift angle of the escapement 53°)"
     ],
     "confidence": "maker's page",
-    "notes": "29 jewels, about 41 h."
+    "notes": "29 jewels, about 41 h. Lift angle 53° from Seiko's technical guide for the 4R57A (timegrapher-calibres#6)."
   },
   {
     "calibre": "Seiko 4R71",
@@ -102796,6 +103194,7 @@
       "4R71"
     ],
     "bph": 21600,
+    "lift_angle_deg": 53,
     "wheels": [
       {
         "name": "balance",
@@ -102804,10 +103203,11 @@
       }
     ],
     "sources": [
-      "https://www.seikowatches.com/instructions/html/SEIKO_4R35_4R36_4R37_4R38_4R39_4R71_4R72_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 4R35/4R36/4R37/4R38/4R39/4R71/4R72 specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")"
+      "https://www.seikowatches.com/instructions/html/SEIKO_4R35_4R36_4R37_4R38_4R39_4R71_4R72_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 4R35/4R36/4R37/4R38/4R39/4R71/4R72 specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")",
+      "https://seikoserviceusa.com/uploads/datasheets/4R71A.pdf (Seiko technical guide, Cal. 4R71A) (Lift angle of the escapement 53°)"
     ],
     "confidence": "maker's page",
-    "notes": "The manual prints one figure across all its calibre columns."
+    "notes": "The manual prints one figure across all its calibre columns. Lift angle 53° from Seiko's technical guide for the 4R71A (timegrapher-calibres#6)."
   },
   {
     "calibre": "Seiko 4R72",
@@ -102824,10 +103224,11 @@
       }
     ],
     "sources": [
-      "https://www.seikowatches.com/instructions/html/SEIKO_4R35_4R36_4R37_4R38_4R39_4R71_4R72_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 4R35/4R36/4R37/4R38/4R39/4R71/4R72 specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")"
+      "https://www.seikowatches.com/instructions/html/SEIKO_4R35_4R36_4R37_4R38_4R39_4R71_4R72_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 4R35/4R36/4R37/4R38/4R39/4R71/4R72 specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")",
+      "https://mizeni.com/movements/seiko-4R72 (Mizeni, Seiko 4R72) (Lift angle: 53º)"
     ],
     "confidence": "maker's page",
-    "notes": "The manual prints one figure across all its calibre columns."
+    "notes": "The manual prints one figure across all its calibre columns. Lift angle not settled, so none is given: Mizeni lists 53°; no maker figure found (timegrapher-calibres#7)."
   },
   {
     "calibre": "Seiko 6R27",
@@ -102876,6 +103277,7 @@
       "6R5H"
     ],
     "bph": 21600,
+    "lift_angle_deg": 53,
     "wheels": [
       {
         "name": "balance",
@@ -102884,10 +103286,11 @@
       }
     ],
     "sources": [
-      "https://www.seikowatches.com/instructions/html/SEIKO_6R51_6R55_6R5H_6R5J_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 6R51/6R55/6R5H/6R5J specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")"
+      "https://www.seikowatches.com/instructions/html/SEIKO_6R51_6R55_6R5H_6R5J_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 6R51/6R55/6R5H/6R5J specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")",
+      "https://seikoserviceusa.com/uploads/datasheets/6R5A1_54A_55A_5JA_5HA.pdf (Seiko technical guide, Cal. 6R5 series: 6R51A, 6R54A, 6R55A, 6R5JA, 6R5HA) (Lift angle of the escapement 53°)"
     ],
     "confidence": "maker's page",
-    "notes": "The manual prints one figure across all its calibre columns; about 72 h."
+    "notes": "The manual prints one figure across all its calibre columns; about 72 h. Lift angle 53° from Seiko's technical guide for the 6R5 series, which prints the figure once for all its calibres (timegrapher-calibres#6)."
   },
   {
     "calibre": "Seiko 6R5J",
@@ -102896,6 +103299,7 @@
       "6R5J"
     ],
     "bph": 21600,
+    "lift_angle_deg": 53,
     "wheels": [
       {
         "name": "balance",
@@ -102904,10 +103308,11 @@
       }
     ],
     "sources": [
-      "https://www.seikowatches.com/instructions/html/SEIKO_6R51_6R55_6R5H_6R5J_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 6R51/6R55/6R5H/6R5J specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")"
+      "https://www.seikowatches.com/instructions/html/SEIKO_6R51_6R55_6R5H_6R5J_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 6R51/6R55/6R5H/6R5J specifications) (\"21,600 vibrations/hour (6 vibrations/sec)\")",
+      "https://seikoserviceusa.com/uploads/datasheets/6R5A1_54A_55A_5JA_5HA.pdf (Seiko technical guide, Cal. 6R5 series: 6R51A, 6R54A, 6R55A, 6R5JA, 6R5HA) (Lift angle of the escapement 53°)"
     ],
     "confidence": "maker's page",
-    "notes": "The manual prints one figure across all its calibre columns; about 72 h."
+    "notes": "The manual prints one figure across all its calibre columns; about 72 h. Lift angle 53° from Seiko's technical guide for the 6R5 series, which prints the figure once for all its calibres (timegrapher-calibres#6)."
   },
   {
     "calibre": "Seiko 6R64",
@@ -102984,10 +103389,11 @@
       }
     ],
     "sources": [
-      "https://www.seikowatches.com/instructions/html/SEIKO_8L35_8L55_D_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 8L35/8L55 specifications) (\"Vibrations per hour 28,800\")"
+      "https://www.seikowatches.com/instructions/html/SEIKO_8L35_8L55_D_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 8L35/8L55 specifications) (\"Vibrations per hour 28,800\")",
+      "https://watchscope.app/calibers/seiko-8l35 (WatchScope, 8L35 page) (Lift angle 53°)"
     ],
     "confidence": "maker's page",
-    "notes": "26 jewels, about 50 h."
+    "notes": "26 jewels, about 50 h. Lift angle not settled, so none is given: WatchScope lists 53°; no maker figure found (timegrapher-calibres#6)."
   },
   {
     "calibre": "Seiko 8L55",
@@ -103004,10 +103410,11 @@
       }
     ],
     "sources": [
-      "https://www.seikowatches.com/instructions/html/SEIKO_8L35_8L55_D_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 8L35/8L55 specifications) (\"Vibrations per hour 36,000\")"
+      "https://www.seikowatches.com/instructions/html/SEIKO_8L35_8L55_D_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 8L35/8L55 specifications) (\"Vibrations per hour 36,000\")",
+      "https://www.theseikoguy.com/seiko-62mas (The Seiko Guy, 62MAS guide, Caliber 8L55) (Lift Angle 53°; Beats/hour 36.000)"
     ],
     "confidence": "maker's page",
-    "notes": "37 jewels, about 55 h."
+    "notes": "37 jewels, about 55 h. Lift angle not settled, so none is given: The Seiko Guy lists 53°; no maker figure found (timegrapher-calibres#6)."
   },
   {
     "calibre": "Seiko 8L45",
@@ -103056,6 +103463,7 @@
       "8R48"
     ],
     "bph": 28800,
+    "lift_angle_deg": 52.0,
     "wheels": [
       {
         "name": "balance",
@@ -103064,10 +103472,11 @@
       }
     ],
     "sources": [
-      "https://www.seikowatches.com/instructions/html/SEIKO_8R46_8R48_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 8R46/8R48 specifications) (\"28,800 vibrations/hour (8 vibrations/sec)\")"
+      "https://www.seikowatches.com/instructions/html/SEIKO_8R46_8R48_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 8R46/8R48 specifications) (\"28,800 vibrations/hour (8 vibrations/sec)\")",
+      "https://seikoserviceusa.com/uploads/datasheets/8R48A_49A.pdf (Seiko technical guide, Cal. 8R48A/8R49A) (Lift angle of the escapment; 52 °)"
     ],
     "confidence": "maker's page",
-    "notes": "Chronograph; the manual prints one figure across both calibre columns."
+    "notes": "Chronograph; the manual prints one figure across both calibre columns. The 8R48A/8R49A technical guide gives the lift angle; its text layer lists labels and values apart, and 52 ° is its only angle (timegrapher-calibres#7)."
   },
   {
     "calibre": "Sellita SW100",
@@ -103076,6 +103485,7 @@
       "SW100"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51,
     "wheels": [
       {
         "name": "balance",
@@ -103084,10 +103494,11 @@
       }
     ],
     "sources": [
-      "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, calibre SW100 technical data) (\"28’800 vibrations per hour (4 Hz)\")"
+      "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, calibre SW100 technical data) (\"28’800 vibrations per hour (4 Hz)\")",
+      "https://www.sellita.ch/scripts/calibres/images/Brochure_technique-SW100.pdf (Sellita technical documentation, SW100, p. 4) (Lift angle 51°)"
     ],
     "confidence": "maker's page",
-    "notes": "Grades a, b and c share this row."
+    "notes": "Grades a, b and c share this row. Lift angle 51° from Sellita's technical documentation for this calibre (timegrapher-calibres#6)."
   },
   {
     "calibre": "Sellita SW305-1",
@@ -103116,6 +103527,7 @@
       "SW330-2"
     ],
     "bph": 28800,
+    "lift_angle_deg": 51,
     "wheels": [
       {
         "name": "balance",
@@ -103124,10 +103536,11 @@
       }
     ],
     "sources": [
-      "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, calibre SW330-2 technical data) (\"28’800 vibrations per hour (4 Hz)\")"
+      "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, calibre SW330-2 technical data) (\"28’800 vibrations per hour (4 Hz)\")",
+      "https://www.sellita.ch/scripts/calibres/images/DocTec_SW330-2.pdf (Sellita technical documentation, SW330-2, p. 5) (Lift angle 51°)"
     ],
     "confidence": "maker's page",
-    "notes": "Grades a, b and c share this row."
+    "notes": "Grades a, b and c share this row. Lift angle 51° from Sellita's technical documentation for this calibre (timegrapher-calibres#6)."
   },
   {
     "calibre": "Sellita SW331-2",
@@ -103222,6 +103635,7 @@
       "SW510 MPC"
     ],
     "bph": 28800,
+    "lift_angle_deg": 50,
     "wheels": [
       {
         "name": "balance",
@@ -103230,10 +103644,11 @@
       }
     ],
     "sources": [
-      "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, calibre SW510 technical data) (\"28’800 vibrations per hour (4 Hz)\")"
+      "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, calibre SW510 technical data) (\"28’800 vibrations per hour (4 Hz)\")",
+      "https://www.sellita.ch/scripts/calibres/images/DocTec_SW510.pdf (Sellita technical documentation, SW510, p. 5) (Lift angle 50°)"
     ],
     "confidence": "maker's page",
-    "notes": "Grades a, b and c share this row."
+    "notes": "Grades a, b and c share this row. Lift angle 50° from Sellita's technical documentation for this calibre (timegrapher-calibres#6)."
   },
   {
     "calibre": "Sellita SW511",
@@ -103544,6 +103959,7 @@
       "M100 BV"
     ],
     "bph": 28800,
+    "lift_angle_deg": 49.0,
     "wheels": [
       {
         "name": "balance",
@@ -103552,7 +103968,8 @@
       }
     ],
     "sources": [
-      "https://www.cousinsuk.com/pdf/products/10024_soprod calibre comparison 2.pdf (Soprod calibre comparison sheet, \"Swiss production\", hosted by Cousins UK) (\"28800 vibrations per hour / 4 Hz\")"
+      "https://www.cousinsuk.com/pdf/products/10024_soprod calibre comparison 2.pdf (Soprod calibre comparison sheet, \"Swiss production\", hosted by Cousins UK) (\"28800 vibrations per hour / 4 Hz\")",
+      "https://www.cousinsuk.com/pdf/products/9380_m100%20documentation%20technique.pdf (Soprod M100 documentation technique, hosted by Cousins UK) (Angle de levée du balancier [°] - 49 -; 4 Hz = 28'800 A/H)"
     ],
     "confidence": "maker's page",
     "notes": "25 jewels, 42 h, quickset date, stop seconds."
@@ -103923,10 +104340,11 @@
       }
     ],
     "sources": [
-      "https://media.tudorwatch.com/image/upload/fl_attachment/v1/tudorwatch/pressroom/products/black-bay-31-36-39-41/pdf/t23rp-blackbay31-36-39-41-en.pdf (Tudor press release, Black Bay 31/36/39/41, Manufacture Calibres MT5201, MT5400, MT5602, MT5601) (\"Frequency: 28,800 beats/hour (4 Hz)\")"
+      "https://media.tudorwatch.com/image/upload/fl_attachment/v1/tudorwatch/pressroom/products/black-bay-31-36-39-41/pdf/t23rp-blackbay31-36-39-41-en.pdf (Tudor press release, Black Bay 31/36/39/41, Manufacture Calibres MT5201, MT5400, MT5602, MT5601) (\"Frequency: 28,800 beats/hour (4 Hz)\")",
+      "https://calibercorner.com/tudor-caliber-mt5400/ (Caliber Corner, Tudor MT5400) (Lift Angle 49 degrees; 28,800 bph)"
     ],
     "confidence": "maker's page",
-    "notes": "COSC chronometer."
+    "notes": "COSC chronometer. Lift angle not settled, so none is given: Caliber Corner lists 49°; no maker figure found (timegrapher-calibres#6)."
   },
   {
     "calibre": "Tudor MT5601",
