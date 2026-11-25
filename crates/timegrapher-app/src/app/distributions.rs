@@ -4,9 +4,6 @@ use super::*;
 use crate::fact_box::FactBox;
 use crate::strength::{self, Grid, Strength};
 
-/// What core's readings for the Distributions pane were read for: the
-/// take's revision, the position on show and Average Over (its bits).
-pub(super) type DistKey = (Revision, Position, u64);
 /// Core's readings for the Distributions pane (#1144): the rate's, and the
 /// amplitude and the beat error averaged into them, with the beat error's
 /// source ([`timegrapher_core::steadiness::reading_grids`]).
@@ -384,11 +381,11 @@ impl TimegrapherApp {
     /// and now without. While listening they are read again once a new
     /// reading can have come.
     pub(super) fn update_dist_readings(&mut self, ctx: Option<&egui::Context>) {
-        let key = (
-            self.bench.take.rev,
-            self.bench.take.position,
-            self.bench.take.average_s.to_bits(),
-        );
+        let key = DistKey {
+            rev: self.bench.take.rev,
+            position: self.bench.take.position,
+            average: self.bench.take.average_s.to_bits(),
+        };
         if self
             .bench
             .results
