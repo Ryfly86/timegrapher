@@ -19,13 +19,18 @@ struct Client {
 
 impl Client {
     fn start(cli: &Path, config: &Path) -> Self {
+        Self::start_with_stderr(cli, config, Stdio::inherit())
+    }
+
+    /// As [`Client::start`], with the server's own stderr going to `stderr`.
+    fn start_with_stderr(cli: &Path, config: &Path, stderr: Stdio) -> Self {
         let mut child = Command::new(env!("CARGO_BIN_EXE_timegrapher-mcp"))
             .env("TIMEGRAPHER_CLI", cli)
             .env("TIMEGRAPHER_CONFIG_DIR", config)
             .env_remove("TIMEGRAPHER_MCP_TEST_INPUT")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
+            .stderr(stderr)
             .spawn()
             .expect("start MCP server");
         let stdout = child.stdout.take().unwrap();
@@ -551,4 +556,34 @@ fn a_missing_microphone_error_is_the_clis_line_and_a_hint() {
     );
     assert!(text.contains("list_sound_inputs"), "{text}");
     assert_eq!(text.lines().count(), 2, "{text}");
+}
+
+/// The command line's whole stderr, ALSA's lines with it, still reaches
+/// the server's own stderr, its log, when the tool's error keeps only the
+/// error line (#2103).
+#[test]
+fn a_missing_microphones_whole_stderr_goes_to_the_servers_log() {
+    let dir = Scratch(std::env::temp_dir().join(format!(
+        "timegrapher-mcp-no-microphone-log-{}",
+        std::process::id()
+    )));
+    let cli = no_sound_card_double(&dir.0);
+    let mut client = Client::start_with_stderr(&cli, &dir.0.join("config"), Stdio::piped());
+    let result = client.request(
+        "tools/call",
+        json!({ "name": "check_microphone", "arguments": {} }),
+    );
+    assert_eq!(result["isError"], true, "{result}");
+    let mut stderr = client.child.stderr.take().unwrap();
+    drop(client);
+    let mut log = String::new();
+    std::io::Read::read_to_string(&mut stderr, &mut log).unwrap();
+    let alsa = "ALSA lib confmisc.c:855:(parse_card) cannot find card '0'";
+    assert_eq!(log.lines().filter(|l| *l == alsa).count(), 24, "{log}");
+    assert!(
+        log.contains(
+            "error: The requested audio device is not available. It may have been disconnected."
+        ),
+        "{log}"
+    );
 }
