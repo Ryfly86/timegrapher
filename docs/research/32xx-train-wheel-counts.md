@@ -1,6 +1,6 @@
 # 32xx train wheel tooth counts
 
-Microscope photographs supplied by Peter on 2026-10-19, from the
+Microscope photographs supplied by this project on 2026-10-19, from the
 `DD32xx Train Wheels` photo set. The photographed train has a **9-minute
 third wheel, 5-second escape wheel, and 7-hour barrel** under the supplied
 28,800 bph, one-hour second-wheel and one-minute fourth-wheel constraints.
@@ -23,7 +23,7 @@ barrel arbor; the 7-hour figure describes the barrel drum during running,
 not the winding rotation of its arbor or the power reserve.
 
 These counts come directly from the photographed components. On 2026-10-19,
-Peter Hudson confirmed that the counts and periods apply to **all genuine
+this project confirmed that the counts and periods apply to **all genuine
 Rolex, Dandong and Jinghe 32xx movements**, including 3230, 3235, 3255 and
 3285. That family applicability is contributor testimony accompanying
 the photographs; the images themselves show one component set.

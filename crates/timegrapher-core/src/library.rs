@@ -436,17 +436,51 @@ pub fn folder_name(name: &str) -> String {
     s
 }
 
+/// `parent/base`, then `base{sep}2`, `base{sep}3`… : the names a new
+/// folder named `base` is given in turn. [`unused_dir`] and
+/// [`make_unused_dir`] (sep " ") and the recorder's own folders (sep "_")
+/// all take theirs from here.
+fn folder_names<'a>(
+    parent: &'a Path,
+    base: &'a str,
+    sep: &'a str,
+) -> impl Iterator<Item = PathBuf> + 'a {
+    (1..).map(move |n| match n {
+        1 => parent.join(base),
+        n => parent.join(format!("{base}{sep}{n}")),
+    })
+}
+
 /// `parent/base`, or `parent/base 2`, `base 3`… for the first that isn't
 /// there.
 pub fn unused_dir(parent: &Path, base: &str) -> PathBuf {
-    let first = parent.join(base);
-    if !first.exists() {
-        return first;
-    }
-    (2..)
-        .map(|n| parent.join(format!("{base} {n}")))
+    folder_names(parent, base, " ")
         .find(|p| !p.exists())
         .expect("a free name")
+}
+
+/// A new folder `parent/base`, or `base 2`, `base 3`… where that is
+/// taken, made in one step: each name is tried by making the folder, so
+/// two takes started in the same minute (two benches, or the app and
+/// `timegrapher record`) never get one folder, as a name picked by
+/// [`unused_dir`] and made later could (#1862). `parent` is made first
+/// where it is missing. Returns the folder made, empty.
+pub fn make_unused_dir(parent: &Path, base: &str) -> std::io::Result<PathBuf> {
+    make_free_dir(parent, base, " ")
+}
+
+/// [`make_unused_dir`] with `sep` before the number (the recorder's own
+/// folders take `name_2`).
+pub(crate) fn make_free_dir(parent: &Path, base: &str, sep: &str) -> std::io::Result<PathBuf> {
+    fs::create_dir_all(parent)?;
+    for dir in folder_names(parent, base, sep) {
+        match fs::create_dir(&dir) {
+            Ok(()) => return Ok(dir),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(e) => return Err(e),
+        }
+    }
+    unreachable!("a free name")
 }
 
 /// `dir/name`, or with ` 2`, ` 3`… before its extension (`dial 2.jpg`)
@@ -489,7 +523,8 @@ pub fn power_reserve_take_name(started: &str) -> String {
 /// its own session file (`file = "."`) and the run's
 /// `power-reserve.json` beside it, so the app opens the take on its run.
 /// The app and `timegrapher record --power-reserve` both file a test here
-/// (#1732).
+/// (#1732); a test the app keeps with its sound has its folder of that
+/// name made as it is named ([`crate::recorder::Recorder::claim_first_copy`]).
 pub fn power_reserve_take_dir(takes: &Path, started: &str) -> PathBuf {
     unused_dir(takes, &power_reserve_take_name(started))
 }
@@ -1420,7 +1455,7 @@ impl Library {
         let folder = file_name(dir);
         let mut takes = Vec::new();
         for t in subfolders(&dir.join(TAKES)) {
-            if !(t.join(take::MANIFEST).is_file() || t.join(take::RECORD).is_file()) {
+            if !is_take_folder(&t) {
                 continue;
             }
             let key = format!("{folder}/{TAKES}/{}", file_name(&t));
@@ -1482,7 +1517,8 @@ impl Library {
         if self.find(name).is_some() {
             return Err(format!("There is already a watch called \"{name}\""));
         }
-        let dir = unused_dir(&self.root, &folder_name(name));
+        let dir = make_unused_dir(&self.root, &folder_name(name))
+            .map_err(|e| format!("{}: {e}", self.root.display()))?;
         fs::create_dir_all(dir.join(TAKES))
             .and_then(|_| fs::create_dir_all(dir.join(PHOTOS)))
             .map_err(|e| format!("{}: {e}", dir.display()))?;
@@ -1801,22 +1837,10 @@ impl Library {
         self.finish_add(&plan, copied)
     }
 
-    /// The one guard both imports use (#1656), before anything is staged:
-    /// `from` is refused when it is already inside the watches folder, or
-    /// holds it, where the copy would be made inside what it copies and
-    /// copy itself again and again (#1642).
+    /// [`not_already_in`] this library's folder: the guard both imports
+    /// use, before anything is staged.
     fn not_already_in(&self, from: &Path) -> Result<(), String> {
-        let (from_at, root) = (resolved(from), resolved(&self.root));
-        if from_at.starts_with(&root) {
-            return Err(format!("{} is already in your watches", from.display()));
-        }
-        if root.starts_with(&from_at) {
-            return Err(format!(
-                "{} holds your watches folder: add the take's own folder instead",
-                from.display()
-            ));
-        }
-        Ok(())
+        not_already_in(from, &self.root)
     }
 
     /// Add a recording from outside the library that has no session file
@@ -1867,6 +1891,34 @@ impl Library {
         self.scan();
         Ok(to)
     }
+}
+
+/// The one import-path guard (#1656), for the app, the CLI and both
+/// imports: `from` can't be added to the watches folder `root` when it
+/// is already inside it, or holds it, where the copy would be made
+/// inside what it copies and copy itself again and again (#1642). Links
+/// are followed ([`resolved`]), so a path through a link into the
+/// watches folder is inside it too. `root` need not exist yet (the
+/// watches folder is made with the first watch).
+pub fn not_already_in(from: &Path, root: &Path) -> Result<(), String> {
+    let (from_at, root) = (resolved(from), resolved(root));
+    if from_at.starts_with(&root) {
+        return Err(format!("{} is already in your watches", from.display()));
+    }
+    if root.starts_with(&from_at) {
+        return Err(format!(
+            "{} holds your watches folder: add the take's own folder instead",
+            from.display()
+        ));
+    }
+    Ok(())
+}
+
+/// Whether `dir` is a take folder: it holds a session file
+/// ([`take::MANIFEST`]) or a recorder's [`take::RECORD`]. The one test
+/// for a watch's takes, Add to Watch and Keep in a Watch.
+pub fn is_take_folder(dir: &Path) -> bool {
+    dir.join(take::MANIFEST).is_file() || dir.join(take::RECORD).is_file()
 }
 
 /// Whether `p` names a folder plainly: no `.` or `..` in it, and a name
@@ -2216,7 +2268,11 @@ fn usb_ppm(files: &[PathBuf]) -> Option<f64> {
             }
         }
     }
-    let ppm = crate::clock::usb_lines(files).ok().flatten().map(|u| u.ppm);
+    let ppm = crate::clock::usb_lines(files)
+        .ok()
+        .flatten()
+        .and_then(crate::usbclock::UsbClock::applied)
+        .map(|u| u.ppm);
     if let Ok(mut seen) = SEEN.lock() {
         seen.get_or_insert_with(Default::default)
             .insert(first.clone(), (modified, ppm));

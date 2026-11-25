@@ -660,7 +660,7 @@ fn robust_diff_sigma(y: &[f64]) -> Option<f64> {
     if d.len() < 4 {
         return None;
     }
-    Some(crate::dsp::robust_sd(&d) / std::f64::consts::SQRT_2)
+    Some(crate::dsp::robust_sd_from_steps(&d))
 }
 
 pub(crate) fn ln_gamma(x: f64) -> f64 {
@@ -888,16 +888,11 @@ fn explained(y: &[f64], fitted: &[f64]) -> f64 {
 /// outliers, and all are kept.
 pub(crate) fn drop_outliers(g: &mut Grid, k: f64) -> usize {
     let base = longterm::detrend(g, 300.0);
-    let mut dev: Vec<f64> = base
-        .y
-        .iter()
-        .map(|d| d.abs())
-        .filter(|d| d.is_finite())
-        .collect();
+    let dev: Vec<f64> = base.y.iter().copied().filter(|d| d.is_finite()).collect();
     if dev.len() < 10 {
         return 0;
     }
-    let spread = 1.4826 * median(&mut dev);
+    let spread = crate::dsp::robust_sd_about(&dev, 0.0);
     let sigma = robust_diff_sigma(&g.y).unwrap_or(0.0).max(spread);
     if sigma.is_nan() || sigma <= 0.0 {
         return 0;

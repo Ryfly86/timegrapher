@@ -43,8 +43,7 @@ pub const HELD_ENTRIES: usize = 4;
 /// at least half its step; a late entry (a spike) keeps little of it.
 pub fn held_step(before: f64, later: &[f64]) -> f64 {
     let mut v = later[..later.len().min(HELD_ENTRIES)].to_vec();
-    v.sort_by(|a, b| a.total_cmp(b));
-    v[v.len() / 2] - before
+    crate::dsp::upper_median(&mut v) - before
 }
 
 /// The gap a step of at least [`MIN_GAP_S`] in the offset between the

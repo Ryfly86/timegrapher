@@ -1,6 +1,6 @@
 # 31xx train-wheel counts
 
-Peter Hudson supplied five microscope photographs in the **VR31xx Train
+This project supplied five microscope photographs in the **VR31xx Train
 Wheels** set on 2026-10-19. The counted train gives a **320-second third
 wheel, 5-second escape wheel and 18,000-second (5-hour) barrel** at
 28,800 bph. The photographed second wheel turns in **2,160 seconds
@@ -26,9 +26,9 @@ running period, not the winding-arbor period or the power reserve.
 
 ## Applicability
 
-Peter reports that these counts and periods apply to **all genuine Rolex
+The project reports that these counts and periods apply to **all genuine Rolex
 31xx and Dandong/DD/VS and VR clones of that family**, explicitly including
-**3130, 3135, 3186 and 3187**. His initial reference to 3120 was corrected
+**3130, 3135, 3186 and 3187**. An initial reference to 3120 was corrected
 to 3130. The photographs document one component set; coverage of the
 other manufacturers and variants is contributor-reported applicability,
 not an independent photographic measurement of each variant.
@@ -104,7 +104,9 @@ shipped values.
 The separate Rolex 3131 row receives the train under the contributor's
 all-Rolex-31xx coverage. Its existing 52° lift setting is retained. The new
 DD/VS row deliberately leaves lift angle unspecified; it can be supplied
-from separate escapement evidence.
+from separate escapement evidence. (Supplied 2026-11-25 by #2299: this
+project's bench report that DD31xx pallet forks can be swapped for genuine
+ones gives the DD31xx rows the genuine 3135's 52°.)
 
 ## Evidence and counting method
 

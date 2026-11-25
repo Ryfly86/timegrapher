@@ -21,6 +21,7 @@ build has them):
 ```
 timegrapher calibres [NAME] [--json]       the built-in calibre table: bph, lift angle, escape wheel teeth, wheel turn periods, sources
 timegrapher calibres --search QUERY        the calibres that answer QUERY, best first (a name, another name or the maker: "dd 3235", "AP 3120")
+timegrapher calibres export --json         every calibre's reference page as opentimegrapher.org shows it (made, specs, summary, sources)
 timegrapher analyze FILE --calibre NAME    beat rate, lift angle and wheel names from the table; --bph, --lift, --escape-teeth win
 timegrapher session FOLDER --calibre NAME  the same for a session: the flag, then session.toml, then the calibre, then the defaults
 ```
@@ -257,7 +258,7 @@ JSON body:
 | `overall.period_s` | Fitted beat period |
 | `overall.jitter_us`, `jitter_us` | Scatter of single beats, microseconds (overall, and the median within 10 s windows) |
 | `overall.beats_used` | Beats in the fit |
-| `rate_p05`, `rate_p95` | 5th and 95th percentile of the rate in 10 s windows: how much the trace wanders. On the sound card's clock, like `rate_s_per_day`; correct them with `usb_clock`, as `rate_corrected_s_per_day` is corrected, before setting them beside it |
+| `rate_p05`, `rate_p95` | 5th and 95th percentile of the rate in 10 s windows: how much the trace wanders. On the sound card's clock, like `rate_s_per_day`; correct them with `usb_clock` unless it is `withheld`, as `rate_corrected_s_per_day` is corrected, before setting them beside it |
 | `amplitude_deg` | Median amplitude, degrees |
 | `amplitude_even_deg`, `amplitude_odd_deg` | Per side (the two pallet stones) |
 | `lift_deg` | Lift angle used |

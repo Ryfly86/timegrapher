@@ -180,7 +180,7 @@ impl TimegrapherApp {
             .results
             .steady_job
             .as_ref()
-            .is_some_and(|j| j.0 != self.bench.take.rev)
+            .is_some_and(|j| j.rev != self.bench.take.rev)
         {
             self.bench.results.steady_job = None;
         }
@@ -203,7 +203,7 @@ impl TimegrapherApp {
         {
             self.bench.results.bg.isochronism = None;
         }
-        if let Some((rev, rx)) = &self.bench.results.steady_job {
+        if let Some(results::SteadyJob { rev, rx }) = &self.bench.results.steady_job {
             match rx.try_recv() {
                 Ok(steady::Answer::Tests(s)) => {
                     self.bench.results.steady = Some((*rev, *s));
@@ -253,7 +253,10 @@ impl TimegrapherApp {
                     let _ = tx.send(a);
                     ctx.request_repaint();
                 });
-                self.bench.results.steady_job = Some((self.bench.take.rev, rx));
+                self.bench.results.steady_job = Some(results::SteadyJob {
+                    rev: self.bench.take.rev,
+                    rx,
+                });
             }
         }
         dur

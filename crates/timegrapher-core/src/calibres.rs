@@ -145,6 +145,10 @@ pub struct Years {
     /// The source gives the years as approximate ("about 1970").
     #[serde(default)]
     pub approx: bool,
+    /// The source says the calibre is still made; only with `from` and
+    /// never with `to` (Hugh on #1861).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub current: bool,
     pub source: String,
 }
 
@@ -653,7 +657,7 @@ mod tests {
             ("Rolex 3255 (53°)", Some(53.0)),
             ("VR3235", Some(52.0)),
             ("VR3285", None),
-            ("DD3135", None),
+            ("DD3135", Some(52.0)),
             ("DD324", Some(52.0)),
         ] {
             let c = find(name).unwrap();
@@ -1112,7 +1116,24 @@ mod tests {
                 .iter()
                 .any(|s| s.contains("31xx-train-wheel-counts.md")));
         }
-        assert_eq!(find("DD3135").unwrap().lift_angle_deg, None);
+        // #2299: this project's bench report gives the DD31xx the genuine
+        // 3135's 52° lift; every DD31xx row and alias carries it and cites it.
+        for name in [
+            "Dandong 3135",
+            "Dandong 3130",
+            "Dandong 3186",
+            "Dandong 3187",
+        ] {
+            let c = find(name).unwrap();
+            assert_eq!(c.lift_angle_deg, Some(52.0), "{name}");
+            assert!(
+                c.sources.iter().any(|s| s.contains("issues/2299")),
+                "{name}"
+            );
+            for alias in &c.family {
+                assert_eq!(find(alias).unwrap().lift_angle_deg, Some(52.0), "{alias}");
+            }
+        }
         assert_eq!(find("Rolex 3135").unwrap().lift_angle_deg, Some(52.0));
         assert_eq!(find("VR3135").unwrap().lift_angle_deg, Some(52.0));
         // A shared number/family must not assign these measurements to SH,
@@ -1625,5 +1646,38 @@ mod tests {
         assert!(search("rolex 32").iter().all(|c| c.maker == "Rolex"));
         assert_eq!(search("").len(), all().len());
         assert!(search("no such calibre").is_empty());
+    }
+
+    /// The calibre pages credit this project, not a person, for its own
+    /// counts and rulings (#2294 item 9). The names live only here: no
+    /// row's text (sources, notes, wheel basis, summary, issues, related)
+    /// may name the owner, and no pronoun stands in for a removed name
+    /// (Norm, #2296). Whole words only, so the repository address
+    /// `github.com/peterhudson/...` still passes.
+    #[test]
+    fn no_row_names_the_owner_as_a_person() {
+        const NAMES: [&str; 6] = ["peter", "hudson", "he", "his", "him", "himself"];
+        fn texts<'a>(v: &'a serde_json::Value, out: &mut Vec<&'a str>) {
+            match v {
+                serde_json::Value::String(s) => out.push(s),
+                serde_json::Value::Array(a) => a.iter().for_each(|x| texts(x, out)),
+                serde_json::Value::Object(o) => o.values().for_each(|x| texts(x, out)),
+                _ => {}
+            }
+        }
+        let rows: Vec<serde_json::Value> = serde_json::from_str(DATA).unwrap();
+        let mut named = Vec::new();
+        for row in &rows {
+            let mut out = Vec::new();
+            texts(row, &mut out);
+            let hit = out.iter().any(|s| {
+                s.split(|c: char| !c.is_alphanumeric())
+                    .any(|w| NAMES.contains(&w.to_lowercase().as_str()))
+            });
+            if hit {
+                named.push(row["calibre"].as_str().unwrap_or_default().to_owned());
+            }
+        }
+        assert!(named.is_empty(), "{} rows: {named:?}", named.len());
     }
 }

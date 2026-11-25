@@ -1,10 +1,10 @@
 # VR32xx train-wheel counts
 
-Peter Hudson supplied four microscope photographs from a VR32xx movement
+This project supplied four microscope photographs from a VR32xx movement
 on 2026-10-19. The counted wheels give a **540-second third wheel** and a
 **18,000-second (5-hour) barrel**. The accepted escape-pair specification is **20 teeth
 and 10 pinion leaves**, giving a **5-second rotation**, as confirmed for
-database use by Peter. No VR escape-wheel photograph was supplied.
+database use by the project. No VR escape-wheel photograph was supplied.
 
 ## Counts and periods
 
@@ -22,7 +22,7 @@ the listed period.
 
 ## Corrected photograph identities
 
-Peter confirmed that the third- and fourth-wheel file labels were swapped:
+The project confirmed that the third- and fourth-wheel file labels were swapped:
 
 | Supplied filename | Confirmed role | Preserved asset filename |
 | --- | --- | --- |
@@ -73,7 +73,7 @@ escape tooth count and p its pinion leaves, the constraints imply
 `E/4 = p/2`, or **E = 2p**. Other integer pairs could satisfy that equation.
 The 20/10 choice additionally uses the contributor's visual recollection
 that the escape wheel resembles a 31xx or 32xx, the matching counted
-comparison pairs, and his explicit instruction to treat 20/10 as the standard VR32xx
+comparison pairs, and the project's explicit instruction to treat 20/10 as the standard VR32xx
 specification. The database uses this accepted pair without a provisional
 label. Its provenance remains comparison-based: no VR escape-wheel
 photograph was supplied, and it is not represented as a direct count.
@@ -113,7 +113,7 @@ detector. All seven final figures were visually inspected.
 Coordinates refer to a 1824 × 1368 rendition before cropping or adding
 the title band. Pinion images are enlarged crops; no tooth geometry is
 reconstructed. Original filenames are corrected only in copied asset
-names and labels, never by modifying Peter's source files.
+names and labels, never by modifying the project's source files.
 
 ![barrel 100 teeth](https://raw.githubusercontent.com/peterhudson/timegrapher-corpus/main/research/train-wheels/vr32xx/barrel-100-teeth.png)
 

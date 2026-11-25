@@ -376,8 +376,9 @@ jobs:
           # published.
           # The notes for testers and users come from
           # packaging/release-notes/X.Y.Z.md when there is one; otherwise
-          # they list every change on main since the newest published
-          # release (drafts are skipped): merge commits and squash merges
+          # they list every change on main since the newest published app
+          # release (drafts, and pre-releases such as calibre-data, are
+          # skipped): merge commits and squash merges
           # alike (#1655). Either way they end with the commit built and
           # each platform's compiler and runner image. Links point at the
           # commit built, not main, so they still say what this release says.
@@ -388,7 +389,7 @@ jobs:
           else
             echo "Downloads and first-launch steps for each platform: [docs/reference/install.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/docs/reference/install.md)." > "$body"
             read -r prev_name prev_tag < <(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
-              --jq '.[] | select(.draft | not) | "\(.name | gsub(" "; "_")) \(.tag_name)"' | head -n 1 || true) || true
+              --jq '.[] | select((.draft or .prerelease) | not) | "\(.name | gsub(" "; "_")) \(.tag_name)"' | head -n 1 || true) || true
             # The release's tag names its commit; target_commitish can be a
             # branch name.
             prev_sha="$(git rev-parse --verify --quiet "refs/tags/${prev_tag:-none}^{commit}" || true)"

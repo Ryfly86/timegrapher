@@ -100,11 +100,13 @@ pub struct Summary {
     /// The sound card's clock error from the USB lines in the recording,
     /// when it has them. Rates above stay on the card's clock, as tg reads
     /// them; [`Summary::rate_corrected_s_per_day`] is the corrected rate.
+    /// A reading that doesn't apply ([`UsbClock::applies`]) is kept here
+    /// with its `withheld` reason, corrects nothing, and is a caveat.
     pub usb_clock: Option<UsbClock>,
     /// The whole-recording rate on the card's clock, as tg reads it: the
     /// same figure as `overall`'s, given here beside the corrected one, s/d.
     pub rate_s_per_day: Option<f64>,
-    /// Rate corrected onto true time with `usb_clock`, s/d.
+    /// Rate corrected onto true time with `usb_clock`, when it applies, s/d.
     pub rate_corrected_s_per_day: Option<f64>,
     /// Conditions detected, as flags; each set one is also a caveat.
     pub doubts: Doubts,
@@ -410,7 +412,7 @@ fn analyze_read(
         clipping: heard.clipping,
         usb_clock: heard.usb_clock,
         rate_s_per_day: fits.overall.map(|f| f.rate_s_per_day),
-        rate_corrected_s_per_day: heard.usb_clock.and_then(|c| {
+        rate_corrected_s_per_day: heard.usb_clock.and_then(UsbClock::applied).and_then(|c| {
             fits.overall
                 .map(|f| crate::clockstore::correct_rate(f.rate_s_per_day, c.ppm))
         }),
@@ -506,7 +508,7 @@ fn assess_take(
         no_watch_reason: heard.no_watch.unwrap_or_default(),
         bph_heard: (bph != guessed).then_some(guessed),
         lift_known: cfg.lift_known,
-        clock_known: heard.usb_clock.is_some(),
+        clock_known: heard.usb_clock.and_then(UsbClock::applied).is_some(),
         beats: beats.len(),
         expected: heard.expected,
         clipped_fraction: heard.clipping.beat_fraction,
@@ -526,6 +528,12 @@ fn assess_take(
         crate::measure::add(
             &mut assessment.caveats,
             crate::measure::Caveat::LeadLeftOut { seconds },
+        );
+    }
+    if let Some(c) = heard.usb_clock.filter(|c| !c.applies()) {
+        crate::measure::add(
+            &mut assessment.caveats,
+            crate::measure::Caveat::UsbLinesNotUsed { ppm: c.ppm },
         );
     }
     assessment

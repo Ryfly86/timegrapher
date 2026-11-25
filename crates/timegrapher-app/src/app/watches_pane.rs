@@ -513,8 +513,9 @@ impl TimegrapherApp {
         }
     }
 
-    /// The recording opened, a lone file or a take, when it is outside
-    /// the library and the library can take it.
+    /// The recording opened, a lone file or a take, when the library can
+    /// take it: outside the library by core's one import-path guard
+    /// ([`library::not_already_in`], links followed).
     pub(super) fn addable_take(&self) -> Option<PathBuf> {
         if self.bench.recording.input != Input::File || self.bench.keeping.opened_path.is_empty() {
             return None;
@@ -526,7 +527,7 @@ impl TimegrapherApp {
             Ok(None) => self.library_root()?,
             _ => return None,
         };
-        (!p.starts_with(root)).then_some(p)
+        library::not_already_in(&p, &root).is_ok().then_some(p)
     }
 
     /// Keep what is on show in the watch `id`: the unsaved Quick Listen
@@ -536,10 +537,7 @@ impl TimegrapherApp {
     pub(super) fn keep_into(&mut self, id: &str) {
         if let Some(from) = self.addable_take() {
             // The pane shows the watch it goes into, until a Cancel.
-            self.bench.keeping.keep_back = Some((
-                self.watches_view.watch_open.clone(),
-                self.watches_view.unsorted_open,
-            ));
+            self.bench.keeping.keep_back = Some(self.watches_view.picked());
             self.watches_view.watch_open = Some(id.to_string());
             self.watches_view.unsorted_open = false;
             // A take folder with its session file goes in whole, copied
@@ -552,9 +550,7 @@ impl TimegrapherApp {
             // One part of a take of several opened alone goes in alone,
             // with what is on show.
             let one_of_several = from.is_file() && recordings_in(&dir).is_ok_and(|r| r.len() > 1);
-            if !one_of_several
-                && (dir.join(MANIFEST).is_file() || dir.join("session.json").is_file())
-            {
+            if !one_of_several && library::is_take_folder(&dir) {
                 self.watches_view.take_ask = Some(watches::Ask::Add {
                     from: dir,
                     watch: Some(id.to_string()),
@@ -721,9 +717,8 @@ impl TimegrapherApp {
     /// Keep in a Watch…'s question cancelled: the watch picked before it
     /// is picked again.
     pub(super) fn keep_cancelled(&mut self) {
-        if let Some((watch, unsorted)) = self.bench.keeping.keep_back.take() {
-            self.watches_view.watch_open = watch;
-            self.watches_view.unsorted_open = unsorted;
+        if let Some(p) = self.bench.keeping.keep_back.take() {
+            self.watches_view.pick_again(p);
         }
     }
 
@@ -969,9 +964,10 @@ impl TimegrapherApp {
 
     /// Whether the pane shows the list over what is picked.
     pub(super) fn list_shown(&self) -> bool {
-        self.watches_view.list_for.as_ref().is_some_and(|(w, u)| {
-            *w == self.watches_view.watch_open && *u == self.watches_view.unsorted_open
-        })
+        self.watches_view
+            .list_for
+            .as_ref()
+            .is_some_and(|p| self.watches_view.is_picked(p))
     }
 
     /// Whether picking `what` is refused, while listening: the readings
@@ -1116,7 +1112,7 @@ impl TimegrapherApp {
                 false,
                 None,
             ) {
-                self.watches_view.list_for = Some((None, true));
+                self.watches_view.list_for = Some(watches_view::Picked::UNSORTED);
             }
             return true;
         } else if self.open_watch().is_some() {
@@ -1130,7 +1126,10 @@ impl TimegrapherApp {
                 false,
                 None,
             ) {
-                self.watches_view.list_for = Some((self.watches_view.watch_open.clone(), false));
+                self.watches_view.list_for = Some(watches_view::Picked {
+                    watch: self.watches_view.watch_open.clone(),
+                    unsorted: false,
+                });
             }
             return true;
         }
@@ -1307,6 +1306,17 @@ impl TimegrapherApp {
         self.session.saved_to().map(Path::to_path_buf)
     }
 
+    /// The takes the Bench has in use, whose files nothing else may
+    /// rewrite under it: the take on show ([`Self::take_on_show`]) and the
+    /// one its session saves into ([`Self::take_held`]), recording or
+    /// stopped, as Save Again writes there from memory (#1988).
+    pub(super) fn takes_in_use(&self) -> Vec<PathBuf> {
+        self.take_on_show()
+            .into_iter()
+            .chain(self.take_held())
+            .collect()
+    }
+
     /// The take the Bench is recording into now: the one it saved into,
     /// while the microphone runs. Stopped (paused), or a recording opened,
     /// it is none (Trevor on #2032).
@@ -1388,7 +1398,7 @@ impl TimegrapherApp {
         self.watches_view.watch_open = None;
         self.watches_view.unsorted_open = true;
         // The Watches view shows the list, Unsorted Takes marked.
-        self.watches_view.list_for = Some((None, true));
+        self.watches_view.list_for = Some(watches_view::Picked::UNSORTED);
         self.bench.recording.quick_listen = true;
         self.bench.recording.input = Input::Microphone;
         self.bench.take.watch.clear();

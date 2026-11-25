@@ -530,6 +530,52 @@ fn direct_devices<'a>(alsa: &[&'a InputDevice]) -> Vec<&'a InputDevice> {
     out.into_iter().map(|(d, _)| d).collect()
 }
 
+/// How [`find`]'s error starts when there is no default input to open.
+const NO_DEFAULT_INPUT: &str = "no default sound input";
+
+/// How [`find`]'s error starts when no input matches the name asked for.
+const NO_MATCHING_INPUT: &str = "no sound input matches";
+
+/// cpal's `DeviceNotAvailable` error, as its `Display` words it: the
+/// input asked for is not there (on a computer with no sound card, #2103).
+const CPAL_DEVICE_NOT_AVAILABLE: &str = "audio device is not available";
+
+/// cpal's error for an input unplugged while open, which
+/// [`explain_error`] also reads as a missing input.
+const CPAL_DEVICE_UNPLUGGED: &str = "no longer available";
+
+/// The words that mark an error as there being no sound input to open:
+/// [`find`]'s two errors, built from the same constants, and cpal's for
+/// an input that is not there or was unplugged. A busy input is not
+/// among them: it is there, only held by another program.
+const NO_INPUT_PHRASES: [&str; 4] = [
+    CPAL_DEVICE_NOT_AVAILABLE,
+    NO_DEFAULT_INPUT,
+    NO_MATCHING_INPUT,
+    CPAL_DEVICE_UNPLUGGED,
+];
+
+/// [`find`]'s error when there is no default input.
+#[cfg(any(test, feature = "capture"))]
+fn no_default_input_error() -> String {
+    format!("{NO_DEFAULT_INPUT}; name one (see the list of devices)")
+}
+
+/// [`find`]'s error when no input matches `query`.
+#[cfg(any(test, feature = "capture"))]
+fn no_matching_input_error(query: &str) -> String {
+    format!("{NO_MATCHING_INPUT} '{query}'")
+}
+
+/// Whether an error from opening or finding an input, `error`, says there
+/// was no sound input to open, so that a surface can point at the list of
+/// inputs (#2103). The phrases are core's own and cpal's, kept here beside
+/// the messages they match so that rewording one cannot silently stop it.
+pub fn no_input(error: &str) -> bool {
+    let lower = error.to_lowercase();
+    NO_INPUT_PHRASES.iter().any(|p| lower.contains(p))
+}
+
 /// A plainer account of an error from opening or reading an input.
 pub fn explain_error(e: &str) -> String {
     let l = e.to_lowercase();
@@ -653,7 +699,7 @@ mod device {
         let Some(q) = query else {
             let d = host
                 .default_input_device()
-                .ok_or("no default sound input; name one (see the list of devices)")?;
+                .ok_or_else(super::no_default_input_error)?;
             let info = describe(&d, def.as_deref());
             return Ok((d, info));
         };
@@ -668,7 +714,7 @@ mod device {
         }
         match hits.len() {
             1 => Ok(hits.pop().expect("one hit")),
-            0 => Err(format!("no sound input matches '{q}'")),
+            0 => Err(super::no_matching_input_error(q)),
             _ => Err(format!(
                 "'{q}' matches several inputs: {}; give the whole id",
                 hits.iter()
@@ -1371,6 +1417,30 @@ mod tests {
         assert!(explain_error("A buffer underrun or overrun occurred.")
             .starts_with("The computer fell behind reading this input"));
         assert_eq!(explain_error("something else"), "something else");
+    }
+
+    /// `no_input` counts core's own two errors as `find` builds them, and
+    /// cpal's for an input not there or unplugged; a busy input, or any
+    /// other error, is not counted (#2103).
+    #[test]
+    fn no_input_counts_a_missing_input_only() {
+        for missing in [
+            no_default_input_error(),
+            no_matching_input_error("Scarlett"),
+            "The requested audio device is not available. It may have been disconnected."
+                .to_string(),
+            "The requested device is no longer available. For example, it has been unplugged."
+                .to_string(),
+        ] {
+            assert!(no_input(&missing), "{missing}");
+        }
+        for other in [
+            "The device is busy: another program is using it.",
+            "'USB' matches several inputs: a, b; give the whole id",
+            "A buffer underrun or overrun occurred.",
+        ] {
+            assert!(!no_input(other), "{other}");
+        }
     }
 
     #[test]

@@ -855,12 +855,12 @@ fn quick_listen_keeps_its_take_in_unsorted_until_filed() {
     assert_eq!(app.session.saved_to(), None);
 
     // Unsorted Takes shows its takes at once, not a list left over.
-    app.watches_view.list_for = Some((None, true));
+    app.watches_view.list_for = Some(watches_view::Picked::UNSORTED);
     app.pick_unsorted();
     assert!(!app.list_shown());
 
     // Picking a watch ends Quick Listen: Save… saves into the watch.
-    app.watches_view.list_for = Some((None, true));
+    app.watches_view.list_for = Some(watches_view::Picked::UNSORTED);
     app.pick_watch(&pepsi);
     assert!(!app.bench.recording.quick_listen && !app.watches_view.unsorted_open);
     assert!(app.watches_view.list_for.is_none());
@@ -2076,6 +2076,32 @@ fn the_take_on_show_keeps_its_wavs_for_another_time() {
     assert!(!take.join("audio-001.flac").exists());
     // Closed, the next start keeps it.
     app.session.set_state(session::State::Idle);
+    app.keep_saved_wavs();
+    wav_keep_ends(&mut app);
+    assert!(take.join("audio-001.flac").is_file());
+    drop(app);
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// The take the session saves into is left alone too, recording or
+/// stopped: Save Again writes its session file from memory, naming the
+/// WAV, so its hours are never converted under it (#1988).
+#[test]
+fn the_take_saved_into_keeps_its_wavs_for_another_time() {
+    let (base, root, take, _) = wav_library("held");
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.use_library(Some(root.clone()));
+    let metadata = app.session.metadata_snapshot(app.save_metadata());
+    app.session.mark_saved(5.0, take.clone(), metadata);
+    assert_eq!(app.take_on_show(), None);
+    app.keep_saved_wavs();
+    assert!(app.bench.keeping.wav_keep.is_some(), "one take to keep");
+    wav_keep_ends(&mut app);
+    assert!(take.join("audio-001.wav").is_file());
+    assert!(!take.join("audio-001.flac").exists());
+    assert!(app.message.is_none(), "{:?}", app.message);
+    // Let go of, the next start keeps it.
+    app.new_session();
     app.keep_saved_wavs();
     wav_keep_ends(&mut app);
     assert!(take.join("audio-001.flac").is_file());

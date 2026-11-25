@@ -244,10 +244,7 @@ impl TimegrapherApp {
     pub(super) fn find_in_watches(&mut self) {
         self.watches_view.view = View::Watches;
         if !self.list_shown() {
-            self.watches_view.list_for = Some((
-                self.watches_view.watch_open.clone(),
-                self.watches_view.unsorted_open,
-            ));
+            self.watches_view.list_for = Some(self.watches_view.picked());
         }
         self.watches_view.watch_search_focus = true;
     }
@@ -471,8 +468,7 @@ impl TimegrapherApp {
         let Ok(Some(l)) = &self.library else {
             return None;
         };
-        let canon = |p: &Path| std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf());
-        if l.read_only.is_some() || canon(path).starts_with(canon(&l.root)) {
+        if l.read_only.is_some() || library::not_already_in(path, &l.root).is_err() {
             return None;
         }
         let inner = take_folder(path).ok()?;

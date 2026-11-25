@@ -229,8 +229,10 @@ For each series:
   FFT and the period search fill each gap with the mean). It is the
   generalised periodogram (Zechmeister and Kürster, 2009), with a
   floating mean and each reading weighted by the scatter of the readings
-  around it (from one reading to the next, the 30 either side in the
-  same stretch), so a noisy stretch counts for less; the power is the
+  around it (the steps from one reading to the next, the 30 either side
+  in the same stretch, by their robust spread about their own median, so
+  a steady drift is not counted as scatter), so a noisy stretch counts
+  for less; the power is the
   share of the weighted variance a sine at that period explains. The
   readings are the tests' (10 s), with the slow change taken off as the
   period search takes it off, from four readings' period to a third of

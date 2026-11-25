@@ -502,3 +502,57 @@ fn a_wrong_set_beat_rate_is_flagged() {
     };
     assert_eq!(analyze(&audio, &right).summary.bph_heard, None);
 }
+
+/// A stand-in for #2292's take, the reporter's microphone plugged straight
+/// into the computer (#2283): USB lines reading the card 9.3 ppm fast
+/// apply, and the corrected rate is the raw one put on their clock, as
+/// `clockstore::correct_rate` puts it, exactly; the rate moves by +0.8 s/d
+/// and says so in Hugh's words.
+#[test]
+fn usb_lines_a_card_can_give_correct_the_rate() {
+    use timegrapher_core::usbclock::{LiveClock, UsbClock};
+    let cfg = SynthConfig {
+        bph: 28800,
+        rate_s_per_day: 4.3,
+        duration_s: 60.0,
+        ..Default::default()
+    };
+    let mut audio = generate(&cfg, |_| 270.0, |_| 0.0);
+    // A card 9.3 ppm fast counts more samples per true second, so the
+    // bus's true 3 to 10 kHz lines land 9.3 ppm low on its clock.
+    let fs = f64::from(audio.sample_rate);
+    for k in 3..=10 {
+        let f = 1000.0 * f64::from(k) * (1.0 - 9.3e-6);
+        for (i, v) in audio.samples.iter_mut().enumerate() {
+            *v += (0.001 * (2.0 * std::f64::consts::PI * f * i as f64 / fs).sin()) as f32;
+        }
+    }
+    let s = analyze(&audio, &AnalysisConfig::default()).summary;
+    let usb: UsbClock = s.usb_clock.expect("the lines read");
+    assert!((usb.ppm - 9.3).abs() < 0.05, "{usb:?}");
+    assert!(usb.applies() && usb.withheld().is_none());
+    let raw = s.rate_s_per_day.expect("a rate");
+    assert_eq!(
+        s.rate_corrected_s_per_day,
+        Some(timegrapher_core::clockstore::correct_rate(raw, usb.ppm))
+    );
+    let shift = timegrapher_core::clock::rate_error_s_per_day(usb.ppm);
+    assert!((s.rate_corrected_s_per_day.unwrap() - (raw - shift)).abs() < 1e-3);
+    assert_eq!(
+        timegrapher_core::analyze_doc::usb_clock(&s),
+        Some(usb.correction())
+    );
+    assert!(!s.doubts.clock_unknown);
+    assert!(!s
+        .caveats
+        .iter()
+        .any(|c| matches!(c, timegrapher_core::measure::Caveat::UsbLinesNotUsed { .. })));
+    let live = LiveClock::Measured {
+        clock: usb,
+        over_s: 60.0,
+    };
+    assert_eq!(
+        live.read_note(None).as_deref(),
+        Some("USB lines corrected the clock (card +9 ppm), moving the rate by +0.8 s/d")
+    );
+}

@@ -93,6 +93,42 @@ impl Policy {
     }
 }
 
+/// How the command line starts the error it ends with (`main` in
+/// `timegrapher-cli`: `eprintln!("error: {e}")`).
+const ERROR_PREFIX: &str = "error: ";
+
+/// The one hint a failure for want of a sound input carries (#2103).
+pub const NO_INPUT_HINT: &str =
+    "Plug in a microphone, or call list_sound_inputs to see the inputs.";
+
+/// What the command line said of its failure: from its first `error:` line
+/// to the end, without what came before it on stderr, such as the sound
+/// library's own lines (24 of ALSA's on a computer with no sound card,
+/// #2103), progress and warnings. All of it when no line starts `error:`,
+/// as when it crashed.
+pub fn said(stderr: &str) -> &str {
+    let mut at = 0;
+    for line in stderr.split_inclusive('\n') {
+        if line.starts_with(ERROR_PREFIX) {
+            return &stderr[at..];
+        }
+        at += line.len();
+    }
+    stderr
+}
+
+/// The tool's words for a failed run's stderr: what the command line said
+/// of its failure ([`said`]), and [`NO_INPUT_HINT`] where it is that no
+/// sound input was there.
+pub fn failure_text(stderr: &str) -> String {
+    let said = said(stderr);
+    if timegrapher_core::capture::no_input(said) {
+        format!("{said}\n{NO_INPUT_HINT}")
+    } else {
+        said.to_string()
+    }
+}
+
 pub fn deadline(budget: std::time::Duration) -> Result<tokio::time::Instant, String> {
     tokio::time::Instant::now()
         .checked_add(budget)
@@ -215,6 +251,70 @@ impl Scope<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// What stderr looked like for `check_microphone` on a computer with no
+    /// sound card (#2103): ALSA's lines, then the command line's error.
+    fn no_sound_card() -> String {
+        let mut lines: Vec<String> = (0..24)
+            .map(|i| {
+                format!(
+                    "ALSA lib confmisc.c:{}:(parse_card) cannot find card '0'",
+                    855 + i
+                )
+            })
+            .collect();
+        lines.push(
+            "error: The requested audio device is not available. It may have been \
+             disconnected."
+                .into(),
+        );
+        lines.join("\n")
+    }
+
+    /// A failure for want of a microphone says the command line's error
+    /// and the hint, and none of ALSA's lines (#2103).
+    #[test]
+    fn a_missing_microphone_says_its_error_and_the_hint_only() {
+        let text = failure_text(&no_sound_card());
+        assert_eq!(
+            text,
+            format!(
+                "error: The requested audio device is not available. It may have been \
+                 disconnected.\n{NO_INPUT_HINT}"
+            )
+        );
+        assert!(!text.contains("ALSA"), "{text}");
+        assert!(NO_INPUT_HINT.contains("list_sound_inputs"));
+    }
+
+    /// Core `capture::find`'s two errors, as the command line prints
+    /// them, each carry the hint: no default input, and a name no input
+    /// matches (#2103).
+    #[test]
+    fn core_capture_find_errors_carry_the_hint() {
+        for said in [
+            "error: no default sound input; name one (see the list of devices)",
+            "error: no sound input matches 'Scarlett'",
+        ] {
+            assert_eq!(failure_text(said), format!("{said}\n{NO_INPUT_HINT}"));
+        }
+    }
+
+    /// Any other failure keeps its error lines, a message over several
+    /// lines whole, without the hint; a crash with no `error:` line keeps
+    /// all it said.
+    #[test]
+    fn other_failures_keep_their_error_lines() {
+        let stderr = "analysing . (CH)\nwarning: short\nerror: There are no WAV or FLAC \
+                      files in /x\n  (the folder is empty)";
+        assert_eq!(
+            failure_text(stderr),
+            "error: There are no WAV or FLAC files in /x\n  (the folder is empty)"
+        );
+        let crash = "thread 'main' panicked at src/main.rs:1:1:\nboom";
+        assert_eq!(failure_text(crash), crash);
+    }
+
     fn defaults() -> Policy {
         Policy::parse(|_| Ok(None)).unwrap()
     }

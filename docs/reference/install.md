@@ -245,3 +245,16 @@ downloaded and no hardware is opened. `packaging/test_artifact_smoke.py` tests t
 smoke script's failure handling with offline process doubles in normal CI;
 actual extracted binaries are exercised by the nonpublishing release PR builds
 and release-capable builds.
+
+### The calibre-data release
+
+The **Calibre data** pre-release is not an app release. After each push to
+main that touches core, the CLI or the Cargo files,
+[.github/workflows/calibre-data.yml](../../.github/workflows/calibre-data.yml)
+runs the calibre export. When the export differs from the published one
+(build details aside), it replaces the release's one file,
+`calibres-export.json.gz`, and moves its `calibre-data` tag to that commit,
+for opentimegrapher.org's calibre pages. Leave it a pre-release and never mark it latest: the
+app's update check reads the latest release, and the workflow fails if that
+stops being a `v*` release. The app release notes skip it when they list
+what merged since the last release.

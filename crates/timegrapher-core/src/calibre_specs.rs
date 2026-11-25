@@ -6,8 +6,8 @@
 //! millimetres (lignes are nominal), and a power reserve range stays a
 //! range. A field the row lacks drops out with its separator, and a
 //! function the row doesn't list is never named as absent. This is the
-//! one formatter: the app's Calibres pane and `calibres export --json`
-//! for opentimegrapher.org both call it.
+//! one formatter: `calibres export --json` for opentimegrapher.org calls
+//! it, and the app's Calibres pane is to call it when it shows these lines.
 
 use crate::calibres::{Calibre, Years};
 use serde::{Deserialize, Serialize};
@@ -71,6 +71,25 @@ pub const SPECS_SEPARATOR: &str = " · ";
 pub struct SpecPart {
     pub text: String,
     pub hover: String,
+    /// The source's number in a page's numbered Sources, for a
+    /// superscript where there is no hover (`calibre_page`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<usize>,
+    /// The source as the row writes it.
+    #[serde(skip)]
+    pub cites: String,
+}
+
+impl SpecPart {
+    /// `text`, with "{label}: from {source}" in its hover.
+    pub fn new(text: String, label: &str, source: &str) -> Self {
+        SpecPart {
+            text,
+            hover: hover(label, source),
+            source: None,
+            cites: source.to_string(),
+        }
+    }
 }
 
 fn hover(label: &str, source: &str) -> String {
@@ -102,31 +121,27 @@ fn reserve_text(p: &PowerReserve) -> Option<String> {
 pub fn spec_parts(c: &Calibre) -> Vec<SpecPart> {
     let mut parts = Vec::new();
     if let Some(j) = &c.jewels {
-        parts.push(SpecPart {
-            text: format!("{} jewels", j.value),
-            hover: hover("Jewels", &j.source),
-        });
+        parts.push(SpecPart::new(
+            format!("{} jewels", j.value),
+            "Jewels",
+            &j.source,
+        ));
     }
     if let Some(d) = &c.diameter {
         if let Some(text) = diameter_text(d) {
-            parts.push(SpecPart {
-                text,
-                hover: hover("Diameter", &d.source),
-            });
+            parts.push(SpecPart::new(text, "Diameter", &d.source));
         }
     }
     if let Some(h) = &c.height_mm {
-        parts.push(SpecPart {
-            text: format!("{} mm high", h.value),
-            hover: hover("Height", &h.source),
-        });
+        parts.push(SpecPart::new(
+            format!("{} mm high", h.value),
+            "Height",
+            &h.source,
+        ));
     }
     if let Some(p) = &c.power_reserve_h {
         if let Some(text) = reserve_text(p) {
-            parts.push(SpecPart {
-                text,
-                hover: hover("Power reserve", &p.source),
-            });
+            parts.push(SpecPart::new(text, "Power reserve", &p.source));
         }
     }
     parts
@@ -158,23 +173,34 @@ pub fn functions_line(c: &Calibre) -> Option<SpecPart> {
     let line = names.join(", ");
     let mut chars = line.chars();
     let first = chars.next()?;
-    Some(SpecPart {
-        text: first.to_uppercase().chain(chars).collect(),
-        hover: hover("Functions", &f.source),
-    })
+    Some(SpecPart::new(
+        first.to_uppercase().chain(chars).collect(),
+        "Functions",
+        &f.source,
+    ))
 }
 
-/// The "Made" line: "Made 1971 to 1985", "Made from 1982", "Made until
-/// 1985", and with approximate years "Made from about 1970" or "Made
-/// about 1971 to 1985" (one "about", at the front).
+/// The "Made" line: "Made 1971 to 1985", "Made until 1985", "First made
+/// 1982" where only the start is known, "Made since 1982" where the
+/// source says it is still made (`current`), and with approximate years
+/// "First made about 1970" or "Made about 1971 to 1985" (one "about", at
+/// the front; Hugh on #1861).
 pub fn made_line(y: &Years) -> Option<String> {
     let about = if y.approx { "about " } else { "" };
     match (y.from, y.to) {
         (Some(a), Some(b)) => Some(format!("Made {about}{a} to {b}")),
-        (Some(a), None) => Some(format!("Made from {about}{a}")),
+        (Some(a), None) if y.current => Some(format!("Made since {about}{a}")),
+        (Some(a), None) => Some(format!("First made {about}{a}")),
         (None, Some(b)) => Some(format!("Made until {about}{b}")),
         (None, None) => None,
     }
+}
+
+/// The "Made" line with its source in the hover, or `None` when the row
+/// gives no years.
+pub fn made_part(c: &Calibre) -> Option<SpecPart> {
+    let y = c.years.as_ref()?;
+    Some(SpecPart::new(made_line(y)?, "Made", &y.source))
 }
 
 /// `s` as a positive number written with at most `places` decimals, or
@@ -197,11 +223,16 @@ const MM_PLACES: usize = 2;
 const HOUR_PLACES: usize = 1;
 
 /// Why the row's spec fields break the rules, or `None` when they keep
-/// them: every field has a source starting with its address, a diameter
+/// them: years still made (`current`) have a start and no end, every field has a source starting with its address, a diameter
 /// states mm or lignes (never an empty lignes), diameter and height mm
 /// carry at most two decimals and hours at most one, a power reserve is
 /// one figure or a range, and functions come from [`FUNCTIONS`].
 pub fn spec_fault(c: &Calibre) -> Option<String> {
+    if let Some(y) = &c.years {
+        if y.current && (y.to.is_some() || y.from.is_none()) {
+            return Some("years says still made but gives no start or gives an end".into());
+        }
+    }
     let mut sources = Vec::new();
     let number = |what: &str, v: &str| {
         stated_number(v, MM_PLACES)
@@ -343,9 +374,17 @@ mod tests {
             made_line(&c.years.expect("years")).expect("made line")
         };
         assert_eq!(y(r#""from": 1971, "to": 1985"#), "Made 1971 to 1985");
-        assert_eq!(y(r#""from": 1982"#), "Made from 1982");
+        assert_eq!(y(r#""from": 1982"#), "First made 1982");
+        assert_eq!(y(r#""from": 1982, "current": true"#), "Made since 1982");
+        assert_eq!(
+            y(r#""from": 1982, "current": true, "approx": true"#),
+            "Made since about 1982"
+        );
         assert_eq!(y(r#""to": 1985"#), "Made until 1985");
-        assert_eq!(y(r#""from": 1970, "approx": true"#), "Made from about 1970");
+        assert_eq!(
+            y(r#""from": 1970, "approx": true"#),
+            "First made about 1970"
+        );
         assert_eq!(
             y(r#""from": 1971, "to": 1985, "approx": true"#),
             "Made about 1971 to 1985"
@@ -373,6 +412,8 @@ mod tests {
             r#", "diameter": {"mm": "25.60", "lignes": "", "source": "https://x"}"#,
             r#", "power_reserve_h": {"from": "38", "to": "40", "approx": true, "source": "https://x"}"#,
             r#", "functions": {"value": ["no hacking"], "source": "https://x"}"#,
+            r#", "years": {"from": 1982, "to": 1990, "current": true, "source": "https://x"}"#,
+            r#", "years": {"current": true, "source": "https://x"}"#,
         ] {
             assert!(spec_fault(&row(extra)).is_some(), "{extra}");
         }

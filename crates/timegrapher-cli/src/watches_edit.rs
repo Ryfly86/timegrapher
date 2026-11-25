@@ -28,6 +28,7 @@ pub enum Change {
     /// that is missing or empty, as in the app. A calibre from the table gives the lift angle and
     /// beat rate it has, as in the app.
     New {
+        /// The watch's name.
         name: String,
         #[command(flatten)]
         details: Details,
@@ -35,6 +36,7 @@ pub enum Change {
     /// Change a watch's details (found by its name, ignoring case). Only
     /// what is given changes; its folder keeps its name.
     Edit {
+        /// The watch to change, by its name.
         name: String,
         /// A new name for the watch.
         #[arg(long)]
@@ -62,6 +64,7 @@ pub enum Change {
     /// Move a take of the library (its folder, as `watches show` gives it)
     /// to another watch; a take in Unsorted is filed under the watch so.
     MoveTake {
+        /// The take's folder, as `watches show` gives it.
         take: PathBuf,
         /// The watch it goes to, by its name.
         #[arg(long)]
@@ -70,23 +73,30 @@ pub enum Change {
     /// Read a take's sound once more, keep its analysis, check it reads
     /// back, and only then delete the sound, keeping every other file in
     /// the take. Takes about as long as reading the take twice.
-    KeepAnalysisOnly { take: PathBuf },
+    KeepAnalysisOnly {
+        /// The take's folder, as `watches show` gives it.
+        take: PathBuf,
+    },
     /// Delete a take of the library and everything in it. It can't be
     /// undone, so --yes is required.
     DeleteTake {
+        /// The take's folder, as `watches show` gives it.
         take: PathBuf,
         #[arg(long)]
         yes: bool,
     },
     /// Copy photos (JPEG, PNG, HEIC or TIFF) into a watch's photos.
     AddPhotos {
+        /// The watch, by its name.
         watch: String,
+        /// The photos to copy.
         #[arg(required = true)]
         files: Vec<PathBuf>,
     },
     /// Delete one of a watch's photos (its file, as in the watch's
     /// photos folder). It can't be undone, so --yes is required.
     DeletePhoto {
+        /// The photo's file, as in the watch's photos folder.
         photo: PathBuf,
         #[arg(long)]
         yes: bool,

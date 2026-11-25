@@ -1,13 +1,13 @@
 # AP3120 clone train-wheel counts
 
-Peter Hudson supplied six microscope photographs on 2026-10-21 and confirmed
+This project supplied six microscope photographs on 2026-10-21 and confirmed
 21,600 beats/hour, a one-hour cannon pinion and a one-minute fourth wheel
-carrying centre seconds. He physically checked the intermediate wheel:
+carrying centre seconds. The project physically checked the intermediate wheel:
 **it is a flat wheel with two pivots and no pinion; its brass rim meshes
 with the barrel.** The resulting barrel drum period is **eight hours**.
 
 These counts extend the existing **SA3120** record, manufactured by
-**Jinghe**, as confirmed by Peter Hudson on 2026-10-21. The catalogue uses
+**Jinghe**, as confirmed by this project on 2026-10-21. The catalogue uses
 its existing maker name **Shanghai Jinghe (clone)**. APS / ZF remain
 marketed aliases rather than movement-manufacturer attributions. No counts are transferred to genuine AP3120 or to older
 28,800 bph Miyota 9015-based AP replicas. The existing 53° lift setting

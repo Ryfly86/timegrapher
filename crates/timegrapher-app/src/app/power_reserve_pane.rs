@@ -753,15 +753,20 @@ impl TimegrapherApp {
     /// Save the ended Power Reserve Test's take, with its results, into
     /// the picked watch's takes or Unsorted.
     pub(super) fn save_reserve(&mut self) {
-        let Some((takes, dir)) = self.reserve_take_dir() else {
+        let Some((takes, started)) = self.reserve_take_start() else {
             return;
         };
         // Read as it came: kept as its analysis alone.
         if self.kept_running() {
-            return self.save_kept(dir);
+            return self.save_kept(library::power_reserve_take_dir(&takes, &started));
         }
-        if let (Some(r), Some(name)) = (self.session.recorder.as_mut(), dir.file_name()) {
-            r.name_first_copy(name.to_owned());
+        let name = library::power_reserve_take_name(&started);
+        // Its folder is made as it is named, so no other take started
+        // this minute is given it (#1862).
+        if let Some(r) = self.session.recorder.as_mut() {
+            if let Err(e) = r.claim_first_copy(&takes, &name) {
+                return self.error(format!("The test's take couldn't be kept: {e}"));
+            }
         }
         self.save_into(&takes);
         if let Some(t) = self.bench.test.reserve.as_mut() {
@@ -771,10 +776,10 @@ impl TimegrapherApp {
     }
 
     /// Where the ended test's take goes: the picked watch's takes or
-    /// Unsorted, and its own new folder there, named by core
-    /// ([`library::power_reserve_take_dir`]). None, said, when there is
-    /// no library to keep it in.
-    fn reserve_take_dir(&mut self) -> Option<(PathBuf, PathBuf)> {
+    /// Unsorted, and the local minute it started, which names its own new
+    /// folder there ([`library::power_reserve_take_name`]). None, said,
+    /// when there is no library to keep it in.
+    fn reserve_take_start(&mut self) -> Option<(PathBuf, String)> {
         let takes = match self.reserve_takes_dir() {
             Ok(d) => d,
             Err(e) => {
@@ -785,8 +790,7 @@ impl TimegrapherApp {
         let r = self.session.recorder.as_ref()?;
         let started = watches::local_minute(r.started_utc())
             .unwrap_or_else(|| r.started_utc().replace(':', "."));
-        let dir = library::power_reserve_take_dir(&takes, &started);
-        Some((takes, dir))
+        Some((takes, started))
     }
 
     /// Once the test's take is written: note where, and keep it as its
