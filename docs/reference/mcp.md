@@ -112,20 +112,23 @@ That route has not been tried with this server yet.
 | `make_report_bundle` | `report` | A zip for a GitHub issue, saved in your home folder unless told otherwise |
 | `read_guide` | (none) | The watchmaker skill and its pages, for the chat app to read |
 
-`analyze_recording`, `long_run` and `check_steadiness` accept the custom
-calibre names/aliases and wheel overrides returned by `list_calibres`.
-`analyze_recording` uses the catalogue's beat rate and lift angle unless
-they are given. `long_run` and `check_steadiness` use the catalogue's train
-to name periodic changes and its lift angle unless one is given; their beat
-rate comes only from `bph` or the sound. Where the catalogue has no lift
-angle for a calibre, 52° is used. `record_position` and
-`run_session` also resolve the same custom catalogue. Existing session
-numeric settings and lift context retain precedence; an unknown manifest
-label stays descriptive, while an explicit unknown calibre is an error. That
-error suggests `timegrapher calibres --search` with the name, which is
-`list_calibres` with `search`; `run_session`'s also lists the known names.
-`list_calibres` with no name or search lists the common calibres and the
-user's own.
+`analyze_recording`, `tick_tock_profile`, `beat_shape`, `long_run` and
+`check_steadiness` accept the custom calibre names/aliases and wheel
+overrides returned by `list_calibres`. `analyze_recording`,
+`tick_tock_profile` and `beat_shape` use the catalogue's beat rate and lift
+angle unless they are given. For a take, or one of its sound files, a lift
+angle the take was given comes before the calibre's (the one given, or the
+take's own), and one the take only assumed comes after it. `long_run` and
+`check_steadiness` use the catalogue's train to name periodic changes and
+its lift angle unless one is given; their beat rate comes only from `bph` or
+the sound. Where the catalogue has no lift angle for a calibre, 52° is used.
+`record_position` and `run_session` also resolve the same custom catalogue.
+Existing session numeric settings and lift context retain precedence; an
+unknown manifest label stays descriptive, while an explicit unknown calibre
+is an error. That error suggests `timegrapher calibres --search` with the
+name, which is `list_calibres` with `search`; `run_session`'s also lists the
+known names. `list_calibres` with no name or search lists the common
+calibres and the user's own.
 
 `list_watches` and `show_watch` only read the library (the app's own unless
 `library` names another), so they work while the app has it open. A take's
