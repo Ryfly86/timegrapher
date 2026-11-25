@@ -306,6 +306,11 @@ class Sweep(unittest.TestCase):
         [(path, body)] = api.posts
         self.assertIn("`test (ubuntu-24.04 2/2)` failed", body["body"])
         self.assertNotIn("`test (ubuntu-24.04)`", body["body"])
+        # macOS's summary reports its own halves, not Linux's.
+        mac = [job(1, "test (macos-latest 1/2)", "failure"), job(2, "test (macos-latest)", "failure"),
+               job(3, "test (ubuntu-24.04)", "failure")]
+        self.assertEqual([j["name"] for j in watchdog.own_failures(mac)],
+                         ["test (macos-latest 1/2)", "test (ubuntu-24.04)"])
         # A summary that failed with neither half failed is a failure of its own.
         alone = [job(1, "test (ubuntu-24.04)", "failure"), job(2, "mcp-renderer", "failure")]
         self.assertEqual(watchdog.own_failures(alone), alone)

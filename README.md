@@ -1,10 +1,10 @@
-# timegrapher
+# Open Timegrapher
 
-An open-source timegrapher for mechanical watches that measures **every
-beat** and keeps the record. Most timegraphers, including the open-source
-[tg](https://github.com/vacaboja/tg) family, average a few seconds of sound
-into each reading. Measuring each beat makes two kinds of analysis
-possible that no open-source tool offers today:
+Open Timegrapher measures **every beat** of a mechanical watch and keeps
+the record. It is an open-source timegrapher. Most timegraphers, including
+the open-source [tg](https://github.com/vacaboja/tg) family, average a few
+seconds of sound into each reading. Measuring each beat makes two kinds of
+analysis possible that no open-source tool offers today:
 
 - **Gear-train analysis over hours or days.** A damaged tooth or an
   eccentric wheel repeats once per turn of its wheel. Searching the rate

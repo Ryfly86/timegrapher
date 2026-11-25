@@ -48,9 +48,11 @@ HAND_CANCEL = "was canceled by"
 TIME_LIMIT = "exceeded the maximum execution time"
 # Checks that only report other jobs (ci.yml), each with the start of the
 # names of the jobs it reports: `test (ubuntu-24.04)` fails when one of
-# Linux's two test halves, `test (ubuntu-24.04 1/2)` and `2/2`, does. Beside
-# such a failure it says nothing of its own, so the halves decide.
-SUMMARY_JOBS = {"test (ubuntu-24.04)": "test (ubuntu-24.04 "}
+# Linux's two test halves, `test (ubuntu-24.04 1/2)` and `2/2`, does, and
+# `test (macos-latest)` when one of macOS's does. Beside such a failure it
+# says nothing of its own, so the halves decide.
+SUMMARY_JOBS = {"test (ubuntu-24.04)": "test (ubuntu-24.04 ",
+                "test (macos-latest)": "test (macos-latest "}
 
 
 class API:
