@@ -484,8 +484,10 @@ mod tests {
             quality: 1.0,
         };
         let old: Vec<Beat> = (0..10).map(|i| at(i as f64 * 0.2, i)).collect();
+        // Two of the ten counts do not move: the median move is still 1,
+        // where the least would be 0 (Vernon 28 on #2273).
         let new: Vec<Beat> = (0..10)
-            .map(|i| at(i as f64 * 0.2 + 0.0003, i + 1))
+            .map(|i| at(i as f64 * 0.2 + 0.0003, i + i64::from(i >= 2)))
             .collect();
         let (dt, di) = moved(&old, &new).unwrap();
         assert!((dt - 0.0003).abs() < 1e-12 && di == 1, "{dt} {di}");

@@ -1139,4 +1139,19 @@ mod tests {
         let s = series(20, |_, _| 300.0);
         assert!(!find(&s, &Params::default()).fitted);
     }
+
+    /// Strays far out from one cluster of readings far from 0 are dropped
+    /// by the MAD about the readings' own median before the split is
+    /// judged, so they make no second state. Taken about 0 the MAD is
+    /// some 370°, the strays stay, and they would read as a state the
+    /// other side does not follow (Vernon 28 on #2273).
+    #[test]
+    fn strays_far_from_one_cluster_make_no_split() {
+        let p = Params::default();
+        let mut pairs: Vec<(f64, f64)> = (0..85)
+            .map(|i| (250.0 + f64::from(i % 5) * 0.5 - 1.0, 0.0))
+            .collect();
+        pairs.extend((0..15).map(|_| (300.0, 0.0)));
+        assert_eq!(split_alone(&pairs, &p), Some(false));
+    }
 }
