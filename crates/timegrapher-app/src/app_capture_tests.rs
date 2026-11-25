@@ -390,7 +390,7 @@ fn a_run_read_before_the_takeover_is_never_shown_after_it() {
                 // A new Average Over, its run read on the old template.
                 let stale = TrendPoint::of(0.123, &live.reading_at(20.0, 1.0));
                 app.bench.take.average_s *= 2.0;
-                let key = (app.bench.take.rev, app.bench.take.average_s.to_bits());
+                let key = app.trend_now();
                 let job = take_reads::Job::start(key, &ctx, move || (vec![stale], 0.0));
                 app.bench.results.bg.trend = Some(job);
                 planted = Some(stale);
@@ -417,8 +417,9 @@ fn a_run_read_before_the_takeover_is_never_shown_after_it() {
     // The clock's first measurements move the take's footing early in a
     // capture, which would drop the job by itself; on a long take nothing
     // else changes, so the job keeps the footing the app has now.
+    let now = app.trend_now();
     if let Some(job) = app.bench.results.bg.trend.as_mut() {
-        job.key = (app.bench.take.rev, app.bench.take.average_s.to_bits());
+        job.key = now;
     }
     let start = Instant::now();
     app.refresh_trend_shown(&ctx);
@@ -566,14 +567,14 @@ fn scope_read(app: &mut TimegrapherApp, lo: f64, hi: f64) -> Option<(f64, f64, c
     if !app.start_scope_job(lo, hi) {
         return None;
     }
-    let (a, b, got) = app
+    let read = app
         .bench
         .results
         .scope_job
         .take()?
         .recv_timeout(Duration::from_secs(30))
         .unwrap();
-    Some((a, b, got.unwrap()))
+    Some((read.from, read.to, read.got.unwrap()))
 }
 
 /// The numbered block's value in `sp` at the take's time `t`.

@@ -1688,7 +1688,10 @@ fn fit_is_made_again_when_the_run_comes_after_the_take_opens() {
     let read_again = |app: &mut TimegrapherApp| {
         // The run not read yet, as for a take opened without one.
         app.bench.results.trend.clear();
-        app.bench.results.trend_key = (app.bench.take.rev, 0);
+        app.bench.results.trend_key = TrendKey {
+            rev: app.bench.take.rev,
+            average: 0,
+        };
         app.fit_take();
         let t = Instant::now();
         while app.bench.results.trend.is_empty() && t.elapsed().as_secs() < 120 {
@@ -1710,7 +1713,10 @@ fn fit_is_made_again_when_the_run_comes_after_the_take_opens() {
     assert!(wide > 100.0, "every beat: {wide}");
     app.bench.panes_view.strip.set_half_width(wide / 2.0);
     let by_hand = app.bench.panes_view.strip.half_width_ms;
-    app.bench.results.trend_key = (app.bench.take.rev, 0);
+    app.bench.results.trend_key = TrendKey {
+        rev: app.bench.take.rev,
+        average: 0,
+    };
     let t = Instant::now();
     while app.bench.results.trend.is_empty() && t.elapsed().as_secs() < 120 {
         app.take_reads_shown(&ctx);
