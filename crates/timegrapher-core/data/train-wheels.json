@@ -3218,7 +3218,7 @@
   },
   {
     "calibre": "SA4302",
-    "maker": "APS / ZF (clone)",
+    "maker": "Clone (maker not named)",
     "family": [
       "4302 (clone)",
       "APS 4302",
@@ -3251,13 +3251,14 @@
       "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "An all-in-one clone of the 4302 at 28,800 bph, about 65 to 70 h. Earlier ZF versions used a Miyota 9015 instead."
+    "notes": "An all-in-one clone of the 4302 at 28,800 bph, about 65 to 70 h. Earlier versions used a Miyota 9015 instead."
   },
   {
-    "calibre": "APS 4401",
-    "maker": "APS (clone)",
+    "calibre": "SA4401",
+    "maker": "Clone (maker not named)",
     "family": [
-      "4401 (clone)"
+      "4401 (clone)",
+      "APS 4401"
     ],
     "common": true,
     "bph": 28800,
