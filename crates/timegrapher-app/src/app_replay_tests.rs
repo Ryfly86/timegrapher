@@ -29,7 +29,7 @@ fn hidden_panes_stay_hidden_through_a_new_direction() {
 #[test]
 fn a_new_averaging_time_redraws_the_whole_chart() {
     let mut app = synthetic(30.0, 20.0);
-    let before = app.results.trend.len();
+    let before = app.bench.results.trend.len();
     assert!(before > 20);
     assert_eq!(
         app.recording.live.as_ref().unwrap().config().profile_s,
@@ -39,7 +39,7 @@ fn a_new_averaging_time_redraws_the_whole_chart() {
     // The tick and tock sound covers the same beats as the readings.
     assert_eq!(app.recording.live.as_ref().unwrap().config().profile_s, 4.0);
     // Every point now uses 4 s of beats, back to the start.
-    let early = app.results.trend.iter().find(|p| p.t >= 8.0).unwrap();
+    let early = app.bench.results.trend.iter().find(|p| p.t >= 8.0).unwrap();
     let r = app
         .recording
         .live
@@ -48,8 +48,9 @@ fn a_new_averaging_time_redraws_the_whole_chart() {
         .reading_at(early.t, 4.0);
     assert_eq!(early.rate_s_per_day, r.rate_s_per_day);
     assert!(
-        (app.results.trend.last().unwrap().t - app.recording.live.as_ref().unwrap().duration_s())
-            .abs()
+        (app.bench.results.trend.last().unwrap().t
+            - app.recording.live.as_ref().unwrap().duration_s())
+        .abs()
             <= 0.5
     );
 }
@@ -428,7 +429,7 @@ fn replay_poll_does_not_publish_readings_inside_saved_settling() {
         at > 8.0 && at <= 14.0,
         "fixture must read within the saved settle: {at}"
     );
-    assert!(app.results.trend.is_empty());
+    assert!(app.bench.results.trend.is_empty());
     assert!(app.reading().is_none());
     assert_eq!(app.recording.live.as_ref().unwrap().breaks(), &[8.0, 14.0]);
     app.stop();
@@ -472,8 +473,13 @@ fn replay_readouts_and_rebuilt_trends_respect_imported_settling() {
         .unwrap()
         .set_breaks(app.session.replay_breaks().unwrap());
     app.rebuild_trend();
-    assert!(!app.results.trend.is_empty());
-    assert!(app.results.trend.iter().all(|p| p.t <= 30.0 || p.t > 40.0));
+    assert!(!app.bench.results.trend.is_empty());
+    assert!(app
+        .bench
+        .results
+        .trend
+        .iter()
+        .all(|p| p.t <= 30.0 || p.t > 40.0));
     assert!(app.reading_at_time(35.0).is_none());
     let after = app.reading_at_time(41.0).unwrap();
     assert!(

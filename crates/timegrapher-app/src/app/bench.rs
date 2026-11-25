@@ -10,4 +10,6 @@ pub(super) struct Bench {
     pub(super) panes_view: pane_view::PaneView,
     /// The guided tests for this bench.
     pub(super) test: guided_test::GuidedTest,
+    /// The take's readings and the runs in the background that read them.
+    pub(super) results: results::Results,
 }

@@ -753,6 +753,7 @@ fn readings_resume_a_whole_average_after_a_mask() {
     // As the next frame reads them.
     app.refresh_trend();
     let after: Vec<_> = app
+        .bench
         .results
         .trend
         .iter()
@@ -765,6 +766,7 @@ fn readings_resume_a_whole_average_after_a_mask() {
         "{after:?}"
     );
     let points: Vec<[f64; 2]> = app
+        .bench
         .results
         .trend
         .iter()
@@ -962,7 +964,7 @@ fn a_mask_on_a_take_on_show_is_read_in_the_background() {
         let start = Instant::now();
         loop {
             if let (Some(w), Some(t)) = shown(app) {
-                if app.results.bg.trend.is_none() {
+                if app.bench.results.bg.trend.is_none() {
                     return (w, t);
                 }
             }
@@ -971,12 +973,12 @@ fn a_mask_on_a_take_on_show_is_read_in_the_background() {
         }
     };
     let (w, _) = settled(&mut app);
-    let before = app.results.trend.clone();
+    let before = app.bench.results.trend.clone();
     app.mask(600.0, 700.0);
     // Polling for sound reads none of them either.
     app.poll();
     assert_eq!(
-        app.results.trend, before,
+        app.bench.results.trend, before,
         "polling leaves the charts to the background"
     );
     // The frame after the mask: the charts and the table are under way,
@@ -984,23 +986,23 @@ fn a_mask_on_a_take_on_show_is_read_in_the_background() {
     // was last heard; none is read here.
     let (whole, table) = shown(&mut app);
     assert!(whole.is_none() && table.is_none());
-    assert!(app.results.bg.trend.is_some());
-    assert!(app.results.whole_job.borrow().is_none());
+    assert!(app.bench.results.bg.trend.is_some());
+    assert!(app.bench.results.whole_job.borrow().is_none());
     assert!(app.free_table_reading());
     assert_eq!(
-        app.results.trend, before,
+        app.bench.results.trend, before,
         "the charts keep their run meanwhile"
     );
     let (w2, t2) = settled(&mut app);
     assert_ne!(format!("{:?}", w.m), format!("{:?}", w2.m));
     // What came is what reading them here and now gives.
-    let trend = app.results.trend.clone();
+    let trend = app.bench.results.trend.clone();
     assert_ne!(trend, before);
-    app.results.trend_key.0 = Revision::default();
+    app.bench.results.trend_key.0 = Revision::default();
     app.refresh_trend();
-    assert_eq!(app.results.trend, trend);
-    *app.results.whole_take.borrow_mut() = None;
-    *app.results.free_table.borrow_mut() = None;
+    assert_eq!(app.bench.results.trend, trend);
+    *app.bench.results.whole_take.borrow_mut() = None;
+    *app.bench.results.free_table.borrow_mut() = None;
     let now = app.whole_take().unwrap();
     assert_eq!(format!("{:?}", now.m), format!("{:?}", w2.m));
     assert_eq!(now.span, w2.span);
@@ -1067,7 +1069,8 @@ fn a_settling_is_left_out_of_an_opened_takes_readings() {
     assert_eq!(engine(&app), [(2.0, 3.0), (10.0, 14.0)]);
     app.refresh_trend();
     assert!(
-        app.results
+        app.bench
+            .results
             .trend
             .iter()
             .all(|p| !(10.0..14.0).contains(&p.t) || p.rate_s_per_day.is_none()),

@@ -1681,15 +1681,15 @@ fn fit_is_made_again_when_the_run_comes_after_the_take_opens() {
     let ctx = egui::Context::default();
     let read_again = |app: &mut TimegrapherApp| {
         // The run not read yet, as for a take opened without one.
-        app.results.trend.clear();
-        app.results.trend_key = (app.take.rev, 0);
+        app.bench.results.trend.clear();
+        app.bench.results.trend_key = (app.take.rev, 0);
         app.fit_take();
         let t = Instant::now();
-        while app.results.trend.is_empty() && t.elapsed().as_secs() < 120 {
+        while app.bench.results.trend.is_empty() && t.elapsed().as_secs() < 120 {
             app.take_reads_shown(&ctx);
             std::thread::sleep(std::time::Duration::from_millis(20));
         }
-        assert!(!app.results.trend.is_empty(), "the run came");
+        assert!(!app.bench.results.trend.is_empty(), "the run came");
     };
     read_again(&mut app);
     assert!(
@@ -1698,15 +1698,15 @@ fn fit_is_made_again_when_the_run_comes_after_the_take_opens() {
         app.bench.panes_view.strip.half_width_ms
     );
     // Fitted before the run, with every beat; then set by hand.
-    app.results.trend.clear();
+    app.bench.results.trend.clear();
     app.fit_take();
     let wide = app.bench.panes_view.strip.half_width_ms;
     assert!(wide > 100.0, "every beat: {wide}");
     app.bench.panes_view.strip.set_half_width(wide / 2.0);
     let by_hand = app.bench.panes_view.strip.half_width_ms;
-    app.results.trend_key = (app.take.rev, 0);
+    app.bench.results.trend_key = (app.take.rev, 0);
     let t = Instant::now();
-    while app.results.trend.is_empty() && t.elapsed().as_secs() < 120 {
+    while app.bench.results.trend.is_empty() && t.elapsed().as_secs() < 120 {
         app.take_reads_shown(&ctx);
         std::thread::sleep(std::time::Duration::from_millis(20));
     }

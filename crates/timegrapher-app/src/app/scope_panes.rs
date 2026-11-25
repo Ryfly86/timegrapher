@@ -149,10 +149,14 @@ impl TimegrapherApp {
         if let Some(line) = &shown.line {
             return no_sound_line(ui, line);
         }
-        let i = self.results.trend.partition_point(|p| p.t <= end + 1e-9);
+        let i = self
+            .bench
+            .results
+            .trend
+            .partition_point(|p| p.t <= end + 1e-9);
         let drop_be = i
             .checked_sub(1)
-            .and_then(|i| self.results.trend[i].beat_error_ms);
+            .and_then(|i| self.bench.results.trend[i].beat_error_ms);
         // Moved back, the moment first: the strip says it, and the hover
         // says where it was set.
         let note = match (self.moment_hover(), shown.hover) {
@@ -266,7 +270,7 @@ impl TimegrapherApp {
         let beats = self.recording.live.as_ref().map_or(&[][..], |l| l.beats());
         let window = (end, self.take.average_s);
         match sound_at(
-            &self.results.sound_history,
+            &self.bench.results.sound_history,
             window,
             &self.take.masked,
             beats,
@@ -290,7 +294,7 @@ impl TimegrapherApp {
             SoundAt::NoBeats => no_beats_at(&at),
             SoundAt::NotKept => {
                 self.poll_sound_job();
-                let worked_out = match &self.results.sound_at {
+                let worked_out = match &self.bench.results.sound_at {
                     Some((t, rev, p))
                         if (t - end).abs() < 0.5 && *rev == self.take.rev.settings =>
                     {
@@ -417,7 +421,7 @@ impl TimegrapherApp {
         let key = |b: &timegrapher_core::beats::Beat| scope_key(b, view.zoom, beat_s);
         let known = scope_known(
             live,
-            &mut self.results.scope_traces,
+            &mut self.bench.results.scope_traces,
             &picks,
             (view.zoom, beat_s),
             fs,
@@ -491,7 +495,7 @@ impl TimegrapherApp {
     /// background, with the line to show over the Scope while it is read,
     /// or when it can't be read; None when no sound of it is kept.
     fn scope_cut(&mut self, lo: f64, hi: f64) -> Option<ScopeSound> {
-        match &self.results.scope_audio {
+        match &self.bench.results.scope_audio {
             // What was asked for covers these beats: use what was read,
             // even when the recording ended before it, and never ask
             // again for a stretch that couldn't be read.
@@ -520,15 +524,15 @@ impl TimegrapherApp {
     }
 
     fn poll_scope_job(&mut self) {
-        if let Some(rx) = &self.results.scope_job {
+        if let Some(rx) = &self.bench.results.scope_job {
             match rx.try_recv() {
                 Ok(cut) => {
-                    self.results.scope_audio = Some(cut);
-                    self.results.scope_job = None;
+                    self.bench.results.scope_audio = Some(cut);
+                    self.bench.results.scope_job = None;
                 }
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                    self.results.scope_job = None;
-                    self.results.scope_audio = None;
+                    self.bench.results.scope_job = None;
+                    self.bench.results.scope_audio = None;
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => {}
             }
@@ -540,7 +544,7 @@ impl TimegrapherApp {
     /// being recorded ([`Self::heard_files`]).
     /// False when there is no recording to read it from.
     pub(super) fn start_scope_job(&mut self, lo: f64, hi: f64) -> bool {
-        if self.results.scope_job.is_some() {
+        if self.bench.results.scope_job.is_some() {
             return true;
         }
         let (mut a, mut b) = ((lo - 2.0).max(0.0), hi + 2.0);
@@ -576,7 +580,7 @@ impl TimegrapherApp {
             });
             let _ = tx.send((a, b, got));
         });
-        self.results.scope_job = Some(rx);
+        self.bench.results.scope_job = Some(rx);
         true
     }
 
@@ -599,7 +603,7 @@ impl TimegrapherApp {
     fn start_sound_job(&mut self, end: f64) -> bool {
         // One at a time: while the strip is dragged, the next starts when
         // this one is done.
-        if self.results.sound_job.is_some() {
+        if self.bench.results.sound_job.is_some() {
             return true;
         }
         let path = PathBuf::from(self.recording.file_path.trim());
@@ -657,29 +661,30 @@ impl TimegrapherApp {
             };
             let _ = tx.send(p);
         });
-        self.results.sound_job = Some((end, self.take.rev.settings, rx));
+        self.bench.results.sound_job = Some((end, self.take.rev.settings, rx));
         true
     }
 
     fn poll_sound_job(&mut self) {
         // Profiles read at settings changed since are read again.
         if self
+            .bench
             .results
             .sound_job
             .as_ref()
             .is_some_and(|j| j.1 != self.take.rev.settings)
         {
-            self.results.sound_job = None;
+            self.bench.results.sound_job = None;
         }
-        if let Some((t, rev, rx)) = &self.results.sound_job {
+        if let Some((t, rev, rx)) = &self.bench.results.sound_job {
             match rx.try_recv() {
                 Ok(p) => {
-                    self.results.sound_at = Some((*t, *rev, p));
-                    self.results.sound_job = None;
+                    self.bench.results.sound_at = Some((*t, *rev, p));
+                    self.bench.results.sound_job = None;
                 }
                 Err(TryRecvError::Disconnected) => {
-                    self.results.sound_at = Some((*t, *rev, [None, None]));
-                    self.results.sound_job = None;
+                    self.bench.results.sound_at = Some((*t, *rev, [None, None]));
+                    self.bench.results.sound_job = None;
                 }
                 Err(TryRecvError::Empty) => {}
             }

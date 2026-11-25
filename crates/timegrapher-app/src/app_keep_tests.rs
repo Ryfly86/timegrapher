@@ -614,7 +614,7 @@ fn a_recording_on_show_is_kept_in_a_new_watch_with_its_charts() {
     app.recording.input = Input::File;
     app.keeping.opened_path = lone.display().to_string();
     let shown = (
-        app.results.trend.len(),
+        app.bench.results.trend.len(),
         app.take.bph,
         app.take.lift_deg,
         app.take.watch.clone(),
@@ -633,7 +633,7 @@ fn a_recording_on_show_is_kept_in_a_new_watch_with_its_charts() {
     // The readings on show keep the settings they were measured with.
     assert_eq!(
         (
-            app.results.trend.len(),
+            app.bench.results.trend.len(),
             app.take.bph,
             app.take.lift_deg,
             app.take.watch.clone()
@@ -1827,7 +1827,7 @@ fn a_session_kept_as_its_analysis_opens_as_the_sound_does() {
     );
     assert!(close(ra.amplitude_deg, rb.amplitude_deg, 1e-9));
     assert!(close(ra.beat_error_ms, rb.beat_error_ms, 0.001));
-    assert_eq!(a.results.trend.len(), b.results.trend.len());
+    assert_eq!(a.bench.results.trend.len(), b.bench.results.trend.len());
     // The profiles kept for each 2 seconds stand in for the sound.
     let k = a.keeping.no_sound.as_deref().expect("kept");
     assert!(k.len() >= 29, "{}", k.len());

@@ -959,8 +959,8 @@ fn the_input_clock_is_offered_after_twenty_minutes() {
 fn one_average_over_sets_every_pane() {
     let mut app = synthetic(40.0, 0.0);
     app.set_average(30.0);
-    assert!(!app.results.trend.is_empty());
-    assert!(app.results.trend.last().unwrap().t > 30.0);
+    assert!(!app.bench.results.trend.is_empty());
+    assert!(app.bench.results.trend.last().unwrap().t > 30.0);
     let mut s = app.settings();
     let mut json = serde_json::to_value(&s).unwrap();
     json["pane_average"] = serde_json::json!([["Charts", 5.0]]);
@@ -981,12 +981,12 @@ fn a_long_take_still_draws_over_a_short_strip() {
         let mut t = 0.0;
         let mut thin = Vec::new();
         while t <= 40.0 {
-            if let Some(p) = app.results.trend.iter().find(|p| p.t >= t) {
+            if let Some(p) = app.bench.results.trend.iter().find(|p| p.t >= t) {
                 thin.push(*p);
             }
             t += step;
         }
-        app.results.trend = thin;
+        app.bench.results.trend = thin;
     };
     thin(&mut app);
     let (pts, spacing) = app.strip_trend(5.0, 40.0, app.take.average_s);
@@ -998,15 +998,15 @@ fn a_long_take_still_draws_over_a_short_strip() {
     let amplitude = |pts: &[TrendPoint]| pts.iter().find_map(|p| p.amplitude_deg).unwrap();
     let before = amplitude(&pts);
     app.set_lift(app.take.lift_deg + 10.0);
-    assert!(app.results.strip_points.is_none());
+    assert!(app.bench.results.strip_points.is_none());
     thin(&mut app);
     let (pts, _) = app.strip_trend(5.0, 40.0, app.take.average_s);
     assert!(amplitude(&pts) != before, "amplitude {before} kept");
     // The kept run serves when it is fine enough.
     let mut app = synthetic(40.0, 20.0);
-    let kept = app.results.trend.len();
+    let kept = app.bench.results.trend.len();
     let (pts, _) = app.strip_trend(0.0, 40.0, app.take.average_s);
-    assert!(app.results.strip_points.is_none());
+    assert!(app.bench.results.strip_points.is_none());
     assert!(pts.len() <= kept);
 }
 
@@ -1026,37 +1026,47 @@ fn the_strips_own_readings_wait_for_a_whole_step_of_sound() {
     let mut t = 0.0;
     let mut thin = Vec::new();
     while t <= 40.0 {
-        if let Some(p) = app.results.trend.iter().find(|p| p.t >= t) {
+        if let Some(p) = app.bench.results.trend.iter().find(|p| p.t >= t) {
             thin.push(*p);
         }
         t += step;
     }
-    app.results.trend = thin;
+    app.bench.results.trend = thin;
     let block = |app: &mut TimegrapherApp, n: usize| {
         for _ in 0..n {
             app.recording.live.as_mut().unwrap().push(&[0.0; 960]);
         }
     };
     let (pts, _) = app.strip_trend(5.0, 40.0, app.take.average_s);
-    let key = app.results.strip_points.as_ref().expect("worked out").0;
+    let key = app
+        .bench
+        .results
+        .strip_points
+        .as_ref()
+        .expect("worked out")
+        .0;
     // A block of 20 ms: the same step, the same readings, not worked out.
     block(&mut app, 1);
-    app.results.strip_points.as_mut().unwrap().1.clear();
+    app.bench.results.strip_points.as_mut().unwrap().1.clear();
     let (again, _) = app.strip_trend(5.0, 40.0, app.take.average_s);
-    assert_eq!(app.results.strip_points.as_ref().unwrap().0, key);
+    assert_eq!(app.bench.results.strip_points.as_ref().unwrap().0, key);
     assert!(again.is_empty(), "worked out again within a step");
     // A whole step more: worked out again, as many readings as before.
     block(&mut app, 30);
     let (fresh, _) = app.strip_trend(5.0, 40.0, app.take.average_s);
-    assert_ne!(app.results.strip_points.as_ref().unwrap().0, key);
+    assert_ne!(app.bench.results.strip_points.as_ref().unwrap().0, key);
     assert_eq!(fresh.len(), pts.len());
     // Stopped: a block within the step is worked out at once.
     app.recording.capture = None;
     let _ = app.strip_trend(5.0, 40.0, app.take.average_s);
-    let key = app.results.strip_points.as_ref().unwrap().0;
+    let key = app.bench.results.strip_points.as_ref().unwrap().0;
     block(&mut app, 1);
     let _ = app.strip_trend(5.0, 40.0, app.take.average_s);
-    assert_ne!(app.results.strip_points.as_ref().unwrap().0, key, "stopped");
+    assert_ne!(
+        app.bench.results.strip_points.as_ref().unwrap().0,
+        key,
+        "stopped"
+    );
     let _ = std::fs::remove_dir_all(&base);
 }
 
@@ -1073,24 +1083,33 @@ fn listening_the_charts_are_read_again_in_the_background() {
     assert!(app.running());
     let ctx = themed();
     app.refresh_trend_shown(&ctx);
-    let before = app.results.trend.clone();
+    let before = app.bench.results.trend.clone();
     // Neither the setting, polling nor the frame reads the run here.
     let average_s = app.take.average_s;
     app.set_average(2.0 * average_s);
-    assert_eq!(app.results.trend, before, "read as Average Over was set");
+    assert_eq!(
+        app.bench.results.trend, before,
+        "read as Average Over was set"
+    );
     app.poll();
-    assert_eq!(app.results.trend, before, "read on the polling thread");
+    assert_eq!(
+        app.bench.results.trend, before,
+        "read on the polling thread"
+    );
     app.refresh_trend_shown(&ctx);
-    assert!(app.results.bg.trend.is_some());
-    assert_eq!(app.results.trend, before, "read on the window's thread");
+    assert!(app.bench.results.bg.trend.is_some());
+    assert_eq!(
+        app.bench.results.trend, before,
+        "read on the window's thread"
+    );
     // A reading heard meanwhile, after the sound the run is read on.
     let late = TrendPoint::of(
         1e6,
         &app.recording.live.as_ref().unwrap().reading_at(40.0, 1.0),
     );
-    app.results.trend.push(late);
+    app.bench.results.trend.push(late);
     let start = Instant::now();
-    while app.results.bg.trend.is_some() {
+    while app.bench.results.bg.trend.is_some() {
         assert!(start.elapsed() < Duration::from_secs(60), "never read");
         std::thread::sleep(Duration::from_millis(10));
         app.refresh_trend_shown(&ctx);
@@ -1101,8 +1120,11 @@ fn listening_the_charts_are_read_again_in_the_background() {
         .as_ref()
         .unwrap()
         .trend(app.take.average_s);
-    assert_eq!(app.results.trend[..app.results.trend.len() - 1], fresh[..]);
-    assert_eq!(app.results.trend.last(), Some(&late));
+    assert_eq!(
+        app.bench.results.trend[..app.bench.results.trend.len() - 1],
+        fresh[..]
+    );
+    assert_eq!(app.bench.results.trend.last(), Some(&late));
     let _ = std::fs::remove_dir_all(&base);
 }
 
@@ -1117,10 +1139,10 @@ fn a_run_read_again_while_listening_leaves_no_blank_on_the_strip() {
     // still), every reading read live since.
     let sparse: Vec<TrendPoint> = [7.0, 25.0, 43.0]
         .iter()
-        .filter_map(|&t| app.results.trend.iter().find(|p| p.t >= t).copied())
+        .filter_map(|&t| app.bench.results.trend.iter().find(|p| p.t >= t).copied())
         .collect();
-    app.results.trend.retain(|p| p.t >= 50.0);
-    app.results.trend.splice(0..0, sparse);
+    app.bench.results.trend.retain(|p| p.t >= 50.0);
+    app.bench.results.trend.splice(0..0, sparse);
     let (pts, _) = app.strip_trend(15.0, 80.0, app.take.average_s);
     let drawn = |a: f64, b: f64| {
         pts.iter()
@@ -1137,22 +1159,22 @@ fn a_run_read_again_while_listening_leaves_no_blank_on_the_strip() {
     // past the take's ends too.
     let mut app = synthetic(80.0, 20.0);
     let _ = app.strip_trend(15.0, 80.0, app.take.average_s);
-    assert!(app.results.strip_points.is_none());
+    assert!(app.bench.results.strip_points.is_none());
     let _ = app.strip_trend(-20.0, 100.0, app.take.average_s);
-    assert!(app.results.strip_points.is_none());
+    assert!(app.bench.results.strip_points.is_none());
     // At half-second steps the line is a second: a hole just under it
     // serves, one just over is worked out afresh.
-    let live = app.results.trend.clone();
+    let live = app.bench.results.trend.clone();
     for (hole, fresh) in [(0.95, false), (1.05, true)] {
         let mut trend = live.clone();
         let i = trend.iter().position(|p| p.t >= 60.0).unwrap();
         trend.remove(i);
         trend[i].t = trend[i - 1].t + hole;
-        app.results.trend = trend;
-        app.results.strip_points = None;
+        app.bench.results.trend = trend;
+        app.bench.results.strip_points = None;
         let _ = app.strip_trend(15.0, 80.0, app.take.average_s);
         assert_eq!(
-            app.results.strip_points.is_some(),
+            app.bench.results.strip_points.is_some(),
             fresh,
             "a hole of {hole} s"
         );
@@ -1166,17 +1188,23 @@ fn a_run_read_again_while_listening_leaves_no_blank_on_the_strip() {
 #[test]
 fn a_settling_leaves_the_strip_drawing_the_run_read_live() {
     let mut app = synthetic(80.0, 20.0);
-    app.results.trend.retain(|p| !(40.0..55.0).contains(&p.t));
+    app.bench
+        .results
+        .trend
+        .retain(|p| !(40.0..55.0).contains(&p.t));
     let _ = app.strip_trend(-5.0, 80.0, app.take.average_s);
-    assert!(app.results.strip_points.is_some(), "a gap with no settling");
-    app.results.strip_points = None;
+    assert!(
+        app.bench.results.strip_points.is_some(),
+        "a gap with no settling"
+    );
+    app.bench.results.strip_points = None;
     app.session.load(
         &[(0.0, Position::DialUp), (40.0, Position::DialDown)],
         &[(40.0, 55.0)],
     );
     let _ = app.strip_trend(-5.0, 80.0, app.take.average_s);
     assert!(
-        app.results.strip_points.is_none(),
+        app.bench.results.strip_points.is_none(),
         "a settling taken for a hole"
     );
 }
@@ -1198,7 +1226,14 @@ fn the_strips_own_readings_stay_put_as_fit_grows() {
     let mut app = synthetic(260.0, 20.0);
     // As sparse as a long take's run opened whole, so the strip works
     // out its own.
-    app.results.trend = app.results.trend.iter().step_by(14).copied().collect();
+    app.bench.results.trend = app
+        .bench
+        .results
+        .trend
+        .iter()
+        .step_by(14)
+        .copied()
+        .collect();
     let times = |pts: &[TrendPoint]| pts.iter().map(|p| p.t.to_bits()).collect::<Vec<_>>();
     let (a, step) = app.strip_trend(-5.0, 250.0, app.take.average_s);
     let (b, again) = app.strip_trend(-5.0, 250.4, app.take.average_s);

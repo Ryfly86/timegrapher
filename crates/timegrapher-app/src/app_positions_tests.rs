@@ -549,12 +549,12 @@ fn the_positions_table_reads_again_every_second_in_the_background_while_listenin
     feed(&mut app, 0.5);
     assert_eq!(app.latest_s().floor(), du(&first));
     assert_eq!(du(&app.free_table(&ctx).unwrap()), du(&first));
-    assert!(app.results.free_job.borrow().is_none());
+    assert!(app.bench.results.free_job.borrow().is_none());
     // Into the next seconds: the table on show stays while the next is
     // read in the background, then the next one shows.
     feed(&mut app, 2.0);
     assert_eq!(du(&app.free_table(&ctx).unwrap()), du(&first));
-    assert!(app.results.free_job.borrow().is_some());
+    assert!(app.bench.results.free_job.borrow().is_some());
     let since = Instant::now();
     let next = loop {
         let t = app.free_table(&ctx).unwrap();
@@ -1059,7 +1059,7 @@ fn a_new_position_marks_a_stretch_and_keeps_the_strip() {
         for b in audio.samples.chunks(960) {
             if live.push(b) {
                 let r = live.reading(app.take.average_s);
-                app.results.trend.push(TrendPoint::of(r.time_s, &r));
+                app.bench.results.trend.push(TrendPoint::of(r.time_s, &r));
             }
         }
     };
@@ -1127,7 +1127,8 @@ fn a_new_position_marks_a_stretch_and_keeps_the_strip() {
 fn a_masked_stretch_leaves_the_readings_and_comes_back() {
     let mut app = synthetic(60.0, 0.0);
     let heard = |app: &TimegrapherApp| {
-        app.results
+        app.bench
+            .results
             .trend
             .iter()
             .filter(|p| p.t > 30.0 && p.t < 40.0 && p.rate_s_per_day.is_some())

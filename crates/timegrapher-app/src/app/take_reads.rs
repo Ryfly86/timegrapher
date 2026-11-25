@@ -176,7 +176,7 @@ impl TimegrapherApp {
             Ok(w) => w,
             Err(key) => {
                 let w = self.whole_reader(key.1.clone())();
-                *self.results.whole_take.borrow_mut() = Some((key, w.clone()));
+                *self.bench.results.whole_take.borrow_mut() = Some((key, w.clone()));
                 w
             }
         }
@@ -188,14 +188,15 @@ impl TimegrapherApp {
         // A take just listened to is read to its last reading with a
         // watch heard: once the charts are read on what is masked now.
         let opened = self.take.take_breaks.is_some() || self.stopped_take().is_some();
-        if !opened && self.results.trend_key != (self.take.rev, self.take.average_s.to_bits()) {
+        if !opened && self.bench.results.trend_key != (self.take.rev, self.take.average_s.to_bits())
+        {
             return None;
         }
         let key = match self.whole_read()? {
             Ok(w) => return w,
             Err(key) => key,
         };
-        let mut job = self.results.whole_job.borrow_mut();
+        let mut job = self.bench.results.whole_job.borrow_mut();
         if job.as_ref().is_none_or(|j| j.key != key) {
             let read = self.whole_reader(key.1.clone());
             *job = Some(Job::start(key, ctx, read));
@@ -205,7 +206,7 @@ impl TimegrapherApp {
         match done {
             Ok(w) => {
                 let key = job.take().map(|j| j.key)?;
-                *self.results.whole_take.borrow_mut() = Some((key, w.clone()));
+                *self.bench.results.whole_take.borrow_mut() = Some((key, w.clone()));
                 w
             }
             Err(true) => None,
@@ -295,7 +296,7 @@ impl TimegrapherApp {
             self.take.rev,
             stopped.is_some(),
         );
-        if let Some((k, w)) = self.results.whole_take.borrow().as_ref() {
+        if let Some((k, w)) = self.bench.results.whole_take.borrow().as_ref() {
             if *k == key {
                 return Some(Ok(w.clone()));
             }
@@ -374,7 +375,7 @@ impl TimegrapherApp {
     /// Whether a Positions Test table of the take on show is being read
     /// in the background.
     pub(super) fn free_table_reading(&self) -> bool {
-        !self.running() && self.results.free_job.borrow().is_some()
+        !self.running() && self.bench.results.free_job.borrow().is_some()
     }
 
     /// Each position's settled stretches, in the table's order.
@@ -431,7 +432,7 @@ impl TimegrapherApp {
             live.beats().len()
         };
         let key: FreeKey = (beats, stretches.clone(), masked.clone(), self.take.rev);
-        let mut job = self.results.free_job.borrow_mut();
+        let mut job = self.bench.results.free_job.borrow_mut();
         // A table being read on what the readings rested on before is let
         // go; so is one of a take on show read from anything else.
         if job
@@ -444,7 +445,7 @@ impl TimegrapherApp {
             match done {
                 Ok(t) => {
                     let key = job.take().map(|j| j.key)?;
-                    *self.results.free_table.borrow_mut() = Some((key, t));
+                    *self.bench.results.free_table.borrow_mut() = Some((key, t));
                 }
                 Err(running) => {
                     if !running {
@@ -453,7 +454,7 @@ impl TimegrapherApp {
                 }
             }
         }
-        if let Some((k, t)) = self.results.free_table.borrow().as_ref() {
+        if let Some((k, t)) = self.bench.results.free_table.borrow().as_ref() {
             if *k == key || running && job.is_some() {
                 return t.clone();
             }
@@ -474,6 +475,7 @@ impl TimegrapherApp {
         };
         let log = steady::log_of(live);
         let shown = self
+            .bench
             .results
             .free_table
             .borrow()
@@ -493,7 +495,7 @@ impl TimegrapherApp {
             }
             (_, _, log) => {
                 let t = log.map(read);
-                *self.results.free_table.borrow_mut() = Some((key, t.clone()));
+                *self.bench.results.free_table.borrow_mut() = Some((key, t.clone()));
                 t
             }
         }
@@ -508,20 +510,27 @@ impl TimegrapherApp {
     pub(super) fn refresh_trend_shown(&mut self, ctx: &egui::Context) {
         let key: TrendKey = (self.take.rev, self.take.average_s.to_bits());
         if self.recording.live.is_none() {
-            self.results.bg.trend = None;
+            self.bench.results.bg.trend = None;
             self.refresh_trend();
             return;
         }
-        if self.results.trend_key == key {
-            self.results.bg.trend = None;
+        if self.bench.results.trend_key == key {
+            self.bench.results.bg.trend = None;
             return;
         }
-        if self.results.bg.trend.as_ref().is_some_and(|j| j.key != key) {
-            self.results.bg.trend = None;
+        if self
+            .bench
+            .results
+            .bg
+            .trend
+            .as_ref()
+            .is_some_and(|j| j.key != key)
+        {
+            self.bench.results.bg.trend = None;
         }
-        let Some(job) = &self.results.bg.trend else {
+        let Some(job) = &self.bench.results.bg.trend else {
             let (live, average_s) = (self.recording.live.clone(), self.take.average_s);
-            self.results.bg.trend = Some(Job::start(key, ctx, move || {
+            self.bench.results.bg.trend = Some(Job::start(key, ctx, move || {
                 live.map_or_else(
                     || (Vec::new(), 0.0),
                     |l| (l.trend(average_s), l.duration_s()),
@@ -531,16 +540,23 @@ impl TimegrapherApp {
         };
         match job.done() {
             Ok((mut points, read_to)) => {
-                self.results.bg.trend = None;
-                let first = self.results.trend.is_empty();
-                points.extend(self.results.trend.iter().filter(|p| p.t > read_to).copied());
+                self.bench.results.bg.trend = None;
+                let first = self.bench.results.trend.is_empty();
+                points.extend(
+                    self.bench
+                        .results
+                        .trend
+                        .iter()
+                        .filter(|p| p.t > read_to)
+                        .copied(),
+                );
                 self.put_trend(points);
                 if first {
                     self.refit_opened();
                 }
             }
             Err(true) => {}
-            Err(false) => self.results.bg.trend = None,
+            Err(false) => self.bench.results.bg.trend = None,
         }
     }
 
@@ -560,35 +576,35 @@ impl TimegrapherApp {
     /// listening stops.
     fn long_reserve_shown(&mut self, ctx: &egui::Context) {
         if self.reserve_is_test() {
-            self.results.bg.reserve = None;
-            self.results.bg.reserve_live = None;
-            self.results.bg.reserve_of = None;
+            self.bench.results.bg.reserve = None;
+            self.bench.results.bg.reserve_live = None;
+            self.bench.results.bg.reserve_of = None;
             return;
         }
         if self.running() {
             self.long_reserve_listening(ctx);
             return;
         }
-        self.results.bg.reserve_live = None;
+        self.bench.results.bg.reserve_live = None;
         let key = self.take.rev;
-        if self.results.bg.reserve.is_none()
-            && self.results.bg.reserve_of.is_some_and(|of| of != key)
+        if self.bench.results.bg.reserve.is_none()
+            && self.bench.results.bg.reserve_of.is_some_and(|of| of != key)
         {
-            self.results.bg.reserve = Some(None);
+            self.bench.results.bg.reserve = Some(None);
         }
-        let Some(wanted) = &self.results.bg.reserve else {
+        let Some(wanted) = &self.bench.results.bg.reserve else {
             return;
         };
         match wanted.as_ref().filter(|j| j.key == key).map(Job::done) {
             Some(Ok(t)) => {
                 self.bench.test.reserve = t;
-                self.results.bg.reserve = None;
-                self.results.bg.reserve_of = Some(key);
+                self.bench.results.bg.reserve = None;
+                self.bench.results.bg.reserve_of = Some(key);
             }
             Some(Err(true)) => {}
-            Some(Err(false)) => self.results.bg.reserve = None,
+            Some(Err(false)) => self.bench.results.bg.reserve = None,
             None => {
-                self.results.bg.reserve = self
+                self.bench.results.bg.reserve = self
                     .long_take_reader()
                     .map(|read| Some(Job::start(key, ctx, read)));
             }
@@ -603,26 +619,27 @@ impl TimegrapherApp {
     /// leaves the pane as before a test. Where listening stops, it is
     /// read once more ([`Self::long_reserve_shown`]).
     fn long_reserve_listening(&mut self, ctx: &egui::Context) {
-        self.results.bg.reserve = Some(None);
-        if let Some(job) = &self.results.bg.reserve_live {
+        self.bench.results.bg.reserve = Some(None);
+        if let Some(job) = &self.bench.results.bg.reserve_live {
             match job.done() {
                 Ok(t) => {
                     self.bench.test.reserve = t;
-                    self.results.bg.reserve_live = None;
+                    self.bench.results.bg.reserve_live = None;
                 }
                 Err(true) => return,
-                Err(false) => self.results.bg.reserve_live = None,
+                Err(false) => self.bench.results.bg.reserve_live = None,
             }
         }
         let now = self.recording.live.as_ref().map_or(0.0, |l| l.duration_s());
         if now < power_reserve::LONG_TAKE_S
-            || (0.0..power_reserve::READ_AGAIN_S).contains(&(now - self.results.bg.reserve_live_s))
+            || (0.0..power_reserve::READ_AGAIN_S)
+                .contains(&(now - self.bench.results.bg.reserve_live_s))
         {
             return;
         }
-        self.results.bg.reserve_live_s = now;
+        self.bench.results.bg.reserve_live_s = now;
         // Read as a run so far: the take hasn't ended.
-        self.results.bg.reserve_live = self.long_take_reader().map(|read| {
+        self.bench.results.bg.reserve_live = self.long_take_reader().map(|read| {
             Job::start(now, ctx, move || {
                 read().map(|mut t| {
                     t.results = t.results.map(power_reserve::Results::still_listening);

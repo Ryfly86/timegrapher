@@ -322,7 +322,7 @@ fn the_sound_panes_follow_the_strips_newest_edge() {
             },
         )
     };
-    app.results.sound_history = (5..=20).map(|k| kept(2.0 * k as f64)).collect();
+    app.bench.results.sound_history = (5..=20).map(|k| kept(2.0 * k as f64)).collect();
     let latest = app.latest_s();
     let beats_shown = |app: &mut TimegrapherApp| {
         let end = app.strip_end_s();
@@ -357,7 +357,7 @@ fn the_sound_panes_follow_the_strips_newest_edge() {
     assert_eq!(s.line, Some(format!("Masked at {at}")));
     app.take.masked.clear();
     // Kept nowhere near: said, not filled from either side.
-    app.results.sound_history.retain(|h| h.0 > end + 2.0);
+    app.bench.results.sound_history.retain(|h| h.0 > end + 2.0);
     let s = app.profiles_at(end);
     assert_eq!(s.line, Some(format!("No sound kept from {at}")));
     // A double-click goes back to the newest beats.
@@ -747,9 +747,9 @@ fn the_takes_span_ends_at_its_newest_beat_or_reading() {
         beat_error_unlock_error_ms: None,
         heard: true,
     };
-    app.results.trend = vec![reading(beat - 10.0)];
+    app.bench.results.trend = vec![reading(beat - 10.0)];
     assert_eq!(app.take_span(), Some((0.0, beat)));
-    app.results.trend = vec![reading(beat - 10.0), reading(beat + 5.0)];
+    app.bench.results.trend = vec![reading(beat - 10.0), reading(beat + 5.0)];
     assert_eq!(app.take_span(), Some((0.0, beat + 5.0)));
 
     app.bench.panes_view.strip_fit = true;

@@ -1454,7 +1454,7 @@ fn guided_test_saved(
     app.wait_for_save();
     // The window draws again unprompted while it is read, so the reading
     // lands with no input (Walter 16 on #2067).
-    assert!(app.results.bg.test_read.is_some());
+    assert!(app.bench.results.bg.test_read.is_some());
     assert!(app.repaint_every().is_some());
     // Saved again while it is read: it reads what that save wrote.
     if again {
@@ -1462,7 +1462,7 @@ fn guided_test_saved(
         app.wait_for_save();
     }
     let t = Instant::now();
-    while app.results.bg.test_read.is_some() && t.elapsed().as_secs() < 300 {
+    while app.bench.results.bg.test_read.is_some() && t.elapsed().as_secs() < 300 {
         app.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }

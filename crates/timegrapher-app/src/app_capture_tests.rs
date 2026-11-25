@@ -392,7 +392,7 @@ fn a_run_read_before_the_takeover_is_never_shown_after_it() {
                 app.take.average_s *= 2.0;
                 let key = (app.take.rev, app.take.average_s.to_bits());
                 let job = take_reads::Job::start(key, &ctx, move || (vec![stale], 0.0));
-                app.results.bg.trend = Some(job);
+                app.bench.results.bg.trend = Some(job);
                 planted = Some(stale);
             }
         }
@@ -416,21 +416,21 @@ fn a_run_read_before_the_takeover_is_never_shown_after_it() {
     // The clock's first measurements move the take's footing early in a
     // capture, which would drop the job by itself; on a long take nothing
     // else changes, so the job keeps the footing the app has now.
-    if let Some(job) = app.results.bg.trend.as_mut() {
+    if let Some(job) = app.bench.results.bg.trend.as_mut() {
         job.key = (app.take.rev, app.take.average_s.to_bits());
     }
     let start = Instant::now();
     app.refresh_trend_shown(&ctx);
-    while app.results.bg.trend.is_some() {
+    while app.bench.results.bg.trend.is_some() {
         assert!(start.elapsed() < Duration::from_secs(60), "never read");
         std::thread::sleep(Duration::from_millis(10));
         app.refresh_trend_shown(&ctx);
     }
     assert!(
-        !app.results.trend.contains(&stale),
+        !app.bench.results.trend.contains(&stale),
         "the old template's run shown"
     );
-    assert!(!app.results.trend.is_empty());
+    assert!(!app.bench.results.trend.is_empty());
     drop(tx);
     let _ = std::fs::remove_dir_all(base);
 }
@@ -473,7 +473,7 @@ fn listening_carries_on_when_the_first_chunk_read_again_takes_over() {
     let live = app.recording.live.as_ref().unwrap();
     assert!(live.template_switch_s().is_some(), "not taken over");
     assert!(app.reading().and_then(|r| r.amplitude_deg).is_some());
-    assert!(app.results.trend.windows(2).all(|w| w[0].t < w[1].t));
+    assert!(app.bench.results.trend.windows(2).all(|w| w[0].t < w[1].t));
     // A beat 30 s in stands where it stood on the strip, within the
     // scatter of a beat's time between two templates.
     let (a0, beats0) = before.expect("an anchor before the takeover");
@@ -557,11 +557,12 @@ fn numbered_after_a_break(name: &str) -> (TimegrapherApp, PathBuf, Sender<Event>
 /// What the Scope reads for `lo` to `hi` while listening: the stretch
 /// read and its sound, or none when it reads nothing.
 fn scope_read(app: &mut TimegrapherApp, lo: f64, hi: f64) -> Option<(f64, f64, crate::span::Span)> {
-    app.results.scope_job = None;
+    app.bench.results.scope_job = None;
     if !app.start_scope_job(lo, hi) {
         return None;
     }
     let (a, b, got) = app
+        .bench
         .results
         .scope_job
         .take()?

@@ -1627,8 +1627,6 @@ pub struct TimegrapherApp {
     watches_view: watches_view::WatchesView,
     /// The bench: the take on show, recorded, read, tested, drawn and kept.
     bench: bench::Bench,
-    /// The take's readings and the runs in the background that read them.
-    results: results::Results,
     /// What the take on show is read with: the watch, its beat rate and
     /// lift, the positions, masks and clock, and what its readings rest on.
     take: take_settings::TakeSettings,
@@ -1885,6 +1883,7 @@ impl TimegrapherApp {
             bench: bench::Bench {
                 panes_view: pane_view::PaneView::default(),
                 test: guided_test::GuidedTest::default(),
+                results: results::Results::default(),
             },
             recording: recording::Recording {
                 input: if file.is_some() {
@@ -1924,7 +1923,6 @@ impl TimegrapherApp {
             library_dir: None,
             library: Ok(None),
             watches_view: watches_view::WatchesView::default(),
-            results: results::Results::default(),
             confirm: None,
             may_close: false,
             // As the settings first are.
@@ -1967,16 +1965,16 @@ impl TimegrapherApp {
     /// The charts from the engine's readings at the averaging time,
     /// `points`, read here or off the window's thread.
     fn put_trend(&mut self, mut points: Vec<TrendPoint>) {
-        self.results.strip_points = None;
+        self.bench.results.strip_points = None;
         points.retain(|p| self.session.replay_reading_allowed(p.t));
-        self.results.trend = points;
-        self.results.trend_key = (self.take.rev, self.take.average_s.to_bits());
+        self.bench.results.trend = points;
+        self.bench.results.trend_key = (self.take.rev, self.take.average_s.to_bits());
     }
 
     /// Read the run of readings again when what it rests on changed since: the take's settings,
     /// clock, breaks or masks, or Average Over. While listening the next frame reads it (#1825).
     fn refresh_trend(&mut self) {
-        if self.results.trend_key != (self.take.rev, self.take.average_s.to_bits())
+        if self.bench.results.trend_key != (self.take.rev, self.take.average_s.to_bits())
             && !self.running()
         {
             self.rebuild_trend();
@@ -1992,8 +1990,8 @@ impl TimegrapherApp {
         };
         let now = (live.template_switch_s(), live.template_rebuild_given_up());
         if now.0 != self.recording.rebuild_seen.0 {
-            self.results.bg.trend = None;
-            self.results.trend = live.trend(self.take.average_s);
+            self.bench.results.bg.trend = None;
+            self.bench.results.trend = live.trend(self.take.average_s);
             if let (Some(a), Some((dt, di))) =
                 (self.recording.anchor.as_mut(), live.template_shift())
             {
@@ -2016,7 +2014,8 @@ impl TimegrapherApp {
     /// The end of the last reading with a watch heard; the end when none
     /// was.
     fn last_heard_s(&self) -> f64 {
-        self.results
+        self.bench
+            .results
             .trend
             .iter()
             .rev()

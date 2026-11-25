@@ -87,7 +87,7 @@ impl TimegrapherApp {
             t.saved_read = guided::SavedRead::Failed(e.to_string());
             return;
         }
-        self.results.bg.test_read = Some(TestRead {
+        self.bench.results.bg.test_read = Some(TestRead {
             began_unix: t.began_unix,
             dir: dir.to_path_buf(),
             rx,
@@ -103,6 +103,7 @@ impl TimegrapherApp {
         // Nothing lands while a save is written: one of the same take
         // starts the reading over once it is done.
         let Some(job) = self
+            .bench
             .results
             .bg
             .test_read
@@ -118,7 +119,7 @@ impl TimegrapherApp {
         };
         let Some(TestRead {
             began_unix, dir, ..
-        }) = self.results.bg.test_read.take()
+        }) = self.bench.results.bg.test_read.take()
         else {
             return;
         };
@@ -276,7 +277,7 @@ impl TimegrapherApp {
             Ok(Some(m)) => {
                 self.bench.test.guided_unused = unused_of(&m);
                 self.bench.test.guided_measured = m.measured;
-                self.results.bg.opened_marks = Some(self.bench.test.guided_unused.clone());
+                self.bench.results.bg.opened_marks = Some(self.bench.test.guided_unused.clone());
             }
             Ok(None) => {}
             Err(e) => self.info_msg(format!("The test's marks weren't read: {e}")),
@@ -289,6 +290,6 @@ impl TimegrapherApp {
     pub(super) fn marks_opened(&self) -> bool {
         self.bench.test.guided.is_none()
             && !self.bench.test.guided_unused.is_empty()
-            && self.results.bg.opened_marks.as_ref() == Some(&self.bench.test.guided_unused)
+            && self.bench.results.bg.opened_marks.as_ref() == Some(&self.bench.test.guided_unused)
     }
 }

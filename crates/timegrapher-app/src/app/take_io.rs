@@ -59,15 +59,15 @@ impl TimegrapherApp {
             l.set_profile_span(span);
         }
         // The sound kept so far covered the old span.
-        self.results.sound_at = None;
+        self.bench.results.sound_at = None;
         self.refresh_trend();
     }
 
     /// Clear every run of readings, for a new session or a change that
     /// makes them all out of date; new readings fill them again.
     pub(super) fn clear_trends(&mut self) {
-        self.results.strip_points = None;
-        self.results.trend.clear();
+        self.bench.results.strip_points = None;
+        self.bench.results.trend.clear();
     }
 
     pub(super) fn info(&self, device: &str, sample_rate: u32, bits: u16) -> SessionInfo {
@@ -101,13 +101,13 @@ impl TimegrapherApp {
         self.recording.meter.level = Level::default();
         self.recording.meter.clipped_at = None;
         self.message = None;
-        self.results.sound_history.clear();
+        self.bench.results.sound_history.clear();
         self.keeping.no_sound = None;
         self.keeping.analysis_kept_to = None;
         self.bench.test.guided = None;
         self.bench.test.reserve = None;
-        self.results.bg.reserve_live = None;
-        self.results.bg.reserve_live_s = 0.0;
+        self.bench.results.bg.reserve_live = None;
+        self.bench.results.bg.reserve_live_s = 0.0;
         self.bench.test.guided_unused.clear();
         self.bench.test.guided_measured.clear();
         // Its masks, once nothing of the last test's is left.
@@ -485,13 +485,13 @@ impl TimegrapherApp {
         self.take.masking = false;
         self.take.brush = None;
         self.clear_trends();
-        self.results.sound_history.clear();
+        self.bench.results.sound_history.clear();
         self.keeping.no_sound = None;
         self.keeping.analysis_kept_to = None;
         self.bench.test.guided = None;
         self.bench.test.reserve = None;
-        self.results.bg.reserve_live = None;
-        self.results.bg.reserve_live_s = 0.0;
+        self.bench.results.bg.reserve_live = None;
+        self.bench.results.bg.reserve_live_s = 0.0;
         self.bench.test.positions_take = false;
         self.bench.test.guided_saved = None;
         self.bench.test.complication_saved = None;
@@ -2238,9 +2238,9 @@ impl TimegrapherApp {
                     .reduce(f64::min);
                 if let Some(j) = new {
                     // So does a run read meanwhile, which reaches across it.
-                    self.results.bg.trend = None;
-                    self.results.trend.retain(|p| p.t <= j);
-                    self.results.sound_history.retain(|h| h.0 <= j);
+                    self.bench.results.bg.trend = None;
+                    self.bench.results.trend.retain(|p| p.t <= j);
+                    self.bench.results.sound_history.retain(|h| h.0 <= j);
                 }
                 self.recording.jumps_seen = jumps.to_vec();
             }
@@ -2258,9 +2258,9 @@ impl TimegrapherApp {
             if !self.session.replay_reading_allowed(r.time_s) {
                 return Ok(());
             }
-            self.results.trend.push(TrendPoint::of(r.time_s, &r));
+            self.bench.results.trend.push(TrendPoint::of(r.time_s, &r));
             let p = live.tick_profiles();
-            let sound = &mut self.results.sound_history;
+            let sound = &mut self.bench.results.sound_history;
             let due = sound.last().is_none_or(|h| r.time_s - h.0 >= SOUND_EVERY_S);
             if due && p.iter().any(Option::is_some) {
                 let kept = scope_panes::Kept {
@@ -2562,9 +2562,9 @@ impl TimegrapherApp {
         self.land_log(log, label, stretches, settles);
         // Read here what the window reads in the background.
         self.refresh_trend();
-        self.results.bg.reserve = None;
+        self.bench.results.bg.reserve = None;
         self.reserve_from_long_take();
-        self.results.bg.reserve_of = Some(self.take.rev);
+        self.bench.results.bg.reserve_of = Some(self.take.rev);
     }
 
     /// Show a take's beats, `log`, as an opened take lands whose readings
@@ -2613,7 +2613,9 @@ impl TimegrapherApp {
         // background by the next frame (#1014).
         match trend {
             Some(points) => self.put_trend(points),
-            None => (self.results.trend, self.results.strip_points) = (Vec::new(), None),
+            None => {
+                (self.bench.results.trend, self.bench.results.strip_points) = (Vec::new(), None)
+            }
         }
         self.recording.source_label = label;
         self.recording.anchor = None;
@@ -2621,7 +2623,7 @@ impl TimegrapherApp {
         self.fit_take();
         // A long take that isn't a test: its run, read as one in the
         // background.
-        self.results.bg.reserve = Some(None);
+        self.bench.results.bg.reserve = Some(None);
         let done = if self.keeping.no_sound.is_some() {
             "Opened the analysis kept without its sound: the readings, charts and tests are as \
              they were measured, and the Scope needs the sound. Drag the strip to look \

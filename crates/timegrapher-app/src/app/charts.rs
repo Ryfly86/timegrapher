@@ -44,7 +44,7 @@ impl TimegrapherApp {
             Some("Opening the take: its charts appear once it is read.")
         } else if self.recording.live.is_none() {
             Some("Listen to a watch or open a recording to see its readings here.")
-        } else if self.results.trend.is_empty() {
+        } else if self.bench.results.trend.is_empty() {
             Some("The charts begin with the first reading.")
         } else {
             None
@@ -85,7 +85,8 @@ impl TimegrapherApp {
             egui::Sense::hover(),
         );
         let average = self.take.average_s;
-        let (series, unit, decimals) = chart_lines(reading, &self.results.trend, average, pal);
+        let (series, unit, decimals) =
+            chart_lines(reading, &self.bench.results.trend, average, pal);
         let (mut plot, grid) = chart_plot(reading, theme::time_gutter(ui.ctx()));
         // One time axis for every chart in the pane: the take's, from its
         // start to its end or now, not each chart's own first and last
@@ -144,7 +145,7 @@ impl TimegrapherApp {
         );
         let (at, trend) = (
             hover.or(self.bench.panes_view.charts_over),
-            &self.results.trend,
+            &self.bench.results.trend,
         );
         let values = at.map_or_else(Vec::new, |x| {
             lane_values(&lookup, (x, trend), (reading, unit, decimals), pal)

@@ -745,14 +745,14 @@ fn one_position_take(name: &str, seconds: f64) -> PathBuf {
 fn an_opened_takes_readings_are_readied_off_the_window() {
     let dir = one_position_take("readied", 40.0);
     let mut app = reopened(&dir);
-    let readied = app.results.trend.clone();
+    let readied = app.bench.results.trend.clone();
     assert!(readied.len() > 10, "{}", readied.len());
     assert_eq!(
-        app.results.trend_key,
+        app.bench.results.trend_key,
         (app.take.rev, app.take.average_s.to_bits())
     );
     app.rebuild_trend();
-    assert_eq!(app.results.trend, readied);
+    assert_eq!(app.bench.results.trend, readied);
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -774,16 +774,18 @@ fn a_setting_changed_while_a_take_opens_holds() {
     // The charts, not readied at the new setting, are read by the next
     // frames in the background (#1014).
     let ctx = egui::Context::default();
-    while app.results.trend_key != (app.take.rev, now.to_bits()) && t.elapsed().as_secs() < 120 {
+    while app.bench.results.trend_key != (app.take.rev, now.to_bits())
+        && t.elapsed().as_secs() < 120
+    {
         app.take_reads_shown(&ctx);
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     let live = app.recording.live.as_ref().expect("opened");
     assert_eq!(live.config().profile_s, now);
-    assert_eq!(app.results.trend_key, (app.take.rev, now.to_bits()));
-    let shown = app.results.trend.clone();
+    assert_eq!(app.bench.results.trend_key, (app.take.rev, now.to_bits()));
+    let shown = app.bench.results.trend.clone();
     app.rebuild_trend();
-    assert_eq!(app.results.trend, shown);
+    assert_eq!(app.bench.results.trend, shown);
     let _ = std::fs::remove_dir_all(&dir);
 }
 

@@ -225,7 +225,11 @@ fn every_pane_is_whole_during_a_take() {
     for b in audio.samples.chunks(960) {
         if live.push(b) {
             let r = live.reading(ticking.take.average_s);
-            ticking.results.trend.push(TrendPoint::of(r.time_s, &r));
+            ticking
+                .bench
+                .results
+                .trend
+                .push(TrendPoint::of(r.time_s, &r));
         }
     }
     ticking.poll();
@@ -431,7 +435,7 @@ fn every_toolbar_keeps_to_one_row_and_folds_only_when_narrow() {
     for b in audio.samples.chunks(960) {
         if live.push(b) {
             let r = live.reading(app.take.average_s);
-            app.results.trend.push(TrendPoint::of(r.time_s, &r));
+            app.bench.results.trend.push(TrendPoint::of(r.time_s, &r));
         }
     }
     app.poll();
@@ -1202,7 +1206,7 @@ fn ticking(seconds: f64) -> TimegrapherApp {
     for b in audio.samples.chunks(960) {
         if live.push(b) {
             let r = live.reading(app.take.average_s);
-            app.results.trend.push(TrendPoint::of(r.time_s, &r));
+            app.bench.results.trend.push(TrendPoint::of(r.time_s, &r));
         }
     }
     app.poll();

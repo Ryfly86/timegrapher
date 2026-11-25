@@ -305,6 +305,7 @@ impl TimegrapherApp {
             position: self.take.position,
             average: self.take.average_s.to_bits(),
             readings: self
+                .bench
                 .results
                 .dist_readings
                 .as_ref()
@@ -388,24 +389,31 @@ impl TimegrapherApp {
             self.take.position,
             self.take.average_s.to_bits(),
         );
-        if self.results.dist_job.as_ref().is_some_and(|j| j.0 != key) {
-            self.results.dist_job = None;
+        if self
+            .bench
+            .results
+            .dist_job
+            .as_ref()
+            .is_some_and(|j| j.0 != key)
+        {
+            self.bench.results.dist_job = None;
         }
         if self
+            .bench
             .results
             .dist_readings
             .as_ref()
             .is_some_and(|d| d.0 != key)
         {
-            self.results.dist_readings = None;
+            self.bench.results.dist_readings = None;
         }
-        if let Some((k, upto, rx)) = &self.results.dist_job {
+        if let Some((k, upto, rx)) = &self.bench.results.dist_job {
             match rx.try_recv() {
                 Ok(d) => {
-                    self.results.dist_readings = Some((*k, *upto, d));
-                    self.results.dist_job = None;
+                    self.bench.results.dist_readings = Some((*k, *upto, d));
+                    self.bench.results.dist_job = None;
                 }
-                Err(TryRecvError::Disconnected) => self.results.dist_job = None,
+                Err(TryRecvError::Disconnected) => self.bench.results.dist_job = None,
                 Err(TryRecvError::Empty) => {}
             }
         }
@@ -421,11 +429,12 @@ impl TimegrapherApp {
             clock.as_ref().filter(|_| joined),
         );
         let due = self
+            .bench
             .results
             .dist_readings
             .as_ref()
             .is_none_or(|d| dur - d.1 >= self.take.average_s);
-        if self.results.dist_job.is_some() || !due {
+        if self.bench.results.dist_job.is_some() || !due {
             return;
         }
         let Some((log, breaks)) =
@@ -445,9 +454,9 @@ impl TimegrapherApp {
                     let _ = tx.send(read());
                     ctx.request_repaint();
                 });
-                self.results.dist_job = Some((key, dur, rx));
+                self.bench.results.dist_job = Some((key, dur, rx));
             }
-            None => self.results.dist_readings = Some((key, dur, read())),
+            None => self.bench.results.dist_readings = Some((key, dur, read())),
         }
     }
 
@@ -473,7 +482,7 @@ impl TimegrapherApp {
         let color = series_color(reading, pal);
         // The readings, one per Average Over so that no two share beats:
         // core's, as `timegrapher series` counts them (#1144).
-        let core = self.results.dist_readings.as_ref().map(|d| &d.2 .0);
+        let core = self.bench.results.dist_readings.as_ref().map(|d| &d.2 .0);
         let readings = |i: usize| -> Vec<f64> {
             core.map_or_else(Vec::new, |g| {
                 g[i].y.iter().copied().filter(|v| v.is_finite()).collect()
@@ -531,7 +540,7 @@ impl TimegrapherApp {
         }
         // The source core chose over the windows the readings are made
         // of, with its caveats.
-        self.results.dist_readings.as_ref().map_or_else(
+        self.bench.results.dist_readings.as_ref().map_or_else(
             || core_session::select_beat_errors(std::iter::empty()),
             |d| d.2 .1.clone(),
         )
@@ -983,7 +992,7 @@ mod source_tests {
         assert!(amps.iter().all(|a| (a - 280.0).abs() < 10.0), "{amps:?}");
         let (bes, .., selected) = app.hist_values(SeriesKind::BeatError, false, &theme::DARK);
         assert_eq!(bes.len(), rates.len());
-        let core = app.results.dist_readings.as_ref().unwrap();
+        let core = app.bench.results.dist_readings.as_ref().unwrap();
         assert_eq!(
             selected.unwrap().beat_error_source,
             core.2 .1.beat_error_source

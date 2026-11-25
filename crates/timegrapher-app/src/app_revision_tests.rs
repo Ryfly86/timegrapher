@@ -289,6 +289,7 @@ fn a_takes_usb_lines_set_its_rate() {
     let want = timegrapher_core::clockstore::correct_rate(heard, ppm);
     assert!((rate - want).abs() < 0.05, "{rate} {want}");
     let last = app
+        .bench
         .results
         .trend
         .last()
@@ -318,9 +319,9 @@ fn steadiness_now(app: &mut TimegrapherApp, ctx: &egui::Context) -> String {
     let start = Instant::now();
     loop {
         // As a Steadiness pane shown asks for them.
-        app.results.bg.shown_pass[0] = Some(ctx.cumulative_pass_nr());
+        app.bench.results.bg.shown_pass[0] = Some(ctx.cumulative_pass_nr());
         app.update_steady(ctx);
-        if let Some((rev, s)) = &app.results.steady {
+        if let Some((rev, s)) = &app.bench.results.steady {
             if *rev == app.take.rev {
                 return serde_json::to_string(&s.report).unwrap();
             }
@@ -350,20 +351,21 @@ fn the_steadiness_job_reads_only_what_the_panes_shown_want() {
         }
     };
     // No Steadiness pane shown: the isochronism alone.
-    wait(&mut app, &|a| a.results.bg.isochronism.is_some());
-    assert!(app.results.steady.is_none() && app.results.steady_job.is_none());
-    let alone = &app.results.bg.isochronism.as_ref().unwrap().1;
+    wait(&mut app, &|a| a.bench.results.bg.isochronism.is_some());
+    assert!(app.bench.results.steady.is_none() && app.bench.results.steady_job.is_none());
+    let alone = &app.bench.results.bg.isochronism.as_ref().unwrap().1;
     let alone = (j(&alone.isochronism), j(&alone.walk));
     // A Steadiness pane: the tests, without the maps; their isochronism
     // is the one read alone.
     steadiness_now(&mut app, &ctx);
-    let s = &app.results.steady.as_ref().expect("the tests ran").1;
+    let s = &app.bench.results.steady.as_ref().expect("the tests ran").1;
     assert!(s.maps.is_none());
     assert_eq!(alone, (j(&s.report.isochronism), j(&s.report.walk)));
     // An STFT or Wavelet pane: the maps too.
-    app.results.bg.shown_pass[1] = Some(ctx.cumulative_pass_nr());
+    app.bench.results.bg.shown_pass[1] = Some(ctx.cumulative_pass_nr());
     wait(&mut app, &|a| {
-        a.results
+        a.bench
+            .results
             .steady
             .as_ref()
             .is_some_and(|s| s.1.maps.is_some())
@@ -378,11 +380,11 @@ fn a_pane_counts_as_shown_for_its_pass_and_the_next() {
     use steady::Need;
     let mut app = synthetic(40.0, 12.0);
     assert_eq!(app.steady_need(10), Need::Isochronism);
-    app.results.bg.shown_pass = [Some(10), Some(10)];
+    app.bench.results.bg.shown_pass = [Some(10), Some(10)];
     assert_eq!(app.steady_need(10), Need::Maps);
     assert_eq!(app.steady_need(11), Need::Maps);
     assert_eq!(app.steady_need(12), Need::Isochronism);
-    app.results.bg.shown_pass = [Some(11), Some(10)];
+    app.bench.results.bg.shown_pass = [Some(11), Some(10)];
     assert_eq!(app.steady_need(12), Need::Tests);
     assert_eq!(app.steady_need(13), Need::Isochronism);
 }
@@ -395,13 +397,20 @@ fn the_isochronism_pane_shows_the_newer_answer() {
     let ctx = egui::Context::default();
     let mut app = synthetic(320.0, 12.0);
     steadiness_now(&mut app, &ctx);
-    let upto = app.results.steady.as_ref().expect("the tests ran").1.upto_s;
+    let upto = app
+        .bench
+        .results
+        .steady
+        .as_ref()
+        .expect("the tests ran")
+        .1
+        .upto_s;
     let same = |a: Option<&IsochronismWalk>, b: Option<&IsochronismWalk>| match (a, b) {
         (Some(a), Some(b)) => std::ptr::eq(a, b),
         (a, b) => a.is_none() && b.is_none(),
     };
     for (alone_upto, tests_shown) in [(upto - 10.0, true), (upto + 10.0, false)] {
-        app.results.bg.isochronism = Some((
+        app.bench.results.bg.isochronism = Some((
             app.take.rev,
             steady::IsochronismAlone {
                 isochronism: None,
@@ -410,8 +419,26 @@ fn the_isochronism_pane_shows_the_newer_answer() {
             },
         ));
         let (_, walk) = app.isochronism_shown().expect("an answer");
-        let tests = app.results.steady.as_ref().unwrap().1.report.walk.as_ref();
-        let alone = app.results.bg.isochronism.as_ref().unwrap().1.walk.as_ref();
+        let tests = app
+            .bench
+            .results
+            .steady
+            .as_ref()
+            .unwrap()
+            .1
+            .report
+            .walk
+            .as_ref();
+        let alone = app
+            .bench
+            .results
+            .bg
+            .isochronism
+            .as_ref()
+            .unwrap()
+            .1
+            .walk
+            .as_ref();
         let want = if tests_shown { tests } else { alone };
         assert!(same(walk, want), "tests' shown: {tests_shown}");
     }
@@ -429,7 +456,14 @@ fn the_steadiness_job_carries_the_calibres_meshes() {
     let mut app = synthetic(320.0, 12.0);
     app.set_calibre("ETA 2824-2".into());
     steadiness_now(&mut app, &ctx);
-    let meshes = &app.results.steady.as_ref().expect("the tests ran").1.meshes;
+    let meshes = &app
+        .bench
+        .results
+        .steady
+        .as_ref()
+        .expect("the tests ran")
+        .1
+        .meshes;
     let names: Vec<&str> = meshes.iter().map(|m| m.name.as_str()).collect();
     assert_eq!(
         names,
@@ -453,7 +487,7 @@ fn panes(app: &mut TimegrapherApp, ctx: &egui::Context) -> [String; 4] {
             "{:?} {:?} {}",
             w.m.rate_s_per_day, w.m.amplitude_deg, w.span
         ),
-        format!("{:?}", app.results.trend),
+        format!("{:?}", app.bench.results.trend),
         format!("{:?}", app.free_table(ctx).expect("a table")),
         steadiness_now(app, ctx),
     ]
