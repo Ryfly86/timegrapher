@@ -128,13 +128,13 @@ mod tests {
         assert_eq!(a.summary.confidence.unwrap().rate.se, None);
         assert!(doc["bph_measured_se"].is_null());
         // With a rate ± of 4.8 s/d, the beat rate heard has 4.8 / 86,400
-        // of itself, just under 1 bph.
+        // of the rate it is read against, 1 bph (Norm on #2303).
         let mut with_pm = a.summary.clone();
         with_pm.confidence.as_mut().unwrap().rate.se = Some(4.8);
         let se = body(&with_pm, None).unwrap()["bph_measured_se"]
             .as_f64()
             .unwrap();
-        assert!((se - heard * 4.8 / 86_400.0).abs() < 1e-12, "{se}");
+        assert!((se - 18_000.0 * 4.8 / 86_400.0).abs() < 1e-12, "{se}");
         // Corrected for a card 50 ppm fast, the rate reads 50 ppm more
         // (`clockstore::correct_rate`), and so does the beat rate heard.
         let corrected = body(&a.summary, Some((50.0, "typed in"))).unwrap();

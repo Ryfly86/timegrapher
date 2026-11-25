@@ -447,7 +447,9 @@ impl MeasuredRate {
     /// The beat rate heard where `rate_s_per_day` (with its ± `rate_se`)
     /// is read against `bph`: `3600 / P`, with `P` the beat period that
     /// rate is the fit's reading of ([`period_s`]), so on the rate's own
-    /// clock and stretch. Its ± is `bph × σ_r / 86,400` (Norm on #2223,
+    /// clock and stretch. Its ± is `bph × σ_r / 86,400` with `bph` the
+    /// rate read against, since the rate heard is `bph × (1 + r / 86,400)`
+    /// (Norm on #2223,
     /// point 3). None with no rate.
     pub fn of(bph: u32, rate_s_per_day: Option<f64>, rate_se: Option<f64>) -> Option<Self> {
         let rate = rate_s_per_day.filter(|r| r.is_finite())?;
@@ -456,7 +458,7 @@ impl MeasuredRate {
             bph: heard,
             se: rate_se
                 .filter(|s| s.is_finite() && *s > 0.0)
-                .map(|s| heard * s / 86_400.0),
+                .map(|s| f64::from(bph) * s / 86_400.0),
         })
     }
 
@@ -811,7 +813,7 @@ mod tests {
         assert_eq!(m.whole(), 17_570.0);
         assert_eq!(m.offset_from(18_000), -430.0);
         let se = m.se.unwrap();
-        assert!((se - 17_570.0 * 4.8 / 86_400.0).abs() < 1e-12, "{se}");
+        assert!((se - 18_000.0 * 4.8 / 86_400.0).abs() < 1e-12, "{se}");
         // On its standard rate, a watch 0 s/d reads that rate exactly.
         let on = MeasuredRate::of(28_800, Some(0.0), None).unwrap();
         assert_eq!(
