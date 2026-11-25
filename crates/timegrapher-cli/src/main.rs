@@ -836,7 +836,7 @@ enum ClockAction {
     Set {
         /// The input, as `devices` names it.
         device: String,
-        /// Its error in ppm: fast, negative if slow.
+        /// Its error in ppm.
         #[arg(allow_hyphen_values = true, value_parser = parse_card_ppm)]
         ppm: f64,
     },
