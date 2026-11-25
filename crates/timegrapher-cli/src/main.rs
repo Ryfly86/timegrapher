@@ -82,6 +82,10 @@ fn parse_finite(text: &str) -> Result<f64, String> {
     timegrapher_core::input_domain::finite(number(text)?)
 }
 
+/// Where the developer commands, `regress` and `synth`, sit in the list
+/// of commands: after every command for measuring a watch (#2099).
+const DEVELOPER_ORDER: usize = 1000;
+
 #[derive(Parser)]
 #[command(
     name = "timegrapher",
@@ -89,8 +93,13 @@ fn parse_finite(text: &str) -> Result<f64, String> {
     about = "Analyse mechanical watch recordings beat by beat",
     after_help = "Every command with --json prints one JSON document with a `schema` field \
 (e.g. timegrapher.analyze/2), the software version and the input it read. \
-`timegrapher doctor` measures the microphone input. Exit codes: 0 success, \
-1 error, 3 a take moved beyond its margins (regress)."
+Exit codes: 0 success, 1 error, 3 a take moved beyond its margins (regress). \
+For live readings, use the desktop app; `record` saves one position of a test.
+
+Examples:
+  timegrapher analyze my_take/take_part01-001.flac   one sound file of a take
+  timegrapher session my_take                        a take's folder, as one report
+  timegrapher doctor                                 measures the microphone input"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -101,6 +110,7 @@ struct Cli {
 enum Command {
     /// Analyse a WAV or FLAC recording.
     Analyze {
+        /// The recording: one sound file, WAV or FLAC.
         file: PathBuf,
         /// The movement (e.g. "ETA 2824-2", "Rolex 3235"; see `calibres`):
         /// sets the beat rate, the lift angle and the escape wheel teeth
@@ -158,6 +168,7 @@ enum Command {
     },
     /// Measure the three sounds of each side's beat.
     Shape {
+        /// The recording: one sound file, WAV or FLAC.
         file: PathBuf,
         /// Beat rate in beats per hour (default: the take's, for a sound
         /// file its folder's session.toml lists; else guessed).
@@ -185,6 +196,7 @@ enum Command {
     /// with the unlock, drop and sound marks the engine measured on them:
     /// the place to look when amplitude or beat error seem wrong.
     Profile {
+        /// The recording: one sound file, WAV or FLAC.
         file: PathBuf,
         /// Start of the stretch, seconds from the start of the recording.
         #[arg(long, default_value_t = 0.0, value_parser = parse_non_negative)]
@@ -579,11 +591,12 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
-    /// Check the engine against tg on stored takes: every reading of every
-    /// session file under ROOT is measured again and compared with its tg
-    /// reference and a baseline. Exit code 3 when a value moved away from
+    /// For developers: check the engine against tg on stored takes. Every
+    /// reading of every session file under ROOT is measured again and
+    /// compared with its tg reference and a baseline. Exit code 3 when a value moved away from
     /// tg by more than its margin, a reading lost beats or a value, required
     /// evidence is missing/unreadable, or an existing recording label changed.
+    #[command(display_order = DEVELOPER_ORDER)]
     Regress {
         /// A folder of takes, each with a session.toml whose readings carry
         /// tg's numbers (e.g. a clone of the recordings repo).
@@ -726,7 +739,8 @@ enum Command {
         #[arg(long, global = true)]
         json: bool,
     },
-    /// Write a synthetic watch recording (for testing).
+    /// For developers: write a synthetic watch recording (for testing).
+    #[command(display_order = DEVELOPER_ORDER + 1)]
     Synth {
         /// The WAV file to write, or with --scenario the take folder.
         out: Option<PathBuf>,
@@ -794,7 +808,10 @@ enum WatchesAction {
     /// One watch's details and every take, newest first, each with its
     /// folder to pass to `session`, `long` or `series`. `Unsorted` shows
     /// the takes Quick Listen made.
-    Show { name: String },
+    Show {
+        /// The watch, by its name, or `Unsorted`.
+        name: String,
+    },
     #[command(flatten)]
     Change(watches_edit::Change),
 }
@@ -820,6 +837,7 @@ enum ClockAction {
     /// Read the error from a recording's clock log (audio position
     /// against NTP time; see `long --clock`).
     FromLog {
+        /// The clock log: the recording's audio position against NTP time.
         log: PathBuf,
         /// The recording the log belongs to (for its sample rate).
         recording: PathBuf,
@@ -832,12 +850,17 @@ enum ClockAction {
     },
     /// Store a known error by hand: ppm fast, negative if slow.
     Set {
+        /// The input, as `devices` names it.
         device: String,
+        /// Its error in ppm.
         #[arg(allow_hyphen_values = true, value_parser = parse_card_ppm)]
         ppm: f64,
     },
     /// Remove an input's stored correction.
-    Forget { device: String },
+    Forget {
+        /// The input, as `devices` names it.
+        device: String,
+    },
 }
 
 /// The OS error a write to a pipe whose reader has gone fails with: EPIPE,
