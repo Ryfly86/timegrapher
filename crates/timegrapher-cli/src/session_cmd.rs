@@ -1254,6 +1254,12 @@ fn csv(s: &Session) -> String {
     let mut t = String::from(
         "recording,position,wind_h,measured_s,beats,clean_fraction,calibrated,rate_s_per_day,rate_window_median_s_per_day,amplitude_deg,beat_error_unlock_ms,beat_error_drop_ms,jitter_us,rate_p05,rate_p95,clipped_fraction,ref_rate,ref_amplitude,ref_beat_error\n",
     );
+    // An unknown number is an empty field. Each number is emptied on its
+    // own, so a dash in a recording's quoted name is kept as it is.
+    let num = |v: Option<f64>, digits: usize| match opt(v, digits) {
+        d if d == "-" => String::new(),
+        x => x,
+    };
     for r in &s.readings {
         let m = &r.measurement;
         let rf = r.reference.clone().unwrap_or_default();
@@ -1261,28 +1267,26 @@ fn csv(s: &Session) -> String {
             "{},{},{},{:.1},{},{:.3},{},{},{},{},{},{},{},{},{},{:.4},{},{},{}\n",
             csv::field(&r.label, ','),
             r.position,
-            opt(r.wind_h, 1).replace('-', ""),
+            num(r.wind_h, 1).replace('-', ""),
             m.measured_s(),
             m.beats,
             m.clean_fraction,
             m.calibrated,
-            opt(m.rate_s_per_day, 2),
-            opt(m.rate_window_median_s_per_day, 2),
-            opt(m.amplitude_deg, 1),
-            opt(m.beat_error_unlock_ms.map(f64::abs), 3),
-            opt(m.beat_error_ms.map(f64::abs), 3),
-            opt(m.jitter_us, 0),
-            opt(m.rate_p05, 1),
-            opt(m.rate_p95, 1),
+            num(m.rate_s_per_day, 2),
+            num(m.rate_window_median_s_per_day, 2),
+            num(m.amplitude_deg, 1),
+            num(m.beat_error_unlock_ms.map(f64::abs), 3),
+            num(m.beat_error_ms.map(f64::abs), 3),
+            num(m.jitter_us, 0),
+            num(m.rate_p05, 1),
+            num(m.rate_p95, 1),
             m.clipped_fraction,
-            opt(rf.rate_s_per_day, 1),
-            opt(rf.amplitude_deg, 0),
-            opt(rf.beat_error_ms, 2),
+            num(rf.rate_s_per_day, 1),
+            num(rf.amplitude_deg, 0),
+            num(rf.beat_error_ms, 2),
         ));
     }
-    t.replace(",-,", ",,")
-        .replace(",-,", ",,")
-        .replace(",-\n", ",\n")
+    t
 }
 
 fn finding_lines(f: &Finding) {
@@ -1930,6 +1934,8 @@ mod tests {
     /// A recording whose name holds a comma keeps its name whole in
     /// `readings.csv`, quoted by core `csv::field` (no longer with a
     /// semicolon in place of the comma), and the row keeps its columns.
+    /// A dash between commas in the name is kept too: only an unknown
+    /// number becomes an empty field.
     /// The name has no double quote, which Windows can't hold in a file
     /// name; the quoter's own test covers one.
     #[test]
@@ -1943,11 +1949,11 @@ mod tests {
             ..Default::default()
         };
         let audio = generate(&cfg, |_| 280.0, |_| 3.0);
-        let name = "Pepsi, DU.wav";
+        let name = "Pepsi,-, DU.wav";
         audio::write_wav(&dir.join(name), &audio).unwrap();
         fs::write(
             dir.join("session.toml"),
-            "bph = 28800\nlift = 52\n\n[[recording]]\nfile = \"Pepsi, DU.wav\"\nposition = \"DU\"\n",
+            "bph = 28800\nlift = 52\n\n[[recording]]\nfile = \"Pepsi,-, DU.wav\"\nposition = \"DU\"\n",
         )
         .unwrap();
         let out = dir.join("out");
@@ -1960,7 +1966,7 @@ mod tests {
         let text = fs::read_to_string(out.join("readings.csv")).unwrap();
         let row = text.lines().nth(1).unwrap();
         let header = text.lines().next().unwrap();
-        let rest = row.strip_prefix("\"Pepsi, DU.wav\",").expect(&text);
+        let rest = row.strip_prefix("\"Pepsi,-, DU.wav\",").expect(&text);
         assert_eq!(
             rest.split(',').count() + 1,
             header.split(',').count(),

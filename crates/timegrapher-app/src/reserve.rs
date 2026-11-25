@@ -1316,9 +1316,6 @@ mod tests {
         }
     }
 
-    /// The run line's hover says only what is true of the take now: kept
-    /// with its sound, its beats and readings being saved, or kept with
-    /// them alone (Hugh's wording, Walter's walk of #1055).
     #[test]
     fn a_watch_name_with_a_quote_or_a_tab_keeps_its_column() {
         // The table's fields are quoted by core `csv::field`, as the
@@ -1331,6 +1328,9 @@ mod tests {
         assert!(tsv.starts_with("Watch\t\"Pepsi\t1972\"\n"), "{tsv}");
     }
 
+    /// The run line's hover says only what is true of the take now: kept
+    /// with its sound, its beats and readings being saved, or kept with
+    /// them alone (Hugh's wording, Walter's walk of #1055).
     #[test]
     fn the_run_lines_hover_says_how_the_take_is_kept() {
         let name = "2026-10-25 23.17 Power Reserve";
