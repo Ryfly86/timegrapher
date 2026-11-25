@@ -2268,7 +2268,11 @@ fn usb_ppm(files: &[PathBuf]) -> Option<f64> {
             }
         }
     }
-    let ppm = crate::clock::usb_lines(files).ok().flatten().map(|u| u.ppm);
+    let ppm = crate::clock::usb_lines(files)
+        .ok()
+        .flatten()
+        .and_then(crate::usbclock::UsbClock::applied)
+        .map(|u| u.ppm);
     if let Ok(mut seen) = SEEN.lock() {
         seen.get_or_insert_with(Default::default)
             .insert(first.clone(), (modified, ppm));

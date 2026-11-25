@@ -8,7 +8,7 @@
 /// `-0.0` or `+0.0`). The app sets the minus as a true minus sign.
 pub fn signed_text(x: f64, digits: usize) -> String {
     let s = format!("{:.digits$}", x.abs());
-    if s.bytes().all(|b| b == b'0' || b == b'.') {
+    if is_zero_text(&s) {
         s
     } else if x < 0.0 {
         format!("-{s}")
@@ -17,13 +17,19 @@ pub fn signed_text(x: f64, digits: usize) -> String {
     }
 }
 
+/// Whether a figure's text, as [`signed_text`] or [`fixed_text`] writes it,
+/// rounded to zero: digits all `0`, with no sign (`0.0`, `0`).
+pub fn is_zero_text(text: &str) -> bool {
+    text.bytes().all(|b| b == b'0' || b == b'.')
+}
+
 /// A figure to `digits` decimals with its sign as it is, but one that
 /// rounds to zero written without a minus (`0.0`, never `-0.0`): the one
 /// rule for that (#815). [`signed_text`] also adds a plus.
 pub fn fixed_text(x: f64, digits: usize) -> String {
     let text = format!("{x:.digits$}");
     match text.strip_prefix('-') {
-        Some(rest) if rest.bytes().all(|b| b == b'0' || b == b'.') => rest.to_string(),
+        Some(rest) if is_zero_text(rest) => rest.to_string(),
         _ => text,
     }
 }

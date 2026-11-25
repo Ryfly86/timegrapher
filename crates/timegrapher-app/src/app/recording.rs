@@ -56,7 +56,7 @@ pub(super) struct Recording {
     pub(super) jumps_seen: Vec<f64>,
     /// When live's first chunk read again took over and why it was not,
     /// as last seen (#1327).
-    pub(super) rebuild_seen: (Option<f64>, Option<&'static str>),
+    pub(super) rebuild_seen: RebuildSeen,
     /// Offer every input the system lists, not just one per microphone.
     pub(super) all_inputs: bool,
     /// When the microphone was opened and when it last sent audio.
@@ -96,7 +96,7 @@ impl Default for Recording {
             clock_track: None,
             kept_live: Default::default(),
             jumps_seen: Vec::new(),
-            rebuild_seen: (None, None),
+            rebuild_seen: RebuildSeen::default(),
             all_inputs: false,
             opened_at: Instant::now(),
             audio_at: None,
@@ -137,5 +137,24 @@ impl TimegrapherApp {
         let m = format!("Can't open the input. {}", capture::explain_error(e));
         self.bench.recording.input_fault = Some(m.clone());
         self.error(m);
+    }
+}
+
+/// When live's first chunk read again took over, and why it was not
+/// ([`LiveAnalyzer::template_switch_s`],
+/// [`LiveAnalyzer::template_rebuild_given_up`]).
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub(super) struct RebuildSeen {
+    pub(super) switch_s: Option<f64>,
+    pub(super) given_up: Option<&'static str>,
+}
+
+impl RebuildSeen {
+    /// As `live` has it now.
+    pub(super) fn of(live: &LiveAnalyzer) -> Self {
+        Self {
+            switch_s: live.template_switch_s(),
+            given_up: live.template_rebuild_given_up(),
+        }
     }
 }

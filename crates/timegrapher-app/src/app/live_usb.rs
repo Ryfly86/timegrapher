@@ -103,6 +103,15 @@ impl TimegrapherApp {
         let u = self.bench.recording.live_usb.as_ref()?;
         u.clock().not_yet(self.bench.recording.clock.is_some())
     }
+
+    /// What the Rate must say once the recording's own clock is read, in
+    /// core's words (#2283): lines not used, or how far the lines moved
+    /// it from the kept correction's clock or the card's.
+    pub(super) fn live_usb_read_note(&self) -> Option<String> {
+        let u = self.bench.recording.live_usb.as_ref()?;
+        let kept = self.bench.recording.clock.as_ref().map(|c| c.ppm);
+        u.clock().read_note(kept)
+    }
 }
 
 /// The clock readings are put on, for a log `duration_s` long: for a

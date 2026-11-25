@@ -76,6 +76,16 @@ pub(super) struct DistKey {
     pub(super) average: u64,
 }
 
+/// Something read for the Distributions pane: what it was read for, how
+/// far into the take it reaches (seconds), and what it is: the readings,
+/// or the run in the background that brings them.
+#[derive(Debug)]
+pub(super) struct DistRead<T> {
+    pub(super) key: DistKey,
+    pub(super) upto_s: f64,
+    pub(super) got: T,
+}
+
 /// A beat's trace on the Scope: the take it is from, the beat's index,
 /// its time's bits, and the zoom and beat (its bits) it was drawn at.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

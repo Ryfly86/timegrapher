@@ -54,9 +54,13 @@ pub fn measured(summary: &Summary, ppm: Option<f64>) -> Option<crate::timing::Me
 }
 
 /// The correction `analyze` puts beside a summary with no other given:
-/// the recording's own USB lines, when it has them.
+/// the recording's own USB lines, when it has them and they apply
+/// ([`crate::usbclock::UsbClock::applies`]).
 pub fn usb_clock(summary: &Summary) -> Option<(f64, String)> {
-    summary.usb_clock.map(|c| c.correction())
+    summary
+        .usb_clock
+        .and_then(crate::usbclock::UsbClock::applied)
+        .map(|c| c.correction())
 }
 
 #[cfg(test)]

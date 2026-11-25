@@ -996,6 +996,59 @@ fn a_resumed_read_of_real_sound_is_a_full_reads_to_the_bit() {
     }
 }
 
+/// The silent-start take (corpus 1c35570): about 10 s of exact zeros, about
+/// 70 s of the empty stand, then the Yacht-Master 42 replica (#2189, #2191).
+const SILENT_START_TAKE: &str = "fakemic_silentstart_stand_ym42_DU";
+/// Its one file's SHA-256 at corpus 1c35570.
+const SILENT_START_SHA256: &str =
+    "313d25b9687a0080a0a4811e26a2d75077f693dfae31ffa25dcb0e0501d18fc6";
+
+/// A take that opens on exact zeros, then stand noise, read at a given
+/// 28,800 bph leaves the lead out and reads the watch's rate, exactly as
+/// Auto does (#2189, fixed by #2190). Norm's acceptance on #2191, set
+/// before any run: the lead left out lies in 75..=85 s, the rate is
+/// +52.54 ± 0.1 s/d, and the two reads agree exactly. Runs where
+/// `TIMEGRAPHER_CORPUS` is set.
+#[test]
+fn a_silent_start_take_leaves_its_lead_out_at_a_given_rate_as_on_auto() {
+    let Some(path) = corpus_takes(&[SILENT_START_TAKE]).pop() else {
+        return;
+    };
+    let hash = timegrapher_core::archive::sha256_hex(&std::fs::read(&path).unwrap());
+    assert_eq!(
+        hash, SILENT_START_SHA256,
+        "the file pinned at corpus 1c35570"
+    );
+    let audio = load(&path).unwrap();
+    let read = |bph| {
+        let s = analyze(
+            &audio,
+            &AnalysisConfig {
+                bph,
+                ..Default::default()
+            },
+        )
+        .summary;
+        let lead = s.caveats.iter().find_map(|c| match c {
+            Caveat::LeadLeftOut { seconds } => Some(*seconds),
+            _ => None,
+        });
+        eprintln!(
+            "bph {bph:?}: lead left out {lead:?} s, rate {:?} s/d",
+            s.rate_s_per_day
+        );
+        (lead, s.rate_s_per_day)
+    };
+    let given = read(Some(28_800));
+    let auto = read(None);
+    let (Some(lead), Some(rate)) = given else {
+        panic!("given 28,800 bph: no lead left out or no rate: {given:?}");
+    };
+    assert!((75.0..=85.0).contains(&lead), "lead left out {lead} s");
+    assert!((rate - 52.54).abs() <= 0.1, "rate {rate} s/d");
+    assert!(given == auto, "given {given:?} against Auto {auto:?}");
+}
+
 fn corpus_files() -> Vec<PathBuf> {
     corpus_takes(&REAL_TAKES)
 }
@@ -2068,4 +2121,114 @@ fn live_figures_before_the_template_is_built_again_are_the_saved_takes() {
         2.0 * read
     );
     std::fs::remove_dir(&dir).unwrap();
+}
+
+/// #2291's take (#2283): the reporter's USB microphone plugged into a
+/// Thunderbolt drive's USB ports, whose own controller makes the 1 ms
+/// frames. Its six USB lines read the card 151.1 ppm fast, past
+/// `usbclock::MAX_CARD_PPM`; straight into the computer (#2292) the same
+/// microphone read 9.3 ppm. The reporter gave the sound as CC0.
+const USB_HUB_TAKE: &str = "usbhub_dd3285_explorer2_DU_95s";
+
+/// The settings #2291's report read its excerpt with: 28,800 bph, 59°.
+fn usb_hub_settings() -> AnalysisConfig {
+    let mut cfg = AnalysisConfig {
+        bph: Some(28_800),
+        lift_known: true,
+        ..Default::default()
+    };
+    cfg.amplitude.lift_deg = 59.0;
+    cfg
+}
+
+/// Norm's acceptance 2 on #2283: lines through a hub's controller are
+/// kept, with the reason they are not applied, and correct nothing; the
+/// rate is the raw +14.1 s/d, and Hugh's hint says why and what to do.
+///
+/// Runs where `TIMEGRAPHER_CORPUS` is set.
+#[test]
+fn usb_lines_through_a_hub_are_kept_and_not_applied() {
+    use timegrapher_core::{analyze_doc, clock, take, usbclock};
+    let Some(path) = corpus_takes(&[USB_HUB_TAKE]).pop() else {
+        return;
+    };
+    let s = analyze(&load(&path).unwrap(), &usb_hub_settings()).summary;
+    let usb = s.usb_clock.expect("the lines kept");
+    assert_eq!(usb.lines, 6, "{usb:?}");
+    assert!((usb.ppm - 151.1).abs() < 0.05, "{usb:?}");
+    assert_eq!(usb.withheld(), Some(usbclock::IMPLAUSIBLE));
+    let json = serde_json::to_value(s.usb_clock).unwrap();
+    assert_eq!(json["withheld"], "usb_lines_implausible");
+    assert_eq!(json["ppm"], usb.ppm);
+    let raw = s.rate_s_per_day.expect("a rate");
+    assert!((raw - 14.1).abs() < 0.05, "{raw}");
+    assert_eq!(s.rate_corrected_s_per_day, None);
+    assert_eq!(analyze_doc::usb_clock(&s), None);
+    let hint = s
+        .caveats
+        .iter()
+        .find(|c| matches!(c, Caveat::UsbLinesNotUsed { .. }))
+        .expect("said");
+    assert_eq!(
+        hint.long(None).as_deref(),
+        Some(
+            "The USB lines read the card 151 ppm off, more than a sound card's clock should \
+             be, so they are not used. If the mic is plugged into a hub, dock or Thunderbolt \
+             device, plug it straight into the computer."
+        )
+    );
+    // Saved and opened: the lines read the same, and set no clock.
+    let files = [path.clone()];
+    assert_eq!(clock::usb_lines(&files).unwrap(), Some(usb));
+    assert_eq!(take::usb(&files).unwrap(), None);
+}
+
+/// Norm's acceptance 4 on #2283: on #2291's take, each live read of the
+/// lines is withheld as the take saved at that length withholds them, and
+/// the rate stays on the card's clock throughout.
+///
+/// Runs where `TIMEGRAPHER_CORPUS` is set.
+#[test]
+fn a_live_read_withholds_the_lines_a_saved_take_withholds() {
+    use timegrapher_core::usbclock::{self, LiveClock};
+    use timegrapher_core::{clock, excerpt, take};
+    let Some(path) = corpus_takes(&[USB_HUB_TAKE]).pop() else {
+        return;
+    };
+    let pcm = excerpt::read(&path).unwrap();
+    let a = load(&path).unwrap();
+    let fs = a.sample_rate;
+    let mut lines = usbclock::Live::new(fs);
+    let dir = std::env::temp_dir().join(format!("tg-eq-usbhub-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut seen = Vec::new();
+    for c in a.samples.chunks(fs as usize / 10) {
+        lines.push(c);
+        let Some(t) = lines.due() else {
+            continue;
+        };
+        let heard = lines.measure_due();
+        let LiveClock::Implausible { clock: live, .. } = heard else {
+            panic!("{t} s: {heard:?}");
+        };
+        assert!(take::live_clock(&heard, None, t).is_none(), "{t} s");
+        // The take saved now: its sound to this sample, opened again.
+        let saved = dir.join(format!("take-{t:.0}.flac"));
+        let part = excerpt::Pcm {
+            samples: pcm.samples[..(t * f64::from(fs)) as usize].to_vec(),
+            ..pcm
+        };
+        excerpt::write_flac(&saved, &part).unwrap();
+        let files = [saved];
+        assert_eq!(clock::usb_lines(&files).unwrap(), Some(live), "{t} s");
+        assert_eq!(take::usb(&files).unwrap(), None, "{t} s");
+        assert_eq!(
+            heard.read_note(None),
+            live.not_used_text(),
+            "{t} s: the hint said"
+        );
+        seen.push(t);
+    }
+    std::fs::remove_dir_all(&dir).ok();
+    assert_eq!(seen, [30.0, 60.0]);
 }
