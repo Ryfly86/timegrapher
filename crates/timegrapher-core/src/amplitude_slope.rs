@@ -71,7 +71,7 @@ pub(crate) fn pairing_readings(fine: &Grid, medians: &Grid) -> (Grid, Vec<f64>) 
         last = Some((b, v));
     }
     let var = if diffs.len() >= 4 {
-        (crate::dsp::robust_sd(&diffs) / std::f64::consts::SQRT_2).powi(2)
+        crate::dsp::robust_sd_from_steps(&diffs).powi(2)
     } else {
         f64::NAN
     };

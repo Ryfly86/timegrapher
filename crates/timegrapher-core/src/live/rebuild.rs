@@ -274,7 +274,7 @@ impl LiveAnalyzer {
 /// beats both found (each `new` beat paired with the nearest `old` one
 /// within a millisecond), and the move in their count there.
 fn moved(old: &[Beat], new: &[Beat]) -> Option<(f64, i64)> {
-    let mut d: Vec<(f64, i64)> = new
+    let d: Vec<(f64, i64)> = new
         .iter()
         .filter_map(|b| {
             let i = old.partition_point(|o| o.time < b.time);
@@ -290,11 +290,12 @@ fn moved(old: &[Beat], new: &[Beat]) -> Option<(f64, i64)> {
     if d.is_empty() {
         return None;
     }
-    d.sort_by(|x, y| x.0.total_cmp(&y.0));
-    let dt = d[d.len() / 2].0;
+    let mut dt: Vec<f64> = d.iter().map(|x| x.0).collect();
     let mut di: Vec<i64> = d.iter().map(|x| x.1).collect();
-    di.sort_unstable();
-    Some((dt, di[di.len() / 2]))
+    Some((
+        crate::dsp::upper_median(&mut dt),
+        crate::dsp::upper_median_ord(&mut di)?,
+    ))
 }
 
 #[cfg(test)]
@@ -489,6 +490,23 @@ mod tests {
         let (dt, di) = moved(&old, &new).unwrap();
         assert!((dt - 0.0003).abs() < 1e-12 && di == 1, "{dt} {di}");
         assert_eq!(moved(&old, &[at(5.0, 0)]), None);
+    }
+
+    /// The count moves by the median of the beats' moves: with two of
+    /// ten not moving it is still 1, where the least would be 0 (Vernon
+    /// 28 on #2273).
+    #[test]
+    fn the_count_moves_by_its_median_not_its_least() {
+        let at = |t: f64, index: i64| Beat {
+            time: t,
+            index,
+            quality: 1.0,
+        };
+        let old: Vec<Beat> = (0..10).map(|i| at(i as f64 * 0.2, i)).collect();
+        let new: Vec<Beat> = (0..10)
+            .map(|i| at(i as f64 * 0.2 + 0.0003, i + i64::from(i >= 2)))
+            .collect();
+        assert_eq!(moved(&old, &new).map(|m| m.1), Some(1));
     }
 
     /// The takeover is refused when the sound read again gives both sides

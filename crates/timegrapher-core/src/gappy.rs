@@ -173,12 +173,12 @@ fn weights(y: &[f64], stretch: &[usize]) -> Vec<f64> {
     for i in 0..n {
         let lo = i.saturating_sub(SCATTER_HALF);
         let hi = (i + SCATTER_HALF + 1).min(n);
-        let mut d: Vec<f64> = (lo + 1..hi)
+        let d: Vec<f64> = (lo + 1..hi)
             .filter(|&j| stretch[j] == stretch[i] && stretch[j - 1] == stretch[i])
             .map(|j| (y[j] - y[j - 1]).abs())
             .collect();
         let sd = if d.len() >= 5 {
-            crate::dsp::median(&mut d) * 1.4826 / std::f64::consts::SQRT_2
+            crate::dsp::robust_sd_about(&d, 0.0) / std::f64::consts::SQRT_2
         } else {
             f64::NAN
         };
