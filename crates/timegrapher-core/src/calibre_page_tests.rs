@@ -60,7 +60,7 @@ fn every_calibre_has_its_own_page_address() {
 fn a_page_carries_the_formatters_lines_and_numbered_sources() {
     let src = "https://example.com/spec (maker's sheet) (25 jewels)";
     let c = row(&format!(
-        r#", "lift_angle_deg": 50, "years": {{"from": 1971, "to": 1985, "source": "{src}"}},
+        r#", "lift_angle_deg": 50, "years": {{"from": 1971, "to": 1985, "source": "https://example.com/y (y) (1971 to 1985)"}},
            "jewels": {{"value": 25, "source": "{src}"}},
            "functions": {{"value": ["date"], "source": "{src}"}},
            "summary": [{{"text": "One.", "source": "https://example.com/a (a) (one)"}},
@@ -76,7 +76,10 @@ fn a_page_carries_the_formatters_lines_and_numbered_sources() {
     assert_eq!(p.former_paths, ["/calibres/test/0/"]);
     assert_eq!(p.figures, "28800 bph · lift angle 50°");
     assert_eq!(p.made.as_ref().unwrap().text, "Made 1971 to 1985");
-    assert_eq!(p.made.as_ref().unwrap().hover, format!("Made: from {src}"));
+    assert_eq!(
+        p.made.as_ref().unwrap().hover,
+        "Made: from https://example.com/y (y) (1971 to 1985)"
+    );
     assert_eq!(p.specs.as_ref().unwrap().text, "25 jewels");
     assert_eq!(p.functions.as_ref().unwrap().text, "Date");
     assert_eq!(p.also_known_as.as_deref(), Some("Also known as T1"));
@@ -91,18 +94,19 @@ fn a_page_carries_the_formatters_lines_and_numbered_sources() {
         urls,
         [
             "https://example.com/t1",
+            "https://example.com/y",
             "https://example.com/spec",
             "https://example.com/a",
             "https://example.com/b"
         ]
     );
     let numbers: Vec<_> = p.sources.iter().map(|s| s.number).collect();
-    assert_eq!(numbers, [1, 2, 3, 4]);
+    assert_eq!(numbers, [1, 2, 3, 4, 5]);
     assert_eq!(
         p.summary.iter().map(|s| s.source).collect::<Vec<_>>(),
-        [3, 2]
+        [4, 3]
     );
-    assert_eq!(p.issues[0].source, 4);
+    assert_eq!(p.issues[0].source, 5);
     assert_eq!(p.pictures.len(), 1);
     assert_eq!(p.pictures[0].alt, "Test 1: maker's photo (dial side)");
     assert_eq!(
@@ -141,11 +145,104 @@ fn related_calibres_read_both_ways() {
         .map(|l| l.name.as_str())
         .collect();
     assert!(all_named.contains(&"ETA Powermatic 80"), "{all_named:?}");
-    // "same base as" is stored on both rows, so it has no inverse line.
-    assert!(eta
+    // "same base as" is stored on one row of each pair; the other row
+    // reads it back, citing nothing there.
+    let same = eta
         .related
         .iter()
-        .all(|r| r.label != "Same base as" || r.source.is_some()));
+        .find(|r| r.label == "Same base as")
+        .expect("Same base as line on ETA 2824-2");
+    assert!(same.source.is_none());
+    let names: Vec<_> = same.calibres.iter().map(|l| l.name.as_str()).collect();
+    assert!(
+        names.contains(&"ETA 2836-2") && names.contains(&"ETA 2834-2"),
+        "{names:?}"
+    );
+    let sister = page_of(find("ETA 2836-2").unwrap());
+    let stated: Vec<_> = sister
+        .related
+        .iter()
+        .filter(|r| r.label == "Same base as")
+        .collect();
+    assert!(!stated.is_empty() && stated.iter().all(|r| r.source.is_some()));
+}
+
+/// A pair stored from both sides is shown once on each, as stated.
+#[test]
+fn a_same_base_pair_stored_both_ways_is_shown_once() {
+    let src = "https://example.com/x (x) (x)";
+    let c = row(&format!(
+        r#", "related": [{{"calibre": "ETA 2836-2", "relation": "same base as", "source": "{src}"}}]"#
+    ));
+    let mut table: Vec<Calibre> = all().to_vec();
+    let mut back = find("ETA 2836-2").unwrap().clone();
+    back.related.push(calibres::Related {
+        calibre: "Test 1".into(),
+        relation: "same base as".into(),
+        source: src.into(),
+    });
+    table.push(back);
+    let p = page(&c, &inverses(&table));
+    let lines: Vec<_> = p
+        .related
+        .iter()
+        .filter(|r| r.label == "Same base as")
+        .collect();
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert!(lines[0].source.is_some());
+}
+
+/// A name with nothing for an address after its maker keeps its whole
+/// name, and a former name with the page's own address, or one listed
+/// twice, gives no redirect.
+#[test]
+fn addresses_never_come_out_empty_or_point_at_themselves() {
+    assert_eq!(page_path("Test", "Test +"), "/calibres/test/test/");
+    let c = row(r#", "former_names": ["Test 1.", "Test 0", "Test 0."]"#);
+    assert_eq!(page_of(&c).former_paths, ["/calibres/test/0/"]);
+}
+
+/// The index lists makers by name, ignoring case, with the big makers
+/// marked.
+#[test]
+fn makers_are_listed_by_name_with_the_big_ones_marked() {
+    let m = export().makers;
+    let names: Vec<String> = m.iter().map(|x| x.maker.to_lowercase()).collect();
+    let mut sorted = names.clone();
+    sorted.sort();
+    assert_eq!(names, sorted);
+    let big = calibres::makers()
+        .iter()
+        .find(|x| x.common && m.iter().any(|e| e.maker == x.maker))
+        .expect("a big maker with calibres");
+    assert!(m.iter().any(|x| x.maker == big.maker && x.common));
+    let small = calibres::makers()
+        .iter()
+        .find(|x| !x.common && m.iter().any(|e| e.maker == x.maker))
+        .expect("a smaller maker with calibres");
+    assert!(m.iter().any(|x| x.maker == small.maker && !x.common));
+}
+
+#[test]
+fn the_pane_and_the_page_share_their_words() {
+    assert_eq!(
+        also_known_as(&["2824".into(), "SW200".into()]).as_deref(),
+        Some("Also known as 2824, SW200")
+    );
+    assert_eq!(also_known_as(&[]), None);
+    assert_eq!(sources_heading("maker's page"), "Sources · Maker's Page");
+    let x = calibres::Escapement {
+        kind: "co-axial".into(),
+        source: "https://example.com/c (c) (co-axial)".into(),
+    };
+    let said = escapement_part(&x);
+    assert_eq!(said.text, x.sentence());
+    assert_eq!(said.hover, "Source: https://example.com/c (c) (co-axial)");
+    let c = row(&format!(
+        r#", "escapement": {{"kind": "co-axial", "source": "{}"}}"#,
+        x.source
+    ));
+    assert_eq!(page_of(&c).escapement.unwrap().hover, said.hover);
 }
 
 #[test]

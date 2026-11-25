@@ -1,6 +1,7 @@
-//! A calibre's reference page, as the Calibres pane and opentimegrapher.org
-//! show it (#1861, #401), and the words for a calibre's name and sources
-//! the pane uses.
+//! A calibre's reference page, as opentimegrapher.org shows it (#1861,
+//! #401), and the words the app's Calibres pane shares with it: the
+//! calibre's title, its other names, its escapement, the Sources heading
+//! and each source.
 //!
 //! `timegrapher calibres export --json` writes [`export`] for the site's
 //! build (Hugh on #1861, option b): every display string, heading, slug,
@@ -180,8 +181,9 @@ pub struct Document {
 
 /// One relation: "Clone of" and the calibres, the first
 /// [`RELATED_SHOWN`] named and "+n more" for the rest. A relation stored
-/// on this row cites its source; one read off the other rows (the inverse,
-/// "Cloned by") cites none here, as it is stated there.
+/// on this row cites its source; one read off the other rows ("Cloned
+/// by", or "Same base as" stored there) cites none here, as it is stated
+/// there.
 #[derive(Debug, Clone, Serialize)]
 pub struct RelatedLine {
     pub label: String,
@@ -223,6 +225,25 @@ pub fn figure_words(bph: Option<u32>, lift: Option<f64>, escape_teeth: Option<u3
         parts.push(format!("{t}-tooth escape wheel"));
     }
     parts
+}
+
+/// "Also known as …", the row's other names, or `None` when it has none.
+pub fn also_known_as(family: &[String]) -> Option<String> {
+    (!family.is_empty()).then(|| format!("Also known as {}", family.join(", ")))
+}
+
+/// The Sources heading with the row's confidence: "Sources · Maker's Page".
+pub fn sources_heading(confidence: &str) -> String {
+    format!("{} · {}", HEADINGS.sources, title_case(confidence))
+}
+
+/// What is said of an escapement Timegrapher doesn't measure yet, with
+/// its source in the hover (#1872).
+pub fn escapement_part(x: &calibres::Escapement) -> SpecPart {
+    SpecPart {
+        text: x.sentence(),
+        hover: format!("Source: {}", x.source),
+    }
 }
 
 /// `s` for an address: ASCII letters and digits in lower case, every
@@ -312,13 +333,15 @@ pub fn path(c: &Calibre) -> String {
 }
 
 /// How the other rows' relations read from the calibre they point at:
-/// "Cloned by" for "clone of". "same base as" is stored on both rows, so
-/// it has no inverse.
+/// "Cloned by" for "clone of". "same base as" reads the same both ways;
+/// each pair is stored on one row only (`data/README.md`), so the other
+/// row shows it too.
 fn inverse_label(relation: &str) -> Option<&'static str> {
     match relation {
         "clone of" => Some("Cloned by"),
         "based on" => Some("Base calibre for"),
         "successor of" => Some("Succeeded by"),
+        "same base as" => Some("Same base as"),
         _ => None,
     }
 }
@@ -423,10 +446,21 @@ fn related_lines(c: &Calibre, inv: &Inverses, cite: &mut Numbered) -> Vec<Relate
     let Some(theirs) = inv.get(c.calibre.as_str()) else {
         return lines;
     };
-    for label in ["Cloned by", "Base calibre for", "Succeeded by"] {
+    // A "same base as" pair stored from this side too is shown once.
+    let stored_here = |o: &Calibre| {
+        c.related
+            .iter()
+            .any(|r| r.relation == "same base as" && r.calibre == o.calibre)
+    };
+    for label in [
+        "Same base as",
+        "Cloned by",
+        "Base calibre for",
+        "Succeeded by",
+    ] {
         let links: Vec<Link> = theirs
             .iter()
-            .filter(|(l, _)| *l == label)
+            .filter(|(l, o)| *l == label && !(label == "Same base as" && stored_here(o)))
             .map(|(_, o)| link(o))
             .collect();
         if !links.is_empty() {
@@ -493,12 +527,8 @@ fn page(c: &Calibre, inv: &Inverses) -> Page {
         path: path(c),
         former_paths,
         common: c.common,
-        also_known_as: (!c.family.is_empty())
-            .then(|| format!("Also known as {}", c.family.join(", "))),
-        escapement: c.escapement.as_ref().map(|x| SpecPart {
-            text: x.sentence(),
-            hover: format!("Source: {}", x.source),
-        }),
+        also_known_as: also_known_as(&c.family),
+        escapement: c.escapement.as_ref().map(escapement_part),
         figures: figure_words(c.bph, c.lift_angle_deg, c.escape_teeth).join(" · "),
         made: calibre_specs::made_part(c),
         specs: calibre_specs::specs_line(c).map(|text| Specs { text, parts }),
@@ -516,7 +546,7 @@ fn page(c: &Calibre, inv: &Inverses) -> Page {
         documents,
         issues,
         related,
-        sources_heading: format!("{} · {}", HEADINGS.sources, title_case(&c.confidence)),
+        sources_heading: sources_heading(&c.confidence),
         sources: cite.lines(),
         notes: c.notes.clone(),
         title,

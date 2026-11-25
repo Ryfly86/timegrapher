@@ -18,7 +18,7 @@ use crate::theme;
 use eframe::egui::{self, RichText, Vec2};
 use std::path::PathBuf;
 use std::sync::OnceLock;
-use timegrapher_core::calibre_page::{figure_words, source_parts, with_maker_name};
+use timegrapher_core::calibre_page::{self, figure_words, source_parts, with_maker_name};
 use timegrapher_core::calibre_store::{
     Catalog, CustomCalibre, CustomWheel, Entry, Origin, Slot, UserCalibres,
 };
@@ -1722,20 +1722,17 @@ impl Calibres {
         // The name alone: every fact in the row stays in the row.
         ui.label(RichText::new(title).strong().size(15.0));
         if let Entry::Table(c) = e {
-            if !c.family.is_empty() {
-                ui.label(
-                    RichText::new(format!("Also known as {}", c.family.join(", ")))
-                        .small()
-                        .color(pal.text_tertiary),
-                );
+            if let Some(aka) = calibre_page::also_known_as(&c.family) {
+                ui.label(RichText::new(aka).small().color(pal.text_tertiary));
             }
         }
         // Its escapement, when Timegrapher doesn't measure it yet, with
         // where that comes from in the hover (#1872).
         if let Some(x) = e.escapement() {
             ui.add_space(6.0);
-            ui.label(RichText::new(x.sentence()).color(pal.text_secondary))
-                .on_hover_text(format!("Source: {}", x.source));
+            let said = calibre_page::escapement_part(x);
+            ui.label(RichText::new(said.text).color(pal.text_secondary))
+                .on_hover_text(said.hover);
         }
         let share = Catalog::new(&self.user).contribution_url(e, version);
         ui.add_space(10.0);
@@ -2374,7 +2371,7 @@ fn add_wheel_row(
 fn sources_and_notes(ui: &mut egui::Ui, c: &Calibre) {
     let pal = theme::pal(ui);
     if !c.sources.is_empty() {
-        let title = format!("Sources · {}", title_case(&c.confidence));
+        let title = calibre_page::sources_heading(&c.confidence);
         theme::group(ui, &title, None, |g| {
             for s in &c.sources {
                 let (name, url, says) = source_parts(s);

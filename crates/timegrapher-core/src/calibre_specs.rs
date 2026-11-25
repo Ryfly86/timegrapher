@@ -6,8 +6,8 @@
 //! millimetres (lignes are nominal), and a power reserve range stays a
 //! range. A field the row lacks drops out with its separator, and a
 //! function the row doesn't list is never named as absent. This is the
-//! one formatter: the app's Calibres pane and `calibres export --json`
-//! for opentimegrapher.org both call it.
+//! one formatter: `calibres export --json` for opentimegrapher.org calls
+//! it, and the app's Calibres pane is to call it when it shows these lines.
 
 use crate::calibres::{Calibre, Years};
 use serde::{Deserialize, Serialize};
@@ -400,7 +400,7 @@ mod tests {
             r#", "power_reserve_h": {"from": "38", "to": "40", "approx": true, "source": "https://x"}"#,
             r#", "functions": {"value": ["no hacking"], "source": "https://x"}"#,
             r#", "years": {"from": 1982, "to": 1990, "current": true, "source": "https://x"}"#,
-            r#", "years": {"to": 1990, "current": true, "source": "https://x"}"#,
+            r#", "years": {"current": true, "source": "https://x"}"#,
         ] {
             assert!(spec_fault(&row(extra)).is_some(), "{extra}");
         }
