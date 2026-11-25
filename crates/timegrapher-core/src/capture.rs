@@ -1419,6 +1419,30 @@ mod tests {
         assert_eq!(explain_error("something else"), "something else");
     }
 
+    /// `no_input` counts core's own two errors as `find` builds them, and
+    /// cpal's for an input not there or unplugged; a busy input, or any
+    /// other error, is not counted (#2103).
+    #[test]
+    fn no_input_counts_a_missing_input_only() {
+        for missing in [
+            no_default_input_error(),
+            no_matching_input_error("Scarlett"),
+            "The requested audio device is not available. It may have been disconnected."
+                .to_string(),
+            "The requested device is no longer available. For example, it has been unplugged."
+                .to_string(),
+        ] {
+            assert!(no_input(&missing), "{missing}");
+        }
+        for other in [
+            "The device is busy: another program is using it.",
+            "'USB' matches several inputs: a, b; give the whole id",
+            "A buffer underrun or overrun occurred.",
+        ] {
+            assert!(!no_input(other), "{other}");
+        }
+    }
+
     #[test]
     fn other_systems_keep_their_list() {
         let list = vec![
