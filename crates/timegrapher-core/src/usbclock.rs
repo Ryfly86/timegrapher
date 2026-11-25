@@ -77,9 +77,17 @@ impl UsbClock {
         (!self.applies()).then_some(IMPLAUSIBLE)
     }
 
-    /// The card's error read, whole ppm, with no sign.
+    /// The card's error read, whole ppm, with no sign; one within half a
+    /// ppm past [`MAX_CARD_PPM`] is rounded up, so it never reads as within
+    /// it (Hugh on #2297).
     fn whole_ppm(&self) -> String {
-        format!("{:.0}", self.ppm.abs())
+        let size = self.ppm.abs();
+        let whole = if size.round() <= MAX_CARD_PPM {
+            size.ceil()
+        } else {
+            size.round()
+        };
+        format!("{whole:.0}")
     }
 
     /// What a reader is told of a reading not applied, in a line (Hugh on
@@ -324,11 +332,11 @@ impl LiveClock {
 /// rate's move, signed, at the rate's place ([`crate::figure_text`]).
 fn step_note(ppm: f64, kept_ppm: Option<f64>) -> Option<String> {
     use crate::clock::rate_error_s_per_day;
-    use crate::figure_text::{base_digits, figure, signed_text};
+    use crate::figure_text::{base_digits, figure, is_zero_text, signed_text};
     // A rate corrected by a clock moves by minus its rate error.
     let moved = rate_error_s_per_day(kept_ppm.unwrap_or(0.0)) - rate_error_s_per_day(ppm);
     let moved = figure(moved, None, base_digits::RATE, true);
-    if moved.bytes().all(|b| b == b'0' || b == b'.') {
+    if is_zero_text(&moved) {
         return None;
     }
     Some(format!(
@@ -609,14 +617,14 @@ mod tests {
         assert_eq!(
             live.read_note(None).as_deref(),
             Some(
-                "The USB lines read the card 100 ppm off, more than a sound card's clock \
+                "The USB lines read the card 101 ppm off, more than a sound card's clock \
                  should be, so they are not used. If the mic is plugged into a hub, dock or \
                  Thunderbolt device, plug it straight into the computer."
             )
         );
         assert_eq!(
             c.not_used_short().as_deref(),
-            Some("USB lines not used: card read 100 ppm off")
+            Some("USB lines not used: card read 101 ppm off")
         );
     }
 
