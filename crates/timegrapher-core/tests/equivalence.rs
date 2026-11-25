@@ -2075,7 +2075,7 @@ fn live_figures_before_the_template_is_built_again_are_the_saved_takes() {
 /// frames. Its six USB lines read the card 151.1 ppm fast, past
 /// `usbclock::MAX_CARD_PPM`; straight into the computer (#2292) the same
 /// microphone read 9.3 ppm. The reporter gave the sound as CC0.
-const USB_HUB_TAKE: &str = "usbhub_tbdrive_explorer2_DU";
+const USB_HUB_TAKE: &str = "usbhub_dd3285_explorer2_DU_95s";
 
 /// The settings #2291's report read its excerpt with: 28,800 bph, 59°.
 fn usb_hub_settings() -> AnalysisConfig {
