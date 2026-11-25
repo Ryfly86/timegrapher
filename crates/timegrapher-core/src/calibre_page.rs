@@ -851,20 +851,29 @@ fn capitalised(s: &str) -> String {
 }
 
 /// The title of a row, as its page and the app's Calibres pane head it:
-/// [`with_maker_name`], marked "(clone)" when the row is a "clone of"
-/// another and its title doesn't already say so. A maker that also makes
-/// calibres of its own is not a clone maker, so the mark sits on the row
-/// (#2304).
+/// [`with_maker_name`], [`marked`] as a clone where it is one (#2304).
 pub fn title(c: &Calibre) -> String {
-    let named = with_maker_name(&c.maker, &c.calibre);
-    let says_clone = named
-        .split(|ch: char| !ch.is_alphanumeric())
-        .any(|word| word.eq_ignore_ascii_case("clone"));
-    if !says_clone && c.related.iter().any(|r| r.relation == "clone of") {
-        format!("{named} (clone)")
+    marked(c, &with_maker_name(&c.maker, &c.calibre))
+}
+
+/// `shown`, a name of `c` as some list or heading shows it, with "(clone)"
+/// after it when the row is a "clone of" another and `shown` doesn't say
+/// so already. A maker that also makes calibres of its own is not a clone
+/// maker, so the mark sits on the row (#2304); the app's list and the
+/// site's titles both take it from here.
+pub fn marked(c: &Calibre, shown: &str) -> String {
+    if !says_clone(shown) && c.related.iter().any(|r| r.relation == "clone of") {
+        format!("{shown} (clone)")
     } else {
-        named
+        shown.to_string()
     }
+}
+
+/// `s` has the word "clone" in it, in any case ("Patek 240 Clone"), not
+/// only as part of a word ("Clonecraft").
+fn says_clone(s: &str) -> bool {
+    s.split(|ch: char| !ch.is_alphanumeric())
+        .any(|word| word.eq_ignore_ascii_case("clone"))
 }
 
 /// A calibre's name with its maker in front, unless the name already
@@ -874,10 +883,7 @@ pub fn with_maker_name(maker: &str, name: &str) -> String {
     // A clone maker's marker is already in a name such as "Patek 240 Clone",
     // so only the maker itself goes in front.
     if let Some(outer) = maker.strip_suffix("(clone)").map(str::trim_end) {
-        if name
-            .split(|ch: char| !ch.is_alphanumeric())
-            .any(|word| word.eq_ignore_ascii_case("clone"))
-        {
+        if says_clone(name) {
             return match outer {
                 "" => name.to_string(),
                 outer => format!("{outer} {name}"),

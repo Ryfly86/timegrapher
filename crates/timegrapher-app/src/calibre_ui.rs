@@ -1655,7 +1655,10 @@ impl Calibres {
         let pal = theme::pal(ui);
         let mut text = self.cell(e, col);
         if col == Col::Calibre {
-            text = short_name(e).to_string();
+            text = match e {
+                Entry::Table(c) => calibre_page::marked(c, short_name(e)),
+                Entry::Custom(_) => short_name(e).to_string(),
+            };
             if e.name() == current {
                 text += "  (this watch)";
             }
@@ -2459,7 +2462,7 @@ fn search_hits(ui: &mut egui::Ui, catalog: &Catalog<'_>, q: &str, current: &str,
     const MOST: usize = 200;
     for e in found.iter().take(MOST) {
         let text = match e {
-            Entry::Table(c) => format!("{} · {}", c.calibre, c.maker),
+            Entry::Table(c) => format!("{} · {}", calibre_page::marked(c, &c.calibre), c.maker),
             Entry::Custom(_) => label(*e),
         };
         menu_line(ui, *e, text, current, picked);

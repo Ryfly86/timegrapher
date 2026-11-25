@@ -669,3 +669,24 @@ fn jinghes_clones_alone_are_titled_clones() {
     let sh = page_of(find("SH3135").unwrap());
     assert!(sh.title.contains("(clone)"), "{}", sh.title);
 }
+
+/// The clone mark goes on a "clone of" row once, never twice, and never
+/// on a row that isn't one (#2304).
+#[test]
+fn a_clone_is_marked_once() {
+    let src = "https://example.com/c (c) (c)";
+    let clone = row(&format!(
+        r#", "related": [{{"calibre": "ETA 2824-2", "relation": "clone of", "source": "{src}"}}]"#
+    ));
+    assert_eq!(marked(&clone, "Test 1"), "Test 1 (clone)");
+    assert_eq!(marked(&clone, "Test 1 Clone"), "Test 1 Clone");
+    assert_eq!(marked(&clone, "Test 1 (clone)"), "Test 1 (clone)");
+    assert_eq!(marked(&clone, "Clonecraft 1"), "Clonecraft 1 (clone)");
+    assert_eq!(title(&clone), "Test 1 (clone)");
+    let based = row(&format!(
+        r#", "related": [{{"calibre": "ETA 2824-2", "relation": "based on", "source": "{src}"}}]"#
+    ));
+    assert_eq!(marked(&based, "Test 1"), "Test 1");
+    assert_eq!(marked(find("Jinghe JH8002").unwrap(), "JH8002"), "JH8002");
+    assert_eq!(marked(find("VR3135").unwrap(), "VR3135"), "VR3135 (clone)");
+}
