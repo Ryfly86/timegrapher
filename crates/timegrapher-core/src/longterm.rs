@@ -1570,8 +1570,7 @@ fn standing_harmonics(sp: &Spectrum, cycles: &[(f64, usize)], step: f64) -> Vec<
                 return false;
             }
             let mut near = sp.power[a..b].to_vec();
-            near.sort_by(f64::total_cmp);
-            let mean = near[near.len() / 2] / std::f64::consts::LN_2;
+            let mean = crate::dsp::upper_median(&mut near) / std::f64::consts::LN_2;
             sp.power[j] > bar * mean
         })
         .collect()

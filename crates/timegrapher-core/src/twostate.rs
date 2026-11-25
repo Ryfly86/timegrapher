@@ -185,8 +185,7 @@ fn blocks(samples: &[Sample], p: &Params) -> (Vec<Block>, f64) {
         return (Vec::new(), p.block_s);
     }
     let med = median(&mut vals);
-    let mut dev: Vec<f64> = samples.iter().map(|s| (s.value - med).abs()).collect();
-    let mad = 1.4826 * median(&mut dev);
+    let mad = crate::dsp::robust_sd_about(&vals, med);
     // Windows more than 5 MAD from the median are stray and dropped,
     // unless those on one side hold at least the smaller state's least
     // share of the windows: then they are a level, which can sit that far
@@ -354,7 +353,7 @@ fn split_alone(pairs: &[(f64, f64)], p: &Params) -> Option<bool> {
     }
     let mut x: Vec<f64> = pairs.iter().map(|q| q.0).collect();
     let med = median(&mut x.clone());
-    let mad = 1.4826 * median(&mut x.iter().map(|v| (v - med).abs()).collect::<Vec<_>>());
+    let mad = crate::dsp::robust_sd_about(&x, med);
     let kept: Vec<(f64, f64)> = pairs
         .iter()
         .copied()

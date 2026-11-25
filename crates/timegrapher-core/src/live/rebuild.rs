@@ -274,7 +274,7 @@ impl LiveAnalyzer {
 /// beats both found (each `new` beat paired with the nearest `old` one
 /// within a millisecond), and the move in their count there.
 fn moved(old: &[Beat], new: &[Beat]) -> Option<(f64, i64)> {
-    let mut d: Vec<(f64, i64)> = new
+    let d: Vec<(f64, i64)> = new
         .iter()
         .filter_map(|b| {
             let i = old.partition_point(|o| o.time < b.time);
@@ -290,11 +290,12 @@ fn moved(old: &[Beat], new: &[Beat]) -> Option<(f64, i64)> {
     if d.is_empty() {
         return None;
     }
-    d.sort_by(|x, y| x.0.total_cmp(&y.0));
-    let dt = d[d.len() / 2].0;
+    let mut dt: Vec<f64> = d.iter().map(|x| x.0).collect();
     let mut di: Vec<i64> = d.iter().map(|x| x.1).collect();
-    di.sort_unstable();
-    Some((dt, di[di.len() / 2]))
+    Some((
+        crate::dsp::upper_median(&mut dt),
+        crate::dsp::upper_median_ord(&mut di)?,
+    ))
 }
 
 #[cfg(test)]

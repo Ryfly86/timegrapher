@@ -701,7 +701,7 @@ pub fn reject_side_outliers_from(wins: &mut [AmplitudeWindow], span_s: f64, from
                 let v = read[i][k]?;
                 let lo = wins.partition_point(|w| mid(w) < mid(&wins[i]) - span_s / 2.0);
                 let hi = wins.partition_point(|w| mid(w) <= mid(&wins[i]) + span_s / 2.0);
-                let mut near: Vec<f64> = (lo..hi)
+                let near: Vec<f64> = (lo..hi)
                     .filter(|&j| j != i)
                     .filter_map(|j| read[j][k])
                     .collect();
@@ -709,10 +709,7 @@ pub fn reject_side_outliers_from(wins: &mut [AmplitudeWindow], span_s: f64, from
                     return None;
                 }
                 let med = crate::dsp::median(&mut near.clone());
-                for x in near.iter_mut() {
-                    *x = (*x - med).abs();
-                }
-                let sd = (1.4826 * crate::dsp::median(&mut near)).max(0.5);
+                let sd = crate::dsp::robust_sd_about(&near, med).max(0.5);
                 Some(((v - med).abs(), (v - med).abs() / sd))
             })
             .collect()

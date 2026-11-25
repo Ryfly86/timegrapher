@@ -384,6 +384,19 @@ pub fn upper_median_f32(v: &mut [f32]) -> f32 {
     middle(v, f32::total_cmp).map_or(f32::NAN, |(_, hi)| hi)
 }
 
+/// [`upper_median_f32`] of `f64` values: always one of the values. The
+/// core sites that read this order statistic rather than the [`median`]
+/// share it, so each is one call to rule on (#839, #1988).
+pub fn upper_median(v: &mut [f64]) -> f64 {
+    middle(v, f64::total_cmp).map_or(f64::NAN, |(_, hi)| hi)
+}
+
+/// [`upper_median`] of values with an order of their own (counts,
+/// indices), or `None` when empty. Reorders `v`.
+pub fn upper_median_ord<T: Copy + Ord>(v: &mut [T]) -> Option<T> {
+    middle(v, T::cmp).map(|(_, hi)| hi)
+}
+
 /// The two middle values of `v` in the order `cmp` (the middle one twice
 /// for an odd count), or `None` when empty. Reorders `v`.
 fn middle<T: Copy>(v: &mut [T], cmp: impl Fn(&T, &T) -> std::cmp::Ordering) -> Option<(T, T)> {
@@ -416,12 +429,33 @@ pub fn trimmed_mean_f32(v: &mut [f32], trim: f64) -> f32 {
     (mid.iter().map(|&x| x as f64).sum::<f64>() / mid.len() as f64) as f32
 }
 
-/// Median absolute deviation scaled to match a standard deviation.
+/// How many standard deviations of normal values one median absolute
+/// deviation is: 1/Φ⁻¹(3/4), to four places. The one scale in core that
+/// turns a MAD into a robust SD (#1988).
+pub const MAD_TO_SD: f64 = 1.4826;
+
+/// The median absolute deviation of `v` about `centre`, scaled by
+/// [`MAD_TO_SD`] to match a standard deviation. Every value counts as
+/// given (a NaN sorts last); [`robust_sd`] takes the finite values about
+/// their own median. NaN when empty.
+pub fn robust_sd_about(v: &[f64], centre: f64) -> f64 {
+    let mut dev: Vec<f64> = v.iter().map(|x| (x - centre).abs()).collect();
+    MAD_TO_SD * median(&mut dev)
+}
+
+/// Median absolute deviation of the finite values about their median,
+/// scaled to match a standard deviation ([`robust_sd_about`]).
 pub fn robust_sd(v: &[f64]) -> f64 {
     let mut w: Vec<f64> = v.iter().copied().filter(|x| x.is_finite()).collect();
     let m = median(&mut w);
-    let mut dev: Vec<f64> = w.iter().map(|x| (x - m).abs()).collect();
-    1.4826 * median(&mut dev)
+    robust_sd_about(&w, m)
+}
+
+/// The robust σ of each value from `steps`, the differences between
+/// neighbours: their [`robust_sd`] over √2, since a difference of two
+/// independent values has twice the variance of each.
+pub fn robust_sd_from_steps(steps: &[f64]) -> f64 {
+    robust_sd(steps) / std::f64::consts::SQRT_2
 }
 
 /// `y` less its least-squares line against the index, in place.
