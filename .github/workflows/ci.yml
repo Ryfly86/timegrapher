@@ -180,12 +180,13 @@ jobs:
 
   # The required check `test (ubuntu-24.04)` (branch protection, and the
   # Release gate's .github/scripts/release_ci_gate.py): green only when
-  # both of Linux's halves are. It runs unless the run was cancelled, so a
-  # failed half fails it rather than skipping it, which would count as a pass.
+  # both of Linux's halves are. It always runs, even when the run is
+  # cancelled, so a failed or cancelled half fails it: a skipped required
+  # check would count as a pass.
   test-linux-result:
     name: test (ubuntu-24.04)
     needs: test-linux
-    if: ${{ !cancelled() }}
+    if: ${{ always() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
