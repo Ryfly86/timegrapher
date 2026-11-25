@@ -108,7 +108,7 @@ const NO_INPUT: [&str; 3] = [
 
 /// The one hint a failure for want of a sound input carries (#2103).
 pub const NO_INPUT_HINT: &str =
-    "No microphone found: plug it in, or call list_sound_inputs for the inputs there are.";
+    "Plug in a microphone, or call list_sound_inputs to see the inputs.";
 
 /// What the command line said of its failure: from its first `error:` line
 /// to the end, without what came before it on stderr, such as the sound
