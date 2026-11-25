@@ -1,11 +1,13 @@
 calibres
 calibres[].also_known_as
 calibres[].basis
+calibres[].beat_rate
 calibres[].common
 calibres[].documents
 calibres[].documents[].file
 calibres[].documents[].kind
 calibres[].documents[].url
+calibres[].escape_teeth
 calibres[].escapement
 calibres[].escapement.hover
 calibres[].escapement.source
@@ -16,6 +18,7 @@ calibres[].functions
 calibres[].functions.hover
 calibres[].functions.source
 calibres[].functions.text
+calibres[].lift_angle
 calibres[].made
 calibres[].made.hover
 calibres[].made.source
@@ -55,9 +58,12 @@ calibres[].wheels
 calibres[].wheels[].name
 calibres[].wheels[].period
 headings
+headings.beat_rate
 headings.documents
+headings.escape_teeth
 headings.index
 headings.issues
+headings.lift_angle
 headings.notes
 headings.open
 headings.picture_caption

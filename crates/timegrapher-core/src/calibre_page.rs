@@ -39,6 +39,9 @@ pub struct Headings {
     pub issues: &'static str,
     pub related: &'static str,
     pub wheels: &'static str,
+    pub beat_rate: &'static str,
+    pub lift_angle: &'static str,
+    pub escape_teeth: &'static str,
     pub sources: &'static str,
     pub notes: &'static str,
 }
@@ -55,6 +58,9 @@ pub const HEADINGS: Headings = Headings {
     issues: "Reported issues",
     related: "Related movements",
     wheels: "Wheels",
+    beat_rate: "Beat rate",
+    lift_angle: "Lift angle",
+    escape_teeth: "Escape teeth",
     sources: "Sources",
     notes: "Notes",
 };
@@ -113,6 +119,15 @@ pub struct Page {
     /// Beat rate, lift angle and escape wheel in one line, saying which
     /// the table doesn't give ("28800 bph · lift angle 50°").
     pub figures: String,
+    /// The beat rate alone, for the index's Beat rate column: "28800 bph".
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub beat_rate: Option<String>,
+    /// "52°", for the Lift angle column.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lift_angle: Option<String>,
+    /// "20", for the Escape teeth column.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub escape_teeth: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub made: Option<SpecPart>,
     /// The Specs line and its figures with their hovers.
@@ -133,7 +148,8 @@ pub struct Page {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub related: Vec<RelatedLine>,
     /// The row's best basis as a sentence, under the Sources heading.
-    pub basis: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub basis: Option<&'static str>,
     /// Numbered from 1; `Cited::source` and `RelatedLine::source` point here.
     pub sources: Vec<SourceLine>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -213,13 +229,23 @@ pub struct SourceLine {
     pub quotes: Vec<String>,
 }
 
+/// A beat rate as the pages show it: "28800 bph".
+pub fn beat_rate_text(bph: u32) -> String {
+    format!("{bph} bph")
+}
+
+/// A lift angle as the pages show it: "52°", "51.5°".
+pub fn lift_angle_text(lift: f64) -> String {
+    format!("{}°", plain_text(lift))
+}
+
 /// Beat rate, lift angle and escape wheel, saying which aren't given:
 /// the words the pane's hints and the site's pages both use.
 pub fn figure_words(bph: Option<u32>, lift: Option<f64>, escape_teeth: Option<u32>) -> Vec<String> {
     let mut parts = vec![
-        bph.map_or("beat rate not given".into(), |b| format!("{b} bph")),
+        bph.map_or("beat rate not given".into(), beat_rate_text),
         lift.map_or("lift angle not given".into(), |l| {
-            format!("lift angle {}°", plain_text(l))
+            format!("lift angle {}", lift_angle_text(l))
         }),
     ];
     if let Some(t) = escape_teeth {
@@ -242,10 +268,40 @@ pub fn also_known_as(c: &Calibre) -> Option<String> {
     (!others.is_empty()).then(|| format!("Also known as {}", others.join(", ")))
 }
 
-/// What the row's `confidence` says, as a sentence under its Sources:
-/// "Best basis among these sources: derived from tooth counts."
-pub fn basis_sentence(confidence: &str) -> String {
-    format!("Best basis among these sources: {confidence}.")
+/// Every value a row's `confidence` may take (`data/README.md`).
+pub const CONFIDENCES: [&str; 9] = [
+    "published list",
+    "maker's page",
+    "dealer's page",
+    "press article",
+    "derived from tooth counts",
+    "derived from tooth counts; accepted escape pair",
+    "derived from the beat rate",
+    "inferred family transfer",
+    "measured",
+];
+
+/// What the row's `confidence` says, as a sentence under its Sources
+/// (Hugh and Norm on #2281), or `None` for a value with no sentence,
+/// which the test `every_confidence_has_a_basis_sentence` refuses.
+pub fn basis_sentence(confidence: &str) -> Option<&'static str> {
+    Some(match confidence {
+        "published list" => "The best of these sources is a published list.",
+        "maker's page" => "The best of these sources is the maker's own page.",
+        "dealer's page" => "The best of these sources is a dealer's page.",
+        "press article" => "The best of these sources is a press article.",
+        "derived from tooth counts" => "Some figures are worked out from tooth counts.",
+        "derived from tooth counts; accepted escape pair" => {
+            "Some figures are worked out from tooth counts; the escape wheel pair is taken \
+             as the family standard, not counted."
+        }
+        "measured" => "Some figures are measured from this project's own recordings.",
+        "derived from the beat rate" => "Some figures are worked out from the beat rate.",
+        "inferred family transfer" => {
+            "Some figures are taken from a sister calibre in the same family."
+        }
+        _ => return None,
+    })
 }
 
 /// The Sources heading with the row's confidence: "Sources · Maker's Page".
@@ -624,6 +680,9 @@ fn page(c: &Calibre, inv: &Inverses) -> Page {
         issues,
         related,
         basis: basis_sentence(&c.confidence),
+        beat_rate: c.bph.map(beat_rate_text),
+        lift_angle: c.lift_angle_deg.map(lift_angle_text),
+        escape_teeth: c.escape_teeth.map(|t| t.to_string()),
         sources: cite.lines(),
         notes: c.notes.clone(),
         title,
@@ -740,14 +799,24 @@ fn paren_groups(s: &str) -> Option<Vec<String>> {
 
 /// What a source says, without the calibre's name in front: "A. Schild
 /// 1017, 51°, 18000 vph" is "51°, 18000 vph". A first part holding a
-/// figure (a degree sign or vph) is kept.
+/// figure (a degree sign or vph) is kept, and nothing is cut inside a
+/// verbatim quote ("Diameter 25,60 mm" stays whole; Hugh on #2281). A
+/// lone `"` is an inch mark ("PATEK PHlLIPPE 13\" chrono"), not a quote.
 fn drop_calibre_name(says: &str) -> String {
+    let quotes_pair = says.matches('"').count().is_multiple_of(2);
+    if quotes_pair && says.starts_with(['"', '“']) {
+        return says.to_string();
+    }
     let mut depth = 0;
+    let mut quoted = false;
     for (i, ch) in says.char_indices() {
         match ch {
+            '"' if quotes_pair => quoted = !quoted,
+            '“' => quoted = true,
+            '”' => quoted = false,
             '(' => depth += 1,
             ')' => depth -= 1,
-            ',' if depth == 0 => {
+            ',' if depth == 0 && !quoted => {
                 let first = &says[..i];
                 if first.contains('°') || first.contains("vph") || first.contains("bph") {
                     return says.to_string();

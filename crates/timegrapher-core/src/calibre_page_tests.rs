@@ -84,7 +84,10 @@ fn a_page_carries_the_formatters_lines_and_numbered_sources() {
     assert_eq!(p.functions.as_ref().unwrap().text, "Date");
     // "1" is the page's own name without its maker.
     assert_eq!(p.also_known_as.as_deref(), Some("Also known as T1"));
-    assert_eq!(p.basis, "Best basis among these sources: maker's page.");
+    assert_eq!(
+        p.basis,
+        Some("The best of these sources is the maker's own page.")
+    );
     // Each spec, functions and Made line carries its source's number.
     assert_eq!(p.made.as_ref().unwrap().source, Some(2));
     assert_eq!(p.specs.as_ref().unwrap().parts[0].source, Some(3));
@@ -449,5 +452,109 @@ fn the_address_names_the_maker_once() {
     assert_eq!(
         page_path("Audemars Piguet", "Audemars Piguet 15202"),
         "/calibres/audemars-piguet/15202/"
+    );
+}
+
+/// Every confidence in the table has its sentence; a new one fails here
+/// rather than showing a default.
+#[test]
+fn every_confidence_has_a_basis_sentence() {
+    for c in all() {
+        assert!(
+            CONFIDENCES.contains(&c.confidence.as_str()),
+            "{}: {}",
+            c.calibre,
+            c.confidence
+        );
+    }
+    for v in CONFIDENCES {
+        assert!(basis_sentence(v).is_some(), "{v}");
+    }
+    assert_eq!(basis_sentence("a guess"), None);
+    assert_eq!(
+        basis_sentence("derived from tooth counts; accepted escape pair"),
+        Some(
+            "Some figures are worked out from tooth counts; the escape wheel pair is taken \
+             as the family standard, not counted."
+        )
+    );
+    // Every value the data README names in its `confidence` row is listed.
+    let readme = include_str!("../data/README.md");
+    let row = readme
+        .lines()
+        .find(|l| l.starts_with("| `confidence` |"))
+        .expect("the README's confidence row");
+    for named in row.split('"').skip(1).step_by(2) {
+        assert!(CONFIDENCES.contains(&named), "{named}");
+    }
+}
+
+/// A quote keeps its commas; a lone inch mark is not a quote, so the
+/// calibre's name in front still goes.
+#[test]
+fn a_quote_is_never_cut_at_its_commas() {
+    let says = |s: &str| source_parts(s).2;
+    assert_eq!(
+        says(r#"https://x.example/a (sheet) ("Diameter 25,60 mm")"#),
+        r#""Diameter 25,60 mm""#
+    );
+    assert_eq!(
+        says(r#"https://x.example/a (posts) (under "Movado 5, Movado 6": f = 18000 A/h)"#),
+        r#"under "Movado 5, Movado 6": f = 18000 A/h"#
+    );
+    assert_eq!(
+        says(r#"https://x.example/a (PATEK PHlLIPPE 13" chrono, 43°, 18000 vph)"#),
+        "43°, 18000 vph"
+    );
+}
+
+/// The index's columns, each alone, from the same words as the figures.
+#[test]
+fn the_index_columns_come_alone() {
+    let p = page_of(&row(r#", "escape_teeth": 20, "lift_angle_deg": 51.5"#));
+    assert_eq!(p.beat_rate.as_deref(), Some("28800 bph"));
+    assert_eq!(p.lift_angle.as_deref(), Some("51.5°"));
+    assert_eq!(p.escape_teeth.as_deref(), Some("20"));
+    assert_eq!(page_of(&row("")).escape_teeth, None);
+    assert_eq!(
+        p.figures,
+        "28800 bph · lift angle 51.5° · 20-tooth escape wheel"
+    );
+    assert_eq!(HEADINGS.escape_teeth, "Escape teeth");
+}
+
+/// Every quote on every page is whole: a piece of one of its row's
+/// sources as stored, with its quotation marks paired.
+#[test]
+fn every_quote_is_whole() {
+    let mut bad = Vec::new();
+    for c in all() {
+        let mut raw: Vec<&str> = c.sources.iter().map(String::as_str).collect();
+        raw.extend(field_sources(c));
+        raw.extend(c.summary.iter().chain(&c.issues).map(|s| s.source.as_str()));
+        raw.extend(c.related.iter().map(|r| r.source.as_str()));
+        for s in page_of(c).sources {
+            for q in s.quotes {
+                // A lone inch mark ("13\" chrono") is stored so; a quote is
+                // cut only if its source's marks pair and its own don't.
+                let paired = |t: &str| t.matches('"').count().is_multiple_of(2);
+                let from = raw.iter().find(|r| r.contains(q.as_str()));
+                if from.is_none_or(|r| paired(r) && !paired(&q)) {
+                    bad.push(format!("{}: {q}", c.calibre));
+                }
+            }
+        }
+    }
+    assert!(
+        bad.is_empty(),
+        "{} cut: {:#?}",
+        bad.len(),
+        &bad[..bad.len().min(10)]
+    );
+    let eta = page_of(find("ETA 2824-2").unwrap());
+    let all_quotes: Vec<String> = eta.sources.into_iter().flat_map(|s| s.quotes).collect();
+    assert!(
+        all_quotes.iter().any(|q| q.contains("Diameter 25,60 mm")),
+        "{all_quotes:?}"
     );
 }
