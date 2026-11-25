@@ -15,7 +15,7 @@ use timegrapher_core::session::{
     self, Finding, Manifest, Position, Reading, RecordingEntry, SessionReport,
 };
 use timegrapher_core::stream::StreamConfig;
-use timegrapher_core::{analysis_take, audio, power_reserve, take, twostate};
+use timegrapher_core::{analysis_take, audio, csv, power_reserve, take, twostate};
 
 pub use timegrapher_core::take::MANIFEST;
 
@@ -1259,7 +1259,7 @@ fn csv(s: &Session) -> String {
         let rf = r.reference.clone().unwrap_or_default();
         t.push_str(&format!(
             "{},{},{},{:.1},{},{:.3},{},{},{},{},{},{},{},{},{},{:.4},{},{},{}\n",
-            r.label.replace(',', ";"),
+            csv::field(&r.label, ','),
             r.position,
             opt(r.wind_h, 1).replace('-', ""),
             m.measured_s(),
@@ -1925,6 +1925,48 @@ mod tests {
         .unwrap();
         assert!(m.recordings.is_empty());
         assert!(toml::from_str::<Manifest>("no_such_key = 1\n").is_err());
+    }
+
+    /// A recording whose name holds a comma keeps its name whole in
+    /// `readings.csv`, quoted by core `csv::field` (no longer with a
+    /// semicolon in place of the comma), and the row keeps its columns.
+    /// The name has no double quote, which Windows can't hold in a file
+    /// name; the quoter's own test covers one.
+    #[test]
+    fn a_recording_named_with_a_comma_keeps_its_name_in_the_csv() {
+        use timegrapher_core::synth::{generate, SynthConfig};
+        let dir = std::env::temp_dir().join(format!("tg-session-csvname-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let cfg = SynthConfig {
+            duration_s: 30.0,
+            ..Default::default()
+        };
+        let audio = generate(&cfg, |_| 280.0, |_| 3.0);
+        let name = "Pepsi, DU.wav";
+        audio::write_wav(&dir.join(name), &audio).unwrap();
+        fs::write(
+            dir.join("session.toml"),
+            "bph = 28800\nlift = 52\n\n[[recording]]\nfile = \"Pepsi, DU.wav\"\nposition = \"DU\"\n",
+        )
+        .unwrap();
+        let out = dir.join("out");
+        let o = Options {
+            settle: Some(5.0),
+            out: Some(out.clone()),
+            ..options(None, None, None)
+        };
+        run(std::slice::from_ref(&dir), &o).unwrap();
+        let text = fs::read_to_string(out.join("readings.csv")).unwrap();
+        let row = text.lines().nth(1).unwrap();
+        let header = text.lines().next().unwrap();
+        let rest = row.strip_prefix("\"Pepsi, DU.wav\",").expect(&text);
+        assert_eq!(
+            rest.split(',').count() + 1,
+            header.split(',').count(),
+            "{text}"
+        );
+        let _ = fs::remove_dir_all(&dir);
     }
 
     /// A session file with a masked bump: `session` leaves it out of the
