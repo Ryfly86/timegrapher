@@ -32,8 +32,9 @@ MCP_DOCS = {
     "docs/reference/series.md",
     "docs/reference/fault-signatures.md",
 }
-# Markdown here is compiled in (the skill) or read by packaging's tests.
-FULL_PREFIXES = ("skills/", "packaging/")
+# Markdown here is compiled in (the skill), read by packaging's tests, or
+# read by core's calibre tests (data/README.md's confidence list, #2281).
+FULL_PREFIXES = ("skills/", "packaging/", "crates/timegrapher-core/data/")
 # Files and folders the downloads' pages are rendered from or link to
 # (packaging/docs_html.py): a change here re-runs the render and link check.
 PAGE_FILES = {"README.md", "LICENSE"}
