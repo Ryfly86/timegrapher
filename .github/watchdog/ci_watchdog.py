@@ -46,6 +46,11 @@ HAND_CANCEL = "was canceled by"
 # GitHub's annotation on a job cancelled at its timeout-minutes: a hang, never
 # a cancel for a newer run.
 TIME_LIMIT = "exceeded the maximum execution time"
+# Checks that only report other jobs (ci.yml), each with the start of the
+# names of the jobs it reports: `test (ubuntu-24.04)` fails when one of
+# Linux's two test halves, `test (ubuntu-24.04 1/2)` and `2/2`, does. Beside
+# such a failure it says nothing of its own, so the halves decide.
+SUMMARY_JOBS = {"test (ubuntu-24.04)": "test (ubuntu-24.04 "}
 
 
 class API:
@@ -116,6 +121,17 @@ def superseded(api, run):
                for other in newer)
 
 
+def own_failures(jobs):
+    """The failed jobs, leaving out a summary check when a job it reports failed."""
+    failed = [job for job in jobs if job.get("conclusion") in FAILED]
+    names = [job.get("name") or "" for job in failed]
+
+    def reported(job):
+        part = SUMMARY_JOBS.get(job.get("name"))
+        return part is not None and any(n.startswith(part) for n in names)
+    return [job for job in failed if not reported(job)]
+
+
 def plan(run, jobs, annotations, newer):
     """("rerun", why), ("give-up", why) or ("skip", why) for a completed CI run.
 
@@ -127,7 +143,7 @@ def plan(run, jobs, annotations, newer):
         return "skip", f"run is {run.get('status')}/{run.get('conclusion')}"
     if newer:
         return "skip", "a newer run for the same branch replaced it"
-    failed = [job for job in jobs if job.get("conclusion") in FAILED]
+    failed = own_failures(jobs)
     if not failed:
         return "skip", "no failed jobs"
     reasons = []
@@ -151,8 +167,8 @@ def failed_on_its_own(jobs, annotations, replaced=False):
         if job.get("conclusion") != "cancelled" or any(TIME_LIMIT in m for m in messages):
             return False
         return replaced or any(HAND_CANCEL in m for m in messages)
-    return [job["name"] for job in jobs if job.get("conclusion") in FAILED
-            and infra_message(annotations.get(job["id"], [])) is None
+    return [job["name"] for job in own_failures(jobs)
+            if infra_message(annotations.get(job["id"], [])) is None
             and not hand_cancelled(job)]
 
 

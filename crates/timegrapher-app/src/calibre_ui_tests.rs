@@ -83,8 +83,8 @@ fn the_maker_is_named_once() {
     );
     // A clone stays marked as one.
     assert_eq!(
-        with_maker_name("APS (clone)", "APS 4401"),
-        "APS 4401 (clone)"
+        with_maker_name("Shanghai (clone)", "Shanghai 4401"),
+        "Shanghai 4401 (clone)"
     );
     for name in ["Patek 240 Clone", "Patek 240 (clone)", "Patek 240 CLONE"] {
         assert_eq!(with_maker_name("(clone)", name), name);
