@@ -34694,11 +34694,21 @@
   {
     "calibre": "Movado 5-45",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 44.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Movado 545, 44°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 545, 44°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 545, 44°)",
+      "https://watch-movements-archive.com/watch-movement/movado-45/ (Watch Movements Archive, Movado 45 family list) (Movado 45: 18000 bph, screw balance, fixed hairspring stud-holder)",
+      "https://oldswisswatches.com/tag/movado/page/4/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 5, Movado 6\": f = 18000 A/h)",
+      "https://oldswisswatches.com/tag/movado/page/4/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 45, Movado 46\": f = 18000 A/h)"
     ],
     "confidence": "published list",
     "notes": "Sources disagree; kept as separate entries. Others give 53° (Watchmaking Tools, the lift-angle sheet)."
@@ -34706,11 +34716,21 @@
   {
     "calibre": "Movado 5-45 (53°)",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 53.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (MOVADO 5-45, 53°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 5-45, 53°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 5-45, 53°)",
+      "https://watch-movements-archive.com/watch-movement/movado-45/ (Watch Movements Archive, Movado 45 family list) (Movado 45: 18000 bph, screw balance, fixed hairspring stud-holder)",
+      "https://oldswisswatches.com/tag/movado/page/4/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 5, Movado 6\": f = 18000 A/h)",
+      "https://oldswisswatches.com/tag/movado/page/4/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 45, Movado 46\": f = 18000 A/h)"
     ],
     "confidence": "published list",
     "notes": "Sources disagree; kept as separate entries. Others give 44° (WatchGuy, Watchmaking Tools)."
@@ -34754,10 +34774,19 @@
   {
     "calibre": "Movado 55-65",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 51.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (MOVADO 55-65, 51°)"
+      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (MOVADO 55-65, 51°)",
+      "https://oldswisswatches.com/watch-parts-branded/movado-calibre-movement-and-spare-parts/movado-55-movado-56/ (Old Swiss Watches, Movado 55, Movado 56) (under \"Movado 55, Movado 56\": f = 18000 A/h)",
+      "https://oldswisswatches.com/tag/movado/page/3/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 65\": f = 18000 A/h)"
     ],
     "confidence": "published list"
   },
@@ -34767,9 +34796,14 @@
     "lift_angle_deg": 51.0,
     "wheels": [],
     "sources": [
-      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (MOVADO 53-54-56-57-395-398, 51°)"
+      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (MOVADO 53-54-56-57-395-398, 51°)",
+      "https://oldswisswatches.com/tag/movado/page/5/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 53, Movado 54\": f = 21600 A/h)",
+      "https://oldswisswatches.com/watch-parts-branded/movado-calibre-movement-and-spare-parts/movado-55-movado-56/ (Old Swiss Watches, Movado 55, Movado 56) (under \"Movado 55, Movado 56\": f = 18000 A/h)",
+      "https://oldswisswatches.com/tag/movado/page/3/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 57, Movado 58\": f = 21600 A/h)",
+      "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 41: 395 11 1/4 21600)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Beat rate not settled, so none is given: members differ (21,600 A/h for the 53, 54 and 57 and 18,000 A/h for the 56 on Old Swiss Watches; 21,600 for the 395 in Witschi's table) (timegrapher-calibres#4)."
   },
   {
     "calibre": "Movado 25-27-28",
@@ -34797,9 +34831,13 @@
     "lift_angle_deg": 52.0,
     "wheels": [],
     "sources": [
-      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (MOVADO 166-169-16-19, 52°)"
+      "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (MOVADO 166-169-16-19, 52°)",
+      "https://oldswisswatches.com/tag/movado/page/3/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 165, Movado 166, Movado 167, Movado 169\": f = 18000 A/h)",
+      "https://watch-movements-archive.com/watch-movement/movado-16/ (Watch Movements Archive, Movado 16 family list) (Movado 16: 21,600 bph, no seconds; Movado 19: 21,600 bph, indirect sweeping seconds)",
+      "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 41: 166 7 1/4 21600; 169 7 1/4 21600)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Beat rate not settled, so none is given: Old Swiss Watches lists the 166 and 169 at 18,000 A/h; Witschi's table lists them at 21,600, and Watch Movements Archive lists the 16 and 19 at 21,600 bph (timegrapher-calibres#4)."
   },
   {
     "calibre": "Movado 335-345-1005-1105",
@@ -40226,12 +40264,20 @@
   {
     "calibre": "Rolex 1030",
     "maker": "Rolex",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (ROLEX 1030, 52°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 1030, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1030, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1030, 52°)",
+      "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki, Rolex calibres) (section \"First-Generation 1000\": 18,000 A/h; lists Rolex 1030)"
     ],
     "confidence": "published list"
   },
@@ -47123,10 +47169,19 @@
   {
     "calibre": "Seiko 6159 (52.4°)",
     "maker": "Seiko",
+    "bph": 36000,
     "lift_angle_deg": 52.4,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.2,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6159, 52.4°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6159, 52.4°)",
+      "https://myretrowatches.co.uk/wp-content/uploads/2021/12/Seiko-6159A-Parts-List.pdf (Seiko 6159A parts list, characteristics) (Vibrations Per hour: 36,000)",
+      "https://raredigitalwatches.com/seikocal2.htm (Rare Digital Watches, Caliber Details for Seiko Automatic Watches, f [1/h] column) (6159B | 25 | Seiko 3h | d | 36000 /h)"
     ],
     "confidence": "published list",
     "notes": "Sources disagree; kept as separate entries. Others give 36,000 bph and 52.36° (the lift-angle sheet); 36,000 bph and 52.5° (Watchmaking Tools)."
@@ -64055,44 +64110,77 @@
   {
     "calibre": "Movado 150MN",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 43.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Movado 150MN, 43°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 150MN, 43°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 150MN, 43°)",
+      "https://watch-wiki.org/index.php?title=Movado_150_MN (Watch-Wiki, Movado 150 MN, Kaliberdaten) (Halbschwingungen pro Stunde: 18.000)",
+      "https://oldswisswatches.com/tag/movado/page/5/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 150MN, Movado 155, Movado 157, Movado 159\": f = 18000 A/h)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Movado 155",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 43.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Movado 155, 43°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 155, 43°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 155, 43°)",
+      "https://oldswisswatches.com/tag/movado/page/5/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 150MN, Movado 155, Movado 157, Movado 159\": f = 18000 A/h)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Movado 157",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 43.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Movado 157, 43°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 157, 43°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 157, 43°)",
+      "https://oldswisswatches.com/tag/movado/page/5/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 150MN, Movado 155, Movado 157, Movado 159\": f = 18000 A/h)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Movado 159",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 43.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Movado 159, 43°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 159, 43°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 159, 43°)",
+      "https://oldswisswatches.com/tag/movado/page/5/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 150MN, Movado 155, Movado 157, Movado 159\": f = 18000 A/h)"
     ],
     "confidence": "published list"
   },
@@ -64187,33 +64275,57 @@
   {
     "calibre": "Movado 260 M",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Movado 260 M, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 260M, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 260M, 52°)",
+      "https://oldswisswatches.com/tag/movado/page/4/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 260M, Movado 261, Movado 261A\": f = 18000 A/h)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Movado 261",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Movado 261, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 261, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 261, 52°)",
+      "https://oldswisswatches.com/tag/movado/page/4/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 260M, Movado 261, Movado 261A\": f = 18000 A/h)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Movado 261 A",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Movado 261 A, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 261A, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 261A, 52°)",
+      "https://oldswisswatches.com/tag/movado/page/4/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 260M, Movado 261, Movado 261A\": f = 18000 A/h)"
     ],
     "confidence": "published list"
   },
@@ -64275,11 +64387,19 @@
   {
     "calibre": "Movado 470",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 43.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Movado 470, 43°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 470, 43°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 470, 43°)",
+      "https://oldswisswatches.com/watch-parts-branded/movado-calibre-movement-and-spare-parts/movado-470-movado-477/ (Old Swiss Watches, Movado 470, Movado 477) (under \"Movado 470, Movado 477\": f = 18000 A/h)"
     ],
     "confidence": "published list"
   },
@@ -64330,11 +64450,19 @@
   {
     "calibre": "Movado 477",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 43.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Movado 477, 43°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 477, 43°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 477, 43°)",
+      "https://oldswisswatches.com/watch-parts-branded/movado-calibre-movement-and-spare-parts/movado-470-movado-477/ (Old Swiss Watches, Movado 470, Movado 477) (under \"Movado 470, Movado 477\": f = 18000 A/h)"
     ],
     "confidence": "published list"
   },
@@ -64345,18 +64473,28 @@
     "wheels": [],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Movado 53, 51°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 53, 51°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 53, 51°)",
+      "https://oldswisswatches.com/tag/movado/page/5/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 53, Movado 54\": f = 21600 A/h)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Beat rate not settled, so none is given: Old Swiss Watches lists 21,600 A/h for the 53 and 54, and another list gives 18,000 bph for the 53 (timegrapher-calibres#4)."
   },
   {
     "calibre": "Movado 54",
     "maker": "Movado",
+    "bph": 21600,
     "lift_angle_deg": 51.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Movado 54, 51°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 54, 51°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 54, 51°)",
+      "https://oldswisswatches.com/tag/movado/page/5/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 53, Movado 54\": f = 21600 A/h)"
     ],
     "confidence": "published list"
   },
@@ -64374,33 +64512,57 @@
   {
     "calibre": "Movado 55",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 51.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Movado 55, 51°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 55, 51°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 55, 51°)",
+      "https://oldswisswatches.com/watch-parts-branded/movado-calibre-movement-and-spare-parts/movado-55-movado-56/ (Old Swiss Watches, Movado 55, Movado 56) (under \"Movado 55, Movado 56\": f = 18000 A/h)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Movado 56",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 51.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Movado 56, 51°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 56, 51°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 56, 51°)",
+      "https://oldswisswatches.com/watch-parts-branded/movado-calibre-movement-and-spare-parts/movado-55-movado-56/ (Old Swiss Watches, Movado 55, Movado 56) (under \"Movado 55, Movado 56\": f = 18000 A/h)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Movado 57",
     "maker": "Movado",
+    "bph": 21600,
     "lift_angle_deg": 51.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Movado 57, 51°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 57, 51°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 57, 51°)",
+      "https://oldswisswatches.com/tag/movado/page/3/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 57, Movado 58\": f = 21600 A/h)"
     ],
     "confidence": "published list"
   },
@@ -65099,22 +65261,38 @@
   {
     "calibre": "Omega 1020",
     "maker": "Omega",
+    "bph": 28800,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 1020, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1020, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1020, 52°)",
+      "https://notredameantiques.com/wp-content/uploads/omega-1010_1011_1012_1020_1021_1022.pdf (Omega technical guide, 1010/1011/1012/1020/1021/1022, p. 1) (Frequency 28'800 A/h; angle of lift of balance 52°)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 1030",
     "maker": "Omega",
+    "bph": 28800,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 1030, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1030, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1030, 52°)",
+      "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (1030 | Hand-wound, date | 17 | 28,800 vph)"
     ],
     "confidence": "published list"
   },
@@ -65193,11 +65371,19 @@
   {
     "calibre": "Omega 1120",
     "maker": "Omega",
+    "bph": 28800,
     "lift_angle_deg": 51.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 1120, 51°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1120, 51°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1120, 51°)",
+      "https://notredameantiques.com/wp-content/uploads/Omega-1120.pdf (Omega technical guide, 1120 A, p. 1) (Frequency 4 Hz (28’800 A/h); Angle of lift 51°)"
     ],
     "confidence": "published list"
   },
@@ -65222,34 +65408,63 @@
   {
     "calibre": "Omega 1151",
     "maker": "Omega",
+    "bph": 28800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 1151, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1151, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1151, 49°)",
+      "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (1151 30 CAL 1150 AMÉLIORÉ ET SIMPLIFIÉ 17/25 p 28'800 1994)",
+      "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 42: 1150 à 1155 28800 52)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Lift angle: Witschi's table gives 52° for the 1150 to 1155 range (timegrapher-calibres#4)."
   },
   {
     "calibre": "Omega 1152",
     "maker": "Omega",
+    "bph": 28800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
-    "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 1152, 49°)"
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
     ],
-    "confidence": "published list"
+    "sources": [
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 1152, 49°)",
+      "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (1152 30 CAL 1155 AMÉLIORÉ 28'800 1995)",
+      "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 42: 1150 à 1155 28800 52)"
+    ],
+    "confidence": "published list",
+    "notes": "Lift angle: Witschi's table gives 52° for the 1150 to 1155 range (timegrapher-calibres#4)."
   },
   {
     "calibre": "Omega 1164",
     "maker": "Omega",
-    "lift_angle_deg": 49.0,
-    "wheels": [],
+    "bph": 28800,
+    "lift_angle_deg": 50.0,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 1164, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1164, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1164, 49°)",
+      "https://notredameantiques.com/wp-content/uploads/omega-1164.pdf (Omega technical guide, 1164 A, p. 1) (Frequency 4 Hz (28’800 A/h); Angle of lift 50°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Lift angle 50° from Omega's 1164 A guide; the lists this row was built from give 49° (timegrapher-calibres#4)."
   },
   {
     "calibre": "Omega 1480",
@@ -65308,11 +65523,19 @@
   {
     "calibre": "Omega 162",
     "maker": "Omega",
+    "bph": 18000,
     "lift_angle_deg": 36.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 162, 36°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 162, 36°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 162, 36°)",
+      "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (162 38.5 T1 17 p 18'000 1935)"
     ],
     "confidence": "published list"
   },
@@ -65337,22 +65560,38 @@
   {
     "calibre": "Omega 1861",
     "maker": "Omega",
+    "bph": 21600,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 1861, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1861, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1861, 50°)",
+      "https://mccawcompany.com/wp-content/uploads/2020/04/omega_1861_updated.pdf (Omega technical guide, 1861 A, p. 1) (Frequency 3 Hz (21’600 A/h))"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 1863",
     "maker": "Omega",
+    "bph": 21600,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 1863, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1863, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1863, 50°)",
+      "https://myretrowatches.co.uk/wp-content/uploads/2025/06/Omega1863-Parts-List.pdf (Omega technical guide, 1863 A, p. 1) (Frequency 3 Hz (21’600 A/h); Angle of lift 50°)"
     ],
     "confidence": "published list"
   },
@@ -65363,9 +65602,11 @@
     "wheels": [],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 1866, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1866, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1866, 50°)",
+      "https://notredameantiques.com/wp-content/uploads/omega-1866.pdf (Omega technical guide, 1866 A, p. 1) (Frequency 4 Hz (21’600 A/h); Angle of lift 50°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Beat rate not settled, so none is given: Omega's 1866 A guide prints 4 Hz (21’600 A/h), and 4 Hz is 28,800 A/h (timegrapher-calibres#4)."
   },
   {
     "calibre": "Omega 210",
@@ -65388,22 +65629,38 @@
   {
     "calibre": "Omega 211",
     "maker": "Omega",
+    "bph": 21306,
     "lift_angle_deg": 54.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.337933,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 211, 54°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 211, 54°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 211, 54°)",
+      "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (211 R 11.5 SS AM 17 p 21'306 1951)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 212",
     "maker": "Omega",
+    "bph": 21306,
     "lift_angle_deg": 54.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.337933,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 212, 54°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 212, 54°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 212, 54°)",
+      "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (212 R 11.5 T1 SS AM 17 p 21'306 1952)"
     ],
     "confidence": "published list"
   },
@@ -65428,10 +65685,18 @@
   {
     "calibre": "Omega 23,4 SC",
     "maker": "Omega",
+    "bph": 18000,
     "lift_angle_deg": 39.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 23,4 SC, 39°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 23,4 SC, 39°)",
+      "https://goldammer.me/collections/sold/products/omega-medicus-gilt-syringe-1935 (Goldammer, Omega Medicus listing with the Omega 23.4 SC) (15 jewels, 18000 A/h, 43 hours power reserve)"
     ],
     "confidence": "published list"
   },
@@ -65551,55 +65816,86 @@
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 2500, 38°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 2500, 38°)",
-      "https://monochrome-watches.com/omega-co-axial-escapement-technical-perspective (Monochrome Watches: Omega's Co-Axial escapement, a technical perspective) (\"The original calibre 2500 was a modified ETA 2892 fitted with a Co-Axial escapement\")"
+      "https://monochrome-watches.com/omega-co-axial-escapement-technical-perspective (Monochrome Watches: Omega's Co-Axial escapement, a technical perspective) (\"The original calibre 2500 was a modified ETA 2892 fitted with a Co-Axial escapement\")",
+      "https://notredameantiques.com/wp-content/uploads/omega-2500abc.pdf (Omega technical guide, 2500 A/B/C) (p. 5: 2500A (4 Hz) 2500B (4 Hz) 2500C (3.5 Hz))",
+      "https://notredameantiques.com/wp-content/uploads/omega-2500abc.pdf (Omega technical guide, 2500 A/B/C) (p. 18: Old Witschi measuring instrument ... Lift angle to be set at 30° [4 Hz] ... Neue Witschi-Geräte ... Lift angle to be set at 38°)"
     ],
     "confidence": "published list",
     "escapement": {
       "kind": "co-axial",
       "source": "https://monochrome-watches.com/omega-co-axial-escapement-technical-perspective (Monochrome Watches: Omega's Co-Axial escapement, a technical perspective) (\"The original calibre 2500 was a modified ETA 2892 fitted with a Co-Axial escapement\")"
-    }
+    },
+    "notes": "Beat rate depends on the version, so none is given: 28,800 A/h for the 2500A and 2500B, 25,200 A/h for the 2500C. Omega's guide sets the lift angle at 38° on newer Witschi instruments and at 30° for the 4 Hz versions on older ones (timegrapher-calibres#4)."
   },
   {
     "calibre": "Omega 2500A",
     "maker": "Omega",
+    "bph": 28800,
     "lift_angle_deg": 38.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 2500A, 38°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 2500A, 38°)",
-      "https://monochrome-watches.com/omega-co-axial-escapement-technical-perspective (Monochrome Watches: Omega's Co-Axial escapement, a technical perspective) (\"The original calibre 2500 was a modified ETA 2892 fitted with a Co-Axial escapement\")"
+      "https://monochrome-watches.com/omega-co-axial-escapement-technical-perspective (Monochrome Watches: Omega's Co-Axial escapement, a technical perspective) (\"The original calibre 2500 was a modified ETA 2892 fitted with a Co-Axial escapement\")",
+      "https://notredameantiques.com/wp-content/uploads/omega-2500abc.pdf (Omega technical guide, 2500 A/B/C) (p. 5: 2500A (4 Hz); cover: 4 Hz (28’800 A/h))",
+      "https://notredameantiques.com/wp-content/uploads/omega-2500abc.pdf (Omega technical guide, 2500 A/B/C) (p. 18: Old Witschi measuring instrument ... Lift angle to be set at 30° [4 Hz] ... Neue Witschi-Geräte ... Lift angle to be set at 38°)"
     ],
     "confidence": "published list",
     "escapement": {
       "kind": "co-axial",
       "source": "https://monochrome-watches.com/omega-co-axial-escapement-technical-perspective (Monochrome Watches: Omega's Co-Axial escapement, a technical perspective) (\"The original calibre 2500 was a modified ETA 2892 fitted with a Co-Axial escapement\")"
-    }
+    },
+    "notes": "Omega's guide sets the lift angle at 38° on newer Witschi instruments and at 30° for the 4 Hz versions on older ones (timegrapher-calibres#4)."
   },
   {
     "calibre": "Omega 2500B",
     "maker": "Omega",
+    "bph": 28800,
     "lift_angle_deg": 38.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 2500B, 38°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 2500B, 38°)",
-      "https://monochrome-watches.com/omega-co-axial-escapement-technical-perspective (Monochrome Watches: Omega's Co-Axial escapement, a technical perspective) (\"The original calibre 2500 was a modified ETA 2892 fitted with a Co-Axial escapement\")"
+      "https://monochrome-watches.com/omega-co-axial-escapement-technical-perspective (Monochrome Watches: Omega's Co-Axial escapement, a technical perspective) (\"The original calibre 2500 was a modified ETA 2892 fitted with a Co-Axial escapement\")",
+      "https://notredameantiques.com/wp-content/uploads/omega-2500abc.pdf (Omega technical guide, 2500 A/B/C) (p. 5: 2500B (4 Hz); cover: 4 Hz (28’800 A/h))",
+      "https://notredameantiques.com/wp-content/uploads/omega-2500abc.pdf (Omega technical guide, 2500 A/B/C) (p. 18: Old Witschi measuring instrument ... Lift angle to be set at 30° [4 Hz] ... Neue Witschi-Geräte ... Lift angle to be set at 38°)"
     ],
     "confidence": "published list",
     "escapement": {
       "kind": "co-axial",
       "source": "https://monochrome-watches.com/omega-co-axial-escapement-technical-perspective (Monochrome Watches: Omega's Co-Axial escapement, a technical perspective) (\"The original calibre 2500 was a modified ETA 2892 fitted with a Co-Axial escapement\")"
-    }
+    },
+    "notes": "Omega's guide sets the lift angle at 38° on newer Witschi instruments and at 30° for the 4 Hz versions on older ones (timegrapher-calibres#4)."
   },
   {
     "calibre": "Omega 2500C",
     "maker": "Omega",
+    "bph": 25200,
     "lift_angle_deg": 38.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.285714,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 2500C, 38°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 2500C, 38°)",
-      "https://monochrome-watches.com/omega-co-axial-escapement-technical-perspective (Monochrome Watches: Omega's Co-Axial escapement, a technical perspective) (\"The original calibre 2500 was a modified ETA 2892 fitted with a Co-Axial escapement\")"
+      "https://monochrome-watches.com/omega-co-axial-escapement-technical-perspective (Monochrome Watches: Omega's Co-Axial escapement, a technical perspective) (\"The original calibre 2500 was a modified ETA 2892 fitted with a Co-Axial escapement\")",
+      "https://notredameantiques.com/wp-content/uploads/omega-2500abc.pdf (Omega technical guide, 2500 A/B/C) (p. 5: 2500C (3.5 Hz); p. 18: The frequency (25’200 A/h), has to be set manually)"
     ],
     "confidence": "published list",
     "escapement": {
@@ -65664,55 +65960,95 @@
   {
     "calibre": "Omega 261",
     "maker": "Omega",
+    "bph": 18000,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 261, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 261, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 261, 49°)",
+      "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (261 | Hand-wound | ... | 18,000 vph)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 262",
     "maker": "Omega",
+    "bph": 18000,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 262, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 262, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 262, 49°)",
+      "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (262 | Hand-wound | ... | 18,000 vph)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 265",
     "maker": "Omega",
+    "bph": 18000,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 265, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 265, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 265, 49°)",
+      "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (265 | Hand-wound | ... | 18,000 vph)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 266",
     "maker": "Omega",
+    "bph": 18000,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 266, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 266, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 266, 49°)",
+      "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (266 | Hand-wound | ... | 18,000 vph)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 267",
     "maker": "Omega",
+    "bph": 18000,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 267, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 267, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 267, 49°)",
+      "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (267 | Hand-wound | ... | 18,000 vph)"
     ],
     "confidence": "published list"
   },
@@ -65732,33 +66068,59 @@
   {
     "calibre": "Omega 269",
     "maker": "Omega",
+    "bph": 18000,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 269, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 269, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 269, 49°)",
+      "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (269 | Hand-wound | ... | 18,000 vph)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 280",
     "maker": "Omega",
+    "bph": 18000,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 280, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 280, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 280, 49°)",
+      "https://watchbreaker.com/blog/omega-30t2 (Watch Breaker, table \"The numbered calibres, 260 to 286\", which lists 260 to 269 and 280 to 286) (\"All are 30.00 mm across and beat 18,000 an hour.\")",
+      "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 41: 260 à 286 18000 49)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 281",
     "maker": "Omega",
+    "bph": 18000,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 281, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 281, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 281, 49°)",
+      "https://watchbreaker.com/blog/omega-30t2 (Watch Breaker, table \"The numbered calibres, 260 to 286\", which lists 260 to 269 and 280 to 286) (\"All are 30.00 mm across and beat 18,000 an hour.\")",
+      "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 41: 260 à 286 18000 49)"
     ],
     "confidence": "published list",
     "notes": "Sources disagree; kept as separate entries. Others give 50° (Watchmaking Tools)."
@@ -65766,13 +66128,22 @@
   {
     "calibre": "Omega 281 (50°)",
     "maker": "Omega",
+    "bph": 18000,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 28.1, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 28.1, 50°)",
+      "https://watchbreaker.com/blog/omega-30t2 (Watch Breaker, table \"The numbered calibres, 260 to 286\", which lists 260 to 269 and 280 to 286) (\"All are 30.00 mm across and beat 18,000 an hour.\")",
+      "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 41: 260 à 286 18000 49)"
     ],
     "confidence": "published list",
-    "notes": "Sources disagree; kept as separate entries. Others give 49° (WatchGuy, Watchmaking Tools)."
+    "notes": "Sources disagree; kept as separate entries. Others give 49° (WatchGuy, Watchmaking Tools). Witschi's table gives 49° for the 260 to 286 range (timegrapher-calibres#4)."
   },
   {
     "calibre": "Omega 28,10 R,A, SC,PC",
@@ -65787,33 +66158,60 @@
   {
     "calibre": "Omega 283",
     "maker": "Omega",
+    "bph": 18000,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 283, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 283, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 283, 49°)",
+      "https://watchbreaker.com/blog/omega-30t2 (Watch Breaker, table \"The numbered calibres, 260 to 286\", which lists 260 to 269 and 280 to 286) (\"All are 30.00 mm across and beat 18,000 an hour.\")",
+      "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 41: 260 à 286 18000 49)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 284",
     "maker": "Omega",
+    "bph": 18000,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 284, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 284, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 284, 49°)",
+      "https://watchbreaker.com/blog/omega-30t2 (Watch Breaker, table \"The numbered calibres, 260 to 286\", which lists 260 to 269 and 280 to 286) (\"All are 30.00 mm across and beat 18,000 an hour.\")",
+      "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 41: 260 à 286 18000 49)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 285",
     "maker": "Omega",
+    "bph": 18000,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 285, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 285, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 285, 49°)",
+      "https://watchbreaker.com/blog/omega-30t2 (Watch Breaker, table \"The numbered calibres, 260 to 286\", which lists 260 to 269 and 280 to 286) (\"All are 30.00 mm across and beat 18,000 an hour.\")",
+      "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 41: 260 à 286 18000 49)"
     ],
     "confidence": "published list"
   },
@@ -65856,33 +66254,57 @@
   {
     "calibre": "Omega 301",
     "maker": "Omega",
+    "bph": 21600,
     "lift_angle_deg": 54.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 301, 54°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 301, 54°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 301, 54°)",
+      "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (301 R 17.8 AM 17 p 15 21'600 1946)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 302",
     "maker": "Omega",
+    "bph": 21600,
     "lift_angle_deg": 54.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 302, 54°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 302, 54°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 302, 54°)",
+      "https://ottuhr.com/index/omega/calibers/omega-302/ (OttUhr, Omega 302) (Frequency 21,600 vph (3 Hz))"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 30T2",
     "maker": "Omega",
+    "bph": 18000,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 30T2, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 30T2, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 30T2, 49°)",
+      "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (30T2 | Hand-wound | 15 | 18,000 vph | 1939)"
     ],
     "confidence": "published list"
   },
@@ -65954,10 +66376,18 @@
   {
     "calibre": "Omega 3220",
     "maker": "Omega",
+    "bph": 28800,
     "lift_angle_deg": 51.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 3220, 51°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 3220, 51°)",
+      "https://myretrowatches.co.uk/wp-content/uploads/2023/11/Omega-3220.pdf (Omega technical guide, 3220 A, p. 1) (4 Hz (28’800 A/h); Lift angle 51°)"
     ],
     "confidence": "published list",
     "notes": "Sources disagree; kept as separate entries. Others give 52° (Watchmaking Tools)."
@@ -65965,13 +66395,22 @@
   {
     "calibre": "Omega 3220 (52°)",
     "maker": "Omega",
+    "bph": 28800,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 3220, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 3220, 52°)",
+      "https://myretrowatches.co.uk/wp-content/uploads/2023/11/Omega-3220.pdf (Omega technical guide, 3220 A, p. 1) (4 Hz (28’800 A/h); Lift angle 51°)",
+      "https://www.km-co.jp/%E3%83%AA%E3%83%95%E3%83%88%E3%82%A2%E3%83%B3%E3%82%B0%E3%83%AB%EF%BC%88%E6%8B%98%E6%9D%9F%E8%A7%92%EF%BC%89%E3%81%A8%E3%81%AF%EF%BC%9F/ (K&M Service, lift angle table) (Omega | 3220 | 52.0)"
     ],
     "confidence": "published list",
-    "notes": "Sources disagree; kept as separate entries. Others give 51° (WatchGuy)."
+    "notes": "Sources disagree; kept as separate entries. Others give 51° (WatchGuy). Omega's 3220 A guide gives 51° (timegrapher-calibres#4)."
   },
   {
     "calibre": "Omega 340",
@@ -66007,24 +66446,44 @@
   {
     "calibre": "Omega 342",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 342, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 342, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 342, 50°)",
+      "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (342 | Automatic (bumper) | 17 | 19,800 vph)",
+      "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 41: 340 à 344 28.10 19800 52)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Lift angle: Witschi's table gives 52° for the 340 to 344 range (timegrapher-calibres#4)."
   },
   {
     "calibre": "Omega 343",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 343, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 343, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 343, 50°)",
+      "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (343 | Automatic (bumper) | 17 | 19,800 vph)",
+      "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 41: 340 à 344 28.10 19800 52)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Lift angle: Witschi's table gives 52° for the 340 to 344 range (timegrapher-calibres#4)."
   },
   {
     "calibre": "Omega 344",
@@ -66047,22 +66506,38 @@
   {
     "calibre": "Omega 354",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 354, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 354, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 354, 50°)",
+      "https://chronomaddox.com/omega/tables/seamaster/combined.html (Chronomaddox, Omega Seamaster production tables, Beat column) (354 28.1 19,800 1952~55)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 3606",
     "maker": "Omega",
+    "bph": 28800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 3606, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 3606, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 3606, 49°)",
+      "https://notredameantiques.com/wp-content/uploads/omega-3606.pdf (Omega technical guide, 3606, p. 1) (4 Hz (28’800 A/h))"
     ],
     "confidence": "published list"
   },
@@ -66159,24 +66634,44 @@
   {
     "calibre": "Omega 481",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 68.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 481, 68°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 481, 68°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 481, 68°)",
+      "https://ottuhr.com/index/omega/calibers/omega-481/ (OttUhr, Omega 481 and variants) (Frequency 19,800 vph (2.75 Hz); All variants share identical 12.5 x 15.5 x 3.2mm dimensions and 19,800 vph frequency.)",
+      "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 42: 480 à 484 12.50 19800 52)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Lift angle: Witschi's table gives 52° for the 480 to 484 range (timegrapher-calibres#4)."
   },
   {
     "calibre": "Omega 482",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 69.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 482, 69°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 482, 69°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 482, 69°)",
+      "https://ottuhr.com/index/omega/calibers/omega-481/ (OttUhr, Omega 481 and variants) (Frequency 19,800 vph (2.75 Hz); All variants share identical 12.5 x 15.5 x 3.2mm dimensions and 19,800 vph frequency.)",
+      "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 42: 480 à 484 12.50 19800 52)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Lift angle: Witschi's table gives 52° for the 480 to 484 range (timegrapher-calibres#4)."
   },
   {
     "calibre": "Omega 483",
@@ -66217,55 +66712,95 @@
   {
     "calibre": "Omega 491",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 491, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 491, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 491, 49°)",
+      "https://oldswisswatches.com/watch-parts-branded/omega-calibre-movement-and-spare-parts/omega-491/ (Old Swiss Watches, Omega 491) (f = 19800 A/h)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 501",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 501, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 501, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 501, 49°)",
+      "https://chronomaddox.com/omega/tables/seamaster/combined.html (Chronomaddox, Omega Seamaster production tables, Beat column) (501 28 19,800 1955~58)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 502",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 502, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 502, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 502, 49°)",
+      "https://oldswisswatches.com/watch-parts-branded/omega-calibre-movement-and-spare-parts/omega-502/ (Old Swiss Watches, Omega 502) (f = 19800 A/h)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 503",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 503, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 503, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 503, 49°)",
+      "https://oldswisswatches.com/watch-parts-branded/omega-calibre-movement-and-spare-parts/omega-503/ (Old Swiss Watches, Omega 503) (f = 19800 A/h)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 504",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 504, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 504, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 504, 49°)",
+      "https://oldswisswatches.com/watch-parts-branded/omega-calibre-movement-and-spare-parts/omega-504/ (Old Swiss Watches, Omega 504) (f = 19800 A/h)"
     ],
     "confidence": "published list"
   },
@@ -66308,11 +66843,19 @@
   {
     "calibre": "Omega 511",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 511, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 511, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 511, 49°)",
+      "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (511 25 PC SS AM 17 p 19'800 1954)"
     ],
     "confidence": "published list"
   },
@@ -66355,11 +66898,19 @@
   {
     "calibre": "Omega 551",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 551, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 551, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 551, 49°)",
+      "https://chronomaddox.com/omega/tables/seamaster/combined.html (Chronomaddox, Omega Seamaster production tables, Beat column) (551 27.9 19,800 1959~68)"
     ],
     "confidence": "published list"
   },
@@ -66379,22 +66930,38 @@
   {
     "calibre": "Omega 560",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 560, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 560, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 560, 49°)",
+      "https://chronomaddox.com/omega/tables/seamaster/combined.html (Chronomaddox, Omega Seamaster production tables, Beat column) (560 27.9 19,800 1959~66)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 561",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 561, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 561, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 561, 49°)",
+      "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (561 27.90 RA SC PC CAL AM bull 24 p 19'800 1958)"
     ],
     "confidence": "published list"
   },
@@ -66419,22 +66986,38 @@
   {
     "calibre": "Omega 563",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 563, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 563, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 563, 49°)",
+      "https://chronomaddox.com/omega/tables/seamaster/combined.html (Chronomaddox, Omega Seamaster production tables, Beat column) (563 27.9 19,800 1966~73)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 564",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 564, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 564, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 564, 49°)",
+      "https://chronomaddox.com/omega/tables/seamaster/combined.html (Chronomaddox, Omega Seamaster production tables, Beat column) (564 27.9 19,800 1966~73)"
     ],
     "confidence": "published list"
   },
@@ -66549,22 +67132,38 @@
   {
     "calibre": "Omega 601",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 601, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 601, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 601, 49°)",
+      "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (601 | Hand-wound | 17 | 19,800 vph)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 602",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 602, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 602, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 602, 49°)",
+      "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (602 | Hand-wound, chronometer | 17 | 19,800 vph)"
     ],
     "confidence": "published list"
   },
@@ -66589,11 +67188,19 @@
   {
     "calibre": "Omega 611",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 611, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 611, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 611, 49°)",
+      "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (611 | Hand-wound, date | — | 19,800 vph)"
     ],
     "confidence": "published list"
   },
@@ -66618,11 +67225,19 @@
   {
     "calibre": "Omega 651",
     "maker": "Omega",
+    "bph": 21600,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 651, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 651, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 651, 52°)",
+      "https://notredameantiques.com/wp-content/uploads/Omega-651.pdf (Omega technical guide, 651, p. 1) (21'600 A/h; Angle of lift 52°)"
     ],
     "confidence": "published list"
   },
@@ -66683,44 +67298,76 @@
   {
     "calibre": "Omega 671",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 48.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 671, 48°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 671, 48°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 671, 48°)",
+      "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (671 | Automatic, ladies' | 24 | 19,800 vph)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 672",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 48.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 672, 48°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 672, 48°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 672, 48°)",
+      "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (672 | Automatic, ladies', chronometer | 24 | 19,800 vph)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 680",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 48.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 680, 48°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 680, 48°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 680, 48°)",
+      "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (680 | Automatic, ladies', date | 17 | 19,800 vph)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 681",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 48.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 681, 48°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 681, 48°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 681, 48°)",
+      "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (681 | Automatic, ladies', date | 24 | 19,800 vph)"
     ],
     "confidence": "published list"
   },
@@ -66763,11 +67410,19 @@
   {
     "calibre": "Omega 684",
     "maker": "Omega",
+    "bph": 21600,
     "lift_angle_deg": 48.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 684, 48°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 684, 48°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 684, 48°)",
+      "https://chronomaddox.com/omega/tables/seamaster/combined.html (Chronomaddox, Omega Seamaster production tables, Beat column) (684 17.5 21,600)"
     ],
     "confidence": "published list"
   },
@@ -66846,11 +67501,19 @@
   {
     "calibre": "Omega 751",
     "maker": "Omega",
+    "bph": 19800,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 751, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 751, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 751, 49°)",
+      "https://notredameantiques.com/wp-content/uploads/omega-751.pdf (Omega technical guide, 751, p. 1) (19'800 A/h)"
     ],
     "confidence": "published list"
   },
@@ -66906,66 +67569,115 @@
   {
     "calibre": "Omega 862",
     "maker": "Omega",
+    "bph": 21600,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 862, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 862, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 862, 50°)",
+      "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (862S 27 CHRO C12 PC 21 p (baptisé aussi 862 seulement) 21'600 1984)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 863",
     "maker": "Omega",
+    "bph": 21600,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 863, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 863, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 863, 50°)",
+      "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (863 | Hand-wound chronograph | 17 | 21,600 vph)",
+      "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (863 27 CHRO C12 PC 17 p - 18 p dès 1993 21'600 1980)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 864",
     "maker": "Omega",
+    "bph": 21600,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 864, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 864, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 864, 50°)",
+      "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (864 27 CHRO C12 PC bull 17 p - 18 p dès 1993 21'600 1992)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 865",
     "maker": "Omega",
+    "bph": 21600,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 865, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 865, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 865, 50°)",
+      "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (865 27 CH PC AM 17 p 21'600 1966)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 866",
     "maker": "Omega",
+    "bph": 21600,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 866, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 866, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 866, 50°)",
+      "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (866 27 CHRO C12 PC DL 17 p - 18 p dès 1993 ??? 21'600 1985)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 867",
     "maker": "Omega",
+    "bph": 21600,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 867, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 867, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 867, 50°)",
+      "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (867 27 CHRO C12 PC 17 p - 18 p dès 1993p 21'600 1992)"
     ],
     "confidence": "published list"
   },
@@ -66983,33 +67695,57 @@
   {
     "calibre": "Omega 910",
     "maker": "Omega",
+    "bph": 21600,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 910, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 910, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 910, 50°)",
+      "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (910 27 CHRO C12 PC AMPM GMT 17 p (27 x 6,87) 21'600 1969)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 911",
     "maker": "Omega",
+    "bph": 21600,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 911, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 911, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 911, 50°)",
+      "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (911 27 CHRO C12 PC GMT 17 p 21'600 1971)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Omega 920",
     "maker": "Omega",
+    "bph": 21600,
     "lift_angle_deg": 50.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 920, 50°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 920, 50°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 920, 50°)",
+      "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (920 27 CH PC AM CAL 17 p (27 x 6,3) 21'600 1968)"
     ],
     "confidence": "published list"
   },
@@ -67790,11 +68526,19 @@
   {
     "calibre": "Rolex 1035",
     "maker": "Rolex",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 1035, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1035, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1035, 52°)",
+      "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki, Rolex calibres) (section \"First-Generation 1000\": 18,000 A/h; lists Rolex 1035)"
     ],
     "confidence": "published list"
   },
@@ -67812,11 +68556,19 @@
   {
     "calibre": "Rolex 1055",
     "maker": "Rolex",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 1055, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1055, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1055, 52°)",
+      "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki, Rolex calibres) (section \"First-Generation 1000\": 18,000 A/h; lists Rolex 1055)"
     ],
     "confidence": "published list"
   },
@@ -67834,11 +68586,19 @@
   {
     "calibre": "Rolex 1065",
     "maker": "Rolex",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 1065, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1065, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1065, 52°)",
+      "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki, Rolex calibres) (section \"First-Generation 1000\": 18,000 A/h; lists Rolex 1065)"
     ],
     "confidence": "published list"
   },
@@ -68304,11 +69064,19 @@
   {
     "calibre": "Rolex 1310",
     "maker": "Rolex",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 1310, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1310, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1310, 52°)",
+      "https://watchdoctor.biz/movements-and-calibers/ (Watch Doctor, Rolex calibre chart, Beats / hour column) (1310 | Manual wind, sweep-seconds ... | 18J | 18,000 | 1956)"
     ],
     "confidence": "published list"
   },
@@ -68888,11 +69656,19 @@
   {
     "calibre": "Rolex 281",
     "maker": "Rolex",
+    "bph": 21600,
     "lift_angle_deg": 51.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 281, 51°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 281, 51°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 281, 51°)",
+      "https://watchdoctor.biz/movements-and-calibers/ (Watch Doctor, Rolex calibre chart, Beats / hour column) (REF. 281 (6″) | Manual wind, no seconds, round-shaped. | 270 | ... | 17J | 21,600 | 1955)"
     ],
     "confidence": "published list"
   },
@@ -68930,10 +69706,18 @@
   {
     "calibre": "Rolex 3075",
     "maker": "Rolex",
+    "bph": 28800,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 3075, 52°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 3075, 52°)",
+      "https://www.watch-wiki.net/doku.php?id=rolex_3075 (Watch Wiki, Rolex 3075, data) (28,800 A/h)"
     ],
     "confidence": "published list"
   },
@@ -69201,11 +69985,19 @@
   {
     "calibre": "Rolex 710",
     "maker": "Rolex",
+    "bph": 18000,
     "lift_angle_deg": 45.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 710, 45°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 710, 45°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 710, 45°)",
+      "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki, Rolex calibres) (Rolex 700 Series: Rolex 710 | 1950 | Manual | 18,000)"
     ],
     "confidence": "published list"
   },
@@ -69266,22 +70058,38 @@
   {
     "calibre": "Rolex 730",
     "maker": "Rolex",
+    "bph": 18000,
     "lift_angle_deg": 43.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 730, 43°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 730, 43°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 730, 43°)",
+      "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki, Rolex calibres) (Rolex 700 Series: Rolex 730 | 1945 | Automatic | 18,000)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Rolex 740",
     "maker": "Rolex",
+    "bph": 18000,
     "lift_angle_deg": 43.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 740, 43°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 740, 43°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 740, 43°)",
+      "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki, Rolex calibres) (Rolex 700 Series: Rolex 740 | 1945 | Automatic | 18,000)"
     ],
     "confidence": "published list"
   },
@@ -69319,10 +70127,11 @@
     "lift_angle_deg": 58.4,
     "wheels": [],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 4006A, 58.4°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 4006A, 58.4°)",
+      "https://raredigitalwatches.com/seikocal2.htm (Rare Digital Watches, Caliber Details for Seiko Automatic Watches, f [1/h] column) (4006A | 17 | Seiko 3h | dd | 28800 /h | 31.1 | 7.2 | Alarm | Bell-Matic)"
     ],
     "confidence": "published list",
-    "notes": "Sources disagree; kept as separate entries. Others give 58.5° (Watchmaking Tools)."
+    "notes": "Sources disagree; kept as separate entries. Others give 58.5° (Watchmaking Tools). Beat rate not settled, so none is given: Rare Digital Watches lists 28,800 /h, and another source gives 19,800; Seiko's own sheet could not be read as text (timegrapher-calibres#4)."
   },
   {
     "calibre": "Seiko 4006A (58.5°)",
@@ -69330,41 +70139,67 @@
     "lift_angle_deg": 58.5,
     "wheels": [],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4006A, 58.5°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4006A, 58.5°)",
+      "https://raredigitalwatches.com/seikocal2.htm (Rare Digital Watches, Caliber Details for Seiko Automatic Watches, f [1/h] column) (4006A | 17 | Seiko 3h | dd | 28800 /h | 31.1 | 7.2 | Alarm | Bell-Matic)"
     ],
     "confidence": "published list",
-    "notes": "Sources disagree; kept as separate entries. Others give 58.4° (WatchGuy)."
+    "notes": "Sources disagree; kept as separate entries. Others give 58.4° (WatchGuy). Beat rate not settled, so none is given: Rare Digital Watches lists 28,800 /h, and another source gives 19,800; Seiko's own sheet could not be read as text (timegrapher-calibres#4)."
   },
   {
     "calibre": "Seiko 4205A",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 4205A, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4205A, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4205A, 49°)",
+      "https://www.seikowatches.com/be-fr/-/media/Files/Common/Seiko/instructions/Japanese/4/4206/4206.pdf (Seiko instruction manual for cal. 4205, 4206, 4207, 4225, 7S25, 7S26 and 7S36, specifications) (Vibrations per hour 21,600)",
+      "https://raredigitalwatches.com/seikocal2.htm (Rare Digital Watches, Caliber Details for Seiko Automatic Watches, f [1/h] column) (4205A | 17 | Seiko 3h | d | 21600 /h)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 4205B",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 4205B, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4205B, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4205B, 49°)",
+      "https://seikoserviceusa.com/uploads/datasheets/4205B_06_07_08_25A_27.pdf (Seiko technical sheet, Cal. 4205B / 4206B / 4207B / 4208B / 4225A / 4227A, p. 1) (Vibrations per hour 21,600 (6 beats per second))"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 4205C",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 4205C, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4205C, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4205C, 52°)",
+      "https://www.seikoserviceusa.com/uploads/datasheets/4205C_06_07_08_25B_27.pdf (Seiko technical sheet, 4205C 4206C 4207C 4208B 4225B 4227B, p. 1) (Vibration per hour 21,600 (6 beats per second))"
     ],
     "confidence": "published list"
   },
@@ -69384,131 +70219,230 @@
   {
     "calibre": "Seiko 4206B",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 4206B, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4206B, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4206B, 49°)",
+      "https://seikoserviceusa.com/uploads/datasheets/4205B_06_07_08_25A_27.pdf (Seiko technical sheet, Cal. 4205B / 4206B / 4207B / 4208B / 4225A / 4227A, p. 1) (Vibrations per hour 21,600 (6 beats per second))"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 4206C",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 4206C, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4206C, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4206C, 52°)",
+      "https://www.seikoserviceusa.com/uploads/datasheets/4205C_06_07_08_25B_27.pdf (Seiko technical sheet, 4205C 4206C 4207C 4208B 4225B 4227B, p. 1) (Vibration per hour 21,600 (6 beats per second))"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 4207A",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 4207A, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4207A, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4207A, 49°)",
+      "https://www.seikowatches.com/be-fr/-/media/Files/Common/Seiko/instructions/Japanese/4/4206/4206.pdf (Seiko instruction manual for cal. 4205, 4206, 4207, 4225, 7S25, 7S26 and 7S36, specifications) (Vibrations per hour 21,600)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 4207B",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 4207B, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4207B, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4207B, 49°)",
+      "https://seikoserviceusa.com/uploads/datasheets/4205B_06_07_08_25A_27.pdf (Seiko technical sheet, Cal. 4205B / 4206B / 4207B / 4208B / 4225A / 4227A, p. 1) (Vibrations per hour 21,600 (6 beats per second))"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 4207C",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 4207C, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4207C, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4207C, 52°)",
+      "https://www.seikoserviceusa.com/uploads/datasheets/4205C_06_07_08_25B_27.pdf (Seiko technical sheet, 4205C 4206C 4207C 4208B 4225B 4227B, p. 1) (Vibration per hour 21,600 (6 beats per second))"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 4208A",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 4208A, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4208A, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4208A, 49°)",
+      "https://mizeni.com/movements/seiko-4208 (Mizeni, Seiko 4208 movement details) (Rate: 21,600 bph; Lift angle: 49º in 4208A, 52º in 4208B)",
+      "https://www.seikoserviceusa.com/uploads/datasheets/4205C_06_07_08_25B_27.pdf (Seiko technical sheet, 4205C 4206C 4207C 4208B 4225B 4227B, p. 1) (Vibration per hour 21,600 (6 beats per second)) (its CURRENT NEW table: 4208A 4208B)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Beat rate from Mizeni's 4208 page, which names the 4208A; Seiko's 4208B sheet gives 21,600 and lists the 4208B as the new name of the 4208A (timegrapher-calibres#4)."
   },
   {
     "calibre": "Seiko 4208B",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 4208B, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4208B, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4208B, 52°)",
+      "https://www.seikoserviceusa.com/uploads/datasheets/4205C_06_07_08_25B_27.pdf (Seiko technical sheet, 4205C 4206C 4207C 4208B 4225B 4227B, p. 1) (Vibration per hour 21,600 (6 beats per second))",
+      "https://seikoserviceusa.com/uploads/datasheets/4205B_06_07_08_25A_27.pdf (Seiko technical sheet, Cal. 4205B / 4206B / 4207B / 4208B / 4225A / 4227A, p. 1) (Vibrations per hour 21,600 (6 beats per second))"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 4225A",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 4225A, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4225A, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4225A, 49°)",
+      "https://seikoserviceusa.com/uploads/datasheets/4205B_06_07_08_25A_27.pdf (Seiko technical sheet, Cal. 4205B / 4206B / 4207B / 4208B / 4225A / 4227A, p. 1) (Vibrations per hour 21,600 (6 beats per second))"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 4225B",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 4225B, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4225B, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4225B, 52°)",
+      "https://www.seikoserviceusa.com/uploads/datasheets/4205C_06_07_08_25B_27.pdf (Seiko technical sheet, 4205C 4206C 4207C 4208B 4225B 4227B, p. 1) (Vibration per hour 21,600 (6 beats per second))"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 4227A",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 49.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 4227A, 49°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4227A, 49°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4227A, 49°)",
+      "https://seikoserviceusa.com/uploads/datasheets/4205B_06_07_08_25A_27.pdf (Seiko technical sheet, Cal. 4205B / 4206B / 4207B / 4208B / 4225A / 4227A, p. 1) (Vibrations per hour 21,600 (6 beats per second))"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 4227B",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 4227B, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4227B, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4227B, 52°)",
+      "https://www.seikoserviceusa.com/uploads/datasheets/4205C_06_07_08_25B_27.pdf (Seiko technical sheet, 4205C 4206C 4207C 4208B 4225B 4227B, p. 1) (Vibration per hour 21,600 (6 beats per second))"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 4502A",
     "maker": "Seiko",
+    "bph": 36000,
     "lift_angle_deg": 56.5,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.2,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 4502A, 56.5°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 4502A, 56.5°)",
+      "https://watch-colle.com/en/products/000000008373?variant=56190313791793 (WATCH COLLE, King Seiko 4502-7000 listing with Cal.4502A) (36,000 vibrations/hour (10 beats))"
     ],
     "confidence": "published list"
   },
@@ -69869,22 +70803,38 @@
   {
     "calibre": "Seiko 4S12",
     "maker": "Seiko",
+    "bph": 28800,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 4S12, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4S12, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4S12, 52°)",
+      "https://www.watch-wiki.net/doku.php?id=seiko_4s15 (Watch Wiki, Seiko 4S15 and the 4S family) (The 4S family operates at 28,800 A/h; Other closely-related members of this 4S family include the 4S12)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 4S15",
     "maker": "Seiko",
+    "bph": 28800,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 4S15, 52°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4S15, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4S15, 52°)",
+      "https://www.watch-wiki.net/doku.php?id=seiko_4s15 (Watch Wiki, Seiko 4S15 and the 4S family) (Data: 28,800 A/h)"
     ],
     "confidence": "published list"
   },
@@ -70320,21 +71270,37 @@
   {
     "calibre": "Seiko 6105B",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 54.5,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6105B, 54.5°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6105B, 54.5°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6105B, 54.5°)",
+      "https://raredigitalwatches.com/seikocal2.htm (Rare Digital Watches, Caliber Details for Seiko Automatic Watches, f [1/h] column) (6105B | 17 | Seiko 3h | d | 21600 /h)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 6106C",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 54.5,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6106C, 54.5°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6106C, 54.5°)",
+      "https://raredigitalwatches.com/seikocal2.htm (Rare Digital Watches, Caliber Details for Seiko Automatic Watches, f [1/h] column) (6106C | 23 | Seiko 3h | dd | 21600 /h)"
     ],
     "confidence": "published list"
   },
@@ -70344,70 +71310,120 @@
     "lift_angle_deg": 54.5,
     "wheels": [],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6117A, 54.5°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6117A, 54.5°)",
+      "https://raredigitalwatches.com/seikocal2.htm (Rare Digital Watches, Caliber Details for Seiko Automatic Watches, f [1/h] column) (6117A | 17 | Seiko 3h | d | 21600 /h)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Beat rate not settled, so none is given: Rare Digital Watches lists 21,600 /h, and another list gives 18,000 (timegrapher-calibres#4)."
   },
   {
     "calibre": "Seiko 6117B",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 54.5,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6117B, 54.5°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6117B, 54.5°)",
+      "https://raredigitalwatches.com/seikocal2.htm (Rare Digital Watches, Caliber Details for Seiko Automatic Watches, f [1/h] column) (6117B | 17 | Seiko 3h | d | 21600 /h)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 6119C",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 54.5,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6119C, 54.5°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6119C, 54.5°)",
+      "https://raredigitalwatches.com/seikocal2.htm (Rare Digital Watches, Caliber Details for Seiko Automatic Watches, f [1/h] column) (6119C | 21 | Seiko 3h | dd | 21600 /h)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 6139A",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 54.5,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6139A, 54.5°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6139A, 54.5°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6139A, 54.5°)",
+      "https://raredigitalwatches.com/seikocal2.htm (Rare Digital Watches, Caliber Details for Seiko Automatic Watches, f [1/h] column) (6139A | 17 | Seiko 3h | dd | 21600 /h)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 6139B",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 54.5,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6139B, 54.5°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6139B, 54.5°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6139B, 54.5°)",
+      "https://raredigitalwatches.com/seikocal2.htm (Rare Digital Watches, Caliber Details for Seiko Automatic Watches, f [1/h] column) (6139B | 21 | Seiko 3h | dd | 21600 /h)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 6156A",
     "maker": "Seiko",
+    "bph": 36000,
     "lift_angle_deg": 54.5,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.2,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6156A, 54.5°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6156A, 54.5°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6156A, 54.5°)",
+      "https://www.theseikoguy.com/grand-seiko-vintage (The Seiko Guy, Grand Seiko 61GS table, Bph column) (6156A ... 36.000)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 6159A",
     "maker": "Seiko",
+    "bph": 36000,
     "lift_angle_deg": 52.4,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.2,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6159A, 52.4°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6159A, 52.4°)",
+      "https://myretrowatches.co.uk/wp-content/uploads/2021/12/Seiko-6159A-Parts-List.pdf (Seiko 6159A parts list, characteristics) (Vibrations Per hour: 36,000)"
     ],
     "confidence": "published list",
     "notes": "Sources disagree; kept as separate entries. Others give 52.5° (Watchmaking Tools)."
@@ -70415,10 +71431,18 @@
   {
     "calibre": "Seiko 6159A (52.5°)",
     "maker": "Seiko",
+    "bph": 36000,
     "lift_angle_deg": 52.5,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.2,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6159A, 52.5°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6159A, 52.5°)",
+      "https://myretrowatches.co.uk/wp-content/uploads/2021/12/Seiko-6159A-Parts-List.pdf (Seiko 6159A parts list, characteristics) (Vibrations Per hour: 36,000)"
     ],
     "confidence": "published list",
     "notes": "Sources disagree; kept as separate entries. Others give 52.4° (WatchGuy)."
@@ -70426,10 +71450,18 @@
   {
     "calibre": "Seiko 6159B",
     "maker": "Seiko",
+    "bph": 36000,
     "lift_angle_deg": 52.4,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.2,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6159B, 52.4°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6159B, 52.4°)",
+      "https://raredigitalwatches.com/seikocal2.htm (Rare Digital Watches, Caliber Details for Seiko Automatic Watches, f [1/h] column) (6159B | 25 | Seiko 3h | d | 36000 /h)"
     ],
     "confidence": "published list",
     "notes": "Sources disagree; kept as separate entries. Others give 52.5° (Watchmaking Tools)."
@@ -70437,10 +71469,18 @@
   {
     "calibre": "Seiko 6159B (52.5°)",
     "maker": "Seiko",
+    "bph": 36000,
     "lift_angle_deg": 52.5,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.2,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6159B, 52.5°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6159B, 52.5°)",
+      "https://raredigitalwatches.com/seikocal2.htm (Rare Digital Watches, Caliber Details for Seiko Automatic Watches, f [1/h] column) (6159B | 25 | Seiko 3h | d | 36000 /h)"
     ],
     "confidence": "published list",
     "notes": "Sources disagree; kept as separate entries. Others give 52.4° (WatchGuy)."
@@ -70448,21 +71488,37 @@
   {
     "calibre": "Seiko 6245",
     "maker": "Seiko",
+    "bph": 19800,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.363636,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6245, 52°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6245, 52°)",
+      "https://mizeni.com/movements/seiko-6245 (Mizeni, Seiko 6245 movement details) (Rate: 19,800 bph)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 6309A",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 54.5,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6309A, 54.5°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6309A, 54.5°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6309A, 54.5°)",
+      "https://raredigitalwatches.com/seikocal2.htm (Rare Digital Watches, Caliber Details for Seiko Automatic Watches, f [1/h] column) (6309A | 17 | Seiko 3h | dd | 21600 /h)"
     ],
     "confidence": "published list"
   },
@@ -70705,21 +71761,37 @@
   {
     "calibre": "Seiko 7002",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 53.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 7002, 53°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 7002, 53°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 7002, 53°)",
+      "https://raredigitalwatches.com/seikocal2.htm (Rare Digital Watches, Caliber Details for Seiko Automatic Watches, f [1/h] column) (7002A | 17 | Seiko 3h | d | 21600 /h)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Seiko 7009A",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 53.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 7009A, 53°)"
+      "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 7009A, 53°)",
+      "https://raredigitalwatches.com/seikocal2.htm (Rare Digital Watches, Caliber Details for Seiko Automatic Watches, f [1/h] column) (7009A | 17 | Seiko 3h | dd | 21600 /h)"
     ],
     "confidence": "published list"
   },
@@ -70737,11 +71809,19 @@
   {
     "calibre": "Seiko 7S25A",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 53.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 7S25A, 53°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 7S25A, 53°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 7S25A, 53°)",
+      "https://www.seikowatches.com/be-fr/-/media/Files/Common/Seiko/instructions/Japanese/4/4206/4206.pdf (Seiko instruction manual for cal. 4205, 4206, 4207, 4225, 7S25, 7S26 and 7S36, specifications) (Vibrations per hour 21,600)"
     ],
     "confidence": "published list"
   },
@@ -71123,11 +72203,19 @@
   {
     "calibre": "Seiko 7S55B",
     "maker": "Seiko",
+    "bph": 21600,
     "lift_angle_deg": 53.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 7S55B, 53°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 7S55B, 53°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 7S55B, 53°)",
+      "https://myretrowatches.co.uk/wp-content/uploads/2022/05/Seiko-7s55b-Technical-Guide.pdf (Seiko technical guide, Cal. 7S25B, 7S35B, 7S55B, p. 1) (21,600 Hz/hour (6 beats per second))"
     ],
     "confidence": "published list"
   },
@@ -75610,17 +76698,29 @@
     "lift_angle_deg": 53.0,
     "wheels": [],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 6-46, 53°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 6-46, 53°)",
+      "https://watch-movements-archive.com/watch-movement/movado-45/ (Watch Movements Archive, Movado 45 family list) (Movado 46: 21600 bph, screw balance, fixed hairspring stud-holder)",
+      "https://oldswisswatches.com/tag/movado/page/4/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 5, Movado 6\": f = 18000 A/h)",
+      "https://oldswisswatches.com/tag/movado/page/4/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 45, Movado 46\": f = 18000 A/h)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Beat rate not settled, so none is given: Watch Movements Archive lists the 46 at 21,600 bph, Old Swiss Watches lists the 6 and the 46 at 18,000 A/h (timegrapher-calibres#4)."
   },
   {
     "calibre": "Movado 15",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 15, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 15, 52°)",
+      "https://watch-movements-archive.com/watch-movement/movado-16/ (Watch Movements Archive, Movado 16 family list) (Movado 15: 18,000 bph, no seconds)"
     ],
     "confidence": "published list"
   },
@@ -75630,17 +76730,27 @@
     "lift_angle_deg": 52.0,
     "wheels": [],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 16, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 16, 52°)",
+      "https://watch-movements-archive.com/watch-movement/movado-16/ (Watch Movements Archive, Movado 16 family list) (Movado 16: 21,600 bph, no seconds; listing field for Caliber 16: Beats per hour: 18,000)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Beat rate not settled, so none is given: Watch Movements Archive gives 21,600 bph in its family list and 18,000 in its listing for the 16 (timegrapher-calibres#4)."
   },
   {
     "calibre": "Movado 17",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 17, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 17, 52°)",
+      "https://watch-movements-archive.com/watch-movement/movado-16/ (Watch Movements Archive, Movado 16 family list) (Movado 17: 18,000 bph, indirect sweeping seconds)"
     ],
     "confidence": "published list"
   },
@@ -75650,17 +76760,27 @@
     "lift_angle_deg": 52.0,
     "wheels": [],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 19, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 19, 52°)",
+      "https://watch-movements-archive.com/watch-movement/movado-16/ (Watch Movements Archive, Movado 16 family list) (Movado 19: 21,600 bph, indirect sweeping seconds)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Beat rate not settled, so none is given: Watch Movements Archive lists 21,600 bph, and another list gives 18,000 (timegrapher-calibres#4)."
   },
   {
     "calibre": "Movado 65",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 51.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 65, 51°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 65, 51°)",
+      "https://oldswisswatches.com/tag/movado/page/3/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 65\": f = 18000 A/h)"
     ],
     "confidence": "published list"
   },
@@ -75677,50 +76797,90 @@
   {
     "calibre": "Movado 95M",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 95M, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 95M, 52°)",
+      "https://ottuhr.com/index/movado/calibers/movado-m95/ (OttUhr, Movado M95) (Frequency 18,000 vph (2.5 Hz))"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Movado 165",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 165, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 165, 52°)",
+      "https://oldswisswatches.com/tag/movado/page/3/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 165, Movado 166, Movado 167, Movado 169\": f = 18000 A/h)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Movado 167",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 167, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 167, 52°)",
+      "https://oldswisswatches.com/tag/movado/page/3/ (Old Swiss Watches, Movado calibre posts) (under \"Movado 165, Movado 166, Movado 167, Movado 169\": f = 18000 A/h)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Movado 365",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 365, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 365, 52°)",
+      "https://watch-movements-archive.com/watch-movement/movado-365/ (Watch Movements Archive, Movado 365 family list) (Movado 365: 11 1/4”’, 18,000 bph, hand winding, no date)"
     ],
     "confidence": "published list"
   },
   {
     "calibre": "Movado 368",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 368, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 368, 52°)",
+      "https://watch-movements-archive.com/watch-movement/movado-365/ (Watch Movements Archive, Movado 365 family list) (Movado 368: 11 1/4”’, 18,000 bph, hand winding, date)"
     ],
     "confidence": "published list"
   },
@@ -75760,17 +76920,27 @@
     "lift_angle_deg": 52.0,
     "wheels": [],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 431A, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 431A, 52°)",
+      "https://watch-movements-archive.com/watch-movement/movado-365/ (Watch Movements Archive, Movado 365 family list) (Movado 431A: 11 3/4”’, 18,000 bph, automatic, no date)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Beat rate not settled, so none is given: Watch Movements Archive lists 18,000 bph, and another list gives 21,600 (timegrapher-calibres#4)."
   },
   {
     "calibre": "Movado 438",
     "maker": "Movado",
+    "bph": 18000,
     "lift_angle_deg": 52.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 438, 52°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Movado 438, 52°)",
+      "https://watch-movements-archive.com/watch-movement/movado-365/ (Watch Movements Archive, Movado 365 family list) (Movado 438: 11 3/4”’, 18,000 bph, automatic, date)"
     ],
     "confidence": "published list"
   },
@@ -76874,17 +78044,27 @@
     "lift_angle_deg": 53.0,
     "wheels": [],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 160, 53°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 160, 53°)",
+      "https://watchdoctor.biz/movements-and-calibers/ (Watch Doctor, Rolex calibre chart, Beats / hour column) (REF. 160 (4″ 113) [Size 1131] | ... | 17J | 17,886 | 1945)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "notes": "Beat rate not settled, so none is given: Watch Doctor's chart prints 17,886, a single figure off the usual beat rates, and no second source was found (timegrapher-calibres#4)."
   },
   {
     "calibre": "Rolex 270",
     "maker": "Rolex",
+    "bph": 18000,
     "lift_angle_deg": 51.0,
-    "wheels": [],
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.4,
+        "basis": "derived from the beat rate"
+      }
+    ],
     "sources": [
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 270, 51°)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 270, 51°)",
+      "https://watchdoctor.biz/movements-and-calibers/ (Watch Doctor, Rolex calibre chart, Beats / hour column) (REF. 270 (6″) | Manual wind, no seconds, round-shaped. | ... | 17J | 18,000 | 1940)"
     ],
     "confidence": "published list"
   },
