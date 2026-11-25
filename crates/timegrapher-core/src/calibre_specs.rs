@@ -191,8 +191,10 @@ fn stated_number(s: &str, places: usize) -> Option<f64> {
     (ok && v > 0.0).then_some(v)
 }
 
-/// Decimals a stated millimetre or hour figure may carry.
-const PLACES: usize = 2;
+/// Decimals a stated millimetre figure may carry (Norm, #2266).
+const MM_PLACES: usize = 2;
+/// Decimals a stated power reserve, in hours, may carry.
+const HOUR_PLACES: usize = 1;
 
 /// Why the row's spec fields break the rules, or `None` when they keep
 /// them: every field has a source starting with its address, a diameter
@@ -201,9 +203,9 @@ const PLACES: usize = 2;
 pub fn spec_fault(c: &Calibre) -> Option<String> {
     let mut sources = Vec::new();
     let number = |what: &str, v: &str| {
-        stated_number(v, PLACES)
+        stated_number(v, MM_PLACES)
             .is_none()
-            .then(|| format!("{what} {v:?} is not a positive figure to 0.01"))
+            .then(|| format!("{what} {v:?} is not a positive figure to 0.01 mm"))
     };
     if let Some(j) = &c.jewels {
         if j.value == 0 {
@@ -227,7 +229,7 @@ pub fn spec_fault(c: &Calibre) -> Option<String> {
         sources.push(&h.source);
     }
     if let Some(p) = &c.power_reserve_h {
-        let n = |v: &Option<String>| v.as_deref().and_then(|v| stated_number(v, PLACES));
+        let n = |v: &Option<String>| v.as_deref().and_then(|v| stated_number(v, HOUR_PLACES));
         let ok = match (&p.value, &p.from, &p.to) {
             (Some(_), None, None) => n(&p.value).is_some(),
             (None, Some(_), Some(_)) => {
@@ -315,6 +317,9 @@ mod tests {
             pr(r#"{"from": "38", "to": "40", "source": "https://x"}"#).as_deref(),
             Some("38 to 40 h power reserve")
         );
+        // Compared as numbers, not strings: "9" is less than "10".
+        let range = row(r#", "power_reserve_h": {"from": "9", "to": "10", "source": "https://x"}"#);
+        assert_eq!(spec_fault(&range), None);
     }
 
     #[test]
@@ -353,6 +358,9 @@ mod tests {
             r#", "height_mm": {"value": "0", "source": "https://x"}"#,
             r#", "power_reserve_h": {"value": "38", "to": "40", "source": "https://x"}"#,
             r#", "power_reserve_h": {"from": "40", "to": "38", "source": "https://x"}"#,
+            r#", "power_reserve_h": {"value": "38.25", "source": "https://x"}"#,
+            r#", "power_reserve_h": {"value": "~38", "source": "https://x"}"#,
+            r#", "height_mm": {"value": "4.6 mm", "source": "https://x"}"#,
             r#", "power_reserve_h": {"from": "38", "to": "40", "approx": true, "source": "https://x"}"#,
             r#", "functions": {"value": ["no hacking"], "source": "https://x"}"#,
         ] {

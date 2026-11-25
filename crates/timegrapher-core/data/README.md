@@ -55,7 +55,7 @@ A JSON array, one object per calibre:
 | `jewels` | Optional. `value` and `source`: the jewel count a source states |
 | `diameter` | Optional. `mm` (a string as written, "25.60"), `lignes` (as written, without ‴, e.g. "11½") and `source`: either or both as the source states them. Neither is worked out from the other |
 | `height_mm` | Optional. `value` (a string as the source writes it, "4.60", at most 0.01 mm) and `source` |
-| `power_reserve_h` | Optional. Figures are strings as written ("38.5"): `value` (with `approx: true` only where the source says "about") or `from` and `to` for a range, and `source` |
+| `power_reserve_h` | Optional. Figures are strings as written ("38.5", at most one decimal): `value` (with `approx: true` only where the source says "about") or `from` and `to` for a range, and `source` |
 | `functions` | Optional. `value` and `source`: functions the source states, from the fixed list in `calibre_specs.rs` ("hand winding", "automatic winding", "hacking", "date", "quickset date", "day", "GMT hand", "chronograph", "power reserve indicator", "moon phase"). One not listed is unknown. The seconds hand's place stays in `seconds` |
 | `escapement` | Optional, and absent for a Swiss lever. `kind` ("co-axial", "pin lever" or "detent") and `source`. A flagged calibre can still be picked; the app says Timegrapher doesn't measure that escapement yet |
 
