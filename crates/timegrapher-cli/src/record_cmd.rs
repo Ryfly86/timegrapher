@@ -292,6 +292,12 @@ fn record(o: &Options) -> Result<(Options, Report, serde_json::Value), String> {
             p.display()
         ));
     }
+    // Checked before place() makes the take's folder in a library, so a
+    // refused run leaves no empty take behind.
+    timegrapher_core::capture::checked_duration(o.seconds).map_err(|e| format!("--seconds {e}"))?;
+    if o.wind_h.is_some_and(|w| !w.is_finite() || w < 0.0) {
+        return Err("--wind-h must be 0 or more".into());
+    }
     let placed = place(&mut o)?;
     let (rep, settings) = record_in(&o, placed.watch, placed.reserve_take.as_deref())?;
     Ok((o, rep, settings))
@@ -309,10 +315,6 @@ fn record_in(
             Position::accepted_names()
         )
     })?;
-    timegrapher_core::capture::checked_duration(o.seconds).map_err(|e| format!("--seconds {e}"))?;
-    if o.wind_h.is_some_and(|w| !w.is_finite() || w < 0.0) {
-        return Err("--wind-h must be 0 or more".into());
-    }
     fs::create_dir_all(o.dir()).map_err(|e| format!("{}: {e}", o.dir().display()))?;
     let set = settings(o)?;
 

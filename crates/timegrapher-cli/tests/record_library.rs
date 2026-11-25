@@ -251,3 +251,36 @@ fn record_through_a_link_into_the_library_is_refused_while_the_app_has_it() {
     drop(held);
     let _ = fs::remove_dir_all(&d);
 }
+
+/// A run refused for its options (`--seconds 0`, a negative `--wind-h`)
+/// leaves no take folder in the watch: they are checked before the
+/// session folder is made (#1988 N3, Max on #2268).
+#[test]
+fn a_refused_run_leaves_no_take_in_the_watch() {
+    let d = scratch("refused");
+    let wav = d.join("none.wav");
+    let root = d.join("Timegrapher Data");
+    let mut lib = Library::create(&root).unwrap();
+    let dir = lib.add(&Watch::new("Pepsi")).unwrap();
+    drop(lib);
+    // (flag, the arguments that give it a value it refuses)
+    let refused: [(&str, &[&str]); 2] = [
+        ("--seconds", &["--seconds", "0"]),
+        ("--wind-h", &["--wind-h=-1"]),
+    ];
+    for (flag, bad) in refused {
+        let out = bin()
+            .args(["record", "--watch", "Pepsi", "--library"])
+            .arg(&root)
+            .args(["--position", "DU", "--file"])
+            .arg(&wav)
+            .args(bad)
+            .output()
+            .unwrap();
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert_eq!(out.status.code(), Some(1), "{flag}: {err}");
+        assert!(err.contains(flag), "{flag}: {err}");
+        assert_eq!(fs::read_dir(dir.join(TAKES)).unwrap().count(), 0, "{flag}");
+    }
+    let _ = fs::remove_dir_all(&d);
+}
