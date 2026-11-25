@@ -51,6 +51,10 @@ pub(super) struct AsFile {
     /// for a feed read [`Self::on_ask`]: kept while no more than
     /// [`READ_LAG_CAP_S`] more is heard and no setting changes.
     fresh: std::sync::OnceLock<Box<LiveAnalyzer>>,
+    /// Reads of everything heard made on the caller's thread, for the
+    /// tests that no read is made twice.
+    #[cfg(test)]
+    reads: std::sync::atomic::AtomicUsize,
 }
 
 /// A copy keeps the newest read and what was heard; a read in flight
@@ -64,6 +68,8 @@ impl Clone for AsFile {
             view: self.view.clone(),
             on_ask: self.on_ask,
             fresh: self.fresh.clone(),
+            #[cfg(test)]
+            reads: Default::default(),
         }
     }
 }
@@ -113,14 +119,14 @@ impl LiveAnalyzer {
         if behind <= READ_LAG_CAP_S * self.fs {
             return self.as_file.view.as_deref();
         }
-        Some(self.as_file.fresh.get_or_init(|| {
-            let log = crate::stream::analyze_samples(
-                &self.as_file.heard,
-                self.fs as u32,
-                &self.stream_config(),
-            );
-            Box::new(self.view_of(log))
-        }))
+        Some((self.as_file.fresh).get_or_init(|| Box::new(self.view_of(self.read_heard()))))
+    }
+
+    /// Everything heard, read as a file now, on this thread.
+    fn read_heard(&self) -> BeatLog {
+        #[cfg(test)]
+        (self.as_file.reads).fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        crate::stream::analyze_samples(&self.as_file.heard, self.fs as u32, &self.stream_config())
     }
 
     /// Whether the figures still come from reads as a file: until the
@@ -302,6 +308,15 @@ impl LiveAnalyzer {
         if self.view_len() == self.as_file.heard.len() {
             return;
         }
+        // The figures last asked for were read of everything heard, with
+        // every setting since (a change drops them): that read is the one
+        // wanted, not read twice.
+        if let Some(f) = self.as_file.fresh.take() {
+            if f.total as usize == self.as_file.heard.len() {
+                self.as_file.view = Some(f);
+                return;
+            }
+        }
         // A read in flight of everything heard is the one wanted: waited
         // for, not read twice. One of less is left to finish on its own.
         if let Some((job, n)) = self.as_file.job.take() {
@@ -312,11 +327,7 @@ impl LiveAnalyzer {
                 }
             }
         }
-        let log = crate::stream::analyze_samples(
-            &self.as_file.heard,
-            self.fs as u32,
-            &self.stream_config(),
-        );
+        let log = self.read_heard();
         self.set_view(log);
     }
 }
@@ -468,6 +479,45 @@ mod tests {
             got.amplitude_deg.map(f64::to_bits),
             r.amplitude_deg.map(f64::to_bits)
         );
+    }
+
+    /// A stop after the figures were asked for of everything heard keeps
+    /// that read, the one a stop would make: not read twice, and the
+    /// figures the same to the bit.
+    #[test]
+    fn a_stop_after_an_ask_of_all_heard_reads_it_once() {
+        let (mut asked, whole) = fed_both(&watch(28_800));
+        let got = asked.reading(10.0);
+        assert!(got.rate_s_per_day.is_some(), "{got:?}");
+        assert_eq!(asked.read_as_file_to(), Some(asked.duration_s()));
+        let reads = |l: &LiveAnalyzer| l.as_file.reads.load(std::sync::atomic::Ordering::Relaxed);
+        assert_eq!(reads(&asked), 1);
+        asked.read_as_file_now();
+        assert_eq!(reads(&asked), 1, "the stop read nothing again");
+        // As the stop of a feed read in the background, which reads it all.
+        assert_eq!(format!("{:?}", asked.reading(10.0)), format!("{got:?}"));
+        assert_eq!(reads(&asked), 1, "the ask after the stop read nothing");
+        assert_eq!(format!("{got:?}"), format!("{:?}", whole.reading(10.0)));
+    }
+
+    /// A stop after an ask that left out sound heard since (less than the
+    /// cap) reads everything heard: the figures reach the end of the
+    /// sound, as a background-fed take's after its stop, to the bit.
+    #[test]
+    fn a_stop_after_an_ask_short_of_all_heard_reads_it_all() {
+        let sound = watch(28_800);
+        let (mut asked, mut whole) = fed_both(&sound);
+        let _ = asked.reading(10.0);
+        let more = &watch(28_800)[..4_800];
+        asked.push(more);
+        whole.push_without_waiting(more);
+        assert!(asked.read_as_file_to() < Some(asked.duration_s()), "kept");
+        asked.read_as_file_now();
+        whole.read_as_file_now();
+        assert_eq!(asked.read_as_file_to(), Some(asked.duration_s()));
+        let got = asked.reading(10.0);
+        assert!(got.rate_s_per_day.is_some(), "{got:?}");
+        assert_eq!(format!("{got:?}"), format!("{:?}", whole.reading(10.0)));
     }
 
     /// A setting changed while the newest read is within the cap of all
