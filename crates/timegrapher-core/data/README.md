@@ -161,8 +161,8 @@ one row, named after the drawing, with each product name as a family
 name. The lift angle (全升角) on the drawings is 53° for the 28,800 bph
 calibres and the 21,600 bph 3T tourbillons, 53.2° for the 21,600 bph
 2xxx series and 47.5° for the hand-wound 9xxx series. The 6300 family
-takes the drawings' 53° rather than the 50° ETA 2824-2 figure (Peter
-Hudson, 2026-11-16). Where a product page and its drawing disagree on
+takes the drawings' 53° rather than the 50° ETA 2824-2 figure (this
+project, 2026-11-16). Where a product page and its drawing disagree on
 jewels or power reserve, the row's notes say so. The movement photo
 URLs are kept in docs/research/hangzhou-movement-photos.json; the
 photos are Hangzhou's and are not copied here.
@@ -180,7 +180,7 @@ keep no lift angle. The movement photo URLs are kept in
 docs/research/peacock-movement-photos.json; the photos are Peacock's
 and are not copied here.
 
-Peter Hudson's RWI list of which Jinghe calibres are likely clones of
+An RWI forum post's list of which Jinghe calibres are likely clones of
 which movements is quoted word for word, with its link, in the notes of
 the rows it names (the Jinghe JH6203, JH7152, JH7155, JH7156 and JH7301,
 and the VR3130, VR3135, VR3187, VR3235, VR3285 and SH4130). It
@@ -263,7 +263,7 @@ is left out rather than guessed.
 
 [32xx train counts](../../../docs/research/32xx-train-wheel-counts.md) contain nine
 numbered images, six original photographs, and the complete ratio checks.
-Peter Hudson contributed the photos and confirmed applicability to all
+This project contributed the photos and confirmed applicability to all
 genuine Rolex, Dandong and Jinghe 32xx on 2026-10-19. The covered rows,
 including the separate Rolex 53° settings, carry the counted wheel teeth
 and pinion leaves with `confidence` "derived from tooth counts".
@@ -295,7 +295,7 @@ propagate counts by a shared calibre number alone.
 
 [4130 train and chronograph counts](../../../docs/research/4130-train-wheel-counts.md)
 contain twelve numbered figures and ten originals from a DD4130, contributed
-by Peter Hudson on 2026-10-19. He reports matching counts and periods for
+by this project on 2026-10-19. The project reports matching counts and periods for
 genuine Rolex 4130 and SH4130; the latter now has its own entry. The train
 is barrel 105, second 90/15, third 96/12, fourth 120/12, escape 20/10.
 **The fourth receiving pinion's 12 leaves are inferred**, not directly
@@ -306,12 +306,12 @@ meshes are documented with engagement state rather than added as unconditional
 runtime periods. Existing 4131 entries are unchanged; 7750-based homages
 are excluded. The ambiguous `4130 (clone)` alias is removed; select an
 explicit manufacturer. Rolex, Dandong and SH4130 all specify **52°** lift:
-Rolex publishes this value, and Peter separately confirms the same angle
+Rolex publishes this value, and the project separately confirms the same angle
 for all 4130 variants. It is not inferred from tooth counts.
 
 [31xx train counts](../../../docs/research/31xx-train-wheel-counts.md) contain nine
 numbered figures and five originals from the VR31xx photo set, contributed
-by Peter Hudson on 2026-10-19. He reports applicability to genuine Rolex,
+by this project on 2026-10-19. The project reports applicability to genuine Rolex,
 DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; SH31xx is excluded.
 The train is barrel 100, second 81/12, third 96/12, fourth 120/18, escape
 20/10. The derived periods are 18000, **2160**, 320, 60 and 5 seconds.
@@ -358,7 +358,7 @@ beat rate and layout, plus these:
 - **Clones.** The 31xx contribution covers DD/VS and VR, excluding SH31xx.
   The 32xx contribution explicitly covers Dandong and Jinghe
   and excludes VR32xx and SH32xx. The 4130 contribution covers DD4130 and
-  SH4130; Peter separately confirms that both share the genuine 52° lift
+  SH4130; the project separately confirms that both share the genuine 52° lift
   angle. Matching counts do not establish parts interchangeability.
   For the older sources, a clone is given
   the original's train, escape wheel
@@ -410,12 +410,12 @@ mesh inference, and source-labelled transfers to 39 catalogue rows. The
 the same train (#1822), so 43 rows now carry it.
 Three-hertz, Power+ and ambiguous clone identities are excluded.
 
-Peter Hudson gives a 50° lift angle for all 2824-2 movements and their
+This project gives a 50° lift angle for all 2824-2 movements and their
 derivatives, clones and variations (2026-10-22). The 32 rows at 28,800 bph
-in this family that had no lift angle now carry 50° credited to him; it
-is his figure, not inferred from the shared train. The four rows with a
+in this family that had no lift angle now carry 50° credited to the project; it
+is the project's figure, not inferred from the shared train. The four rows with a
 lift angle from their own source keep it (STP1-11 52°, Enicar 2824 53°,
-Eterna 12824 52°, ETA 2824 at 21,600 bph 53°), and their notes give his
+Eterna 12824 52°, ETA 2824 at 21,600 bph 53°), and their notes give the project's
 50° beside it. The Powermatic 80 is not covered.
 
 ## VR32xx microscope contribution
@@ -480,7 +480,7 @@ lift angles are retained.
 
 [DD324 evidence and ratio checks](../../../docs/research/dd324-train-wheel-counts.md)
 contains eight unchanged originals and numbered count figures contributed
-by Peter Hudson on 2026-10-21. The complete photographed train is barrel 93,
+by this project on 2026-10-21. The complete photographed train is barrel 93,
 second 60/18, third 90 with 10 leaves on each face, fourth 84/9 and escape
 20/7. Periods are 18600, 3600, 600, 60 and 5 seconds respectively.
 The second wheel uses the established `centre wheel` slot.
@@ -510,7 +510,7 @@ The maker is Shanghai, per the contributor; lift angle remains unconfirmed.
 ## AP3120 clone microscope contribution
 
 [AP3120 clone counts and mesh checks](../../../docs/research/ap3120-clone-train-wheel-counts.md)
-extends the existing SA3120 entry from six Peter Hudson photographs and
+extends the existing SA3120 entry from six of this project's photographs and
 bench confirmations. The 21,600 bph train is barrel 104, simple intermediate
 40 (physically confirmed to have no pinion), centre 80/13, third 75/10,
 fourth 81/10 and escape 20/9. The intermediate rim directly meshes with
@@ -520,6 +520,6 @@ Periods are eight hours, 144000/13 seconds, one hour, 450 seconds, 60 seconds
 and 20/3 seconds respectively; the cannon/minutes assembly also turns hourly.
 Original Third/Fourth/Fifth filenames map to centre/third/fourth roles.
 The genuine AP3120 and Miyota-based replicas receive no transferred counts.
-The existing 53° lift setting is retained. Peter Hudson identifies Jinghe as
+The existing 53° lift setting is retained. This project identifies Jinghe as
 the SA3120 manufacturer; it is listed under Shanghai Jinghe (clone), with
 APS/ZF retained as marketed aliases.
