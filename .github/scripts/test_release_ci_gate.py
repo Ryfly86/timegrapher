@@ -87,7 +87,13 @@ class GateTests(unittest.TestCase):
     def test_required_jobs_are_the_ci_workflow_jobs(self):
         workflow = pathlib.Path(__file__).parents[1] / "workflows/ci.yml"
         text = workflow.read_text(encoding="utf-8")
-        self.assertIn("os: [ubuntu-24.04, windows-latest, macos-latest]", text)
+        self.assertIn("os: [windows-latest]", text)
+        # Linux's two halves report as one check, named as REQUIRED_JOBS has it.
+        self.assertIn("os: [ubuntu-24.04]", text)
+        self.assertIn("\n    name: test (ubuntu-24.04)\n    needs: test-linux\n", text)
+        # So do macOS's.
+        self.assertIn("os: [macos-latest]", text)
+        self.assertIn("\n    name: test (macos-latest)\n    needs: test-macos\n", text)
         # Windows runs its tests as two halves, named as REQUIRED_JOBS has them.
         self.assertIn("name: test (${{ matrix.os }}${{ matrix.part && format(' {0}', matrix.part) || '' }})", text)
         self.assertIn("part: 1/2", text)

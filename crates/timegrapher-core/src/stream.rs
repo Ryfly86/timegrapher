@@ -16,6 +16,9 @@ use crate::profile;
 use serde::Serialize;
 use std::path::Path;
 
+mod resume;
+pub use resume::{analyze_samples_resumed, Resume};
+
 #[derive(Debug, Clone)]
 pub struct StreamConfig {
     pub analysis: AnalysisConfig,
@@ -127,19 +130,18 @@ impl BeatLog {
             .filter(|b| b.is_good())
             .filter_map(|b| Some((b.time, b.index.rem_euclid(2) == 0, find(b.time)?)))
             .collect();
-        let beat = 3600.0 / self.bph.max(1) as f64;
         crate::measure::stretch_beat_sound(
             &snips,
             beats.first()?.time,
             beats.last()?.time,
             self.sample_rate as f64,
-            2.0 * beat,
+            self.bph,
             cfg,
         )
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct State {
     fs: f64,
     cfg: StreamConfig,
@@ -182,6 +184,9 @@ struct State {
     clipped_beats: Vec<f64>,
     clipped_samples: usize,
     snippets: crate::sound_sample::SoundSample<Vec<f32>>,
+    /// This state as the first chunk left it, kept for a read that can be
+    /// resumed from there ([`resume`]).
+    first: resume::First,
 }
 
 impl State {
@@ -312,7 +317,7 @@ impl State {
         }
         self.count_clipping(&c.clipped, off, core_a, core_b, kept_from);
 
-        self.amplitude_job(numbered, off, off + x.len() as f64 / fs, core_b, beat)
+        self.amplitude_job(numbered, off, off + x.len() as f64 / fs, core_b)
     }
 
     /// The beats of a chunk before a watch has been heard, and whether the
@@ -379,7 +384,6 @@ impl State {
         off: f64,
         x_end: f64,
         core_b: f64,
-        beat: f64,
     ) -> Option<AmpJob> {
         let w = self.cfg.analysis.amplitude_window_s;
         let mut to = self.next_amp_s;
@@ -389,13 +393,17 @@ impl State {
         if to > self.next_amp_s {
             self.amp_out.push_back((self.chunks - 1, to));
         }
+        // The degrees read the balance's own period, not the set rate's
+        // (#2228).
+        let own = crate::timing::own_beat_period_s(&numbered, self.bph);
+        let beat = 3600.0 / self.bph.max(1) as f64;
         (to > self.next_amp_s).then(|| AmpJob {
             chunk: self.chunks - 1,
             numbered,
             off,
             from_s: std::mem::replace(&mut self.next_amp_s, to),
             to_s: to,
-            beat,
+            beat: [beat, own],
         })
     }
 
@@ -469,7 +477,9 @@ struct AmpJob {
     off: f64,
     from_s: f64,
     to_s: f64,
-    beat: f64,
+    /// The set rate's beat, which the templates are cut for, and the
+    /// balance's own, which the degrees are read at (#2228), seconds.
+    beat: [f64; 2],
 }
 
 impl AmpJob {
@@ -484,14 +494,12 @@ impl AmpJob {
             "test: a chunk's amplitude failed"
         );
         let off = self.off;
-        let mut wins = amplitude::windows_between(
+        let mut wins = amplitude::windows_between_at(
             env,
             fs,
             &self.numbered,
-            2.0 * self.beat,
-            cfg.amplitude_window_s,
-            self.from_s - off,
-            self.to_s - off,
+            self.beat.map(|b| 2.0 * b),
+            (cfg.amplitude_window_s, self.from_s - off, self.to_s - off),
             &cfg.amplitude,
         );
         for win in &mut wins {
@@ -670,15 +678,35 @@ pub(crate) fn analyze_fed_seen(
     cfg: &StreamConfig,
     threads: usize,
     feed: impl FnOnce(&mut dyn FnMut(&[f32]) -> bool) -> Result<(), AudioError> + Send,
+    progress: impl FnMut(f64),
+    seen: impl FnMut(Seen),
+    in_step: bool,
+) -> Result<BeatLog, AudioError> {
+    let fs = sample_rate as f64;
+    let from = (State::new(sample_rate, cfg), Cutter::new(fs, cfg));
+    let (st, total) = read_fed(from, threads, feed, progress, seen, in_step)?;
+    Ok(st.finish(sample_rate, total))
+}
+
+/// [`analyze_fed_seen`] from `from`: the state and the cutter as the
+/// chunks analysed so far left them, the sound `feed` passes running on
+/// from the cutter's end (from the start for a new read; after the first
+/// chunk for a read resumed, [`resume`]). The state once every chunk is
+/// analysed, and the samples read in all.
+fn read_fed(
+    (mut st, cutter): (State, Cutter),
+    threads: usize,
+    feed: impl FnOnce(&mut dyn FnMut(&[f32]) -> bool) -> Result<(), AudioError> + Send,
     mut progress: impl FnMut(f64),
     mut seen: impl FnMut(Seen),
     in_step: bool,
-) -> Result<BeatLog, AudioError> {
+) -> Result<(State, usize), AudioError> {
     use std::sync::mpsc::sync_channel;
     let threads = threads.max(1);
-    let fs = sample_rate as f64;
-    let mut st = State::new(sample_rate, cfg);
+    let fs = st.fs;
+    let cfg = &st.cfg.clone();
     let env_cfg = &cfg.analysis.envelope;
+    let first = st.chunks;
     let queued = QUEUED_PER_THREAD * threads;
     let (cut_tx, cut_rx) = sync_channel::<(usize, Prepared)>(queued);
     let (done_tx, done_rx) = sync_channel::<(usize, Prepared)>(queued);
@@ -692,7 +720,7 @@ pub(crate) fn analyze_fed_seen(
     let job_rx = std::sync::Arc::new(std::sync::Mutex::new(job_rx));
     let (wins_tx, wins_rx) = std::sync::mpsc::channel();
     let total = std::thread::scope(|sc| {
-        let cutter = sc.spawn(move || cut(fs, cfg, feed, cut_tx));
+        let cutter = sc.spawn(move || cut((cutter, first), feed, cut_tx));
         for rx in std::iter::repeat_n(cut_rx, threads) {
             let tx = done_tx.clone();
             sc.spawn(move || prepare_all(&rx, &tx, fs, env_cfg));
@@ -714,9 +742,11 @@ pub(crate) fn analyze_fed_seen(
         drop(job_tx);
         cutter.join().expect("the cutting thread panicked")
     })?;
-    st.put_amplitude_together(wins_rx.into_iter().collect());
+    let wins: Vec<Found> = wins_rx.into_iter().collect();
+    st.first.windows_found(&st.found, &wins);
+    st.put_amplitude_together(wins);
     progress(total as f64 / fs);
-    Ok(st.finish(sample_rate, total))
+    Ok((st, total))
 }
 
 /// A chunk's amplitude windows, found: its number, and them.
@@ -725,17 +755,14 @@ type Found = (usize, Vec<AmplitudeWindow>);
 /// A queue several threads take from, each item once.
 type Shared<T> = std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Receiver<T>>>;
 
-/// [`analyze_fed`]'s first stage: the sound `feed` passes, cut into
-/// chunks and sent, numbered, to `tx` until nothing more is wanted; with
-/// the samples read.
+/// [`analyze_fed`]'s first stage: the sound `feed` passes, cut by `c`
+/// into chunks and sent, numbered on from `n`, to `tx` until nothing more
+/// is wanted; with the samples read.
 fn cut(
-    fs: f64,
-    cfg: &StreamConfig,
+    (mut c, mut n): (Cutter, usize),
     feed: impl FnOnce(&mut dyn FnMut(&[f32]) -> bool) -> Result<(), AudioError>,
     tx: std::sync::mpsc::SyncSender<(usize, Prepared)>,
 ) -> Result<usize, AudioError> {
-    let mut c = Cutter::new(fs, cfg);
-    let mut n = 0;
     // False once nothing more is wanted.
     let wanted = std::cell::Cell::new(true);
     let mut send = |p: Prepared| {
@@ -811,12 +838,13 @@ fn in_order(
     in_step: bool,
 ) {
     let mut ready = std::collections::BTreeMap::new();
-    let mut next = 0;
+    let mut next = st.chunks;
     for (i, c) in rx {
         ready.insert(i, c);
         while let Some(c) = ready.remove(&next) {
             let job = st.chunk(&c);
             next += 1;
+            st.keep_first(c.core_b);
             while let Ok(found) = wins.try_recv() {
                 st.windows_found(found);
             }
@@ -974,6 +1002,7 @@ impl State {
             clipped_beats: Vec::new(),
             clipped_samples: 0,
             snippets: Default::default(),
+            first: Default::default(),
         }
     }
 
@@ -1037,8 +1066,7 @@ fn watch_heard_in(
             .iter()
             .filter_map(|b| sound_snippet(b, beat_window(env, fs, b)?))
             .collect();
-        let osc_period_s = 2.0 * crate::timing::beat_period_s(None, bph);
-        crate::measure::beat_sound_found(snips, fs, osc_period_s, cfg)
+        crate::measure::beat_sound_found(snips, fs, bph, cfg)
     };
     let sound = crate::measure::beat_sound_needed(jitter_us, bph, true)
         .then(sound)

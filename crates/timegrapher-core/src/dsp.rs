@@ -384,6 +384,20 @@ pub fn upper_median_f32(v: &mut [f32]) -> f32 {
     middle(v, f32::total_cmp).map_or(f32::NAN, |(_, hi)| hi)
 }
 
+/// [`upper_median_f32`] of `f64` values: always one of the values. The
+/// core sites that read this order statistic rather than the [`median`]
+/// share it, so each is one call to rule on (#839, #1988). Internal
+/// levels only; shown figures use median (#839, Norm on #2273).
+pub fn upper_median(v: &mut [f64]) -> f64 {
+    middle(v, f64::total_cmp).map_or(f64::NAN, |(_, hi)| hi)
+}
+
+/// [`upper_median`] of values with an order of their own (counts,
+/// indices), or `None` when empty. Reorders `v`.
+pub fn upper_median_ord<T: Copy + Ord>(v: &mut [T]) -> Option<T> {
+    middle(v, T::cmp).map(|(_, hi)| hi)
+}
+
 /// The two middle values of `v` in the order `cmp` (the middle one twice
 /// for an odd count), or `None` when empty. Reorders `v`.
 fn middle<T: Copy>(v: &mut [T], cmp: impl Fn(&T, &T) -> std::cmp::Ordering) -> Option<(T, T)> {
@@ -416,12 +430,33 @@ pub fn trimmed_mean_f32(v: &mut [f32], trim: f64) -> f32 {
     (mid.iter().map(|&x| x as f64).sum::<f64>() / mid.len() as f64) as f32
 }
 
-/// Median absolute deviation scaled to match a standard deviation.
+/// How many standard deviations of normal values one median absolute
+/// deviation is: 1/Φ⁻¹(3/4), to four places. The one scale in core that
+/// turns a MAD into a robust SD (#1988).
+pub const MAD_TO_SD: f64 = 1.4826;
+
+/// The median absolute deviation of `v` about `centre`, scaled by
+/// [`MAD_TO_SD`] to match a standard deviation. Every value counts as
+/// given (a NaN sorts last); [`robust_sd`] takes the finite values about
+/// their own median. NaN when empty.
+pub fn robust_sd_about(v: &[f64], centre: f64) -> f64 {
+    let mut dev: Vec<f64> = v.iter().map(|x| (x - centre).abs()).collect();
+    MAD_TO_SD * median(&mut dev)
+}
+
+/// Median absolute deviation of the finite values about their median,
+/// scaled to match a standard deviation ([`robust_sd_about`]).
 pub fn robust_sd(v: &[f64]) -> f64 {
     let mut w: Vec<f64> = v.iter().copied().filter(|x| x.is_finite()).collect();
     let m = median(&mut w);
-    let mut dev: Vec<f64> = w.iter().map(|x| (x - m).abs()).collect();
-    1.4826 * median(&mut dev)
+    robust_sd_about(&w, m)
+}
+
+/// The robust σ of each value from `steps`, the differences between
+/// neighbours: their [`robust_sd`] over √2, since a difference of two
+/// independent values has twice the variance of each.
+pub fn robust_sd_from_steps(steps: &[f64]) -> f64 {
+    robust_sd(steps) / std::f64::consts::SQRT_2
 }
 
 /// `y` less its least-squares line against the index, in place.
@@ -519,6 +554,55 @@ fn normal_equations<const N: usize>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The scaled MAD is taken about the centre it is given, every value
+    /// counting (a NaN sorts last); the robust SD keeps the finite values
+    /// and takes their own median (#1988 N4).
+    #[test]
+    fn the_scaled_mad_is_about_the_centre_given() {
+        let v = [1.0, 2.0, 3.0, 4.0, 100.0];
+        assert_eq!(robust_sd_about(&v, 3.0), MAD_TO_SD);
+        assert_eq!(robust_sd_about(&v, 0.0), 3.0 * MAD_TO_SD);
+        assert_eq!(robust_sd_about(&[f64::NAN, 1.0, 2.0], 0.0), 2.0 * MAD_TO_SD);
+        assert!(robust_sd_about(&[], 0.0).is_nan());
+        let wild = [1.0, f64::NAN, 2.0, 3.0, f64::INFINITY, 4.0, 100.0];
+        assert_eq!(robust_sd(&wild), MAD_TO_SD);
+        let steps = [0.5, -1.0, 2.0, -0.25, 1.5];
+        assert_eq!(
+            robust_sd_from_steps(&steps),
+            robust_sd(&steps) / 2f64.sqrt()
+        );
+    }
+
+    /// The upper median is the order statistic a sort and the middle
+    /// index give, bit for bit, at either parity and with ties and signed
+    /// zeros: the sites that read it moved onto it unchanged (#1988 N4).
+    #[test]
+    fn the_upper_median_is_the_sorted_middle_value() {
+        assert_eq!(upper_median(&mut [3.0, 1.0, 4.0, 2.0]), 3.0);
+        assert_eq!(upper_median(&mut [5.0, 1.0, 3.0]), 3.0);
+        assert!(upper_median(&mut []).is_nan());
+        assert_eq!(upper_median_ord(&mut [4i64, 1, 3, 2]), Some(3));
+        assert_eq!(upper_median_ord::<i64>(&mut []), None);
+        let mut x = 0.37f64;
+        for n in 1..40 {
+            let v: Vec<f64> = (0..n)
+                .map(|i| {
+                    x = (x * 997.0 + 0.123).fract();
+                    match i % 7 {
+                        0 => 0.0,
+                        1 => -0.0,
+                        2 => 0.5,
+                        _ => x - 0.5,
+                    }
+                })
+                .collect();
+            let mut sorted = v.clone();
+            sorted.sort_by(f64::total_cmp);
+            let got = upper_median(&mut v.clone());
+            assert_eq!(got.to_bits(), sorted[n / 2].to_bits(), "n = {n}");
+        }
+    }
 
     /// A body of 1000 values over 0 to 99.9 and `tail` past it, sorted,
     /// with the body's interquartile range. Values past the upper quartile

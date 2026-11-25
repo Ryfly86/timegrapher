@@ -176,6 +176,8 @@ pub struct Session {
     settle_to: Option<f64>,
     /// How long the watch settles after every change of position: the
     /// Positions Test pane's Settle, for free takes and guided tests alike.
+    /// The one record of it (#1988): the strip, the cards, each guided
+    /// test as it starts and the saved Settings all read it here.
     settle_s: Option<f64>,
     events: Vec<Event>,
     /// The positions and settling as recorded, kept under what the

@@ -177,8 +177,8 @@ a personal computer.
 
 Before any tag or **Draft a release** build, the release workflow checks the
 newest CI run for that exact commit from this repository's main push or manual
-CI dispatch. All eight jobs must be completed successfully: the four `test`
-jobs (Ubuntu, macOS, and Windows as two halves, `test (windows-latest 1/2)`
+CI dispatch. All eight required checks must be completed successfully: the four `test`
+checks (Ubuntu and macOS, each of which reports its own two halves, and Windows as two halves, `test (windows-latest 1/2)`
 and `2/2`), `mcp-renderer`, and the three corpus checks `regress (engine)`,
 `regress (app)` and `regress (mcp)`. `regress (engine)` must also contain the
 successful **Required real-recording analyze/session equivalence** step; an older

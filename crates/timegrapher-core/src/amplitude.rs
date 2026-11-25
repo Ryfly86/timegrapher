@@ -235,7 +235,7 @@ pub fn side_deg(unlock_to_drop_s: f64, osc_period_s: f64, lift_deg: f64) -> Opti
 }
 
 /// `a` if it lies in [`MIN_AMPLITUDE_DEG`] to [`MAX_AMPLITUDE_DEG`].
-fn in_gate(a: f64) -> Option<f64> {
+pub(crate) fn in_gate(a: f64) -> Option<f64> {
     (MIN_AMPLITUDE_DEG..=MAX_AMPLITUDE_DEG)
         .contains(&a)
         .then_some(a)
@@ -257,7 +257,9 @@ pub fn unlock_beat_error_ms(
 type SideAt = (Option<f64>, Option<[f64; 2]>, Option<[f64; 2]>);
 
 /// `w`, read at `from_lift`, as read at `to_lift`: each side whose edges
-/// were found is read again with [`side_deg`] and gated at the new lift,
+/// were found is read again and gated at the new lift (one with an
+/// amplitude scaled by the lifts' ratio, one without read with
+/// [`side_deg`] at `osc_period_s`),
 /// both ways, so a side the old lift culled can come back and one the
 /// new lift puts out of range goes (#1333). A side left out as an
 /// outlier ([`reject_side_outliers`]: edges kept, no amplitude) is read
@@ -285,7 +287,14 @@ pub fn at_lift(w: &mut AmplitudeWindow, osc_period_s: f64, from_lift: f64, to_li
             new[k].0 = deg.and_then(|a| in_gate(a * to_lift / from_lift));
             continue;
         };
-        new[k] = match side_deg((d - u) / 1000.0, osc_period_s, to_lift) {
+        // An amplitude is in proportion to the lift, so a side read at
+        // one is scaled, at whatever period it was read; a side culled or
+        // left out is read from its edges at `osc_period_s` (#2228).
+        let read = match (kept, deg) {
+            (Some(_), Some(a)) => in_gate(a * to_lift / from_lift),
+            _ => side_deg((d - u) / 1000.0, osc_period_s, to_lift),
+        };
+        new[k] = match read {
             Some(a) => (Some(a), Some([u, d]), None),
             None => (None, None, Some([u, d])),
         };
@@ -692,7 +701,7 @@ pub fn reject_side_outliers_from(wins: &mut [AmplitudeWindow], span_s: f64, from
                 let v = read[i][k]?;
                 let lo = wins.partition_point(|w| mid(w) < mid(&wins[i]) - span_s / 2.0);
                 let hi = wins.partition_point(|w| mid(w) <= mid(&wins[i]) + span_s / 2.0);
-                let mut near: Vec<f64> = (lo..hi)
+                let near: Vec<f64> = (lo..hi)
                     .filter(|&j| j != i)
                     .filter_map(|j| read[j][k])
                     .collect();
@@ -700,10 +709,7 @@ pub fn reject_side_outliers_from(wins: &mut [AmplitudeWindow], span_s: f64, from
                     return None;
                 }
                 let med = crate::dsp::median(&mut near.clone());
-                for x in near.iter_mut() {
-                    *x = (*x - med).abs();
-                }
-                let sd = (1.4826 * crate::dsp::median(&mut near)).max(0.5);
+                let sd = crate::dsp::robust_sd_about(&near, med).max(0.5);
                 Some(((v - med).abs(), (v - med).abs() / sd))
             })
             .collect()
@@ -723,7 +729,8 @@ pub fn reject_side_outliers_from(wins: &mut [AmplitudeWindow], span_s: f64, from
 
 /// Amplitude in consecutive windows of `window_s` seconds from `from_s`,
 /// up to the last window that ends by `to_s`. Beat times and the window
-/// bounds are in the envelope's time base.
+/// bounds are in the envelope's time base. [`windows_between_at`] with
+/// the degrees read at `osc_period_s` too.
 #[allow(clippy::too_many_arguments)]
 pub fn windows_between(
     env: &[f32],
@@ -735,6 +742,25 @@ pub fn windows_between(
     to_s: f64,
     cfg: &AmplitudeConfig,
 ) -> Vec<AmplitudeWindow> {
+    let span = (window_s, from_s, to_s);
+    windows_between_at(env, fs, beats, [osc_period_s; 2], span, cfg)
+}
+
+/// [`windows_between`] with the templates cut for the set rate's swing
+/// `osc[0]` and the unlock-to-drop times turned into degrees at the
+/// balance's own swing `osc[1]`, seconds (#2228): where the sound is
+/// looked for is the set rate's, so a live take and a saved one cut it
+/// alike, and the amplitude is the balance's. `span` is the window
+/// length, from and to, seconds.
+pub fn windows_between_at(
+    env: &[f32],
+    fs: f64,
+    beats: &[Beat],
+    osc: [f64; 2],
+    (window_s, from_s, to_s): (f64, f64, f64),
+    cfg: &AmplitudeConfig,
+) -> Vec<AmplitudeWindow> {
+    let [osc_period_s, own_osc_s] = osc;
     let mut out = Vec::new();
     let long_window = UnlockWindow::long(osc_period_s);
     let long_pre_s = long_window.pre_s;
@@ -811,7 +837,7 @@ pub fn windows_between(
             &beats[span],
             (start, start + window_s),
             &sides,
-            osc_period_s,
+            own_osc_s,
             cfg,
         ));
     }
