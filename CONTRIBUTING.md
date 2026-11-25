@@ -62,6 +62,9 @@ Please wait for one to be scheduled before writing code for it.
 
 The code is GPL-3.0-or-later, and the public project stays that way.
 
+The [`brand/`](brand/README.md) folder (logo, identity guide and tokens)
+is under CC BY 4.0, and contributions to it are too.
+
 Before your first pull request is merged, you will be asked to accept the
 [Contributor Licence Agreement](CLA.md) by posting the one comment that
 section 9 gives. You keep your copyright. The agreement lets the project's
