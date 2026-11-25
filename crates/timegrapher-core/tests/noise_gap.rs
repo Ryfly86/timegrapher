@@ -102,7 +102,13 @@ fn live_reads_the_watch_across_a_gap_as_analyze_does() {
         }
         let end = l.duration_s();
         let own = l.reading(end);
-        assert!(own.watch_heard, "{at}, live: {:?}", own.caveats);
+        // The watch came back after the gap too recently to fit a reading
+        // over it, so live is Finding the Beat (#2257).
+        assert!(
+            !own.watch_heard && own.finding_beat,
+            "{at}, live: {:?}",
+            own.caveats
+        );
         // At its end, as the stopped take reads it (`at_whole_end`).
         let log = saved_log(&audio, set_bph);
         let span = [(0.0, log.duration_s)];
