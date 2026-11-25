@@ -22,6 +22,8 @@ notes
 owner
 readings
 readings[].bph
+readings[].bph_measured
+readings[].bph_measured_se
 readings[].bph_set
 readings[].cycles
 readings[].cycles[].beyond_simulated
