@@ -1050,7 +1050,7 @@ fn unsorted_takes_after_a_watch_take_resets_the_settings() {
     app.set_calibre("ETA 2824-2".into());
     app.show_log(gaining_log(0.0), "take".into(), vec![], vec![]);
     app.recording.input = Input::File;
-    app.keeping.opened_path = base.join("take.flac").display().to_string();
+    app.bench.keeping.opened_path = base.join("take.flac").display().to_string();
     assert!(app.take_on_show().is_some());
     assert_eq!(app.bench.take.bph, Some(28800));
 

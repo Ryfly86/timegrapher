@@ -304,7 +304,7 @@ impl TimegrapherApp {
             "Save once first; Save… asks where"
         };
         self.menu_item(ui, MenuCommand::SaveAs, "Save As…", SAVE_AS_HINT, off);
-        let off = if self.keeping.analysis_save.is_some() {
+        let off = if self.bench.keeping.analysis_save.is_some() {
             "The analysis is being kept now"
         } else if can_save {
             "Stop listening first: the whole take's sound is read again"

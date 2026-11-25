@@ -643,13 +643,18 @@ fn crown_left_test() -> reserve::Test {
 
 /// The save under way takes 300 ms longer to finish.
 fn slow_save(app: &mut TimegrapherApp) {
-    let mut s = app.keeping.saving.take().expect("a save into its folder");
+    let mut s = app
+        .bench
+        .keeping
+        .saving
+        .take()
+        .expect("a save into its folder");
     let copy = s.thread;
     s.thread = std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(300));
         copy.join().unwrap()
     });
-    app.keeping.saving = Some(s);
+    app.bench.keeping.saving = Some(s);
 }
 
 /// A Power Reserve Test kept as its analysis only, recording into its
@@ -712,13 +717,13 @@ fn a_power_reserve_test_kept_as_analysis_only_lets_its_sound_go() {
     for _ in 0..500 {
         app.poll_saving();
         app.reserve_saved();
-        if app.keeping.take_keep.is_some() {
+        if app.bench.keeping.take_keep.is_some() {
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
     assert!(
-        app.keeping.take_keep.is_some(),
+        app.bench.keeping.take_keep.is_some(),
         "keeping its analysis only, {:?}",
         app.message
     );
@@ -730,7 +735,7 @@ fn a_power_reserve_test_kept_as_analysis_only_lets_its_sound_go() {
     );
     for _ in 0..1000 {
         app.poll_take_keep();
-        if app.keeping.take_keep.is_none() {
+        if app.bench.keeping.take_keep.is_none() {
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(10));
@@ -769,7 +774,7 @@ fn a_power_reserve_test_over_an_opened_take_keeps_the_cards_position_and_watch()
     // A take opened in Dial Down over listening's Dial Up.
     app.reset_session(48000, "take".into());
     app.recording.input = Input::File;
-    app.keeping.opened_path = "/x/take.wav".into();
+    app.bench.keeping.opened_path = "/x/take.wav".into();
     app.bench.take.mic_setup = Some(WatchSetup::default());
     app.bench.take.position = Position::DialDown;
     // The test's own session, short of opening a real input.
@@ -1187,7 +1192,7 @@ fn the_window_draws_again_only_while_work_is_under_way() {
         (
             "save",
             Box::new(|a| {
-                a.keeping.saving = Some(Saving {
+                a.bench.keeping.saving = Some(Saving {
                     thread: std::thread::spawn(|| Err(std::io::Error::other("held"))),
                     dest: PathBuf::new(),
                     parent: PathBuf::new(),
@@ -1200,11 +1205,11 @@ fn the_window_draws_again_only_while_work_is_under_way() {
         ),
         (
             "keep",
-            Box::new(move |a| a.keeping.take_keep = Some((PathBuf::new(), analysis()))),
+            Box::new(move |a| a.bench.keeping.take_keep = Some((PathBuf::new(), analysis()))),
         ),
         (
             "analysis",
-            Box::new(move |a| a.keeping.analysis_save = Some(analysis())),
+            Box::new(move |a| a.bench.keeping.analysis_save = Some(analysis())),
         ),
     ];
     for (name, set) in slow {
@@ -1299,7 +1304,12 @@ fn a_power_reserve_test_whose_recording_fails_keeps_its_run_so_far() {
     let rec = app.session.recorder.as_mut().unwrap();
     rec.write(&block(6)).unwrap();
     app.stream_tick();
-    let mut s = app.keeping.saving.take().expect("a save into its folder");
+    let mut s = app
+        .bench
+        .keeping
+        .saving
+        .take()
+        .expect("a save into its folder");
     let copy = s.thread;
     s.thread = std::thread::spawn(move || {
         let _ = copy.join();
@@ -1307,15 +1317,18 @@ fn a_power_reserve_test_whose_recording_fails_keeps_its_run_so_far() {
             "No space left on device (os error 28)",
         ))
     });
-    app.keeping.saving = Some(s);
+    app.bench.keeping.saving = Some(s);
     app.wait_for_save();
-    assert!(app.keeping.stream_wait.is_some());
+    assert!(app.bench.keeping.stream_wait.is_some());
     assert!(app.reserve_running());
 
     // Then the recording fails.
     app.recording_failed("No space left on device (os error 28)".into());
     assert!(!app.reserve_running(), "the pane no longer says Running");
-    assert!(app.keeping.stream_wait.is_none(), "nothing is tried again");
+    assert!(
+        app.bench.keeping.stream_wait.is_none(),
+        "nothing is tried again"
+    );
     let t = app.bench.test.reserve.as_ref().unwrap();
     assert_eq!(t.ending, Some(power_reserve::Ending::RecordingFailed));
     assert_eq!(t.saved.as_ref(), Some(&take));
@@ -1362,7 +1375,7 @@ fn a_save_failing_after_the_recording_failed_promises_no_retry() {
     app.session
         .recording_failed(0.0, "No space left on device (os error 28)".into());
     app.save_failed(Streamed::Yes, &base.join("take"), "No space left".into());
-    assert!(app.keeping.stream_wait.is_none());
+    assert!(app.bench.keeping.stream_wait.is_none());
     let said = app.message.clone().unwrap().0;
     assert!(said.contains("recovery folder"), "{said}");
     assert!(!said.contains("tried again"), "{said}");
@@ -2177,7 +2190,7 @@ fn a_power_reserve_test_whose_input_fails_ends_and_keeps_its_take() {
     for _ in 0..500 {
         app.poll_saving();
         app.reserve_saved();
-        if app.keeping.saving.is_none()
+        if app.bench.keeping.saving.is_none()
             && app
                 .bench
                 .test

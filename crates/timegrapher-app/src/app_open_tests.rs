@@ -983,7 +983,7 @@ fn a_takes_file_opened_after_a_plain_one_names_its_watch() {
 #[test]
 fn a_dialog_starts_where_the_take_was_saved() {
     let mut app = synthetic(2.0, 0.0);
-    assert_eq!(app.save_start(), PathBuf::from(&app.keeping.save_dir));
+    assert_eq!(app.save_start(), PathBuf::from(&app.bench.keeping.save_dir));
     let saved = std::env::temp_dir().join("tg-app-saved-here").join("take");
     let metadata = app.session.metadata_snapshot(app.save_metadata());
     app.session.mark_saved(1.0, saved.clone(), metadata);
@@ -1014,7 +1014,7 @@ fn what_opens_dialog_picks_is_opened_or_asked_about() {
     assert!(
         app.recording.file_path.is_empty()
             && app.recording.batch.is_none()
-            && app.keeping.open_ask.is_none()
+            && app.bench.keeping.open_ask.is_none()
     );
     // A recording already in the library: opened.
     let wav = root.join("audio-001.wav");
@@ -1025,7 +1025,7 @@ fn what_opens_dialog_picks_is_opened_or_asked_about() {
     let app = answer(app, Pick::File, vec![wav.clone()]);
     assert_eq!(app.recording.file_path, wav.display().to_string());
     assert_eq!(app.recording.input, Input::File);
-    assert!(app.keeping.open_ask.is_none());
+    assert!(app.bench.keeping.open_ask.is_none());
     assert!(app.recording.batch.is_some(), "it is being read");
     // Let go of the library, or the next copy finds it held.
     drop(app);
@@ -1035,7 +1035,7 @@ fn what_opens_dialog_picks_is_opened_or_asked_about() {
     app.open_from_menu(true);
     let app = answer(app, Pick::Folder, vec![take.clone()]);
     assert_eq!(app.recording.file_path, take.display().to_string());
-    assert!(app.keeping.open_ask.is_some());
+    assert!(app.bench.keeping.open_ask.is_some());
     assert!(app.recording.batch.is_none(), "nothing read until answered");
     std::fs::remove_dir_all(take).unwrap();
     std::fs::remove_dir_all(root).unwrap();

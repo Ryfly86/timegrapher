@@ -18,7 +18,7 @@ impl TimegrapherApp {
         // wait for it. Once nothing is left unsaved, carry on; otherwise
         // (it failed, and the status bar says why, or there is sound since)
         // ask as before.
-        if self.keeping.saving.is_some() {
+        if self.bench.keeping.saving.is_some() {
             return self.confirm_saving_dialog(ctx);
         }
         let ask = match what {
@@ -86,7 +86,7 @@ impl TimegrapherApp {
             Some(0) => {
                 // Saved before: the rest goes to the same copy.
                 self.save_again();
-                if self.keeping.saving.is_some() {
+                if self.bench.keeping.saving.is_some() {
                     return; // asked again, or carried on, once it is written
                 }
                 if self.needs_save_confirmation() {
@@ -227,7 +227,7 @@ impl TimegrapherApp {
     /// steps, listening all the while so the meter moves. Done keeps
     /// listening; Not Now stops, and the sheet doesn't come back by itself.
     pub(super) fn setup_sheet_dialog(&mut self, ctx: &egui::Context) {
-        if !self.setup_sheet || self.keeping.open_ask.is_some() || self.confirm.is_some() {
+        if !self.setup_sheet || self.bench.keeping.open_ask.is_some() || self.confirm.is_some() {
             return;
         }
         // Listen as soon as the sheet shows, once: a failure says why in
@@ -473,7 +473,7 @@ impl TimegrapherApp {
     }
 
     pub(super) fn open_ask_dialog(&mut self, ctx: &egui::Context) {
-        let Some(mut a) = self.keeping.open_ask.take() else {
+        let Some(mut a) = self.bench.keeping.open_ask.take() else {
             return;
         };
         let watches: Vec<(String, String)> = match &self.library {
@@ -569,7 +569,7 @@ impl TimegrapherApp {
         match answer {
             Some(true) => self.answer_open_ask(a, need),
             Some(false) => self.keep_cancelled(),
-            None => self.keeping.open_ask = Some(a),
+            None => self.bench.keeping.open_ask = Some(a),
         }
     }
 
@@ -578,12 +578,12 @@ impl TimegrapherApp {
     /// saying why.
     pub(super) fn answer_open_ask(&mut self, mut a: OpenAsk, need: OpenNeed) {
         if !a.add {
-            self.keeping.keep_back = None;
+            self.bench.keeping.keep_back = None;
             return self.open_recording_as(&a.path, true, true);
         }
         match self.add_opened(&a, need) {
             Ok((take, id, fill_error)) => {
-                self.keeping.keep_back = None;
+                self.bench.keeping.keep_back = None;
                 self.watches_view.watch_open = Some(id);
                 self.watches_view.unsorted_open = false;
                 match fill_error {
@@ -597,7 +597,7 @@ impl TimegrapherApp {
             }
             Err(e) => {
                 a.error = Some(e);
-                self.keeping.open_ask = Some(a);
+                self.bench.keeping.open_ask = Some(a);
             }
         }
     }
@@ -727,7 +727,7 @@ impl TimegrapherApp {
     /// Sound kept from an earlier session that was never saved: Open,
     /// Move To… or Delete…, one kept recording at a time.
     pub(super) fn kept_notice(&mut self, ui: &mut egui::Ui) {
-        let Some(k) = self.keeping.kept.first().cloned() else {
+        let Some(k) = self.bench.keeping.kept.first().cloned() else {
             return;
         };
         if let Some(to) = k.streamed_to.clone() {
@@ -760,7 +760,7 @@ impl TimegrapherApp {
                 .clicked();
         });
         if open {
-            self.keeping.kept.remove(0);
+            self.bench.keeping.kept.remove(0);
             self.recording.input = Input::File;
             self.recording.file_path = k.dir.display().to_string();
             self.open_recording(&k.dir, true);
@@ -774,16 +774,16 @@ impl TimegrapherApp {
                 Pick::Folder,
                 move |a, parent| match move_kept(&dir, &parent) {
                     Ok(to) => {
-                        a.keeping.kept.retain(|k| k.dir != dir);
+                        a.bench.keeping.kept.retain(|k| k.dir != dir);
                         a.info_msg(format!("Moved the unsaved {what} to {}.", to.display()));
                     }
                     Err(e) => a.error(e),
                 },
             ));
         } else if delete {
-            self.keeping.kept_delete_ask = Some(k.dir.clone());
+            self.bench.keeping.kept_delete_ask = Some(k.dir.clone());
         } else if later {
-            self.keeping.kept.clear();
+            self.bench.keeping.kept.clear();
         }
     }
 
@@ -817,26 +817,27 @@ impl TimegrapherApp {
                 .clicked();
         });
         if open {
-            self.keeping.kept.remove(0);
+            self.bench.keeping.kept.remove(0);
             self.recording.input = Input::File;
             self.recording.file_path = to.display().to_string();
             self.open_recording(to, true);
         } else if delete {
-            self.keeping.kept_delete_ask = Some(k.dir.clone());
+            self.bench.keeping.kept_delete_ask = Some(k.dir.clone());
         } else if later {
-            self.keeping.kept.clear();
+            self.bench.keeping.kept.clear();
         }
     }
 
     /// Delete… on kept sound asks first: it can't be got back.
     pub(super) fn kept_delete_dialog(&mut self, ctx: &egui::Context) {
-        let Some(dir) = self.keeping.kept_delete_ask.clone() else {
+        let Some(dir) = self.bench.keeping.kept_delete_ask.clone() else {
             return;
         };
         let mut choice = None;
         let modal = theme::sheet(egui::Id::new("delete kept sound")).show(ctx, |ui| {
             ui.set_width(380.0);
             let what = self
+                .bench
                 .keeping
                 .kept
                 .iter()
@@ -847,7 +848,7 @@ impl TimegrapherApp {
             ui.add_space(4.0);
             // A copy of a take recording into its folder: the take keeps
             // all but its last few seconds. One rule, the notice's.
-            let kept = self.keeping.kept.iter().find(|k| k.dir == dir);
+            let kept = self.bench.keeping.kept.iter().find(|k| k.dir == dir);
             let copy = kept.is_some_and(|k| k.streamed_to.is_some());
             let partial = kept.is_some_and(|k| k.partial);
             ui.label(if copy {
@@ -871,11 +872,11 @@ impl TimegrapherApp {
             }
         });
         if let Some(go) = yes_no(choice, &modal) {
-            self.keeping.kept_delete_ask = None;
+            self.bench.keeping.kept_delete_ask = None;
             if go {
                 timegrapher_core::recorder::remove_stale_lock(&dir);
                 match std::fs::remove_dir_all(&dir) {
-                    Ok(()) => self.keeping.kept.retain(|k| k.dir != dir),
+                    Ok(()) => self.bench.keeping.kept.retain(|k| k.dir != dir),
                     Err(e) => self.error(format!("Couldn't delete {}: {e}", dir.display())),
                 }
             }
@@ -886,7 +887,7 @@ impl TimegrapherApp {
     /// is a GitHub issue the user opens with the crash record pasted in;
     /// nothing is sent from the app.
     pub(super) fn crash_notice(&mut self, ui: &mut egui::Ui) {
-        let Some(path) = self.keeping.crash.clone() else {
+        let Some(path) = self.bench.keeping.crash.clone() else {
             return;
         };
         let text = std::fs::read_to_string(&path).unwrap_or_default();
@@ -901,7 +902,7 @@ impl TimegrapherApp {
                     .on_hover_text("Don't ask about this crash again")
                     .clicked();
                 show = ui
-                    .add(egui::Button::new(if self.keeping.crash_shown {
+                    .add(egui::Button::new(if self.bench.keeping.crash_shown {
                         "Hide the Record"
                     } else {
                         "Show the Record"
@@ -917,7 +918,7 @@ impl TimegrapherApp {
                     .clicked();
             },
         );
-        if self.keeping.crash_shown {
+        if self.bench.keeping.crash_shown {
             egui::ScrollArea::vertical()
                 .id_salt("crash-record")
                 .max_height(200.0)
@@ -928,7 +929,7 @@ impl TimegrapherApp {
                 });
         }
         if show {
-            self.keeping.crash_shown = !self.keeping.crash_shown;
+            self.bench.keeping.crash_shown = !self.bench.keeping.crash_shown;
         }
         if report {
             ui.ctx().copy_text(text);
@@ -941,8 +942,8 @@ impl TimegrapherApp {
         }
         if report || dismiss {
             applog::mark_seen(&path);
-            self.keeping.crash = None;
-            self.keeping.crash_shown = false;
+            self.bench.keeping.crash = None;
+            self.bench.keeping.crash_shown = false;
         }
     }
 

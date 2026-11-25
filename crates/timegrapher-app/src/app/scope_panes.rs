@@ -264,7 +264,7 @@ impl TimegrapherApp {
                 .map_or([None, None], |l| l.tick_profiles().clone());
             return shown(p, None);
         }
-        if let Some(kept) = &self.keeping.no_sound {
+        if let Some(kept) = &self.bench.keeping.no_sound {
             return self.kept_average(kept, end);
         }
         let beats = self.recording.live.as_ref().map_or(&[][..], |l| l.beats());
@@ -388,7 +388,7 @@ impl TimegrapherApp {
             return no_sound_line(ui, line);
         }
         let profiles = shown.profiles;
-        let has_sound = self.keeping.no_sound.is_none();
+        let has_sound = self.bench.keeping.no_sound.is_none();
         let Some(live) = self.recording.live.as_ref().filter(|_| has_sound) else {
             let words = if self.recording.live.is_none() {
                 "Listen to a watch or open a recording to see its sound here."

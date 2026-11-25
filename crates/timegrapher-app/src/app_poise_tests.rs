@@ -1054,7 +1054,7 @@ fn a_saved_one_stop_take_reads_the_same_in_the_app_and_the_cli() {
 fn reads_as_the_cli(app: &TimegrapherApp) -> Vec<timegrapher_core::session::Measurement> {
     let t = app.free_table(&egui::Context::default()).expect("a table");
     let dir = app.session.saved_to().map(Path::to_path_buf);
-    let dir = dir.unwrap_or_else(|| PathBuf::from(&app.keeping.opened_path));
+    let dir = dir.unwrap_or_else(|| PathBuf::from(&app.bench.keeping.opened_path));
     let text = std::fs::read_to_string(dir.join(MANIFEST)).unwrap();
     let m: timegrapher_core::session::Manifest = toml::from_str(&text).unwrap();
     let settings = timegrapher_core::take::EntrySettings {

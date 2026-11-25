@@ -908,7 +908,7 @@ fn time_of_day_on_a_segment_opened_alone_has_no_clock() {
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
         app.bench.panes_view.strip.clock = true;
         app.recording.input = Input::File;
-        app.keeping.opened_path = take.display().to_string();
+        app.bench.keeping.opened_path = take.display().to_string();
         app.put_take_breaks(Some(Vec::new()), unlisted);
         let wall = app.strip_wall(&egui::Context::default());
         assert_eq!(wall.is_some(), clock, "{unlisted:?}: {wall:?}");

@@ -108,7 +108,7 @@ impl TimegrapherApp {
             .bg
             .test_read
             .as_ref()
-            .filter(|_| self.keeping.saving.is_none())
+            .filter(|_| self.bench.keeping.saving.is_none())
         else {
             return;
         };

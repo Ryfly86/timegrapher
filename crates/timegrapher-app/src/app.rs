@@ -1627,9 +1627,6 @@ pub struct TimegrapherApp {
     watches_view: watches_view::WatchesView,
     /// The bench: the take on show, recorded, read, tested, drawn and kept.
     bench: bench::Bench,
-    /// Keeping and saving the take on show: kept sounds, Keep in a
-    /// Watch…, saves under way, opening and the crash note.
-    keeping: keeping::Keeping,
     /// The recording on this bench: the input and its meter, listening,
     /// the live analyser, the file read and the input's clock.
     recording: recording::Recording,
@@ -1645,8 +1642,8 @@ impl TimegrapherApp {
             app.apply_settings(s);
         }
         app.at_launch();
-        app.keeping.crash = applog::dir().and_then(|d| applog::unseen_crashes(&d).pop());
-        app.keeping.kept = kept_sounds(&scratch_dir());
+        app.bench.keeping.crash = applog::dir().and_then(|d| applog::unseen_crashes(&d).pop());
+        app.bench.keeping.kept = kept_sounds(&scratch_dir());
         app.read_library();
         app.keep_saved_wavs();
         app.recording.check_pending = app.check_at_start;
@@ -1882,6 +1879,7 @@ impl TimegrapherApp {
                 test: guided_test::GuidedTest::default(),
                 results: results::Results::default(),
                 take: take_settings::TakeSettings::default(),
+                keeping: keeping::Keeping::default(),
             },
             recording: recording::Recording {
                 input: if file.is_some() {
@@ -1898,7 +1896,6 @@ impl TimegrapherApp {
                 ..Default::default()
             },
             session: Session::default(),
-            keeping: keeping::Keeping::default(),
             report: ReportDialog::default(),
             updates: Default::default(),
             update_dialog: None,
@@ -3189,7 +3186,9 @@ impl TimegrapherApp {
         // Closing the window while the library is being moved is refused,
         // and the app stays open: stopping a copy part way would leave half
         // a library behind.
-        if ctx.input(|i| i.viewport().close_requested()) && self.keeping.library_moving.is_some() {
+        if ctx.input(|i| i.viewport().close_requested())
+            && self.bench.keeping.library_moving.is_some()
+        {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             self.info_msg(
                 "Your watches are still being moved: Timegrapher can be closed once it is done."
@@ -3200,23 +3199,23 @@ impl TimegrapherApp {
         // which saves the last seconds, then close once that is written.
         // Nothing is unsaved, so nothing is asked.
         if ctx.input(|i| i.viewport().close_requested())
-            && self.keeping.library_moving.is_none()
+            && self.bench.keeping.library_moving.is_none()
             && self.streams()
         {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             self.stop_listening();
-            self.keeping.close_after_save = true;
+            self.bench.keeping.close_after_save = true;
         }
         if self.closes_after_save() {
-            self.keeping.close_after_save = false;
+            self.bench.keeping.close_after_save = false;
             self.may_close = true;
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
         // Closing the window while a save is written waits for it: the
         // take would be left half copied.
         if ctx.input(|i| i.viewport().close_requested())
-            && self.keeping.saving.is_some()
-            && self.keeping.library_moving.is_none()
+            && self.bench.keeping.saving.is_some()
+            && self.bench.keeping.library_moving.is_none()
         {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             self.info_msg(
@@ -3226,7 +3225,7 @@ impl TimegrapherApp {
         }
         // Closing the window with unsaved sound asks first.
         if ctx.input(|i| i.viewport().close_requested())
-            && self.keeping.saving.is_none()
+            && self.bench.keeping.saving.is_none()
             && !self.may_close
             && self.needs_save_confirmation()
         {
@@ -3320,7 +3319,7 @@ impl eframe::App for TimegrapherApp {
         // leave half a take, and the sound it copies is let go below.
         self.wait_for_save();
         // Asks waiting on it are let go, but a Stop's save is made below.
-        let asked = !std::mem::take(&mut self.keeping.after_save).is_empty();
+        let asked = !std::mem::take(&mut self.bench.keeping.after_save).is_empty();
         if (streamed || asked) && self.kept_take() {
             self.save_again();
             self.wait_for_save();

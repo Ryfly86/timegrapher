@@ -131,7 +131,7 @@ fn a_take_on_show_shows_its_own_wind() {
          [[recording]]\nfile = \".\"\nposition = \"DD\"\nwind_h = 24.2\n",
     )
     .unwrap();
-    app.keeping.opened_path = take.display().to_string();
+    app.bench.keeping.opened_path = take.display().to_string();
     app.session.analyse();
     assert_eq!(app.wind_field().words.value, "Began 24.2 h after full");
     assert!(
@@ -160,7 +160,7 @@ fn a_take_on_show_shows_its_own_wind() {
     assert_eq!(timegrapher_core::full_wind::take_wind_h(&m), Some(30.0));
     // While its analysis is being kept, its session file is about to be
     // replaced: the card's write is refused, as Set Wind's is (Felix).
-    app.keeping.take_keep = Some((
+    app.bench.keeping.take_keep = Some((
         take.clone(),
         AnalysisSave {
             rx: std::sync::mpsc::channel().1,
@@ -179,7 +179,7 @@ fn a_take_on_show_shows_its_own_wind() {
         .message
         .as_ref()
         .is_some_and(|(m, e)| *e && m.contains("being removed")));
-    app.keeping.take_keep = None;
+    app.bench.keeping.take_keep = None;
     let _ = std::fs::remove_dir_all(&base);
 }
 

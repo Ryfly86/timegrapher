@@ -1305,13 +1305,13 @@ fn an_ordinary_take_of_the_six_positions_loads_to_compare_with() {
                 .paint(85.0, 100.0, Position::CrownUp, app.bench.take.position, end);
         });
     let saved =
-        std::fs::read_to_string(PathBuf::from(&app.keeping.opened_path).join("session.toml"))
+        std::fs::read_to_string(PathBuf::from(&app.bench.keeping.opened_path).join("session.toml"))
             .unwrap_or_default();
     assert!(
         saved.contains("[[recorded]]"),
         "recorded under the painting: {saved}"
     );
-    let file = PathBuf::from(&app.keeping.opened_path).join("session.json");
+    let file = PathBuf::from(&app.bench.keeping.opened_path).join("session.json");
     let dir = super::compare_take::take_dir_of(&file).expect("a take's file");
     app.read_compare_take(dir);
     let t = Instant::now();

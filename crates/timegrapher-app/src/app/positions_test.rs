@@ -323,7 +323,7 @@ impl TimegrapherApp {
         self.session
             .saved_to()
             .and_then(|p| p.parent().map(Path::to_path_buf))
-            .unwrap_or_else(|| PathBuf::from(&self.keeping.save_dir))
+            .unwrap_or_else(|| PathBuf::from(&self.bench.keeping.save_dir))
     }
 
     /// The Positions Test pane's toolbar: start the test, load the

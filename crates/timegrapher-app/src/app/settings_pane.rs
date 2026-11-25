@@ -453,7 +453,8 @@ impl TimegrapherApp {
                             ui,
                             root.as_deref(),
                             &self.library,
-                            self.keeping
+                            self.bench
+                                .keeping
                                 .library_moving
                                 .as_ref()
                                 .map(|(to, _)| to.as_path()),

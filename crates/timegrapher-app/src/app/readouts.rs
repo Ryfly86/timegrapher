@@ -1553,7 +1553,7 @@ impl TimegrapherApp {
             );
             popover(&resp, &mut |ui| self.update_notice(ui));
         }
-        if let Some(k) = self.keeping.kept.first() {
+        if let Some(k) = self.bench.keeping.kept.first() {
             // Named by what the first one offered is (Hugh on #1806).
             let tip = match k.parts {
                 true => {
@@ -1565,7 +1565,7 @@ impl TimegrapherApp {
             let resp = status_item(ui, "Unsaved Take Found…", Some(theme::Alert::Warning), tip);
             popover(&resp, &mut |ui| self.kept_notice(ui));
         }
-        if self.keeping.crash.is_some() {
+        if self.bench.keeping.crash.is_some() {
             let resp = status_item(
                 ui,
                 "Closed Unexpectedly…",
@@ -1609,7 +1609,7 @@ impl TimegrapherApp {
     fn status_left(&mut self, ui: &mut egui::Ui) {
         let pal = theme::pal(ui);
         ui.spacing_mut().item_spacing.x = 12.0;
-        if let Some(job) = &self.keeping.analysis_save {
+        if let Some(job) = &self.bench.keeping.analysis_save {
             let done = f64::from_bits(job.progress.load(std::sync::atomic::Ordering::Relaxed));
             // The sound is read twice: once for the beats, once more for
             // the profiles and the shape.
@@ -1628,10 +1628,10 @@ impl TimegrapherApp {
             ui.ctx()
                 .request_repaint_after(std::time::Duration::from_millis(250));
             if cancel {
-                self.keeping.analysis_save = None;
+                self.bench.keeping.analysis_save = None;
             }
         }
-        if let Some(s) = &self.keeping.saving {
+        if let Some(s) = &self.bench.keeping.saving {
             ui.add(egui::Spinner::new().size(12.0).color(pal.text_secondary));
             ui.label(RichText::new("Saving…").small().color(pal.text_secondary))
                 .on_hover_text(format!(
@@ -1743,9 +1743,13 @@ impl TimegrapherApp {
                         p.display()
                     ),
                 ),
-                None if self.keeping.analysis_kept_to.is_some() => {
-                    let (dir, through_s) =
-                        self.keeping.analysis_kept_to.clone().unwrap_or_default();
+                None if self.bench.keeping.analysis_kept_to.is_some() => {
+                    let (dir, through_s) = self
+                        .bench
+                        .keeping
+                        .analysis_kept_to
+                        .clone()
+                        .unwrap_or_default();
                     let kept = if r.duration_s() - through_s >= 1.0 {
                         format!("the analysis of its first {} kept", length_text(through_s))
                     } else {
@@ -1802,7 +1806,7 @@ impl TimegrapherApp {
                     .text(RichText::new(batch_words(frac, duration_s.is_some())).small()),
             );
         }
-        if let Some(k) = &self.keeping.wav_keep {
+        if let Some(k) = &self.bench.keeping.wav_keep {
             // Its count moves and its end comes with no input to wake the
             // window (Walter's walk of #1120).
             ui.ctx()

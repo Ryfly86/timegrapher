@@ -15,4 +15,7 @@ pub(super) struct Bench {
     /// What the take on show is read with: the watch, its beat rate and
     /// lift, the positions, masks and clock, and what its readings rest on.
     pub(super) take: take_settings::TakeSettings,
+    /// Keeping and saving the take on show: kept sounds, Keep in a
+    /// Watch…, saves under way, opening and the crash note.
+    pub(super) keeping: keeping::Keeping,
 }

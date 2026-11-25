@@ -102,8 +102,8 @@ impl TimegrapherApp {
         self.recording.meter.clipped_at = None;
         self.message = None;
         self.bench.results.sound_history.clear();
-        self.keeping.no_sound = None;
-        self.keeping.analysis_kept_to = None;
+        self.bench.keeping.no_sound = None;
+        self.bench.keeping.analysis_kept_to = None;
         self.bench.test.guided = None;
         self.bench.test.reserve = None;
         self.bench.results.bg.reserve_live = None;
@@ -367,7 +367,7 @@ impl TimegrapherApp {
     /// A save the user asked for being written: one of a take recording
     /// into its folder as it goes doesn't count, as it is waited for.
     pub(super) fn saving_asked(&self) -> bool {
-        let saving = &self.keeping.saving;
+        let saving = &self.bench.keeping.saving;
         saving.as_ref().is_some_and(|s| s.streamed == Streamed::No)
     }
 
@@ -486,8 +486,8 @@ impl TimegrapherApp {
         self.bench.take.brush = None;
         self.clear_trends();
         self.bench.results.sound_history.clear();
-        self.keeping.no_sound = None;
-        self.keeping.analysis_kept_to = None;
+        self.bench.keeping.no_sound = None;
+        self.bench.keeping.analysis_kept_to = None;
         self.bench.test.guided = None;
         self.bench.test.reserve = None;
         self.bench.results.bg.reserve_live = None;
@@ -503,7 +503,7 @@ impl TimegrapherApp {
         // The recording opened goes too: what follows is a new take.
         if self.recording.input == Input::File {
             self.recording.input = Input::Microphone;
-            self.keeping.opened_path.clear();
+            self.bench.keeping.opened_path.clear();
             if let Some(s) = self.bench.take.mic_setup.take() {
                 self.set_watch_setup(s);
             }
@@ -654,7 +654,7 @@ impl TimegrapherApp {
     /// recorded here with the same settings would have, which makes its
     /// folder a take; refused where the folder holds other recordings.
     pub(super) fn save_marks(&mut self) {
-        let path = PathBuf::from(&self.keeping.opened_path);
+        let path = PathBuf::from(&self.bench.keeping.opened_path);
         let masked: Vec<[f64; 2]> = self
             .bench
             .take
@@ -768,7 +768,7 @@ impl TimegrapherApp {
                 self.save_into_as(&parent, streamed);
                 // Into a take in a watch, its row then reads what was saved
                 // (a take recording into its folder: at the end).
-                if let Some(s) = &mut self.keeping.saving {
+                if let Some(s) = &mut self.bench.keeping.saving {
                     s.rescan = streamed == Streamed::No;
                 }
             }
@@ -803,7 +803,7 @@ impl TimegrapherApp {
             r.name_first_copy(name.to_owned());
         }
         self.save_into_as(takes, streamed);
-        if let Some(s) = &mut self.keeping.saving {
+        if let Some(s) = &mut self.bench.keeping.saving {
             s.rescan = true;
         }
     }
@@ -890,7 +890,7 @@ impl TimegrapherApp {
             .spawn(move || pending.write());
         match spawned {
             Ok(thread) => {
-                self.keeping.saving = Some(Saving {
+                self.bench.keeping.saving = Some(Saving {
                     thread,
                     dest,
                     parent: parent.to_path_buf(),
@@ -940,17 +940,17 @@ impl TimegrapherApp {
     /// another or throw the sound it is copying away.
     pub(super) fn saving_busy(&mut self) -> bool {
         // Asks waiting on a save go first: this one never jumps them.
-        if !self.keeping.after_save.is_empty() {
+        if !self.bench.keeping.after_save.is_empty() {
             self.info_msg("Saving into its take: wait until it is written.".into());
             return true;
         }
         // A take recording into its folder: its few seconds are written
         // first, then what was asked for goes ahead.
-        let saving = &self.keeping.saving;
+        let saving = &self.bench.keeping.saving;
         if saving.as_ref().is_some_and(|s| s.streamed == Streamed::Yes) {
             self.wait_for_save();
         }
-        if self.keeping.saving.is_none() {
+        if self.bench.keeping.saving.is_none() {
             return false;
         }
         self.info_msg(
@@ -966,10 +966,10 @@ impl TimegrapherApp {
     /// in the order asked, and the window carries on meanwhile rather than
     /// waiting on the copy, or refusing (#1216).
     pub(super) fn behind_save(&mut self, then: impl FnOnce(&mut Self) + Send + 'static) -> bool {
-        if self.keeping.after_save.is_empty() && self.keeping.saving.is_none() {
+        if self.bench.keeping.after_save.is_empty() && self.bench.keeping.saving.is_none() {
             return false;
         }
-        self.keeping.after_save.push(Box::new(then));
+        self.bench.keeping.after_save.push(Box::new(then));
         self.info_msg("Saving into its take: this goes ahead once it is written.".into());
         true
     }
@@ -977,13 +977,13 @@ impl TimegrapherApp {
     /// Whether the window closes now, once a Stop's save into the take
     /// and the asks waiting on it are all done.
     pub(super) fn closes_after_save(&self) -> bool {
-        let k = &self.keeping;
+        let k = &self.bench.keeping;
         k.close_after_save && k.saving.is_none() && k.after_save.is_empty()
     }
 
     /// The save being written, once it is done.
     pub(super) fn poll_saving(&mut self) {
-        let saving = &self.keeping.saving;
+        let saving = &self.bench.keeping.saving;
         if saving.as_ref().is_some_and(|s| s.thread.is_finished()) {
             self.wait_for_save();
         }
@@ -992,7 +992,7 @@ impl TimegrapherApp {
     /// Wait for the save being written, if there is one, and say how it
     /// went.
     pub(super) fn wait_for_save(&mut self) {
-        let Some(s) = self.keeping.saving.take() else {
+        let Some(s) = self.bench.keeping.saving.take() else {
             return;
         };
         match s.thread.join() {
@@ -1013,7 +1013,7 @@ impl TimegrapherApp {
                         copy.dir.display()
                     ));
                 }
-                self.keeping.save_dir = s.parent.display().to_string();
+                self.bench.keeping.save_dir = s.parent.display().to_string();
                 // A take saved with listening stopped is whole: the command
                 // the user set runs on it. A take saving into its folder as
                 // it goes isn't yet.
@@ -1049,11 +1049,11 @@ impl TimegrapherApp {
     /// in the order asked, once no save is. One that starts a save of its
     /// own (a Stop's) holds the rest until that is written too.
     pub(super) fn run_after_save(&mut self) {
-        while self.keeping.saving.is_none() && !self.keeping.after_save.is_empty() {
-            let mut rest = std::mem::take(&mut self.keeping.after_save);
+        while self.bench.keeping.saving.is_none() && !self.bench.keeping.after_save.is_empty() {
+            let mut rest = std::mem::take(&mut self.bench.keeping.after_save);
             rest.remove(0)(self);
-            rest.append(&mut self.keeping.after_save);
-            self.keeping.after_save = rest;
+            rest.append(&mut self.bench.keeping.after_save);
+            self.bench.keeping.after_save = rest;
         }
     }
 
@@ -1064,13 +1064,14 @@ impl TimegrapherApp {
     /// take and the quit: the pause can take the hour from under a copy
     /// still under way (#1230).
     pub(super) fn save_failed(&mut self, streamed: Streamed, dest: &Path, e: String) {
-        if streamed == Streamed::Yes && !self.running() && !self.keeping.after_save.is_empty() {
+        if streamed == Streamed::Yes && !self.running() && !self.bench.keeping.after_save.is_empty()
+        {
             return applog::info(&format!(
                 "a save into {} failed after the Stop, whose save follows: {e}",
                 dest.display()
             ));
         }
-        self.keeping.close_after_save = false;
+        self.bench.keeping.close_after_save = false;
         if streamed == Streamed::Yes {
             // The promise holds only while the take records: once its
             // recording has failed, nothing is tried again (#1380).
@@ -1081,7 +1082,7 @@ impl TimegrapherApp {
                     dest.display()
                 ));
             }
-            self.keeping.stream_wait = Some(Instant::now());
+            self.bench.keeping.stream_wait = Some(Instant::now());
             return self.error(format!(
                 "Couldn't add the sound to {}: {e}. It is kept here, and tried again in a \
                  minute.",
@@ -1094,7 +1095,7 @@ impl TimegrapherApp {
     /// While the session is being kept as its analysis alone, say so and
     /// refuse what would throw its sound away or add to it.
     pub(super) fn analysis_save_busy(&mut self) -> bool {
-        if self.keeping.analysis_save.is_none() {
+        if self.bench.keeping.analysis_save.is_none() {
             return self.kept_writing_busy();
         }
         self.info_msg(
@@ -1111,7 +1112,7 @@ impl TimegrapherApp {
     pub(super) fn can_save_analysis(&self) -> bool {
         self.session.allows(Action::Save)
             && !self.running()
-            && self.keeping.analysis_save.is_none()
+            && self.bench.keeping.analysis_save.is_none()
             && self.session.recorder.is_some()
     }
 
@@ -1220,8 +1221,8 @@ impl TimegrapherApp {
                 Err(e) => std::panic::resume_unwind(e),
             }
         });
-        self.keeping.save_dir = parent.display().to_string();
-        self.keeping.analysis_save = Some(AnalysisSave {
+        self.bench.keeping.save_dir = parent.display().to_string();
+        self.bench.keeping.analysis_save = Some(AnalysisSave {
             rx,
             progress,
             cancel,
@@ -1231,7 +1232,7 @@ impl TimegrapherApp {
 
     /// The analysis being kept, once it is written.
     fn poll_analysis_save(&mut self) {
-        let Some(job) = &self.keeping.analysis_save else {
+        let Some(job) = &self.bench.keeping.analysis_save else {
             return;
         };
         let done = match job.rx.try_recv() {
@@ -1239,7 +1240,7 @@ impl TimegrapherApp {
             Err(TryRecvError::Empty) => return,
             Err(TryRecvError::Disconnected) => Err("it stopped part way".into()),
         };
-        let Some(job) = self.keeping.analysis_save.take() else {
+        let Some(job) = self.bench.keeping.analysis_save.take() else {
             return;
         };
         match done {
@@ -1251,7 +1252,7 @@ impl TimegrapherApp {
                     dir.display(),
                     size_text(size)
                 ));
-                self.keeping.analysis_kept_to = Some((dir, job.total_s));
+                self.bench.keeping.analysis_kept_to = Some((dir, job.total_s));
                 self.test_kept_without_sound();
             }
             Err(e) => self.error(format!("Keeping the analysis failed: {e}")),
@@ -1702,7 +1703,7 @@ impl TimegrapherApp {
                     Some((m, entries)) => {
                         self.keep_mic_setup();
                         self.set_watch_setup(WatchSetup::default());
-                        self.keeping.open_note = None;
+                        self.bench.keeping.open_note = None;
                         let layout = folder_layout(path, &m, &entries);
                         let windows = layout.as_ref().map(|l| l.1.as_slice());
                         self.apply_manifest_placed(&m, &entries, None, windows)
@@ -1713,10 +1714,11 @@ impl TimegrapherApp {
                     }
                 };
                 if let Some(n) = order_warning(&files) {
-                    self.keeping.open_note = Some(match self.keeping.open_note.take() {
-                        Some(o) => format!("{o} {n}"),
-                        None => n,
-                    });
+                    self.bench.keeping.open_note =
+                        Some(match self.bench.keeping.open_note.take() {
+                            Some(o) => format!("{o} {n}"),
+                            None => n,
+                        });
                 }
                 if self.recording.file_path.trim() != path.display().to_string() {
                     self.recording.file_path = path.display().to_string();
@@ -1733,10 +1735,10 @@ impl TimegrapherApp {
                     live.set_breaks(breaks);
                 }
                 self.mask_engine();
-                self.keeping.opened_path = path.display().to_string();
+                self.bench.keeping.opened_path = path.display().to_string();
                 c.set_speed(speed);
                 self.recording.capture = Some(c);
-                if let Some(n) = self.keeping.open_note.take() {
+                if let Some(n) = self.bench.keeping.open_note.take() {
                     self.info_msg(n);
                 }
             }
@@ -1748,8 +1750,8 @@ impl TimegrapherApp {
     /// to the one still shown.
     fn open_failed(&mut self, e: String) {
         self.error(e);
-        if !self.keeping.opened_path.is_empty() {
-            self.recording.file_path = self.keeping.opened_path.clone();
+        if !self.bench.keeping.opened_path.is_empty() {
+            self.recording.file_path = self.bench.keeping.opened_path.clone();
         }
     }
 
@@ -1773,7 +1775,7 @@ impl TimegrapherApp {
         if let Some(p) = from_name {
             self.bench.take.position = p;
         }
-        self.keeping.open_note = Some(match from_name {
+        self.bench.keeping.open_note = Some(match from_name {
             Some(p) => format!(
                 "No watch settings in the file: Calibre Not Set, Lift {DEFAULT_LIFT_DEG}°, \
                  {} from the file name.",
@@ -1907,7 +1909,7 @@ impl TimegrapherApp {
             None,
             inputs,
         );
-        self.keeping.opened_path = path.display().to_string();
+        self.bench.keeping.opened_path = path.display().to_string();
         self.reset_session(info.sample_rate, label.clone());
         self.load_reserve(path);
         self.session.analyse();
@@ -1981,20 +1983,20 @@ impl TimegrapherApp {
                 Some(s) => {
                     self.keep_mic_setup();
                     self.set_watch_setup(s);
-                    self.keeping.open_note = None;
+                    self.bench.keeping.open_note = None;
                 }
                 None => self.fresh_setup(path, files),
             }
         } else {
             self.keep_mic_setup();
             self.set_watch_setup(WatchSetup::default());
-            self.keeping.open_note = None;
+            self.bench.keeping.open_note = None;
         }
     }
 
     /// Add `n` to the note shown about the take just opened.
     fn add_open_note(&mut self, n: &str) {
-        self.keeping.open_note = Some(match self.keeping.open_note.take() {
+        self.bench.keeping.open_note = Some(match self.bench.keeping.open_note.take() {
             Some(o) => format!("{o} {n}"),
             None => n.to_string(),
         });
@@ -2029,7 +2031,7 @@ impl TimegrapherApp {
         };
         self.keep_mic_setup();
         self.set_watch_setup(WatchSetup::default());
-        self.keeping.open_note = parts;
+        self.bench.keeping.open_note = parts;
         let (stretches, settles) = self.apply_manifest(&m, &entries, Some(header.duration_s));
         self.watch_fills_in(path, &m);
         let label = kept_label(path, &name);
@@ -2055,10 +2057,10 @@ impl TimegrapherApp {
             Some(duration_s),
             inputs,
         );
-        self.keeping.opened_path = path.display().to_string();
+        self.bench.keeping.opened_path = path.display().to_string();
         self.reset_session(header.sample_rate, label.clone());
         self.load_reserve(path);
-        self.keeping.no_sound = Some(Vec::new());
+        self.bench.keeping.no_sound = Some(Vec::new());
         self.session.analyse();
         (self.recording.live, self.recording.live_usb) = (None, None);
         // Nothing of the take before's clock carries over, whichever
@@ -2140,7 +2142,7 @@ impl TimegrapherApp {
             }
         }
         self.session.recording_failed(now, reason);
-        self.keeping.stream_wait = None;
+        self.bench.keeping.stream_wait = None;
         self.reserve_failed();
         if let Ok(Some(l)) = &mut self.library {
             l.scan();
@@ -2526,7 +2528,7 @@ impl TimegrapherApp {
                     // A take with no sound shows the profiles it kept,
                     // averaged over the Average Over window (#979).
                     if let Some(k) = profiles {
-                        self.keeping.no_sound = Some(k);
+                        self.bench.keeping.no_sound = Some(k);
                     }
                 }
                 Ok(None) => {}
@@ -2634,7 +2636,7 @@ impl TimegrapherApp {
         // A long take that isn't a test: its run, read as one in the
         // background.
         self.bench.results.bg.reserve = Some(None);
-        let done = if self.keeping.no_sound.is_some() {
+        let done = if self.bench.keeping.no_sound.is_some() {
             "Opened the analysis kept without its sound: the readings, charts and tests are as \
              they were measured, and the Scope needs the sound. Drag the strip to look \
              back."
@@ -2642,7 +2644,7 @@ impl TimegrapherApp {
             "Analysed the whole recording. Drag the strip to look back."
         };
         // The note first: the status bar cuts a long message at its end.
-        let m = match self.keeping.open_note.take() {
+        let m = match self.bench.keeping.open_note.take() {
             Some(n) => format!("{n} {done}"),
             None => done.to_string(),
         };
