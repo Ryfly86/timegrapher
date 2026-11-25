@@ -39,7 +39,7 @@ pub const GAP_S: f64 = 2.0;
 
 /// Cuts just before beats that follow a pause, on the beats' time axis.
 /// Live's latest run and saved fits share this strict gap rule.
-fn beat_pauses(beats: &[Beat]) -> impl DoubleEndedIterator<Item = f64> + '_ {
+pub(crate) fn beat_pauses(beats: &[Beat]) -> impl DoubleEndedIterator<Item = f64> + '_ {
     beats
         .windows(2)
         .filter_map(|w| paused(&w[0], &w[1]).then_some(w[1].time - EDGE_S))

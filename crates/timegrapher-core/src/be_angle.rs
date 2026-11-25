@@ -30,8 +30,26 @@ pub const NAME: &str = "BE Angle";
 /// With the beat period T = 3600 / bph ([`crate::timing::beat_period_s`]),
 /// bph / 7200 is 1 / (2T).
 pub fn degrees(amplitude_deg: f64, beat_error_ms: f64, bph: u32) -> f64 {
-    let period_s = crate::timing::beat_period_s(None, bph);
-    amplitude_deg * std::f64::consts::PI * (beat_error_ms.abs() / 1000.0) / (2.0 * period_s)
+    degrees_at(
+        amplitude_deg,
+        beat_error_ms,
+        crate::timing::beat_period_s(None, bph),
+    )
+}
+
+/// [`degrees`] on a balance whose own beat period is `beat_period_s`: the
+/// period amplitude is read with, not the set rate's (#2228).
+pub fn degrees_at(amplitude_deg: f64, beat_error_ms: f64, beat_period_s: f64) -> f64 {
+    amplitude_deg * std::f64::consts::PI * (beat_error_ms.abs() / 1000.0) / (2.0 * beat_period_s)
+}
+
+/// The balance's own beat period, s, of a reading at `bph` that reads
+/// `rate_s_per_day` ([`crate::timing::period_s`]), the period its
+/// amplitude was read with; the nominal 3600/bph where it reads no rate.
+/// None without a beat rate.
+pub fn beat_period_of(bph: Option<u32>, rate_s_per_day: Option<f64>) -> Option<f64> {
+    let nominal = 3600.0 / f64::from(bph.filter(|&b| b > 0)?);
+    Some(rate_s_per_day.map_or(nominal, |r| crate::timing::period_s(nominal, r)))
 }
 
 /// A BE Angle with its ± and the decimals it is written to.
@@ -53,12 +71,30 @@ impl Angle {
         (beat_error_ms, beat_error_se): (f64, Option<f64>),
         bph: u32,
     ) -> Option<Angle> {
-        let be = beat_error_ms.abs();
-        let ok = |v: f64| v.is_finite() && v > 0.0;
-        if !(ok(amplitude_deg) && be.is_finite() && bph > 0) {
+        if bph == 0 {
             return None;
         }
-        let d = degrees(amplitude_deg, be, bph);
+        Self::at(
+            (amplitude_deg, amplitude_se),
+            (beat_error_ms, beat_error_se),
+            crate::timing::beat_period_s(None, bph),
+        )
+    }
+
+    /// [`Angle::of`] on a balance whose own beat period is
+    /// `beat_period_s` ([`beat_period_of`]): what a reading shows, since
+    /// its amplitude was read at that period (#2228).
+    pub fn at(
+        (amplitude_deg, amplitude_se): (f64, Option<f64>),
+        (beat_error_ms, beat_error_se): (f64, Option<f64>),
+        beat_period_s: f64,
+    ) -> Option<Angle> {
+        let be = beat_error_ms.abs();
+        let ok = |v: f64| v.is_finite() && v > 0.0;
+        if !(ok(amplitude_deg) && be.is_finite() && ok(beat_period_s)) {
+            return None;
+        }
+        let d = degrees_at(amplitude_deg, be, beat_period_s);
         let se = match (amplitude_se, beat_error_se) {
             (Some(sa), Some(sb)) if be > 0.0 => {
                 Some(d * ((sa / amplitude_deg).powi(2) + (sb / be).powi(2)).sqrt())

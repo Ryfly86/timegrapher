@@ -102,6 +102,19 @@ impl TickProfile {
         let ms = self.drop_ms? - self.unlock_ms?;
         side_deg(ms / 1000.0, osc_period_s, lift_deg)
     }
+
+    /// The profile's amplitude, read at `from_lift`, at `to_lift`: one it
+    /// has scaled by the lifts' ratio, as amplitude is in proportion to
+    /// the lift, at whatever period it was read; one it lacks read from
+    /// its edges at `osc_period_s` ([`Self::amplitude_at`]), both through
+    /// the gate at the new lift, as [`crate::amplitude::at_lift`] reads a
+    /// window (#2228).
+    pub fn at_lift(&self, osc_period_s: f64, from_lift: f64, to_lift: f64) -> Option<f64> {
+        match self.amplitude_deg {
+            Some(a) => crate::amplitude::in_gate(a * to_lift / from_lift),
+            None => self.amplitude_at(osc_period_s, to_lift),
+        }
+    }
 }
 
 /// Points of the profile are this far apart, ms (the envelope is already

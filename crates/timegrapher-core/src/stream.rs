@@ -130,13 +130,12 @@ impl BeatLog {
             .filter(|b| b.is_good())
             .filter_map(|b| Some((b.time, b.index.rem_euclid(2) == 0, find(b.time)?)))
             .collect();
-        let beat = 3600.0 / self.bph.max(1) as f64;
         crate::measure::stretch_beat_sound(
             &snips,
             beats.first()?.time,
             beats.last()?.time,
             self.sample_rate as f64,
-            2.0 * beat,
+            self.bph,
             cfg,
         )
     }
@@ -318,7 +317,7 @@ impl State {
         }
         self.count_clipping(&c.clipped, off, core_a, core_b, kept_from);
 
-        self.amplitude_job(numbered, off, off + x.len() as f64 / fs, core_b, beat)
+        self.amplitude_job(numbered, off, off + x.len() as f64 / fs, core_b)
     }
 
     /// The beats of a chunk before a watch has been heard, and whether the
@@ -385,7 +384,6 @@ impl State {
         off: f64,
         x_end: f64,
         core_b: f64,
-        beat: f64,
     ) -> Option<AmpJob> {
         let w = self.cfg.analysis.amplitude_window_s;
         let mut to = self.next_amp_s;
@@ -395,13 +393,17 @@ impl State {
         if to > self.next_amp_s {
             self.amp_out.push_back((self.chunks - 1, to));
         }
+        // The degrees read the balance's own period, not the set rate's
+        // (#2228).
+        let own = crate::timing::own_beat_period_s(&numbered, self.bph);
+        let beat = 3600.0 / self.bph.max(1) as f64;
         (to > self.next_amp_s).then(|| AmpJob {
             chunk: self.chunks - 1,
             numbered,
             off,
             from_s: std::mem::replace(&mut self.next_amp_s, to),
             to_s: to,
-            beat,
+            beat: [beat, own],
         })
     }
 
@@ -475,7 +477,9 @@ struct AmpJob {
     off: f64,
     from_s: f64,
     to_s: f64,
-    beat: f64,
+    /// The set rate's beat, which the templates are cut for, and the
+    /// balance's own, which the degrees are read at (#2228), seconds.
+    beat: [f64; 2],
 }
 
 impl AmpJob {
@@ -490,14 +494,12 @@ impl AmpJob {
             "test: a chunk's amplitude failed"
         );
         let off = self.off;
-        let mut wins = amplitude::windows_between(
+        let mut wins = amplitude::windows_between_at(
             env,
             fs,
             &self.numbered,
-            2.0 * self.beat,
-            cfg.amplitude_window_s,
-            self.from_s - off,
-            self.to_s - off,
+            self.beat.map(|b| 2.0 * b),
+            (cfg.amplitude_window_s, self.from_s - off, self.to_s - off),
             &cfg.amplitude,
         );
         for win in &mut wins {
@@ -1064,8 +1066,7 @@ fn watch_heard_in(
             .iter()
             .filter_map(|b| sound_snippet(b, beat_window(env, fs, b)?))
             .collect();
-        let osc_period_s = 2.0 * crate::timing::beat_period_s(None, bph);
-        crate::measure::beat_sound_found(snips, fs, osc_period_s, cfg)
+        crate::measure::beat_sound_found(snips, fs, bph, cfg)
     };
     let sound = crate::measure::beat_sound_needed(jitter_us, bph, true)
         .then(sound)
