@@ -32,17 +32,17 @@ fn a_calibre_with_no_lift_leaves_the_last_calibres_lift_behind() {
     let given = app.cal.lift("ETA 2824-2").expect("ETA's lift");
     assert_ne!(given, DEFAULT_LIFT_DEG);
     app.set_calibre("ETA 2824-2".into());
-    assert_eq!(app.lift_deg, given);
+    assert_eq!(app.bench.take.lift_deg, given);
     assert!(app.lift_known());
     app.set_calibre(none.clone());
-    assert_eq!(app.lift_deg, DEFAULT_LIFT_DEG, "{none}");
+    assert_eq!(app.bench.take.lift_deg, DEFAULT_LIFT_DEG, "{none}");
     assert!(!app.lift_known(), "{none}: assumed, not known");
     // Typed by hand after the calibre set it: kept, as typed.
     app.set_calibre("ETA 2824-2".into());
     let typed = given + 3.0;
     app.set_lift(typed);
     app.set_calibre(none);
-    assert_eq!(app.lift_deg, typed);
+    assert_eq!(app.bench.take.lift_deg, typed);
     assert!(app.lift_known());
 }
 
@@ -74,7 +74,11 @@ fn with_a_watch_open_a_calibre_with_no_lift_gives_the_watchs_own() {
         app.set_calibre("ETA 2824-2".into());
         assert!(app.lift_known());
         app.set_calibre(none.clone());
-        assert_eq!((app.lift_deg, app.lift_known()), (lift, known), "{none}");
+        assert_eq!(
+            (app.bench.take.lift_deg, app.lift_known()),
+            (lift, known),
+            "{none}"
+        );
         let saved = app.manifest_header();
         assert_eq!((saved.lift, saved.lift_known), (Some(lift), Some(known)));
     }
@@ -107,7 +111,9 @@ fn a_new_lift_rescales_every_amplitude() {
     let table = |app: &TimegrapherApp| app.free_table(&ctx).expect("a table").mean[1].unwrap();
     let whole = |app: &TimegrapherApp| app.whole_take().unwrap().m.amplitude_deg.unwrap();
     let profiles = |app: &TimegrapherApp| -> Vec<f64> {
-        app.live
+        app.bench
+            .recording
+            .live
             .as_ref()
             .unwrap()
             .tick_profiles()
@@ -118,7 +124,7 @@ fn a_new_lift_rescales_every_amplitude() {
     };
     let (w0, p0, t0) = (whole(&app), profiles(&app), table(&app));
     assert!(!p0.is_empty());
-    let k = 55.0 / app.lift_deg;
+    let k = 55.0 / app.bench.take.lift_deg;
     app.set_lift(55.0);
     let w1 = whole(&app);
     assert!((w1 - w0 * k).abs() < 0.05, "{w0} then {w1}");
@@ -140,9 +146,11 @@ fn persisted_lift_context_roundtrips_without_guessing_legacy_history() {
         ("lift_known = true", false), // No accompanying value.
         ("calibre = \"Seagull ST36\"", false),
         ("calibre = \"Unitas 6497-2\"", true),
+        // An assumed lift gives way to the calibre's 44°, known, as core
+        // and `session` read it; a save writes 44°, known (#2232).
         (
             "calibre = \"Unitas 6497-2\"\nlift = 52\nlift_known = false",
-            false,
+            true,
         ),
     ] {
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
@@ -150,7 +158,7 @@ fn persisted_lift_context_roundtrips_without_guessing_legacy_history() {
         app.apply_manifest(&m, &[], None);
         assert_eq!(app.lift_known(), expected, "{text}");
         assert_eq!(app.live_config().analysis.lift_known, expected);
-        let value = app.lift_deg;
+        let value = app.bench.take.lift_deg;
         let setup = app.watch_setup();
         let saved = toml::to_string(&app.take_manifest()).unwrap();
         let again: Manifest = toml::from_str(&saved).unwrap();
@@ -159,13 +167,13 @@ fn persisted_lift_context_roundtrips_without_guessing_legacy_history() {
         let mut reopened = TimegrapherApp::with_devices(Vec::new(), None);
         reopened.apply_manifest(&again, &[], None);
         assert_eq!(
-            (reopened.lift_deg, reopened.lift_known()),
+            (reopened.bench.take.lift_deg, reopened.lift_known()),
             (value, expected)
         );
         reopened.set_watch_setup(WatchSetup::default());
         reopened.set_watch_setup(setup);
         assert_eq!(
-            (reopened.lift_deg, reopened.lift_known()),
+            (reopened.bench.take.lift_deg, reopened.lift_known()),
             (value, expected)
         );
         reopened.set_lift(value + 1.0);
@@ -174,6 +182,58 @@ fn persisted_lift_context_roundtrips_without_guessing_legacy_history() {
             reopened.lift_known(),
             expected,
             "numeric revert retains context"
+        );
+    }
+}
+
+/// Opening a take reads its lift as core and `session` do: an assumed
+/// lift gives way to its calibre's, known, and one it supplied stands;
+/// with no calibre lift the assumed one stays assumed (#2232).
+#[test]
+fn opening_a_take_reads_its_lift_as_core_and_the_cli_do() {
+    for (text, lift, known) in [
+        (
+            "calibre = \"Unitas 6497-2\"\nlift = 52\nlift_known = false",
+            44.0,
+            true,
+        ),
+        (
+            "calibre = \"Unitas 6497-2\"\nlift = 52\nlift_known = true",
+            52.0,
+            true,
+        ),
+        (
+            "calibre = \"Seagull ST36\"\nlift = 49\nlift_known = false",
+            49.0,
+            false,
+        ),
+    ] {
+        let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+        let m: Manifest = toml::from_str(text).unwrap();
+        app.apply_manifest(&m, &[], None);
+        let cal =
+            timegrapher_core::take::calibre_named(m.calibre.as_deref().unwrap(), &app.cal.user);
+        let core = timegrapher_core::take::stream_settings(
+            &m,
+            cal.as_ref(),
+            timegrapher_core::take::Given::default(),
+        );
+        assert_eq!(
+            (app.bench.take.lift_deg, app.lift_known()),
+            (lift, known),
+            "{text}"
+        );
+        assert_eq!(
+            (core.analysis.amplitude.lift_deg, core.analysis.lift_known),
+            (lift, known),
+            "{text}"
+        );
+        assert_eq!(app.live_config().analysis.lift_known, known, "{text}");
+        let saved = app.take_manifest();
+        assert_eq!(
+            (saved.lift, saved.lift_known),
+            (Some(lift), Some(known)),
+            "{text}"
         );
     }
 }
@@ -188,9 +248,9 @@ fn an_older_takes_lift_is_read_by_core_rule_not_the_calibre_on_show() {
     assert!(app.lift_known());
     let m: Manifest = toml::from_str("lift = 52").unwrap();
     app.apply_manifest(&m, &[], None);
-    assert_eq!(app.calibre, "Unitas 6497-2");
+    assert_eq!(app.bench.take.calibre, "Unitas 6497-2");
     assert!(!app.lift_known());
-    let cal = timegrapher_core::take::calibre_named(&app.calibre, &app.cal.user);
+    let cal = timegrapher_core::take::calibre_named(&app.bench.take.calibre, &app.cal.user);
     assert!(cal.as_ref().is_some_and(|c| c.lift_angle_deg.is_some()));
     assert_eq!(
         timegrapher_core::take::file_lift_known(&m, None),
@@ -240,7 +300,7 @@ fn a_new_lift_rereads_every_guided_tests_amplitudes() {
     ] {
         let mut app = synthetic(8.0 * each + 10.0, 0.0);
         let mut test = match kind {
-            guided::Kind::Complication => guided::Test::complication(app.position),
+            guided::Kind::Complication => guided::Test::complication(app.bench.take.position),
             guided::Kind::Poise => guided::Test::poise(),
             _ => guided::Test::new(),
         }
@@ -254,14 +314,28 @@ fn a_new_lift_rereads_every_guided_tests_amplitudes() {
                 break;
             }
         }
-        let log = app.live.as_ref().and_then(steady::log_of).unwrap();
-        test.finish(&log, None, &app.masked);
-        app.guided = Some(test);
+        let log = app
+            .bench
+            .recording
+            .live
+            .as_ref()
+            .and_then(steady::log_of)
+            .unwrap();
+        test.finish(&log, None, &app.bench.take.masked);
+        app.bench.test.guided = Some(test);
         // 18 s measured per step: a 10 s step can hold no whole 10 s
         // scatter window and read as no watch (#1688), and every step
         // here must give its amplitude.
         let amps = |app: &TimegrapherApp| -> Vec<f64> {
-            let readings = app.guided.as_ref().unwrap().readings.as_ref().unwrap();
+            let readings = app
+                .bench
+                .test
+                .guided
+                .as_ref()
+                .unwrap()
+                .readings
+                .as_ref()
+                .unwrap();
             readings
                 .iter()
                 .map(|r| r.measurement.amplitude_deg.unwrap())
@@ -269,7 +343,7 @@ fn a_new_lift_rereads_every_guided_tests_amplitudes() {
         };
         let before = amps(&app);
         assert!(before.len() >= 2, "{kind:?}: {before:?}");
-        let k = 60.0 / app.lift_deg;
+        let k = 60.0 / app.bench.take.lift_deg;
         app.set_lift(60.0);
         let after = amps(&app);
         assert_eq!(after.len(), before.len(), "{kind:?}");

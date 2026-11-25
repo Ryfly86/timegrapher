@@ -32,7 +32,7 @@ impl TimegrapherApp {
     pub(super) fn readings(&mut self, ui: &mut egui::Ui) {
         let gap = theme::GAP;
         let total = ui.available_width();
-        let h = if self.panes_view.readings_pinned {
+        let h = if self.bench.panes_view.readings_pinned {
             self.readings_card_h(ui.ctx())
         } else {
             STRIP_H
@@ -45,7 +45,7 @@ impl TimegrapherApp {
             Vec2::new(PIN_W, STRIP_H),
         );
         self.pin_card(ui, pin);
-        if self.panes_view.readings_pinned {
+        if self.bench.panes_view.readings_pinned {
             set_open(ui.ctx(), false);
             let mut inner = ui.new_child(
                 egui::UiBuilder::new()
@@ -79,7 +79,7 @@ impl TimegrapherApp {
                     egui::Direction::LeftToRight,
                 )),
         );
-        let hint = if self.panes_view.readings_pinned {
+        let hint = if self.bench.panes_view.readings_pinned {
             "Unpin the readings: a strip across the top, its cards opening over the panes on a \
              click (View > Compact Readings)"
         } else {
@@ -88,7 +88,7 @@ impl TimegrapherApp {
         let r = theme::icon_toggle(
             &mut child,
             Icon::Pin,
-            self.panes_view.readings_pinned,
+            self.bench.panes_view.readings_pinned,
             pal.accent,
         );
         if r.on_hover_text(hint).clicked() {
@@ -186,7 +186,13 @@ impl TimegrapherApp {
                 .max_rect(listen)
                 .layout(egui::Layout::left_to_right(egui::Align::Center)),
         );
-        let length = length_text(self.live.as_ref().map_or(0.0, |l| l.duration_s()));
+        let length = length_text(
+            self.bench
+                .recording
+                .live
+                .as_ref()
+                .map_or(0.0, |l| l.duration_s()),
+        );
         let state = self.state_words();
         self.listen_go(&mut go, Some(&format!("\n\n{length} · {state}")));
         let after = go.min_rect().right() + SPACE;
@@ -227,7 +233,7 @@ impl TimegrapherApp {
     pub(super) fn watch_facts(&self) -> (String, String, String) {
         let heard = self.bph_heard();
         let set = self.bph_set_by_calibre();
-        let angle = format!("{}°", fields::plain(self.lift_deg));
+        let angle = format!("{}°", fields::plain(self.bench.take.lift_deg));
         let (how, rate) = self.bph_parts(set, heard);
         let bare = if rate.is_empty() {
             how.unwrap_or_default().to_string()
@@ -241,10 +247,10 @@ impl TimegrapherApp {
     /// "Not Set · 52° · Auto 28800".
     pub(super) fn watch_detail(&self) -> String {
         let (angle, bph, _) = self.watch_facts();
-        let calibre = if self.calibre.is_empty() {
+        let calibre = if self.bench.take.calibre.is_empty() {
             "Not Set"
         } else {
-            &self.calibre
+            &self.bench.take.calibre
         };
         format!("{calibre} · {angle} · {bph}")
     }

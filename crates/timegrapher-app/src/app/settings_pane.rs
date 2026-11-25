@@ -29,7 +29,9 @@ impl TimegrapherApp {
     }
 
     pub(super) fn clipping(&self) -> bool {
-        self.meter
+        self.bench
+            .recording
+            .meter
             .clipped_at
             .is_some_and(|t| t.elapsed().as_secs_f64() < 3.0)
     }
@@ -54,7 +56,7 @@ impl TimegrapherApp {
             pal.text_tertiary.gamma_multiply(0.35),
         );
         if self.running() {
-            let peak = self.meter.level.peak_dbfs.max(-60.0);
+            let peak = self.bench.recording.meter.level.peak_dbfs.max(-60.0);
             let frac = ((peak + 60.0) / 60.0).clamp(0.0, 1.0) as f32;
             let mut fill = rect;
             fill.set_width((rect.width() * frac).max(height));
@@ -75,23 +77,36 @@ impl TimegrapherApp {
 
     /// Find the selected input's level control and read it.
     fn read_gain(&mut self) {
-        self.meter.gain_device = self.device.clone();
+        self.bench.recording.meter.gain_device = self.bench.recording.device.clone();
         // Before the inputs are listed, the system default's level control:
         // reading a mixer does not open the input.
-        let id = match (&self.device, self.devices_listed) {
+        let id = match (
+            &self.bench.recording.device,
+            self.bench.recording.devices_listed,
+        ) {
             (Some(d), _) => Some(d.as_str()),
             (None, false) => Some("default"),
             (None, true) => None,
         };
-        self.meter.gain = id.and_then(InputGain::for_device);
-        self.meter.gain_state = self.meter.gain.as_ref().and_then(|g| g.read());
-        self.meter.gain_read_at = Instant::now();
-        self.meter.agc_read = self.input_agc(None).and_then(Result::ok);
+        self.bench.recording.meter.gain = id.and_then(InputGain::for_device);
+        self.bench.recording.meter.gain_state = self
+            .bench
+            .recording
+            .meter
+            .gain
+            .as_ref()
+            .and_then(|g| g.read());
+        self.bench.recording.meter.gain_read_at = Instant::now();
+        self.bench.recording.meter.agc_read = self.input_agc(None).and_then(Result::ok);
     }
 
     /// The key Settings keeps the selected input's automatic gain under.
     fn agc_key(&self) -> String {
-        self.device.clone().unwrap_or_else(|| "default".into())
+        self.bench
+            .recording
+            .device
+            .clone()
+            .unwrap_or_else(|| "default".into())
     }
 
     /// The selected input's automatic gain switch, read back, after
@@ -103,9 +118,11 @@ impl TimegrapherApp {
             // The input by the name the system gives it, the system
             // default's when none is picked; Windows sets the one input.
             let name = self
+                .bench
+                .recording
                 .devices
                 .iter()
-                .find(|d| match &self.device {
+                .find(|d| match &self.bench.recording.device {
                     Some(id) => &d.id == id,
                     None => d.is_default,
                 })
@@ -133,9 +150,9 @@ impl TimegrapherApp {
             });
         }
         if cfg!(target_os = "macos") {
-            let label = capture::choices(&self.devices)
+            let label = capture::choices(&self.bench.recording.devices)
                 .into_iter()
-                .find(|c| Some(&c.id) == self.device.as_ref())
+                .find(|c| Some(&c.id) == self.bench.recording.device.as_ref())
                 .map(|c| c.label);
             let read = |list: Result<Vec<mixer::UsbAgc>, String>| {
                 usb_agc_for(list.ok()?, label.as_deref())
@@ -157,8 +174,8 @@ impl TimegrapherApp {
                 }),
             });
         }
-        let g = self.meter.gain.as_ref()?;
-        self.meter.gain_state.as_ref()?.agc?;
+        let g = self.bench.recording.meter.gain.as_ref()?;
+        self.bench.recording.meter.gain_state.as_ref()?.agc?;
         if let Some(want) = set {
             if let Err(e) = g.set_agc(want) {
                 return Some(Err(e));
@@ -172,25 +189,25 @@ impl TimegrapherApp {
     /// turns it back on when it is plugged in.
     pub(super) fn apply_agc(&mut self) {
         let want = self.agc_on.contains(&self.agc_key());
-        if self.meter.gain_device != self.device {
+        if self.bench.recording.meter.gain_device != self.bench.recording.device {
             self.read_gain();
         }
         match self.input_agc(Some(want)) {
             Some(Ok(now)) => {
-                self.meter.agc_read = Some(now);
+                self.bench.recording.meter.agc_read = Some(now);
                 applog::info(&format!(
                     "automatic gain {}",
                     if now { "on" } else { "off" }
                 ));
             }
             Some(Err(e)) => {
-                self.meter.agc_read = None;
-                self.meter.gain_error = Some(format!(
+                self.bench.recording.meter.agc_read = None;
+                self.bench.recording.meter.gain_error = Some(format!(
                     "Couldn't turn the microphone's automatic gain {}: {e}",
                     if want { "on" } else { "off" }
                 ));
             }
-            None => self.meter.agc_read = None,
+            None => self.bench.recording.meter.agc_read = None,
         }
     }
 
@@ -198,8 +215,15 @@ impl TimegrapherApp {
     /// been read for a while.
     pub(super) fn refresh_gain(&mut self) {
         let every = if self.running() { 2.0 } else { 10.0 };
-        if self.meter.gain_device != self.device
-            || self.meter.gain_read_at.elapsed().as_secs_f64() > every
+        if self.bench.recording.meter.gain_device != self.bench.recording.device
+            || self
+                .bench
+                .recording
+                .meter
+                .gain_read_at
+                .elapsed()
+                .as_secs_f64()
+                > every
         {
             self.read_gain();
         }
@@ -216,7 +240,10 @@ impl TimegrapherApp {
             egui::Layout::left_to_right(egui::Align::Center),
             |ui| {
                 ui.set_min_size(Vec2::new(w, h));
-                match (self.meter.gain.clone(), self.meter.gain_state.clone()) {
+                match (
+                    self.bench.recording.meter.gain.clone(),
+                    self.bench.recording.meter.gain_state.clone(),
+                ) {
                     (Some(g), Some(st)) => {
                         let mut pct = st.level * 100.0;
                         ui.spacing_mut().slider_width = (w - 64.0).max(60.0);
@@ -231,11 +258,11 @@ impl TimegrapherApp {
                         // Set it once the drag ends (or on a click or key),
                         // not on every pixel.
                         if (r.changed() && !r.dragged()) || r.drag_stopped() {
-                            self.meter.gain_error = g.set_level(pct / 100.0).err();
+                            self.bench.recording.meter.gain_error = g.set_level(pct / 100.0).err();
                             applog::info(&format!("input level set to {pct:.0}%"));
                             self.read_gain();
                         } else if r.changed() {
-                            if let Some(s) = self.meter.gain_state.as_mut() {
+                            if let Some(s) = self.bench.recording.meter.gain_state.as_mut() {
                                 s.level = pct / 100.0;
                             }
                         }
@@ -247,7 +274,7 @@ impl TimegrapherApp {
                             .on_hover_text(SOUND_SETTINGS_HINT)
                             .clicked()
                         {
-                            self.meter.gain_error = open_sound_settings()
+                            self.bench.recording.meter.gain_error = open_sound_settings()
                                 .err()
                                 .map(|e| format!("Couldn't open the sound settings: {e}"));
                         }
@@ -264,7 +291,7 @@ impl TimegrapherApp {
     /// The Automatic Gain switch, for an input whose own automatic gain
     /// the app can reach; false (and nothing drawn) for any other.
     pub(super) fn agc_control(&mut self, ui: &mut egui::Ui) -> bool {
-        if self.meter.agc_read.is_none() {
+        if self.bench.recording.meter.agc_read.is_none() {
             return false;
         }
         let key = self.agc_key();
@@ -282,7 +309,7 @@ impl TimegrapherApp {
     /// What the microphone says of its automatic gain, where it isn't
     /// what was asked.
     pub(super) fn agc_message(&self) -> Option<String> {
-        let now = self.meter.agc_read?;
+        let now = self.bench.recording.meter.agc_read?;
         let on = self.agc_on.contains(&self.agc_key());
         (now != on).then(|| {
             format!(
@@ -312,7 +339,7 @@ impl TimegrapherApp {
     /// The latest peak, "−11 dBFS", or a dash while nothing is heard.
     fn peak_words(&self) -> String {
         if self.running() {
-            let peak = self.meter.level.peak_dbfs.max(-99.0);
+            let peak = self.bench.recording.meter.level.peak_dbfs.max(-99.0);
             true_minus(&format!("{peak:.0} dBFS"))
         } else {
             "–".into()
@@ -412,7 +439,12 @@ impl TimegrapherApp {
                     .auto_shrink([false, true])
                     .show(ui, |ui| {
                         self.microphone_page(ui);
-                        let listening = self.clock_track.as_ref().map(|t| t.device.clone());
+                        let listening = self
+                            .bench
+                            .recording
+                            .clock_track
+                            .as_ref()
+                            .map(|t| t.device.clone());
                         let timing = self.clock_timing();
                         match settings_window::quartz_section(
                             ui,
@@ -441,7 +473,11 @@ impl TimegrapherApp {
                             ui,
                             root.as_deref(),
                             &self.library,
-                            self.library_moving.as_ref().map(|(to, _)| to.as_path()),
+                            self.bench
+                                .keeping
+                                .library_moving
+                                .as_ref()
+                                .map(|(to, _)| to.as_path()),
                             self.library_dir.is_some(),
                             self.take_writing().as_deref(),
                         );
@@ -451,7 +487,7 @@ impl TimegrapherApp {
                     });
             }
             Tab::Calibres => {
-                let current = self.calibre.clone();
+                let current = self.bench.take.calibre.clone();
                 let out = self.cal.contents(ui, &current, env!("CARGO_PKG_VERSION"));
                 let name = out.name.clone();
                 self.calibre_changed(&name, out.change);
@@ -463,7 +499,7 @@ impl TimegrapherApp {
     /// Quartz Correction follows.
     pub(super) fn microphone_page(&mut self, ui: &mut egui::Ui) {
         self.refresh_gain();
-        let input_fault = self.input_fault.clone();
+        let input_fault = self.bench.recording.input_fault.clone();
         theme::group(ui, "Microphone", None, |g| {
             let hint = "The microphone to listen to. Show Every Input lists every device the \
                         system offers.";
@@ -481,10 +517,10 @@ impl TimegrapherApp {
                 "Show Every Input",
                 theme::Caption::Text("Lists every device the system offers, with its id."),
                 hint,
-                |ui| theme::switch(ui, &mut self.all_inputs).on_hover_text(hint),
+                |ui| theme::switch(ui, &mut self.bench.recording.all_inputs).on_hover_text(hint),
             );
         });
-        let gain_error = self.meter.gain_error.clone();
+        let gain_error = self.bench.recording.meter.gain_error.clone();
         let agc = self.agc_message();
         let clipping = self.running() && self.clipping();
         theme::group(ui, "Level", None, |g| {
@@ -499,7 +535,7 @@ impl TimegrapherApp {
                     self.level_control(ui, 240.0);
                 },
             );
-            if self.meter.agc_read.is_some() {
+            if self.bench.recording.meter.agc_read.is_some() {
                 g.row(
                     "Automatic Gain",
                     theme::Caption::Alert(
@@ -572,10 +608,7 @@ impl TimegrapherApp {
                 choice = Some(i == 0);
             }
         });
-        if choice.is_none() && modal.should_close() {
-            choice = Some(false);
-        }
-        if let Some(go) = choice {
+        if let Some(go) = dialogs::yes_no(choice, &modal) {
             self.forget_ask = None;
             if go {
                 self.forget_clock(&device);
@@ -691,7 +724,13 @@ impl TimegrapherApp {
             Ok(s) => {
                 // The microphone session in hand, listening or stopped,
                 // loses its True Clock too.
-                if self.clock.as_ref().is_some_and(|c| c.device == device) {
+                if self
+                    .bench
+                    .recording
+                    .clock
+                    .as_ref()
+                    .is_some_and(|c| c.device == device)
+                {
                     self.put_input_clock(None);
                 }
                 self.kept_clocks = Ok(s);
@@ -712,7 +751,7 @@ impl TimegrapherApp {
     /// Act on what was changed for the calibre `name`: only this watch's
     /// calibre moves anything outside the list.
     fn calibre_changed(&mut self, name: &str, change: calibre_ui::Change) {
-        if name.is_empty() || name != self.calibre {
+        if name.is_empty() || name != self.bench.take.calibre {
             return;
         }
         if let Some(n) = change.renamed {
@@ -726,12 +765,12 @@ impl TimegrapherApp {
         }
         if let Some(l) = change.lift {
             self.set_lift(l);
-            self.lift_context = (l, true);
+            self.bench.take.lift_context = (l, true);
         }
         // The calibre's wheels changed: the steadiness tests name them
         // afresh.
         if change.wheels {
-            self.rev.settings += 1;
+            self.bench.take.rev.settings += 1;
         }
     }
 
@@ -742,8 +781,8 @@ impl TimegrapherApp {
     pub(super) fn entry_settings(&self, m: &Manifest) -> timegrapher_core::take::EntrySettings {
         use timegrapher_core::take;
         let given = take::Given {
-            bph: self.bph,
-            lift_deg: Some(self.lift_deg),
+            bph: self.bench.take.bph,
+            lift_deg: Some(self.bench.take.lift_deg),
         };
         // The take's calibre, from the user's calibres as the Watches list
         // and `session` find it, for what its session file doesn't give.
@@ -764,16 +803,16 @@ impl TimegrapherApp {
     /// edits and reverts keep the existing default-angle inference; this does
     /// not introduce a new way to explicitly confirm an unchanged 52° in UI.
     pub(super) fn lift_known(&self) -> bool {
-        if self.lift_deg == self.lift_context.0 {
-            self.lift_context.1
+        if self.bench.take.lift_deg == self.bench.take.lift_context.0 {
+            self.bench.take.lift_context.1
         } else {
-            self.lift_deg != DEFAULT_LIFT_DEG
+            self.bench.take.lift_deg != DEFAULT_LIFT_DEG
         }
     }
 
     pub(super) fn set_lift(&mut self, lift: f64) {
         self.put_lift(lift);
-        if let Some(l) = self.live.as_mut() {
+        if let Some(l) = self.bench.recording.live.as_mut() {
             l.set_lift(lift);
         }
         // Changed by hand: the charts and the guided test follow at once.
@@ -783,23 +822,23 @@ impl TimegrapherApp {
     }
 
     pub(super) fn put_lift(&mut self, lift: f64) {
-        if lift != self.lift_deg {
-            self.lift_deg = lift;
-            self.rev.settings += 1;
+        if lift != self.bench.take.lift_deg {
+            self.bench.take.lift_deg = lift;
+            self.bench.take.rev.settings += 1;
         }
     }
 
     pub(super) fn put_calibre(&mut self, name: String) {
-        if name != self.calibre {
-            self.calibre = name;
-            self.rev.settings += 1;
+        if name != self.bench.take.calibre {
+            self.bench.take.calibre = name;
+            self.bench.take.rev.settings += 1;
         }
     }
 
     pub(super) fn put_bph(&mut self, bph: Option<u32>) {
-        if bph != self.bph {
-            self.bph = bph;
-            self.rev.settings += 1;
+        if bph != self.bench.take.bph {
+            self.bench.take.bph = bph;
+            self.bench.take.rev.settings += 1;
         }
     }
 
@@ -809,18 +848,18 @@ impl TimegrapherApp {
         clock: Option<timegrapher_core::clock::ClockFit>,
         source: Option<String>,
     ) {
-        self.take_clock = clock;
-        self.take_clock_source = source;
-        if let Some(l) = self.live.as_mut() {
-            l.set_rate_clock(Self::rate_clock(&self.take_clock));
+        self.bench.take.take_clock = clock;
+        self.bench.take.take_clock_source = source;
+        if let Some(l) = self.bench.recording.live.as_mut() {
+            l.set_rate_clock(Self::rate_clock(&self.bench.take.take_clock));
         }
-        self.rev.clock += 1;
+        self.bench.take.rev.clock += 1;
     }
 
     /// The clock kept for the input listened to.
     pub(super) fn put_input_clock(&mut self, clock: Option<clockstore::DeviceClock>) {
-        self.clock = clock;
-        self.rev.clock += 1;
+        self.bench.recording.clock = clock;
+        self.bench.take.rev.clock += 1;
     }
 
     pub(super) fn put_take_breaks(
@@ -828,15 +867,15 @@ impl TimegrapherApp {
         breaks: Option<Vec<timegrapher_core::breaks::Break>>,
         unlisted: Option<timegrapher_core::breaks::Unlisted>,
     ) {
-        self.take_breaks = breaks;
-        self.take_unlisted = unlisted;
-        self.rev.breaks += 1;
+        self.bench.take.take_breaks = breaks;
+        self.bench.take.take_unlisted = unlisted;
+        self.bench.take.rev.breaks += 1;
     }
 
     pub(super) fn put_masked(&mut self, masked: Vec<(f64, f64)>) {
-        if masked != self.masked {
-            self.masked = masked;
-            self.rev.masks += 1;
+        if masked != self.bench.take.masked {
+            self.bench.take.masked = masked;
+            self.bench.take.rev.masks += 1;
         }
     }
 
@@ -854,10 +893,10 @@ impl TimegrapherApp {
             return;
         }
         let info = SessionInfo {
-            watch: self.watch.clone(),
-            position: self.position.code().into(),
-            lift_deg: self.lift_deg,
-            bph: self.bph,
+            watch: self.bench.take.watch.clone(),
+            position: self.bench.take.position.code().into(),
+            lift_deg: self.bench.take.lift_deg,
+            bph: self.bench.take.bph,
             device: String::new(),
             sample_rate: 0,
             bits: 0,

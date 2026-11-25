@@ -2,7 +2,7 @@
 
 What the project is working on, what comes next, and ideas that are not yet
 scheduled. Where a line links to an issue, the issue is the live record:
-when they differ, the issue wins. Updated 22 November 2026.
+when they differ, the issue wins. Updated 25 November 2026.
 
 If you'd like to help, read [CONTRIBUTING.md](CONTRIBUTING.md) first. Issues
 labelled [`agent-ready`](https://github.com/peterhudson/timegrapher/labels/agent-ready)
@@ -34,6 +34,15 @@ order:
 | 1.3 | [#1866](https://github.com/peterhudson/timegrapher/issues/1866) A watch report as a PDF, with the workshop's own name and logo. |
 | 1.4 | [#2201](https://github.com/peterhudson/timegrapher/issues/2201) Compare two takes of the same watch, for example before and after a service or a mainspring change. |
 | 1.5 | [#1513](https://github.com/peterhudson/timegrapher/issues/1513) Translations, first wave of six languages. |
+
+1.2 also carries these smaller items, most of them asked for by users:
+
+- [#2236](https://github.com/peterhudson/timegrapher/issues/2236) Listen to the tick: hear the microphone live, switched on and off from the Listen card, with a volume.
+- [#2223](https://github.com/peterhudson/timegrapher/issues/2223) Show the measured beat rate in vph, and how far it is from the set rate, with [#2224](https://github.com/peterhudson/timegrapher/issues/2224) typing an exact beat rate, for balances not at a standard rate.
+- [#2228](https://github.com/peterhudson/timegrapher/issues/2228) Amplitude read with the watch's own measured period, so a watch far off its set rate reads true.
+- [#2247](https://github.com/peterhudson/timegrapher/issues/2247) The live reading carries on across a gap of noise, as the saved reading does.
+
+1.3 also carries [#2222](https://github.com/peterhudson/timegrapher/issues/2222), a History list for each watch: notes on takes, and dated events such as a service, with photos that can go in the PDF report. It also carries [#2225](https://github.com/peterhudson/timegrapher/issues/2225), reading the positions against a measured reference rate, to poise and time a free-sprung balance together.
 
 Later, in this order, with no version yet:
 

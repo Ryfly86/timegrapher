@@ -51,7 +51,7 @@ impl TimegrapherApp {
     /// write now. None where it keeps no sound, or core can't read it so;
     /// the cards then read the live engine as before.
     pub(in crate::app) fn start_stop_read(&mut self) {
-        self.bg.stop_read = None;
+        self.bench.results.bg.stop_read = None;
         if !self.session.paused() {
             return;
         }
@@ -83,7 +83,7 @@ impl TimegrapherApp {
             Some(p) => capture_label(p),
             None => "the take".to_string(),
         };
-        self.bg.stop_read = Some(StopRead {
+        self.bench.results.bg.stop_read = Some(StopRead {
             rx,
             progress,
             cancel,
@@ -98,7 +98,7 @@ impl TimegrapherApp {
     /// paused with the sound it read.
     fn stop_read_holds(&self) -> bool {
         self.session.paused()
-            && self.bg.stop_read.as_ref().is_some_and(|s| {
+            && self.bench.results.bg.stop_read.as_ref().is_some_and(|s| {
                 self.session
                     .recorder
                     .as_ref()
@@ -109,16 +109,22 @@ impl TimegrapherApp {
     /// Take in the read of the take just stopped once it is done; drop it
     /// once it no longer holds. On the window's frame.
     pub(in crate::app) fn poll_stop_read(&mut self) {
-        if self.bg.stop_read.is_none() {
+        if self.bench.results.bg.stop_read.is_none() {
             return;
         }
         if !self.stop_read_holds() {
-            self.bg.stop_read = None;
+            self.bench.results.bg.stop_read = None;
             return;
         }
-        let length_s = self.bg.stop_read.as_ref().map_or(0.0, |s| s.duration_s);
+        let length_s = self
+            .bench
+            .results
+            .bg
+            .stop_read
+            .as_ref()
+            .map_or(0.0, |s| s.duration_s);
         let now = ready_engine_inputs(self.open_inputs(&[], &[]), &self.take_manifest(), length_s);
-        let Some(s) = self.bg.stop_read.as_mut() else {
+        let Some(s) = self.bench.results.bg.stop_read.as_mut() else {
             return;
         };
         if let Some(t) = s.read.as_mut() {
@@ -134,9 +140,9 @@ impl TimegrapherApp {
         };
         match done {
             Ok(Some(o)) => s.read = Some(Box::new(StoppedTake::of(o))),
-            Ok(None) => self.bg.stop_read = None,
+            Ok(None) => self.bench.results.bg.stop_read = None,
             Err(e) => {
-                self.bg.stop_read = None;
+                self.bench.results.bg.stop_read = None;
                 self.stop_read_failed(&e);
             }
         }
@@ -145,7 +151,7 @@ impl TimegrapherApp {
     /// The take just stopped, read as its saved take opens, once read.
     pub(in crate::app) fn stopped_take(&self) -> Option<&StoppedTake> {
         self.stop_read_holds()
-            .then(|| self.bg.stop_read.as_ref()?.read.as_deref())
+            .then(|| self.bench.results.bg.stop_read.as_ref()?.read.as_deref())
             .flatten()
     }
 
@@ -162,14 +168,16 @@ impl TimegrapherApp {
     /// A Stop read that stops part way, as one that fails does.
     #[cfg(test)]
     pub(in crate::app) fn break_stop_read(&mut self) {
-        if let Some(s) = self.bg.stop_read.as_mut() {
+        if let Some(s) = self.bench.results.bg.stop_read.as_mut() {
             s.rx = std::sync::mpsc::channel().1;
         }
     }
 
     /// The take just stopped, still being read: the cards wait for it.
     pub(in crate::app) fn stop_read_waits(&self) -> Option<&StopRead> {
-        self.bg
+        self.bench
+            .results
+            .bg
             .stop_read
             .as_ref()
             .filter(|s| s.read.is_none() && self.stop_read_holds())
