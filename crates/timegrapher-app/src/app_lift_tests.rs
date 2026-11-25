@@ -144,9 +144,11 @@ fn persisted_lift_context_roundtrips_without_guessing_legacy_history() {
         ("lift_known = true", false), // No accompanying value.
         ("calibre = \"Seagull ST36\"", false),
         ("calibre = \"Unitas 6497-2\"", true),
+        // An assumed lift gives way to the calibre's 44°, known, as core
+        // and `session` read it; a save writes 44°, known (#2232).
         (
             "calibre = \"Unitas 6497-2\"\nlift = 52\nlift_known = false",
-            false,
+            true,
         ),
     ] {
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
@@ -178,6 +180,58 @@ fn persisted_lift_context_roundtrips_without_guessing_legacy_history() {
             reopened.lift_known(),
             expected,
             "numeric revert retains context"
+        );
+    }
+}
+
+/// Opening a take reads its lift as core and `session` do: an assumed
+/// lift gives way to its calibre's, known, and one it supplied stands;
+/// with no calibre lift the assumed one stays assumed (#2232).
+#[test]
+fn opening_a_take_reads_its_lift_as_core_and_the_cli_do() {
+    for (text, lift, known) in [
+        (
+            "calibre = \"Unitas 6497-2\"\nlift = 52\nlift_known = false",
+            44.0,
+            true,
+        ),
+        (
+            "calibre = \"Unitas 6497-2\"\nlift = 52\nlift_known = true",
+            52.0,
+            true,
+        ),
+        (
+            "calibre = \"Seagull ST36\"\nlift = 49\nlift_known = false",
+            49.0,
+            false,
+        ),
+    ] {
+        let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+        let m: Manifest = toml::from_str(text).unwrap();
+        app.apply_manifest(&m, &[], None);
+        let cal =
+            timegrapher_core::take::calibre_named(m.calibre.as_deref().unwrap(), &app.cal.user);
+        let core = timegrapher_core::take::stream_settings(
+            &m,
+            cal.as_ref(),
+            timegrapher_core::take::Given::default(),
+        );
+        assert_eq!(
+            (app.take.lift_deg, app.lift_known()),
+            (lift, known),
+            "{text}"
+        );
+        assert_eq!(
+            (core.analysis.amplitude.lift_deg, core.analysis.lift_known),
+            (lift, known),
+            "{text}"
+        );
+        assert_eq!(app.live_config().analysis.lift_known, known, "{text}");
+        let saved = app.take_manifest();
+        assert_eq!(
+            (saved.lift, saved.lift_known),
+            (Some(lift), Some(known)),
+            "{text}"
         );
     }
 }
