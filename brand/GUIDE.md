@@ -8,8 +8,12 @@ the source.
 
 ## 1. The idea
 
-Open Timegrapher is an instrument. It shows measured values and says what
-they are. So does everything around it:
+Open Timegrapher measures every beat of a mechanical watch and keeps the
+record. Use that sentence to introduce the project: an article, a release
+note, a talk, the top of a page.
+
+It is an instrument: it shows measured values and says what they are. So
+does everything around it:
 
 - **Plain and exact.** Flat colour, hairlines, real figures with units. No
   gradients, shadows, glows or textures.
@@ -22,7 +26,7 @@ they are. So does everything around it:
 
 The mark is called **the Drop**. It is a dial with the sound of one tick
 inside it, drawn as the app's Scope shows it: a small first burst, then
-the drop, the loudest sound in a tick, ringing down.
+the drop, usually the loudest sound in a tick, ringing down.
 
 ![The mark and the name](logo/lockup.svg)
 
@@ -79,8 +83,16 @@ the drop, the loudest sound in a tick, ringing down.
 
 - **Ink and paper** do most of the work: ink for text, line for hairlines,
   surface for cards and plots, paper behind them.
-- **Tick blue is the brand colour.** It's the line in the mark, links on
-  the website and the one accent on a page that has no data.
+- **Tick blue is the brand colour.** It's the line in the mark and the
+  one accent on a page that has no data.
+- **Links are Link blue** (`#1167a6`) in light mode and underlined in
+  running text. Tick blue is too light for link text on Paper (4.30:1;
+  text needs 4.5:1); Link blue is 5.35:1 on Paper and 5.98:1 on Surface.
+  In dark mode, links are Tick blue.
+- **Plots sit on Surface,** white in light mode. On white, Beat Error
+  amber (3.25:1) and Positions teal (3.16:1) reach the 3:1 that chart lines
+  and dots need; on Paper they don't (2.91:1 and 2.83:1). In dark mode every
+  data colour is 4:1 or more on Surface.
 - **The six data colours mean their quantity, everywhere and only
   there** (design guide, section 7). A chart in an article uses Rate
   magenta for rate and nothing else.
@@ -90,6 +102,7 @@ the drop, the loudest sound in a tick, ringing down.
   use them for lines, dots and fills.
 - Values are in [`tokens/`](tokens/) as CSS and JSON. If one ever differs
   from `crates/timegrapher-core/src/palette.rs`, the palette is right.
+  Link blue is the one token the app doesn't use.
 
 ## 5. Type
 
@@ -140,14 +153,22 @@ the drop, the loudest sound in a tick, ringing down.
 
 ## 7. Print and PDF reports
 
-The PDF report (#1866) uses these rules by default.
+The PDF report (#1866) uses these rules. The layout of its pages is
+chosen on #1866; this section covers the header, the footer, type and
+colour.
 
-![The top of a report on A4](guide/report-header.svg)
+![The top and foot of a default report on A4](guide/report-header.svg)
 
 - **Paper:** A4 or US Letter, as the reader's region uses; margins 18 mm.
 - **Header:** the lockup 10 mm tall at the top left; the report's title
   and its date and app version at the top right; a 0.5 pt ink rule under
   both.
+- **A shop's report:** when a workshop has set its logo and details, they
+  take the lockup's place: its logo up to 10 mm tall, its name, and its
+  contact line. The title, date and version stay at the top right.
+
+![The top and foot of a shop's report on A4](guide/report-shop.svg)
+
 - **Colour:** the light colours. Data keeps its colour on a chart. On a
   one-colour printer, the mark is `mark-black.svg` and charts tell series
   apart by line style and label, as the app does for grey call-outs.
@@ -156,8 +177,11 @@ The PDF report (#1866) uses these rules by default.
   everywhere.
 - **Facts only.** A report states what was measured, as the app does: no
   grades, verdicts or advice in the software's voice.
-- **Footer:** page *n* of *m*, the take's name, and "Open Timegrapher" with
-  the app's version.
+- **Footer,** on every page: the shop's own footer text, if it set one;
+  under it, "Made with Open Timegrapher · opentimegrapher.org" at the left
+  and the report's title and page *n* of *m* at the right. The domain is a
+  live link, in Link blue and underlined. Every report carries the credit,
+  and a shop's settings can't remove it (#1866).
 
 ## 8. Using the assets
 
