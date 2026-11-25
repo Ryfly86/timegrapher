@@ -421,6 +421,70 @@ pub fn windows(beats: &[Beat], bph: u32, window_s: f64, step_s: f64) -> Vec<Wind
     out
 }
 
+/// The beat rate, bph, of a beat period of `period_s` seconds: `3600 / P`.
+/// For a Swiss lever, bph and vph are the same number. The one rule for
+/// the beat rate heard (Norm on #2223, point 1).
+pub fn vph_of_period(period_s: f64) -> f64 {
+    3600.0 / period_s
+}
+
+/// The beat rate heard, read from a rate and its ± over one stretch on
+/// one clock: never a second fit, never snapped to a standard rate, and
+/// never rebuilt from a rounded figure (Norm on #2223). JSON carries it
+/// unrounded as `bph_measured` and `bph_measured_se` (Max on #2224).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+pub struct MeasuredRate {
+    /// The beat rate heard, bph.
+    #[serde(rename = "bph_measured")]
+    pub bph: f64,
+    /// Its standard error, bph: the rate's, scaled. None when the rate
+    /// has no ± (Norm on #2223, point 3).
+    #[serde(rename = "bph_measured_se")]
+    pub se: Option<f64>,
+}
+
+impl MeasuredRate {
+    /// The beat rate heard where `rate_s_per_day` (with its ± `rate_se`)
+    /// is read against `bph`: `3600 / P`, with `P` the beat period that
+    /// rate is the fit's reading of ([`period_s`]), so on the rate's own
+    /// clock and stretch. Its ± is `bph × σ_r / 86,400` (Norm on #2223,
+    /// point 3). None with no rate.
+    pub fn of(bph: u32, rate_s_per_day: Option<f64>, rate_se: Option<f64>) -> Option<Self> {
+        let rate = rate_s_per_day.filter(|r| r.is_finite())?;
+        let heard = vph_of_period(period_s(3600.0 / f64::from(bph), rate));
+        Some(MeasuredRate {
+            bph: heard,
+            se: rate_se
+                .filter(|s| s.is_finite() && *s > 0.0)
+                .map(|s| heard * s / 86_400.0),
+        })
+    }
+
+    /// The beat rate heard at its place, whole bph, rounded as
+    /// [`crate::figure_text::fixed_text`] writes it (ties to even).
+    pub fn whole(&self) -> f64 {
+        self.bph.round_ties_even()
+    }
+
+    /// How far the beat rate heard is from a rate the user set, whole
+    /// bph: the heard rate at its place less the set rate, so a difference
+    /// of figures keeps their place (Norm on #2223, point 4). Only against
+    /// a set rate: Auto's guess is not a target.
+    pub fn offset_from(&self, set: u32) -> f64 {
+        self.whole() - f64::from(set)
+    }
+
+    /// Writes its keys, as its own JSON gives them, into the JSON object
+    /// `doc`: for a document whose reading is not a struct of its own.
+    pub fn write_into(&self, doc: &mut serde_json::Value) {
+        if let (Some(d), Ok(serde_json::Value::Object(m))) =
+            (doc.as_object_mut(), serde_json::to_value(self))
+        {
+            d.extend(m);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -730,6 +794,77 @@ mod tests {
         assert_eq!(
             fit_pieces(&b2[..10], 28800, &[410.0]).map(|f| f.beats_used),
             None
+        );
+    }
+
+    /// The beat rate heard is `3600 / P` with `P` the period the rate is
+    /// read from, so a balance at 17,570 read against 18,000 hears 17570
+    /// and is 430 bph slow, and its ± is the rate's scaled by bph / 86,400
+    /// (Norm on #2223, points 1, 3 and 4).
+    #[test]
+    fn the_beat_rate_heard_is_the_rates_own_period() {
+        let p = 3600.0 / 17_570.0;
+        let rate = (3600.0 / 18_000.0 / p - 1.0) * 86_400.0;
+        let m = MeasuredRate::of(18_000, Some(rate), Some(4.8)).unwrap();
+        assert!((m.bph - 17_570.0).abs() < 1e-6, "{}", m.bph);
+        assert!((vph_of_period(p) - m.bph).abs() < 1e-6);
+        assert_eq!(m.whole(), 17_570.0);
+        assert_eq!(m.offset_from(18_000), -430.0);
+        let se = m.se.unwrap();
+        assert!((se - 17_570.0 * 4.8 / 86_400.0).abs() < 1e-12, "{se}");
+        // On its standard rate, a watch 0 s/d reads that rate exactly.
+        let on = MeasuredRate::of(28_800, Some(0.0), None).unwrap();
+        assert_eq!(
+            (on.bph, on.se, on.offset_from(28_800)),
+            (28_800.0, None, 0.0)
+        );
+        // +100 s/d at 28,800 is 33.3 bph fast, 33 at its place; +1 s/d
+        // is 0.33 bph, 0 at its place, where the s/d figure reads it.
+        let fast = MeasuredRate::of(28_800, Some(100.0), None).unwrap();
+        assert!((fast.bph - 28_800.0 * (1.0 + 100.0 / 86_400.0)).abs() < 1e-9);
+        assert_eq!(fast.offset_from(28_800), 33.0);
+        let near = MeasuredRate::of(28_800, Some(1.0), None).unwrap();
+        assert_eq!(near.offset_from(28_800), 0.0);
+    }
+
+    /// No rate, no beat rate heard; no ± on the rate (none, zero or not
+    /// finite), none on the beat rate heard.
+    #[test]
+    fn no_rate_hears_no_beat_rate_and_no_pm_gives_none() {
+        assert_eq!(MeasuredRate::of(28_800, None, Some(1.0)), None);
+        assert_eq!(MeasuredRate::of(28_800, Some(f64::NAN), Some(1.0)), None);
+        for se in [None, Some(0.0), Some(f64::INFINITY)] {
+            assert_eq!(MeasuredRate::of(28_800, Some(5.0), se).unwrap().se, None);
+        }
+    }
+
+    /// The whole bph the offset is taken from is the one the text writes,
+    /// ties to even as `fixed_text` rounds them.
+    #[test]
+    fn the_whole_beat_rate_is_the_one_its_text_writes() {
+        for bph in [17_569.5, 17_570.5, 17_570.49, 21_600.51, 18_000.0] {
+            let m = MeasuredRate { bph, se: None };
+            assert_eq!(
+                crate::figure_text::fixed_text(bph, 0),
+                format!("{}", m.whole()),
+                "{bph}"
+            );
+        }
+    }
+
+    /// Its JSON keys are Max's (#2224): `bph_measured`, unrounded, and
+    /// `bph_measured_se`, null with no ±; written into a document whole.
+    #[test]
+    fn the_beat_rate_heard_writes_its_two_keys() {
+        let m = MeasuredRate {
+            bph: 17_570.25,
+            se: None,
+        };
+        let mut doc = serde_json::json!({ "bph": 18_000 });
+        m.write_into(&mut doc);
+        assert_eq!(
+            doc,
+            serde_json::json!({ "bph": 18_000, "bph_measured": 17_570.25, "bph_measured_se": null })
         );
     }
 }

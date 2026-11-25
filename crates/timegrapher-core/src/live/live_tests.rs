@@ -1955,3 +1955,34 @@ fn the_watch_verdict_looks_back_past_a_mask() {
     );
     assert!(watch.rate_s_per_day.is_some());
 }
+
+/// A balance beating 17,570 heard live against a set 18,000 (#2223):
+/// the live reading's beat rate heard is its rate's own, 17570 at its
+/// place and 430 bph slow of the set rate.
+#[test]
+fn a_live_reading_gives_the_beat_rate_heard() {
+    let audio = generate(
+        &SynthConfig {
+            duration_s: 30.0,
+            bph: 17_570,
+            rate_s_per_day: 0.0,
+            ..Default::default()
+        },
+        |_| 280.0,
+        |_| 0.0,
+    );
+    let mut cfg = LiveConfig::default();
+    cfg.analysis.bph = Some(18_000);
+    let mut a = LiveAnalyzer::new(audio.sample_rate, cfg);
+    feed(&mut a, &audio.samples);
+    let r = a.reading(10.0);
+    let m = r.measured().unwrap();
+    assert_eq!(
+        m,
+        timing::MeasuredRate::of(18_000, r.rate_s_per_day, r.rate_error_s_per_day).unwrap()
+    );
+    assert_eq!((m.whole(), m.offset_from(18_000)), (17_570.0, -430.0));
+    // No rate, as before a watch is heard: none.
+    let quiet = LiveAnalyzer::new(48_000, LiveConfig::default()).reading(10.0);
+    assert_eq!(quiet.measured(), None);
+}
