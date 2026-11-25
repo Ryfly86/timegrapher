@@ -1634,11 +1634,12 @@ mod tests {
     /// The calibre pages credit this project, not a person, for its own
     /// counts and rulings (#2294 item 9). The names live only here: no
     /// row's text (sources, notes, wheel basis, summary, issues, related)
-    /// may name the owner. Whole words only, so the repository address
+    /// may name the owner, and no pronoun stands in for a removed name
+    /// (Norm, #2296). Whole words only, so the repository address
     /// `github.com/peterhudson/...` still passes.
     #[test]
     fn no_row_names_the_owner_as_a_person() {
-        const NAMES: [&str; 2] = ["peter", "hudson"];
+        const NAMES: [&str; 6] = ["peter", "hudson", "he", "his", "him", "himself"];
         fn texts<'a>(v: &'a serde_json::Value, out: &mut Vec<&'a str>) {
             match v {
                 serde_json::Value::String(s) => out.push(s),

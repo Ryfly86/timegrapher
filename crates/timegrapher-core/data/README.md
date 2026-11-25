@@ -180,7 +180,7 @@ keep no lift angle. The movement photo URLs are kept in
 docs/research/peacock-movement-photos.json; the photos are Peacock's
 and are not copied here.
 
-This project's RWI list of which Jinghe calibres are likely clones of
+An RWI forum post's list of which Jinghe calibres are likely clones of
 which movements is quoted word for word, with its link, in the notes of
 the rows it names (the Jinghe JH6203, JH7152, JH7155, JH7156 and JH7301,
 and the VR3130, VR3135, VR3187, VR3235, VR3285 and SH4130). It
