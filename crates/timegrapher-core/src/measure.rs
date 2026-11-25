@@ -2325,6 +2325,12 @@ mod tests {
             "No regular beat found (neither the Tick's nor the Tock's sound shows an unlock \
              or a drop)"
         );
+        // Hugh on #2257: the whole sentence, its length from the window.
+        assert_eq!(
+            no_watch_text(NoWatchReason::TooShort, None, Some(28800)),
+            "No regular beat found (the beats were regular, but no run of them lasted the \
+             10 s a reading needs)"
+        );
     }
 
     #[test]
