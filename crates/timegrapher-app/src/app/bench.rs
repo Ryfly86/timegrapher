@@ -18,4 +18,7 @@ pub(super) struct Bench {
     /// Keeping and saving the take on show: kept sounds, Keep in a
     /// Watch…, saves under way, opening and the crash note.
     pub(super) keeping: keeping::Keeping,
+    /// The recording on this bench: the input and its meter, listening,
+    /// the live analyser, the file read and the input's clock.
+    pub(super) recording: recording::Recording,
 }

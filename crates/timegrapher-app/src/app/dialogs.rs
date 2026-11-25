@@ -186,7 +186,7 @@ impl TimegrapherApp {
                 let w = ui.available_width();
                 self.level_control(ui, w);
             });
-            if self.recording.meter.agc_read.is_some() {
+            if self.bench.recording.meter.agc_read.is_some() {
                 sheet_field(ui, "Automatic Gain", AGC_HINT, |ui| {
                     ui.horizontal_top(|ui| {
                         self.agc_control(ui);
@@ -237,7 +237,7 @@ impl TimegrapherApp {
             self.quick_listen(true);
         }
         self.refresh_gain();
-        let before = self.recording.device.clone();
+        let before = self.bench.recording.device.clone();
         let (mut done, mut later) = (false, false);
         let modal = theme::sheet(egui::Id::new("set up the microphone")).show(ctx, |ui| {
             ui.set_width(SHEET_W);
@@ -250,7 +250,12 @@ impl TimegrapherApp {
                 self.device_menu(ui, ui.available_width(), false);
                 let hint =
                     "List every device the system offers in the microphone menu, with its id";
-                theme::switch_row(ui, "Show Every Input", &mut self.recording.all_inputs, hint);
+                theme::switch_row(
+                    ui,
+                    "Show Every Input",
+                    &mut self.bench.recording.all_inputs,
+                    hint,
+                );
             });
             ui.add_space(4.0);
             sheet_step(ui, 2, "Put a ticking watch on it");
@@ -281,7 +286,7 @@ impl TimegrapherApp {
             later = true;
         }
         match sheet_pick(
-            self.recording.device != before,
+            self.bench.recording.device != before,
             self.running(),
             self.session.mic(),
         ) {
@@ -317,7 +322,7 @@ impl TimegrapherApp {
         let pal = theme::pal(ui);
         let failure = match &self.message {
             Some((m, true)) => Some(m.clone()),
-            _ => self.recording.meter.gain_error.clone(),
+            _ => self.bench.recording.meter.gain_error.clone(),
         };
         let listening = self.running() && self.session.mic();
         let w = ui.available_width();
@@ -648,7 +653,7 @@ impl TimegrapherApp {
     }
 
     pub(super) fn poll_updates(&mut self, ctx: &egui::Context) {
-        if std::mem::take(&mut self.recording.check_pending) {
+        if std::mem::take(&mut self.bench.recording.check_pending) {
             self.updates.start(ctx, false);
         }
         let message = self.updates.poll();
@@ -761,8 +766,8 @@ impl TimegrapherApp {
         });
         if open {
             self.bench.keeping.kept.remove(0);
-            self.recording.input = Input::File;
-            self.recording.file_path = k.dir.display().to_string();
+            self.bench.recording.input = Input::File;
+            self.bench.recording.file_path = k.dir.display().to_string();
             self.open_recording(&k.dir, true);
         } else if move_to {
             let title = format!("Move the Unsaved {} Into a Folder", k.what_title());
@@ -818,8 +823,8 @@ impl TimegrapherApp {
         });
         if open {
             self.bench.keeping.kept.remove(0);
-            self.recording.input = Input::File;
-            self.recording.file_path = to.display().to_string();
+            self.bench.recording.input = Input::File;
+            self.bench.recording.file_path = to.display().to_string();
             self.open_recording(to, true);
         } else if delete {
             self.bench.keeping.kept_delete_ask = Some(k.dir.clone());

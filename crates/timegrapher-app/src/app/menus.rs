@@ -116,7 +116,7 @@ impl TimegrapherApp {
             MenuCommand::Save => self.marks_unsaved() || (can_save && !saving && !self.streams()),
             MenuCommand::SaveAs => can_save && self.session.saved_to().is_some() && !saving,
             MenuCommand::SaveAnalysisOnly => self.can_save_analysis(),
-            MenuCommand::NewSession => self.recording.live.is_some(),
+            MenuCommand::NewSession => self.bench.recording.live.is_some(),
             MenuCommand::RemoveMasks => !self.bench.take.masked.is_empty(),
             // The panes are the Bench's: dimmed in Watches.
             MenuCommand::Readings

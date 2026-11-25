@@ -227,7 +227,7 @@ impl TimegrapherApp {
         if let Some(s) = self.stopped_take() {
             return Some(s.live.duration_s());
         }
-        let live = self.recording.live.as_ref()?;
+        let live = self.bench.recording.live.as_ref()?;
         self.bench
             .take
             .take_breaks
@@ -279,7 +279,9 @@ impl TimegrapherApp {
             return None;
         }
         let stopped = self.stopped_take();
-        let live = stopped.map(|s| &s.live).or(self.recording.live.as_ref())?;
+        let live = stopped
+            .map(|s| &s.live)
+            .or(self.bench.recording.live.as_ref())?;
         let end = self
             .opened_end_s()
             .unwrap_or_else(|| self.last_heard_s().min(live.duration_s()));
@@ -314,7 +316,7 @@ impl TimegrapherApp {
     /// [`Self::whole_read`]), with what it reads copied in, ready to run
     /// here or in the background.
     fn whole_reader(&self, spans: Vec<(f64, f64)>) -> WholeRead {
-        let ppm = self.recording.clock.as_ref().map(|c| c.ppm);
+        let ppm = self.bench.recording.clock.as_ref().map(|c| c.ppm);
         let lift_known = self.lift_known();
         // Just stopped: the take as its saved take opens (#2151).
         let (opened, log, masks, take_clock, take_breaks, unlisted) = match self.stopped_take() {
@@ -328,7 +330,7 @@ impl TimegrapherApp {
             ),
             None => (
                 self.bench.take.take_breaks.is_some(),
-                self.recording.live.as_ref().and_then(steady::log_of),
+                self.bench.recording.live.as_ref().and_then(steady::log_of),
                 self.bench.take.masked.clone(),
                 self.bench.take.take_clock.clone(),
                 self.bench.take.take_breaks.clone(),
@@ -394,7 +396,7 @@ impl TimegrapherApp {
     /// position, every second. None until it has 10 s.
     pub(super) fn guided_live(&self, ctx: &egui::Context) -> Option<guided::FreeCell> {
         let t = self.bench.test.guided.as_ref()?;
-        let now = self.recording.live.as_ref()?.duration_s();
+        let now = self.bench.recording.live.as_ref()?.duration_s();
         let &(from, to) = t.measured(now).get(t.stretches().len())?;
         let p = core_session::Position::parse(t.position().code())?;
         let table = self.table_of(ctx, vec![(p, from, to)], false)?;
@@ -413,7 +415,7 @@ impl TimegrapherApp {
         stretches: Vec<(core_session::Position, f64, f64)>,
         later: bool,
     ) -> Option<guided::FreeTable> {
-        let live = self.recording.live.as_ref()?;
+        let live = self.bench.recording.live.as_ref()?;
         let latest = self.latest_s();
         let running = self.running();
         // A take on show reads to the end of its sound, as `timegrapher
@@ -477,7 +479,7 @@ impl TimegrapherApp {
         let (take_clock, opened, ppm) = (
             self.bench.take.take_clock.clone(),
             self.bench.take.take_breaks.clone(),
-            self.recording.clock.as_ref().map(|c| c.ppm),
+            self.bench.recording.clock.as_ref().map(|c| c.ppm),
         );
         let bph_set = live.config().analysis.bph;
         let read = move |log: BeatLog| {
@@ -521,7 +523,7 @@ impl TimegrapherApp {
     /// the new footing already and are kept after it.
     pub(super) fn refresh_trend_shown(&mut self, ctx: &egui::Context) {
         let key: TrendKey = (self.bench.take.rev, self.bench.take.average_s.to_bits());
-        if self.recording.live.is_none() {
+        if self.bench.recording.live.is_none() {
             self.bench.results.bg.trend = None;
             self.refresh_trend();
             return;
@@ -541,7 +543,7 @@ impl TimegrapherApp {
             self.bench.results.bg.trend = None;
         }
         let Some(job) = &self.bench.results.bg.trend else {
-            let (live, average_s) = (self.recording.live.clone(), self.bench.take.average_s);
+            let (live, average_s) = (self.bench.recording.live.clone(), self.bench.take.average_s);
             self.bench.results.bg.trend = Some(Job::start(key, ctx, move || {
                 live.map_or_else(
                     || (Vec::new(), 0.0),
@@ -642,7 +644,12 @@ impl TimegrapherApp {
                 Err(false) => self.bench.results.bg.reserve_live = None,
             }
         }
-        let now = self.recording.live.as_ref().map_or(0.0, |l| l.duration_s());
+        let now = self
+            .bench
+            .recording
+            .live
+            .as_ref()
+            .map_or(0.0, |l| l.duration_s());
         if now < power_reserve::LONG_TAKE_S
             || (0.0..power_reserve::READ_AGAIN_S)
                 .contains(&(now - self.bench.results.bg.reserve_live_s))

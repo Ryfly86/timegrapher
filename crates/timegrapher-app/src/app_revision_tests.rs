@@ -55,6 +55,7 @@ fn a_takes_clock_log_corrects_its_rates() {
         };
         let ppm = app.bench.take.take_clock.as_ref().map(|f| f.ppm);
         let card = app
+            .bench
             .recording
             .live
             .as_ref()
@@ -127,6 +128,7 @@ fn a_loose_clock_log_corrects_nothing_and_says_why() {
         std::fs::write(base.join(MANIFEST), manifest(clock)).unwrap();
         let app = reopened(&base);
         let card = app
+            .bench
             .recording
             .live
             .as_ref()
@@ -206,11 +208,11 @@ fn an_analysis_only_take_reads_its_own_clock() {
     assert!((ppm(&app).expect("a's log") + 50.0).abs() < 1.0);
     app.start_batch(&b);
     let t = Instant::now();
-    while app.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
+    while app.bench.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
         app.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    assert!(app.recording.live.is_some(), "{:?}", app.message);
+    assert!(app.bench.recording.live.is_some(), "{:?}", app.message);
     assert!(
         (ppm(&app).expect("b's own log") + 10.0).abs() < 1.0,
         "{:?}",
@@ -270,7 +272,8 @@ fn a_takes_usb_lines_set_its_rate() {
         .unwrap();
     }
     let card = |app: &TimegrapherApp| {
-        app.recording
+        app.bench
+            .recording
             .live
             .as_ref()
             .unwrap()
@@ -518,7 +521,7 @@ fn every_pane_follows_the_lift_the_clock_and_the_masks() {
     let names = ["whole take", "charts", "Positions table", "steadiness"];
     let mut before = panes(&mut app, &ctx);
     let lift = app.bench.take.lift_deg + 10.0;
-    let duration = app.recording.live.as_ref().unwrap().duration_s();
+    let duration = app.bench.recording.live.as_ref().unwrap().duration_s();
     let changes: [Change; 3] = [
         ("lift", Box::new(move |app| app.set_lift(lift))),
         (

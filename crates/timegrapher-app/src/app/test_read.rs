@@ -243,7 +243,12 @@ impl TimegrapherApp {
     /// own seconds; none with no test, or nothing yet in the sound.
     pub(super) fn test_marks(&self) -> Option<TestMarks> {
         let t = self.bench.test.guided.as_ref()?;
-        let now = self.recording.live.as_ref().map_or(0.0, |l| l.duration_s());
+        let now = self
+            .bench
+            .recording
+            .live
+            .as_ref()
+            .map_or(0.0, |l| l.duration_s());
         let audio = |a: f64, b: f64| -> Option<(f64, f64)> {
             let (a, b) = (self.session.audio_of(a)?, self.session.audio_of(b)?);
             (b > a).then_some((a, b))

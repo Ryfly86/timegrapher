@@ -49,7 +49,7 @@ impl TimegrapherApp {
         }
         // A test is never Quick Listen: its sound is saved or asked about,
         // not let go, even when it follows Quick Listen or runs on from it.
-        self.recording.quick_listen = false;
+        self.bench.recording.quick_listen = false;
         // Whether this Start begins the take, or runs on in one listening.
         let fresh = !self.running() && !self.can_resume();
         if !self.running() {
@@ -102,7 +102,12 @@ impl TimegrapherApp {
     /// measured, as its natural end does.
     pub(super) fn stop_test(&mut self) {
         self.bench.test.stop_test_ask = false;
-        let now = self.recording.live.as_ref().map_or(0.0, |l| l.duration_s());
+        let now = self
+            .bench
+            .recording
+            .live
+            .as_ref()
+            .map_or(0.0, |l| l.duration_s());
         if self.reserve_running() {
             if let Some(t) = self.bench.test.reserve.as_mut() {
                 t.stop();
@@ -189,7 +194,7 @@ impl TimegrapherApp {
     /// or not: read each position as it is measured, and keep what the
     /// strip marks.
     pub(super) fn guided_tick(&mut self, ctx: &egui::Context) {
-        let Some(now) = self.recording.live.as_ref().map(|l| l.duration_s()) else {
+        let Some(now) = self.bench.recording.live.as_ref().map(|l| l.duration_s()) else {
             return;
         };
         let Some(test) = self.bench.test.guided.as_mut() else {
@@ -197,10 +202,11 @@ impl TimegrapherApp {
         };
         let phase = test.tick(now);
         if test.needs_reading() {
-            if let Some(log) = self.recording.live.as_ref().and_then(steady::log_of) {
+            if let Some(log) = self.bench.recording.live.as_ref().and_then(steady::log_of) {
                 let clock = self.reading_clock(log.duration_s);
                 if let Some(test) = self.bench.test.guided.as_mut() {
                     test.bph_set = self
+                        .bench
                         .recording
                         .live
                         .as_ref()
@@ -246,10 +252,11 @@ impl TimegrapherApp {
         } else {
             test.stop(now);
         }
-        match self.recording.live.as_ref().and_then(steady::log_of) {
+        match self.bench.recording.live.as_ref().and_then(steady::log_of) {
             Some(log) => {
                 let clock = self.reading_clock(log.duration_s);
                 test.bph_set = self
+                    .bench
                     .recording
                     .live
                     .as_ref()
@@ -283,7 +290,7 @@ impl TimegrapherApp {
                 .bench
                 .take
                 .bph
-                .or(self.recording.live.as_ref().and_then(|l| l.bph())),
+                .or(self.bench.recording.live.as_ref().and_then(|l| l.bph())),
             lift_angle_deg: self.bench.take.lift_deg,
         }
     }
@@ -723,7 +730,7 @@ impl TimegrapherApp {
 
     pub(super) fn positions_pane(&mut self, ui: &mut egui::Ui) {
         self.bench.panes_view.results_rects[0] = Some(ui.max_rect());
-        let now = self.recording.live.as_ref().map(|l| l.duration_s());
+        let now = self.bench.recording.live.as_ref().map(|l| l.duration_s());
         // A Dynamic Poise test is its own pane's: this one shows only how
         // the Positions Test runs.
         let ours = |t: &guided::Test| t.kind == guided::Kind::Positions;

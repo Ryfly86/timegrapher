@@ -172,13 +172,13 @@ fn every_pane_is_whole_on_the_start_screen() {
     for size in SIZES {
         // Not listed yet: the menu names the id kept from last time.
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-        app.recording.devices_listed = false;
-        app.recording.device = Some(mac_devices()[0].id.clone());
+        app.bench.recording.devices_listed = false;
+        app.bench.recording.device = Some(mac_devices()[0].id.clone());
         wrong.extend(check(&mut app, &ctx, size, "start, microphones not listed"));
 
         let mut app = TimegrapherApp::with_devices(mac_devices(), None);
         wrong.extend(check(&mut app, &ctx, size, "start, microphones listed"));
-        app.recording.all_inputs = true;
+        app.bench.recording.all_inputs = true;
         wrong.extend(check(&mut app, &ctx, size, "start, Show Every Input"));
     }
     assert!(wrong.is_empty(), "\n{}", wrong.join("\n"));
@@ -196,7 +196,7 @@ fn every_pane_is_whole_during_a_take() {
     let mut quiet = TimegrapherApp::with_devices(mac_devices(), None);
     quiet.reset_session(48000, "syn".into());
     // Fifteen seconds of room noise, with no watch on the microphone.
-    let live = quiet.recording.live.as_mut().unwrap();
+    let live = quiet.bench.recording.live.as_mut().unwrap();
     let mut seed = 1u32;
     for _ in 0..750 {
         let block: Vec<f32> = (0..960)
@@ -221,7 +221,7 @@ fn every_pane_is_whole_during_a_take() {
         |_| 280.0,
         |_| 0.0,
     );
-    let live = ticking.recording.live.as_mut().unwrap();
+    let live = ticking.bench.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         if live.push(b) {
             let r = live.reading(ticking.bench.take.average_s);
@@ -267,11 +267,11 @@ fn every_pane_is_whole_with_a_recording_opened() {
     let mut app = TimegrapherApp::with_devices(mac_devices(), None);
     app.start_batch(&path);
     let t = std::time::Instant::now();
-    while app.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
+    while app.bench.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
         app.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    assert!(app.recording.live.is_some(), "{:?}", app.message);
+    assert!(app.bench.recording.live.is_some(), "{:?}", app.message);
     let mut wrong = Vec::new();
     for size in SIZES {
         wrong.extend(check(&mut app, &ctx, size, "a recording opened"));
@@ -340,7 +340,7 @@ fn the_set_up_the_microphone_sheet_holds_long_microphone_names() {
     for size in SIZES {
         for all in [false, true] {
             let mut app = TimegrapherApp::with_devices(mac_devices(), None);
-            app.recording.all_inputs = all;
+            app.bench.recording.all_inputs = all;
             app.setup_sheet = true;
             // Already tried: a test never opens an input.
             app.setup_tried = true;
@@ -431,7 +431,7 @@ fn every_toolbar_keeps_to_one_row_and_folds_only_when_narrow() {
         |_| 280.0,
         |_| 0.0,
     );
-    let live = app.recording.live.as_mut().unwrap();
+    let live = app.bench.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         if live.push(b) {
             let r = live.reading(app.bench.take.average_s);
@@ -1206,7 +1206,7 @@ fn ticking(seconds: f64) -> TimegrapherApp {
         |_| 280.0,
         |_| 0.0,
     );
-    let live = app.recording.live.as_mut().unwrap();
+    let live = app.bench.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         if live.push(b) {
             let r = live.reading(app.bench.take.average_s);

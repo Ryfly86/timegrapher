@@ -426,15 +426,15 @@ fn picking_on_the_watch_line_over_a_take_shows_the_watch_picked() {
             |_| 280.0,
             |_| 0.0,
         );
-        let live = app.recording.live.as_mut().unwrap();
+        let live = app.bench.recording.live.as_mut().unwrap();
         for b in audio.samples.chunks(960) {
             live.push(b);
         }
-        assert!(app.recording.live.is_some() && !app.running());
+        assert!(app.bench.recording.live.is_some() && !app.running());
     };
     on_show(&mut app);
     app.line_pick(Some(watch_id(&app, "Pepsi")), false);
-    assert!(app.recording.live.is_none(), "the take is put away");
+    assert!(app.bench.recording.live.is_none(), "the take is put away");
     assert_eq!(app.bench.take.calibre, c.calibre);
     assert_eq!(app.bench.take.lift_deg, c.lift_angle_deg.unwrap());
     assert_eq!(app.bench.take.bph, c.bph);
@@ -445,7 +445,7 @@ fn picking_on_the_watch_line_over_a_take_shows_the_watch_picked() {
     assert!(app.watch_sets_here());
     on_show(&mut app);
     app.line_pick(None, false);
-    assert!(app.open_watch().is_none() && app.recording.live.is_none());
+    assert!(app.open_watch().is_none() && app.bench.recording.live.is_none());
     assert_eq!(
         (app.bench.take.lift_deg, app.bench.take.bph),
         (DEFAULT_LIFT_DEG, None)
@@ -482,7 +482,7 @@ fn the_status_bar_names_no_watch_quick_listen_however_it_was_reached() {
 fn the_watch_line_asks_before_putting_away_unsaved_sound() {
     let (mut app, base) = line_app("ask", &["Pepsi"], None);
     let pepsi = watch_id(&app, "Pepsi");
-    app.recording.quick_listen = true;
+    app.bench.recording.quick_listen = true;
     app.session.listen();
     let info = app.info("", 48000, 16);
     let mut r = Recorder::start(&base.join("unsaved"), info).unwrap();
@@ -698,7 +698,7 @@ fn a_take_of_a_watch_asks_about_quick_listens_sound() {
     app.session.set_state(session::State::Paused {
         since: Instant::now(),
     });
-    app.recording.quick_listen = true;
+    app.bench.recording.quick_listen = true;
     app.pick_watch(&pepsi);
     assert!(app.quick_unsaved(), "picking keeps the readings on show");
     // New Watch… then Add Watch picks the watch it adds.
@@ -761,7 +761,7 @@ fn quick_listen_sound_goes_without_asking() {
     app.session.set_state(session::State::Paused {
         since: Instant::now(),
     });
-    app.recording.quick_listen = true;
+    app.bench.recording.quick_listen = true;
     assert!(app.unsaved_s() > 5.0);
     assert!(!app.needs_save_confirmation());
     eframe::App::on_exit(&mut app, None);
@@ -907,7 +907,7 @@ fn noisy_app() -> TimegrapherApp {
             (seed >> 8) as f32 / (1 << 24) as f32 * 0.02 - 0.01
         })
         .collect();
-    let live = noise.recording.live.as_mut().unwrap();
+    let live = noise.bench.recording.live.as_mut().unwrap();
     for b in hiss.chunks(960) {
         live.push(b);
     }
@@ -1100,7 +1100,7 @@ fn a_refused_pick_is_not_still_said_once_a_pick_works() {
     // Readings on show, as after a Quick Listen stopped.
     let mut app = synthetic(2.0, 0.0);
     app.use_library(Some(root));
-    assert!(app.recording.live.is_some());
+    assert!(app.bench.recording.live.is_some());
     // A take of the microphone's, not one opened from a folder.
     app.bench.keeping.opened_path.clear();
     let said = |app: &TimegrapherApp| app.message.as_ref().map(|(m, _)| m.clone());
@@ -1121,7 +1121,7 @@ fn a_refused_pick_is_not_still_said_once_a_pick_works() {
         };
         pick(&mut app);
         assert_eq!(said(&app).as_deref(), Some(words));
-        app.recording.capture = None;
+        app.bench.recording.capture = None;
         pick(&mut app);
         assert_eq!(said(&app), None, "the refusal no longer stands");
     }
@@ -1136,7 +1136,7 @@ fn a_refused_pick_is_not_still_said_once_a_pick_works() {
             app.pick_watch(&pepsi);
         }
         assert!(said(&app).is_some_and(|m| m.starts_with("Stop listening before picking")));
-        app.recording.capture = None;
+        app.bench.recording.capture = None;
         if watch_after {
             app.pick_watch(&pepsi);
         } else {

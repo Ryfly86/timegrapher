@@ -1627,16 +1627,13 @@ pub struct TimegrapherApp {
     watches_view: watches_view::WatchesView,
     /// The bench: the take on show, recorded, read, tested, drawn and kept.
     bench: bench::Bench,
-    /// The recording on this bench: the input and its meter, listening,
-    /// the live analyser, the file read and the input's clock.
-    recording: recording::Recording,
 }
 
 impl TimegrapherApp {
     pub fn new(file: Option<PathBuf>, saved: Option<Settings>) -> Self {
         // No device is touched at launch: see `devices_listed`.
         let mut app = Self::with_devices(Vec::new(), file);
-        app.recording.devices_listed = false;
+        app.bench.recording.devices_listed = false;
         app.cal = calibre_ui::Calibres::open(timegrapher_core::calibre_store::default_path());
         if let Some(s) = saved {
             app.apply_settings(s);
@@ -1646,7 +1643,7 @@ impl TimegrapherApp {
         app.bench.keeping.kept = kept_sounds(&scratch_dir());
         app.read_library();
         app.keep_saved_wavs();
-        app.recording.check_pending = app.check_at_start;
+        app.bench.recording.check_pending = app.check_at_start;
         app
     }
 
@@ -1654,8 +1651,8 @@ impl TimegrapherApp {
     /// time it asks which microphone first. A recording asked for opens
     /// instead.
     fn at_launch(&mut self) {
-        if self.recording.input != Input::File {
-            self.recording.listen_pending = self.mic_set_up && self.listen_at_open;
+        if self.bench.recording.input != Input::File {
+            self.bench.recording.listen_pending = self.mic_set_up && self.listen_at_open;
             self.setup_sheet = !self.mic_set_up && !self.setup_declined;
         }
     }
@@ -1663,7 +1660,7 @@ impl TimegrapherApp {
     /// The views and choices kept from the last time the app ran.
     pub fn settings(&self) -> Settings {
         Settings {
-            device: self.recording.device.clone(),
+            device: self.bench.recording.device.clone(),
             average_s: self.bench.take.average_s,
             strip: self.live_view(),
             rate_line: self.live_rate_marks()[0],
@@ -1850,12 +1847,12 @@ impl TimegrapherApp {
     /// when they are listed.
     fn restore_device(&mut self, device: Option<String>) {
         if let Some(d) = device.filter(|d| {
-            !self.recording.devices_listed
-                || capture::choices(&self.recording.devices)
+            !self.bench.recording.devices_listed
+                || capture::choices(&self.bench.recording.devices)
                     .iter()
                     .any(|c| &c.id == d)
         }) {
-            self.recording.device = Some(d);
+            self.bench.recording.device = Some(d);
         }
     }
 
@@ -1880,20 +1877,20 @@ impl TimegrapherApp {
                 results: results::Results::default(),
                 take: take_settings::TakeSettings::default(),
                 keeping: keeping::Keeping::default(),
-            },
-            recording: recording::Recording {
-                input: if file.is_some() {
-                    Input::File
-                } else {
-                    Input::Microphone
+                recording: recording::Recording {
+                    input: if file.is_some() {
+                        Input::File
+                    } else {
+                        Input::Microphone
+                    },
+                    devices,
+                    device,
+                    file_path: file
+                        .as_ref()
+                        .map(|p| p.display().to_string())
+                        .unwrap_or_default(),
+                    ..Default::default()
                 },
-                devices,
-                device,
-                file_path: file
-                    .as_ref()
-                    .map(|p| p.display().to_string())
-                    .unwrap_or_default(),
-                ..Default::default()
             },
             session: Session::default(),
             report: ReportDialog::default(),
@@ -1931,7 +1928,7 @@ impl TimegrapherApp {
     }
 
     pub(crate) fn running(&self) -> bool {
-        self.recording.capture.is_some()
+        self.bench.recording.capture.is_some()
     }
 
     /// Whether to hold the computer awake now: listening to the
@@ -1942,13 +1939,18 @@ impl TimegrapherApp {
 
     /// Seconds of sound heard so far in this session, for the log.
     pub(crate) fn heard_s(&self) -> f64 {
-        self.recording.live.as_ref().map_or(0.0, |l| l.duration_s())
+        self.bench
+            .recording
+            .live
+            .as_ref()
+            .map_or(0.0, |l| l.duration_s())
     }
 
     /// Work the charts out again over the whole session, for a new
     /// averaging time or lift angle.
     fn rebuild_trend(&mut self) {
         let points = self
+            .bench
             .recording
             .live
             .as_ref()
@@ -1980,27 +1982,31 @@ impl TimegrapherApp {
     /// points are read again, a run being read in the background on the old one dropped, and
     /// the strip's anchor moves with the beats, so the view stays. A given-up rebuild is logged.
     fn follow_rebuild(&mut self) {
-        let Some(live) = &self.recording.live else {
+        let Some(live) = &self.bench.recording.live else {
             return;
         };
         let now = (live.template_switch_s(), live.template_rebuild_given_up());
-        if now.0 != self.recording.rebuild_seen.0 {
+        if now.0 != self.bench.recording.rebuild_seen.0 {
             self.bench.results.bg.trend = None;
             self.bench.results.trend = live.trend(self.bench.take.average_s);
             if let (Some(a), Some((dt, di))) =
-                (self.recording.anchor.as_mut(), live.template_shift())
+                (self.bench.recording.anchor.as_mut(), live.template_shift())
             {
                 (a.time, a.index) = (a.time + dt, a.index + di);
             }
         }
-        if let Some(why) = now.1.filter(|_| now.1 != self.recording.rebuild_seen.1) {
+        if let Some(why) = now
+            .1
+            .filter(|_| now.1 != self.bench.recording.rebuild_seen.1)
+        {
             applog::info(&format!("Live kept its first beat template: {why}"));
         }
-        self.recording.rebuild_seen = now;
+        self.bench.recording.rebuild_seen = now;
     }
 
     fn latest_s(&self) -> f64 {
-        self.recording
+        self.bench
+            .recording
             .live
             .as_ref()
             .map_or(0.0, |l| l.beats().last().map_or(l.duration_s(), |b| b.time))
@@ -2032,7 +2038,7 @@ impl TimegrapherApp {
 
     /// The newest reading, averaged over `average` seconds.
     fn reading_over(&self, average: f64) -> Option<LiveReading> {
-        let live = self.recording.live.as_ref()?;
+        let live = self.bench.recording.live.as_ref()?;
         // Stopped inside a settle: the last readings of the position before
         // the move, rather than nothing.
         if let Some(at) = self.stopped_in_settle() {
@@ -2056,7 +2062,7 @@ impl TimegrapherApp {
     /// while the watch settles. The reading cards show it at the strip's
     /// newest edge when the strip is moved off the newest beats.
     fn reading_at_time(&self, t: f64) -> Option<LiveReading> {
-        let live = self.recording.live.as_ref()?;
+        let live = self.bench.recording.live.as_ref()?;
         if self.settle_left_at(t).is_some() {
             return None;
         }
@@ -2069,7 +2075,7 @@ impl TimegrapherApp {
     /// Put the beats just before the strip's newest edge on the centre line.
     fn centre(&mut self) {
         let end = self.strip_end_s();
-        if let Some(l) = &self.recording.live {
+        if let Some(l) = &self.bench.recording.live {
             if let Some(bph) = l.bph() {
                 let beats = l.beats();
                 let breaks = self.bench.take.take_breaks.as_deref().unwrap_or_default();
@@ -2078,7 +2084,7 @@ impl TimegrapherApp {
                 if let Some(a) =
                     Anchor::centre_on_true(&beats[..hi], 3600.0 / bph as f64, 8, breaks, clock)
                 {
-                    self.recording.anchor = Some(a);
+                    self.bench.recording.anchor = Some(a);
                 }
             }
         }
@@ -2086,8 +2092,9 @@ impl TimegrapherApp {
 
     /// The inputs the device menu offers.
     fn input_choices(&self) -> Vec<capture::InputChoice> {
-        if self.recording.all_inputs {
-            self.recording
+        if self.bench.recording.all_inputs {
+            self.bench
+                .recording
                 .devices
                 .iter()
                 .map(|d| capture::InputChoice {
@@ -2098,7 +2105,7 @@ impl TimegrapherApp {
                 })
                 .collect()
         } else {
-            capture::choices(&self.recording.devices)
+            capture::choices(&self.bench.recording.devices)
         }
     }
 
@@ -2150,12 +2157,12 @@ impl TimegrapherApp {
 
     /// The microphone picked, as its menu names it.
     fn picked_label(&self) -> String {
-        let listed = self.recording.devices_listed;
+        let listed = self.bench.recording.devices_listed;
         self.input_choices()
             .iter()
-            .find(|c| Some(&c.id) == self.recording.device.as_ref())
+            .find(|c| Some(&c.id) == self.bench.recording.device.as_ref())
             .map_or_else(
-                || match (&self.recording.device, listed) {
+                || match (&self.bench.recording.device, listed) {
                     // Not listed yet: name the one kept from last time, when
                     // its id is a name (ALSA's are; Core Audio's and
                     // WASAPI's are not).
@@ -2174,7 +2181,7 @@ impl TimegrapherApp {
     /// for it cut in the middle where `middle`, else at its end.
     fn device_menu(&mut self, ui: &mut egui::Ui, w: f32, middle: bool) {
         let choices = self.input_choices();
-        let listed = self.recording.devices_listed;
+        let listed = self.bench.recording.devices_listed;
         let sel = self.picked_label();
         let mut opened = false;
         let row = egui::vec2(w, ui.spacing().interact_size.y);
@@ -2220,7 +2227,7 @@ impl TimegrapherApp {
                         }
                         for c in &choices {
                             let r = ui.selectable_value(
-                                &mut self.recording.device,
+                                &mut self.bench.recording.device,
                                 Some(c.id.clone()),
                                 &c.label,
                             );
@@ -3241,7 +3248,7 @@ impl eframe::App for TimegrapherApp {
         let was_working = self.repaint_every().is_some();
         // One settling for every change of position: the pane's Settle.
         self.session.set_settle_s(self.bench.test.guided_settle_s);
-        if std::mem::take(&mut self.recording.listen_pending) && !self.running() {
+        if std::mem::take(&mut self.bench.recording.listen_pending) && !self.running() {
             self.quick_listen(false);
         }
         // A microphone that opened is one set up.
@@ -3251,8 +3258,8 @@ impl eframe::App for TimegrapherApp {
         // What the readings rest on: a calibre's lift angle and a measured
         // clock.
         let lift_known = self.lift_known();
-        let clock_known = self.recording.clock.is_some();
-        if let Some(l) = &mut self.recording.live {
+        let clock_known = self.bench.recording.clock.is_some();
+        if let Some(l) = &mut self.bench.recording.live {
             l.set_known(lift_known, clock_known);
         }
         // A file dropped on the window is opened, where the desktop passes
@@ -3265,8 +3272,8 @@ impl eframe::App for TimegrapherApp {
                 .collect()
         });
         if let Some(p) = dropped.into_iter().next() {
-            self.recording.input = Input::File;
-            self.recording.file_path = p.display().to_string();
+            self.bench.recording.input = Input::File;
+            self.bench.recording.file_path = p.display().to_string();
             self.open_recording(&p, true);
         }
 

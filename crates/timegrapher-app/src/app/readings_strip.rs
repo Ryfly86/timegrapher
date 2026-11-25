@@ -186,7 +186,13 @@ impl TimegrapherApp {
                 .max_rect(listen)
                 .layout(egui::Layout::left_to_right(egui::Align::Center)),
         );
-        let length = length_text(self.recording.live.as_ref().map_or(0.0, |l| l.duration_s()));
+        let length = length_text(
+            self.bench
+                .recording
+                .live
+                .as_ref()
+                .map_or(0.0, |l| l.duration_s()),
+        );
         let state = self.state_words();
         self.listen_go(&mut go, Some(&format!("\n\n{length} · {state}")));
         let after = go.min_rect().right() + SPACE;

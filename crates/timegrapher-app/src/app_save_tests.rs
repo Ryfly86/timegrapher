@@ -95,7 +95,7 @@ fn a_folder_of_segments_is_analysed_as_one_recording() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     // Cancelled, the analysis stops without an answer.
     app.start_batch(&dir);
-    let b = app.recording.batch.as_ref().unwrap();
+    let b = app.bench.recording.batch.as_ref().unwrap();
     assert_eq!((b.files, b.first.as_str()), (3, "seg-01.wav"));
     b.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
     let stopped = b.rx.recv_timeout(std::time::Duration::from_secs(60));
@@ -106,23 +106,23 @@ fn a_folder_of_segments_is_analysed_as_one_recording() {
         ),
         "{stopped:?}"
     );
-    app.recording.batch = None;
+    app.bench.recording.batch = None;
     app.start_batch(&dir);
     let t = Instant::now();
-    while app.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
+    while app.bench.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
         app.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    let live = app.recording.live.as_ref().expect("analysed");
+    let live = app.bench.recording.live.as_ref().expect("analysed");
     assert!(
         (live.duration_s() - 360.0).abs() < 1.0,
         "{}",
         live.duration_s()
     );
     assert!(
-        app.recording.source_label.contains("3 files"),
+        app.bench.recording.source_label.contains("3 files"),
         "{}",
-        app.recording.source_label
+        app.bench.recording.source_label
     );
     let rate = live.reading(60.0).rate_s_per_day.unwrap();
     assert!((rate - 8.0).abs() < 2.0, "rate {rate}");
@@ -207,7 +207,7 @@ fn queue_segment_open_failure(
     app: &mut TimegrapherApp,
     base: &Path,
 ) -> std::sync::mpsc::Sender<Event> {
-    let now = app.recording.live.as_ref().unwrap().duration_s();
+    let now = app.bench.recording.live.as_ref().unwrap().duration_s();
     app.session.pause(now).unwrap().unwrap();
     app.session.resume("test").unwrap();
     app.session.resumed_at(now);
@@ -249,7 +249,7 @@ fn recording_failure_stops_capture_and_retains_scratch_with_or_without_input_err
         let saved_bytes = saved_file_bytes(&saved);
         let scratch = app.session.recorder.as_ref().unwrap().dir().to_path_buf();
         let tx = queue_segment_open_failure(&mut app, &base);
-        let before = app.recording.live.as_ref().unwrap().duration_s();
+        let before = app.bench.recording.live.as_ref().unwrap().duration_s();
         if input_error {
             tx.send(Event::Error("queued input failure".into()))
                 .unwrap();
@@ -260,7 +260,10 @@ fn recording_failure_stops_capture_and_retains_scratch_with_or_without_input_err
         assert!(app.session.recorder.is_some());
         assert!(!app.can_resume());
         assert!(!app.session.allows(Action::Save));
-        assert_eq!(app.recording.live.as_ref().unwrap().duration_s(), before);
+        assert_eq!(
+            app.bench.recording.live.as_ref().unwrap().duration_s(),
+            before
+        );
         assert_eq!(app.session.recorder.as_ref().unwrap().duration_s(), 1.0);
         let fault = app.session.recording_fault().unwrap();
         assert_eq!(fault.recovery_dir, scratch);
@@ -288,10 +291,10 @@ fn recording_failure_stops_capture_and_retains_scratch_with_or_without_input_err
             "even a saved, short faulted take needs a retention warning"
         );
         // Direct methods must not reach hardware, a file dialog, or a save.
-        app.recording.devices_listed = false;
+        app.bench.recording.devices_listed = false;
         app.start_microphone();
         app.resume_microphone();
-        assert!(!app.recording.devices_listed);
+        assert!(!app.bench.recording.devices_listed);
         assert!(!app.running());
         app.save_into(&base.join("must-not-exist"));
         app.wait_for_save();
@@ -355,11 +358,11 @@ fn input_only_failure_keeps_the_existing_resume_and_save_contract() {
 fn sound_that_stops_while_listening_says_so_in_the_microphone_row() {
     let (mut app, base) = save_failure_fixture("input-fault");
     let tx = queued_capture(&mut app, &base);
-    assert!(app.recording.input_fault.is_none());
+    assert!(app.bench.recording.input_fault.is_none());
     tx.send(Event::Error("input disconnected".into())).unwrap();
     app.poll();
     assert!(!app.running());
-    let fault = app.recording.input_fault.clone().unwrap();
+    let fault = app.bench.recording.input_fault.clone().unwrap();
     assert!(fault.starts_with("Input stopped."), "{fault}");
     assert_eq!(app.message.as_ref().unwrap().0, fault);
     app.new_session();
@@ -519,7 +522,7 @@ fn saved_metadata_edits_warn_without_new_sound_and_reverts_are_clean() {
     app.save_into(&base.join("saved"));
     app.wait_for_save();
     app.session
-        .pause(app.recording.live.as_ref().unwrap().duration_s())
+        .pause(app.bench.recording.live.as_ref().unwrap().duration_s())
         .unwrap()
         .unwrap();
     assert!(!app.needs_save_confirmation());
@@ -589,7 +592,7 @@ fn failed_metadata_only_save_retains_dirty_state_and_the_saved_bytes() {
     app.wait_for_save();
     let dest = app.session.saved_to().unwrap().to_path_buf();
     app.session
-        .pause(app.recording.live.as_ref().unwrap().duration_s())
+        .pause(app.bench.recording.live.as_ref().unwrap().duration_s())
         .unwrap()
         .unwrap();
     app.bench.take.watch = "Updated watch".into();
@@ -797,7 +800,9 @@ fn sessions_keep_save_and_discard_their_sound() {
     });
     assert!(app.can_resume());
     app.new_session();
-    assert!(app.recording.live.is_none() && app.session.recorder.is_none() && !app.can_resume());
+    assert!(
+        app.bench.recording.live.is_none() && app.session.recorder.is_none() && !app.can_resume()
+    );
     assert!(!kept.exists(), "the unsaved copy is thrown away");
     assert!(
         saved.join("audio-001.wav").is_file(),
@@ -826,13 +831,13 @@ fn opening_a_recording_asks_before_unsaved_sound_goes() {
     app.session.set_state(session::State::Paused {
         since: Instant::now(),
     });
-    app.recording.input = Input::File;
+    app.bench.recording.input = Input::File;
     assert!(app.mic_session_set_aside());
     let elsewhere = base.join("other.wav");
     app.open_recording(&elsewhere, true);
     assert!(matches!(app.confirm, Some(Confirm::Open { .. })));
     assert!(app.session.recorder.is_some() && app.unsaved_s() > 19.0);
-    app.recording.input = Input::Microphone;
+    app.bench.recording.input = Input::Microphone;
     assert!(!app.mic_session_set_aside());
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -1044,9 +1049,9 @@ fn save_again_after_move_watches_saves_where_the_take_went() {
         .as_ref()
         .is_some_and(|(m, _)| m.contains("can't move while a take is being recorded")));
     drop(tx);
-    app.recording.capture = None;
+    app.bench.recording.capture = None;
     app.session
-        .pause(app.recording.live.as_ref().unwrap().duration_s())
+        .pause(app.bench.recording.live.as_ref().unwrap().duration_s())
         .unwrap()
         .unwrap();
     let to = base.join("after").join("Timegrapher Data");

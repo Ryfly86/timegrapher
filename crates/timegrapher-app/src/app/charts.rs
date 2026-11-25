@@ -40,9 +40,9 @@ impl TimegrapherApp {
     /// reading to draw: before anything is open, while a take opens, and
     /// before a take's first reading. None once there is one.
     pub(super) fn charts_waiting(&self) -> Option<&'static str> {
-        if self.recording.batch.is_some() {
+        if self.bench.recording.batch.is_some() {
             Some("Opening the take: its charts appear once it is read.")
-        } else if self.recording.live.is_none() {
+        } else if self.bench.recording.live.is_none() {
             Some("Listen to a watch or open a recording to see its readings here.")
         } else if self.bench.results.trend.is_empty() {
             Some("The charts begin with the first reading.")

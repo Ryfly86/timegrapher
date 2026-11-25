@@ -111,7 +111,8 @@ fn a_new_lift_rescales_every_amplitude() {
     let table = |app: &TimegrapherApp| app.free_table(&ctx).expect("a table").mean[1].unwrap();
     let whole = |app: &TimegrapherApp| app.whole_take().unwrap().m.amplitude_deg.unwrap();
     let profiles = |app: &TimegrapherApp| -> Vec<f64> {
-        app.recording
+        app.bench
+            .recording
             .live
             .as_ref()
             .unwrap()
@@ -314,6 +315,7 @@ fn a_new_lift_rereads_every_guided_tests_amplitudes() {
             }
         }
         let log = app
+            .bench
             .recording
             .live
             .as_ref()

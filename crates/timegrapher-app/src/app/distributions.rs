@@ -166,7 +166,7 @@ impl TimegrapherApp {
     /// overlaps a masked stretch or reaches across a break, as the
     /// readings do.
     pub(super) fn position_windows(&self) -> Vec<&timegrapher_core::amplitude::AmplitudeWindow> {
-        let Some(live) = self.recording.live.as_ref() else {
+        let Some(live) = self.bench.recording.live.as_ref() else {
             return Vec::new();
         };
         let cuts = live.cuts();
@@ -213,7 +213,7 @@ impl TimegrapherApp {
         let pal = theme::pal(ui);
         let short = !self.bench.panes_view.hist_readings;
         if reading == SeriesKind::Rate && short {
-            match self.recording.live.as_ref() {
+            match self.bench.recording.live.as_ref() {
                 Some(live) => self
                     .bench
                     .panes_view
@@ -296,7 +296,7 @@ impl TimegrapherApp {
 
     /// What `reading`'s plot is worked out from ([`PlotKey`]).
     fn plot_key(&self, reading: SeriesKind, short: bool) -> PlotKey {
-        let live = self.recording.live.as_ref();
+        let live = self.bench.recording.live.as_ref();
         PlotKey {
             reading,
             short,
@@ -420,7 +420,7 @@ impl TimegrapherApp {
         let runs = self.current_runs();
         let clock = Self::rate_clock(&self.bench.take.take_clock).cloned();
         let joined = !self.session.stretches().is_empty();
-        let Some(live) = self.recording.live.as_ref() else {
+        let Some(live) = self.bench.recording.live.as_ref() else {
             return;
         };
         let dur = steady::joined_duration(
@@ -1116,7 +1116,7 @@ mod plot_cache_tests {
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
         app.reset_session(48_000, "syn".into());
         let push = |app: &mut TimegrapherApp, s: &[f32]| {
-            let live = app.recording.live.as_mut().unwrap();
+            let live = app.bench.recording.live.as_mut().unwrap();
             for b in s.chunks(960) {
                 live.push(b);
             }
@@ -1134,10 +1134,24 @@ mod plot_cache_tests {
         let rev = app.bench.take.rev;
         // The last 10 s heard: new windows and no break, worked out again.
         push(&mut app, rest);
-        assert!(app.recording.live.as_ref().unwrap().breaks().is_empty());
+        assert!(app
+            .bench
+            .recording
+            .live
+            .as_ref()
+            .unwrap()
+            .breaks()
+            .is_empty());
         let changes: [fn(&mut TimegrapherApp); 4] = [
             |_| {},
-            |a| a.recording.live.as_mut().unwrap().set_breaks(vec![15.0]),
+            |a| {
+                a.bench
+                    .recording
+                    .live
+                    .as_mut()
+                    .unwrap()
+                    .set_breaks(vec![15.0])
+            },
             |a| {
                 let stretches = [(0.0, Position::DialUp), (20.0, Position::DialDown)];
                 a.session.load(&stretches, &[]);

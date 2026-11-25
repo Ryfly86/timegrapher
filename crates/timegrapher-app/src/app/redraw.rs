@@ -47,7 +47,7 @@ impl TimegrapherApp {
                 .recorder
                 .as_ref()
                 .is_some_and(Recorder::releasing);
-        if self.running() || self.recording.batch.is_some() {
+        if self.running() || self.bench.recording.batch.is_some() {
             Some(LIVE_EVERY)
         } else {
             working

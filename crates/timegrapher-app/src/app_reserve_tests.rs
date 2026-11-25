@@ -211,11 +211,11 @@ fn a_long_runs_charts_read_with_its_take_open_in_a_small_window() {
     }
     app.start_batch(&path);
     let t = std::time::Instant::now();
-    while app.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
+    while app.bench.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
         app.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    assert!(app.recording.live.is_some(), "{:?}", app.message);
+    assert!(app.bench.recording.live.is_some(), "{:?}", app.message);
     assert!(app.bench.test.reserve.is_some(), "{:?}", app.message);
     let mut out = None;
     let mut top = Vec::new();
@@ -773,14 +773,14 @@ fn a_power_reserve_test_over_an_opened_take_keeps_the_cards_position_and_watch()
     app.pick_watch(&id);
     // A take opened in Dial Down over listening's Dial Up.
     app.reset_session(48000, "take".into());
-    app.recording.input = Input::File;
+    app.bench.recording.input = Input::File;
     app.bench.keeping.opened_path = "/x/take.wav".into();
     app.bench.take.mic_setup = Some(WatchSetup::default());
     app.bench.take.position = Position::DialDown;
     // The test's own session, short of opening a real input.
     app.reserve_session();
     assert_eq!(app.bench.take.position, Position::DialDown);
-    assert_eq!(app.recording.input, Input::Microphone);
+    assert_eq!(app.bench.recording.input, Input::Microphone);
     // The take's own watch name gone, as after a test's Stop.
     app.bench.take.watch.clear();
     let words = app.status_words();
@@ -797,14 +797,19 @@ fn a_power_reserve_run_keeps_its_first_beat_past_the_benchs_limit() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.reset_session(48000, "syn".into());
     // The Bench's limit made small, as a day's beats are to a long run.
-    app.recording.live.as_mut().unwrap().set_max_beats(100);
+    app.bench
+        .recording
+        .live
+        .as_mut()
+        .unwrap()
+        .set_max_beats(100);
     app.begin_reserve();
     let cfg = SynthConfig {
         duration_s: 40.0,
         ..Default::default()
     };
     let audio = generate(&cfg, |_| 280.0, |_| 0.0);
-    let live = app.recording.live.as_mut().unwrap();
+    let live = app.bench.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         live.push(b);
     }
@@ -939,7 +944,7 @@ fn the_live_hours_match_a_fresh_read_after_each_refresh() {
         let ctx = egui::Context::default();
         let mut last = 0.0;
         for duration_s in [5000.0, 5060.0, 6800.0, 6860.0] {
-            app.recording.live = Some(LiveAnalyzer::from_log(
+            app.bench.recording.live = Some(LiveAnalyzer::from_log(
                 log(duration_s),
                 LiveConfig::default(),
             ));
@@ -1224,7 +1229,7 @@ fn the_window_draws_again_only_while_work_is_under_way() {
         assert_eq!(a.draw_next(true, false), Some(Duration::from_millis(500)));
     }
     let mut a = idle();
-    a.recording.batch = Some(Batch {
+    a.bench.recording.batch = Some(Batch {
         rx: channel().1,
         progress: Default::default(),
         cancel: Default::default(),
@@ -1453,7 +1458,7 @@ fn a_run_on_an_automatic_rate_keeps_its_hours_at_the_stop() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     let auto = LiveConfig::default();
     assert!(auto.analysis.bph.is_none(), "the rate on Auto");
-    app.recording.live = Some(LiveAnalyzer::new(48_000, auto));
+    app.bench.recording.live = Some(LiveAnalyzer::new(48_000, auto));
     app.bench.test.reserve = Some(reserve::Test::new(
         Position::DialUp,
         true,
@@ -1469,14 +1474,14 @@ fn a_run_on_an_automatic_rate_keeps_its_hours_at_the_stop() {
         (power_reserve::STOP_AFTER_S / 20.0) as usize + 3,
     ));
     for s in sound {
-        app.recording.live.as_mut().unwrap().push(s);
+        app.bench.recording.live.as_mut().unwrap().push(s);
         app.reserve_tick(&ctx);
         if !app.reserve_running() {
             break;
         }
     }
     assert_eq!(
-        app.recording.live.as_ref().unwrap().bph(),
+        app.bench.recording.live.as_ref().unwrap().bph(),
         None,
         "the rate let go"
     );
@@ -1503,7 +1508,7 @@ fn the_listening_thread_ends_a_power_reserve_test_without_frames() {
     };
     let ticks = generate(&cfg, |_| 280.0, |_| 0.0).samples;
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    app.recording.live = Some(LiveAnalyzer::new(48_000, LiveConfig::default()));
+    app.bench.recording.live = Some(LiveAnalyzer::new(48_000, LiveConfig::default()));
     let tx = queued_capture(&mut app, &base);
     app.bench.test.reserve = Some(reserve::Test::new(
         Position::DialUp,
@@ -1518,10 +1523,10 @@ fn the_listening_thread_ends_a_power_reserve_test_without_frames() {
         (power_reserve::STOP_AFTER_S / 20.0) as usize + 3,
     ));
     for s in sound {
-        app.recording.live.as_mut().unwrap().push(s);
+        app.bench.recording.live.as_mut().unwrap().push(s);
         // Pushed straight in, so mark it as arrived: otherwise a slow run
         // finds the input silent for 3 s and stops listening first.
-        app.recording.audio_at = Some(Instant::now());
+        app.bench.recording.audio_at = Some(Instant::now());
         // The listening thread's turn; never a frame's.
         app.pump();
         if !app.reserve_running() {
@@ -1631,7 +1636,7 @@ fn a_long_quick_listen_shows_its_run_so_far_in_the_power_reserve_pane() {
     settle(&mut app);
     assert_eq!(text(&app), so_far(&here));
     // Stopped: read once more, and kept.
-    app.recording.capture = None;
+    app.bench.recording.capture = None;
     assert!(app.bench.results.bg.reserve.is_some());
     let start = Instant::now();
     while app.bench.results.bg.reserve.is_some() {
@@ -2058,11 +2063,11 @@ fn a_test_whose_save_never_finished_opens_to_its_last_part() {
         let mut again = TimegrapherApp::with_devices(Vec::new(), None);
         again.start_batch(dir);
         let t = std::time::Instant::now();
-        while again.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
+        while again.bench.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
             again.poll();
             std::thread::sleep(std::time::Duration::from_millis(20));
         }
-        assert!(again.recording.live.is_some(), "{:?}", again.message);
+        assert!(again.bench.recording.live.is_some(), "{:?}", again.message);
         again.reserve_from_long_take();
         again
     };
@@ -2101,13 +2106,14 @@ fn a_test_whose_save_never_finished_opens_to_its_last_part() {
     // too (Walter on #1806 and #1807).
     assert!(
         again
+            .bench
             .recording
             .source_label
             .starts_with("Unsaved Power Reserve Test"),
         "{}",
-        again.recording.source_label
+        again.bench.recording.source_label
     );
-    again.recording.input = Input::File;
+    again.bench.recording.input = Input::File;
     let status = again.status_words();
     assert!(status.starts_with("Unsaved Power Reserve Test"), "{status}");
     // Moved into a folder of its own, its parts go with it.
@@ -2169,8 +2175,9 @@ fn a_power_reserve_test_whose_input_fails_ends_and_keeps_its_take() {
     .unwrap();
     app.poll_for(std::time::Duration::from_millis(200));
     assert!(!app.reserve_running(), "the pane no longer says Running");
-    assert!(app.recording.capture.is_none(), "the input is let go");
+    assert!(app.bench.recording.capture.is_none(), "the input is let go");
     assert!(app
+        .bench
         .recording
         .input_fault
         .as_deref()
@@ -2250,7 +2257,7 @@ fn reserve_heard(
     .unwrap();
     app.session.recorder = Some(r);
     let tx = queued_capture(&mut app, &base);
-    app.recording.live = Some(timegrapher_core::live::LiveAnalyzer::new(
+    app.bench.recording.live = Some(timegrapher_core::live::LiveAnalyzer::new(
         48_000,
         timegrapher_core::live::LiveConfig::default(),
     ));
@@ -2269,8 +2276,8 @@ fn reserve_heard(
         ..Default::default()
     };
     for s in generate(&cfg, |_| 280.0, |_| 0.0).samples.chunks(48_000) {
-        app.recording.live.as_mut().unwrap().push(s);
-        app.recording.audio_at = Some(Instant::now());
+        app.bench.recording.live.as_mut().unwrap().push(s);
+        app.bench.recording.audio_at = Some(Instant::now());
         app.pump();
     }
     assert!(app.reserve_running());
@@ -2285,17 +2292,17 @@ fn reserve_heard(
 fn a_power_reserve_test_waits_out_an_input_stall() {
     use std::time::Duration;
     let (mut app, base, tx) = reserve_heard("stall");
-    app.recording.audio_at = Some(Instant::now() - Duration::from_secs(30));
+    app.bench.recording.audio_at = Some(Instant::now() - Duration::from_secs(30));
     app.poll_for(Duration::from_millis(200));
     assert!(app.reserve_running(), "{:?}", app.message);
-    assert!(app.recording.capture.is_some() && app.recording.input_fault.is_none());
+    assert!(app.bench.recording.capture.is_some() && app.bench.recording.input_fault.is_none());
     let (m, error) = app.message.clone().unwrap();
     assert!(!error && m.starts_with("No sound is arriving"), "{m}");
     let stall = m.clone();
     assert!(m.ends_with("if none comes for 10 min."), "{m}");
     // Sound arriving again, a late backlog with nothing lost, takes the
     // message away (Felix on #2018).
-    app.recording.audio_at = Some(Instant::now());
+    app.bench.recording.audio_at = Some(Instant::now());
     app.poll_for(Duration::from_millis(200));
     assert!(app.reserve_running());
     assert!(
@@ -2305,7 +2312,7 @@ fn a_power_reserve_test_waits_out_an_input_stall() {
     );
     // Past a watch's own wait, the input has failed.
     let past = power_reserve::STOP_AFTER_S + 1.0;
-    app.recording.audio_at = Some(Instant::now() - Duration::from_secs_f64(past));
+    app.bench.recording.audio_at = Some(Instant::now() - Duration::from_secs_f64(past));
     app.poll_for(Duration::from_millis(200));
     assert!(!app.reserve_running());
     let t = app.bench.test.reserve.as_ref().unwrap();
@@ -2323,10 +2330,10 @@ fn an_ordinary_take_still_fails_when_its_input_sends_nothing() {
     let (mut app, base, tx) = reserve_heard("stall-ordinary");
     app.bench.test.reserve = None;
     assert!(!app.reserve_running() && app.running());
-    app.recording.audio_at = Some(Instant::now() - Duration::from_secs(5));
+    app.bench.recording.audio_at = Some(Instant::now() - Duration::from_secs(5));
     app.poll_for(Duration::from_millis(200));
     assert!(!app.running(), "{:?}", app.message);
-    let fault = app.recording.input_fault.clone().unwrap_or_default();
+    let fault = app.bench.recording.input_fault.clone().unwrap_or_default();
     assert!(
         fault.contains("No sound is arriving from this input."),
         "{fault}"
