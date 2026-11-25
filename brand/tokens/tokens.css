@@ -1,4 +1,4 @@
-/* Open Timegrapher design tokens. Colours match timegrapher-core palette.rs. CC BY 4.0, see brand/README.md. */
+/* Open Timegrapher design tokens. Colours match timegrapher-core palette.rs, except --otg-link (web and reports only). CC BY 4.0, see brand/README.md. */
 :root {
   --otg-ink: #1d1d1f;
   --otg-ink-secondary: #6e6e73;
@@ -7,6 +7,7 @@
   --otg-surface: #ffffff;
   --otg-line: #dcdce1;
   --otg-tick: #1476bf;
+  --otg-link: #1167a6;
   --otg-tock: #8f3e03;
   --otg-rate: #b80c7e;
   --otg-amplitude: #8b3df8;
@@ -34,6 +35,7 @@
     --otg-surface: #232326;
     --otg-line: #303034;
     --otg-tick: #6eb9fe;
+    --otg-link: #6eb9fe;
     --otg-tock: #ca6b35;
     --otg-rate: #e140a1;
     --otg-amplitude: #9e6bff;
