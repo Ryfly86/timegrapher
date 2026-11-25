@@ -1307,6 +1307,17 @@ impl TimegrapherApp {
         self.session.saved_to().map(Path::to_path_buf)
     }
 
+    /// The takes the Bench has in use, whose files nothing else may
+    /// rewrite under it: the take on show ([`Self::take_on_show`]) and the
+    /// one its session saves into ([`Self::take_held`]), recording or
+    /// stopped, as Save Again writes there from memory (#1988).
+    pub(super) fn takes_in_use(&self) -> Vec<PathBuf> {
+        self.take_on_show()
+            .into_iter()
+            .chain(self.take_held())
+            .collect()
+    }
+
     /// The take the Bench is recording into now: the one it saved into,
     /// while the microphone runs. Stopped (paused), or a recording opened,
     /// it is none (Trevor on #2032).
