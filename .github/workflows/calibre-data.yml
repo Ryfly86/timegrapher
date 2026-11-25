@@ -1,0 +1,154 @@
+name: Calibre data
+
+# Publishes the calibre table, as `timegrapher calibres export --json`
+# writes it (timegrapher.calibres-export/1), for opentimegrapher.org's
+# calibre pages, and later for the app's calibre-data check (#2287). Each
+# push to main that changes the table or the export code replaces the file
+# at one fixed address:
+#
+#   https://github.com/peterhudson/timegrapher/releases/download/calibre-data/calibres-export.json.gz
+#
+# The file sits on a rolling release tagged `calibre-data`, moved to the
+# commit it was made from. That release is a pre-release and is never made
+# "latest": the app's update check reads releases/latest (core update.rs),
+# so the last step fails the run if "latest" stops being a v* release. The
+# export carries links to makers' files only; nothing is copied here.
+#
+# Not a required check, and never run on pull requests. When the secret
+# CLOUDFLARE_SITE_DEPLOY_HOOK is set the site is asked to rebuild; without
+# it the run still passes and the site takes the new data on its next build.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "crates/timegrapher-core/data/train-wheels.json"
+      - "crates/timegrapher-core/src/calibre_page.rs"
+      - "crates/timegrapher-core/src/calibre_specs.rs"
+      - "crates/timegrapher-core/src/calibres.rs"
+      - ".github/workflows/calibre-data.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# One run at a time, so an older commit's data never replaces a newer one's;
+# a newer push waits for the running one rather than cancelling it.
+concurrency:
+  group: calibre-data
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # Run by hand from another branch, it would publish that branch's table.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: calibre-data
+      ASSET: calibres-export.json.gz
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      # The same build as ci.yml's regress checks, so their cache serves it;
+      # this job never saves one (the repository's caches are near the limit).
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          shared-key: regress
+          save-if: false
+      - name: Build
+        run: cargo build --locked --release -p timegrapher-cli --no-default-features
+
+      - name: Export and check
+        id: export
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/out"
+          mkdir -p "$out"
+          ./target/release/timegrapher calibres export --json > "$out/calibres-export.json"
+          # -n leaves out the file name and time, so the same table gives
+          # the same bytes.
+          gzip -9 -n -c "$out/calibres-export.json" > "$out/$ASSET"
+          # Read back the file that is uploaded, not the one before gzip.
+          python3 - "$out/$ASSET" <<'PY' >> "$GITHUB_OUTPUT"
+          import gzip, json, sys
+          with gzip.open(sys.argv[1], "rt", encoding="utf-8") as f:
+              doc = json.load(f)
+          want = "timegrapher.calibres-export/1"
+          if doc.get("schema") != want:
+              sys.exit(f"schema is {doc.get('schema')!r}, not {want!r}")
+          calibres = doc.get("calibres")
+          if not isinstance(calibres, list) or not calibres:
+              sys.exit("the export holds no calibres")
+          print(f"calibres={len(calibres)}")
+          PY
+          echo "dir=$out" >> "$GITHUB_OUTPUT"
+
+      - name: Move the calibre-data tag to this commit
+        run: |
+          set -euo pipefail
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --silent 2>/dev/null; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/${TAG}" \
+              -f sha="${GITHUB_SHA}" -F force=true --silent
+          else
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+              -f ref="refs/tags/${TAG}" -f sha="${GITHUB_SHA}" --silent
+          fi
+
+      - name: Publish to the calibre-data pre-release
+        env:
+          OUT: ${{ steps.export.outputs.dir }}
+          COUNT: ${{ steps.export.outputs.calibres }}
+        run: |
+          set -euo pipefail
+          export TZ=UTC
+          date="$(git log -1 --format=%cd --date=format-local:'%Y-%m-%d %H:%M UTC' "${GITHUB_SHA}")"
+          notes="$RUNNER_TEMP/notes.md"
+          {
+            echo "The calibre table as \`timegrapher calibres export --json\` writes it (\`timegrapher.calibres-export/1\`), for opentimegrapher.org's calibre pages. Replaced on every change to the table; not an app release."
+            echo
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- Committed: ${date}"
+            echo "- Calibres: ${COUNT}"
+          } > "$notes"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            # Every run sets pre-release and not-latest again, so a hand
+            # edit can't leave it the release the app's update check reads.
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --prerelease --latest=false --draft=false \
+              --title "Calibre data" --notes-file "$notes"
+            gh release upload "$TAG" "$OUT/$ASSET" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" "$OUT/$ASSET" --repo "$GITHUB_REPOSITORY" \
+              --verify-tag --prerelease --latest=false \
+              --title "Calibre data" --notes-file "$notes"
+          fi
+
+      # The app's update check (core update.rs) reads releases/latest. Run
+      # even when an earlier step failed, since a half-made release is the
+      # case to catch.
+      - name: Check releases/latest is still an app release
+        if: always()
+        run: |
+          set -euo pipefail
+          latest="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq .tag_name)"
+          case "$latest" in
+            v*) echo "releases/latest is $latest" ;;
+            *) echo "::error::releases/latest is '$latest', not a v* app release; the app's update check would offer it"; exit 1 ;;
+          esac
+
+      - name: Ask the site to rebuild
+        env:
+          HOOK: ${{ secrets.CLOUDFLARE_SITE_DEPLOY_HOOK }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HOOK:-}" ]; then
+            echo "No CLOUDFLARE_SITE_DEPLOY_HOOK secret: the site takes the new data on its next build."
+            exit 0
+          fi
+          curl -fsS --retry 3 --retry-all-errors -X POST "$HOOK" -o /dev/null
+          echo "Site rebuild requested."
