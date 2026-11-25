@@ -1136,8 +1136,8 @@ fn an_analysis_that_stops_without_answering_says_it_failed() {
 /// (`library::not_already_in`, #1656) whether a recording is already in
 /// the watches: one opened through a link into the Watches folder is in
 /// them, so neither offers to add it (before, Keep in a Watch… offered it
-/// and the add was then refused), and one in a folder that holds the
-/// Watches folder can't be added either.
+/// and the add was then refused), and a folder holding the Watches
+/// folder, with a recording of its own, can't be added either.
 #[cfg(unix)]
 #[test]
 fn a_recording_reached_through_a_link_into_the_watches_is_not_offered_to_them() {
@@ -1166,6 +1166,9 @@ fn a_recording_reached_through_a_link_into_the_watches_is_not_offered_to_them() 
     std::os::unix::fs::symlink(&root, &link).unwrap();
     let through = link.join(lone.strip_prefix(&root).unwrap()).to_path_buf();
     assert!(through.is_file() && !through.starts_with(&root));
+    // A recording of its own in the folder holding the Watches folder,
+    // so Open would ask to add that folder if the guard missed it.
+    std::fs::copy(&lone, base.join("loose_DU.wav")).unwrap();
 
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.use_library(Some(root.clone()));

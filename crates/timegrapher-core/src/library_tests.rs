@@ -2127,3 +2127,25 @@ fn the_import_guard_and_take_test_are_one_rule() {
     }
     let _ = fs::remove_dir_all(&base);
 }
+
+/// The import guard follows a link in the watches folder's own path too:
+/// a path inside the real folder is in the watches named through a link,
+/// and a path through the link is in the real one (Trevor 36 on #2286).
+#[cfg(unix)]
+#[test]
+fn the_import_guard_follows_a_link_to_the_watches_folder() {
+    let base = scratch("import-root-link");
+    let root = base.join("Timegrapher Data");
+    let inside = root.join("Pepsi").join(TAKES).join("t");
+    fs::create_dir_all(&inside).unwrap();
+    let link = base.join("Linked Data");
+    std::os::unix::fs::symlink(&root, &link).unwrap();
+    let e = not_already_in(&inside, &link).unwrap_err();
+    assert!(e.contains("is already in your watches"), "{e}");
+    let through = link.join("Pepsi").join(TAKES).join("t");
+    assert!(not_already_in(&through, &root).is_err());
+    let e = not_already_in(&base, &link).unwrap_err();
+    assert!(e.contains("holds your watches folder"), "{e}");
+    assert!(not_already_in(&base.join("elsewhere"), &link).is_ok());
+    let _ = fs::remove_dir_all(&base);
+}
