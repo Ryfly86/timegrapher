@@ -15,7 +15,7 @@ use crate::calibre_specs::{self, SpecPart};
 use crate::calibres::{self, asset_url, Calibre, RELATIONS};
 use crate::figure_text::plain_text;
 use crate::steady_views::title_case;
-use crate::train::period_text;
+use crate::train::{self, period_text};
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -39,6 +39,18 @@ pub struct Headings {
     pub issues: &'static str,
     pub related: &'static str,
     pub wheels: &'static str,
+    /// The Wheels table's column heads: teeth on the wheel, leaves of the
+    /// pinion on the same arbor, one full turn.
+    pub teeth: &'static str,
+    pub leaves: &'static str,
+    pub period: &'static str,
+    /// The mark in a cell that applies but is not known yet, and its hover.
+    pub blank: &'static str,
+    pub blank_hover: &'static str,
+    /// Under the Wheels table: what the columns and the mark mean.
+    pub wheels_key: &'static str,
+    /// Under the Wheels table when no wheel has a count yet.
+    pub wheels_ask: &'static str,
     pub beat_rate: &'static str,
     pub lift_angle: &'static str,
     pub escape_teeth: &'static str,
@@ -58,6 +70,13 @@ pub const HEADINGS: Headings = Headings {
     issues: "Reported issues",
     related: "Related movements",
     wheels: "Wheels",
+    teeth: "Teeth",
+    leaves: "Leaves",
+    period: "One turn",
+    blank: "\u{2014}",
+    blank_hover: "Not known yet",
+    wheels_key: "Teeth on the wheel, leaves on the pinion on the same arbor. \u{2014} not known yet.",
+    wheels_ask: "No counts here yet. If you have counted this movement's wheels and pinions, send them in with a photo or the source.",
     beat_rate: "Beat rate",
     lift_angle: "Lift angle",
     escape_teeth: "Escape teeth",
@@ -163,12 +182,24 @@ pub struct Specs {
     pub parts: Vec<SpecPart>,
 }
 
-/// A wheel and its time for one full turn.
+/// One row of the Wheels table: a wheel, its counts and its time for one
+/// full turn, as the table stores them (never worked out here).
 #[derive(Debug, Clone, Serialize)]
 pub struct WheelLine {
     pub name: String,
+    /// Teeth on the wheel.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub teeth: Option<u32>,
+    /// Leaves of the pinion on the same arbor.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub leaves: Option<u32>,
     /// "3600 s".
-    pub period: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub period: Option<String>,
+    /// The cells, of "teeth", "leaves" and "period", that apply to this
+    /// wheel but are not known yet. A cell neither filled nor here does
+    /// not apply (a barrel's pinion, a balance's teeth).
+    pub blank: Vec<&'static str>,
 }
 
 /// A sentence and the number of its source in `Page::sources`.
@@ -622,6 +653,59 @@ fn wheel_rank(name: &str) -> usize {
         .map_or(slots.len(), |i| slots.len() - 1 - i)
 }
 
+/// The Wheels table of `c`: a row for every arbor of the going train
+/// ([`train::ARBORS`], blank where the table has nothing, so each has a
+/// place for its counts), then every other wheel the table names; barrel
+/// to balance, then the rest as the table lists them. The escape wheel's
+/// teeth come from the calibre's `escape_teeth` where its wheel has none,
+/// as [`train::of_calibre`] reads them.
+fn wheel_lines(c: &Calibre) -> Vec<WheelLine> {
+    let mut lines: Vec<(usize, WheelLine)> = train::of_calibre(c)
+        .into_iter()
+        .map(|a| {
+            let mut blank = Vec::new();
+            if a.teeth.is_none() {
+                blank.push("teeth");
+            }
+            if a.leaves.is_none() && a.name != "barrel" {
+                blank.push("leaves");
+            }
+            if a.period_s.is_none() {
+                blank.push("period");
+            }
+            let line = WheelLine {
+                name: title_case(&a.name),
+                teeth: a.teeth,
+                leaves: a.leaves,
+                period: a.period_s.map(period_words),
+                blank,
+            };
+            (wheel_rank(&a.name), line)
+        })
+        .collect();
+    for w in c
+        .wheels
+        .iter()
+        .filter(|w| !train::ARBORS.contains(&w.name.as_str()))
+    {
+        let line = WheelLine {
+            name: title_case(&w.name),
+            teeth: w.teeth,
+            leaves: w.pinion,
+            period: Some(period_words(w.period_s)),
+            blank: Vec::new(),
+        };
+        lines.push((wheel_rank(&w.name), line));
+    }
+    lines.sort_by_key(|(rank, _)| *rank);
+    lines.into_iter().map(|(_, l)| l).collect()
+}
+
+/// "3600 s".
+fn period_words(s: f64) -> String {
+    format!("{} s", period_text(s))
+}
+
 /// The page of `c`; `inv` holds the relations other rows state about it.
 fn page(c: &Calibre, inv: &Inverses) -> Page {
     let title = with_maker_name(&c.maker, &c.calibre);
@@ -655,8 +739,6 @@ fn page(c: &Calibre, inv: &Inverses) -> Page {
     let made = calibre_specs::made_part(c).map(|p| cite.part(p));
     let functions = calibre_specs::functions_line(c).map(|p| cite.part(p));
     let escapement = c.escapement.as_ref().map(|x| cite.part(escapement_part(x)));
-    let mut wheels: Vec<&calibres::TrainWheel> = c.wheels.iter().collect();
-    wheels.sort_by_key(|w| wheel_rank(&w.name));
     Page {
         name: c.calibre.clone(),
         maker: c.maker.clone(),
@@ -671,13 +753,7 @@ fn page(c: &Calibre, inv: &Inverses) -> Page {
         made,
         specs: calibre_specs::specs_line(c).map(|text| Specs { text, parts }),
         functions,
-        wheels: wheels
-            .into_iter()
-            .map(|w| WheelLine {
-                name: title_case(&w.name),
-                period: format!("{} s", period_text(w.period_s)),
-            })
-            .collect(),
+        wheels: wheel_lines(c),
         summary,
         pictures,
         documents,
