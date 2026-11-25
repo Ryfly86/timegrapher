@@ -244,10 +244,7 @@ impl TimegrapherApp {
     pub(super) fn find_in_watches(&mut self) {
         self.watches_view.view = View::Watches;
         if !self.list_shown() {
-            self.watches_view.list_for = Some((
-                self.watches_view.watch_open.clone(),
-                self.watches_view.unsorted_open,
-            ));
+            self.watches_view.list_for = Some(self.watches_view.picked());
         }
         self.watches_view.watch_search_focus = true;
     }

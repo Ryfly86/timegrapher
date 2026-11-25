@@ -537,10 +537,7 @@ impl TimegrapherApp {
     pub(super) fn keep_into(&mut self, id: &str) {
         if let Some(from) = self.addable_take() {
             // The pane shows the watch it goes into, until a Cancel.
-            self.bench.keeping.keep_back = Some((
-                self.watches_view.watch_open.clone(),
-                self.watches_view.unsorted_open,
-            ));
+            self.bench.keeping.keep_back = Some(self.watches_view.picked());
             self.watches_view.watch_open = Some(id.to_string());
             self.watches_view.unsorted_open = false;
             // A take folder with its session file goes in whole, copied
@@ -720,9 +717,8 @@ impl TimegrapherApp {
     /// Keep in a Watch…'s question cancelled: the watch picked before it
     /// is picked again.
     pub(super) fn keep_cancelled(&mut self) {
-        if let Some((watch, unsorted)) = self.bench.keeping.keep_back.take() {
-            self.watches_view.watch_open = watch;
-            self.watches_view.unsorted_open = unsorted;
+        if let Some(p) = self.bench.keeping.keep_back.take() {
+            self.watches_view.pick_again(p);
         }
     }
 
@@ -968,9 +964,10 @@ impl TimegrapherApp {
 
     /// Whether the pane shows the list over what is picked.
     pub(super) fn list_shown(&self) -> bool {
-        self.watches_view.list_for.as_ref().is_some_and(|(w, u)| {
-            *w == self.watches_view.watch_open && *u == self.watches_view.unsorted_open
-        })
+        self.watches_view
+            .list_for
+            .as_ref()
+            .is_some_and(|p| self.watches_view.is_picked(p))
     }
 
     /// Whether picking `what` is refused, while listening: the readings
@@ -1115,7 +1112,7 @@ impl TimegrapherApp {
                 false,
                 None,
             ) {
-                self.watches_view.list_for = Some((None, true));
+                self.watches_view.list_for = Some(watches_view::Picked::UNSORTED);
             }
             return true;
         } else if self.open_watch().is_some() {
@@ -1129,7 +1126,10 @@ impl TimegrapherApp {
                 false,
                 None,
             ) {
-                self.watches_view.list_for = Some((self.watches_view.watch_open.clone(), false));
+                self.watches_view.list_for = Some(watches_view::Picked {
+                    watch: self.watches_view.watch_open.clone(),
+                    unsorted: false,
+                });
             }
             return true;
         }
@@ -1398,7 +1398,7 @@ impl TimegrapherApp {
         self.watches_view.watch_open = None;
         self.watches_view.unsorted_open = true;
         // The Watches view shows the list, Unsorted Takes marked.
-        self.watches_view.list_for = Some((None, true));
+        self.watches_view.list_for = Some(watches_view::Picked::UNSORTED);
         self.bench.recording.quick_listen = true;
         self.bench.recording.input = Input::Microphone;
         self.bench.take.watch.clear();

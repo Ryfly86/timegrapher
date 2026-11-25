@@ -1,5 +1,6 @@
 //! The Distributions pane: how each reading's values spread over the take.
 
+use super::result_keys::DistRead;
 use super::*;
 use crate::fact_box::FactBox;
 use crate::strength::{self, Grid, Strength};
@@ -306,7 +307,7 @@ impl TimegrapherApp {
                 .results
                 .dist_readings
                 .as_ref()
-                .map(|d| (d.0, d.1.to_bits())),
+                .map(|d| (d.key, d.upto_s.to_bits())),
             rates: self.bench.panes_view.dist.rate_2s.values.len(),
             windows: live.map_or(0, |l| l.amplitude_windows().len()),
             breaks: live.map_or_else(Vec::new, |l| l.breaks().to_vec()),
@@ -391,7 +392,7 @@ impl TimegrapherApp {
             .results
             .dist_job
             .as_ref()
-            .is_some_and(|j| j.0 != key)
+            .is_some_and(|j| j.key != key)
         {
             self.bench.results.dist_job = None;
         }
@@ -400,14 +401,18 @@ impl TimegrapherApp {
             .results
             .dist_readings
             .as_ref()
-            .is_some_and(|d| d.0 != key)
+            .is_some_and(|d| d.key != key)
         {
             self.bench.results.dist_readings = None;
         }
-        if let Some((k, upto, rx)) = &self.bench.results.dist_job {
-            match rx.try_recv() {
-                Ok(d) => {
-                    self.bench.results.dist_readings = Some((*k, *upto, d));
+        if let Some(j) = &self.bench.results.dist_job {
+            match j.got.try_recv() {
+                Ok(got) => {
+                    self.bench.results.dist_readings = Some(DistRead {
+                        key: j.key,
+                        upto_s: j.upto_s,
+                        got,
+                    });
                     self.bench.results.dist_job = None;
                 }
                 Err(TryRecvError::Disconnected) => self.bench.results.dist_job = None,
@@ -430,7 +435,7 @@ impl TimegrapherApp {
             .results
             .dist_readings
             .as_ref()
-            .is_none_or(|d| dur - d.1 >= self.bench.take.average_s);
+            .is_none_or(|d| dur - d.upto_s >= self.bench.take.average_s);
         if self.bench.results.dist_job.is_some() || !due {
             return;
         }
@@ -451,9 +456,19 @@ impl TimegrapherApp {
                     let _ = tx.send(read());
                     ctx.request_repaint();
                 });
-                self.bench.results.dist_job = Some((key, dur, rx));
+                self.bench.results.dist_job = Some(DistRead {
+                    key,
+                    upto_s: dur,
+                    got: rx,
+                });
             }
-            None => self.bench.results.dist_readings = Some((key, dur, read())),
+            None => {
+                self.bench.results.dist_readings = Some(DistRead {
+                    key,
+                    upto_s: dur,
+                    got: read(),
+                })
+            }
         }
     }
 
@@ -479,7 +494,7 @@ impl TimegrapherApp {
         let color = series_color(reading, pal);
         // The readings, one per Average Over so that no two share beats:
         // core's, as `timegrapher series` counts them (#1144).
-        let core = self.bench.results.dist_readings.as_ref().map(|d| &d.2 .0);
+        let core = self.bench.results.dist_readings.as_ref().map(|d| &d.got.0);
         let readings = |i: usize| -> Vec<f64> {
             core.map_or_else(Vec::new, |g| {
                 g[i].y.iter().copied().filter(|v| v.is_finite()).collect()
@@ -539,7 +554,7 @@ impl TimegrapherApp {
         // of, with its caveats.
         self.bench.results.dist_readings.as_ref().map_or_else(
             || core_session::select_beat_errors(std::iter::empty()),
-            |d| d.2 .1.clone(),
+            |d| d.got.1.clone(),
         )
     }
 }
@@ -992,7 +1007,7 @@ mod source_tests {
         let core = app.bench.results.dist_readings.as_ref().unwrap();
         assert_eq!(
             selected.unwrap().beat_error_source,
-            core.2 .1.beat_error_source
+            core.got.1.beat_error_source
         );
         app.bench.take.average_s = 20.0;
         app.update_dist_readings(None);

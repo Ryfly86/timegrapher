@@ -843,7 +843,10 @@ fn unsorted_takes_goes_back_to_quick_listen() {
     assert_eq!(app.bench.take.bph, Some(21600));
 
     // ‹ All Watches: the list, Pepsi still picked.
-    app.watches_view.list_for = Some((app.watches_view.watch_open.clone(), false));
+    app.watches_view.list_for = Some(watches_view::Picked {
+        watch: app.watches_view.watch_open.clone(),
+        unsorted: false,
+    });
     assert!(app.list_shown());
     assert_eq!(app.watches_view.watch_open.as_deref(), Some(pepsi.as_str()));
 
