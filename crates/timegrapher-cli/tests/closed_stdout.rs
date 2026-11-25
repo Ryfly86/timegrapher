@@ -48,6 +48,27 @@ fn devices_whose_reader_has_gone_ends_quietly() {
     assert_eq!(out.status.code(), Some(141), "{stderr}");
 }
 
+/// Any other failure to write stdout is still reported: a full disk
+/// (`/dev/full`) panics with "No space left on device" and exit 101, as
+/// before, so only the reader going away is quiet. Skipped where there
+/// is no `/dev/full`.
+#[test]
+fn a_full_disk_is_still_reported() {
+    let Ok(full) = std::fs::OpenOptions::new().write(true).open("/dev/full") else {
+        return;
+    };
+    let out = Command::new(env!("CARGO_BIN_EXE_timegrapher"))
+        .arg("calibres")
+        .stdin(Stdio::null())
+        .stdout(full)
+        .stderr(Stdio::piped())
+        .output()
+        .expect("run timegrapher");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("No space left on device"), "{stderr}");
+    assert_eq!(out.status.code(), Some(101), "{stderr}");
+}
+
 /// Output to a file is as before: the whole table, with status 0.
 #[test]
 fn a_table_written_whole_is_unchanged() {
