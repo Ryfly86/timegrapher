@@ -22,3 +22,31 @@ pub(super) struct Bench {
     /// the live analyser, the file read and the input's clock.
     pub(super) recording: recording::Recording,
 }
+
+impl Bench {
+    /// A bench listening to the first of `devices`, or reading `file`.
+    pub(super) fn new(devices: Vec<InputDevice>, file: Option<&PathBuf>) -> Self {
+        let device = capture::choices(&devices).first().map(|c| c.id.clone());
+        Bench {
+            panes_view: pane_view::PaneView::default(),
+            test: guided_test::GuidedTest::default(),
+            results: results::Results::default(),
+            take: take_settings::TakeSettings::default(),
+            keeping: keeping::Keeping::default(),
+            recording: recording::Recording {
+                input: if file.is_some() {
+                    Input::File
+                } else {
+                    Input::Microphone
+                },
+                devices,
+                device,
+                file_path: file
+                    .as_ref()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_default(),
+                ..Default::default()
+            },
+        }
+    }
+}

@@ -1869,29 +1869,8 @@ impl TimegrapherApp {
     /// The app with a given device list. Tests pass an empty one: listing
     /// devices from several test threads at once crashes on Windows.
     fn with_devices(devices: Vec<InputDevice>, file: Option<PathBuf>) -> Self {
-        let device = capture::choices(&devices).first().map(|c| c.id.clone());
         let mut app = TimegrapherApp {
-            bench: bench::Bench {
-                panes_view: pane_view::PaneView::default(),
-                test: guided_test::GuidedTest::default(),
-                results: results::Results::default(),
-                take: take_settings::TakeSettings::default(),
-                keeping: keeping::Keeping::default(),
-                recording: recording::Recording {
-                    input: if file.is_some() {
-                        Input::File
-                    } else {
-                        Input::Microphone
-                    },
-                    devices,
-                    device,
-                    file_path: file
-                        .as_ref()
-                        .map(|p| p.display().to_string())
-                        .unwrap_or_default(),
-                    ..Default::default()
-                },
-            },
+            bench: bench::Bench::new(devices, file.as_ref()),
             session: Session::default(),
             report: ReportDialog::default(),
             updates: Default::default(),
