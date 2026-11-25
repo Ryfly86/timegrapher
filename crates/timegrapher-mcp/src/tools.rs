@@ -117,8 +117,9 @@ const BPH: Param = p(
 );
 /// For tools that also take a calibre, whose lift angle fills in: the
 /// order the command line reads a recording with (`resolve_for`, core
-/// `take::stream_settings`), the take's own lift before the calibre's
-/// (#2102).
+/// `take::stream_settings`): a lift the take was given, then the
+/// calibre's (the one given, or the take's own), then the lift the take
+/// assumed, then 52 (#2102).
 const LIFT_OR_CALIBRE: Param = p(
     "lift_deg",
     Kind::LiftAngle,
