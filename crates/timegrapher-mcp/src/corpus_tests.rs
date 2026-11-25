@@ -398,6 +398,63 @@ fn a_shape_with_a_calibre_reads_at_its_lift() {
     assert_eq!(lift_read(&doc), Some(lift));
 }
 
+/// A take that names a calibre and only assumed its lift angle is read
+/// at the calibre's (the one given, or the take's own, #2102): with no
+/// calibre given, at the take's calibre's lift from the table, not its
+/// assumed 52; with one given, at the given calibre's, not the take's.
+#[test]
+fn a_take_reads_at_the_given_calibres_lift_else_its_own() {
+    let Some(cli) = cli() else {
+        return;
+    };
+    let table_lift = |name: &str| {
+        timegrapher_core::calibres::find(name)
+            .and_then(|c| c.lift_angle_deg)
+            .expect("the table's lift angle")
+    };
+    let (own, given) = ("DD3235", "ETA 2824-2");
+    let own_doc = profile_of_synthetic_take(&cli, own, None);
+    assert_eq!(lift_read(&own_doc), Some(table_lift(own)));
+    let given_doc = profile_of_synthetic_take(&cli, own, Some(given));
+    assert_eq!(lift_read(&given_doc), Some(table_lift(given)));
+}
+
+/// `tick_tock_profile` on the one synthetic sound file of a take whose
+/// session.toml names `take_calibre` and an assumed lift of 52, with
+/// `calibre` if given.
+fn profile_of_synthetic_take(cli: &Path, take_calibre: &str, calibre: Option<&str>) -> Value {
+    let dir = std::env::temp_dir().join(format!(
+        "tg-mcp-take-calibre-{}-{}",
+        calibre.unwrap_or("none").replace(' ', "_"),
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let cfg = timegrapher_core::synth::SynthConfig {
+        duration_s: 20.0,
+        ..Default::default()
+    };
+    let audio = timegrapher_core::synth::generate(&cfg, |_| 270.0, |_| 0.0);
+    timegrapher_core::audio::write_wav(&dir.join("plain.wav"), &audio).unwrap();
+    std::fs::write(
+        dir.join("session.toml"),
+        format!(
+            "calibre = \"{take_calibre}\"\nbph = 28800\nlift = 52\nlift_known = false\n\n\
+             [[recording]]\nfile = \"plain.wav\"\nposition = \"DU\"\n"
+        ),
+    )
+    .unwrap();
+    let mut args = json!({ "recording": dir.join("plain.wav") });
+    if let Some(c) = calibre {
+        args["calibre"] = json!(c);
+    }
+    let tool = tools::find("tick_tock_profile").expect("the tool");
+    let line = tools::command_line(tool, args.as_object().unwrap()).expect("a command line");
+    let doc = run(cli, &line);
+    let _ = std::fs::remove_dir_all(&dir);
+    doc
+}
+
 /// `tick_tock_profile` on a synthetic recording in a folder of its own,
 /// with `calibre` if given.
 fn profile_of_synthetic(cli: &Path, calibre: Option<&str>) -> Value {
