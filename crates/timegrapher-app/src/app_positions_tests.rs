@@ -656,14 +656,18 @@ fn a_positions_tests_stop_keeps_its_rows_and_stops_listening() {
 fn a_new_positions_test_waits_ready_on_the_bench() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.watches_view.view = View::Watches;
-    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::PositionsTest, false);
+    set_pane_visible(
+        &mut app.bench.panes_view.panes.tiles,
+        Pane::PositionsTest,
+        false,
+    );
     app.set_position(Position::CrownDown);
     app.new_take(NewTake::Positions, false);
     assert_eq!(app.ready_test(), Some(NewTake::Positions));
     assert!(app.test.guided.is_none() && !app.running());
     assert_eq!(app.watches_view.view, View::Bench);
     assert!(pane_visible(
-        &app.panes_view.panes.tiles,
+        &app.bench.panes_view.panes.tiles,
         Pane::PositionsTest
     ));
     assert_eq!(app.take.position, Position::DialUp);
@@ -1009,12 +1013,16 @@ fn a_positions_test_keeps_the_lift_it_was_read_at() {
 fn the_watches_power_reserve_test_waits_on_the_bench() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.watches_view.view = View::Watches;
-    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::PowerReserve, false);
+    set_pane_visible(
+        &mut app.bench.panes_view.panes.tiles,
+        Pane::PowerReserve,
+        false,
+    );
     app.new_take(NewTake::PowerReserve, false);
     assert!(app.test.reserve.is_none() && !app.running());
     assert_eq!(app.watches_view.view, View::Bench);
     assert!(pane_visible(
-        &app.panes_view.panes.tiles,
+        &app.bench.panes_view.panes.tiles,
         Pane::PowerReserve
     ));
     assert!(app.position_editable(), "the card sets it");
@@ -1099,7 +1107,7 @@ fn a_new_position_marks_a_stretch_and_keeps_the_strip() {
     // And it all draws, bands and all.
     let ctx = themed();
     for p in [Pane::Charts, Pane::Distributions] {
-        set_pane_visible(&mut app.panes_view.panes.tiles, p, true);
+        set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, true);
     }
     frames(&mut app, &ctx, 2);
     app.relayout(false);
@@ -1357,7 +1365,7 @@ fn an_ordinary_take_of_the_six_positions_loads_to_compare_with() {
             .filter_map(|c| core_session::Position::parse(c))
             .collect::<Vec<_>>()
     });
-    app.panes_view.positions_series = [false; 3];
+    app.bench.panes_view.positions_series = [false; 3];
     let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
     let labels: Vec<String> = guided::card_order()
         .into_iter()
@@ -1388,7 +1396,7 @@ fn every_chart_off_leaves_the_positions_table() {
     let lanes = |drawn: &str| drawn.lines().filter(|l| *l == "Horizontal").count();
     let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
     assert!(lanes(&drawn) > 0, "{drawn}");
-    app.panes_view.positions_series = [false; 3];
+    app.bench.panes_view.positions_series = [false; 3];
     let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
     assert_eq!(lanes(&drawn), 0, "{drawn}");
     assert!(drawn.contains("Crown Down (CD, 9H)"), "the table: {drawn}");
@@ -1516,7 +1524,7 @@ fn a_45_degree_stop_gets_its_own_row_outside_the_average() {
         t.extra[0].3,
         guided::FreeCell::Read(Some(_), Some(_), _)
     ));
-    app.panes_view.positions_series = [false; 3];
+    app.bench.panes_view.positions_series = [false; 3];
     let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
     let lines: Vec<&str> = drawn.lines().collect();
     let at = |s: &str| lines.iter().position(|l| *l == s);

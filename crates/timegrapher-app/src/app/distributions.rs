@@ -109,7 +109,7 @@ impl TimegrapherApp {
             ui,
             "Show",
             "The values on probability paper, or their cumulative share",
-            &mut self.panes_view.hist_cumulative,
+            &mut self.bench.panes_view.hist_cumulative,
             &[
                 (
                     false,
@@ -133,7 +133,7 @@ impl TimegrapherApp {
             ui,
             "Values",
             "What the distributions count",
-            &mut self.panes_view.hist_readings,
+            &mut self.bench.panes_view.hist_readings,
             &[
                 (
                     true,
@@ -184,10 +184,10 @@ impl TimegrapherApp {
     /// The Distributions pane: a plot for each reading shown, one above
     /// the other, sharing the pane's height.
     pub(super) fn distributions_pane(&mut self, ui: &mut egui::Ui) {
-        if self.panes_view.hist_readings {
+        if self.bench.panes_view.hist_readings {
             self.update_dist_readings(Some(ui.ctx()));
         }
-        let shown = self.panes_view.dist_series;
+        let shown = self.bench.panes_view.dist_series;
         self.note_need(ui, Pane::Distributions, DIST_MIN_H);
         stacked(ui, shown, (DIST_MIN_H, true), |ui, k, no_room| {
             self.histogram_with(ui, k, no_room)
@@ -211,15 +211,16 @@ impl TimegrapherApp {
         no_room: Option<&(String, String)>,
     ) {
         let pal = theme::pal(ui);
-        let short = !self.panes_view.hist_readings;
+        let short = !self.bench.panes_view.hist_readings;
         if reading == SeriesKind::Rate && short {
             match self.recording.live.as_ref() {
                 Some(live) => self
+                    .bench
                     .panes_view
                     .dist
                     .rate_2s
                     .refresh(live, &self.take.masked),
-                None => self.panes_view.dist.rate_2s = RateTwoS::default(),
+                None => self.bench.panes_view.dist.rate_2s = RateTwoS::default(),
             }
         }
         let worked = self.dist_plot(reading, short);
@@ -299,7 +300,7 @@ impl TimegrapherApp {
         PlotKey {
             reading,
             short,
-            cumulative: self.panes_view.hist_cumulative,
+            cumulative: self.bench.panes_view.hist_cumulative,
             rev: self.take.rev,
             position: self.take.position,
             average: self.take.average_s.to_bits(),
@@ -308,7 +309,7 @@ impl TimegrapherApp {
                 .dist_readings
                 .as_ref()
                 .map(|d| (d.0, d.1.to_bits())),
-            rates: self.panes_view.dist.rate_2s.values.len(),
+            rates: self.bench.panes_view.dist.rate_2s.values.len(),
             windows: live.map_or(0, |l| l.amplitude_windows().len()),
             breaks: live.map_or_else(Vec::new, |l| l.breaks().to_vec()),
             stretches: self.session.stretches(),
@@ -322,14 +323,14 @@ impl TimegrapherApp {
     fn dist_plot(&mut self, reading: SeriesKind, short: bool) -> std::sync::Arc<DistPlot> {
         let key = self.plot_key(reading, short);
         let i = reading as usize;
-        if let Some(p) = self.panes_view.dist.plots[i]
+        if let Some(p) = self.bench.panes_view.dist.plots[i]
             .as_ref()
             .filter(|p| p.key == key)
         {
             return p.clone();
         }
         let worked = std::sync::Arc::new(self.work_out_plot(key));
-        self.panes_view.dist.plots[i] = Some(worked.clone());
+        self.bench.panes_view.dist.plots[i] = Some(worked.clone());
         worked
     }
 
@@ -481,7 +482,8 @@ impl TimegrapherApp {
         use timegrapher_core::distribution::{AMPLITUDE, BEAT_ERROR, RATE};
         match reading {
             SeriesKind::Rate if short => (
-                self.panes_view
+                self.bench
+                    .panes_view
                     .dist
                     .rate_2s
                     .values
@@ -883,7 +885,7 @@ mod source_tests {
     #[test]
     fn the_last_plots_axis_stays_inside_the_pane() {
         let mut app = super::super::tests::synthetic(300.0, 5.0);
-        app.panes_view.dist_series = [true; 3];
+        app.bench.panes_view.dist_series = [true; 3];
         app.update_dist_readings(None);
         let ctx = egui::Context::default();
         crate::theme::install(&ctx);
@@ -922,7 +924,7 @@ mod source_tests {
     #[test]
     fn no_room_is_a_chip_under_the_first_title() {
         let mut app = super::super::tests::synthetic(122.0, 5.0);
-        app.panes_view.dist_series = [true; 3];
+        app.bench.panes_view.dist_series = [true; 3];
         let ctx = egui::Context::default();
         crate::theme::install(&ctx);
         let mut texts = Vec::new();
@@ -1027,10 +1029,10 @@ mod plot_cache_tests {
     #[test]
     fn a_long_takes_plot_is_worked_out_once_and_drawn_at_screen_size() {
         let mut app = super::super::tests::synthetic(30.0, 12.0);
-        app.panes_view.hist_readings = false;
+        app.bench.panes_view.hist_readings = false;
         let ctx = super::super::tests::themed();
         let _ = circles(&mut app, &ctx, SeriesKind::Rate);
-        let first = app.panes_view.dist.rate_2s.values.len();
+        let first = app.bench.panes_view.dist.rate_2s.values.len();
         assert!(first > 5, "{first}");
         // 40,000 more 2 s rates spread like a real watch's.
         let more = (0..40_000).map(|i| {
@@ -1040,9 +1042,9 @@ mod plot_cache_tests {
                 12.0 + 8.0 * (i * 0.7).sin() + 3.0 * (i * 0.13).cos(),
             )
         });
-        app.panes_view.dist.rate_2s.values.extend(more);
+        app.bench.panes_view.dist.rate_2s.values.extend(more);
         let drawn = circles(&mut app, &ctx, SeriesKind::Rate);
-        let plot = app.panes_view.dist.plots[SeriesKind::Rate as usize]
+        let plot = app.bench.panes_view.dist.plots[SeriesKind::Rate as usize]
             .clone()
             .unwrap();
         assert_eq!(plot.n, first + 40_000);
@@ -1053,16 +1055,21 @@ mod plot_cache_tests {
         assert!((100..4_400).contains(&drawn), "{drawn} circles");
         // Nothing new: the same plot, not worked out again.
         let _ = circles(&mut app, &ctx, SeriesKind::Rate);
-        let again = app.panes_view.dist.plots[SeriesKind::Rate as usize]
+        let again = app.bench.panes_view.dist.plots[SeriesKind::Rate as usize]
             .clone()
             .unwrap();
         assert!(std::sync::Arc::ptr_eq(&plot, &again));
         // A new stretch, the other view, another Average Over, another
         // position, or a new mask: worked out again.
-        app.panes_view.dist.rate_2s.values.push((80_100.0, 12.0));
+        app.bench
+            .panes_view
+            .dist
+            .rate_2s
+            .values
+            .push((80_100.0, 12.0));
         let changes: [fn(&mut TimegrapherApp); 5] = [
             |_| {},
-            |a| a.panes_view.hist_cumulative = true,
+            |a| a.bench.panes_view.hist_cumulative = true,
             |a| a.take.average_s = 20.0,
             |a| a.take.position = Position::DialDown,
             |a| a.take.rev.masks += 1,
@@ -1071,7 +1078,7 @@ mod plot_cache_tests {
         for change in changes {
             change(&mut app);
             let _ = circles(&mut app, &ctx, SeriesKind::Rate);
-            let now = app.panes_view.dist.plots[SeriesKind::Rate as usize]
+            let now = app.bench.panes_view.dist.plots[SeriesKind::Rate as usize]
                 .clone()
                 .unwrap();
             assert!(!std::sync::Arc::ptr_eq(&was, &now));
@@ -1106,12 +1113,12 @@ mod plot_cache_tests {
             }
         };
         push(&mut app, first);
-        app.panes_view.hist_readings = false;
+        app.bench.panes_view.hist_readings = false;
         let ctx = super::super::tests::themed();
         let amp = SeriesKind::Amplitude as usize;
         let plot = |app: &mut TimegrapherApp| {
             let _ = circles(app, &ctx, SeriesKind::Amplitude);
-            app.panes_view.dist.plots[amp].clone().unwrap()
+            app.bench.panes_view.dist.plots[amp].clone().unwrap()
         };
         let mut was = plot(&mut app);
         assert!(was.n > 5, "{}", was.n);
@@ -1146,15 +1153,15 @@ mod plot_cache_tests {
     fn the_readings_plot_follows_cores_readings_as_they_come() {
         let mut app = super::super::tests::synthetic(122.0, 5.0);
         app.take.average_s = 10.0;
-        app.panes_view.hist_readings = true;
+        app.bench.panes_view.hist_readings = true;
         let ctx = super::super::tests::themed();
         let rate = SeriesKind::Rate as usize;
         let _ = circles(&mut app, &ctx, SeriesKind::Rate);
-        let before = app.panes_view.dist.plots[rate].clone().unwrap();
+        let before = app.bench.panes_view.dist.plots[rate].clone().unwrap();
         assert_eq!(before.n, 0, "no readings read yet");
         app.update_dist_readings(None);
         let _ = circles(&mut app, &ctx, SeriesKind::Rate);
-        let after = app.panes_view.dist.plots[rate].clone().unwrap();
+        let after = app.bench.panes_view.dist.plots[rate].clone().unwrap();
         assert!(after.n >= 9, "{} readings", after.n);
     }
 

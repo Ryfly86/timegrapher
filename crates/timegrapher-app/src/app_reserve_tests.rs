@@ -1029,13 +1029,21 @@ fn a_long_take_shows_its_run_in_the_power_reserve_pane() {
     app.reveal_pane(Pane::PowerReserve);
     pass(&mut app);
     let id = app
+        .bench
         .panes_view
         .panes
         .tiles
         .find_pane(&Pane::PowerReserve)
         .unwrap();
-    let tabs = app.panes_view.panes.tiles.parent_of(id).unwrap();
-    let tall = app.panes_view.panes.tiles.rect(tabs).unwrap().height();
+    let tabs = app.bench.panes_view.panes.tiles.parent_of(id).unwrap();
+    let tall = app
+        .bench
+        .panes_view
+        .panes
+        .tiles
+        .rect(tabs)
+        .unwrap()
+        .height();
     assert!(tall > MIN_PANE_H + 40.0, "{tall}");
 
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
@@ -1613,19 +1621,19 @@ fn a_long_quick_listen_shows_its_run_so_far_in_the_power_reserve_pane() {
 #[test]
 fn the_reserve_info_is_kept_in_the_settings() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    assert!(!app.panes_view.reserve_info);
-    app.panes_view.reserve_info = true;
+    assert!(!app.bench.panes_view.reserve_info);
+    app.bench.panes_view.reserve_info = true;
     let mut back = TimegrapherApp::with_devices(Vec::new(), None);
     back.apply_settings(app.settings());
-    assert!(back.panes_view.reserve_info);
-    app.panes_view.reserve_info = false;
+    assert!(back.bench.panes_view.reserve_info);
+    app.bench.panes_view.reserve_info = false;
     back.apply_settings(app.settings());
-    assert!(!back.panes_view.reserve_info);
+    assert!(!back.bench.panes_view.reserve_info);
     // The Positions Test pane's Info, the same way (#1528).
-    assert!(!back.panes_view.positions_info);
-    app.panes_view.positions_info = true;
+    assert!(!back.bench.panes_view.positions_info);
+    app.bench.panes_view.positions_info = true;
     back.apply_settings(app.settings());
-    assert!(back.panes_view.positions_info && !back.panes_view.reserve_info);
+    assert!(back.bench.panes_view.positions_info && !back.bench.panes_view.reserve_info);
 }
 
 /// A Power Reserve Test with Analysis Only picked, its 28 s of a ticking

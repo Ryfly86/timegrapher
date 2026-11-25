@@ -566,7 +566,7 @@ impl TimegrapherApp {
     /// an opened recording, at its newest moment. Earlier in it, the strip
     /// moved back, its first 10 s are still "Listening" (#2053).
     fn sound_over(&self) -> bool {
-        !self.running() && self.panes_view.strip_end.is_none()
+        !self.running() && self.bench.panes_view.strip_end.is_none()
     }
 
     /// Why the cards have no reading, or a reading with no beat at all:
@@ -590,7 +590,7 @@ impl TimegrapherApp {
         }
         // At the moment the cards show: the strip's newest edge when it
         // is moved back, as `card_reading` reads it.
-        let at = match self.panes_view.strip_end {
+        let at = match self.bench.panes_view.strip_end {
             Some(_) => self.strip_end_s(),
             None => self.latest_s(),
         };
@@ -918,7 +918,7 @@ impl TimegrapherApp {
     /// moved off the newest beats, the one ending at its newest edge, as
     /// the sound panes show that moment.
     pub(super) fn card_reading(&self) -> Option<LiveReading> {
-        match self.panes_view.strip_end {
+        match self.bench.panes_view.strip_end {
             Some(_) => self.reading_at_time(self.strip_end_s()),
             None => self.reading(),
         }
@@ -1871,12 +1871,12 @@ impl TimegrapherApp {
     pub(super) fn relayout(&mut self, horizontal: bool) {
         let shown: Vec<(Pane, bool)> = Pane::ALL
             .into_iter()
-            .map(|p| (p, pane_visible(&self.panes_view.panes.tiles, p)))
+            .map(|p| (p, pane_visible(&self.bench.panes_view.panes.tiles, p)))
             .collect();
-        self.panes_view.panes = default_layout(horizontal);
-        self.panes_view.panes_dragged.clear();
+        self.bench.panes_view.panes = default_layout(horizontal);
+        self.bench.panes_view.panes_dragged.clear();
         for (p, on) in shown {
-            set_pane_visible(&mut self.panes_view.panes.tiles, p, on);
+            set_pane_visible(&mut self.bench.panes_view.panes.tiles, p, on);
         }
     }
 

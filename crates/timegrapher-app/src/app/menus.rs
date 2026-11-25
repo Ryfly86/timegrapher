@@ -131,9 +131,9 @@ impl TimegrapherApp {
     pub(super) fn menu_checked(&self, c: MenuCommand) -> bool {
         match c {
             MenuCommand::View(v) => self.watches_view.view == v,
-            MenuCommand::Readings => self.panes_view.show_readings,
-            MenuCommand::CompactReadings => !self.panes_view.readings_pinned,
-            MenuCommand::Pane(p) => pane_visible(&self.panes_view.panes.tiles, p),
+            MenuCommand::Readings => self.bench.panes_view.show_readings,
+            MenuCommand::CompactReadings => !self.bench.panes_view.readings_pinned,
+            MenuCommand::Pane(p) => pane_visible(&self.bench.panes_view.panes.tiles, p),
             _ => false,
         }
     }
@@ -172,18 +172,21 @@ impl TimegrapherApp {
             MenuCommand::RemoveMasks => self.take.remove_masks_asked = true,
             MenuCommand::Settings => self.open_settings(self.settings_last),
             MenuCommand::View(v) => self.watches_view.view = v,
-            MenuCommand::Readings => self.panes_view.show_readings = !self.panes_view.show_readings,
+            MenuCommand::Readings => {
+                self.bench.panes_view.show_readings = !self.bench.panes_view.show_readings
+            }
             MenuCommand::CompactReadings => {
-                self.panes_view.readings_pinned = !self.panes_view.readings_pinned
+                self.bench.panes_view.readings_pinned = !self.bench.panes_view.readings_pinned
             }
             MenuCommand::Pane(p) => {
-                let on = pane_visible(&self.panes_view.panes.tiles, p);
+                let on = pane_visible(&self.bench.panes_view.panes.tiles, p);
                 self.show_pane(p, !on);
             }
             MenuCommand::ResetPanes => {
-                self.panes_view.show_readings = true;
-                self.panes_view.panes = default_layout(self.panes_view.strip.horizontal);
-                self.panes_view.panes_dragged.clear();
+                self.bench.panes_view.show_readings = true;
+                self.bench.panes_view.panes =
+                    default_layout(self.bench.panes_view.strip.horizontal);
+                self.bench.panes_view.panes_dragged.clear();
             }
             MenuCommand::NewWatch => self.open_new_watch_form(),
             MenuCommand::FindInWatches => self.find_in_watches(),

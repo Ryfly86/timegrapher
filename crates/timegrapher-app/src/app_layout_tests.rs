@@ -145,10 +145,10 @@ fn check(
         .collect();
     for &p in Pane::ALL.iter() {
         let laid_out = || {
-            let tiles = &app.panes_view.panes.tiles;
+            let tiles = &app.bench.panes_view.panes.tiles;
             tiles.find_pane(&p).and_then(|t| tiles.rect(t)).is_some()
         };
-        let drawn = pane_visible(&app.panes_view.panes.tiles, p) && laid_out();
+        let drawn = pane_visible(&app.bench.panes_view.panes.tiles, p) && laid_out();
         if drawn && !text.iter().any(|t| t.starts_with(p.title())) {
             wrong.push(format!(
                 "{at}: the {} pane shows without its title",
@@ -275,12 +275,12 @@ fn every_pane_is_whole_with_a_recording_opened() {
     // With the charts and the distributions open too, no pane is crushed:
     // each laid out keeps room for a plot.
     for p in [Pane::Charts, Pane::Distributions] {
-        set_pane_visible(&mut app.panes_view.panes.tiles, p, true);
+        set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, true);
     }
     for size in [(1000.0, 700.0), (1440.0, 900.0)] {
         wrong.extend(check(&mut app, &ctx, size, "charts and distributions open"));
         for &p in Pane::ALL.iter() {
-            let tiles = &app.panes_view.panes.tiles;
+            let tiles = &app.bench.panes_view.panes.tiles;
             let Some(r) = tiles.find_pane(&p).and_then(|t| tiles.rect(t)) else {
                 continue;
             };
@@ -302,9 +302,9 @@ fn every_pane_is_whole_with_a_recording_opened() {
         app.show_pane(front, true);
         for size in [(1000.0, 700.0), (1440.0, 900.0)] {
             wrong.extend(check(&mut app, &ctx, size, "charts and distributions open"));
-            let tiles = &app.panes_view.panes.tiles;
+            let tiles = &app.bench.panes_view.panes.tiles;
             let r = tiles.find_pane(&front).and_then(|t| tiles.rect(t));
-            let need = app.panes_view.pane_need.get(&front).copied();
+            let need = app.bench.panes_view.pane_need.get(&front).copied();
             match (r, need) {
                 (Some(r), Some(need)) if r.height() + 1.0 >= need => {}
                 _ => wrong.push(format!(
@@ -712,8 +712,8 @@ fn the_width_and_length_fields_show_their_units_whole() {
     app.reset_session(48000, "syn".into());
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(1440.0, 700.0));
     for (width, length) in [(888.8, 8888.0), (58.8, 35_999.0)] {
-        app.panes_view.strip.set_half_width(width);
-        app.panes_view.strip.set_span(length);
+        app.bench.panes_view.strip.set_half_width(width);
+        app.bench.panes_view.strip.set_span(length);
         let mut out = None;
         for _ in 0..3 {
             let input = egui::RawInput {
@@ -803,7 +803,7 @@ fn the_profiles_toolbar_leaves_the_moment_to_the_strip() {
         theme::tools_drawn_at(&ctx)
     };
     let live = drawn_with(&mut app);
-    app.panes_view.strip_end = Some(10.0);
+    app.bench.panes_view.strip_end = Some(10.0);
     let drawn = drawn_with(&mut app);
     let moment = app.sound_moment().expect("moved back");
     assert!(
@@ -897,13 +897,13 @@ fn the_tab_rows_arrows_stay_put_and_grey_at_its_ends() {
     app.reset_session(48000, "syn".into());
     for p in Pane::ALL {
         if !matches!(p, Pane::PositionsTest | Pane::PowerReserve) {
-            set_pane_visible(&mut app.panes_view.panes.tiles, p, true);
+            set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, true);
         }
     }
     let open = |app: &TimegrapherApp| {
         Pane::ALL
             .iter()
-            .filter(|&&p| pane_visible(&app.panes_view.panes.tiles, p))
+            .filter(|&&p| pane_visible(&app.bench.panes_view.panes.tiles, p))
             .count()
     };
     let panes = open(&app);
@@ -952,12 +952,19 @@ fn the_tab_rows_arrows_stay_put_and_grey_at_its_ends() {
     let (left, _) = arrow(&drawn, "⏴");
     let (right, _) = arrow(&drawn, "⏵");
     let picked = |a: &TimegrapherApp| {
-        a.panes_view.panes.tiles.iter().find_map(|(_, t)| match t {
-            egui_tiles::Tile::Container(egui_tiles::Container::Tabs(t)) if t.children.len() > 4 => {
-                t.active
-            }
-            _ => None,
-        })
+        a.bench
+            .panes_view
+            .panes
+            .tiles
+            .iter()
+            .find_map(|(_, t)| match t {
+                egui_tiles::Tile::Container(egui_tiles::Container::Tabs(t))
+                    if t.children.len() > 4 =>
+                {
+                    t.active
+                }
+                _ => None,
+            })
     };
     let was_picked = picked(&app);
     let mut click = |app: &mut TimegrapherApp, at: egui::Pos2| {
@@ -1010,24 +1017,47 @@ fn the_power_reserve_pane_opens_at_its_least() {
             };
             let _ = ctx.run(input, |ctx| app.panels(ctx));
         };
-        set_pane_visible(&mut app.panes_view.panes.tiles, Pane::PowerReserve, false);
+        set_pane_visible(
+            &mut app.bench.panes_view.panes.tiles,
+            Pane::PowerReserve,
+            false,
+        );
         for _ in 0..3 {
             pass(&mut app);
         }
         let row = |app: &TimegrapherApp| {
             let id = app
+                .bench
                 .panes_view
                 .panes
                 .tiles
                 .find_pane(&Pane::PowerReserve)
                 .unwrap();
-            let tabs = app.panes_view.panes.tiles.parent_of(id).unwrap();
-            app.panes_view.panes.tiles.rect(tabs).unwrap().height()
+            let tabs = app.bench.panes_view.panes.tiles.parent_of(id).unwrap();
+            app.bench
+                .panes_view
+                .panes
+                .tiles
+                .rect(tabs)
+                .unwrap()
+                .height()
         };
         let strip = |app: &TimegrapherApp| {
-            let id = app.panes_view.panes.tiles.find_pane(&Pane::Strip).unwrap();
-            let tabs = app.panes_view.panes.tiles.parent_of(id).unwrap();
-            app.panes_view.panes.tiles.rect(tabs).unwrap().height()
+            let id = app
+                .bench
+                .panes_view
+                .panes
+                .tiles
+                .find_pane(&Pane::Strip)
+                .unwrap();
+            let tabs = app.bench.panes_view.panes.tiles.parent_of(id).unwrap();
+            app.bench
+                .panes_view
+                .panes
+                .tiles
+                .rect(tabs)
+                .unwrap()
+                .height()
         };
         let (before, was) = (strip(&app), row(&app));
         // At 1280 × 820 the bottom row starts taller; at 800 × 600 it is
@@ -1069,7 +1099,11 @@ fn a_finished_runs_pane_is_never_a_sliver() {
             };
             let _ = ctx.run(input, |ctx| app.panels(ctx));
         };
-        set_pane_visible(&mut app.panes_view.panes.tiles, Pane::PowerReserve, false);
+        set_pane_visible(
+            &mut app.bench.panes_view.panes.tiles,
+            Pane::PowerReserve,
+            false,
+        );
         for _ in 0..3 {
             pass(&mut app);
         }
@@ -1079,13 +1113,20 @@ fn a_finished_runs_pane_is_never_a_sliver() {
         }
         let row = |app: &TimegrapherApp| {
             let id = app
+                .bench
                 .panes_view
                 .panes
                 .tiles
                 .find_pane(&Pane::PowerReserve)
                 .unwrap();
-            let tabs = app.panes_view.panes.tiles.parent_of(id).unwrap();
-            app.panes_view.panes.tiles.rect(tabs).unwrap().height()
+            let tabs = app.bench.panes_view.panes.tiles.parent_of(id).unwrap();
+            app.bench
+                .panes_view
+                .panes
+                .tiles
+                .rect(tabs)
+                .unwrap()
+                .height()
         };
         assert!((row(&app) - MIN_PANE_H).abs() < 1.5, "{w}: {}", row(&app));
         // The run's take opened, as from the Watches view.
@@ -1100,6 +1141,7 @@ fn a_finished_runs_pane_is_never_a_sliver() {
             pass(&mut app);
         }
         let need = app
+            .bench
             .panes_view
             .pane_need
             .get(&Pane::PowerReserve)
@@ -1108,9 +1150,21 @@ fn a_finished_runs_pane_is_never_a_sliver() {
         let tall = row(&app);
         // Nor does the Paper Strip above give up its own least for it.
         let strip = {
-            let id = app.panes_view.panes.tiles.find_pane(&Pane::Strip).unwrap();
-            let tabs = app.panes_view.panes.tiles.parent_of(id).unwrap();
-            app.panes_view.panes.tiles.rect(tabs).unwrap().height()
+            let id = app
+                .bench
+                .panes_view
+                .panes
+                .tiles
+                .find_pane(&Pane::Strip)
+                .unwrap();
+            let tabs = app.bench.panes_view.panes.tiles.parent_of(id).unwrap();
+            app.bench
+                .panes_view
+                .panes
+                .tiles
+                .rect(tabs)
+                .unwrap()
+                .height()
         };
         assert!(strip + 1.0 >= MIN_PANE_H, "{w}: the strip {strip}");
         // A tab bar over the pane's own need, its charts readable; in a
@@ -1157,11 +1211,11 @@ fn ticking(seconds: f64) -> TimegrapherApp {
 
 /// The height of the row holding `pane`: its tabs, or the pane itself.
 fn row_h(app: &TimegrapherApp, pane: Pane) -> f32 {
-    let id = app.panes_view.panes.tiles.find_pane(&pane).unwrap();
-    let row = match app.panes_view.panes.tiles.parent_of(id) {
+    let id = app.bench.panes_view.panes.tiles.find_pane(&pane).unwrap();
+    let row = match app.bench.panes_view.panes.tiles.parent_of(id) {
         Some(p)
             if matches!(
-                app.panes_view.panes.tiles.get(p),
+                app.bench.panes_view.panes.tiles.get(p),
                 Some(egui_tiles::Tile::Container(egui_tiles::Container::Tabs(_)))
             ) =>
         {
@@ -1169,7 +1223,7 @@ fn row_h(app: &TimegrapherApp, pane: Pane) -> f32 {
         }
         _ => id,
     };
-    app.panes_view.panes.tiles.rect(row).unwrap().height()
+    app.bench.panes_view.panes.tiles.rect(row).unwrap().height()
 }
 
 /// A pane opened under the Paper Strip, a map among them, takes only the
@@ -1194,7 +1248,13 @@ fn the_paper_strip_keeps_its_dots_under_a_map() {
             for _ in 0..4 {
                 pass(&mut app);
             }
-            let need = app.panes_view.pane_need.get(&Pane::Strip).copied().unwrap();
+            let need = app
+                .bench
+                .panes_view
+                .pane_need
+                .get(&Pane::Strip)
+                .copied()
+                .unwrap();
             assert!(need >= STRIP_MIN_PLOT_H, "{pane:?} {w}: {need}");
             let strip = row_h(&app, Pane::Strip);
             assert!(strip + 1.0 >= need, "{pane:?} {w}x{h}: {strip} for {need}");
@@ -1235,10 +1295,10 @@ fn a_pane_too_short_for_its_plot_says_so() {
         let words = format!("{} not shown: no room.", pane.title());
         let text = run(&mut app, 800.0, 560.0);
         assert!(text.contains(&words), "{pane:?}: {text}");
-        assert!(app.panes_view.panes_short.contains(&pane));
+        assert!(app.bench.panes_view.panes_short.contains(&pane));
         let text = run(&mut app, 1280.0, 1000.0);
         assert!(!text.contains(&words), "{pane:?}: {text}");
-        assert!(!app.panes_view.panes_short.contains(&pane));
+        assert!(!app.bench.panes_view.panes_short.contains(&pane));
     }
 }
 
@@ -1264,18 +1324,30 @@ fn a_dragged_divider_stands_until_a_pane_in_its_row_changes() {
         pass(&mut app);
     }
     // The strip's row (its tabs, if any), and the column it is in.
-    let mut strip_id = app.panes_view.panes.tiles.find_pane(&Pane::Strip).unwrap();
-    let mut column = app.panes_view.panes.tiles.parent_of(strip_id).unwrap();
+    let mut strip_id = app
+        .bench
+        .panes_view
+        .panes
+        .tiles
+        .find_pane(&Pane::Strip)
+        .unwrap();
+    let mut column = app
+        .bench
+        .panes_view
+        .panes
+        .tiles
+        .parent_of(strip_id)
+        .unwrap();
     if matches!(
-        app.panes_view.panes.tiles.get(column),
+        app.bench.panes_view.panes.tiles.get(column),
         Some(egui_tiles::Tile::Container(egui_tiles::Container::Tabs(_)))
     ) {
         strip_id = column;
-        column = app.panes_view.panes.tiles.parent_of(column).unwrap();
+        column = app.bench.panes_view.panes.tiles.parent_of(column).unwrap();
     }
     // As a drag leaves it: the strip a sliver, the map the rest.
     let Some(egui_tiles::Tile::Container(egui_tiles::Container::Linear(l))) =
-        app.panes_view.panes.tiles.get_mut(column)
+        app.bench.panes_view.panes.tiles.get_mut(column)
     else {
         panic!("the strip's column");
     };
@@ -1290,12 +1362,18 @@ fn a_dragged_divider_stands_until_a_pane_in_its_row_changes() {
     for &c in &others {
         l.shares.set_share(c, total * 0.95 / others.len() as f32);
     }
-    app.panes_view.panes_dragged.insert(column);
+    app.bench.panes_view.panes_dragged.insert(column);
     for _ in 0..3 {
         pass(&mut app);
     }
     let low = row_h(&app, Pane::Strip);
-    let need = app.panes_view.pane_need.get(&Pane::Strip).copied().unwrap();
+    let need = app
+        .bench
+        .panes_view
+        .pane_need
+        .get(&Pane::Strip)
+        .copied()
+        .unwrap();
     assert!(need >= STRIP_MIN_H, "{need}");
     assert!(low + 1.0 >= need, "{low} under the strip's least {need}");
     // The drag stands as far as the strip's least, under its tab bar:
@@ -1307,7 +1385,7 @@ fn a_dragged_divider_stands_until_a_pane_in_its_row_changes() {
     // Dragged the other way, the map a sliver under its own least: that
     // drag stands, only the strip's least is kept (Trevor on #2026).
     let Some(egui_tiles::Tile::Container(egui_tiles::Container::Linear(l))) =
-        app.panes_view.panes.tiles.get_mut(column)
+        app.bench.panes_view.panes.tiles.get_mut(column)
     else {
         panic!("the strip's column");
     };
@@ -1327,11 +1405,17 @@ fn a_dragged_divider_stands_until_a_pane_in_its_row_changes() {
     // A pane shown in its row: every pane at its least again.
     app.show_pane(Pane::SteadyStft, false);
     app.show_pane(Pane::SteadyStft, true);
-    assert!(app.panes_view.panes_dragged.is_empty());
+    assert!(app.bench.panes_view.panes_dragged.is_empty());
     for _ in 0..4 {
         pass(&mut app);
     }
-    let need = app.panes_view.pane_need.get(&Pane::Strip).copied().unwrap();
+    let need = app
+        .bench
+        .panes_view
+        .pane_need
+        .get(&Pane::Strip)
+        .copied()
+        .unwrap();
     assert!(row_h(&app, Pane::Strip) + 1.0 >= need);
 }
 
@@ -1345,7 +1429,8 @@ fn the_maps_show_one_map_at_a_time_and_share_it() {
     assert_eq!(app.series_shown(View::Stft), [true, false, false]);
     assert_eq!(app.series_shown(View::Wavelet), [true, false, false]);
     assert_eq!(app.series_shown(View::Fft), [true, false, false]);
-    app.panes_view
+    app.bench
+        .panes_view
         .steady_series
         .insert(View::Stft, [false, true, false]);
     assert_eq!(app.series_shown(View::Wavelet), [false, true, false]);
@@ -1365,7 +1450,7 @@ fn the_maps_show_one_map_at_a_time_and_share_it() {
     }
     assert!(keys.iter().any(|k| k == "Wavelet Map/Series"), "{keys:?}");
     assert_eq!(
-        app.panes_view.steady_series[&View::Stft],
+        app.bench.panes_view.steady_series[&View::Stft],
         [false, true, false]
     );
 }
@@ -1449,7 +1534,7 @@ fn the_length_field_holds_eighty_hours_whole() {
     // Fit's length to the latest beat, a second short of the 80 hours:
     // the widest it reads (whole hours read "80 h").
     let longest = StripView::MAX_SPAN_S - 1.0;
-    app.panes_view.strip.set_span(longest);
+    app.bench.panes_view.strip.set_span(longest);
     let shown = fields::duration(longest);
     assert_eq!(shown, "79:59:59");
     let mut drawn = None;

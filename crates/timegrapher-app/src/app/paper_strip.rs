@@ -18,10 +18,10 @@ impl TimegrapherApp {
     /// beat, and keep it so as beats arrive: Fit on.
     pub(super) fn fit_strip(&mut self) {
         // Still paper has nothing to fit: its Length is the lap.
-        if self.panes_view.strip.still {
+        if self.bench.panes_view.strip.still {
             return;
         }
-        self.panes_view.strip_fit = true;
+        self.bench.panes_view.strip_fit = true;
         self.follow_fit();
     }
 
@@ -38,27 +38,34 @@ impl TimegrapherApp {
     /// turned on for the take.
     pub(super) fn fit_take(&mut self) {
         let before = (
-            self.panes_view.strip,
-            [self.panes_view.rate_line, self.panes_view.rate_guides],
+            self.bench.panes_view.strip,
+            [
+                self.bench.panes_view.rate_line,
+                self.bench.panes_view.rate_guides,
+            ],
         );
-        if self.panes_view.live_strip.is_none() {
-            self.panes_view.live_fit = self.panes_view.strip_fit;
+        if self.bench.panes_view.live_strip.is_none() {
+            self.bench.panes_view.live_fit = self.bench.panes_view.strip_fit;
         }
         self.fit_view();
         let (live, rate) = self
+            .bench
             .panes_view
             .live_strip
             .map_or(before, |(live, _, rate)| (live, rate));
-        self.panes_view.live_strip = Some((live, self.panes_view.strip, rate));
-        [self.panes_view.rate_line, self.panes_view.rate_guides] = [false; 2];
+        self.bench.panes_view.live_strip = Some((live, self.bench.panes_view.strip, rate));
+        [
+            self.bench.panes_view.rate_line,
+            self.bench.panes_view.rate_guides,
+        ] = [false; 2];
     }
 
     /// The strip's view a live session goes back to: the person's own
     /// width and length from before a take was fitted, each unless they
     /// set it by hand since, which stays (Hugh).
     pub(super) fn live_view(&self) -> StripView {
-        let mut v = self.panes_view.strip;
-        if let Some((live, fitted, _)) = self.panes_view.live_strip {
+        let mut v = self.bench.panes_view.strip;
+        if let Some((live, fitted, _)) = self.bench.panes_view.live_strip {
             if v.half_width_ms == fitted.half_width_ms {
                 v.half_width_ms = live.half_width_ms;
             }
@@ -73,22 +80,28 @@ impl TimegrapherApp {
     /// goes back to its live view and its Rate Line and Parallel Guides,
     /// and Fit to how it was if the length does.
     pub(super) fn restore_live_strip(&mut self) {
-        if matches!(self.panes_view.live_strip, Some((_, fitted, _)) if fitted.span_s == self.panes_view.strip.span_s)
+        if matches!(self.bench.panes_view.live_strip, Some((_, fitted, _)) if fitted.span_s == self.bench.panes_view.strip.span_s)
         {
-            self.panes_view.strip_fit = self.panes_view.live_fit;
+            self.bench.panes_view.strip_fit = self.bench.panes_view.live_fit;
         }
-        if let Some((.., rate)) = self.panes_view.live_strip {
-            [self.panes_view.rate_line, self.panes_view.rate_guides] = rate;
+        if let Some((.., rate)) = self.bench.panes_view.live_strip {
+            [
+                self.bench.panes_view.rate_line,
+                self.bench.panes_view.rate_guides,
+            ] = rate;
         }
-        self.panes_view.strip = self.live_view();
-        self.panes_view.live_strip = None;
+        self.bench.panes_view.strip = self.live_view();
+        self.bench.panes_view.live_strip = None;
     }
 
     /// Rate Line and Parallel Guides as a live session has them: those
     /// from before an opened take, kept for the next run of the app.
     pub(super) fn live_rate_marks(&self) -> [bool; 2] {
-        self.panes_view.live_strip.map_or(
-            [self.panes_view.rate_line, self.panes_view.rate_guides],
+        self.bench.panes_view.live_strip.map_or(
+            [
+                self.bench.panes_view.rate_line,
+                self.bench.panes_view.rate_guides,
+            ],
             |(.., rate)| rate,
         )
     }
@@ -108,7 +121,7 @@ impl TimegrapherApp {
         let beats = live.beats();
         let breaks = self.take.take_breaks.as_deref().unwrap_or_default();
         let clock = self.take_rate_clock();
-        let centred = if self.panes_view.follow {
+        let centred = if self.bench.panes_view.follow {
             Anchor::centre_on_true(beats, period, 8, breaks, clock)
         } else {
             Anchor::centre_on_true(&beats[..beats.len().min(16)], period, 16, breaks, clock)
@@ -125,7 +138,7 @@ impl TimegrapherApp {
         leads.sort_by(f64::total_cmp);
         let stray = leads.len() / 1000;
         let (lo, hi) = (leads[stray], leads[leads.len() - 1 - stray]);
-        let (anchor, half) = if self.panes_view.follow {
+        let (anchor, half) = if self.bench.panes_view.follow {
             (anchor, lo.abs().max(hi.abs()))
         } else {
             // An earlier anchor time makes every beat read later by as
@@ -145,7 +158,7 @@ impl TimegrapherApp {
             .copied()
             .find(|&w| w >= need)
             .unwrap_or(StripView::MAX_HALF_WIDTH_MS);
-        self.panes_view.strip.set_half_width(width);
+        self.bench.panes_view.strip.set_half_width(width);
     }
 
     /// Where no reading of the take on show hears a watch (core's
@@ -166,10 +179,12 @@ impl TimegrapherApp {
     /// fitted again, now that where the watch is heard is known, unless
     /// its view was changed since it was fitted (#2177).
     pub(super) fn refit_opened(&mut self) {
-        match self.panes_view.live_strip {
-            Some((live, fitted, rate)) if fitted == self.panes_view.strip && !self.running() => {
+        match self.bench.panes_view.live_strip {
+            Some((live, fitted, rate))
+                if fitted == self.bench.panes_view.strip && !self.running() =>
+            {
                 self.fit_view();
-                self.panes_view.live_strip = Some((live, self.panes_view.strip, rate));
+                self.bench.panes_view.live_strip = Some((live, self.bench.panes_view.strip, rate));
             }
             _ => {}
         }
@@ -198,13 +213,17 @@ impl TimegrapherApp {
         } else {
             self.latest_s()
         };
-        self.panes_view.strip_end.unwrap_or(latest).min(latest)
+        self.bench
+            .panes_view
+            .strip_end
+            .unwrap_or(latest)
+            .min(latest)
     }
 
     /// Fit is on and the paper moves: still paper has nothing to fit, so
     /// Fit waits greyed until the paper moves again.
     pub(super) fn strip_fitted(&self) -> bool {
-        self.panes_view.strip_fit && !self.panes_view.strip.still
+        self.bench.panes_view.strip_fit && !self.bench.panes_view.strip.still
     }
 
     /// The stretches the strip draws faintly, each with what the ticker
@@ -272,7 +291,7 @@ impl TimegrapherApp {
     /// The strip settings' Draw Over the Strip switches: Rate, Amplitude,
     /// Beat Error.
     fn strip_overlays(&mut self, ui: &mut egui::Ui, pal: &theme::Palette) {
-        let overlays = &mut self.panes_view.overlays;
+        let overlays = &mut self.bench.panes_view.overlays;
         for (icon, name) in [
             (Icon::Rate, "Rate"),
             (Icon::Amplitude, "Amplitude"),
@@ -339,7 +358,7 @@ impl TimegrapherApp {
             "Milliseconds either side of the centre line: type it, or pick one with ⏷. \
              Alt (Option on a Mac) and the mouse wheel on the strip change it too.",
             |ui| {
-                let mut w = self.panes_view.strip.half_width_ms;
+                let mut w = self.bench.panes_view.strip.half_width_ms;
                 let (_, changed) = fields::combo(
                     ui,
                     "width",
@@ -353,7 +372,7 @@ impl TimegrapherApp {
                     112.0,
                 );
                 if changed {
-                    self.panes_view.strip.set_half_width(w);
+                    self.bench.panes_view.strip.set_half_width(w);
                 }
             },
         );
@@ -367,7 +386,7 @@ impl TimegrapherApp {
                 fields::duration(StripView::MIN_SPAN_S)
             ),
             |ui| {
-                let mut s = self.panes_view.strip.span_s;
+                let mut s = self.bench.panes_view.strip.span_s;
                 let (_, changed) = fields::combo(
                     ui,
                     "span",
@@ -380,8 +399,8 @@ impl TimegrapherApp {
                     LENGTH_FIELD_W,
                 );
                 if changed {
-                    self.panes_view.strip_fit = false;
-                    self.panes_view.strip.set_span(s);
+                    self.bench.panes_view.strip_fit = false;
+                    self.bench.panes_view.strip.set_span(s);
                 }
             },
         );
@@ -395,7 +414,8 @@ impl TimegrapherApp {
             "Show the whole session along the strip, up to its latest beat (its last 80 hours \
              when it is longer), and keep it in view as beats arrive. Zooming or dragging the \
              strip's time turns it off.",
-            self.panes_view
+            self.bench
+                .panes_view
                 .strip
                 .still
                 .then_some("The paper is still, so there's nothing to fit"),
@@ -403,7 +423,7 @@ impl TimegrapherApp {
             if fit {
                 self.fit_strip();
             } else {
-                self.panes_view.strip_fit = false;
+                self.bench.panes_view.strip_fit = false;
             }
         }
     }
@@ -445,7 +465,7 @@ impl TimegrapherApp {
     /// #2170, so the row fits Still Paper and Time of Day at 1000 pt); in
     /// the "…" menu the choice keeps its words.
     fn strip_direction(&mut self, ui: &mut egui::Ui) {
-        let mut h = self.panes_view.strip.horizontal;
+        let mut h = self.bench.panes_view.strip.horizontal;
         theme::tool_choice(
             ui,
             "Direction",
@@ -466,8 +486,8 @@ impl TimegrapherApp {
                 ),
             ],
         );
-        if h != self.panes_view.strip.horizontal {
-            self.panes_view.strip.horizontal = h;
+        if h != self.bench.panes_view.strip.horizontal {
+            self.bench.panes_view.strip.horizontal = h;
             self.relayout(h);
         }
     }
@@ -475,7 +495,7 @@ impl TimegrapherApp {
     /// The strip settings' Still Paper switch, after Direction (Hugh: a
     /// toggle, so the row fits at 1000 pt).
     fn strip_paper(&mut self, ui: &mut egui::Ui, pal: &theme::Palette) {
-        let hint = if self.panes_view.strip.still {
+        let hint = if self.bench.panes_view.strip.still {
             "On. The pen wraps every Length; Fit is off"
         } else {
             "Hold the paper still and sweep the pen across it, wrapping every Length"
@@ -485,7 +505,7 @@ impl TimegrapherApp {
             Icon::StillPaper,
             pal.accent,
             "Still Paper",
-            &mut self.panes_view.strip.still,
+            &mut self.bench.panes_view.strip.still,
             hint,
         );
     }
@@ -500,7 +520,7 @@ impl TimegrapherApp {
             Icon::TimeOfDay,
             pal.accent,
             "Time of Day",
-            &mut self.panes_view.strip.clock,
+            &mut self.bench.panes_view.strip.clock,
             hint,
         );
     }
@@ -508,7 +528,7 @@ impl TimegrapherApp {
     /// Time of Day's hover: what it does, or, on for a take whose start
     /// isn't known, that only the take's own time shows.
     pub(super) fn strip_time_of_day_hint(&self, ctx: &egui::Context) -> &'static str {
-        if self.panes_view.strip.clock
+        if self.bench.panes_view.strip.clock
             && self.recording.live.is_some()
             && self.strip_wall(ctx).is_none()
         {
@@ -539,7 +559,7 @@ impl TimegrapherApp {
             Icon::AutoCentre,
             pal.accent,
             "Auto-Centre",
-            &mut self.panes_view.follow,
+            &mut self.bench.panes_view.follow,
             "Keep the newest beats on the centre line and slide the rest",
         );
         theme::bar_gap(ui);
@@ -548,7 +568,7 @@ impl TimegrapherApp {
             Icon::RateLine,
             pal.trace_rate,
             "Rate Line",
-            &mut self.panes_view.rate_line,
+            &mut self.bench.panes_view.rate_line,
             "Draw the Rate reading as a magenta line over the beats it was fitted to, to check \
              that it follows the dots",
         );
@@ -557,7 +577,7 @@ impl TimegrapherApp {
             Icon::Rails,
             pal.trace_rate,
             "Parallel Guides",
-            &mut self.panes_view.rate_guides,
+            &mut self.bench.panes_view.rate_guides,
             "Faint lines at the Rate reading's slope across the whole strip, so it is easy \
              to see whether the dots run parallel to it. They show with or without the Rate \
              Line.",
@@ -669,11 +689,11 @@ impl TimegrapherApp {
         }
         self.note_need(ui, Pane::Strip, STRIP_MIN_H);
         self.follow_fit();
-        if self.panes_view.follow {
+        if self.bench.panes_view.follow {
             self.centre();
         }
         let end = self.strip_end_s();
-        let looking_back = self.panes_view.strip_end.is_some() && end < self.latest_s() - 0.5;
+        let looking_back = self.bench.panes_view.strip_end.is_some() && end < self.latest_s() - 0.5;
         // With no beat at all, the cards' wait leads the note, so the strip
         // and the cards say one verdict (#2044).
         let wait = guessing
@@ -683,16 +703,21 @@ impl TimegrapherApp {
             .map(|(title, _)| title);
         // The faint dots in view, so the note says what is drawn: on pure
         // silence only the peak as the microphone opens (#2053).
-        let dots = dots_in_view(&candidates, end - self.panes_view.strip.span_s, end);
+        let dots = dots_in_view(&candidates, end - self.bench.panes_view.strip.span_s, end);
         let note = strip_note(guessing, (wait.as_deref(), dots), looking_back, end);
-        let from = end - self.panes_view.strip.span_s - 5.0;
+        let from = end - self.bench.panes_view.strip.span_s - 5.0;
         let (trend, _) = self.strip_trend(from, end, self.take.average_s);
         let live = &self.recording.live;
         let Some(live) = live else { return };
         let period = live.bph().map_or(0.125, |b| 3600.0 / b as f64);
         let rate_line = self.strip_rate_line();
-        let mut overlays =
-            strip_overlays_drawn(self.panes_view.overlays, &trend, from, end, theme::pal(ui));
+        let mut overlays = strip_overlays_drawn(
+            self.bench.panes_view.overlays,
+            &trend,
+            from,
+            end,
+            theme::pal(ui),
+        );
         let bands = self.position_bands();
         let (track, painted) = self.strip_tracks();
         let settles = self.strip_faint(guessing.then_some((from, end + 1.0)));
@@ -704,10 +729,10 @@ impl TimegrapherApp {
         let extras = strip::Extras {
             note: note.as_deref(),
             rate_line,
-            line: self.panes_view.rate_line,
-            guides: self.panes_view.rate_guides,
+            line: self.bench.panes_view.rate_line,
+            guides: self.bench.panes_view.rate_guides,
             overlays: &overlays,
-            cursor_t: self.panes_view.cursor_t,
+            cursor_t: self.bench.panes_view.cursor_t,
             gutter: theme::time_gutter(ui.ctx()),
             bands: &bands,
             settles: &settles,
@@ -750,12 +775,12 @@ impl TimegrapherApp {
             period,
             anchor,
             end,
-            &self.panes_view.strip,
+            &self.bench.panes_view.strip,
             &extras,
             ui.available_size(),
         );
         if input.hover_t.is_some() {
-            self.panes_view.cursor_next = input.hover_t;
+            self.bench.panes_view.cursor_next = input.hover_t;
         }
         self.apply_strip_input(input, end);
     }
@@ -773,7 +798,7 @@ impl TimegrapherApp {
     ) -> Option<timegrapher_core::time_of_day::WallClock> {
         use timegrapher_core::breaks::{Break, Unlisted};
         use timegrapher_core::time_of_day::WallClock;
-        if !self.panes_view.strip.clock {
+        if !self.bench.panes_view.strip.clock {
             return None;
         }
         if self.recording.input != Input::File {
@@ -811,7 +836,7 @@ impl TimegrapherApp {
     /// The rate line the strip draws, when Rate Line or Parallel Guides
     /// is on: the guides follow its slope, so it is worked out for either.
     pub(super) fn strip_rate_line(&self) -> Option<strip::RateLine> {
-        (self.panes_view.rate_line || self.panes_view.rate_guides)
+        (self.bench.panes_view.rate_line || self.bench.panes_view.rate_guides)
             .then(|| self.reading_over(self.take.average_s))
             .flatten()
             .and_then(|r| {
@@ -862,59 +887,64 @@ impl TimegrapherApp {
         }
         if input.span_factor != 1.0 || input.time_shift_s != 0.0 {
             // Zooming or panning time is the strip by hand: Fit goes off.
-            self.panes_view.strip_fit = false;
+            self.bench.panes_view.strip_fit = false;
         }
         if input.span_factor != 1.0 {
-            let was = self.panes_view.strip.span_s;
+            let was = self.bench.panes_view.strip.span_s;
             // Zoomed out no further than the take: past it is only blank
             // paper.
             let take = was.max(self.latest_s());
             // Small zooms add up, while the strip shows the round length
             // nearest where they are heading.
             let from = self
+                .bench
                 .panes_view
                 .strip_zoom_s
                 .filter(|&w| round_span(w) == was)
                 .unwrap_or(was);
             let wish = (from * input.span_factor).clamp(StripView::MIN_SPAN_S, take);
-            self.panes_view.strip_zoom_s = Some(wish);
-            self.panes_view.strip.set_span(round_span(wish).min(take));
+            self.bench.panes_view.strip_zoom_s = Some(wish);
+            self.bench
+                .panes_view
+                .strip
+                .set_span(round_span(wish).min(take));
             // Looking back, the time under the pointer stays under it;
             // live, the newest beat stays at the edge, so a zoom never
             // moves the moment the cards and the Profile show.
-            if let (Some(t), Some(_)) = (input.zoom_at, self.panes_view.strip_end) {
+            if let (Some(t), Some(_)) = (input.zoom_at, self.bench.panes_view.strip_end) {
                 let latest = self.latest_s();
-                let to = t + (end - t) * self.panes_view.strip.span_s / was;
-                self.panes_view.strip_end = if to >= latest {
+                let to = t + (end - t) * self.bench.panes_view.strip.span_s / was;
+                self.bench.panes_view.strip_end = if to >= latest {
                     None
                 } else {
-                    Some(to.max(self.panes_view.strip.span_s.min(latest)))
+                    Some(to.max(self.bench.panes_view.strip.span_s.min(latest)))
                 };
             }
         }
         if input.width_factor != 1.0 {
-            self.panes_view
+            self.bench
+                .panes_view
                 .strip
-                .set_half_width(self.panes_view.strip.half_width_ms * input.width_factor);
+                .set_half_width(self.bench.panes_view.strip.half_width_ms * input.width_factor);
         }
         if input.time_shift_s != 0.0 {
             let latest = self.latest_s();
             let to = end + input.time_shift_s;
-            self.panes_view.strip_end = if to >= latest {
+            self.bench.panes_view.strip_end = if to >= latest {
                 None
             } else {
-                Some(to.max(self.panes_view.strip.span_s.min(latest)))
+                Some(to.max(self.bench.panes_view.strip.span_s.min(latest)))
             };
         }
         if input.lead_shift_ms != 0.0 {
             if let Some(a) = self.recording.anchor.as_mut() {
                 a.time += input.lead_shift_ms / 1000.0;
                 // Moving the trace by hand ends auto-centring.
-                self.panes_view.follow = false;
+                self.bench.panes_view.follow = false;
             }
         }
         if input.reset {
-            self.panes_view.strip_end = None;
+            self.bench.panes_view.strip_end = None;
             self.centre();
         }
     }

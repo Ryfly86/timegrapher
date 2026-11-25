@@ -64,11 +64,11 @@ fn paused_take() -> (BeatLog, Vec<Break>) {
 fn a_steady_take_runs_on_through_a_pause_on_the_strip() {
     for follow in [false, true] {
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-        app.panes_view.follow = follow;
+        app.bench.panes_view.follow = follow;
         let (log, breaks) = paused_take();
         app.put_take_breaks(Some(breaks.clone()), None);
         app.show_log(log, "paused".into(), vec![], vec![]);
-        let half = app.panes_view.strip.half_width_ms;
+        let half = app.bench.panes_view.strip.half_width_ms;
         assert!(half <= 1.0, "follow {follow}: ±{half} ms");
         let live = app.recording.live.as_ref().unwrap();
         let anchor = app.recording.anchor.unwrap();
@@ -86,10 +86,10 @@ fn fit_follows_the_take_until_the_strip_is_zoomed_or_panned() {
     let mut app = synthetic(40.0, 0.0);
     app.fit_strip();
     // As if the session had grown since the last frame.
-    app.panes_view.strip.set_span(10.0);
+    app.bench.panes_view.strip.set_span(10.0);
     app.follow_fit();
     let end = app.take_span().unwrap().1;
-    assert!((app.panes_view.strip.span_s - end).abs() < 1e-9);
+    assert!((app.bench.panes_view.strip.span_s - end).abs() < 1e-9);
     app.apply_strip_input(
         StripInput {
             width_factor: 2.0,
@@ -98,7 +98,7 @@ fn fit_follows_the_take_until_the_strip_is_zoomed_or_panned() {
         end,
     );
     assert!(
-        app.panes_view.strip_fit,
+        app.bench.panes_view.strip_fit,
         "the width is not the strip's time"
     );
     app.apply_strip_input(
@@ -108,11 +108,11 @@ fn fit_follows_the_take_until_the_strip_is_zoomed_or_panned() {
         },
         end,
     );
-    assert!(!app.panes_view.strip_fit);
-    let zoomed = app.panes_view.strip.span_s;
+    assert!(!app.bench.panes_view.strip_fit);
+    let zoomed = app.bench.panes_view.strip.span_s;
     app.follow_fit();
     assert_eq!(
-        app.panes_view.strip.span_s, zoomed,
+        app.bench.panes_view.strip.span_s, zoomed,
         "off, it leaves the length alone"
     );
     app.fit_strip();
@@ -123,7 +123,7 @@ fn fit_follows_the_take_until_the_strip_is_zoomed_or_panned() {
         },
         end,
     );
-    assert!(!app.panes_view.strip_fit);
+    assert!(!app.bench.panes_view.strip_fit);
 }
 
 /// Fit is one fixed switch: the strip's toolbar is as wide with it on
@@ -147,10 +147,10 @@ fn the_fit_switch_never_moves_the_strip_toolbar() {
         }
         w
     };
-    app.panes_view.strip_fit = false;
+    app.bench.panes_view.strip_fit = false;
     let off = width(&mut app);
     app.fit_take();
-    assert!(app.panes_view.strip_fit, "an opened take is fitted");
+    assert!(app.bench.panes_view.strip_fit, "an opened take is fitted");
     let on = width(&mut app);
     assert_eq!(off, on);
 }
@@ -171,11 +171,11 @@ fn dragging_the_strip_looks_back_and_returns() {
     };
     app.apply_strip_input(forward, app.strip_end_s());
     assert_eq!(
-        app.panes_view.strip_end, None,
+        app.bench.panes_view.strip_end, None,
         "past the newest beat follows live again"
     );
 
-    app.panes_view.follow = true;
+    app.bench.panes_view.follow = true;
     let slide = StripInput {
         lead_shift_ms: 1.0,
         ..Default::default()
@@ -183,18 +183,21 @@ fn dragging_the_strip_looks_back_and_returns() {
     let before = app.recording.anchor.unwrap().time;
     app.apply_strip_input(slide, app.strip_end_s());
     assert!((app.recording.anchor.unwrap().time - before - 0.001).abs() < 1e-12);
-    assert!(!app.panes_view.follow, "sliding by hand ends auto-centring");
+    assert!(
+        !app.bench.panes_view.follow,
+        "sliding by hand ends auto-centring"
+    );
 
     // Zoomed out within the 40 s take.
-    app.panes_view.strip.set_span(15.0);
+    app.bench.panes_view.strip.set_span(15.0);
     let zoom = StripInput {
         span_factor: 2.0,
         width_factor: 0.5,
         ..Default::default()
     };
     app.apply_strip_input(zoom, app.strip_end_s());
-    assert_eq!(app.panes_view.strip.span_s, 30.0);
-    assert_eq!(app.panes_view.strip.half_width_ms, 5.0);
+    assert_eq!(app.bench.panes_view.strip.span_s, 30.0);
+    assert_eq!(app.bench.panes_view.strip.half_width_ms, 5.0);
 
     // Live, a zoom keeps the newest beat at the edge: the moment the
     // cards and the Profile show stays put.
@@ -205,15 +208,15 @@ fn dragging_the_strip_looks_back_and_returns() {
         ..Default::default()
     };
     app.apply_strip_input(zoom, end);
-    assert_eq!(app.panes_view.strip.span_s, 15.0);
+    assert_eq!(app.bench.panes_view.strip.span_s, 15.0);
     assert_eq!(
-        app.panes_view.strip_end, None,
+        app.bench.panes_view.strip_end, None,
         "a zoom while live stays live"
     );
 
     // Looking back, a zoom about a time keeps that time where it was on
     // the strip.
-    app.panes_view.strip.set_span(30.0);
+    app.bench.panes_view.strip.set_span(30.0);
     app.apply_strip_input(back, app.strip_end_s());
     let end = app.strip_end_s();
     let at = end - 15.0;
@@ -223,8 +226,8 @@ fn dragging_the_strip_looks_back_and_returns() {
         ..Default::default()
     };
     app.apply_strip_input(zoom, end);
-    assert_eq!(app.panes_view.strip.span_s, 15.0);
-    let now = app.panes_view.strip_end.expect("looking back");
+    assert_eq!(app.bench.panes_view.strip.span_s, 15.0);
+    let now = app.bench.panes_view.strip_end.expect("looking back");
     assert!(((now - at) / 15.0 - 15.0 / 30.0).abs() < 1e-9, "{now}");
 }
 
@@ -233,7 +236,7 @@ fn dragging_the_strip_looks_back_and_returns() {
 #[test]
 fn a_zoom_leaves_a_round_length() {
     let mut app = synthetic(600.0, 0.0);
-    app.panes_view.strip.set_span(120.0);
+    app.bench.panes_view.strip.set_span(120.0);
     let step = StripInput {
         span_factor: 1.02,
         ..Default::default()
@@ -241,38 +244,38 @@ fn a_zoom_leaves_a_round_length() {
     let mut seen = Vec::new();
     for _ in 0..20 {
         app.apply_strip_input(step, app.strip_end_s());
-        let s = app.panes_view.strip.span_s;
+        let s = app.bench.panes_view.strip.span_s;
         assert_eq!(s % 60.0, 0.0, "{s}");
         seen.push(s);
     }
     assert_eq!(seen.last(), Some(&180.0), "{seen:?}");
     // Below 2 min, a 5 s step; below 10 s, whole seconds.
-    app.panes_view.strip.set_span(60.0);
+    app.bench.panes_view.strip.set_span(60.0);
     let zoom_in = |f: f64| StripInput {
         span_factor: f,
         ..Default::default()
     };
     app.apply_strip_input(zoom_in(0.93), app.strip_end_s());
-    assert_eq!(app.panes_view.strip.span_s, 55.0);
-    app.panes_view.strip.set_span(8.0);
+    assert_eq!(app.bench.panes_view.strip.span_s, 55.0);
+    app.bench.panes_view.strip.set_span(8.0);
     app.apply_strip_input(zoom_in(0.8), app.strip_end_s());
-    assert_eq!(app.panes_view.strip.span_s, 6.0);
+    assert_eq!(app.bench.panes_view.strip.span_s, 6.0);
     // Zoomed in far past the shortest length, a zoom back out starts
     // from it, not from where the zooms in were heading.
     for _ in 0..20 {
         app.apply_strip_input(zoom_in(0.5), app.strip_end_s());
     }
-    assert_eq!(app.panes_view.strip.span_s, StripView::MIN_SPAN_S);
+    assert_eq!(app.bench.panes_view.strip.span_s, StripView::MIN_SPAN_S);
     app.apply_strip_input(zoom_in(1.1), app.strip_end_s());
-    assert_eq!(app.panes_view.strip.span_s, 2.0);
+    assert_eq!(app.bench.panes_view.strip.span_s, 2.0);
     app.apply_strip_input(zoom_in(1.5), app.strip_end_s());
-    assert_eq!(app.panes_view.strip.span_s, 3.0);
+    assert_eq!(app.bench.panes_view.strip.span_s, 3.0);
     // Nor from below it when that still rounds to the shortest length.
-    app.panes_view.strip.set_span(2.0);
+    app.bench.panes_view.strip.set_span(2.0);
     app.apply_strip_input(zoom_in(0.76), app.strip_end_s());
-    assert_eq!(app.panes_view.strip.span_s, 2.0);
+    assert_eq!(app.bench.panes_view.strip.span_s, 2.0);
     app.apply_strip_input(zoom_in(1.3), app.strip_end_s());
-    assert_eq!(app.panes_view.strip.span_s, 3.0);
+    assert_eq!(app.bench.panes_view.strip.span_s, 3.0);
 }
 
 /// Zooming the strip's time out stops at the take's length: past it is
@@ -281,16 +284,16 @@ fn a_zoom_leaves_a_round_length() {
 fn zooming_out_stops_at_the_take() {
     let mut app = synthetic(40.0, 0.0);
     let latest = app.latest_s();
-    app.panes_view.strip.set_span(10.0);
+    app.bench.panes_view.strip.set_span(10.0);
     let out = StripInput {
         span_factor: 10.0,
         ..Default::default()
     };
     app.apply_strip_input(out, app.strip_end_s());
-    assert_eq!(app.panes_view.strip.span_s, latest);
-    app.panes_view.strip.set_span(100.0);
+    assert_eq!(app.bench.panes_view.strip.span_s, latest);
+    app.bench.panes_view.strip.set_span(100.0);
     app.apply_strip_input(out, app.strip_end_s());
-    assert_eq!(app.panes_view.strip.span_s, 100.0);
+    assert_eq!(app.bench.panes_view.strip.span_s, 100.0);
 }
 
 /// The Tick Tock Profile and the Scope follow the strip's newest edge:
@@ -335,7 +338,7 @@ fn the_sound_panes_follow_the_strips_newest_edge() {
         ..Default::default()
     };
     app.apply_strip_input(hover, app.strip_end_s());
-    assert_eq!(app.panes_view.strip_end, None);
+    assert_eq!(app.bench.panes_view.strip_end, None);
     assert_eq!(beats_shown(&mut app), newest);
     // Panning back moves the Profile's window end with the strip.
     let back = StripInput {
@@ -363,7 +366,7 @@ fn the_sound_panes_follow_the_strips_newest_edge() {
         ..Default::default()
     };
     app.apply_strip_input(reset, app.strip_end_s());
-    assert_eq!(app.panes_view.strip_end, None);
+    assert_eq!(app.bench.panes_view.strip_end, None);
     assert_eq!(app.sound_moment(), None);
     assert_eq!(beats_shown(&mut app), newest);
 }
@@ -376,8 +379,8 @@ fn the_sound_panes_follow_the_strips_newest_edge() {
 fn hovering_an_overlay_axis_row_gives_its_range() {
     let ctx = themed();
     let mut app = synthetic(40.0, 5.0);
-    app.panes_view.overlays = [true, false, false];
-    app.panes_view.strip.horizontal = false;
+    app.bench.panes_view.overlays = [true, false, false];
+    app.bench.panes_view.strip.horizontal = false;
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(900.0, 500.0));
     let pass = |app: &mut TimegrapherApp, events: Vec<egui::Event>| {
         let input = egui::RawInput {
@@ -429,8 +432,8 @@ fn hovering_an_overlay_axis_row_gives_its_range() {
 fn upright_overlay_rows_put_their_numbers_on_the_units_line() {
     let ctx = themed();
     let mut app = synthetic(40.0, 5.0);
-    app.panes_view.overlays = [true, true, false];
-    app.panes_view.strip.horizontal = false;
+    app.bench.panes_view.overlays = [true, true, false];
+    app.bench.panes_view.strip.horizontal = false;
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(900.0, 500.0));
     let mut out = None;
     for _ in 0..4 {
@@ -490,7 +493,7 @@ fn upright_overlay_rows_put_their_numbers_on_the_units_line() {
 fn an_upright_strips_early_and_late_stand_clear_of_its_numbers() {
     let ctx = themed();
     let mut app = synthetic(40.0, 5.0);
-    app.panes_view.strip.horizontal = false;
+    app.bench.panes_view.strip.horizontal = false;
     for width in [460.0, 900.0] {
         let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(width, 500.0));
         let mut out = None;
@@ -555,8 +558,8 @@ fn an_upright_strips_early_and_late_stand_clear_of_its_numbers() {
 fn an_overlay_axis_column_says_its_short_name_over_its_unit() {
     let ctx = themed();
     let mut app = synthetic(40.0, 5.0);
-    app.panes_view.overlays = [true, false, false];
-    app.panes_view.strip.horizontal = true;
+    app.bench.panes_view.overlays = [true, false, false];
+    app.bench.panes_view.strip.horizontal = true;
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(900.0, 500.0));
     let pass = |app: &mut TimegrapherApp, events: Vec<egui::Event>| {
         let input = egui::RawInput {
@@ -601,8 +604,8 @@ fn an_overlay_axis_column_says_its_short_name_over_its_unit() {
 fn overlay_axis_columns_lie_side_by_side() {
     let ctx = themed();
     let mut app = synthetic(40.0, 5.0);
-    app.panes_view.overlays = [true, true, true];
-    app.panes_view.strip.horizontal = true;
+    app.bench.panes_view.overlays = [true, true, true];
+    app.bench.panes_view.strip.horizontal = true;
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(900.0, 500.0));
     let mut out = None;
     for _ in 0..4 {
@@ -665,7 +668,7 @@ fn overlay_axis_columns_lie_side_by_side() {
 fn masked_beats_are_faint_under_the_hatching() {
     let mut app = synthetic(40.0, 0.0);
     for p in [Pane::Sound, Pane::Scope, Pane::Charts, Pane::Distributions] {
-        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
+        set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, false);
     }
     app.mask(20.0, 30.0);
     let ctx = themed();
@@ -749,15 +752,15 @@ fn the_takes_span_ends_at_its_newest_beat_or_reading() {
     app.results.trend = vec![reading(beat - 10.0), reading(beat + 5.0)];
     assert_eq!(app.take_span(), Some((0.0, beat + 5.0)));
 
-    app.panes_view.strip_fit = true;
-    app.panes_view.strip_end = None;
+    app.bench.panes_view.strip_fit = true;
+    app.bench.panes_view.strip_end = None;
     assert_eq!(app.strip_end_s(), beat + 5.0);
-    app.panes_view.strip_end = Some(1e9);
+    app.bench.panes_view.strip_end = Some(1e9);
     assert_eq!(app.strip_end_s(), beat + 5.0);
-    app.panes_view.strip_end = Some(12.0);
+    app.bench.panes_view.strip_end = Some(12.0);
     assert_eq!(app.strip_end_s(), 12.0);
-    app.panes_view.strip_fit = false;
-    app.panes_view.strip_end = None;
+    app.bench.panes_view.strip_fit = false;
+    app.bench.panes_view.strip_end = None;
     assert_eq!(app.strip_end_s(), beat);
 }
 
@@ -768,23 +771,26 @@ fn the_takes_span_ends_at_its_newest_beat_or_reading() {
 fn fit_waits_while_the_paper_is_still() {
     let mut app = synthetic(40.0, 0.0);
     app.fit_strip();
-    app.panes_view.strip.still = true;
-    app.panes_view.strip.set_span(10.0);
+    app.bench.panes_view.strip.still = true;
+    app.bench.panes_view.strip.set_span(10.0);
     app.follow_fit();
-    assert_eq!(app.panes_view.strip.span_s, 10.0, "the Length is the lap");
+    assert_eq!(
+        app.bench.panes_view.strip.span_s, 10.0,
+        "the Length is the lap"
+    );
     assert!(!app.strip_fitted());
-    app.panes_view.strip_fit = false;
+    app.bench.panes_view.strip_fit = false;
     app.fit_strip();
     assert!(
-        !app.panes_view.strip_fit,
+        !app.bench.panes_view.strip_fit,
         "Fit can't be turned on over still paper"
     );
-    app.panes_view.strip_fit = true;
-    app.panes_view.strip.still = false;
+    app.bench.panes_view.strip_fit = true;
+    app.bench.panes_view.strip.still = false;
     app.follow_fit();
     let end = app.take_span().unwrap().1;
     assert!(
-        (app.panes_view.strip.span_s - end).abs() < 1e-9,
+        (app.bench.panes_view.strip.span_s - end).abs() < 1e-9,
         "moving, Fit fits again"
     );
 }
@@ -796,14 +802,20 @@ fn fit_waits_while_the_paper_is_still() {
 #[test]
 fn an_opened_take_starts_with_the_rate_line_and_guides_off() {
     let mut app = synthetic(40.0, 0.0);
-    (app.panes_view.rate_line, app.panes_view.rate_guides) = (true, true);
+    (
+        app.bench.panes_view.rate_line,
+        app.bench.panes_view.rate_guides,
+    ) = (true, true);
     app.fit_take();
     assert_eq!(
-        (app.panes_view.rate_line, app.panes_view.rate_guides),
+        (
+            app.bench.panes_view.rate_line,
+            app.bench.panes_view.rate_guides
+        ),
         (false, false)
     );
     assert!(app.strip_rate_line().is_none(), "nothing to draw them from");
-    app.panes_view.rate_guides = true;
+    app.bench.panes_view.rate_guides = true;
     assert_eq!(
         (app.settings().rate_line, app.settings().rate_guides),
         (true, true)
@@ -812,15 +824,24 @@ fn an_opened_take_starts_with_the_rate_line_and_guides_off() {
     app.fit_take();
     app.restore_live_strip();
     assert_eq!(
-        (app.panes_view.rate_line, app.panes_view.rate_guides),
+        (
+            app.bench.panes_view.rate_line,
+            app.bench.panes_view.rate_guides
+        ),
         (true, true)
     );
 
-    (app.panes_view.rate_line, app.panes_view.rate_guides) = (false, true);
+    (
+        app.bench.panes_view.rate_line,
+        app.bench.panes_view.rate_guides,
+    ) = (false, true);
     app.fit_take();
     app.restore_live_strip();
     assert_eq!(
-        (app.panes_view.rate_line, app.panes_view.rate_guides),
+        (
+            app.bench.panes_view.rate_line,
+            app.bench.panes_view.rate_guides
+        ),
         (false, true)
     );
 }
@@ -833,7 +854,7 @@ fn time_of_day_on_the_microphone_counts_the_recorders_breaks() {
     let _ = std::fs::remove_dir_all(&base);
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.reset_session(48000, "test".into());
-    app.panes_view.strip.clock = true;
+    app.bench.panes_view.strip.clock = true;
     let mut r = Recorder::start(&base.join("live"), app.info("test", 48000, 16)).unwrap();
     let now = std::time::SystemTime::now();
     let block = |at| timegrapher_core::capture::Block {
@@ -864,7 +885,7 @@ fn time_of_day_on_the_microphone_counts_the_recorders_breaks() {
 fn time_of_day_without_a_recording_has_no_clock() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.reset_session(48000, "test".into());
-    app.panes_view.strip.clock = true;
+    app.bench.panes_view.strip.clock = true;
     assert!(app.session.recorder.is_none());
     assert!(app.strip_wall(&egui::Context::default()).is_none());
 }
@@ -885,7 +906,7 @@ fn time_of_day_on_a_segment_opened_alone_has_no_clock() {
     .unwrap();
     for (unlisted, clock) in [(None, true), (Some(Unlisted::NotTheTake), false)] {
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-        app.panes_view.strip.clock = true;
+        app.bench.panes_view.strip.clock = true;
         app.recording.input = Input::File;
         app.keeping.opened_path = take.display().to_string();
         app.put_take_breaks(Some(Vec::new()), unlisted);
@@ -906,7 +927,7 @@ fn time_of_day_says_when_the_takes_start_is_not_known() {
     let does = "Write the time of day on this computer's clock under the strip's time labels, \
                 and beside the cursor's time";
     assert_eq!(app.strip_time_of_day_hint(&ctx), does);
-    app.panes_view.strip.clock = true;
+    app.bench.panes_view.strip.clock = true;
     assert!(app.session.recorder.is_none());
     assert_eq!(
         app.strip_time_of_day_hint(&ctx),

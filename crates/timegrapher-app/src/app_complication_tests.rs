@@ -15,14 +15,14 @@ fn a_complication_test_is_set_up_in_the_cards_position() {
     app.watches_view.view = View::Watches;
     app.set_position(Position::CrownUp);
     assert!(!pane_visible(
-        &app.panes_view.panes.tiles,
+        &app.bench.panes_view.panes.tiles,
         Pane::Complication
     ));
     app.new_take(NewTake::Complication, false);
     assert_eq!(app.watches_view.view, View::Bench);
     assert_eq!(app.ready_test(), Some(NewTake::Complication));
     assert!(pane_visible(
-        &app.panes_view.panes.tiles,
+        &app.bench.panes_view.panes.tiles,
         Pane::Complication
     ));
     assert_eq!(app.take.position, Position::CrownUp, "the card stays");
@@ -230,12 +230,12 @@ fn a_plot_turned_off_gives_the_others_its_room(app: &mut TimegrapherApp) {
         top("Rate") - top("Amplitude")
     };
     let three = gap(&draw_at(app, size));
-    app.panes_view.complication_series = [true, true, false];
+    app.bench.panes_view.complication_series = [true, true, false];
     let drawn = draw_at(app, size);
     let titles = drawn.iter().filter(|(t, _)| t == "Beat Error").count();
     assert_eq!(titles, 1, "the table's heading alone");
     assert!(gap(&drawn) > three + 20.0, "{three} then {}", gap(&drawn));
-    app.panes_view.complication_series = [true; 3];
+    app.bench.panes_view.complication_series = [true; 3];
 }
 
 /// Every switch off (#1852): no plot, track or time axis, the table
@@ -246,7 +246,7 @@ fn every_plot_off_leaves_the_table(app: &mut TimegrapherApp) {
         drawn.iter().filter(|(t, _)| t == name).count()
     };
     let three = draw_at(app, size);
-    app.panes_view.complication_series = [false; 3];
+    app.bench.panes_view.complication_series = [false; 3];
     let none = draw_at(app, size);
     for name in ["Amplitude", "Rate", "Beat Error"] {
         assert_eq!(count(&none, name), 1, "{name}: the table's heading alone");
@@ -256,7 +256,7 @@ fn every_plot_off_leaves_the_table(app: &mut TimegrapherApp) {
         "the track's names go"
     );
     assert!(none.iter().any(|(t, _)| t == "On less Off"), "{none:?}");
-    app.panes_view.complication_series = [true; 3];
+    app.bench.panes_view.complication_series = [true; 3];
 }
 
 /// At 1280×600 each plot keeps its least height, the column scrolling

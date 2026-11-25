@@ -113,12 +113,13 @@ impl TimegrapherApp {
                 .into_iter()
                 .enumerate()
                 {
-                    let mut on = self.panes_view.poise_views[i];
+                    let mut on = self.bench.panes_view.poise_views[i];
                     if theme::toggle(ui, name, &mut on)
                         .on_hover_text(hint)
                         .clicked()
                     {
-                        self.panes_view.poise_views[i] = !self.panes_view.poise_views[i];
+                        self.bench.panes_view.poise_views[i] =
+                            !self.bench.panes_view.poise_views[i];
                     }
                 }
             },
@@ -227,14 +228,14 @@ impl TimegrapherApp {
 
     /// The pane's toolbar, with the Info toggle pinned at its right.
     pub(super) fn poise_tools(&mut self, ui: &mut egui::Ui, title: &str) {
-        let mut info = self.panes_view.poise_info;
+        let mut info = self.bench.panes_view.poise_info;
         let hint = "Info: the fit in full, the twice-round check, and why near 220° the heavy \
                     spot is not stated";
         theme::pane_toolbar_info(ui, title, &help::DYNAMIC_POISE, (&mut info, hint), |ui| {
             self.poise_settings(ui);
             self.export_button(ui, Pane::DynamicPoise);
         });
-        self.panes_view.poise_info = info;
+        self.bench.panes_view.poise_info = info;
     }
 
     /// The pane: the banner while the test runs, then the table and the
@@ -242,7 +243,7 @@ impl TimegrapherApp {
     pub(super) fn poise_pane(&mut self, ui: &mut egui::Ui) {
         // Where Keep This Test? keeps clear of, as the Positions Test's.
         if self.poise_test().is_some() {
-            self.panes_view.results_rects[0] = Some(ui.max_rect());
+            self.bench.panes_view.results_rects[0] = Some(ui.max_rect());
         }
         let now = self.recording.live.as_ref().map(|l| l.duration_s());
         let phase = match (self.test.guided.as_mut(), now) {
@@ -269,8 +270,8 @@ impl TimegrapherApp {
             });
         let kept = self.poise_kept(ui.ctx());
         let short = self.poise_short(ui.ctx());
-        let info = self.panes_view.poise_info;
-        let view = self.panes_view.poise_views;
+        let info = self.bench.panes_view.poise_info;
+        let view = self.bench.panes_view.poise_views;
         let settle = (self.test.guided_settle_s, self.test.guided_measure_s);
         let action = poise_body(
             ui,

@@ -12,15 +12,15 @@ impl TimegrapherApp {
     pub(super) fn reserve_toolbar(&mut self, ui: &mut egui::Ui, title: &str) {
         let help = help::power_reserve(self.test.position_card_title);
         let help: Vec<&str> = help.iter().map(String::as_str).collect();
-        let mut info = self.panes_view.reserve_info;
+        let mut info = self.bench.panes_view.reserve_info;
         theme::pane_toolbar_info(ui, title, &help, (&mut info, RESERVE_INFO_HINT), |ui| {
             // The quantities first, at the left, as on every pane that
             // plots them; all off leaves the table (#1852).
-            steady::chart_switches(ui, &mut self.panes_view.reserve_series);
+            steady::chart_switches(ui, &mut self.bench.panes_view.reserve_series);
             theme::bar_gap(ui);
             self.reserve_settings(ui);
         });
-        self.panes_view.reserve_info = info;
+        self.bench.panes_view.reserve_info = info;
     }
 
     /// Whether the pane holds a Power Reserve Test, under way or ended,
@@ -358,9 +358,13 @@ impl TimegrapherApp {
         }
         if first_chart {
             let h = self.test.reserve.as_ref().map_or(0.0, |t| {
-                reserve::run_h(&t.so_far, true, self.panes_view.reserve_series)
+                reserve::run_h(&t.so_far, true, self.bench.panes_view.reserve_series)
             });
-            grow_row(&mut self.panes_view.panes.tiles, Pane::PowerReserve, h);
+            grow_row(
+                &mut self.bench.panes_view.panes.tiles,
+                Pane::PowerReserve,
+                h,
+            );
         }
     }
 
@@ -417,11 +421,11 @@ impl TimegrapherApp {
         let pane = Pane::PowerReserve;
         match self.test.reserve.as_ref().and_then(|t| t.results.as_ref()) {
             Some(r) => grow_row(
-                &mut self.panes_view.panes.tiles,
+                &mut self.bench.panes_view.panes.tiles,
                 pane,
-                reserve::run_h(&r.hours, false, self.panes_view.reserve_series),
+                reserve::run_h(&r.hours, false, self.bench.panes_view.reserve_series),
             ),
-            None => fit_row(&mut self.panes_view.panes.tiles, pane, MIN_PANE_H),
+            None => fit_row(&mut self.bench.panes_view.panes.tiles, pane, MIN_PANE_H),
         }
     }
 
@@ -532,7 +536,7 @@ impl TimegrapherApp {
         }
         let h = results
             .as_ref()
-            .map(|r| reserve::run_h(&r.hours, false, self.panes_view.reserve_series));
+            .map(|r| reserve::run_h(&r.hours, false, self.bench.panes_view.reserve_series));
         let mut stopped = false;
         if let Some(t) = self.test.reserve.as_mut() {
             stopped = [results.as_ref().map(|r| r.ending), t.ending]
@@ -540,7 +544,11 @@ impl TimegrapherApp {
             t.results = results;
         }
         if let Some(h) = h {
-            grow_row(&mut self.panes_view.panes.tiles, Pane::PowerReserve, h);
+            grow_row(
+                &mut self.bench.panes_view.panes.tiles,
+                Pane::PowerReserve,
+                h,
+            );
         }
         // The watch ran down: its wind no longer holds (#2001).
         if stopped {
@@ -776,14 +784,15 @@ impl TimegrapherApp {
         };
         let watch = self.take.watch.trim().to_string();
         // Its charts at a readable height, never a sliver under the strip.
-        let shown = self.panes_view.reserve_series;
+        let shown = self.bench.panes_view.reserve_series;
         if let Some(least) = reserve::least_h(self.test.reserve.as_ref(), shown) {
-            let above = ui.cursor().top() - self.panes_view.pane_top;
-            self.panes_view
+            let above = ui.cursor().top() - self.bench.panes_view.pane_top;
+            self.bench
+                .panes_view
                 .pane_need
                 .insert(Pane::PowerReserve, above + least);
         } else {
-            self.panes_view.pane_need.remove(&Pane::PowerReserve);
+            self.bench.panes_view.pane_need.remove(&Pane::PowerReserve);
         }
         reserve::pane(
             ui,
@@ -791,7 +800,7 @@ impl TimegrapherApp {
             free,
             (self.test.position_card_title, &watch),
             self.ready_test() == Some(NewTake::PowerReserve),
-            (self.panes_view.reserve_info, shown),
+            (self.bench.panes_view.reserve_info, shown),
         );
     }
 }

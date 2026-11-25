@@ -32,7 +32,7 @@ impl TimegrapherApp {
     pub(super) fn readings(&mut self, ui: &mut egui::Ui) {
         let gap = theme::GAP;
         let total = ui.available_width();
-        let h = if self.panes_view.readings_pinned {
+        let h = if self.bench.panes_view.readings_pinned {
             self.readings_card_h(ui.ctx())
         } else {
             STRIP_H
@@ -45,7 +45,7 @@ impl TimegrapherApp {
             Vec2::new(PIN_W, STRIP_H),
         );
         self.pin_card(ui, pin);
-        if self.panes_view.readings_pinned {
+        if self.bench.panes_view.readings_pinned {
             set_open(ui.ctx(), false);
             let mut inner = ui.new_child(
                 egui::UiBuilder::new()
@@ -79,7 +79,7 @@ impl TimegrapherApp {
                     egui::Direction::LeftToRight,
                 )),
         );
-        let hint = if self.panes_view.readings_pinned {
+        let hint = if self.bench.panes_view.readings_pinned {
             "Unpin the readings: a strip across the top, its cards opening over the panes on a \
              click (View > Compact Readings)"
         } else {
@@ -88,7 +88,7 @@ impl TimegrapherApp {
         let r = theme::icon_toggle(
             &mut child,
             Icon::Pin,
-            self.panes_view.readings_pinned,
+            self.bench.panes_view.readings_pinned,
             pal.accent,
         );
         if r.on_hover_text(hint).clicked() {

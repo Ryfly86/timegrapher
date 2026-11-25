@@ -302,7 +302,7 @@ fn the_empty_stands_profile_withholds_with_the_cards() {
         app.set_average(average);
         let mut t = 20.0;
         while t < latest {
-            app.panes_view.strip_end = Some(t);
+            app.bench.panes_view.strip_end = Some(t);
             let end = app.strip_end_s();
             // The shape worked out from the recording, waited for to the
             // end: a wait cut short would show no shape and pass on main.
@@ -1301,9 +1301,9 @@ fn a_stopped_takes_cards_are_its_saved_takes_to_the_bit() {
         // The strip, unpinned, waits as the cards do (Trevor on #2164).
         let live = stopped.card_reading().expect("live reads while it waits");
         if let Some(rate) = readouts::rate_figure(&live) {
-            stopped.panes_view.readings_pinned = false;
+            stopped.bench.panes_view.readings_pinned = false;
             let strip = window_frame(&mut stopped, &ctx);
-            stopped.panes_view.readings_pinned = true;
+            stopped.bench.panes_view.readings_pinned = true;
             let digits = rate.trim_start_matches(['+', '-', '\u{2212}']);
             assert!(
                 strip.contains("Rate") && !strip.contains(digits),
@@ -1607,9 +1607,9 @@ fn the_stand_at_both_ends_is_possible_beats_and_left_out_of_fit() {
     assert!(!on.clone().any(|b| possible(b.time)), "{faint:?}");
     // About +50 s/d drifts some 60 ms over the watch's 100 s.
     assert!(
-        app.panes_view.strip.half_width_ms <= 100.0,
+        app.bench.panes_view.strip.half_width_ms <= 100.0,
         "{}",
-        app.panes_view.strip.half_width_ms
+        app.bench.panes_view.strip.half_width_ms
     );
     let w = app.whole_take().expect("whole take");
     // Read from the watch's start, after the stand's 70 s that the reading
@@ -1642,9 +1642,9 @@ fn the_stand_between_two_stretches_of_the_watch_is_left_out_of_fit() {
         "the stand in the middle: {faint:?}"
     );
     assert!(
-        app.panes_view.strip.half_width_ms <= 100.0,
+        app.bench.panes_view.strip.half_width_ms <= 100.0,
         "{}",
-        app.panes_view.strip.half_width_ms
+        app.bench.panes_view.strip.half_width_ms
     );
 }
 
@@ -1657,7 +1657,7 @@ fn auto_centre_centres_on_the_watch_not_the_stand_after_it() {
     let Some(mut app) = stand_both_ends("stand-follow") else {
         return;
     };
-    app.panes_view.follow = true;
+    app.bench.panes_view.follow = true;
     app.fit_take();
     // The watch's last seconds lie near the centre line.
     let fitted = widest_lead(&app, 165.0, 170.0);
@@ -1692,17 +1692,17 @@ fn fit_is_made_again_when_the_run_comes_after_the_take_opens() {
     };
     read_again(&mut app);
     assert!(
-        app.panes_view.strip.half_width_ms <= 100.0,
+        app.bench.panes_view.strip.half_width_ms <= 100.0,
         "fitted again: {}",
-        app.panes_view.strip.half_width_ms
+        app.bench.panes_view.strip.half_width_ms
     );
     // Fitted before the run, with every beat; then set by hand.
     app.results.trend.clear();
     app.fit_take();
-    let wide = app.panes_view.strip.half_width_ms;
+    let wide = app.bench.panes_view.strip.half_width_ms;
     assert!(wide > 100.0, "every beat: {wide}");
-    app.panes_view.strip.set_half_width(wide / 2.0);
-    let by_hand = app.panes_view.strip.half_width_ms;
+    app.bench.panes_view.strip.set_half_width(wide / 2.0);
+    let by_hand = app.bench.panes_view.strip.half_width_ms;
     app.results.trend_key = (app.take.rev, 0);
     let t = Instant::now();
     while app.results.trend.is_empty() && t.elapsed().as_secs() < 120 {
@@ -1710,7 +1710,7 @@ fn fit_is_made_again_when_the_run_comes_after_the_take_opens() {
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     assert_eq!(
-        app.panes_view.strip.half_width_ms, by_hand,
+        app.bench.panes_view.strip.half_width_ms, by_hand,
         "kept as set by hand"
     );
 }

@@ -11,14 +11,14 @@ use timegrapher_core::synth::{generate, SynthConfig};
 #[test]
 fn fit_shows_the_whole_session() {
     let mut app = synthetic(40.0, 0.0);
-    app.panes_view.strip_end = Some(10.0);
+    app.bench.panes_view.strip_end = Some(10.0);
     app.fit_strip();
-    assert!(app.panes_view.strip_fit);
-    assert_eq!(app.panes_view.strip_end, None);
+    assert!(app.bench.panes_view.strip_fit);
+    assert_eq!(app.bench.panes_view.strip_end, None);
     // The whole session: to the take's end, its newest reading or beat,
     // as the charts under the strip end (#1256).
     let end = app.take_span().unwrap().1;
-    assert!((app.panes_view.strip.span_s - end).abs() < 1e-9);
+    assert!((app.bench.panes_view.strip.span_s - end).abs() < 1e-9);
     assert!(end >= app.latest_s() && app.latest_s() > 35.0);
 }
 
@@ -822,10 +822,10 @@ fn a_long_take_keeps_its_first_hours() {
     let kept = app.live_config().max_beats;
     assert!(kept >= reserve::RUN_BEATS_KEPT);
     assert!(kept as f64 >= 80.0 * 3600.0 * 8.0, "{kept}");
-    app.panes_view.strip.set_span(26.0 * 3600.0);
-    assert_eq!(app.panes_view.strip.span_s, 26.0 * 3600.0);
-    app.panes_view.strip.set_span(1e9);
-    assert_eq!(app.panes_view.strip.span_s, power_reserve::LIMIT_S);
+    app.bench.panes_view.strip.set_span(26.0 * 3600.0);
+    assert_eq!(app.bench.panes_view.strip.span_s, 26.0 * 3600.0);
+    app.bench.panes_view.strip.set_span(1e9);
+    assert_eq!(app.bench.panes_view.strip.span_s, power_reserve::LIMIT_S);
 }
 
 /// A long take's charts worked out again keep a reading every 20 s or

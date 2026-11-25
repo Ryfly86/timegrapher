@@ -94,10 +94,10 @@ impl TimegrapherApp {
             Some(LiveAnalyzer::new(sample_rate, self.live_config()).with_figures_as_file());
         self.recording.live_usb = Some(live_usb::LiveUsb::new(sample_rate));
         self.recording.source_label = label;
-        self.panes_view.gutter_fresh = true;
+        self.bench.panes_view.gutter_fresh = true;
         self.recording.anchor = None;
         self.clear_trends();
-        self.panes_view.strip_end = None;
+        self.bench.panes_view.strip_end = None;
         self.recording.meter.level = Level::default();
         self.recording.meter.clipped_at = None;
         self.message = None;
@@ -417,7 +417,7 @@ impl TimegrapherApp {
                 self.recording.opened_at = Instant::now();
                 self.recording.audio_at = None;
                 self.recording.gaps = None;
-                self.panes_view.strip_end = None;
+                self.bench.panes_view.strip_end = None;
                 self.message = None;
                 applog::info(&format!("microphone resumed at {} Hz", c.sample_rate));
                 self.recording.input_fault = None;
@@ -1324,7 +1324,7 @@ impl TimegrapherApp {
         }
         // The five minutes up to the strip's newest edge, when the strip
         // has been moved back; else the start.
-        let end = match self.panes_view.strip_end {
+        let end = match self.bench.panes_view.strip_end {
             Some(_) if self.recording.live.is_some() => self.strip_end_s(),
             _ => report::SPAN_S,
         }
@@ -1493,12 +1493,16 @@ impl TimegrapherApp {
         let mut t = reserve::Test::new(position, r.sound_kept, r.started_utc.clone(), 0.0);
         t.ending = Some(r.ending);
         t.saved = Some(dir.to_path_buf());
-        let h = reserve::run_h(&r.hours, false, self.panes_view.reserve_series);
+        let h = reserve::run_h(&r.hours, false, self.bench.panes_view.reserve_series);
         t.results = Some(r);
         self.test.reserve = Some(t);
         self.reveal_pane(Pane::PowerReserve);
         // The run's charts and table, not the line before a test.
-        grow_row(&mut self.panes_view.panes.tiles, Pane::PowerReserve, h);
+        grow_row(
+            &mut self.bench.panes_view.panes.tiles,
+            Pane::PowerReserve,
+            h,
+        );
     }
 
     /// Take what a session file says about a recording: the watch, its
@@ -2600,7 +2604,7 @@ impl TimegrapherApp {
         self.recording.live = Some(live);
         // The opened take's labels, not those drawn while it opened
         // (Walter's HOLD on #1239).
-        self.panes_view.gutter_fresh = true;
+        self.bench.panes_view.gutter_fresh = true;
         self.take.rev.new_take();
         // Readings not readied with the engine are read in the
         // background by the next frame (#1014).
@@ -2610,7 +2614,7 @@ impl TimegrapherApp {
         }
         self.recording.source_label = label;
         self.recording.anchor = None;
-        self.panes_view.strip_end = None;
+        self.bench.panes_view.strip_end = None;
         self.fit_take();
         // A long take that isn't a test: its run, read as one in the
         // background.

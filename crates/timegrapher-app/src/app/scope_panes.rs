@@ -68,7 +68,7 @@ fn no_sound_line(ui: &mut egui::Ui, line: &str) {
 impl TimegrapherApp {
     pub(super) fn profile_settings(&mut self, ui: &mut egui::Ui) {
         let accent = theme::pal(ui).accent;
-        let o = &mut self.panes_view.sound_opts;
+        let o = &mut self.bench.panes_view.sound_opts;
         theme::tool_choice(
             ui,
             "Layout",
@@ -162,7 +162,7 @@ impl TimegrapherApp {
         profiles::draw(
             ui,
             &shown.profiles,
-            self.panes_view.sound_opts,
+            self.bench.panes_view.sound_opts,
             drop_be,
             note.as_deref(),
             shown.band,
@@ -181,7 +181,7 @@ impl TimegrapherApp {
             if pane == Pane::Sound {
                 self.profile_settings(ui);
             } else {
-                scope::settings(ui, &mut self.panes_view.scope_view);
+                scope::settings(ui, &mut self.bench.panes_view.scope_view);
                 self.export_button(ui, pane);
             }
         });
@@ -190,7 +190,8 @@ impl TimegrapherApp {
     /// When the strip has been moved off the newest beats, the time at its
     /// newest edge, which the sound panes show.
     pub(super) fn sound_moment(&self) -> Option<String> {
-        self.panes_view
+        self.bench
+            .panes_view
             .strip_end
             .is_some()
             .then(|| format!("at {}", length_text(self.strip_end_s())))
@@ -251,7 +252,7 @@ impl TimegrapherApp {
             masked: false,
         };
         let line = |l: String| not_shown(l, false);
-        if self.running() && self.panes_view.strip_end.is_none() {
+        if self.running() && self.bench.panes_view.strip_end.is_none() {
             let p = self
                 .recording
                 .live
@@ -304,7 +305,7 @@ impl TimegrapherApp {
                     }
                     // At the newest beats, before any sound is kept: the
                     // empty plots.
-                    None if self.panes_view.strip_end.is_none() => shown([None, None], None),
+                    None if self.bench.panes_view.strip_end.is_none() => shown([None, None], None),
                     None => none_kept_at(&at),
                 }
             }
@@ -375,7 +376,7 @@ impl TimegrapherApp {
     /// what the live engine still holds, else read from the recording.
     pub(super) fn scope_pane(&mut self, ui: &mut egui::Ui) {
         let pal = theme::pal(ui);
-        let view = self.panes_view.scope_view;
+        let view = self.bench.panes_view.scope_view;
         let end = self.strip_end_s();
         let shown = self.profiles_at(end);
         // Masked out where the profile says so, by the same rule.

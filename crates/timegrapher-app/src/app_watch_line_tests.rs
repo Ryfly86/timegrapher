@@ -645,7 +645,7 @@ fn the_gear_stays_where_it_is_in_the_watches_view() {
 #[test]
 fn a_layout_saved_with_the_watches_pane_comes_back_without_it() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Charts, true);
+    set_pane_visible(&mut app.bench.panes_view.panes.tiles, Pane::Charts, true);
     let mut saved = app.settings();
     let mut panes = saved.panes.take().unwrap();
     add_missing(&mut panes, Pane::Watch);
@@ -655,14 +655,15 @@ fn a_layout_saved_with_the_watches_pane_comes_back_without_it() {
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.apply_settings(saved);
     assert!(again
+        .bench
         .panes_view
         .panes
         .tiles
         .find_pane(&Pane::Watch)
         .is_none());
-    assert!(layout_is_whole(&again.panes_view.panes));
+    assert!(layout_is_whole(&again.bench.panes_view.panes));
     assert!(
-        pane_visible(&again.panes_view.panes.tiles, Pane::Charts),
+        pane_visible(&again.bench.panes_view.panes.tiles, Pane::Charts),
         "kept"
     );
 }

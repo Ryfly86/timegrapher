@@ -8,7 +8,7 @@ impl TimegrapherApp {
     /// The Charts pane: a chart for each reading shown, one above the
     /// other, sharing the pane's height and its time axis.
     pub(super) fn charts_pane(&mut self, ui: &mut egui::Ui) {
-        let shown = self.panes_view.chart_series;
+        let shown = self.bench.panes_view.chart_series;
         self.note_need(ui, Pane::Charts, STACKED_MIN_H);
         // No scales with nothing on them: while a take opens, or before
         // its first reading, one line in their place (#1973).
@@ -18,19 +18,20 @@ impl TimegrapherApp {
             return;
         }
         let (mut moved, mut over, mut newest) = (false, None, false);
-        self.panes_view.charts_drawn = stacked(ui, shown, (STACKED_MIN_H, false), |ui, k, _| {
-            let (m, hover, at_newest) = self.chart(ui, k);
-            moved |= m;
-            over = over.or(hover);
-            newest |= at_newest;
-        });
-        self.panes_view.charts_fit = !moved;
+        self.bench.panes_view.charts_drawn =
+            stacked(ui, shown, (STACKED_MIN_H, false), |ui, k, _| {
+                let (m, hover, at_newest) = self.chart(ui, k);
+                moved |= m;
+                over = over.or(hover);
+                newest |= at_newest;
+            });
+        self.bench.panes_view.charts_fit = !moved;
         // Their lines end a reading apart, so one at its newest is enough.
-        self.panes_view.charts_follow = newest;
+        self.bench.panes_view.charts_follow = newest;
         // Every chart's lane reads the pointer's time, those above the
         // one under it a frame late.
-        if over != self.panes_view.charts_over {
-            self.panes_view.charts_over = over;
+        if over != self.bench.panes_view.charts_over {
+            self.bench.panes_view.charts_over = over;
             ui.ctx().request_repaint();
         }
     }
@@ -55,7 +56,7 @@ impl TimegrapherApp {
     /// off by a pan or a zoom (Walter's walk of #1057: a button on every
     /// chart wrapped over its title and lines, #1063).
     pub(super) fn charts_fit_switch(&mut self, ui: &mut egui::Ui) {
-        let mut fit = self.panes_view.charts_fit;
+        let mut fit = self.bench.panes_view.charts_fit;
         let hint = if self.running() {
             "Show the whole session on the charts and keep following new readings. Scrolling, \
              dragging or zooming a chart's time turns it off; double-clicking a chart turns it \
@@ -66,7 +67,7 @@ impl TimegrapherApp {
         };
         let pal = theme::pal(ui);
         if theme::tool_switch(ui, Icon::Fit, pal.accent, "Fit", &mut fit, hint) && fit {
-            self.panes_view.charts_to_live = true;
+            self.bench.panes_view.charts_to_live = true;
             ui.ctx().request_repaint();
         }
     }
@@ -105,21 +106,23 @@ impl TimegrapherApp {
             plot = plot.default_y_bounds(lo, hi);
         }
         let marker = self
+            .bench
             .panes_view
             .strip_end
             .is_some()
             .then(|| self.strip_end_s());
         let lookup = series.clone();
         let colour = series.first().map_or(pal.text_secondary, |l| l.key);
-        let to_live = self.panes_view.charts_to_live_now;
+        let to_live = self.bench.panes_view.charts_to_live_now;
         // A new averaging time spreads the values wider or narrower, so the
         // scale follows it, keeping the time shown.
         let rescale = self
+            .bench
             .panes_view
             .chart_average_drawn
             .insert(steady::title(reading), average)
             .is_some_and(|was| was != average);
-        let follow = self.panes_view.charts_follow;
+        let follow = self.bench.panes_view.charts_follow;
         let resp = plot.show(ui, |p| {
             grid.draw(p, pal);
             draw_chart(p, series, take, (to_live, follow), (y_range, rescale))
@@ -139,7 +142,10 @@ impl TimegrapherApp {
             egui::pos2(frame.left(), lane.top()),
             egui::pos2(frame.right(), lane.bottom()),
         );
-        let (at, trend) = (hover.or(self.panes_view.charts_over), &self.results.trend);
+        let (at, trend) = (
+            hover.or(self.bench.panes_view.charts_over),
+            &self.results.trend,
+        );
         let values = at.map_or_else(Vec::new, |x| {
             lane_values(&lookup, (x, trend), (reading, unit, decimals), pal)
         });
@@ -175,9 +181,9 @@ impl TimegrapherApp {
             ui.visuals(),
         );
         if hover.is_some() {
-            self.panes_view.cursor_next = hover;
+            self.bench.panes_view.cursor_next = hover;
         }
-        let cursor = hover.or(self.panes_view.cursor_t);
+        let cursor = hover.or(self.bench.panes_view.cursor_t);
         // The moment shown as a call-out, the pointer's time at axis
         // strength on every chart (Hugh, #1063).
         let lines = [(marker, Strength::CallOut), (cursor, Strength::Axis)];
@@ -188,8 +194,8 @@ impl TimegrapherApp {
         }
         if let Some(at) = click {
             if at.x > 0.0 {
-                self.panes_view.strip_fit = false;
-                self.panes_view.strip_end = Some(at.x);
+                self.bench.panes_view.strip_fit = false;
+                self.bench.panes_view.strip_end = Some(at.x);
             }
         }
         (moved, hover, at_newest)

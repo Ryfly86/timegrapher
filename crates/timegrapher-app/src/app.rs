@@ -45,6 +45,7 @@ use timegrapher_core::profile::TickProfile;
 use timegrapher_core::steadiness::SeriesKind;
 use timegrapher_core::{checkpoint, clockstore};
 
+mod bench;
 mod charts;
 use charts::chart_key;
 pub use charts::{lane_text, lane_width, paint_key, LANE_AFTER_TITLE, LANE_GAP};
@@ -1624,8 +1625,8 @@ pub struct TimegrapherApp {
     message: Option<(String, bool)>,
     /// The Watches view's own state.
     watches_view: watches_view::WatchesView,
-    /// How the strip and charts look and follow.
-    panes_view: pane_view::PaneView,
+    /// The bench: the take on show, recorded, read, tested, drawn and kept.
+    bench: bench::Bench,
     /// The guided tests for this bench.
     test: guided_test::GuidedTest,
     /// The take's readings and the runs in the background that read them.
@@ -1677,44 +1678,51 @@ impl TimegrapherApp {
             strip: self.live_view(),
             rate_line: self.live_rate_marks()[0],
             rate_guides: self.live_rate_marks()[1],
-            overlays: self.panes_view.overlays,
-            follow: self.panes_view.follow,
-            chart_series: self.panes_view.chart_series,
-            dist_series: self.panes_view.dist_series,
-            reserve_series: self.panes_view.reserve_series,
-            positions_series: self.panes_view.positions_series,
-            complication_series: self.panes_view.complication_series,
-            hist_cumulative: self.panes_view.hist_cumulative,
-            reserve_info: self.panes_view.reserve_info,
-            positions_info: self.panes_view.positions_info,
-            hist_readings: self.panes_view.hist_readings,
-            iso_view: self.panes_view.iso_view,
-            sound: self.panes_view.sound_opts,
-            folded: self.panes_view.folded.iter().cloned().collect(),
+            overlays: self.bench.panes_view.overlays,
+            follow: self.bench.panes_view.follow,
+            chart_series: self.bench.panes_view.chart_series,
+            dist_series: self.bench.panes_view.dist_series,
+            reserve_series: self.bench.panes_view.reserve_series,
+            positions_series: self.bench.panes_view.positions_series,
+            complication_series: self.bench.panes_view.complication_series,
+            hist_cumulative: self.bench.panes_view.hist_cumulative,
+            reserve_info: self.bench.panes_view.reserve_info,
+            positions_info: self.bench.panes_view.positions_info,
+            hist_readings: self.bench.panes_view.hist_readings,
+            iso_view: self.bench.panes_view.iso_view,
+            sound: self.bench.panes_view.sound_opts,
+            folded: self.bench.panes_view.folded.iter().cloned().collect(),
             theme: self.theme,
             steady_series: RATE_ONLY,
             steady_shown: self
+                .bench
                 .panes_view
                 .steady_series
                 .iter()
                 .map(|(v, s)| (*v, *s))
                 .collect(),
-            periods_db: self.panes_view.periods_db,
-            fft_timing: self.panes_view.fft_timing,
-            maps_db: self.panes_view.maps_db.unset,
-            maps_db_set: self.panes_view.maps_db.saved(),
-            marks: self.panes_view.show_marks.saved(),
-            steady_info: self.panes_view.steady_info.unset,
-            steady_info_set: self.panes_view.steady_info.saved(),
+            periods_db: self.bench.panes_view.periods_db,
+            fft_timing: self.bench.panes_view.fft_timing,
+            maps_db: self.bench.panes_view.maps_db.unset,
+            maps_db_set: self.bench.panes_view.maps_db.saved(),
+            marks: self.bench.panes_view.show_marks.saved(),
+            steady_info: self.bench.panes_view.steady_info.unset,
+            steady_info_set: self.bench.panes_view.steady_info.saved(),
             positions_settle_s: self.test.guided_settle_s,
             ten_positions: self.test.ten_positions,
-            poise_views: self.panes_view.poise_views,
-            poise_info: self.panes_view.poise_info,
-            complication_info: self.panes_view.complication_info,
+            poise_views: self.bench.panes_view.poise_views,
+            poise_info: self.bench.panes_view.poise_info,
+            complication_info: self.bench.panes_view.complication_info,
             positions_measure_s: self.test.guided_measure_s,
-            scope: self.panes_view.scope_view,
-            panes: Some(self.panes_view.panes.clone()),
-            panes_dragged: self.panes_view.panes_dragged.iter().copied().collect(),
+            scope: self.bench.panes_view.scope_view,
+            panes: Some(self.bench.panes_view.panes.clone()),
+            panes_dragged: self
+                .bench
+                .panes_view
+                .panes_dragged
+                .iter()
+                .copied()
+                .collect(),
             layout: LAYOUT,
             // Drop legacy entries only after their user-catalogue save succeeds.
             custom_calibres: self.cal.pending_legacy().to_vec(),
@@ -1726,8 +1734,8 @@ impl TimegrapherApp {
             listen_at_open: self.listen_at_open,
             mic_set_up: self.mic_set_up,
             setup_declined: self.setup_declined,
-            show_readings: self.panes_view.show_readings,
-            readings_pinned: self.panes_view.readings_pinned,
+            show_readings: self.bench.panes_view.show_readings,
+            readings_pinned: self.bench.panes_view.readings_pinned,
             library: self.library_dir.clone(),
             settings_section: self.settings_last.key().into(),
             agc_on: self.agc_on.clone(),
@@ -1818,9 +1826,9 @@ impl TimegrapherApp {
         strip.set_span(strip.span_s);
         // One left on is kept: a pane with none shown would be empty.
         let on = |s: [bool; 3]| if s.contains(&true) { s } else { RATE_ONLY };
-        (self.panes_view.sound_opts, self.theme) = (sound, theme);
+        (self.bench.panes_view.sound_opts, self.theme) = (sound, theme);
         self.set_positions_times(positions_settle_s, positions_measure_s);
-        let v = &mut self.panes_view;
+        let v = &mut self.bench.panes_view;
         (v.strip, v.readings_pinned) = (strip, readings_pinned);
         (v.rate_line, v.rate_guides) = (rate_line, rate_guides);
         (v.overlays, v.follow) = (overlays, follow);
@@ -1839,12 +1847,12 @@ impl TimegrapherApp {
         (v.complication_series, v.scope_view) = (complication_series, scope);
         (v.poise_views, v.poise_info) = (poise_views, poise_info);
         (v.complication_info, v.show_readings) = (complication_info, show_readings);
-        self.panes_view.panes = match panes.map(upgraded_layout) {
+        self.bench.panes_view.panes = match panes.map(upgraded_layout) {
             Some(p) if layout_is_whole(&p) => {
-                self.panes_view.panes_dragged = panes_dragged.into_iter().collect();
+                self.bench.panes_view.panes_dragged = panes_dragged.into_iter().collect();
                 p
             }
-            _ => default_layout(self.panes_view.strip.horizontal),
+            _ => default_layout(self.bench.panes_view.strip.horizontal),
         };
     }
 
@@ -1876,6 +1884,9 @@ impl TimegrapherApp {
     fn with_devices(devices: Vec<InputDevice>, file: Option<PathBuf>) -> Self {
         let device = capture::choices(&devices).first().map(|c| c.id.clone());
         let mut app = TimegrapherApp {
+            bench: bench::Bench {
+                panes_view: pane_view::PaneView::default(),
+            },
             recording: recording::Recording {
                 input: if file.is_some() {
                     Input::File
@@ -1915,7 +1926,6 @@ impl TimegrapherApp {
             library_dir: None,
             library: Ok(None),
             watches_view: watches_view::WatchesView::default(),
-            panes_view: pane_view::PaneView::default(),
             results: results::Results::default(),
             confirm: None,
             may_close: false,
@@ -2019,8 +2029,8 @@ impl TimegrapherApp {
     /// With Fit on, the strip's length is the session so far.
     fn follow_fit(&mut self) {
         if self.strip_fitted() {
-            self.panes_view.strip_end = None;
-            self.panes_view.strip.set_span(self.strip_end_s());
+            self.bench.panes_view.strip_end = None;
+            self.bench.panes_view.strip.set_span(self.strip_end_s());
         }
     }
 
@@ -2253,8 +2263,10 @@ impl TimegrapherApp {
             Pane::Sound | Pane::Scope => self.sound_tools(ui, pane),
             p if p.steady_view().is_some() => {
                 let view = p.steady_view().unwrap_or_default();
-                let (mut info, help_text) =
-                    (self.panes_view.steady_info.on(view), help::steadiness(view));
+                let (mut info, help_text) = (
+                    self.bench.panes_view.steady_info.on(view),
+                    help::steadiness(view),
+                );
                 let mut pin = |ui: &mut egui::Ui| {
                     let accent = theme::pal(ui).accent;
                     if theme::icon_toggle(ui, Icon::Info, info, accent)
@@ -2268,10 +2280,10 @@ impl TimegrapherApp {
                     self.steady_settings(ui, p);
                     self.export_button(ui, p);
                 });
-                self.panes_view.steady_info.set(view, info);
+                self.bench.panes_view.steady_info.set(view, info);
             }
             Pane::Isochronism => isochronism::toolbar(ui, title, |ui| {
-                isochronism::view_choice(ui, &mut self.panes_view.iso_view);
+                isochronism::view_choice(ui, &mut self.bench.panes_view.iso_view);
                 self.export_button(ui, pane)
             }),
             Pane::PositionsTest => self.positions_tools(ui, title),
@@ -2279,13 +2291,13 @@ impl TimegrapherApp {
             Pane::Complication => self.complication_tools(ui, title),
             Pane::PowerReserve => self.reserve_toolbar(ui, title),
             Pane::Distributions => theme::pane_toolbar(ui, title, &help::HISTOGRAMS, |ui| {
-                steady::series_switches(ui, &mut self.panes_view.dist_series);
+                steady::series_switches(ui, &mut self.bench.panes_view.dist_series);
                 theme::bar_gap(ui);
                 self.histogram_settings(ui);
                 self.export_button(ui, pane);
             }),
             Pane::Charts => theme::pane_toolbar(ui, title, help::CHARTS, |ui| {
-                steady::series_switches(ui, &mut self.panes_view.chart_series);
+                steady::series_switches(ui, &mut self.bench.panes_view.chart_series);
                 theme::bar_gap(ui);
                 self.charts_fit_switch(ui);
                 theme::bar_gap(ui);
@@ -2322,7 +2334,7 @@ impl TimegrapherApp {
         if theme::icon_toggle(
             ui,
             Icon::Readings,
-            self.panes_view.show_readings,
+            self.bench.panes_view.show_readings,
             pal.accent,
         )
         .on_hover_text(
@@ -2331,7 +2343,7 @@ impl TimegrapherApp {
         )
         .clicked()
         {
-            self.panes_view.show_readings = !self.panes_view.show_readings;
+            self.bench.panes_view.show_readings = !self.bench.panes_view.show_readings;
         }
         let groups = pane_groups();
         let folded = folded_groups(ui, &groups);
@@ -2353,7 +2365,7 @@ impl TimegrapherApp {
     fn folded_group(&mut self, ui: &mut egui::Ui, name: &str, hint: &str, panes: &[Pane]) {
         let on = panes
             .iter()
-            .filter(|&&p| pane_visible(&self.panes_view.panes.tiles, p))
+            .filter(|&&p| pane_visible(&self.bench.panes_view.panes.tiles, p))
             .count();
         let label = if on > 0 {
             format!("{name} ({on}) ⏷")
@@ -2372,7 +2384,7 @@ impl TimegrapherApp {
             ));
         egui::Popup::menu(&button).show(|ui| {
             for &pane in panes {
-                let mut shown = pane_visible(&self.panes_view.panes.tiles, pane);
+                let mut shown = pane_visible(&self.bench.panes_view.panes.tiles, pane);
                 if ui
                     .checkbox(&mut shown, pane.title())
                     .on_hover_text(pane.hint())
@@ -2393,7 +2405,7 @@ impl TimegrapherApp {
                 .on_hover_text(hint);
         }
         for &pane in panes {
-            let on = pane_visible(&self.panes_view.panes.tiles, pane);
+            let on = pane_visible(&self.bench.panes_view.panes.tiles, pane);
             let icon = pane_icon(pane);
             if theme::icon_toggle_off(ui, icon, on, pal.accent, pal.text_secondary)
                 .on_hover_text(format!("{}: {}", pane.title(), pane.hint()))
@@ -2414,37 +2426,37 @@ impl TimegrapherApp {
             self.reveal_pane(pane);
         } else {
             self.undrag(pane);
-            set_pane_visible(&mut self.panes_view.panes.tiles, pane, false);
+            set_pane_visible(&mut self.bench.panes_view.panes.tiles, pane, false);
         }
     }
 
     /// A pane shown or hidden: the rows holding it share their room out
     /// afresh, each pane at its least, rather than as last dragged.
     fn undrag(&mut self, pane: Pane) {
-        let mut at = self.panes_view.panes.tiles.find_pane(&pane);
+        let mut at = self.bench.panes_view.panes.tiles.find_pane(&pane);
         while let Some(id) = at {
-            self.panes_view.panes_dragged.remove(&id);
-            at = self.panes_view.panes.tiles.parent_of(id);
+            self.bench.panes_view.panes_dragged.remove(&id);
+            at = self.bench.panes_view.panes.tiles.parent_of(id);
         }
     }
 
     /// Show a pane and bring its tab to the front.
     fn reveal_pane(&mut self, pane: Pane) {
-        let was = pane_visible(&self.panes_view.panes.tiles, pane);
+        let was = pane_visible(&self.bench.panes_view.panes.tiles, pane);
         if !was {
             self.undrag(pane);
         }
-        set_pane_visible(&mut self.panes_view.panes.tiles, pane, true);
+        set_pane_visible(&mut self.bench.panes_view.panes.tiles, pane, true);
         // A test's pane opens at its content's height, or its run's.
         if pane == Pane::PowerReserve && !was {
             self.fit_reserve_row();
         }
-        let Some(id) = self.panes_view.panes.tiles.find_pane(&pane) else {
+        let Some(id) = self.bench.panes_view.panes.tiles.find_pane(&pane) else {
             return;
         };
-        if let Some(parent) = self.panes_view.panes.tiles.parent_of(id) {
+        if let Some(parent) = self.bench.panes_view.panes.tiles.parent_of(id) {
             if let Some(egui_tiles::Tile::Container(egui_tiles::Container::Tabs(t))) =
-                self.panes_view.panes.tiles.get_mut(parent)
+                self.bench.panes_view.panes.tiles.get_mut(parent)
             {
                 t.set_active(id);
             }
@@ -2470,15 +2482,15 @@ impl TimegrapherApp {
         // Nothing appears above the readings: notices are in the status
         // bar, so the window never moves under the pointer.
         // The readings, and on them what a take needs, unless hidden.
-        if self.panes_view.show_readings {
+        if self.bench.panes_view.show_readings {
             self.readings(ui);
         }
 
         // A drag can leave a container holding only hidden panes.
-        sync_containers(&mut self.panes_view.panes.tiles);
+        sync_containers(&mut self.bench.panes_view.panes.tiles);
         if Pane::ALL
             .iter()
-            .all(|&p| !pane_visible(&self.panes_view.panes.tiles, p))
+            .all(|&p| !pane_visible(&self.bench.panes_view.panes.tiles, p))
         {
             ui.add_space(40.0);
             ui.vertical_centered(|ui| {
@@ -2493,14 +2505,16 @@ impl TimegrapherApp {
             });
             return;
         }
-        self.panes_view.charts_to_live_now = std::mem::take(&mut self.panes_view.charts_to_live);
-        let mut panes = std::mem::replace(&mut self.panes_view.panes, Tree::empty("panes-swap"));
+        self.bench.panes_view.charts_to_live_now =
+            std::mem::take(&mut self.bench.panes_view.charts_to_live);
+        let mut panes =
+            std::mem::replace(&mut self.bench.panes_view.panes, Tree::empty("panes-swap"));
         repair_tabs(&mut panes);
-        let need = self.panes_view.pane_need.clone();
+        let need = self.bench.panes_view.pane_need.clone();
         keep_room(
             &mut panes.tiles,
             |p| need.get(&p).copied(),
-            &self.panes_view.panes_dragged,
+            &self.bench.panes_view.panes_dragged,
         );
         let before = shares_of(&panes.tiles);
         panes.ui(
@@ -2513,10 +2527,10 @@ impl TimegrapherApp {
         // Shares changed while drawn were dragged by hand: they stand.
         for (id, s) in shares_of(&panes.tiles) {
             if before.get(&id).is_some_and(|b| *b != s) {
-                self.panes_view.panes_dragged.insert(id);
+                self.bench.panes_view.panes_dragged.insert(id);
             }
         }
-        self.panes_view.panes = panes;
+        self.bench.panes_view.panes = panes;
     }
 
     /// Whether `pane`'s plot would be under [`SHORT_PLOT_H`] tall here
@@ -2535,13 +2549,13 @@ impl TimegrapherApp {
             Pane::SteadyStft | Pane::SteadyWavelet => crate::tfmap::KEY_H,
             _ => 0.0,
         };
-        let was = self.panes_view.panes_short.contains(&pane);
+        let was = self.bench.panes_view.panes_short.contains(&pane);
         let least = SHORT_PLOT_H + below + if was { SHORT_PLOT_GIVE } else { 0.0 };
         if ui.available_height() >= least {
-            self.panes_view.panes_short.remove(&pane);
+            self.bench.panes_view.panes_short.remove(&pane);
             return false;
         }
-        self.panes_view.panes_short.insert(pane);
+        self.bench.panes_view.panes_short.insert(pane);
         let pal = theme::pal(ui);
         ui.centered_and_justified(|ui| {
             ui.label(
@@ -2558,8 +2572,9 @@ impl TimegrapherApp {
     /// Keep the height `pane` needs: what is above its plots, one plot
     /// `least` tall, the line naming those with no room, and the margin.
     fn note_need(&mut self, ui: &egui::Ui, pane: Pane, least: f32) {
-        let above = ui.cursor().top() - self.panes_view.pane_top;
-        self.panes_view
+        let above = ui.cursor().top() - self.bench.panes_view.pane_top;
+        self.bench
+            .panes_view
             .pane_need
             .insert(pane, above + least + STACKED_NOTE_H + 6.0);
     }
@@ -3120,7 +3135,7 @@ impl TimegrapherApp {
     /// with the content in cards.
     fn panels(&mut self, ctx: &egui::Context) {
         self.poll_updates(ctx);
-        if std::mem::take(&mut self.panes_view.gutter_fresh) {
+        if std::mem::take(&mut self.bench.panes_view.gutter_fresh) {
             theme::reset_time_gutter(ctx);
         }
         crate::pump::timed("charts' readings", || self.take_reads_shown(ctx));

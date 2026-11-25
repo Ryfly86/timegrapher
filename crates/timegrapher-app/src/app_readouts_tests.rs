@@ -518,7 +518,7 @@ fn the_profiles_marks_keep_off_the_names() {
             p.median[..n].fill(0.9 * top);
         }
     }
-    app.panes_view.sound_opts.side_by_side = true;
+    app.bench.panes_view.sound_opts.side_by_side = true;
     let (_, rings, bars, facts) = run(&mut app, 1440.0, 788.0);
     let plots: Vec<egui::Rect> = (0..2usize)
         .filter_map(|k| {
@@ -559,7 +559,7 @@ fn the_profiles_marks_keep_off_the_names() {
         );
     }
     app.results.sound_history = kept;
-    app.panes_view.sound_opts.side_by_side = false;
+    app.bench.panes_view.sound_opts.side_by_side = false;
     let (names, rings, bars, _) = run(&mut app, 1440.0, 1000.0);
     assert!(!names.is_empty(), "the edges named");
     assert!(!rings.is_empty() && !bars.is_empty(), "{rings:?} {bars:?}");
@@ -851,9 +851,9 @@ fn draws_a_synthetic_watch_headless() {
 
     let ctx = themed();
     for horizontal in [false, true] {
-        app.panes_view.strip.horizontal = horizontal;
-        app.panes_view.panes = default_layout(horizontal);
-        app.panes_view.follow = horizontal;
+        app.bench.panes_view.strip.horizontal = horizontal;
+        app.bench.panes_view.panes = default_layout(horizontal);
+        app.bench.panes_view.follow = horizontal;
         for _ in 0..2 {
             let input = egui::RawInput {
                 screen_rect: Some(egui::Rect::from_min_size(
@@ -888,7 +888,10 @@ fn a_pane_is_exported_as_an_svg_drawing() {
         app.export_tick(ctx);
         app.panels(ctx)
     });
-    assert!(app.panes_view.export.is_none(), "export still waiting");
+    assert!(
+        app.bench.panes_view.export.is_none(),
+        "export still waiting"
+    );
     let doc = std::fs::read_to_string(&path).unwrap();
     assert!(doc.starts_with("<svg "), "{doc}");
     assert!(doc.contains(">Paper Strip<") || doc.contains(&format!(">{}<", Pane::Strip.title())));
@@ -929,6 +932,7 @@ fn a_pane_is_exported_as_a_png_from_a_screenshot() {
         .any(|c| matches!(c, egui::ViewportCommand::Screenshot(_)));
     assert!(asked, "no screenshot asked for");
     let rect = app
+        .bench
         .panes_view
         .export
         .as_ref()
@@ -948,7 +952,10 @@ fn a_pane_is_exported_as_a_png_from_a_screenshot() {
         app.export_tick(ctx);
         app.panels(ctx)
     });
-    assert!(app.panes_view.export.is_none(), "export still waiting");
+    assert!(
+        app.bench.panes_view.export.is_none(),
+        "export still waiting"
+    );
     let dec = png::Decoder::new(std::io::BufReader::new(std::fs::File::open(&path).unwrap()));
     let mut r = dec.read_info().unwrap();
     let mut buf = vec![0; r.output_buffer_size().unwrap()];
@@ -968,7 +975,7 @@ fn an_export_that_cannot_be_drawn_gives_up() {
     for _ in 0..61 {
         let _ = ctx.run(screen(), |ctx| app.export_tick(ctx));
     }
-    assert!(app.panes_view.export.is_none());
+    assert!(app.bench.panes_view.export.is_none());
     assert!(matches!(&app.message, Some((_, true))));
 }
 
@@ -1146,7 +1153,7 @@ fn a_cards_sparkline_is_its_figure_over_the_last_minute() {
 fn the_scope_says_masked_where_the_profile_does() {
     let mut app = synthetic(30.0, 0.0);
     let end = app.latest_s() - 5.0;
-    app.panes_view.strip_end = Some(end);
+    app.bench.panes_view.strip_end = Some(end);
     let end = app.strip_end_s();
     app.take.masked = vec![(end - 15.0, end + 1.0)];
     let at = length_text(end);
@@ -1579,7 +1586,7 @@ fn card_row(
 #[test]
 fn at_800_the_reading_cards_captions_are_whole_and_carry_the_help() {
     let mut app = synthetic(60.0, 20.0);
-    app.panes_view.readings_pinned = true;
+    app.bench.panes_view.readings_pinned = true;
     let ctx = themed();
     ctx.style_mut(|s| {
         s.interaction.tooltip_delay = 0.0;
@@ -1637,7 +1644,7 @@ fn at_800_a_caveat_leaves_the_reading_cards_captions_whole() {
     }
     app.poll();
     app.refresh_trend();
-    app.panes_view.readings_pinned = true;
+    app.bench.panes_view.readings_pinned = true;
     let caveats = app.reading().expect("a reading").caveats;
     assert!(
         reading_limits("Rate", &caveats, 52.0, 30, false).is_empty()
@@ -1681,7 +1688,7 @@ fn at_800_a_caveat_leaves_the_reading_cards_captions_whole() {
 fn the_reading_figures_share_one_size() {
     for rate in [20.0, -2174.4] {
         let mut app = synthetic(60.0, rate);
-        app.panes_view.readings_pinned = true;
+        app.bench.panes_view.readings_pinned = true;
         let ctx = themed();
         for w in [800.0, 1000.0, 1920.0] {
             let (row, _) = card_row(&mut app, &ctx, w, None);
@@ -1741,7 +1748,7 @@ fn the_cards_say_listening_until_ten_seconds_are_heard() {
         });
         painted_text(&out)
     };
-    app.panes_view.strip_end = Some(6.0);
+    app.bench.panes_view.strip_end = Some(6.0);
     let r = app.card_reading().expect("a reading");
     assert_eq!(r.listening, Some(HeardSince::Start), "{r:?}");
     assert_eq!(r.rate_s_per_day, None);
@@ -1753,7 +1760,7 @@ fn the_cards_say_listening_until_ten_seconds_are_heard() {
         "{}",
         listening_text(HeardSince::Start)
     );
-    app.panes_view.strip_end = Some(25.0);
+    app.bench.panes_view.strip_end = Some(25.0);
     let r = app.card_reading().expect("a reading");
     assert_eq!(r.listening, None);
     assert!(r.rate_s_per_day.is_some(), "{r:?}");
@@ -2237,7 +2244,7 @@ fn an_opened_recording_of_silence_says_no_beats_heard() {
         log,
         timegrapher_core::live::LiveConfig::default(),
     ));
-    app.panes_view.strip_end = Some(40.0);
+    app.bench.panes_view.strip_end = Some(40.0);
     assert!(!app.running());
     let r = app.card_reading().expect("a reading");
     assert_eq!(r.beats_used, 0, "{r:?}");
@@ -2463,7 +2470,7 @@ fn under_ten_seconds_heard_and_over_says_so_on_every_card() {
         log,
         timegrapher_core::live::LiveConfig::default(),
     ));
-    app.panes_view.strip_end = None;
+    app.bench.panes_view.strip_end = None;
     assert!(!app.running());
     let r = app.card_reading().expect("a reading");
     assert_eq!(r.listening, Some(HeardSince::Start), "{r:?}");
@@ -2500,7 +2507,7 @@ fn under_ten_seconds_heard_and_over_says_so_on_every_card() {
         )
     );
     // Moved back into it, the take goes on past there: still Listening.
-    app.panes_view.strip_end = Some(5.0);
+    app.bench.panes_view.strip_end = Some(5.0);
     assert!(cards_text(&app, &ctx).contains("Listening"));
 }
 

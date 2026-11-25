@@ -8,7 +8,7 @@ impl TimegrapherApp {
     pub(super) fn export_button(&mut self, ui: &mut egui::Ui, pane: Pane) {
         theme::keep_next(ui);
         if theme::tool_button(ui, Icon::Export, "Export…", EXPORT_HINT, None) {
-            let dir = self.panes_view.export_dir.clone().or_else(|| {
+            let dir = self.bench.panes_view.export_dir.clone().or_else(|| {
                 Path::new(self.recording.file_path.trim())
                     .parent()
                     .map(Path::to_path_buf)
@@ -16,7 +16,7 @@ impl TimegrapherApp {
             let d = export::dialog(pane.title(), dir.as_deref());
             self.pick(Picker::one(d, Pick::Save, move |a, path| {
                 let path = export::png_unless_named(path);
-                a.panes_view.export_dir = path.parent().map(Path::to_path_buf);
+                a.bench.panes_view.export_dir = path.parent().map(Path::to_path_buf);
                 a.start_export(pane, path);
             }));
         }
@@ -24,7 +24,7 @@ impl TimegrapherApp {
 
     /// Draw `pane` for a picture on the next frames and save it to `path`.
     pub(super) fn start_export(&mut self, pane: Pane, path: PathBuf) {
-        self.panes_view.export = Some(PaneExport {
+        self.bench.panes_view.export = Some(PaneExport {
             pane,
             path,
             rect: None,
@@ -44,7 +44,7 @@ impl TimegrapherApp {
                     .color(pal.text),
             );
             let key = if pane == Pane::Charts {
-                chart_key(self.panes_view.charts_drawn, pal)
+                chart_key(self.bench.panes_view.charts_drawn, pal)
             } else {
                 Vec::new()
             };
@@ -68,12 +68,12 @@ impl TimegrapherApp {
         shapes: Vec<egui::epaint::ClippedShape>,
         background: Color32,
     ) {
-        let Some(e) = &mut self.panes_view.export else {
+        let Some(e) = &mut self.bench.panes_view.export else {
             return;
         };
         if export::is_svg(&e.path) {
             let (pane, path) = (e.pane, e.path.clone());
-            self.panes_view.export = None;
+            self.bench.panes_view.export = None;
             let doc = export::svg(&shapes, rect, background);
             self.export_done(pane, &path, std::fs::write(&path, doc));
         } else {
@@ -94,7 +94,7 @@ impl TimegrapherApp {
             rect: Some(rect),
             asked: true,
             ..
-        }) = self.panes_view.export.take()
+        }) = self.bench.panes_view.export.take()
         else {
             return;
         };
@@ -105,7 +105,7 @@ impl TimegrapherApp {
     /// A pane being saved as a PNG: the screenshot of its frame, or giving
     /// up when none comes.
     pub(super) fn export_tick(&mut self, ctx: &egui::Context) {
-        if self.panes_view.export.is_some() {
+        if self.bench.panes_view.export.is_some() {
             let shot = ctx.input(|i| {
                 i.raw.events.iter().find_map(|e| match e {
                     egui::Event::Screenshot { image, .. } => Some(image.clone()),
@@ -114,12 +114,12 @@ impl TimegrapherApp {
             });
             if let Some(image) = shot {
                 self.screenshot_for_export(&image, ctx.pixels_per_point());
-            } else if let Some(e) = &mut self.panes_view.export {
+            } else if let Some(e) = &mut self.bench.panes_view.export {
                 // A pane that isn't drawn, or a screen that can't be read.
                 e.frames += 1;
                 if e.frames > 60 {
                     let pane = e.pane;
-                    self.panes_view.export = None;
+                    self.bench.panes_view.export = None;
                     self.error(format!(
                         "Couldn't save {}: the pane wasn't drawn for the picture",
                         pane.title()

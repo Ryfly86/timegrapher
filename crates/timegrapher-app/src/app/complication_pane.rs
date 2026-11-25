@@ -134,7 +134,7 @@ impl TimegrapherApp {
         // The quantities first, at the left, always there, as on every
         // pane that plots them; all off leaves the table and words
         // (design guide section 9, #1852).
-        crate::steady::chart_switches(ui, &mut self.panes_view.complication_series);
+        crate::steady::chart_switches(ui, &mut self.bench.panes_view.complication_series);
         theme::bar_gap(ui);
         if !running {
             if self.ready_test() == Some(NewTake::Complication) {
@@ -187,13 +187,13 @@ impl TimegrapherApp {
 
     /// The pane's toolbar, with the Info toggle pinned at its right.
     pub(super) fn complication_tools(&mut self, ui: &mut egui::Ui, title: &str) {
-        let mut info = self.panes_view.complication_info;
+        let mut info = self.bench.panes_view.complication_info;
         let hint = "Info: how On less Off and its ± are worked out";
         theme::pane_toolbar_info(ui, title, &help::COMPLICATION, (&mut info, hint), |ui| {
             self.complication_settings(ui);
             self.export_button(ui, Pane::Complication);
         });
-        self.panes_view.complication_info = info;
+        self.bench.panes_view.complication_info = info;
     }
 
     /// The pane: the banner while the test runs, then the table and the
@@ -201,7 +201,7 @@ impl TimegrapherApp {
     pub(super) fn complication_pane(&mut self, ui: &mut egui::Ui) {
         // Where Keep This Test? keeps clear of, as the other tests'.
         if self.complication_test().is_some() {
-            self.panes_view.results_rects[0] = Some(ui.max_rect());
+            self.bench.panes_view.results_rects[0] = Some(ui.max_rect());
         }
         let now = self.recording.live.as_ref().map(|l| l.duration_s());
         let phase = match (self.test.guided.as_mut(), now) {
@@ -229,8 +229,8 @@ impl TimegrapherApp {
             (test, phase, live.as_ref()),
             (now, lengths),
             (
-                self.panes_view.complication_info,
-                self.panes_view.complication_series,
+                self.bench.panes_view.complication_info,
+                self.bench.panes_view.complication_series,
             ),
             self.take.rev.opens,
         );

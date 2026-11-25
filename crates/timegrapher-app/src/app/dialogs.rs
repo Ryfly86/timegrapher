@@ -396,7 +396,7 @@ impl TimegrapherApp {
         // test's pane, over a light backdrop, so its results stay in view
         // while it asks.
         let id = egui::Id::new("keep the test");
-        let pane = self.panes_view.results_rects[match kind {
+        let pane = self.bench.panes_view.results_rects[match kind {
             TestKeep::Positions => 0,
             TestKeep::PowerReserve => 1,
         }];
