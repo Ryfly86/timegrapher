@@ -317,7 +317,10 @@ fn a_short_burst_in_the_noise_after_a_watch_is_no_watch() {
                     let at = format!("{set_bph:?}, burst {burst}, {average_s} s at {t:.1} s");
                     let figures = [r.rate_s_per_day, r.amplitude_deg, r.beat_error_ms];
                     // (f1) No figures once the reading is past the lift.
-                    if t > past_lift(average_s) && figures != [None; 3] {
+                    // With the burst, none from the burst on either,
+                    // whatever the average still holds (Norm on #2247).
+                    let checked = t > past_lift(average_s) || (burst && t >= 80.0);
+                    if checked && figures != [None; 3] {
                         bad.push(format!("{at}: figures {figures:?}"));
                     }
                     let finding_ok = burst && (80.0..80.0 + finding_s(average_s)).contains(&t);
@@ -344,7 +347,7 @@ fn a_short_burst_in_the_noise_after_a_watch_is_no_watch() {
                 for p in saved
                     .trend(average_s)
                     .iter()
-                    .filter(|p| p.t > past_lift(average_s))
+                    .filter(|p| p.t > past_lift(average_s) || (burst && p.t >= 80.0))
                 {
                     if p.heard || p.rate_s_per_day.is_some() {
                         bad.push(format!(
