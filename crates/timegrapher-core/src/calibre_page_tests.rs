@@ -586,3 +586,31 @@ fn every_quote_is_whole() {
         "{all_quotes:?}"
     );
 }
+
+/// Vernon's last three rules on #2281, one test each.
+#[test]
+fn the_longer_maker_name_wins() {
+    // "Sellita Watch Co" is one of Sellita's names, after "Sellita".
+    assert_eq!(
+        maker_prefix("Sellita", "Sellita Watch Co SW200"),
+        Some(" SW200")
+    );
+}
+
+#[test]
+fn a_quote_said_twice_at_one_address_is_listed_once() {
+    let c = row(
+        r#", "jewels": {"value": 21, "source": "https://example.com/p (sheet) (21 jewels)"},
+           "height_mm": {"value": "5.67", "source": "https://example.com/p (page) (21 jewels)"}"#,
+    );
+    let p = page_of(&c);
+    assert_eq!(p.sources[1].quotes, ["21 jewels"]);
+}
+
+#[test]
+fn a_curly_quote_closes() {
+    assert_eq!(
+        source_parts("https://x.example/a (Seen in “Calibre 1, A” list, 51°)").2,
+        "51°"
+    );
+}
