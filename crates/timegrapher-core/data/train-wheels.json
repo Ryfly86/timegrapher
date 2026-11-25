@@ -12812,7 +12812,13 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bulova 11AOAC, 46°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Bulova 11 AOAC, 46°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://www.buzzufy.com/blog/2017/12/17/bulova-caliber-11-aoac-movement-specifications-and-photo/ (Buzzufy, Bulova 11AOAC; Old Swiss Watches https://oldswisswatches.com/watch-parts-branded/bulova-calibre-movement-and-spare-parts/bulova-11aoac-bulova-11aoacb-bulova-11aoacd/ gives the same) (\"Automatic movement with 17 or 23 jewels.\")"
+    }
   },
   {
     "calibre": "Bulova 11AOACB",
@@ -27711,7 +27717,11 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 105, 20222 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://www.gruenwristwatches.com/gruen-caliber-index-for-repairers-reference.php (GruenWristwatches index of Gruen's 1926 material catalogue, page 8) (\"105 | 17 | 1926 | 8\")"
+    }
   },
   {
     "calibre": "Gruen 106",
@@ -27723,7 +27733,11 @@
       "https://www.collezionismo.org/angoli_di_levata_orologi.htm (Collezionismo lift-angle table, GRUEN WATCH 106) (20222)"
     ],
     "confidence": "published list",
-    "notes": "Beat rate left blank: the lift-angle sheet gives 20222 vph and Ranfft 20160 bph, and no third source settles it. Collezionismo also lists 20222, on the lift-angle sheet's side against Ranfft's 20160 (timegrapher-calibres#6)."
+    "notes": "Beat rate left blank: the lift-angle sheet gives 20222 vph and Ranfft 20160 bph, and no third source settles it. Collezionismo also lists 20222, on the lift-angle sheet's side against Ranfft's 20160 (timegrapher-calibres#6).",
+    "jewels": {
+      "value": 15,
+      "source": "https://www.gruenwristwatches.com/gruen-caliber-index-for-repairers-reference.php (GruenWristwatches index of Gruen's 1939 material catalogue, page 11) (\"106 | 15 | 1939 | 11\")"
+    }
   },
   {
     "calibre": "Gruen 107",
@@ -27783,7 +27797,11 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 133, 20222 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://www.gruenwristwatches.com/gruen-caliber-index-for-repairers-reference.php (GruenWristwatches index of Gruen's 1939 material catalogue, page 16) (\"133 | 17 | 1939 | 16\")"
+    }
   },
   {
     "calibre": "Gruen 137",
@@ -27815,7 +27833,11 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 139, 20222 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 15,
+      "source": "https://www.gruenwristwatches.com/gruen-caliber-index-for-repairers-reference.php (GruenWristwatches index of Gruen's 1939 material catalogue, page 16) (\"139 | 15 | 1939 | 16\")"
+    }
   },
   {
     "calibre": "Gruen 151",
@@ -27847,7 +27869,11 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 155, 20160 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 15,
+      "source": "https://www.gruenwristwatches.com/gruen-caliber-index-for-repairers-reference.php (GruenWristwatches index of Gruen's 1926 material catalogue, page 11) (\"155 | 15 | 1926 | 11\")"
+    }
   },
   {
     "calibre": "Gruen 159",
@@ -27863,7 +27889,11 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 159, 20160 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 15,
+      "source": "https://www.gruenwristwatches.com/gruen-caliber-index-for-repairers-reference.php (GruenWristwatches index of Gruen's 1939 material catalogue, page 11) (\"159 | 15 | 1939 | 11\")"
+    }
   },
   {
     "calibre": "Gruen 161",
@@ -27879,7 +27909,11 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 161, 20160 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 15,
+      "source": "https://www.gruenwristwatches.com/gruen-caliber-index-for-repairers-reference.php (GruenWristwatches index of Gruen's 1939 material catalogue, page 9) (\"161 | 15 | 1939 | 9\")"
+    }
   },
   {
     "calibre": "Gruen 169",
@@ -27895,7 +27929,11 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 169, 20160 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 11,
+      "source": "https://www.gruenwristwatches.com/gruen-caliber-index-for-repairers-reference.php (GruenWristwatches index of Gruen's 1939 material catalogue, page 10) (\"169 | 11 | 1939 | 10\")"
+    }
   },
   {
     "calibre": "Gruen 181",
@@ -27911,7 +27949,11 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 181, 20160 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 15,
+      "source": "https://www.gruenwristwatches.com/gruen-caliber-index-for-repairers-reference.php (GruenWristwatches index of Gruen's 1939 material catalogue, page 10) (\"181 | 15 | 1939 | 10\")"
+    }
   },
   {
     "calibre": "Gruen 183",
@@ -27927,7 +27969,11 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 183, 20160 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 7,
+      "source": "https://www.gruenwristwatches.com/gruen-caliber-index-for-repairers-reference.php (GruenWristwatches index of Gruen's 1939 material catalogue, page 10) (\"183 | 7 | 1939 | 10\")"
+    }
   },
   {
     "calibre": "Gruen 23 OR",
@@ -27976,7 +28022,11 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 306, 20160 vph)",
       "https://ranfft.org/caliber/6097-Gruen-306 (Ranfft: Gruen 306, read 2026-11-17) (20160 bph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://www.gruenwristwatches.com/gruen-caliber-index-for-repairers-reference.php (GruenWristwatches index of Gruen's 1939 material catalogue, page 11) (\"306 | 17 | 1939 | 11\")"
+    }
   },
   {
     "calibre": "Gruen 307",
@@ -27992,7 +28042,11 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 307, 20160 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://www.gruenwristwatches.com/gruen-caliber-index-for-repairers-reference.php (GruenWristwatches index of Gruen's 1939 material catalogue, page 9) (\"307 | 17 | 1939 | 9\")"
+    }
   },
   {
     "calibre": "Gruen 327",
@@ -28008,7 +28062,11 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 327, 20160 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 15,
+      "source": "https://www.gruenwristwatches.com/gruen-caliber-index-for-repairers-reference.php (GruenWristwatches index of Gruen's 1939 material catalogue, page 9) (\"327 | 15 | 1939 | 9\")"
+    }
   },
   {
     "calibre": "Gruen 328",
@@ -28024,7 +28082,11 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 328, 20160 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://www.gruenwristwatches.com/gruen-caliber-index-for-repairers-reference.php (GruenWristwatches index of Gruen's 1939 material catalogue, page 9) (\"328 | 17 | 1939 | 9\")"
+    }
   },
   {
     "calibre": "Gruen 329",
@@ -28040,7 +28102,11 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 329, 20160 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 7,
+      "source": "https://www.gruenwristwatches.com/gruen-caliber-index-for-repairers-reference.php (GruenWristwatches index of Gruen's 1939 material catalogue, page 9) (\"329 | 7 | 1939 | 9\")"
+    }
   },
   {
     "calibre": "Gruen 331",
@@ -28104,7 +28170,11 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 520, 20106 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://www.gruenwristwatches.com/gruen-caliber-index-for-repairers-reference.php (GruenWristwatches index of Gruen's 1939 material catalogue, page 9) (\"520 | 17 | 1939 | 9\")"
+    }
   },
   {
     "calibre": "Gruen 832/ 837/ 839",
@@ -28152,7 +28222,11 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 847, 20944.4 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 18,
+      "source": "https://www.gruenwristwatches.com/gruen-caliber-index-for-repairers-reference.php (GruenWristwatches index of Gruen's 1926 material catalogue, page 6) (\"847 | 18 | 1926 | 6\")"
+    }
   },
   {
     "calibre": "Gruen 857",
@@ -28168,7 +28242,11 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (GRUEN WATCH 857, 20222 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 18,
+      "source": "https://www.gruenwristwatches.com/gruen-caliber-index-for-repairers-reference.php (GruenWristwatches index of Gruen's 1921 material catalogue, page 9) (\"857 | 18 | 1921 | 9\")"
+    }
   },
   {
     "calibre": "Gruen 863",
@@ -47966,7 +48044,13 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 1100, 50°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 1100, 50°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "hand winding"
+      ],
+      "source": "https://mizeni.com/en-au/movements/seiko-1100 (Mizeni, Seiko 1100; The Seiko Guy https://www.theseikoguy.com/movements/1100 gives the same) (\"Seiko calibre 1100 is a hand winding watch movement.\")"
+    }
   },
   {
     "calibre": "Seiko 1104",
@@ -48544,7 +48628,18 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 5606, 56°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 5606, 56°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "diameter": {
+      "mm": "25.6",
+      "source": "https://dutchwatchdude.com/Seiko-5606/ (Dutch Watch Dude, Seiko 5606; Tempus Europa https://tempuseuropa.com/en/movement/seiko-5606 gives the same) (\"diameter: 25.6mm\")"
+    },
+    "functions": {
+      "value": [
+        "date",
+        "day"
+      ],
+      "source": "https://dutchwatchdude.com/Seiko-5606/ (Dutch Watch Dude, Seiko 5606; Tempus Europa https://tempuseuropa.com/en/movement/seiko-5606 gives the same) (\"5606A: day, date\")"
+    }
   },
   {
     "calibre": "Seiko 5619",
@@ -48696,7 +48791,19 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6119, 54.5°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6119, 54.5°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 21,
+      "source": "https://www.theseikoguy.com/movements/6119 (The Seiko Guy, Seiko 6119; Caliber Corner https://calibercorner.com/seiko-caliber-6119/ gives the same) (\"21\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date",
+        "day"
+      ],
+      "source": "https://www.theseikoguy.com/movements/6119 (The Seiko Guy, Seiko 6119; Caliber Corner https://calibercorner.com/seiko-caliber-6119/ gives the same) (\"Winding | Automatic … Day and date with quick setting\")"
+    }
   },
   {
     "calibre": "Seiko 6138",
@@ -48733,7 +48840,16 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6139, 54.5°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6139, 54.5°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date",
+        "day",
+        "chronograph"
+      ],
+      "source": "https://mizeni.com/en-ca/movements/seiko-6139 (Mizeni, Seiko 6139; Horology Atlas https://atlas.watchmuseum.org/movements/seiko-6139 gives the same) (\"Seiko calibre 6139 is an automatic watch movement. … Day + date\")"
+    }
   },
   {
     "calibre": "Seiko 6159",
@@ -48849,7 +48965,18 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 6309, 54.5°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6309, 54.5°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://mizeni.com/movements/seiko-6309 (Mizeni, Seiko 6309; Caliber Corner https://calibercorner.com/seiko-caliber-6309/ gives the same) (\"17\")"
+    },
+    "functions": {
+      "value": [
+        "date",
+        "day"
+      ],
+      "source": "https://mizeni.com/movements/seiko-6309 (Mizeni, Seiko 6309; Caliber Corner https://calibercorner.com/seiko-caliber-6309/ gives the same) (\"Day + date\")"
+    }
   },
   {
     "calibre": "Seiko 6319",
@@ -48925,7 +49052,19 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 7009, 53°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 7009, 53°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://mizeni.com/movements/seiko-7009 (Mizeni, Seiko 7009; Caliber Corner https://calibercorner.com/seiko-caliber-7009/ gives the same) (\"17\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date",
+        "day"
+      ],
+      "source": "https://mizeni.com/movements/seiko-7009 (Mizeni, Seiko 7009; Caliber Corner https://calibercorner.com/seiko-caliber-7009/ gives the same) (\"Seiko caliber 7009 is an automatic watch movement. … Day + date\")"
+    }
   },
   {
     "calibre": "Seiko 7016",
@@ -49001,7 +49140,19 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 7025, 53°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 7025, 53°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://mizeni.com/movements/seiko-7025 (Mizeni, Seiko 7025; Vintage Watch Studio https://www.vintagewatchstudio.com/blogs/seiko/seiko-caliber-7025-complete-movement-guide gives the same) (\"17\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://mizeni.com/movements/seiko-7025 (Mizeni, Seiko 7025; Vintage Watch Studio https://www.vintagewatchstudio.com/blogs/seiko/seiko-caliber-7025-complete-movement-guide gives the same) (\"Seiko caliber 7025 is an automatic watch movement. … Has a quickset date.\")"
+    }
   },
   {
     "calibre": "Seiko 8800A",
@@ -63291,7 +63442,11 @@
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Gruen V4, 44°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://www.gruenwristwatches.com/gruen-caliber-index-for-repairers-reference.php (GruenWristwatches index of Gruen's 1939 material catalogue, page 21) (\"V4 | 17 | 1939 | 21\")"
+    }
   },
   {
     "calibre": "H. Moser & Cie HMC 200",
@@ -73999,7 +74154,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4R15A, 53°)",
       "https://www.seikowatches.com/global-en/-/media/Files/Common/Seiko/instructions/English/4/4R15/4R15.pdf (Seiko instruction manual, Cal. 4R15/4R16/4R35/4R36/7S26/7S35/7S36) (\"Vibrations per hour ... 21,600\")"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 22,
+      "source": "https://www.seikowatches.com/uk-en/-/media/Files/Common/Seiko/instructions/English/7/7S35/7S35.pdf (Seiko instructions, specifications, 4R15) (\"4R15, 4R16: 22 jewels\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://www.seikowatches.com/uk-en/-/media/Files/Common/Seiko/instructions/English/7/7S35/7S35.pdf (Seiko instructions, specifications, 4R15) (\"4R15, 4R16, 7S26, 7S35, 7S36: Automatic winding type\")"
+    }
   },
   {
     "calibre": "Seiko 4R16A",
@@ -74012,7 +74177,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4R16A, 53°)",
       "https://www.seikowatches.com/global-en/-/media/Files/Common/Seiko/instructions/English/4/4R15/4R15.pdf (Seiko instruction manual, Cal. 4R15/4R16/4R35/4R36/7S26/7S35/7S36) (\"Vibrations per hour ... 21,600\")"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 22,
+      "source": "https://www.seikowatches.com/uk-en/-/media/Files/Common/Seiko/instructions/English/7/7S35/7S35.pdf (Seiko instructions, specifications, 4R16) (\"4R15, 4R16: 22 jewels\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://www.seikowatches.com/uk-en/-/media/Files/Common/Seiko/instructions/English/7/7S35/7S35.pdf (Seiko instructions, specifications, 4R16) (\"4R15, 4R16, 7S26, 7S35, 7S36: Automatic winding type\")"
+    }
   },
   {
     "calibre": "Seiko 4R35A",
@@ -74120,6 +74295,27 @@
         "path": "seiko/shared/4R35B_4R36A.pdf",
         "kind": "spec sheet"
       }
+    ],
+    "jewels": {
+      "value": 23,
+      "source": "https://www.manualslib.com/manual/2595382/Seiko-4r35b.html (Seiko parts list and technical guide, 4R35B; Seiko's instructions https://www.seikowatches.com/uk-en/-/media/Files/Common/Seiko/instructions/English/7/7S35/7S35.pdf give the same) (\"Total Cal. 4R35B: 23 jewels\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "hand winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://seikoserviceusa.com/uploads/datasheets/4R35B_4R36A.pdf (Seiko parts list and technical guide, 4R35B column) (\"Automatic winding with manual winding mechanism … Date indication … Date correction function … Second hand stop function\")"
+    },
+    "related": [
+      {
+        "calibre": "Seiko 4R35A",
+        "relation": "successor of",
+        "source": "https://seikoserviceusa.com/uploads/datasheets/4R35B_4R36A.pdf (Seiko parts list and technical guide, Features) (\"Cal.4R35B is replacement caliber of Cal.4R35A\")"
+      }
     ]
   },
   {
@@ -74175,7 +74371,30 @@
         "path": "seiko/shared/4R35B_4R36A.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://seikoserviceusa.com/uploads/datasheets/4R35B_4R36A.pdf (Seiko parts list and technical guide, 4R36A column; Seiko's instructions https://www.seikowatches.com/uk-en/-/media/Files/Common/Seiko/instructions/English/7/7S35/7S35.pdf give the same) (\"24 jewels\")"
+    },
+    "diameter": {
+      "mm": "27.4",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/4R35B_4R36A.pdf (Seiko parts list and technical guide, 4R36A column) (\"Outside diameter Ø 27.4 mm\")"
+    },
+    "height_mm": {
+      "value": "5.32",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/4R35B_4R36A.pdf (Seiko parts list and technical guide, 4R36A column) (\"Height 5.32 mm\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "hand winding",
+        "hacking",
+        "date",
+        "quickset date",
+        "day"
+      ],
+      "source": "https://seikoserviceusa.com/uploads/datasheets/4R35B_4R36A.pdf (Seiko parts list and technical guide, 4R36A column) (\"Automatic winding with manual winding mechanism … Day and date indication … Date correction function … Second hand stop function\")"
+    }
   },
   {
     "calibre": "Seiko 4R37A",
@@ -74359,7 +74578,19 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 4S12, 52°)",
       "https://www.watch-wiki.net/doku.php?id=seiko_4s15 (Watch Wiki, Seiko 4S15 and the 4S family) (The 4S family operates at 28,800 A/h; Other closely-related members of this 4S family include the 4S12)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 25,
+      "source": "https://www.seikowatches.com/it-it/-/media/Files/Common/Seiko/instructions/Italian/4/4S12/4S12.pdf (Seiko instructions in Italian, Cal. 4S12) (\"25 rubini\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "hand winding",
+        "date"
+      ],
+      "source": "https://www.seikowatches.com/it-it/-/media/Files/Common/Seiko/instructions/Italian/4/4S12/4S12.pdf (Seiko instructions in Italian, Cal. 4S12) (\"Sistema autoavvolgente, con meccanismo per avvolgimento a mano … Data\")"
+    }
   },
   {
     "calibre": "Seiko 4S15",
@@ -74488,7 +74719,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko 5216, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 5216, 52°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "automatic winding",
+        "hand winding",
+        "hacking",
+        "date",
+        "day"
+      ],
+      "source": "https://mizeni.com/movements/seiko-5216 (Mizeni, Seiko 5216; Grail Watch Reference https://reference.grail-watch.com/movement/seiko-5216/ gives the same) (\"Seiko caliber 5216 is an automatic (with hand winding) watch movement.\")"
+    }
   },
   {
     "calibre": "Seiko 5217",
@@ -75221,7 +75462,17 @@
         "path": "seiko/shared/6R15CD.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "functions": {
+      "value": [
+        "automatic winding",
+        "hand winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R15CD.pdf (Seiko parts list and technical guide, Cal.6R15C / 6R15D) (\"Automatic winding with manual winding mechanism … Instant date setting device … Second hand stop function\")"
+    }
   },
   {
     "calibre": "Seiko 6R20A",
@@ -75234,7 +75485,32 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6R20A, 52°)",
       "https://www.seikowatches.com/instructions/html/SEIKO_6R20_6R21_6R24_6R27_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 6R20/6R21/6R24/6R27 specifications) (\"28,800 vibrations/hour (8 vibrations/sec)\")"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 29,
+      "source": "https://www.seikowatches.com/instructions/html/SEIKO_6R20_6R21_6R24_6R27_EN/BONDSYkqbeszsf (Seiko instructions, specifications, 6R20 column) (\"29 jewels\")"
+    },
+    "power_reserve_h": {
+      "value": "45",
+      "approx": true,
+      "source": "https://www.seikowatches.com/instructions/html/SEIKO_6R20_6R21_6R24_6R27_EN/BONDSYkqbeszsf (Seiko instructions, specifications, 6R20/6R21/6R24/6R27) (\"Duration | Approx. 45 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "hand winding",
+        "date",
+        "day",
+        "power reserve indicator"
+      ],
+      "source": "https://www.seikowatches.com/instructions/html/SEIKO_6R20_6R21_6R24_6R27_EN/BONDSYkqbeszsf (Seiko instructions, specifications, 6R20 column) (\"date hand, day hand and power reserve indicator … Automatic winding type with manual winding mechanism\")"
+    },
+    "summary": [
+      {
+        "text": "Separate hands show the date and day.",
+        "source": "https://www.seikowatches.com/instructions/html/SEIKO_6R20_6R21_6R24_6R27_EN/BONDSYkqbeszsf (Seiko instructions, specifications, 6R20 column) (\"date hand, day hand and power reserve indicator\")"
+      }
+    ]
   },
   {
     "calibre": "Seiko 6R21A",
@@ -75247,7 +75523,32 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6R21A, 52°)",
       "https://www.seikowatches.com/instructions/html/SEIKO_6R20_6R21_6R24_6R27_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 6R20/6R21/6R24/6R27 specifications) (\"28,800 vibrations/hour (8 vibrations/sec)\")"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 29,
+      "source": "https://www.seikowatches.com/instructions/html/SEIKO_6R20_6R21_6R24_6R27_EN/BONDSYkqbeszsf (Seiko instructions, specifications, 6R21 column) (\"29 jewels\")"
+    },
+    "power_reserve_h": {
+      "value": "45",
+      "approx": true,
+      "source": "https://www.seikowatches.com/instructions/html/SEIKO_6R20_6R21_6R24_6R27_EN/BONDSYkqbeszsf (Seiko instructions, specifications, 6R20/6R21/6R24/6R27) (\"Duration | Approx. 45 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "hand winding",
+        "date",
+        "day",
+        "power reserve indicator"
+      ],
+      "source": "https://www.seikowatches.com/instructions/html/SEIKO_6R20_6R21_6R24_6R27_EN/BONDSYkqbeszsf (Seiko instructions, specifications, 6R21 column) (\"date hand, day hand and power reserve indicator … Automatic winding type with manual winding mechanism\")"
+    },
+    "summary": [
+      {
+        "text": "Separate hands show the date and day.",
+        "source": "https://www.seikowatches.com/instructions/html/SEIKO_6R20_6R21_6R24_6R27_EN/BONDSYkqbeszsf (Seiko instructions, specifications, 6R21 column) (\"date hand, day hand and power reserve indicator\")"
+      }
+    ]
   },
   {
     "calibre": "Seiko 6R24A",
@@ -75260,7 +75561,11 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6R24A, 52°)",
       "https://www.seikowatches.com/instructions/html/SEIKO_6R20_6R21_6R24_6R27_EN/BONDSYkqbeszsf (Seiko instruction manual, Cal. 6R20/6R21/6R24/6R27 specifications) (\"28,800 vibrations/hour (8 vibrations/sec)\")"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 31,
+      "source": "https://www.seikowatches.com/instructions/html/SEIKO_6R20_6R21_6R24_6R27_EN/BONDSYkqbeszsf (Seiko instructions, specifications, 6R24 column) (\"31 jewels\")"
+    }
   },
   {
     "calibre": "Seiko 6R35A",
@@ -75471,7 +75776,28 @@
         "path": "seiko/shared/7S26C_36C.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 21,
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26A%267S36A.pdf (Seiko parts catalogue and technical guide, 7S26A column) (\"21 jewels\")"
+    },
+    "diameter": {
+      "mm": "27.4",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26A%267S36A.pdf (Seiko parts catalogue and technical guide, 7S26A column) (\"Outside diameter ø27.4 mm\")"
+    },
+    "height_mm": {
+      "value": "4.9",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26A%267S36A.pdf (Seiko parts catalogue and technical guide, 7S26A column) (\"Height 4.9 mm\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date",
+        "quickset date",
+        "day"
+      ],
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26A%267S36A.pdf (Seiko parts catalogue and technical guide, 7S26A column) (\"Automatic winding • Date calendar • Day calendar • Instant date setting device\")"
+    }
   },
   {
     "calibre": "Seiko 7S26B",
@@ -75572,6 +75898,39 @@
         "path": "seiko/shared/7S26C_36C.pdf",
         "kind": "spec sheet"
       }
+    ],
+    "jewels": {
+      "value": 21,
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26C_36C.pdf (Seiko parts list and technical guide, 7S26C column) (\"21 jewels\")"
+    },
+    "diameter": {
+      "mm": "27.4",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26C_36C.pdf (Seiko parts list and technical guide, 7S26C column) (\"Outside: Ø 27.4 mm\")"
+    },
+    "height_mm": {
+      "value": "4.9",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26C_36C.pdf (Seiko parts list and technical guide, 7S26C column) (\"Height: 4.9 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "41",
+      "approx": true,
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26C_36C.pdf (Seiko parts list and technical guide, 7S26C column) (\"From fully wound to stoppage: Approximately 41 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date",
+        "quickset date",
+        "day"
+      ],
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26C_36C.pdf (Seiko parts list and technical guide, 7S26C column) (\"Automatic winding mechanism … Date Indicator … Day Indicator … Date correction function\")"
+    },
+    "related": [
+      {
+        "calibre": "Seiko 7S26B",
+        "relation": "successor of",
+        "source": "https://seikoserviceusa.com/uploads/datasheets/7S26C_36C.pdf (Seiko parts list and technical guide, Features) (\"Cal. 7S26C / 7S36C are replacement caliber of Cal. 7S26B / 7S36B\")"
+      }
     ]
   },
   {
@@ -75585,7 +75944,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 7S35A, 53°)",
       "https://www.seikowatches.com/global-en/-/media/Files/Common/Seiko/instructions/English/4/4R15/4R15.pdf (Seiko instruction manual, Cal. 4R15/4R16/4R35/4R36/7S26/7S35/7S36) (\"Vibrations per hour ... 21,600\")"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 23,
+      "source": "https://www.seikowatches.com/uk-en/-/media/Files/Common/Seiko/instructions/English/7/7S35/7S35.pdf (Seiko instructions, specifications, 7S35) (\"4R35, 7S35, 7S36: 23 jewels\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://www.seikowatches.com/uk-en/-/media/Files/Common/Seiko/instructions/English/7/7S35/7S35.pdf (Seiko instructions, specifications, 7S35) (\"4R15, 4R16, 7S26, 7S35, 7S36: Automatic winding type\")"
+    }
   },
   {
     "calibre": "Seiko 7S35C",
@@ -75740,6 +76109,39 @@
         "path": "seiko/shared/7S26C_36C.pdf",
         "kind": "spec sheet"
       }
+    ],
+    "jewels": {
+      "value": 23,
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26C_36C.pdf (Seiko parts list and technical guide, 7S36C column) (\"23 jewels\")"
+    },
+    "diameter": {
+      "mm": "27.4",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26C_36C.pdf (Seiko parts list and technical guide, 7S36C column) (\"Outside: Ø 27.4 mm\")"
+    },
+    "height_mm": {
+      "value": "4.9",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26C_36C.pdf (Seiko parts list and technical guide, 7S36C column) (\"Height: 4.9 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "41",
+      "approx": true,
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26C_36C.pdf (Seiko parts list and technical guide, 7S36C column) (\"From fully wound to stoppage: Approximately 41 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date",
+        "quickset date",
+        "day"
+      ],
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26C_36C.pdf (Seiko parts list and technical guide, 7S36C column) (\"Automatic winding mechanism … Date Indicator … Day Indicator … Date correction function\")"
+    },
+    "related": [
+      {
+        "calibre": "Seiko 7S36B",
+        "relation": "successor of",
+        "source": "https://seikoserviceusa.com/uploads/datasheets/7S26C_36C.pdf (Seiko parts list and technical guide, Features) (\"Cal. 7S26C / 7S36C are replacement caliber of Cal. 7S26B / 7S36B\")"
+      }
     ]
   },
   {
@@ -75772,7 +76174,15 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 8R28A, 52°)",
       "https://www.seikowatches.com/global-en/-/media/Files/Common/Seiko/instructions/English/8/8R28/8R28.pdf (Seiko instruction manual, Cal. 8R28) (\"Vibrations per hour ... 28,800\")"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date",
+        "chronograph"
+      ],
+      "source": "https://www.manualslib.com/manual/4090546/Seiko-8r28a.html (Seiko parts list and technical manual, Automatic Chronograph Cal. 8R28A/8R39A) (\"Automatic Chronograph Cal. 8R28A/8R39A … Calendar (Date. Date disk)\")"
+    }
   },
   {
     "calibre": "Seiko 8R39A",
@@ -75795,7 +76205,25 @@
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Seiko NH05, 52°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 21,
+      "source": "https://timemodule.com/en/product_line_up/mechanical/mechanical/mechanical_NH0_NH3/ (Time Module mechanical movement catalogue, NH05) (\"21 jewels\")"
+    },
+    "diameter": {
+      "lignes": "7¾",
+      "source": "https://timemodule.com/en/product_line_up/mechanical/mechanical/mechanical_NH0_NH3/ (Time Module mechanical movement catalogue, NH05) (\"Size: 7 ¾\")"
+    },
+    "height_mm": {
+      "value": "5.92",
+      "source": "https://timemodule.com/en/product_line_up/mechanical/mechanical/mechanical_NH0_NH3/ (Time Module mechanical movement catalogue, NH05) (\"Height: 5.92mm\")"
+    },
+    "functions": {
+      "value": [
+        "date"
+      ],
+      "source": "https://timemodule.com/en/product_line_up/mechanical/mechanical/mechanical_NH0_NH3/ (Time Module mechanical movement catalogue, NH05) (\"3 hands / date\")"
+    }
   },
   {
     "calibre": "Slava 5498",
@@ -81889,7 +82317,24 @@
     "sources": [
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Seiko 6138A, 54.5°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "automatic winding",
+        "hand winding",
+        "date",
+        "quickset date",
+        "day",
+        "chronograph"
+      ],
+      "source": "https://myretrowatches.co.uk/wp-content/uploads/2021/11/Seiko-6138A-Service-Manual-Colour.pdf (Seiko 6138A service manual, p. 1) (\"Calendar (Day & date … instant day & date setting device) … Auxiliary hand winding device\")"
+    },
+    "summary": [
+      {
+        "text": "The chronograph has a 30-minute and a 12-hour totaliser.",
+        "source": "https://myretrowatches.co.uk/wp-content/uploads/2021/11/Seiko-6138A-Service-Manual-Colour.pdf (Seiko 6138A service manual, p. 1) (\"hour hand 12 hour totalizer, minute hand - 30 minute\")"
+      }
+    ]
   },
   {
     "calibre": "Seiko 6138B",
@@ -90373,7 +90818,28 @@
         "path": "seiko/shared/7S26C_36C.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 23,
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26A%267S36A.pdf (Seiko parts catalogue and technical guide, 7S36A column) (\"23 jewels\")"
+    },
+    "diameter": {
+      "mm": "27.4",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26A%267S36A.pdf (Seiko parts catalogue and technical guide, 7S36A column) (\"Outside diameter ø27.4 mm\")"
+    },
+    "height_mm": {
+      "value": "4.9",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26A%267S36A.pdf (Seiko parts catalogue and technical guide, 7S36A column) (\"Height 4.9 mm\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date",
+        "quickset date",
+        "day"
+      ],
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26A%267S36A.pdf (Seiko parts catalogue and technical guide, 7S36A column) (\"Automatic winding • Date calendar • Day calendar • Instant date setting device\")"
+    }
   },
   {
     "calibre": "Seiko 6R15",
