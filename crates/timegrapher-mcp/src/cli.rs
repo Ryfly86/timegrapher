@@ -97,15 +97,6 @@ impl Policy {
 /// `timegrapher-cli`: `eprintln!("error: {e}")`).
 const ERROR_PREFIX: &str = "error: ";
 
-/// Words of the command line's error that mean there was no sound input
-/// to open: cpal's `DeviceNotAvailable`, and core `capture::find`'s for no
-/// default input and for a name no input matches.
-const NO_INPUT: [&str; 3] = [
-    "audio device is not available",
-    "no default sound input",
-    "no sound input matches",
-];
-
 /// The one hint a failure for want of a sound input carries (#2103).
 pub const NO_INPUT_HINT: &str =
     "Plug in a microphone, or call list_sound_inputs to see the inputs.";
@@ -131,8 +122,7 @@ pub fn said(stderr: &str) -> &str {
 /// sound input was there.
 pub fn failure_text(stderr: &str) -> String {
     let said = said(stderr);
-    let lower = said.to_lowercase();
-    if NO_INPUT.iter().any(|w| lower.contains(w)) {
+    if timegrapher_core::capture::no_input(said) {
         format!("{said}\n{NO_INPUT_HINT}")
     } else {
         said.to_string()
