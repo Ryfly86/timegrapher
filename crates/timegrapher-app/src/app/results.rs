@@ -10,8 +10,8 @@ pub(super) struct Results {
     pub(super) strip_points: Option<(StripKey, Vec<TrendPoint>)>,
     /// Core's readings the Distributions pane counts (#1144), what they were
     /// read for and up to, and the run in the background that replaces them.
-    pub(super) dist_readings: Option<(DistKey, f64, DistReadings)>,
-    pub(super) dist_job: Option<(DistKey, f64, std::sync::mpsc::Receiver<DistReadings>)>,
+    pub(super) dist_readings: Option<result_keys::DistRead<DistReadings>>,
+    pub(super) dist_job: Option<result_keys::DistRead<std::sync::mpsc::Receiver<DistReadings>>>,
     /// Sound read from the recording for the Scope once stopped: the
     /// take and stretch asked for (seconds) and what was read of it.
     pub(super) scope_audio: Option<ScopeRead>,
@@ -22,7 +22,7 @@ pub(super) struct Results {
     /// The steadiness tests' latest answer over the session, and the run
     /// in the background that will replace it.
     pub(super) steady: Option<(Revision, Steadiness)>,
-    pub(super) steady_job: Option<(Revision, std::sync::mpsc::Receiver<steady::Answer>)>,
+    pub(super) steady_job: Option<SteadyJob>,
     /// The step the steadiness run under way is on, and when it started.
     pub(super) steady_work: (
         std::sync::Arc<std::sync::atomic::AtomicU8>,
@@ -76,4 +76,11 @@ impl Default for Results {
             sound_job: None,
         }
     }
+}
+
+/// The steadiness run in the background: the [`Revision`] it reads, and
+/// where its answer comes.
+pub(super) struct SteadyJob {
+    pub(super) rev: Revision,
+    pub(super) rx: std::sync::mpsc::Receiver<steady::Answer>,
 }

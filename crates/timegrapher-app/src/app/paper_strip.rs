@@ -48,12 +48,16 @@ impl TimegrapherApp {
             self.bench.panes_view.live_fit = self.bench.panes_view.strip_fit;
         }
         self.fit_view();
-        let (live, rate) = self
+        let (live, rate_marks) = self
             .bench
             .panes_view
             .live_strip
-            .map_or(before, |(live, _, rate)| (live, rate));
-        self.bench.panes_view.live_strip = Some((live, self.bench.panes_view.strip, rate));
+            .map_or(before, |s| (s.live, s.rate_marks));
+        self.bench.panes_view.live_strip = Some(pane_view::LiveStrip {
+            live,
+            fitted: self.bench.panes_view.strip,
+            rate_marks,
+        });
         [
             self.bench.panes_view.rate_line,
             self.bench.panes_view.rate_guides,
@@ -65,12 +69,12 @@ impl TimegrapherApp {
     /// set it by hand since, which stays (Hugh).
     pub(super) fn live_view(&self) -> StripView {
         let mut v = self.bench.panes_view.strip;
-        if let Some((live, fitted, _)) = self.bench.panes_view.live_strip {
-            if v.half_width_ms == fitted.half_width_ms {
-                v.half_width_ms = live.half_width_ms;
+        if let Some(s) = self.bench.panes_view.live_strip {
+            if v.half_width_ms == s.fitted.half_width_ms {
+                v.half_width_ms = s.live.half_width_ms;
             }
-            if v.span_s == fitted.span_s {
-                v.span_s = live.span_s;
+            if v.span_s == s.fitted.span_s {
+                v.span_s = s.live.span_s;
             }
         }
         v
@@ -80,15 +84,15 @@ impl TimegrapherApp {
     /// goes back to its live view and its Rate Line and Parallel Guides,
     /// and Fit to how it was if the length does.
     pub(super) fn restore_live_strip(&mut self) {
-        if matches!(self.bench.panes_view.live_strip, Some((_, fitted, _)) if fitted.span_s == self.bench.panes_view.strip.span_s)
+        if matches!(self.bench.panes_view.live_strip, Some(s) if s.fitted.span_s == self.bench.panes_view.strip.span_s)
         {
             self.bench.panes_view.strip_fit = self.bench.panes_view.live_fit;
         }
-        if let Some((.., rate)) = self.bench.panes_view.live_strip {
+        if let Some(s) = self.bench.panes_view.live_strip {
             [
                 self.bench.panes_view.rate_line,
                 self.bench.panes_view.rate_guides,
-            ] = rate;
+            ] = s.rate_marks;
         }
         self.bench.panes_view.strip = self.live_view();
         self.bench.panes_view.live_strip = None;
@@ -102,7 +106,7 @@ impl TimegrapherApp {
                 self.bench.panes_view.rate_line,
                 self.bench.panes_view.rate_guides,
             ],
-            |(.., rate)| rate,
+            |s| s.rate_marks,
         )
     }
 
@@ -182,11 +186,12 @@ impl TimegrapherApp {
     /// its view was changed since it was fitted (#2177).
     pub(super) fn refit_opened(&mut self) {
         match self.bench.panes_view.live_strip {
-            Some((live, fitted, rate))
-                if fitted == self.bench.panes_view.strip && !self.running() =>
-            {
+            Some(s) if s.fitted == self.bench.panes_view.strip && !self.running() => {
                 self.fit_view();
-                self.bench.panes_view.live_strip = Some((live, self.bench.panes_view.strip, rate));
+                self.bench.panes_view.live_strip = Some(pane_view::LiveStrip {
+                    fitted: self.bench.panes_view.strip,
+                    ..s
+                });
             }
             _ => {}
         }

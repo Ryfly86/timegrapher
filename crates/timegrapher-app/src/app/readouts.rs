@@ -620,6 +620,12 @@ impl TimegrapherApp {
         rate.and_then(|_| self.live_usb_not_yet())
     }
 
+    /// What the recording's own clock, once read live, did to the Rate
+    /// figure `rate` (#2283): only with a figure it is about.
+    pub(super) fn clock_read_note(&self, rate: Option<f64>) -> Option<String> {
+        rate.and_then(|_| self.live_usb_read_note())
+    }
+
     /// The settle's wait, with the Settle note after its sentence.
     fn settle_words(&self, left_s: f64) -> (String, String) {
         let (title, text) = wait_words(measure::Wait::Settling { left_s });
@@ -900,8 +906,12 @@ impl TimegrapherApp {
             };
         }
         // Live, before the recording's own clock is read: first, so the
-        // figure isn't taken for the one the take will read (#1721).
-        if let Some(n) = self.clock_not_yet(rate) {
+        // figure isn't taken for the one the take will read (#1721); once
+        // read, what it did to the figure (#2283).
+        if let Some(n) = self
+            .clock_not_yet(rate)
+            .or_else(|| self.clock_read_note(rate))
+        {
             behind = format!("{n}\n\n{}", behind.trim_start());
         }
         let (fig, spark, place) = sparkline::lay(rows.inner, rows.figure, rows.controls);
@@ -936,7 +946,6 @@ impl TimegrapherApp {
     /// memory, so listening reads one more each second; a change to what
     /// the readings rest on, or to Average Over, reads them all again.
     pub(super) fn spark_trend(&self, ctx: &egui::Context, r: &LiveReading) -> Vec<TrendPoint> {
-        type Kept = (Revision, (u64, bool), Vec<(i64, TrendPoint)>);
         // Just stopped: the take as its saved take opens (#2151).
         let stopped = self.stopped_take();
         let Some(live) = stopped
@@ -946,30 +955,34 @@ impl TimegrapherApp {
             return Vec::new();
         };
         let id = egui::Id::new("reading card sparklines");
-        let key = (
-            self.bench.take.rev,
-            (self.bench.take.average_s.to_bits(), stopped.is_some()),
-        );
-        let mut kept: Kept = ctx.data(|d| d.get_temp(id)).unwrap_or_default();
-        if (kept.0, kept.1) != key {
-            kept = (key.0, key.1, Vec::new());
+        let key = SparkKey {
+            rev: self.bench.take.rev,
+            average: self.bench.take.average_s.to_bits(),
+            stopped: stopped.is_some(),
+        };
+        let mut kept: SparkKept = ctx.data(|d| d.get_temp(id)).unwrap_or_default();
+        if kept.key != key {
+            kept = SparkKept {
+                key,
+                seconds: Vec::new(),
+            };
         }
         let end = r.time_s;
         let last = end.floor() as i64;
         let first = last - sparkline::SPAN_S + 1;
-        kept.2.retain(|(s, _)| (first..=last).contains(s));
+        kept.seconds.retain(|(s, _)| (first..=last).contains(s));
         for s in first.max(1)..=last {
-            if !kept.2.iter().any(|(k, _)| *k == s) {
+            if !kept.seconds.iter().any(|(k, _)| *k == s) {
                 let t = s as f64;
-                kept.2.push((
+                kept.seconds.push((
                     s,
                     TrendPoint::of(t, &live.reading_at(t, self.bench.take.average_s)),
                 ));
             }
         }
-        kept.2.sort_by_key(|(s, _)| *s);
+        kept.seconds.sort_by_key(|(s, _)| *s);
         let mut out: Vec<TrendPoint> = kept
-            .2
+            .seconds
             .iter()
             .filter(|(s, _)| self.session.replay_reading_allowed(*s as f64) && (*s as f64) < end)
             .map(|(_, p)| *p)
@@ -2589,3 +2602,21 @@ const SAVED_COPY_GONE: &str =
 /// The same while the take is recorded into, which Save isn't for.
 const SAVED_COPY_GONE_STREAMING: &str = "The take this sound is being saved in no longer holds \
      it. The next few seconds of sound save it whole again.";
+
+/// What the reading cards' sparklines were read on: the take's
+/// [`Revision`], Average Over (its bits), and whether the take had just
+/// stopped.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+struct SparkKey {
+    rev: Revision,
+    average: u64,
+    stopped: bool,
+}
+
+/// The sparklines' seconds already read (each second and its reading),
+/// kept in egui's memory with what they were read on.
+#[derive(Debug, Clone, Default)]
+struct SparkKept {
+    key: SparkKey,
+    seconds: Vec<(i64, TrendPoint)>,
+}

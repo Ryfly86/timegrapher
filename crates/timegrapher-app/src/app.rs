@@ -1958,8 +1958,9 @@ impl TimegrapherApp {
         let Some(live) = &self.bench.recording.live else {
             return;
         };
-        let now = (live.template_switch_s(), live.template_rebuild_given_up());
-        if now.0 != self.bench.recording.rebuild_seen.0 {
+        let now = recording::RebuildSeen::of(live);
+        let seen = self.bench.recording.rebuild_seen;
+        if now.switch_s != seen.switch_s {
             self.bench.results.bg.trend = None;
             self.bench.results.trend = live.trend(self.bench.take.average_s);
             if let (Some(a), Some((dt, di))) =
@@ -1968,10 +1969,7 @@ impl TimegrapherApp {
                 (a.time, a.index) = (a.time + dt, a.index + di);
             }
         }
-        if let Some(why) = now
-            .1
-            .filter(|_| now.1 != self.bench.recording.rebuild_seen.1)
-        {
+        if let Some(why) = now.given_up.filter(|_| now.given_up != seen.given_up) {
             applog::info(&format!("Live kept its first beat template: {why}"));
         }
         self.bench.recording.rebuild_seen = now;

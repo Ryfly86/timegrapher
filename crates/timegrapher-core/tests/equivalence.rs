@@ -2122,3 +2122,113 @@ fn live_figures_before_the_template_is_built_again_are_the_saved_takes() {
     );
     std::fs::remove_dir(&dir).unwrap();
 }
+
+/// #2291's take (#2283): the reporter's USB microphone plugged into a
+/// Thunderbolt drive's USB ports, whose own controller makes the 1 ms
+/// frames. Its six USB lines read the card 151.1 ppm fast, past
+/// `usbclock::MAX_CARD_PPM`; straight into the computer (#2292) the same
+/// microphone read 9.3 ppm. The reporter gave the sound as CC0.
+const USB_HUB_TAKE: &str = "usbhub_dd3285_explorer2_DU_95s";
+
+/// The settings #2291's report read its excerpt with: 28,800 bph, 59°.
+fn usb_hub_settings() -> AnalysisConfig {
+    let mut cfg = AnalysisConfig {
+        bph: Some(28_800),
+        lift_known: true,
+        ..Default::default()
+    };
+    cfg.amplitude.lift_deg = 59.0;
+    cfg
+}
+
+/// Norm's acceptance 2 on #2283: lines through a hub's controller are
+/// kept, with the reason they are not applied, and correct nothing; the
+/// rate is the raw +14.1 s/d, and Hugh's hint says why and what to do.
+///
+/// Runs where `TIMEGRAPHER_CORPUS` is set.
+#[test]
+fn usb_lines_through_a_hub_are_kept_and_not_applied() {
+    use timegrapher_core::{analyze_doc, clock, take, usbclock};
+    let Some(path) = corpus_takes(&[USB_HUB_TAKE]).pop() else {
+        return;
+    };
+    let s = analyze(&load(&path).unwrap(), &usb_hub_settings()).summary;
+    let usb = s.usb_clock.expect("the lines kept");
+    assert_eq!(usb.lines, 6, "{usb:?}");
+    assert!((usb.ppm - 151.1).abs() < 0.05, "{usb:?}");
+    assert_eq!(usb.withheld(), Some(usbclock::IMPLAUSIBLE));
+    let json = serde_json::to_value(s.usb_clock).unwrap();
+    assert_eq!(json["withheld"], "usb_lines_implausible");
+    assert_eq!(json["ppm"], usb.ppm);
+    let raw = s.rate_s_per_day.expect("a rate");
+    assert!((raw - 14.1).abs() < 0.05, "{raw}");
+    assert_eq!(s.rate_corrected_s_per_day, None);
+    assert_eq!(analyze_doc::usb_clock(&s), None);
+    let hint = s
+        .caveats
+        .iter()
+        .find(|c| matches!(c, Caveat::UsbLinesNotUsed { .. }))
+        .expect("said");
+    assert_eq!(
+        hint.long(None).as_deref(),
+        Some(
+            "The USB lines read the card 151 ppm off, more than a sound card's clock should \
+             be, so they are not used. If the mic is plugged into a hub, dock or Thunderbolt \
+             device, plug it straight into the computer."
+        )
+    );
+    // Saved and opened: the lines read the same, and set no clock.
+    let files = [path.clone()];
+    assert_eq!(clock::usb_lines(&files).unwrap(), Some(usb));
+    assert_eq!(take::usb(&files).unwrap(), None);
+}
+
+/// Norm's acceptance 4 on #2283: on #2291's take, each live read of the
+/// lines is withheld as the take saved at that length withholds them, and
+/// the rate stays on the card's clock throughout.
+///
+/// Runs where `TIMEGRAPHER_CORPUS` is set.
+#[test]
+fn a_live_read_withholds_the_lines_a_saved_take_withholds() {
+    use timegrapher_core::usbclock::{self, LiveClock};
+    use timegrapher_core::{clock, excerpt, take};
+    let Some(path) = corpus_takes(&[USB_HUB_TAKE]).pop() else {
+        return;
+    };
+    let pcm = excerpt::read(&path).unwrap();
+    let a = load(&path).unwrap();
+    let fs = a.sample_rate;
+    let mut lines = usbclock::Live::new(fs);
+    let dir = std::env::temp_dir().join(format!("tg-eq-usbhub-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut seen = Vec::new();
+    for c in a.samples.chunks(fs as usize / 10) {
+        lines.push(c);
+        let Some(t) = lines.due() else {
+            continue;
+        };
+        let heard = lines.measure_due();
+        let LiveClock::Implausible { clock: live, .. } = heard else {
+            panic!("{t} s: {heard:?}");
+        };
+        assert!(take::live_clock(&heard, None, t).is_none(), "{t} s");
+        // The take saved now: its sound to this sample, opened again.
+        let saved = dir.join(format!("take-{t:.0}.flac"));
+        let part = excerpt::Pcm {
+            samples: pcm.samples[..(t * f64::from(fs)) as usize].to_vec(),
+            ..pcm
+        };
+        excerpt::write_flac(&saved, &part).unwrap();
+        let files = [saved];
+        assert_eq!(clock::usb_lines(&files).unwrap(), Some(live), "{t} s");
+        assert_eq!(take::usb(&files).unwrap(), None, "{t} s");
+        assert_eq!(
+            heard.read_note(None),
+            live.not_used_text(),
+            "{t} s: the hint said"
+        );
+        seen.push(t);
+    }
+    std::fs::remove_dir_all(&dir).ok();
+    assert_eq!(seen, [30.0, 60.0]);
+}

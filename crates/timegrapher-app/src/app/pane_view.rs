@@ -51,7 +51,7 @@ pub(super) struct PaneView {
     pub(super) strip_end: Option<f64>,
     /// The strip's view and Rate Line and Parallel Guides before an opened
     /// take was fitted, and the fitted view: Listen brings them back.
-    pub(super) live_strip: Option<(StripView, StripView, [bool; 2])>,
+    pub(super) live_strip: Option<LiveStrip>,
     /// Fit, on the Paper Strip: while on, the strip's length is the whole
     /// session so far, growing as beats arrive. Any zoom or pan of the
     /// strip's time turns it off.
@@ -180,4 +180,14 @@ impl Default for PaneView {
             sound_opts: profiles::Options::default(),
         }
     }
+}
+
+/// The strip as a live session has it, kept while an opened take is
+/// fitted: its view before the fit, the fitted view, and its Rate Line
+/// and Parallel Guides.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct LiveStrip {
+    pub(super) live: StripView,
+    pub(super) fitted: StripView,
+    pub(super) rate_marks: [bool; 2],
 }
