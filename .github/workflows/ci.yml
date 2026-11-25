@@ -405,14 +405,40 @@ jobs:
         run: |
           python3 .github/ci/cut_corpus.py corpus "$RUNNER_TEMP/corpus-cut" --files 3
           echo "TIMEGRAPHER_CORPUS=$RUNNER_TEMP/corpus-cut" >> "$GITHUB_ENV"
+      # take_context's a_corpus_take_read_at_once_reads_as_each_entry_alone
+      # (#1958) reads the example take datejust41_3235_multipos_105min,
+      # which regress neither fetches nor reads: its audio, its poise30.toml
+      # and poise60.toml, and its positions from raw/session.toml. The corpus
+      # keeps that file as raw/app_session.toml.txt, since regress would read
+      # a raw/session.toml as a session of raw/; it is copied to the test's
+      # name here, after regress has run. A corpus revision without the take
+      # has nothing to fetch, and the test skips there.
+      - name: Fetch the multi-position example take for take_context
+        if: matrix.check == 'engine' && steps.changes.outputs.full != 'false'
+        run: |
+          take=datejust41_3235_multipos_105min
+          if [ -d "corpus/takes/$take" ]; then
+            python3 corpus/scripts/fetch.py "$RUNNER_TEMP/example" "$take"
+            mv "$RUNNER_TEMP/example/$take"/*.flac "corpus/takes/$take/"
+            cp "corpus/takes/$take/raw/app_session.toml.txt" "corpus/takes/$take/raw/session.toml"
+          else
+            echo "corpus $CORPUS_REVISION has no $take"
+          fi
       # wheel_lines and take_context also read corpus takes, and skip
       # without the corpus, so they run here where it is whole (#1362).
       - name: Required real-recording analyze/session equivalence
         if: matrix.check == 'engine' && steps.changes.outputs.full != 'false'
-        timeout-minutes: 10
+        # 5.3 minutes at 7b311d7 (run 45669855332). The test binaries run one
+        # after another, so the multi-position take's test adds about 400 s.
+        timeout-minutes: 20
         run: |
           set -o pipefail
           cargo test --locked --release -p timegrapher-core --test equivalence --test wheel_lines --test take_context -- --nocapture 2>&1 | tee equivalence.txt
+      # The example take's audio stays out of the corpus audio cache, which
+      # this job may save, so the cache and the other checks read as before.
+      - name: Leave the example take's audio out of the cache
+        if: always() && matrix.check == 'engine'
+        run: rm -f corpus/takes/datejust41_3235_multipos_105min/*.flac
       # #514: each take opened as the app opens it reads what
       # `timegrapher session` reads, to the bit.
       - name: ALSA headers for the app
