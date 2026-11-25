@@ -1003,7 +1003,7 @@ fn a_mask_on_a_take_on_show_is_read_in_the_background() {
     // What came is what reading them here and now gives.
     let trend = app.bench.results.trend.clone();
     assert_ne!(trend, before);
-    app.bench.results.trend_key.0 = Revision::default();
+    app.bench.results.trend_key.rev = Revision::default();
     app.refresh_trend();
     assert_eq!(app.bench.results.trend, trend);
     *app.bench.results.whole_take.borrow_mut() = None;

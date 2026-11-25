@@ -544,3 +544,99 @@ fn every_pane_follows_the_lift_the_clock_and_the_masks() {
         before = after;
     }
 }
+
+/// The Scope's sound for `lo` to `hi` s as it is drawn: read from the
+/// recording when it isn't already, as the frames read it.
+fn scope_drawn(app: &mut TimegrapherApp, lo: f64, hi: f64) -> (Vec<f32>, f64, f64) {
+    for _ in 0..3 {
+        match app.scope_cut(lo, hi) {
+            Some((Some(cut), _)) => return cut,
+            Some((None, Some(why))) if !why.starts_with("Reading") => panic!("{why}"),
+            _ => {}
+        }
+        if let Some(rx) = app.bench.results.scope_job.take() {
+            let read = rx.recv_timeout(std::time::Duration::from_secs(30)).unwrap();
+            app.bench.results.scope_audio = Some(read);
+        }
+    }
+    panic!("the Scope read nothing for {lo} to {hi} s");
+}
+
+/// Sound the Scope read from one take is never drawn for the next take
+/// opened, over the same seconds: the Scope reads it again from that
+/// take's own recording (#1988 N1).
+#[test]
+fn the_scope_never_draws_sound_read_from_the_take_before() {
+    let base = std::env::temp_dir().join(format!("tg-app-scope-take-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let take = |name: &str, amp: f64| {
+        let audio = generate(
+            &SynthConfig {
+                duration_s: 30.0,
+                ..Default::default()
+            },
+            |_| amp,
+            |_| 0.0,
+        );
+        let path = base.join(name);
+        timegrapher_core::audio::write_wav(&path, &audio).unwrap();
+        path
+    };
+    let (first, second) = (take("first.wav", 280.0), take("second.wav", 200.0));
+    let mut app = reopened(&first);
+    app.bench.recording.input = Input::File;
+    let (lo, hi) = (10.0, 12.0);
+    let was = scope_drawn(&mut app, lo, hi);
+    app.start_batch(&second);
+    let t = Instant::now();
+    while app.bench.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
+        app.poll();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    assert!(app.bench.recording.live.is_some(), "{:?}", app.message);
+    app.bench.recording.input = Input::File;
+    let now = scope_drawn(&mut app, lo, hi);
+    let own = crate::span::read(&[second], now.1, now.0.len() as f64 / now.2).unwrap();
+    assert_ne!(now.0, was.0, "the first take's sound drawn for the second");
+    assert_eq!(
+        now.0,
+        own.mono[..now.0.len()],
+        "not the second take's own sound"
+    );
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// A beat's trace kept on the Scope is drawn again only for the take it
+/// was drawn from: once another take is on show, a beat with the same
+/// index and time is traced afresh, as the Scope pane reads it (#1988 N1).
+#[test]
+fn the_scope_never_draws_a_trace_kept_from_the_take_before() {
+    let mut app = synthetic(30.0, 0.0);
+    let beats = app.bench.recording.live.as_ref().unwrap().beats();
+    let picks = vec![beats[beats.len() - 4..beats.len() - 1].to_vec()];
+    let (zoom, beat_s) = (scope::Zoom::Ms20, 3600.0 / 28_800.0);
+    let fresh = app.scope_traces_known(&picks, zoom, beat_s);
+    assert!(
+        fresh[0].iter().all(Option::is_some),
+        "traced from the engine's sound"
+    );
+    // What this take kept, marked so it shows if drawn again.
+    for (_, t) in app.bench.results.scope_traces.iter_mut() {
+        t.fill(9.0);
+    }
+    let marked = |known: &[Vec<Option<Vec<f32>>>]| {
+        known[0]
+            .iter()
+            .all(|t| t.as_ref().unwrap().iter().all(|&v| v == 9.0))
+    };
+    assert!(
+        marked(&app.scope_traces_known(&picks, zoom, beat_s)),
+        "kept, same take"
+    );
+    // The same engine on show as another take.
+    app.bench.take.rev.new_take();
+    let next = app.scope_traces_known(&picks, zoom, beat_s);
+    assert!(!marked(&next), "the first take's trace drawn for the next");
+    assert_eq!(next, fresh);
+}
