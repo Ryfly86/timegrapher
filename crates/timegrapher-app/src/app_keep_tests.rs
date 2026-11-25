@@ -855,12 +855,12 @@ fn quick_listen_keeps_its_take_in_unsorted_until_filed() {
     assert_eq!(app.session.saved_to(), None);
 
     // Unsorted Takes shows its takes at once, not a list left over.
-    app.watches_view.list_for = Some((None, true));
+    app.watches_view.list_for = Some(watches_view::Picked::UNSORTED);
     app.pick_unsorted();
     assert!(!app.list_shown());
 
     // Picking a watch ends Quick Listen: Save… saves into the watch.
-    app.watches_view.list_for = Some((None, true));
+    app.watches_view.list_for = Some(watches_view::Picked::UNSORTED);
     app.pick_watch(&pepsi);
     assert!(!app.bench.recording.quick_listen && !app.watches_view.unsorted_open);
     assert!(app.watches_view.list_for.is_none());

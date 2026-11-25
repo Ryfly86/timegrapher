@@ -21,7 +21,7 @@ pub(super) struct WatchesView {
     /// The list shown over the watch picked, or Unsorted, by ‹ All
     /// Watches: kept with what was picked then, so picking anything else
     /// shows that instead. Its row is marked in the list.
-    pub(super) list_for: Option<(Option<String>, bool)>,
+    pub(super) list_for: Option<Picked>,
     /// Unsorted Takes was picked with readings on show: the Quick Listen
     /// settings wait for the next Listen, so the readings keep theirs.
     pub(super) quick_defaults: bool,
@@ -63,5 +63,43 @@ impl Default for WatchesView {
             take_readings: watches::TakeReadings::default(),
             thumbs: Default::default(),
         }
+    }
+}
+
+/// What the Watches view has picked: a watch (its id), Unsorted Takes,
+/// or neither, as [`WatchesView::watch_open`] and
+/// [`WatchesView::unsorted_open`] hold it.
+#[derive(Debug, Clone, PartialEq)]
+pub(super) struct Picked {
+    pub(super) watch: Option<String>,
+    pub(super) unsorted: bool,
+}
+
+impl Picked {
+    /// Unsorted Takes, with no watch.
+    pub(super) const UNSORTED: Picked = Picked {
+        watch: None,
+        unsorted: true,
+    };
+}
+
+impl WatchesView {
+    /// What is picked now.
+    pub(super) fn picked(&self) -> Picked {
+        Picked {
+            watch: self.watch_open.clone(),
+            unsorted: self.unsorted_open,
+        }
+    }
+
+    /// Whether `p` is what is picked now.
+    pub(super) fn is_picked(&self, p: &Picked) -> bool {
+        p.watch == self.watch_open && p.unsorted == self.unsorted_open
+    }
+
+    /// Pick `p` again.
+    pub(super) fn pick_again(&mut self, p: Picked) {
+        self.watch_open = p.watch;
+        self.unsorted_open = p.unsorted;
     }
 }

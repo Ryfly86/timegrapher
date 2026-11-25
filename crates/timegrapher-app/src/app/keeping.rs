@@ -20,7 +20,7 @@ pub(super) struct Keeping {
     pub(super) keep_after_form: bool,
     /// The watch (or Unsorted) picked before Keep in a Watch… showed the
     /// one it keeps into, put back if its question is cancelled.
-    pub(super) keep_back: Option<(Option<String>, bool)>,
+    pub(super) keep_back: Option<watches_view::Picked>,
     pub(super) take_keep: Option<(PathBuf, AnalysisSave)>,
     /// A take being copied into a watch by Keep in a Watch… (#1970).
     pub(super) take_add: Option<take_add::TakeAdd>,

@@ -136,7 +136,10 @@ fn the_watches_view_is_the_watches_content_in_the_whole_window() {
     };
     for listed in [false, true] {
         if listed {
-            app.watches_view.list_for = Some((app.watches_view.watch_open.clone(), false));
+            app.watches_view.list_for = Some(watches_view::Picked {
+                watch: app.watches_view.watch_open.clone(),
+                unsorted: false,
+            });
         }
         let mut content = String::new();
         for _ in 0..3 {
