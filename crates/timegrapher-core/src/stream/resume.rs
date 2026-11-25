@@ -190,7 +190,7 @@ mod tests {
     /// the first chunk and its margin are whole (48 s), across that end,
     /// and up to and past two chunks (94 s). The same log and state to
     /// the bit as a read from the start, resumed at every ask after the
-    /// one that first heard 48 s.
+    /// one that first heard 48 s, or that read from the start past it.
     #[test]
     fn a_resumed_read_is_a_full_reads_to_the_bit() {
         let sound = synth(28_800, 1, 100.0);
@@ -198,6 +198,11 @@ mod tests {
         let asks = [47.9, 48.0, 48.1, 94.0, 95.0, 100.0];
         let used = resumed_as_full(&sound, &cfg, &asks);
         assert_eq!(used, [48.1, 94.0, 95.0, 100.0]);
+        // A resume kept by a read from the start after the second chunk
+        // has amplitude windows, as after a setting changed at 60 s: only
+        // the first chunk's go onto the kept state (Vernon on #2265).
+        let used = resumed_as_full(&sound, &cfg, &[60.0, 70.0]);
+        assert_eq!(used, [70.0]);
     }
 
     /// Chunks of 12 s with 1 s margins, so that more kinds of sound can
