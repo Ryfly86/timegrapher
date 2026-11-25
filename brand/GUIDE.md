@@ -120,6 +120,11 @@ shows it: a small first burst, then the drop, ringing down.
   first five; pages and print use the rest for sections.
 - **Corners:** 6 px on controls, 10 px on cards. Pictures and the app icon
   plate are the only other rounded things.
+- **The logo in a box** (a badge, a sticker, a card): the box's edge
+  sits at the logo's clear space, and its corners take the card radius,
+  10 px when the dial is 48 px across, scaled with the logo. The thin
+  frames round the pictures in this guide are only how the page shows
+  them, not part of the logo.
 - **Lines:** 1 px hairlines in the line colour; one ink rule of 0.5 pt
   under a print header.
 - **Width:** text no wider than about 70 characters.
