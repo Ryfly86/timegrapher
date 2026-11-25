@@ -43,6 +43,8 @@ shows it: a small first burst, then the drop, ringing down.
 | App icon | `app-icon.svg`; `app-icon-small.svg` at 16 and 32 px |
 | Browser tab | `favicon.svg` |
 
+![The mark on light, dark and colour grounds, the app icon and the favicon](guide/variants.svg)
+
 ### Don't
 
 ![Stretched, recoloured, rotated, on a busy colour](guide/donts.svg)
@@ -50,7 +52,7 @@ shows it: a small first burst, then the drop, ringing down.
 - Don't stretch, rotate, outline or add effects to it.
 - Don't recolour the line, except in the one-colour versions.
 - Don't put the colour mark on a colour or a busy photo; use a one-colour
-  version.
+  version, or put it on a plain light or dark ground.
 - Don't redraw it or retype the name. Use the files.
 
 ## 3. The name
