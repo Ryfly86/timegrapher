@@ -127,13 +127,12 @@ impl BeatLog {
             .filter(|b| b.is_good())
             .filter_map(|b| Some((b.time, b.index.rem_euclid(2) == 0, find(b.time)?)))
             .collect();
-        let beat = crate::timing::own_beat_period_s(beats, self.bph.max(1));
         crate::measure::stretch_beat_sound(
             &snips,
             beats.first()?.time,
             beats.last()?.time,
             self.sample_rate as f64,
-            2.0 * beat,
+            self.bph,
             cfg,
         )
     }
@@ -1040,8 +1039,7 @@ fn watch_heard_in(
             .iter()
             .filter_map(|b| sound_snippet(b, beat_window(env, fs, b)?))
             .collect();
-        let osc_period_s = 2.0 * crate::timing::own_beat_period_s(beats, bph);
-        crate::measure::beat_sound_found(snips, fs, osc_period_s, cfg)
+        crate::measure::beat_sound_found(snips, fs, bph, cfg)
     };
     let sound = crate::measure::beat_sound_needed(jitter_us, bph, true)
         .then(sound)
