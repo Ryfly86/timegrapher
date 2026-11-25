@@ -132,7 +132,7 @@ pub fn spec_parts(c: &Calibre) -> Vec<SpecPart> {
     parts
 }
 
-/// The Specs line ("25 jewels · 25.6 mm (11½‴) · 4.6 mm high · 38 h power
+/// The Specs line ("25 jewels · 25.60 mm (11½‴) · 4.60 mm high · 38 h power
 /// reserve"), or `None` when the row has none of its figures.
 pub fn specs_line(c: &Calibre) -> Option<String> {
     let parts = spec_parts(c);
@@ -198,8 +198,9 @@ const HOUR_PLACES: usize = 1;
 
 /// Why the row's spec fields break the rules, or `None` when they keep
 /// them: every field has a source starting with its address, a diameter
-/// states mm or lignes, a power reserve is one figure or a range, heights
-/// carry at most two decimals, and functions come from [`FUNCTIONS`].
+/// states mm or lignes (never an empty lignes), diameter and height mm
+/// carry at most two decimals and hours at most one, a power reserve is
+/// one figure or a range, and functions come from [`FUNCTIONS`].
 pub fn spec_fault(c: &Calibre) -> Option<String> {
     let mut sources = Vec::new();
     let number = |what: &str, v: &str| {
@@ -214,8 +215,11 @@ pub fn spec_fault(c: &Calibre) -> Option<String> {
         sources.push(&j.source);
     }
     if let Some(d) = &c.diameter {
-        if d.mm.is_none() && d.lignes.as_deref().is_none_or(str::is_empty) {
+        if d.mm.is_none() && d.lignes.is_none() {
             return Some("diameter states neither mm nor lignes".into());
+        }
+        if d.lignes.as_deref().is_some_and(|l| l.trim().is_empty()) {
+            return Some("diameter lignes is empty".into());
         }
         if let Some(fault) = d.mm.as_deref().and_then(|mm| number("diameter", mm)) {
             return Some(fault);
@@ -361,6 +365,12 @@ mod tests {
             r#", "power_reserve_h": {"value": "38.25", "source": "https://x"}"#,
             r#", "power_reserve_h": {"value": "~38", "source": "https://x"}"#,
             r#", "height_mm": {"value": "4.6 mm", "source": "https://x"}"#,
+            r#", "jewels": {"value": 0, "source": "https://x"}"#,
+            r#", "power_reserve_h": {"from": "38", "to": "38", "source": "https://x"}"#,
+            r#", "height_mm": {"value": "4.", "source": "https://x"}"#,
+            r#", "height_mm": {"value": ".5", "source": "https://x"}"#,
+            r#", "functions": {"value": [], "source": "https://x"}"#,
+            r#", "diameter": {"mm": "25.60", "lignes": "", "source": "https://x"}"#,
             r#", "power_reserve_h": {"from": "38", "to": "40", "approx": true, "source": "https://x"}"#,
             r#", "functions": {"value": ["no hacking"], "source": "https://x"}"#,
         ] {
