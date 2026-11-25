@@ -16,7 +16,7 @@ fn the_app_asks_for_a_microphone_once_then_opens_listening() {
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
         app.apply_settings(s);
         app.at_launch();
-        (app.setup_sheet, app.listen_pending)
+        (app.setup_sheet, app.recording.listen_pending)
     };
     assert_eq!(launch(Settings::default()), (true, false), "first launch");
     let set_up = Settings {
@@ -43,9 +43,9 @@ fn the_app_asks_for_a_microphone_once_then_opens_listening() {
     );
     let mut opening = TimegrapherApp::with_devices(Vec::new(), None);
     opening.apply_settings(set_up);
-    opening.input = Input::File;
+    opening.recording.input = Input::File;
     opening.at_launch();
-    assert!(!opening.setup_sheet && !opening.listen_pending);
+    assert!(!opening.setup_sheet && !opening.recording.listen_pending);
 }
 
 /// Where each text is painted, its top left.
@@ -172,7 +172,7 @@ fn an_input_that_wont_open_says_so_in_its_rows_caption() {
         .any(|(t, _)| t == "The input the watch sits on."));
     let m = "Can't open the input. A backend-specific error has occurred: ALSA \
              function 'snd_pcm_open' failed with error 'Connection refused (111)'";
-    app.input_fault = Some(m.into());
+    app.recording.input_fault = Some(m.into());
     let failed = draw(&mut app);
     assert!(failed.iter().any(|(t, _)| t == m), "{failed:?}");
     assert!(!failed
@@ -262,10 +262,10 @@ fn a_test_after_quick_listen_is_not_quick_listen() {
     // Changed masks make the test ask before it opens an input, so no
     // input is opened here.
     app.mask(2.0, 5.0);
-    app.quick_listen = true;
+    app.recording.quick_listen = true;
     app.start_guided(None);
     assert!(matches!(app.confirm, Some(Confirm::Microphone)));
-    assert!(!app.quick_listen);
+    assert!(!app.recording.quick_listen);
     drop(app);
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -315,14 +315,14 @@ fn a_test_with_no_watch_asks_where_it_goes() {
 
     // Quick Listen: no question.
     take(&mut app, 0);
-    app.quick_listen = true;
+    app.recording.quick_listen = true;
     app.stop_listening();
     assert_eq!(app.test.test_keep, None);
     status_names(&app, "Quick Listen · No watch");
 
     // A Positions Test: asked, with the three answers on show.
     take(&mut app, 1);
-    app.quick_listen = false;
+    app.recording.quick_listen = false;
     app.test.positions_take = true;
     app.stop_listening();
     assert_eq!(app.test.test_keep, Some(TestKeep::Positions));
@@ -692,11 +692,11 @@ fn settings_forgets_a_kept_clock() {
         return;
     }
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    app.clock = clockstore::ClockStore::load()
+    app.recording.clock = clockstore::ClockStore::load()
         .unwrap()
         .get("USB Mic")
         .cloned();
-    assert!(app.clock.is_some());
+    assert!(app.recording.clock.is_some());
     app.open_settings(Tab::Microphone);
     let listed = app.kept_clocks.as_ref().unwrap();
     assert_eq!(listed.devices.len(), 2);
@@ -730,7 +730,7 @@ fn settings_forgets_a_kept_clock() {
     // Under Microphone, as Quartz Correction, kept per input: the input
     // listening is marked, and a kept clock is under its own input.
     assert!(text.iter().any(|t| t == "Quartz Correction"), "{text:?}");
-    app.clock_track = Some(ClockTrack {
+    app.recording.clock_track = Some(ClockTrack {
         device: "USB Mic".into(),
         shown: "USB Mic".into(),
         tracker: timegrapher_core::clock::ClockTracker::new(48_000),
@@ -755,14 +755,14 @@ fn settings_forgets_a_kept_clock() {
         "{text:?}"
     );
     // An input listening with none kept says so, beside the others'.
-    app.clock_track.as_mut().unwrap().device = "Line In".into();
+    app.recording.clock_track.as_mut().unwrap().device = "Line In".into();
     let out = ctx.run(egui::RawInput::default(), |ctx| app.settings_window(ctx));
     let said = out.shapes.iter().any(|s| match &s.shape {
         egui::Shape::Text(t) => t.galley.text().starts_with("None kept for \"Line In\""),
         _ => false,
     });
     assert!(said, "the input listening with no correction kept is named");
-    app.clock_track = None;
+    app.recording.clock_track = None;
     // Forget asks first, saying what is lost; nothing goes until it is
     // confirmed.
     app.forget_ask = Some("USB Mic".into());
@@ -776,12 +776,12 @@ fn settings_forgets_a_kept_clock() {
         _ => false,
     });
     assert!(asked, "the question names the input, its error and its day");
-    assert!(app.clock.is_some() && app.forget_ask.is_some());
+    assert!(app.recording.clock.is_some() && app.forget_ask.is_some());
     assert_eq!(app.kept_clocks.as_ref().unwrap().devices.len(), 2);
     app.forget_ask = None;
     app.forget_clock("USB Mic");
     assert!(
-        app.clock.is_none(),
+        app.recording.clock.is_none(),
         "the input listening loses its True Clock"
     );
     assert_eq!(app.kept_clocks.as_ref().unwrap().devices.len(), 1);
@@ -850,23 +850,23 @@ fn invalid_clock_store_blocks_fresh_listening_and_keep_without_hardware() {
         "legacy".into(),
         "set",
     );
-    app.clock = Some(old.clone());
-    app.devices_listed = false;
+    app.recording.clock = Some(old.clone());
+    app.recording.devices_listed = false;
     app.start_microphone();
-    assert!(app.capture.is_none() && app.batch.is_none());
-    assert!(app.devices.is_empty());
+    assert!(app.recording.capture.is_none() && app.recording.batch.is_none());
+    assert!(app.recording.devices.is_empty());
     assert!(
-        !app.devices_listed,
+        !app.recording.devices_listed,
         "invalid store must prevent device enumeration"
     );
-    assert_eq!(app.clock, Some(old.clone()));
-    assert_eq!(app.live.as_ref().unwrap().sample_rate(), 48_000);
+    assert_eq!(app.recording.clock, Some(old.clone()));
+    assert_eq!(app.recording.live.as_ref().unwrap().sample_rate(), 48_000);
     let (message, error) = app.message.as_ref().unwrap();
     assert!(
         *error && message.contains("clocks.json") && message.contains("ppm"),
         "{message}"
     );
-    app.clock_track = Some(ClockTrack {
+    app.recording.clock_track = Some(ClockTrack {
         device: "USB".into(),
         shown: "USB".into(),
         tracker: timegrapher_core::clock::ClockTracker::new(48_000),
@@ -874,7 +874,7 @@ fn invalid_clock_store_blocks_fresh_listening_and_keep_without_hardware() {
         fit: Some(timegrapher_core::clock::ClockFit::fixed(20.0, 1200.0)),
     });
     app.keep_clock();
-    assert_eq!(app.clock, Some(old));
+    assert_eq!(app.recording.clock, Some(old));
     let (message, error) = app.message.as_ref().unwrap();
     assert!(
         *error && message.contains("couldn't be kept") && message.contains("ppm"),
@@ -932,7 +932,7 @@ fn the_input_clock_is_offered_after_twenty_minutes() {
     let f = t.fit.as_ref().expect("timed at 20 minutes");
     assert!((f.ppm + 20.0).abs() < 0.5, "{} ppm", f.ppm);
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    app.clock_track = Some(t);
+    app.recording.clock_track = Some(t);
     assert!(app.clock_measured().is_some());
     assert!(app.clock_offer().is_some(), "offered with none kept");
     // One kept for the same name: offered again only when it is more
@@ -945,9 +945,9 @@ fn the_input_clock_is_offered_after_twenty_minutes() {
         measured_utc: "2026-10-12T20:00:00Z".into(),
         source: "measure".into(),
     };
-    app.clock = Some(kept(-21.0));
+    app.recording.clock = Some(kept(-21.0));
     assert!(app.clock_offer().is_none(), "the kept clock agrees");
-    app.clock = Some(kept(14.0));
+    app.recording.clock = Some(kept(14.0));
     assert!(app.clock_offer().is_some(), "the kept clock is 34 ppm off");
     assert_eq!(day_of("2026-10-12T20:00:00Z"), "2026-10-12");
 }
@@ -1034,7 +1034,7 @@ fn the_strips_own_readings_wait_for_a_whole_step_of_sound() {
     app.results.trend = thin;
     let block = |app: &mut TimegrapherApp, n: usize| {
         for _ in 0..n {
-            app.live.as_mut().unwrap().push(&[0.0; 960]);
+            app.recording.live.as_mut().unwrap().push(&[0.0; 960]);
         }
     };
     let (pts, _) = app.strip_trend(5.0, 40.0, app.take.average_s);
@@ -1051,7 +1051,7 @@ fn the_strips_own_readings_wait_for_a_whole_step_of_sound() {
     assert_ne!(app.results.strip_points.as_ref().unwrap().0, key);
     assert_eq!(fresh.len(), pts.len());
     // Stopped: a block within the step is worked out at once.
-    app.capture = None;
+    app.recording.capture = None;
     let _ = app.strip_trend(5.0, 40.0, app.take.average_s);
     let key = app.results.strip_points.as_ref().unwrap().0;
     block(&mut app, 1);
@@ -1084,7 +1084,10 @@ fn listening_the_charts_are_read_again_in_the_background() {
     assert!(app.results.bg.trend.is_some());
     assert_eq!(app.results.trend, before, "read on the window's thread");
     // A reading heard meanwhile, after the sound the run is read on.
-    let late = TrendPoint::of(1e6, &app.live.as_ref().unwrap().reading_at(40.0, 1.0));
+    let late = TrendPoint::of(
+        1e6,
+        &app.recording.live.as_ref().unwrap().reading_at(40.0, 1.0),
+    );
     app.results.trend.push(late);
     let start = Instant::now();
     while app.results.bg.trend.is_some() {
@@ -1092,7 +1095,12 @@ fn listening_the_charts_are_read_again_in_the_background() {
         std::thread::sleep(Duration::from_millis(10));
         app.refresh_trend_shown(&ctx);
     }
-    let fresh = app.live.as_ref().unwrap().trend(app.take.average_s);
+    let fresh = app
+        .recording
+        .live
+        .as_ref()
+        .unwrap()
+        .trend(app.take.average_s);
     assert_eq!(app.results.trend[..app.results.trend.len() - 1], fresh[..]);
     assert_eq!(app.results.trend.last(), Some(&late));
     let _ = std::fs::remove_dir_all(&base);

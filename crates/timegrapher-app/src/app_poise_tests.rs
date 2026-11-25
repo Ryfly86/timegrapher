@@ -237,7 +237,7 @@ fn listened_each(
             second += 1;
             let r = app.session.recorder.as_mut().unwrap();
             r.write(&block).unwrap();
-            let live = app.live.as_mut().unwrap();
+            let live = app.recording.live.as_mut().unwrap();
             for b in s.chunks(960) {
                 live.push(b);
             }
@@ -280,11 +280,11 @@ pub(super) fn saved_and_opened_after(
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.start_batch(&saved);
     let t = Instant::now();
-    while again.batch.is_some() && t.elapsed().as_secs() < 300 {
+    while again.recording.batch.is_some() && t.elapsed().as_secs() < 300 {
         again.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    assert!(again.live.is_some(), "{:?}", again.message);
+    assert!(again.recording.live.is_some(), "{:?}", again.message);
     assert!(again.test.guided.is_none(), "no test on the Bench");
     (again, base)
 }
@@ -947,7 +947,7 @@ fn the_panes_start_button_turns_to_the_next_stop() {
     app.set_position(order[0]);
     app.test.guided_measured.clear();
     app.test.guided_unused.clear();
-    app.live.as_mut().unwrap().set_masked(&[]);
+    app.recording.live.as_mut().unwrap().set_masked(&[]);
     let size = Vec2::new(1280.0, 900.0);
     let drawn = draw_at(&mut app, Pane::DynamicPoise, size);
     let start = format!("Start {} Measurement", order[1].witschi());
@@ -970,7 +970,7 @@ fn the_panes_start_button_turns_to_the_next_stop() {
         "the time before the test reads as not used: {:?}",
         app.test.guided_unused
     );
-    let engine = app.live.as_ref().unwrap().masked().to_vec();
+    let engine = app.recording.live.as_ref().unwrap().masked().to_vec();
     assert!(!engine.is_empty(), "the engine leaves the unused time out");
     assert_eq!(engine, app.engine_masked());
     let _ = std::fs::remove_dir_all(&base);
@@ -1273,10 +1273,12 @@ fn a_poise_test_reads_the_same_live_as_reopened() {
         }
         let want = k as f64 * 0.02;
         let t = Instant::now();
-        while app.live.as_ref().unwrap().duration_s() < want - 1e-6 && t.elapsed().as_secs() < 30 {
+        while app.recording.live.as_ref().unwrap().duration_s() < want - 1e-6
+            && t.elapsed().as_secs() < 30
+        {
             app.poll();
         }
-        let now = app.live.as_ref().unwrap().duration_s();
+        let now = app.recording.live.as_ref().unwrap().duration_s();
         app.guided_tick(&ctx);
         // Next, as the pane's button gives it, once the stop is read.
         let next = app.test.guided.as_mut().is_some_and(|t| {
@@ -1297,7 +1299,7 @@ fn a_poise_test_reads_the_same_live_as_reopened() {
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.start_batch(&saved);
     let t = Instant::now();
-    while again.batch.is_some() && t.elapsed().as_secs() < 300 {
+    while again.recording.batch.is_some() && t.elapsed().as_secs() < 300 {
         again.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
@@ -1388,7 +1390,7 @@ fn guided_test_saved(
             .unwrap_or_else(|_| {
                 panic!(
                     "listening stopped at {:?}: {:?} {:?}",
-                    app.live.as_ref().map(|l| l.duration_s()),
+                    app.recording.live.as_ref().map(|l| l.duration_s()),
                     app.message,
                     app.test
                         .guided
@@ -1399,10 +1401,12 @@ fn guided_test_saved(
         }
         let want = frames as f64 / 48_000.0;
         let t = Instant::now();
-        while app.live.as_ref().unwrap().duration_s() < want - 1e-6 && t.elapsed().as_secs() < 30 {
+        while app.recording.live.as_ref().unwrap().duration_s() < want - 1e-6
+            && t.elapsed().as_secs() < 30
+        {
             app.poll();
         }
-        let now = app.live.as_ref().unwrap().duration_s();
+        let now = app.recording.live.as_ref().unwrap().duration_s();
         app.guided_tick(&ctx);
         // Once the test has ended, listening has stopped: no more sound.
         if app
@@ -1546,7 +1550,7 @@ fn a_test_opened_again_keeps_its_marks() {
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.start_batch(&saved);
     let t = Instant::now();
-    while again.batch.is_some() && t.elapsed().as_secs() < 300 {
+    while again.recording.batch.is_some() && t.elapsed().as_secs() < 300 {
         again.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }

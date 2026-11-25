@@ -66,9 +66,9 @@ impl TimegrapherApp {
     /// measurement or the kept correction changes, the readings are put
     /// on the clock a reopened take would read (#1721).
     pub(super) fn follow_live_usb(&mut self) {
-        let ppm = self.clock.as_ref().map(|c| c.ppm);
-        let duration_s = self.live.as_ref().map_or(0.0, |l| l.duration_s());
-        let Some(u) = self.live_usb.as_mut() else {
+        let ppm = self.recording.clock.as_ref().map(|c| c.ppm);
+        let duration_s = self.recording.live.as_ref().map_or(0.0, |l| l.duration_s());
+        let Some(u) = self.recording.live_usb.as_mut() else {
             return;
         };
         u.follow();
@@ -86,7 +86,7 @@ impl TimegrapherApp {
         let fit = timegrapher_core::take::live_clock(&now.0, ppm, duration_s);
         let source = match now.0 {
             LiveClock::Measured { clock, .. } => Some(clock.correction().1),
-            _ => self.clock.as_ref().map(|c| c.source_text()),
+            _ => self.recording.clock.as_ref().map(|c| c.source_text()),
         };
         let source = source.filter(|_| fit.is_some());
         self.put_take_clock(fit, source);
@@ -95,8 +95,8 @@ impl TimegrapherApp {
     /// What the Rate must say while the recording's own clock is still to
     /// be read, in core's words; none once it is read.
     pub(super) fn live_usb_not_yet(&self) -> Option<String> {
-        let u = self.live_usb.as_ref()?;
-        u.clock().not_yet(self.clock.is_some())
+        let u = self.recording.live_usb.as_ref()?;
+        u.clock().not_yet(self.recording.clock.is_some())
     }
 }
 
@@ -168,12 +168,15 @@ mod tests {
     #[test]
     fn a_live_rate_takes_the_usb_lines_a_reopened_take_takes() {
         let mut app = super::super::tests::synthetic(40.0, 20.0);
-        assert!(app.live_usb.is_some(), "a session heard here reads them");
+        assert!(
+            app.recording.live_usb.is_some(),
+            "a session heard here reads them"
+        );
         app.follow_live_usb();
         let not_yet = app.live_usb_not_yet().expect("said before they are read");
         assert!(not_yet.contains("USB lines"), "{not_yet}");
         let rate = |app: &TimegrapherApp| {
-            let l = app.live.as_ref().unwrap();
+            let l = app.recording.live.as_ref().unwrap();
             l.reading(app.take.average_s)
                 .rate_s_per_day
                 .expect("a rate")
@@ -186,14 +189,14 @@ mod tests {
             spread_ppm: 0.2,
         };
         let over_s = usbclock::MAX_DURATION_S;
-        let u = app.live_usb.as_mut().unwrap();
+        let u = app.recording.live_usb.as_mut().unwrap();
         u.measured(LiveClock::Measured {
             clock: lines,
             over_s,
         });
         app.follow_live_usb();
         assert_eq!(app.live_usb_not_yet(), None);
-        let d = app.live.as_ref().unwrap().duration_s();
+        let d = app.recording.live.as_ref().unwrap().duration_s();
         let opened = timegrapher_core::take::clock(None, 0, 0, Some(-19.3), None, d)
             .unwrap()
             .unwrap();

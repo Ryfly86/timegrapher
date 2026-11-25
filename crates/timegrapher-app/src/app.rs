@@ -85,6 +85,7 @@ mod positions_test;
 mod power_reserve_pane;
 mod readings_strip;
 mod readouts;
+mod recording;
 mod results;
 use readouts::caveat_facts;
 mod redraw;
@@ -1564,18 +1565,6 @@ type FullWindKey = (
 );
 
 pub struct TimegrapherApp {
-    input: Input,
-    devices: Vec<InputDevice>,
-    /// Whether `devices` has been filled. Listing the inputs asks each one
-    /// what it supports, which briefly opens it and can disturb another
-    /// program recording from it, so the app lists them only when the
-    /// microphone menu opens, Rescan is pressed or listening starts.
-    devices_listed: bool,
-    device: Option<String>,
-    file_path: String,
-    /// This session began with Quick Listen: kept only by Keep in a
-    /// Watch…, or by Save… into Unsorted.
-    quick_listen: bool,
     /// Report a Problem.
     report: ReportDialog,
     updates: crate::update::Updates,
@@ -1598,24 +1587,14 @@ pub struct TimegrapherApp {
     setup_declined: bool,
     /// Set Up the Microphone is open (the first launch).
     setup_sheet: bool,
-    /// Quick Listen starts on the first frame (Listen When the App Opens).
-    listen_pending: bool,
     /// Set Up the Microphone has tried listening once.
     setup_tried: bool,
     /// Why the computer isn't being kept awake although asked, set by the
     /// listening thread.
     pub(crate) awake_fault: Option<String>,
-    /// Why the input last failed to open, for its row in Settings; none
-    /// once one opens.
-    input_fault: Option<String>,
     /// Why the listening thread didn't start, if it didn't: then sound is
     /// only taken while the window draws.
     pub(crate) pump_fault: Option<String>,
-    /// The file dialog asked for, shown once the frame lets the app go.
-    picker: Option<crate::pick::Picker>,
-    /// The check at start is still to be made (on the first frame, which
-    /// has the context it repaints).
-    check_pending: bool,
     /// Listening, paused, the positions and settling, the kept sound and
     /// what of it is saved.
     session: Session,
@@ -1635,8 +1614,6 @@ pub struct TimegrapherApp {
     /// The library as read when Settings opened or it last changed:
     /// `Ok(None)` while there is none at its folder.
     library: Result<Option<library::Library>, String>,
-    /// The USB lines of the sound heard here, read as it comes (#1721).
-    live_usb: Option<live_usb::LiveUsb>,
     /// Asking before something throws away unsaved sound.
     confirm: Option<Confirm>,
     /// The window may close: the user has said what to do with the sound.
@@ -1644,45 +1621,7 @@ pub struct TimegrapherApp {
     /// Light, dark or following the system, kept for the next start.
     theme: egui::ThemePreference,
 
-    capture: Option<Capture>,
-    live: Option<LiveAnalyzer>,
-    source_label: String,
-    batch: Option<Batch>,
-    /// The Listen button since it last stood in for Stop: see
-    /// [`listen_tap`] (#725).
-    listen_tap: Option<(f64, bool)>,
-    anchor: Option<Anchor>,
-    /// While a take opens: a beat rate its settings change reads nothing
-    /// again, the take before least of all (#1241).
-    opening: bool,
-    /// The input's level meter, level control and automatic gain switch.
-    meter: input_meter::InputMeter,
-    /// The stored clock error of the input this session listens to, if one
-    /// was measured (`timegrapher clock measure --save`).
-    clock: Option<clockstore::DeviceClock>,
-    /// The microphone's clock timed against the computer's as its audio
-    /// arrives: offered to keep once it has run long enough.
-    clock_track: Option<ClockTrack>,
     message: Option<(String, bool)>,
-    /// A take kept as its analysis alone as it records (#1514).
-    kept_live: kept_analysis::Kept,
-    /// The jumps in the live sound's beats as of the last pass, to see a
-    /// new one.
-    jumps_seen: Vec<f64>,
-    /// When live's first chunk read again took over and why it was not,
-    /// as last seen (#1327).
-    rebuild_seen: (Option<f64>, Option<&'static str>),
-    /// Offer every input the system lists, not just one per microphone.
-    all_inputs: bool,
-    /// When the microphone was opened and when it last sent audio.
-    opened_at: Instant,
-    audio_at: Option<Instant>,
-    /// Core's gap rule over a live input's blocks: a break where the
-    /// computer slept or the input stalled.
-    gaps: Option<GapWatch>,
-    /// When the sound was last taken in, to tell when nothing ran at all
-    /// (the computer asleep, a dialog open) from an input gone quiet.
-    polled_at: Instant,
     /// The Watches view's own state.
     watches_view: watches_view::WatchesView,
     /// How the strip and charts look and follow.
@@ -1697,13 +1636,16 @@ pub struct TimegrapherApp {
     /// Keeping and saving the take on show: kept sounds, Keep in a
     /// Watch…, saves under way, opening and the crash note.
     keeping: keeping::Keeping,
+    /// The recording on this bench: the input and its meter, listening,
+    /// the live analyser, the file read and the input's clock.
+    recording: recording::Recording,
 }
 
 impl TimegrapherApp {
     pub fn new(file: Option<PathBuf>, saved: Option<Settings>) -> Self {
         // No device is touched at launch: see `devices_listed`.
         let mut app = Self::with_devices(Vec::new(), file);
-        app.devices_listed = false;
+        app.recording.devices_listed = false;
         app.cal = calibre_ui::Calibres::open(timegrapher_core::calibre_store::default_path());
         if let Some(s) = saved {
             app.apply_settings(s);
@@ -1713,7 +1655,7 @@ impl TimegrapherApp {
         app.keeping.kept = kept_sounds(&scratch_dir());
         app.read_library();
         app.keep_saved_wavs();
-        app.check_pending = app.check_at_start;
+        app.recording.check_pending = app.check_at_start;
         app
     }
 
@@ -1721,8 +1663,8 @@ impl TimegrapherApp {
     /// time it asks which microphone first. A recording asked for opens
     /// instead.
     fn at_launch(&mut self) {
-        if self.input != Input::File {
-            self.listen_pending = self.mic_set_up && self.listen_at_open;
+        if self.recording.input != Input::File {
+            self.recording.listen_pending = self.mic_set_up && self.listen_at_open;
             self.setup_sheet = !self.mic_set_up && !self.setup_declined;
         }
     }
@@ -1730,7 +1672,7 @@ impl TimegrapherApp {
     /// The views and choices kept from the last time the app ran.
     pub fn settings(&self) -> Settings {
         Settings {
-            device: self.device.clone(),
+            device: self.recording.device.clone(),
             average_s: self.take.average_s,
             strip: self.live_view(),
             rate_line: self.live_rate_marks()[0],
@@ -1910,9 +1852,12 @@ impl TimegrapherApp {
     /// when they are listed.
     fn restore_device(&mut self, device: Option<String>) {
         if let Some(d) = device.filter(|d| {
-            !self.devices_listed || capture::choices(&self.devices).iter().any(|c| &c.id == d)
+            !self.recording.devices_listed
+                || capture::choices(&self.recording.devices)
+                    .iter()
+                    .any(|c| &c.id == d)
         }) {
-            self.device = Some(d);
+            self.recording.device = Some(d);
         }
     }
 
@@ -1931,18 +1876,20 @@ impl TimegrapherApp {
     fn with_devices(devices: Vec<InputDevice>, file: Option<PathBuf>) -> Self {
         let device = capture::choices(&devices).first().map(|c| c.id.clone());
         let mut app = TimegrapherApp {
-            input: if file.is_some() {
-                Input::File
-            } else {
-                Input::Microphone
+            recording: recording::Recording {
+                input: if file.is_some() {
+                    Input::File
+                } else {
+                    Input::Microphone
+                },
+                devices,
+                device,
+                file_path: file
+                    .as_ref()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_default(),
+                ..Default::default()
             },
-            devices,
-            devices_listed: true,
-            device,
-            file_path: file
-                .as_ref()
-                .map(|p| p.display().to_string())
-                .unwrap_or_default(),
             take: take_settings::TakeSettings::default(),
             session: Session::default(),
             keeping: keeping::Keeping::default(),
@@ -1957,13 +1904,9 @@ impl TimegrapherApp {
             mic_set_up: false,
             setup_declined: false,
             setup_sheet: false,
-            listen_pending: false,
             setup_tried: false,
             awake_fault: None,
-            input_fault: None,
             pump_fault: None,
-            picker: None,
-            check_pending: false,
             cal: calibre_ui::Calibres::in_memory(),
             settings_tab: None,
             settings_last: Tab::General,
@@ -1973,33 +1916,13 @@ impl TimegrapherApp {
             library: Ok(None),
             watches_view: watches_view::WatchesView::default(),
             panes_view: pane_view::PaneView::default(),
-            quick_listen: false,
             results: results::Results::default(),
-            live_usb: None,
             confirm: None,
             may_close: false,
             // As the settings first are.
             theme: egui::ThemePreference::System,
-            capture: None,
-            live: None,
-            source_label: String::new(),
-            batch: None,
-            listen_tap: None,
-            anchor: None,
-            opening: false,
-            meter: input_meter::InputMeter::default(),
-            clock: None,
-            clock_track: None,
             agc_on: Vec::new(),
             message: None,
-            kept_live: Default::default(),
-            jumps_seen: Vec::new(),
-            rebuild_seen: (None, None),
-            all_inputs: false,
-            opened_at: Instant::now(),
-            audio_at: None,
-            gaps: None,
-            polled_at: Instant::now(),
         };
         if let Some(f) = file {
             app.start_batch(&f);
@@ -2008,7 +1931,7 @@ impl TimegrapherApp {
     }
 
     pub(crate) fn running(&self) -> bool {
-        self.capture.is_some()
+        self.recording.capture.is_some()
     }
 
     /// Whether to hold the computer awake now: listening to the
@@ -2019,13 +1942,14 @@ impl TimegrapherApp {
 
     /// Seconds of sound heard so far in this session, for the log.
     pub(crate) fn heard_s(&self) -> f64 {
-        self.live.as_ref().map_or(0.0, |l| l.duration_s())
+        self.recording.live.as_ref().map_or(0.0, |l| l.duration_s())
     }
 
     /// Work the charts out again over the whole session, for a new
     /// averaging time or lift angle.
     fn rebuild_trend(&mut self) {
         let points = self
+            .recording
             .live
             .as_ref()
             .map_or_else(Vec::new, |l| l.trend(self.take.average_s));
@@ -2055,25 +1979,28 @@ impl TimegrapherApp {
     /// points are read again, a run being read in the background on the old one dropped, and
     /// the strip's anchor moves with the beats, so the view stays. A given-up rebuild is logged.
     fn follow_rebuild(&mut self) {
-        let Some(live) = &self.live else {
+        let Some(live) = &self.recording.live else {
             return;
         };
         let now = (live.template_switch_s(), live.template_rebuild_given_up());
-        if now.0 != self.rebuild_seen.0 {
+        if now.0 != self.recording.rebuild_seen.0 {
             self.results.bg.trend = None;
             self.results.trend = live.trend(self.take.average_s);
-            if let (Some(a), Some((dt, di))) = (self.anchor.as_mut(), live.template_shift()) {
+            if let (Some(a), Some((dt, di))) =
+                (self.recording.anchor.as_mut(), live.template_shift())
+            {
                 (a.time, a.index) = (a.time + dt, a.index + di);
             }
         }
-        if let Some(why) = now.1.filter(|_| now.1 != self.rebuild_seen.1) {
+        if let Some(why) = now.1.filter(|_| now.1 != self.recording.rebuild_seen.1) {
             applog::info(&format!("Live kept its first beat template: {why}"));
         }
-        self.rebuild_seen = now;
+        self.recording.rebuild_seen = now;
     }
 
     fn latest_s(&self) -> f64 {
-        self.live
+        self.recording
+            .live
             .as_ref()
             .map_or(0.0, |l| l.beats().last().map_or(l.duration_s(), |b| b.time))
     }
@@ -2103,7 +2030,7 @@ impl TimegrapherApp {
 
     /// The newest reading, averaged over `average` seconds.
     fn reading_over(&self, average: f64) -> Option<LiveReading> {
-        let live = self.live.as_ref()?;
+        let live = self.recording.live.as_ref()?;
         // Stopped inside a settle: the last readings of the position before
         // the move, rather than nothing.
         if let Some(at) = self.stopped_in_settle() {
@@ -2127,7 +2054,7 @@ impl TimegrapherApp {
     /// while the watch settles. The reading cards show it at the strip's
     /// newest edge when the strip is moved off the newest beats.
     fn reading_at_time(&self, t: f64) -> Option<LiveReading> {
-        let live = self.live.as_ref()?;
+        let live = self.recording.live.as_ref()?;
         if self.settle_left_at(t).is_some() {
             return None;
         }
@@ -2140,7 +2067,7 @@ impl TimegrapherApp {
     /// Put the beats just before the strip's newest edge on the centre line.
     fn centre(&mut self) {
         let end = self.strip_end_s();
-        if let Some(l) = &self.live {
+        if let Some(l) = &self.recording.live {
             if let Some(bph) = l.bph() {
                 let beats = l.beats();
                 let breaks = self.take.take_breaks.as_deref().unwrap_or_default();
@@ -2149,7 +2076,7 @@ impl TimegrapherApp {
                 if let Some(a) =
                     Anchor::centre_on_true(&beats[..hi], 3600.0 / bph as f64, 8, breaks, clock)
                 {
-                    self.anchor = Some(a);
+                    self.recording.anchor = Some(a);
                 }
             }
         }
@@ -2157,8 +2084,9 @@ impl TimegrapherApp {
 
     /// The inputs the device menu offers.
     fn input_choices(&self) -> Vec<capture::InputChoice> {
-        if self.all_inputs {
-            self.devices
+        if self.recording.all_inputs {
+            self.recording
+                .devices
                 .iter()
                 .map(|d| capture::InputChoice {
                     id: d.id.clone(),
@@ -2168,7 +2096,7 @@ impl TimegrapherApp {
                 })
                 .collect()
         } else {
-            capture::choices(&self.devices)
+            capture::choices(&self.recording.devices)
         }
     }
 
@@ -2220,12 +2148,12 @@ impl TimegrapherApp {
 
     /// The microphone picked, as its menu names it.
     fn picked_label(&self) -> String {
-        let listed = self.devices_listed;
+        let listed = self.recording.devices_listed;
         self.input_choices()
             .iter()
-            .find(|c| Some(&c.id) == self.device.as_ref())
+            .find(|c| Some(&c.id) == self.recording.device.as_ref())
             .map_or_else(
-                || match (&self.device, listed) {
+                || match (&self.recording.device, listed) {
                     // Not listed yet: name the one kept from last time, when
                     // its id is a name (ALSA's are; Core Audio's and
                     // WASAPI's are not).
@@ -2244,7 +2172,7 @@ impl TimegrapherApp {
     /// for it cut in the middle where `middle`, else at its end.
     fn device_menu(&mut self, ui: &mut egui::Ui, w: f32, middle: bool) {
         let choices = self.input_choices();
-        let listed = self.devices_listed;
+        let listed = self.recording.devices_listed;
         let sel = self.picked_label();
         let mut opened = false;
         let row = egui::vec2(w, ui.spacing().interact_size.y);
@@ -2289,8 +2217,11 @@ impl TimegrapherApp {
                             ui.weak("Looking for microphones…");
                         }
                         for c in &choices {
-                            let r =
-                                ui.selectable_value(&mut self.device, Some(c.id.clone()), &c.label);
+                            let r = ui.selectable_value(
+                                &mut self.recording.device,
+                                Some(c.id.clone()),
+                                &c.label,
+                            );
                             if !c.detail.is_empty() {
                                 r.on_hover_text(&c.detail);
                             }
@@ -3301,7 +3232,7 @@ impl eframe::App for TimegrapherApp {
         let was_working = self.repaint_every().is_some();
         // One settling for every change of position: the pane's Settle.
         self.session.set_settle_s(self.test.guided_settle_s);
-        if std::mem::take(&mut self.listen_pending) && !self.running() {
+        if std::mem::take(&mut self.recording.listen_pending) && !self.running() {
             self.quick_listen(false);
         }
         // A microphone that opened is one set up.
@@ -3311,8 +3242,8 @@ impl eframe::App for TimegrapherApp {
         // What the readings rest on: a calibre's lift angle and a measured
         // clock.
         let lift_known = self.lift_known();
-        let clock_known = self.clock.is_some();
-        if let Some(l) = &mut self.live {
+        let clock_known = self.recording.clock.is_some();
+        if let Some(l) = &mut self.recording.live {
             l.set_known(lift_known, clock_known);
         }
         // A file dropped on the window is opened, where the desktop passes
@@ -3325,8 +3256,8 @@ impl eframe::App for TimegrapherApp {
                 .collect()
         });
         if let Some(p) = dropped.into_iter().next() {
-            self.input = Input::File;
-            self.file_path = p.display().to_string();
+            self.recording.input = Input::File;
+            self.recording.file_path = p.display().to_string();
             self.open_recording(&p, true);
         }
 

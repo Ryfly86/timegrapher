@@ -61,7 +61,7 @@ fn a_take_saved_twice_across_a_move_keeps_everything() {
         // Like poll(), send the same sound to the recorder and the
         // live analyser so their clocks agree before each transition.
         for samples in block.samples.chunks(960) {
-            app.live.as_mut().unwrap().push(samples);
+            app.recording.live.as_mut().unwrap().push(samples);
         }
     };
     let info = app.info("test", 48000, 16);
@@ -75,7 +75,7 @@ fn a_take_saved_twice_across_a_move_keeps_everything() {
     assert!((app.unsaved_s() - 30.0).abs() < 0.1, "{}", app.unsaved_s());
     // Paused, moved to dial down, resumed through the same session
     // lifecycle as pause()/resume_microphone(), without opening a mic.
-    let paused_at = app.live.as_ref().unwrap().duration_s();
+    let paused_at = app.recording.live.as_ref().unwrap().duration_s();
     assert_eq!(paused_at, 60.0);
     assert_eq!(app.session.recorder.as_ref().unwrap().duration_s(), 60.0);
     app.session.pause(paused_at).unwrap().unwrap();
@@ -88,7 +88,7 @@ fn a_take_saved_twice_across_a_move_keeps_everything() {
     app.session.resume("test").unwrap();
     // Inject a deterministic elapsed pause instead of waiting for the
     // wall-clock duration returned by resume().
-    let live = app.live.as_mut().unwrap();
+    let live = app.recording.live.as_mut().unwrap();
     live.skip(60.0);
     app.session.resumed_at(live.duration_s());
     assert_eq!(app.session.settles(), [(120.0, 120.0 + SETTLE_S)]);
@@ -96,7 +96,7 @@ fn a_take_saved_twice_across_a_move_keeps_everything() {
         assert_eq!(app.session.audio_of(t), Some(60.0));
     }
     feed(&mut app, 2);
-    assert_eq!(app.live.as_ref().unwrap().duration_s(), 150.0);
+    assert_eq!(app.recording.live.as_ref().unwrap().duration_s(), 150.0);
     assert_eq!(app.session.recorder.as_ref().unwrap().duration_s(), 90.0);
     assert_eq!(app.session.audio_of(120.0 + SETTLE_S), Some(70.0));
     assert_eq!(app.session.audio_of(150.0), Some(90.0));
@@ -137,11 +137,11 @@ fn a_take_saved_twice_across_a_move_keeps_everything() {
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.start_batch(&saved);
     let t = Instant::now();
-    while again.batch.is_some() && t.elapsed().as_secs() < 120 {
+    while again.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
         again.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    let live = again.live.as_ref().expect("analysed");
+    let live = again.recording.live.as_ref().expect("analysed");
     assert!(
         (live.duration_s() - 90.0).abs() < 0.5,
         "{}",
@@ -174,7 +174,7 @@ fn a_positions_test_is_marked_from_its_first_position() {
     // The test's settling leaves the readings as a move's does; the time
     // before it began stays read, and neither is a mask by hand (#1233).
     app.mask_engine();
-    assert_eq!(app.live.as_ref().unwrap().masked(), [(5.0, 10.0)]);
+    assert_eq!(app.recording.live.as_ref().unwrap().masked(), [(5.0, 10.0)]);
     assert!(app.take.masked.is_empty());
     // A move's settling before the test began is culled though the strip
     // shades it as the time before the test; the rest of that time is not.
@@ -195,7 +195,7 @@ fn a_positions_test_is_marked_from_its_first_position() {
     );
     app.mask_engine();
     assert_eq!(
-        app.live.as_ref().unwrap().masked(),
+        app.recording.live.as_ref().unwrap().masked(),
         [(1.0, 3.0), (5.0, 10.0)]
     );
     assert!(app.take.masked.is_empty());
@@ -220,7 +220,7 @@ fn a_positions_test_is_marked_from_its_first_position() {
     );
     app.mask_engine();
     assert_eq!(
-        app.live.as_ref().unwrap().masked(),
+        app.recording.live.as_ref().unwrap().masked(),
         [(1.0, 3.0), (4.0, 10.0)]
     );
 }
@@ -242,7 +242,7 @@ fn a_handled_opening_is_not_a_position_the_whole_reading_names() {
         app.session.set_state(session::State::Paused {
             since: Instant::now(),
         });
-        let moved = app.live.as_ref().unwrap().duration_s();
+        let moved = app.recording.live.as_ref().unwrap().duration_s();
         app.set_position(Position::DialDown);
         app.session.start_settle(moved);
         let cfg = SynthConfig {
@@ -250,7 +250,7 @@ fn a_handled_opening_is_not_a_position_the_whole_reading_names() {
             ..Default::default()
         };
         let audio = generate(&cfg, |_| 280.0, |_| 0.0);
-        let live = app.live.as_mut().unwrap();
+        let live = app.recording.live.as_mut().unwrap();
         for b in audio.samples.chunks(960) {
             live.push(b);
         }
@@ -280,11 +280,11 @@ fn each_position_counts_its_own_seconds() {
         ..Default::default()
     };
     let audio = generate(&cfg, |_| 280.0, |_| 0.0);
-    let moved = app.live.as_ref().unwrap().duration_s();
+    let moved = app.recording.live.as_ref().unwrap().duration_s();
     app.set_position(Position::DialDown);
     // Paused, the settling starts at Resume: here, at once.
     app.session.start_settle(moved);
-    let live = app.live.as_mut().unwrap();
+    let live = app.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         live.push(b);
     }
@@ -315,7 +315,7 @@ fn the_distributions_take_the_windows_of_the_position_now() {
     });
     let before = app.position_windows().len();
     assert!(before > 0, "Dial Up's own windows");
-    let moved = app.live.as_ref().unwrap().duration_s();
+    let moved = app.recording.live.as_ref().unwrap().duration_s();
     app.set_position(Position::DialDown);
     app.session.start_settle(moved);
     let cfg = SynthConfig {
@@ -323,7 +323,7 @@ fn the_distributions_take_the_windows_of_the_position_now() {
         ..Default::default()
     };
     let audio = generate(&cfg, |_| 220.0, |_| 0.0);
-    let live = app.live.as_mut().unwrap();
+    let live = app.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         live.push(b);
     }
@@ -370,7 +370,7 @@ fn the_positions_table_reads_a_free_take() {
         });
     };
     moved(&mut app, Position::DialDown);
-    let live = app.live.as_mut().unwrap();
+    let live = app.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         live.push(b);
     }
@@ -474,7 +474,7 @@ fn the_positions_table_reads_a_free_take() {
         |_| 280.0,
         |_| 0.0,
     );
-    let live = app.live.as_mut().unwrap();
+    let live = app.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         live.push(b);
     }
@@ -492,7 +492,7 @@ fn the_positions_table_reads_a_free_take() {
         |_| 280.0,
         |_| 0.0,
     );
-    let live = app.live.as_mut().unwrap();
+    let live = app.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         live.push(b);
     }
@@ -532,7 +532,7 @@ fn the_positions_table_reads_again_every_second_in_the_background_while_listenin
             ..Default::default()
         };
         let audio = generate(&cfg, |_| 280.0, |_| 0.0);
-        let live = app.live.as_mut().unwrap();
+        let live = app.recording.live.as_mut().unwrap();
         for b in audio.samples.chunks(960) {
             live.push(b);
         }
@@ -577,7 +577,7 @@ fn the_positions_table_reads_again_every_second_in_the_background_while_listenin
 #[test]
 fn the_guided_test_reads_the_position_under_way_as_it_is_measured() {
     let mut app = synthetic(20.0, 0.0);
-    let start = app.live.as_ref().unwrap().duration_s();
+    let start = app.recording.live.as_ref().unwrap().duration_s();
     let mut test = guided::Test::new().timed(5.0, 60.0);
     test.tick(start);
     app.test.guided = Some(test);
@@ -594,7 +594,7 @@ fn the_guided_test_reads_the_position_under_way_as_it_is_measured() {
     );
     let (first, rest) = audio.samples.split_at(12 * 48_000);
     let feed = |app: &mut TimegrapherApp, samples: &[f32]| {
-        let live = app.live.as_mut().unwrap();
+        let live = app.recording.live.as_mut().unwrap();
         for b in samples.chunks(960) {
             live.push(b);
         }
@@ -629,7 +629,7 @@ fn a_positions_tests_stop_keeps_its_rows_and_stops_listening() {
     let mut app = synthetic(20.0, 0.0);
     app.session.listen();
     let tx = queued_capture(&mut app, &base);
-    let start = app.live.as_ref().unwrap().duration_s();
+    let start = app.recording.live.as_ref().unwrap().duration_s();
     let mut test = guided::Test::new().timed(1.0, 5.0);
     test.tick(start);
     app.test.guided = Some(test);
@@ -640,7 +640,7 @@ fn a_positions_tests_stop_keeps_its_rows_and_stops_listening() {
     let kept = app.test.guided.as_ref().expect("the table stays");
     assert!(kept.readings.is_some(), "finished");
     assert!(!app.guided_running());
-    assert!(app.capture.is_none());
+    assert!(app.recording.capture.is_none());
     // A finished test sets nothing while listening goes on.
     let _tx2 = queued_capture(&mut app, &base);
     app.session.listen();
@@ -886,7 +886,7 @@ fn a_positions_test_ends_by_itself_after_the_sixth_position() {
     let mut app = synthetic(20.0, 0.0);
     app.session.listen();
     let tx = queued_capture(&mut app, &base);
-    let end = app.live.as_ref().unwrap().duration_s();
+    let end = app.recording.live.as_ref().unwrap().duration_s();
     let mut test = guided::Test::new().timed(0.5, 2.0);
     let mut t = end - 18.0;
     test.tick(t);
@@ -924,7 +924,7 @@ fn a_settle_changed_after_a_test_leaves_the_test_alone() {
     app.session.listen();
     app.session.set_settle_s(0.5);
     let tx = queued_capture(&mut app, &base);
-    let end = app.live.as_ref().unwrap().duration_s();
+    let end = app.recording.live.as_ref().unwrap().duration_s();
     let mut test = guided::Test::new().timed(0.5, 2.0);
     let mut t = end - 18.0;
     test.tick(t);
@@ -979,7 +979,7 @@ fn a_positions_test_keeps_the_lift_it_was_read_at() {
     let mut app = synthetic(20.0, 0.0);
     app.session.listen();
     let tx = queued_capture(&mut app, &base);
-    let end = app.live.as_ref().unwrap().duration_s();
+    let end = app.recording.live.as_ref().unwrap().duration_s();
     let mut test = guided::Test::new().timed(0.5, 2.0);
     let mut t = end - 18.0;
     test.tick(t);
@@ -1040,7 +1040,7 @@ fn a_new_position_marks_a_stretch_and_keeps_the_strip() {
             ..Default::default()
         };
         let audio = generate(&cfg, |_| 280.0, |_| 0.0);
-        let live = app.live.as_mut().unwrap();
+        let live = app.recording.live.as_mut().unwrap();
         for b in audio.samples.chunks(960) {
             if live.push(b) {
                 let r = live.reading(app.take.average_s);
@@ -1048,13 +1048,17 @@ fn a_new_position_marks_a_stretch_and_keeps_the_strip() {
             }
         }
     };
-    let first = app.live.as_ref().unwrap().beats().len();
+    let first = app.recording.live.as_ref().unwrap().beats().len();
     app.set_position(Position::DialDown);
-    assert_eq!(app.live.as_ref().unwrap().beats().len(), first, "kept");
+    assert_eq!(
+        app.recording.live.as_ref().unwrap().beats().len(),
+        first,
+        "kept"
+    );
     feed(&mut app, 60.0);
     app.set_position(Position::DialUp);
     feed(&mut app, 0.0);
-    let live = app.live.as_ref().unwrap();
+    let live = app.recording.live.as_ref().unwrap();
     assert!(live.beats().len() > 2 * first);
     assert_eq!(app.session.stretches().len(), 3);
     let bands = app.position_bands();
@@ -1128,7 +1132,10 @@ fn a_masked_stretch_leaves_the_readings_and_comes_back() {
     app.mask(40.0, 30.0);
     app.mask(35.0, 45.0);
     assert_eq!(app.take.masked, [(30.0, 45.0)], "joined");
-    assert_eq!(app.live.as_ref().unwrap().masked(), app.take.masked);
+    assert_eq!(
+        app.recording.live.as_ref().unwrap().masked(),
+        app.take.masked
+    );
     // As the next frame reads them.
     app.refresh_trend();
     assert_eq!(heard(&app), 0);
@@ -1399,12 +1406,16 @@ fn silent_test(
     app.reset_session(48000, "silence".into());
     app.session.listen();
     let tx = queued_capture(&mut app, base);
-    let live = app.live.as_mut().unwrap();
+    let live = app.recording.live.as_mut().unwrap();
     for b in vec![0.0; 5 * 48000].chunks(960) {
         live.push(b);
     }
     assert!(
-        app.live.as_ref().and_then(steady::log_of).is_none(),
+        app.recording
+            .live
+            .as_ref()
+            .and_then(steady::log_of)
+            .is_none(),
         "no beat"
     );
     let mut test = guided::Test::new().timed(1.0, 2.0);

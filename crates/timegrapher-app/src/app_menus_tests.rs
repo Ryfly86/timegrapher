@@ -294,7 +294,7 @@ fn new_session_clears_a_take_with_nothing_to_save() {
     assert!(app.menu_enabled(MenuCommand::NewSession));
     app.run_menu_command(&ctx, MenuCommand::NewSession);
     assert_eq!(app.confirm, None);
-    assert!(app.live.is_none(), "the take is still shown");
+    assert!(app.recording.live.is_none(), "the take is still shown");
 }
 
 /// A take with sound not yet saved is kept, and New Session asks first.
@@ -310,7 +310,10 @@ fn new_session_asks_before_clearing_unsaved_sound() {
     assert!(app.needs_save_confirmation());
     app.run_menu_command(&ctx, MenuCommand::NewSession);
     assert_eq!(app.confirm, Some(Confirm::NewSession));
-    assert!(app.live.is_some(), "the take was cleared before asking");
+    assert!(
+        app.recording.live.is_some(),
+        "the take was cleared before asking"
+    );
     let _ = std::fs::remove_dir_all(&base);
 }
 

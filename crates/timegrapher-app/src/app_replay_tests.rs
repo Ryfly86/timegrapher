@@ -31,16 +31,25 @@ fn a_new_averaging_time_redraws_the_whole_chart() {
     let mut app = synthetic(30.0, 20.0);
     let before = app.results.trend.len();
     assert!(before > 20);
-    assert_eq!(app.live.as_ref().unwrap().config().profile_s, 10.0);
+    assert_eq!(
+        app.recording.live.as_ref().unwrap().config().profile_s,
+        10.0
+    );
     app.set_average(4.0);
     // The tick and tock sound covers the same beats as the readings.
-    assert_eq!(app.live.as_ref().unwrap().config().profile_s, 4.0);
+    assert_eq!(app.recording.live.as_ref().unwrap().config().profile_s, 4.0);
     // Every point now uses 4 s of beats, back to the start.
     let early = app.results.trend.iter().find(|p| p.t >= 8.0).unwrap();
-    let r = app.live.as_ref().unwrap().reading_at(early.t, 4.0);
+    let r = app
+        .recording
+        .live
+        .as_ref()
+        .unwrap()
+        .reading_at(early.t, 4.0);
     assert_eq!(early.rate_s_per_day, r.rate_s_per_day);
     assert!(
-        (app.results.trend.last().unwrap().t - app.live.as_ref().unwrap().duration_s()).abs()
+        (app.results.trend.last().unwrap().t - app.recording.live.as_ref().unwrap().duration_s())
+            .abs()
             <= 0.5
     );
 }
@@ -131,12 +140,15 @@ fn histograms_start_hidden_and_keep_their_switch_through_a_relayout() {
 fn launching_and_replaying_touch_no_input() {
     // `new` lists nothing; a replay never needs to.
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    app.devices_listed = false;
+    app.recording.devices_listed = false;
     app.apply_settings(Settings {
         device: Some("alsa:hw:CARD=Device,DEV=0".into()),
         ..Settings::default()
     });
-    assert_eq!(app.device.as_deref(), Some("alsa:hw:CARD=Device,DEV=0"));
+    assert_eq!(
+        app.recording.device.as_deref(),
+        Some("alsa:hw:CARD=Device,DEV=0")
+    );
     let dir = std::env::temp_dir().join("tg-app-no-input");
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("take.wav");
@@ -152,12 +164,12 @@ fn launching_and_replaying_touch_no_input() {
     app.start_replay(&path);
     let ctx = themed();
     frames(&mut app, &ctx, 3);
-    assert!(!app.devices_listed);
+    assert!(!app.recording.devices_listed);
     // Nor does the microphone view, until its menu opens or Start.
     app.stop();
-    app.input = Input::Microphone;
+    app.recording.input = Input::Microphone;
     frames(&mut app, &ctx, 2);
-    assert!(!app.devices_listed);
+    assert!(!app.recording.devices_listed);
 }
 
 fn replay_context_fixture(name: &str, single: bool) -> (PathBuf, PathBuf) {
@@ -192,7 +204,7 @@ fn replay_context_fixture(name: &str, single: bool) -> (PathBuf, PathBuf) {
 // Drain the real replay source without analyzing it. End follows file close,
 // so later directory cleanup cannot race the reader on Windows.
 fn drain_replay_source(app: &TimegrapherApp) -> usize {
-    let c = app.capture.as_ref().unwrap();
+    let c = app.recording.capture.as_ref().unwrap();
     let mut samples = 0;
     let started = Instant::now();
     loop {
@@ -263,7 +275,7 @@ fn whole_recording_viewer_keeps_known_jumps_with_or_without_position_cuts() {
             (vec![], vec![])
         };
         app.show_log(log, "known phase step".into(), positions, settles);
-        let live = app.live.as_ref().unwrap();
+        let live = app.recording.live.as_ref().unwrap();
         let expected = if with_positions {
             vec![30.0, 40.0, 60.03, 90.0, 100.0]
         } else {
@@ -315,7 +327,7 @@ fn replay_restores_saved_history_and_a_position_change_preserves_it() {
     let breaks = [30.0, 40.0, 60.0, 70.0];
     assert_eq!(app.session.stretches(), positions);
     assert_eq!(app.session.settles(), settles);
-    assert_eq!(app.live.as_ref().unwrap().breaks(), breaks);
+    assert_eq!(app.recording.live.as_ref().unwrap().breaks(), breaks);
     assert_eq!(
         (app.take.watch.as_str(), app.take.lift_deg, app.take.bph),
         ("Replay Watch", 49.0, Some(28800))
@@ -324,7 +336,7 @@ fn replay_restores_saved_history_and_a_position_change_preserves_it() {
     assert_eq!(app.take.position, Position::DialDown);
     assert_eq!(app.session.stretches(), positions);
     assert_eq!(app.session.settles(), settles);
-    assert_eq!(app.live.as_ref().unwrap().breaks(), breaks);
+    assert_eq!(app.recording.live.as_ref().unwrap().breaks(), breaks);
     app.stop();
     assert!(app.session.has_replay_context());
     // A segment alone does not match the folder's '.' entries.
@@ -333,7 +345,7 @@ fn replay_restores_saved_history_and_a_position_change_preserves_it() {
     assert!(!app.session.has_replay_context());
     assert!(app.session.stretches().is_empty());
     assert!(app.session.settles().is_empty());
-    assert!(app.live.as_ref().unwrap().breaks().is_empty());
+    assert!(app.recording.live.as_ref().unwrap().breaks().is_empty());
     app.change_position(Position::DialDown);
     assert!(
         !app.session.stretches().is_empty(),
@@ -342,7 +354,7 @@ fn replay_restores_saved_history_and_a_position_change_preserves_it() {
     app.start_replay_at(&path, 100.0);
     assert_eq!(drain_replay_source(&app), 9000);
     assert_eq!(app.session.stretches(), positions);
-    assert_eq!(app.live.as_ref().unwrap().breaks(), breaks);
+    assert_eq!(app.recording.live.as_ref().unwrap().breaks(), breaks);
     app.new_session();
     assert!(!app.session.has_replay_context());
     std::fs::remove_dir_all(dir).unwrap();
@@ -378,13 +390,14 @@ fn replay_poll_does_not_publish_readings_inside_saved_settling() {
         &[(0.0, Position::DialUp), (8.0, Position::DialDown)],
         &[(8.0, 14.0)],
     );
-    app.live
+    app.recording
+        .live
         .as_mut()
         .unwrap()
         .set_breaks(app.session.replay_breaks().unwrap());
     app.clear_trends();
     let tx = queued_capture(&mut app, &base);
-    app.capture.as_mut().unwrap().is_file = true;
+    app.recording.capture.as_mut().unwrap().is_file = true;
     tx.send(Event::Audio(timegrapher_core::capture::Block {
         samples: vec![0.0; 24000],
         at: std::time::SystemTime::now(),
@@ -392,6 +405,7 @@ fn replay_poll_does_not_publish_readings_inside_saved_settling() {
     .unwrap();
     app.poll();
     let at = app
+        .recording
         .live
         .as_ref()
         .unwrap()
@@ -403,7 +417,7 @@ fn replay_poll_does_not_publish_readings_inside_saved_settling() {
     );
     assert!(app.results.trend.is_empty());
     assert!(app.reading().is_none());
-    assert_eq!(app.live.as_ref().unwrap().breaks(), &[8.0, 14.0]);
+    assert_eq!(app.recording.live.as_ref().unwrap().breaks(), &[8.0, 14.0]);
     app.stop();
     drop(tx);
     std::fs::remove_dir_all(base).unwrap();
@@ -433,13 +447,14 @@ fn replay_readouts_and_rebuilt_trends_respect_imported_settling() {
         by_count: Vec::new(),
         snippets: Vec::new(),
     };
-    app.live = Some(LiveAnalyzer::from_log(log, app.live_config()));
+    app.recording.live = Some(LiveAnalyzer::from_log(log, app.live_config()));
     app.session.replay();
     app.session.load(
         &[(0.0, Position::DialUp), (30.0, Position::DialDown)],
         &[(30.0, 40.0)],
     );
-    app.live
+    app.recording
+        .live
         .as_mut()
         .unwrap()
         .set_breaks(app.session.replay_breaks().unwrap());
@@ -473,7 +488,7 @@ fn the_cards_read_at_the_strips_newest_edge() {
     };
     // Low amplitude for the first half, high for the second.
     let audio = generate(&cfg, |t| if t < 45.0 { 220.0 } else { 300.0 }, |_| 0.0);
-    let live = app.live.as_mut().unwrap();
+    let live = app.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         live.push(b);
     }

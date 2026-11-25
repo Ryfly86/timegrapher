@@ -207,7 +207,7 @@ impl TimegrapherApp {
         let runs = self.current_runs();
         let clock = Self::rate_clock(&self.take.take_clock).cloned();
         let joined = !self.session.stretches().is_empty();
-        let dur = self.live.as_ref().map_or(0.0, |l| {
+        let dur = self.recording.live.as_ref().map_or(0.0, |l| {
             steady::joined_duration(
                 &runs.read,
                 l.duration_s(),
@@ -221,7 +221,7 @@ impl TimegrapherApp {
             Some(u) => dur - u > 1.0,
         };
         if self.results.steady_job.is_none() && due && dur >= steady::MIN_S {
-            let log = self.live.as_ref().and_then(steady::log_of);
+            let log = self.recording.live.as_ref().and_then(steady::log_of);
             if let Some((log, breaks)) = log.map(|l| self.steady_log(l, &runs, clock.as_ref())) {
                 let wheels = self.calibre_wheels();
                 let meshes = self.calibre_meshes();

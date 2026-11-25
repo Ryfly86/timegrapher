@@ -9,7 +9,7 @@ impl TimegrapherApp {
         theme::keep_next(ui);
         if theme::tool_button(ui, Icon::Export, "Export…", EXPORT_HINT, None) {
             let dir = self.panes_view.export_dir.clone().or_else(|| {
-                Path::new(self.file_path.trim())
+                Path::new(self.recording.file_path.trim())
                     .parent()
                     .map(Path::to_path_buf)
             });

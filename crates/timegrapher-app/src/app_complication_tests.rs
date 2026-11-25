@@ -459,7 +459,7 @@ fn a_saved_complication_take_opened_again_shows_its_results() {
             .unwrap()
             .write(&block)
             .unwrap();
-        let live = app.live.as_mut().unwrap();
+        let live = app.recording.live.as_mut().unwrap();
         for b in s.chunks(960) {
             live.push(b);
         }
@@ -496,11 +496,11 @@ fn a_saved_complication_take_opened_again_shows_its_results() {
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.start_batch(&saved);
     let clock = Instant::now();
-    while again.batch.is_some() && clock.elapsed().as_secs() < 300 {
+    while again.recording.batch.is_some() && clock.elapsed().as_secs() < 300 {
         again.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    assert!(again.live.is_some(), "{:?}", again.message);
+    assert!(again.recording.live.is_some(), "{:?}", again.message);
     assert!(again.test.guided.is_none(), "no test on the Bench");
     each_stretch_is_the_takes_own(&mut again);
     let drawn = draw_at(&mut again, Vec2::new(1280.0, 900.0));

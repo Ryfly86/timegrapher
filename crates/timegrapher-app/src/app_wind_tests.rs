@@ -384,7 +384,7 @@ fn the_listen_card_shows_the_wind_beside_average_over() {
     };
     let mut forms = Vec::new();
     for begun in [false, true] {
-        app.live = begun.then(live);
+        app.recording.live = begun.then(live);
         let words = app.wind_field().words;
         for (w, compact) in [
             (500.0, false),
@@ -485,12 +485,12 @@ fn the_listen_card_widens_for_the_wind_where_there_is_room() {
     // From a take's start, the second form still fits at 1920 (Walter and
     // Hugh on #1926): "Wind: 54.1 h at start".
     app.pick_wind(WindPick::HoursAgo(54.1));
-    app.live = Some(timegrapher_core::live::LiveAnalyzer::new(
+    app.recording.live = Some(timegrapher_core::live::LiveAnalyzer::new(
         48_000,
         timegrapher_core::live::LiveConfig::default(),
     ));
     assert_eq!(window_wind(&mut app, 1920.0, 1080.0).0, forms[1]);
-    app.live = None;
+    app.recording.live = None;
     for (w, h) in [(1280.0, 800.0), (800.0, 560.0)] {
         let (form, _) = window_wind(&mut app, w, h);
         assert!(
@@ -579,7 +579,7 @@ fn the_wind_is_set_from_a_takes_start_once_it_has_begun() {
         "{}",
         before.hover
     );
-    app.live = Some(timegrapher_core::live::LiveAnalyzer::new(
+    app.recording.live = Some(timegrapher_core::live::LiveAnalyzer::new(
         48_000,
         timegrapher_core::live::LiveConfig::default(),
     ));
@@ -692,7 +692,7 @@ fn a_buttons_code_clears_its_bar() {
     let ctx = egui::Context::default();
     theme::install(&ctx);
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    app.live = Some(timegrapher_core::live::LiveAnalyzer::new(
+    app.recording.live = Some(timegrapher_core::live::LiveAnalyzer::new(
         48_000,
         timegrapher_core::live::LiveConfig::default(),
     ));

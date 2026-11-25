@@ -109,7 +109,7 @@ impl TimegrapherApp {
         // as the Calibre card's title says (No Watch (Quick Listen)).
         let file = self.take_name();
         let named = self.named_watch().map_or_else(String::new, |w| w.0);
-        let quick = self.quick_listen || file.is_none() && named.is_empty();
+        let quick = self.recording.quick_listen || file.is_none() && named.is_empty();
         let name =
             file.unwrap_or_else(|| if quick { "Quick Listen" } else { "New Take" }.to_string());
         let watch = if !named.is_empty() {

@@ -29,7 +29,8 @@ impl TimegrapherApp {
     }
 
     pub(super) fn clipping(&self) -> bool {
-        self.meter
+        self.recording
+            .meter
             .clipped_at
             .is_some_and(|t| t.elapsed().as_secs_f64() < 3.0)
     }
@@ -54,7 +55,7 @@ impl TimegrapherApp {
             pal.text_tertiary.gamma_multiply(0.35),
         );
         if self.running() {
-            let peak = self.meter.level.peak_dbfs.max(-60.0);
+            let peak = self.recording.meter.level.peak_dbfs.max(-60.0);
             let frac = ((peak + 60.0) / 60.0).clamp(0.0, 1.0) as f32;
             let mut fill = rect;
             fill.set_width((rect.width() * frac).max(height));
@@ -75,23 +76,26 @@ impl TimegrapherApp {
 
     /// Find the selected input's level control and read it.
     fn read_gain(&mut self) {
-        self.meter.gain_device = self.device.clone();
+        self.recording.meter.gain_device = self.recording.device.clone();
         // Before the inputs are listed, the system default's level control:
         // reading a mixer does not open the input.
-        let id = match (&self.device, self.devices_listed) {
+        let id = match (&self.recording.device, self.recording.devices_listed) {
             (Some(d), _) => Some(d.as_str()),
             (None, false) => Some("default"),
             (None, true) => None,
         };
-        self.meter.gain = id.and_then(InputGain::for_device);
-        self.meter.gain_state = self.meter.gain.as_ref().and_then(|g| g.read());
-        self.meter.gain_read_at = Instant::now();
-        self.meter.agc_read = self.input_agc(None).and_then(Result::ok);
+        self.recording.meter.gain = id.and_then(InputGain::for_device);
+        self.recording.meter.gain_state = self.recording.meter.gain.as_ref().and_then(|g| g.read());
+        self.recording.meter.gain_read_at = Instant::now();
+        self.recording.meter.agc_read = self.input_agc(None).and_then(Result::ok);
     }
 
     /// The key Settings keeps the selected input's automatic gain under.
     fn agc_key(&self) -> String {
-        self.device.clone().unwrap_or_else(|| "default".into())
+        self.recording
+            .device
+            .clone()
+            .unwrap_or_else(|| "default".into())
     }
 
     /// The selected input's automatic gain switch, read back, after
@@ -103,9 +107,10 @@ impl TimegrapherApp {
             // The input by the name the system gives it, the system
             // default's when none is picked; Windows sets the one input.
             let name = self
+                .recording
                 .devices
                 .iter()
-                .find(|d| match &self.device {
+                .find(|d| match &self.recording.device {
                     Some(id) => &d.id == id,
                     None => d.is_default,
                 })
@@ -133,9 +138,9 @@ impl TimegrapherApp {
             });
         }
         if cfg!(target_os = "macos") {
-            let label = capture::choices(&self.devices)
+            let label = capture::choices(&self.recording.devices)
                 .into_iter()
-                .find(|c| Some(&c.id) == self.device.as_ref())
+                .find(|c| Some(&c.id) == self.recording.device.as_ref())
                 .map(|c| c.label);
             let read = |list: Result<Vec<mixer::UsbAgc>, String>| {
                 usb_agc_for(list.ok()?, label.as_deref())
@@ -157,8 +162,8 @@ impl TimegrapherApp {
                 }),
             });
         }
-        let g = self.meter.gain.as_ref()?;
-        self.meter.gain_state.as_ref()?.agc?;
+        let g = self.recording.meter.gain.as_ref()?;
+        self.recording.meter.gain_state.as_ref()?.agc?;
         if let Some(want) = set {
             if let Err(e) = g.set_agc(want) {
                 return Some(Err(e));
@@ -172,25 +177,25 @@ impl TimegrapherApp {
     /// turns it back on when it is plugged in.
     pub(super) fn apply_agc(&mut self) {
         let want = self.agc_on.contains(&self.agc_key());
-        if self.meter.gain_device != self.device {
+        if self.recording.meter.gain_device != self.recording.device {
             self.read_gain();
         }
         match self.input_agc(Some(want)) {
             Some(Ok(now)) => {
-                self.meter.agc_read = Some(now);
+                self.recording.meter.agc_read = Some(now);
                 applog::info(&format!(
                     "automatic gain {}",
                     if now { "on" } else { "off" }
                 ));
             }
             Some(Err(e)) => {
-                self.meter.agc_read = None;
-                self.meter.gain_error = Some(format!(
+                self.recording.meter.agc_read = None;
+                self.recording.meter.gain_error = Some(format!(
                     "Couldn't turn the microphone's automatic gain {}: {e}",
                     if want { "on" } else { "off" }
                 ));
             }
-            None => self.meter.agc_read = None,
+            None => self.recording.meter.agc_read = None,
         }
     }
 
@@ -198,8 +203,8 @@ impl TimegrapherApp {
     /// been read for a while.
     pub(super) fn refresh_gain(&mut self) {
         let every = if self.running() { 2.0 } else { 10.0 };
-        if self.meter.gain_device != self.device
-            || self.meter.gain_read_at.elapsed().as_secs_f64() > every
+        if self.recording.meter.gain_device != self.recording.device
+            || self.recording.meter.gain_read_at.elapsed().as_secs_f64() > every
         {
             self.read_gain();
         }
@@ -216,7 +221,10 @@ impl TimegrapherApp {
             egui::Layout::left_to_right(egui::Align::Center),
             |ui| {
                 ui.set_min_size(Vec2::new(w, h));
-                match (self.meter.gain.clone(), self.meter.gain_state.clone()) {
+                match (
+                    self.recording.meter.gain.clone(),
+                    self.recording.meter.gain_state.clone(),
+                ) {
                     (Some(g), Some(st)) => {
                         let mut pct = st.level * 100.0;
                         ui.spacing_mut().slider_width = (w - 64.0).max(60.0);
@@ -231,11 +239,11 @@ impl TimegrapherApp {
                         // Set it once the drag ends (or on a click or key),
                         // not on every pixel.
                         if (r.changed() && !r.dragged()) || r.drag_stopped() {
-                            self.meter.gain_error = g.set_level(pct / 100.0).err();
+                            self.recording.meter.gain_error = g.set_level(pct / 100.0).err();
                             applog::info(&format!("input level set to {pct:.0}%"));
                             self.read_gain();
                         } else if r.changed() {
-                            if let Some(s) = self.meter.gain_state.as_mut() {
+                            if let Some(s) = self.recording.meter.gain_state.as_mut() {
                                 s.level = pct / 100.0;
                             }
                         }
@@ -247,7 +255,7 @@ impl TimegrapherApp {
                             .on_hover_text(SOUND_SETTINGS_HINT)
                             .clicked()
                         {
-                            self.meter.gain_error = open_sound_settings()
+                            self.recording.meter.gain_error = open_sound_settings()
                                 .err()
                                 .map(|e| format!("Couldn't open the sound settings: {e}"));
                         }
@@ -264,7 +272,7 @@ impl TimegrapherApp {
     /// The Automatic Gain switch, for an input whose own automatic gain
     /// the app can reach; false (and nothing drawn) for any other.
     pub(super) fn agc_control(&mut self, ui: &mut egui::Ui) -> bool {
-        if self.meter.agc_read.is_none() {
+        if self.recording.meter.agc_read.is_none() {
             return false;
         }
         let key = self.agc_key();
@@ -282,7 +290,7 @@ impl TimegrapherApp {
     /// What the microphone says of its automatic gain, where it isn't
     /// what was asked.
     pub(super) fn agc_message(&self) -> Option<String> {
-        let now = self.meter.agc_read?;
+        let now = self.recording.meter.agc_read?;
         let on = self.agc_on.contains(&self.agc_key());
         (now != on).then(|| {
             format!(
@@ -312,7 +320,7 @@ impl TimegrapherApp {
     /// The latest peak, "−11 dBFS", or a dash while nothing is heard.
     fn peak_words(&self) -> String {
         if self.running() {
-            let peak = self.meter.level.peak_dbfs.max(-99.0);
+            let peak = self.recording.meter.level.peak_dbfs.max(-99.0);
             true_minus(&format!("{peak:.0} dBFS"))
         } else {
             "–".into()
@@ -412,7 +420,11 @@ impl TimegrapherApp {
                     .auto_shrink([false, true])
                     .show(ui, |ui| {
                         self.microphone_page(ui);
-                        let listening = self.clock_track.as_ref().map(|t| t.device.clone());
+                        let listening = self
+                            .recording
+                            .clock_track
+                            .as_ref()
+                            .map(|t| t.device.clone());
                         let timing = self.clock_timing();
                         match settings_window::quartz_section(
                             ui,
@@ -466,7 +478,7 @@ impl TimegrapherApp {
     /// Quartz Correction follows.
     pub(super) fn microphone_page(&mut self, ui: &mut egui::Ui) {
         self.refresh_gain();
-        let input_fault = self.input_fault.clone();
+        let input_fault = self.recording.input_fault.clone();
         theme::group(ui, "Microphone", None, |g| {
             let hint = "The microphone to listen to. Show Every Input lists every device the \
                         system offers.";
@@ -484,10 +496,10 @@ impl TimegrapherApp {
                 "Show Every Input",
                 theme::Caption::Text("Lists every device the system offers, with its id."),
                 hint,
-                |ui| theme::switch(ui, &mut self.all_inputs).on_hover_text(hint),
+                |ui| theme::switch(ui, &mut self.recording.all_inputs).on_hover_text(hint),
             );
         });
-        let gain_error = self.meter.gain_error.clone();
+        let gain_error = self.recording.meter.gain_error.clone();
         let agc = self.agc_message();
         let clipping = self.running() && self.clipping();
         theme::group(ui, "Level", None, |g| {
@@ -502,7 +514,7 @@ impl TimegrapherApp {
                     self.level_control(ui, 240.0);
                 },
             );
-            if self.meter.agc_read.is_some() {
+            if self.recording.meter.agc_read.is_some() {
                 g.row(
                     "Automatic Gain",
                     theme::Caption::Alert(
@@ -691,7 +703,12 @@ impl TimegrapherApp {
             Ok(s) => {
                 // The microphone session in hand, listening or stopped,
                 // loses its True Clock too.
-                if self.clock.as_ref().is_some_and(|c| c.device == device) {
+                if self
+                    .recording
+                    .clock
+                    .as_ref()
+                    .is_some_and(|c| c.device == device)
+                {
                     self.put_input_clock(None);
                 }
                 self.kept_clocks = Ok(s);
@@ -773,7 +790,7 @@ impl TimegrapherApp {
 
     pub(super) fn set_lift(&mut self, lift: f64) {
         self.put_lift(lift);
-        if let Some(l) = self.live.as_mut() {
+        if let Some(l) = self.recording.live.as_mut() {
             l.set_lift(lift);
         }
         // Changed by hand: the charts and the guided test follow at once.
@@ -811,7 +828,7 @@ impl TimegrapherApp {
     ) {
         self.take.take_clock = clock;
         self.take.take_clock_source = source;
-        if let Some(l) = self.live.as_mut() {
+        if let Some(l) = self.recording.live.as_mut() {
             l.set_rate_clock(Self::rate_clock(&self.take.take_clock));
         }
         self.take.rev.clock += 1;
@@ -819,7 +836,7 @@ impl TimegrapherApp {
 
     /// The clock kept for the input listened to.
     pub(super) fn put_input_clock(&mut self, clock: Option<clockstore::DeviceClock>) {
-        self.clock = clock;
+        self.recording.clock = clock;
         self.take.rev.clock += 1;
     }
 

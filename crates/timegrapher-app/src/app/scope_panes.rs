@@ -253,6 +253,7 @@ impl TimegrapherApp {
         let line = |l: String| not_shown(l, false);
         if self.running() && self.panes_view.strip_end.is_none() {
             let p = self
+                .recording
                 .live
                 .as_ref()
                 .map_or([None, None], |l| l.tick_profiles().clone());
@@ -261,7 +262,7 @@ impl TimegrapherApp {
         if let Some(kept) = &self.keeping.no_sound {
             return self.kept_average(kept, end);
         }
-        let beats = self.live.as_ref().map_or(&[][..], |l| l.beats());
+        let beats = self.recording.live.as_ref().map_or(&[][..], |l| l.beats());
         let window = (end, self.take.average_s);
         match sound_at(
             &self.results.sound_history,
@@ -321,7 +322,7 @@ impl TimegrapherApp {
     ) -> ShownSound {
         use timegrapher_core::profile::{profile_at, ProfileAt};
         let at = length_text(end);
-        let Some(live) = self.live.as_ref() else {
+        let Some(live) = self.recording.live.as_ref() else {
             return no_beats_at(&at);
         };
         let osc_period_s = 2.0 * timegrapher_core::power_reserve::beat_s(live.bph());
@@ -383,8 +384,8 @@ impl TimegrapherApp {
         }
         let profiles = shown.profiles;
         let has_sound = self.keeping.no_sound.is_none();
-        let Some(live) = self.live.as_ref().filter(|_| has_sound) else {
-            let words = if self.live.is_none() {
+        let Some(live) = self.recording.live.as_ref().filter(|_| has_sound) else {
+            let words = if self.recording.live.is_none() {
                 "Listen to a watch or open a recording to see its sound here."
             } else {
                 "This take's sound was removed, so there is no waveform to show."
@@ -557,8 +558,8 @@ impl TimegrapherApp {
                 Some(heard) => heard,
                 None => return false,
             }
-        } else if self.input == Input::File {
-            match recordings_in(&PathBuf::from(self.file_path.trim())) {
+        } else if self.recording.input == Input::File {
+            match recordings_in(&PathBuf::from(self.recording.file_path.trim())) {
                 Ok(files) => (files, 0.0),
                 Err(_) => return false,
             }
@@ -600,10 +601,12 @@ impl TimegrapherApp {
         if self.results.sound_job.is_some() {
             return true;
         }
-        let path = PathBuf::from(self.file_path.trim());
-        let Some(live) = &self.live else { return false };
+        let path = PathBuf::from(self.recording.file_path.trim());
+        let Some(live) = &self.recording.live else {
+            return false;
+        };
         let Some(bph) = live.bph() else { return false };
-        if self.input != Input::File || self.session.mic() {
+        if self.recording.input != Input::File || self.session.mic() {
             return false;
         }
         let Ok(files) = recordings_in(&path) else {

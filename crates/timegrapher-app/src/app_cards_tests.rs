@@ -916,8 +916,8 @@ fn an_opened_take_fits_the_strip() {
         // Centred, the spread is ±6 ms; kept on the newest beats, it
         // reaches 12 ms on one side.
         assert_eq!(half, if follow { 20.0 } else { 10.0 }, "follow {follow}");
-        let live = app.live.as_ref().unwrap();
-        let anchor = app.anchor.unwrap();
+        let live = app.recording.live.as_ref().unwrap();
+        let anchor = app.recording.anchor.unwrap();
         for b in live.beats() {
             let lead = anchor.lead_ms(b, 0.125);
             assert!(lead.abs() < half, "{lead} outside ±{half}");
@@ -1009,14 +1009,14 @@ fn unsorted_takes_after_a_watch_take_resets_the_settings() {
     app.pick_watch(&pepsi);
     app.set_calibre("ETA 2824-2".into());
     app.show_log(gaining_log(0.0), "take".into(), vec![], vec![]);
-    app.input = Input::File;
+    app.recording.input = Input::File;
     app.keeping.opened_path = base.join("take.flac").display().to_string();
     assert!(app.take_on_show().is_some());
     assert_eq!(app.take.bph, Some(28800));
 
     app.pick_unsorted();
     assert!(app.take_on_show().is_none(), "the watch's take is put away");
-    assert!(app.live.is_none());
+    assert!(app.recording.live.is_none());
     assert!(app.take.calibre.is_empty());
     assert_eq!(app.take.bph, None);
     assert_eq!(app.take.lift_deg, DEFAULT_LIFT_DEG);
@@ -1045,7 +1045,7 @@ fn a_new_beat_rate_reads_the_take_again() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     let finish = |app: &mut TimegrapherApp| {
         let t = Instant::now();
-        while app.batch.is_some() && t.elapsed().as_secs() < 120 {
+        while app.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
             app.poll();
             std::thread::sleep(std::time::Duration::from_millis(20));
         }
@@ -1055,14 +1055,14 @@ fn a_new_beat_rate_reads_the_take_again() {
     assert!(app.take_on_show().is_some());
     app.set_lift(49.0);
     app.change_bph(Some(21600));
-    assert!(app.batch.is_some(), "read again");
+    assert!(app.recording.batch.is_some(), "read again");
     finish(&mut app);
     assert!(
         app.take_on_show().is_some(),
         "still on show, no Open needed"
     );
     assert_eq!(app.take.bph, Some(21600));
-    assert_eq!(app.live.as_ref().unwrap().bph(), Some(21600));
+    assert_eq!(app.recording.live.as_ref().unwrap().bph(), Some(21600));
     assert_eq!(app.take.lift_deg, 49.0, "the settings as they were");
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -1741,7 +1741,7 @@ fn the_beat_rate_found_comes_from_the_reading_shown() {
         ..Default::default()
     };
     sound.extend(generate(&watch, |_| 280.0, |_| 0.0).samples);
-    let live = app.live.as_mut().unwrap();
+    let live = app.recording.live.as_mut().unwrap();
     for b in sound.chunks(960) {
         live.push(b);
     }
@@ -1755,7 +1755,7 @@ fn the_beat_rate_found_comes_from_the_reading_shown() {
     let r = app.card_reading().unwrap();
     assert!(!r.watch_heard, "{} s: {:?}", r.time_s, r.caveats);
     assert_eq!(r.bph, Some(28800), "the rate listened at");
-    assert_eq!(app.live.as_ref().unwrap().bph(), Some(28800));
+    assert_eq!(app.recording.live.as_ref().unwrap().bph(), Some(28800));
     assert_eq!(app.bph_heard(), None);
     assert_eq!(app.watch_facts().1, "Auto");
     app.take.calibre = "Hangzhou HZ2B00A".into();

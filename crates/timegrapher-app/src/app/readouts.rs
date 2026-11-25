@@ -597,9 +597,9 @@ impl TimegrapherApp {
         let Some(left_s) = self.settle_left_at(at) else {
             let w = if self.ready_test().is_some() {
                 Wait::TestStart
-            } else if self.batch.is_some() || self.stop_read_waits().is_some() {
+            } else if self.recording.batch.is_some() || self.stop_read_waits().is_some() {
                 Wait::Analysing
-            } else if self.live.is_none() {
+            } else if self.recording.live.is_none() {
                 Wait::NotListening
             } else {
                 quiet
@@ -744,7 +744,7 @@ impl TimegrapherApp {
         // A compact Listen card has no room beside its buttons for the
         // take's length: it goes in the title row, before the "?".
         let length = listen_compact.then(|| {
-            let length = length_text(self.live.as_ref().map_or(0.0, |l| l.duration_s()));
+            let length = length_text(self.recording.live.as_ref().map_or(0.0, |l| l.duration_s()));
             (
                 length.clone(),
                 format!(
@@ -934,7 +934,7 @@ impl TimegrapherApp {
         type Kept = (Revision, (u64, bool), Vec<(i64, TrendPoint)>);
         // Just stopped: the take as its saved take opens (#2151).
         let stopped = self.stopped_take();
-        let Some(live) = stopped.map(|s| &s.live).or(self.live.as_ref()) else {
+        let Some(live) = stopped.map(|s| &s.live).or(self.recording.live.as_ref()) else {
             return Vec::new();
         };
         let id = egui::Id::new("reading card sparklines");
@@ -1223,7 +1223,7 @@ impl TimegrapherApp {
         reading_clock(
             self.take.take_clock.as_ref(),
             self.take.take_breaks.is_some(),
-            self.clock.as_ref().map(|c| c.ppm),
+            self.recording.clock.as_ref().map(|c| c.ppm),
             duration_s,
         )
     }
@@ -1297,7 +1297,7 @@ impl TimegrapherApp {
                  clock."
             ));
         }
-        let c = self.clock.as_ref()?;
+        let c = self.recording.clock.as_ref()?;
         let v = true_minus(&format!("{:+.1}", c.correct_rate(rate)));
         Some(format!(
             "True Clock {v} seconds per day, with the clock kept {}: the rate corrected \
@@ -1310,11 +1310,11 @@ impl TimegrapherApp {
     /// timed: how much sound it has heard, and once timed, the error,
     /// offered to keep. None while not listening.
     pub(super) fn clock_timing(&self) -> Option<settings_window::Timing> {
-        let t = self.clock_track.as_ref()?;
+        let t = self.recording.clock_track.as_ref()?;
         if !(self.running() && self.session.mic()) {
             return None;
         }
-        let words = self.clock_words(self.clock_measured(), self.clock.as_ref());
+        let words = self.clock_words(self.clock_measured(), self.recording.clock.as_ref());
         Some(settings_window::Timing {
             shown: t.shown.clone(),
             heard_s: t.tracker.audio_s(),
@@ -1413,7 +1413,8 @@ impl TimegrapherApp {
     /// The microphone's clock as timed so far, once it has run
     /// [`CLOCK_MEASURE_S`] of audio and is known to half a ppm.
     pub(super) fn clock_measured(&self) -> Option<&timegrapher_core::clock::ClockFit> {
-        self.clock_track
+        self.recording
+            .clock_track
             .as_ref()?
             .fit
             .as_ref()
@@ -1425,7 +1426,8 @@ impl TimegrapherApp {
     /// from it.
     pub(super) fn clock_offer(&self) -> Option<&timegrapher_core::clock::ClockFit> {
         self.clock_measured().filter(|f| {
-            self.clock
+            self.recording
+                .clock
                 .as_ref()
                 .is_none_or(|c| (f.ppm - c.ppm).abs() > CLOCK_DIFFERS_PPM)
         })
@@ -1434,7 +1436,8 @@ impl TimegrapherApp {
     /// Keep the microphone's clock as timed: corrected rates from now on,
     /// for the command line and the MCP server too.
     pub(super) fn keep_clock(&mut self) {
-        let (Some(fit), Some(t)) = (self.clock_measured(), self.clock_track.as_ref()) else {
+        let (Some(fit), Some(t)) = (self.clock_measured(), self.recording.clock_track.as_ref())
+        else {
             return;
         };
         let d = clockstore::DeviceClock::from_fit(
@@ -1678,10 +1681,13 @@ impl TimegrapherApp {
                 label.on_hover_text(text);
             }
         };
-        if self.batch.is_none() && self.running() && !self.source_label.is_empty() {
+        if self.recording.batch.is_none()
+            && self.running()
+            && !self.recording.source_label.is_empty()
+        {
             // The input listened to; a take opened is named on the left
             // already.
-            passing(ui, &format!("Listening to {}", self.source_label));
+            passing(ui, &format!("Listening to {}", self.recording.source_label));
         }
         // Errors are a notice at the right instead.
         if let Some((m, false)) = &self.message {
@@ -1775,7 +1781,7 @@ impl TimegrapherApp {
         self.shown_caveats_chip(ui);
         // A take opening, or one just stopped being read as its saved
         // take opens (#2151): how far, as one bar.
-        let reading = match (&self.batch, self.stop_read_waits()) {
+        let reading = match (&self.recording.batch, self.stop_read_waits()) {
             (Some(b), _) => Some((&b.progress, b.duration_s)),
             (None, Some(s)) => Some((&s.progress, Some(s.duration_s))),
             (None, None) => None,
@@ -1849,7 +1855,13 @@ impl TimegrapherApp {
     pub(super) fn signal(&self) -> Option<f32> {
         match (self.reading(), self.settling_left()) {
             (Some(r), _) => r.snr,
-            (None, Some(_)) => self.live.as_ref()?.reading(self.take.average_s).snr,
+            (None, Some(_)) => {
+                self.recording
+                    .live
+                    .as_ref()?
+                    .reading(self.take.average_s)
+                    .snr
+            }
             (None, None) => None,
         }
     }
@@ -1887,7 +1899,7 @@ impl TimegrapherApp {
                     ui.set_width(w - 28.0);
                     ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
                         ui.spacing_mut().item_spacing.y = 10.0;
-                        if self.batch.is_some() {
+                        if self.recording.batch.is_some() {
                             self.batch_progress(ui);
                         } else {
                             self.ways_in(ui);
@@ -1907,10 +1919,10 @@ impl TimegrapherApp {
     /// few seconds of listening: one sentence then, not empty charts and
     /// cards of figures that would describe noise.
     pub(super) fn no_watch_yet(&self) -> bool {
-        let Some(live) = &self.live else {
+        let Some(live) = &self.recording.live else {
             return false;
         };
-        self.batch.is_none()
+        self.recording.batch.is_none()
             && live.duration_s() > 6.0
             && !self.results.trend.iter().any(|p| p.heard)
             && self
@@ -1977,7 +1989,7 @@ impl TimegrapherApp {
     /// screen offers a recording instead of showing the session's figures
     /// as if they were one. The session is kept.
     pub(super) fn mic_session_set_aside(&self) -> bool {
-        self.input == Input::File && self.session.mic() && !self.running()
+        self.recording.input == Input::File && self.session.mic() && !self.running()
     }
 
     /// Before anything is open: where to start, since the Watches view
@@ -2012,7 +2024,9 @@ impl TimegrapherApp {
     /// How far the analysis of a recording has got, and a way to stop it.
     fn batch_progress(&mut self, ui: &mut egui::Ui) {
         let pal = theme::pal(ui);
-        let Some(b) = &self.batch else { return };
+        let Some(b) = &self.recording.batch else {
+            return;
+        };
         let done = f64::from_bits(b.progress.load(std::sync::atomic::Ordering::Relaxed));
         analysing_lines(ui, pal, &b.label, done, b.duration_s, b.started);
         if b.files > 1 {

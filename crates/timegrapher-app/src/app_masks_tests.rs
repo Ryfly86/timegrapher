@@ -184,8 +184,8 @@ fn listening_asks_before_unsaved_masks_go() {
     );
     // Answered, with an input that can't be opened: the masks stay on
     // show, still to save.
-    app.devices_listed = true;
-    app.device = Some("no such input".into());
+    app.recording.devices_listed = true;
+    app.recording.device = Some("no such input".into());
     app.confirm = None;
     app.listen_after_ask();
     assert!(!app.running());
@@ -339,7 +339,7 @@ fn positions_painted_on_a_take_are_saved_to_it() {
         ]
     );
     // The readings are cut at each change: none reaches across one.
-    let breaks = app.live.as_ref().unwrap().breaks().to_vec();
+    let breaks = app.recording.live.as_ref().unwrap().breaks().to_vec();
     assert!(
         breaks.contains(&10.0) && breaks.contains(&40.0),
         "{breaks:?}"
@@ -616,7 +616,7 @@ fn full_wind_results_load_and_the_next_test_is_set_against_them() {
     app.start_guided(app.test.guided_earlier.clone());
     let test = app.test.guided.as_ref().expect("the test runs");
     assert_eq!(test.full.as_ref().map(|f| &f.0), Some(&full));
-    app.capture = None;
+    app.recording.capture = None;
     let _ = std::fs::remove_dir_all(&base);
 }
 
@@ -1022,7 +1022,7 @@ fn a_masked_stretch_keeps_its_beats_when_opened() {
     let mut app = opened_recording(&base, "take.wav", 20.0);
     assert_eq!(app.take.masked, [(5.0, 10.0)]);
     let under = |app: &TimegrapherApp| {
-        let live = app.live.as_ref().unwrap();
+        let live = app.recording.live.as_ref().unwrap();
         live.beats()
             .iter()
             .filter(|b| (5.0..10.0).contains(&b.time))
@@ -1056,7 +1056,7 @@ fn a_settling_is_left_out_of_an_opened_takes_readings() {
         .strip_settles()
         .iter()
         .any(|s| (s.0, s.1) == (10.0, 14.0)));
-    let engine = |app: &TimegrapherApp| app.live.as_ref().unwrap().masked().to_vec();
+    let engine = |app: &TimegrapherApp| app.recording.live.as_ref().unwrap().masked().to_vec();
     assert!(app.take.masked.is_empty(), "a settling is no mask by hand");
     assert_eq!(engine(&app), [(10.0, 14.0)]);
     app.set_masked(vec![(2.0, 3.0)]);

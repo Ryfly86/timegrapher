@@ -7,20 +7,20 @@ impl TimegrapherApp {
     /// Ask for `picker`'s dialog, shown once this frame ends. While one is
     /// waiting to be shown, another is not asked for.
     pub(crate) fn pick(&mut self, picker: Picker) {
-        if self.picker.is_none() {
-            self.picker = Some(picker);
+        if self.recording.picker.is_none() {
+            self.recording.picker = Some(picker);
         }
     }
 
     /// The dialog asked for, to show now.
     pub(crate) fn take_picker(&mut self) -> Option<Picker> {
-        self.picker.take()
+        self.recording.picker.take()
     }
 
     /// Whether a dialog is waiting to be shown.
     #[cfg(test)]
     pub(super) fn picking(&self) -> bool {
-        self.picker.is_some()
+        self.recording.picker.is_some()
     }
 
     /// Where a save or load dialog starts: the folder the session was
@@ -34,7 +34,7 @@ impl TimegrapherApp {
 
     /// Open a recording, or a folder of segments, chosen in a dialog.
     pub(super) fn open_from_menu(&mut self, folder: bool) {
-        let here = Path::new(self.file_path.trim());
+        let here = Path::new(self.recording.file_path.trim());
         let picker = if folder {
             let mut d =
                 rfd::FileDialog::new().set_title("Open a Saved Take or a Folder of Segments");
@@ -62,8 +62,8 @@ impl TimegrapherApp {
 
     /// Open the recording or folder picked in Open's dialog, or ask first.
     fn open_picked(&mut self, p: PathBuf) {
-        self.file_path = p.display().to_string();
-        self.input = Input::File;
+        self.recording.file_path = p.display().to_string();
+        self.recording.input = Input::File;
         match self.open_ask_for(&p) {
             Some(a) => self.keeping.open_ask = Some(a),
             None => self.open_recording(&p, true),

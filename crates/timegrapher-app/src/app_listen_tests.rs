@@ -90,7 +90,7 @@ fn a_quick_listen_heard_is_kept_in_a_watch_and_goes_on() {
     pass(&mut app, click(pepsi));
     pass(&mut app, Vec::new());
     assert!(app.running(), "listening goes on");
-    assert!(!app.quick_listen && app.take.watch == "Pepsi");
+    assert!(!app.recording.quick_listen && app.take.watch == "Pepsi");
     assert_eq!(
         app.open_watch().map(|e| e.watch.name.as_str()),
         Some("Pepsi")
@@ -99,7 +99,7 @@ fn a_quick_listen_heard_is_kept_in_a_watch_and_goes_on() {
     assert!(app.session.saved_to().is_none());
     assert!(std::fs::read_dir(&takes).map_or(0, |d| d.count()) == 0);
     // Stop saves it into Pepsi, as a take of Pepsi.
-    app.capture = None;
+    app.recording.capture = None;
     app.stop_listening();
     app.wait_for_save();
     assert_eq!(std::fs::read_dir(&takes).map_or(0, |d| d.count()), 1);
@@ -153,7 +153,7 @@ fn a_quick_listen_heard_is_kept_in_a_watch_from_the_watch_line() {
     assert!(app.quick_listen_ready(true));
     app.session.listen();
     let _tx = queued_capture(&mut app, &base);
-    assert!(app.running() && app.quick_listen);
+    assert!(app.running() && app.recording.quick_listen);
     let ctx = theme_ctx();
     let pass = |app: &mut TimegrapherApp, events: Vec<egui::Event>| {
         let input = egui::RawInput {
@@ -174,9 +174,9 @@ fn a_quick_listen_heard_is_kept_in_a_watch_from_the_watch_line() {
     pass(&mut app, click_at(at));
     pass(&mut app, Vec::new());
     assert!(app.running(), "listening goes on");
-    assert!(!app.quick_listen && app.take.watch == "Pepsi");
+    assert!(!app.recording.quick_listen && app.take.watch == "Pepsi");
     assert_eq!(app.watches_view.watch_open.as_deref(), Some(pepsi.as_str()));
-    app.capture = None;
+    app.recording.capture = None;
     let _ = std::fs::remove_dir_all(&base);
 }
 
@@ -195,9 +195,9 @@ fn keep_in_a_watch_waits_for_a_played_recording_to_end() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.use_library(Some(root.clone()));
     let _tx = queued_capture(&mut app, &base);
-    app.input = Input::File;
+    app.recording.input = Input::File;
     app.keeping.opened_path = base.join("empty-input.wav").display().to_string();
-    assert!(app.running() && !app.quick_listen);
+    assert!(app.running() && !app.recording.quick_listen);
     assert!(app.addable_take().is_some());
     let ctx = theme_ctx();
     let mut time = 0.0;
@@ -233,7 +233,7 @@ fn keep_in_a_watch_waits_for_a_played_recording_to_end() {
     pass(&mut app, click_at(pepsi));
     pass(&mut app, Vec::new());
     assert!(app.watches_view.watch_open.is_none() && app.keeping.keep_back.is_none());
-    app.capture = None;
+    app.recording.capture = None;
     let _ = std::fs::remove_dir_all(&base);
 }
 
@@ -264,12 +264,12 @@ fn a_watchs_take_heard_keeps_its_watch() {
     app.pick_watch(&pepsi);
     app.session.listen();
     let _tx = queued_capture(&mut app, &base);
-    assert!(app.running() && !app.quick_listen);
+    assert!(app.running() && !app.recording.quick_listen);
     app.line_pick(Some(diver.clone()), false);
     app.keep_in_watch(&diver);
     assert_eq!(app.watches_view.watch_open.as_deref(), Some(pepsi.as_str()));
     assert_eq!(app.take.watch, "Pepsi");
-    app.capture = None;
+    app.recording.capture = None;
     let _ = std::fs::remove_dir_all(&base);
 }
 
@@ -354,7 +354,7 @@ fn a_second_tap_on_stop_starts_nothing() {
         said.starts_with("Quick Listen can't keep its take"),
         "{said}"
     );
-    app.capture = None;
+    app.recording.capture = None;
     let _ = std::fs::remove_dir_all(&base);
 }
 
@@ -504,7 +504,7 @@ fn a_kept_quick_listen_stopped_keeps_its_sound_in_its_take_alone() {
     assert_eq!(heard, 5 * 48000);
     assert!(app.saved_hours_reachable());
     // Stopped with the readings on show, as a Listen leaves it.
-    app.live = Some(LiveAnalyzer::new(48_000, LiveConfig::default()));
+    app.recording.live = Some(LiveAnalyzer::new(48_000, LiveConfig::default()));
     assert!(app.can_resume(), "carried on while its take is there");
     std::fs::remove_dir_all(&take).unwrap();
     assert!(!app.saved_hours_reachable());
@@ -540,7 +540,7 @@ fn a_kept_quick_listen_stopped_keeps_its_sound_in_its_take_alone() {
     let pepsi = add_watch(&mut app, "Pepsi");
     app.message = None;
     app.keep_in_watch(&pepsi);
-    assert!(app.quick_listen && app.watches_view.watch_open.is_none());
+    assert!(app.recording.quick_listen && app.watches_view.watch_open.is_none());
     assert!(app.keeping.saving.is_none() && app.keeping.after_save.is_empty());
     let said = app.message.as_ref().map(|m| m.0.as_str());
     let why = "This sound can't be saved\nIts earlier part was kept only in its take, \
@@ -607,14 +607,14 @@ fn sound_left_with_its_earlier_hours_gone_says_only_its_last_part_is_here() {
         "{said:?}"
     );
     // Open reads what is there: the last 2 s.
-    app.capture = None;
+    app.recording.capture = None;
     app.open_recording(&copy, true);
     let t = std::time::Instant::now();
-    while app.batch.is_some() && t.elapsed().as_secs() < 60 {
+    while app.recording.batch.is_some() && t.elapsed().as_secs() < 60 {
         app.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    let heard = app.live.as_ref().map(|l| l.duration_s());
+    let heard = app.recording.live.as_ref().map(|l| l.duration_s());
     assert!(
         heard.is_some_and(|d| (d - 2.0).abs() < 0.5),
         "{heard:?} {:?}",
@@ -1079,7 +1079,7 @@ fn a_watchs_take_records_into_its_folder_as_it_goes() {
     .unwrap();
     app.session.recorder = Some(r);
     let _tx = queued_capture(&mut app, &base);
-    assert!(app.streams() && !app.quick_listen);
+    assert!(app.streams() && !app.recording.quick_listen);
     assert_eq!(app.kept_place(), "Pepsi");
     app.stream_tick();
     app.wait_for_save();
@@ -1157,7 +1157,7 @@ fn a_watchs_take_records_into_its_folder_as_it_goes() {
             .any(|t| t.0.contains("never saved anywhere else")),
         "{said:?}"
     );
-    app.capture = None;
+    app.recording.capture = None;
     let _ = std::fs::remove_dir_all(&base);
 }
 
@@ -1223,7 +1223,7 @@ fn just_open_it_called_off_leaves_the_watch_of_the_take_heard() {
     let alpha = add_watch(&mut app, "Alpha");
     // A take of Alpha's, still heard, 13 s of it not saved.
     app.watches_view.watch_open = Some(alpha.clone());
-    app.quick_listen = false;
+    app.recording.quick_listen = false;
     let r = app.session.recorder.as_mut().unwrap();
     r.write(&silence(10, 3)).unwrap();
     assert!(app.needs_save_confirmation(), "{}", app.unsaved_s());
@@ -1582,6 +1582,6 @@ fn a_click_on_stop_behind_settings_only_closes_settings() {
     pass(&mut app, settled, Vec::new());
     pass(&mut app, settled, click_at(stop));
     assert!(!app.running(), "Stop, now in view, stops");
-    app.capture = None;
+    app.recording.capture = None;
     let _ = std::fs::remove_dir_all(&base);
 }

@@ -462,7 +462,7 @@ fn keeping_a_recording_asks_only_what_is_not_on_show() {
     w.finalize().unwrap();
     let mut app = synthetic(5.0, 0.0);
     app.use_library(Some(root.clone()));
-    app.input = Input::File;
+    app.recording.input = Input::File;
     app.keeping.opened_path = lone.display().to_string();
     app.take.position = Position::CrownLeft;
     app.take.bph = Some(28800);
@@ -567,7 +567,7 @@ fn one_part_of_a_take_is_kept_alone() {
     let first = part(1);
     let mut app = synthetic(5.0, 0.0);
     app.use_library(Some(root.clone()));
-    app.input = Input::File;
+    app.recording.input = Input::File;
     app.keeping.opened_path = first.display().to_string();
     // Alone in its folder, the take goes in whole.
     app.keep_into(&pepsi);
@@ -611,7 +611,7 @@ fn a_recording_on_show_is_kept_in_a_new_watch_with_its_charts() {
     // A recording opened from outside the watches, its readings on show.
     let mut app = synthetic(5.0, 0.0);
     app.use_library(Some(root.clone()));
-    app.input = Input::File;
+    app.recording.input = Input::File;
     app.keeping.opened_path = lone.display().to_string();
     let shown = (
         app.results.trend.len(),
@@ -674,7 +674,7 @@ fn a_recording_on_show_is_kept_in_a_new_watch_with_its_charts() {
 
     // File > New Session lets go of the recording: a new take follows.
     app.new_session();
-    assert!(app.input == Input::Microphone && app.keeping.opened_path.is_empty());
+    assert!(app.recording.input == Input::Microphone && app.keeping.opened_path.is_empty());
     assert_eq!(app.status_words(), "New Take · Meteorite · Not Started");
     // And the watch's settings apply to it (set up as New Take does,
     // without opening a real input).
@@ -738,7 +738,7 @@ fn quick_listen_keeps_its_take_in_unsorted_until_filed() {
     assert!(!app.quick_listen_ready(false));
     assert!(matches!(app.confirm, Some(Confirm::QuickListen)));
     assert!(
-        !app.quick_listen && app.watches_view.watch_open.is_some(),
+        !app.recording.quick_listen && app.watches_view.watch_open.is_some(),
         "nothing yet"
     );
     // Answered (no input is opened here: the test touches no device).
@@ -746,7 +746,9 @@ fn quick_listen_keeps_its_take_in_unsorted_until_filed() {
     assert!(app.quick_listen_ready(true));
     assert!(app.session.recorder.is_none(), "the unsaved session went");
     assert!(
-        app.quick_listen && app.watches_view.unsorted_open && app.watches_view.watch_open.is_none()
+        app.recording.quick_listen
+            && app.watches_view.unsorted_open
+            && app.watches_view.watch_open.is_none()
     );
     assert_eq!(app.take.watch, "");
     assert!(!app.running());
@@ -840,7 +842,7 @@ fn quick_listen_keeps_its_take_in_unsorted_until_filed() {
     // Picking a watch ends Quick Listen: Save… saves into the watch.
     app.watches_view.list_for = Some((None, true));
     app.pick_watch(&pepsi);
-    assert!(!app.quick_listen && !app.watches_view.unsorted_open);
+    assert!(!app.recording.quick_listen && !app.watches_view.unsorted_open);
     assert!(app.watches_view.list_for.is_none());
     assert_eq!(
         app.watch_takes_dir(),
@@ -904,7 +906,10 @@ fn a_watchs_take_is_kept_at_stop_and_quick_listen_is_kept_in_a_watch() {
     app.keep_in_watch(&pepsi);
     app.wait_for_save();
     assert_eq!(count(), 2);
-    assert!(!app.quick_listen && app.watches_view.watch_open.as_deref() == Some(pepsi.as_str()));
+    assert!(
+        !app.recording.quick_listen
+            && app.watches_view.watch_open.as_deref() == Some(pepsi.as_str())
+    );
     assert_eq!(app.take.watch, "Pepsi");
     assert!(!app.needs_save_confirmation());
     drop(app);
@@ -1084,20 +1089,20 @@ fn a_watchs_takes_are_kept_moved_deleted_and_added() {
     // A click picks the take without opening it.
     app.take_action(Some(watches::TakeAction::Pick(take.clone())));
     assert_eq!(app.keeping.take_picked.as_ref(), Some(&take));
-    assert!(app.batch.is_none() && app.live.is_none());
+    assert!(app.recording.batch.is_none() && app.recording.live.is_none());
     // Its opened analysis reads back.
     app.take_action(Some(watches::TakeAction::Open(take.clone())));
-    assert!(app.batch.is_some());
+    assert!(app.recording.batch.is_some());
     let t = Instant::now();
-    while app.batch.is_some() && t.elapsed().as_secs() < 60 {
+    while app.recording.batch.is_some() && t.elapsed().as_secs() < 60 {
         app.poll();
         std::thread::sleep(Duration::from_millis(20));
     }
-    assert!(app.live.is_some());
+    assert!(app.recording.live.is_some());
     assert_eq!(app.take_on_show().as_ref(), Some(&take));
     // Opened again while on show, it is not read again.
     app.take_action(Some(watches::TakeAction::Open(take.clone())));
-    assert!(app.batch.is_none());
+    assert!(app.recording.batch.is_none());
 
     let name = file_name(&take);
 
@@ -1136,13 +1141,13 @@ fn a_watchs_takes_are_kept_moved_deleted_and_added() {
     });
     assert!(!d.exists());
     // The take was on show: the window is empty again, as at the start.
-    assert!(app.live.is_none() && app.keeping.opened_path.is_empty());
+    assert!(app.recording.live.is_none() && app.keeping.opened_path.is_empty());
     assert!(app.take_on_show().is_none());
     // Set for Daytona's next take, as Listen sets it: its calibre, lift
     // and beat rate on the card, and no Quick Listen in the status (#1981).
     let w = app.open_watch().unwrap().watch.clone();
     assert_eq!(
-        (app.take.watch.as_str(), app.quick_listen),
+        (app.take.watch.as_str(), app.recording.quick_listen),
         ("Daytona", false)
     );
     assert_eq!(app.take.calibre, w.calibre.clone().unwrap_or_default());
@@ -1161,7 +1166,7 @@ fn a_watchs_takes_are_kept_moved_deleted_and_added() {
     // A take from outside, opened, is added by a move.
     let outside = base.join("From a USB Stick");
     take_at(&outside);
-    app.input = Input::File;
+    app.recording.input = Input::File;
     app.keeping.opened_path = outside.display().to_string();
     assert_eq!(app.addable_take(), Some(outside.clone()));
     app.answer_take_ask(watches::Ask::Add {
@@ -1210,7 +1215,7 @@ fn the_take_on_show_filed_from_unsorted_takes_the_bench_to_its_watch() {
     app.pick_unsorted();
     app.take_action(Some(watches::TakeAction::Open(take.clone())));
     let t = Instant::now();
-    while app.batch.is_some() && t.elapsed().as_secs() < 60 {
+    while app.recording.batch.is_some() && t.elapsed().as_secs() < 60 {
         app.poll();
         std::thread::sleep(Duration::from_millis(20));
     }
@@ -1265,7 +1270,7 @@ fn a_quick_listen_kept_then_filed_takes_the_bench_to_its_watch() {
         app.status_words()
     );
     let t = Instant::now();
-    while app.batch.is_some() && t.elapsed().as_secs() < 60 {
+    while app.recording.batch.is_some() && t.elapsed().as_secs() < 60 {
         app.poll();
         std::thread::sleep(Duration::from_millis(20));
     }
@@ -1325,7 +1330,7 @@ fn a_moved_take_takes_its_new_watchs_settings() {
     app.use_library(Some(root.clone()));
     let open = |app: &mut TimegrapherApp| {
         let t = Instant::now();
-        while app.batch.is_some() && t.elapsed().as_secs() < 60 {
+        while app.recording.batch.is_some() && t.elapsed().as_secs() < 60 {
             app.poll();
             std::thread::sleep(Duration::from_millis(20));
         }
@@ -1357,7 +1362,7 @@ fn a_moved_take_takes_its_new_watchs_settings() {
         .unwrap()
         .contains("# kept as written"));
     // On show, it is read again with them.
-    assert!(app.batch.is_some(), "read again");
+    assert!(app.recording.batch.is_some(), "read again");
     open(&mut app);
     assert_eq!(app.take_on_show().as_ref(), Some(&at));
     assert_eq!(app.take.lift_deg, lift);
@@ -1413,7 +1418,7 @@ fn picking_or_adding_a_watch_keeps_a_recording_opened_from_outside() {
     // Picked in Watches.
     app.pick_watch(&pepsi);
     assert_eq!(app.take_on_show(), Some(shown.clone()));
-    assert!(app.live.is_some());
+    assert!(app.recording.live.is_some());
     assert_eq!(app.watches_view.watch_open.as_deref(), Some(pepsi.as_str()));
     // Picked on the Watch line: nothing asked, nothing put away, and the
     // position stays.
@@ -1477,7 +1482,7 @@ fn picking_another_watch_puts_the_take_on_show_away() {
         app.pick_watch(&pepsi_id);
         app.take_action(Some(watches::TakeAction::Open(take.clone())));
         let t = Instant::now();
-        while app.batch.is_some() && t.elapsed().as_secs() < 60 {
+        while app.recording.batch.is_some() && t.elapsed().as_secs() < 60 {
             app.poll();
             std::thread::sleep(Duration::from_millis(20));
         }
@@ -1489,7 +1494,7 @@ fn picking_another_watch_puts_the_take_on_show_away() {
     assert_eq!(app.take_on_show().as_ref(), Some(&take));
     // Another: it is put away, and the Bench names the one picked.
     app.pick_watch(&daytona_id);
-    assert!(app.take_on_show().is_none() && app.live.is_none());
+    assert!(app.take_on_show().is_none() && app.recording.live.is_none());
     assert_eq!(app.take.watch, "Daytona");
     assert!(
         app.status_words().contains("Daytona"),
@@ -1537,7 +1542,7 @@ fn picking_another_watch_puts_the_take_on_show_away() {
     app.pick_unsorted();
     app.take_action(Some(watches::TakeAction::Open(unsorted.clone())));
     let t = Instant::now();
-    while app.batch.is_some() && t.elapsed().as_secs() < 60 {
+    while app.recording.batch.is_some() && t.elapsed().as_secs() < 60 {
         app.poll();
         std::thread::sleep(Duration::from_millis(20));
     }
@@ -1643,11 +1648,11 @@ fn a_quit_that_cannot_ask_keeps_unsaved_sound_to_offer_back() {
     // Open reads it as a recording.
     next.open_recording(&dir, true);
     let t = Instant::now();
-    while next.batch.is_some() && t.elapsed().as_secs() < 60 {
+    while next.recording.batch.is_some() && t.elapsed().as_secs() < 60 {
         next.poll();
         std::thread::sleep(Duration::from_millis(20));
     }
-    let live = next.live.as_ref().expect("opened");
+    let live = next.recording.live.as_ref().expect("opened");
     assert!(
         (live.duration_s() - 20.0).abs() < 0.5,
         "{}",
@@ -1686,14 +1691,14 @@ fn positions_are_read_from_file_names() {
 /// Wait for the analysis being kept, then for the take being opened.
 fn wait_for_jobs(app: &mut TimegrapherApp) {
     let t = Instant::now();
-    while (app.keeping.analysis_save.is_some() || app.batch.is_some())
+    while (app.keeping.analysis_save.is_some() || app.recording.batch.is_some())
         && t.elapsed().as_secs() < 180
     {
         app.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     assert!(
-        app.keeping.analysis_save.is_none() && app.batch.is_none(),
+        app.keeping.analysis_save.is_none() && app.recording.batch.is_none(),
         "still working"
     );
 }
@@ -1743,7 +1748,7 @@ fn a_session_kept_as_its_analysis_opens_as_the_sound_does() {
             .unwrap();
     }
     for samples in audio.samples.chunks(960) {
-        app.live.as_mut().unwrap().push(samples);
+        app.recording.live.as_mut().unwrap().push(samples);
     }
     app.take.masked = vec![(30.0, 32.0)];
     // A calibre with its own escape teeth: the kept analysis is read with
@@ -1804,7 +1809,10 @@ fn a_session_kept_as_its_analysis_opens_as_the_sound_does() {
     assert!(a.keeping.no_sound.is_some() && b.keeping.no_sound.is_none());
     assert_eq!(a.take.masked, b.take.masked);
     assert_eq!(a.take.masked, vec![(30.0, 32.0)]);
-    let (la, lb) = (a.live.as_ref().unwrap(), b.live.as_ref().unwrap());
+    let (la, lb) = (
+        a.recording.live.as_ref().unwrap(),
+        b.recording.live.as_ref().unwrap(),
+    );
     assert_eq!(la.beats().len(), lb.beats().len());
     assert_eq!(la.amplitude_windows().len(), lb.amplitude_windows().len());
     let (ra, rb) = (la.reading(20.0), lb.reading(20.0));
@@ -2122,13 +2130,13 @@ fn just_open_it_lets_the_watch_picked_go() {
     app.use_library(Some(root.clone()));
     app.pick_watch(&alpha);
     // As Open's dialog does (`open_picked`).
-    app.input = Input::File;
+    app.recording.input = Input::File;
     let mut a = app.open_ask_for(&take).expect("asked");
     a.add = false;
     let need = app.open_need(&a);
     app.answer_open_ask(a, need);
     let t = Instant::now();
-    while app.batch.is_some() && t.elapsed().as_secs() < 120 {
+    while app.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
         app.poll();
     }
     assert!(app.watches_view.watch_open.is_none() && !app.watches_view.unsorted_open);
@@ -2178,7 +2186,7 @@ fn a_new_watch_made_for_a_take_takes_its_calibre_beat_rate_and_lift() {
         .unwrap();
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
         app.use_library(Some(root.clone()));
-        app.input = Input::File;
+        app.recording.input = Input::File;
         let mut a = app.open_ask_for(&take).expect("asked");
         a.add = true;
         a.new_watch = true;
@@ -2209,7 +2217,7 @@ fn a_new_watch_made_for_a_take_takes_its_calibre_beat_rate_and_lift() {
             assert_eq!(app.cal.watch_bph(w), known.bph);
         }
         let t = Instant::now();
-        while app.batch.is_some() && t.elapsed().as_secs() < 120 {
+        while app.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
             app.poll();
         }
         let _ = std::fs::remove_dir_all(&base);
@@ -2259,7 +2267,7 @@ fn a_new_watch_for_a_recording_that_cant_be_added_is_taken_back() {
     drop(lib);
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.use_library(Some(root.clone()));
-    app.input = Input::File;
+    app.recording.input = Input::File;
     // A failed add into a watch already there leaves it, empty or not.
     let mut a = app.open_ask_for(&take).expect("asked");
     a.add = true;
@@ -2321,7 +2329,7 @@ fn a_new_watch_for_a_recording_that_cant_be_added_is_taken_back() {
     );
     assert_eq!(names(&root), ["Alpha", "Pictured", "YM42 roam"]);
     let t = Instant::now();
-    while app.batch.is_some() && t.elapsed().as_secs() < 120 {
+    while app.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
         app.poll();
     }
     let _ = std::fs::remove_dir_all(&base);
@@ -2674,10 +2682,10 @@ fn a_stop_withholds_the_faint_sides_of_the_open_chunk() {
     };
     let audio = generate(&cfg, swing, |_| 0.0);
     for b in audio.samples.chunks(4800) {
-        app.live.as_mut().unwrap().push(b);
+        app.recording.live.as_mut().unwrap().push(b);
     }
     let faint_from = |app: &TimegrapherApp, from_s: f64| {
-        let live = app.live.as_ref().unwrap();
+        let live = app.recording.live.as_ref().unwrap();
         let wins = live.amplitude_windows().iter();
         wins.filter(|w| w.start_s >= from_s && w.faint_withheld().contains(&true))
             .count()
@@ -2721,7 +2729,7 @@ fn a_test_kept_without_its_sound_says_its_figures_are_the_listenings() {
         r.write(&block).unwrap();
     }
     for samples in audio.samples.chunks(960) {
-        app.live.as_mut().unwrap().push(samples);
+        app.recording.live.as_mut().unwrap().push(samples);
     }
     // A test not finished is left as it is, with no note (Trevor on
     // #2080).
@@ -2800,7 +2808,7 @@ fn a_test_kept_as_its_analysis_keeps_its_starts_wind() {
             .unwrap();
     }
     for samples in audio.samples.chunks(960) {
-        app.live.as_mut().unwrap().push(samples);
+        app.recording.live.as_mut().unwrap().push(samples);
     }
     app.pick_wind(WindPick::HoursAgo(5.0));
     app.started_from_full_wind(false);

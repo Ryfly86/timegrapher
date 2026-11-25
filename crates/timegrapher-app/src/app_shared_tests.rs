@@ -36,7 +36,7 @@ pub(super) fn synthetic_swinging(
         ..Default::default()
     };
     let audio = generate(&cfg, amp, extra);
-    let live = app.live.as_mut().unwrap();
+    let live = app.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         if live.push(b) {
             let r = live.reading(app.take.average_s);
@@ -118,7 +118,7 @@ pub(super) fn append_save_test_second(app: &mut TimegrapherApp, at: u64) {
         .write(&block)
         .unwrap();
     for samples in block.samples.chunks(960) {
-        app.live.as_mut().unwrap().push(samples);
+        app.recording.live.as_mut().unwrap().push(samples);
     }
 }
 
@@ -154,8 +154,8 @@ pub(super) fn queued_capture(
     let (tx, rx) = std::sync::mpsc::channel();
     capture.rx = rx;
     capture.is_file = false;
-    app.capture = Some(capture);
-    app.opened_at = Instant::now();
+    app.recording.capture = Some(capture);
+    app.recording.opened_at = Instant::now();
     tx
 }
 
@@ -179,10 +179,10 @@ pub(super) fn reopened(path: &Path) -> TimegrapherApp {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.start_batch(path);
     let t = Instant::now();
-    while app.batch.is_some() && t.elapsed().as_secs() < 120 {
+    while app.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
         app.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    assert!(app.live.is_some(), "{:?}", app.message);
+    assert!(app.recording.live.is_some(), "{:?}", app.message);
     app
 }
