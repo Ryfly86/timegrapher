@@ -26,8 +26,8 @@ fn a_dynamic_poise_test_is_set_up_at_9h_with_the_card_at_10() {
         &app.bench.panes_view.panes.tiles,
         Pane::DynamicPoise
     ));
-    assert_eq!(app.take.position, Position::CrownDown);
-    assert_eq!(app.take.position.witschi(), "9H");
+    assert_eq!(app.bench.take.position, Position::CrownDown);
+    assert_eq!(app.bench.take.position.witschi(), "9H");
     assert!(
         app.bench.test.ten_positions,
         "Start was pressed: the card shows the eight"
@@ -960,7 +960,7 @@ fn the_panes_start_button_turns_to_the_next_stop() {
         .find(|(t, _)| t.contains(&start))
         .unwrap_or_else(|| panic!("{start} in {drawn:?}"));
     click(&mut app, Pane::DynamicPoise, size, button.center());
-    assert_eq!(app.take.position, order[1]);
+    assert_eq!(app.bench.take.position, order[1]);
     assert_eq!(app.poise_test().map(|t| t.step), Some(1));
     assert!(
         !app.bench.test.guided_measured.is_empty(),
@@ -1834,7 +1834,7 @@ fn a_kept_positions_test_read_again_is_still_saved() {
         serde_json::from_str(&std::fs::read_to_string(dir.join(guided::RESULTS_FILE)).unwrap())
             .unwrap();
     assert!(!on_disk.listened);
-    app.take.calibre = "Another".into();
+    app.bench.take.calibre = "Another".into();
     assert!(app.metadata_unsaved(), "an edit still shows as unsaved");
     let _ = std::fs::remove_dir_all(&base);
 }

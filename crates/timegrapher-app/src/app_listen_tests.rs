@@ -23,7 +23,7 @@ fn a_quick_listen_heard_is_kept_in_a_watch_and_goes_on() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.use_library(Some(root.clone()));
     assert!(app.quick_listen_ready(true));
-    assert!(app.take.calibre.is_empty());
+    assert!(app.bench.take.calibre.is_empty());
     app.session.listen();
     let info = app.info("", 48000, 16);
     let mut r = Recorder::start(&base.join("unsaved"), info).unwrap();
@@ -90,12 +90,12 @@ fn a_quick_listen_heard_is_kept_in_a_watch_and_goes_on() {
     pass(&mut app, click(pepsi));
     pass(&mut app, Vec::new());
     assert!(app.running(), "listening goes on");
-    assert!(!app.recording.quick_listen && app.take.watch == "Pepsi");
+    assert!(!app.recording.quick_listen && app.bench.take.watch == "Pepsi");
     assert_eq!(
         app.open_watch().map(|e| e.watch.name.as_str()),
         Some("Pepsi")
     );
-    assert_eq!(app.take.calibre, c.calibre);
+    assert_eq!(app.bench.take.calibre, c.calibre);
     assert!(app.session.saved_to().is_none());
     assert!(std::fs::read_dir(&takes).map_or(0, |d| d.count()) == 0);
     // Stop saves it into Pepsi, as a take of Pepsi.
@@ -174,7 +174,7 @@ fn a_quick_listen_heard_is_kept_in_a_watch_from_the_watch_line() {
     pass(&mut app, click_at(at));
     pass(&mut app, Vec::new());
     assert!(app.running(), "listening goes on");
-    assert!(!app.recording.quick_listen && app.take.watch == "Pepsi");
+    assert!(!app.recording.quick_listen && app.bench.take.watch == "Pepsi");
     assert_eq!(app.watches_view.watch_open.as_deref(), Some(pepsi.as_str()));
     app.recording.capture = None;
     let _ = std::fs::remove_dir_all(&base);
@@ -268,7 +268,7 @@ fn a_watchs_take_heard_keeps_its_watch() {
     app.line_pick(Some(diver.clone()), false);
     app.keep_in_watch(&diver);
     assert_eq!(app.watches_view.watch_open.as_deref(), Some(pepsi.as_str()));
-    assert_eq!(app.take.watch, "Pepsi");
+    assert_eq!(app.bench.take.watch, "Pepsi");
     app.recording.capture = None;
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -977,7 +977,7 @@ fn two_watches_picked_during_a_save_file_the_take_under_the_last() {
     );
     let filed = h.app.session.saved_to().expect("kept").to_path_buf();
     assert_eq!(filed.parent(), Some(takes_of(&h.app, "Beta").as_path()));
-    assert_eq!(h.app.take.watch, "Beta");
+    assert_eq!(h.app.bench.take.watch, "Beta");
     assert!(
         !takes_of(&h.app, "Alpha").exists()
             || std::fs::read_dir(takes_of(&h.app, "Alpha"))
@@ -1189,7 +1189,12 @@ fn a_power_reserve_test_records_into_its_folder_as_it_goes() {
     let started = r.started_utc().to_string();
     app.session.recorder = Some(r);
     let _tx = queued_capture(&mut app, &base);
-    app.bench.test.reserve = Some(reserve::Test::new(app.take.position, true, started, 0.0));
+    app.bench.test.reserve = Some(reserve::Test::new(
+        app.bench.take.position,
+        true,
+        started,
+        0.0,
+    ));
     assert!(app.streams(), "a test of a watch picked records as it goes");
     app.stream_tick();
     app.wait_for_save();
@@ -1241,7 +1246,7 @@ fn just_open_it_called_off_leaves_the_watch_of_the_take_heard() {
     let mut a = app.open_ask_for(&outside).expect("asked");
     a.add = false;
     let need = app.open_need(&a);
-    let setup_before = app.take.mic_setup.clone();
+    let setup_before = app.bench.take.mic_setup.clone();
     app.answer_open_ask(a, need);
     assert!(
         matches!(app.confirm, Some(Confirm::Open { no_watch: true, .. })),
@@ -1250,7 +1255,7 @@ fn just_open_it_called_off_leaves_the_watch_of_the_take_heard() {
     // Called off: nothing changed.
     app.confirm = None;
     assert_eq!(app.watches_view.watch_open.as_deref(), Some(alpha.as_str()));
-    assert_eq!(app.take.mic_setup, setup_before);
+    assert_eq!(app.bench.take.mic_setup, setup_before);
     assert!(app.running());
     // Asked again and answered: it opens with no watch picked.
     let mut a = app.open_ask_for(&outside).expect("asked");
@@ -1269,7 +1274,7 @@ fn just_open_it_called_off_leaves_the_watch_of_the_take_heard() {
         }
     });
     assert!(app.watches_view.watch_open.is_none() && !app.watches_view.unsorted_open);
-    assert_eq!(app.take.mic_setup, Some(WatchSetup::default()));
+    assert_eq!(app.bench.take.mic_setup, Some(WatchSetup::default()));
     let _ = std::fs::remove_dir_all(&base);
 }
 

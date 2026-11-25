@@ -152,7 +152,7 @@ fn a_take_on_show_shows_its_own_wind() {
     let (m, _) = read_manifest(&take).unwrap().unwrap();
     assert_eq!(timegrapher_core::full_wind::take_wind_h(&m), Some(30.0));
     // The take's next write, its masks saved, keeps it (Felix's guard).
-    app.take.masked = vec![(1.0, 2.0)];
+    app.bench.take.masked = vec![(1.0, 2.0)];
     app.save_marks();
     let text = std::fs::read_to_string(take.join(MANIFEST)).unwrap();
     assert!(text.contains("masked"), "{text}");
@@ -395,7 +395,7 @@ fn the_listen_card_shows_the_wind_beside_average_over() {
             let (out, card) = listen_card_out(&mut app, &ctx, w, compact);
             let all = painted_text(&out);
             let inner = card.shrink(f32::from(theme::CARD_PADDING));
-            let avg_now = fields::duration(app.take.average_s);
+            let avg_now = fields::duration(app.bench.take.average_s);
             let form = listen_card::FIELD_FORMS
                 .iter()
                 .copied()
@@ -404,8 +404,11 @@ fn the_listen_card_shows_the_wind_beside_average_over() {
                         && drawn(&out, &f.average(&avg_now)).is_some()
                 })
                 .unwrap_or_else(|| panic!("{w} {begun}: no Wind box in {all}"));
-            let avg = drawn(&out, &form.average(&fields::duration(app.take.average_s)))
-                .unwrap_or_else(|| panic!("{w}: no Average Over box in {all}"));
+            let avg = drawn(
+                &out,
+                &form.average(&fields::duration(app.bench.take.average_s)),
+            )
+            .unwrap_or_else(|| panic!("{w}: no Average Over box in {all}"));
             let wind = drawn(&out, &form.wind(&words)).unwrap();
             for r in [avg, wind] {
                 assert!(
@@ -458,7 +461,7 @@ fn window_wind(app: &mut TimegrapherApp, w: f32, h: f32) -> (listen_card::FieldF
         "no taller"
     );
     let words = app.wind_field().words;
-    let avg_now = fields::duration(app.take.average_s);
+    let avg_now = fields::duration(app.bench.take.average_s);
     listen_card::FIELD_FORMS
         .iter()
         .find_map(|f| {

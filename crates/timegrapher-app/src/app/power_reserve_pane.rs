@@ -80,7 +80,7 @@ impl TimegrapherApp {
     pub(super) fn reserve_settings(&mut self, ui: &mut egui::Ui) {
         let running = self.reserve_running();
         let pal = theme::pal(ui);
-        let p = self.take.position;
+        let p = self.bench.take.position;
         let words = if running {
             format!("Runs in {} ({})", p.name(), p.code())
         } else {
@@ -174,7 +174,7 @@ impl TimegrapherApp {
             .and_then(|t| t.results.clone());
         let nothing = done.is_none().then_some("No run ended yet");
         theme::bar_gap(ui);
-        let watch = self.take.watch.trim().to_string();
+        let watch = self.bench.take.watch.trim().to_string();
         if theme::tool_button(
             ui,
             Icon::SaveTable,
@@ -243,11 +243,11 @@ impl TimegrapherApp {
     /// position the card and the pane named, even where it came from a
     /// take opened over listening's own.
     pub(super) fn reserve_session(&mut self) {
-        let pos = self.take.position;
+        let pos = self.bench.take.position;
         if self.recording.live.is_some() || self.session.recorder.is_some() {
             self.new_session();
         }
-        self.take.position = pos;
+        self.bench.take.position = pos;
         self.recording.input = Input::Microphone;
         // Never Quick Listen, whose sound goes without a question: a test
         // keeps its take.
@@ -260,7 +260,7 @@ impl TimegrapherApp {
         // A Power Reserve Test begins at full wind.
         self.started_from_full_wind(true);
         let wind_h = self.take_wind_h();
-        let pos = self.take.position;
+        let pos = self.bench.take.position;
         let started = self
             .session
             .recorder
@@ -416,7 +416,7 @@ impl TimegrapherApp {
             &log,
             fit.as_ref(),
             &breaks,
-            &self.take.masked,
+            &self.bench.take.masked,
             first,
             to,
             from_hour,
@@ -471,12 +471,12 @@ impl TimegrapherApp {
         }
         let live = self.recording.live.clone()?;
         let (take_clock, opened) = (
-            self.take.take_clock.clone(),
-            self.take.take_breaks.is_some(),
+            self.bench.take.take_clock.clone(),
+            self.bench.take.take_breaks.is_some(),
         );
         let (ppm, take_breaks) = (
             self.recording.clock.as_ref().map(|c| c.ppm),
-            self.take.take_breaks.clone(),
+            self.bench.take.take_breaks.clone(),
         );
         let codes: Vec<&'static str> = self
             .session
@@ -485,15 +485,15 @@ impl TimegrapherApp {
             .map(|(_, p)| p.code())
             .collect();
         let codes = if codes.is_empty() {
-            vec![self.take.position.code()]
+            vec![self.bench.take.position.code()]
         } else {
             codes
         };
         // Its settlings left out as a mask is, as session reads the run
         // (#1233); the run still starts at its first beat, so the log
         // leaves out only the masks by hand.
-        let (by_hand, masked) = (self.take.masked.clone(), self.engine_masked());
-        let (position, sound) = (self.take.position, self.keeping.no_sound.is_none());
+        let (by_hand, masked) = (self.bench.take.masked.clone(), self.engine_masked());
+        let (position, sound) = (self.bench.take.position, self.keeping.no_sound.is_none());
         // The take opened kept as its analysis alone, whose folder says how
         // (core `power_reserve::of_take`); none for one heard here.
         let take = self
@@ -805,7 +805,7 @@ impl TimegrapherApp {
         } else {
             None
         };
-        let watch = self.take.watch.trim().to_string();
+        let watch = self.bench.take.watch.trim().to_string();
         // Its charts at a readable height, never a sliver under the strip.
         let shown = self.bench.panes_view.reserve_series;
         if let Some(least) = reserve::least_h(self.bench.test.reserve.as_ref(), shown) {

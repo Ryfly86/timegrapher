@@ -77,9 +77,9 @@ fn whole_take_beat_error_keeps_its_size_across_a_turn() {
 #[test]
 fn the_whole_take_is_read_at_any_length_and_any_average() {
     let mut app = synthetic(60.0, 12.0);
-    app.take.average_s = 60.0;
+    app.bench.take.average_s = 60.0;
     let long = app.whole_take().expect("60 s at an Average Over of 60 s");
-    app.take.average_s = 10.0;
+    app.bench.take.average_s = 10.0;
     let short = app.whole_take().expect("60 s at an Average Over of 10 s");
     assert_eq!(long.m.rate_s_per_day, short.m.rate_s_per_day);
     assert_eq!(long.span, short.span);

@@ -182,7 +182,7 @@ impl super::TimegrapherApp {
             })
         });
         if let Some(p) = pressed.filter(|_| self.position_editable()) {
-            if p != self.take.position {
+            if p != self.bench.take.position {
                 self.change_position(p);
             }
         }

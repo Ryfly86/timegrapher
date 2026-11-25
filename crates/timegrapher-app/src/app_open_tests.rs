@@ -101,7 +101,7 @@ fn a_recorded_take_of_one_position_is_read_once_settled() {
     assert_eq!(app.session.settles(), [(0.0, 20.0)]);
     let spans = app
         .session
-        .settled_spans(app.take.position, Position::DialUp);
+        .settled_spans(app.bench.take.position, Position::DialUp);
     assert_eq!(spans.len(), 1, "{spans:?}");
     assert_eq!(spans[0].0, 20.0, "{spans:?}");
     let _ = std::fs::remove_dir_all(&dir);
@@ -130,7 +130,7 @@ fn a_failed_open_leaves_the_takes_clock() {
     )
     .unwrap();
     let mut app = reopened(&good);
-    let breaks = app.take.take_breaks.clone();
+    let breaks = app.bench.take.take_breaks.clone();
     assert!(breaks.is_some());
     // Sound that can't be read: found, then refused.
     let bad = base.join("bad");
@@ -144,7 +144,7 @@ fn a_failed_open_leaves_the_takes_clock() {
         app.message
     );
     assert!(app.recording.batch.is_none() && app.recording.live.is_some());
-    assert_eq!(app.take.take_breaks, breaks);
+    assert_eq!(app.bench.take.take_breaks, breaks);
     let _ = std::fs::remove_dir_all(&base);
 }
 
@@ -219,7 +219,7 @@ fn a_cancelled_open_is_no_longer_opening_and_leaves_nothing() {
     app.start_batch(&base);
     assert!(app.recording.batch.is_some(), "{:?}", app.message);
     assert_eq!(app.state_words(), "Opening");
-    assert_eq!(app.take.calibre, "3235");
+    assert_eq!(app.bench.take.calibre, "3235");
     app.cancel_open();
     for _ in 0..10 {
         app.poll();
@@ -463,14 +463,14 @@ fn a_saved_take_brings_back_its_calibre_and_positions() {
     let _ = std::fs::remove_dir_all(&base);
     let mut app = synthetic(5.0, 0.0);
     app.session.listen();
-    app.take.watch = "Test Watch".into();
+    app.bench.take.watch = "Test Watch".into();
     app.cal.user.put_custom(calibre_ui::custom(
         "Bench Calibre",
         [("escape wheel", 5.0), ("fourth wheel", 60.0)],
     ));
-    app.take.calibre = "Bench Calibre".into();
+    app.bench.take.calibre = "Bench Calibre".into();
     app.set_lift(49.0);
-    app.take.bph = Some(28800);
+    app.bench.take.bph = Some(28800);
     let audio = generate(
         &SynthConfig {
             duration_s: 90.0,
@@ -538,7 +538,7 @@ fn a_saved_take_brings_back_its_calibre_and_positions() {
     }
     let mut opened = TimegrapherApp::with_devices(Vec::new(), None);
     opened.apply_manifest(&m2, &m2.recordings, None);
-    assert_eq!(opened.take.masked, [(32.0, 38.0)]);
+    assert_eq!(opened.bench.take.masked, [(32.0, 38.0)]);
     app.set_masked(Vec::new());
     // Nothing painted: nothing kept as recorded.
     assert!(m.recorded.is_empty(), "{text}");
@@ -574,15 +574,18 @@ fn a_saved_take_brings_back_its_calibre_and_positions() {
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     assert!(again.recording.live.is_some(), "analysed");
-    assert_eq!(again.take.watch, "Test Watch");
-    assert_eq!(again.take.calibre, "Bench Calibre");
+    assert_eq!(again.bench.take.watch, "Test Watch");
+    assert_eq!(again.bench.take.calibre, "Bench Calibre");
     // Not known there: added to its own calibres from the wheels.
     assert!(again
         .cal
         .find("Bench Calibre")
         .is_some_and(|e| e.is_custom()));
     assert_eq!(again.calibre_wheels().map(|w| w.len()), Some(2));
-    assert_eq!((again.take.lift_deg, again.take.bph), (49.0, Some(28800)));
+    assert_eq!(
+        (again.bench.take.lift_deg, again.bench.take.bph),
+        (49.0, Some(28800))
+    );
     assert_eq!(
         again.session.stretches(),
         [
@@ -596,7 +599,7 @@ fn a_saved_take_brings_back_its_calibre_and_positions() {
         again.recording.live.as_ref().unwrap().breaks(),
         &[30.0, 40.0, 60.0, 70.0]
     );
-    assert_eq!(again.take.position, Position::DialUp);
+    assert_eq!(again.bench.take.position, Position::DialUp);
     // A recording with no session file opens as before.
     assert!(read_manifest(&base).unwrap().is_none());
     let _ = std::fs::remove_dir_all(&base);
@@ -707,7 +710,7 @@ fn valid_absent_and_unrelated_manifests_keep_actual_open_paths() {
                     .expect("empty batch completes");
             }
             assert!(!app.message.as_ref().is_some_and(|(_, error)| *error));
-            assert_eq!(app.take.lift_deg, 52.0);
+            assert_eq!(app.bench.take.lift_deg, 52.0);
             assert!(!app.lift_known());
             app.stop();
         }
@@ -749,7 +752,7 @@ fn an_opened_takes_readings_are_readied_off_the_window() {
     assert!(readied.len() > 10, "{}", readied.len());
     assert_eq!(
         app.bench.results.trend_key,
-        (app.take.rev, app.take.average_s.to_bits())
+        (app.bench.take.rev, app.bench.take.average_s.to_bits())
     );
     app.rebuild_trend();
     assert_eq!(app.bench.results.trend, readied);
@@ -763,7 +766,7 @@ fn a_setting_changed_while_a_take_opens_holds() {
     let dir = one_position_take("changed-opening", 40.0);
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.start_batch(&dir);
-    let was = app.take.average_s;
+    let was = app.bench.take.average_s;
     let now = if was == 2.0 { 4.0 } else { 2.0 };
     app.set_average(now);
     let t = Instant::now();
@@ -774,7 +777,7 @@ fn a_setting_changed_while_a_take_opens_holds() {
     // The charts, not readied at the new setting, are read by the next
     // frames in the background (#1014).
     let ctx = egui::Context::default();
-    while app.bench.results.trend_key != (app.take.rev, now.to_bits())
+    while app.bench.results.trend_key != (app.bench.take.rev, now.to_bits())
         && t.elapsed().as_secs() < 120
     {
         app.take_reads_shown(&ctx);
@@ -782,7 +785,10 @@ fn a_setting_changed_while_a_take_opens_holds() {
     }
     let live = app.recording.live.as_ref().expect("opened");
     assert_eq!(live.config().profile_s, now);
-    assert_eq!(app.bench.results.trend_key, (app.take.rev, now.to_bits()));
+    assert_eq!(
+        app.bench.results.trend_key,
+        (app.bench.take.rev, now.to_bits())
+    );
     let shown = app.bench.results.trend.clone();
     app.rebuild_trend();
     assert_eq!(app.bench.results.trend, shown);
@@ -826,7 +832,7 @@ fn a_folder_takes_later_files_land_where_they_start() {
     );
     // Each file settles over its own start, as session reads it.
     assert_eq!(app.session.settles(), [(0.0, 20.0), (60.0, 80.0)]);
-    assert_eq!(app.take.masked, [(65.0, 70.0)]);
+    assert_eq!(app.bench.take.masked, [(65.0, 70.0)]);
     // A mask across the join is kept by both files, each its part.
     app.mask(55.0, 62.0);
     app.save_marks();
@@ -852,7 +858,7 @@ fn a_folder_takes_later_files_land_where_they_start() {
         again.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    assert_eq!(again.take.masked, [(55.0, 62.0), (65.0, 70.0)]);
+    assert_eq!(again.bench.take.masked, [(55.0, 62.0), (65.0, 70.0)]);
     drop((app, again));
     std::fs::remove_dir_all(dir).unwrap();
 }
@@ -899,27 +905,27 @@ fn a_recording_opened_after_a_take_with_a_calibre_opens() {
         assert!(app.recording.batch.is_none(), "{:?}", app.message);
     };
     opened(&mut app, &take);
-    assert_eq!(app.take.calibre, "3235");
-    assert_eq!(app.take.bph, Some(28800));
+    assert_eq!(app.bench.take.calibre, "3235");
+    assert_eq!(app.bench.take.bph, Some(28800));
     opened(&mut app, &wav);
     assert_eq!(app.recording.source_label, "plain.wav", "{:?}", app.message);
     // The plain file starts from Quick Listen's settings, not the take's.
-    assert_eq!(app.take.calibre, "");
-    assert_eq!(app.take.bph, None);
+    assert_eq!(app.bench.take.calibre, "");
+    assert_eq!(app.bench.take.bph, None);
     // Listen putting the microphone's setup back over the take doesn't
     // read it again either.
     opened(&mut app, &take);
     app.stop();
     app.set_watch_setup(WatchSetup::default());
     assert!(app.recording.batch.is_none(), "{:?}", app.message);
-    assert_eq!(app.take.calibre, "");
+    assert_eq!(app.bench.take.calibre, "");
     // Played through after the take, it is the one on show: the take
     // isn't read again behind it.
     opened(&mut app, &take);
     app.start_replay(&wav);
     assert!(app.recording.batch.is_none(), "{:?}", app.message);
     assert_eq!(app.recording.source_label, "plain.wav", "{:?}", app.message);
-    assert_eq!(app.take.calibre, "");
+    assert_eq!(app.bench.take.calibre, "");
     app.stop();
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -1051,9 +1057,9 @@ fn a_take_at_another_rate_than_its_calibre_says_so_on_the_watch_line() {
     )
     .unwrap();
     let mut app = reopened(&dir);
-    assert_eq!(app.take.calibre, "Unitas 6497-2");
-    assert_eq!(app.take.bph, Some(28800));
-    assert_eq!(app.cal.bph(&app.take.calibre), Some(21600));
+    assert_eq!(app.bench.take.calibre, "Unitas 6497-2");
+    assert_eq!(app.bench.take.bph, Some(28800));
+    assert_eq!(app.cal.bph(&app.bench.take.calibre), Some(21600));
     let ctx = super::tests::themed();
     let mut text = String::new();
     for _ in 0..3 {

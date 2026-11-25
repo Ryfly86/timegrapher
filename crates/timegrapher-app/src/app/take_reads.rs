@@ -187,8 +187,10 @@ impl TimegrapherApp {
     pub(super) fn whole_take_shown(&self, ctx: &egui::Context) -> Option<WholeTake> {
         // A take just listened to is read to its last reading with a
         // watch heard: once the charts are read on what is masked now.
-        let opened = self.take.take_breaks.is_some() || self.stopped_take().is_some();
-        if !opened && self.bench.results.trend_key != (self.take.rev, self.take.average_s.to_bits())
+        let opened = self.bench.take.take_breaks.is_some() || self.stopped_take().is_some();
+        if !opened
+            && self.bench.results.trend_key
+                != (self.bench.take.rev, self.bench.take.average_s.to_bits())
         {
             return None;
         }
@@ -226,7 +228,11 @@ impl TimegrapherApp {
             return Some(s.live.duration_s());
         }
         let live = self.recording.live.as_ref()?;
-        self.take.take_breaks.is_some().then(|| live.duration_s())
+        self.bench
+            .take
+            .take_breaks
+            .is_some()
+            .then(|| live.duration_s())
     }
 
     /// A stopped take's reading over `average` seconds (Norm on #2081):
@@ -262,8 +268,8 @@ impl TimegrapherApp {
     /// take reads more than one, as its row counts them (a stretch that is
     /// the watch being handled is not one, #1980).
     pub(super) fn whole_named(&self) -> String {
-        let read = self.session.positions_read(self.take.position).len();
-        crate::watches::whole_named(Some(self.take.position.core()), read)
+        let read = self.session.positions_read(self.bench.take.position).len();
+        crate::watches::whole_named(Some(self.bench.take.position.core()), read)
     }
 
     /// The whole take as kept (`Ok`), or what it is to be read from
@@ -292,8 +298,8 @@ impl TimegrapherApp {
         let key: WholeKey = (
             live.beats().len(),
             spans.clone(),
-            stopped.map_or_else(|| self.take.masked.clone(), |s| s.masked().to_vec()),
-            self.take.rev,
+            stopped.map_or_else(|| self.bench.take.masked.clone(), |s| s.masked().to_vec()),
+            self.bench.take.rev,
             stopped.is_some(),
         );
         if let Some((k, w)) = self.bench.results.whole_take.borrow().as_ref() {
@@ -321,12 +327,12 @@ impl TimegrapherApp {
                 s.unlisted,
             ),
             None => (
-                self.take.take_breaks.is_some(),
+                self.bench.take.take_breaks.is_some(),
                 self.recording.live.as_ref().and_then(steady::log_of),
-                self.take.masked.clone(),
-                self.take.take_clock.clone(),
-                self.take.take_breaks.clone(),
-                self.take.take_unlisted,
+                self.bench.take.masked.clone(),
+                self.bench.take.take_clock.clone(),
+                self.bench.take.take_breaks.clone(),
+                self.bench.take.take_unlisted,
             ),
         };
         let read = move || {
@@ -380,7 +386,7 @@ impl TimegrapherApp {
 
     /// Each position's settled stretches, in the table's order.
     fn free_stretches(&self) -> Vec<(core_session::Position, f64, f64)> {
-        stretches_in(&self.session, self.take.position)
+        stretches_in(&self.session, self.bench.take.position)
     }
 
     /// The guided test's figures for the position being measured, so far:
@@ -420,6 +426,7 @@ impl TimegrapherApp {
         let stretches = clipped(stretches, end);
         let masked = core_session::masked_spans(
             &self
+                .bench
                 .take
                 .masked
                 .iter()
@@ -431,13 +438,18 @@ impl TimegrapherApp {
         } else {
             live.beats().len()
         };
-        let key: FreeKey = (beats, stretches.clone(), masked.clone(), self.take.rev);
+        let key: FreeKey = (
+            beats,
+            stretches.clone(),
+            masked.clone(),
+            self.bench.take.rev,
+        );
         let mut job = self.bench.results.free_job.borrow_mut();
         // A table being read on what the readings rested on before is let
         // go; so is one of a take on show read from anything else.
         if job
             .as_ref()
-            .is_some_and(|j| j.key.3 != self.take.rev || !running && j.key != key)
+            .is_some_and(|j| j.key.3 != self.bench.take.rev || !running && j.key != key)
         {
             *job = None;
         }
@@ -463,8 +475,8 @@ impl TimegrapherApp {
             return None;
         }
         let (take_clock, opened, ppm) = (
-            self.take.take_clock.clone(),
-            self.take.take_breaks.clone(),
+            self.bench.take.take_clock.clone(),
+            self.bench.take.take_breaks.clone(),
             self.recording.clock.as_ref().map(|c| c.ppm),
         );
         let bph_set = live.config().analysis.bph;
@@ -508,7 +520,7 @@ impl TimegrapherApp {
     /// #1825). The readings heard after the sound it was read on are on
     /// the new footing already and are kept after it.
     pub(super) fn refresh_trend_shown(&mut self, ctx: &egui::Context) {
-        let key: TrendKey = (self.take.rev, self.take.average_s.to_bits());
+        let key: TrendKey = (self.bench.take.rev, self.bench.take.average_s.to_bits());
         if self.recording.live.is_none() {
             self.bench.results.bg.trend = None;
             self.refresh_trend();
@@ -529,7 +541,7 @@ impl TimegrapherApp {
             self.bench.results.bg.trend = None;
         }
         let Some(job) = &self.bench.results.bg.trend else {
-            let (live, average_s) = (self.recording.live.clone(), self.take.average_s);
+            let (live, average_s) = (self.recording.live.clone(), self.bench.take.average_s);
             self.bench.results.bg.trend = Some(Job::start(key, ctx, move || {
                 live.map_or_else(
                     || (Vec::new(), 0.0),
@@ -586,7 +598,7 @@ impl TimegrapherApp {
             return;
         }
         self.bench.results.bg.reserve_live = None;
-        let key = self.take.rev;
+        let key = self.bench.take.rev;
         if self.bench.results.bg.reserve.is_none()
             && self.bench.results.bg.reserve_of.is_some_and(|of| of != key)
         {

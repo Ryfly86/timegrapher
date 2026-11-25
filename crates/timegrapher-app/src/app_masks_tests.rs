@@ -29,7 +29,7 @@ fn painting_on_an_opened_take_lights_save() {
     let base = std::env::temp_dir().join(format!("tg-app-paint-save-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&base);
     let mut app = opened_recording(&base, "reverso_DU.wav", 30.0);
-    app.take.brush = Some(Position::CrownLeft);
+    app.bench.take.brush = Some(Position::CrownLeft);
     app.paint_position(10.0, 20.0);
     assert!(app.marks_unsaved());
     let ctx = themed();
@@ -156,8 +156,8 @@ fn masks_on_a_lone_recording_are_saved_beside_it() {
     // The app reads the folder, and the file in it, as a take.
     for open in [base.clone(), base.join("reverso_DD.wav")] {
         let again = reopened(&open);
-        assert_eq!(again.take.masked, [(10.0, 14.0)]);
-        assert_eq!(again.take.position, Position::DialDown);
+        assert_eq!(again.bench.take.masked, [(10.0, 14.0)]);
+        assert_eq!(again.bench.take.position, Position::DialDown);
         assert!(!again.needs_save_confirmation());
     }
     let _ = std::fs::remove_dir_all(&base);
@@ -173,7 +173,7 @@ fn listening_asks_before_unsaved_masks_go() {
     app.mask(2.0, 5.0);
     app.start_microphone();
     assert!(matches!(app.confirm, Some(Confirm::Microphone)));
-    assert_eq!(app.take.masked, [(2.0, 5.0)], "nothing let go yet");
+    assert_eq!(app.bench.take.masked, [(2.0, 5.0)], "nothing let go yet");
     // A Positions Test asked for waits on the same answer.
     app.confirm = None;
     app.start_guided(None);
@@ -189,10 +189,10 @@ fn listening_asks_before_unsaved_masks_go() {
     app.confirm = None;
     app.listen_after_ask();
     assert!(!app.running());
-    assert_eq!(app.take.masked, [(2.0, 5.0)]);
+    assert_eq!(app.bench.take.masked, [(2.0, 5.0)]);
     assert!(app.marks_unsaved());
     assert_eq!(app.bench.test.guided_after_ask, None);
-    assert!(!app.take.masks_let_go);
+    assert!(!app.bench.take.masks_let_go);
     let _ = std::fs::remove_dir_all(&base);
 }
 
@@ -238,7 +238,7 @@ fn masks_saved_to_a_take_leave_the_rest_of_its_file() {
         position = \"CD\"\n";
     std::fs::write(base.join(MANIFEST), original).unwrap();
     let mut app = opened_recording(&base, "take.wav", 20.0);
-    assert_eq!(app.take.masked, [(1.0, 2.0)]);
+    assert_eq!(app.bench.take.masked, [(1.0, 2.0)]);
     app.mask(6.0, 9.5);
     app.save_marks();
     assert!(!app.marks_unsaved());
@@ -292,7 +292,7 @@ fn a_painted_take_in_a_watch_shows_what_was_saved() {
         _ => panic!("no library"),
     };
     assert_eq!(positions(&app), ["DU"]);
-    app.take.brush = Some(Position::CrownUp);
+    app.bench.take.brush = Some(Position::CrownUp);
     app.paint_position(10.04, 40.0);
     app.save_marks();
     assert!(!app.marks_unsaved(), "{:?}", app.message);
@@ -320,13 +320,13 @@ fn positions_painted_on_a_take_are_saved_to_it() {
         position = \"CD\"\n";
     std::fs::write(base.join(MANIFEST), original).unwrap();
     let mut app = opened_recording(&base, "take.wav", 80.0);
-    assert_eq!(app.take.position, Position::DialUp);
+    assert_eq!(app.bench.take.position, Position::DialUp);
     assert!(!app.marks_unsaved());
-    app.take.brush = Some(Position::CrownUp);
+    app.bench.take.brush = Some(Position::CrownUp);
     app.paint_position(10.04, 40.0);
     assert!(app.marks_unsaved());
     assert_eq!(
-        app.take.position,
+        app.bench.take.position,
         Position::DialUp,
         "Dial Up again after it"
     );
@@ -387,7 +387,7 @@ fn positions_painted_on_a_take_are_saved_to_it() {
     assert_eq!(again.session.stretches(), app.session.stretches());
     assert_eq!(again.session.settles(), app.session.settles());
     assert_eq!(
-        again.session.painted_spans(again.take.position),
+        again.session.painted_spans(again.bench.take.position),
         [(10.0, 40.0, Position::CrownUp)]
     );
     assert!(!again.marks_unsaved());
@@ -410,7 +410,7 @@ fn positions_painted_on_a_take_are_saved_to_it() {
 #[test]
 fn the_position_brush_paints_and_moves_changes() {
     let mut app = synthetic(60.0, 0.0);
-    app.take.brush = Some(Position::CrownLeft);
+    app.bench.take.brush = Some(Position::CrownLeft);
     app.paint_position(20.0, 30.0);
     app.move_position_change(20.0, 15.0);
     assert_eq!(app.session.stretches()[1], (15.0, Position::CrownLeft));
@@ -420,7 +420,7 @@ fn the_position_brush_paints_and_moves_changes() {
     );
     let latest = app.latest_s();
     app.paint_position(40.0, latest - 0.5);
-    assert_eq!(app.take.position, Position::CrownLeft, "to the end");
+    assert_eq!(app.bench.take.position, Position::CrownLeft, "to the end");
     assert_eq!(
         app.session.stretches().last(),
         Some(&(40.0, Position::CrownLeft))
@@ -441,9 +441,9 @@ fn the_position_brush_paints_and_moves_changes() {
         },
         |ctx| app.panels(ctx),
     );
-    assert_eq!(app.take.brush, None);
+    assert_eq!(app.bench.take.brush, None);
     // Esc puts the Mask tool down as well.
-    app.take.masking = true;
+    app.bench.take.masking = true;
     let _ = ctx.run(
         egui::RawInput {
             events: vec![esc(true), esc(false)],
@@ -451,27 +451,27 @@ fn the_position_brush_paints_and_moves_changes() {
         },
         |ctx| app.panels(ctx),
     );
-    assert!(!app.take.masking, "Esc puts Mask down");
+    assert!(!app.bench.take.masking, "Esc puts Mask down");
     // Picking the Mask tool puts it down too.
-    app.take.brush = Some(Position::DialUp);
-    app.take.masking = true;
+    app.bench.take.brush = Some(Position::DialUp);
+    app.bench.take.masking = true;
     let _ = ctx.run(Default::default(), |ctx| {
         egui::CentralPanel::default().show(ctx, |ui| {
             theme::pane_toolbar(ui, "Paper Strip", &[], |ui| app.strip_settings(ui))
         });
     });
-    assert_eq!(app.take.brush, None);
-    assert!(app.take.masking);
+    assert_eq!(app.bench.take.brush, None);
+    assert!(app.bench.take.masking);
     // Not during a Positions Test.
-    app.take.masking = false;
-    app.take.brush = Some(Position::DialUp);
+    app.bench.take.masking = false;
+    app.bench.take.brush = Some(Position::DialUp);
     app.bench.test.guided_measured = vec![(0.0, 10.0)];
     let _ = ctx.run(Default::default(), |ctx| {
         egui::CentralPanel::default().show(ctx, |ui| {
             theme::pane_toolbar(ui, "Paper Strip", &[], |ui| app.strip_settings(ui))
         });
     });
-    assert_eq!(app.take.brush, None);
+    assert_eq!(app.bench.take.brush, None);
 }
 
 /// Full-wind results loaded from a file stay while the test waits, the
@@ -641,16 +641,16 @@ fn a_positions_test_take_takes_no_brush() {
     // A plain take: the brush stays in the hand.
     app.load_reserve(&take);
     assert!(!app.bench.test.positions_take);
-    app.take.brush = Some(Position::DialUp);
+    app.bench.take.brush = Some(Position::DialUp);
     draw(&mut app);
-    assert_eq!(app.take.brush, Some(Position::DialUp));
+    assert_eq!(app.bench.take.brush, Some(Position::DialUp));
     // A Positions Test's results beside it: put down, and greyed.
     std::fs::write(dir.join(guided::RESULTS_FILE), "{}").unwrap();
     app.load_reserve(&take);
     assert!(app.bench.test.positions_take);
     assert!(!app.in_test(), "the test itself is over");
     draw(&mut app);
-    assert_eq!(app.take.brush, None);
+    assert_eq!(app.bench.take.brush, None);
     assert!(
         app.bench.test.guided_saved.is_none(),
         "not a 24 hour half's"
@@ -722,9 +722,9 @@ fn the_brush_waits_for_a_power_reserve_run() {
             });
         });
     };
-    app.take.brush = Some(Position::DialUp);
+    app.bench.take.brush = Some(Position::DialUp);
     draw(&mut app);
-    assert_eq!(app.take.brush, Some(Position::DialUp));
+    assert_eq!(app.bench.take.brush, Some(Position::DialUp));
     let mut t = reserve::Test::new(Position::DialUp, true, String::new(), 0.0);
     let beats: Vec<timegrapher_core::beats::Beat> = (0..100)
         .map(|i| timegrapher_core::beats::Beat {
@@ -737,10 +737,13 @@ fn the_brush_waits_for_a_power_reserve_run() {
     app.bench.test.reserve = Some(t);
     assert!(app.reserve_running());
     draw(&mut app);
-    assert_eq!(app.take.brush, None);
-    app.take.brush = Some(Position::CrownUp);
+    assert_eq!(app.bench.take.brush, None);
+    app.bench.take.brush = Some(Position::CrownUp);
     draw(&mut app);
-    assert_eq!(app.take.brush, None, "it stays down while the run goes on");
+    assert_eq!(
+        app.bench.take.brush, None,
+        "it stays down while the run goes on"
+    );
 }
 
 /// After a masked stretch the charts stay empty until a whole
@@ -762,7 +765,9 @@ fn readings_resume_a_whole_average_after_a_mask() {
         .collect();
     assert!(!after.is_empty());
     assert!(
-        after.iter().all(|&t| t >= 30.0 + app.take.average_s - 1e-9),
+        after
+            .iter()
+            .all(|&t| t >= 30.0 + app.bench.take.average_s - 1e-9),
         "{after:?}"
     );
     let points: Vec<[f64; 2]> = app
@@ -894,7 +899,7 @@ fn masked_stretches_are_saved_with_the_take() {
     let again: Manifest = toml::from_str(&text).unwrap();
     let mut opened = TimegrapherApp::with_devices(Vec::new(), None);
     opened.apply_manifest(&again, &again.recordings, None);
-    assert_eq!(opened.take.masked, [(10.0, 20.0), (65.0, 68.0)]);
+    assert_eq!(opened.bench.take.masked, [(10.0, 20.0), (65.0, 68.0)]);
     // Nothing masked: no masked line in the file.
     app.set_masked(Vec::new());
     assert!(!toml::to_string_pretty(&app.take_manifest())
@@ -1025,7 +1030,7 @@ fn a_masked_stretch_keeps_its_beats_when_opened() {
     )
     .unwrap();
     let mut app = opened_recording(&base, "take.wav", 20.0);
-    assert_eq!(app.take.masked, [(5.0, 10.0)]);
+    assert_eq!(app.bench.take.masked, [(5.0, 10.0)]);
     let under = |app: &TimegrapherApp| {
         let live = app.recording.live.as_ref().unwrap();
         live.beats()
@@ -1062,10 +1067,13 @@ fn a_settling_is_left_out_of_an_opened_takes_readings() {
         .iter()
         .any(|s| (s.0, s.1) == (10.0, 14.0)));
     let engine = |app: &TimegrapherApp| app.recording.live.as_ref().unwrap().masked().to_vec();
-    assert!(app.take.masked.is_empty(), "a settling is no mask by hand");
+    assert!(
+        app.bench.take.masked.is_empty(),
+        "a settling is no mask by hand"
+    );
     assert_eq!(engine(&app), [(10.0, 14.0)]);
     app.set_masked(vec![(2.0, 3.0)]);
-    assert_eq!(app.take.masked, [(2.0, 3.0)]);
+    assert_eq!(app.bench.take.masked, [(2.0, 3.0)]);
     assert_eq!(engine(&app), [(2.0, 3.0), (10.0, 14.0)]);
     app.refresh_trend();
     assert!(

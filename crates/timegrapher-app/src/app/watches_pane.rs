@@ -574,9 +574,9 @@ impl TimegrapherApp {
             a.new_watch = false;
             // What is on show is not asked again: its position, its beat
             // rate (set or heard) and its lift angle.
-            a.position = a.position.or(Some(self.take.position));
-            a.bph = a.bph.or(self.take.bph).or(self.bph_heard());
-            a.lift = self.take.lift_deg;
+            a.position = a.position.or(Some(self.bench.take.position));
+            a.bph = a.bph.or(self.bench.take.bph).or(self.bph_heard());
+            a.lift = self.bench.take.lift_deg;
             a.lift_set = true;
             let need = self.open_need(&a);
             if Self::open_asks(&a, need) == OpenNeed::default() {
@@ -656,7 +656,7 @@ impl TimegrapherApp {
             if let Some((id, name)) = went {
                 self.watches_view.watch_open = Some(id);
                 self.watches_view.unsorted_open = false;
-                self.take.watch = name;
+                self.bench.take.watch = name;
             }
         }
     }
@@ -856,7 +856,9 @@ impl TimegrapherApp {
             .map(|e| e.watch.name.clone())
             .filter(|n| !n.is_empty())
             .map(|n| (n, true))
-            .or_else(|| (!self.take.watch.is_empty()).then(|| (self.take.watch.clone(), false)))
+            .or_else(|| {
+                (!self.bench.take.watch.is_empty()).then(|| (self.bench.take.watch.clone(), false))
+            })
     }
 
     /// The kept analysis, once written, put in its take's place.
@@ -1026,12 +1028,14 @@ impl TimegrapherApp {
             self.clear_trends();
         }
         if let Some(take) = shown {
-            let masked = self.take.masked.clone();
-            self.take.carried_positions =
-                Some((self.positions_now(), self.take.opened_positions.clone()));
-            self.take.reread_with = Some(self.watch_setup());
+            let masked = self.bench.take.masked.clone();
+            self.bench.take.carried_positions = Some((
+                self.positions_now(),
+                self.bench.take.opened_positions.clone(),
+            ));
+            self.bench.take.reread_with = Some(self.watch_setup());
             self.analyse_whole(&take, None);
-            self.take.reread_with = None;
+            self.bench.take.reread_with = None;
             self.put_masked(masked);
         }
     }
@@ -1052,13 +1056,13 @@ impl TimegrapherApp {
     /// angle and the beat rate found from the beats.
     fn quick_listen_defaults(&mut self) {
         self.watches_view.quick_defaults = false;
-        self.take.watch.clear();
+        self.bench.take.watch.clear();
         self.put_calibre(String::new());
-        if self.take.lift_deg != DEFAULT_LIFT_DEG {
+        if self.bench.take.lift_deg != DEFAULT_LIFT_DEG {
             self.set_lift(DEFAULT_LIFT_DEG);
         }
-        self.take.lift_context = (DEFAULT_LIFT_DEG, false);
-        if self.take.bph.is_some() && !self.set_live_bph(None) {
+        self.bench.take.lift_context = (DEFAULT_LIFT_DEG, false);
+        if self.bench.take.bph.is_some() && !self.set_live_bph(None) {
             self.recording.anchor = None;
             self.clear_trends();
         }
@@ -1067,7 +1071,7 @@ impl TimegrapherApp {
 
     /// A watch's details as this take's settings.
     pub(super) fn apply_watch(&mut self, w: &library::Watch) {
-        self.take.watch = w.name.clone();
+        self.bench.take.watch = w.name.clone();
         match w.calibre.clone().filter(|c| !c.is_empty()) {
             Some(c) => self.set_calibre(c),
             // Not the calibre of the watch picked before.
@@ -1075,14 +1079,14 @@ impl TimegrapherApp {
         }
         // The calibre's lift angle and beat rate, else the watch's own,
         // else 52° and Auto: nothing kept from the watch picked before.
-        let lift = self.cal.lift(&self.take.calibre).or(w.lift);
+        let lift = self.cal.lift(&self.bench.take.calibre).or(w.lift);
         let l = lift.unwrap_or(DEFAULT_LIFT_DEG);
-        if l != self.take.lift_deg {
+        if l != self.bench.take.lift_deg {
             self.set_lift(l);
         }
-        self.take.lift_context = (l, lift.is_some());
-        let bph = self.cal.bph(&self.take.calibre).or(w.bph);
-        if bph != self.take.bph && !self.set_live_bph(bph) {
+        self.bench.take.lift_context = (l, lift.is_some());
+        let bph = self.cal.bph(&self.bench.take.calibre).or(w.bph);
+        if bph != self.bench.take.bph && !self.set_live_bph(bph) {
             self.recording.anchor = None;
             self.clear_trends();
         }
@@ -1380,7 +1384,7 @@ impl TimegrapherApp {
         self.watches_view.list_for = Some((None, true));
         self.recording.quick_listen = true;
         self.recording.input = Input::Microphone;
-        self.take.watch.clear();
+        self.bench.take.watch.clear();
         self.note_settings();
         true
     }

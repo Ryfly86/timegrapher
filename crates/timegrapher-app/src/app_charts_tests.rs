@@ -806,7 +806,7 @@ fn readings_over_time_charts_share_one_gutter() {
     };
     // Read here rather than on its own thread.
     let log = steady::log_of(app.recording.live.as_ref().unwrap()).unwrap();
-    app.bench.results.steady = Some((app.take.rev, steady::compute(&log, None)));
+    app.bench.results.steady = Some((app.bench.take.rev, steady::compute(&log, None)));
     let mut out = pass(&mut app);
     for _ in 0..3 {
         out = pass(&mut app);
@@ -878,7 +878,7 @@ fn time_panes_under_the_strip_put_a_late_time_at_one_place() {
         // Time still ends where the strip does, at the take's end.
         let short = synthetic(310.0, 20.0);
         let log = steady::log_of(short.recording.live.as_ref().unwrap()).unwrap();
-        app.bench.results.steady = Some((app.take.rev, steady::compute(&log, None)));
+        app.bench.results.steady = Some((app.bench.take.rev, steady::compute(&log, None)));
         let mut out = pass(&mut app);
         for _ in 0..3 {
             out = pass(&mut app);
@@ -942,12 +942,12 @@ fn joined_readings_over_time_says_whose_time_it_is() {
             set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, false);
         }
         if joined {
-            app.take.brush = Some(Position::DialDown);
+            app.bench.take.brush = Some(Position::DialDown);
             let end = app.latest_s();
             app.paint_position(0.0, end);
         }
         let log = steady::log_of(app.recording.live.as_ref().unwrap()).unwrap();
-        app.bench.results.steady = Some((app.take.rev, steady::compute(&log, None)));
+        app.bench.results.steady = Some((app.bench.take.rev, steady::compute(&log, None)));
         let ctx = themed();
         let mut out = None;
         for _ in 0..3 {
@@ -982,7 +982,7 @@ fn joined_readings_over_time_keeps_its_own_span_and_width() {
     let take = app.steady_opts(steady::View::Readings);
     assert_eq!(take.take_span, app.take_span());
     assert!(take.take_span.is_some() && take.joined_in.is_none());
-    app.take.brush = Some(Position::DialDown);
+    app.bench.take.brush = Some(Position::DialDown);
     let end = app.latest_s();
     app.paint_position(0.0, end);
     let joined = app.steady_opts(steady::View::Readings);

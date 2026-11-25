@@ -247,7 +247,7 @@ fn whole_recording_viewer_keeps_known_jumps_with_or_without_position_cuts() {
     for case in 0..3 {
         let with_positions = case == 1;
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-        app.take.average_s = 60.0;
+        app.bench.take.average_s = 60.0;
         let log = BeatLog {
             lock_template_kept: false,
             sample_rate: 48000,
@@ -343,11 +343,15 @@ fn replay_restores_saved_history_and_a_position_change_preserves_it() {
     assert_eq!(app.session.settles(), settles);
     assert_eq!(app.recording.live.as_ref().unwrap().breaks(), breaks);
     assert_eq!(
-        (app.take.watch.as_str(), app.take.lift_deg, app.take.bph),
+        (
+            app.bench.take.watch.as_str(),
+            app.bench.take.lift_deg,
+            app.bench.take.bph
+        ),
         ("Replay Watch", 49.0, Some(28800))
     );
     app.change_position(Position::DialDown);
-    assert_eq!(app.take.position, Position::DialDown);
+    assert_eq!(app.bench.take.position, Position::DialDown);
     assert_eq!(app.session.stretches(), positions);
     assert_eq!(app.session.settles(), settles);
     assert_eq!(app.recording.live.as_ref().unwrap().breaks(), breaks);
@@ -385,10 +389,10 @@ fn replay_uses_the_same_matching_file_manifest_as_whole_take_analysis() {
     assert_eq!(drain_replay_source(&replay), 9000);
     assert_eq!(replay.session.stretches(), positions);
     assert_eq!(replay.session.settles(), settles);
-    assert_eq!(replay.take.watch, batch.take.watch);
+    assert_eq!(replay.bench.take.watch, batch.bench.take.watch);
     assert_eq!(
-        (replay.take.lift_deg, replay.take.bph),
-        (batch.take.lift_deg, batch.take.bph)
+        (replay.bench.take.lift_deg, replay.bench.take.bph),
+        (batch.bench.take.lift_deg, batch.bench.take.bph)
     );
     replay.stop();
     std::fs::remove_dir_all(dir).unwrap();
@@ -423,7 +427,7 @@ fn replay_poll_does_not_publish_readings_inside_saved_settling() {
         .live
         .as_ref()
         .unwrap()
-        .reading(app.take.average_s)
+        .reading(app.bench.take.average_s)
         .time_s;
     assert!(
         at > 8.0 && at <= 14.0,

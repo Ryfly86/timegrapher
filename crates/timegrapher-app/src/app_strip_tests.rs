@@ -352,10 +352,10 @@ fn the_sound_panes_follow_the_strips_newest_edge() {
     let at = length_text(end);
     assert_eq!(app.sound_moment(), Some(format!("at {at}")));
     // Masked there: one line in place of the plot.
-    app.take.masked = vec![(end - 15.0, end + 1.0)];
+    app.bench.take.masked = vec![(end - 15.0, end + 1.0)];
     let s = app.profiles_at(end);
     assert_eq!(s.line, Some(format!("Masked at {at}")));
-    app.take.masked.clear();
+    app.bench.take.masked.clear();
     // Kept nowhere near: said, not filled from either side.
     app.bench.results.sound_history.retain(|h| h.0 > end + 2.0);
     let s = app.profiles_at(end);

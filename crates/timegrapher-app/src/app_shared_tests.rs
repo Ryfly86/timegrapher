@@ -39,7 +39,7 @@ pub(super) fn synthetic_swinging(
     let live = app.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         if live.push(b) {
-            let r = live.reading(app.take.average_s);
+            let r = live.reading(app.bench.take.average_s);
             app.bench.results.trend.push(TrendPoint::of(r.time_s, &r));
         }
     }

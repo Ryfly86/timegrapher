@@ -447,7 +447,7 @@ fn the_profiles_marks_keep_off_the_names() {
     // Stopped, the profile is the one kept at the end.
     let end = app.latest_s();
     let sides = app.recording.live.as_ref().unwrap().tick_profiles().clone();
-    let span_s = app.take.average_s;
+    let span_s = app.bench.take.average_s;
     app.bench.results.sound_history = vec![(end, scope_panes::Kept { span_s, sides })];
     let ctx = egui::Context::default();
     theme::install(&ctx);
@@ -582,18 +582,18 @@ fn the_profiles_marks_keep_off_the_names() {
 #[test]
 fn a_calibre_picked_while_listening_keeps_what_was_heard() {
     let mut app = synthetic(30.0, 0.0);
-    assert_eq!(app.take.bph, None);
+    assert_eq!(app.bench.take.bph, None);
     let heard = app.recording.live.as_ref().unwrap().beats().len();
     let trend = app.bench.results.trend.len();
     assert!(heard > 100 && trend > 5, "{heard} {trend}");
     assert_eq!(app.cal.bph("ETA 2824-2"), Some(28_800));
     app.set_calibre("ETA 2824-2".into());
-    assert_eq!(app.take.bph, Some(28_800));
+    assert_eq!(app.bench.take.bph, Some(28_800));
     assert_eq!(app.recording.live.as_ref().unwrap().beats().len(), heard);
     assert_eq!(app.bench.results.trend.len(), trend);
     // Auto again, with no calibre: still all of it.
     app.set_calibre(String::new());
-    assert_eq!(app.take.bph, None);
+    assert_eq!(app.bench.take.bph, None);
     assert_eq!(app.recording.live.as_ref().unwrap().beats().len(), heard);
     assert_eq!(app.bench.results.trend.len(), trend);
     let other = ["Seiko 7S26", "Seiko 7S26A", "Miyota 8215", "Seiko NH35"]
@@ -620,7 +620,7 @@ fn noise_shows_its_possible_beats_on_the_strip() {
     let live = app.recording.live.as_mut().unwrap();
     for b in x.chunks(960) {
         if live.push(b) {
-            let r = live.reading(app.take.average_s);
+            let r = live.reading(app.bench.take.average_s);
             app.bench.results.trend.push(TrendPoint::of(r.time_s, &r));
         }
     }
@@ -714,7 +714,7 @@ fn stopping_keeps_the_last_heard_readings() {
     let live = app.recording.live.as_mut().unwrap();
     for b in noise.chunks(960) {
         if live.push(b) {
-            let r = live.reading(app.take.average_s);
+            let r = live.reading(app.bench.take.average_s);
             app.bench.results.trend.push(TrendPoint::of(r.time_s, &r));
         }
     }
@@ -1155,7 +1155,7 @@ fn the_scope_says_masked_where_the_profile_does() {
     let end = app.latest_s() - 5.0;
     app.bench.panes_view.strip_end = Some(end);
     let end = app.strip_end_s();
-    app.take.masked = vec![(end - 15.0, end + 1.0)];
+    app.bench.take.masked = vec![(end - 15.0, end + 1.0)];
     let at = length_text(end);
     let line = Some(format!("Masked at {at}"));
     assert_eq!(app.profiles_at(end).line, line);
@@ -1218,7 +1218,7 @@ fn the_profile_withholds_while_the_cards_do() {
         "no facts beside the wait: {drawn}"
     );
     // Masked there: said as masked, as the strip's hatching says it.
-    app.take.masked = vec![(end - 15.0, end + 1.0)];
+    app.bench.take.masked = vec![(end - 15.0, end + 1.0)];
     let s = app.profiles_at(end);
     assert_eq!(s.line, Some(format!("Masked at {}", length_text(end))));
     assert!(s.masked);
@@ -1638,7 +1638,7 @@ fn at_800_a_caveat_leaves_the_reading_cards_captions_whole() {
     let live = app.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         if live.push(b) {
-            let r = live.reading(app.take.average_s);
+            let r = live.reading(app.bench.take.average_s);
             app.bench.results.trend.push(TrendPoint::of(r.time_s, &r));
         }
     }
@@ -2365,7 +2365,7 @@ fn silence_gives_the_strip_and_the_cards_one_verdict() {
 #[test]
 fn a_whole_readings_rate_hover_says_its_beats_are_the_whole_takes() {
     let mut app = synthetic(30.0, 5.0);
-    app.take.average_s = 60.0;
+    app.bench.take.average_s = 60.0;
     let mut r = app.reading().expect("a reading");
     r.whole_take = true;
     let said = app.rate_beats_behind(Some(&r));
@@ -2389,9 +2389,9 @@ fn a_whole_readings_rate_hover_says_its_beats_are_the_whole_takes() {
 #[test]
 fn a_short_stretch_says_which_beats_the_readings_are_fitted_to() {
     let mut app = synthetic(30.0, 5.0);
-    app.take.average_s = 60.0;
+    app.bench.take.average_s = 60.0;
     let r = app.reading().expect("a reading");
-    assert!(r.span_s + 1.0 < app.take.average_s, "{r:?}");
+    assert!(r.span_s + 1.0 < app.bench.take.average_s, "{r:?}");
     let gap = crate::fields::duration(timegrapher_core::clean::GAP_S);
     assert_eq!(gap, "2 s");
     let said = app.rate_beats_behind(Some(&r));

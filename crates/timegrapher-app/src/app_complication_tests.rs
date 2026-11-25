@@ -25,7 +25,7 @@ fn a_complication_test_is_set_up_in_the_cards_position() {
         &app.bench.panes_view.panes.tiles,
         Pane::Complication
     ));
-    assert_eq!(app.take.position, Position::CrownUp, "the card stays");
+    assert_eq!(app.bench.take.position, Position::CrownUp, "the card stays");
     assert!(app.bench.test.guided.is_none() && !app.running());
     assert_eq!(NewTake::Complication.name(), "Complication Test");
 }
@@ -65,7 +65,7 @@ fn measured(name: &str) -> (TimegrapherApp, std::path::PathBuf, impl Sized) {
     let mut app = synthetic_swinging(T0 + 3.0 * EACH + 5.0, 4.0, amp, extra);
     app.session.listen();
     let tx = queued_capture(&mut app, &base);
-    let mut test = guided::Test::complication(app.take.position).timed(SETTLE, EACH - SETTLE);
+    let mut test = guided::Test::complication(app.bench.take.position).timed(SETTLE, EACH - SETTLE);
     let mut t = T0;
     test.tick(t);
     for i in 0..3 {
@@ -347,7 +347,7 @@ fn a_take_opened_again_starts_at_the_top(app: &mut TimegrapherApp) {
         (kept - scrolled).abs() < 1.0,
         "kept: {scrolled} then {kept}"
     );
-    app.take.rev.new_take();
+    app.bench.take.rev.new_take();
     let opened = amplitude_top(app, 0.0);
     assert!(
         (opened - at_top).abs() < 1.0,
@@ -417,7 +417,7 @@ fn a_new_lift_rereads_it(again: &mut TimegrapherApp) {
             .collect()
     };
     let was = amps(again);
-    let k = 60.0 / again.take.lift_deg;
+    let k = 60.0 / again.bench.take.lift_deg;
     again.set_lift(60.0);
     draw_at(again, Vec2::new(1280.0, 900.0));
     let now = amps(again);
@@ -470,7 +470,7 @@ fn a_saved_complication_take_opened_again_shows_its_results() {
         }
     }
     let tx = queued_capture(&mut app, &base);
-    let mut test = guided::Test::complication(app.take.position).timed(SETTLE, EACH - SETTLE);
+    let mut test = guided::Test::complication(app.bench.take.position).timed(SETTLE, EACH - SETTLE);
     let mut t = T0;
     test.tick(t);
     for i in 0..3 {
@@ -564,7 +564,7 @@ fn each_stretch_is_the_takes_own(again: &mut TimegrapherApp) {
 #[test]
 fn the_banner_says_to_turn_the_complication_on() {
     let mut app = synthetic_swinging(30.0, 0.0, |_| 280.0, |_| 0.0);
-    let mut test = guided::Test::complication(app.take.position).timed(1.0, 5.0);
+    let mut test = guided::Test::complication(app.bench.take.position).timed(1.0, 5.0);
     test.tick(0.0);
     assert_eq!(test.tick(10.0), guided::Phase::Turn);
     app.bench.test.guided = Some(test);

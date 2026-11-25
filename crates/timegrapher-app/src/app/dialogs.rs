@@ -465,7 +465,7 @@ impl TimegrapherApp {
                 self.watches_view.unsorted_open = watch.is_none();
                 // The take is named for the watch it goes into.
                 if let Some(e) = self.open_watch() {
-                    self.take.watch = e.watch.name.clone();
+                    self.bench.take.watch = e.watch.name.clone();
                 }
                 self.save_reserve();
             }

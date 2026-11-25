@@ -12,4 +12,7 @@ pub(super) struct Bench {
     pub(super) test: guided_test::GuidedTest,
     /// The take's readings and the runs in the background that read them.
     pub(super) results: results::Results,
+    /// What the take on show is read with: the watch, its beat rate and
+    /// lift, the positions, masks and clock, and what its readings rest on.
+    pub(super) take: take_settings::TakeSettings,
 }

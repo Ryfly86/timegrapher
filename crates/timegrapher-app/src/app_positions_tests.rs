@@ -32,7 +32,7 @@ fn a_take_saved_twice_across_a_move_keeps_everything() {
     let base = std::env::temp_dir().join(format!("tg-app-twice-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&base);
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    app.take.bph = Some(28800);
+    app.bench.take.bph = Some(28800);
     app.reset_session(48000, "test".into());
     app.session.listen();
     let audio = generate(
@@ -175,7 +175,7 @@ fn a_positions_test_is_marked_from_its_first_position() {
     // before it began stays read, and neither is a mask by hand (#1233).
     app.mask_engine();
     assert_eq!(app.recording.live.as_ref().unwrap().masked(), [(5.0, 10.0)]);
-    assert!(app.take.masked.is_empty());
+    assert!(app.bench.take.masked.is_empty());
     // A move's settling before the test began is culled though the strip
     // shades it as the time before the test; the rest of that time is not.
     app.session.load(
@@ -198,7 +198,7 @@ fn a_positions_test_is_marked_from_its_first_position() {
         app.recording.live.as_ref().unwrap().masked(),
         [(1.0, 3.0), (5.0, 10.0)]
     );
-    assert!(app.take.masked.is_empty());
+    assert!(app.bench.take.masked.is_empty());
     // A move's settling overlapping the test's merges with it, one band
     // and one mask.
     app.session.load(
@@ -298,7 +298,7 @@ fn each_position_counts_its_own_seconds() {
     let want = app.latest_s() - moved - app.bench.test.guided_settle_s;
     assert!((dd - want).abs() < 1.0, "Dial Down {dd} s, not {want}");
     // A mask comes off the position it lies in.
-    app.take.masked.push((moved + 25.0, moved + 30.0));
+    app.bench.take.masked.push((moved + 25.0, moved + 30.0));
     assert!((app.recorded_in(Position::DialDown) - (want - 5.0)).abs() < 1.0);
     assert_eq!(app.recorded_in(Position::CrownUp), 0.0);
 }
@@ -508,7 +508,7 @@ fn the_positions_table_reads_a_free_take() {
     // watch (Norm on #1688): the row keeps the amplitude and beat error
     // its shorter windows give, and no rate.
     let end = app.latest_s();
-    app.take.masked.push((end - 7.0, end - 6.0));
+    app.bench.take.masked.push((end - 7.0, end - 6.0));
     let t = app.free_table(&egui::Context::default()).unwrap();
     let cu = t.rows.iter().find(|r| r.0 == "Crown Up (CU, 3H)").unwrap();
     assert!(
@@ -670,7 +670,7 @@ fn a_new_positions_test_waits_ready_on_the_bench() {
         &app.bench.panes_view.panes.tiles,
         Pane::PositionsTest
     ));
-    assert_eq!(app.take.position, Position::DialUp);
+    assert_eq!(app.bench.take.position, Position::DialUp);
     let words = app.status_words();
     assert!(
         words.contains("Positions Test") && words.ends_with(" · Ready"),
@@ -910,7 +910,7 @@ fn a_positions_test_ends_by_itself_after_the_sixth_position() {
     }
     app.bench.test.guided = Some(test);
     assert!(app.test_listening());
-    app.take.lift_deg = 53.0;
+    app.bench.take.lift_deg = 53.0;
     let ctx = egui::Context::default();
     app.guided_tick(&ctx);
     assert!(!app.guided_running(), "ended");
@@ -949,7 +949,7 @@ fn a_settle_changed_after_a_test_leaves_the_test_alone() {
         }
     }
     app.bench.test.guided = Some(test);
-    app.take.lift_deg = 53.0;
+    app.bench.take.lift_deg = 53.0;
     let ctx = egui::Context::default();
     app.guided_tick(&ctx);
     assert!(!app.guided_running(), "ended");
@@ -962,12 +962,12 @@ fn a_settle_changed_after_a_test_leaves_the_test_alone() {
     let snap = app.session.metadata_snapshot(app.save_metadata());
     app.session.mark_saved(end, base.clone(), snap);
     assert!(!app.metadata_unsaved());
-    let watch = std::mem::replace(&mut app.take.watch, "Another".into());
+    let watch = std::mem::replace(&mut app.bench.take.watch, "Another".into());
     assert!(app.metadata_unsaved(), "an edit does show as unsaved");
-    app.take.watch = watch;
+    app.bench.take.watch = watch;
     for s in [30.0, 10.0, 30.0] {
         app.session.resettle(s);
-        app.positions_moved(app.take.position);
+        app.positions_moved(app.bench.take.position);
         assert_eq!(app.session.settles(), settles, "Settle {s}");
         assert!(
             !app.metadata_unsaved(),
@@ -1001,12 +1001,12 @@ fn a_positions_test_keeps_the_lift_it_was_read_at() {
     }
     assert_eq!(test.lift_deg, None);
     app.bench.test.guided = Some(test);
-    app.take.lift_deg = 55.0;
+    app.bench.take.lift_deg = 55.0;
     app.guided_tick(&egui::Context::default());
     assert!(app.guided_running());
     let lift = |app: &TimegrapherApp| app.bench.test.guided.as_ref().unwrap().lift_deg;
     assert_eq!(lift(&app), Some(55.0), "read as it goes");
-    app.take.lift_deg = 50.0;
+    app.bench.take.lift_deg = 50.0;
     app.reread_guided();
     assert_eq!(lift(&app), Some(50.0), "read again");
     drop(tx);
@@ -1058,7 +1058,7 @@ fn a_new_position_marks_a_stretch_and_keeps_the_strip() {
         let live = app.recording.live.as_mut().unwrap();
         for b in audio.samples.chunks(960) {
             if live.push(b) {
-                let r = live.reading(app.take.average_s);
+                let r = live.reading(app.bench.take.average_s);
                 app.bench.results.trend.push(TrendPoint::of(r.time_s, &r));
             }
         }
@@ -1144,22 +1144,22 @@ fn a_masked_stretch_leaves_the_readings_and_comes_back() {
     assert!(heard(&app) > 0);
     assert!(stretches(&app) > 0);
     app.mask(30.2, 30.4);
-    assert!(app.take.masked.is_empty(), "a slip of the mouse");
+    assert!(app.bench.take.masked.is_empty(), "a slip of the mouse");
     app.mask(40.0, 30.0);
     app.mask(35.0, 45.0);
-    assert_eq!(app.take.masked, [(30.0, 45.0)], "joined");
+    assert_eq!(app.bench.take.masked, [(30.0, 45.0)], "joined");
     assert_eq!(
         app.recording.live.as_ref().unwrap().masked(),
-        app.take.masked
+        app.bench.take.masked
     );
     // As the next frame reads them.
     app.refresh_trend();
     assert_eq!(heard(&app), 0);
     assert_eq!(stretches(&app), 0);
     app.unmask_at(10.0);
-    assert_eq!(app.take.masked.len(), 1, "nothing masked there");
+    assert_eq!(app.bench.take.masked.len(), 1, "nothing masked there");
     app.unmask_at(33.0);
-    assert!(app.take.masked.is_empty());
+    assert!(app.bench.take.masked.is_empty());
     app.refresh_trend();
     assert!(heard(&app) > 0);
     assert!(stretches(&app) > 0);
@@ -1172,13 +1172,13 @@ fn a_masked_stretch_can_be_reshaped() {
     let mut app = synthetic(60.0, 0.0);
     app.set_masked(vec![(10.0, 15.0), (30.0, 40.0)]);
     app.reshape_mask((30.0, 40.0), (25.0, 40.0));
-    assert_eq!(app.take.masked, [(10.0, 15.0), (25.0, 40.0)]);
+    assert_eq!(app.bench.take.masked, [(10.0, 15.0), (25.0, 40.0)]);
     app.reshape_mask((10.0, 15.0), (10.0, 28.0));
-    assert_eq!(app.take.masked, [(10.0, 40.0)], "joined");
+    assert_eq!(app.bench.take.masked, [(10.0, 40.0)], "joined");
     app.reshape_mask((99.0, 100.0), (1.0, 2.0));
-    assert_eq!(app.take.masked, [(10.0, 40.0)], "no such stretch");
+    assert_eq!(app.bench.take.masked, [(10.0, 40.0)], "no such stretch");
     app.reshape_mask((10.0, 40.0), (10.0, 10.2));
-    assert!(app.take.masked.is_empty());
+    assert!(app.bench.take.masked.is_empty());
 }
 
 /// A take opened from Watches, with no test on the Bench: its This Take
@@ -1302,7 +1302,7 @@ fn an_ordinary_take_of_the_six_positions_loads_to_compare_with() {
         super::poise_tests::saved_and_opened_after("compare1851", &stops, 62.0, |app| {
             let end = app.latest_s();
             app.session
-                .paint(85.0, 100.0, Position::CrownUp, app.take.position, end);
+                .paint(85.0, 100.0, Position::CrownUp, app.bench.take.position, end);
         });
     let saved =
         std::fs::read_to_string(PathBuf::from(&app.keeping.opened_path).join("session.toml"))
@@ -1335,7 +1335,7 @@ fn an_ordinary_take_of_the_six_positions_loads_to_compare_with() {
     // The first position is held twice: its two stretches are one row,
     // longer than any position held once.
     let first = core_session::Position::parse(stops[0].code()).unwrap();
-    let held = |p| app.session.settled_spans(app.take.position, p).len();
+    let held = |p| app.session.settled_spans(app.bench.take.position, p).len();
     assert_eq!(held(stops[0]), 2, "two stretches in {}", stops[0].code());
     assert_eq!(held(Position::CrownUp), 2, "painted and recorded");
     let long = |r: &core_session::Reading| r.duration_s;

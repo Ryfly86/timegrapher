@@ -84,7 +84,7 @@ impl TimegrapherApp {
             Vec2::new(ui.available_width(), font.size + 6.0),
             egui::Sense::hover(),
         );
-        let average = self.take.average_s;
+        let average = self.bench.take.average_s;
         let (series, unit, decimals) =
             chart_lines(reading, &self.bench.results.trend, average, pal);
         let (mut plot, grid) = chart_plot(reading, theme::time_gutter(ui.ctx()));

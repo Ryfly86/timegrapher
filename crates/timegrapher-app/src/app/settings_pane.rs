@@ -466,7 +466,7 @@ impl TimegrapherApp {
                     });
             }
             Tab::Calibres => {
-                let current = self.take.calibre.clone();
+                let current = self.bench.take.calibre.clone();
                 let out = self.cal.contents(ui, &current, env!("CARGO_PKG_VERSION"));
                 let name = out.name.clone();
                 self.calibre_changed(&name, out.change);
@@ -729,7 +729,7 @@ impl TimegrapherApp {
     /// Act on what was changed for the calibre `name`: only this watch's
     /// calibre moves anything outside the list.
     fn calibre_changed(&mut self, name: &str, change: calibre_ui::Change) {
-        if name.is_empty() || name != self.take.calibre {
+        if name.is_empty() || name != self.bench.take.calibre {
             return;
         }
         if let Some(n) = change.renamed {
@@ -743,12 +743,12 @@ impl TimegrapherApp {
         }
         if let Some(l) = change.lift {
             self.set_lift(l);
-            self.take.lift_context = (l, true);
+            self.bench.take.lift_context = (l, true);
         }
         // The calibre's wheels changed: the steadiness tests name them
         // afresh.
         if change.wheels {
-            self.take.rev.settings += 1;
+            self.bench.take.rev.settings += 1;
         }
     }
 
@@ -759,8 +759,8 @@ impl TimegrapherApp {
     pub(super) fn entry_settings(&self, m: &Manifest) -> timegrapher_core::take::EntrySettings {
         use timegrapher_core::take;
         let given = take::Given {
-            bph: self.take.bph,
-            lift_deg: Some(self.take.lift_deg),
+            bph: self.bench.take.bph,
+            lift_deg: Some(self.bench.take.lift_deg),
         };
         // The take's calibre, from the user's calibres as the Watches list
         // and `session` find it, for what its session file doesn't give.
@@ -781,10 +781,10 @@ impl TimegrapherApp {
     /// edits and reverts keep the existing default-angle inference; this does
     /// not introduce a new way to explicitly confirm an unchanged 52° in UI.
     pub(super) fn lift_known(&self) -> bool {
-        if self.take.lift_deg == self.take.lift_context.0 {
-            self.take.lift_context.1
+        if self.bench.take.lift_deg == self.bench.take.lift_context.0 {
+            self.bench.take.lift_context.1
         } else {
-            self.take.lift_deg != DEFAULT_LIFT_DEG
+            self.bench.take.lift_deg != DEFAULT_LIFT_DEG
         }
     }
 
@@ -800,23 +800,23 @@ impl TimegrapherApp {
     }
 
     pub(super) fn put_lift(&mut self, lift: f64) {
-        if lift != self.take.lift_deg {
-            self.take.lift_deg = lift;
-            self.take.rev.settings += 1;
+        if lift != self.bench.take.lift_deg {
+            self.bench.take.lift_deg = lift;
+            self.bench.take.rev.settings += 1;
         }
     }
 
     pub(super) fn put_calibre(&mut self, name: String) {
-        if name != self.take.calibre {
-            self.take.calibre = name;
-            self.take.rev.settings += 1;
+        if name != self.bench.take.calibre {
+            self.bench.take.calibre = name;
+            self.bench.take.rev.settings += 1;
         }
     }
 
     pub(super) fn put_bph(&mut self, bph: Option<u32>) {
-        if bph != self.take.bph {
-            self.take.bph = bph;
-            self.take.rev.settings += 1;
+        if bph != self.bench.take.bph {
+            self.bench.take.bph = bph;
+            self.bench.take.rev.settings += 1;
         }
     }
 
@@ -826,18 +826,18 @@ impl TimegrapherApp {
         clock: Option<timegrapher_core::clock::ClockFit>,
         source: Option<String>,
     ) {
-        self.take.take_clock = clock;
-        self.take.take_clock_source = source;
+        self.bench.take.take_clock = clock;
+        self.bench.take.take_clock_source = source;
         if let Some(l) = self.recording.live.as_mut() {
-            l.set_rate_clock(Self::rate_clock(&self.take.take_clock));
+            l.set_rate_clock(Self::rate_clock(&self.bench.take.take_clock));
         }
-        self.take.rev.clock += 1;
+        self.bench.take.rev.clock += 1;
     }
 
     /// The clock kept for the input listened to.
     pub(super) fn put_input_clock(&mut self, clock: Option<clockstore::DeviceClock>) {
         self.recording.clock = clock;
-        self.take.rev.clock += 1;
+        self.bench.take.rev.clock += 1;
     }
 
     pub(super) fn put_take_breaks(
@@ -845,15 +845,15 @@ impl TimegrapherApp {
         breaks: Option<Vec<timegrapher_core::breaks::Break>>,
         unlisted: Option<timegrapher_core::breaks::Unlisted>,
     ) {
-        self.take.take_breaks = breaks;
-        self.take.take_unlisted = unlisted;
-        self.take.rev.breaks += 1;
+        self.bench.take.take_breaks = breaks;
+        self.bench.take.take_unlisted = unlisted;
+        self.bench.take.rev.breaks += 1;
     }
 
     pub(super) fn put_masked(&mut self, masked: Vec<(f64, f64)>) {
-        if masked != self.take.masked {
-            self.take.masked = masked;
-            self.take.rev.masks += 1;
+        if masked != self.bench.take.masked {
+            self.bench.take.masked = masked;
+            self.bench.take.rev.masks += 1;
         }
     }
 
@@ -871,10 +871,10 @@ impl TimegrapherApp {
             return;
         }
         let info = SessionInfo {
-            watch: self.take.watch.clone(),
-            position: self.take.position.code().into(),
-            lift_deg: self.take.lift_deg,
-            bph: self.take.bph,
+            watch: self.bench.take.watch.clone(),
+            position: self.bench.take.position.code().into(),
+            lift_deg: self.bench.take.lift_deg,
+            bph: self.bench.take.bph,
             device: String::new(),
             sample_rate: 0,
             bits: 0,

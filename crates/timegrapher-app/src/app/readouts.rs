@@ -675,7 +675,7 @@ impl TimegrapherApp {
         let (unheard_line, unheard_hover) = if finding {
             (
                 timegrapher_core::measure::FINDING_TITLE.to_string(),
-                timegrapher_core::measure::finding_text(self.take.average_s),
+                timegrapher_core::measure::finding_text(self.bench.take.average_s),
             )
         } else {
             (
@@ -733,7 +733,7 @@ impl TimegrapherApp {
         // (core `measure`).
         let pm = r.and_then(|r| r.rate_error_s_per_day);
         let be_pm = r.and_then(|r| r.beat_error_unlock_error_ms);
-        let lift_now = self.take.lift_deg;
+        let lift_now = self.bench.take.lift_deg;
         let beats = r.map_or(0, |r| r.beats_used);
         // Over the whole take, once it is stopped: `session`'s reading of
         // it beside the last window's figure.
@@ -867,7 +867,7 @@ impl TimegrapherApp {
                 &c.whole_breaks,
                 true_minus(&format!("{} s/d", with_pm(v, se, base::RATE, true))),
                 spread,
-                (w.span, &big_stretch(self.take.average_s, false)),
+                (w.span, &big_stretch(self.bench.take.average_s, false)),
             );
         }
         // In the unit's place: what the reading waits on, as every card
@@ -940,8 +940,8 @@ impl TimegrapherApp {
         };
         let id = egui::Id::new("reading card sparklines");
         let key = (
-            self.take.rev,
-            (self.take.average_s.to_bits(), stopped.is_some()),
+            self.bench.take.rev,
+            (self.bench.take.average_s.to_bits(), stopped.is_some()),
         );
         let mut kept: Kept = ctx.data(|d| d.get_temp(id)).unwrap_or_default();
         if (kept.0, kept.1) != key {
@@ -956,7 +956,7 @@ impl TimegrapherApp {
                 let t = s as f64;
                 kept.2.push((
                     s,
-                    TrendPoint::of(t, &live.reading_at(t, self.take.average_s)),
+                    TrendPoint::of(t, &live.reading_at(t, self.bench.take.average_s)),
                 ));
             }
         }
@@ -994,7 +994,7 @@ impl TimegrapherApp {
 
     /// The beats behind the Rate figure, and their jitter, for its hover.
     fn beats_behind(&self, r: &LiveReading) -> String {
-        let short = r.span_s + 1.0 < self.take.average_s;
+        let short = r.span_s + 1.0 < self.bench.take.average_s;
         let mut t = if short && r.whole_take {
             // The take's whole reading at its end: its beats are the whole
             // stretch's fitted pieces (Hugh 5 and Norm on #2075).
@@ -1005,7 +1005,7 @@ impl TimegrapherApp {
                  of more than {} with no beats, with any piece under {} left out.",
                 r.beats_used,
                 fields::duration(r.span_s.round()),
-                fields::duration(self.take.average_s),
+                fields::duration(self.bench.take.average_s),
                 self.whole_named(),
                 fields::duration(timegrapher_core::clean::GAP_S),
                 fields::duration(timegrapher_core::timing::MIN_PIECE_S)
@@ -1018,7 +1018,7 @@ impl TimegrapherApp {
                  stretch or gap of more than {} with no beats.",
                 r.beats_used,
                 fields::duration(r.span_s.round()),
-                fields::duration(self.take.average_s),
+                fields::duration(self.bench.take.average_s),
                 fields::duration(timegrapher_core::clean::GAP_S)
             )
         } else {
@@ -1026,7 +1026,7 @@ impl TimegrapherApp {
                 "{} beats in {}: the beats the readings are fitted to, over \
                  Average Over.",
                 r.beats_used,
-                fields::duration(self.take.average_s)
+                fields::duration(self.bench.take.average_s)
             )
         };
         if let Some(j) = r.jitter_us {
@@ -1077,7 +1077,8 @@ impl TimegrapherApp {
             behind = sides_text(a, b, amp_pm);
         }
         // Read over at least 10 s where Average Over is shorter (#1951).
-        if let Some(note) = r.and_then(|_| measure::amplitude_span_note(self.take.average_s)) {
+        if let Some(note) = r.and_then(|_| measure::amplitude_span_note(self.bench.take.average_s))
+        {
             behind += &format!(" {note}");
         }
         if let Some((w, v)) = whole.as_ref().and_then(|w| Some((w, w.m.amplitude_deg?))) {
@@ -1087,7 +1088,7 @@ impl TimegrapherApp {
                 format!("2 s windows {}° to {}°", deg(a), deg(b))
             });
             let text = format!("{}°", with_pm(v, se, base::AMPLITUDE, false));
-            let big = big_stretch(self.take.average_s, true);
+            let big = big_stretch(self.bench.take.average_s, true);
             behind += &whole_text(&c.whole_breaks, text, spread, (w.span, &big));
         }
         behind += &format!(
@@ -1096,7 +1097,7 @@ impl TimegrapherApp {
         );
         if let Some(t) = r
             .filter(|_| c.heard)
-            .and_then(|r| amplitude_pm_words(r, self.take.average_s))
+            .and_then(|r| amplitude_pm_words(r, self.bench.take.average_s))
         {
             behind += &format!("\n\n{t}");
         }
@@ -1155,14 +1156,16 @@ impl TimegrapherApp {
             (None, Some(_)) => "From the drop: the unlock couldn't be timed.".into(),
             _ => "From the unlock, the usual reading, as tg shows it.".into(),
         };
-        if let Some(note) = unlock.and_then(|_| measure::unlock_span_note(self.take.average_s)) {
+        if let Some(note) =
+            unlock.and_then(|_| measure::unlock_span_note(self.bench.take.average_s))
+        {
             from += &format!(" {note}");
         }
         if let Some((w, v)) = whole.as_ref().and_then(|w| Some((w, w.m.beat_error()?))) {
             let se = w.m.confidence.and_then(|c| c.beat_error.se);
             let text = format!("{} ms", with_pm(v, se, base::BEAT_ERROR, false));
             // The unlock's stretch where it gives the figure (#1951).
-            let big = big_stretch(self.take.average_s, unlock.is_some());
+            let big = big_stretch(self.bench.take.average_s, unlock.is_some());
             from += &whole_text(&c.whole_breaks, text, None, (w.span, &big));
             if w.m.caveats.contains(&Caveat::BeatErrorAsSize) {
                 from += &format!(
@@ -1200,14 +1203,14 @@ impl TimegrapherApp {
     /// a chip on the Calibre card.
     pub(super) fn calibre_chips(&self) -> Vec<(String, String)> {
         self.bph_heard()
-            .zip(self.cal.bph(&self.take.calibre))
+            .zip(self.cal.bph(&self.bench.take.calibre))
             .filter(|&(b, cb)| b != cb && self.take_shows_rate_and_lift())
             .map(|(b, cb)| {
                 (
-                    format!("{} is {cb} bph", self.take.calibre),
+                    format!("{} is {cb} bph", self.bench.take.calibre),
                     format!(
                         "The {} beats at {cb} bph; this watch beats at {b}.",
-                        self.take.calibre
+                        self.bench.take.calibre
                     ),
                 )
             })
@@ -1222,8 +1225,8 @@ impl TimegrapherApp {
         duration_s: f64,
     ) -> Option<timegrapher_core::clock::ClockFit> {
         reading_clock(
-            self.take.take_clock.as_ref(),
-            self.take.take_breaks.is_some(),
+            self.bench.take.take_clock.as_ref(),
+            self.bench.take.take_breaks.is_some(),
             self.recording.clock.as_ref().map(|c| c.ppm),
             duration_s,
         )
@@ -1234,7 +1237,7 @@ impl TimegrapherApp {
     /// mask's ends) as a break of no length, as core's `take::breaks`
     /// adds the jumps.
     pub(super) fn reading_breaks(&self, log: &BeatLog) -> Vec<timegrapher_core::breaks::Break> {
-        steady::reading_breaks(self.take.take_breaks.clone().unwrap_or_default(), log)
+        steady::reading_breaks(self.bench.take.take_breaks.clone().unwrap_or_default(), log)
     }
 
     /// The take's own clock error the readings are corrected by, ppm fast:
@@ -1247,7 +1250,7 @@ impl TimegrapherApp {
     /// The take's own clock the readings are corrected on, where it
     /// corrects: its mapping, which may drift over the take.
     pub(super) fn take_rate_clock(&self) -> Option<&timegrapher_core::clock::ClockFit> {
-        Self::rate_clock(&self.take.take_clock)
+        Self::rate_clock(&self.bench.take.take_clock)
     }
 
     /// A clock where it corrects (core's `ClockFit::corrects`), the one
@@ -1267,7 +1270,7 @@ impl TimegrapherApp {
     /// before the first poll puts the readings on it (a take opened keeps
     /// no input clock, Walter).
     pub(super) fn true_clock_words(&self, rate: f64) -> Option<String> {
-        if let Some(f) = &self.take.take_clock {
+        if let Some(f) = &self.bench.take.take_clock {
             // What a log measured but doesn't apply, and why, in core's words.
             let note = f.withheld.map(|w| {
                 let note = w.note();
@@ -1285,6 +1288,7 @@ impl TimegrapherApp {
             }
             let ppm = timegrapher_core::clock::ppm_words(f.ppm, Some(f.ppm_sd));
             let from = self
+                .bench
                 .take
                 .take_clock_source
                 .as_deref()
@@ -1469,7 +1473,7 @@ impl TimegrapherApp {
     /// too.
     pub(super) fn shown_caveats(&self, r: Option<&LiveReading>) -> Vec<Caveat> {
         let mut caveats = r.map_or_else(Vec::new, |r| r.caveats.clone());
-        if let (Some(why), Some(_)) = (self.take.take_unlisted, r) {
+        if let (Some(why), Some(_)) = (self.bench.take.take_unlisted, r) {
             timegrapher_core::measure::add(&mut caveats, Caveat::BreaksUnlisted { why });
         }
         caveats
@@ -1485,7 +1489,7 @@ impl TimegrapherApp {
         let amplitude_empty = r.and_then(|r| r.amplitude_deg).is_none();
         let caveats = self.shown_caveats(r);
         let beats = r.map_or(0, |r| r.beats_used);
-        let limits = take_limits(&caveats, self.take.lift_deg, beats, amplitude_empty);
+        let limits = take_limits(&caveats, self.bench.take.lift_deg, beats, amplitude_empty);
         if limits.is_empty() {
             return;
         }
@@ -1516,10 +1520,10 @@ impl TimegrapherApp {
     /// caveat for it, short and long, in core's words. The rates stay
     /// corrected by the USB lines.
     pub(super) fn clock_disagreement(&self) -> Option<(String, String)> {
-        let caveat = Caveat::from(self.take.take_clock.as_ref()?.sources_disagree()?);
+        let caveat = Caveat::from(self.bench.take.take_clock.as_ref()?.sources_disagree()?);
         Some((
-            caveat.short(self.take.lift_deg, 0)?,
-            caveat.long(Some(self.take.lift_deg))?,
+            caveat.short(self.bench.take.lift_deg, 0)?,
+            caveat.long(Some(self.bench.take.lift_deg))?,
         ))
     }
 
@@ -1860,7 +1864,7 @@ impl TimegrapherApp {
                 self.recording
                     .live
                     .as_ref()?
-                    .reading(self.take.average_s)
+                    .reading(self.bench.take.average_s)
                     .snr
             }
             (None, None) => None,
@@ -1939,7 +1943,7 @@ impl TimegrapherApp {
     fn heard_while_settling(&self, live: &LiveAnalyzer) -> bool {
         self.settling_left().is_some()
             && live
-                .reading_at(live.duration_s(), self.take.average_s)
+                .reading_at(live.duration_s(), self.bench.take.average_s)
                 .watch_heard
     }
 

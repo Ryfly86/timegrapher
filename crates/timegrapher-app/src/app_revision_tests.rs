@@ -53,7 +53,7 @@ fn a_takes_clock_log_corrects_its_rates() {
             guided::FreeCell::Read(Some(r), _, _) => r,
             ref c => panic!("{c:?}"),
         };
-        let ppm = app.take.take_clock.as_ref().map(|f| f.ppm);
+        let ppm = app.bench.take.take_clock.as_ref().map(|f| f.ppm);
         let card = app
             .recording
             .live
@@ -138,7 +138,7 @@ fn a_loose_clock_log_corrects_nothing_and_says_why() {
     };
     let (_, heard) = card(false);
     let (app, rate) = card(true);
-    let fit = app.take.take_clock.as_ref().expect("the log read");
+    let fit = app.bench.take.take_clock.as_ref().expect("the log read");
     assert!(!fit.corrects());
     assert_eq!(app.take_rate_ppm(), None);
     assert!((rate - heard).abs() < 1e-9, "{rate} {heard}");
@@ -201,7 +201,7 @@ fn an_analysis_only_take_reads_its_own_clock() {
     analysis_take::write(&b, &stored).unwrap();
     std::fs::write(b.join("clock.csv"), log(-10.0)).unwrap();
     std::fs::write(b.join(MANIFEST), manifest(false)).unwrap();
-    let ppm = |app: &TimegrapherApp| app.take.take_clock.as_ref().map(|f| f.ppm);
+    let ppm = |app: &TimegrapherApp| app.bench.take.take_clock.as_ref().map(|f| f.ppm);
     let mut app = reopened(&a);
     assert!((ppm(&app).expect("a's log") + 50.0).abs() < 1.0);
     app.start_batch(&b);
@@ -302,7 +302,12 @@ fn a_takes_usb_lines_set_its_rate() {
     let words = app.true_clock_words(rate).expect("said");
     // Where the clock came from in core's words: the lines rate it, the
     // log keeps its breaks.
-    let source = app.take.take_clock_source.clone().expect("core's words");
+    let source = app
+        .bench
+        .take
+        .take_clock_source
+        .clone()
+        .expect("core's words");
     assert!(
         source.contains("USB lines in the recording") && source.ends_with("for its breaks"),
         "{source}"
@@ -322,7 +327,7 @@ fn steadiness_now(app: &mut TimegrapherApp, ctx: &egui::Context) -> String {
         app.bench.results.bg.shown_pass[0] = Some(ctx.cumulative_pass_nr());
         app.update_steady(ctx);
         if let Some((rev, s)) = &app.bench.results.steady {
-            if *rev == app.take.rev {
+            if *rev == app.bench.take.rev {
                 return serde_json::to_string(&s.report).unwrap();
             }
         }
@@ -411,7 +416,7 @@ fn the_isochronism_pane_shows_the_newer_answer() {
     };
     for (alone_upto, tests_shown) in [(upto - 10.0, true), (upto + 10.0, false)] {
         app.bench.results.bg.isochronism = Some((
-            app.take.rev,
+            app.bench.take.rev,
             steady::IsochronismAlone {
                 isochronism: None,
                 walk: Some(IsochronismWalk::default()),
@@ -512,7 +517,7 @@ fn every_pane_follows_the_lift_the_clock_and_the_masks() {
     app.put_take_breaks(Some(Vec::new()), None);
     let names = ["whole take", "charts", "Positions table", "steadiness"];
     let mut before = panes(&mut app, &ctx);
-    let lift = app.take.lift_deg + 10.0;
+    let lift = app.bench.take.lift_deg + 10.0;
     let duration = app.recording.live.as_ref().unwrap().duration_s();
     let changes: [Change; 3] = [
         ("lift", Box::new(move |app| app.set_lift(lift))),

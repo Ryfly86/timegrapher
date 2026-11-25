@@ -1627,9 +1627,6 @@ pub struct TimegrapherApp {
     watches_view: watches_view::WatchesView,
     /// The bench: the take on show, recorded, read, tested, drawn and kept.
     bench: bench::Bench,
-    /// What the take on show is read with: the watch, its beat rate and
-    /// lift, the positions, masks and clock, and what its readings rest on.
-    take: take_settings::TakeSettings,
     /// Keeping and saving the take on show: kept sounds, Keep in a
     /// Watch…, saves under way, opening and the crash note.
     keeping: keeping::Keeping,
@@ -1670,7 +1667,7 @@ impl TimegrapherApp {
     pub fn settings(&self) -> Settings {
         Settings {
             device: self.recording.device.clone(),
-            average_s: self.take.average_s,
+            average_s: self.bench.take.average_s,
             strip: self.live_view(),
             rate_line: self.live_rate_marks()[0],
             rate_guides: self.live_rate_marks()[1],
@@ -1884,6 +1881,7 @@ impl TimegrapherApp {
                 panes_view: pane_view::PaneView::default(),
                 test: guided_test::GuidedTest::default(),
                 results: results::Results::default(),
+                take: take_settings::TakeSettings::default(),
             },
             recording: recording::Recording {
                 input: if file.is_some() {
@@ -1899,7 +1897,6 @@ impl TimegrapherApp {
                     .unwrap_or_default(),
                 ..Default::default()
             },
-            take: take_settings::TakeSettings::default(),
             session: Session::default(),
             keeping: keeping::Keeping::default(),
             report: ReportDialog::default(),
@@ -1958,7 +1955,7 @@ impl TimegrapherApp {
             .recording
             .live
             .as_ref()
-            .map_or_else(Vec::new, |l| l.trend(self.take.average_s));
+            .map_or_else(Vec::new, |l| l.trend(self.bench.take.average_s));
         self.put_trend(points);
     }
 
@@ -1968,13 +1965,14 @@ impl TimegrapherApp {
         self.bench.results.strip_points = None;
         points.retain(|p| self.session.replay_reading_allowed(p.t));
         self.bench.results.trend = points;
-        self.bench.results.trend_key = (self.take.rev, self.take.average_s.to_bits());
+        self.bench.results.trend_key = (self.bench.take.rev, self.bench.take.average_s.to_bits());
     }
 
     /// Read the run of readings again when what it rests on changed since: the take's settings,
     /// clock, breaks or masks, or Average Over. While listening the next frame reads it (#1825).
     fn refresh_trend(&mut self) {
-        if self.bench.results.trend_key != (self.take.rev, self.take.average_s.to_bits())
+        if self.bench.results.trend_key
+            != (self.bench.take.rev, self.bench.take.average_s.to_bits())
             && !self.running()
         {
             self.rebuild_trend();
@@ -1991,7 +1989,7 @@ impl TimegrapherApp {
         let now = (live.template_switch_s(), live.template_rebuild_given_up());
         if now.0 != self.recording.rebuild_seen.0 {
             self.bench.results.bg.trend = None;
-            self.bench.results.trend = live.trend(self.take.average_s);
+            self.bench.results.trend = live.trend(self.bench.take.average_s);
             if let (Some(a), Some((dt, di))) =
                 (self.recording.anchor.as_mut(), live.template_shift())
             {
@@ -2032,7 +2030,7 @@ impl TimegrapherApp {
     }
 
     fn reading(&self) -> Option<LiveReading> {
-        self.reading_over(self.take.average_s)
+        self.reading_over(self.bench.take.average_s)
     }
 
     /// The newest reading, averaged over `average` seconds.
@@ -2065,7 +2063,7 @@ impl TimegrapherApp {
         if self.settle_left_at(t).is_some() {
             return None;
         }
-        let reading = live.reading_at(t, self.take.average_s);
+        let reading = live.reading_at(t, self.bench.take.average_s);
         self.session
             .replay_reading_allowed(reading.time_s)
             .then_some(reading)
@@ -2077,9 +2075,9 @@ impl TimegrapherApp {
         if let Some(l) = &self.recording.live {
             if let Some(bph) = l.bph() {
                 let beats = l.beats();
-                let breaks = self.take.take_breaks.as_deref().unwrap_or_default();
+                let breaks = self.bench.take.take_breaks.as_deref().unwrap_or_default();
                 let hi = beats.partition_point(|b| b.time <= end);
-                let clock = Self::rate_clock(&self.take.take_clock);
+                let clock = Self::rate_clock(&self.bench.take.take_clock);
                 if let Some(a) =
                     Anchor::centre_on_true(&beats[..hi], 3600.0 / bph as f64, 8, breaks, clock)
                 {
@@ -3150,12 +3148,12 @@ impl TimegrapherApp {
             .frame(bar.inner_margin(egui::Margin::symmetric(14, 5)))
             .show(ctx, |ui| self.status_bar(ui));
         // Esc puts the tool in hand down: the Position Brush or Mask.
-        if (self.take.brush.is_some() || self.take.masking)
+        if (self.bench.take.brush.is_some() || self.bench.take.masking)
             && !egui::Popup::is_any_open(ctx)
             && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
         {
-            self.take.brush = None;
-            self.take.masking = false;
+            self.bench.take.brush = None;
+            self.bench.take.masking = false;
         }
         // The menus' shortcuts, Cmd+1 and Cmd+2 before the bare digits
         // are read.

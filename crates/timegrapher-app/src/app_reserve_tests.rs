@@ -563,7 +563,7 @@ fn a_power_reserve_test_holds_its_position_and_keeps_its_take_with_its_run() {
     })
     .unwrap();
     app.session.recorder = Some(r);
-    app.take.position = Position::CrownLeft;
+    app.bench.take.position = Position::CrownLeft;
     let mut t = reserve::Test::new(
         Position::CrownLeft,
         true,
@@ -584,7 +584,7 @@ fn a_power_reserve_test_holds_its_position_and_keeps_its_take_with_its_run() {
     assert!(app.position_lock_words().contains("Stop Test"));
     // One position for the whole run.
     app.change_position(Position::DialUp);
-    assert_eq!(app.take.position, Position::CrownLeft);
+    assert_eq!(app.bench.take.position, Position::CrownLeft);
 
     // Stop ends the test and keeps the take in the watch's history.
     app.stop_listening();
@@ -686,7 +686,7 @@ fn a_power_reserve_test_kept_as_analysis_only_lets_its_sound_go() {
     r.write(&block(20, 0)).unwrap();
     app.session.recorder = Some(r);
     let _tx = super::tests::queued_capture(&mut app, &base);
-    app.take.position = Position::CrownLeft;
+    app.bench.take.position = Position::CrownLeft;
     app.bench.test.reserve = Some(crown_left_test());
     assert!(app.streams(), "a test of a watch picked records as it goes");
     app.stream_tick();
@@ -770,14 +770,14 @@ fn a_power_reserve_test_over_an_opened_take_keeps_the_cards_position_and_watch()
     app.reset_session(48000, "take".into());
     app.recording.input = Input::File;
     app.keeping.opened_path = "/x/take.wav".into();
-    app.take.mic_setup = Some(WatchSetup::default());
-    app.take.position = Position::DialDown;
+    app.bench.take.mic_setup = Some(WatchSetup::default());
+    app.bench.take.position = Position::DialDown;
     // The test's own session, short of opening a real input.
     app.reserve_session();
-    assert_eq!(app.take.position, Position::DialDown);
+    assert_eq!(app.bench.take.position, Position::DialDown);
     assert_eq!(app.recording.input, Input::Microphone);
     // The take's own watch name gone, as after a test's Stop.
-    app.take.watch.clear();
+    app.bench.take.watch.clear();
     let words = app.status_words();
     assert!(words.contains("Daytona"), "{words}");
     assert!(!words.contains("No watch"), "{words}");
@@ -822,7 +822,7 @@ fn a_power_reserve_test_runs_in_the_cards_position() {
         app.bench.test.reserve.as_ref().unwrap().position,
         Position::CrownUp
     );
-    assert_eq!(app.take.position, Position::CrownUp);
+    assert_eq!(app.bench.take.position, Position::CrownUp);
     // The pane names that position and has no picker of its own.
     let mut texts = Vec::new();
     let ctx = egui::Context::default();
@@ -1281,7 +1281,7 @@ fn a_power_reserve_test_whose_recording_fails_keeps_its_run_so_far() {
     r.write(&block(20)).unwrap();
     app.session.recorder = Some(r);
     let _tx = super::tests::queued_capture(&mut app, &base);
-    app.take.position = Position::CrownLeft;
+    app.bench.take.position = Position::CrownLeft;
     app.bench.test.reserve = Some(crown_left_test());
     // Recording into its folder: a first save, then a second.
     app.stream_tick();
@@ -1713,7 +1713,7 @@ fn analysis_only_heard_with(
     app.session.recorder = Some(r);
     before(&recording);
     let tx = queued_capture(&mut app, &base);
-    app.take.position = Position::CrownLeft;
+    app.bench.take.position = Position::CrownLeft;
     app.bench.test.reserve_keep_sound = false;
     app.begin_reserve();
     assert!(app.kept_running(), "{:?}", app.message);
@@ -2241,7 +2241,7 @@ fn reserve_heard(
         48_000,
         timegrapher_core::live::LiveConfig::default(),
     ));
-    app.take.position = Position::CrownLeft;
+    app.bench.take.position = Position::CrownLeft;
     app.bench.test.reserve = Some(reserve::Test::new(
         Position::CrownLeft,
         true,

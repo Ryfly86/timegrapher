@@ -180,7 +180,7 @@ impl TimegrapherApp {
             .results
             .steady_job
             .as_ref()
-            .is_some_and(|j| j.0 != self.take.rev)
+            .is_some_and(|j| j.0 != self.bench.take.rev)
         {
             self.bench.results.steady_job = None;
         }
@@ -189,7 +189,7 @@ impl TimegrapherApp {
             .results
             .steady
             .as_ref()
-            .is_some_and(|s| s.0 != self.take.rev)
+            .is_some_and(|s| s.0 != self.bench.take.rev)
         {
             self.bench.results.steady = None;
         }
@@ -199,7 +199,7 @@ impl TimegrapherApp {
             .bg
             .isochronism
             .as_ref()
-            .is_some_and(|s| s.0 != self.take.rev)
+            .is_some_and(|s| s.0 != self.bench.take.rev)
         {
             self.bench.results.bg.isochronism = None;
         }
@@ -219,7 +219,7 @@ impl TimegrapherApp {
         }
         // Only the beats in the position the watch is in now, joined.
         let runs = self.current_runs();
-        let clock = Self::rate_clock(&self.take.take_clock).cloned();
+        let clock = Self::rate_clock(&self.bench.take.take_clock).cloned();
         let joined = !self.session.stretches().is_empty();
         let dur = self.recording.live.as_ref().map_or(0.0, |l| {
             steady::joined_duration(
@@ -253,7 +253,7 @@ impl TimegrapherApp {
                     let _ = tx.send(a);
                     ctx.request_repaint();
                 });
-                self.bench.results.steady_job = Some((self.take.rev, rx));
+                self.bench.results.steady_job = Some((self.bench.take.rev, rx));
             }
         }
         dur
@@ -270,7 +270,7 @@ impl TimegrapherApp {
         runs: &timegrapher_core::take_context::Stretches<Position>,
         clock: Option<&timegrapher_core::clock::ClockFit>,
     ) -> (BeatLog, Vec<timegrapher_core::breaks::Break>) {
-        let mut opened = self.take.take_breaks.clone().unwrap_or_default();
+        let mut opened = self.bench.take.take_breaks.clone().unwrap_or_default();
         if self.session.stretches().is_empty() {
             let breaks = steady::reading_breaks(opened, &log);
             (log, breaks)
@@ -362,7 +362,7 @@ impl TimegrapherApp {
         let of = if !joined {
             String::new()
         } else {
-            format!("{} ", self.take.position.name())
+            format!("{} ", self.bench.take.position.name())
         };
         self.steady_working(ui);
         let status = match upto {
@@ -393,7 +393,7 @@ impl TimegrapherApp {
             meshes: self.bench.panes_view.show_marks.meshes.on(view),
             info: self.bench.panes_view.steady_info.on(view),
             take_span: self.take_span().filter(|_| !joined),
-            joined_in: joined.then(|| self.take.position.code()),
+            joined_in: joined.then(|| self.bench.take.position.code()),
         }
     }
 }

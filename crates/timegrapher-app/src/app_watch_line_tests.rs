@@ -387,7 +387,7 @@ fn the_title_menu_leads_with_the_hidden_beat_rate_for_a_watch_with_no_calibre() 
             NO_WATCH
         ]
     );
-    app.take.bph = Some(21600);
+    app.bench.take.bph = Some(21600);
     let menu = line_menu(&mut app, true);
     assert_eq!(menu[1..3], ["✓ 21600 bph", "Auto"]);
     assert_eq!(
@@ -435,18 +435,21 @@ fn picking_on_the_watch_line_over_a_take_shows_the_watch_picked() {
     on_show(&mut app);
     app.line_pick(Some(watch_id(&app, "Pepsi")), false);
     assert!(app.recording.live.is_none(), "the take is put away");
-    assert_eq!(app.take.calibre, c.calibre);
-    assert_eq!(app.take.lift_deg, c.lift_angle_deg.unwrap());
-    assert_eq!(app.take.bph, c.bph);
+    assert_eq!(app.bench.take.calibre, c.calibre);
+    assert_eq!(app.bench.take.lift_deg, c.lift_angle_deg.unwrap());
+    assert_eq!(app.bench.take.bph, c.bph);
     on_show(&mut app);
     app.line_pick(Some(seiko.clone()), false);
-    assert!(app.take.calibre.is_empty());
-    assert_eq!((app.take.lift_deg, app.take.bph), (53.0, None));
+    assert!(app.bench.take.calibre.is_empty());
+    assert_eq!((app.bench.take.lift_deg, app.bench.take.bph), (53.0, None));
     assert!(app.watch_sets_here());
     on_show(&mut app);
     app.line_pick(None, false);
     assert!(app.open_watch().is_none() && app.recording.live.is_none());
-    assert_eq!((app.take.lift_deg, app.take.bph), (DEFAULT_LIFT_DEG, None));
+    assert_eq!(
+        (app.bench.take.lift_deg, app.bench.take.bph),
+        (DEFAULT_LIFT_DEG, None)
+    );
     drop(app);
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -537,7 +540,7 @@ fn the_card_saves_its_lift_and_beat_rate_to_a_watch_with_no_calibre() {
     app.pick_watch(&watch_id(&app, "Pepsi"));
     assert!(!app.watch_sets_here());
     let before = saved("Pepsi");
-    app.take.lift_deg = 44.0;
+    app.bench.take.lift_deg = 44.0;
     app.save_card_to_watch();
     assert_eq!(saved("Pepsi"), before, "the calibre's to set");
     drop(app);
@@ -580,7 +583,7 @@ fn the_watch_line_cuts_the_name_and_keeps_its_arrow() {
 #[test]
 fn a_take_from_outside_watches_names_its_own_watch_on_the_card() {
     let (mut app, base) = line_app("own", &["Pepsi"], None);
-    app.take.watch = "Rolex Submariner 41mm".into();
+    app.bench.take.watch = "Rolex Submariner 41mm".into();
     assert!(app.open_watch().is_none());
     assert_eq!(
         app.named_watch(),
@@ -773,7 +776,7 @@ fn quick_listen_sound_goes_without_asking() {
 #[test]
 fn the_calibre_controls_fit_a_narrow_card() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    app.take.bph = Some(28800);
+    app.bench.take.bph = Some(28800);
     let ctx = themed();
     let inner = |card: f32| card - 2.0 * f32::from(theme::CARD_PADDING);
     for w in [
@@ -840,7 +843,7 @@ fn a_takes_limits_show_once_in_a_chip_with_the_whole_in_its_hover() {
     let mut noise = synthetic(6.0, 0.0);
     let r = noise.reading().expect("a reading");
     let empty = r.amplitude_deg.is_none();
-    let limits = take_limits(&r.caveats, noise.take.lift_deg, r.beats_used, empty);
+    let limits = take_limits(&r.caveats, noise.bench.take.lift_deg, r.beats_used, empty);
     assert!(!limits.is_empty(), "{:?}", r.caveats);
     let chip = match limits.len() {
         1 => chip_words(&limits[0].0),
@@ -895,7 +898,7 @@ fn a_takes_limits_show_once_in_a_chip_with_the_whole_in_its_hover() {
 /// with its limits named.
 fn noisy_app() -> TimegrapherApp {
     let mut noise = TimegrapherApp::with_devices(Vec::new(), None);
-    noise.take.bph = Some(28_800);
+    noise.bench.take.bph = Some(28_800);
     noise.reset_session(48000, "noise".into());
     let mut seed = 12_345_u32;
     let hiss: Vec<f32> = (0..48_000 * 20)
@@ -947,7 +950,7 @@ fn the_cards_keep_their_height_whatever_they_show() {
     settling
         .session
         .load(&[(0.0, Position::DialUp), (55.0, Position::DialDown)], &[]);
-    settling.take.position = Position::DialDown;
+    settling.bench.take.position = Position::DialDown;
     settling.session.start_settle(55.0);
     let mut masked = synthetic(60.0, 0.0);
     masked.mask(5.0, 30.0);
@@ -1068,7 +1071,7 @@ fn the_cards_ask_for_beat_rate_and_lift_only_without_a_calibre() {
     assert!(named.contains(&c.calibre), "the calibre named: {named}");
     app.pick_watch(&pepsi);
     assert!(
-        app.take.calibre.is_empty(),
+        app.bench.take.calibre.is_empty(),
         "not the calibre of the watch before"
     );
     let bare = drawn(&mut app);

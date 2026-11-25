@@ -69,7 +69,7 @@ impl TimegrapherApp {
         }
         // The Complication Test stays where the card is.
         if let Some(&first) = kind.order().first() {
-            if self.take.position != first {
+            if self.bench.take.position != first {
                 self.change_position(first);
             }
         }
@@ -79,7 +79,7 @@ impl TimegrapherApp {
         }
         let test = match (kind, half) {
             (guided::Kind::Poise, _) => guided::Test::poise(),
-            (guided::Kind::Complication, _) => guided::Test::complication(self.take.position),
+            (guided::Kind::Complication, _) => guided::Test::complication(self.bench.take.position),
             (_, Some(full)) => guided::Test::after(full),
             (_, None) => guided::Test::new(),
         };
@@ -205,8 +205,8 @@ impl TimegrapherApp {
                         .live
                         .as_ref()
                         .and_then(|l| l.config().analysis.bph);
-                    test.lift_deg = Some(self.take.lift_deg);
-                    test.read_new(&log, clock.as_ref(), &self.take.masked);
+                    test.lift_deg = Some(self.bench.take.lift_deg);
+                    test.read_new(&log, clock.as_ref(), &self.bench.take.masked);
                 }
             }
         }
@@ -254,8 +254,8 @@ impl TimegrapherApp {
                     .live
                     .as_ref()
                     .and_then(|l| l.config().analysis.bph);
-                test.lift_deg = Some(self.take.lift_deg);
-                test.finish(&log, clock.as_ref(), &self.take.masked);
+                test.lift_deg = Some(self.bench.take.lift_deg);
+                test.finish(&log, clock.as_ref(), &self.bench.take.masked);
                 // Read again from its sound as saved, as `timegrapher
                 // session` reads it, once its take is saved (#1958).
                 test.saved_read = guided::SavedRead::Pending;
@@ -277,13 +277,14 @@ impl TimegrapherApp {
     /// results.
     pub(super) fn guided_about(&self) -> guided::About {
         guided::About {
-            watch: self.take.watch.trim().to_string(),
-            calibre: self.take.calibre.clone(),
+            watch: self.bench.take.watch.trim().to_string(),
+            calibre: self.bench.take.calibre.clone(),
             bph: self
+                .bench
                 .take
                 .bph
                 .or(self.recording.live.as_ref().and_then(|l| l.bph())),
-            lift_angle_deg: self.take.lift_deg,
+            lift_angle_deg: self.bench.take.lift_deg,
         }
     }
 
@@ -463,7 +464,7 @@ impl TimegrapherApp {
                     self.bench.test.guided_settle_s = v;
                     // Every settle band redraws, and the table with it.
                     self.session.resettle(v);
-                    self.positions_moved(self.take.position);
+                    self.positions_moved(self.bench.take.position);
                 }
             })
             .response

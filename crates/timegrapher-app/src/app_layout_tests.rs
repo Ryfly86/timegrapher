@@ -224,7 +224,7 @@ fn every_pane_is_whole_during_a_take() {
     let live = ticking.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         if live.push(b) {
-            let r = live.reading(ticking.take.average_s);
+            let r = live.reading(ticking.bench.take.average_s);
             ticking
                 .bench
                 .results
@@ -434,7 +434,7 @@ fn every_toolbar_keeps_to_one_row_and_folds_only_when_narrow() {
     let live = app.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         if live.push(b) {
-            let r = live.reading(app.take.average_s);
+            let r = live.reading(app.bench.take.average_s);
             app.bench.results.trend.push(TrendPoint::of(r.time_s, &r));
         }
     }
@@ -764,7 +764,7 @@ fn removing_all_masks_asks_first() {
         "{}",
         app.masked_words()
     );
-    app.take.remove_masks_asked = true;
+    app.bench.take.remove_masks_asked = true;
     let mut words = Vec::new();
     for _ in 0..2 {
         let out = ctx.run(egui::RawInput::default(), |ctx| {
@@ -780,7 +780,11 @@ fn removing_all_masks_asks_first() {
             .collect();
     }
     assert!(words.iter().any(|w| w == "Remove all masks?"), "{words:?}");
-    assert_eq!(app.take.masked.len(), 2, "nothing removed before the yes");
+    assert_eq!(
+        app.bench.take.masked.len(),
+        2,
+        "nothing removed before the yes"
+    );
 }
 
 /// The moment the profile shows when the strip is moved back is said once,
@@ -1205,7 +1209,7 @@ fn ticking(seconds: f64) -> TimegrapherApp {
     let live = app.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         if live.push(b) {
-            let r = live.reading(app.take.average_s);
+            let r = live.reading(app.bench.take.average_s);
             app.bench.results.trend.push(TrendPoint::of(r.time_s, &r));
         }
     }

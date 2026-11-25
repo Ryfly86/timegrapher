@@ -57,7 +57,7 @@ fn steadiness_stops_at_a_takes_breaks_with_their_gaps() {
     assert_eq!(breaks(&app), [cut(200.0, 0.0), cut(400.0, 0.0)]);
     // Opened: the take's own break keeps the 30 s its gap held, as
     // `series` reads it; the other jump has none.
-    app.take.take_breaks = Some(vec![cut(200.0, 30.0)]);
+    app.bench.take.take_breaks = Some(vec![cut(200.0, 30.0)]);
     assert_eq!(breaks(&app), [cut(200.0, 30.0), cut(400.0, 0.0)]);
 }
 

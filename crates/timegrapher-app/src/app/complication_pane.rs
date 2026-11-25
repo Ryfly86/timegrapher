@@ -118,7 +118,7 @@ impl TimegrapherApp {
                 .live
                 .as_ref()
                 .and_then(|l| l.config().analysis.bph);
-            let masked = self.take.masked.clone();
+            let masked = self.bench.take.masked.clone();
             if let Some(t) = self.bench.test.complication_saved.as_mut() {
                 t.bph_set = bph;
                 t.finish(&log, clock.as_ref(), &masked);
@@ -240,7 +240,7 @@ impl TimegrapherApp {
                 self.bench.panes_view.complication_info,
                 self.bench.panes_view.complication_series,
             ),
-            self.take.rev.opens,
+            self.bench.take.rev.opens,
         );
         if let (Some(action), Some(now)) = (action, now) {
             self.apply_guided_action(action, now);

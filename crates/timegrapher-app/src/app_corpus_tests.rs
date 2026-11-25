@@ -418,6 +418,7 @@ fn split_entries_clock_probe(metadata: &str, folder: bool) {
     };
     let mut app = opened(&path);
     let clock = app
+        .bench
         .take
         .take_clock
         .as_ref()
@@ -429,7 +430,7 @@ fn split_entries_clock_probe(metadata: &str, folder: bool) {
         .into_iter()
         .zip(&readings)
     {
-        app.take.position = position;
+        app.bench.take.position = position;
         let wrong = differences(metadata, &app.whole_take(), reading);
         assert!(wrong.is_empty(), "{}", wrong.join("\n"));
     }
@@ -543,7 +544,7 @@ fn pane_differences(id: &str, root: &Path, cli: &Path) -> (Vec<(String, String)>
         let step = if short {
             dist::STRETCH_S
         } else {
-            app.take.average_s
+            app.bench.take.average_s
         };
         let ours = dist::distribution(&values, kind, label, step)
             .map(|d| dist_figures(&serde_json::to_value(d).unwrap()));
@@ -1435,7 +1436,7 @@ fn a_stopped_takes_whole_take_and_sparklines_are_its_saved_takes() {
     // The saved take keeps the mask, in its sound's own time: 4 s sooner,
     // after the break.
     assert_eq!(
-        opened.take.masked,
+        opened.bench.take.masked,
         vec![(46.0, 52.0)],
         "the saved take's mask"
     );
@@ -1567,7 +1568,7 @@ fn widest_lead(app: &TimegrapherApp, from: f64, to: f64) -> f64 {
     let live = app.recording.live.as_ref().unwrap();
     let period = 3600.0 / live.bph().unwrap() as f64;
     let anchor = app.recording.anchor.expect("anchored");
-    let breaks = app.take.take_breaks.as_deref().unwrap_or_default();
+    let breaks = app.bench.take.take_breaks.as_deref().unwrap_or_default();
     live.beats()
         .iter()
         .filter(|b| b.time > from && b.time < to)
@@ -1682,7 +1683,7 @@ fn fit_is_made_again_when_the_run_comes_after_the_take_opens() {
     let read_again = |app: &mut TimegrapherApp| {
         // The run not read yet, as for a take opened without one.
         app.bench.results.trend.clear();
-        app.bench.results.trend_key = (app.take.rev, 0);
+        app.bench.results.trend_key = (app.bench.take.rev, 0);
         app.fit_take();
         let t = Instant::now();
         while app.bench.results.trend.is_empty() && t.elapsed().as_secs() < 120 {
@@ -1704,7 +1705,7 @@ fn fit_is_made_again_when_the_run_comes_after_the_take_opens() {
     assert!(wide > 100.0, "every beat: {wide}");
     app.bench.panes_view.strip.set_half_width(wide / 2.0);
     let by_hand = app.bench.panes_view.strip.half_width_ms;
-    app.bench.results.trend_key = (app.take.rev, 0);
+    app.bench.results.trend_key = (app.bench.take.rev, 0);
     let t = Instant::now();
     while app.bench.results.trend.is_empty() && t.elapsed().as_secs() < 120 {
         app.take_reads_shown(&ctx);
