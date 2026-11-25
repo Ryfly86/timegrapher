@@ -1181,10 +1181,11 @@ fn the_window_draws_again_only_while_work_is_under_way() {
         total_s: 1.0,
     };
     type Set = Box<dyn Fn(&mut TimegrapherApp)>;
+    let at = SoundKey::now(0.0, Revision::default());
     let slow: [(&str, Set); 6] = [
         (
             "sound",
-            Box::new(|a| a.bench.results.sound_job = Some((0.0, 0, channel().1))),
+            Box::new(move |a| a.bench.results.sound_job = Some((at, channel().1))),
         ),
         (
             "scope",

@@ -637,11 +637,11 @@ impl TimegrapherApp {
         if spacing <= 2.0 * step && widest_hole(&kept, from, end, around, &quiet) <= 2.0 * step {
             return (kept, spacing);
         }
-        let key: StripKey = (
-            (from / step).floor() as i64,
-            (end / step).ceil() as i64,
-            trend_key(seconds),
-            step.to_bits(),
+        let key = StripKey {
+            from: (from / step).floor() as i64,
+            to: (end / step).ceil() as i64,
+            average: trend_key(seconds),
+            step: step.to_bits(),
             // While listening, in whole steps: the readings lie on steps,
             // so they are worked out again as each new one comes in, and
             // the newest catch up with the sound behind them a step later.
@@ -650,21 +650,21 @@ impl TimegrapherApp {
             // listening with the run too sparse to serve, as after the
             // watch stops (30 ms a frame, #1825). Stopped or paused, the
             // sound's own length, so the last sound heard counts (Trevor).
-            if self.running() {
+            sound: if self.running() {
                 (live.duration_s() / step).floor().to_bits()
             } else {
                 live.duration_s().to_bits()
             },
-            self.bench.take.rev,
-        );
+            rev: self.bench.take.rev,
+        };
         if let Some((k, pts)) = &self.bench.results.strip_points {
             if *k == key {
                 return (pts.clone(), step);
             }
         }
         let mut pts = Vec::new();
-        let mut t = key.0 as f64 * step;
-        while t <= (key.1 as f64 * step).min(live.duration_s()) + 1e-9 {
+        let mut t = key.from as f64 * step;
+        while t <= (key.to as f64 * step).min(live.duration_s()) + 1e-9 {
             if t > 0.0 && self.session.replay_reading_allowed(t) {
                 pts.push(TrendPoint::of(t, &live.reading_at(t, seconds)));
             }

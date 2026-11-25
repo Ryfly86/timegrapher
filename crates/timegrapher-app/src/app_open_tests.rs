@@ -762,7 +762,10 @@ fn an_opened_takes_readings_are_readied_off_the_window() {
     assert!(readied.len() > 10, "{}", readied.len());
     assert_eq!(
         app.bench.results.trend_key,
-        (app.bench.take.rev, app.bench.take.average_s.to_bits())
+        TrendKey {
+            rev: app.bench.take.rev,
+            average: app.bench.take.average_s.to_bits()
+        }
     );
     app.rebuild_trend();
     assert_eq!(app.bench.results.trend, readied);
@@ -787,18 +790,17 @@ fn a_setting_changed_while_a_take_opens_holds() {
     // The charts, not readied at the new setting, are read by the next
     // frames in the background (#1014).
     let ctx = egui::Context::default();
-    while app.bench.results.trend_key != (app.bench.take.rev, now.to_bits())
-        && t.elapsed().as_secs() < 120
-    {
+    let at_now = |a: &TimegrapherApp| TrendKey {
+        rev: a.bench.take.rev,
+        average: now.to_bits(),
+    };
+    while app.bench.results.trend_key != at_now(&app) && t.elapsed().as_secs() < 120 {
         app.take_reads_shown(&ctx);
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     let live = app.bench.recording.live.as_ref().expect("opened");
     assert_eq!(live.config().profile_s, now);
-    assert_eq!(
-        app.bench.results.trend_key,
-        (app.bench.take.rev, now.to_bits())
-    );
+    assert_eq!(app.bench.results.trend_key, at_now(&app));
     let shown = app.bench.results.trend.clone();
     app.rebuild_trend();
     assert_eq!(app.bench.results.trend, shown);

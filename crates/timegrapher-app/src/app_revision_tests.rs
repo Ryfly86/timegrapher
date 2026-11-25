@@ -544,3 +544,105 @@ fn every_pane_follows_the_lift_the_clock_and_the_masks() {
         before = after;
     }
 }
+
+/// The Scope's sound for `lo` to `hi` s as it is drawn: read from the
+/// recording when it isn't already, as the frames read it.
+fn scope_drawn(app: &mut TimegrapherApp, lo: f64, hi: f64) -> (Vec<f32>, f64, f64) {
+    for _ in 0..3 {
+        match app.scope_cut(lo, hi) {
+            Some((Some(cut), _)) => return cut,
+            Some((None, Some(why))) if !why.starts_with("Reading") => panic!("{why}"),
+            _ => {}
+        }
+        if let Some(rx) = app.bench.results.scope_job.take() {
+            let read = rx.recv_timeout(std::time::Duration::from_secs(30)).unwrap();
+            app.bench.results.scope_audio = Some(read);
+        }
+    }
+    panic!("the Scope read nothing for {lo} to {hi} s");
+}
+
+/// Sound the Scope read from one take is never drawn for the next take
+/// opened, over the same seconds: the Scope reads it again from that
+/// take's own recording (#1988 N1).
+#[test]
+fn the_scope_never_draws_sound_read_from_the_take_before() {
+    let base = std::env::temp_dir().join(format!("tg-app-scope-take-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let take = |name: &str, amp: f64| {
+        let audio = generate(
+            &SynthConfig {
+                duration_s: 30.0,
+                ..Default::default()
+            },
+            |_| amp,
+            |_| 0.0,
+        );
+        let path = base.join(name);
+        timegrapher_core::audio::write_wav(&path, &audio).unwrap();
+        path
+    };
+    let (first, second) = (take("first.wav", 280.0), take("second.wav", 200.0));
+    let mut app = reopened(&first);
+    app.bench.recording.input = Input::File;
+    let (lo, hi) = (10.0, 12.0);
+    let was = scope_drawn(&mut app, lo, hi);
+    app.start_batch(&second);
+    let t = Instant::now();
+    while app.bench.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
+        app.poll();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    assert!(app.bench.recording.live.is_some(), "{:?}", app.message);
+    app.bench.recording.input = Input::File;
+    let now = scope_drawn(&mut app, lo, hi);
+    let own = crate::span::read(&[second], now.1, now.0.len() as f64 / now.2).unwrap();
+    assert_ne!(now.0, was.0, "the first take's sound drawn for the second");
+    assert_eq!(
+        now.0,
+        own.mono[..now.0.len()],
+        "not the second take's own sound"
+    );
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// A beat's trace kept on the Scope is drawn again only for the take it
+/// was drawn from: another take's beat with the same index and time is
+/// traced afresh (#1988 N1).
+#[test]
+fn the_scope_never_draws_a_trace_kept_from_the_take_before() {
+    let app = synthetic(30.0, 0.0);
+    let live = app.bench.recording.live.as_ref().unwrap();
+    let beats = live.beats();
+    let picks = vec![beats[beats.len() - 4..beats.len() - 1].to_vec()];
+    let (zoom, beat_s) = (scope::Zoom::Ms20, 3600.0 / 28_800.0);
+    let fs = live.sample_rate() as f64;
+    let span = zoom.window(beat_s);
+    let mut kept = std::collections::VecDeque::new();
+    let fresh = scope_panes::scope_known(live, &mut kept, &picks, (1, zoom, beat_s), fs, span);
+    assert_eq!(
+        fresh.len(),
+        picks[0].len(),
+        "traced from the engine's sound"
+    );
+    // What the first take kept, marked so it shows if drawn again.
+    for (_, t) in kept.iter_mut() {
+        t.fill(9.0);
+    }
+    let again = scope_panes::scope_known(live, &mut kept, &picks, (1, zoom, beat_s), fs, span);
+    assert!(
+        again.values().all(|t| t.iter().all(|&v| v == 9.0)),
+        "kept, same take"
+    );
+    let next = scope_panes::scope_known(live, &mut kept, &picks, (2, zoom, beat_s), fs, span);
+    assert_eq!(next.len(), picks[0].len());
+    for (k, t) in &next {
+        assert_eq!(k.take, 2);
+        assert_eq!(
+            t,
+            &fresh[&ScopeKey { take: 1, ..*k }],
+            "the first take's trace drawn"
+        );
+    }
+}

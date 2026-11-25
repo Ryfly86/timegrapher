@@ -300,12 +300,9 @@ impl TimegrapherApp {
             SoundAt::NoBeats => no_beats_at(&at),
             SoundAt::NotKept => {
                 self.poll_sound_job();
+                let rev = self.bench.take.rev;
                 let worked_out = match &self.bench.results.sound_at {
-                    Some((t, rev, p))
-                        if (t - end).abs() < 0.5 && *rev == self.bench.take.rev.settings =>
-                    {
-                        Some(p.clone())
-                    }
+                    Some((k, p)) if (k.at - end).abs() < 0.5 && k.holds(rev) => Some(p.clone()),
                     _ => None,
                 };
                 match worked_out {
@@ -424,12 +421,13 @@ impl TimegrapherApp {
         let (before, after) = view.zoom.window(beat_s);
         // Each beat from the traces already drawn, else from the sound the
         // engine still holds; only the rest need reading from the recording.
-        let key = |b: &timegrapher_core::beats::Beat| scope_key(b, view.zoom, beat_s);
+        let take = self.bench.take.rev.opens;
+        let key = |b: &timegrapher_core::beats::Beat| scope_key(take, b, view.zoom, beat_s);
         let known = scope_known(
             live,
             &mut self.bench.results.scope_traces,
             &picks,
-            (view.zoom, beat_s),
+            (take, view.zoom, beat_s),
             fs,
             (before, after),
         );
@@ -500,12 +498,13 @@ impl TimegrapherApp {
     /// The sound from `lo` to `hi` s from the recording read in the
     /// background, with the line to show over the Scope while it is read,
     /// or when it can't be read; None when no sound of it is kept.
-    fn scope_cut(&mut self, lo: f64, hi: f64) -> Option<ScopeSound> {
+    pub(super) fn scope_cut(&mut self, lo: f64, hi: f64) -> Option<ScopeSound> {
         match &self.bench.results.scope_audio {
-            // What was asked for covers these beats: use what was read,
-            // even when the recording ended before it, and never ask
-            // again for a stretch that couldn't be read.
-            Some((a, b, got)) if *a <= lo && *b >= hi => match got {
+            // What was asked for of this take covers these beats: use
+            // what was read, even when the recording ended before it, and
+            // never ask again for a stretch that couldn't be read. Sound
+            // read from the take before is never drawn (#1988).
+            Some(read) if read.covers(self.bench.take.rev, lo, hi) => match &read.got {
                 Ok(sp) => {
                     let i0 =
                         (((lo - sp.t0) * sp.rate).floor().max(0.0) as usize).min(sp.mono.len());
@@ -578,13 +577,19 @@ impl TimegrapherApp {
             return false;
         };
         let (tx, rx) = std::sync::mpsc::channel();
+        let take = self.bench.take.rev.opens;
         std::thread::spawn(move || {
             // Read in the sound's own seconds, kept in the take's.
             let got = crate::span::read(&files, (a - shift).max(0.0), b - a).map(|mut sp| {
                 sp.t0 += shift;
                 sp
             });
-            let _ = tx.send((a, b, got));
+            let _ = tx.send(ScopeRead {
+                take,
+                from: a,
+                to: b,
+                got,
+            });
         });
         self.bench.results.scope_job = Some(rx);
         true
@@ -667,29 +672,31 @@ impl TimegrapherApp {
             };
             let _ = tx.send(p);
         });
-        self.bench.results.sound_job = Some((end, self.bench.take.rev.settings, rx));
+        self.bench.results.sound_job = Some((SoundKey::now(end, self.bench.take.rev), rx));
         true
     }
 
     fn poll_sound_job(&mut self) {
-        // Profiles read at settings changed since are read again.
+        // Profiles read for another take, or at settings changed since,
+        // are read again.
+        let rev = self.bench.take.rev;
         if self
             .bench
             .results
             .sound_job
             .as_ref()
-            .is_some_and(|j| j.1 != self.bench.take.rev.settings)
+            .is_some_and(|j| !j.0.holds(rev))
         {
             self.bench.results.sound_job = None;
         }
-        if let Some((t, rev, rx)) = &self.bench.results.sound_job {
+        if let Some((k, rx)) = &self.bench.results.sound_job {
             match rx.try_recv() {
                 Ok(p) => {
-                    self.bench.results.sound_at = Some((*t, *rev, p));
+                    self.bench.results.sound_at = Some((*k, p));
                     self.bench.results.sound_job = None;
                 }
                 Err(TryRecvError::Disconnected) => {
-                    self.bench.results.sound_at = Some((*t, *rev, [None, None]));
+                    self.bench.results.sound_at = Some((*k, [None, None]));
                     self.bench.results.sound_job = None;
                 }
                 Err(TryRecvError::Empty) => {}
@@ -702,25 +709,37 @@ impl TimegrapherApp {
 /// over it.
 type ScopeSound = (Option<(Vec<f32>, f64, f64)>, Option<String>);
 
-/// Where a beat's trace is kept: its index and time at this zoom and beat.
-fn scope_key(b: &timegrapher_core::beats::Beat, zoom: scope::Zoom, beat_s: f64) -> ScopeKey {
-    (b.index, b.time.to_bits(), zoom, beat_s.to_bits())
+/// Where a beat's trace is kept: the take, and the beat's index and time
+/// at this zoom and beat.
+fn scope_key(
+    take: u64,
+    b: &timegrapher_core::beats::Beat,
+    zoom: scope::Zoom,
+    beat_s: f64,
+) -> ScopeKey {
+    ScopeKey {
+        take,
+        index: b.index,
+        time: b.time.to_bits(),
+        zoom,
+        beat: beat_s.to_bits(),
+    }
 }
 
 /// Each beat's trace from the traces already drawn, else from the sound
 /// the engine still holds, keeping the newest `SCOPE_KEPT`. The rest need
 /// reading from the recording.
-fn scope_known(
+pub(super) fn scope_known(
     live: &LiveAnalyzer,
     kept: &mut std::collections::VecDeque<(ScopeKey, Vec<f32>)>,
     picks: &[Vec<timegrapher_core::beats::Beat>],
-    (zoom, beat_s): (scope::Zoom, f64),
+    (take, zoom, beat_s): (u64, scope::Zoom, f64),
     fs: f64,
     (before, after): (f64, f64),
 ) -> std::collections::HashMap<ScopeKey, Vec<f32>> {
     let mut known: std::collections::HashMap<ScopeKey, Vec<f32>> = Default::default();
     for b in picks.iter().flatten() {
-        let k = scope_key(b, zoom, beat_s);
+        let k = scope_key(take, b, zoom, beat_s);
         if let Some((_, t)) = kept.iter().find(|(c, _)| *c == k) {
             known.insert(k, t.clone());
             continue;
