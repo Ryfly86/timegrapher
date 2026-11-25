@@ -996,6 +996,59 @@ fn a_resumed_read_of_real_sound_is_a_full_reads_to_the_bit() {
     }
 }
 
+/// The silent-start take (corpus 1c35570): about 10 s of exact zeros, about
+/// 70 s of the empty stand, then the Yacht-Master 42 replica (#2189, #2191).
+const SILENT_START_TAKE: &str = "fakemic_silentstart_stand_ym42_DU";
+/// Its one file's SHA-256 at corpus 1c35570.
+const SILENT_START_SHA256: &str =
+    "313d25b9687a0080a0a4811e26a2d75077f693dfae31ffa25dcb0e0501d18fc6";
+
+/// A take that opens on exact zeros, then stand noise, read at a given
+/// 28,800 bph leaves the lead out and reads the watch's rate, exactly as
+/// Auto does (#2189, fixed by #2190). Norm's acceptance on #2191, set
+/// before any run: the lead left out lies in 75..=85 s, the rate is
+/// +52.54 ± 0.1 s/d, and the two reads agree exactly. Runs where
+/// `TIMEGRAPHER_CORPUS` is set.
+#[test]
+fn a_silent_start_take_leaves_its_lead_out_at_a_given_rate_as_on_auto() {
+    let Some(path) = corpus_takes(&[SILENT_START_TAKE]).pop() else {
+        return;
+    };
+    let hash = timegrapher_core::archive::sha256_hex(&std::fs::read(&path).unwrap());
+    assert_eq!(
+        hash, SILENT_START_SHA256,
+        "the file pinned at corpus 1c35570"
+    );
+    let audio = load(&path).unwrap();
+    let read = |bph| {
+        let s = analyze(
+            &audio,
+            &AnalysisConfig {
+                bph,
+                ..Default::default()
+            },
+        )
+        .summary;
+        let lead = s.caveats.iter().find_map(|c| match c {
+            Caveat::LeadLeftOut { seconds } => Some(*seconds),
+            _ => None,
+        });
+        eprintln!(
+            "bph {bph:?}: lead left out {lead:?} s, rate {:?} s/d",
+            s.rate_s_per_day
+        );
+        (lead, s.rate_s_per_day)
+    };
+    let given = read(Some(28_800));
+    let auto = read(None);
+    let (Some(lead), Some(rate)) = given else {
+        panic!("given 28,800 bph: no lead left out or no rate: {given:?}");
+    };
+    assert!((75.0..=85.0).contains(&lead), "lead left out {lead} s");
+    assert!((rate - 52.54).abs() <= 0.1, "rate {rate} s/d");
+    assert!(given == auto, "given {given:?} against Auto {auto:?}");
+}
+
 fn corpus_files() -> Vec<PathBuf> {
     corpus_takes(&REAL_TAKES)
 }
