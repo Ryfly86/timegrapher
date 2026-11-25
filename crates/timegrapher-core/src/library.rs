@@ -436,15 +436,25 @@ pub fn folder_name(name: &str) -> String {
     s
 }
 
+/// `parent/base`, then `base{sep}2`, `base{sep}3`… : the names a new
+/// folder named `base` is given in turn. [`unused_dir`] and
+/// [`make_unused_dir`] (sep " ") and the recorder's own folders (sep "_")
+/// all take theirs from here.
+fn folder_names<'a>(
+    parent: &'a Path,
+    base: &'a str,
+    sep: &'a str,
+) -> impl Iterator<Item = PathBuf> + 'a {
+    (1..).map(move |n| match n {
+        1 => parent.join(base),
+        n => parent.join(format!("{base}{sep}{n}")),
+    })
+}
+
 /// `parent/base`, or `parent/base 2`, `base 3`… for the first that isn't
 /// there.
 pub fn unused_dir(parent: &Path, base: &str) -> PathBuf {
-    let first = parent.join(base);
-    if !first.exists() {
-        return first;
-    }
-    (2..)
-        .map(|n| parent.join(format!("{base} {n}")))
+    folder_names(parent, base, " ")
         .find(|p| !p.exists())
         .expect("a free name")
 }
@@ -456,12 +466,14 @@ pub fn unused_dir(parent: &Path, base: &str) -> PathBuf {
 /// [`unused_dir`] and made later could (#1862). `parent` is made first
 /// where it is missing. Returns the folder made, empty.
 pub fn make_unused_dir(parent: &Path, base: &str) -> std::io::Result<PathBuf> {
+    make_free_dir(parent, base, " ")
+}
+
+/// [`make_unused_dir`] with `sep` before the number (the recorder's own
+/// folders take `name_2`).
+pub(crate) fn make_free_dir(parent: &Path, base: &str, sep: &str) -> std::io::Result<PathBuf> {
     fs::create_dir_all(parent)?;
-    for n in 1.. {
-        let dir = match n {
-            1 => parent.join(base),
-            n => parent.join(format!("{base} {n}")),
-        };
+    for dir in folder_names(parent, base, sep) {
         match fs::create_dir(&dir) {
             Ok(()) => return Ok(dir),
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}

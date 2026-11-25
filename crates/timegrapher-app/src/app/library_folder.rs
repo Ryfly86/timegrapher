@@ -393,6 +393,36 @@ mod tests {
         assert!(bad && m.contains("stopped before it finished"), "{m}");
     }
 
+    /// Each frame the keep reads again the takes the Bench has in use: a
+    /// take first saved into while it works is left alone from then on
+    /// (Trevor on #2268).
+    #[test]
+    fn a_take_saved_into_while_the_keep_works_is_left_alone() {
+        let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+        let (_tx, rx) = mpsc::channel();
+        app.bench.keeping.wav_keep = Some(WavKeep {
+            done: Arc::new(AtomicUsize::new(0)),
+            of: 2,
+            rx,
+            open: Arc::default(),
+        });
+        let takes = std::env::temp_dir().join("tg-keep-refresh").join("takes");
+        let (held, other) = (
+            takes.join("2026-10-20 14.32"),
+            takes.join("2026-10-20 15.00"),
+        );
+        let open = |app: &TimegrapherApp, d: &Path| {
+            let k = app.bench.keeping.wav_keep.as_ref().unwrap();
+            WavKeep::is_open(&k.open, d)
+        };
+        assert!(!open(&app, &held));
+        let metadata = app.session.metadata_snapshot(app.save_metadata());
+        app.session.mark_saved(5.0, held.clone(), metadata);
+        app.poll_wav_keep();
+        assert!(open(&app, &held));
+        assert!(!open(&app, &other));
+    }
+
     /// While it works, the window draws again by itself, so the count
     /// moves and the fact goes when it ends without the mouse being moved
     /// (Walter's walk of #1120).

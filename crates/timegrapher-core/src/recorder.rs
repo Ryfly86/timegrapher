@@ -1461,19 +1461,7 @@ impl Drop for SaveUpdate {
 /// same watch and position): never one that already exists, whose files a
 /// new recording would overwrite.
 fn new_dir(parent: &Path, name: &str) -> io::Result<PathBuf> {
-    fs::create_dir_all(parent)?;
-    for n in 1.. {
-        let dir = match n {
-            1 => parent.join(name),
-            n => parent.join(format!("{name}_{n}")),
-        };
-        match fs::create_dir(&dir) {
-            Ok(()) => return Ok(dir),
-            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {}
-            Err(e) => return Err(e),
-        }
-    }
-    unreachable!()
+    crate::library::make_free_dir(parent, name, "_")
 }
 
 /// `2026-10-08T21-04-05` for a folder name, from a [`utc`] time.
