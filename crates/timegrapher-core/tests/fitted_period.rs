@@ -97,7 +97,8 @@ fn with_gap(mut audio: Audio, gap_s: f64, noise: bool) -> Audio {
 /// A balance at 17,570 vph read set to 18,000 and on Auto, across a 6 s
 /// silence and a 20 s gap of noise, reads the rate it reads with no gap
 /// (Norm on #2229): the beats are numbered across the hole from their
-/// timing, not by the set rate's beat.
+/// timing, not by the set rate's beat; and its amplitude is its own,
+/// saved and live.
 #[test]
 fn a_dropout_does_not_miscount_a_watch_off_its_set_rate() {
     let whole = analyze(&watch(17_570, 40.0), &set(Some(18_000)))
@@ -108,12 +109,21 @@ fn a_dropout_does_not_miscount_a_watch_off_its_set_rate() {
     for set_bph in [Some(18_000), None] {
         for (gap, noise) in [(6.0, false), (20.0, true)] {
             let audio = with_gap(watch(17_570, 40.0), gap, noise);
-            let rate = analyze(&audio, &set(set_bph)).summary.rate_s_per_day;
-            let rate = rate.expect("a rate");
-            assert!(
-                (rate - whole).abs() < 0.05,
-                "{set_bph:?}, {gap} s gap (noise {noise}): {rate} for {whole}"
-            );
+            let at = format!("{set_bph:?}, {gap} s gap (noise {noise})");
+            let summary = analyze(&audio, &set(set_bph)).summary;
+            let rate = summary.rate_s_per_day.expect("a rate");
+            assert!((rate - whole).abs() < 0.05, "{at}: {rate} for {whole}");
+            // The amplitude at the balance's own period, not at one fitted
+            // across the hole on a provisional count (Trevor on #2252).
+            let amp = summary.amplitude_deg.expect("an amplitude");
+            assert!((amp - 280.0).abs() < 1.0, "{at}: {amp}°");
+            // Live after the silence; after the noise it reads no watch
+            // until #2240's fix (#2247), which tests it there.
+            if !noise {
+                let heard = live(&audio, set_bph).reading(10.0).amplitude_deg;
+                let heard = heard.unwrap_or_else(|| panic!("{at}: no live amplitude"));
+                assert!((heard - 280.0).abs() < 1.0, "{at}, live: {heard}°");
+            }
         }
     }
 }
