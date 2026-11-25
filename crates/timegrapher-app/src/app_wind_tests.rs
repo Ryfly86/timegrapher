@@ -105,7 +105,7 @@ fn start_at_full_wind_sets_full_wind_now() {
     let _tx = queued_capture(&mut app, &base);
     app.pick_wind(WindPick::HoursAgo(30.0));
     app.start_guided(None);
-    assert!(app.guided.is_some(), "{:?}", app.message);
+    assert!(app.bench.test.guided.is_some(), "{:?}", app.message);
     assert!(guided::unix_now() - app.wound_unix().unwrap() < 5.0);
     app.session.discard_recording();
     let _ = std::fs::remove_dir_all(base);
@@ -131,7 +131,7 @@ fn a_take_on_show_shows_its_own_wind() {
          [[recording]]\nfile = \".\"\nposition = \"DD\"\nwind_h = 24.2\n",
     )
     .unwrap();
-    app.opened_path = take.display().to_string();
+    app.bench.keeping.opened_path = take.display().to_string();
     app.session.analyse();
     assert_eq!(app.wind_field().words.value, "Began 24.2 h after full");
     assert!(
@@ -152,7 +152,7 @@ fn a_take_on_show_shows_its_own_wind() {
     let (m, _) = read_manifest(&take).unwrap().unwrap();
     assert_eq!(timegrapher_core::full_wind::take_wind_h(&m), Some(30.0));
     // The take's next write, its masks saved, keeps it (Felix's guard).
-    app.masked = vec![(1.0, 2.0)];
+    app.bench.take.masked = vec![(1.0, 2.0)];
     app.save_marks();
     let text = std::fs::read_to_string(take.join(MANIFEST)).unwrap();
     assert!(text.contains("masked"), "{text}");
@@ -160,7 +160,7 @@ fn a_take_on_show_shows_its_own_wind() {
     assert_eq!(timegrapher_core::full_wind::take_wind_h(&m), Some(30.0));
     // While its analysis is being kept, its session file is about to be
     // replaced: the card's write is refused, as Set Wind's is (Felix).
-    app.take_keep = Some((
+    app.bench.keeping.take_keep = Some((
         take.clone(),
         AnalysisSave {
             rx: std::sync::mpsc::channel().1,
@@ -179,7 +179,7 @@ fn a_take_on_show_shows_its_own_wind() {
         .message
         .as_ref()
         .is_some_and(|(m, e)| *e && m.contains("being removed")));
-    app.take_keep = None;
+    app.bench.keeping.take_keep = None;
     let _ = std::fs::remove_dir_all(&base);
 }
 
@@ -236,7 +236,7 @@ fn the_position_card_shows_no_wind() {
             (330.0, false, false),
             (330.0, false, true),
         ] {
-            app.ten_positions = ten;
+            app.bench.test.ten_positions = ten;
             let (out, card) = position_card_out(&mut app, &ctx, w, compact);
             let words = painted_text(&out);
             assert!(
@@ -248,7 +248,7 @@ fn the_position_card_shows_no_wind() {
                 let buttons = rows.controls.bottom()
                     - 2.0 * POSITION_ROW_TEN
                     - 2.0 * listen_card::POSITION_TEN_GAP;
-                title_clear(&out, app.position_card_title, w);
+                title_clear(&out, app.bench.test.position_card_title, w);
                 clock_centred(&out, app.shown_position().name(), buttons);
             }
         }
@@ -384,7 +384,7 @@ fn the_listen_card_shows_the_wind_beside_average_over() {
     };
     let mut forms = Vec::new();
     for begun in [false, true] {
-        app.live = begun.then(live);
+        app.bench.recording.live = begun.then(live);
         let words = app.wind_field().words;
         for (w, compact) in [
             (500.0, false),
@@ -395,7 +395,7 @@ fn the_listen_card_shows_the_wind_beside_average_over() {
             let (out, card) = listen_card_out(&mut app, &ctx, w, compact);
             let all = painted_text(&out);
             let inner = card.shrink(f32::from(theme::CARD_PADDING));
-            let avg_now = fields::duration(app.average_s);
+            let avg_now = fields::duration(app.bench.take.average_s);
             let form = listen_card::FIELD_FORMS
                 .iter()
                 .copied()
@@ -404,8 +404,11 @@ fn the_listen_card_shows_the_wind_beside_average_over() {
                         && drawn(&out, &f.average(&avg_now)).is_some()
                 })
                 .unwrap_or_else(|| panic!("{w} {begun}: no Wind box in {all}"));
-            let avg = drawn(&out, &form.average(&fields::duration(app.average_s)))
-                .unwrap_or_else(|| panic!("{w}: no Average Over box in {all}"));
+            let avg = drawn(
+                &out,
+                &form.average(&fields::duration(app.bench.take.average_s)),
+            )
+            .unwrap_or_else(|| panic!("{w}: no Average Over box in {all}"));
             let wind = drawn(&out, &form.wind(&words)).unwrap();
             for r in [avg, wind] {
                 assert!(
@@ -458,7 +461,7 @@ fn window_wind(app: &mut TimegrapherApp, w: f32, h: f32) -> (listen_card::FieldF
         "no taller"
     );
     let words = app.wind_field().words;
-    let avg_now = fields::duration(app.average_s);
+    let avg_now = fields::duration(app.bench.take.average_s);
     listen_card::FIELD_FORMS
         .iter()
         .find_map(|f| {
@@ -485,12 +488,12 @@ fn the_listen_card_widens_for_the_wind_where_there_is_room() {
     // From a take's start, the second form still fits at 1920 (Walter and
     // Hugh on #1926): "Wind: 54.1 h at start".
     app.pick_wind(WindPick::HoursAgo(54.1));
-    app.live = Some(timegrapher_core::live::LiveAnalyzer::new(
+    app.bench.recording.live = Some(timegrapher_core::live::LiveAnalyzer::new(
         48_000,
         timegrapher_core::live::LiveConfig::default(),
     ));
     assert_eq!(window_wind(&mut app, 1920.0, 1080.0).0, forms[1]);
-    app.live = None;
+    app.bench.recording.live = None;
     for (w, h) in [(1280.0, 800.0), (800.0, 560.0)] {
         let (form, _) = window_wind(&mut app, w, h);
         assert!(
@@ -579,7 +582,7 @@ fn the_wind_is_set_from_a_takes_start_once_it_has_begun() {
         "{}",
         before.hover
     );
-    app.live = Some(timegrapher_core::live::LiveAnalyzer::new(
+    app.bench.recording.live = Some(timegrapher_core::live::LiveAnalyzer::new(
         48_000,
         timegrapher_core::live::LiveConfig::default(),
     ));
@@ -609,11 +612,11 @@ fn the_wind_is_set_from_a_takes_start_once_it_has_begun() {
         "Wind not given. Click to set it, counted from Start."
     );
     // A Complication Test doesn't set the wind: still settable (Gus).
-    app.guided = Some(guided::Test::complication(Position::DialUp));
+    app.bench.test.guided = Some(guided::Test::complication(Position::DialUp));
     assert!(app.wind_field().settable);
-    app.guided = None;
+    app.bench.test.guided = None;
     // A test that sets its own wind keeps the field fixed.
-    app.test.reserve = Some(reserve::Test::new(
+    app.bench.test.reserve = Some(reserve::Test::new(
         Position::CrownLeft,
         true,
         String::new(),
@@ -639,7 +642,7 @@ fn a_full_wind_test_started_on_a_take_listening_leaves_it_no_wind() {
     let began = app.began_unix().unwrap();
     std::thread::sleep(std::time::Duration::from_millis(20));
     app.start_guided(None);
-    assert!(app.guided.is_some(), "{:?}", app.message);
+    assert!(app.bench.test.guided.is_some(), "{:?}", app.message);
     assert!(
         app.wound_unix().unwrap() > began,
         "full wind now, not moved back"
@@ -692,12 +695,12 @@ fn a_buttons_code_clears_its_bar() {
     let ctx = egui::Context::default();
     theme::install(&ctx);
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    app.live = Some(timegrapher_core::live::LiveAnalyzer::new(
+    app.bench.recording.live = Some(timegrapher_core::live::LiveAnalyzer::new(
         48_000,
         timegrapher_core::live::LiveConfig::default(),
     ));
     for ten in [false, true] {
-        app.ten_positions = ten;
+        app.bench.test.ten_positions = ten;
         let mut out = None;
         for _ in 0..3 {
             let high = app.readings_card_h(&ctx);
@@ -757,7 +760,7 @@ fn a_power_reserve_test_that_runs_down_lets_the_wind_go() {
     let (mut app, base) = save_failure_fixture("wind-run-down");
     app.pick_wind(WindPick::HoursAgo(30.0));
     app.begin_reserve();
-    app.test.reserve.as_mut().unwrap().ending = Some(power_reserve::Ending::Stopped);
+    app.bench.test.reserve.as_mut().unwrap().ending = Some(power_reserve::Ending::Stopped);
     app.end_reserve();
     assert_eq!(app.wound_unix(), None);
     assert!(app
@@ -788,9 +791,10 @@ fn a_test_thrown_away_puts_the_wind_back() {
             "new" => app.new_session(),
             // Ended by hand, then Throw Away on the Keep question.
             "keep-question" => {
-                app.test.reserve.as_mut().unwrap().ending = Some(power_reserve::Ending::ByHand);
+                app.bench.test.reserve.as_mut().unwrap().ending =
+                    Some(power_reserve::Ending::ByHand);
                 app.end_reserve();
-                app.test_keep = None;
+                app.bench.test.test_keep = None;
                 app.new_session();
             }
             // Saved, then a new session: the take keeps its wind.
@@ -821,7 +825,7 @@ fn a_thrown_away_test_leaves_no_wind_for_the_next_take() {
     let _tx = queued_capture(&mut app, &base);
     app.pick_wind(WindPick::NotGiven);
     app.start_guided(None);
-    assert!(app.guided.is_some(), "{:?}", app.message);
+    assert!(app.bench.test.guided.is_some(), "{:?}", app.message);
     assert!(app.wound_unix().is_some(), "Start set full wind");
     app.new_session();
     assert_eq!(app.wind_field().words.value, "Not given");

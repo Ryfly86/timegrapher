@@ -68,7 +68,7 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2824-2, 50°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2824-2, 50°, 28800 vph)",
       "docs/research/2824-train-wheel-counts.md (Peter Hudson microscope photographs, 2026-10-19; counted base train, explicit variant applicability)",
-      "https://www.phfactor.net/wtf/ETA/29_ETA2801.2-ETA2836.2.pdf",
+      "https://www.phfactor.net/wtf/ETA/29_ETA2801.2-ETA2836.2.pdf (ETA technical communication for 2801-2 to 2836-2, p. 1) (Frequency 28’800 A/h; Angle of lift of balance 50°)",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: its sister movements now have their own rows)"
     ],
     "confidence": "derived from tooth counts",
@@ -291,7 +291,8 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Sellita SW200-1, 50°)",
       "docs/research/2824-train-wheel-counts.md (Peter Hudson microscope photographs, 2026-10-19; counted base train, explicit variant applicability)",
       "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf",
-      "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: its sister movements now have their own rows)"
+      "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: its sister movements now have their own rows)",
+      "https://www.sellita.ch/scripts/calibres/images/DocTec_SW200-1_7.pdf (Sellita technical documentation, SW 200-1, cover page) (28’800 A/h (4 Hz); Angle lift of balance 50°)"
     ],
     "confidence": "inferred family transfer",
     "notes": "Date. Its sister movements on the same train have their own rows (#1822). 28,800 bph 2824 base train only. The centre wheel slot denotes the off-centre second/intermediate wheel (77/17), not the one-hour cannon pinion. The third pinion (13) drives the cannon wheel (78): 600 x 78/13 = 3600 s. Barrel running period is 4666200/221 s; this is not power reserve. See the evidence document for applicability and exclusions. Train counts are transferred from the photographed base, not separately measured on this variant.",
@@ -370,7 +371,8 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Sellita SW200-1, 50°)",
       "docs/research/2824-train-wheel-counts.md (Peter Hudson microscope photographs, 2026-10-19; counted base train, explicit variant applicability)",
       "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf",
-      "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
+      "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)",
+      "https://sellita.ch/scripts/calibres/images/DocTec_SW220-1.pdf (Sellita technical documentation, SW 220-1, cover page) (28’800 A/h (4 Hz); Angle lift of balance 50°)"
     ],
     "confidence": "inferred family transfer",
     "notes": "Day and date (the SW200-1 with the 2836-2's calendar). Shares the going train, escapement, beat rate and lift setting of Sellita SW200-1, from which it was split on 2026-11-15 (#1822); only the motion works differ. 28,800 bph 2824 base train only. The centre wheel slot denotes the off-centre second/intermediate wheel (77/17), not the one-hour cannon pinion. The third pinion (13) drives the cannon wheel (78): 600 x 78/13 = 3600 s. Barrel running period is 4666200/221 s; this is not power reserve. See the evidence document for applicability and exclusions. Train counts are transferred from the photographed base, not separately measured on this variant.",
@@ -449,7 +451,8 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Sellita SW200-1, 50°)",
       "docs/research/2824-train-wheel-counts.md (Peter Hudson microscope photographs, 2026-10-19; counted base train, explicit variant applicability)",
       "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf",
-      "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
+      "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)",
+      "https://www.sellita.ch/scripts/calibres/images/Brochure_technique-SW240-1_39.pdf (Sellita technical documentation, SW 240-1, cover page) (28’800 A/h (4 Hz); Angle lift of balance 50°)"
     ],
     "confidence": "inferred family transfer",
     "notes": "Day and date. Shares the going train, escapement, beat rate and lift setting of Sellita SW200-1, from which it was split on 2026-11-15 (#1822); only the motion works differ. 28,800 bph 2824 base train only. The centre wheel slot denotes the off-centre second/intermediate wheel (77/17), not the one-hour cannon pinion. The third pinion (13) drives the cannon wheel (78): 600 x 78/13 = 3600 s. Barrel running period is 4666200/221 s; this is not power reserve. See the evidence document for applicability and exclusions. Train counts are transferred from the photographed base, not separately measured on this variant.",
@@ -529,10 +532,11 @@
       "https://reference.grail-watch.com/2020/03/02/further-sellita-research-sw300-and-more/ (the SW300-1 is a clone of the ETA 2892A2)",
       "https://ranfft.org/caliber/4232-ETA-2892 (lift 53°)",
       "https://www.awci.com/wp-content/uploads/2013/10/TomsTips_Web_Nov13.pdf (lift 51°)",
-      "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
+      "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)",
+      "https://sellita.ch/scripts/calibres/images/DocTec_SW300-1.pdf (Sellita technical documentation, SW300-1, cover page) (28’800 A/h (4 Hz); Angle lift of balance 51°)"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "A Sellita copy of the ETA 2892-A2. Shares the going train, escapement, beat rate and lift setting of ETA 2892-A2, from which it was split on 2026-11-15 (#1822); only the motion works differ. Whether the seconds are driven directly by the fourth wheel was not confirmed, and the escape wheel's tooth count was not found, so neither the fourth wheel nor the escape wheel is named. 42 h power reserve. Lift angle: 51° in the AWCI table, 53° on Ranfft. The Sellita SW300-1 is a copy; its lift angle is not documented separately."
+    "notes": "A Sellita copy of the ETA 2892-A2. Shares the going train, escapement, beat rate and lift setting of ETA 2892-A2, from which it was split on 2026-11-15 (#1822); only the motion works differ. Whether the seconds are driven directly by the fourth wheel was not confirmed, and the escape wheel's tooth count was not found, so neither the fourth wheel nor the escape wheel is named. 42 h power reserve. Lift angle: 51° in the AWCI table, 53° on Ranfft. Sellita's own SW300-1 documentation gives 51° (timegrapher-calibres#3)."
   },
   {
     "calibre": "Valjoux 7750",
@@ -666,10 +670,12 @@
     "sources": [
       "https://reference.grail-watch.com/movement/st36/amp/",
       "https://calibercorner.com/seagull-caliber-st3621",
-      "https://en.seagullwatch.com/products/small-second-movement-ty3600-st3600 (Maker's page) (\"Frequency: 21600 (no unit stated on page)\")"
+      "https://en.seagullwatch.com/products/small-second-movement-ty3600-st3600 (Maker's page) (\"Frequency: 21600 (no unit stated on page)\")",
+      "https://tandoriowatch.com/products/original-seagull-st3600-mechanical-hand-winding-movement (Tandorio, ST3600 specifications) (Lift Angle 44°)",
+      "https://watchscope.app/en/calibers/seagull-st3600 (WatchScope, ST3600 page) (Lift angle 52°)"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "A copy of the Unitas 6497/6498; it probably shares the 6497-2 train (escape 5 s, third wheel 450 s) but no source confirms it, so those wheels are left out. Lift angle not documented (44° as the 6497 is often used)."
+    "notes": "A copy of the Unitas 6497/6498; it probably shares the 6497-2 train (escape 5 s, third wheel 450 s) but no source confirms it, so those wheels are left out. Lift angle not settled, so none is given: Tandorio lists 44° and WatchScope 52°; no maker figure found (timegrapher-calibres#3)."
   },
   {
     "calibre": "Powermatic 80",
@@ -704,7 +710,8 @@
     ],
     "sources": [
       "https://www.watchuseek.com/threads/questions-about-eta-c07-powermatic-80-h-10-etc.5104577/",
-      "https://ranfft.org/caliber/12742-ETA-C07-111 (Ranfft: ETA C07.111, read 2026-11-17) (21600 bph)"
+      "https://ranfft.org/caliber/12742-ETA-C07-111 (Ranfft: ETA C07.111, read 2026-11-17) (21600 bph)",
+      "https://www.tissotwatches.com/en-se/magazine-news-tissot-making-of-a-watch.html (Tissot, making of a watch: the Powermatic 80) (By oscillating at 3 Hz)"
     ],
     "confidence": "derived from the beat rate",
     "notes": "80 h power reserve from a slimmer barrel arbor with a longer mainspring and a slower beat, on the 2824 architecture. No tooth counts, escape wheel count or lift angle found (the C07.111 uses a synthetic escape wheel and pallet fork, the C07.611 a conventional one)."
@@ -3081,10 +3088,11 @@
     ],
     "sources": [
       "https://reference.grail-watch.com/movement/ap-4401/",
-      "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)"
+      "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)",
+      "https://chronocheck.de/en/marktwert/audemars-piguet/26420ti-oo-a027ca-01/ (ChronoCheck, Offshore 26420 with the AP 4401) (Lift angle 52°)"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "Flyback chronograph, 70 h. Lift angle probably 50 to 52° per the clone timegrapher guide, not settled, so none is given."
+    "notes": "Flyback chronograph, 70 h. Lift angle not settled, so none is given: the clone timegrapher guide gives 50 to 52° and ChronoCheck lists 52°; AP publishes none (timegrapher-calibres#3)."
   },
   {
     "calibre": "Audemars Piguet 2121",
@@ -3120,7 +3128,8 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Audemars-Piguet 2120, 56°, 19800 vph)",
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (AUDEMARS-PIGUET 2121, 56°, 19800 vph)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Audemars Piguet 2121, 56°)",
-      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Audemars-Piguet 2121, 56°, 19800 vph)"
+      "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Audemars-Piguet 2121, 56°, 19800 vph)",
+      "https://apchronicles.audemarspiguet.com/en/calibre/2121 (Audemars Piguet, Calibre 2121) (Frequency 19,800 vph (2.8 Hz))"
     ],
     "confidence": "derived from the beat rate",
     "notes": "Ultra-thin, built on the Jaeger-LeCoultre 920, 19,800 bph, 40 h; the 2121 adds a date to the 2120. AP lists hours and minutes only, while Caliber Corner's 920 page shows a seconds hand; no seconds wheel is named. Lift angle 56° from WatchGuy, Watchmaking Tools, the lift-angle sheet.",
@@ -3209,7 +3218,7 @@
   },
   {
     "calibre": "SA4302",
-    "maker": "APS / ZF (clone)",
+    "maker": "Clone (maker not named)",
     "family": [
       "4302 (clone)",
       "APS 4302",
@@ -3242,13 +3251,14 @@
       "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "An all-in-one clone of the 4302 at 28,800 bph, about 65 to 70 h. Earlier ZF versions used a Miyota 9015 instead."
+    "notes": "An all-in-one clone of the 4302 at 28,800 bph, about 65 to 70 h. Earlier versions used a Miyota 9015 instead."
   },
   {
-    "calibre": "APS 4401",
-    "maker": "APS (clone)",
+    "calibre": "SA4401",
+    "maker": "Clone (maker not named)",
     "family": [
-      "4401 (clone)"
+      "4401 (clone)",
+      "APS 4401"
     ],
     "common": true,
     "bph": 28800,
@@ -3609,10 +3619,12 @@
     ],
     "sources": [
       "https://reference.grail-watch.com/movement/st1901/",
-      "https://calibercorner.com/seagull-caliber-st-1901b"
+      "https://calibercorner.com/seagull-caliber-st-1901b",
+      "https://en.seagullwatch.com/products/seagull-1963-chronograph-watch-times-edition-reissue-37-3mm-1963a (Sea-Gull, 1963 chronograph reissue with the ST1901) (Movement Frequency: 21600)",
+      "https://watchscope.app/en/calibers/seagull-st1901-chrono (WatchScope, ST1901 page) (Lift angle 52°)"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "Based on the Venus 175 column-wheel chronograph. Lift angle not documented. About 50 h, 45 h with the chronograph running."
+    "notes": "Based on the Venus 175 column-wheel chronograph. Lift angle not settled, so none is given: WatchScope lists 52° for the ST1901, but it lists 52° for the ST3600 too, where another list gives 44° (timegrapher-calibres#3). About 50 h, 45 h with the chronograph running."
   },
   {
     "calibre": "Seagull ST2130",
@@ -3751,7 +3763,8 @@
       "https://watchbase.com/patek-philippe/caliber/324-s-c-fus-ar",
       "https://www.watchprosite.com/watchtech/new-engine-for-patek-philippe-5711-/1223.1275781.10746571/ (the 26-330 replaced the 324's friction-spring seconds)",
       "https://www.watchprosite.com/patek-philippe/324sc-movement/11.1156881.9063951/ (does not hack)",
-      "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)"
+      "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)",
+      "https://static.patek.com/pdf/instructionsforuse/PatekPhilippe_P767_Self_Winding_Movements.pdf (Patek Philippe, self-winding movements instructions, caliber 324 S C) (28,800 semi-oscillations/hour (4 Hz))"
     ],
     "confidence": "derived from the beat rate",
     "notes": "Indirect centre seconds is inferred from what its successor, the 26-330, changed. Does not hack. 35 to 45 h. Patek publishes no lift angle; 52° is the clone timegrapher guide's. No tooth counts found."
@@ -84063,14 +84076,15 @@
       "https://miyotamovement.com/uploads/product/product_moQeV8byx0JPUZStgs.jpg",
       "https://miyotamovement.com/uploads/product/product_gU0rAmM5LGXtPq9KNs.pdf",
       "https://miyotamovement.com/product/82S0/",
-      "docs/research/seiko-miyota-train-research.md"
+      "docs/research/seiko-miyota-train-research.md",
+      "https://miyotamovement.com/uploads/product/product_mCGlRLBZIOVron80fp.pdf (Miyota specification sheet for 82S0, 82S5 and 82S7) (49 degree Lift Angle)"
     ],
     "confidence": "derived from tooth counts",
     "common": true,
     "bph": 21600,
     "escape_teeth": 15,
     "seconds": "centre, indirect",
-    "notes": "Escape identity and frequency checked in this calibre’s own parts list and product page. No lift angle transferred from 8215. Escape count is illustrated, not bench-measured. Third-wheel and barrel periods remain unestablished; no pinion-leaf counts are asserted.",
+    "notes": "Escape identity and frequency checked in this calibre’s own parts list and product page. Lift angle 49° from Miyota's own specification sheet for this calibre (timegrapher-calibres#3). Escape count is illustrated, not bench-measured. Third-wheel and barrel periods remain unestablished; no pinion-leaf counts are asserted.",
     "assets": [
       {
         "path": "miyota-citizen/miyota-82s0/product_gU0rAmM5LGXtPq9KNs.pdf",
@@ -84080,7 +84094,8 @@
         "path": "miyota-citizen/shared/product_moQeV8byx0JPUZStgs.jpg",
         "kind": "photo"
       }
-    ]
+    ],
+    "lift_angle_deg": 49
   },
   {
     "calibre": "Miyota 82S5",
@@ -84115,14 +84130,15 @@
       "https://miyotamovement.com/uploads/product/product_moQeV8byx0JPUZStgs.jpg",
       "https://miyotamovement.com/uploads/product/product_2yRTar1xdWYso6U03I.pdf",
       "https://miyotamovement.com/product/82S5/",
-      "docs/research/seiko-miyota-train-research.md"
+      "docs/research/seiko-miyota-train-research.md",
+      "https://miyotamovement.com/uploads/product/product_mCGlRLBZIOVron80fp.pdf (Miyota specification sheet for 82S0, 82S5 and 82S7) (49 degree Lift Angle)"
     ],
     "confidence": "derived from tooth counts",
     "common": true,
     "bph": 21600,
     "escape_teeth": 15,
     "seconds": "small seconds, fourth-wheel arbor",
-    "notes": "Escape identity and frequency checked in this calibre’s own parts list and product page. No lift angle transferred from 8215. Escape count is illustrated, not bench-measured. Third-wheel and barrel periods remain unestablished; no pinion-leaf counts are asserted.",
+    "notes": "Escape identity and frequency checked in this calibre’s own parts list and product page. Lift angle 49° from Miyota's own specification sheet for this calibre (timegrapher-calibres#3). Escape count is illustrated, not bench-measured. Third-wheel and barrel periods remain unestablished; no pinion-leaf counts are asserted.",
     "assets": [
       {
         "path": "miyota-citizen/miyota-82s5/product_2yRTar1xdWYso6U03I.pdf",
@@ -84132,7 +84148,8 @@
         "path": "miyota-citizen/shared/product_moQeV8byx0JPUZStgs.jpg",
         "kind": "photo"
       }
-    ]
+    ],
+    "lift_angle_deg": 49
   },
   {
     "calibre": "Miyota 82S7",
@@ -84167,14 +84184,15 @@
       "https://miyotamovement.com/uploads/product/product_moQeV8byx0JPUZStgs.jpg",
       "https://miyotamovement.com/uploads/product/product_9H3Tv1IMaunDXC8l5Q.pdf",
       "https://miyotamovement.com/product/82S7/",
-      "docs/research/seiko-miyota-train-research.md"
+      "docs/research/seiko-miyota-train-research.md",
+      "https://miyotamovement.com/uploads/product/product_mCGlRLBZIOVron80fp.pdf (Miyota specification sheet for 82S0, 82S5 and 82S7) (49 degree Lift Angle)"
     ],
     "confidence": "derived from tooth counts",
     "common": true,
     "bph": 21600,
     "escape_teeth": 15,
     "seconds": "small seconds, fourth-wheel arbor",
-    "notes": "Escape identity and frequency checked in this calibre’s own parts list and product page. No lift angle transferred from 8215. Escape count is illustrated, not bench-measured. Third-wheel and barrel periods remain unestablished; no pinion-leaf counts are asserted.",
+    "notes": "Escape identity and frequency checked in this calibre’s own parts list and product page. Lift angle 49° from Miyota's own specification sheet for this calibre (timegrapher-calibres#3). Escape count is illustrated, not bench-measured. Third-wheel and barrel periods remain unestablished; no pinion-leaf counts are asserted.",
     "assets": [
       {
         "path": "miyota-citizen/miyota-82s7/product_9H3Tv1IMaunDXC8l5Q.pdf",
@@ -84184,7 +84202,8 @@
         "path": "miyota-citizen/shared/product_moQeV8byx0JPUZStgs.jpg",
         "kind": "photo"
       }
-    ]
+    ],
+    "lift_angle_deg": 49
   },
   {
     "calibre": "Miyota 8N24",
@@ -84219,14 +84238,15 @@
       "https://miyotamovement.com/uploads/product/product_moQeV8byx0JPUZStgs.jpg",
       "https://miyotamovement.com/uploads/product/product_QaE6hImY4jtXPOVc0d.pdf",
       "https://miyotamovement.com/product/8N24/",
-      "docs/research/seiko-miyota-train-research.md"
+      "docs/research/seiko-miyota-train-research.md",
+      "https://miyotamovement.com/uploads/product/product_fXq2T5QFtSlDUhyAYa.pdf (Miyota specification sheet for 8N24) (49 degree Lift Angle)"
     ],
     "confidence": "derived from tooth counts",
     "common": true,
     "bph": 21600,
     "escape_teeth": 15,
     "seconds": "centre, indirect",
-    "notes": "Escape identity and frequency checked in this calibre’s own parts list and product page. No lift angle transferred from 8215. Escape count is illustrated, not bench-measured. Third-wheel and barrel periods remain unestablished; no pinion-leaf counts are asserted.",
+    "notes": "Escape identity and frequency checked in this calibre’s own parts list and product page. Lift angle 49° from Miyota's own specification sheet for this calibre (timegrapher-calibres#3). Escape count is illustrated, not bench-measured. Third-wheel and barrel periods remain unestablished; no pinion-leaf counts are asserted.",
     "assets": [
       {
         "path": "miyota-citizen/miyota-8n24/product_QaE6hImY4jtXPOVc0d.pdf",
@@ -84236,7 +84256,8 @@
         "path": "miyota-citizen/shared/product_moQeV8byx0JPUZStgs.jpg",
         "kind": "photo"
       }
-    ]
+    ],
+    "lift_angle_deg": 49
   },
   {
     "calibre": "Miyota 8N40",
@@ -84271,14 +84292,15 @@
       "https://miyotamovement.com/uploads/product/product_moQeV8byx0JPUZStgs.jpg",
       "https://miyotamovement.com/uploads/product/product_qmOgyeLMnrFbtjpXca.pdf",
       "https://miyotamovement.com/product/8N40/",
-      "docs/research/seiko-miyota-train-research.md"
+      "docs/research/seiko-miyota-train-research.md",
+      "https://miyotamovement.com/uploads/product/product_yb9tKR6CcL1dB7Nesg.pdf (Miyota specification sheet for 8N40) (49 degree Lift Angle)"
     ],
     "confidence": "derived from tooth counts",
     "common": true,
     "bph": 21600,
     "escape_teeth": 15,
     "seconds": "small seconds, fourth-wheel arbor",
-    "notes": "Escape identity and frequency checked in this calibre’s own parts list and product page. No lift angle transferred from 8215. Escape count is illustrated, not bench-measured. Third-wheel and barrel periods remain unestablished; no pinion-leaf counts are asserted.",
+    "notes": "Escape identity and frequency checked in this calibre’s own parts list and product page. Lift angle 49° from Miyota's own specification sheet for this calibre (timegrapher-calibres#3). Escape count is illustrated, not bench-measured. Third-wheel and barrel periods remain unestablished; no pinion-leaf counts are asserted.",
     "assets": [
       {
         "path": "miyota-citizen/miyota-8n40/product_qmOgyeLMnrFbtjpXca.pdf",
@@ -84288,7 +84310,8 @@
         "path": "miyota-citizen/shared/product_moQeV8byx0JPUZStgs.jpg",
         "kind": "photo"
       }
-    ]
+    ],
+    "lift_angle_deg": 49
   },
   {
     "calibre": "Miyota 9075",
@@ -84323,14 +84346,15 @@
       "https://miyotamovement.com/uploads/product/product_cAzkTHoO04Nhn9rI86.jpg",
       "https://miyotamovement.com/uploads/product/product_awnkd0rbXJcW2B3ExM.pdf",
       "https://miyotamovement.com/product/9075/",
-      "docs/research/seiko-miyota-train-research.md"
+      "docs/research/seiko-miyota-train-research.md",
+      "https://miyotamovement.com/uploads/product/product_q7oxcb0QX4ifOT9vmZ.pdf (Miyota specification sheet for 9075) (51 degree Lift Angle)"
     ],
     "confidence": "derived from tooth counts",
     "common": true,
     "bph": 28800,
     "escape_teeth": 20,
     "seconds": "centre, direct",
-    "notes": "GMT variant has its own fourth wheel and cannon-pinion parts; only the documented escape count and hand-arbor periods are transferred. No lift angle inferred from 9015. Escape count is illustrated, not bench-measured. Third-wheel and barrel periods remain unestablished; no pinion-leaf counts are asserted.",
+    "notes": "GMT variant has its own fourth wheel and cannon-pinion parts; only the documented escape count and hand-arbor periods are transferred. Lift angle 51° from Miyota's own specification sheet for this calibre (timegrapher-calibres#3). Escape count is illustrated, not bench-measured. Third-wheel and barrel periods remain unestablished; no pinion-leaf counts are asserted.",
     "assets": [
       {
         "path": "miyota-citizen/miyota-9075/product_awnkd0rbXJcW2B3ExM.pdf",
@@ -84340,7 +84364,8 @@
         "path": "miyota-citizen/shared/product_cAzkTHoO04Nhn9rI86.jpg",
         "kind": "photo"
       }
-    ]
+    ],
+    "lift_angle_deg": 51
   },
   {
     "calibre": "Patek 240 Clone",

@@ -198,6 +198,10 @@ and the research behind the engine.
 GPL-3.0-or-later. This is a clean implementation; it contains no code from
 tg (which is GPL-2.0-only), though it learned a great deal from it.
 
+The [`brand/`](brand/README.md) folder (logo, colours, type and the
+identity guide) is under CC BY 4.0 instead, and the name and logo follow
+its [policy](brand/POLICY.md).
+
 Contributions: see [CONTRIBUTING.md](CONTRIBUTING.md), and the [roadmap](ROADMAP.md)
 for what is planned. Pull requests from
 outside contributors need the [Contributor Licence Agreement](CLA.md).

@@ -90,11 +90,11 @@ fn resolve_train(
     escape_teeth: Option<u32>,
 ) -> Resolved {
     let c = train.calibre.as_ref();
-    let lift = lift_deg.or(c.and_then(|c| c.lift_angle_deg));
+    let lift = timegrapher_core::take::lift_setting(lift_deg, None, c);
     Resolved {
         bph: bph.or(c.and_then(|c| c.bph)),
-        lift_deg: lift.unwrap_or(DEFAULT_LIFT_DEG),
-        lift_known: lift.is_some(),
+        lift_deg: lift.lift_deg,
+        lift_known: lift.known,
         escape_teeth: escape_teeth
             .or(c.and_then(|c| c.escape_teeth))
             .unwrap_or(DEFAULT_ESCAPE_TEETH),

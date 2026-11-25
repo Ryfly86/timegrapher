@@ -15,24 +15,24 @@ fn a_dynamic_poise_test_is_set_up_at_9h_with_the_card_at_10() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.watches_view.view = View::Watches;
     assert!(!pane_visible(
-        &app.panes_view.panes.tiles,
+        &app.bench.panes_view.panes.tiles,
         Pane::DynamicPoise
     ));
-    assert!(!app.ten_positions);
+    assert!(!app.bench.test.ten_positions);
     app.new_take(NewTake::Poise, false);
     assert_eq!(app.watches_view.view, View::Bench);
     assert_eq!(app.ready_test(), Some(NewTake::Poise));
     assert!(pane_visible(
-        &app.panes_view.panes.tiles,
+        &app.bench.panes_view.panes.tiles,
         Pane::DynamicPoise
     ));
-    assert_eq!(app.position, Position::CrownDown);
-    assert_eq!(app.position.witschi(), "9H");
+    assert_eq!(app.bench.take.position, Position::CrownDown);
+    assert_eq!(app.bench.take.position.witschi(), "9H");
     assert!(
-        app.ten_positions,
+        app.bench.test.ten_positions,
         "Start was pressed: the card shows the eight"
     );
-    assert!(app.guided.is_none() && !app.running());
+    assert!(app.bench.test.guided.is_none() && !app.running());
     assert_eq!(NewTake::Poise.name(), "Dynamic Poise Test");
 }
 
@@ -103,10 +103,13 @@ fn a_poise_test_measures_eight_stops_and_core_fits_the_wave(app: &TimegrapherApp
 #[test]
 fn a_measured_poise_test_passes_each_check() {
     let (mut app, base, tx) = measured("measured-checks");
-    let fresh = (app.panes_view.poise_views, app.panes_view.poise_info);
+    let fresh = (
+        app.bench.panes_view.poise_views,
+        app.bench.panes_view.poise_info,
+    );
     let reset = |app: &mut TimegrapherApp| {
-        app.panes_view.poise_views = fresh.0;
-        app.panes_view.poise_info = fresh.1;
+        app.bench.panes_view.poise_views = fresh.0;
+        app.bench.panes_view.poise_info = fresh.1;
     };
     a_poise_test_measures_eight_stops_and_core_fits_the_wave(&app);
     a_measured_poise_tests_take_is_marked_as_one(&app);
@@ -185,7 +188,7 @@ fn measured(name: &str) -> (TimegrapherApp, std::path::PathBuf, impl Sized) {
             assert_eq!(test.advance(t), Some(order[i + 1]));
         }
     }
-    app.guided = Some(test);
+    app.bench.test.guided = Some(test);
     assert!(app.test_listening());
     assert!(app.positions_test().is_none(), "not the Positions Test's");
     let ctx = egui::Context::default();
@@ -237,7 +240,7 @@ fn listened_each(
             second += 1;
             let r = app.session.recorder.as_mut().unwrap();
             r.write(&block).unwrap();
-            let live = app.live.as_mut().unwrap();
+            let live = app.bench.recording.live.as_mut().unwrap();
             for b in s.chunks(960) {
                 live.push(b);
             }
@@ -280,12 +283,12 @@ pub(super) fn saved_and_opened_after(
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.start_batch(&saved);
     let t = Instant::now();
-    while again.batch.is_some() && t.elapsed().as_secs() < 300 {
+    while again.bench.recording.batch.is_some() && t.elapsed().as_secs() < 300 {
         again.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    assert!(again.live.is_some(), "{:?}", again.message);
-    assert!(again.guided.is_none(), "no test on the Bench");
+    assert!(again.bench.recording.live.is_some(), "{:?}", again.message);
+    assert!(again.bench.test.guided.is_none(), "no test on the Bench");
     (again, base)
 }
 
@@ -379,7 +382,7 @@ fn a_take_still_listening_with_four_stops_waits_for_five() {
     let (mut app, base) = listened("four-live", &four);
     // Sound still coming in.
     let tx = queued_capture(&mut app, &base);
-    assert!(app.running() && app.guided.is_none());
+    assert!(app.running() && app.bench.test.guided.is_none());
     let t = app.free_table(&egui::Context::default()).expect("a table");
     assert_eq!(t.upright.0.len(), 4, "{t:?}");
     let drawn = draw(&mut app, Pane::DynamicPoise);
@@ -395,9 +398,9 @@ fn a_take_still_listening_with_four_stops_waits_for_five() {
 #[test]
 fn the_pane_says_the_fit_waits_for_five_stops_in_both_views() {
     let mut app = synthetic_varying(30.0, 0.0, |_| 0.0);
-    app.guided = Some(guided::Test::poise().timed(1.0, 5.0));
+    app.bench.test.guided = Some(guided::Test::poise().timed(1.0, 5.0));
     for view in [PoiseView::Plot, PoiseView::Dial] {
-        app.panes_view.poise_views = [view == PoiseView::Plot, view == PoiseView::Dial];
+        app.bench.panes_view.poise_views = [view == PoiseView::Plot, view == PoiseView::Dial];
         let drawn = draw(&mut app, Pane::DynamicPoise);
         assert!(drawn.contains(&poise_pending()), "{view:?}: {drawn}");
         for label in ["Crown Down (CD, 9H)", "7:30 Up (7H30)", "10:30 Up (10H30)"] {
@@ -416,7 +419,7 @@ fn info_shows_cores_note_on_the_band() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     let note = timegrapher_core::poise::null_band_note();
     assert!(!draw(&mut app, Pane::DynamicPoise).contains(&note));
-    app.panes_view.poise_info = true;
+    app.bench.panes_view.poise_info = true;
     assert!(draw(&mut app, Pane::DynamicPoise).contains(&note));
 }
 
@@ -430,7 +433,7 @@ fn the_picture_has_its_key_and_mean_and_info_says_each_fact_once(app: &mut Timeg
         .mean_rate
         .unwrap();
     assert!(mean.starts_with("Mean ") && mean.contains(&format!("{:.1}", row.abs())));
-    app.panes_view.poise_views = [true, false];
+    app.bench.panes_view.poise_views = [true, false];
     let plot = draw(app, Pane::DynamicPoise);
     for word in ["Upright positions (8)", "Fitted wave", mean.as_str()] {
         assert!(plot.contains(word), "{word}: {plot}");
@@ -439,13 +442,13 @@ fn the_picture_has_its_key_and_mean_and_info_says_each_fact_once(app: &mut Timeg
     // across the plot, apart from the grid's full-width lines.
     let dashes = plot_dashes(app);
     assert!(dashes > 20, "{dashes} dashes");
-    app.panes_view.poise_views = [false, true];
+    app.bench.panes_view.poise_views = [false, true];
     let dial = draw(app, Pane::DynamicPoise);
     assert!(
         dial.contains(&mean) && dial.contains("Fastest 6H"),
         "{dial}"
     );
-    app.panes_view.poise_info = true;
+    app.bench.panes_view.poise_info = true;
     let info = draw(app, Pane::DynamicPoise);
     assert_eq!(info.matches("least at 219.5°").count(), 1, "{info}");
 }
@@ -461,8 +464,8 @@ fn the_heavy_spot_is_in_a_facts_box_and_the_notes_in_info(app: &mut TimegrapherA
     let notes = guided::poise_table_notes(&readings);
     let caveat = fit.caveat_line();
     for view in [PoiseView::Plot, PoiseView::Dial] {
-        app.panes_view.poise_views = [view == PoiseView::Plot, view == PoiseView::Dial];
-        app.panes_view.poise_info = false;
+        app.bench.panes_view.poise_views = [view == PoiseView::Plot, view == PoiseView::Dial];
+        app.bench.panes_view.poise_info = false;
         let texts = draw_at(app, Pane::DynamicPoise, Vec2::new(1280.0, 820.0));
         let at = |want: &str| texts.iter().find(|(t, _)| t == want).map(|(_, r)| *r);
         let n = at(&name).unwrap_or_else(|| panic!("{view:?}: {texts:?}"));
@@ -480,7 +483,7 @@ fn the_heavy_spot_is_in_a_facts_box_and_the_notes_in_info(app: &mut TimegrapherA
             let hour = at(timegrapher_core::poise::hour_code(0.0)).expect("12H");
             assert!(v.bottom() < hour.top(), "{v:?} over {hour:?}");
         }
-        app.panes_view.poise_info = true;
+        app.bench.panes_view.poise_info = true;
         let info = draw(app, Pane::DynamicPoise);
         for note in &notes {
             assert_eq!(info.matches(note.as_str()).count(), 1, "{note}: {info}");
@@ -506,9 +509,9 @@ fn the_key_never_covers_the_heavy_spot() {
         timegrapher_core::poise_picture::points_key(5),
         timegrapher_core::poise_picture::WAVE_KEY.to_string(),
     ];
-    app.panes_view.poise_info = false;
+    app.bench.panes_view.poise_info = false;
     for views in [[true, true], [true, false]] {
-        app.panes_view.poise_views = views;
+        app.bench.panes_view.poise_views = views;
         for w in [1600.0, 1400.0, 1100.0, 1050.0, 1000.0, 950.0] {
             let texts = draw_at(app, Pane::DynamicPoise, Vec2::new(w, 820.0));
             let at = |want: &str| texts.iter().find(|(t, _)| t == want).map(|(_, r)| *r);
@@ -532,7 +535,7 @@ fn the_key_never_covers_the_heavy_spot() {
 /// the crown; in both themes, and in a short wide pane as in a tall one.
 fn the_dial_has_its_watch_case_behind_it(app: &mut TimegrapherApp) {
     use timegrapher_core::poise_case;
-    app.panes_view.poise_views = [false, true];
+    app.bench.panes_view.poise_views = [false, true];
     for (dark, size) in [
         (true, Vec2::new(1280.0, 820.0)),
         (false, Vec2::new(1280.0, 820.0)),
@@ -916,7 +919,8 @@ fn draw_at(app: &mut TimegrapherApp, pane: Pane, size: Vec2) -> Vec<(String, egu
             })
             .collect();
         // A picture of both views for review (#1729).
-        if let (Ok(d), [true, true]) = (std::env::var("SHOT_DIR"), app.panes_view.poise_views) {
+        if let (Ok(d), [true, true]) = (std::env::var("SHOT_DIR"), app.bench.panes_view.poise_views)
+        {
             let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, size);
             let back = ctx.style().visuals.window_fill;
             let svg = crate::export::svg(&out.shapes, screen, back);
@@ -943,11 +947,11 @@ fn the_panes_start_button_turns_to_the_next_stop() {
     let mut test = guided::Test::poise().timed(2.0, each - 2.0);
     test.tick(t0);
     assert_eq!(test.tick(t0 + each), guided::Phase::Turn);
-    app.guided = Some(test);
+    app.bench.test.guided = Some(test);
     app.set_position(order[0]);
-    app.guided_measured.clear();
-    app.guided_unused.clear();
-    app.live.as_mut().unwrap().set_masked(&[]);
+    app.bench.test.guided_measured.clear();
+    app.bench.test.guided_unused.clear();
+    app.bench.recording.live.as_mut().unwrap().set_masked(&[]);
     let size = Vec2::new(1280.0, 900.0);
     let drawn = draw_at(&mut app, Pane::DynamicPoise, size);
     let start = format!("Start {} Measurement", order[1].witschi());
@@ -956,20 +960,22 @@ fn the_panes_start_button_turns_to_the_next_stop() {
         .find(|(t, _)| t.contains(&start))
         .unwrap_or_else(|| panic!("{start} in {drawn:?}"));
     click(&mut app, Pane::DynamicPoise, size, button.center());
-    assert_eq!(app.position, order[1]);
+    assert_eq!(app.bench.take.position, order[1]);
     assert_eq!(app.poise_test().map(|t| t.step), Some(1));
     assert!(
-        !app.guided_measured.is_empty(),
+        !app.bench.test.guided_measured.is_empty(),
         "the strip follows the test"
     );
     assert!(
-        app.guided_unused
+        app.bench
+            .test
+            .guided_unused
             .iter()
             .any(|&(a, b, _)| a == 0.0 && b == t0),
         "the time before the test reads as not used: {:?}",
-        app.guided_unused
+        app.bench.test.guided_unused
     );
-    let engine = app.live.as_ref().unwrap().masked().to_vec();
+    let engine = app.bench.recording.live.as_ref().unwrap().masked().to_vec();
     assert!(!engine.is_empty(), "the engine leaves the unused time out");
     assert_eq!(engine, app.engine_masked());
     let _ = std::fs::remove_dir_all(&base);
@@ -1048,7 +1054,7 @@ fn a_saved_one_stop_take_reads_the_same_in_the_app_and_the_cli() {
 fn reads_as_the_cli(app: &TimegrapherApp) -> Vec<timegrapher_core::session::Measurement> {
     let t = app.free_table(&egui::Context::default()).expect("a table");
     let dir = app.session.saved_to().map(Path::to_path_buf);
-    let dir = dir.unwrap_or_else(|| PathBuf::from(&app.opened_path));
+    let dir = dir.unwrap_or_else(|| PathBuf::from(&app.bench.keeping.opened_path));
     let text = std::fs::read_to_string(dir.join(MANIFEST)).unwrap();
     let m: timegrapher_core::session::Manifest = toml::from_str(&text).unwrap();
     let settings = timegrapher_core::take::EntrySettings {
@@ -1251,9 +1257,9 @@ fn a_poise_test_reads_the_same_live_as_reopened() {
     };
     let audio = generate(&cfg, |_| 310.0, |_| 0.0);
     let tx = queued_capture(&mut app, &base);
-    app.guided = Some(guided::Test::poise().timed(settle, measure));
-    // The pane's Settle and Each Position, as each frame gives the session.
-    (app.guided_settle_s, app.guided_measure_s) = (settle, measure);
+    app.bench.test.guided = Some(guided::Test::poise().timed(settle, measure));
+    // The pane's Settle, kept by the session, and Each Position.
+    app.bench.test.guided_measure_s = measure;
     app.session.set_settle_s(settle);
     app.session.set_state(session::State::Listening);
     let ctx = egui::Context::default();
@@ -1272,13 +1278,15 @@ fn a_poise_test_reads_the_same_live_as_reopened() {
         }
         let want = k as f64 * 0.02;
         let t = Instant::now();
-        while app.live.as_ref().unwrap().duration_s() < want - 1e-6 && t.elapsed().as_secs() < 30 {
+        while app.bench.recording.live.as_ref().unwrap().duration_s() < want - 1e-6
+            && t.elapsed().as_secs() < 30
+        {
             app.poll();
         }
-        let now = app.live.as_ref().unwrap().duration_s();
+        let now = app.bench.recording.live.as_ref().unwrap().duration_s();
         app.guided_tick(&ctx);
         // Next, as the pane's button gives it, once the stop is read.
-        let next = app.guided.as_mut().is_some_and(|t| {
+        let next = app.bench.test.guided.as_mut().is_some_and(|t| {
             t.tick(now) == guided::Phase::Turn && !t.needs_reading() && t.next_position().is_some()
         });
         if next {
@@ -1296,7 +1304,7 @@ fn a_poise_test_reads_the_same_live_as_reopened() {
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.start_batch(&saved);
     let t = Instant::now();
-    while again.batch.is_some() && t.elapsed().as_secs() < 300 {
+    while again.bench.recording.batch.is_some() && t.elapsed().as_secs() < 300 {
         again.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
@@ -1367,8 +1375,8 @@ fn guided_test_saved(
     };
     let audio = generate(&cfg, |t| 300.0 - 0.1 * t, |_| 0.4);
     let tx = queued_capture(&mut app, base);
-    app.guided = Some(guided_test.timed(settle, measure));
-    (app.guided_settle_s, app.guided_measure_s) = (settle, measure);
+    app.bench.test.guided = Some(guided_test.timed(settle, measure));
+    app.bench.test.guided_measure_s = measure;
     app.session.set_settle_s(settle);
     app.session.set_state(session::State::Listening);
     let ctx = egui::Context::default();
@@ -1387,24 +1395,36 @@ fn guided_test_saved(
             .unwrap_or_else(|_| {
                 panic!(
                     "listening stopped at {:?}: {:?} {:?}",
-                    app.live.as_ref().map(|l| l.duration_s()),
+                    app.bench.recording.live.as_ref().map(|l| l.duration_s()),
                     app.message,
-                    app.guided.as_ref().map(|t| (t.step, t.readings.is_some()))
+                    app.bench
+                        .test
+                        .guided
+                        .as_ref()
+                        .map(|t| (t.step, t.readings.is_some()))
                 )
             });
         }
         let want = frames as f64 / 48_000.0;
         let t = Instant::now();
-        while app.live.as_ref().unwrap().duration_s() < want - 1e-6 && t.elapsed().as_secs() < 30 {
+        while app.bench.recording.live.as_ref().unwrap().duration_s() < want - 1e-6
+            && t.elapsed().as_secs() < 30
+        {
             app.poll();
         }
-        let now = app.live.as_ref().unwrap().duration_s();
+        let now = app.bench.recording.live.as_ref().unwrap().duration_s();
         app.guided_tick(&ctx);
         // Once the test has ended, listening has stopped: no more sound.
-        if app.guided.as_ref().is_some_and(|t| t.readings.is_some()) {
+        if app
+            .bench
+            .test
+            .guided
+            .as_ref()
+            .is_some_and(|t| t.readings.is_some())
+        {
             break;
         }
-        let ready = app.guided.as_mut().is_some_and(|t| {
+        let ready = app.bench.test.guided.as_mut().is_some_and(|t| {
             t.tick(now) == guided::Phase::Turn && !t.needs_reading() && t.next_position().is_some()
         });
         // Next once the turn has taken its time.
@@ -1418,6 +1438,8 @@ fn guided_test_saved(
     }
     drop(tx);
     assert!(app
+        .bench
+        .test
         .guided
         .as_ref()
         .and_then(|t| t.readings.as_ref())
@@ -1426,7 +1448,7 @@ fn guided_test_saved(
     app.wait_for_save();
     // The window draws again unprompted while it is read, so the reading
     // lands with no input (Walter 16 on #2067).
-    assert!(app.bg.test_read.is_some());
+    assert!(app.bench.results.bg.test_read.is_some());
     assert!(app.repaint_every().is_some());
     // Saved again while it is read: it reads what that save wrote.
     if again {
@@ -1434,7 +1456,7 @@ fn guided_test_saved(
         app.wait_for_save();
     }
     let t = Instant::now();
-    while app.bg.test_read.is_some() && t.elapsed().as_secs() < 300 {
+    while app.bench.results.bg.test_read.is_some() && t.elapsed().as_secs() < 300 {
         app.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
@@ -1536,7 +1558,7 @@ fn a_test_opened_again_keeps_its_marks() {
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.start_batch(&saved);
     let t = Instant::now();
-    while again.batch.is_some() && t.elapsed().as_secs() < 300 {
+    while again.bench.recording.batch.is_some() && t.elapsed().as_secs() < 300 {
         again.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
@@ -1560,7 +1582,7 @@ fn a_test_opened_again_keeps_its_marks() {
 /// there is room, the Plot left of the Dial, and one over the other
 /// where there is not.
 fn both_views_sit_side_by_side_where_there_is_room(app: &mut TimegrapherApp) {
-    app.panes_view.poise_views = [true, true];
+    app.bench.panes_view.poise_views = [true, true];
     // The plot names the fastest hour too: the dial's is the other one.
     let at = |app: &mut TimegrapherApp, w: f32| {
         let texts = draw_at(app, Pane::DynamicPoise, Vec2::new(w, 820.0));
@@ -1681,12 +1703,12 @@ fn both_views_off_leave_the_table_and_words() {
     let key = timegrapher_core::poise_picture::DIAL_KEY;
     // The take's table read first, as the pane reads it.
     app.free_table(&egui::Context::default()).expect("a table");
-    app.panes_view.poise_views = [false, false];
+    app.bench.panes_view.poise_views = [false, false];
     let drawn = draw(&mut app, Pane::DynamicPoise);
     assert!(!drawn.contains(axis) && !drawn.contains(key), "{drawn}");
     assert!(drawn.contains("Crown Down (CD, 9H)"), "the table: {drawn}");
     assert!(drawn.contains("Once-round wave"), "the words: {drawn}");
-    app.panes_view.poise_views = [false, true];
+    app.bench.panes_view.poise_views = [false, true];
     let drawn = draw(&mut app, Pane::DynamicPoise);
     assert!(drawn.contains(key) && !drawn.contains(axis), "{drawn}");
     let _ = std::fs::remove_dir_all(base);
@@ -1774,7 +1796,7 @@ fn a_finished_tests_note_is_at_the_top_of_its_pane() {
     );
     app.reveal_pane(Pane::DynamicPoise);
     let note = "Analysing the saved take: these figures may change slightly.";
-    app.guided.as_mut().unwrap().saved_read = guided::SavedRead::Reading;
+    app.bench.test.guided.as_mut().unwrap().saved_read = guided::SavedRead::Reading;
     let drawn = draw_at(&mut app, Pane::DynamicPoise, Vec2::new(1920.0, 1080.0));
     let at = |s: &str| drawn.iter().find(|(t, _)| t == s).map(|(_, r)| *r);
     let (line, head) = (at(note).expect("the note"), at("Rate").expect("the table"));
@@ -1792,7 +1814,7 @@ fn a_finished_tests_note_is_at_the_top_of_its_pane() {
 fn a_kept_positions_test_read_again_is_still_saved() {
     let base = std::env::temp_dir().join(format!("tg-app-2106-{}", std::process::id()));
     let mut app = guided_test_saved(&base, 960, (5.0, 30.0, 0.0), false, guided::Test::new());
-    let t = app.guided.as_ref().expect("the test");
+    let t = app.bench.test.guided.as_ref().expect("the test");
     assert_eq!(t.saved_read, guided::SavedRead::Read);
     assert_eq!(
         app.message.as_ref().map(|m| m.0.as_str()),
@@ -1806,7 +1828,7 @@ fn a_kept_positions_test_read_again_is_still_saved() {
         serde_json::from_str(&std::fs::read_to_string(dir.join(guided::RESULTS_FILE)).unwrap())
             .unwrap();
     assert!(!on_disk.listened);
-    app.calibre = "Another".into();
+    app.bench.take.calibre = "Another".into();
     assert!(app.metadata_unsaved(), "an edit still shows as unsaved");
     let _ = std::fs::remove_dir_all(&base);
 }

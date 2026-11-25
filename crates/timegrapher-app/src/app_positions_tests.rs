@@ -14,8 +14,7 @@ fn the_settle_hint_names_the_settle_in_use() {
     assert_eq!(app.session.settle_len(), guided::SETTLE_S);
     let hint = settle_hint(app.session.settle_len());
     assert!(hint.starts_with("For the first 20 seconds"), "{hint}");
-    app.guided_settle_s = 30.0;
-    app.session.set_settle_s(app.guided_settle_s);
+    app.session.set_settle_s(30.0);
     let hint = settle_hint(app.session.settle_len());
     assert!(hint.starts_with("For the first 30 seconds"), "{hint}");
 }
@@ -32,7 +31,7 @@ fn a_take_saved_twice_across_a_move_keeps_everything() {
     let base = std::env::temp_dir().join(format!("tg-app-twice-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&base);
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    app.bph = Some(28800);
+    app.bench.take.bph = Some(28800);
     app.reset_session(48000, "test".into());
     app.session.listen();
     let audio = generate(
@@ -61,7 +60,7 @@ fn a_take_saved_twice_across_a_move_keeps_everything() {
         // Like poll(), send the same sound to the recorder and the
         // live analyser so their clocks agree before each transition.
         for samples in block.samples.chunks(960) {
-            app.live.as_mut().unwrap().push(samples);
+            app.bench.recording.live.as_mut().unwrap().push(samples);
         }
     };
     let info = app.info("test", 48000, 16);
@@ -75,7 +74,7 @@ fn a_take_saved_twice_across_a_move_keeps_everything() {
     assert!((app.unsaved_s() - 30.0).abs() < 0.1, "{}", app.unsaved_s());
     // Paused, moved to dial down, resumed through the same session
     // lifecycle as pause()/resume_microphone(), without opening a mic.
-    let paused_at = app.live.as_ref().unwrap().duration_s();
+    let paused_at = app.bench.recording.live.as_ref().unwrap().duration_s();
     assert_eq!(paused_at, 60.0);
     assert_eq!(app.session.recorder.as_ref().unwrap().duration_s(), 60.0);
     app.session.pause(paused_at).unwrap().unwrap();
@@ -88,7 +87,7 @@ fn a_take_saved_twice_across_a_move_keeps_everything() {
     app.session.resume("test").unwrap();
     // Inject a deterministic elapsed pause instead of waiting for the
     // wall-clock duration returned by resume().
-    let live = app.live.as_mut().unwrap();
+    let live = app.bench.recording.live.as_mut().unwrap();
     live.skip(60.0);
     app.session.resumed_at(live.duration_s());
     assert_eq!(app.session.settles(), [(120.0, 120.0 + SETTLE_S)]);
@@ -96,7 +95,10 @@ fn a_take_saved_twice_across_a_move_keeps_everything() {
         assert_eq!(app.session.audio_of(t), Some(60.0));
     }
     feed(&mut app, 2);
-    assert_eq!(app.live.as_ref().unwrap().duration_s(), 150.0);
+    assert_eq!(
+        app.bench.recording.live.as_ref().unwrap().duration_s(),
+        150.0
+    );
     assert_eq!(app.session.recorder.as_ref().unwrap().duration_s(), 90.0);
     assert_eq!(app.session.audio_of(120.0 + SETTLE_S), Some(70.0));
     assert_eq!(app.session.audio_of(150.0), Some(90.0));
@@ -137,11 +139,11 @@ fn a_take_saved_twice_across_a_move_keeps_everything() {
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.start_batch(&saved);
     let t = Instant::now();
-    while again.batch.is_some() && t.elapsed().as_secs() < 120 {
+    while again.bench.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
         again.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    let live = again.live.as_ref().expect("analysed");
+    let live = again.bench.recording.live.as_ref().expect("analysed");
     assert!(
         (live.duration_s() - 90.0).abs() < 0.5,
         "{}",
@@ -163,8 +165,8 @@ fn a_positions_test_is_marked_from_its_first_position() {
     assert!(app.position_bands().is_empty(), "one position, no test");
     let mut test = guided::Test::new();
     test.tick(5.0);
-    app.guided_unused = test.unused(10.0);
-    app.guided_measured = test.measured(10.0);
+    app.bench.test.guided_unused = test.unused(10.0);
+    app.bench.test.guided_measured = test.measured(10.0);
     let bands = app.position_bands();
     assert_eq!(bands.len(), 1);
     assert_eq!(bands[0].2, "Dial Up (DU)");
@@ -174,8 +176,11 @@ fn a_positions_test_is_marked_from_its_first_position() {
     // The test's settling leaves the readings as a move's does; the time
     // before it began stays read, and neither is a mask by hand (#1233).
     app.mask_engine();
-    assert_eq!(app.live.as_ref().unwrap().masked(), [(5.0, 10.0)]);
-    assert!(app.masked.is_empty());
+    assert_eq!(
+        app.bench.recording.live.as_ref().unwrap().masked(),
+        [(5.0, 10.0)]
+    );
+    assert!(app.bench.take.masked.is_empty());
     // A move's settling before the test began is culled though the strip
     // shades it as the time before the test; the rest of that time is not.
     app.session.load(
@@ -195,10 +200,10 @@ fn a_positions_test_is_marked_from_its_first_position() {
     );
     app.mask_engine();
     assert_eq!(
-        app.live.as_ref().unwrap().masked(),
+        app.bench.recording.live.as_ref().unwrap().masked(),
         [(1.0, 3.0), (5.0, 10.0)]
     );
-    assert!(app.masked.is_empty());
+    assert!(app.bench.take.masked.is_empty());
     // A move's settling overlapping the test's merges with it, one band
     // and one mask.
     app.session.load(
@@ -220,7 +225,7 @@ fn a_positions_test_is_marked_from_its_first_position() {
     );
     app.mask_engine();
     assert_eq!(
-        app.live.as_ref().unwrap().masked(),
+        app.bench.recording.live.as_ref().unwrap().masked(),
         [(1.0, 3.0), (4.0, 10.0)]
     );
 }
@@ -242,7 +247,7 @@ fn a_handled_opening_is_not_a_position_the_whole_reading_names() {
         app.session.set_state(session::State::Paused {
             since: Instant::now(),
         });
-        let moved = app.live.as_ref().unwrap().duration_s();
+        let moved = app.bench.recording.live.as_ref().unwrap().duration_s();
         app.set_position(Position::DialDown);
         app.session.start_settle(moved);
         let cfg = SynthConfig {
@@ -250,7 +255,7 @@ fn a_handled_opening_is_not_a_position_the_whole_reading_names() {
             ..Default::default()
         };
         let audio = generate(&cfg, |_| 280.0, |_| 0.0);
-        let live = app.live.as_mut().unwrap();
+        let live = app.bench.recording.live.as_mut().unwrap();
         for b in audio.samples.chunks(960) {
             live.push(b);
         }
@@ -280,11 +285,11 @@ fn each_position_counts_its_own_seconds() {
         ..Default::default()
     };
     let audio = generate(&cfg, |_| 280.0, |_| 0.0);
-    let moved = app.live.as_ref().unwrap().duration_s();
+    let moved = app.bench.recording.live.as_ref().unwrap().duration_s();
     app.set_position(Position::DialDown);
     // Paused, the settling starts at Resume: here, at once.
     app.session.start_settle(moved);
-    let live = app.live.as_mut().unwrap();
+    let live = app.bench.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         live.push(b);
     }
@@ -295,10 +300,10 @@ fn each_position_counts_its_own_seconds() {
         "Dial Up keeps its {du} s of {moved}"
     );
     // Dial Down's time to the latest beat, less its settling.
-    let want = app.latest_s() - moved - app.guided_settle_s;
+    let want = app.latest_s() - moved - app.session.settle_len();
     assert!((dd - want).abs() < 1.0, "Dial Down {dd} s, not {want}");
     // A mask comes off the position it lies in.
-    app.masked.push((moved + 25.0, moved + 30.0));
+    app.bench.take.masked.push((moved + 25.0, moved + 30.0));
     assert!((app.recorded_in(Position::DialDown) - (want - 5.0)).abs() < 1.0);
     assert_eq!(app.recorded_in(Position::CrownUp), 0.0);
 }
@@ -315,7 +320,7 @@ fn the_distributions_take_the_windows_of_the_position_now() {
     });
     let before = app.position_windows().len();
     assert!(before > 0, "Dial Up's own windows");
-    let moved = app.live.as_ref().unwrap().duration_s();
+    let moved = app.bench.recording.live.as_ref().unwrap().duration_s();
     app.set_position(Position::DialDown);
     app.session.start_settle(moved);
     let cfg = SynthConfig {
@@ -323,13 +328,13 @@ fn the_distributions_take_the_windows_of_the_position_now() {
         ..Default::default()
     };
     let audio = generate(&cfg, |_| 220.0, |_| 0.0);
-    let live = app.live.as_mut().unwrap();
+    let live = app.bench.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         live.push(b);
     }
     let wins = app.position_windows();
     assert!(wins.len() > 5, "{} windows", wins.len());
-    let settled = moved + app.guided_settle_s;
+    let settled = moved + app.session.settle_len();
     for w in &wins {
         let mid = 0.5 * (w.start_s + w.end_s);
         assert!(
@@ -370,7 +375,7 @@ fn the_positions_table_reads_a_free_take() {
         });
     };
     moved(&mut app, Position::DialDown);
-    let live = app.live.as_mut().unwrap();
+    let live = app.bench.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         live.push(b);
     }
@@ -386,7 +391,7 @@ fn the_positions_table_reads_a_free_take() {
     assert!((dd_rate.unwrap() - 60.0).abs() < 5.0, "{dd_rate:?}");
     // Dial Down's settling is left out of its duration.
     assert!(
-        (dd.1 - (40.0 - app.guided_settle_s)).abs() < 1.0,
+        (dd.1 - (40.0 - app.session.settle_len())).abs() < 1.0,
         "{}",
         dd.1
     );
@@ -468,13 +473,13 @@ fn the_positions_table_reads_a_free_take() {
     moved(&mut app, Position::CrownUp);
     let audio = generate(
         &SynthConfig {
-            duration_s: app.guided_settle_s + 5.0,
+            duration_s: app.session.settle_len() + 5.0,
             ..Default::default()
         },
         |_| 280.0,
         |_| 0.0,
     );
-    let live = app.live.as_mut().unwrap();
+    let live = app.bench.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         live.push(b);
     }
@@ -492,7 +497,7 @@ fn the_positions_table_reads_a_free_take() {
         |_| 280.0,
         |_| 0.0,
     );
-    let live = app.live.as_mut().unwrap();
+    let live = app.bench.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         live.push(b);
     }
@@ -508,7 +513,7 @@ fn the_positions_table_reads_a_free_take() {
     // watch (Norm on #1688): the row keeps the amplitude and beat error
     // its shorter windows give, and no rate.
     let end = app.latest_s();
-    app.masked.push((end - 7.0, end - 6.0));
+    app.bench.take.masked.push((end - 7.0, end - 6.0));
     let t = app.free_table(&egui::Context::default()).unwrap();
     let cu = t.rows.iter().find(|r| r.0 == "Crown Up (CU, 3H)").unwrap();
     assert!(
@@ -532,7 +537,7 @@ fn the_positions_table_reads_again_every_second_in_the_background_while_listenin
             ..Default::default()
         };
         let audio = generate(&cfg, |_| 280.0, |_| 0.0);
-        let live = app.live.as_mut().unwrap();
+        let live = app.bench.recording.live.as_mut().unwrap();
         for b in audio.samples.chunks(960) {
             live.push(b);
         }
@@ -549,12 +554,12 @@ fn the_positions_table_reads_again_every_second_in_the_background_while_listenin
     feed(&mut app, 0.5);
     assert_eq!(app.latest_s().floor(), du(&first));
     assert_eq!(du(&app.free_table(&ctx).unwrap()), du(&first));
-    assert!(app.free_job.borrow().is_none());
+    assert!(app.bench.results.free_job.borrow().is_none());
     // Into the next seconds: the table on show stays while the next is
     // read in the background, then the next one shows.
     feed(&mut app, 2.0);
     assert_eq!(du(&app.free_table(&ctx).unwrap()), du(&first));
-    assert!(app.free_job.borrow().is_some());
+    assert!(app.bench.results.free_job.borrow().is_some());
     let since = Instant::now();
     let next = loop {
         let t = app.free_table(&ctx).unwrap();
@@ -577,10 +582,10 @@ fn the_positions_table_reads_again_every_second_in_the_background_while_listenin
 #[test]
 fn the_guided_test_reads_the_position_under_way_as_it_is_measured() {
     let mut app = synthetic(20.0, 0.0);
-    let start = app.live.as_ref().unwrap().duration_s();
+    let start = app.bench.recording.live.as_ref().unwrap().duration_s();
     let mut test = guided::Test::new().timed(5.0, 60.0);
     test.tick(start);
-    app.guided = Some(test);
+    app.bench.test.guided = Some(test);
     let ctx = egui::Context::default();
     // One stretch of sound at +30 s/d, heard in two parts.
     let audio = generate(
@@ -594,7 +599,7 @@ fn the_guided_test_reads_the_position_under_way_as_it_is_measured() {
     );
     let (first, rest) = audio.samples.split_at(12 * 48_000);
     let feed = |app: &mut TimegrapherApp, samples: &[f32]| {
-        let live = app.live.as_mut().unwrap();
+        let live = app.bench.recording.live.as_mut().unwrap();
         for b in samples.chunks(960) {
             live.push(b);
         }
@@ -629,18 +634,18 @@ fn a_positions_tests_stop_keeps_its_rows_and_stops_listening() {
     let mut app = synthetic(20.0, 0.0);
     app.session.listen();
     let tx = queued_capture(&mut app, &base);
-    let start = app.live.as_ref().unwrap().duration_s();
+    let start = app.bench.recording.live.as_ref().unwrap().duration_s();
     let mut test = guided::Test::new().timed(1.0, 5.0);
     test.tick(start);
-    app.guided = Some(test);
+    app.bench.test.guided = Some(test);
     assert!(app.guided_running());
     assert!(app.test_listening());
     app.stop_test();
     assert!(app.session.paused(), "listening stopped");
-    let kept = app.guided.as_ref().expect("the table stays");
+    let kept = app.bench.test.guided.as_ref().expect("the table stays");
     assert!(kept.readings.is_some(), "finished");
     assert!(!app.guided_running());
-    assert!(app.capture.is_none());
+    assert!(app.bench.recording.capture.is_none());
     // A finished test sets nothing while listening goes on.
     let _tx2 = queued_capture(&mut app, &base);
     app.session.listen();
@@ -656,17 +661,21 @@ fn a_positions_tests_stop_keeps_its_rows_and_stops_listening() {
 fn a_new_positions_test_waits_ready_on_the_bench() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.watches_view.view = View::Watches;
-    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::PositionsTest, false);
+    set_pane_visible(
+        &mut app.bench.panes_view.panes.tiles,
+        Pane::PositionsTest,
+        false,
+    );
     app.set_position(Position::CrownDown);
     app.new_take(NewTake::Positions, false);
     assert_eq!(app.ready_test(), Some(NewTake::Positions));
-    assert!(app.guided.is_none() && !app.running());
+    assert!(app.bench.test.guided.is_none() && !app.running());
     assert_eq!(app.watches_view.view, View::Bench);
     assert!(pane_visible(
-        &app.panes_view.panes.tiles,
+        &app.bench.panes_view.panes.tiles,
         Pane::PositionsTest
     ));
-    assert_eq!(app.position, Position::DialUp);
+    assert_eq!(app.bench.take.position, Position::DialUp);
     let words = app.status_words();
     assert!(
         words.contains("Positions Test") && words.ends_with(" · Ready"),
@@ -722,7 +731,7 @@ fn a_ready_test_finds_the_picked_watchs_full_wind() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.use_library(Some(root));
     app.pick_watch(&seiko);
-    app.guided_after = true;
+    app.bench.test.guided_after = true;
     app.new_take(NewTake::Positions, false);
     assert_eq!(app.ready_test(), Some(NewTake::Positions));
     let why = app.start_test_why_not();
@@ -747,8 +756,8 @@ fn a_ready_test_finds_the_picked_watchs_full_wind() {
     frame(&mut app);
     assert_eq!(app.ready_test(), Some(NewTake::Positions));
     // Offered, not picked for you.
-    assert_eq!(app.guided_choices.len(), 1);
-    assert_eq!(app.guided_earlier, None);
+    assert_eq!(app.bench.test.guided_choices.len(), 1);
+    assert_eq!(app.bench.test.guided_earlier, None);
     let why = app.start_test_why_not();
     assert!(
         why.as_deref()
@@ -758,7 +767,11 @@ fn a_ready_test_finds_the_picked_watchs_full_wind() {
     app.pick_full_wind(0);
     assert_eq!(app.start_test_why_not(), None);
     assert_eq!(
-        app.guided_earlier.as_ref().map(|f| f.watch.as_str()),
+        app.bench
+            .test
+            .guided_earlier
+            .as_ref()
+            .map(|f| f.watch.as_str()),
         Some("Daytona")
     );
     // And back: Seiko 5 has none.
@@ -813,7 +826,7 @@ fn a_ready_tests_full_wind_search_sees_the_time_and_the_takes() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.use_library(Some(root));
     app.pick_watch(&seiko);
-    app.guided_after = true;
+    app.bench.test.guided_after = true;
     app.new_take(NewTake::Positions, false);
     app.find_full_wind_at(now);
     assert!(app.start_test_why_not().is_some(), "too soon");
@@ -826,31 +839,31 @@ fn a_ready_tests_full_wind_search_sees_the_time_and_the_takes() {
     // An hour on, past the mark, with nothing else changed: offered,
     // and once picked, the test can start.
     app.find_full_wind_at(now + 3600.0);
-    assert_eq!(app.guided_choices.len(), 1);
+    assert_eq!(app.bench.test.guided_choices.len(), 1);
     assert!(app.start_test_why_not().is_some(), "not yet picked");
     app.pick_full_wind(0);
     assert_eq!(app.start_test_why_not(), None);
     // No test set up (the last one done, the Bench left as it was) with
     // Compare With still shown: its list is searched all the same, and
     // waits on the minute too (#1714).
-    let ready = app.test_ready.take();
-    app.guided_choices.clear();
-    app.guided_earlier_for = None;
+    let ready = app.bench.test.test_ready.take();
+    app.bench.test.guided_choices.clear();
+    app.bench.test.guided_earlier_for = None;
     app.find_full_wind_at(now + 3600.0);
-    assert_eq!(app.guided_choices.len(), 1);
+    assert_eq!(app.bench.test.guided_choices.len(), 1);
     assert!(app.full_wind_recheck(at).is_some());
     // While a test is under way Compare With is hidden: its list is
     // neither searched nor rechecked.
-    app.guided = Some(guided::Test::new());
+    app.bench.test.guided = Some(guided::Test::new());
     assert!(app.guided_running());
     assert!(!app.compare_with_shown());
-    app.guided_choices.clear();
-    app.guided_earlier_for = None;
+    app.bench.test.guided_choices.clear();
+    app.bench.test.guided_earlier_for = None;
     app.find_full_wind_at(now + 3600.0);
-    assert!(app.guided_choices.is_empty());
+    assert!(app.bench.test.guided_choices.is_empty());
     assert!(app.full_wind_recheck(at).is_none());
-    app.guided = None;
-    app.test_ready = ready;
+    app.bench.test.guided = None;
+    app.bench.test.test_ready = ready;
     // The take removed, in the same minute: no longer found, even with
     // the takes folder's time as it was, as Windows can leave it.
     let takes = take.parent().unwrap().to_path_buf();
@@ -869,9 +882,12 @@ fn a_ready_tests_full_wind_search_sees_the_time_and_the_takes() {
     let _ = was;
     app.find_full_wind_at(now + 3600.0);
     assert!(app.start_test_why_not().is_some(), "removed");
-    assert_eq!(app.guided_earlier, None, "the pick goes with its take");
+    assert_eq!(
+        app.bench.test.guided_earlier, None,
+        "the pick goes with its take"
+    );
     // With 24 Hours After off, nothing waits on the minute.
-    app.guided_after = false;
+    app.bench.test.guided_after = false;
     assert_eq!(app.full_wind_recheck(at), None);
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -886,7 +902,7 @@ fn a_positions_test_ends_by_itself_after_the_sixth_position() {
     let mut app = synthetic(20.0, 0.0);
     app.session.listen();
     let tx = queued_capture(&mut app, &base);
-    let end = app.live.as_ref().unwrap().duration_s();
+    let end = app.bench.recording.live.as_ref().unwrap().duration_s();
     let mut test = guided::Test::new().timed(0.5, 2.0);
     let mut t = end - 18.0;
     test.tick(t);
@@ -897,14 +913,14 @@ fn a_positions_test_ends_by_itself_after_the_sixth_position() {
             test.advance(t);
         }
     }
-    app.guided = Some(test);
+    app.bench.test.guided = Some(test);
     assert!(app.test_listening());
-    app.lift_deg = 53.0;
+    app.bench.take.lift_deg = 53.0;
     let ctx = egui::Context::default();
     app.guided_tick(&ctx);
     assert!(!app.guided_running(), "ended");
     assert!(app.session.paused(), "listening stopped");
-    let kept = app.guided.as_ref().expect("the table stays");
+    let kept = app.bench.test.guided.as_ref().expect("the table stays");
     assert_eq!(kept.readings.as_ref().map(|r| r.len()), Some(6));
     assert_eq!(kept.lift_deg, Some(53.0), "read at the lift in use (#1884)");
     drop(tx);
@@ -924,7 +940,7 @@ fn a_settle_changed_after_a_test_leaves_the_test_alone() {
     app.session.listen();
     app.session.set_settle_s(0.5);
     let tx = queued_capture(&mut app, &base);
-    let end = app.live.as_ref().unwrap().duration_s();
+    let end = app.bench.recording.live.as_ref().unwrap().duration_s();
     let mut test = guided::Test::new().timed(0.5, 2.0);
     let mut t = end - 18.0;
     test.tick(t);
@@ -937,8 +953,8 @@ fn a_settle_changed_after_a_test_leaves_the_test_alone() {
             test.advance(t);
         }
     }
-    app.guided = Some(test);
-    app.lift_deg = 53.0;
+    app.bench.test.guided = Some(test);
+    app.bench.take.lift_deg = 53.0;
     let ctx = egui::Context::default();
     app.guided_tick(&ctx);
     assert!(!app.guided_running(), "ended");
@@ -951,18 +967,51 @@ fn a_settle_changed_after_a_test_leaves_the_test_alone() {
     let snap = app.session.metadata_snapshot(app.save_metadata());
     app.session.mark_saved(end, base.clone(), snap);
     assert!(!app.metadata_unsaved());
-    let watch = std::mem::replace(&mut app.watch, "Another".into());
+    let watch = std::mem::replace(&mut app.bench.take.watch, "Another".into());
     assert!(app.metadata_unsaved(), "an edit does show as unsaved");
-    app.watch = watch;
+    app.bench.take.watch = watch;
     for s in [30.0, 10.0, 30.0] {
         app.session.resettle(s);
-        app.positions_moved(app.position);
+        app.positions_moved(app.bench.take.position);
         assert_eq!(app.session.settles(), settles, "Settle {s}");
         assert!(
             !app.metadata_unsaved(),
             "Settle {s}: the kept take is still saved"
         );
     }
+    drop(tx);
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// The Settle is one record, the session's (#1988): re-settled as the
+/// pane's Settle does it, the strip's settling after a move, the saved
+/// Settings and the next guided test all read the new value, and Settings
+/// loaded again give it back to the session.
+#[test]
+fn the_strip_and_the_test_read_one_settle() {
+    let base = std::env::temp_dir().join(format!("tg-app-one-settle-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let mut app = synthetic(20.0, 0.0);
+    app.session.listen();
+    let tx = queued_capture(&mut app, &base);
+    app.session
+        .move_to(10.0, Position::DialUp, Position::DialDown)
+        .unwrap();
+    assert_eq!(app.session.settles(), [(10.0, 10.0 + guided::SETTLE_S)]);
+    for s in [30.0, 12.0] {
+        app.session.resettle(s);
+        assert_eq!(app.session.settle_len(), s);
+        assert_eq!(app.session.settles(), [(10.0, 10.0 + s)], "the strip");
+        assert_eq!(app.settings().positions_settle_s, s, "saved");
+    }
+    app.start_guided(None);
+    let test = app.bench.test.guided.as_ref().expect("the test runs");
+    assert_eq!(test.settle_s, 12.0, "the test settles as the strip does");
+    // Saved and loaded again, as at the next launch: the session has it.
+    let mut again = TimegrapherApp::with_devices(Vec::new(), None);
+    again.apply_settings(app.settings());
+    assert_eq!(again.session.settle_len(), 12.0, "loaded from Settings");
     drop(tx);
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -979,7 +1028,7 @@ fn a_positions_test_keeps_the_lift_it_was_read_at() {
     let mut app = synthetic(20.0, 0.0);
     app.session.listen();
     let tx = queued_capture(&mut app, &base);
-    let end = app.live.as_ref().unwrap().duration_s();
+    let end = app.bench.recording.live.as_ref().unwrap().duration_s();
     let mut test = guided::Test::new().timed(0.5, 2.0);
     let mut t = end - 18.0;
     test.tick(t);
@@ -989,13 +1038,13 @@ fn a_positions_test_keeps_the_lift_it_was_read_at() {
         test.advance(t);
     }
     assert_eq!(test.lift_deg, None);
-    app.guided = Some(test);
-    app.lift_deg = 55.0;
+    app.bench.test.guided = Some(test);
+    app.bench.take.lift_deg = 55.0;
     app.guided_tick(&egui::Context::default());
     assert!(app.guided_running());
-    let lift = |app: &TimegrapherApp| app.guided.as_ref().unwrap().lift_deg;
+    let lift = |app: &TimegrapherApp| app.bench.test.guided.as_ref().unwrap().lift_deg;
     assert_eq!(lift(&app), Some(55.0), "read as it goes");
-    app.lift_deg = 50.0;
+    app.bench.take.lift_deg = 50.0;
     app.reread_guided();
     assert_eq!(lift(&app), Some(50.0), "read again");
     drop(tx);
@@ -1009,12 +1058,16 @@ fn a_positions_test_keeps_the_lift_it_was_read_at() {
 fn the_watches_power_reserve_test_waits_on_the_bench() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.watches_view.view = View::Watches;
-    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::PowerReserve, false);
+    set_pane_visible(
+        &mut app.bench.panes_view.panes.tiles,
+        Pane::PowerReserve,
+        false,
+    );
     app.new_take(NewTake::PowerReserve, false);
-    assert!(app.test.reserve.is_none() && !app.running());
+    assert!(app.bench.test.reserve.is_none() && !app.running());
     assert_eq!(app.watches_view.view, View::Bench);
     assert!(pane_visible(
-        &app.panes_view.panes.tiles,
+        &app.bench.panes_view.panes.tiles,
         Pane::PowerReserve
     ));
     assert!(app.position_editable(), "the card sets it");
@@ -1040,21 +1093,25 @@ fn a_new_position_marks_a_stretch_and_keeps_the_strip() {
             ..Default::default()
         };
         let audio = generate(&cfg, |_| 280.0, |_| 0.0);
-        let live = app.live.as_mut().unwrap();
+        let live = app.bench.recording.live.as_mut().unwrap();
         for b in audio.samples.chunks(960) {
             if live.push(b) {
-                let r = live.reading(app.average_s);
-                app.trend.push(TrendPoint::of(r.time_s, &r));
+                let r = live.reading(app.bench.take.average_s);
+                app.bench.results.trend.push(TrendPoint::of(r.time_s, &r));
             }
         }
     };
-    let first = app.live.as_ref().unwrap().beats().len();
+    let first = app.bench.recording.live.as_ref().unwrap().beats().len();
     app.set_position(Position::DialDown);
-    assert_eq!(app.live.as_ref().unwrap().beats().len(), first, "kept");
+    assert_eq!(
+        app.bench.recording.live.as_ref().unwrap().beats().len(),
+        first,
+        "kept"
+    );
     feed(&mut app, 60.0);
     app.set_position(Position::DialUp);
     feed(&mut app, 0.0);
-    let live = app.live.as_ref().unwrap();
+    let live = app.bench.recording.live.as_ref().unwrap();
     assert!(live.beats().len() > 2 * first);
     assert_eq!(app.session.stretches().len(), 3);
     let bands = app.position_bands();
@@ -1095,7 +1152,7 @@ fn a_new_position_marks_a_stretch_and_keeps_the_strip() {
     // And it all draws, bands and all.
     let ctx = themed();
     for p in [Pane::Charts, Pane::Distributions] {
-        set_pane_visible(&mut app.panes_view.panes.tiles, p, true);
+        set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, true);
     }
     frames(&mut app, &ctx, 2);
     app.relayout(false);
@@ -1108,7 +1165,9 @@ fn a_new_position_marks_a_stretch_and_keeps_the_strip() {
 fn a_masked_stretch_leaves_the_readings_and_comes_back() {
     let mut app = synthetic(60.0, 0.0);
     let heard = |app: &TimegrapherApp| {
-        app.trend
+        app.bench
+            .results
+            .trend
             .iter()
             .filter(|p| p.t > 30.0 && p.t < 40.0 && p.rate_s_per_day.is_some())
             .count()
@@ -1123,19 +1182,22 @@ fn a_masked_stretch_leaves_the_readings_and_comes_back() {
     assert!(heard(&app) > 0);
     assert!(stretches(&app) > 0);
     app.mask(30.2, 30.4);
-    assert!(app.masked.is_empty(), "a slip of the mouse");
+    assert!(app.bench.take.masked.is_empty(), "a slip of the mouse");
     app.mask(40.0, 30.0);
     app.mask(35.0, 45.0);
-    assert_eq!(app.masked, [(30.0, 45.0)], "joined");
-    assert_eq!(app.live.as_ref().unwrap().masked(), app.masked);
+    assert_eq!(app.bench.take.masked, [(30.0, 45.0)], "joined");
+    assert_eq!(
+        app.bench.recording.live.as_ref().unwrap().masked(),
+        app.bench.take.masked
+    );
     // As the next frame reads them.
     app.refresh_trend();
     assert_eq!(heard(&app), 0);
     assert_eq!(stretches(&app), 0);
     app.unmask_at(10.0);
-    assert_eq!(app.masked.len(), 1, "nothing masked there");
+    assert_eq!(app.bench.take.masked.len(), 1, "nothing masked there");
     app.unmask_at(33.0);
-    assert!(app.masked.is_empty());
+    assert!(app.bench.take.masked.is_empty());
     app.refresh_trend();
     assert!(heard(&app) > 0);
     assert!(stretches(&app) > 0);
@@ -1148,13 +1210,13 @@ fn a_masked_stretch_can_be_reshaped() {
     let mut app = synthetic(60.0, 0.0);
     app.set_masked(vec![(10.0, 15.0), (30.0, 40.0)]);
     app.reshape_mask((30.0, 40.0), (25.0, 40.0));
-    assert_eq!(app.masked, [(10.0, 15.0), (25.0, 40.0)]);
+    assert_eq!(app.bench.take.masked, [(10.0, 15.0), (25.0, 40.0)]);
     app.reshape_mask((10.0, 15.0), (10.0, 28.0));
-    assert_eq!(app.masked, [(10.0, 40.0)], "joined");
+    assert_eq!(app.bench.take.masked, [(10.0, 40.0)], "joined");
     app.reshape_mask((99.0, 100.0), (1.0, 2.0));
-    assert_eq!(app.masked, [(10.0, 40.0)], "no such stretch");
+    assert_eq!(app.bench.take.masked, [(10.0, 40.0)], "no such stretch");
     app.reshape_mask((10.0, 40.0), (10.0, 10.2));
-    assert!(app.masked.is_empty());
+    assert!(app.bench.take.masked.is_empty());
 }
 
 /// A take opened from Watches, with no test on the Bench: its This Take
@@ -1234,7 +1296,7 @@ fn an_opened_takes_table_can_be_saved_and_copied() {
     let shown = each.and_then(|i| lines.get(i + 1));
     assert_eq!(
         shown,
-        Some(&fields::duration(app.guided_measure_s).as_str()),
+        Some(&fields::duration(app.bench.test.guided_measure_s).as_str()),
         "{drawn}"
     );
     for d in [least, most].map(guided::table_duration) {
@@ -1278,24 +1340,30 @@ fn an_ordinary_take_of_the_six_positions_loads_to_compare_with() {
         super::poise_tests::saved_and_opened_after("compare1851", &stops, 62.0, |app| {
             let end = app.latest_s();
             app.session
-                .paint(85.0, 100.0, Position::CrownUp, app.position, end);
+                .paint(85.0, 100.0, Position::CrownUp, app.bench.take.position, end);
         });
-    let saved = std::fs::read_to_string(PathBuf::from(&app.opened_path).join("session.toml"))
-        .unwrap_or_default();
+    let saved =
+        std::fs::read_to_string(PathBuf::from(&app.bench.keeping.opened_path).join("session.toml"))
+            .unwrap_or_default();
     assert!(
         saved.contains("[[recorded]]"),
         "recorded under the painting: {saved}"
     );
-    let file = PathBuf::from(&app.opened_path).join("session.json");
+    let file = PathBuf::from(&app.bench.keeping.opened_path).join("session.json");
     let dir = super::compare_take::take_dir_of(&file).expect("a take's file");
     app.read_compare_take(dir);
     let t = Instant::now();
-    while app.compare_take.is_some() && t.elapsed().as_secs() < 300 {
+    while app.bench.test.compare_take.is_some() && t.elapsed().as_secs() < 300 {
         app.poll_compare_take();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    let full = app.guided_earlier.clone().expect("read to compare with");
-    assert!(app.guided_earlier_file);
+    let full = app
+        .bench
+        .test
+        .guided_earlier
+        .clone()
+        .expect("read to compare with");
+    assert!(app.bench.test.guided_earlier_file);
     assert_eq!(full.positions.len(), 6, "{full:?}");
     assert!(full.wind_h.is_none(), "a full-wind test to set against");
     let about: serde_json::Value =
@@ -1305,7 +1373,7 @@ fn an_ordinary_take_of_the_six_positions_loads_to_compare_with() {
     // The first position is held twice: its two stretches are one row,
     // longer than any position held once.
     let first = core_session::Position::parse(stops[0].code()).unwrap();
-    let held = |p| app.session.settled_spans(app.position, p).len();
+    let held = |p| app.session.settled_spans(app.bench.take.position, p).len();
     assert_eq!(held(stops[0]), 2, "two stretches in {}", stops[0].code());
     assert_eq!(held(Position::CrownUp), 2, "painted and recorded");
     let long = |r: &core_session::Reading| r.duration_s;
@@ -1344,7 +1412,7 @@ fn an_ordinary_take_of_the_six_positions_loads_to_compare_with() {
             .filter_map(|c| core_session::Position::parse(c))
             .collect::<Vec<_>>()
     });
-    app.panes_view.positions_series = [false; 3];
+    app.bench.panes_view.positions_series = [false; 3];
     let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
     let labels: Vec<String> = guided::card_order()
         .into_iter()
@@ -1375,7 +1443,7 @@ fn every_chart_off_leaves_the_positions_table() {
     let lanes = |drawn: &str| drawn.lines().filter(|l| *l == "Horizontal").count();
     let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
     assert!(lanes(&drawn) > 0, "{drawn}");
-    app.panes_view.positions_series = [false; 3];
+    app.bench.panes_view.positions_series = [false; 3];
     let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
     assert_eq!(lanes(&drawn), 0, "{drawn}");
     assert!(drawn.contains("Crown Down (CD, 9H)"), "the table: {drawn}");
@@ -1393,18 +1461,23 @@ fn silent_test(
     app.reset_session(48000, "silence".into());
     app.session.listen();
     let tx = queued_capture(&mut app, base);
-    let live = app.live.as_mut().unwrap();
+    let live = app.bench.recording.live.as_mut().unwrap();
     for b in vec![0.0; 5 * 48000].chunks(960) {
         live.push(b);
     }
     assert!(
-        app.live.as_ref().and_then(steady::log_of).is_none(),
+        app.bench
+            .recording
+            .live
+            .as_ref()
+            .and_then(steady::log_of)
+            .is_none(),
         "no beat"
     );
     let mut test = guided::Test::new().timed(1.0, 2.0);
     test.tick(1.0);
     then(&mut test);
-    app.guided = Some(test);
+    app.bench.test.guided = Some(test);
     (app, tx)
 }
 
@@ -1434,7 +1507,7 @@ fn a_positions_test_stopped_before_the_beat_is_found_stays_ended() {
         assert!(!app.guided_running(), "{case}: ended");
         assert!(app.session.paused(), "{case}: listening stopped");
         app.guided_tick(&ctx);
-        let test = app.guided.as_mut().expect("the table stays");
+        let test = app.bench.test.guided.as_mut().expect("the table stays");
         assert_eq!(
             test.tick(9.0),
             guided::Phase::Finished,
@@ -1499,7 +1572,7 @@ fn a_45_degree_stop_gets_its_own_row_outside_the_average() {
         t.extra[0].3,
         guided::FreeCell::Read(Some(_), Some(_), _)
     ));
-    app.panes_view.positions_series = [false; 3];
+    app.bench.panes_view.positions_series = [false; 3];
     let drawn = super::poise_tests::draw(&mut app, Pane::PositionsTest);
     let lines: Vec<&str> = drawn.lines().collect();
     let at = |s: &str| lines.iter().position(|l| *l == s);

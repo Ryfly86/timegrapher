@@ -110,7 +110,7 @@ impl egui_tiles::Behavior<Pane> for PaneBehavior<'_> {
     fn pane_ui(&mut self, ui: &mut egui::Ui, _tile: TileId, pane: &mut Pane) -> UiResponse {
         let pal = theme::pal(ui);
         let rect = ui.max_rect();
-        self.app.panes_view.pane_top = rect.top();
+        self.app.bench.panes_view.pane_top = rect.top();
         ui.painter()
             .rect_filled(rect, egui::CornerRadius::same(theme::CARD_RADIUS), pal.card);
         let inner = rect.shrink2(Vec2::new(8.0, 6.0));
@@ -118,6 +118,7 @@ impl egui_tiles::Behavior<Pane> for PaneBehavior<'_> {
         // and what it paints kept for an SVG.
         let exporting = self
             .app
+            .bench
             .panes_view
             .export
             .as_ref()
@@ -151,7 +152,7 @@ impl egui_tiles::Behavior<Pane> for PaneBehavior<'_> {
                 Pane::DynamicPoise => self.app.poise_pane(ui),
                 Pane::Complication => self.app.complication_pane(ui),
                 Pane::PowerReserve => {
-                    self.app.panes_view.results_rects[1] = Some(ui.max_rect());
+                    self.app.bench.panes_view.results_rects[1] = Some(ui.max_rect());
                     self.app.reserve_pane(ui)
                 }
                 Pane::Scope => self.app.scope_pane(ui),

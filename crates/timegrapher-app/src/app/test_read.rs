@@ -65,7 +65,7 @@ impl TimegrapherApp {
             return;
         };
         let settings = self.entry_settings(&m);
-        let Some(t) = self.guided.as_mut().filter(|t| {
+        let Some(t) = self.bench.test.guided.as_mut().filter(|t| {
             matches!(
                 t.saved_read,
                 guided::SavedRead::Pending
@@ -87,7 +87,7 @@ impl TimegrapherApp {
             t.saved_read = guided::SavedRead::Failed(e.to_string());
             return;
         }
-        self.bg.test_read = Some(TestRead {
+        self.bench.results.bg.test_read = Some(TestRead {
             began_unix: t.began_unix,
             dir: dir.to_path_buf(),
             rx,
@@ -102,7 +102,14 @@ impl TimegrapherApp {
         use std::sync::mpsc::TryRecvError;
         // Nothing lands while a save is written: one of the same take
         // starts the reading over once it is done.
-        let Some(job) = self.bg.test_read.as_ref().filter(|_| self.saving.is_none()) else {
+        let Some(job) = self
+            .bench
+            .results
+            .bg
+            .test_read
+            .as_ref()
+            .filter(|_| self.bench.keeping.saving.is_none())
+        else {
             return;
         };
         let saved = match job.rx.try_recv() {
@@ -112,14 +119,14 @@ impl TimegrapherApp {
         };
         let Some(TestRead {
             began_unix, dir, ..
-        }) = self.bg.test_read.take()
+        }) = self.bench.results.bg.test_read.take()
         else {
             return;
         };
-        let Some(t) = self
-            .guided
-            .as_mut()
-            .filter(|t| t.began_unix == began_unix && t.saved_read == guided::SavedRead::Reading)
+        let Some(t) =
+            self.bench.test.guided.as_mut().filter(|t| {
+                t.began_unix == began_unix && t.saved_read == guided::SavedRead::Reading
+            })
         else {
             return;
         };
@@ -141,6 +148,8 @@ impl TimegrapherApp {
     /// (#2070). One read again already, or under way, is left as it is.
     pub(super) fn test_kept_without_sound(&mut self) {
         if let Some(t) = self
+            .bench
+            .test
             .guided
             .as_mut()
             .filter(|t| t.saved_read == guided::SavedRead::Pending)
@@ -233,8 +242,13 @@ impl TimegrapherApp {
     /// The guided test's marks for its take's files, in the saved sound's
     /// own seconds; none with no test, or nothing yet in the sound.
     pub(super) fn test_marks(&self) -> Option<TestMarks> {
-        let t = self.guided.as_ref()?;
-        let now = self.live.as_ref().map_or(0.0, |l| l.duration_s());
+        let t = self.bench.test.guided.as_ref()?;
+        let now = self
+            .bench
+            .recording
+            .live
+            .as_ref()
+            .map_or(0.0, |l| l.duration_s());
         let audio = |a: f64, b: f64| -> Option<(f64, f64)> {
             let (a, b) = (self.session.audio_of(a)?, self.session.audio_of(b)?);
             (b > a).then_some((a, b))
@@ -266,9 +280,9 @@ impl TimegrapherApp {
     pub(super) fn load_test_marks(&mut self, dir: &Path) {
         match TestMarks::read(dir) {
             Ok(Some(m)) => {
-                self.guided_unused = unused_of(&m);
-                self.guided_measured = m.measured;
-                self.bg.opened_marks = Some(self.guided_unused.clone());
+                self.bench.test.guided_unused = unused_of(&m);
+                self.bench.test.guided_measured = m.measured;
+                self.bench.results.bg.opened_marks = Some(self.bench.test.guided_unused.clone());
             }
             Ok(None) => {}
             Err(e) => self.info_msg(format!("The test's marks weren't read: {e}")),
@@ -279,8 +293,8 @@ impl TimegrapherApp {
     /// test on the Bench: what each stretch was is then the marks' word,
     /// over the settling the session file's gaps give.
     pub(super) fn marks_opened(&self) -> bool {
-        self.guided.is_none()
-            && !self.guided_unused.is_empty()
-            && self.bg.opened_marks.as_ref() == Some(&self.guided_unused)
+        self.bench.test.guided.is_none()
+            && !self.bench.test.guided_unused.is_empty()
+            && self.bench.results.bg.opened_marks.as_ref() == Some(&self.bench.test.guided_unused)
     }
 }

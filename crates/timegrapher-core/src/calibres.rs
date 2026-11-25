@@ -1119,6 +1119,19 @@ mod tests {
     }
 
     #[test]
+    fn ap_chronograph_clones_name_no_maker_and_keep_their_old_names() {
+        for (name, row) in [
+            ("SA4401", "SA4401"),
+            ("APS 4401", "SA4401"),
+            ("SA4302", "SA4302"),
+        ] {
+            let c = find(name).unwrap();
+            assert_eq!(c.calibre, row, "{name}");
+            assert_eq!(c.maker, "Clone (maker not named)", "{name}");
+        }
+    }
+
+    #[test]
     fn ap3120_clone_simple_idler_closes_both_one_hour_branches() {
         for name in [
             "SA3120",
