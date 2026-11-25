@@ -200,7 +200,7 @@ impl TimegrapherApp {
                 ));
             }
         };
-        if let Some(t) = self.test.reserve.as_mut() {
+        if let Some(t) = self.bench.test.reserve.as_mut() {
             t.saving = true;
         }
         let at = recording.clone();
@@ -310,7 +310,7 @@ impl TimegrapherApp {
                     recording.display()
                 ));
                 if self.is_recording(&recording) {
-                    if let Some(t) = self.test.reserve.as_mut() {
+                    if let Some(t) = self.bench.test.reserve.as_mut() {
                         t.saving = false;
                     }
                 }
@@ -345,7 +345,7 @@ impl TimegrapherApp {
         if let Err(e) = timegrapher_core::checkpoint::remove(&u.recording) {
             applog::warn(&format!("the analysis kept as it went stays: {e}"));
         }
-        if let Some(t) = self.test.reserve.as_mut() {
+        if let Some(t) = self.bench.test.reserve.as_mut() {
             t.saving = false;
             t.saved = Some(dir);
         }

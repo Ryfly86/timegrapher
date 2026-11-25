@@ -724,7 +724,7 @@ fn a_take_of_a_watch_asks_about_quick_listens_sound() {
     assert!(app.session.recorder.is_some(), "nothing let go yet");
     app.confirm = None;
     app.start_reserve();
-    assert!(app.session.recorder.is_some() && app.test.reserve.is_none());
+    assert!(app.session.recorder.is_some() && app.bench.test.reserve.is_none());
     // Start Test asks the same question.
     assert_eq!(app.confirm, Some(Confirm::ReserveStart));
     for _ in 0..2 {

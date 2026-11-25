@@ -216,7 +216,7 @@ fn a_long_runs_charts_read_with_its_take_open_in_a_small_window() {
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     assert!(app.recording.live.is_some(), "{:?}", app.message);
-    assert!(app.test.reserve.is_some(), "{:?}", app.message);
+    assert!(app.bench.test.reserve.is_some(), "{:?}", app.message);
     let mut out = None;
     let mut top = Vec::new();
     for i in 0..40 {
@@ -578,7 +578,7 @@ fn a_power_reserve_test_holds_its_position_and_keeps_its_take_with_its_run() {
         })
         .collect();
     t.update(&beats, 0.125, 20.0);
-    app.test.reserve = Some(t);
+    app.bench.test.reserve = Some(t);
     assert!(app.reserve_running());
     assert!(!app.position_editable());
     assert!(app.position_lock_words().contains("Stop Test"));
@@ -589,12 +589,12 @@ fn a_power_reserve_test_holds_its_position_and_keeps_its_take_with_its_run() {
     // Stop ends the test and keeps the take in the watch's history.
     app.stop_listening();
     assert!(!app.reserve_running());
-    assert!(app.test.reserve.as_ref().unwrap().saving);
+    assert!(app.bench.test.reserve.as_ref().unwrap().saving);
     app.wait_for_save();
     app.reserve_saved();
     let saved = app.session.saved_to().unwrap().to_path_buf();
     assert_eq!(
-        app.test.reserve.as_ref().unwrap().saved.as_ref(),
+        app.bench.test.reserve.as_ref().unwrap().saved.as_ref(),
         Some(&saved)
     );
     assert!(
@@ -615,7 +615,7 @@ fn a_power_reserve_test_holds_its_position_and_keeps_its_take_with_its_run() {
     // Opened again, the take brings its run back to the pane.
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.start_batch(&saved);
-    let back = again.test.reserve.as_ref().expect("its results");
+    let back = again.bench.test.reserve.as_ref().expect("its results");
     assert!(!again.reserve_running());
     assert_eq!(back.results.as_ref(), Some(&r));
     assert_eq!(back.position, Position::CrownLeft);
@@ -687,7 +687,7 @@ fn a_power_reserve_test_kept_as_analysis_only_lets_its_sound_go() {
     app.session.recorder = Some(r);
     let _tx = super::tests::queued_capture(&mut app, &base);
     app.take.position = Position::CrownLeft;
-    app.test.reserve = Some(crown_left_test());
+    app.bench.test.reserve = Some(crown_left_test());
     assert!(app.streams(), "a test of a watch picked records as it goes");
     app.stream_tick();
     app.wait_for_save();
@@ -806,7 +806,7 @@ fn a_power_reserve_run_keeps_its_first_beat_past_the_benchs_limit() {
     let beats = live.beats().to_vec();
     let now = live.duration_s();
     assert!(beats.len() > 200, "{}", beats.len());
-    let t = app.test.reserve.as_mut().unwrap();
+    let t = app.bench.test.reserve.as_mut().unwrap();
     assert!(t.update(&beats, 0.125, now).is_none());
     let first = t.heard.first_s.unwrap();
     assert!(first < 3.0, "{first}");
@@ -819,7 +819,7 @@ fn a_power_reserve_test_runs_in_the_cards_position() {
     app.change_position(Position::CrownUp);
     app.begin_reserve();
     assert_eq!(
-        app.test.reserve.as_ref().unwrap().position,
+        app.bench.test.reserve.as_ref().unwrap().position,
         Position::CrownUp
     );
     assert_eq!(app.take.position, Position::CrownUp);
@@ -827,7 +827,7 @@ fn a_power_reserve_test_runs_in_the_cards_position() {
     let mut texts = Vec::new();
     let ctx = egui::Context::default();
     theme::install(&ctx);
-    app.test.reserve = None;
+    app.bench.test.reserve = None;
     let _ = ctx.run(egui::RawInput::default(), |ctx| {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.horizontal(|ui| app.reserve_settings(ui));
@@ -872,7 +872,7 @@ fn a_power_reserve_test_runs_in_the_cards_position() {
                 ui,
                 None,
                 None,
-                (app.test.position_card_title, ""),
+                (app.bench.test.position_card_title, ""),
                 true,
                 (false, [true; 3]),
             );
@@ -921,14 +921,14 @@ fn the_live_hours_match_a_fresh_read_after_each_refresh() {
             gap_s,
         }];
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-        app.test.reserve = Some(reserve::Test::new(
+        app.bench.test.reserve = Some(reserve::Test::new(
             Position::DialUp,
             true,
             String::new(),
             0.0,
         ));
-        app.test.reserve_read_s = 0.0;
-        app.test.reserve_hours_s = f64::NEG_INFINITY;
+        app.bench.test.reserve_read_s = 0.0;
+        app.bench.test.reserve_hours_s = f64::NEG_INFINITY;
         app.put_take_clock(None, None);
         app.put_take_breaks(Some(breaks.clone()), None);
         let ctx = egui::Context::default();
@@ -941,7 +941,7 @@ fn the_live_hours_match_a_fresh_read_after_each_refresh() {
             app.reserve_tick(&ctx);
             last = duration_s;
         }
-        let t = app.test.reserve.as_ref().unwrap();
+        let t = app.bench.test.reserve.as_ref().unwrap();
         let fresh = power_reserve::hours(
             &log(last),
             None,
@@ -997,7 +997,12 @@ fn a_long_take_shows_its_run_in_the_power_reserve_pane() {
     let run = power_reserve::LONG_TAKE_S + 1800.0;
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.show_log(long_log(run), "long".into(), vec![], vec![]);
-    let t = app.test.reserve.as_ref().expect("the run of a long take");
+    let t = app
+        .bench
+        .test
+        .reserve
+        .as_ref()
+        .expect("the run of a long take");
     assert!(!app.reserve_running());
     assert!(t.saved.is_none(), "nothing kept");
     let r = t.results.as_ref().unwrap();
@@ -1053,7 +1058,7 @@ fn a_long_take_shows_its_run_in_the_power_reserve_pane() {
         vec![],
         vec![],
     );
-    assert!(app.test.reserve.is_none());
+    assert!(app.bench.test.reserve.is_none());
 }
 
 /// A long take lands without its charts or its run read on the window's
@@ -1066,14 +1071,14 @@ fn a_long_take_lands_with_its_run_and_charts_read_in_the_background() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.land_log(long_log(run), "long".into(), vec![], vec![]);
     assert!(
-        app.test.reserve.is_none(),
+        app.bench.test.reserve.is_none(),
         "the run isn't read as the take lands"
     );
     assert!(app.results.trend.is_empty(), "nor are the charts");
     let ctx = egui::Context::default();
     theme::install(&ctx);
     let start = Instant::now();
-    while app.test.reserve.is_none()
+    while app.bench.test.reserve.is_none()
         || app.results.bg.trend.is_some()
         || app.results.trend.is_empty()
     {
@@ -1087,6 +1092,7 @@ fn a_long_take_lands_with_its_run_and_charts_read_in_the_background() {
     assert_eq!(app.results.trend, here.results.trend);
     let text = |a: &TimegrapherApp| {
         let r = a
+            .bench
             .test
             .reserve
             .as_ref()
@@ -1111,7 +1117,7 @@ fn a_long_takes_run_is_read_again_when_its_masks_change() {
         let start = Instant::now();
         loop {
             app.take_reads_shown(&ctx);
-            if app.results.bg.reserve.is_none() && app.test.reserve.is_some() == shown {
+            if app.results.bg.reserve.is_none() && app.bench.test.reserve.is_some() == shown {
                 return;
             }
             assert!(start.elapsed() < Duration::from_secs(60), "never came");
@@ -1120,6 +1126,7 @@ fn a_long_takes_run_is_read_again_when_its_masks_change() {
     };
     let text = |a: &TimegrapherApp| {
         let r = a
+            .bench
             .test
             .reserve
             .as_ref()
@@ -1275,7 +1282,7 @@ fn a_power_reserve_test_whose_recording_fails_keeps_its_run_so_far() {
     app.session.recorder = Some(r);
     let _tx = super::tests::queued_capture(&mut app, &base);
     app.take.position = Position::CrownLeft;
-    app.test.reserve = Some(crown_left_test());
+    app.bench.test.reserve = Some(crown_left_test());
     // Recording into its folder: a first save, then a second.
     app.stream_tick();
     app.wait_for_save();
@@ -1309,7 +1316,7 @@ fn a_power_reserve_test_whose_recording_fails_keeps_its_run_so_far() {
     app.recording_failed("No space left on device (os error 28)".into());
     assert!(!app.reserve_running(), "the pane no longer says Running");
     assert!(app.keeping.stream_wait.is_none(), "nothing is tried again");
-    let t = app.test.reserve.as_ref().unwrap();
+    let t = app.bench.test.reserve.as_ref().unwrap();
     assert_eq!(t.ending, Some(power_reserve::Ending::RecordingFailed));
     assert_eq!(t.saved.as_ref(), Some(&take));
     let kept = power_reserve::Results::from_json(
@@ -1334,7 +1341,7 @@ fn a_power_reserve_test_whose_recording_fails_keeps_its_run_so_far() {
     // Opened again, the take brings its run back to the pane.
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.start_batch(&take);
-    let back = again.test.reserve.as_ref().expect("its results");
+    let back = again.bench.test.reserve.as_ref().expect("its results");
     assert!(!again.reserve_running());
     assert_eq!(back.results.as_ref(), Some(&kept));
     let _ = std::fs::remove_dir_all(&base);
@@ -1375,11 +1382,11 @@ fn a_failed_runs_results_are_written_again_a_minute_later() {
     t.finish(|s| s);
     let long_ago = Instant::now() - STREAM_RETRY;
     t.unwritten = Some((take.clone(), long_ago));
-    app.test.reserve = Some(t);
+    app.bench.test.reserve = Some(t);
     let ctx = egui::Context::default();
     // Still no room (here, no folder): tried again a minute on.
     app.reserve_tick(&ctx);
-    let t = app.test.reserve.as_ref().unwrap();
+    let t = app.bench.test.reserve.as_ref().unwrap();
     let (_, at) = t.unwritten.clone().expect("still to write");
     assert!(at > long_ago);
     assert!(t.saved.is_none());
@@ -1389,6 +1396,7 @@ fn a_failed_runs_results_are_written_again_a_minute_later() {
     // Not tried again before the minute is up.
     app.reserve_tick(&ctx);
     let (_, again) = app
+        .bench
         .test
         .reserve
         .as_ref()
@@ -1398,15 +1406,15 @@ fn a_failed_runs_results_are_written_again_a_minute_later() {
         .unwrap();
     assert_eq!(again, at, "no try before the minute");
     // Three quarters of the minute gone: the draw comes at the time left.
-    app.test.reserve.as_mut().unwrap().unwritten =
+    app.bench.test.reserve.as_mut().unwrap().unwritten =
         Some((take.clone(), Instant::now() - STREAM_RETRY * 3 / 4));
     let left = app.repaint_every().expect("a draw for the next try");
     assert!(left <= STREAM_RETRY / 4, "{left:?}");
     // Room again: written.
     std::fs::create_dir_all(&take).unwrap();
-    app.test.reserve.as_mut().unwrap().unwritten = Some((take.clone(), long_ago));
+    app.bench.test.reserve.as_mut().unwrap().unwritten = Some((take.clone(), long_ago));
     app.reserve_tick(&ctx);
-    let t = app.test.reserve.as_ref().unwrap();
+    let t = app.bench.test.reserve.as_ref().unwrap();
     assert!(t.unwritten.is_none());
     assert_eq!(t.saved.as_ref(), Some(&take));
     assert_eq!(app.repaint_every(), None, "nothing left to try");
@@ -1433,13 +1441,13 @@ fn a_run_on_an_automatic_rate_keeps_its_hours_at_the_stop() {
     let auto = LiveConfig::default();
     assert!(auto.analysis.bph.is_none(), "the rate on Auto");
     app.recording.live = Some(LiveAnalyzer::new(48_000, auto));
-    app.test.reserve = Some(reserve::Test::new(
+    app.bench.test.reserve = Some(reserve::Test::new(
         Position::DialUp,
         true,
         String::new(),
         0.0,
     ));
-    app.test.reserve_read_s = 0.0;
+    app.bench.test.reserve_read_s = 0.0;
     let ctx = egui::Context::default();
     // Then silence, in a few long blocks so the test is quick.
     let silence = vec![0.0f32; 48_000 * 20];
@@ -1459,7 +1467,7 @@ fn a_run_on_an_automatic_rate_keeps_its_hours_at_the_stop() {
         None,
         "the rate let go"
     );
-    let t = app.test.reserve.as_ref().unwrap();
+    let t = app.bench.test.reserve.as_ref().unwrap();
     assert_eq!(t.ending, Some(power_reserve::Ending::Stopped));
     assert_eq!(t.bph, Some(21_600));
     let r = t.results.as_ref().expect("its results");
@@ -1484,13 +1492,13 @@ fn the_listening_thread_ends_a_power_reserve_test_without_frames() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.recording.live = Some(LiveAnalyzer::new(48_000, LiveConfig::default()));
     let tx = queued_capture(&mut app, &base);
-    app.test.reserve = Some(reserve::Test::new(
+    app.bench.test.reserve = Some(reserve::Test::new(
         Position::DialUp,
         true,
         String::new(),
         0.0,
     ));
-    app.test.reserve_read_s = 0.0;
+    app.bench.test.reserve_read_s = 0.0;
     let silence = vec![0.0f32; 48_000 * 20];
     let sound = ticks.chunks(48_000).chain(std::iter::repeat_n(
         silence.as_slice(),
@@ -1507,7 +1515,7 @@ fn the_listening_thread_ends_a_power_reserve_test_without_frames() {
             break;
         }
     }
-    let t = app.test.reserve.as_ref().unwrap();
+    let t = app.bench.test.reserve.as_ref().unwrap();
     assert_eq!(t.ending, Some(power_reserve::Ending::Stopped));
     assert!(t.results.is_some(), "its results");
     drop(tx);
@@ -1545,7 +1553,10 @@ fn a_long_quick_listen_shows_its_run_so_far_in_the_power_reserve_pane() {
     let _tx = queued_capture(&mut app, &base);
     assert!(app.running());
     settle(&mut app);
-    assert!(app.test.reserve.is_none(), "a short take leaves the pane");
+    assert!(
+        app.bench.test.reserve.is_none(),
+        "a short take leaves the pane"
+    );
 
     let run = power_reserve::LONG_TAKE_S + 1800.0;
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
@@ -1555,6 +1566,7 @@ fn a_long_quick_listen_shows_its_run_so_far_in_the_power_reserve_pane() {
     assert!(!app.reserve_running());
     assert!(!app.reserve_is_test());
     let r = app
+        .bench
         .test
         .reserve
         .as_ref()
@@ -1565,7 +1577,7 @@ fn a_long_quick_listen_shows_its_run_so_far_in_the_power_reserve_pane() {
     // A run so far: the take hasn't ended (Walter's HOLD on #1475).
     assert_eq!(r.ending, power_reserve::Ending::Listening);
     assert_eq!(
-        app.test.reserve.as_ref().unwrap().ending,
+        app.bench.test.reserve.as_ref().unwrap().ending,
         Some(power_reserve::Ending::Listening)
     );
     assert!(!r.sentence("DU").contains("The take ended"));
@@ -1573,6 +1585,7 @@ fn a_long_quick_listen_shows_its_run_so_far_in_the_power_reserve_pane() {
     here.show_log(long_log(run), "long".into(), vec![], vec![]);
     let text = |a: &TimegrapherApp| {
         let r = a
+            .bench
             .test
             .reserve
             .as_ref()
@@ -1582,6 +1595,7 @@ fn a_long_quick_listen_shows_its_run_so_far_in_the_power_reserve_pane() {
     };
     let so_far = |a: &TimegrapherApp| {
         let r = a
+            .bench
             .test
             .reserve
             .as_ref()
@@ -1700,10 +1714,10 @@ fn analysis_only_heard_with(
     before(&recording);
     let tx = queued_capture(&mut app, &base);
     app.take.position = Position::CrownLeft;
-    app.test.reserve_keep_sound = false;
+    app.bench.test.reserve_keep_sound = false;
     app.begin_reserve();
     assert!(app.kept_running(), "{:?}", app.message);
-    assert!(!app.test.reserve.as_ref().unwrap().keep_sound);
+    assert!(!app.bench.test.reserve.as_ref().unwrap().keep_sound);
     assert!(!app.streams(), "no sound goes into the take's folder");
     let cfg = SynthConfig {
         duration_s: secs,
@@ -1743,12 +1757,19 @@ fn kept_take(app: &mut TimegrapherApp) -> PathBuf {
     );
     for _ in 0..3000 {
         app.reserve_follow();
-        if app.test.reserve.as_ref().is_some_and(|t| t.saved.is_some()) {
+        if app
+            .bench
+            .test
+            .reserve
+            .as_ref()
+            .is_some_and(|t| t.saved.is_some())
+        {
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
     let take = app
+        .bench
         .test
         .reserve
         .as_ref()
@@ -1796,7 +1817,7 @@ fn a_power_reserve_test_kept_as_analysis_only_never_writes_its_sound() {
     assert!(!timegrapher_core::checkpoint::exists(&recording));
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.start_batch(&take);
-    let back = again.test.reserve.as_ref().expect("its results");
+    let back = again.bench.test.reserve.as_ref().expect("its results");
     assert!(!back.results.as_ref().unwrap().sound_kept);
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -2052,6 +2073,7 @@ fn a_test_whose_save_never_finished_opens_to_its_last_part() {
     );
     assert!(note(&again).starts_with(&want), "{}", note(&again));
     let r = again
+        .bench
         .test
         .reserve
         .as_ref()
@@ -2082,7 +2104,7 @@ fn a_test_whose_save_never_finished_opens_to_its_last_part() {
     assert!(kept_sounds(&left).is_empty());
     let back = open(&moved);
     assert!(note(&back).starts_with(&want), "{}", note(&back));
-    assert_eq!(back.test.reserve.and_then(|t| t.results), Some(r));
+    assert_eq!(back.bench.test.reserve.and_then(|t| t.results), Some(r));
     app.stop_listening();
     let _ = kept_take(&mut app);
     drop(tx);
@@ -2140,7 +2162,7 @@ fn a_power_reserve_test_whose_input_fails_ends_and_keeps_its_take() {
         .input_fault
         .as_deref()
         .is_some_and(|f| f.starts_with("Input stopped.")));
-    let t = app.test.reserve.as_ref().unwrap();
+    let t = app.bench.test.reserve.as_ref().unwrap();
     assert_eq!(t.ending, Some(power_reserve::Ending::InputFailed));
     let results = t.results.clone().expect("its run so far");
     let said = results.sentence("CL");
@@ -2156,13 +2178,23 @@ fn a_power_reserve_test_whose_input_fails_ends_and_keeps_its_take() {
         app.poll_saving();
         app.reserve_saved();
         if app.keeping.saving.is_none()
-            && app.test.reserve.as_ref().is_some_and(|t| t.saved.is_some())
+            && app
+                .bench
+                .test
+                .reserve
+                .as_ref()
+                .is_some_and(|t| t.saved.is_some())
         {
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
-    let take = app.test.reserve.as_ref().and_then(|t| t.saved.clone());
+    let take = app
+        .bench
+        .test
+        .reserve
+        .as_ref()
+        .and_then(|t| t.saved.clone());
     let take = take.unwrap_or_else(|| panic!("kept: {:?}", app.message));
     let kept = power_reserve::Results::from_json(
         &std::fs::read_to_string(take.join(power_reserve::FILE)).unwrap(),
@@ -2210,13 +2242,13 @@ fn reserve_heard(
         timegrapher_core::live::LiveConfig::default(),
     ));
     app.take.position = Position::CrownLeft;
-    app.test.reserve = Some(reserve::Test::new(
+    app.bench.test.reserve = Some(reserve::Test::new(
         Position::CrownLeft,
         true,
         String::new(),
         0.0,
     ));
-    app.test.reserve_read_s = 0.0;
+    app.bench.test.reserve_read_s = 0.0;
     // The watch heard for 30 s, as the listening thread takes it.
     let cfg = SynthConfig {
         duration_s: 30.0,
@@ -2263,7 +2295,7 @@ fn a_power_reserve_test_waits_out_an_input_stall() {
     app.recording.audio_at = Some(Instant::now() - Duration::from_secs_f64(past));
     app.poll_for(Duration::from_millis(200));
     assert!(!app.reserve_running());
-    let t = app.test.reserve.as_ref().unwrap();
+    let t = app.bench.test.reserve.as_ref().unwrap();
     assert_eq!(t.ending, Some(power_reserve::Ending::InputFailed));
     drop(tx);
     let _ = std::fs::remove_dir_all(&base);
@@ -2276,7 +2308,7 @@ fn a_power_reserve_test_waits_out_an_input_stall() {
 fn an_ordinary_take_still_fails_when_its_input_sends_nothing() {
     use std::time::Duration;
     let (mut app, base, tx) = reserve_heard("stall-ordinary");
-    app.test.reserve = None;
+    app.bench.test.reserve = None;
     assert!(!app.reserve_running() && app.running());
     app.recording.audio_at = Some(Instant::now() - Duration::from_secs(5));
     app.poll_for(Duration::from_millis(200));

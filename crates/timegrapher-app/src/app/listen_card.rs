@@ -104,7 +104,7 @@ impl TimegrapherApp {
     /// the buttons. The buttons set the position in a free live take; on a
     /// take on show or during a test they only show it.
     pub(super) fn position_card(&mut self, ui: &mut egui::Ui, compact: bool) {
-        self.test.position_card_title = if compact {
+        self.bench.test.position_card_title = if compact {
             "Position"
         } else {
             "Current Position"
@@ -115,7 +115,7 @@ impl TimegrapherApp {
         let settle = format!(
             "Each change of position settles for {} s (Settle, on the Positions Test pane), \
              and those seconds are left out of the readings.",
-            fields::plain(self.test.guided_settle_s)
+            fields::plain(self.bench.test.guided_settle_s)
         );
         let codes = position_codes(here);
         let ten = self.card_ten();
@@ -317,7 +317,7 @@ impl TimegrapherApp {
         } else {
             "The six standard positions"
         };
-        let drawn = caption_row(ui, rect, self.test.position_card_title, |ui| {
+        let drawn = caption_row(ui, rect, self.bench.test.position_card_title, |ui| {
             // Laid right to left from the help, so given 10 first to read
             // 6 | 10.
             switched = theme::segmented_in_title(
@@ -331,7 +331,7 @@ impl TimegrapherApp {
         });
         // A 45° stop on show keeps the card at 10 until it is left.
         if switched && (ten || !held) {
-            self.test.ten_positions = ten;
+            self.bench.test.ten_positions = ten;
             self.note_settings();
         }
         drawn
@@ -352,7 +352,7 @@ impl TimegrapherApp {
         let here = self.shown_position();
         let editable = self.position_editable();
         let painter = ui.painter().clone();
-        compact_caption(ui, rows.title, self.test.position_card_title);
+        compact_caption(ui, rows.title, self.bench.test.position_card_title);
         // The code beside the picture, the name in its hover: a name
         // doesn't fit a compact card whole. A 45° stop's longer code
         // ("10H30") is set smaller to fit whole.
@@ -483,7 +483,7 @@ impl TimegrapherApp {
             // at the Positions Test's Measure time; the code centred above
             // it, clear of it (#1752).
             let heard = self.recorded_in(p);
-            let full = heard / self.test.guided_measure_s;
+            let full = heard / self.bench.test.guided_measure_s;
             let bar = egui::Rect::from_min_max(
                 egui::pos2(r.left() + 4.0, r.bottom() - 5.5),
                 egui::pos2(r.right() - 4.0, r.bottom() - 2.0),
@@ -516,7 +516,7 @@ impl TimegrapherApp {
                 position_codes(p).replace(" · ", ", "),
                 p.key_name(),
                 fields::duration(heard.floor()),
-                fields::duration(self.test.guided_measure_s)
+                fields::duration(self.bench.test.guided_measure_s)
             );
             let resp = if editable {
                 resp.on_hover_text(format!("{tip}. {settle}"))
@@ -598,7 +598,7 @@ impl TimegrapherApp {
                 .on_hover_text(hint)
                 .clicked()
             {
-                self.test.stop_test_ask = true;
+                self.bench.test.stop_test_ask = true;
             }
         } else if self.running() && self.session.mic() {
             let mut hint = STOP_HINT.to_string();
@@ -669,7 +669,7 @@ impl TimegrapherApp {
                 (_, None) => format!(
                     "Start the {name} in the position on the {} card, with the \
                      complication off",
-                    self.test.position_card_title
+                    self.bench.test.position_card_title
                 ),
             }
         } else {
@@ -677,7 +677,7 @@ impl TimegrapherApp {
                 "Start the {name} in the position on the {} card and run until the watch \
                  stops, keeping the computer awake. A closed lid or Sleep from a menu still \
                  stops the computer; a laptop is best left on mains power.",
-                self.test.position_card_title
+                self.bench.test.position_card_title
             )
         };
         if let Some(h) = length_hint {
@@ -1432,19 +1432,19 @@ impl TimegrapherApp {
     /// Set a test up on the clear Bench: its pane shown, the Position
     /// card live, waiting for Start Test on the Listen card.
     fn get_ready(&mut self, kind: NewTake) {
-        self.test.test_ready = Some(kind);
+        self.bench.test.test_ready = Some(kind);
         self.message = None;
         self.watches_view.view = View::Bench;
         if kind == NewTake::Positions {
             // Where the test begins.
             self.set_position(guided::ORDER[0]);
-            self.test.guided_earlier_for = None;
+            self.bench.test.guided_earlier_for = None;
             self.find_full_wind();
             self.reveal_pane(Pane::PositionsTest);
         } else if kind == NewTake::Poise {
             // The card shows the eight with its buttons for them (Hugh's
             // spec): at 10 from here on, until switched back.
-            self.test.ten_positions = true;
+            self.bench.test.ten_positions = true;
             self.set_position(guided::POISE_ORDER[0]);
             self.reveal_pane(Pane::DynamicPoise);
         } else if kind == NewTake::Complication {
@@ -1459,17 +1459,17 @@ impl TimegrapherApp {
     /// picked or loaded for it goes too, so it isn't shown on the Bench
     /// after.
     pub(super) fn leave_ready_test(&mut self) {
-        self.test.test_ready = None;
-        self.test.guided_earlier = None;
-        self.test.guided_earlier_file = false;
-        self.test.guided_choices.clear();
-        self.test.guided_earlier_for = None;
+        self.bench.test.test_ready = None;
+        self.bench.test.guided_earlier = None;
+        self.bench.test.guided_earlier_file = false;
+        self.bench.test.guided_choices.clear();
+        self.bench.test.guided_earlier_for = None;
     }
 
     /// The test set up and waiting for Start Test, while the Bench stays
     /// clear.
     pub(super) fn ready_test(&self) -> Option<NewTake> {
-        self.test.test_ready.filter(|_| {
+        self.bench.test.test_ready.filter(|_| {
             self.recording.live.is_none() && !self.running() && self.recording.batch.is_none()
         })
     }
@@ -1484,12 +1484,12 @@ impl TimegrapherApp {
     pub(super) fn start_test_why_not(&self) -> Option<String> {
         let w = self.open_watch()?;
         if self.ready_test() != Some(NewTake::Positions)
-            || !self.test.guided_after
-            || self.test.guided_earlier.is_some()
+            || !self.bench.test.guided_after
+            || self.bench.test.guided_earlier.is_some()
         {
             return None;
         }
-        Some(if self.test.guided_choices.is_empty() {
+        Some(if self.bench.test.guided_choices.is_empty() {
             format!(
                 "{} has no Full Wind Positions Test from {}.",
                 w.watch.name,
@@ -1509,9 +1509,9 @@ impl TimegrapherApp {
         if self.start_test_why_not().is_some() {
             return;
         }
-        self.test.test_ready = None;
+        self.bench.test.test_ready = None;
         match kind {
-            NewTake::Positions => self.start_guided(self.test.guided_earlier.clone()),
+            NewTake::Positions => self.start_guided(self.bench.test.guided_earlier.clone()),
             NewTake::Poise => self.start_poise(),
             NewTake::Complication => self.start_complication(),
             _ => self.start_reserve_asked(true),
@@ -1532,7 +1532,7 @@ impl TimegrapherApp {
     pub(super) fn find_full_wind_at(&mut self, now: f64) {
         // For a test set up, and wherever Compare With shows, a test done
         // or none set up yet included (#1714).
-        if self.test.test_ready != Some(NewTake::Positions) && !self.compare_with_shown() {
+        if self.bench.test.test_ready != Some(NewTake::Positions) && !self.compare_with_shown() {
             return;
         }
         let dir = self.open_watch().map(|e| e.dir.join(library::TAKES));
@@ -1548,30 +1548,31 @@ impl TimegrapherApp {
         takes.sort();
         let key = (
             self.watches_view.watch_open.clone(),
-            self.test.guided_after,
+            self.bench.test.guided_after,
             (now / 60.0).floor() as i64,
             changed,
             takes,
         );
-        if self.test.guided_earlier_for.as_ref() == Some(&key) {
+        if self.bench.test.guided_earlier_for.as_ref() == Some(&key) {
             return;
         }
         // Another watch, or Wind changed: nothing picked carries over.
         let same = self
+            .bench
             .test
             .guided_earlier_for
             .as_ref()
             .is_some_and(|k| (&k.0, k.1) == (&key.0, key.1));
-        self.test.guided_earlier_for = Some(key);
-        self.test.guided_choices = match dir {
-            Some(dir) if self.test.guided_after => guided::full_winds_in(&dir, now),
+        self.bench.test.guided_earlier_for = Some(key);
+        self.bench.test.guided_choices = match dir {
+            Some(dir) if self.bench.test.guided_after => guided::full_winds_in(&dir, now),
             _ => Vec::new(),
         };
-        let from_file = self.test.guided_earlier_file;
-        let listed = |e: &guided::FullWind| self.test.guided_choices.contains(e);
-        if !same || !(from_file || self.test.guided_earlier.as_ref().is_some_and(listed)) {
-            self.test.guided_earlier = None;
-            self.test.guided_earlier_file = false;
+        let from_file = self.bench.test.guided_earlier_file;
+        let listed = |e: &guided::FullWind| self.bench.test.guided_choices.contains(e);
+        if !same || !(from_file || self.bench.test.guided_earlier.as_ref().is_some_and(listed)) {
+            self.bench.test.guided_earlier = None;
+            self.bench.test.guided_earlier_file = false;
         }
     }
 
@@ -1583,14 +1584,14 @@ impl TimegrapherApp {
     pub(super) fn full_wind_recheck(&self, now: f64) -> Option<Duration> {
         (self.ready_test() == Some(NewTake::Positions) || self.compare_with_shown())
             .then_some(())
-            .filter(|_| self.test.guided_after && self.open_watch().is_some())
+            .filter(|_| self.bench.test.guided_after && self.open_watch().is_some())
             .map(|_| Duration::from_secs_f64(60.0 - now.rem_euclid(60.0) + 0.05))
     }
 
     /// Whether the Positions Test's toolbar shows Compare With: a watch
     /// set for 24 Hours After, no Positions Test under way.
     pub(super) fn compare_with_shown(&self) -> bool {
-        self.test.guided_after && self.open_watch().is_some() && !self.guided_running()
+        self.bench.test.guided_after && self.open_watch().is_some() && !self.guided_running()
     }
 
     /// Whether a new take asks first: a take of a watch asks about Quick
@@ -1808,7 +1809,7 @@ impl TimegrapherApp {
         }
         self.set_position(pos);
         // A 45° stop turns the card to 10, so it has a button for it.
-        self.test.ten_positions |= pos.is_half_hour();
+        self.bench.test.ten_positions |= pos.is_half_hour();
         if let Some(r) = self.session.recorder.as_mut() {
             // note appends in memory before writing session.json, so the
             // change is kept and written next time even if this write
@@ -1919,7 +1920,7 @@ impl TimegrapherApp {
     /// Whether the strip and charts mark a Positions Test's phases: from
     /// its start until the next test or a new session.
     pub(super) fn in_test(&self) -> bool {
-        !self.test.guided_unused.is_empty() || !self.test.guided_measured.is_empty()
+        !self.bench.test.guided_unused.is_empty() || !self.bench.test.guided_measured.is_empty()
     }
 
     /// What is wrong with keeping the computer awake or taking sound in

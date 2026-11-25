@@ -327,7 +327,7 @@ impl TimegrapherApp {
     /// What the steadiness tests wait for, in the terms of what is being
     /// done: a Positions Test never stays long enough in one position.
     fn steady_wait(&self, dur: f64) -> String {
-        if self.test.guided.is_some() {
+        if self.bench.test.guided.is_some() {
             "Needs 5 minutes of beats in one position, longer than a Positions Test \
              stays in each. Record one position for 5 minutes or more to see it."
                 .to_string()

@@ -164,7 +164,7 @@ impl TimegrapherApp {
                 &painter,
                 frame,
                 &self.strip_settles(),
-                &self.test.guided_measured,
+                &self.bench.test.guided_measured,
                 at,
                 true,
                 ui.visuals(),

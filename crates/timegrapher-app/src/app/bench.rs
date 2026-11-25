@@ -8,4 +8,6 @@ use super::*;
 pub(super) struct Bench {
     /// How the strip and charts look and follow.
     pub(super) panes_view: pane_view::PaneView,
+    /// The guided tests for this bench.
+    pub(super) test: guided_test::GuidedTest,
 }

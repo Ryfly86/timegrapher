@@ -233,12 +233,13 @@ impl TimegrapherApp {
     /// two overlap: what is shaded as settling is not read, and what is
     /// culled is shaded (Hugh).
     pub(super) fn strip_settles(&self) -> Vec<(f64, f64, &'static str)> {
-        let mut settling = super::masks::settlings(&self.session, &self.test.guided_unused);
+        let mut settling = super::masks::settlings(&self.session, &self.bench.test.guided_unused);
         // A test's take opened: its marks say what each stretch was, so
         // the gaps the session file leaves between its entries are
         // settling only where the test settled (#1957).
         if self.marks_opened() {
             let marked: Vec<(f64, f64)> = self
+                .bench
                 .test
                 .guided_unused
                 .iter()
@@ -251,6 +252,7 @@ impl TimegrapherApp {
                 .collect();
         }
         let rest = self
+            .bench
             .test
             .guided_unused
             .iter()
@@ -626,7 +628,7 @@ impl TimegrapherApp {
             self.results.trend.first().map_or(from, |p| p.t),
             self.results.trend.last().map_or(end, |p| p.t),
         );
-        let quiet = super::masks::settlings(&self.session, &self.test.guided_unused);
+        let quiet = super::masks::settlings(&self.session, &self.bench.test.guided_unused);
         if spacing <= 2.0 * step && widest_hole(&kept, from, end, around, &quiet) <= 2.0 * step {
             return (kept, spacing);
         }
@@ -736,7 +738,7 @@ impl TimegrapherApp {
             gutter: theme::time_gutter(ui.ctx()),
             bands: &bands,
             settles: &settles,
-            measured: &self.test.guided_measured,
+            measured: &self.bench.test.guided_measured,
             masked: &self.take.masked,
             masking: self.take.masking,
             track: &track,

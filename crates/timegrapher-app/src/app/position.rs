@@ -192,6 +192,6 @@ impl super::TimegrapherApp {
     /// while it shows a 45° stop, so it never shows one it has no button
     /// for.
     pub(super) fn card_ten(&self) -> bool {
-        self.test.ten_positions || self.shown_position().is_half_hour()
+        self.bench.test.ten_positions || self.shown_position().is_half_hour()
     }
 }

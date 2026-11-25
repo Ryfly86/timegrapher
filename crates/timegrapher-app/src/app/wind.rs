@@ -106,9 +106,9 @@ impl TimegrapherApp {
     /// Set the next test against the `i`th of the watch's full-wind tests
     /// on offer.
     pub(super) fn pick_full_wind(&mut self, i: usize) {
-        if let Some(f) = self.test.guided_choices.get(i) {
-            self.test.guided_earlier = Some(f.clone());
-            self.test.guided_earlier_file = false;
+        if let Some(f) = self.bench.test.guided_choices.get(i) {
+            self.bench.test.guided_earlier = Some(f.clone());
+            self.bench.test.guided_earlier_file = false;
         }
     }
 
@@ -212,11 +212,12 @@ impl TimegrapherApp {
     /// Power Reserve Test's its own from its start (#2001); any other
     /// take the card's.
     pub(super) fn entry_wind_h(&self) -> Option<f64> {
-        self.test
+        self.bench
+            .test
             .guided
             .as_ref()
             .and_then(|t| t.wind_h())
-            .or_else(|| self.test.reserve.as_ref().and_then(|t| t.wind_h))
+            .or_else(|| self.bench.test.reserve.as_ref().and_then(|t| t.wind_h))
             .or_else(|| self.take_wind_h())
     }
 
@@ -282,8 +283,9 @@ impl TimegrapherApp {
         if self.recording.live.is_some() {
             // The Positions Test and a Power Reserve Test set their own
             // wind; a Dynamic Poise or Complication Test doesn't (Gus).
-            let own = self.test.reserve.is_some()
+            let own = self.bench.test.reserve.is_some()
                 || self
+                    .bench
                     .test
                     .guided
                     .as_ref()

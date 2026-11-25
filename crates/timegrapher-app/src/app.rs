@@ -1627,8 +1627,6 @@ pub struct TimegrapherApp {
     watches_view: watches_view::WatchesView,
     /// The bench: the take on show, recorded, read, tested, drawn and kept.
     bench: bench::Bench,
-    /// The guided tests for this bench.
-    test: guided_test::GuidedTest,
     /// The take's readings and the runs in the background that read them.
     results: results::Results,
     /// What the take on show is read with: the watch, its beat rate and
@@ -1708,12 +1706,12 @@ impl TimegrapherApp {
             marks: self.bench.panes_view.show_marks.saved(),
             steady_info: self.bench.panes_view.steady_info.unset,
             steady_info_set: self.bench.panes_view.steady_info.saved(),
-            positions_settle_s: self.test.guided_settle_s,
-            ten_positions: self.test.ten_positions,
+            positions_settle_s: self.bench.test.guided_settle_s,
+            ten_positions: self.bench.test.ten_positions,
             poise_views: self.bench.panes_view.poise_views,
             poise_info: self.bench.panes_view.poise_info,
             complication_info: self.bench.panes_view.complication_info,
-            positions_measure_s: self.test.guided_measure_s,
+            positions_measure_s: self.bench.test.guided_measure_s,
             scope: self.bench.panes_view.scope_view,
             panes: Some(self.bench.panes_view.panes.clone()),
             panes_dragged: self
@@ -1807,7 +1805,7 @@ impl TimegrapherApp {
         } = s;
         (self.after_save_command, self.agc_on) = (after_save_command, agc_on);
         self.settings_last = Tab::from_key(&settings_section);
-        (self.listen_at_open, self.test.ten_positions) = (listen_at_open, ten_positions);
+        (self.listen_at_open, self.bench.test.ten_positions) = (listen_at_open, ten_positions);
         (self.mic_set_up, self.setup_declined) = (mic_set_up, setup_declined);
         // A layout from before the panes moved starts afresh.
         let panes = panes.filter(|_| layout >= LAYOUT);
@@ -1872,10 +1870,10 @@ impl TimegrapherApp {
     /// The Positions Test's settle and measure times, each kept in its
     /// range.
     fn set_positions_times(&mut self, settle_s: f64, measure_s: f64) {
-        self.test.guided_settle_s =
+        self.bench.test.guided_settle_s =
             settle_s.clamp(*guided::SETTLE_RANGE.start(), *guided::SETTLE_RANGE.end());
-        self.session.set_settle_s(self.test.guided_settle_s);
-        self.test.guided_measure_s =
+        self.session.set_settle_s(self.bench.test.guided_settle_s);
+        self.bench.test.guided_measure_s =
             measure_s.clamp(*guided::MEASURE_RANGE.start(), *guided::MEASURE_RANGE.end());
     }
 
@@ -1886,6 +1884,7 @@ impl TimegrapherApp {
         let mut app = TimegrapherApp {
             bench: bench::Bench {
                 panes_view: pane_view::PaneView::default(),
+                test: guided_test::GuidedTest::default(),
             },
             recording: recording::Recording {
                 input: if file.is_some() {
@@ -1907,7 +1906,6 @@ impl TimegrapherApp {
             report: ReportDialog::default(),
             updates: Default::default(),
             update_dialog: None,
-            test: guided_test::GuidedTest::default(),
             check_at_start: true,
             keep_awake: true,
             listen_at_open: true,
@@ -2129,14 +2127,14 @@ impl TimegrapherApp {
                 egui::ComboBox::from_id_salt("compare with")
                     .selected_text(shown)
                     .show_ui(ui, |ui| {
-                        for (i, f) in self.test.guided_choices.iter().enumerate() {
-                            let on = !self.test.guided_earlier_file
-                                && self.test.guided_earlier.as_ref() == Some(f);
+                        for (i, f) in self.bench.test.guided_choices.iter().enumerate() {
+                            let on = !self.bench.test.guided_earlier_file
+                                && self.bench.test.guided_earlier.as_ref() == Some(f);
                             if ui.selectable_label(on, guided::choice_text(f)).clicked() {
                                 picked = Some(i);
                             }
                         }
-                        if !self.test.guided_choices.is_empty() {
+                        if !self.bench.test.guided_choices.is_empty() {
                             ui.separator();
                         }
                         if ui
@@ -3246,7 +3244,7 @@ impl eframe::App for TimegrapherApp {
         crate::frame_built();
         let was_working = self.repaint_every().is_some();
         // One settling for every change of position: the pane's Settle.
-        self.session.set_settle_s(self.test.guided_settle_s);
+        self.session.set_settle_s(self.bench.test.guided_settle_s);
         if std::mem::take(&mut self.recording.listen_pending) && !self.running() {
             self.quick_listen(false);
         }

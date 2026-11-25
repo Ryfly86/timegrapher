@@ -14,8 +14,8 @@ fn the_settle_hint_names_the_settle_in_use() {
     assert_eq!(app.session.settle_len(), guided::SETTLE_S);
     let hint = settle_hint(app.session.settle_len());
     assert!(hint.starts_with("For the first 20 seconds"), "{hint}");
-    app.test.guided_settle_s = 30.0;
-    app.session.set_settle_s(app.test.guided_settle_s);
+    app.bench.test.guided_settle_s = 30.0;
+    app.session.set_settle_s(app.bench.test.guided_settle_s);
     let hint = settle_hint(app.session.settle_len());
     assert!(hint.starts_with("For the first 30 seconds"), "{hint}");
 }
@@ -163,8 +163,8 @@ fn a_positions_test_is_marked_from_its_first_position() {
     assert!(app.position_bands().is_empty(), "one position, no test");
     let mut test = guided::Test::new();
     test.tick(5.0);
-    app.test.guided_unused = test.unused(10.0);
-    app.test.guided_measured = test.measured(10.0);
+    app.bench.test.guided_unused = test.unused(10.0);
+    app.bench.test.guided_measured = test.measured(10.0);
     let bands = app.position_bands();
     assert_eq!(bands.len(), 1);
     assert_eq!(bands[0].2, "Dial Up (DU)");
@@ -295,7 +295,7 @@ fn each_position_counts_its_own_seconds() {
         "Dial Up keeps its {du} s of {moved}"
     );
     // Dial Down's time to the latest beat, less its settling.
-    let want = app.latest_s() - moved - app.test.guided_settle_s;
+    let want = app.latest_s() - moved - app.bench.test.guided_settle_s;
     assert!((dd - want).abs() < 1.0, "Dial Down {dd} s, not {want}");
     // A mask comes off the position it lies in.
     app.take.masked.push((moved + 25.0, moved + 30.0));
@@ -329,7 +329,7 @@ fn the_distributions_take_the_windows_of_the_position_now() {
     }
     let wins = app.position_windows();
     assert!(wins.len() > 5, "{} windows", wins.len());
-    let settled = moved + app.test.guided_settle_s;
+    let settled = moved + app.bench.test.guided_settle_s;
     for w in &wins {
         let mid = 0.5 * (w.start_s + w.end_s);
         assert!(
@@ -386,7 +386,7 @@ fn the_positions_table_reads_a_free_take() {
     assert!((dd_rate.unwrap() - 60.0).abs() < 5.0, "{dd_rate:?}");
     // Dial Down's settling is left out of its duration.
     assert!(
-        (dd.1 - (40.0 - app.test.guided_settle_s)).abs() < 1.0,
+        (dd.1 - (40.0 - app.bench.test.guided_settle_s)).abs() < 1.0,
         "{}",
         dd.1
     );
@@ -468,7 +468,7 @@ fn the_positions_table_reads_a_free_take() {
     moved(&mut app, Position::CrownUp);
     let audio = generate(
         &SynthConfig {
-            duration_s: app.test.guided_settle_s + 5.0,
+            duration_s: app.bench.test.guided_settle_s + 5.0,
             ..Default::default()
         },
         |_| 280.0,
@@ -580,7 +580,7 @@ fn the_guided_test_reads_the_position_under_way_as_it_is_measured() {
     let start = app.recording.live.as_ref().unwrap().duration_s();
     let mut test = guided::Test::new().timed(5.0, 60.0);
     test.tick(start);
-    app.test.guided = Some(test);
+    app.bench.test.guided = Some(test);
     let ctx = egui::Context::default();
     // One stretch of sound at +30 s/d, heard in two parts.
     let audio = generate(
@@ -632,12 +632,12 @@ fn a_positions_tests_stop_keeps_its_rows_and_stops_listening() {
     let start = app.recording.live.as_ref().unwrap().duration_s();
     let mut test = guided::Test::new().timed(1.0, 5.0);
     test.tick(start);
-    app.test.guided = Some(test);
+    app.bench.test.guided = Some(test);
     assert!(app.guided_running());
     assert!(app.test_listening());
     app.stop_test();
     assert!(app.session.paused(), "listening stopped");
-    let kept = app.test.guided.as_ref().expect("the table stays");
+    let kept = app.bench.test.guided.as_ref().expect("the table stays");
     assert!(kept.readings.is_some(), "finished");
     assert!(!app.guided_running());
     assert!(app.recording.capture.is_none());
@@ -664,7 +664,7 @@ fn a_new_positions_test_waits_ready_on_the_bench() {
     app.set_position(Position::CrownDown);
     app.new_take(NewTake::Positions, false);
     assert_eq!(app.ready_test(), Some(NewTake::Positions));
-    assert!(app.test.guided.is_none() && !app.running());
+    assert!(app.bench.test.guided.is_none() && !app.running());
     assert_eq!(app.watches_view.view, View::Bench);
     assert!(pane_visible(
         &app.bench.panes_view.panes.tiles,
@@ -726,7 +726,7 @@ fn a_ready_test_finds_the_picked_watchs_full_wind() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.use_library(Some(root));
     app.pick_watch(&seiko);
-    app.test.guided_after = true;
+    app.bench.test.guided_after = true;
     app.new_take(NewTake::Positions, false);
     assert_eq!(app.ready_test(), Some(NewTake::Positions));
     let why = app.start_test_why_not();
@@ -751,8 +751,8 @@ fn a_ready_test_finds_the_picked_watchs_full_wind() {
     frame(&mut app);
     assert_eq!(app.ready_test(), Some(NewTake::Positions));
     // Offered, not picked for you.
-    assert_eq!(app.test.guided_choices.len(), 1);
-    assert_eq!(app.test.guided_earlier, None);
+    assert_eq!(app.bench.test.guided_choices.len(), 1);
+    assert_eq!(app.bench.test.guided_earlier, None);
     let why = app.start_test_why_not();
     assert!(
         why.as_deref()
@@ -762,7 +762,11 @@ fn a_ready_test_finds_the_picked_watchs_full_wind() {
     app.pick_full_wind(0);
     assert_eq!(app.start_test_why_not(), None);
     assert_eq!(
-        app.test.guided_earlier.as_ref().map(|f| f.watch.as_str()),
+        app.bench
+            .test
+            .guided_earlier
+            .as_ref()
+            .map(|f| f.watch.as_str()),
         Some("Daytona")
     );
     // And back: Seiko 5 has none.
@@ -817,7 +821,7 @@ fn a_ready_tests_full_wind_search_sees_the_time_and_the_takes() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.use_library(Some(root));
     app.pick_watch(&seiko);
-    app.test.guided_after = true;
+    app.bench.test.guided_after = true;
     app.new_take(NewTake::Positions, false);
     app.find_full_wind_at(now);
     assert!(app.start_test_why_not().is_some(), "too soon");
@@ -830,31 +834,31 @@ fn a_ready_tests_full_wind_search_sees_the_time_and_the_takes() {
     // An hour on, past the mark, with nothing else changed: offered,
     // and once picked, the test can start.
     app.find_full_wind_at(now + 3600.0);
-    assert_eq!(app.test.guided_choices.len(), 1);
+    assert_eq!(app.bench.test.guided_choices.len(), 1);
     assert!(app.start_test_why_not().is_some(), "not yet picked");
     app.pick_full_wind(0);
     assert_eq!(app.start_test_why_not(), None);
     // No test set up (the last one done, the Bench left as it was) with
     // Compare With still shown: its list is searched all the same, and
     // waits on the minute too (#1714).
-    let ready = app.test.test_ready.take();
-    app.test.guided_choices.clear();
-    app.test.guided_earlier_for = None;
+    let ready = app.bench.test.test_ready.take();
+    app.bench.test.guided_choices.clear();
+    app.bench.test.guided_earlier_for = None;
     app.find_full_wind_at(now + 3600.0);
-    assert_eq!(app.test.guided_choices.len(), 1);
+    assert_eq!(app.bench.test.guided_choices.len(), 1);
     assert!(app.full_wind_recheck(at).is_some());
     // While a test is under way Compare With is hidden: its list is
     // neither searched nor rechecked.
-    app.test.guided = Some(guided::Test::new());
+    app.bench.test.guided = Some(guided::Test::new());
     assert!(app.guided_running());
     assert!(!app.compare_with_shown());
-    app.test.guided_choices.clear();
-    app.test.guided_earlier_for = None;
+    app.bench.test.guided_choices.clear();
+    app.bench.test.guided_earlier_for = None;
     app.find_full_wind_at(now + 3600.0);
-    assert!(app.test.guided_choices.is_empty());
+    assert!(app.bench.test.guided_choices.is_empty());
     assert!(app.full_wind_recheck(at).is_none());
-    app.test.guided = None;
-    app.test.test_ready = ready;
+    app.bench.test.guided = None;
+    app.bench.test.test_ready = ready;
     // The take removed, in the same minute: no longer found, even with
     // the takes folder's time as it was, as Windows can leave it.
     let takes = take.parent().unwrap().to_path_buf();
@@ -873,9 +877,12 @@ fn a_ready_tests_full_wind_search_sees_the_time_and_the_takes() {
     let _ = was;
     app.find_full_wind_at(now + 3600.0);
     assert!(app.start_test_why_not().is_some(), "removed");
-    assert_eq!(app.test.guided_earlier, None, "the pick goes with its take");
+    assert_eq!(
+        app.bench.test.guided_earlier, None,
+        "the pick goes with its take"
+    );
     // With 24 Hours After off, nothing waits on the minute.
-    app.test.guided_after = false;
+    app.bench.test.guided_after = false;
     assert_eq!(app.full_wind_recheck(at), None);
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -901,14 +908,14 @@ fn a_positions_test_ends_by_itself_after_the_sixth_position() {
             test.advance(t);
         }
     }
-    app.test.guided = Some(test);
+    app.bench.test.guided = Some(test);
     assert!(app.test_listening());
     app.take.lift_deg = 53.0;
     let ctx = egui::Context::default();
     app.guided_tick(&ctx);
     assert!(!app.guided_running(), "ended");
     assert!(app.session.paused(), "listening stopped");
-    let kept = app.test.guided.as_ref().expect("the table stays");
+    let kept = app.bench.test.guided.as_ref().expect("the table stays");
     assert_eq!(kept.readings.as_ref().map(|r| r.len()), Some(6));
     assert_eq!(kept.lift_deg, Some(53.0), "read at the lift in use (#1884)");
     drop(tx);
@@ -941,7 +948,7 @@ fn a_settle_changed_after_a_test_leaves_the_test_alone() {
             test.advance(t);
         }
     }
-    app.test.guided = Some(test);
+    app.bench.test.guided = Some(test);
     app.take.lift_deg = 53.0;
     let ctx = egui::Context::default();
     app.guided_tick(&ctx);
@@ -993,11 +1000,11 @@ fn a_positions_test_keeps_the_lift_it_was_read_at() {
         test.advance(t);
     }
     assert_eq!(test.lift_deg, None);
-    app.test.guided = Some(test);
+    app.bench.test.guided = Some(test);
     app.take.lift_deg = 55.0;
     app.guided_tick(&egui::Context::default());
     assert!(app.guided_running());
-    let lift = |app: &TimegrapherApp| app.test.guided.as_ref().unwrap().lift_deg;
+    let lift = |app: &TimegrapherApp| app.bench.test.guided.as_ref().unwrap().lift_deg;
     assert_eq!(lift(&app), Some(55.0), "read as it goes");
     app.take.lift_deg = 50.0;
     app.reread_guided();
@@ -1019,7 +1026,7 @@ fn the_watches_power_reserve_test_waits_on_the_bench() {
         false,
     );
     app.new_take(NewTake::PowerReserve, false);
-    assert!(app.test.reserve.is_none() && !app.running());
+    assert!(app.bench.test.reserve.is_none() && !app.running());
     assert_eq!(app.watches_view.view, View::Bench);
     assert!(pane_visible(
         &app.bench.panes_view.panes.tiles,
@@ -1250,7 +1257,7 @@ fn an_opened_takes_table_can_be_saved_and_copied() {
     let shown = each.and_then(|i| lines.get(i + 1));
     assert_eq!(
         shown,
-        Some(&fields::duration(app.test.guided_measure_s).as_str()),
+        Some(&fields::duration(app.bench.test.guided_measure_s).as_str()),
         "{drawn}"
     );
     for d in [least, most].map(guided::table_duration) {
@@ -1307,16 +1314,17 @@ fn an_ordinary_take_of_the_six_positions_loads_to_compare_with() {
     let dir = super::compare_take::take_dir_of(&file).expect("a take's file");
     app.read_compare_take(dir);
     let t = Instant::now();
-    while app.test.compare_take.is_some() && t.elapsed().as_secs() < 300 {
+    while app.bench.test.compare_take.is_some() && t.elapsed().as_secs() < 300 {
         app.poll_compare_take();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     let full = app
+        .bench
         .test
         .guided_earlier
         .clone()
         .expect("read to compare with");
-    assert!(app.test.guided_earlier_file);
+    assert!(app.bench.test.guided_earlier_file);
     assert_eq!(full.positions.len(), 6, "{full:?}");
     assert!(full.wind_h.is_none(), "a full-wind test to set against");
     let about: serde_json::Value =
@@ -1429,7 +1437,7 @@ fn silent_test(
     let mut test = guided::Test::new().timed(1.0, 2.0);
     test.tick(1.0);
     then(&mut test);
-    app.test.guided = Some(test);
+    app.bench.test.guided = Some(test);
     (app, tx)
 }
 
@@ -1459,7 +1467,7 @@ fn a_positions_test_stopped_before_the_beat_is_found_stays_ended() {
         assert!(!app.guided_running(), "{case}: ended");
         assert!(app.session.paused(), "{case}: listening stopped");
         app.guided_tick(&ctx);
-        let test = app.test.guided.as_mut().expect("the table stays");
+        let test = app.bench.test.guided.as_mut().expect("the table stays");
         assert_eq!(
             test.tick(9.0),
             guided::Phase::Finished,

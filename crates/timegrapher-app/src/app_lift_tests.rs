@@ -320,12 +320,20 @@ fn a_new_lift_rereads_every_guided_tests_amplitudes() {
             .and_then(steady::log_of)
             .unwrap();
         test.finish(&log, None, &app.take.masked);
-        app.test.guided = Some(test);
+        app.bench.test.guided = Some(test);
         // 18 s measured per step: a 10 s step can hold no whole 10 s
         // scatter window and read as no watch (#1688), and every step
         // here must give its amplitude.
         let amps = |app: &TimegrapherApp| -> Vec<f64> {
-            let readings = app.test.guided.as_ref().unwrap().readings.as_ref().unwrap();
+            let readings = app
+                .bench
+                .test
+                .guided
+                .as_ref()
+                .unwrap()
+                .readings
+                .as_ref()
+                .unwrap();
             readings
                 .iter()
                 .map(|r| r.measurement.amplitude_deg.unwrap())

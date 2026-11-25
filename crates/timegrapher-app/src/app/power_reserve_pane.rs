@@ -10,7 +10,7 @@ impl TimegrapherApp {
     /// The Power Reserve pane's toolbar: its settings, its "?" naming the
     /// position card as captioned, and its Info button pinned at the right.
     pub(super) fn reserve_toolbar(&mut self, ui: &mut egui::Ui, title: &str) {
-        let help = help::power_reserve(self.test.position_card_title);
+        let help = help::power_reserve(self.bench.test.position_card_title);
         let help: Vec<&str> = help.iter().map(String::as_str).collect();
         let mut info = self.bench.panes_view.reserve_info;
         theme::pane_toolbar_info(ui, title, &help, (&mut info, RESERVE_INFO_HINT), |ui| {
@@ -26,7 +26,8 @@ impl TimegrapherApp {
     /// Whether the pane holds a Power Reserve Test, under way or ended,
     /// not a long take's run read as one ([`power_reserve::Source`]).
     pub(super) fn reserve_is_test(&self) -> bool {
-        self.test
+        self.bench
+            .test
             .reserve
             .as_ref()
             .is_some_and(|t| t.results.as_ref().is_none_or(|r| r.source.is_test()))
@@ -34,7 +35,11 @@ impl TimegrapherApp {
 
     /// Whether a Power Reserve Test is under way, not yet ended.
     pub(super) fn reserve_running(&self) -> bool {
-        self.test.reserve.as_ref().is_some_and(|t| t.running())
+        self.bench
+            .test
+            .reserve
+            .as_ref()
+            .is_some_and(|t| t.running())
     }
 
     /// Where a Power Reserve Test keeps its take: the picked watch's
@@ -83,7 +88,7 @@ impl TimegrapherApp {
                 "Runs in {} ({}), set on the {} card",
                 p.name(),
                 p.code(),
-                self.test.position_card_title
+                self.bench.test.position_card_title
             )
         };
         ui.add(egui::Label::new(
@@ -97,7 +102,7 @@ impl TimegrapherApp {
             format!(
                 "The one position the watch runs down in, from wind to stop: the one set on \
                  the {} card (or its key) when Start Test is pressed.",
-                self.test.position_card_title
+                self.bench.test.position_card_title
             )
         });
         theme::bar_gap(ui);
@@ -106,7 +111,7 @@ impl TimegrapherApp {
                 ui,
                 "Keep",
                 "What the take keeps once the run ends",
-                &mut self.test.reserve_keep_sound,
+                &mut self.bench.test.reserve_keep_sound,
                 &[
                     (
                         true,
@@ -161,7 +166,12 @@ impl TimegrapherApp {
     /// The Power Reserve settings' Save as CSV… and Copy, for the run that
     /// ended last.
     fn reserve_results_buttons(&mut self, ui: &mut egui::Ui) {
-        let done = self.test.reserve.as_ref().and_then(|t| t.results.clone());
+        let done = self
+            .bench
+            .test
+            .reserve
+            .as_ref()
+            .and_then(|t| t.results.clone());
         let nothing = done.is_none().then_some("No run ended yet");
         theme::bar_gap(ui);
         let watch = self.take.watch.trim().to_string();
@@ -263,12 +273,12 @@ impl TimegrapherApp {
         }
         // Analysis Only reads the sound as it comes and never writes it
         // (#1514); when it can't, the sound is kept, and that is said.
-        let keep_sound = self.test.reserve_keep_sound || !self.start_kept();
+        let keep_sound = self.bench.test.reserve_keep_sound || !self.start_kept();
         let mut t = reserve::Test::new(pos, keep_sound, started, now);
         t.wind_h = wind_h;
-        self.test.reserve = Some(t);
-        self.test.reserve_read_s = now;
-        self.test.reserve_hours_s = f64::NEG_INFINITY;
+        self.bench.test.reserve = Some(t);
+        self.bench.test.reserve_read_s = now;
+        self.bench.test.reserve_hours_s = f64::NEG_INFINITY;
         applog::info(&format!(
             "power reserve test started in {}, {}",
             pos.code(),
@@ -317,15 +327,16 @@ impl TimegrapherApp {
             return;
         };
         let now = live.duration_s();
-        if now - self.test.reserve_read_s < 2.0 {
+        if now - self.bench.test.reserve_read_s < 2.0 {
             return;
         }
-        self.test.reserve_read_s = now;
+        self.bench.test.reserve_read_s = now;
         let beat_s = power_reserve::beat_s(self.reserve_bph());
         let Some(live) = self.recording.live.as_ref() else {
             return;
         };
         let ended = self
+            .bench
             .test
             .reserve
             .as_mut()
@@ -336,11 +347,11 @@ impl TimegrapherApp {
         }
         // The hours so far, about once a minute: the whole hours kept,
         // the newest measured again.
-        if now - self.test.reserve_hours_s < power_reserve::READ_AGAIN_S {
+        if now - self.bench.test.reserve_hours_s < power_reserve::READ_AGAIN_S {
             return;
         }
-        self.test.reserve_hours_s = now;
-        let Some((first, last, whole)) = self.test.reserve.as_ref().and_then(|t| {
+        self.bench.test.reserve_hours_s = now;
+        let Some((first, last, whole)) = self.bench.test.reserve.as_ref().and_then(|t| {
             let whole = t.so_far.iter().take_while(|h| h.whole()).count();
             Some((t.heard.first_s?, t.heard.last_s?, whole))
         }) else {
@@ -350,14 +361,14 @@ impl TimegrapherApp {
         // fast or slow doesn't shift the hours measured again (#642).
         let fresh = self.reserve_hours(first, last, whole as u32);
         let mut first_chart = false;
-        if let Some(t) = self.test.reserve.as_mut() {
+        if let Some(t) = self.bench.test.reserve.as_mut() {
             t.so_far.truncate(whole);
             t.so_far.extend(fresh);
             // The first whole hour brings the charts: room for them, once.
             first_chart = whole == 0 && t.so_far.iter().any(|h| h.whole());
         }
         if first_chart {
-            let h = self.test.reserve.as_ref().map_or(0.0, |t| {
+            let h = self.bench.test.reserve.as_ref().map_or(0.0, |t| {
                 reserve::run_h(&t.so_far, true, self.bench.panes_view.reserve_series)
             });
             grow_row(
@@ -373,7 +384,7 @@ impl TimegrapherApp {
     /// ([`reserve::Test::bph`]).
     fn reserve_bph(&mut self) -> Option<u32> {
         let now = self.recording.live.as_ref().and_then(|l| l.bph());
-        let t = self.test.reserve.as_mut()?;
+        let t = self.bench.test.reserve.as_mut()?;
         if now.is_some() {
             t.bph = now;
         }
@@ -385,7 +396,7 @@ impl TimegrapherApp {
     /// `timegrapher session` reads each stretch, on the session's clock,
     /// breaks and masks.
     fn reserve_hours(&self, first: f64, to: f64, from_hour: u32) -> Vec<power_reserve::Hour> {
-        let bph = self.test.reserve.as_ref().and_then(|t| t.bph);
+        let bph = self.bench.test.reserve.as_ref().and_then(|t| t.bph);
         let Some(log) = self
             .recording
             .live
@@ -419,7 +430,13 @@ impl TimegrapherApp {
     /// table, as an opened run's take is.
     pub(super) fn fit_reserve_row(&mut self) {
         let pane = Pane::PowerReserve;
-        match self.test.reserve.as_ref().and_then(|t| t.results.as_ref()) {
+        match self
+            .bench
+            .test
+            .reserve
+            .as_ref()
+            .and_then(|t| t.results.as_ref())
+        {
             Some(r) => grow_row(
                 &mut self.bench.panes_view.panes.tiles,
                 pane,
@@ -439,7 +456,7 @@ impl TimegrapherApp {
     #[cfg(test)]
     pub(super) fn reserve_from_long_take(&mut self) {
         if let Some(read) = self.long_take_reader() {
-            self.test.reserve = read();
+            self.bench.test.reserve = read();
         }
     }
 
@@ -514,7 +531,7 @@ impl TimegrapherApp {
         self.finish_reserve();
         // With no watch picked, asked where it goes before it is saved.
         if self.open_watch().is_none() {
-            self.test.test_keep = Some(TestKeep::PowerReserve);
+            self.bench.test.test_keep = Some(TestKeep::PowerReserve);
             return;
         }
         self.save_reserve();
@@ -524,7 +541,7 @@ impl TimegrapherApp {
     /// reads each stretch, with room in the pane for its charts and table.
     fn finish_reserve(&mut self) {
         let to_true = self.to_true();
-        let Some(t) = self.test.reserve.as_mut() else {
+        let Some(t) = self.bench.test.reserve.as_mut() else {
             return;
         };
         if let Some(e) = t.ending {
@@ -538,7 +555,7 @@ impl TimegrapherApp {
             .as_ref()
             .map(|r| reserve::run_h(&r.hours, false, self.bench.panes_view.reserve_series));
         let mut stopped = false;
-        if let Some(t) = self.test.reserve.as_mut() {
+        if let Some(t) = self.bench.test.reserve.as_mut() {
             stopped = [results.as_ref().map(|r| r.ending), t.ending]
                 .contains(&Some(power_reserve::Ending::Stopped));
             t.results = results;
@@ -563,7 +580,7 @@ impl TimegrapherApp {
     /// input (#1380, #1882).
     fn reserve_ended_by(&mut self, ending: power_reserve::Ending) {
         let beat_s = power_reserve::beat_s(self.reserve_bph());
-        let Some(t) = self.test.reserve.as_mut() else {
+        let Some(t) = self.bench.test.reserve.as_mut() else {
             return;
         };
         if let Some(live) = self.recording.live.as_ref() {
@@ -642,7 +659,7 @@ impl TimegrapherApp {
         }
         self.reserve_ended_by(power_reserve::Ending::RecordingFailed);
         let kept = self.kept_running();
-        if let Some(t) = self.test.reserve.as_mut() {
+        if let Some(t) = self.bench.test.reserve.as_mut() {
             // Nothing follows to keep it as its analysis alone: the take
             // keeps its sound, and says so; read as it came, its analysis
             // is kept all the same.
@@ -660,7 +677,7 @@ impl TimegrapherApp {
     /// Write the ended run's results into its take `take`; when that
     /// fails, tried again a minute later ([`Self::reserve_write_again`]).
     fn write_reserve_into(&mut self, take: PathBuf) {
-        let Some(t) = self.test.reserve.as_mut() else {
+        let Some(t) = self.bench.test.reserve.as_mut() else {
             return;
         };
         t.unwritten = None;
@@ -688,7 +705,13 @@ impl TimegrapherApp {
     /// they are; the window draws for each try with no input
     /// ([`Self::reserve_retry_in`], #1405).
     fn reserve_write_again(&mut self) {
-        let Some((take, at)) = self.test.reserve.as_ref().and_then(|t| t.unwritten.clone()) else {
+        let Some((take, at)) = self
+            .bench
+            .test
+            .reserve
+            .as_ref()
+            .and_then(|t| t.unwritten.clone())
+        else {
             return;
         };
         if at.elapsed() >= STREAM_RETRY {
@@ -699,7 +722,7 @@ impl TimegrapherApp {
     /// How long until the next try at results whose write failed, for
     /// the window to draw then on its own.
     pub(super) fn reserve_retry_in(&self) -> Option<std::time::Duration> {
-        let (_, at) = self.test.reserve.as_ref()?.unwritten.as_ref()?;
+        let (_, at) = self.bench.test.reserve.as_ref()?.unwritten.as_ref()?;
         Some(STREAM_RETRY.saturating_sub(at.elapsed()))
     }
 
@@ -717,7 +740,7 @@ impl TimegrapherApp {
             r.name_first_copy(name.to_owned());
         }
         self.save_into(&takes);
-        if let Some(t) = self.test.reserve.as_mut() {
+        if let Some(t) = self.bench.test.reserve.as_mut() {
             t.saving = self.keeping.saving.is_some();
         }
         self.reserve_saved();
@@ -748,7 +771,7 @@ impl TimegrapherApp {
         if self.keeping.saving.is_some() {
             return;
         }
-        let Some(t) = self.test.reserve.as_mut().filter(|t| t.saving) else {
+        let Some(t) = self.bench.test.reserve.as_mut().filter(|t| t.saving) else {
             return;
         };
         t.saving = false;
@@ -756,7 +779,7 @@ impl TimegrapherApp {
         let Some(saved) = self.session.saved_to().map(Path::to_path_buf) else {
             return;
         };
-        if let Some(t) = self.test.reserve.as_mut() {
+        if let Some(t) = self.bench.test.reserve.as_mut() {
             t.saved = Some(saved.clone());
         }
         if let Ok(Some(l)) = &mut self.library {
@@ -769,7 +792,7 @@ impl TimegrapherApp {
 
     /// The Power Reserve pane: the run so far, or its result.
     pub(super) fn reserve_pane(&mut self, ui: &mut egui::Ui) {
-        let free = if self.test.reserve.is_none() {
+        let free = if self.bench.test.reserve.is_none() {
             self.reserve_takes_dir().ok().and_then(|d| {
                 let have = reserve::free_bytes(&d)?;
                 let rate = self
@@ -785,7 +808,7 @@ impl TimegrapherApp {
         let watch = self.take.watch.trim().to_string();
         // Its charts at a readable height, never a sliver under the strip.
         let shown = self.bench.panes_view.reserve_series;
-        if let Some(least) = reserve::least_h(self.test.reserve.as_ref(), shown) {
+        if let Some(least) = reserve::least_h(self.bench.test.reserve.as_ref(), shown) {
             let above = ui.cursor().top() - self.bench.panes_view.pane_top;
             self.bench
                 .panes_view
@@ -796,9 +819,9 @@ impl TimegrapherApp {
         }
         reserve::pane(
             ui,
-            self.test.reserve.as_ref(),
+            self.bench.test.reserve.as_ref(),
             free,
-            (self.test.position_card_title, &watch),
+            (self.bench.test.position_card_title, &watch),
             self.ready_test() == Some(NewTake::PowerReserve),
             (self.bench.panes_view.reserve_info, shown),
         );

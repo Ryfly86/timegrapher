@@ -86,7 +86,8 @@ struct Picture<'a> {
 impl TimegrapherApp {
     /// The Dynamic Poise test, if that is the guided test on the Bench.
     pub(super) fn poise_test(&self) -> Option<&guided::Test> {
-        self.test
+        self.bench
+            .test
             .guided
             .as_ref()
             .filter(|t| t.kind == guided::Kind::Poise)
@@ -207,7 +208,7 @@ impl TimegrapherApp {
         &self,
         ctx: &egui::Context,
     ) -> Option<Vec<timegrapher_core::session::Reading>> {
-        if self.test.guided.is_some() {
+        if self.bench.test.guided.is_some() {
             return None;
         }
         self.free_table_shown(ctx)
@@ -218,7 +219,7 @@ impl TimegrapherApp {
     /// With no test on the Bench, the take's upright stops marked under
     /// 10 s, too short to read: each label and duration.
     fn poise_short(&self, ctx: &egui::Context) -> Vec<(String, f64)> {
-        if self.test.guided.is_some() {
+        if self.bench.test.guided.is_some() {
             return Vec::new();
         }
         self.free_table_shown(ctx)
@@ -246,7 +247,7 @@ impl TimegrapherApp {
             self.bench.panes_view.results_rects[0] = Some(ui.max_rect());
         }
         let now = self.recording.live.as_ref().map(|l| l.duration_s());
-        let phase = match (self.test.guided.as_mut(), now) {
+        let phase = match (self.bench.test.guided.as_mut(), now) {
             (Some(t), Some(now)) if t.kind == guided::Kind::Poise => Some(t.tick(now)),
             _ => None,
         };
@@ -272,14 +273,17 @@ impl TimegrapherApp {
         let short = self.poise_short(ui.ctx());
         let info = self.bench.panes_view.poise_info;
         let view = self.bench.panes_view.poise_views;
-        let settle = (self.test.guided_settle_s, self.test.guided_measure_s);
+        let settle = (
+            self.bench.test.guided_settle_s,
+            self.bench.test.guided_measure_s,
+        );
         let action = poise_body(
             ui,
             (self.poise_test(), phase, live.as_ref()),
             (
                 kept.as_deref(),
                 &short,
-                self.test.guided.is_none() && !self.running(),
+                self.bench.test.guided.is_none() && !self.running(),
             ),
             amp_now.as_deref(),
             (view, info),

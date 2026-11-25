@@ -317,15 +317,15 @@ fn a_test_with_no_watch_asks_where_it_goes() {
     take(&mut app, 0);
     app.recording.quick_listen = true;
     app.stop_listening();
-    assert_eq!(app.test.test_keep, None);
+    assert_eq!(app.bench.test.test_keep, None);
     status_names(&app, "Quick Listen · No watch");
 
     // A Positions Test: asked, with the three answers on show.
     take(&mut app, 1);
     app.recording.quick_listen = false;
-    app.test.positions_take = true;
+    app.bench.test.positions_take = true;
     app.stop_listening();
-    assert_eq!(app.test.test_keep, Some(TestKeep::Positions));
+    assert_eq!(app.bench.test.test_keep, Some(TestKeep::Positions));
     // Asked about, it is the test's take, not Quick Listen's (#2003).
     status_names(&app, "Positions Test · No watch picked");
     let ctx = themed();
@@ -365,27 +365,27 @@ fn a_test_with_no_watch_asks_where_it_goes() {
     // Keep in Unsorted.
     app.keep_test(TestKeep::Positions, None);
     app.wait_for_save();
-    assert_eq!(app.test.test_keep, None);
+    assert_eq!(app.bench.test.test_keep, None);
     assert_eq!(takes_in(unsorted.clone()), 1);
 
     // Keep in a Watch: Pepsi.
     take(&mut app, 2);
-    app.test.positions_take = true;
+    app.bench.test.positions_take = true;
     app.watches_view.watch_open = None;
     app.stop_listening();
-    assert_eq!(app.test.test_keep, Some(TestKeep::Positions));
+    assert_eq!(app.bench.test.test_keep, Some(TestKeep::Positions));
     app.keep_test(TestKeep::Positions, Some(&pepsi));
     app.wait_for_save();
     assert_eq!(takes_in(in_pepsi.clone()), 1);
 
     // Throw Away: nothing kept, nothing left to ask about.
     take(&mut app, 3);
-    app.test.positions_take = true;
+    app.bench.test.positions_take = true;
     app.watches_view.watch_open = None;
     app.stop_listening();
-    assert_eq!(app.test.test_keep, Some(TestKeep::Positions));
+    assert_eq!(app.bench.test.test_keep, Some(TestKeep::Positions));
     app.new_session();
-    assert_eq!(app.test.test_keep, None);
+    assert_eq!(app.bench.test.test_keep, None);
     assert!(!app.needs_save_confirmation());
     assert_eq!(takes_in(unsorted.clone()), 1);
     assert_eq!(takes_in(in_pepsi.clone()), 1);
@@ -401,9 +401,9 @@ fn a_test_with_no_watch_asks_where_it_goes() {
         .unwrap()
         .started_utc()
         .to_string();
-    app.test.reserve = Some(reserve::Test::new(Position::DialUp, true, started, 0.0));
+    app.bench.test.reserve = Some(reserve::Test::new(Position::DialUp, true, started, 0.0));
     app.stop_listening();
-    assert_eq!(app.test.test_keep, Some(TestKeep::PowerReserve));
+    assert_eq!(app.bench.test.test_keep, Some(TestKeep::PowerReserve));
     // Still the test's take (this fixture keeps Pepsi's name from the
     // take kept before, so only the test's name is checked here).
     assert!(

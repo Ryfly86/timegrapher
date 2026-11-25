@@ -91,9 +91,10 @@ pub(crate) fn new_take_names() -> Vec<(&'static str, &'static str, &'static str)
 impl TimegrapherApp {
     /// The test whose take Keep This … Test? asks about, while it asks.
     fn test_to_keep(&self) -> Option<NewTake> {
-        match self.test.test_keep? {
+        match self.bench.test.test_keep? {
             TestKeep::Positions => Some(
-                self.test
+                self.bench
+                    .test
                     .guided
                     .as_ref()
                     .map_or(NewTake::Positions, |t| NewTake::of(t.kind)),
@@ -128,7 +129,13 @@ impl TimegrapherApp {
             // Ended, and Keep This … Test? asked: still that test's take
             // (#2003), never Quick Listen's, which is never asked about.
             Some((kind, self.state_words().to_string()))
-        } else if let Some(t) = self.test.guided.as_ref().filter(|_| self.test_listening()) {
+        } else if let Some(t) = self
+            .bench
+            .test
+            .guided
+            .as_ref()
+            .filter(|_| self.test_listening())
+        {
             let of = t.order().len();
             let step = (t.step + 1).min(of);
             Some((

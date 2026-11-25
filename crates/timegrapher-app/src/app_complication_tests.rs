@@ -26,7 +26,7 @@ fn a_complication_test_is_set_up_in_the_cards_position() {
         Pane::Complication
     ));
     assert_eq!(app.take.position, Position::CrownUp, "the card stays");
-    assert!(app.test.guided.is_none() && !app.running());
+    assert!(app.bench.test.guided.is_none() && !app.running());
     assert_eq!(NewTake::Complication.name(), "Complication Test");
 }
 
@@ -75,7 +75,7 @@ fn measured(name: &str) -> (TimegrapherApp, std::path::PathBuf, impl Sized) {
             assert!(test.advance(t).is_some());
         }
     }
-    app.test.guided = Some(test);
+    app.bench.test.guided = Some(test);
     assert!(app.test_listening());
     let ctx = egui::Context::default();
     app.guided_tick(&ctx);
@@ -403,7 +403,12 @@ fn a_new_lift_rereads_it(again: &mut TimegrapherApp) {
         "the opened take's test"
     );
     let amps = |app: &TimegrapherApp| -> Vec<f64> {
-        let kept = app.test.complication_saved.as_ref().expect("its test");
+        let kept = app
+            .bench
+            .test
+            .complication_saved
+            .as_ref()
+            .expect("its test");
         kept.readings
             .as_ref()
             .expect("read")
@@ -475,7 +480,7 @@ fn a_saved_complication_take_opened_again_shows_its_results() {
             assert!(test.advance(t).is_some());
         }
     }
-    app.test.guided = Some(test);
+    app.bench.test.guided = Some(test);
     app.guided_tick(&egui::Context::default());
     let before = app.complication_test().expect("finished");
     let first: Vec<_> = before
@@ -501,7 +506,7 @@ fn a_saved_complication_take_opened_again_shows_its_results() {
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     assert!(again.recording.live.is_some(), "{:?}", again.message);
-    assert!(again.test.guided.is_none(), "no test on the Bench");
+    assert!(again.bench.test.guided.is_none(), "no test on the Bench");
     each_stretch_is_the_takes_own(&mut again);
     let drawn = draw_at(&mut again, Vec2::new(1280.0, 900.0));
     let texts: Vec<&str> = drawn.iter().map(|(t, _)| t.as_str()).collect();
@@ -513,7 +518,12 @@ fn a_saved_complication_take_opened_again_shows_its_results() {
         "{texts:?}"
     );
     // The same stretches read the same way as at the end of the run.
-    let kept = again.test.complication_saved.as_ref().expect("its test");
+    let kept = again
+        .bench
+        .test
+        .complication_saved
+        .as_ref()
+        .expect("its test");
     let back: Vec<_> = kept
         .readings
         .as_ref()
@@ -536,8 +546,8 @@ fn a_saved_complication_take_opened_again_shows_its_results() {
 /// opened take, Each Stretch gives the take's, its stretches one by one,
 /// not the time in its one position (Walter on #1843).
 fn each_stretch_is_the_takes_own(again: &mut TimegrapherApp) {
-    let was = again.test.guided_measure_s;
-    again.test.guided_measure_s = 30.0;
+    let was = again.bench.test.guided_measure_s;
+    again.bench.test.guided_measure_s = 30.0;
     let drawn = draw_at(again, Vec2::new(1280.0, 900.0));
     let texts: Vec<&str> = drawn.iter().map(|(t, _)| t.as_str()).collect();
     let each = texts.iter().position(|t| *t == "Each Stretch");
@@ -546,7 +556,7 @@ fn each_stretch_is_the_takes_own(again: &mut TimegrapherApp) {
         Some(&"1 min"),
         "{texts:?}"
     );
-    again.test.guided_measure_s = was;
+    again.bench.test.guided_measure_s = was;
 }
 
 /// Between stretches the banner says to turn the complication on, and
@@ -557,7 +567,7 @@ fn the_banner_says_to_turn_the_complication_on() {
     let mut test = guided::Test::complication(app.take.position).timed(1.0, 5.0);
     test.tick(0.0);
     assert_eq!(test.tick(10.0), guided::Phase::Turn);
-    app.test.guided = Some(test);
+    app.bench.test.guided = Some(test);
     let drawn = draw_at(&mut app, Vec2::new(1280.0, 900.0));
     let texts: Vec<&str> = drawn.iter().map(|(t, _)| t.as_str()).collect();
     assert!(texts.contains(&"Turn the complication on"), "{texts:?}");

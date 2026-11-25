@@ -105,7 +105,7 @@ fn start_at_full_wind_sets_full_wind_now() {
     let _tx = queued_capture(&mut app, &base);
     app.pick_wind(WindPick::HoursAgo(30.0));
     app.start_guided(None);
-    assert!(app.test.guided.is_some(), "{:?}", app.message);
+    assert!(app.bench.test.guided.is_some(), "{:?}", app.message);
     assert!(guided::unix_now() - app.wound_unix().unwrap() < 5.0);
     app.session.discard_recording();
     let _ = std::fs::remove_dir_all(base);
@@ -236,7 +236,7 @@ fn the_position_card_shows_no_wind() {
             (330.0, false, false),
             (330.0, false, true),
         ] {
-            app.test.ten_positions = ten;
+            app.bench.test.ten_positions = ten;
             let (out, card) = position_card_out(&mut app, &ctx, w, compact);
             let words = painted_text(&out);
             assert!(
@@ -248,7 +248,7 @@ fn the_position_card_shows_no_wind() {
                 let buttons = rows.controls.bottom()
                     - 2.0 * POSITION_ROW_TEN
                     - 2.0 * listen_card::POSITION_TEN_GAP;
-                title_clear(&out, app.test.position_card_title, w);
+                title_clear(&out, app.bench.test.position_card_title, w);
                 clock_centred(&out, app.shown_position().name(), buttons);
             }
         }
@@ -609,11 +609,11 @@ fn the_wind_is_set_from_a_takes_start_once_it_has_begun() {
         "Wind not given. Click to set it, counted from Start."
     );
     // A Complication Test doesn't set the wind: still settable (Gus).
-    app.test.guided = Some(guided::Test::complication(Position::DialUp));
+    app.bench.test.guided = Some(guided::Test::complication(Position::DialUp));
     assert!(app.wind_field().settable);
-    app.test.guided = None;
+    app.bench.test.guided = None;
     // A test that sets its own wind keeps the field fixed.
-    app.test.reserve = Some(reserve::Test::new(
+    app.bench.test.reserve = Some(reserve::Test::new(
         Position::CrownLeft,
         true,
         String::new(),
@@ -639,7 +639,7 @@ fn a_full_wind_test_started_on_a_take_listening_leaves_it_no_wind() {
     let began = app.began_unix().unwrap();
     std::thread::sleep(std::time::Duration::from_millis(20));
     app.start_guided(None);
-    assert!(app.test.guided.is_some(), "{:?}", app.message);
+    assert!(app.bench.test.guided.is_some(), "{:?}", app.message);
     assert!(
         app.wound_unix().unwrap() > began,
         "full wind now, not moved back"
@@ -697,7 +697,7 @@ fn a_buttons_code_clears_its_bar() {
         timegrapher_core::live::LiveConfig::default(),
     ));
     for ten in [false, true] {
-        app.test.ten_positions = ten;
+        app.bench.test.ten_positions = ten;
         let mut out = None;
         for _ in 0..3 {
             let high = app.readings_card_h(&ctx);
@@ -757,7 +757,7 @@ fn a_power_reserve_test_that_runs_down_lets_the_wind_go() {
     let (mut app, base) = save_failure_fixture("wind-run-down");
     app.pick_wind(WindPick::HoursAgo(30.0));
     app.begin_reserve();
-    app.test.reserve.as_mut().unwrap().ending = Some(power_reserve::Ending::Stopped);
+    app.bench.test.reserve.as_mut().unwrap().ending = Some(power_reserve::Ending::Stopped);
     app.end_reserve();
     assert_eq!(app.wound_unix(), None);
     assert!(app
@@ -788,9 +788,10 @@ fn a_test_thrown_away_puts_the_wind_back() {
             "new" => app.new_session(),
             // Ended by hand, then Throw Away on the Keep question.
             "keep-question" => {
-                app.test.reserve.as_mut().unwrap().ending = Some(power_reserve::Ending::ByHand);
+                app.bench.test.reserve.as_mut().unwrap().ending =
+                    Some(power_reserve::Ending::ByHand);
                 app.end_reserve();
-                app.test.test_keep = None;
+                app.bench.test.test_keep = None;
                 app.new_session();
             }
             // Saved, then a new session: the take keeps its wind.
@@ -821,7 +822,7 @@ fn a_thrown_away_test_leaves_no_wind_for_the_next_take() {
     let _tx = queued_capture(&mut app, &base);
     app.pick_wind(WindPick::NotGiven);
     app.start_guided(None);
-    assert!(app.test.guided.is_some(), "{:?}", app.message);
+    assert!(app.bench.test.guided.is_some(), "{:?}", app.message);
     assert!(app.wound_unix().is_some(), "Start set full wind");
     app.new_session();
     assert_eq!(app.wind_field().words.value, "Not given");

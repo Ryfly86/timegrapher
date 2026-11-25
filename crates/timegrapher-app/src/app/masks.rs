@@ -71,12 +71,12 @@ impl TimegrapherApp {
     pub(super) fn reread_guided(&mut self) {
         if let Some(log) = self.recording.live.as_ref().and_then(steady::log_of) {
             let clock = self.reading_clock(log.duration_s);
-            if let Some(test) = self.test.guided.as_mut() {
+            if let Some(test) = self.bench.test.guided.as_mut() {
                 test.lift_deg = Some(self.take.lift_deg);
                 test.reread(&log, clock.as_ref(), &self.take.masked);
             }
         }
-        if let Some(t) = self.test.complication_saved.as_mut() {
+        if let Some(t) = self.bench.test.complication_saved.as_mut() {
             t.readings = None;
         }
     }
@@ -122,7 +122,7 @@ impl TimegrapherApp {
             Some("Not during a Positions Test: the test sets each position.")
         } else if self.reserve_running() {
             Some("Not during a Power Reserve Test: it runs in one position.")
-        } else if test || self.test.positions_take {
+        } else if test || self.bench.test.positions_take {
             Some(POSITIONS_TAKE_PAINT)
         } else {
             None
@@ -245,7 +245,7 @@ impl TimegrapherApp {
                 .clicked()
             {
                 self.take.brush = Some(p);
-                self.test.ten_positions |= p.is_half_hour();
+                self.bench.test.ten_positions |= p.is_half_hour();
                 self.take.masking = false;
                 ui.close();
             }
@@ -335,7 +335,11 @@ impl TimegrapherApp {
     /// the strip shades, so no reading falls where the watch was just
     /// handled (#1233).
     pub(super) fn engine_masked(&self) -> Vec<(f64, f64)> {
-        engine_masks(&self.take.masked, &self.session, &self.test.guided_unused)
+        engine_masks(
+            &self.take.masked,
+            &self.session,
+            &self.bench.test.guided_unused,
+        )
     }
 
     /// Give the engine its masks ([`Self::engine_masked`]).

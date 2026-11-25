@@ -1916,7 +1916,7 @@ fn a_test_set_up_waits_for_its_start_on_every_card() {
     let ctx = themed();
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.recording.live = None;
-    app.test.test_ready = Some(NewTake::Positions);
+    app.bench.test.test_ready = Some(NewTake::Positions);
     assert!(app.ready_test().is_some());
     let text = cards_text(&app, &ctx);
     let title = Wait::TestStart.title();
@@ -2115,7 +2115,7 @@ fn a_tests_opening_settle_counts_down_on_every_card() {
     // Started at 2 s with a 20 s settle, which ends at 22 s.
     let mut test = guided::Test::new().timed(20.0, 60.0);
     test.tick(2.0);
-    app.test.guided = Some(test);
+    app.bench.test.guided = Some(test);
     let now = app.latest_s();
     assert!(app.session.settling_left(now).is_none(), "no move");
     let left = app.test_settle_left(now).expect("settling");
@@ -2161,11 +2161,17 @@ fn pausing_in_a_tests_opening_settle_stops_its_count() {
     });
     let mut test = guided::Test::new().timed(20.0, 60.0);
     test.tick(2.0);
-    app.test.guided = Some(test);
+    app.bench.test.guided = Some(test);
     let now = app.latest_s();
     assert!(app.settling_left().is_some(), "settling before the pause");
-    app.test.guided.as_mut().expect("test").pause(now - 1.0);
+    app.bench
+        .test
+        .guided
+        .as_mut()
+        .expect("test")
+        .pause(now - 1.0);
     assert!(app
+        .bench
         .test
         .guided
         .as_ref()
@@ -2175,7 +2181,7 @@ fn pausing_in_a_tests_opening_settle_stops_its_count() {
     assert!(app.settling_left().is_none(), "paused, nothing settles");
     let text = cards_text(&app, &ctx);
     assert!(!text.contains("Settling"), "{text}");
-    app.test.guided.as_mut().expect("test").resume(now);
+    app.bench.test.guided.as_mut().expect("test").resume(now);
     let left = app.settling_left().expect("settling again");
     assert!((left - 20.0).abs() < 1e-9, "{left}");
     drop(_tx);
@@ -2204,10 +2210,10 @@ fn a_tests_pane_counts_the_settle_as_the_cards_do() {
     });
     let mut test = guided::Test::new().timed(20.0, 60.0);
     test.tick(2.0);
-    app.test.guided = Some(test);
+    app.bench.test.guided = Some(test);
     let sound = app.recording.live.as_ref().expect("live").duration_s();
     assert!(sound > app.latest_s(), "{sound} after the last beat");
-    let ticked = app.test.guided.as_mut().expect("test").tick(sound);
+    let ticked = app.bench.test.guided.as_mut().expect("test").tick(sound);
     let cards = app.settling_left().expect("settling");
     assert_eq!(ticked, guided::Phase::Settling(22.0 - sound));
     assert_eq!(

@@ -635,7 +635,7 @@ fn the_position_card_turns_to_ten_and_back() {
         texts.iter().find(|(t, _)| t == words).map(|(_, p)| *p)
     };
     let six = frame(&mut app, Vec::new());
-    assert!(!app.test.ten_positions);
+    assert!(!app.bench.test.ten_positions);
     assert!(Position::HALF_HOURS
         .iter()
         .all(|p| at(&six, p.code()).is_none()));
@@ -650,7 +650,7 @@ fn the_position_card_turns_to_ten_and_back() {
         vec![egui::Event::PointerMoved(pos), button(true), button(false)]
     };
     let texts = frame(&mut app, click(ten));
-    assert!(app.test.ten_positions, "10 clicked");
+    assert!(app.bench.test.ten_positions, "10 clicked");
     let row = |p: Position| at(&texts, p.code()).unwrap_or_else(|| panic!("{p:?}: {texts:?}"));
     let first = row(Position::DialUp).y;
     for pair in Position::HALF_HOURS.windows(2) {
@@ -681,13 +681,13 @@ fn the_position_card_turns_to_ten_and_back() {
         .next()
         .expect("the 6");
     let texts = frame(&mut app, click(six_at));
-    assert!(!app.test.ten_positions);
+    assert!(!app.bench.test.ten_positions);
     assert!(at(&texts, "1H30").is_none());
     // A 45° stop on show keeps the card at 10, its code once.
     app.set_position(Position::Up4h30);
     let texts = frame(&mut app, Vec::new());
     assert!(
-        !app.test.ten_positions,
+        !app.bench.test.ten_positions,
         "showing it doesn't change the setting"
     );
     assert!(at(&texts, "1H30").is_some(), "{texts:?}");
@@ -1286,7 +1286,7 @@ fn each_hour_key_picks_its_position_and_a_45_degree_one_turns_the_card_to_10() {
         assert_eq!(p.key(), Some(key), "{p:?}");
     }
     for (key, p) in keys.into_iter().rev() {
-        app.test.ten_positions = false;
+        app.bench.test.ten_positions = false;
         let press = |pressed| egui::Event::Key {
             key,
             physical_key: None,
@@ -1302,7 +1302,11 @@ fn each_hour_key_picks_its_position_and_a_45_degree_one_turns_the_card_to_10() {
             |ctx| app.panels(ctx),
         );
         assert_eq!(app.take.position, p, "{key:?}");
-        assert_eq!(app.test.ten_positions, p.is_half_hour(), "{key:?} at 6");
+        assert_eq!(
+            app.bench.test.ten_positions,
+            p.is_half_hour(),
+            "{key:?} at 6"
+        );
     }
     // Keys 5 and 8 are no one's.
     for key in [Key::Num5, Key::Num8] {
@@ -1598,7 +1602,7 @@ fn the_compact_pop_up_offers_ten_while_a_45_degree_stop_is_current() {
         app.panels(ctx)
     });
     // The switch put back at 6 by hand: the 45° stop still holds ten.
-    app.test.ten_positions = false;
+    app.bench.test.ten_positions = false;
     let run = |app: &mut TimegrapherApp, events: Vec<egui::Event>| {
         let input = egui::RawInput {
             screen_rect: Some(egui::Rect::from_min_size(
