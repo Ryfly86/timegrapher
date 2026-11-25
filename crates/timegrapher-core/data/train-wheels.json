@@ -72,7 +72,33 @@
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: its sister movements now have their own rows)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date. Its sister movements on the same train have their own rows (#1822). 28,800 bph 2824 base train only. The centre wheel slot denotes the off-centre second/intermediate wheel (77/17), not the one-hour cannon pinion. The third pinion (13) drives the cannon wheel (78): 600 x 78/13 = 3600 s. Barrel running period is 4666200/221 s; this is not power reserve. See the evidence document for applicability and exclusions. Family aliases use contributor-reported applicability."
+    "notes": "Date. Its sister movements on the same train have their own rows (#1822). 28,800 bph 2824 base train only. The centre wheel slot denotes the off-centre second/intermediate wheel (77/17), not the one-hour cannon pinion. The third pinion (13) drives the cannon wheel (78): 600 x 78/13 = 3600 s. Barrel running period is 4666200/221 s; this is not power reserve. See the evidence document for applicability and exclusions. Family aliases use contributor-reported applicability.",
+    "jewels": {
+      "value": 25,
+      "source": "https://portal.eta.ch/en/mecaline/2824-2-2824-2-5.html (ETA's specifications, ETA 2824-2) (\"25 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://portal.eta.ch/en/mecaline/2824-2-2824-2-5.html (ETA's specifications, ETA 2824-2) (\"11 ½ ''' … Diameter 25,60 mm\")"
+    },
+    "height_mm": {
+      "value": "4.60",
+      "source": "https://portal.eta.ch/en/mecaline/2824-2-2824-2-5.html (ETA's specifications, ETA 2824-2) (\"Height 4,60 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "42",
+      "source": "https://portal.eta.ch/en/mecaline/2824-2-2824-2-5.html (ETA's specifications, ETA 2824-2) (\"Typical power reserve: 42 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://portal.eta.ch/en/mecaline/2824-2-2824-2-5.html (ETA's specifications, ETA 2824-2) (\"Date display in window, semi-instantaneous … Quick correction of date … Time setting with stop-second … Self-winding mechanism, bidirectional\")"
+    }
   },
   {
     "calibre": "ETA 2834-2",
@@ -146,7 +172,14 @@
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
     ],
     "confidence": "inferred family transfer",
-    "notes": "Day and date, the day spelled out at 12. Shares the going train, escapement, beat rate and lift setting of ETA 2824-2, from which it was split on 2026-11-15 (#1822); only the motion works differ. 28,800 bph 2824 base train only. The centre wheel slot denotes the off-centre second/intermediate wheel (77/17), not the one-hour cannon pinion. The third pinion (13) drives the cannon wheel (78): 600 x 78/13 = 3600 s. Barrel running period is 4666200/221 s; this is not power reserve. See the evidence document for applicability and exclusions. Family aliases use contributor-reported applicability."
+    "notes": "Day and date, the day spelled out at 12. Shares the going train, escapement, beat rate and lift setting of ETA 2824-2, from which it was split on 2026-11-15 (#1822); only the motion works differ. 28,800 bph 2824 base train only. The centre wheel slot denotes the off-centre second/intermediate wheel (77/17), not the one-hour cannon pinion. The third pinion (13) drives the cannon wheel (78): 600 x 78/13 = 3600 s. Barrel running period is 4666200/221 s; this is not power reserve. See the evidence document for applicability and exclusions. Family aliases use contributor-reported applicability.",
+    "related": [
+      {
+        "calibre": "ETA 2824-2",
+        "relation": "same base as",
+        "source": "https://github.com/peterhudson/timegrapher/issues/1822 (the project’s issue splitting the sister movements into rows) (\"`ETA 2824-2`: 2834-2 and 2836-2\")"
+      }
+    ]
   },
   {
     "calibre": "ETA 2836-2",
@@ -221,7 +254,41 @@
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
     ],
     "confidence": "inferred family transfer",
-    "notes": "Day and date, the day beside the date at 3. Shares the going train, escapement, beat rate and lift setting of ETA 2824-2, from which it was split on 2026-11-15 (#1822); only the motion works differ. 28,800 bph 2824 base train only. The centre wheel slot denotes the off-centre second/intermediate wheel (77/17), not the one-hour cannon pinion. The third pinion (13) drives the cannon wheel (78): 600 x 78/13 = 3600 s. Barrel running period is 4666200/221 s; this is not power reserve. See the evidence document for applicability and exclusions. Family aliases use contributor-reported applicability."
+    "notes": "Day and date, the day beside the date at 3. Shares the going train, escapement, beat rate and lift setting of ETA 2824-2, from which it was split on 2026-11-15 (#1822); only the motion works differ. 28,800 bph 2824 base train only. The centre wheel slot denotes the off-centre second/intermediate wheel (77/17), not the one-hour cannon pinion. The third pinion (13) drives the cannon wheel (78): 600 x 78/13 = 3600 s. Barrel running period is 4666200/221 s; this is not power reserve. See the evidence document for applicability and exclusions. Family aliases use contributor-reported applicability.",
+    "related": [
+      {
+        "calibre": "ETA 2824-2",
+        "relation": "same base as",
+        "source": "https://github.com/peterhudson/timegrapher/issues/1822 (the project’s issue splitting the sister movements into rows) (\"`ETA 2824-2`: 2834-2 and 2836-2\")"
+      }
+    ],
+    "jewels": {
+      "value": 25,
+      "source": "https://portal.eta.ch/en/mecaline/phased-out/2836-2-2836-2-5.html (ETA's specifications, ETA 2836-2) (\"25 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://portal.eta.ch/en/mecaline/phased-out/2836-2-2836-2-5.html (ETA's specifications, ETA 2836-2) (\"11 1/2 ''' … Diameter 25,60 mm\")"
+    },
+    "height_mm": {
+      "value": "5.05",
+      "source": "https://portal.eta.ch/en/mecaline/phased-out/2836-2-2836-2-5.html (ETA's specifications, ETA 2836-2) (\"Height 5,05 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "42",
+      "source": "https://portal.eta.ch/en/mecaline/phased-out/2836-2-2836-2-5.html (ETA's specifications, ETA 2836-2) (\"Typical power reserve: 42 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date",
+        "day"
+      ],
+      "source": "https://portal.eta.ch/en/mecaline/phased-out/2836-2-2836-2-5.html (ETA's specifications, ETA 2836-2) (\"Date and day display in window, instantaneous … Quick correction of date and day … Time setting with stop-second … Self-winding mechanism, bidirectional\")"
+    }
   },
   {
     "calibre": "Sellita SW200-1",
@@ -302,7 +369,32 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 26,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW200-1 a and SW200-1 b) (\"26 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW200-1 a and SW200-1 b) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "4.60",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW200-1 a and SW200-1 b) (\"H 4.60 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "41",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW200-1 a and SW200-1 b) (\"Typical power reserve: 41 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW200-1 a and SW200-1 b) (\"Self-winding mechanism with ball bearing … Stop second device … 1) Manual winding\")"
+    }
   },
   {
     "calibre": "Sellita SW220-1",
@@ -382,7 +474,35 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 26,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW220-1) (\"26 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW220-1) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "5.05",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW220-1) (\"H 5.05 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "41",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW220-1) (\"Typical power reserve: 41 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date",
+        "day"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW220-1) (\"Self-winding - 3 hands - date - day … Date and day with quick setting … Self-winding mechanism with ball bearing … Stop second device … 1) Manual winding\")"
+    }
   },
   {
     "calibre": "Sellita SW240-1",
@@ -462,7 +582,35 @@
         "path": "sellita/shared/Catalogue2024_ENG.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 26,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW240-1) (\"26 jewels\")"
+    },
+    "diameter": {
+      "mm": "29.00",
+      "lignes": "13",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW240-1) (\"13’’’ … Ø 29.00 mm\")"
+    },
+    "height_mm": {
+      "value": "5.05",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW240-1) (\"H 5.05 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "41",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW240-1) (\"Typical power reserve: 41 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date",
+        "day"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2024_ENG.pdf (Sellita catalogue 2024, SW240-1) (\"Self-winding - 3 hands - date - day … Date and day with quick setting … Self-winding mechanism with ball bearing … Stop second device … 1) Manual winding\")"
+    }
   },
   {
     "calibre": "ETA 2892-A2",
@@ -498,7 +646,33 @@
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: its sister movements now have their own rows)"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "Date. Its sister movements on the same train have their own rows (#1822). Whether the seconds are driven directly by the fourth wheel was not confirmed, and the escape wheel's tooth count was not found, so neither the fourth wheel nor the escape wheel is named. 42 h power reserve. Lift angle: 51° in the AWCI table, 53° on Ranfft. The Sellita SW300-1 is a copy; its lift angle is not documented separately."
+    "notes": "Date. Its sister movements on the same train have their own rows (#1822). Whether the seconds are driven directly by the fourth wheel was not confirmed, and the escape wheel's tooth count was not found, so neither the fourth wheel nor the escape wheel is named. Lift angle: 51° in the AWCI table, 53° on Ranfft. The Sellita SW300-1 is a copy; its lift angle is not documented separately.",
+    "jewels": {
+      "value": 21,
+      "source": "https://portal.eta.ch/en/mecaline/2892a2-2892a2-5.html (ETA's specifications, ETA 2892A2) (\"21 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://portal.eta.ch/en/mecaline/2892a2-2892a2-5.html (ETA's specifications, ETA 2892A2) (\"11 1/2 ''' … Diameter 25,60 mm\")"
+    },
+    "height_mm": {
+      "value": "3.60",
+      "source": "https://portal.eta.ch/en/mecaline/2892a2-2892a2-5.html (ETA's specifications, ETA 2892A2) (\"Height 3,60 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "50",
+      "source": "https://portal.eta.ch/en/mecaline/2892a2-2892a2-5.html (ETA's specifications, ETA 2892A2) (\"Typical power reserve: 50 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://portal.eta.ch/en/mecaline/2892a2-2892a2-5.html (ETA's specifications, ETA 2892A2) (\"Date display in window, semi-instantaneous … Quick correction of date … Time setting with stop-second … Self-winding mechanism, bidirectional\")"
+    }
   },
   {
     "calibre": "Sellita SW300-1",
@@ -536,7 +710,32 @@
       "https://sellita.ch/scripts/calibres/images/DocTec_SW300-1.pdf (Sellita technical documentation, SW300-1, cover page) (28’800 A/h (4 Hz); Angle lift of balance 51°)"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "A Sellita copy of the ETA 2892-A2. Shares the going train, escapement, beat rate and lift setting of ETA 2892-A2, from which it was split on 2026-11-15 (#1822); only the motion works differ. Whether the seconds are driven directly by the fourth wheel was not confirmed, and the escape wheel's tooth count was not found, so neither the fourth wheel nor the escape wheel is named. 42 h power reserve. Lift angle: 51° in the AWCI table, 53° on Ranfft. Sellita's own SW300-1 documentation gives 51° (timegrapher-calibres#3)."
+    "notes": "A Sellita copy of the ETA 2892-A2. Shares the going train, escapement, beat rate and lift setting of ETA 2892-A2, from which it was split on 2026-11-15 (#1822); only the motion works differ. Whether the seconds are driven directly by the fourth wheel was not confirmed, and the escape wheel's tooth count was not found, so neither the fourth wheel nor the escape wheel is named. Lift angle: 51° in the AWCI table, 53° on Ranfft. Sellita's own SW300-1 documentation gives 51° (timegrapher-calibres#3).",
+    "jewels": {
+      "value": 25,
+      "source": "https://www.sellita.ch/images/documents/Catalogue2022_ENG.pdf (Sellita catalogue 2022, SW300-1 a) (\"25 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2022_ENG.pdf (Sellita catalogue 2022, SW300-1 a) (\"11½’’’ … Ø 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "3.60",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2022_ENG.pdf (Sellita catalogue 2022, SW300-1 a) (\"H 3.60 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "56",
+      "source": "https://www.sellita.ch/images/documents/Catalogue2022_ENG.pdf (Sellita catalogue 2022, SW300-1 a) (\"Typical power reserve: 56 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://www.sellita.ch/images/documents/Catalogue2022_ENG.pdf (Sellita catalogue 2022, SW300-1 a) (\"Self-winding - 3 hands - date … Date with quick setting\")"
+    }
   },
   {
     "calibre": "Valjoux 7750",
@@ -576,7 +775,41 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 7750, 49°)"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "Lift angle: 49° in the AWCI table, 50° is also widely used. The centre wheel is off centre and the motion work is driven through an intermediate wheel, so its period is left out. Escape wheel tooth count not found. Some early 7750s ran at 21,600 bph; this entry is the 28,800 version. 'Daytona 4130' clones built on a 7750 base use this train plus extra wheels to move the small seconds to 6."
+    "notes": "Lift angle: 49° in the AWCI table, 50° is also widely used. The centre wheel is off centre and the motion work is driven through an intermediate wheel, so its period is left out. Escape wheel tooth count not found. Some early 7750s ran at 21,600 bph; this entry is the 28,800 version. 'Daytona 4130' clones built on a 7750 base use this train plus extra wheels to move the small seconds to 6.",
+    "summary": [
+      {
+        "text": "The chronograph is controlled by cams, worked by two push-buttons.",
+        "source": "https://portal.eta.ch/en/7750-7750-5.html (ETA's specifications, ETA 7750 VALJOUX) (\"Chronograph mechanism with cams, 2 push buttons\")"
+      }
+    ],
+    "jewels": {
+      "value": 25,
+      "source": "https://portal.eta.ch/en/7750-7750-5.html (ETA's specifications, ETA 7750 VALJOUX) (\"25 jewels\")"
+    },
+    "diameter": {
+      "mm": "30.00",
+      "lignes": "13¼",
+      "source": "https://portal.eta.ch/en/7750-7750-5.html (ETA's specifications, ETA 7750 VALJOUX) (\"13 1/4 ''' … Diameter 30,00 mm\")"
+    },
+    "height_mm": {
+      "value": "7.90",
+      "source": "https://portal.eta.ch/en/7750-7750-5.html (ETA's specifications, ETA 7750 VALJOUX) (\"Height 7,90 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "54",
+      "source": "https://portal.eta.ch/en/7750-7750-5.html (ETA's specifications, ETA 7750 VALJOUX) (\"Typical power reserve: 54 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date",
+        "day",
+        "chronograph"
+      ],
+      "source": "https://portal.eta.ch/en/7750-7750-5.html (ETA's specifications, ETA 7750 VALJOUX) (\"Date and day display in window, slow-switching … Chronograph counters 60 seconds / 30 minutes / 12 hours … Quick correction of date and day … Time setting with stop-second … Self-winding mechanism, unidirectional\")"
+    }
   },
   {
     "calibre": "Unitas 6497-2",
@@ -637,7 +870,32 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 6497, 44°)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "The only calibre here with a published train: escape 15 teeth on a 10-leaf pinion, fourth 120/8, third 60/10, centre 80 teeth (centre pinion and barrel not found, so the barrel is left out). The counts fit 21,600 bph, the -2 versions. The -1 versions run at 18,000 bph with a train not found; they are not in this entry. 56 h power reserve."
+    "notes": "The only calibre here with a published train: escape 15 teeth on a 10-leaf pinion, fourth 120/8, third 60/10, centre 80 teeth (centre pinion and barrel not found, so the barrel is left out). The counts fit 21,600 bph, the -2 versions. The -1 versions run at 18,000 bph with a train not found; they are not in this entry. 56 h power reserve.",
+    "summary": [
+      {
+        "text": "ETA describes it as a Lépine calibre with the crown at 12 o’clock.",
+        "source": "https://portal.eta.ch/fr/6497-2-6497-2-3.html (ETA's specifications, ETA 6497-2 UNITAS) (\"Calibre Lépine, couronne à 12 heures\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://portal.eta.ch/fr/6497-2-6497-2-3.html (ETA's specifications, ETA 6497-2 UNITAS) (\"17 rubis\")"
+    },
+    "diameter": {
+      "mm": "36.60",
+      "lignes": "16½",
+      "source": "https://portal.eta.ch/fr/6497-2-6497-2-3.html (ETA's specifications, ETA 6497-2 UNITAS) (\"16 1/2 ''' … Diamètre 36,60 mm\")"
+    },
+    "height_mm": {
+      "value": "4.50",
+      "source": "https://portal.eta.ch/fr/6497-2-6497-2-3.html (ETA's specifications, ETA 6497-2 UNITAS) (\"Hauteur 4,50 mm\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding"
+      ],
+      "source": "https://portal.eta.ch/fr/6497-2-6497-2-3.html (ETA's specifications, ETA 6497-2 UNITAS) (\"Remontage manuel\")"
+    }
   },
   {
     "calibre": "Seagull ST36",
@@ -675,7 +933,29 @@
       "https://watchscope.app/en/calibers/seagull-st3600 (WatchScope, ST3600 page) (Lift angle 52°)"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "A copy of the Unitas 6497/6498; it probably shares the 6497-2 train (escape 5 s, third wheel 450 s) but no source confirms it, so those wheels are left out. Lift angle not settled, so none is given: Tandorio lists 44° and WatchScope 52°; no maker figure found (timegrapher-calibres#3)."
+    "notes": "A copy of the Unitas 6497/6498; it probably shares the 6497-2 train (escape 5 s, third wheel 450 s) but no source confirms it, so those wheels are left out. Lift angle not settled, so none is given: Tandorio lists 44° and WatchScope 52°; no maker figure found (timegrapher-calibres#3).",
+    "jewels": {
+      "value": 17,
+      "source": "https://en.seagullwatch.com/products/small-second-movement-ty3600-st3600 (Sea-Gull product page, TY3600/ST3600) (\"Number of Jewels: 17\")"
+    },
+    "diameter": {
+      "mm": "37.20",
+      "source": "https://en.seagullwatch.com/products/small-second-movement-ty3600-st3600 (Sea-Gull product page, TY3600/ST3600) (\"Maximum Diameter: Approx. 37.20mm\")"
+    },
+    "height_mm": {
+      "value": "4.50",
+      "source": "https://en.seagullwatch.com/products/small-second-movement-ty3600-st3600 (Sea-Gull product page, TY3600/ST3600) (\"Thickness: Approx. 4.50mm\")"
+    },
+    "power_reserve_h": {
+      "value": "46",
+      "source": "https://en.seagullwatch.com/products/small-second-movement-ty3600-st3600 (Sea-Gull product page, TY3600/ST3600) (\"Reserve Hours: 46\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding"
+      ],
+      "source": "https://en.seagullwatch.com/products/small-second-movement-ty3600-st3600 (Sea-Gull product page, TY3600/ST3600) (\"Winding Mode: Manual Winding\")"
+    }
   },
   {
     "calibre": "Powermatic 80",
@@ -715,7 +995,18 @@
       "https://watchscope.app/de/calibers/eta-c07-611-powermatic-80 (WatchScope, ETA C07.611 Powermatic 80) (Hebungswinkel 50°)"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "80 h power reserve from a slimmer barrel arbor with a longer mainspring and a slower beat, on the 2824 architecture. No tooth counts, escape wheel count or lift angle found (the C07.111 uses a synthetic escape wheel and pallet fork, the C07.611 a conventional one). WatchScope lists a lift angle of 50° for the C07.611; it is not given as a figure because no maker figure was found (timegrapher-calibres#7)."
+    "notes": "80 h power reserve from a slimmer barrel arbor with a longer mainspring and a slower beat, on the 2824 architecture. No tooth counts, escape wheel count or lift angle found (the C07.111 uses a synthetic escape wheel and pallet fork, the C07.611 a conventional one). WatchScope lists a lift angle of 50° for the C07.611; it is not given as a figure because no maker figure was found (timegrapher-calibres#7).",
+    "years": {
+      "from": 2013,
+      "source": "https://pressroom.tissotwatches.com/powermatic80/?lang=en (Tissot press room, Powermatic 80) (\"Tissot revolutionised the watch industry in 2013 with the Powermatic 80 movement\")"
+    },
+    "related": [
+      {
+        "calibre": "ETA 2824-2",
+        "relation": "based on",
+        "source": "https://pressroom.tissotwatches.com/powermatic80/?lang=en (Tissot press room, Powermatic 80) (\"A technical evolution of the famous 2824 caliber, created through Tissot's collaboration with the manufacturer ETA.\")"
+      }
+    ]
   },
   {
     "calibre": "Rolex 3135",
@@ -790,7 +1081,39 @@
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: its sister movements now have their own rows)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date. Its sister movements on the same train have their own rows (#1822). Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135."
+    "notes": "Date. Its sister movements on the same train have their own rows (#1822). Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135.",
+    "summary": [
+      {
+        "text": "The date changes instantaneously, and the self-winding works in both directions.",
+        "source": "https://giacatwatch.com/wp-content/uploads/2024/03/Rolex_Movement_Calibre_3130_3185_5.pdf (Rolex technical manual, Technical Info. No. 25-1/26-1, Cal. 3135) (\"Instantaneous date indicator … winds in both directions\")"
+      }
+    ],
+    "jewels": {
+      "value": 31,
+      "source": "https://giacatwatch.com/wp-content/uploads/2024/03/Rolex_Movement_Calibre_3130_3185_5.pdf (Rolex technical manual, Technical Info. No. 25-1/26-1, Cal. 3135) (\"Jewelling functional jewels … 31\")"
+    },
+    "diameter": {
+      "mm": "28.50",
+      "source": "https://giacatwatch.com/wp-content/uploads/2024/03/Rolex_Movement_Calibre_3130_3185_5.pdf (Rolex technical manual, Technical Info. No. 25-1/26-1, Cal. 3135) (\"Total diameter … 28.50\")"
+    },
+    "height_mm": {
+      "value": "6.00",
+      "source": "https://giacatwatch.com/wp-content/uploads/2024/03/Rolex_Movement_Calibre_3130_3185_5.pdf (Rolex technical manual, Technical Info. No. 25-1/26-1, Cal. 3135) (\"Total height … 6.00\")"
+    },
+    "power_reserve_h": {
+      "value": "48",
+      "approx": true,
+      "source": "https://giacatwatch.com/wp-content/uploads/2024/03/Rolex_Movement_Calibre_3130_3185_5.pdf (Rolex technical manual, Technical Info. No. 25-1/26-1, Cal. 3135) (\"Power reserve … approx. 48h\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://giacatwatch.com/wp-content/uploads/2024/03/Rolex_Movement_Calibre_3130_3185_5.pdf (Rolex technical manual, Technical Info. No. 25-1/26-1, Cal. 3135) (\"Automatic device winds in both directions … seconds stop … Rapid correction, unidirectional … date\")"
+    }
   },
   {
     "calibre": "Rolex 3130",
@@ -867,7 +1190,24 @@
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Time only (hours, minutes, centre seconds), no date. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135."
+    "notes": "Time only (hours, minutes, centre seconds), no date. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135.",
+    "related": [
+      {
+        "calibre": "Rolex 3135",
+        "relation": "based on",
+        "source": "https://giacatwatch.com/wp-content/uploads/2024/03/Rolex_Movement_Calibre_3130_3185_5.pdf (Rolex technical manual, Technical Info. No. 25-1/26-1) (\"Calibre derived from calibre 3135\")"
+      }
+    ],
+    "height_mm": {
+      "value": "5.85",
+      "source": "https://giacatwatch.com/wp-content/uploads/2024/03/Rolex_Movement_Calibre_3130_3185_5.pdf (Rolex technical manual, Technical Info. No. 25-1/26-1, Cal. 3130) (\"Total height … 5.85\")"
+    },
+    "functions": {
+      "value": [
+        "hacking"
+      ],
+      "source": "https://giacatwatch.com/wp-content/uploads/2024/03/Rolex_Movement_Calibre_3130_3185_5.pdf (Rolex technical manual, Technical Info. No. 25-1/26-1, Cal. 3130) (\"seconds stop\")"
+    }
   },
   {
     "calibre": "Rolex 3155",
@@ -941,7 +1281,30 @@
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Day and date. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135."
+    "notes": "Day and date. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135.",
+    "related": [
+      {
+        "calibre": "Rolex 3135",
+        "relation": "based on",
+        "source": "https://giacatwatch.com/wp-content/uploads/2024/03/Rolex_Movement_Calibre_3130_3185_5.pdf (Rolex technical manual, Technical Info. No. 25-1/26-1) (\"Calibre derived from calibre 3135\")"
+      }
+    ],
+    "diameter": {
+      "mm": "29.30",
+      "source": "https://giacatwatch.com/wp-content/uploads/2024/03/Rolex_Movement_Calibre_3130_3185_5.pdf (Rolex technical manual, Technical Info. No. 25-1/26-1, Cal. 3155) (\"Total diameter … 29.30\")"
+    },
+    "height_mm": {
+      "value": "6.45",
+      "source": "https://giacatwatch.com/wp-content/uploads/2024/03/Rolex_Movement_Calibre_3130_3185_5.pdf (Rolex technical manual, Technical Info. No. 25-1/26-1, Cal. 3155) (\"Total height … 6.45\")"
+    },
+    "functions": {
+      "value": [
+        "date",
+        "quickset date",
+        "day"
+      ],
+      "source": "https://giacatwatch.com/wp-content/uploads/2024/03/Rolex_Movement_Calibre_3130_3185_5.pdf (Rolex technical manual, Technical Info. No. 25-1/26-1, Cal. 3155) (\"Instantaneous day and date indicator … Rapid correction … date and day\")"
+    }
   },
   {
     "calibre": "Rolex 3175",
@@ -1018,7 +1381,19 @@
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date and a 24-hour hand set with the hour hand. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135."
+    "notes": "Date and a 24-hour hand set with the hour hand. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135.",
+    "summary": [
+      {
+        "text": "It carries a 12-hour and a 24-hour hand in the centre.",
+        "source": "https://giacatwatch.com/wp-content/uploads/2024/03/Rolex_Movement_Calibre_3130_3185_5.pdf (Rolex technical manual, Technical Info. No. 25-1/26-1, Cal. 3175) (\"Calibre 3175: 12 hours, 24 hours, minute and second in the center\")"
+      }
+    ],
+    "functions": {
+      "value": [
+        "date"
+      ],
+      "source": "https://giacatwatch.com/wp-content/uploads/2024/03/Rolex_Movement_Calibre_3130_3185_5.pdf (Rolex technical manual, Technical Info. No. 25-1/26-1, Cal. 3175) (\"Calibre 3175: 12 hours, 24 hours, minute and second in the center. Instantaneous date indicator.\")"
+    }
   },
   {
     "calibre": "Rolex 3185",
@@ -1095,7 +1470,25 @@
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date and a 24-hour hand, with the 12-hour hand set in one-hour steps. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135."
+    "notes": "Date and a 24-hour hand, with the 12-hour hand set in one-hour steps. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135.",
+    "related": [
+      {
+        "calibre": "Rolex 3135",
+        "relation": "based on",
+        "source": "https://giacatwatch.com/wp-content/uploads/2024/03/Rolex_Movement_Calibre_3130_3185_5.pdf (Rolex technical manual, Technical Info. No. 25-1/26-1) (\"Calibre derived from calibre 3135\")"
+      }
+    ],
+    "height_mm": {
+      "value": "6.40",
+      "source": "https://giacatwatch.com/wp-content/uploads/2024/03/Rolex_Movement_Calibre_3130_3185_5.pdf (Rolex technical manual, Technical Info. No. 25-1/26-1, Cal. 3185) (\"Total height … 6.40\")"
+    },
+    "functions": {
+      "value": [
+        "date",
+        "GMT hand"
+      ],
+      "source": "https://giacatwatch.com/wp-content/uploads/2024/03/Rolex_Movement_Calibre_3130_3185_5.pdf (Rolex technical manual, Technical Info. No. 25-1/26-1, Cal. 3185) (\"Calibre 3185: 12 hours (time-zones), 24 hours, minute and second in the center. Instantaneous date indicator.\")"
+    }
   },
   {
     "calibre": "Rolex 3186",
@@ -1245,7 +1638,27 @@
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date and an independently set 24-hour hand. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135."
+    "notes": "Date and an independently set 24-hour hand. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135.",
+    "summary": [
+      {
+        "text": "Its second time zone has an hour hand that can be set on its own.",
+        "source": "https://content.rolex.cn/dam/media/brochures/explorer/m216570-0001.pdf (Rolex Explorer II 216570 brochure, calibre 3187) (\"Second time zone with independent rapid-setting of the hour hand\")"
+      }
+    ],
+    "power_reserve_h": {
+      "value": "48",
+      "approx": true,
+      "source": "https://content.rolex.cn/dam/media/brochures/explorer/m216570-0001.pdf (Rolex Explorer II 216570 brochure, calibre 3187) (\"Approximately 48 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "hacking",
+        "date",
+        "GMT hand"
+      ],
+      "source": "https://content.rolex.cn/dam/media/brochures/explorer/m216570-0001.pdf (Rolex Explorer II 216570 brochure, calibre 3187) (\"Perpetual, mechanical, self-winding … 24-hour display … Instantaneous date … Stop-seconds for precise time setting\")"
+    }
   },
   {
     "calibre": "Dandong 3135",
@@ -1376,7 +1789,14 @@
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Time only, no date (the 3130's layout). Shares the going train, escapement, beat rate and lift setting of Dandong 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Lift angle is unspecified: shared train counts do not establish the DD/VS escapement geometry."
+    "notes": "Time only, no date (the 3130's layout). Shares the going train, escapement, beat rate and lift setting of Dandong 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Lift angle is unspecified: shared train counts do not establish the DD/VS escapement geometry.",
+    "related": [
+      {
+        "calibre": "Dandong 3135",
+        "relation": "same base as",
+        "source": "https://github.com/peterhudson/timegrapher/issues/1822 (the project’s issue splitting the sister movements into rows) (\"`Dandong 3135`: DD/VS/Dandong 3130, 3186 and 3187.\")"
+      }
+    ]
   },
   {
     "calibre": "Dandong 3186",
@@ -1440,7 +1860,14 @@
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date and an independently set 24-hour hand (the 3186's layout). Shares the going train, escapement, beat rate and lift setting of Dandong 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Lift angle is unspecified: shared train counts do not establish the DD/VS escapement geometry."
+    "notes": "Date and an independently set 24-hour hand (the 3186's layout). Shares the going train, escapement, beat rate and lift setting of Dandong 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Lift angle is unspecified: shared train counts do not establish the DD/VS escapement geometry.",
+    "related": [
+      {
+        "calibre": "Dandong 3135",
+        "relation": "same base as",
+        "source": "https://github.com/peterhudson/timegrapher/issues/1822 (the project’s issue splitting the sister movements into rows) (\"`Dandong 3135`: DD/VS/Dandong 3130, 3186 and 3187.\")"
+      }
+    ]
   },
   {
     "calibre": "Dandong 3187",
@@ -1504,7 +1931,14 @@
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date and an independently set 24-hour hand (the 3187's layout). Shares the going train, escapement, beat rate and lift setting of Dandong 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Lift angle is unspecified: shared train counts do not establish the DD/VS escapement geometry."
+    "notes": "Date and an independently set 24-hour hand (the 3187's layout). Shares the going train, escapement, beat rate and lift setting of Dandong 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Lift angle is unspecified: shared train counts do not establish the DD/VS escapement geometry.",
+    "related": [
+      {
+        "calibre": "Dandong 3135",
+        "relation": "same base as",
+        "source": "https://github.com/peterhudson/timegrapher/issues/1822 (the project’s issue splitting the sister movements into rows) (\"`Dandong 3135`: DD/VS/Dandong 3130, 3186 and 3187.\")"
+      }
+    ]
   },
   {
     "calibre": "VR3135",
@@ -1636,7 +2070,14 @@
       "https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350 (Peter Hudson's RWI post, quoted in the notes, 2026-11-16)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Time only, no date (the 3130's layout). Shares the going train, escapement, beat rate and lift setting of VR3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix, not an identified movement manufacturer. Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it. Peter Hudson, on RWI (https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350), quoted on 2026-11-16: \"The JH6000-1 is almost certainly what we call the VR3130\". It identifies the movement only; no figure in this row comes from it."
+    "notes": "Time only, no date (the 3130's layout). Shares the going train, escapement, beat rate and lift setting of VR3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix, not an identified movement manufacturer. Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it. Peter Hudson, on RWI (https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350), quoted on 2026-11-16: \"The JH6000-1 is almost certainly what we call the VR3130\". It identifies the movement only; no figure in this row comes from it.",
+    "related": [
+      {
+        "calibre": "VR3135",
+        "relation": "same base as",
+        "source": "https://github.com/peterhudson/timegrapher/issues/1822 (the project’s issue splitting the sister movements into rows) (\"`VR3135`: VR3130, VR3186 and VR3187.\")"
+      }
+    ]
   },
   {
     "calibre": "VR3186",
@@ -1700,7 +2141,14 @@
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date and an independently set 24-hour hand (the 3186's layout). Shares the going train, escapement, beat rate and lift setting of VR3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix, not an identified movement manufacturer. Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it."
+    "notes": "Date and an independently set 24-hour hand (the 3186's layout). Shares the going train, escapement, beat rate and lift setting of VR3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix, not an identified movement manufacturer. Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it.",
+    "related": [
+      {
+        "calibre": "VR3135",
+        "relation": "same base as",
+        "source": "https://github.com/peterhudson/timegrapher/issues/1822 (the project’s issue splitting the sister movements into rows) (\"`VR3135`: VR3130, VR3186 and VR3187.\")"
+      }
+    ]
   },
   {
     "calibre": "VR3187",
@@ -1765,7 +2213,14 @@
       "https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350 (Peter Hudson's RWI post, quoted in the notes, 2026-11-16)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date and an independently set 24-hour hand (the 3187's layout). Shares the going train, escapement, beat rate and lift setting of VR3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix, not an identified movement manufacturer. Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it. Peter Hudson, on RWI (https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350), quoted on 2026-11-16: \"The JH6002-1 is almost certainly what we call the VR3187\". It identifies the movement only; no figure in this row comes from it."
+    "notes": "Date and an independently set 24-hour hand (the 3187's layout). Shares the going train, escapement, beat rate and lift setting of VR3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from the VR31xx photo set supplied by Peter Hudson on 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. He reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix, not an identified movement manufacturer. Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it. Peter Hudson, on RWI (https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350), quoted on 2026-11-16: \"The JH6002-1 is almost certainly what we call the VR3187\". It identifies the movement only; no figure in this row comes from it.",
+    "related": [
+      {
+        "calibre": "VR3135",
+        "relation": "same base as",
+        "source": "https://github.com/peterhudson/timegrapher/issues/1822 (the project’s issue splitting the sister movements into rows) (\"`VR3135`: VR3130, VR3186 and VR3187.\")"
+      }
+    ]
   },
   {
     "calibre": "SH3135",
@@ -1862,7 +2317,24 @@
       "https://github.com/peterhudson/timegrapher/issues/1820 (2026-11-15: 3230, 3235, 3255 and 3285 are separate movements with the same escapement and going train and different motion works; split into their own rows)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Time only (hours, minutes, seconds), no date. Shares the counted 32xx going train, escapement, beat rate and lift setting with Rolex 3235; only the motion works differ. Had been an alias of Rolex 3235 until 2026-11-15 (#1820). Chronergy escapement, about 70 h. Lift angle: 55° (perhaps 58°) is what this project and clone timegrapher guides use; watchmakers report Rolex's documents were revised to 53° for the 32xx, reportedly with no part change. The photographed 98-tooth barrel and 14-leaf second pinion give 25,200 s (7 h), superseding the provisional 98:16 reading (22,050 s). The 60 s amplitude dip on the project's reference 3235 is the fourth wheel. WatchGuy's list gives 53° for the 3235 and 3255; that figure is kept as its own entry, \"Rolex 3235 (53°)\". Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion."
+    "notes": "Time only (hours, minutes, seconds), no date. Shares the counted 32xx going train, escapement, beat rate and lift setting with Rolex 3235; only the motion works differ. Had been an alias of Rolex 3235 until 2026-11-15 (#1820). Chronergy escapement, about 70 h. Lift angle: 55° (perhaps 58°) is what this project and clone timegrapher guides use; watchmakers report Rolex's documents were revised to 53° for the 32xx, reportedly with no part change. The photographed 98-tooth barrel and 14-leaf second pinion give 25,200 s (7 h), superseding the provisional 98:16 reading (22,050 s). The 60 s amplitude dip on the project's reference 3235 is the fourth wheel. WatchGuy's list gives 53° for the 3235 and 3255; that figure is kept as its own entry, \"Rolex 3235 (53°)\". Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion.",
+    "summary": [
+      {
+        "text": "Rolex fits it to the Oyster Perpetual 41.",
+        "source": "https://newsroom.rolex.com/watches/new-watches/oyster-perpetual-41 (Rolex newsroom, Oyster Perpetual 41) (\"The Oyster Perpetual 41 is equipped with calibre 3230\")"
+      }
+    ],
+    "power_reserve_h": {
+      "value": "70",
+      "approx": true,
+      "source": "https://newsroom.rolex.com/watches/new-watches/oyster-perpetual-41 (Rolex newsroom, Oyster Perpetual 41) (\"offers a power reserve of approximately 70 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://newsroom.rolex.com/watches/new-watches/oyster-perpetual-41 (Rolex newsroom, Oyster Perpetual 41) (\"Calibre 3230 is equipped with a self-winding system via a Perpetual rotor\")"
+    }
   },
   {
     "calibre": "Rolex 3235",
@@ -1930,7 +2402,24 @@
       "https://github.com/peterhudson/timegrapher/issues/1820 (2026-11-15: 3230, 3255 and 3285 split into their own rows; this row keeps the family names)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date. The 3230, 3255 and 3285 have their own rows with the same going train (#1820). Chronergy escapement, about 70 h. Lift angle: 55° (perhaps 58°) is what this project and clone timegrapher guides use; watchmakers report Rolex's documents were revised to 53° for the 32xx, reportedly with no part change. The photographed 98-tooth barrel and 14-leaf second pinion give 25,200 s (7 h), superseding the provisional 98:16 reading (22,050 s). The 60 s amplitude dip on the project's reference 3235 is the fourth wheel. WatchGuy's list gives 53° for the 3235 and 3255; that figure is kept as its own entry, \"Rolex 3235 (53°)\". Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion."
+    "notes": "Date. The 3230, 3255 and 3285 have their own rows with the same going train (#1820). Chronergy escapement, about 70 h. Lift angle: 55° (perhaps 58°) is what this project and clone timegrapher guides use; watchmakers report Rolex's documents were revised to 53° for the 32xx, reportedly with no part change. The photographed 98-tooth barrel and 14-leaf second pinion give 25,200 s (7 h), superseding the provisional 98:16 reading (22,050 s). The 60 s amplitude dip on the project's reference 3235 is the fourth wheel. WatchGuy's list gives 53° for the 3235 and 3255; that figure is kept as its own entry, \"Rolex 3235 (53°)\". Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion.",
+    "summary": [
+      {
+        "text": "Rolex fits it to the Datejust 36 and Datejust 41.",
+        "source": "https://newsroom.rolex.com/watches/oyster-collection/datejust (Rolex newsroom, Datejust) (\"calibre 3235 (Datejust 36 and Datejust 41)\")"
+      }
+    ],
+    "power_reserve_h": {
+      "value": "70",
+      "approx": true,
+      "source": "https://newsroom.rolex.com/watches/oyster-collection/datejust (Rolex newsroom, Datejust) (\"the power reserve of calibre 3235 extends to approximately 70 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://newsroom.rolex.com/watches/oyster-collection/datejust (Rolex newsroom, Datejust) (\"self-winding mechanical movements\")"
+    }
   },
   {
     "calibre": "Rolex 3255",
@@ -1996,7 +2485,25 @@
       "https://github.com/peterhudson/timegrapher/issues/1820 (2026-11-15: 3230, 3235, 3255 and 3285 are separate movements with the same escapement and going train and different motion works; split into their own rows)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Day and date. Shares the counted 32xx going train, escapement, beat rate and lift setting with Rolex 3235; only the motion works differ. Had been an alias of Rolex 3235 until 2026-11-15 (#1820). Chronergy escapement, about 70 h. Lift angle: 55° (perhaps 58°) is what this project and clone timegrapher guides use; watchmakers report Rolex's documents were revised to 53° for the 32xx, reportedly with no part change. The photographed 98-tooth barrel and 14-leaf second pinion give 25,200 s (7 h), superseding the provisional 98:16 reading (22,050 s). The 60 s amplitude dip on the project's reference 3235 is the fourth wheel. WatchGuy's list gives 53° for the 3235 and 3255; that figure is kept as its own entry, \"Rolex 3235 (53°)\". Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion."
+    "notes": "Day and date. Shares the counted 32xx going train, escapement, beat rate and lift setting with Rolex 3235; only the motion works differ. Had been an alias of Rolex 3235 until 2026-11-15 (#1820). Chronergy escapement, about 70 h. Lift angle: 55° (perhaps 58°) is what this project and clone timegrapher guides use; watchmakers report Rolex's documents were revised to 53° for the 32xx, reportedly with no part change. The photographed 98-tooth barrel and 14-leaf second pinion give 25,200 s (7 h), superseding the provisional 98:16 reading (22,050 s). The 60 s amplitude dip on the project's reference 3235 is the fourth wheel. WatchGuy's list gives 53° for the 3235 and 3255; that figure is kept as its own entry, \"Rolex 3235 (53°)\". Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion.",
+    "summary": [
+      {
+        "text": "Rolex fits it to the Day-Date 40.",
+        "source": "https://newsroom.rolex.com/watches/new-watches/exceptional-watches (Rolex newsroom, Day-Date 40) (\"The Day-Date 40 is equipped with calibre 3255\")"
+      }
+    ],
+    "power_reserve_h": {
+      "value": "70",
+      "approx": true,
+      "source": "https://newsroom.rolex.com/watches/new-watches/exceptional-watches (Rolex newsroom, Day-Date 40) (\"the power reserve of this movement extends to approximately 70 hours\")"
+    },
+    "functions": {
+      "value": [
+        "date",
+        "day"
+      ],
+      "source": "https://newsroom.rolex.com/watches/new-watches/exceptional-watches (Rolex newsroom, Day-Date 40) (\"enabling it to display the day and the date\")"
+    }
   },
   {
     "calibre": "Rolex 3285",
@@ -2061,7 +2568,19 @@
       "https://github.com/peterhudson/timegrapher/issues/1820 (2026-11-15: 3230, 3235, 3255 and 3285 are separate movements with the same escapement and going train and different motion works; split into their own rows)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date and an independently set 24-hour (GMT) hand. Shares the counted 32xx going train, escapement, beat rate and lift setting with Rolex 3235; only the motion works differ. Had been an alias of Rolex 3235 until 2026-11-15 (#1820). Chronergy escapement, about 70 h. Lift angle: 55° (perhaps 58°) is what this project and clone timegrapher guides use; watchmakers report Rolex's documents were revised to 53° for the 32xx, reportedly with no part change. The photographed 98-tooth barrel and 14-leaf second pinion give 25,200 s (7 h), superseding the provisional 98:16 reading (22,050 s). The 60 s amplitude dip on the project's reference 3235 is the fourth wheel. WatchGuy's list gives 53° for the 3235 and 3255; that figure is kept as its own entry, \"Rolex 3235 (53°)\". Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion."
+    "notes": "Date and an independently set 24-hour (GMT) hand. Shares the counted 32xx going train, escapement, beat rate and lift setting with Rolex 3235; only the motion works differ. Had been an alias of Rolex 3235 until 2026-11-15 (#1820). Chronergy escapement, about 70 h. Lift angle: 55° (perhaps 58°) is what this project and clone timegrapher guides use; watchmakers report Rolex's documents were revised to 53° for the 32xx, reportedly with no part change. The photographed 98-tooth barrel and 14-leaf second pinion give 25,200 s (7 h), superseding the provisional 98:16 reading (22,050 s). The 60 s amplitude dip on the project's reference 3235 is the fourth wheel. WatchGuy's list gives 53° for the 3235 and 3255; that figure is kept as its own entry, \"Rolex 3235 (53°)\". Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion.",
+    "power_reserve_h": {
+      "value": "70",
+      "approx": true,
+      "source": "https://content.rolex.com/dam/media/brochures/gmt-master-ii/m126715chnr-0001.pdf (Rolex GMT-Master II 126715CHNR brochure, calibre 3285) (\"a guaranteed power reserve of approximately 70 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "GMT hand"
+      ],
+      "source": "https://content.rolex.com/dam/media/brochures/gmt-master-ii/m126715chnr-0001.pdf (Rolex GMT-Master II 126715CHNR brochure, calibre 3285) (\"Perpetual, mechanical, self-winding, GMT function\")"
+    }
   },
   {
     "calibre": "Dandong 3230",
@@ -2125,7 +2644,14 @@
       "https://github.com/peterhudson/timegrapher/issues/1820 (2026-11-15: 3230, 3235, 3255 and 3285 are separate movements with the same escapement and going train and different motion works; split into their own rows)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Time only (hours, minutes, seconds), no date. Shares the counted 32xx going train, escapement, beat rate and lift setting with Dandong 3235; only the motion works differ. Had been an alias of Dandong 3235 until 2026-11-15 (#1820). About 70 h power reserve. The 59° lift setting is an empirical catalogue choice from four blind optical/acoustic takes of one DD3285 specimen (2026-11-03); effective matching settings span about 58–59°, not a definitive physical lift-angle measurement. Applied to the DD32xx family by maintainer decision; individual variants were not separately measured. The earlier bench recording dd3235_DU_30min used a genuine balance complete, pallet fork and escape wheel and showed a 5.00 s rate cycle. The photographed escape wheel now provides a direct 20-tooth count. The ambiguous alias \"3235 (clone)\" has been removed: select an explicit DD, JH, VR or SH designation. Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion."
+    "notes": "Time only (hours, minutes, seconds), no date. Shares the counted 32xx going train, escapement, beat rate and lift setting with Dandong 3235; only the motion works differ. Had been an alias of Dandong 3235 until 2026-11-15 (#1820). About 70 h power reserve. The 59° lift setting is an empirical catalogue choice from four blind optical/acoustic takes of one DD3285 specimen (2026-11-03); effective matching settings span about 58–59°, not a definitive physical lift-angle measurement. Applied to the DD32xx family by maintainer decision; individual variants were not separately measured. The earlier bench recording dd3235_DU_30min used a genuine balance complete, pallet fork and escape wheel and showed a 5.00 s rate cycle. The photographed escape wheel now provides a direct 20-tooth count. The ambiguous alias \"3235 (clone)\" has been removed: select an explicit DD, JH, VR or SH designation. Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion.",
+    "related": [
+      {
+        "calibre": "Dandong 3235",
+        "relation": "same base as",
+        "source": "https://github.com/peterhudson/timegrapher/issues/1820 (the project’s issue on the 32xx rows) (\"They share the counted 32xx going train and escapement\")"
+      }
+    ]
   },
   {
     "calibre": "Dandong 3235",
@@ -2256,7 +2782,14 @@
       "https://github.com/peterhudson/timegrapher/issues/1820 (2026-11-15: 3230, 3235, 3255 and 3285 are separate movements with the same escapement and going train and different motion works; split into their own rows)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Day and date. Shares the counted 32xx going train, escapement, beat rate and lift setting with Dandong 3235; only the motion works differ. Had been an alias of Dandong 3235 until 2026-11-15 (#1820). About 70 h power reserve. The 59° lift setting is an empirical catalogue choice from four blind optical/acoustic takes of one DD3285 specimen (2026-11-03); effective matching settings span about 58–59°, not a definitive physical lift-angle measurement. Applied to the DD32xx family by maintainer decision; individual variants were not separately measured. The earlier bench recording dd3235_DU_30min used a genuine balance complete, pallet fork and escape wheel and showed a 5.00 s rate cycle. The photographed escape wheel now provides a direct 20-tooth count. The ambiguous alias \"3235 (clone)\" has been removed: select an explicit DD, JH, VR or SH designation. Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion."
+    "notes": "Day and date. Shares the counted 32xx going train, escapement, beat rate and lift setting with Dandong 3235; only the motion works differ. Had been an alias of Dandong 3235 until 2026-11-15 (#1820). About 70 h power reserve. The 59° lift setting is an empirical catalogue choice from four blind optical/acoustic takes of one DD3285 specimen (2026-11-03); effective matching settings span about 58–59°, not a definitive physical lift-angle measurement. Applied to the DD32xx family by maintainer decision; individual variants were not separately measured. The earlier bench recording dd3235_DU_30min used a genuine balance complete, pallet fork and escape wheel and showed a 5.00 s rate cycle. The photographed escape wheel now provides a direct 20-tooth count. The ambiguous alias \"3235 (clone)\" has been removed: select an explicit DD, JH, VR or SH designation. Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion.",
+    "related": [
+      {
+        "calibre": "Dandong 3235",
+        "relation": "same base as",
+        "source": "https://github.com/peterhudson/timegrapher/issues/1820 (the project’s issue on the 32xx rows) (\"They share the counted 32xx going train and escapement\")"
+      }
+    ]
   },
   {
     "calibre": "Dandong 3285",
@@ -2320,7 +2853,14 @@
       "https://github.com/peterhudson/timegrapher/issues/1820 (2026-11-15: 3230, 3235, 3255 and 3285 are separate movements with the same escapement and going train and different motion works; split into their own rows)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date and an independently set 24-hour (GMT) hand. Shares the counted 32xx going train, escapement, beat rate and lift setting with Dandong 3235; only the motion works differ. Had been an alias of Dandong 3235 until 2026-11-15 (#1820). About 70 h power reserve. The 59° lift setting is an empirical catalogue choice from four blind optical/acoustic takes of one DD3285 specimen (2026-11-03); effective matching settings span about 58–59°, not a definitive physical lift-angle measurement. Applied to the DD32xx family by maintainer decision; individual variants were not separately measured. The earlier bench recording dd3235_DU_30min used a genuine balance complete, pallet fork and escape wheel and showed a 5.00 s rate cycle. The photographed escape wheel now provides a direct 20-tooth count. The ambiguous alias \"3235 (clone)\" has been removed: select an explicit DD, JH, VR or SH designation. Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion."
+    "notes": "Date and an independently set 24-hour (GMT) hand. Shares the counted 32xx going train, escapement, beat rate and lift setting with Dandong 3235; only the motion works differ. Had been an alias of Dandong 3235 until 2026-11-15 (#1820). About 70 h power reserve. The 59° lift setting is an empirical catalogue choice from four blind optical/acoustic takes of one DD3285 specimen (2026-11-03); effective matching settings span about 58–59°, not a definitive physical lift-angle measurement. Applied to the DD32xx family by maintainer decision; individual variants were not separately measured. The earlier bench recording dd3235_DU_30min used a genuine balance complete, pallet fork and escape wheel and showed a 5.00 s rate cycle. The photographed escape wheel now provides a direct 20-tooth count. The ambiguous alias \"3235 (clone)\" has been removed: select an explicit DD, JH, VR or SH designation. Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion.",
+    "related": [
+      {
+        "calibre": "Dandong 3235",
+        "relation": "same base as",
+        "source": "https://github.com/peterhudson/timegrapher/issues/1820 (the project’s issue on the 32xx rows) (\"They share the counted 32xx going train and escapement\")"
+      }
+    ]
   },
   {
     "calibre": "JH3230",
@@ -2383,7 +2923,14 @@
       "https://github.com/peterhudson/timegrapher/issues/1820 (2026-11-15: 3230, 3235, 3255 and 3285 are separate movements with the same escapement and going train and different motion works; split into their own rows)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Time only (hours, minutes, seconds), no date. Shares the counted 32xx going train, escapement, beat rate and lift setting with JH3235; only the motion works differ. Had been an alias of JH3235 until 2026-11-15 (#1820). A 32xx clone with a free-sprung balance and flat hairspring. The 59° lift setting is applied to the JH32xx family by maintainer decision from the DD3285 optical/acoustic study (2026-11-03). No JH specimen was measured; this is a family-level empirical default, not a measured JH physical lift angle. It has a shock setting for the escape wheel. Power reserve not documented. Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion."
+    "notes": "Time only (hours, minutes, seconds), no date. Shares the counted 32xx going train, escapement, beat rate and lift setting with JH3235; only the motion works differ. Had been an alias of JH3235 until 2026-11-15 (#1820). A 32xx clone with a free-sprung balance and flat hairspring. The 59° lift setting is applied to the JH32xx family by maintainer decision from the DD3285 optical/acoustic study (2026-11-03). No JH specimen was measured; this is a family-level empirical default, not a measured JH physical lift angle. It has a shock setting for the escape wheel. Power reserve not documented. Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion.",
+    "related": [
+      {
+        "calibre": "JH3235",
+        "relation": "same base as",
+        "source": "https://github.com/peterhudson/timegrapher/issues/1820 (the project’s issue on the 32xx rows) (\"They share the counted 32xx going train and escapement\")"
+      }
+    ]
   },
   {
     "calibre": "JH3235",
@@ -2511,7 +3058,14 @@
       "https://github.com/peterhudson/timegrapher/issues/1820 (2026-11-15: 3230, 3235, 3255 and 3285 are separate movements with the same escapement and going train and different motion works; split into their own rows)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Day and date. Shares the counted 32xx going train, escapement, beat rate and lift setting with JH3235; only the motion works differ. Had been an alias of JH3235 until 2026-11-15 (#1820). A 32xx clone with a free-sprung balance and flat hairspring. The 59° lift setting is applied to the JH32xx family by maintainer decision from the DD3285 optical/acoustic study (2026-11-03). No JH specimen was measured; this is a family-level empirical default, not a measured JH physical lift angle. It has a shock setting for the escape wheel. Power reserve not documented. Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion."
+    "notes": "Day and date. Shares the counted 32xx going train, escapement, beat rate and lift setting with JH3235; only the motion works differ. Had been an alias of JH3235 until 2026-11-15 (#1820). A 32xx clone with a free-sprung balance and flat hairspring. The 59° lift setting is applied to the JH32xx family by maintainer decision from the DD3285 optical/acoustic study (2026-11-03). No JH specimen was measured; this is a family-level empirical default, not a measured JH physical lift angle. It has a shock setting for the escape wheel. Power reserve not documented. Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion.",
+    "related": [
+      {
+        "calibre": "JH3235",
+        "relation": "same base as",
+        "source": "https://github.com/peterhudson/timegrapher/issues/1820 (the project’s issue on the 32xx rows) (\"They share the counted 32xx going train and escapement\")"
+      }
+    ]
   },
   {
     "calibre": "JH3285",
@@ -2574,7 +3128,14 @@
       "https://github.com/peterhudson/timegrapher/issues/1820 (2026-11-15: 3230, 3235, 3255 and 3285 are separate movements with the same escapement and going train and different motion works; split into their own rows)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date and an independently set 24-hour (GMT) hand. Shares the counted 32xx going train, escapement, beat rate and lift setting with JH3235; only the motion works differ. Had been an alias of JH3235 until 2026-11-15 (#1820). A 32xx clone with a free-sprung balance and flat hairspring. The 59° lift setting is applied to the JH32xx family by maintainer decision from the DD3285 optical/acoustic study (2026-11-03). No JH specimen was measured; this is a family-level empirical default, not a measured JH physical lift angle. It has a shock setting for the escape wheel. Power reserve not documented. Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion."
+    "notes": "Date and an independently set 24-hour (GMT) hand. Shares the counted 32xx going train, escapement, beat rate and lift setting with JH3235; only the motion works differ. Had been an alias of JH3235 until 2026-11-15 (#1820). A 32xx clone with a free-sprung balance and flat hairspring. The 59° lift setting is applied to the JH32xx family by maintainer decision from the DD3285 optical/acoustic study (2026-11-03). No JH specimen was measured; this is a family-level empirical default, not a measured JH physical lift angle. It has a shock setting for the escape wheel. Power reserve not documented. Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion.",
+    "related": [
+      {
+        "calibre": "JH3235",
+        "relation": "same base as",
+        "source": "https://github.com/peterhudson/timegrapher/issues/1820 (the project’s issue on the 32xx rows) (\"They share the counted 32xx going train and escapement\")"
+      }
+    ]
   },
   {
     "calibre": "VR3235",
@@ -2735,7 +3296,24 @@
       "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "72 h nominal power reserve. Rolex Technical Information No. 61 (May 2000), printed p. 5, publishes 52 degree lift, 28800 bph, 20 escape teeth and one barrel turn per 7 h. Photographed DD4130 counts and derived periods are applied to Rolex 4130 and SH4130 on Peter Hudson's stated applicability; only the DD4130 set was photographed. The fourth receiving pinion is inferred as 12 leaves, while its separate clutch-drive gear is directly counted at 30 teeth. The 96/12 third wheel fits the train but its identity is not independently established by inferring that hidden pinion. Clutch input 30, output 70 and chronograph seconds counter 70 are documented separately; the output and counter rotate once per minute only when engaged. No propagation to 4131, 4030 or 7750-based Daytona homages."
+    "notes": "72 h nominal power reserve. Rolex Technical Information No. 61 (May 2000), printed p. 5, publishes 52 degree lift, 28800 bph, 20 escape teeth and one barrel turn per 7 h. Photographed DD4130 counts and derived periods are applied to Rolex 4130 and SH4130 on Peter Hudson's stated applicability; only the DD4130 set was photographed. The fourth receiving pinion is inferred as 12 leaves, while its separate clutch-drive gear is directly counted at 30 teeth. The 96/12 third wheel fits the train but its identity is not independently established by inferring that hidden pinion. Clutch input 30, output 70 and chronograph seconds counter 70 are documented separately; the output and counter rotate once per minute only when engaged. No propagation to 4131, 4030 or 7750-based Daytona homages.",
+    "years": {
+      "from": 2000,
+      "source": "https://www.rolex.com/en-us/about-rolex/history/2000-2013 (Rolex history, 2000-2013) (\"entirely developed and manufactured by Rolex in 2000 for the Cosmograph Daytona\")"
+    },
+    "summary": [
+      {
+        "text": "Rolex made it for the Cosmograph Daytona.",
+        "source": "https://www.rolex.com/en-us/about-rolex/history/2000-2013 (Rolex history, 2000-2013) (\"manufactured by Rolex in 2000 for the Cosmograph Daytona\")"
+      }
+    ],
+    "functions": {
+      "value": [
+        "automatic winding",
+        "chronograph"
+      ],
+      "source": "https://www.rolex.com/en-us/about-rolex/history/2000-2013 (Rolex history, 2000-2013) (\"Calibre 4130 is a self-winding mechanical chronograph movement\")"
+    }
   },
   {
     "calibre": "Dandong 4130",
@@ -2909,7 +3487,29 @@
       "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "2023 successor of the 4130 with the Chronergy escapement, 72 h. Lift 55° is the clone timegrapher guide's figure, from the pallet fork's geometry, not measured; Caliber Corner lists the 4132's as unconfirmed. Whether the 4130's 7 h barrel carries over was not found, so the barrel is left out."
+    "notes": "2023 successor of the 4130 with the Chronergy escapement, 72 h. Lift 55° is the clone timegrapher guide's figure, from the pallet fork's geometry, not measured; Caliber Corner lists the 4132's as unconfirmed. Whether the 4130's 7 h barrel carries over was not found, so the barrel is left out.",
+    "summary": [
+      {
+        "text": "Rolex fits it to the Cosmograph Daytona.",
+        "source": "https://newsroom.rolex.com/watches/oyster-collection/cosmograph-daytona (Rolex newsroom, Cosmograph Daytona) (\"The Cosmograph Daytona is equipped with calibre 4131\")"
+      },
+      {
+        "text": "Its chronograph uses a reduced number of components.",
+        "source": "https://newsroom.rolex.com/watches/oyster-collection/cosmograph-daytona (Rolex newsroom, Cosmograph Daytona) (\"It incorporates a chronograph function with a reduced number of components\")"
+      }
+    ],
+    "power_reserve_h": {
+      "value": "72",
+      "approx": true,
+      "source": "https://newsroom.rolex.com/watches/oyster-collection/cosmograph-daytona (Rolex newsroom, Cosmograph Daytona) (\"the power reserve of this movement extends to approximately 72 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "chronograph"
+      ],
+      "source": "https://newsroom.rolex.com/watches/oyster-collection/cosmograph-daytona (Rolex newsroom, Cosmograph Daytona) (\"calibre 4131, a self-winding mechanical chronograph movement\")"
+    }
   },
   {
     "calibre": "Dandong 4131",
@@ -3134,7 +3734,42 @@
     ],
     "confidence": "derived from the beat rate",
     "notes": "Ultra-thin, built on the Jaeger-LeCoultre 920, 19,800 bph, 40 h; the 2121 adds a date to the 2120. AP lists hours and minutes only, while Caliber Corner's 920 page shows a seconds hand; no seconds wheel is named. Lift angle 56° from WatchGuy, Watchmaking Tools, the lift-angle sheet.",
-    "lift_angle_deg": 56.0
+    "lift_angle_deg": 56.0,
+    "years": {
+      "from": 1970,
+      "to": 2021,
+      "source": "https://apchronicles.audemarspiguet.com/en/calibre/2121 (Audemars Piguet Chronicles, Calibre 2121) (\"Dates 1970 – 2021\")"
+    },
+    "summary": [
+      {
+        "text": "It is a derivative of Calibre 2120, chosen in 1972 for the first Royal Oak, Model 5402.",
+        "source": "https://apchronicles.audemarspiguet.com/en/calibre/2121 (Audemars Piguet Chronicles, Calibre 2121) (\"Calibre 2121 is a derivative of Calibre 2120 (1967) … before being chosen in 1972 for the first Royal Oak, Model 5402\")"
+      }
+    ],
+    "jewels": {
+      "value": 36,
+      "source": "https://apchronicles.audemarspiguet.com/en/calibre/2121 (Audemars Piguet Chronicles, Calibre 2121) (\"Jewels 36\")"
+    },
+    "diameter": {
+      "mm": "28",
+      "lignes": "12½",
+      "source": "https://apchronicles.audemarspiguet.com/en/calibre/2121 (Audemars Piguet Chronicles, Calibre 2121) (\"Diameter 28 mm (12½ lignes)\")"
+    },
+    "height_mm": {
+      "value": "3.05",
+      "source": "https://apchronicles.audemarspiguet.com/en/calibre/2121 (Audemars Piguet Chronicles, Calibre 2121) (\"Thickness 3.05 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "40",
+      "source": "https://apchronicles.audemarspiguet.com/en/calibre/2121 (Audemars Piguet Chronicles, Calibre 2121) (\"Power Reserve 40 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date"
+      ],
+      "source": "https://apchronicles.audemarspiguet.com/en/calibre/2121 (Audemars Piguet Chronicles, Calibre 2121) (\"Mechanism Selfwinding … Functions Hours, minutes, date\")"
+    }
   },
   {
     "calibre": "SA3120",
@@ -3340,7 +3975,11 @@
     ],
     "confidence": "derived from tooth counts",
     "notes": "NH3 technical guide covers the listed NH variants. Its second reduction wheel belongs to automatic winding, not the going train. Different hand-height parts are listed separately in the guide. Escape count is illustrated, not bench-measured. Third-wheel and barrel periods remain unestablished; no pinion-leaf counts are asserted.",
-    "escape_teeth": 15
+    "escape_teeth": 15,
+    "height_mm": {
+      "value": "5.32",
+      "source": "https://www.timemodule.com/upload/category/24/technical_guide/NH35_TG.pdf (Time Module technical guide, Cal.NH3 Series (NH34A/35A/36A/37A/38A/39A)) (\"Total height 5.32 mm\")"
+    }
   },
   {
     "calibre": "Seiko 6R35",
@@ -3382,8 +4021,35 @@
       "docs/research/seiko-miyota-train-research.md"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "6R35 is separate from 6R15: escape, pallet, balance and barrel differ. The broad 6R alias is removed. Escape count is illustrated, not bench-measured. Third-wheel and barrel periods remain unestablished; no pinion-leaf counts are asserted.",
-    "escape_teeth": 15
+    "notes": "6R35 is separate from 6R15: escape, pallet, balance and barrel differ. The broad 6R alias is removed. Escape count is illustrated, not bench-measured. Third-wheel and barrel periods remain unestablished; no pinion-leaf counts are asserted. Grail Watch reference (one list, so not a field): introduced in 2019 (https://reference.grail-watch.com/movement/seiko-6r35/).",
+    "escape_teeth": 15,
+    "jewels": {
+      "value": 24,
+      "source": "https://www.spareparts-watches.com/_downloads/10a93a03c429628f5c102543915b7370 (Seiko parts list and technical guide, Cal.6R35A) (\"Number of Jewels 24 Jewels\")"
+    },
+    "diameter": {
+      "mm": "27.4",
+      "source": "https://www.spareparts-watches.com/_downloads/10a93a03c429628f5c102543915b7370 (Seiko parts list and technical guide, Cal.6R35A) (\"φ27.4 mm\")"
+    },
+    "height_mm": {
+      "value": "5.25",
+      "source": "https://www.spareparts-watches.com/_downloads/10a93a03c429628f5c102543915b7370 (Seiko parts list and technical guide, Cal.6R35A) (\"5.25 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "70",
+      "approx": true,
+      "source": "https://www.spareparts-watches.com/_downloads/10a93a03c429628f5c102543915b7370 (Seiko parts list and technical guide, Cal.6R35A) (\"From fully wound to stoppage: Approximately 70 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://www.spareparts-watches.com/_downloads/10a93a03c429628f5c102543915b7370 (Seiko parts list and technical guide, Cal.6R35A) (\"Automatic winding with manual winding mechanism … Instant date setting device … Second hand stop function\")"
+    }
   },
   {
     "calibre": "Seiko 7S26",
@@ -3427,7 +4093,7 @@
       "docs/research/seiko-miyota-train-research.md"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "A/B/C escape identities are documented separately. 53-degree lift is explicitly published in the C guide; generic selection uses that setting. Escape count is illustrated, not bench-measured. Third-wheel and barrel periods remain unestablished; no pinion-leaf counts are asserted.",
+    "notes": "A/B/C escape identities are documented separately. 53-degree lift is explicitly published in the C guide; generic selection uses that setting. Escape count is illustrated, not bench-measured. Third-wheel and barrel periods remain unestablished; no pinion-leaf counts are asserted. Grail Watch reference (one list, so not a field): introduced in 1996, replacing the 7002 family in many cases (https://reference.grail-watch.com/movement/7s26/).",
     "escape_teeth": 15,
     "lift_angle_deg": 53,
     "assets": [
@@ -3443,7 +4109,32 @@
         "path": "seiko/shared/7S26C_36C.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 21,
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26C_36C.pdf (Seiko parts list and technical guide, Cal. 7S26C/7S36C, 7S26C column) (\"Number of jewels 21 jewels\")"
+    },
+    "diameter": {
+      "mm": "27.4",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26C_36C.pdf (Seiko parts list and technical guide, Cal. 7S26C/7S36C) (\"Diameter Outside: Ø 27.4 mm\")"
+    },
+    "height_mm": {
+      "value": "4.9",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26C_36C.pdf (Seiko parts list and technical guide, Cal. 7S26C/7S36C) (\"Height: 4.9 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "41",
+      "approx": true,
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26C_36C.pdf (Seiko parts list and technical guide, Cal. 7S26C/7S36C) (\"From fully wound to stoppage: Approximately 41 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date",
+        "day"
+      ],
+      "source": "https://seikoserviceusa.com/uploads/datasheets/7S26C_36C.pdf (Seiko parts list and technical guide, Cal. 7S26C/7S36C) (\"Date indication … Day indication … Automatic winding mechanism\")"
+    }
   },
   {
     "calibre": "Miyota 8215",
@@ -3515,7 +4206,34 @@
         "path": "miyota-citizen/shared/product_moQeV8byx0JPUZStgs.jpg",
         "kind": "photo"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 21,
+      "source": "https://miyotamovement.com/product/8215/ (Miyota product page, Cal.8215) (\"21 pcs\")"
+    },
+    "diameter": {
+      "lignes": "11½",
+      "source": "https://miyotamovement.com/product/8215/ (Miyota product page, Cal.8215) (\"11 1/2'''\")"
+    },
+    "height_mm": {
+      "value": "5.67",
+      "source": "https://miyotamovement.com/product/8215/ (Miyota product page, Cal.8215) (\"5.67mm\")"
+    },
+    "power_reserve_h": {
+      "value": "42",
+      "approx": true,
+      "source": "https://miyotamovement.com/product/8215/ (Miyota product page, Cal.8215) (\"Approximately 42 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://miyotamovement.com/product/8215/ (Miyota product page, Cal.8215) (\"Automatic and hand winding … 3 Hands Date … Quick date setting … Stop second device\")"
+    }
   },
   {
     "calibre": "Miyota 9015",
@@ -3589,7 +4307,34 @@
         "path": "miyota-citizen/shared/product_cAzkTHoO04Nhn9rI86.jpg",
         "kind": "photo"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://miyotamovement.com/product/9015/ (Miyota product page, Cal.9015) (\"24 pcs\")"
+    },
+    "diameter": {
+      "lignes": "11½",
+      "source": "https://miyotamovement.com/product/9015/ (Miyota product page, Cal.9015) (\"11 1/2'''\")"
+    },
+    "height_mm": {
+      "value": "3.90",
+      "source": "https://miyotamovement.com/product/9015/ (Miyota product page, Cal.9015) (\"3.90mm\")"
+    },
+    "power_reserve_h": {
+      "value": "42",
+      "approx": true,
+      "source": "https://miyotamovement.com/product/9015/ (Miyota product page, Cal.9015) (\"Approximately 42 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://miyotamovement.com/product/9015/ (Miyota product page, Cal.9015) (\"Automatic and hand winding … 3 Hands Date … Quick date setting … Stop second device\")"
+    }
   },
   {
     "calibre": "Seagull ST19",
@@ -3625,7 +4370,24 @@
       "https://watchscope.app/en/calibers/seagull-st1901-chrono (WatchScope, ST1901 page) (Lift angle 52°)"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "Based on the Venus 175 column-wheel chronograph. Lift angle not settled, so none is given: WatchScope lists 52° for the ST1901, but it lists 52° for the ST3600 too, where another list gives 44° (timegrapher-calibres#3). About 50 h, 45 h with the chronograph running."
+    "notes": "Based on the Venus 175 column-wheel chronograph. Lift angle not settled, so none is given: WatchScope lists 52° for the ST1901, but it lists 52° for the ST3600 too, where another list gives 44° (timegrapher-calibres#3). About 50 h, 45 h with the chronograph running.",
+    "summary": [
+      {
+        "text": "The ST1901 is a hand-wound column-wheel chronograph with a 30-minute counter.",
+        "source": "https://en.seagullwatch.com/id/products/seagull-journey-series-luminous-chronograph-sport-mens-mechanical-watch-2023 (Sea-Gull watch page naming its ST1901 movement) (\"Driven by SEA-GULL's in-house ST1901 manual column-wheel chronograph with 30-minute counter.\")"
+      }
+    ],
+    "jewels": {
+      "value": 22,
+      "source": "https://en.seagullwatch.com/id/products/seagull-journey-series-luminous-chronograph-sport-mens-mechanical-watch-2023 (Sea-Gull watch page naming its ST1901 movement) (\"Number of Jewels: 22\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "chronograph"
+      ],
+      "source": "https://en.seagullwatch.com/id/products/seagull-journey-series-luminous-chronograph-sport-mens-mechanical-watch-2023 (Sea-Gull watch page naming its ST1901 movement) (\"Winding Mode: Manual Winding … ST1901 manual column-wheel chronograph\")"
+    }
   },
   {
     "calibre": "Seagull ST2130",
@@ -3694,7 +4456,31 @@
       "Peter Hudson, 2026-10-22: lift angle 50° for all ETA 2824-2 movements and their derivatives, clones and variations"
     ],
     "confidence": "inferred family transfer",
-    "notes": "28,800 bph 2824 base train only. The centre wheel slot denotes the off-centre second/intermediate wheel (77/17), not the one-hour cannon pinion. The third pinion (13) drives the cannon wheel (78): 600 x 78/13 = 3600 s. Barrel running period is 4666200/221 s; this is not power reserve. See the evidence document for applicability and exclusions. Train counts are transferred from the photographed base, not separately measured on this variant. Seagull publishes the beat rate; equality of the base train is a family inference under contributor coverage. The 50° lift angle is Peter Hudson's figure for all 2824-2 movements and their derivatives, clones and variations (2026-10-22); it is not inferred from the shared train."
+    "notes": "28,800 bph 2824 base train only. The centre wheel slot denotes the off-centre second/intermediate wheel (77/17), not the one-hour cannon pinion. The third pinion (13) drives the cannon wheel (78): 600 x 78/13 = 3600 s. Barrel running period is 4666200/221 s; this is not power reserve. See the evidence document for applicability and exclusions. Train counts are transferred from the photographed base, not separately measured on this variant. Seagull publishes the beat rate; equality of the base train is a family inference under contributor coverage. The 50° lift angle is Peter Hudson's figure for all 2824-2 movements and their derivatives, clones and variations (2026-10-22); it is not inferred from the shared train.",
+    "jewels": {
+      "value": 28,
+      "source": "https://en.seagullwatch.com/products/hands-date-movement-ty2130-st2130 (Sea-Gull product page, TY2130/ST2130) (\"Number of Jewels: 28\")"
+    },
+    "diameter": {
+      "mm": "26.00",
+      "source": "https://en.seagullwatch.com/products/hands-date-movement-ty2130-st2130 (Sea-Gull product page, TY2130/ST2130) (\"Maximum Diameter: Approx. 26.00mm\")"
+    },
+    "height_mm": {
+      "value": "4.8",
+      "source": "https://en.seagullwatch.com/products/hands-date-movement-ty2130-st2130 (Sea-Gull product page, TY2130/ST2130) (\"Thickness: Approx. 4.8mm\")"
+    },
+    "power_reserve_h": {
+      "value": "40",
+      "source": "https://en.seagullwatch.com/products/hands-date-movement-ty2130-st2130 (Sea-Gull product page, TY2130/ST2130) (\"Reserve Hours: 40\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "hacking",
+        "date"
+      ],
+      "source": "https://en.seagullwatch.com/products/hands-date-movement-ty2130-st2130 (Sea-Gull product page, TY2130/ST2130) (\"Winding Mode: Automatic Winding … Date at 3H … Stop-second\")"
+    }
   },
   {
     "calibre": "PTS DG2813",
@@ -3727,7 +4513,14 @@
       "https://calibercorner.com/pts-caliber-dg-2813/"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "On the Miyota 8200 framework but not a direct copy; about 36 h. Lift angle not documented."
+    "notes": "On the Miyota 8200 framework but not a direct copy; about 36 h. Lift angle not documented.",
+    "related": [
+      {
+        "calibre": "Miyota 8215",
+        "relation": "based on",
+        "source": "https://calibercorner.com/tag/dg-2813/ (Caliber Corner, DG-2813) (\"Based On Miyota 8215\")"
+      }
+    ]
   },
   {
     "calibre": "Patek Philippe 324 S C",
@@ -3768,7 +4561,37 @@
       "https://static.patek.com/pdf/instructionsforuse/PatekPhilippe_P767_Self_Winding_Movements.pdf (Patek Philippe, self-winding movements instructions, caliber 324 S C) (28,800 semi-oscillations/hour (4 Hz))"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "Indirect centre seconds is inferred from what its successor, the 26-330, changed. Does not hack. 35 to 45 h. Patek publishes no lift angle; 52° is the clone timegrapher guide's. No tooth counts found."
+    "notes": "Indirect centre seconds is inferred from what its successor, the 26-330, changed. Does not hack. 35 to 45 h. Patek publishes no lift angle; 52° is the clone timegrapher guide's. No tooth counts found.",
+    "summary": [
+      {
+        "text": "It winds by a central rotor in 21K gold, in one direction.",
+        "source": "https://static.patek.com/pdf/instructionsforuse/PatekPhilippe_P2402_Calibers_324_26-330.pdf (Patek Philippe instructions for use, Caliber 324 S C) (\"central rotor in 21K gold, unidirectional winding\")"
+      }
+    ],
+    "jewels": {
+      "value": 29,
+      "source": "https://static.patek.com/pdf/instructionsforuse/PatekPhilippe_P2402_Calibers_324_26-330.pdf (Patek Philippe instructions for use, Caliber 324 S C) (\"Number of jewels: 29\")"
+    },
+    "diameter": {
+      "mm": "27",
+      "source": "https://static.patek.com/pdf/instructionsforuse/PatekPhilippe_P2402_Calibers_324_26-330.pdf (Patek Philippe instructions for use, Caliber 324 S C) (\"Diameter: 27 mm\")"
+    },
+    "height_mm": {
+      "value": "3.30",
+      "source": "https://static.patek.com/pdf/instructionsforuse/PatekPhilippe_P2402_Calibers_324_26-330.pdf (Patek Philippe instructions for use, Caliber 324 S C) (\"Height: 3.30 mm\")"
+    },
+    "power_reserve_h": {
+      "from": "35",
+      "to": "45",
+      "source": "https://static.patek.com/pdf/instructionsforuse/PatekPhilippe_P2402_Calibers_324_26-330.pdf (Patek Philippe instructions for use, Caliber 324 S C) (\"min. 35 hours – max. 45 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date"
+      ],
+      "source": "https://static.patek.com/pdf/instructionsforuse/PatekPhilippe_P2402_Calibers_324_26-330.pdf (Patek Philippe instructions for use, Caliber 324 S C) (\"Self-winding … Aperture: Date\")"
+    }
   },
   {
     "calibre": "Dandong 324",
@@ -3922,7 +4745,27 @@
       "https://omo-oss-file110.thefastfile.com/portal-saas/new2022072209103961414/cms/file/a9913012-3e17-4595-8938-d9ea6d68f6c6.pdf (Peacock (辽宁孔雀表业 / 孔雀表业集团) outline drawing 机芯外廓图 SL1258-0003, dated 2023-01-28, read on Peacock's site on 2026-11-16) (升角 (lift angle) 53°, 频率 28800次/小时, 32 jewels, φ27 mm, 3.4 mm thick)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Full DD324 train counted from eight photographs: barrel 93, second 60/18, third 90 with 10 leaves on both faces, fourth 84/9, escape 20/7. The centre-wheel slot represents the second wheel; indirect seconds uses a separate 9-leaf pinion driven by the third-wheel rim. The 60-tooth cannon wheel is driven by the third wheel’s 10-leaf pinion; its own 28 leaves serve the motion works. Barrel drum period 18600 s (5 h 10 min), not power reserve. Counts are transferred from the DD324 specimen on the contributor’s confirmation that SL1258 and variants retaining this train match; no separate SL1258 wheel set was photographed. Earlier bench takes used 52° as a setting; the maker's drawings give 53°. Lift angle 53° and 28,800 bph from Peacock's own outline drawings (SL1258-0003 2024-01-18, SL1258-0003 2023-01-28). Center Hr/Min/Sec hands; 3H: Date by window/Corrector; Auto & Hand winding; 32 jewels; 27 mm across, 3.4 mm thick; power reserve ≥38 h."
+    "notes": "Full DD324 train counted from eight photographs: barrel 93, second 60/18, third 90 with 10 leaves on both faces, fourth 84/9, escape 20/7. The centre-wheel slot represents the second wheel; indirect seconds uses a separate 9-leaf pinion driven by the third-wheel rim. The 60-tooth cannon wheel is driven by the third wheel’s 10-leaf pinion; its own 28 leaves serve the motion works. Barrel drum period 18600 s (5 h 10 min), not power reserve. Counts are transferred from the DD324 specimen on the contributor’s confirmation that SL1258 and variants retaining this train match; no separate SL1258 wheel set was photographed. Earlier bench takes used 52° as a setting; the maker's drawings give 53°. Lift angle 53° and 28,800 bph from Peacock's own outline drawings (SL1258-0003 2024-01-18, SL1258-0003 2023-01-28). Center Hr/Min/Sec hands; 3H: Date by window/Corrector; Auto & Hand winding; 32 jewels; 27 mm across, 3.4 mm thick; power reserve ≥38 h.",
+    "jewels": {
+      "value": 32,
+      "source": "https://en.cpeacockmovement.com/Movement_detail/56.html (Peacock product page, SL1258) (\"Jewels number | 32 Jewels\")"
+    },
+    "diameter": {
+      "mm": "27.00",
+      "source": "https://en.cpeacockmovement.com/Movement_detail/56.html (Peacock product page, SL1258) (\"Diameter | 27.00mm\")"
+    },
+    "height_mm": {
+      "value": "3.40",
+      "source": "https://en.cpeacockmovement.com/Movement_detail/56.html (Peacock product page, SL1258) (\"Thickness | 3.40mm\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "date"
+      ],
+      "source": "https://en.cpeacockmovement.com/Movement_detail/56.html (Peacock product page, SL1258) (\"3H: Date by window/Corrector; … Auto & Hand winding;\")"
+    }
   },
   {
     "calibre": "Agassiz 8 PCV",
@@ -63713,7 +64556,19 @@
         "path": "miyota-citizen/shared/product_cAzkTHoO04Nhn9rI86.jpg",
         "kind": "photo"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 26,
+      "source": "https://miyotamovement.com/uploads/product/product_DL5HaZi8SJUNRdlQzK.pdf (Miyota specification sheet, Cal.9100/9110/9120/9122/9130/9132) (\"26 pcs\")"
+    },
+    "diameter": {
+      "lignes": "13½",
+      "source": "https://miyotamovement.com/uploads/product/product_DL5HaZi8SJUNRdlQzK.pdf (Miyota specification sheet, Cal.9100/9110/9120/9122/9130/9132) (\"<ligne> 13 ½’’’\")"
+    },
+    "height_mm": {
+      "value": "5.52",
+      "source": "https://miyotamovement.com/uploads/product/product_DL5HaZi8SJUNRdlQzK.pdf (Miyota specification sheet, Cal.9100/9110/9120/9122/9130/9132) (\"<mm> 5.52\")"
+    }
   },
   {
     "calibre": "Miyota (Citizen) 9110",
@@ -63763,7 +64618,19 @@
         "path": "miyota-citizen/shared/product_cAzkTHoO04Nhn9rI86.jpg",
         "kind": "photo"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 26,
+      "source": "https://miyotamovement.com/uploads/product/product_DL5HaZi8SJUNRdlQzK.pdf (Miyota specification sheet, Cal.9100/9110/9120/9122/9130/9132) (\"26 pcs\")"
+    },
+    "diameter": {
+      "lignes": "13½",
+      "source": "https://miyotamovement.com/uploads/product/product_DL5HaZi8SJUNRdlQzK.pdf (Miyota specification sheet, Cal.9100/9110/9120/9122/9130/9132) (\"<ligne> 13 ½’’’\")"
+    },
+    "height_mm": {
+      "value": "5.52",
+      "source": "https://miyotamovement.com/uploads/product/product_DL5HaZi8SJUNRdlQzK.pdf (Miyota specification sheet, Cal.9100/9110/9120/9122/9130/9132) (\"<mm> 5.52\")"
+    }
   },
   {
     "calibre": "Miyota (Citizen) 9120",
@@ -63819,7 +64686,19 @@
         "path": "miyota-citizen/shared/product_cAzkTHoO04Nhn9rI86.jpg",
         "kind": "photo"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 26,
+      "source": "https://miyotamovement.com/uploads/product/product_DL5HaZi8SJUNRdlQzK.pdf (Miyota specification sheet, Cal.9100/9110/9120/9122/9130/9132) (\"26 pcs\")"
+    },
+    "diameter": {
+      "lignes": "13½",
+      "source": "https://miyotamovement.com/uploads/product/product_DL5HaZi8SJUNRdlQzK.pdf (Miyota specification sheet, Cal.9100/9110/9120/9122/9130/9132) (\"<ligne> 13 ½’’’\")"
+    },
+    "height_mm": {
+      "value": "5.52",
+      "source": "https://miyotamovement.com/uploads/product/product_DL5HaZi8SJUNRdlQzK.pdf (Miyota specification sheet, Cal.9100/9110/9120/9122/9130/9132) (\"<mm> 5.52\")"
+    }
   },
   {
     "calibre": "Miyota (Citizen) 9122",
@@ -63875,7 +64754,19 @@
         "path": "miyota-citizen/shared/product_cAzkTHoO04Nhn9rI86.jpg",
         "kind": "photo"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 26,
+      "source": "https://miyotamovement.com/uploads/product/product_DL5HaZi8SJUNRdlQzK.pdf (Miyota specification sheet, Cal.9100/9110/9120/9122/9130/9132) (\"26 pcs\")"
+    },
+    "diameter": {
+      "lignes": "13½",
+      "source": "https://miyotamovement.com/uploads/product/product_DL5HaZi8SJUNRdlQzK.pdf (Miyota specification sheet, Cal.9100/9110/9120/9122/9130/9132) (\"<ligne> 13 ½’’’\")"
+    },
+    "height_mm": {
+      "value": "5.52",
+      "source": "https://miyotamovement.com/uploads/product/product_DL5HaZi8SJUNRdlQzK.pdf (Miyota specification sheet, Cal.9100/9110/9120/9122/9130/9132) (\"<mm> 5.52\")"
+    }
   },
   {
     "calibre": "Miyota (Citizen) 9130",
@@ -63925,7 +64816,19 @@
         "path": "miyota-citizen/shared/product_cAzkTHoO04Nhn9rI86.jpg",
         "kind": "photo"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 26,
+      "source": "https://miyotamovement.com/uploads/product/product_DL5HaZi8SJUNRdlQzK.pdf (Miyota specification sheet, Cal.9100/9110/9120/9122/9130/9132) (\"26 pcs\")"
+    },
+    "diameter": {
+      "lignes": "13½",
+      "source": "https://miyotamovement.com/uploads/product/product_DL5HaZi8SJUNRdlQzK.pdf (Miyota specification sheet, Cal.9100/9110/9120/9122/9130/9132) (\"<ligne> 13 ½’’’\")"
+    },
+    "height_mm": {
+      "value": "5.52",
+      "source": "https://miyotamovement.com/uploads/product/product_DL5HaZi8SJUNRdlQzK.pdf (Miyota specification sheet, Cal.9100/9110/9120/9122/9130/9132) (\"<mm> 5.52\")"
+    }
   },
   {
     "calibre": "Miyota (Citizen) 9132",
@@ -63981,7 +64884,19 @@
         "path": "miyota-citizen/shared/product_cAzkTHoO04Nhn9rI86.jpg",
         "kind": "photo"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 26,
+      "source": "https://miyotamovement.com/uploads/product/product_DL5HaZi8SJUNRdlQzK.pdf (Miyota specification sheet, Cal.9100/9110/9120/9122/9130/9132) (\"26 pcs\")"
+    },
+    "diameter": {
+      "lignes": "13½",
+      "source": "https://miyotamovement.com/uploads/product/product_DL5HaZi8SJUNRdlQzK.pdf (Miyota specification sheet, Cal.9100/9110/9120/9122/9130/9132) (\"<ligne> 13 ½’’’\")"
+    },
+    "height_mm": {
+      "value": "5.52",
+      "source": "https://miyotamovement.com/uploads/product/product_DL5HaZi8SJUNRdlQzK.pdf (Miyota specification sheet, Cal.9100/9110/9120/9122/9130/9132) (\"<mm> 5.52\")"
+    }
   },
   {
     "calibre": "Moeris 10 1/2",
@@ -85209,7 +86124,18 @@
     "escape_teeth": 15,
     "lift_angle_deg": 53,
     "seconds": "centre, direct",
-    "notes": "NH70/71/72 use the documented escape assembly; finishes and some other components differ. Escape count is illustrated, not bench-measured. Third-wheel and barrel periods remain unestablished; no pinion-leaf counts are asserted."
+    "notes": "NH70/71/72 use the documented escape assembly; finishes and some other components differ. Escape count is illustrated, not bench-measured. Third-wheel and barrel periods remain unestablished; no pinion-leaf counts are asserted.",
+    "jewels": {
+      "value": 24,
+      "source": "https://www.timemodule.com/upload/category/29/technical_guide/NH70_TG.pdf (Time Module technical guide, Cal.NH7 Series (NH70A/71A/72A)) (\"24 jewels\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding"
+      ],
+      "source": "https://www.timemodule.com/upload/category/29/technical_guide/NH70_TG.pdf (Time Module technical guide, Cal.NH7 Series (NH70A/71A/72A)) (\"Automatic winding with ball bearing … Manual winding\")"
+    }
   },
   {
     "calibre": "Seiko 7S36A",
@@ -85316,7 +86242,34 @@
         "path": "seiko/shared/6R15CD.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 23,
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R15CD.pdf (Seiko parts list and technical guide, Cal.6R15C / 6R15D) (\"Number of Jewels 23 Jewels\")"
+    },
+    "diameter": {
+      "mm": "27.4",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R15CD.pdf (Seiko parts list and technical guide, Cal.6R15C / 6R15D) (\"Outside ： φ27.4 mm\")"
+    },
+    "height_mm": {
+      "value": "5.25",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R15CD.pdf (Seiko parts list and technical guide, Cal.6R15C / 6R15D) (\"Height ： 5.25 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "50",
+      "approx": true,
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R15CD.pdf (Seiko parts list and technical guide, Cal.6R15C / 6R15D) (\"From fully wound to stoppage: Approximately 50 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R15CD.pdf (Seiko parts list and technical guide, Cal.6R15C / 6R15D) (\"Automatic winding with manual winding mechanism … Calendar (Date: Date disk) … Instant date setting device … Second hand stop function\")"
+    }
   },
   {
     "calibre": "Seiko 6R15D",
@@ -85417,7 +86370,32 @@
         "path": "seiko/shared/6R31A_38A.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R31A_38A.pdf (Seiko parts list and technical guide, Cal.6R31A/6R38A) (\"Number of Jewels 24 Jewels\")"
+    },
+    "diameter": {
+      "mm": "27.4",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R31A_38A.pdf (Seiko parts list and technical guide, Cal.6R31A/6R38A) (\"Outside ： φ27.4 mm\")"
+    },
+    "height_mm": {
+      "value": "5.02",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R31A_38A.pdf (Seiko parts list and technical guide, Cal.6R31A/6R38A) (\"Height 5.02 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "70",
+      "approx": true,
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R31A_38A.pdf (Seiko parts list and technical guide, Cal.6R31A/6R38A) (\"From fully wound to stoppage: Approximately 70 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking"
+      ],
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R31A_38A.pdf (Seiko parts list and technical guide, Cal.6R31A/6R38A) (\"Automatic winding with manual winding mechanism … Second hand stop function\")"
+    }
   },
   {
     "calibre": "Seiko 6R38A",
@@ -85467,7 +86445,32 @@
         "path": "seiko/shared/6R31A_38A.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R31A_38A.pdf (Seiko parts list and technical guide, Cal.6R31A/6R38A) (\"Number of Jewels 24 Jewels\")"
+    },
+    "diameter": {
+      "mm": "27.4",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R31A_38A.pdf (Seiko parts list and technical guide, Cal.6R31A/6R38A) (\"Outside ： φ27.4 mm\")"
+    },
+    "height_mm": {
+      "value": "5.02",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R31A_38A.pdf (Seiko parts list and technical guide, Cal.6R31A/6R38A) (\"Height 5.02 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "70",
+      "approx": true,
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R31A_38A.pdf (Seiko parts list and technical guide, Cal.6R31A/6R38A) (\"From fully wound to stoppage: Approximately 70 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking"
+      ],
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R31A_38A.pdf (Seiko parts list and technical guide, Cal.6R31A/6R38A) (\"Automatic winding with manual winding mechanism … Second hand stop function\")"
+    }
   },
   {
     "calibre": "Seiko 6R54A",
@@ -85517,7 +86520,30 @@
         "path": "seiko/seiko-6r54a/6R54A.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R54A.pdf (Seiko parts list and technical guide, Cal.6R54A/55A, 6R54A) (\"Number of Jewels 24 Jewels\")"
+    },
+    "diameter": {
+      "mm": "27.4",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R54A.pdf (Seiko parts list and technical guide, Cal.6R54A/55A, 6R54A) (\"Outside ： φ27.4 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "72",
+      "approx": true,
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R54A.pdf (Seiko parts list and technical guide, Cal.6R54A/55A, 6R54A) (\"From fully wound to stoppage: Approximately 72 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R54A.pdf (Seiko parts list and technical guide, Cal.6R54A/55A, 6R54A) (\"Automatic winding with manual winding mechanism … Calendar (Date : Date disk) … Instant date setting device … Second hand stop function\")"
+    }
   },
   {
     "calibre": "Seiko 6R55A",
@@ -85567,7 +86593,34 @@
         "path": "seiko/seiko-6r55a/6R55A.pdf",
         "kind": "spec sheet"
       }
-    ]
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R55A.pdf (Seiko parts list and technical guide, Cal.6R54A/55A, 6R55A) (\"Number of Jewels 24 Jewels\")"
+    },
+    "diameter": {
+      "mm": "27.4",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R55A.pdf (Seiko parts list and technical guide, Cal.6R54A/55A, 6R55A) (\"Outside ： φ27.4 mm\")"
+    },
+    "height_mm": {
+      "value": "5.25",
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R55A.pdf (Seiko parts list and technical guide, Cal.6R54A/55A, the 6R55A column's height) (\"Height 5.225 mm 5.25 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "72",
+      "approx": true,
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R55A.pdf (Seiko parts list and technical guide, Cal.6R54A/55A, 6R55A) (\"From fully wound to stoppage: Approximately 72 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://seikoserviceusa.com/uploads/datasheets/6R55A.pdf (Seiko parts list and technical guide, Cal.6R54A/55A, 6R55A) (\"Automatic winding with manual winding mechanism … Calendar (Date : Date disk) … Instant date setting device … Second hand stop function\")"
+    }
   },
   {
     "calibre": "Miyota 8200",
@@ -85657,7 +86710,19 @@
         "kind": "photo"
       }
     ],
-    "lift_angle_deg": 49
+    "lift_angle_deg": 49,
+    "jewels": {
+      "value": 21,
+      "source": "https://miyotamovement.com/uploads/product/product_yl459RtHipMcm28Sa1.pdf (Miyota specification sheet, Cal.82S0/82S5/82S7) (\"21 pcs\")"
+    },
+    "diameter": {
+      "lignes": "11½",
+      "source": "https://miyotamovement.com/uploads/product/product_yl459RtHipMcm28Sa1.pdf (Miyota specification sheet, Cal.82S0/82S5/82S7) (\"<ligne> 11 ½’’’\")"
+    },
+    "height_mm": {
+      "value": "5.67",
+      "source": "https://miyotamovement.com/uploads/product/product_yl459RtHipMcm28Sa1.pdf (Miyota specification sheet, Cal.82S0/82S5/82S7) (\"<mm> 5.67\")"
+    }
   },
   {
     "calibre": "Miyota 82S5",
@@ -85711,7 +86776,19 @@
         "kind": "photo"
       }
     ],
-    "lift_angle_deg": 49
+    "lift_angle_deg": 49,
+    "jewels": {
+      "value": 21,
+      "source": "https://miyotamovement.com/uploads/product/product_yl459RtHipMcm28Sa1.pdf (Miyota specification sheet, Cal.82S0/82S5/82S7) (\"21 pcs\")"
+    },
+    "diameter": {
+      "lignes": "11½",
+      "source": "https://miyotamovement.com/uploads/product/product_yl459RtHipMcm28Sa1.pdf (Miyota specification sheet, Cal.82S0/82S5/82S7) (\"<ligne> 11 ½’’’\")"
+    },
+    "height_mm": {
+      "value": "5.67",
+      "source": "https://miyotamovement.com/uploads/product/product_yl459RtHipMcm28Sa1.pdf (Miyota specification sheet, Cal.82S0/82S5/82S7) (\"<mm> 5.67\")"
+    }
   },
   {
     "calibre": "Miyota 82S7",
@@ -85765,7 +86842,19 @@
         "kind": "photo"
       }
     ],
-    "lift_angle_deg": 49
+    "lift_angle_deg": 49,
+    "jewels": {
+      "value": 21,
+      "source": "https://miyotamovement.com/uploads/product/product_yl459RtHipMcm28Sa1.pdf (Miyota specification sheet, Cal.82S0/82S5/82S7) (\"21 pcs\")"
+    },
+    "diameter": {
+      "lignes": "11½",
+      "source": "https://miyotamovement.com/uploads/product/product_yl459RtHipMcm28Sa1.pdf (Miyota specification sheet, Cal.82S0/82S5/82S7) (\"<ligne> 11 ½’’’\")"
+    },
+    "height_mm": {
+      "value": "5.67",
+      "source": "https://miyotamovement.com/uploads/product/product_yl459RtHipMcm28Sa1.pdf (Miyota specification sheet, Cal.82S0/82S5/82S7) (\"<mm> 5.67\")"
+    }
   },
   {
     "calibre": "Miyota 8N24",
@@ -85819,7 +86908,32 @@
         "kind": "photo"
       }
     ],
-    "lift_angle_deg": 49
+    "lift_angle_deg": 49,
+    "jewels": {
+      "value": 21,
+      "source": "https://miyotamovement.com/product/8N24/ (Miyota product page, Cal.8N24) (\"21 pcs\")"
+    },
+    "diameter": {
+      "lignes": "11½",
+      "source": "https://miyotamovement.com/product/8N24/ (Miyota product page, Cal.8N24) (\"11 1/2'''\")"
+    },
+    "height_mm": {
+      "value": "5.55",
+      "source": "https://miyotamovement.com/product/8N24/ (Miyota product page, Cal.8N24) (\"5.55mm\")"
+    },
+    "power_reserve_h": {
+      "value": "42",
+      "approx": true,
+      "source": "https://miyotamovement.com/product/8N24/ (Miyota product page, Cal.8N24) (\"Approximately 42 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking"
+      ],
+      "source": "https://miyotamovement.com/product/8N24/ (Miyota product page, Cal.8N24) (\"Automatic and hand winding … Stop second device\")"
+    }
   },
   {
     "calibre": "Miyota 8N40",
@@ -85873,7 +86987,32 @@
         "kind": "photo"
       }
     ],
-    "lift_angle_deg": 49
+    "lift_angle_deg": 49,
+    "jewels": {
+      "value": 21,
+      "source": "https://miyotamovement.com/product/8N40/ (Miyota product page, Cal.8N40) (\"21 pcs\")"
+    },
+    "diameter": {
+      "lignes": "11½",
+      "source": "https://miyotamovement.com/product/8N40/ (Miyota product page, Cal.8N40) (\"11 1/2'''\")"
+    },
+    "height_mm": {
+      "value": "5.55",
+      "source": "https://miyotamovement.com/product/8N40/ (Miyota product page, Cal.8N40) (\"5.55mm\")"
+    },
+    "power_reserve_h": {
+      "value": "42",
+      "approx": true,
+      "source": "https://miyotamovement.com/product/8N40/ (Miyota product page, Cal.8N40) (\"Approximately 42 hours\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking"
+      ],
+      "source": "https://miyotamovement.com/product/8N40/ (Miyota product page, Cal.8N40) (\"Automatic and hand winding … Stop second device\")"
+    }
   },
   {
     "calibre": "Miyota 9075",
@@ -85927,7 +87066,33 @@
         "kind": "photo"
       }
     ],
-    "lift_angle_deg": 51
+    "lift_angle_deg": 51,
+    "jewels": {
+      "value": 24,
+      "source": "https://miyotamovement.com/product/9075/ (Miyota product page, Cal.9075) (\"24 pcs\")"
+    },
+    "diameter": {
+      "lignes": "11½",
+      "source": "https://miyotamovement.com/product/9075/ (Miyota product page, Cal.9075) (\"11 1/2'''\")"
+    },
+    "height_mm": {
+      "value": "4.92",
+      "source": "https://miyotamovement.com/product/9075/ (Miyota product page, Cal.9075) (\"4.92mm\")"
+    },
+    "power_reserve_h": {
+      "value": "42",
+      "approx": true,
+      "source": "https://miyotamovement.com/product/9075/ (Miyota product page, Cal.9075) (\"Approximately 42 hour\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "automatic winding",
+        "hacking",
+        "GMT hand"
+      ],
+      "source": "https://miyotamovement.com/product/9075/ (Miyota product page, Cal.9075) (\"Automatic and hand winding … Central GMT hand … Stop second device\")"
+    }
   },
   {
     "calibre": "Patek 240 Clone",
