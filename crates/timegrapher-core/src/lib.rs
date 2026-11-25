@@ -39,6 +39,7 @@ pub mod clockstore;
 pub mod complication;
 pub mod confidence;
 pub mod cores;
+pub mod csv;
 pub mod cusum;
 pub mod diagnose;
 pub mod distribution;

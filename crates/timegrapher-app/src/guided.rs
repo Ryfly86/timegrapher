@@ -26,7 +26,7 @@ use timegrapher_core::reading_text::WindHours;
 use timegrapher_core::session::{self, Measurement, Reading, SourcedFigures};
 use timegrapher_core::steadiness::SeriesKind;
 use timegrapher_core::stream::BeatLog;
-use timegrapher_core::{complication, poise, text_report};
+use timegrapher_core::{complication, csv, poise, text_report};
 
 /// The file a finished test just after winding is saved to, from the
 /// pane or beside a saved take, for the same six positions 24
@@ -2545,8 +2545,8 @@ pub fn position_label(p: session::Position) -> String {
 /// The table as text a spreadsheet takes: a header, a row for each
 /// position, the means, then the largest difference, the vertical less
 /// horizontal figures and any conditions, one a line. Fields are split by
-/// `sep` (a comma for a CSV file, a tab for the clipboard) and quoted when
-/// they hold it; numbers use a plain minus sign.
+/// `sep` (a comma for a CSV file, a tab for the clipboard) and quoted by
+/// core [`csv::field`]; numbers use a plain minus sign.
 /// The Dynamic Poise table's means are Mean, as on its pane, with no
 /// largest difference and no vertical less horizontal.
 pub fn table_text(t: &Table, sep: char, kind: Kind) -> String {
@@ -2556,18 +2556,11 @@ pub fn table_text(t: &Table, sep: char, kind: Kind) -> String {
     } else {
         ("Average", "From Average (s/d)")
     };
-    let field = |s: &str| {
-        if s.contains(sep) || s.contains('"') {
-            format!("\"{}\"", s.replace('"', "\"\""))
-        } else {
-            s.to_string()
-        }
-    };
     let num = |v: Option<f64>, d: usize| v.map_or_else(String::new, |x| fixed_text(x, d));
     let line = |cells: &[String]| {
         let mut l = cells
             .iter()
-            .map(|c| field(c))
+            .map(|c| csv::field(c, sep))
             .collect::<Vec<_>>()
             .join(&sep.to_string());
         l.push('\n');
@@ -2649,19 +2642,12 @@ pub fn comparison_text(c: &Comparison, sep: char) -> String {
     if let Some(n) = c.amplitude_note(WindHours::measured(c.hours)) {
         cells.push(vec![n]);
     }
-    let field = |s: &str| {
-        if s.contains(sep) || s.contains('"') {
-            format!("\"{}\"", s.replace('"', "\"\""))
-        } else {
-            s.to_string()
-        }
-    };
     cells
         .iter()
         .map(|r| {
             let mut l = r
                 .iter()
-                .map(|c| field(c))
+                .map(|c| csv::field(c, sep))
                 .collect::<Vec<_>>()
                 .join(&sep.to_string());
             l.push('\n');
@@ -2795,18 +2781,9 @@ fn about_lines(about: &About, line: &mut impl FnMut(&str, String)) {
     line("Lift Angle, °", format!("{:.0}", about.lift_angle_deg));
 }
 
-/// One `key sep value` line, each quoted where it holds `sep` or a quote.
+/// One `key sep value` line, each quoted by core [`csv::field`].
 fn export_line(k: &str, v: &str, sep: char) -> String {
-    format!("{}{sep}{}\n", quoted(k, sep), quoted(v, sep))
-}
-
-/// `s` as one field: quoted where it holds `sep` or a quote.
-fn quoted(s: &str, sep: char) -> String {
-    if s.contains(sep) || s.contains('"') {
-        format!("\"{}\"", s.replace('"', "\"\""))
-    } else {
-        s.to_string()
-    }
+    format!("{}{sep}{}\n", csv::field(k, sep), csv::field(v, sep))
 }
 
 /// The table after a blank line, and for Dynamic Poise the fit in words.
@@ -2814,7 +2791,7 @@ fn rows_text(readings: &[Reading], kind: Kind, sep: char) -> String {
     let mut out = String::from("\n");
     out += &table_text(&table(readings, kind), sep, kind);
     if let Some(f) = poise_fit(readings).filter(|_| kind == Kind::Poise) {
-        out += &format!("\n{}\n", quoted(&f.text, sep));
+        out += &format!("\n{}\n", csv::field(&f.text, sep));
     }
     out
 }
