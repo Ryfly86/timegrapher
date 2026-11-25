@@ -21,7 +21,9 @@ with it.
 | `tokens/` | `tokens.css` (custom properties, light and dark) and `tokens.json` (the same values, in the W3C design tokens format) |
 | `guide/` | the pictures in GUIDE.md |
 
-The SVG files are the source. The PNG files are exported from them at
+The SVG files are the source. The `mark` and `lockup` files include the
+clear space the guide asks for; the small mark, favicon and app icon are
+cropped to the drawing. The PNG files are exported from them at
 exactly those sizes. The name in the lockups is Inter SemiBold, turned into
 outlines, so the files need no font.
 

@@ -30,7 +30,9 @@ shows it: a small first burst, then the drop, ringing down.
   heavier lines, for 16 to 32 px. The full mark is for 48 px and up. At 40
   px, either works.
 - **Clear space:** a quarter of the dial on every side, kept free of text
-  and edges.
+  and edges. The `mark` and `lockup` files have it built in, so they can
+  sit right up against other things. The small mark, the favicon and the
+  app icon don't, because the tab or the icon's plate is their edge.
 - **Smallest size:** 16 px on screen; 5 mm across in print.
 
 ![Clear space, and which drawing to use at each size](guide/clear-space.svg)
