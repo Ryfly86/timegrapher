@@ -295,7 +295,7 @@ jobs:
       # As in the test job: no debug info in CI's release builds.
       CARGO_PROFILE_RELEASE_DEBUG: "0"
       # Reviewed with the engine baseline; update through docs/developer/regress.md.
-      CORPUS_REVISION: 3801116206901b86db2c60505852c1376d85bb58
+      CORPUS_REVISION: f92d274d60d53856642f4ea376918ccfbeb01eba
       TIMEGRAPHER_CORPUS: ${{ github.workspace }}/corpus
       TIMEGRAPHER_REQUIRE_CORPUS: "1"
       TIMEGRAPHER_CLI: ${{ github.workspace }}/target/release/timegrapher
