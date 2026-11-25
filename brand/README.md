@@ -16,8 +16,8 @@ with it.
 
 | Folder | Files |
 |---|---|
-| `logo/` | `mark.svg` (light backgrounds), `mark-dark.svg` (dark), `mark-black.svg` and `mark-white.svg` (one colour); the same four as `mark-small-*.svg` for 16 to 32 px; `lockup*.svg` (mark and name); `app-icon.svg`, `app-icon-small.svg`; `favicon.svg` (follows the browser's light or dark mode) |
-| `logo/png/` | the mark at 16 to 1024 px, light and dark; the app icon at 16 to 1024 px; one-colour marks at 512 px; lockups 80 and 160 px tall |
+| `logo/` | `mark.svg` (light backgrounds), `mark-dark.svg` (dark), `mark-black.svg` and `mark-white.svg` (one colour); the same four as `mark-small-*.svg` for 16 to 32 px; `lockup*.svg` (mark and name) and `lockup-small*.svg` (the same with the small mark, for under 72 px tall); `app-icon.svg`, `app-icon-small.svg`; `favicon.svg` (follows the browser's light or dark mode) |
+| `logo/png/` | the mark at 16 and 32 px (small drawing, cropped) and 64 to 1024 px (full drawing, with its clear space), light and dark; the app icon at 16 to 1024 px; one-colour marks at 512 px; lockups 80 and 160 px tall |
 | `tokens/` | `tokens.css` (custom properties, light and dark) and `tokens.json` (the same values, in the W3C design tokens format) |
 | `guide/` | the pictures in GUIDE.md |
 

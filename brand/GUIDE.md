@@ -26,21 +26,26 @@ shows it: a small first burst, then the drop, ringing down.
 ![The mark and the name](logo/lockup.svg)
 
 - **The line is Tick blue,** the colour of Tick in the app. The dial is ink.
-- **Two drawings.** The small mark (`mark-small*`) has fewer swings and
-  heavier lines, for 16 to 32 px. The full mark is for 48 px and up. At 40
-  px, either works.
+- **Two drawings.** The small mark (`mark-small*`, `lockup-small*`) has
+  fewer swings and heavier lines, for a dial 16 to 32 px across. The full
+  mark is for a dial 48 px and up. At 40 px, either works. Sizes here are
+  the dial's: the `mark` and `lockup` files are larger than their dial
+  because they carry their clear space (a `mark` file is 1.5 times its
+  dial, so a 48 px dial is a 72 px file).
 - **Clear space:** a quarter of the dial on every side, kept free of text
   and edges. The `mark` and `lockup` files have it built in, so they can
   sit right up against other things. The small mark, the favicon and the
   app icon don't, because the tab or the icon's plate is their edge.
-- **Smallest size:** 16 px on screen; 5 mm across in print.
+- **Smallest size:** a dial of 16 px on screen, or 5 mm across in print.
+  A `lockup` file is at least 72 px tall; below that, use
+  `lockup-small`.
 
 ![Clear space, and which drawing to use at each size](guide/clear-space.svg)
 
 | Background | Use |
 |---|---|
-| White or light | `mark.svg`, `lockup.svg` |
-| Dark | `mark-dark.svg`, `lockup-dark.svg` |
+| White or light | `mark.svg`, `lockup.svg` (`lockup-small.svg` under 72 px tall) |
+| Dark | `mark-dark.svg`, `lockup-dark.svg`, `lockup-small-dark.svg` |
 | A photo, a colour, or one-colour print | `mark-black.svg` or `mark-white.svg`, whichever has more contrast |
 | App icon | `app-icon.svg`; `app-icon-small.svg` at 16 and 32 px |
 | Browser tab | `favicon.svg` |
