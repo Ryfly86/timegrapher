@@ -291,6 +291,25 @@ class Sweep(unittest.TestCase):
         watchdog.completed(api, 60, log=quiet)
         self.assertEqual([path for path, _ in api.posts], ["/issues/13/comments"])
 
+    def test_a_linux_half_the_runners_lost_is_rerun_with_its_summary(self):
+        # ci.yml's `test (ubuntu-24.04)` fails when a half does; the half decides.
+        jobs = [job(1, "test (ubuntu-24.04 1/2)"), job(2, "test (ubuntu-24.04 2/2)", "failure"),
+                job(3, "test (ubuntu-24.04)", "failure"), job(4, "mcp-renderer")]
+        api = FakeAPI(ci_run(), jobs, {2: [dict(message=NOT_ACQUIRED)], 3: []})
+        self.assertEqual(watchdog.completed(api, 50, log=quiet), "rerun")
+        self.assertEqual(api.posts, [("/actions/runs/50/rerun-failed-jobs", None)])
+        # A half that failed its tests is not re-run, and main's issue names
+        # the half, not the summary.
+        main = ci_run(event="push", head_branch="main", pull_requests=[])
+        api = FakeAPI(main, jobs, {2: [], 3: []})
+        self.assertEqual(watchdog.completed(api, 50, log=quiet), "skip")
+        [(path, body)] = api.posts
+        self.assertIn("`test (ubuntu-24.04 2/2)` failed", body["body"])
+        self.assertNotIn("`test (ubuntu-24.04)`", body["body"])
+        # A summary that failed with neither half failed is a failure of its own.
+        alone = [job(1, "test (ubuntu-24.04)", "failure"), job(2, "mcp-renderer", "failure")]
+        self.assertEqual(watchdog.own_failures(alone), alone)
+
     def test_a_main_run_the_runners_failed_is_rerun_not_flagged(self):
         jobs, annotations = macos_stall()
         api = FakeAPI(ci_run(event="push", head_branch="main", pull_requests=[]), jobs, annotations)
