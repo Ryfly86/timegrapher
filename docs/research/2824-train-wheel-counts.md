@@ -1,6 +1,6 @@
 # ETA 2824 train-wheel counts (28,800 bph)
 
-Peter Hudson supplied six microscope photographs on 2026-10-19, identified
+This project supplied six microscope photographs on 2026-10-19, identified
 as an ETA 2824-2 component set. The photographs give a **600-second third
 wheel**, **5-second escape wheel**, and **21,114.027149-second barrel**.
 The second/intermediate wheel takes **3,553.846154 seconds**, slightly less
@@ -44,7 +44,7 @@ That proposed mesh does **not** reconcile the counts: it would give
 `(46200/13) × 78/17 ≈ 16305.882353 s` for the cannon wheel. The **third
 pinion** driving the cannon wheel gives exactly one hour. This connection
 is a ratio-derived identification, consistent with the assembly layout;
-Peter has not separately confirmed this mesh at the bench.
+the project has not separately confirmed this mesh at the bench.
 
 The [ETA family technical communication](https://www.phfactor.net/wtf/ETA/29_ETA2801.2-ETA2836.2.pdf)
 identifies the intermediate wheel (203), third wheel (210), seconds wheel
@@ -57,7 +57,7 @@ with 78 driver-wheel teeth and 16 cannon-pinion leaves.
 
 ## Applicability and coverage audit
 
-Only the supplied ETA set was photographed. Peter reports applicability
+Only the supplied ETA set was photographed. The project reports applicability
 to 28,800 bph ETA 2824 variants and clones. Transfers below are explicitly
 labelled **INFERRED family transfer** in each wheel's basis; they are not
 claims that every factory's wheels have been photographed or that the
@@ -99,7 +99,7 @@ These establish identities/specifications, not independent counts of the
 transferred trains. STP's sheet explicitly specifies **52°**; ETA's manuals
 specify **50°**. Equal train counts do not imply equal lift angles.
 
-The rows' lift angles do not come from the train counts. Peter Hudson
+The rows' lift angles do not come from the train counts. This project
 gives **50°** for all 2824-2 movements and their derivatives, clones and
 variations (2026-10-22); the 28,800 bph rows that had no lift angle carry
 that figure, and STP1-11 keeps its own 52°.

@@ -1630,4 +1630,36 @@ mod tests {
         assert_eq!(search("").len(), all().len());
         assert!(search("no such calibre").is_empty());
     }
+
+    /// The calibre pages credit this project, not a person, for its own
+    /// counts and rulings (#2294 item 9). The names live only here: no
+    /// row's text (sources, notes, wheel basis, summary, issues, related)
+    /// may name the owner. Whole words only, so the repository address
+    /// `github.com/peterhudson/...` still passes.
+    #[test]
+    fn no_row_names_the_owner_as_a_person() {
+        const NAMES: [&str; 2] = ["peter", "hudson"];
+        fn texts<'a>(v: &'a serde_json::Value, out: &mut Vec<&'a str>) {
+            match v {
+                serde_json::Value::String(s) => out.push(s),
+                serde_json::Value::Array(a) => a.iter().for_each(|x| texts(x, out)),
+                serde_json::Value::Object(o) => o.values().for_each(|x| texts(x, out)),
+                _ => {}
+            }
+        }
+        let rows: Vec<serde_json::Value> = serde_json::from_str(DATA).unwrap();
+        let mut named = Vec::new();
+        for row in &rows {
+            let mut out = Vec::new();
+            texts(row, &mut out);
+            let hit = out.iter().any(|s| {
+                s.split(|c: char| !c.is_alphanumeric())
+                    .any(|w| NAMES.contains(&w.to_lowercase().as_str()))
+            });
+            if hit {
+                named.push(row["calibre"].as_str().unwrap_or_default().to_owned());
+            }
+        }
+        assert!(named.is_empty(), "{} rows: {named:?}", named.len());
+    }
 }

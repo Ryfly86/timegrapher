@@ -1,6 +1,6 @@
 # 4130 train and chronograph wheel counts
 
-Peter Hudson supplied ten microscope photographs of a **Dandong 4130**
+This project supplied ten microscope photographs of a **Dandong 4130**
 component set on 2026-10-19. The counts give a **480-second (8-minute) third
 wheel, 5-second escape wheel, and 25,200-second (7-hour) barrel**, using the
 one-hour second-wheel constraint and 28,800 bph. The fourth wheel turns in
@@ -32,12 +32,12 @@ one-minute fourth wheel and the independently calculated escape period.
 
 ## What applies to which movement
 
-Peter reports that these counts and periods also match **genuine Rolex
+The project reports that these counts and periods also match **genuine Rolex
 4130 and Shanghai SH4130**, despite differences in component manufacture
 and escapement construction. The photographs directly document DD4130;
 extension to the other two is contributor-supplied applicability, not
 three independently photographed trains. Matching counts do not prove
-parts interchangeability, tooth form or material. Separately, Peter confirms
+parts interchangeability, tooth form or material. Separately, the project confirms
 that all 4130 variants share the genuine Rolex 4130 lift angle: **52°**.
 
 This contribution updates Rolex 4130 and Dandong 4130 and adds SH4130.
@@ -55,7 +55,7 @@ The fourth-wheel side view shows three distinct toothed sections:
 3. The small steel disk gear: **30 teeth**, driving the clutch's bottom
    **30-tooth** gear.
 
-Peter confirmed the physical connections during the count: the middle
+The project confirmed the physical connections during the count: the middle
 section meshes with the third wheel; the bottom steel gear drives the
 clutch. In normal running, power passes **from the third wheel into the
 fourth pinion**. This resolves the initial suggestion that the hidden
@@ -121,7 +121,7 @@ going train. The second-to-fourth speed increase is
 The Rolex manual's printed page 5 (PDF page 7) independently specifies
 28,800 bph, 20 escape teeth and a seven-hour barrel revolution. It also
 publishes a 52° lift angle for genuine 4130. All three catalogue entries
-(Rolex 4130, Dandong 4130 and SH4130) use **52°**, based on Peter's separate
+(Rolex 4130, Dandong 4130 and SH4130) use **52°**, based on the project's separate
 confirmation on 2026-10-19 that the clones share the genuine lift angle.
 This applicability comes from that confirmation, not from tooth counts.
 

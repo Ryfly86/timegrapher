@@ -1,7 +1,7 @@
 # Patek 240 clone: photographed train-wheel counts
 
-Peter Hudson supplied six microscope photographs on 2026-10-21, identifying the
-specimen as a Patek 240 clone. On 2026-10-22 he identified its maker as
+This project supplied six microscope photographs on 2026-10-21, identifying the
+specimen as a Patek 240 clone. On 2026-10-22 the project identified its maker as
 Shanghai. No existing clone record was found in the catalogue, so the new entry
 is **Patek 240 Clone**, with maker **Shanghai (clone)**, the name the movement
 commonly goes by; "PP240 Clone" also finds it. These photographs
@@ -19,12 +19,12 @@ do not establish genuine Patek Philippe 240 counts or specifications.
 
 The second-wheel side profile shows two distinct steel sections. The near
 section (farther from the brass wheel) has **15 leaves**; the far section
-(next to the brass wheel) has **16 leaves**. Peter Hudson identified the error
+(next to the brass wheel) has **16 leaves**. This project identified the error
 in the initial near-section overlay on 2026-10-21. Recounting the foreground
 outline confirms 15; the original overlay mixed tips from the two sections.
 The corrected figure and coordinates replace that erroneous 16-leaf overlay.
 
-Peter Hudson subsequently checked the assembled mechanism and confirmed that
+This project subsequently checked the assembled mechanism and confirmed that
 the **far 16-leaf section meshes with the barrel**, while the **near 15-leaf
 section meshes with the dial-side motion works**. The exact motion-works mating
 wheel has not been identified. The database's single input-pinion field records
@@ -41,7 +41,7 @@ pinion leaves / driver wheel teeth. The photographed train gives:
 - Fourth to escape: speed increase `72/8 = 9`.
 - Barrel to second: `96/16 = 6`, using the confirmed far-section mesh.
 
-Peter Hudson confirmed on 2026-10-21 that this clone beats at **21,600 vph**.
+This project confirmed on 2026-10-21 that this clone beats at **21,600 vph**.
 That specimen-specific confirmation supplies the time anchor. For a lever
 escapement, one complete balance oscillation advances the escape wheel one
 tooth, so `20 × 7200 / 21600 = 20/3 s` per escape-wheel revolution.

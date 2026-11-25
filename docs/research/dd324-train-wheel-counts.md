@@ -1,12 +1,12 @@
 # Dandong 324 SC and Peacock SL1258 train-wheel counts
 
-Peter Hudson supplied eight microscope photographs from a **Dandong 324 SC
+This project supplied eight microscope photographs from a **Dandong 324 SC
 clone** on 2026-10-21. All train wheels are now photographed, including the
 fourth wheel supplied after the initial analysis. The counts give a
 **600-second third wheel**, **60-second fourth wheel**, **5-second escape
 wheel** and **18,600-second (5 h 10 min) barrel drum**.
 
-Peter confirms that **Peacock SL1258 and variants retaining this train**
+The project confirms that **Peacock SL1258 and variants retaining this train**
 share these counts. The SL1258 database entry records this as a
 contributor-confirmed family transfer, not an independently photographed
 SL1258 specimen. No counts are transferred to genuine Patek Philippe 324
@@ -32,7 +32,7 @@ not the receiving gear in the third-to-cannon mesh.
 
 ## Meshes and independent checks
 
-Peter supplied the 28,800 beats/hour rate, one-minute centre seconds,
+The project supplied the 28,800 beats/hour rate, one-minute centre seconds,
 one-hour cannon wheel and the two branch connections from the third wheel:
 its large rim drives centre seconds, and its pinion drives the cannon
 wheel. Both third-wheel faces show ten leaves. The ordinary going-train
