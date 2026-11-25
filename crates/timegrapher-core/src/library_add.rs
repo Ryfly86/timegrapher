@@ -124,7 +124,7 @@ impl Library {
                     .into(),
             );
         }
-        if !(from.join(take::MANIFEST).is_file() || from.join(take::RECORD).is_file()) {
+        if !is_take_folder(from) {
             return Err(format!(
                 "{} is not a take folder (it has no session.toml or session.json)",
                 from.display()
