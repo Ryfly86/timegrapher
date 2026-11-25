@@ -117,13 +117,12 @@ fn a_dropout_does_not_miscount_a_watch_off_its_set_rate() {
             // across the hole on a provisional count (Trevor on #2252).
             let amp = summary.amplitude_deg.expect("an amplitude");
             assert!((amp - 280.0).abs() < 1.0, "{at}: {amp}°");
-            // Live after the silence; after the noise it reads no watch
-            // until #2240's fix (#2247), which tests it there.
-            if !noise {
-                let heard = live(&audio, set_bph).reading(10.0).amplitude_deg;
-                let heard = heard.unwrap_or_else(|| panic!("{at}: no live amplitude"));
-                assert!((heard - 280.0).abs() < 1.0, "{at}, live: {heard}°");
-            }
+            // Live after the silence and after the noise (#2240, #2247), on
+            // a take long enough to be read again after the gap.
+            let long = with_gap(watch(17_570, 70.0), gap, noise);
+            let heard = live(&long, set_bph).reading(10.0).amplitude_deg;
+            let heard = heard.unwrap_or_else(|| panic!("{at}: no live amplitude"));
+            assert!((heard - 280.0).abs() < 1.0, "{at}, live: {heard}°");
         }
     }
 }
