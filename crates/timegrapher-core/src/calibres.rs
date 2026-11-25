@@ -12,6 +12,7 @@
 //! What a user adds on top of the table (wheel periods, calibres of their
 //! own) lives in [`crate::calibre_store`].
 
+use crate::calibre_specs::{Diameter, PowerReserve, Stated};
 use crate::periodicity::Wheel;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
@@ -86,6 +87,23 @@ pub struct Calibre {
     /// source; absent for a Swiss lever (#1872).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub escapement: Option<Escapement>,
+    /// Jewels, as a cited source states them (#1861). The spec fields are
+    /// shown by [`crate::calibre_specs`] and never feed a measurement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub jewels: Option<Stated<u16>>,
+    /// Diameter in mm, lignes or both, as stated; never converted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub diameter: Option<Diameter>,
+    /// Height in mm as the source writes it ("4.60"), at most 0.01 mm.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub height_mm: Option<Stated<String>>,
+    /// Power reserve in hours: one figure, "about" one, or a range.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub power_reserve_h: Option<PowerReserve>,
+    /// Functions from [`crate::calibre_specs::FUNCTIONS`], each stated by
+    /// the source; one not listed is unknown, never absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub functions: Option<Stated<Vec<String>>>,
 }
 
 /// A calibre's escapement when it is not a Swiss lever (#1872).
@@ -1115,6 +1133,19 @@ mod tests {
             .all(|w| w.teeth.is_none() && w.pinion.is_none()));
         for name in ["31xx", "SH31xx", "DD3120", "VR3120"] {
             assert!(find(name).is_none(), "{name}");
+        }
+    }
+
+    #[test]
+    fn ap_chronograph_clones_name_no_maker_and_keep_their_old_names() {
+        for (name, row) in [
+            ("SA4401", "SA4401"),
+            ("APS 4401", "SA4401"),
+            ("SA4302", "SA4302"),
+        ] {
+            let c = find(name).unwrap();
+            assert_eq!(c.calibre, row, "{name}");
+            assert_eq!(c.maker, "Clone (maker not named)", "{name}");
         }
     }
 

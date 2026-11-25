@@ -838,13 +838,14 @@ impl LiveAnalyzer {
         let old = self.cfg.analysis.amplitude.lift_deg;
         if lift_deg > 0.0 && lift_deg != old {
             if let Some(bph) = self.bph {
-                // A swing is two beats.
-                let osc_period_s = 2.0 * crate::timing::beat_period_s(None, bph);
+                // A swing is two beats, at the balance's own period (#2228).
+                let osc_period_s = 2.0 * crate::timing::own_beat_period_s(&self.beats, bph);
                 amplitude::relift(&mut self.amp, osc_period_s, old, lift_deg);
-                // Each profile read again from its own edges at the new
-                // lift, through the same gate, not scaled (#1539).
+                // Each profile at the new lift (`TickProfile::at_lift`): an
+                // amplitude it has is scaled to it, through the same gate;
+                // one with none is read from its own edges (#1539, #2228).
                 for p in self.profiles.iter_mut().flatten() {
-                    p.amplitude_deg = p.amplitude_at(osc_period_s, lift_deg);
+                    p.amplitude_deg = p.at_lift(osc_period_s, old, lift_deg);
                 }
             }
             self.cfg.analysis.amplitude.lift_deg = lift_deg;
@@ -1022,8 +1023,12 @@ impl LiveAnalyzer {
         self.redrop_heard_blocks(&numbered[..anchor], off);
         self.take_beats(x, &env, &numbered[anchor..], off, to, beat);
         self.find_jumps_and_trim();
-        self.amplitude_pass(&env, &numbered, off, from, to, beat);
-        self.update_profiles(to, beat);
+        // Amplitude and the profiles read their degrees at the balance's
+        // own period, not the set rate's (#2228); the templates are cut
+        // for the set rate's, as a saved read cuts them.
+        let own = crate::timing::own_beat_period_s(&numbered, bph);
+        self.amplitude_pass(&env, &numbered, off, (from, to), [beat, own]);
+        self.update_profiles_at(to, [beat, own]);
         self.settled_to = to;
     }
 
@@ -1213,9 +1218,8 @@ impl LiveAnalyzer {
         env: &[f32],
         numbered: &[Beat],
         off: f64,
-        from: f64,
-        to: f64,
-        beat: f64,
+        (from, to): (f64, f64),
+        beat: [f64; 2],
     ) {
         let fs = self.fs;
         let a = &self.cfg.analysis;
@@ -1242,14 +1246,12 @@ impl LiveAnalyzer {
             stop += w;
         }
         if stop > start {
-            let wins = amplitude::windows_between(
+            let wins = amplitude::windows_between_at(
                 env,
                 fs,
                 numbered,
-                2.0 * beat,
-                w,
-                start - off,
-                stop - off,
+                beat.map(|b| 2.0 * b),
+                (w, start - off, stop - off),
                 &a.amplitude,
             );
             let new = self.amp.len();
@@ -1320,8 +1322,16 @@ impl LiveAnalyzer {
         self.back_to_watchs_lock();
     }
 
-    /// The Tick and Tock profiles from the sound kept up to `to`.
+    /// [`Self::update_profiles_at`] at one beat, for the tests.
+    #[cfg(test)]
     fn update_profiles(&mut self, to: f64, beat: f64) {
+        self.update_profiles_at(to, [beat; 2]);
+    }
+
+    /// The Tick and Tock profiles from the sound kept up to `to`, cut for
+    /// the set rate's beat and read in degrees at the balance's own,
+    /// seconds (#2228).
+    fn update_profiles_at(&mut self, to: f64, [beat, own]: [f64; 2]) {
         let fs = self.fs;
         // After the windows, so those of this pass follow a swap too.
         self.settle_sides();
@@ -1343,7 +1353,7 @@ impl LiveAnalyzer {
                 .map(|s| s.3.as_slice())
                 .collect();
             let guide = guides[usize::from(!even)];
-            profile::from_snippets(&w, fs, side, 2.0 * beat, &a.amplitude, guide, win)
+            profile::from_snippets(&w, fs, side, 2.0 * own, &a.amplitude, guide, win)
                 .filter(|_| sided)
         });
     }
@@ -1410,13 +1420,25 @@ impl LiveAnalyzer {
     /// the candidates where no regular beat was being logged, in time
     /// order and counted on as one run, as a saved reading's beat log
     /// holds them. With no candidates there, the settled beats as they
-    /// are.
+    /// are. Noise heard between two runs of the watch's beats is a hole
+    /// in them, as a saved log holds it (its peaks there are no good
+    /// beats, so no window reads them): the watch either side is read
+    /// with its beats missing, not judged by the noise's scatter (Norm on
+    /// #2240). Noise before the first beat, or after the latest by `to_s`,
+    /// is heard as it is (#679, #680).
     fn heard_peaks(&self, from_s: f64, to_s: f64) -> Vec<Beat> {
         let beats = &self.beats[crate::session::stretch_beats(&self.beats, from_s, to_s)];
+        // The beats heard by `to_s`: a reading of the past reads it as it
+        // was heard then.
+        let heard = &self.beats[..self.beats.partition_point(|b| b.time < to_s)];
+        let between = match (heard.first(), heard.last()) {
+            (Some(a), Some(b)) => a.time..b.time,
+            _ => 0.0..0.0,
+        };
         let mut peaks: Vec<Beat> = self
             .candidates
             .iter()
-            .filter(|c| c.time >= from_s && c.time < to_s)
+            .filter(|c| c.time >= from_s && c.time < to_s && !between.contains(&c.time))
             .copied()
             .collect();
         if peaks.is_empty() {
@@ -1749,7 +1771,7 @@ impl LiveAnalyzer {
                     first.time,
                     last.time,
                     self.fs,
-                    2.0 * 3600.0 / b as f64,
+                    b,
                     &self.cfg.analysis.amplitude,
                 )
             }

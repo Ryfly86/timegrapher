@@ -115,7 +115,7 @@ impl TimegrapherApp {
         let settle = format!(
             "Each change of position settles for {} s (Settle, on the Positions Test pane), \
              and those seconds are left out of the readings.",
-            fields::plain(self.bench.test.guided_settle_s)
+            fields::plain(self.session.settle_len())
         );
         let codes = position_codes(here);
         let ten = self.card_ten();

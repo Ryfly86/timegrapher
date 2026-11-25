@@ -2071,3 +2071,26 @@ fn a_position_read_whole_keeps_the_correction_it_was_read_with() {
         kept.first
     );
 }
+
+/// A take's folder is made as its name is picked, in one step: a name
+/// whose folder is already there, even empty (another take named it a
+/// moment before), is never given again (#1862).
+#[test]
+fn a_new_folder_is_made_as_its_name_is_picked() {
+    let takes = std::env::temp_dir().join(format!("tg-make-unused-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&takes);
+    let first = make_unused_dir(&takes, "2026-11-25 06.52").unwrap();
+    assert_eq!(first, takes.join("2026-11-25 06.52"));
+    assert!(first.is_dir());
+    assert_eq!(fs::read_dir(&first).unwrap().count(), 0);
+    let second = make_unused_dir(&takes, "2026-11-25 06.52").unwrap();
+    assert_eq!(second, takes.join("2026-11-25 06.52 2"));
+    assert!(second.is_dir());
+    // A file of that name is taken too.
+    fs::write(takes.join("2026-11-25 06.52 3"), "").unwrap();
+    assert_eq!(
+        make_unused_dir(&takes, "2026-11-25 06.52").unwrap(),
+        takes.join("2026-11-25 06.52 4")
+    );
+    let _ = fs::remove_dir_all(&takes);
+}

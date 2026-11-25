@@ -147,6 +147,38 @@ pub fn beat_period_s(fit: Option<&TimingFit>, bph: u32) -> f64 {
     fit.map_or(3600.0 / bph as f64, |f| f.period_s)
 }
 
+/// The balance's own beat period, s, fitted over the beats `beats` as
+/// the rate is, or the nominal 3600/bph before there is a fit. Amplitude,
+/// the tick profiles and the BE angle turn times into degrees with it,
+/// never with the set rate's period, so a watch off its set rate reads its
+/// true amplitude (Norm on #2224, #2228). Across a pause in the good beats
+/// the count is provisional until the take is renumbered
+/// ([`crate::breaks::renumber`]), so each run between pauses is fitted on
+/// its own ([`fit_pieces`]); with no run of [`MIN_PIECE_S`], the longest
+/// run alone. A count across a 6 s silence, off the set rate, skewed the
+/// period by 1.5% and the amplitude with it (Trevor on #2252).
+pub fn own_beat_period_s(beats: &[Beat], bph: u32) -> f64 {
+    let good: Vec<Beat> = beats.iter().filter(|b| b.is_good()).copied().collect();
+    let cuts: Vec<f64> = crate::clean::beat_pauses(&good).collect();
+    let longest = || {
+        let runs = pieces(beats, &cuts);
+        let run = runs
+            .into_iter()
+            .max_by(|a, b| span(a).total_cmp(&span(b)))?;
+        fit(run, bph)
+    };
+    let fitted = fit_pieces(beats, bph, &cuts).or_else(longest);
+    beat_period_s(fitted.as_ref(), bph)
+}
+
+/// The time from a stretch's first beat to its last; 0 with none.
+fn span(p: &[Beat]) -> f64 {
+    match (p.first(), p.last()) {
+        (Some(a), Some(b)) => b.time - a.time,
+        _ => 0.0,
+    }
+}
+
 /// The beat period, s, of a watch whose nominal period is `nominal` s and
 /// which gains `rate_s_per_day`: the inverse of the rate the fit reads,
 /// `(nominal / period - 1) * 86400`. The one rule for it (#640).

@@ -1,8 +1,9 @@
 name: CI
 
-# Every push to main and every pull request runs all eight jobs. A pull
+# Every push to main and every pull request runs every job and reports the
+# eight required checks. A pull
 # request that only edits or adds Markdown nothing compiles in or tests read
-# is a light run (.github/ci/changes.py): all eight jobs still run and report,
+# is a light run (.github/ci/changes.py): every job still runs and reports,
 # the test jobs run only their offline Python tests, the three regress jobs
 # skip their corpus and engine steps, and mcp-renderer runs as usual. The
 # watchmaker skill and the docs the MCP server compiles in always run in full. A pull request that
@@ -29,7 +30,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-latest, macos-latest]
+        os: [windows-latest]
+        # Linux's and macOS's tests run in test-linux and test-macos
+        # below, with these same steps.
         # Windows runs its tests as two halves on two runners (nextest's
         # --partition), as `test (windows-latest 1/2)` and `2/2`: its job
         # finished last in 17 of 33 green PR runs on 2-3 Nov, about 13
@@ -47,9 +50,9 @@ jobs:
             part: 2/2
     runs-on: ${{ matrix.os }}
     # Time limits count from when a runner starts the job, not the queue, and
-    # sit well above the slowest recent run (test 18 minutes, regress 7) so a
-    # hung job fails within the hour instead of GitHub's six. The CI watchdog
-    # does not re-run a job that hits one.
+    # sit above the slowest recent run so a hung job fails within the hour
+    # instead of GitHub's six. The CI watchdog does not re-run a job that
+    # hits one.
     timeout-minutes: 45
     # No debug info in CI's release builds, as release.yml already builds the
     # downloads (Cargo.toml's [profile.release] keeps debug = 1 for local
@@ -60,10 +63,11 @@ jobs:
     # otherwise skip, so an overflow a test reaches panics here as it would
     # in a debug build (usbclock.rs at a low sample rate went unseen). It
     # costs no extra job; the other platforms keep plain release builds.
-    env:
+    env: &test-env
       CARGO_PROFILE_RELEASE_DEBUG: "0"
       CARGO_PROFILE_RELEASE_OVERFLOW_CHECKS: ${{ matrix.os == 'ubuntu-24.04' && 'true' || 'false' }}
-    steps:
+    # test-linux and test-macos run these same steps (a YAML alias of this list).
+    steps: &test-steps
       # Two commits: on a pull request, GitHub's merge commit and its base.
       - uses: actions/checkout@v7
         with:
@@ -86,7 +90,7 @@ jobs:
       # skill runs release.yml's render and link check of the downloads'
       # pages, so what would fail there fails here, not at the next draft.
       - name: Documentation pages
-        if: runner.os == 'Linux' && steps.changes.outputs.pages == 'true'
+        if: runner.os == 'Linux' && matrix.part != '2/2' && steps.changes.outputs.pages == 'true'
         env:
           REF: ${{ github.event.pull_request.head.sha }}
         run: |
@@ -104,9 +108,13 @@ jobs:
         with:
           toolchain: ${{ matrix.os == 'ubuntu-24.04' && '1.90.0' || 'stable' }}
           components: rustfmt, clippy
+      # One cache key for each OS, as before Linux and macOS had jobs of
+      # their own: the key otherwise names the job, and a new key would add a
+      # cache while the repository's sit near GitHub's 10 GB limit.
       - uses: Swatinem/rust-cache@v2
         if: steps.changes.outputs.full != 'false'
         with:
+          shared-key: test
           save-if: ${{ matrix.part != '2/2' }}
       - name: ALSA headers for sound input
         if: runner.os == 'Linux' && steps.changes.outputs.full != 'false'
@@ -143,15 +151,89 @@ jobs:
       # Unused dependencies and libraries' licences (architecture guide,
       # section 12; deny.toml). Each takes seconds.
       - uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
-        if: runner.os == 'Linux' && steps.changes.outputs.full != 'false'
+        if: runner.os == 'Linux' && matrix.part != '2/2' && steps.changes.outputs.full != 'false'
         with:
           tool: cargo-machete@0.9.2,cargo-deny@0.20.2
       - name: Unused dependencies
-        if: runner.os == 'Linux' && steps.changes.outputs.full != 'false'
+        if: runner.os == 'Linux' && matrix.part != '2/2' && steps.changes.outputs.full != 'false'
         run: cargo machete
       - name: Licences and bans
-        if: runner.os == 'Linux' && steps.changes.outputs.full != 'false'
+        if: runner.os == 'Linux' && matrix.part != '2/2' && steps.changes.outputs.full != 'false'
         run: cargo deny --all-features check licenses bans
+
+  # Linux's tests as two halves on two runners, like Windows's, as
+  # `test (ubuntu-24.04 1/2)` and `2/2`. The whole set had grown to about
+  # 37 minutes of a CPU-bound test run on one runner (main at 0c63103: a
+  # 45-minute job; #2207), near the 45-minute limit. Each half builds the
+  # tests and runs half of them; only 1/2 runs fmt, clippy, the doc tests
+  # and the Linux-only checks, and saves the rust cache.
+  test-linux:
+    name: test (${{ matrix.os }} ${{ matrix.part }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04]
+        part: [1/2, 2/2]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env: *test-env
+    steps: *test-steps
+
+  # The required check `test (ubuntu-24.04)` (branch protection, and the
+  # Release gate's .github/scripts/release_ci_gate.py): green only when
+  # both of Linux's halves are. On a pull request it always runs, even when
+  # the run is cancelled, so a failed or cancelled half fails it: a skipped
+  # required check would count as a pass. On main, where no branch rule
+  # reads it and the Release gate needs a success, a run cancelled for a
+  # newer merge skips it: run there, it waited for a runner while the
+  # newer merge's run waited for it (6bedbea's run, 25 Nov).
+  test-linux-result:
+    name: test (ubuntu-24.04)
+    needs: test-linux
+    if: ${{ always() && (github.event_name == 'pull_request' || !cancelled()) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Both halves passed
+        env:
+          RESULT: ${{ needs.test-linux.result }}
+        run: |
+          echo "Linux tests, both halves: $RESULT"
+          test "$RESULT" = success
+
+  # macOS's tests as two halves, as Linux's are, as `test (macos-latest
+  # 1/2)` and `2/2`. Once Linux's were split it was the slowest job: on
+  # 25 Nov a pull request's test run took 25 to 27 minutes after a 7-minute
+  # build (35 minutes of 45), and main, which runs every test on macOS,
+  # took 39 at 0c63103. Only 1/2 runs fmt, clippy and the doc tests, and
+  # saves the rust cache.
+  test-macos:
+    name: test (${{ matrix.os }} ${{ matrix.part }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest]
+        part: [1/2, 2/2]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env: *test-env
+    steps: *test-steps
+
+  # The required check `test (macos-latest)`, as test-linux-result is
+  # Linux's, and runs when that does: it passes only when both halves did.
+  test-macos-result:
+    name: test (macos-latest)
+    needs: test-macos
+    if: ${{ always() && (github.event_name == 'pull_request' || !cancelled()) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Both halves passed
+        env:
+          RESULT: ${{ needs.test-macos.result }}
+        run: |
+          echo "macOS tests, both halves: $RESULT"
+          test "$RESULT" = success
 
   mcp-renderer:
     runs-on: ubuntu-24.04
