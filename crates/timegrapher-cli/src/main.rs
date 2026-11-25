@@ -93,14 +93,13 @@ const DEVELOPER_ORDER: usize = 1000;
     about = "Analyse mechanical watch recordings beat by beat",
     after_help = "Every command with --json prints one JSON document with a `schema` field \
 (e.g. timegrapher.analyze/2), the software version and the input it read. \
-`timegrapher doctor` measures the microphone input. Exit codes: 0 success, \
-1 error, 3 a take moved beyond its margins (regress). For live readings, \
-use the desktop app; `record` saves one position of a test.
+Exit codes: 0 success, 1 error, 3 a take moved beyond its margins (regress). \
+For live readings, use the desktop app; `record` saves one position of a test.
 
 Examples:
   timegrapher analyze my_take/take_part01-001.flac   one sound file of a take
   timegrapher session my_take                        a take's folder, as one report
-  timegrapher doctor                                 the microphone input"
+  timegrapher doctor                                 measures the microphone input"
 )]
 struct Cli {
     #[command(subcommand)]
