@@ -829,6 +829,12 @@ enum ClockAction {
 #[cfg(unix)]
 const BROKEN_PIPE_OS_ERROR: i32 = 32;
 
+/// The status to exit with when stdout's reader has gone: 141, which is
+/// 128 + 13 (SIGPIPE), what `cat`, `grep` and `git` give in the same pipe,
+/// so a shell or script still sees that the output was not all written.
+#[cfg(unix)]
+const STDOUT_READER_GONE_STATUS: i32 = 141;
+
 /// Whether a panic is `println!` failing because stdout's reader has gone,
 /// as when the output is piped into `head` or `less` is quit early
 /// (#2098). Rust ignores SIGPIPE, so the write fails with EPIPE, and
@@ -841,7 +847,7 @@ fn stdout_reader_gone(message: &str) -> bool {
         .is_some_and(|e| e == gone)
 }
 
-/// Exit quietly with status 0 when stdout's reader goes away mid-output,
+/// Exit quietly with status 141 when stdout's reader goes away mid-output,
 /// as other command-line tools do, instead of a panic and exit 101 (#2098).
 /// What a command prints to a terminal or a file is unchanged, and every
 /// other panic is reported as before.
@@ -856,7 +862,7 @@ fn quiet_when_stdout_closes() {
                 .map(String::as_str)
                 .or_else(|| payload.downcast_ref::<&str>().copied());
             if message.is_some_and(stdout_reader_gone) {
-                std::process::exit(0);
+                std::process::exit(STDOUT_READER_GONE_STATUS);
             }
             report(info);
         }));

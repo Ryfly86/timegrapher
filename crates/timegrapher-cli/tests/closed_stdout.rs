@@ -1,6 +1,7 @@
 //! A table piped into a reader that stops early, `timegrapher calibres |
-//! head -1` or `less` quit at once, ends quietly with status 0, not a
-//! "Broken pipe" panic and exit 101 (#2098).
+//! head -1` or `less` quit at once, ends quietly with status 141 (128 +
+//! SIGPIPE, as `cat` or `grep` give), not a "Broken pipe" panic and exit
+//! 101 (#2098).
 #![cfg(unix)]
 
 use std::process::{Command, Output, Stdio};
@@ -25,7 +26,7 @@ fn a_table_whose_reader_has_gone_ends_quietly() {
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(!stderr.contains("panicked"), "{stderr}");
     assert!(!stderr.contains("Broken pipe"), "{stderr}");
-    assert_eq!(out.status.code(), Some(0), "{stderr}");
+    assert_eq!(out.status.code(), Some(141), "{stderr}");
 }
 
 /// `devices` too, whatever this machine's sound inputs: its first line,
@@ -44,7 +45,7 @@ fn devices_whose_reader_has_gone_ends_quietly() {
     let out = with_reader_gone(&["devices"]);
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(!stderr.contains("panicked"), "{stderr}");
-    assert_eq!(out.status.code(), Some(0), "{stderr}");
+    assert_eq!(out.status.code(), Some(141), "{stderr}");
 }
 
 /// Output to a file is as before: the whole table, with status 0.
