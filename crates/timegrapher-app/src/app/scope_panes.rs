@@ -421,27 +421,20 @@ impl TimegrapherApp {
         let (before, after) = view.zoom.window(beat_s);
         // Each beat from the traces already drawn, else from the sound the
         // engine still holds; only the rest need reading from the recording.
-        let take = self.bench.take.rev.opens;
-        let key = |b: &timegrapher_core::beats::Beat| scope_key(take, b, view.zoom, beat_s);
-        let known = scope_known(
-            live,
-            &mut self.bench.results.scope_traces,
-            &picks,
-            (take, view.zoom, beat_s),
-            fs,
-            (before, after),
-        );
+        let known = self.scope_traces_known(&picks, view.zoom, beat_s);
         let missing: Vec<&timegrapher_core::beats::Beat> = picks
             .iter()
             .flatten()
-            .filter(|b| !known.contains_key(&key(b)))
+            .zip(known.iter().flatten())
+            .filter_map(|(b, t)| t.is_none().then_some(b))
             .collect();
+        let none_known = known.iter().flatten().all(Option::is_none);
         let times = missing.iter().map(|b| b.time);
         // A little either side, so rounding never cuts a trace short.
         let lo = (times.clone().fold(f64::INFINITY, f64::min) - before - 0.015).max(0.0);
         let hi = times.fold(f64::NEG_INFINITY, f64::max) + after + 0.005;
         let listening = self.running();
-        let (audio, note) = if lo >= hi || (listening && !known.is_empty()) {
+        let (audio, note) = if lo >= hi || (listening && !none_known) {
             // Nothing more to read, or while listening a beat whose sound
             // went before it was drawn: the others carry on without it.
             (None, None)
@@ -449,7 +442,7 @@ impl TimegrapherApp {
             self.poll_scope_job();
             match self.scope_cut(lo, hi) {
                 Some(cut) => cut,
-                None if known.is_empty() => {
+                None if none_known => {
                     return no_sound_line(ui, &format!("No sound kept from {}", length_text(end)));
                 }
                 // Some beats drawn from what is held, the rest not kept:
@@ -464,11 +457,13 @@ impl TimegrapherApp {
         let rows: Vec<scope::Row> = specs
             .iter()
             .zip(&picks)
-            .map(|(&(label, even, color), beats)| {
+            .zip(known)
+            .map(|((&(label, even, color), beats), kept)| {
                 let traces = beats
                     .iter()
-                    .filter_map(|b| {
-                        known.get(&key(b)).cloned().or_else(|| {
+                    .zip(kept)
+                    .filter_map(|(b, k)| {
+                        k.or_else(|| {
                             let (x, t0, rate) = audio.as_ref()?;
                             scope::trace(x, *rate, *t0, b, view.zoom, beat_s)
                         })
@@ -493,6 +488,22 @@ impl TimegrapherApp {
         }
         let rate = audio.as_ref().map_or(fs, |a| a.2);
         scope::draw(ui, &rows, view.zoom, beat_s, rate);
+    }
+
+    /// Each of `picks`' traces at `zoom` and `beat_s` already known for
+    /// the take on show ([`scope_known`]); None for those to read from the
+    /// recording.
+    pub(super) fn scope_traces_known(
+        &mut self,
+        picks: &[Vec<timegrapher_core::beats::Beat>],
+        zoom: scope::Zoom,
+        beat_s: f64,
+    ) -> Vec<Vec<Option<Vec<f32>>>> {
+        let Some(live) = self.bench.recording.live.as_ref() else {
+            return picks.iter().map(|row| vec![None; row.len()]).collect();
+        };
+        let kept = &mut self.bench.results.scope_traces;
+        scope_known(live, kept, picks, (self.bench.take.rev, zoom, beat_s))
     }
 
     /// The sound from `lo` to `hi` s from the recording read in the
@@ -726,33 +737,34 @@ fn scope_key(
     }
 }
 
-/// Each beat's trace from the traces already drawn, else from the sound
-/// the engine still holds, keeping the newest `SCOPE_KEPT`. The rest need
-/// reading from the recording.
-pub(super) fn scope_known(
+/// Each of `picks`' traces from the traces already drawn of the take on
+/// show (`rev`), else from the sound the engine still holds, keeping the
+/// newest `SCOPE_KEPT`; None for those that need reading from the
+/// recording. A trace kept from another take is never drawn (#1988 N1).
+fn scope_known(
     live: &LiveAnalyzer,
     kept: &mut std::collections::VecDeque<(ScopeKey, Vec<f32>)>,
     picks: &[Vec<timegrapher_core::beats::Beat>],
-    (take, zoom, beat_s): (u64, scope::Zoom, f64),
-    fs: f64,
-    (before, after): (f64, f64),
-) -> std::collections::HashMap<ScopeKey, Vec<f32>> {
-    let mut known: std::collections::HashMap<ScopeKey, Vec<f32>> = Default::default();
-    for b in picks.iter().flatten() {
-        let k = scope_key(take, b, zoom, beat_s);
+    (rev, zoom, beat_s): (Revision, scope::Zoom, f64),
+) -> Vec<Vec<Option<Vec<f32>>>> {
+    let fs = live.sample_rate() as f64;
+    let (before, after) = zoom.window(beat_s);
+    let mut trace = |b: &timegrapher_core::beats::Beat| {
+        let k = scope_key(rev.opens, b, zoom, beat_s);
         if let Some((_, t)) = kept.iter().find(|(c, _)| *c == k) {
-            known.insert(k, t.clone());
-            continue;
+            return Some(t.clone());
         }
         let (a, z) = (b.time - before - 0.015, b.time + after + 0.005);
-        if let Some(t) = live
+        let t = live
             .sound(a, z - a)
-            .and_then(|x| scope::trace(x, fs, a, b, zoom, beat_s))
-        {
-            kept.push_back((k, t.clone()));
-            known.insert(k, t);
-        }
-    }
+            .and_then(|x| scope::trace(x, fs, a, b, zoom, beat_s))?;
+        kept.push_back((k, t.clone()));
+        Some(t)
+    };
+    let known = picks
+        .iter()
+        .map(|row| row.iter().map(&mut trace).collect())
+        .collect();
     while kept.len() > SCOPE_KEPT {
         kept.pop_front();
     }

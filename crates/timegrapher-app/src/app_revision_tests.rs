@@ -608,41 +608,35 @@ fn the_scope_never_draws_sound_read_from_the_take_before() {
 }
 
 /// A beat's trace kept on the Scope is drawn again only for the take it
-/// was drawn from: another take's beat with the same index and time is
-/// traced afresh (#1988 N1).
+/// was drawn from: once another take is on show, a beat with the same
+/// index and time is traced afresh, as the Scope pane reads it (#1988 N1).
 #[test]
 fn the_scope_never_draws_a_trace_kept_from_the_take_before() {
-    let app = synthetic(30.0, 0.0);
-    let live = app.bench.recording.live.as_ref().unwrap();
-    let beats = live.beats();
+    let mut app = synthetic(30.0, 0.0);
+    let beats = app.bench.recording.live.as_ref().unwrap().beats();
     let picks = vec![beats[beats.len() - 4..beats.len() - 1].to_vec()];
     let (zoom, beat_s) = (scope::Zoom::Ms20, 3600.0 / 28_800.0);
-    let fs = live.sample_rate() as f64;
-    let span = zoom.window(beat_s);
-    let mut kept = std::collections::VecDeque::new();
-    let fresh = scope_panes::scope_known(live, &mut kept, &picks, (1, zoom, beat_s), fs, span);
-    assert_eq!(
-        fresh.len(),
-        picks[0].len(),
+    let fresh = app.scope_traces_known(&picks, zoom, beat_s);
+    assert!(
+        fresh[0].iter().all(Option::is_some),
         "traced from the engine's sound"
     );
-    // What the first take kept, marked so it shows if drawn again.
-    for (_, t) in kept.iter_mut() {
+    // What this take kept, marked so it shows if drawn again.
+    for (_, t) in app.bench.results.scope_traces.iter_mut() {
         t.fill(9.0);
     }
-    let again = scope_panes::scope_known(live, &mut kept, &picks, (1, zoom, beat_s), fs, span);
+    let marked = |known: &[Vec<Option<Vec<f32>>>]| {
+        known[0]
+            .iter()
+            .all(|t| t.as_ref().unwrap().iter().all(|&v| v == 9.0))
+    };
     assert!(
-        again.values().all(|t| t.iter().all(|&v| v == 9.0)),
+        marked(&app.scope_traces_known(&picks, zoom, beat_s)),
         "kept, same take"
     );
-    let next = scope_panes::scope_known(live, &mut kept, &picks, (2, zoom, beat_s), fs, span);
-    assert_eq!(next.len(), picks[0].len());
-    for (k, t) in &next {
-        assert_eq!(k.take, 2);
-        assert_eq!(
-            t,
-            &fresh[&ScopeKey { take: 1, ..*k }],
-            "the first take's trace drawn"
-        );
-    }
+    // The same engine on show as another take.
+    app.bench.take.rev.new_take();
+    let next = app.scope_traces_known(&picks, zoom, beat_s);
+    assert!(!marked(&next), "the first take's trace drawn for the next");
+    assert_eq!(next, fresh);
 }
