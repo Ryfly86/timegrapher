@@ -496,6 +496,27 @@ mod tests {
         assert_eq!(reads(&asked), 1, "the stop read nothing again");
         // As the stop of a feed read in the background, which reads it all.
         assert_eq!(format!("{:?}", asked.reading(10.0)), format!("{got:?}"));
+        assert_eq!(reads(&asked), 1, "the ask after the stop read nothing");
+        assert_eq!(format!("{got:?}"), format!("{:?}", whole.reading(10.0)));
+    }
+
+    /// A stop after an ask that left out sound heard since (less than the
+    /// cap) reads everything heard: the figures reach the end of the
+    /// sound, as a background-fed take's after its stop, to the bit.
+    #[test]
+    fn a_stop_after_an_ask_short_of_all_heard_reads_it_all() {
+        let sound = watch(28_800);
+        let (mut asked, mut whole) = fed_both(&sound);
+        let _ = asked.reading(10.0);
+        let more = &watch(28_800)[..4_800];
+        asked.push(more);
+        whole.push_without_waiting(more);
+        assert!(asked.read_as_file_to() < Some(asked.duration_s()), "kept");
+        asked.read_as_file_now();
+        whole.read_as_file_now();
+        assert_eq!(asked.read_as_file_to(), Some(asked.duration_s()));
+        let got = asked.reading(10.0);
+        assert!(got.rate_s_per_day.is_some(), "{got:?}");
         assert_eq!(format!("{got:?}"), format!("{:?}", whole.reading(10.0)));
     }
 
