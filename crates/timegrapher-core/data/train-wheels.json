@@ -31804,7 +31804,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Longines 12,68Z, 44°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Longines 12.68Z, 44°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://myretrowatches.co.uk/wp-content/uploads/2024/01/Longines-12.68Z12.68ZS.pdf (Longines technical sheet, calibre 12.68 Z) (\"Pallet-fork - 17 jewels\")"
+    }
   },
   {
     "calibre": "Longines 12.68 ZS",
@@ -31822,7 +31826,11 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (LONGINES 12.68 ZS, 44°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Longines 12.68ZS, 44°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://myretrowatches.co.uk/wp-content/uploads/2024/01/Longines-12.68Z12.68ZS.pdf (Longines technical sheet, calibre 12.68 ZS) (\"Anker - 17 Rubine\")"
+    }
   },
   {
     "calibre": "Longines 13.15",
@@ -31917,7 +31925,11 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (LONGINES 14.16, 49°, 19800 vph)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Longines 14.16, 49°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://myretrowatches.co.uk/wp-content/uploads/2024/01/Longines-14.1614.16S14.162.pdf (Longines technical sheet, calibre 14.16) (\"Ancre - 17 rubis\")"
+    }
   },
   {
     "calibre": "Longines 14.16 S",
@@ -31935,7 +31947,11 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (LONGINES 14.16 S, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Longines 14.16S, 49°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://myretrowatches.co.uk/wp-content/uploads/2024/01/Longines-14.1614.16S14.162.pdf (Longines technical sheet, calibre 14.16 S) (\"Ancre - 17 rubis\")"
+    }
   },
   {
     "calibre": "Longines 14.162",
@@ -32037,7 +32053,11 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Longines 19.4, 52°, 19800 vph)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Longines 19.apr, 52°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://myretrowatches.co.uk/wp-content/uploads/2024/01/Longines-19.4.pdf (Longines technical sheet, calibre 19.4) (\"Pallet-fork - 17 jewels\")"
+    }
   },
   {
     "calibre": "Longines 19.4 S",
@@ -32157,7 +32177,19 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (LONGINES 22 A, 46°, 18000 vph)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Longines 22A, 46°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Longines shows it in a watch dated 1950.",
+        "source": "https://www.longines.com/en-gb/p/watch-automatic-longines-watch-with-caliber-22a-1950-6070-7838247 (Longines heritage watch page naming the movement) (\"Automatic Longines watch with caliber 22A (1950)\")"
+      }
+    ],
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://www.longines.com/en-gb/p/watch-automatic-longines-watch-with-caliber-22a-1950-6070-7838247 (Longines heritage watch page naming the movement) (\"Automatic Longines watch with caliber 22A\")"
+    }
   },
   {
     "calibre": "Longines 22 AS",
@@ -32168,7 +32200,13 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (LONGINES 22 AS, 46°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Longines 22AS, 46°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://myretrowatches.co.uk/wp-content/uploads/2024/01/Longines-22AS.pdf (Longines technical sheet, calibre 22 AS) (\"Les autres fournitures du mécanisme automatique sont identiques au calibre 22A\")"
+    }
   },
   {
     "calibre": "Longines 22 L",
@@ -32454,7 +32492,20 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (LONGINES 30 CH, 46°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Longines 30CH, 46°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "It drives a flyback chronograph.",
+        "source": "https://www.longines.com/en-au/p/watch-longines-flyback-chronograph-30ch-1965-7413-13333446 (Longines heritage watch page naming the movement) (\"Longines Flyback-Chronograph 30CH\")"
+      }
+    ],
+    "functions": {
+      "value": [
+        "hand winding",
+        "chronograph"
+      ],
+      "source": "https://www.longines.com/en-au/p/watch-longines-flyback-chronograph-30ch-1965-7413-13333446 (Longines heritage watch page naming the movement) (\"Longines Flyback-Chronograph 30CH … Manual winding\")"
+    }
   },
   {
     "calibre": "Longines 30 L",
@@ -32490,7 +32541,11 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (LONGINES 30 LS, 44°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Longines 30LS, 44°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://myretrowatches.co.uk/wp-content/uploads/2024/01/Longines-30LS.pdf (Longines technical sheet, calibre 30 LS) (\"Pallet-fork 17 jewels\")"
+    }
   },
   {
     "calibre": "Longines 37.9",
@@ -32530,7 +32585,11 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (LONGINES 37.9ABC, 41°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Longines 37.9ABC, 41°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://myretrowatches.co.uk/wp-content/uploads/2024/01/Longines-37.9ABC.pdf (Longines technical sheet, calibre 37.9ABC) (\"Pallet-fork - 17 jewels\")"
+    }
   },
   {
     "calibre": "Longines 118",
@@ -32761,7 +32820,11 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Longines 320, 49°, 21600 vph)"
     ],
     "confidence": "published list",
-    "notes": "Sources disagree; kept as separate entries. Others give 21,600 bph and 51° (the lift-angle sheet)."
+    "notes": "Sources disagree; kept as separate entries. Others give 21,600 bph and 51° (the lift-angle sheet).",
+    "jewels": {
+      "value": 17,
+      "source": "https://www.contatorideltempo.it/blog2018/wp-content/uploads/2024/12/Longines-320.pdf (Longines technical sheet, calibre 320) (\"Ancre - 17 rubis\")"
+    }
   },
   {
     "calibre": "Longines 320 (21,600 bph, 51°)",
@@ -33032,7 +33095,11 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (LONGINES 410, 54°, 21600 vph)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Longines 410, 54°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://myretrowatches.co.uk/wp-content/uploads/2024/01/Longines-410.pdf (Longines technical sheet, calibre 410) (\"Ancre - 17 rubis\")"
+    }
   },
   {
     "calibre": "Longines 420",
@@ -33272,7 +33339,11 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (LONGINES 490, 49°, 21600 vph)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Longines 490, 49°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://www.contatorideltempo.it/blog2018/wp-content/uploads/2025/01/Longines-490.pdf (Longines technical sheet, calibre 490) (\"Pallet-fork — 17 jewels\")"
+    }
   },
   {
     "calibre": "Longines 501",
@@ -33290,7 +33361,18 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (LONGINES 501, 52°, 19800 vph)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Longines 501, 52°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://www.contatorideltempo.it/blog2018/wp-content/uploads/2024/12/Longines-501.pdf (Longines technical sheet, calibre 501) (\"Ancre - 17 rubis\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date"
+      ],
+      "source": "https://www.contatorideltempo.it/blog2018/wp-content/uploads/2024/12/Longines-501.pdf (Longines technical sheet, calibre 501) (\"Sweep second - automatic … Date showing through aperture in dial\")"
+    }
   },
   {
     "calibre": "Longines 503",
@@ -33308,7 +33390,19 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (LONGINES 503, 52°, 19800 vph)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Longines 503, 52°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://www.contatorideltempo.it/blog2018/wp-content/uploads/2024/12/longines-503.pdf (Longines technical sheet, calibre 503) (\"Ancre - 17 rubis\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date",
+        "day"
+      ],
+      "source": "https://www.contatorideltempo.it/blog2018/wp-content/uploads/2024/12/longines-503.pdf (Longines technical sheet, calibre 503) (\"Sweep second - automatic … Aperture date and day\")"
+    }
   },
   {
     "calibre": "Longines 505",
@@ -33326,7 +33420,19 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (LONGINES 505, 52°, 19800 vph)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Longines 505, 52°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://www.contatorideltempo.it/blog2018/wp-content/uploads/2024/12/Longines-505.pdf (Longines technical sheet, calibre 505) (\"Ancre - 17 rubis\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date",
+        "quickset date"
+      ],
+      "source": "https://www.contatorideltempo.it/blog2018/wp-content/uploads/2024/12/Longines-505.pdf (Longines technical sheet, calibre 505) (\"Sweep second - automatic … Date showing through aperture in dial … With date corrector by pushing on the winding stem\")"
+    }
   },
   {
     "calibre": "Longines 506",
@@ -33722,7 +33828,29 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (LONGINES 6641, 52°, 28800 vph)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Longines 6641, 52°, 28800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 25,
+      "source": "https://www.contatorideltempo.it/blog2018/wp-content/uploads/2025/01/longines-6641-6642-6651-6652-movement_parts-2-7.pdf (Longines technical guide, calibres 6641, 6642, 6651 and 6652) (\"CALIBER 6641 … 25 jewels\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "source": "https://www.contatorideltempo.it/blog2018/wp-content/uploads/2025/01/longines-6641-6642-6651-6652-movement_parts-2-7.pdf (Longines technical guide, calibres 6641, 6642, 6651 and 6652) (\"Diameter 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "4.30",
+      "source": "https://www.contatorideltempo.it/blog2018/wp-content/uploads/2025/01/longines-6641-6642-6651-6652-movement_parts-2-7.pdf (Longines technical guide, calibres 6641, 6642, 6651 and 6652) (\"cal. 6641/6642 4.30 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "42",
+      "source": "https://www.contatorideltempo.it/blog2018/wp-content/uploads/2025/01/longines-6641-6642-6651-6652-movement_parts-2-7.pdf (Longines technical guide, calibres 6641, 6642, 6651 and 6652) (\"Sufficient for 42 hours' operation\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://www.contatorideltempo.it/blog2018/wp-content/uploads/2025/01/longines-6641-6642-6651-6652-movement_parts-2-7.pdf (Longines technical guide, calibres 6641, 6642, 6651 and 6652) (\"CALIBER 6641 … Automatic, with rotor\")"
+    }
   },
   {
     "calibre": "Longines 6642",
@@ -34208,7 +34336,17 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (LONGINES L 817.4, 51°, 21600 vph)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Longines L817.4, 51°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://www.contatorideltempo.it/blog2018/wp-content/uploads/2026/08/Longines-L817.4.pdf (Longines technical sheet, calibre L 817.4) (\"17 jewels\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding"
+      ],
+      "source": "https://www.contatorideltempo.it/blog2018/wp-content/uploads/2026/08/Longines-L817.4.pdf (Longines technical sheet, calibre L 817.4) (\"Hand winding\")"
+    }
   },
   {
     "calibre": "Longines L 846.3",
@@ -36396,7 +36534,13 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 231, 39°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 231, 39°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1951 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 231, year of creation) (\"1951\")"
+      }
+    ]
   },
   {
     "calibre": "Omega 240a244",
@@ -36432,7 +36576,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 245, 57°, 19800 vph)"
     ],
     "confidence": "published list",
-    "notes": "Sources disagree; kept as separate entries. Others give 19,800 bph and 52° (the lift-angle sheet)."
+    "notes": "Sources disagree; kept as separate entries. Others give 19,800 bph and 52° (the lift-angle sheet).",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1959 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 245, year of creation) (\"1959\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 245) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 245 (19,800 bph, 52°)",
@@ -36558,7 +36712,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 330, 50°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 330, 50°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1943 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 330, year of creation) (\"1943\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 330) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "30.1",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 330, size in mm) (\"(30,1 x 4,55)\")"
+    },
+    "height_mm": {
+      "value": "4.55",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 330, size in mm) (\"(30,1 x 4,55)\")"
+    }
   },
   {
     "calibre": "Omega 340 a 344",
@@ -36594,7 +36766,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 355, 50°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 355, 50°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1953 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 355, year of creation) (\"1953\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 355) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "28.1",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 355, size in mm) (\"(28,1 x 6,1)\")"
+    },
+    "height_mm": {
+      "value": "6.1",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 355, size in mm) (\"(28,1 x 6,1)\")"
+    }
   },
   {
     "calibre": "Omega 360",
@@ -36613,7 +36803,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 360, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 360, 49°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1944 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 360, year of creation) (\"1944\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 360) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "28",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 360, size in mm) (\"(28 x 3,25)\")"
+    },
+    "height_mm": {
+      "value": "3.25",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 360, size in mm) (\"(28 x 3,25)\")"
+    }
   },
   {
     "calibre": "Omega 371",
@@ -36632,7 +36840,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 371, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 371, 49°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1950 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 371, year of creation) (\"1950\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 371) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 410 a 420",
@@ -36668,7 +36886,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 430, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 430, 52°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1950 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 430, year of creation) (\"1950\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 430) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 440",
@@ -36687,7 +36915,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 440, 56°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 440, 56°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1953 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 440, year of creation) (\"1953\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 440) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "13.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 440, size in mm) (\"(13,5 x 3,2)\")"
+    },
+    "height_mm": {
+      "value": "3.2",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 440, size in mm) (\"(13,5 x 3,2)\")"
+    }
   },
   {
     "calibre": "Omega 455",
@@ -36706,7 +36952,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 455, 50°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 455, 50°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1953 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 455, year of creation) (\"1953\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 455) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "16",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 455, size in mm) (\"(16 x 5,5)\")"
+    },
+    "height_mm": {
+      "value": "5.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 455, size in mm) (\"(16 x 5,5)\")"
+    }
   },
   {
     "calibre": "Omega 470 a 471",
@@ -36758,7 +37022,17 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (OMEGA 485, 52°, 21600 vph)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 485, 52°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1967 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 485, year of creation) (\"1967\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 485) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 490 a 505",
@@ -36811,7 +37085,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 540, 51°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 540, 51°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1957 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 540, year of creation) (\"1957\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 540) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "20.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 540, size in mm) (\"(20,5 x 2)\")"
+    },
+    "height_mm": {
+      "value": "2",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 540, size in mm) (\"(20,5 x 2)\")"
+    }
   },
   {
     "calibre": "Omega 550 a 565",
@@ -36864,7 +37156,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 580, 56°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 580, 56°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1957 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 580, year of creation) (\"1957\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 580) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "13.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 580, size in mm) (\"(13,5 x 3,2)\")"
+    },
+    "height_mm": {
+      "value": "3.2",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 580, size in mm) (\"(13,5 x 3,2)\")"
+    }
   },
   {
     "calibre": "Omega 590 a 591",
@@ -36917,7 +37227,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 620, 48°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 620, 48°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1960 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 620, year of creation) (\"1960\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 620) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "17.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 620, size in mm) (\"(17,5 x 2,5)\")"
+    },
+    "height_mm": {
+      "value": "2.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 620, size in mm) (\"(17,5 x 2,5)\")"
+    }
   },
   {
     "calibre": "Omega 625",
@@ -36935,7 +37263,25 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (OMEGA 625, 52°, 21600 vph)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 625, 52°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1973 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 625, year of creation) (\"1973\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 625) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "17.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 625, size in mm) (\"(17,5 x 2,5)\")"
+    },
+    "height_mm": {
+      "value": "2.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 625, size in mm) (\"(17,5 x 2,5)\")"
+    }
   },
   {
     "calibre": "Omega 630",
@@ -36953,7 +37299,25 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (OMEGA 630, 52°, 21600 vph)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 630, 52°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1962 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 630, year of creation) (\"1962\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 630) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "17.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 630, size in mm) (\"(17,5 x 3)\")"
+    },
+    "height_mm": {
+      "value": "3",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 630, size in mm) (\"(17,5 x 3)\")"
+    }
   },
   {
     "calibre": "Omega 635",
@@ -36971,7 +37335,25 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (OMEGA 635, 52°, 21600 vph)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 635, 52°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1974 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 635, year of creation) (\"1974\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 635) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "17.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 635, size in mm) (\"(17,5 x 3)\")"
+    },
+    "height_mm": {
+      "value": "3",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 635, size in mm) (\"(17,5 x 3)\")"
+    }
   },
   {
     "calibre": "Omega 640",
@@ -36990,7 +37372,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 640, 53°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 640, 53°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1962 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 640, year of creation) (\"1962\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 640) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "12.4",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 640, size in mm) (\"(12,4 x 2,85)\")"
+    },
+    "height_mm": {
+      "value": "2.85",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 640, size in mm) (\"(12,4 x 2,85)\")"
+    }
   },
   {
     "calibre": "Omega 650",
@@ -37009,7 +37409,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 650, 53°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 650, 53°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1962 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 650, year of creation) (\"1962\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 650) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 660 a 661",
@@ -37079,7 +37489,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 690, 53°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 690, 53°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1961 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 690, year of creation) (\"1961\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 690) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 700",
@@ -37098,7 +37518,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 700, 61°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 700, 61°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1963 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 700, year of creation) (\"1963\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 700) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "20.4",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 700, size in mm) (\"(20,4 x 1,71)\")"
+    },
+    "height_mm": {
+      "value": "1.71",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 700, size in mm) (\"(20,4 x 1,71)\")"
+    }
   },
   {
     "calibre": "Omega 710a712",
@@ -37151,7 +37589,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 730, 47°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 730, 47°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1966 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 730, year of creation) (\"1966\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 730) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 750 a 752",
@@ -37187,7 +37635,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 830, 46°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 830, 46°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1966 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 830, year of creation) (\"1966\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 830) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "38.65",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 830, size in mm) (\"(38,65 x 4,6)\")"
+    },
+    "height_mm": {
+      "value": "4.6",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 830, size in mm) (\"(38,65 x 4,6)\")"
+    }
   },
   {
     "calibre": "Omega 860 a 930",
@@ -37223,7 +37689,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 960, 44°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 960, 44°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1971 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 960, year of creation) (\"1971\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 960) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "36.6",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 960, size in mm) (\"(36,6 x 4,5)\")"
+    },
+    "height_mm": {
+      "value": "4.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 960, size in mm) (\"(36,6 x 4,5)\")"
+    }
   },
   {
     "calibre": "Omega 980",
@@ -37242,7 +37726,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 980, 50°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 980, 50°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1969 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 980, year of creation) (\"1969\")"
+      }
+    ],
+    "jewels": {
+      "value": 19,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 980) (\"19 p\")"
+    },
+    "diameter": {
+      "mm": "30.8",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 980, size in mm) (\"(30,8 x 7,8)\")"
+    },
+    "height_mm": {
+      "value": "7.8",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 980, size in mm) (\"(30,8 x 7,8)\")"
+    }
   },
   {
     "calibre": "Omega 1000 a 1035",
@@ -37295,7 +37797,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 1045, 53°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1045, 53°, 28800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1974 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1045, year of creation) (\"1974\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1045) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "31",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1045, size in mm) (\"(31 x 8,2)\")"
+    },
+    "height_mm": {
+      "value": "8.2",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1045, size in mm) (\"(31 x 8,2)\")"
+    }
   },
   {
     "calibre": "Omega 1060",
@@ -37350,7 +37870,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 1100, 53°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1100, 53°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1977 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1100, year of creation) (\"1977\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1100) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 1110a 1111",
@@ -37386,7 +37916,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 1140, 53°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1140, 53°, 28800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1988 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1140, year of creation) (\"1988\")"
+      }
+    ],
+    "jewels": {
+      "value": 45,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1140) (\"45 p\")"
+    },
+    "diameter": {
+      "mm": "30",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1140, size in mm) (\"(30 x 6,5)\")"
+    },
+    "height_mm": {
+      "value": "6.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1140, size in mm) (\"(30 x 6,5)\")"
+    }
   },
   {
     "calibre": "Omega 1150a 1155",
@@ -41150,7 +41698,11 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1030, 52°)",
       "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki, Rolex calibres) (section \"First-Generation 1000\": 18,000 A/h; lists Rolex 1030)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1950,
+      "source": "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki Rolex calibre list, Year column; Watch Doctor's chart https://watchdoctor.biz/movements-and-calibers/ gives the same intro date) (\"1950-\")"
+    }
   },
   {
     "calibre": "Rolex 1100",
@@ -41188,7 +41740,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 1120, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1120, 52°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1953,
+      "source": "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki Rolex calibre list, Year column; Watch Doctor's chart https://watchdoctor.biz/movements-and-calibers/ gives the same intro date) (\"1953-\")"
+    }
   },
   {
     "calibre": "Rolex 1130",
@@ -41207,7 +41763,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 1130, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1130, 52°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1955,
+      "source": "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki Rolex calibre list, Year column; Watch Doctor's chart https://watchdoctor.biz/movements-and-calibers/ gives the same intro date) (\"1955-\")"
+    }
   },
   {
     "calibre": "Rolex 1135",
@@ -41351,7 +41911,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 1520, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1520, 52°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1963,
+      "source": "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki Rolex calibre list, Year column; Watch Doctor's chart https://watchdoctor.biz/movements-and-calibers/ gives the same intro date) (\"1963\")"
+    }
   },
   {
     "calibre": "Rolex 1525",
@@ -41370,7 +41934,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 1525, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1525, 52°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1965,
+      "source": "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki Rolex calibre list, Year column; Watch Doctor's chart https://watchdoctor.biz/movements-and-calibers/ gives the same intro date) (\"1965\")"
+    }
   },
   {
     "calibre": "Rolex 1555",
@@ -41389,7 +41957,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 1555, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1555, 52°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1959,
+      "source": "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki Rolex calibre list, Year column; Watch Doctor's chart https://watchdoctor.biz/movements-and-calibers/ gives the same intro date) (\"1959-\")"
+    }
   },
   {
     "calibre": "Rolex 1556",
@@ -41408,7 +41980,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 1556, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1556, 52°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1965,
+      "source": "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki Rolex calibre list, Year column; Watch Doctor's chart https://watchdoctor.biz/movements-and-calibers/ gives the same intro date) (\"1965-\")"
+    }
   },
   {
     "calibre": "Rolex 1570",
@@ -41427,7 +42003,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 1570, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1570, 52°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1965,
+      "source": "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki Rolex calibre list, Year column; Watch Doctor's chart https://watchdoctor.biz/movements-and-calibers/ gives the same intro date) (\"1965-1974\")"
+    }
   },
   {
     "calibre": "Rolex 1575 (&GMT)",
@@ -48791,7 +49371,13 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Tudor 390, 50°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Tudor 390, 50°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://www.tudorwatch.com/en/inside-tudor/history/tudor-history-submariners-1969-to-1999 (Tudor history, Submariners 1969 to 1999) (\"the replacement of the self-winding Calibre 390\")"
+    }
   },
   {
     "calibre": "Tudor 395",
@@ -49397,7 +49983,14 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Tudor 7734, 48°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Tudor 7734, 48°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "related": [
+      {
+        "calibre": "Valjoux 7734",
+        "relation": "based on",
+        "source": "https://www.tudorwatch.com/en/inside-tudor/history/tudor-history-chronographs-1971-to-1976 (Tudor history, chronographs 1971 to 1976) (\"In place of the Valjoux Calibre 7734\")"
+      }
+    ]
   },
   {
     "calibre": "Unitas 6300 N",
@@ -66192,7 +66785,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 1000, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1000, 52°, 28800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1968 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1000, year of creation) (\"1968\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1000) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "27.9",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1000, size in mm) (\"(27,9 x 4)\")"
+    },
+    "height_mm": {
+      "value": "4",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1000, size in mm) (\"(27,9 x 4)\")"
+    }
   },
   {
     "calibre": "Omega 1001",
@@ -66205,7 +66816,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1001, 52°)",
       "https://watch-wiki.org/index.php?title=Omega_1001 (Watch-Wiki: Omega 1001) (\"Halbschwingungen = 28.800\")"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1968 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1001, year of creation) (\"1968\")"
+      }
+    ],
+    "jewels": {
+      "value": 20,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1001) (\"20 p\")"
+    }
   },
   {
     "calibre": "Omega 1002",
@@ -66218,7 +66839,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1002, 52°)",
       "https://watch-wiki.org/index.php?title=Omega_1002 (Watch-Wiki: Omega 1002) (\"Halbschwingungen = 28.800\")"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1968 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1002, year of creation) (\"1968\")"
+      }
+    ],
+    "jewels": {
+      "value": 20,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1002) (\"20 p\")"
+    }
   },
   {
     "calibre": "Omega 1010",
@@ -66231,7 +66862,25 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1010, 52°)",
       "https://watch-wiki.org/index.php?title=Omega_1010 (Watch-Wiki: Omega 1010) (\"Halbschwingungen = 28.800\")"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1972 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1010, year of creation) (\"1972\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1010) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "27.9",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1010, size in mm) (\"(27,9 x 4,25)\")"
+    },
+    "height_mm": {
+      "value": "4.25",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1010, size in mm) (\"(27,9 x 4,25)\")"
+    }
   },
   {
     "calibre": "Omega 1020",
@@ -66250,7 +66899,25 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1020, 52°)",
       "https://notredameantiques.com/wp-content/uploads/omega-1010_1011_1012_1020_1021_1022.pdf (Omega technical guide, 1010/1011/1012/1020/1021/1022, p. 1) (Frequency 28'800 A/h; angle of lift of balance 52°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1972 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1020, year of creation) (\"1972\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1020) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "27.9",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1020, size in mm) (\"(27,9 x 4,8)\")"
+    },
+    "height_mm": {
+      "value": "4.8",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1020, size in mm) (\"(27,9 x 4,8)\")"
+    }
   },
   {
     "calibre": "Omega 1030",
@@ -66269,7 +66936,19 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1030, 52°)",
       "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (1030 | Hand-wound, date | 17 | 28,800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1030) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "27.9",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1030, size in mm) (\"(27,9 x 3,65)\")"
+    },
+    "height_mm": {
+      "value": "3.65",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1030, size in mm) (\"(27,9 x 3,65)\")"
+    }
   },
   {
     "calibre": "Omega 1040",
@@ -66287,7 +66966,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 1040, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1040, 52°, 28800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1970 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1040, year of creation) (\"1970\")"
+      }
+    ],
+    "jewels": {
+      "value": 22,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1040) (\"22 p\")"
+    },
+    "diameter": {
+      "mm": "31",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1040, size in mm) (\"(31 x 8)\")"
+    },
+    "height_mm": {
+      "value": "8",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1040, size in mm) (\"(31 x 8)\")"
+    }
   },
   {
     "calibre": "Omega 1041",
@@ -66305,7 +67002,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 1041, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1041, 52°, 28800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1973 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1041, year of creation) (\"1973\")"
+      }
+    ],
+    "jewels": {
+      "value": 22,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1041) (\"22 p\")"
+    }
   },
   {
     "calibre": "Omega 1110",
@@ -66323,7 +67030,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 1110, 53°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1110, 53°, 28800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1984 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1110, year of creation) (\"1984\")"
+      }
+    ],
+    "jewels": {
+      "value": 21,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1110) (\"21 p\")"
+    }
   },
   {
     "calibre": "Omega 1111",
@@ -66341,7 +67058,13 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 1111, 53°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1111, 53°, 28800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1984 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1111, year of creation) (\"1984\")"
+      }
+    ]
   },
   {
     "calibre": "Omega 1120",
@@ -66360,7 +67083,25 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1120, 51°)",
       "https://notredameantiques.com/wp-content/uploads/Omega-1120.pdf (Omega technical guide, 1120 A, p. 1) (Frequency 4 Hz (28’800 A/h); Angle of lift 51°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1994 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1120, year of creation) (\"1994\")"
+      }
+    ],
+    "jewels": {
+      "value": 23,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1120) (\"23 p\")"
+    },
+    "diameter": {
+      "mm": "25.6",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1120, size in mm) (\"(25,6 x 3,9)\")"
+    },
+    "height_mm": {
+      "value": "3.9",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1120, size in mm) (\"(25,6 x 3,9)\")"
+    }
   },
   {
     "calibre": "Omega 1150",
@@ -66378,7 +67119,21 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 1150, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1150, 49°, 28800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1990 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1150, year of creation) (\"1990\")"
+      }
+    ],
+    "diameter": {
+      "mm": "30",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1150, size in mm) (\"(30 x 7,9)\")"
+    },
+    "height_mm": {
+      "value": "7.9",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1150, size in mm) (\"(30 x 7,9)\")"
+    }
   },
   {
     "calibre": "Omega 1151",
@@ -66399,7 +67154,13 @@
       "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 42: 1150 à 1155 28800 52)"
     ],
     "confidence": "published list",
-    "notes": "Lift angle: Witschi's table gives 52° for the 1150 to 1155 range (timegrapher-calibres#4)."
+    "notes": "Lift angle: Witschi's table gives 52° for the 1150 to 1155 range (timegrapher-calibres#4).",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1994 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1151, year of creation) (\"1994\")"
+      }
+    ]
   },
   {
     "calibre": "Omega 1152",
@@ -66419,7 +67180,13 @@
       "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 42: 1150 à 1155 28800 52)"
     ],
     "confidence": "published list",
-    "notes": "Lift angle: Witschi's table gives 52° for the 1150 to 1155 range (timegrapher-calibres#4)."
+    "notes": "Lift angle: Witschi's table gives 52° for the 1150 to 1155 range (timegrapher-calibres#4).",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1995 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1152, year of creation) (\"1995\")"
+      }
+    ]
   },
   {
     "calibre": "Omega 1164",
@@ -66439,7 +67206,17 @@
       "https://notredameantiques.com/wp-content/uploads/omega-1164.pdf (Omega technical guide, 1164 A, p. 1) (Frequency 4 Hz (28’800 A/h); Angle of lift 50°)"
     ],
     "confidence": "published list",
-    "notes": "Lift angle 50° from Omega's 1164 A guide; the lists this row was built from give 49° (timegrapher-calibres#4)."
+    "notes": "Lift angle 50° from Omega's 1164 A guide; the lists this row was built from give 49° (timegrapher-calibres#4).",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1995 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1164, year of creation) (\"1995\")"
+      }
+    ],
+    "jewels": {
+      "value": 25,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1164) (\"25 p\")"
+    }
   },
   {
     "calibre": "Omega 1480",
@@ -66493,7 +67270,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 161, 36°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 161, 36°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1953 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 161, year of creation) (\"1953\")"
+      }
+    ],
+    "jewels": {
+      "value": 15,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 161) (\"15 p\")"
+    }
   },
   {
     "calibre": "Omega 162",
@@ -66512,7 +67299,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 162, 36°)",
       "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (162 38.5 T1 17 p 18'000 1935)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1935 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 162, year of creation) (\"1935\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 162) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 163",
@@ -66530,7 +67327,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 163, 36°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 163, 36°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1953 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 163, year of creation) (\"1953\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 163) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 1861",
@@ -66599,7 +67406,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 210, 54°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 210, 54°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1946 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 210, year of creation) (\"1946\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 210) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 211",
@@ -66618,7 +67435,11 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 211, 54°)",
       "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (211 R 11.5 SS AM 17 p 21'306 1951)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 211) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 212",
@@ -66637,7 +67458,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 212, 54°)",
       "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (212 R 11.5 T1 SS AM 17 p 21'306 1952)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1952 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 212, year of creation) (\"1952\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 212) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 213",
@@ -66655,7 +67486,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 213, 54°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 213, 54°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1953 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 213, year of creation) (\"1953\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 213) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 23,4 SC",
@@ -66691,7 +67532,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 240, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 240, 52°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1938 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 240, year of creation) (\"1938\")"
+      }
+    ],
+    "jewels": {
+      "value": 15,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 240) (\"15 p\")"
+    }
   },
   {
     "calibre": "Omega 241",
@@ -66709,7 +67560,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 241, 53°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 241, 53°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1949 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 241, year of creation) (\"1949\")"
+      }
+    ],
+    "jewels": {
+      "value": 15,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 241) (\"15 p\")"
+    }
   },
   {
     "calibre": "Omega 242",
@@ -66727,7 +67588,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 242, 54°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 242, 54°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1944 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 242, year of creation) (\"1944\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 242) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 243",
@@ -66745,7 +67616,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 243, 55°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 243, 55°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1950 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 243, year of creation) (\"1950\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 243) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 244",
@@ -66763,7 +67644,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 244, 56°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 244, 56°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1950 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 244, year of creation) (\"1950\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 244) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 250",
@@ -66781,7 +67672,13 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 250, 58°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 250, 58°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1939 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 250, year of creation) (\"1939\")"
+      }
+    ]
   },
   {
     "calibre": "Omega 2500",
@@ -66800,7 +67697,27 @@
       "kind": "co-axial",
       "source": "https://monochrome-watches.com/omega-co-axial-escapement-technical-perspective (Monochrome Watches: Omega's Co-Axial escapement, a technical perspective) (\"The original calibre 2500 was a modified ETA 2892 fitted with a Co-Axial escapement\")"
     },
-    "notes": "Beat rate depends on the version, so none is given: 28,800 A/h for the 2500A and 2500B, 25,200 A/h for the 2500C. Omega's guide sets the lift angle at 38° on newer Witschi instruments and at 30° for the 4 Hz versions on older ones (timegrapher-calibres#4)."
+    "notes": "Beat rate depends on the version, so none is given: 28,800 A/h for the 2500A and 2500B, 25,200 A/h for the 2500C. Omega's guide sets the lift angle at 38° on newer Witschi instruments and at 30° for the 4 Hz versions on older ones (timegrapher-calibres#4).",
+    "jewels": {
+      "value": 27,
+      "source": "https://primrosesupplies.com/Swiss%20Tech%20Guides/Omega%20tech%20Guides/2500ABC.pdf (Omega technical guide, Calibre 2500 A, B and C) (\"Number of rubies … 27\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://primrosesupplies.com/Swiss%20Tech%20Guides/Omega%20tech%20Guides/2500ABC.pdf (Omega technical guide, Calibre 2500 A, B and C) (\"11 1/2’’’ … Ø 25,60 mm\")"
+    },
+    "height_mm": {
+      "value": "4.10",
+      "source": "https://primrosesupplies.com/Swiss%20Tech%20Guides/Omega%20tech%20Guides/2500ABC.pdf (Omega technical guide, Calibre 2500 A, B and C) (\"Height on movement 4.10 mm\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date"
+      ],
+      "source": "https://primrosesupplies.com/Swiss%20Tech%20Guides/Omega%20tech%20Guides/2500ABC.pdf (Omega technical guide, Calibre 2500 A, B and C) (\"Automatic movement, Co-Axial escapement, date\")"
+    }
   },
   {
     "calibre": "Omega 2500A",
@@ -66826,7 +67743,27 @@
       "kind": "co-axial",
       "source": "https://monochrome-watches.com/omega-co-axial-escapement-technical-perspective (Monochrome Watches: Omega's Co-Axial escapement, a technical perspective) (\"The original calibre 2500 was a modified ETA 2892 fitted with a Co-Axial escapement\")"
     },
-    "notes": "Omega's guide sets the lift angle at 38° on newer Witschi instruments and at 30° for the 4 Hz versions on older ones (timegrapher-calibres#4)."
+    "notes": "Omega's guide sets the lift angle at 38° on newer Witschi instruments and at 30° for the 4 Hz versions on older ones (timegrapher-calibres#4).",
+    "jewels": {
+      "value": 27,
+      "source": "https://primrosesupplies.com/Swiss%20Tech%20Guides/Omega%20tech%20Guides/2500ABC.pdf (Omega technical guide, Calibre 2500 A, B and C) (\"Number of rubies … 27\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://primrosesupplies.com/Swiss%20Tech%20Guides/Omega%20tech%20Guides/2500ABC.pdf (Omega technical guide, Calibre 2500 A, B and C) (\"11 1/2’’’ … Ø 25,60 mm\")"
+    },
+    "height_mm": {
+      "value": "4.10",
+      "source": "https://primrosesupplies.com/Swiss%20Tech%20Guides/Omega%20tech%20Guides/2500ABC.pdf (Omega technical guide, Calibre 2500 A, B and C) (\"Height on movement 4.10 mm\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date"
+      ],
+      "source": "https://primrosesupplies.com/Swiss%20Tech%20Guides/Omega%20tech%20Guides/2500ABC.pdf (Omega technical guide, Calibre 2500 A, B and C) (\"Automatic movement, Co-Axial escapement, date\")"
+    }
   },
   {
     "calibre": "Omega 2500B",
@@ -66852,7 +67789,27 @@
       "kind": "co-axial",
       "source": "https://monochrome-watches.com/omega-co-axial-escapement-technical-perspective (Monochrome Watches: Omega's Co-Axial escapement, a technical perspective) (\"The original calibre 2500 was a modified ETA 2892 fitted with a Co-Axial escapement\")"
     },
-    "notes": "Omega's guide sets the lift angle at 38° on newer Witschi instruments and at 30° for the 4 Hz versions on older ones (timegrapher-calibres#4)."
+    "notes": "Omega's guide sets the lift angle at 38° on newer Witschi instruments and at 30° for the 4 Hz versions on older ones (timegrapher-calibres#4).",
+    "jewels": {
+      "value": 27,
+      "source": "https://primrosesupplies.com/Swiss%20Tech%20Guides/Omega%20tech%20Guides/2500ABC.pdf (Omega technical guide, Calibre 2500 A, B and C) (\"Number of rubies … 27\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://primrosesupplies.com/Swiss%20Tech%20Guides/Omega%20tech%20Guides/2500ABC.pdf (Omega technical guide, Calibre 2500 A, B and C) (\"11 1/2’’’ … Ø 25,60 mm\")"
+    },
+    "height_mm": {
+      "value": "4.10",
+      "source": "https://primrosesupplies.com/Swiss%20Tech%20Guides/Omega%20tech%20Guides/2500ABC.pdf (Omega technical guide, Calibre 2500 A, B and C) (\"Height on movement 4.10 mm\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date"
+      ],
+      "source": "https://primrosesupplies.com/Swiss%20Tech%20Guides/Omega%20tech%20Guides/2500ABC.pdf (Omega technical guide, Calibre 2500 A, B and C) (\"Automatic movement, Co-Axial escapement, date\")"
+    }
   },
   {
     "calibre": "Omega 2500C",
@@ -66876,6 +67833,26 @@
     "escapement": {
       "kind": "co-axial",
       "source": "https://monochrome-watches.com/omega-co-axial-escapement-technical-perspective (Monochrome Watches: Omega's Co-Axial escapement, a technical perspective) (\"The original calibre 2500 was a modified ETA 2892 fitted with a Co-Axial escapement\")"
+    },
+    "jewels": {
+      "value": 27,
+      "source": "https://primrosesupplies.com/Swiss%20Tech%20Guides/Omega%20tech%20Guides/2500ABC.pdf (Omega technical guide, Calibre 2500 A, B and C) (\"Number of rubies … 27\")"
+    },
+    "diameter": {
+      "mm": "25.60",
+      "lignes": "11½",
+      "source": "https://primrosesupplies.com/Swiss%20Tech%20Guides/Omega%20tech%20Guides/2500ABC.pdf (Omega technical guide, Calibre 2500 A, B and C) (\"11 1/2’’’ … Ø 25,60 mm\")"
+    },
+    "height_mm": {
+      "value": "4.10",
+      "source": "https://primrosesupplies.com/Swiss%20Tech%20Guides/Omega%20tech%20Guides/2500ABC.pdf (Omega technical guide, Calibre 2500 A, B and C) (\"Height on movement 4.10 mm\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date"
+      ],
+      "source": "https://primrosesupplies.com/Swiss%20Tech%20Guides/Omega%20tech%20Guides/2500ABC.pdf (Omega technical guide, Calibre 2500 A, B and C) (\"Automatic movement, Co-Axial escapement, date\")"
     }
   },
   {
@@ -66894,7 +67871,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 251, 59°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 251, 59°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1949 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 251, year of creation) (\"1949\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 251) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 252",
@@ -66912,7 +67899,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 252, 60°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 252, 60°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 252) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 260",
@@ -66930,7 +67921,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 260, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 260, 49°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1941 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 260, year of creation) (\"1941\")"
+      }
+    ],
+    "jewels": {
+      "value": 15,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 260) (\"15 p\")"
+    }
   },
   {
     "calibre": "Omega 261",
@@ -66949,7 +67950,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 261, 49°)",
       "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (261 | Hand-wound | ... | 18,000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1941 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 261, year of creation) (\"1941\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 261) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 262",
@@ -66968,7 +67979,13 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 262, 49°)",
       "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (262 | Hand-wound | ... | 18,000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1943 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 262, year of creation) (\"1943\")"
+      }
+    ]
   },
   {
     "calibre": "Omega 265",
@@ -66987,7 +68004,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 265, 49°)",
       "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (265 | Hand-wound | ... | 18,000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1949 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 265, year of creation) (\"1949\")"
+      }
+    ],
+    "jewels": {
+      "value": 15,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 265) (\"15 p\")"
+    }
   },
   {
     "calibre": "Omega 266",
@@ -67006,7 +68033,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 266, 49°)",
       "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (266 | Hand-wound | ... | 18,000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1950 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 266, year of creation) (\"1950\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 266) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 267",
@@ -67025,7 +68062,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 267, 49°)",
       "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (267 | Hand-wound | ... | 18,000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1956 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 267, year of creation) (\"1956\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 267) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 268",
@@ -67038,7 +68085,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 268, 49°)",
       "https://watch-wiki.org/index.php?title=Omega_268 (Watch-Wiki: Omega 268) (\"Halbschwingungen = 18.000\")"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1958 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 268, year of creation) (\"1958\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 268) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 269",
@@ -67057,7 +68114,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 269, 49°)",
       "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (269 | Hand-wound | ... | 18,000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1961 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 269, year of creation) (\"1961\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 269) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 280",
@@ -67077,7 +68144,17 @@
       "https://watchbreaker.com/blog/omega-30t2 (Watch Breaker, table \"The numbered calibres, 260 to 286\", which lists 260 to 269 and 280 to 286) (\"All are 30.00 mm across and beat 18,000 an hour.\")",
       "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 41: 260 à 286 18000 49)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1941 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 280, year of creation) (\"1941\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 280) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 281",
@@ -67098,7 +68175,13 @@
       "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 41: 260 à 286 18000 49)"
     ],
     "confidence": "published list",
-    "notes": "Sources disagree; kept as separate entries. Others give 50° (Watchmaking Tools)."
+    "notes": "Sources disagree; kept as separate entries. Others give 50° (Watchmaking Tools).",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1943 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 281, year of creation) (\"1943\")"
+      }
+    ]
   },
   {
     "calibre": "Omega 281 (50°)",
@@ -67148,7 +68231,17 @@
       "https://watchbreaker.com/blog/omega-30t2 (Watch Breaker, table \"The numbered calibres, 260 to 286\", which lists 260 to 269 and 280 to 286) (\"All are 30.00 mm across and beat 18,000 an hour.\")",
       "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 41: 260 à 286 18000 49)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1949 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 283, year of creation) (\"1949\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 283) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 284",
@@ -67168,7 +68261,17 @@
       "https://watchbreaker.com/blog/omega-30t2 (Watch Breaker, table \"The numbered calibres, 260 to 286\", which lists 260 to 269 and 280 to 286) (\"All are 30.00 mm across and beat 18,000 an hour.\")",
       "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 41: 260 à 286 18000 49)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1955 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 284, year of creation) (\"1955\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 284) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 285",
@@ -67188,7 +68291,17 @@
       "https://watchbreaker.com/blog/omega-30t2 (Watch Breaker, table \"The numbered calibres, 260 to 286\", which lists 260 to 269 and 280 to 286) (\"All are 30.00 mm across and beat 18,000 an hour.\")",
       "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 41: 260 à 286 18000 49)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1958 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 285, year of creation) (\"1958\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 285) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 286",
@@ -67206,7 +68319,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 286, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 286, 49°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1961 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 286, year of creation) (\"1961\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 286) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 300",
@@ -67224,7 +68347,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 300, 54°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 300, 54°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1944 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 300, year of creation) (\"1944\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 300) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 301",
@@ -67243,7 +68376,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 301, 54°)",
       "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (301 R 17.8 AM 17 p 15 21'600 1946)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1946 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 301, year of creation) (\"1946\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 301) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 302",
@@ -67262,7 +68405,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 302, 54°)",
       "https://ottuhr.com/index/omega/calibers/omega-302/ (OttUhr, Omega 302) (Frequency 21,600 vph (3 Hz))"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1950 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 302, year of creation) (\"1950\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 302) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 30T2",
@@ -67281,7 +68434,13 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 30T2, 49°)",
       "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (30T2 | Hand-wound | 15 | 18,000 vph | 1939)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1940 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 30T2, year of creation) (\"1940\")"
+      }
+    ]
   },
   {
     "calibre": "Omega 30T2SC",
@@ -67310,7 +68469,13 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 310, 54°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 310, 54°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1942 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 310, year of creation) (\"1942\")"
+      }
+    ]
   },
   {
     "calibre": "Omega 320",
@@ -67328,7 +68493,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 320, 40°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 320, 40°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1946 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 320, year of creation) (\"1946\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 320) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "27",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 320, size in mm) (\"(27 x 5,57)\")"
+    },
+    "height_mm": {
+      "value": "5.57",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 320, size in mm) (\"(27 x 5,57)\")"
+    }
   },
   {
     "calibre": "Omega 321",
@@ -67346,7 +68529,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 321, 40°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 321, 40°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1946 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 321, year of creation) (\"1946\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 321) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "27",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 321, size in mm) (\"(27 x 6,74)\")"
+    },
+    "height_mm": {
+      "value": "6.74",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 321, size in mm) (\"(27 x 6,74)\")"
+    }
   },
   {
     "calibre": "Omega 3220",
@@ -67365,7 +68566,31 @@
       "https://myretrowatches.co.uk/wp-content/uploads/2023/11/Omega-3220.pdf (Omega technical guide, 3220 A, p. 1) (4 Hz (28’800 A/h); Lift angle 51°)"
     ],
     "confidence": "published list",
-    "notes": "Sources disagree; kept as separate entries. Others give 52° (Watchmaking Tools)."
+    "notes": "Sources disagree; kept as separate entries. Others give 52° (Watchmaking Tools).",
+    "jewels": {
+      "value": 47,
+      "source": "https://mccawcompany.com/wp-content/uploads/2020/04/omega_3220.pdf (Omega technical guide, Calibre 3220) (\"Number of jewels … 47\")"
+    },
+    "diameter": {
+      "mm": "30",
+      "lignes": "13¼",
+      "source": "https://mccawcompany.com/wp-content/uploads/2020/04/omega_3220.pdf (Omega technical guide, Calibre 3220) (\"131/4’’’ … Ø 30 mm\")"
+    },
+    "height_mm": {
+      "value": "6.50",
+      "source": "https://mccawcompany.com/wp-content/uploads/2020/04/omega_3220.pdf (Omega technical guide, Calibre 3220) (\"Height on movement 6.50 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "40",
+      "source": "https://mccawcompany.com/wp-content/uploads/2020/04/omega_3220.pdf (Omega technical guide, Calibre 3220) (\"40 h\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "chronograph"
+      ],
+      "source": "https://mccawcompany.com/wp-content/uploads/2020/04/omega_3220.pdf (Omega technical guide, Calibre 3220) (\"Automatic movement with chronograph.\")"
+    }
   },
   {
     "calibre": "Omega 3220 (52°)",
@@ -67403,7 +68628,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 340, 50°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 340, 50°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1943 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 340, year of creation) (\"1943\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 340) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "28.1",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 340, size in mm) (\"(28,1 x 4,8)\")"
+    },
+    "height_mm": {
+      "value": "4.8",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 340, size in mm) (\"(28,1 x 4,8)\")"
+    }
   },
   {
     "calibre": "Omega 341",
@@ -67416,7 +68659,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 341, 50°)",
       "https://watch-wiki.org/index.php?title=Omega_341 (Watch-Wiki: Omega 341) (\"Halbschwingungen = 19.800\")"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1947 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 341, year of creation) (\"1947\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 341) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 342",
@@ -67437,7 +68690,17 @@
       "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 41: 340 à 344 28.10 19800 52)"
     ],
     "confidence": "published list",
-    "notes": "Lift angle: Witschi's table gives 52° for the 340 to 344 range (timegrapher-calibres#4)."
+    "notes": "Lift angle: Witschi's table gives 52° for the 340 to 344 range (timegrapher-calibres#4).",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1949 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 342, year of creation) (\"1949\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 342) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 343",
@@ -67458,7 +68721,17 @@
       "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 41: 340 à 344 28.10 19800 52)"
     ],
     "confidence": "published list",
-    "notes": "Lift angle: Witschi's table gives 52° for the 340 to 344 range (timegrapher-calibres#4)."
+    "notes": "Lift angle: Witschi's table gives 52° for the 340 to 344 range (timegrapher-calibres#4).",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1949 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 343, year of creation) (\"1949\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 343) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 344",
@@ -67476,7 +68749,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 344, 50°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 344, 50°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1953 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 344, year of creation) (\"1953\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 344) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 354",
@@ -67495,7 +68778,25 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 354, 50°)",
       "https://chronomaddox.com/omega/tables/seamaster/combined.html (Chronomaddox, Omega Seamaster production tables, Beat column) (354 28.1 19,800 1952~55)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1952 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 354, year of creation) (\"1952\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 354) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "28.1",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 354, size in mm) (\"(28,1 x 5,4)\")"
+    },
+    "height_mm": {
+      "value": "5.4",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 354, size in mm) (\"(28,1 x 5,4)\")"
+    }
   },
   {
     "calibre": "Omega 3606",
@@ -67532,7 +68833,21 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 410, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 410, 49°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1951 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 410, year of creation) (\"1951\")"
+      }
+    ],
+    "diameter": {
+      "mm": "26.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 410, size in mm) (\"(26,5 x 3,6)\")"
+    },
+    "height_mm": {
+      "value": "3.6",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 410, size in mm) (\"(26,5 x 3,6)\")"
+    }
   },
   {
     "calibre": "Omega 420",
@@ -67550,7 +68865,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 420, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 420, 49°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1951 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 420, year of creation) (\"1951\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 420) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "26.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 420, size in mm) (\"(26,5 x 4,5)\")"
+    },
+    "height_mm": {
+      "value": "4.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 420, size in mm) (\"(26,5 x 4,5)\")"
+    }
   },
   {
     "calibre": "Omega 470",
@@ -67568,7 +68901,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 470, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 470, 49°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1955 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 470, year of creation) (\"1955\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 470) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "25",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 470, size in mm) (\"(25 x 5,5)\")"
+    },
+    "height_mm": {
+      "value": "5.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 470, size in mm) (\"(25 x 5,5)\")"
+    }
   },
   {
     "calibre": "Omega 471",
@@ -67604,7 +68955,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 480, 67°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 480, 67°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1954 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 480, year of creation) (\"1954\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 480) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 481",
@@ -67625,7 +68986,17 @@
       "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 42: 480 à 484 12.50 19800 52)"
     ],
     "confidence": "published list",
-    "notes": "Lift angle: Witschi's table gives 52° for the 480 to 484 range (timegrapher-calibres#4)."
+    "notes": "Lift angle: Witschi's table gives 52° for the 480 to 484 range (timegrapher-calibres#4).",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1955 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 481, year of creation) (\"1955\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 481) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 482",
@@ -67646,7 +69017,17 @@
       "https://wadhome.org/~wad/horology/watches/reference/lift_angles_1.pdf (Witschi, Tabelle diverser Schlagzahlen und Hebewinkel; Fabrikat Kaliber (MM) Frequenz Hebewinkel) (p. 42: 480 à 484 12.50 19800 52)"
     ],
     "confidence": "published list",
-    "notes": "Lift angle: Witschi's table gives 52° for the 480 to 484 range (timegrapher-calibres#4)."
+    "notes": "Lift angle: Witschi's table gives 52° for the 480 to 484 range (timegrapher-calibres#4).",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1957 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 482, year of creation) (\"1957\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 482) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 483",
@@ -67664,7 +69045,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 483, 70°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 483, 70°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1959 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 483, year of creation) (\"1959\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 483) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 490",
@@ -67682,7 +69073,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 490, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 490, 49°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1955 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 490, year of creation) (\"1955\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 490) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "28",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 490, size in mm) (\"(28 x 5,55)\")"
+    },
+    "height_mm": {
+      "value": "5.55",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 490, size in mm) (\"(28 x 5,55)\")"
+    }
   },
   {
     "calibre": "Omega 491",
@@ -67701,7 +69110,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 491, 49°)",
       "https://oldswisswatches.com/watch-parts-branded/omega-calibre-movement-and-spare-parts/omega-491/ (Old Swiss Watches, Omega 491) (f = 19800 A/h)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1955 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 491, year of creation) (\"1955\")"
+      }
+    ],
+    "jewels": {
+      "value": 19,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 491) (\"19 p\")"
+    }
   },
   {
     "calibre": "Omega 501",
@@ -67739,7 +69158,25 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 502, 49°)",
       "https://oldswisswatches.com/watch-parts-branded/omega-calibre-movement-and-spare-parts/omega-502/ (Old Swiss Watches, Omega 502) (f = 19800 A/h)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1956 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 502, year of creation) (\"1956\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 502) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "28",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 502, size in mm) (\"(28 x 6,4)\")"
+    },
+    "height_mm": {
+      "value": "6.4",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 502, size in mm) (\"(28 x 6,4)\")"
+    }
   },
   {
     "calibre": "Omega 503",
@@ -67777,7 +69214,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 504, 49°)",
       "https://oldswisswatches.com/watch-parts-branded/omega-calibre-movement-and-spare-parts/omega-504/ (Old Swiss Watches, Omega 504) (f = 19800 A/h)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1957 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 504, year of creation) (\"1957\")"
+      }
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 504) (\"24 p\")"
+    }
   },
   {
     "calibre": "Omega 505",
@@ -67795,7 +69242,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 505, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 505, 49°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1957 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 505, year of creation) (\"1957\")"
+      }
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 505) (\"24 p\")"
+    }
   },
   {
     "calibre": "Omega 510",
@@ -67813,7 +69270,30 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 510, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 510, 49°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1955,
+      "to": 1957,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 510, remarks) (\"pièces de 1955 à 1957\")"
+    },
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1954 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 510, year of creation) (\"1954\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 510) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "25",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 510, size in mm) (\"(25 x 3,25)\")"
+    },
+    "height_mm": {
+      "value": "3.25",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 510, size in mm) (\"(25 x 3,25)\")"
+    }
   },
   {
     "calibre": "Omega 511",
@@ -67832,7 +69312,22 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 511, 49°)",
       "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (511 25 PC SS AM 17 p 19'800 1954)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1955,
+      "to": 1959,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 511, remarks) (\"pièces de 1955 à 1959\")"
+    },
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1954 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 511, year of creation) (\"1954\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 511) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 520",
@@ -67850,7 +69345,30 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 520, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 520, 49°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1957,
+      "to": 1959,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 520, remarks) (\"pièces de 1957 à 1959\")"
+    },
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1957 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 520, year of creation) (\"1957\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 520) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "25",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 520, size in mm) (\"(25 x 3,8)\")"
+    },
+    "height_mm": {
+      "value": "3.8",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 520, size in mm) (\"(25 x 3,8)\")"
+    }
   },
   {
     "calibre": "Omega 550",
@@ -67868,7 +69386,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 550, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 550, 49°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1960 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 550, year of creation) (\"1960\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 550) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "27.9",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 550, size in mm) (\"(27,9 x 4,5)\")"
+    },
+    "height_mm": {
+      "value": "4.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 550, size in mm) (\"(27,9 x 4,5)\")"
+    }
   },
   {
     "calibre": "Omega 551",
@@ -67887,7 +69423,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 551, 49°)",
       "https://chronomaddox.com/omega/tables/seamaster/combined.html (Chronomaddox, Omega Seamaster production tables, Beat column) (551 27.9 19,800 1959~68)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1958 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 551, year of creation) (\"1958\")"
+      }
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 551) (\"24 p\")"
+    }
   },
   {
     "calibre": "Omega 552",
@@ -67900,7 +69446,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 552, 49°)",
       "https://watch-wiki.org/index.php?title=Omega_552 (Watch-Wiki: Omega 552) (\"Halbschwingungen = 19.800\")"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1958 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 552, year of creation) (\"1958\")"
+      }
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 552) (\"24 p\")"
+    }
   },
   {
     "calibre": "Omega 560",
@@ -67919,7 +69475,25 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 560, 49°)",
       "https://chronomaddox.com/omega/tables/seamaster/combined.html (Chronomaddox, Omega Seamaster production tables, Beat column) (560 27.9 19,800 1959~66)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1959 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 560, year of creation) (\"1959\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 560) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "27.9",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 560, size in mm) (\"(27,9 x 5)\")"
+    },
+    "height_mm": {
+      "value": "5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 560, size in mm) (\"(27,9 x 5)\")"
+    }
   },
   {
     "calibre": "Omega 561",
@@ -67938,7 +69512,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 561, 49°)",
       "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (561 27.90 RA SC PC CAL AM bull 24 p 19'800 1958)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1958 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 561, year of creation) (\"1958\")"
+      }
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 561) (\"24 p\")"
+    }
   },
   {
     "calibre": "Omega 562",
@@ -67956,7 +69540,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 562, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 562, 49°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1958 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 562, year of creation) (\"1958\")"
+      }
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 562) (\"24 p\")"
+    }
   },
   {
     "calibre": "Omega 563",
@@ -67975,7 +69569,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 563, 49°)",
       "https://chronomaddox.com/omega/tables/seamaster/combined.html (Chronomaddox, Omega Seamaster production tables, Beat column) (563 27.9 19,800 1966~73)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1965 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 563, year of creation) (\"1965\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 563) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 564",
@@ -67994,7 +69598,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 564, 49°)",
       "https://chronomaddox.com/omega/tables/seamaster/combined.html (Chronomaddox, Omega Seamaster production tables, Beat column) (564 27.9 19,800 1966~73)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1965 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 564, year of creation) (\"1965\")"
+      }
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 564) (\"24 p\")"
+    }
   },
   {
     "calibre": "Omega 565",
@@ -68012,7 +69626,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 565, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 565, 49°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1965 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 565, year of creation) (\"1965\")"
+      }
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 565) (\"24 p\")"
+    }
   },
   {
     "calibre": "Omega 570",
@@ -68030,7 +69654,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 570, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 570, 49°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1958 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 570, year of creation) (\"1958\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 570) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "24.9",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 570, size in mm) (\"(24,9 x 4,5)\")"
+    },
+    "height_mm": {
+      "value": "4.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 570, size in mm) (\"(24,9 x 4,5)\")"
+    }
   },
   {
     "calibre": "Omega 571",
@@ -68048,7 +69690,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 571, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 571, 49°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1958 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 571, year of creation) (\"1958\")"
+      }
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 571) (\"24 p\")"
+    }
   },
   {
     "calibre": "Omega 590",
@@ -68066,7 +69718,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 590, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 590, 49°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1959 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 590, year of creation) (\"1959\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 590) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "27.8",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 590, size in mm) (\"(27,8 x 5,35)\")"
+    },
+    "height_mm": {
+      "value": "5.35",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 590, size in mm) (\"(27,8 x 5,35)\")"
+    }
   },
   {
     "calibre": "Omega 591",
@@ -68084,7 +69754,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 591, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 591, 49°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1959 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 591, year of creation) (\"1959\")"
+      }
+    ],
+    "jewels": {
+      "value": 20,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 591) (\"20 p\")"
+    }
   },
   {
     "calibre": "Omega 600",
@@ -68102,7 +69782,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 600, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 600, 49°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1960 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 600, year of creation) (\"1960\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 600) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "27.9",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 600, size in mm) (\"(27,9 x 3,35)\")"
+    },
+    "height_mm": {
+      "value": "3.35",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 600, size in mm) (\"(27,9 x 3,35)\")"
+    }
   },
   {
     "calibre": "Omega 601",
@@ -68121,7 +69819,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 601, 49°)",
       "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (601 | Hand-wound | 17 | 19,800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1960 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 601, year of creation) (\"1960\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 601) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 602",
@@ -68140,7 +69848,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 602, 49°)",
       "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (602 | Hand-wound, chronometer | 17 | 19,800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1964 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 602, year of creation) (\"1964\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 602) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 610",
@@ -68158,7 +69876,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 610, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 610, 49°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1959 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 610, year of creation) (\"1959\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 610) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "27.9",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 610, size in mm) (\"(27,9 x 3,85)\")"
+    },
+    "height_mm": {
+      "value": "3.85",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 610, size in mm) (\"(27,9 x 3,85)\")"
+    }
   },
   {
     "calibre": "Omega 611",
@@ -68177,7 +69913,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 611, 49°)",
       "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (611 | Hand-wound, date | — | 19,800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1959 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 611, year of creation) (\"1959\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 611) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 613",
@@ -68195,7 +69941,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 613, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 613, 49°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1966 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 613, year of creation) (\"1966\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 613) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 651",
@@ -68214,7 +69970,25 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 651, 52°)",
       "https://notredameantiques.com/wp-content/uploads/Omega-651.pdf (Omega technical guide, 651, p. 1) (21'600 A/h; Angle of lift 52°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1993 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 651, year of creation) (\"1993\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 651) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "23.3",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 651, size in mm) (\"(23,3 x 2,5)\")"
+    },
+    "height_mm": {
+      "value": "2.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 651, size in mm) (\"(23,3 x 2,5)\")"
+    }
   },
   {
     "calibre": "Omega 660",
@@ -68232,7 +70006,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 660, 51°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 660, 51°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1961 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 660, year of creation) (\"1961\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 660) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "15",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 660, size in mm) (\"(15 x 4,25 - 0,76 cm3)\")"
+    },
+    "height_mm": {
+      "value": "4.25",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 660, size in mm) (\"(15 x 4,25 - 0,76 cm3)\")"
+    }
   },
   {
     "calibre": "Omega 661",
@@ -68250,7 +70042,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 661, 51°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 661, 51°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1963 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 661, year of creation) (\"1963\")"
+      }
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 661) (\"24 p\")"
+    }
   },
   {
     "calibre": "Omega 670",
@@ -68268,7 +70070,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 670, 48°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 670, 48°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1962 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 670, year of creation) (\"1962\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 670) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "17.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 670, size in mm) (\"(17,5 x 4,25)\")"
+    },
+    "height_mm": {
+      "value": "4.25",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 670, size in mm) (\"(17,5 x 4,25)\")"
+    }
   },
   {
     "calibre": "Omega 671",
@@ -68287,7 +70107,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 671, 48°)",
       "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (671 | Automatic, ladies' | 24 | 19,800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1963 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 671, year of creation) (\"1963\")"
+      }
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 671) (\"24 p\")"
+    }
   },
   {
     "calibre": "Omega 672",
@@ -68306,7 +70136,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 672, 48°)",
       "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (672 | Automatic, ladies', chronometer | 24 | 19,800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1966 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 672, year of creation) (\"1966\")"
+      }
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 672) (\"24 p\")"
+    }
   },
   {
     "calibre": "Omega 680",
@@ -68325,7 +70165,25 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 680, 48°)",
       "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (680 | Automatic, ladies', date | 17 | 19,800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1962 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 680, year of creation) (\"1962\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 680) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "17.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 680, size in mm) (\"(17,5 x 5)\")"
+    },
+    "height_mm": {
+      "value": "5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 680, size in mm) (\"(17,5 x 5)\")"
+    }
   },
   {
     "calibre": "Omega 681",
@@ -68344,7 +70202,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 681, 48°)",
       "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (681 | Automatic, ladies', date | 24 | 19,800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1963 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 681, year of creation) (\"1963\")"
+      }
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 681) (\"24 p\")"
+    }
   },
   {
     "calibre": "Omega 682",
@@ -68362,7 +70230,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 682, 48°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 682, 48°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1966 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 682, year of creation) (\"1966\")"
+      }
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 682) (\"24 p\")"
+    }
   },
   {
     "calibre": "Omega 683",
@@ -68380,7 +70258,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 683, 48°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 683, 48°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1971 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 683, year of creation) (\"1971\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 683) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "17.5",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 683, size in mm) (\"(17,5 x 5,05)\")"
+    },
+    "height_mm": {
+      "value": "5.05",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 683, size in mm) (\"(17,5 x 5,05)\")"
+    }
   },
   {
     "calibre": "Omega 684",
@@ -68399,7 +70295,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 684, 48°)",
       "https://chronomaddox.com/omega/tables/seamaster/combined.html (Chronomaddox, Omega Seamaster production tables, Beat column) (684 17.5 21,600)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1971 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 684, year of creation) (\"1971\")"
+      }
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 684) (\"24 p\")"
+    }
   },
   {
     "calibre": "Omega 685",
@@ -68417,7 +70323,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 685, 48°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 685, 48°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1971 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 685, year of creation) (\"1971\")"
+      }
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 685) (\"24 p\")"
+    }
   },
   {
     "calibre": "Omega 720",
@@ -68435,7 +70351,21 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 720, 53°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 720, 53°, 28800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1990 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 720, year of creation) (\"1990\")"
+      }
+    ],
+    "diameter": {
+      "mm": "19.4",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 720, size in mm) (\"(19,4 x 4,8)\")"
+    },
+    "height_mm": {
+      "value": "4.8",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 720, size in mm) (\"(19,4 x 4,8)\")"
+    }
   },
   {
     "calibre": "Omega 721",
@@ -68453,7 +70383,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 721, 53°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 721, 53°, 28800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1990 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 721, year of creation) (\"1990\")"
+      }
+    ],
+    "jewels": {
+      "value": 25,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 721) (\"25 p\")"
+    },
+    "diameter": {
+      "mm": "19.4",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 721, size in mm) (\"(19,4 x 5,35)\")"
+    },
+    "height_mm": {
+      "value": "5.35",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 721, size in mm) (\"(19,4 x 5,35)\")"
+    }
   },
   {
     "calibre": "Omega 750",
@@ -68471,7 +70419,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 750, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 750, 49°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1966 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 750, year of creation) (\"1966\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 750) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "27.9",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 750, size in mm) (\"(27,9 x 5,68)\")"
+    },
+    "height_mm": {
+      "value": "5.68",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 750, size in mm) (\"(27,9 x 5,68)\")"
+    }
   },
   {
     "calibre": "Omega 751",
@@ -68490,7 +70456,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 751, 49°)",
       "https://notredameantiques.com/wp-content/uploads/omega-751.pdf (Omega technical guide, 751, p. 1) (19'800 A/h)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1967 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 751, year of creation) (\"1967\")"
+      }
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 751) (\"24 p\")"
+    }
   },
   {
     "calibre": "Omega 752",
@@ -68508,7 +70484,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 752, 49°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 752, 49°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1967 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 752, year of creation) (\"1967\")"
+      }
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 752) (\"24 p\")"
+    }
   },
   {
     "calibre": "Omega 860",
@@ -68526,7 +70512,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 860, 50°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 860, 50°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1968 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 860, year of creation) (\"1968\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 860) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "27",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 860, size in mm) (\"(27 x 5,7)\")"
+    },
+    "height_mm": {
+      "value": "5.7",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 860, size in mm) (\"(27 x 5,7)\")"
+    }
   },
   {
     "calibre": "Omega 861",
@@ -68539,7 +70543,21 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 861, 50°)",
       "https://watch-wiki.org/index.php?title=Omega_861 (Watch-Wiki: Omega 861) (\"Halbschwingungen = 21.600\")"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1968 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 861, year of creation) (\"1968\")"
+      }
+    ],
+    "diameter": {
+      "mm": "27",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 861, size in mm) (\"(27 x 6,87)\")"
+    },
+    "height_mm": {
+      "value": "6.87",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 861, size in mm) (\"(27 x 6,87)\")"
+    }
   },
   {
     "calibre": "Omega 862",
@@ -68578,7 +70596,13 @@
       "https://tempuseuropa.com/en/movements/omega (Tempus Europa, Omega calibre table, Frequency column) (863 | Hand-wound chronograph | 17 | 21,600 vph)",
       "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (863 27 CHRO C12 PC 17 p - 18 p dès 1993 21'600 1980)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1980 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 863, year of creation) (\"1980\")"
+      }
+    ]
   },
   {
     "calibre": "Omega 864",
@@ -68597,7 +70621,13 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 864, 50°)",
       "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (864 27 CHRO C12 PC bull 17 p - 18 p dès 1993 21'600 1992)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1992 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 864, year of creation) (\"1992\")"
+      }
+    ]
   },
   {
     "calibre": "Omega 865",
@@ -68616,7 +70646,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 865, 50°)",
       "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (865 27 CH PC AM 17 p 21'600 1966)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1966 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 865, year of creation) (\"1966\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 865) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 866",
@@ -68635,7 +70675,13 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 866, 50°)",
       "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (866 27 CHRO C12 PC DL 17 p - 18 p dès 1993 ??? 21'600 1985)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1985 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 866, year of creation) (\"1985\")"
+      }
+    ]
   },
   {
     "calibre": "Omega 867",
@@ -68654,7 +70700,13 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 867, 50°)",
       "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (867 27 CHRO C12 PC 17 p - 18 p dès 1993p 21'600 1992)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1992 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 867, year of creation) (\"1992\")"
+      }
+    ]
   },
   {
     "calibre": "Omega 889",
@@ -68684,7 +70736,25 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 910, 50°)",
       "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (910 27 CHRO C12 PC AMPM GMT 17 p (27 x 6,87) 21'600 1969)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1969 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 910, year of creation) (\"1969\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 910) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "27",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 910, size in mm) (\"(27 x 6,87)\")"
+    },
+    "height_mm": {
+      "value": "6.87",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 910, size in mm) (\"(27 x 6,87)\")"
+    }
   },
   {
     "calibre": "Omega 911",
@@ -68703,7 +70773,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 911, 50°)",
       "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (911 27 CHRO C12 PC GMT 17 p 21'600 1971)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1971 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 911, year of creation) (\"1971\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 911) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 920",
@@ -68722,7 +70802,25 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 920, 50°)",
       "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega museum, Nomenclature des calibres Omega; A/h = alternances par heure) (920 27 CH PC AM CAL 17 p (27 x 6,3) 21'600 1968)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1968 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 920, year of creation) (\"1968\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 920) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "27",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 920, size in mm) (\"(27 x 6,3)\")"
+    },
+    "height_mm": {
+      "value": "6.3",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 920, size in mm) (\"(27 x 6,3)\")"
+    }
   },
   {
     "calibre": "Omega 930",
@@ -68740,7 +70838,25 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Omega 930, 50°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 930, 50°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1969 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 930, year of creation) (\"1969\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 930) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "27",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 930, size in mm) (\"(27 x 6,87)\")"
+    },
+    "height_mm": {
+      "value": "6.87",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 930, size in mm) (\"(27 x 6,87)\")"
+    }
   },
   {
     "calibre": "Oris 430",
@@ -69515,7 +71631,11 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1035, 52°)",
       "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki, Rolex calibres) (section \"First-Generation 1000\": 18,000 A/h; lists Rolex 1035)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1957,
+      "source": "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki Rolex calibre list, Year column; Watch Doctor's chart https://watchdoctor.biz/movements-and-calibers/ gives the same intro date) (\"1957-\")"
+    }
   },
   {
     "calibre": "Rolex 1050",
@@ -69593,7 +71713,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 1160, 51°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1160, 51°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1964,
+      "source": "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki Rolex calibre list, Year column; Watch Doctor's chart https://watchdoctor.biz/movements-and-calibers/ gives the same intro date) (\"1964-\")"
+    }
   },
   {
     "calibre": "Rolex 1161",
@@ -69604,7 +71728,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 1161, 51°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1161, 51°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1964,
+      "source": "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki Rolex calibre list, Year column; Watch Doctor's chart https://watchdoctor.biz/movements-and-calibers/ gives the same intro date) (\"1964-\")"
+    }
   },
   {
     "calibre": "Rolex 1165",
@@ -69622,7 +71750,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 1165, 51°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1165, 51°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1965,
+      "source": "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki Rolex calibre list, Year column; Watch Doctor's chart https://watchdoctor.biz/movements-and-calibers/ gives the same intro date) (\"1965-\")"
+    }
   },
   {
     "calibre": "Rolex 1166",
@@ -69640,7 +71772,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 1166, 51°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1166, 51°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1967,
+      "source": "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki Rolex calibre list, Year column; Watch Doctor's chart https://watchdoctor.biz/movements-and-calibers/ gives the same intro date) (\"1967-\")"
+    }
   },
   {
     "calibre": "Rolex 1200",
@@ -70177,7 +72313,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 1530, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1530, 52°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1957,
+      "source": "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki Rolex calibre list, Year column; Watch Doctor's chart https://watchdoctor.biz/movements-and-calibers/ gives the same intro date) (\"1957-1960\")"
+    }
   },
   {
     "calibre": "Rolex 1531",
@@ -70234,7 +72374,11 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1535, 52°)",
       "https://watch-wiki.org/index.php?title=Rolex_1535 (Watch-Wiki: Rolex 1535) (\"Halbschwingungen = 18.000\")"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1957,
+      "source": "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki Rolex calibre list, Year column; Watch Doctor's chart https://watchdoctor.biz/movements-and-calibers/ gives the same intro date) (\"1957-1960\")"
+    }
   },
   {
     "calibre": "Rolex 1557",
@@ -70448,7 +72592,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 1575, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 1575, 52°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1965,
+      "source": "https://www.watch-wiki.net/doku.php?id=rolex_calibres (Watch Wiki Rolex calibre list, Year column; Watch Doctor's chart https://watchdoctor.biz/movements-and-calibers/ gives the same intro date) (\"1965-1974\")"
+    }
   },
   {
     "calibre": "Rolex 1576",
@@ -70810,7 +72958,24 @@
     "notes": "The 53° lift angle from WatchGuy is retained as a separate setting from the main 55° entry. Lift-angle disagreement does not change the photographed train counts or rotation periods. Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion.",
     "bph": 28800,
     "escape_teeth": 20,
-    "seconds": "centre (fourth wheel)"
+    "seconds": "centre (fourth wheel)",
+    "summary": [
+      {
+        "text": "Rolex fits it to the Datejust 36 and Datejust 41.",
+        "source": "https://newsroom.rolex.com/watches/oyster-collection/datejust (Rolex newsroom, Datejust) (\"calibre 3235 (Datejust 36 and Datejust 41)\")"
+      }
+    ],
+    "power_reserve_h": {
+      "value": "70",
+      "approx": true,
+      "source": "https://newsroom.rolex.com/watches/oyster-collection/datejust (Rolex newsroom, Datejust) (\"the power reserve of calibre 3235 extends to approximately 70 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://newsroom.rolex.com/watches/oyster-collection/datejust (Rolex newsroom, Datejust) (\"self-winding mechanical movements\")"
+    }
   },
   {
     "calibre": "Rolex 3255 (53°)",
@@ -70865,7 +73030,25 @@
     "notes": "The 53° lift angle from WatchGuy is retained as a separate setting from the main 55° entry. Lift-angle disagreement does not change the photographed train counts or rotation periods. Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by Peter Hudson with his 2026-10-19 photo contribution. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion.",
     "bph": 28800,
     "escape_teeth": 20,
-    "seconds": "centre (fourth wheel)"
+    "seconds": "centre (fourth wheel)",
+    "summary": [
+      {
+        "text": "Rolex fits it to the Day-Date 40.",
+        "source": "https://newsroom.rolex.com/watches/new-watches/exceptional-watches (Rolex newsroom, Day-Date 40) (\"The Day-Date 40 is equipped with calibre 3255\")"
+      }
+    ],
+    "power_reserve_h": {
+      "value": "70",
+      "approx": true,
+      "source": "https://newsroom.rolex.com/watches/new-watches/exceptional-watches (Rolex newsroom, Day-Date 40) (\"the power reserve of this movement extends to approximately 70 hours\")"
+    },
+    "functions": {
+      "value": [
+        "date",
+        "day"
+      ],
+      "source": "https://newsroom.rolex.com/watches/new-watches/exceptional-watches (Rolex newsroom, Day-Date 40) (\"enabling it to display the day and the date\")"
+    }
   },
   {
     "calibre": "Rolex 500",
@@ -77389,7 +79572,11 @@
     "sources": [
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Longines 13.50, 54°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://myretrowatches.co.uk/wp-content/uploads/2024/01/Longines-13.50.pdf (Longines technical sheet, calibre 13.50) (\"Pallet-fork - 17 jewels\")"
+    }
   },
   {
     "calibre": "Longines 13.mai",
@@ -77989,7 +80176,17 @@
     "sources": [
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 484, 52°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1963 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 484, year of creation) (\"1963\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 484) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 710",
@@ -78006,7 +80203,25 @@
     "sources": [
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 710, 52°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1966 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 710, year of creation) (\"1966\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 710) (\"17 p\")"
+    },
+    "diameter": {
+      "mm": "25",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 710, size in mm) (\"(25 x 3)\")"
+    },
+    "height_mm": {
+      "value": "3",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 710, size in mm) (\"(25 x 3)\")"
+    }
   },
   {
     "calibre": "Omega 712",
@@ -78023,7 +80238,17 @@
     "sources": [
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 712, 52°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1967 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 712, year of creation) (\"1967\")"
+      }
+    ],
+    "jewels": {
+      "value": 24,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 712) (\"24 p\")"
+    }
   },
   {
     "calibre": "Omega 1035",
@@ -78040,7 +80265,17 @@
     "sources": [
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1035, 50°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1974 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1035, year of creation) (\"1974\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1035) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 1070",
@@ -78057,7 +80292,17 @@
     "sources": [
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1070, 52°, 28800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1974 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1070, year of creation) (\"1974\")"
+      }
+    ],
+    "jewels": {
+      "value": 17,
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1070) (\"17 p\")"
+    }
   },
   {
     "calibre": "Omega 1155",
@@ -78074,7 +80319,21 @@
     "sources": [
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Omega 1155, 52°, 28800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "summary": [
+      {
+        "text": "Omega's museum list gives 1991 as its year of creation.",
+        "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1155, year of creation) (\"1991\")"
+      }
+    ],
+    "diameter": {
+      "mm": "30",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1155, size in mm) (\"(30 x 7,9)\")"
+    },
+    "height_mm": {
+      "value": "7.9",
+      "source": "https://en.omega-vintage.hu/asset/termek/offcial-omega-museum-calibre-list.pdf (Omega Museum calibre list, calibre 1155, size in mm) (\"(30 x 7,9)\")"
+    }
   },
   {
     "calibre": "Patek Philippe 7-70",
