@@ -317,7 +317,7 @@ pub fn path(c: &Calibre) -> String {
 fn inverse_label(relation: &str) -> Option<&'static str> {
     match relation {
         "clone of" => Some("Cloned by"),
-        "based on" => Some("Base of"),
+        "based on" => Some("Base calibre for"),
         "successor of" => Some("Succeeded by"),
         _ => None,
     }
@@ -423,7 +423,7 @@ fn related_lines(c: &Calibre, inv: &Inverses, cite: &mut Numbered) -> Vec<Relate
     let Some(theirs) = inv.get(c.calibre.as_str()) else {
         return lines;
     };
-    for label in ["Cloned by", "Base of", "Succeeded by"] {
+    for label in ["Cloned by", "Base calibre for", "Succeeded by"] {
         let links: Vec<Link> = theirs
             .iter()
             .filter(|(l, _)| *l == label)

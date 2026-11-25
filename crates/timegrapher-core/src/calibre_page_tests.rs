@@ -131,8 +131,8 @@ fn related_calibres_read_both_ways() {
     let base_of = eta
         .related
         .iter()
-        .find(|r| r.label == "Base of")
-        .expect("Base of line");
+        .find(|r| r.label == "Base calibre for")
+        .expect("Base calibre for line");
     assert!(base_of.source.is_none());
     let all_named: Vec<_> = base_of
         .calibres
