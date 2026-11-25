@@ -21,16 +21,17 @@ use crate::steady::{self, Steadiness};
 use crate::strip::{self, Anchor, StripInput, StripView};
 use crate::theme::{self, DialogButton, Icon, Role};
 use crate::watches;
-use distributions::{DistKey, DistReadings};
+use distributions::DistReadings;
 use eframe::egui::{self, Color32, RichText, Vec2};
 use egui_plot::{GridMark, Line, LineStyle, Plot, Points};
 use egui_tiles::{Linear, LinearDir, SimplificationOptions, TileId, Tiles, Tree, UiResponse};
+use result_keys::{DistKey, FreeKey, ScopeKey, ScopeRead, SoundKey, StripKey, TrendKey, WholeKey};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::TryRecvError;
 use std::time::{Duration, Instant};
 #[cfg(test)]
 use take_io::order_warning;
-use take_reads::{FreeJob, FreeKey, TrendKey, WholeKey, WholeTake};
+use take_reads::{FreeJob, WholeTake};
 use timegrapher_core::beats::STANDARD_BPH;
 use timegrapher_core::breaks::{GapWatch, Live};
 use timegrapher_core::capture::{self, Capture, Event, InputDevice, Level};
@@ -87,6 +88,7 @@ mod power_reserve_pane;
 mod readings_strip;
 mod readouts;
 mod recording;
+mod result_keys;
 mod results;
 use readouts::caveat_facts;
 mod redraw;
@@ -1483,11 +1485,6 @@ fn trend_key(seconds: f64) -> u64 {
     (seconds * 1000.0).round() as u64
 }
 
-/// What the strip's own readings were worked out for: the window and the
-/// spacing in steps, the averaging time, how much sound there was (in
-/// whole steps while listening) and what the readings rest on.
-type StripKey = (i64, i64, u64, u64, u64, Revision);
-
 /// A reading of a chart over time: core's trend reading.
 type TrendPoint = timegrapher_core::live::TrendReading;
 
@@ -1695,7 +1692,7 @@ impl TimegrapherApp {
             marks: self.bench.panes_view.show_marks.saved(),
             steady_info: self.bench.panes_view.steady_info.unset,
             steady_info_set: self.bench.panes_view.steady_info.saved(),
-            positions_settle_s: self.bench.test.guided_settle_s,
+            positions_settle_s: self.session.settle_len(),
             ten_positions: self.bench.test.ten_positions,
             poise_views: self.bench.panes_view.poise_views,
             poise_info: self.bench.panes_view.poise_info,
@@ -1859,9 +1856,9 @@ impl TimegrapherApp {
     /// The Positions Test's settle and measure times, each kept in its
     /// range.
     fn set_positions_times(&mut self, settle_s: f64, measure_s: f64) {
-        self.bench.test.guided_settle_s =
-            settle_s.clamp(*guided::SETTLE_RANGE.start(), *guided::SETTLE_RANGE.end());
-        self.session.set_settle_s(self.bench.test.guided_settle_s);
+        self.session.set_settle_s(
+            settle_s.clamp(*guided::SETTLE_RANGE.start(), *guided::SETTLE_RANGE.end()),
+        );
         self.bench.test.guided_measure_s =
             measure_s.clamp(*guided::MEASURE_RANGE.start(), *guided::MEASURE_RANGE.end());
     }
@@ -1943,16 +1940,13 @@ impl TimegrapherApp {
         self.bench.results.strip_points = None;
         points.retain(|p| self.session.replay_reading_allowed(p.t));
         self.bench.results.trend = points;
-        self.bench.results.trend_key = (self.bench.take.rev, self.bench.take.average_s.to_bits());
+        self.bench.results.trend_key = self.trend_now();
     }
 
     /// Read the run of readings again when what it rests on changed since: the take's settings,
     /// clock, breaks or masks, or Average Over. While listening the next frame reads it (#1825).
     fn refresh_trend(&mut self) {
-        if self.bench.results.trend_key
-            != (self.bench.take.rev, self.bench.take.average_s.to_bits())
-            && !self.running()
-        {
+        if self.bench.results.trend_key != self.trend_now() && !self.running() {
             self.rebuild_trend();
         }
     }
@@ -3225,8 +3219,6 @@ impl eframe::App for TimegrapherApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         crate::frame_built();
         let was_working = self.repaint_every().is_some();
-        // One settling for every change of position: the pane's Settle.
-        self.session.set_settle_s(self.bench.test.guided_settle_s);
         if std::mem::take(&mut self.bench.recording.listen_pending) && !self.running() {
             self.quick_listen(false);
         }
@@ -3349,10 +3341,6 @@ fn notice(
         .response
 }
 
-/// A beat on the Scope: its index, its time's bits (so a new session's
-/// beat of the same index is another) and the span drawn.
-type ScopeKey = (i64, u64, scope::Zoom, u64);
-
 /// Everything Average Over sets, and what it leaves alone.
 const AVERAGE_REACH: &str = "How much of the latest beats each reading is fitted over. It sets: \
      the three readings and their ±; every point on the Rate, \
@@ -3364,11 +3352,6 @@ const AVERAGE_REACH: &str = "How much of the latest beats each reading is fitted
 
 /// How many beats' traces the Scope keeps: the most it draws, both sides.
 const SCOPE_KEPT: usize = 40;
-
-/// A stretch of a recording read for the scope: the start and end asked
-/// for, s, and the sound read (shorter at the end of the recording), or why
-/// it couldn't be.
-type ScopeCut = (f64, f64, Result<crate::span::Span, String>);
 
 /// The lift angle used until a calibre is picked or one is typed in.
 pub use timegrapher_core::take::DEFAULT_LIFT_DEG;

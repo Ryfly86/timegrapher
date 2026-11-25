@@ -83,10 +83,8 @@ impl TimegrapherApp {
             (_, Some(full)) => guided::Test::after(full),
             (_, None) => guided::Test::new(),
         };
-        self.bench.test.guided = Some(test.timed(
-            self.bench.test.guided_settle_s,
-            self.bench.test.guided_measure_s,
-        ));
+        self.bench.test.guided =
+            Some(test.timed(self.session.settle_len(), self.bench.test.guided_measure_s));
         self.bench.test.positions_take = true;
         self.bench.test.guided_unused.clear();
         self.bench.test.guided_measured.clear();
@@ -464,11 +462,10 @@ impl TimegrapherApp {
         };
         theme::tool_field(ui, "Settle", settle_hint, |ui| {
             ui.add_enabled_ui(!running, |ui| {
-                let mut v = self.bench.test.guided_settle_s;
+                let mut v = self.session.settle_len();
                 let a = fields::entry(ui, "settle", &mut v, guided::SETTLE_RANGE, &DURATION, 48.0);
                 let b = fields::presets(ui, "settle-presets", &mut v, &SETTLES, fields::duration);
                 if a || b {
-                    self.bench.test.guided_settle_s = v;
                     // Every settle band redraws, and the table with it.
                     self.session.resettle(v);
                     self.positions_moved(self.bench.take.position);
@@ -773,7 +770,7 @@ impl TimegrapherApp {
             self.bench.test.guided_saved.as_ref(),
             free.as_ref(),
             live.as_ref(),
-            self.bench.test.guided_settle_s,
+            self.session.settle_len(),
             self.open_watch().is_some(),
             note.as_deref(),
             (

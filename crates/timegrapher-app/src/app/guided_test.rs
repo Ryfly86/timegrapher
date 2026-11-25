@@ -63,9 +63,9 @@ pub(super) struct GuidedTest {
     /// The Current Position card offers ten positions, the four 45°
     /// stops too, rather than six (its 6 | 10 switch, kept).
     pub(super) ten_positions: bool,
-    /// Seconds of settling and of measuring in each position, for the
-    /// next test.
-    pub(super) guided_settle_s: f64,
+    /// Seconds of measuring in each position, for the next test. Its
+    /// settling is the Settle the session keeps (`Session::settle_len`),
+    /// the one record the strip and every test read.
     pub(super) guided_measure_s: f64,
     /// The guided test to begin once the ask before listening is
     /// answered, and for the Positions Test whether just after winding
@@ -97,7 +97,6 @@ impl Default for GuidedTest {
             test_ready: None,
             stop_test_ask: false,
             ten_positions: false,
-            guided_settle_s: guided::SETTLE_S,
             guided_measure_s: guided::MEASURE_S,
             guided_after_ask: None,
         }

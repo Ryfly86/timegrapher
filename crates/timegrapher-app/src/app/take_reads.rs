@@ -10,24 +10,6 @@ use super::*;
 #[path = "stop_read.rs"]
 mod stop_read;
 
-/// What [`super::results::Results::whole_take`] was read from: the beats heard,
-/// the stretches, the masks, what the readings rest on, and whether it is
-/// the stopped take read as its saved take opens (#2151).
-pub(super) type WholeKey = (usize, Vec<(f64, f64)>, Vec<(f64, f64)>, Revision, bool);
-
-/// What [`super::results::Results::free_table`] was read from: the beats heard,
-/// each position's settled stretches, the masks and the True Clock.
-pub(super) type FreeKey = (
-    usize,
-    Vec<(core_session::Position, f64, f64)>,
-    Vec<(f64, f64)>,
-    Revision,
-);
-
-/// What [`super::results::Results::trend`] was read from: what the readings rest
-/// on and Average Over.
-pub(super) type TrendKey = (Revision, u64);
-
 /// How often the Positions Test table is read again while listening.
 const FREE_TABLE_STEP_S: f64 = 1.0;
 
@@ -175,7 +157,7 @@ impl TimegrapherApp {
         match self.whole_read()? {
             Ok(w) => w,
             Err(key) => {
-                let w = self.whole_reader(key.1.clone())();
+                let w = self.whole_reader(key.spans.clone())();
                 *self.bench.results.whole_take.borrow_mut() = Some((key, w.clone()));
                 w
             }
@@ -188,10 +170,7 @@ impl TimegrapherApp {
         // A take just listened to is read to its last reading with a
         // watch heard: once the charts are read on what is masked now.
         let opened = self.bench.take.take_breaks.is_some() || self.stopped_take().is_some();
-        if !opened
-            && self.bench.results.trend_key
-                != (self.bench.take.rev, self.bench.take.average_s.to_bits())
-        {
+        if !opened && self.bench.results.trend_key != self.trend_now() {
             return None;
         }
         let key = match self.whole_read()? {
@@ -200,7 +179,7 @@ impl TimegrapherApp {
         };
         let mut job = self.bench.results.whole_job.borrow_mut();
         if job.as_ref().is_none_or(|j| j.key != key) {
-            let read = self.whole_reader(key.1.clone());
+            let read = self.whole_reader(key.spans.clone());
             *job = Some(Job::start(key, ctx, read));
             return None;
         }
@@ -297,13 +276,13 @@ impl TimegrapherApp {
             .map(|(a, b)| (a.max(0.0), b.min(end)))
             .filter(|(a, b)| a < b)
             .collect();
-        let key: WholeKey = (
-            live.beats().len(),
-            spans.clone(),
-            stopped.map_or_else(|| self.bench.take.masked.clone(), |s| s.masked().to_vec()),
-            self.bench.take.rev,
-            stopped.is_some(),
-        );
+        let key = WholeKey {
+            beats: live.beats().len(),
+            spans: spans.clone(),
+            masked: stopped.map_or_else(|| self.bench.take.masked.clone(), |s| s.masked().to_vec()),
+            rev: self.bench.take.rev,
+            stopped: stopped.is_some(),
+        };
         if let Some((k, w)) = self.bench.results.whole_take.borrow().as_ref() {
             if *k == key {
                 return Some(Ok(w.clone()));
@@ -440,18 +419,18 @@ impl TimegrapherApp {
         } else {
             live.beats().len()
         };
-        let key: FreeKey = (
+        let key = FreeKey {
             beats,
-            stretches.clone(),
-            masked.clone(),
-            self.bench.take.rev,
-        );
+            stretches: stretches.clone(),
+            masked: masked.clone(),
+            rev: self.bench.take.rev,
+        };
         let mut job = self.bench.results.free_job.borrow_mut();
         // A table being read on what the readings rested on before is let
         // go; so is one of a take on show read from anything else.
         if job
             .as_ref()
-            .is_some_and(|j| j.key.3 != self.bench.take.rev || !running && j.key != key)
+            .is_some_and(|j| j.key.rev != self.bench.take.rev || !running && j.key != key)
         {
             *job = None;
         }
@@ -522,7 +501,7 @@ impl TimegrapherApp {
     /// #1825). The readings heard after the sound it was read on are on
     /// the new footing already and are kept after it.
     pub(super) fn refresh_trend_shown(&mut self, ctx: &egui::Context) {
-        let key: TrendKey = (self.bench.take.rev, self.bench.take.average_s.to_bits());
+        let key = self.trend_now();
         if self.bench.recording.live.is_none() {
             self.bench.results.bg.trend = None;
             self.refresh_trend();
