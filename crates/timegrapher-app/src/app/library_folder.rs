@@ -15,19 +15,19 @@ pub(super) struct WavKeep {
     /// When it is over: the hours converted, and the takes that couldn't
     /// be, each with why.
     rx: mpsc::Receiver<(usize, Vec<String>)>,
-    /// The take on show ([`TimegrapherApp::take_on_show`]), kept up to
-    /// date each frame: its hours are left as WAVs for another time, so
-    /// none is converted from under its analysis.
-    open: Arc<Mutex<Option<PathBuf>>>,
+    /// The takes the Bench has in use ([`TimegrapherApp::takes_in_use`]),
+    /// kept up to date each frame: their hours are left as WAVs for
+    /// another time, so none is converted from under the analysis on show
+    /// or the save into the take (#1988).
+    open: Arc<Mutex<Vec<PathBuf>>>,
 }
 
 impl WavKeep {
-    /// Whether take folder `dir` is the take on show, holds it, or lies
-    /// in it (a session folder's take of one position, Trevor).
-    fn is_open(open: &Mutex<Option<PathBuf>>, dir: &Path) -> bool {
+    /// Whether take folder `dir` is a take in use, holds one, or lies
+    /// in one (a session folder's take of one position, Trevor).
+    fn is_open(open: &Mutex<Vec<PathBuf>>, dir: &Path) -> bool {
         open.lock().map_or(true, |o| {
-            o.as_deref()
-                .is_some_and(|o| o.starts_with(dir) || dir.starts_with(o))
+            o.iter().any(|o| o.starts_with(dir) || dir.starts_with(o))
         })
     }
 }
@@ -106,7 +106,7 @@ impl TimegrapherApp {
         let (tx, rx) = mpsc::channel();
         let done = Arc::new(AtomicUsize::new(0));
         let count = done.clone();
-        let open = Arc::new(Mutex::new(self.take_on_show()));
+        let open = Arc::new(Mutex::new(self.takes_in_use()));
         let on_show = open.clone();
         self.bench.keeping.wav_keep = Some(WavKeep {
             done,
@@ -136,7 +136,7 @@ impl TimegrapherApp {
             return;
         };
         if let Ok(mut o) = k.open.lock() {
-            *o = self.take_on_show();
+            *o = self.takes_in_use();
         }
         // A thread that died sends nothing: its end all the same, so the
         // status bar doesn't keep its count (Trevor).

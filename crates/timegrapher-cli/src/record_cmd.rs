@@ -238,10 +238,12 @@ fn place(o: &mut Options) -> Result<Placed, String> {
     // filed as one take, as the app files it; any other test gets a
     // session folder its positions are added to.
     let reserve_take = o.power_reserve.then(|| started.clone());
+    // The session folder is made as it is named, in one step (#1862).
     o.folder = Some(if o.power_reserve {
         takes
     } else {
-        library::unused_dir(&takes, &started)
+        library::make_unused_dir(&takes, &started)
+            .map_err(|e| format!("{}: {e}", takes.display()))?
     });
     Ok(Placed {
         watch: Some(w.name.clone()),

@@ -31,6 +31,7 @@ use std::io::{self, BufWriter, Read, Seek, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+mod claim;
 mod closed_hour;
 #[cfg(test)]
 mod no_sound_tests;
@@ -673,13 +674,6 @@ impl Recorder {
     /// When the recording started, as `2026-10-20T21:32:00Z`.
     pub fn started_utc(&self) -> &str {
         &self.started_utc
-    }
-
-    /// Name the first saved copy `name` (a take folder in a watch of the
-    /// library) rather than by its start, watch and calibre. A copy
-    /// already saved keeps its name, so Save Again saves into it.
-    pub fn name_first_copy(&mut self, name: std::ffi::OsString) {
-        self.saved_name.get_or_insert(name);
     }
 
     fn copy_name(&self, calibre: &str) -> std::ffi::OsString {
