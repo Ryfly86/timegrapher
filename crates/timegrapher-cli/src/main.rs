@@ -94,7 +94,7 @@ const DEVELOPER_ORDER: usize = 1000;
     after_help = "Every command with --json prints one JSON document with a `schema` field \
 (e.g. timegrapher.analyze/2), the software version and the input it read. \
 `timegrapher doctor` measures the microphone input. Exit codes: 0 success, \
-1 error, 3 a take moved beyond its margins (regress). To watch a watch live, \
+1 error, 3 a take moved beyond its margins (regress). For live readings, \
 use the desktop app; `record` saves one position of a test.
 
 Examples:
