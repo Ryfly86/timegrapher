@@ -29,6 +29,14 @@ const MAX_POINTS: usize = 600;
 const MAX_PEAKS: usize = 8;
 /// Readings either side whose scatter weights a reading.
 const SCATTER_HALF: usize = 30;
+/// The fewest steps, in a reading's stretch window, for a scatter of its
+/// own; with fewer a reading takes the median weight. The weight is
+/// 1/σ², so σ's error doubles in it: a scaled MAD from n steps has a
+/// relative standard error of about 1.17/√n (the MAD is about 37%
+/// efficient against the SD), so about 52% in the weight at 20 and 75% at
+/// 10. Five let a short stretch whose steps happened to agree draw a
+/// weight many times too large (Norm on #2278).
+const MIN_SCATTER_STEPS: usize = 20;
 /// The spectral window's power at which a peak counts as on a window
 /// line. Without gaps the window's sidelobes in the band (from three
 /// cycles over the span) stay under 0.009; a 5 min pause every 30 min
@@ -165,8 +173,9 @@ pub fn false_alarm(z: f64, n: usize, fmax: f64, t: &[f64], w: &[f64]) -> f64 {
 
 /// Each reading's weight: one over the square of the scatter from one
 /// reading to the next among the readings either side of it (up to
-/// [`SCATTER_HALF`] each way, in the same stretch), normalised to sum
-/// to 1. The scatter is core's one step σ,
+/// [`SCATTER_HALF`] each way, in the same stretch; at least
+/// [`MIN_SCATTER_STEPS`] of them, or the reading takes the median weight),
+/// normalised to sum to 1. The scatter is core's one step σ,
 /// [`crate::dsp::robust_sd_from_steps`] on the signed steps: their
 /// spread about their own median, so a steady local drift is not counted
 /// as scatter (#2274).
@@ -180,7 +189,7 @@ fn weights(y: &[f64], stretch: &[usize]) -> Vec<f64> {
             .filter(|&j| stretch[j] == stretch[i] && stretch[j - 1] == stretch[i])
             .map(|j| y[j] - y[j - 1])
             .collect();
-        let sd = if d.len() >= 5 {
+        let sd = if d.len() >= MIN_SCATTER_STEPS {
             crate::dsp::robust_sd_from_steps(&d)
         } else {
             f64::NAN
@@ -651,6 +660,51 @@ mod tests {
         let w = weights(&y, &stretch);
         for (u, v) in w[..200].iter().zip(&w[200..]) {
             assert!((u / v - 1.0).abs() < 1e-9, "{u} {v}");
+        }
+    }
+
+    /// 200 readings of unit noise, then a stretch of `short` readings ten
+    /// times noisier: the weights.
+    fn a_long_and_a_short_stretch(short: &[f64]) -> Vec<f64> {
+        let mut rng = Rng::new(9);
+        let mut y: Vec<f64> = (0..200).map(|_| rng.normal()).collect();
+        y.extend_from_slice(short);
+        let stretch: Vec<usize> = (0..y.len()).map(|i| (i >= 200) as usize).collect();
+        weights(&y, &stretch)
+    }
+
+    fn median_of(w: &[f64]) -> f64 {
+        crate::dsp::median(&mut w.to_vec())
+    }
+
+    #[test]
+    fn twenty_steps_are_the_least_for_a_scatter_of_its_own() {
+        let mut rng = Rng::new(10);
+        let noisy: Vec<f64> = (0..21).map(|_| 10.0 * rng.normal()).collect();
+        // 20 readings, 19 steps: the median weight.
+        let w = a_long_and_a_short_stretch(&noisy[..20]);
+        let med = median_of(&w[..200]);
+        for v in &w[200..] {
+            assert!((v / med - 1.0).abs() < 1e-12, "{v} {med}");
+        }
+        // 21 readings, 20 steps: its own, about a hundredth.
+        let w = a_long_and_a_short_stretch(&noisy);
+        let med = median_of(&w[..200]);
+        for v in &w[200..] {
+            assert!(*v < 0.1 * med, "{v} {med}");
+        }
+    }
+
+    #[test]
+    fn steps_that_happen_to_agree_draw_no_more_than_the_median_weight() {
+        // The last stretch of ym42_DU_2h's beat error (ms): five steps whose
+        // centred MAD is 0.0038, against 0.0146 about 0. With five steps
+        // allowed, these six readings drew 5.6% of all the weight (#2278).
+        let short = [0.01033, -0.00431, -0.01397, 0.06583, 0.05498, -0.01343];
+        let w = a_long_and_a_short_stretch(&short);
+        let med = median_of(&w[..200]);
+        for v in &w[200..] {
+            assert!(*v <= med * (1.0 + 1e-12), "{v} {med}");
         }
     }
 
