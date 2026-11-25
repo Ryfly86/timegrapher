@@ -1692,7 +1692,7 @@ impl TimegrapherApp {
             marks: self.bench.panes_view.show_marks.saved(),
             steady_info: self.bench.panes_view.steady_info.unset,
             steady_info_set: self.bench.panes_view.steady_info.saved(),
-            positions_settle_s: self.bench.test.guided_settle_s,
+            positions_settle_s: self.session.settle_len(),
             ten_positions: self.bench.test.ten_positions,
             poise_views: self.bench.panes_view.poise_views,
             poise_info: self.bench.panes_view.poise_info,
@@ -1856,9 +1856,9 @@ impl TimegrapherApp {
     /// The Positions Test's settle and measure times, each kept in its
     /// range.
     fn set_positions_times(&mut self, settle_s: f64, measure_s: f64) {
-        self.bench.test.guided_settle_s =
-            settle_s.clamp(*guided::SETTLE_RANGE.start(), *guided::SETTLE_RANGE.end());
-        self.session.set_settle_s(self.bench.test.guided_settle_s);
+        self.session.set_settle_s(
+            settle_s.clamp(*guided::SETTLE_RANGE.start(), *guided::SETTLE_RANGE.end()),
+        );
         self.bench.test.guided_measure_s =
             measure_s.clamp(*guided::MEASURE_RANGE.start(), *guided::MEASURE_RANGE.end());
     }
@@ -3219,8 +3219,6 @@ impl eframe::App for TimegrapherApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         crate::frame_built();
         let was_working = self.repaint_every().is_some();
-        // One settling for every change of position: the pane's Settle.
-        self.session.set_settle_s(self.bench.test.guided_settle_s);
         if std::mem::take(&mut self.bench.recording.listen_pending) && !self.running() {
             self.quick_listen(false);
         }

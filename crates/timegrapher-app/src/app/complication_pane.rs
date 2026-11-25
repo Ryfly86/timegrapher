@@ -223,10 +223,7 @@ impl TimegrapherApp {
             Some(guided::Phase::Measuring(_)) => self.guided_live(ui.ctx()),
             _ => None,
         };
-        let lengths = (
-            self.bench.test.guided_settle_s,
-            self.bench.test.guided_measure_s,
-        );
+        let lengths = (self.session.settle_len(), self.bench.test.guided_measure_s);
         // No test on the Bench: an opened take's own, read again (#1620).
         if self.complication_test().is_none() {
             let _ = self.saved_complication_read();
