@@ -170,6 +170,10 @@ enum Command {
     Shape {
         /// The recording: one sound file, WAV or FLAC.
         file: PathBuf,
+        /// The movement (e.g. "ETA 2824-2"; see `calibres`): its beat rate
+        /// and lift angle where the take and --bph, --lift give none.
+        #[arg(long)]
+        calibre: Option<String>,
         /// Beat rate in beats per hour (default: the take's, for a sound
         /// file its folder's session.toml lists; else guessed).
         #[arg(long, value_parser = parse_bph)]
@@ -198,6 +202,10 @@ enum Command {
     Profile {
         /// The recording: one sound file, WAV or FLAC.
         file: PathBuf,
+        /// The movement (e.g. "ETA 2824-2"; see `calibres`): its beat rate
+        /// and lift angle where the take and --bph, --lift give none.
+        #[arg(long)]
+        calibre: Option<String>,
         /// Start of the stretch, seconds from the start of the recording.
         #[arg(long, default_value_t = 0.0, value_parser = parse_non_negative)]
         at: f64,
@@ -1070,6 +1078,7 @@ fn measure_command(c: Command) -> Result<(), String> {
             }),
         Command::Shape {
             file,
+            calibre,
             bph,
             lift,
             notch,
@@ -1077,7 +1086,7 @@ fn measure_command(c: Command) -> Result<(), String> {
             json,
             templates,
         } => {
-            let r = calibres_cmd::resolve_for(&file, None, bph, lift, None)?;
+            let r = calibres_cmd::resolve_for(&file, calibre.as_deref(), bph, lift, None)?;
             let envelope = timegrapher_core::dsp::EnvelopeConfig {
                 notch_hz: notch,
                 highpass_hz: highpass,
@@ -1101,6 +1110,7 @@ fn measure_command(c: Command) -> Result<(), String> {
 fn profile_command(c: Command) -> Result<(), String> {
     let Command::Profile {
         file,
+        calibre,
         at,
         span,
         bph,
@@ -1113,7 +1123,7 @@ fn profile_command(c: Command) -> Result<(), String> {
     else {
         unreachable!("measure_command passes profile_command only Profile")
     };
-    let r = calibres_cmd::resolve_for(&file, None, bph, lift, None)?;
+    let r = calibres_cmd::resolve_for(&file, calibre.as_deref(), bph, lift, None)?;
     let mut cfg = AnalysisConfig {
         bph: r.bph,
         ..Default::default()
