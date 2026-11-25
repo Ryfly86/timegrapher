@@ -821,7 +821,9 @@ impl TimegrapherApp {
         // The take's folder is made as it is named, so no other take
         // started this minute is given it (#1862).
         if let Err(e) = r.claim_first_copy(takes, &name) {
-            return self.error(format!("Couldn't make the take's folder: {e}"));
+            return self.error(format!(
+                "Saving the recording failed\nThe take's folder couldn't be made: {e}"
+            ));
         }
         self.save_into_as(takes, streamed);
         if let Some(s) = &mut self.bench.keeping.saving {
