@@ -273,10 +273,7 @@ impl TimegrapherApp {
         let short = self.poise_short(ui.ctx());
         let info = self.bench.panes_view.poise_info;
         let view = self.bench.panes_view.poise_views;
-        let settle = (
-            self.bench.test.guided_settle_s,
-            self.bench.test.guided_measure_s,
-        );
+        let settle = (self.session.settle_len(), self.bench.test.guided_measure_s);
         let action = poise_body(
             ui,
             (self.poise_test(), phase, live.as_ref()),

@@ -1258,11 +1258,8 @@ fn a_poise_test_reads_the_same_live_as_reopened() {
     let audio = generate(&cfg, |_| 310.0, |_| 0.0);
     let tx = queued_capture(&mut app, &base);
     app.bench.test.guided = Some(guided::Test::poise().timed(settle, measure));
-    // The pane's Settle and Each Position, as each frame gives the session.
-    (
-        app.bench.test.guided_settle_s,
-        app.bench.test.guided_measure_s,
-    ) = (settle, measure);
+    // The pane's Settle, kept by the session, and Each Position.
+    app.bench.test.guided_measure_s = measure;
     app.session.set_settle_s(settle);
     app.session.set_state(session::State::Listening);
     let ctx = egui::Context::default();
@@ -1379,10 +1376,7 @@ fn guided_test_saved(
     let audio = generate(&cfg, |t| 300.0 - 0.1 * t, |_| 0.4);
     let tx = queued_capture(&mut app, base);
     app.bench.test.guided = Some(guided_test.timed(settle, measure));
-    (
-        app.bench.test.guided_settle_s,
-        app.bench.test.guided_measure_s,
-    ) = (settle, measure);
+    app.bench.test.guided_measure_s = measure;
     app.session.set_settle_s(settle);
     app.session.set_state(session::State::Listening);
     let ctx = egui::Context::default();

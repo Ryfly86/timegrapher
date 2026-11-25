@@ -14,8 +14,7 @@ fn the_settle_hint_names_the_settle_in_use() {
     assert_eq!(app.session.settle_len(), guided::SETTLE_S);
     let hint = settle_hint(app.session.settle_len());
     assert!(hint.starts_with("For the first 20 seconds"), "{hint}");
-    app.bench.test.guided_settle_s = 30.0;
-    app.session.set_settle_s(app.bench.test.guided_settle_s);
+    app.session.set_settle_s(30.0);
     let hint = settle_hint(app.session.settle_len());
     assert!(hint.starts_with("For the first 30 seconds"), "{hint}");
 }
@@ -301,7 +300,7 @@ fn each_position_counts_its_own_seconds() {
         "Dial Up keeps its {du} s of {moved}"
     );
     // Dial Down's time to the latest beat, less its settling.
-    let want = app.latest_s() - moved - app.bench.test.guided_settle_s;
+    let want = app.latest_s() - moved - app.session.settle_len();
     assert!((dd - want).abs() < 1.0, "Dial Down {dd} s, not {want}");
     // A mask comes off the position it lies in.
     app.bench.take.masked.push((moved + 25.0, moved + 30.0));
@@ -335,7 +334,7 @@ fn the_distributions_take_the_windows_of_the_position_now() {
     }
     let wins = app.position_windows();
     assert!(wins.len() > 5, "{} windows", wins.len());
-    let settled = moved + app.bench.test.guided_settle_s;
+    let settled = moved + app.session.settle_len();
     for w in &wins {
         let mid = 0.5 * (w.start_s + w.end_s);
         assert!(
@@ -392,7 +391,7 @@ fn the_positions_table_reads_a_free_take() {
     assert!((dd_rate.unwrap() - 60.0).abs() < 5.0, "{dd_rate:?}");
     // Dial Down's settling is left out of its duration.
     assert!(
-        (dd.1 - (40.0 - app.bench.test.guided_settle_s)).abs() < 1.0,
+        (dd.1 - (40.0 - app.session.settle_len())).abs() < 1.0,
         "{}",
         dd.1
     );
@@ -474,7 +473,7 @@ fn the_positions_table_reads_a_free_take() {
     moved(&mut app, Position::CrownUp);
     let audio = generate(
         &SynthConfig {
-            duration_s: app.bench.test.guided_settle_s + 5.0,
+            duration_s: app.session.settle_len() + 5.0,
             ..Default::default()
         },
         |_| 280.0,
@@ -980,6 +979,34 @@ fn a_settle_changed_after_a_test_leaves_the_test_alone() {
             "Settle {s}: the kept take is still saved"
         );
     }
+    drop(tx);
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// The Settle is one record, the session's (#1988): re-settled as the
+/// pane's Settle does it, the strip's settling after a move, the saved
+/// Settings and the next guided test all read the new value.
+#[test]
+fn the_strip_and_the_test_read_one_settle() {
+    let base = std::env::temp_dir().join(format!("tg-app-one-settle-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let mut app = synthetic(20.0, 0.0);
+    app.session.listen();
+    let tx = queued_capture(&mut app, &base);
+    app.session
+        .move_to(10.0, Position::DialUp, Position::DialDown)
+        .unwrap();
+    assert_eq!(app.session.settles(), [(10.0, 10.0 + guided::SETTLE_S)]);
+    for s in [30.0, 12.0] {
+        app.session.resettle(s);
+        assert_eq!(app.session.settle_len(), s);
+        assert_eq!(app.session.settles(), [(10.0, 10.0 + s)], "the strip");
+        assert_eq!(app.settings().positions_settle_s, s, "saved");
+    }
+    app.start_guided(None);
+    let test = app.bench.test.guided.as_ref().expect("the test runs");
+    assert_eq!(test.settle_s, 12.0, "the test settles as the strip does");
     drop(tx);
     let _ = std::fs::remove_dir_all(&base);
 }
