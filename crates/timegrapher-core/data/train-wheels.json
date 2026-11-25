@@ -870,7 +870,7 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 6497, 44°)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "The only calibre here with a published train: escape 15 teeth on a 10-leaf pinion, fourth 120/8, third 60/10, centre 80 teeth (centre pinion and barrel not found, so the barrel is left out). The counts fit 21,600 bph, the -2 versions. The -1 versions run at 18,000 bph with a train not found; they are not in this entry. 56 h power reserve.",
+    "notes": "The only calibre here with a published train: escape 15 teeth on a 10-leaf pinion, fourth 120/8, third 60/10, centre 80 teeth (centre pinion and barrel not found, so the barrel is left out). The counts fit 21,600 bph, the -2 versions. The -1 versions run at 18,000 bph with a train not found; they are not in this entry.",
     "summary": [
       {
         "text": "ETA describes it as a Lépine calibre with the crown at 12 o’clock.",
@@ -1657,7 +1657,7 @@
         "date",
         "GMT hand"
       ],
-      "source": "https://content.rolex.cn/dam/media/brochures/explorer/m216570-0001.pdf (Rolex Explorer II 216570 brochure, calibre 3187) (\"Perpetual, mechanical, self-winding … 24-hour display … Instantaneous date … Stop-seconds for precise time setting\")"
+      "source": "https://content.rolex.cn/dam/media/brochures/explorer/m216570-0001.pdf (Rolex Explorer II 216570 brochure, calibre 3187) (\"Perpetual, mechanical, self-winding … Second time zone with independent rapid-setting of the hour hand … 24-hour display … Instantaneous date … Stop-seconds for precise time setting\")"
     }
   },
   {
