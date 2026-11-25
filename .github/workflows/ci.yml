@@ -30,8 +30,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest]
-        # Linux's tests run in test-linux below, with these same steps.
+        os: [windows-latest]
+        # Linux's and macOS's tests run in test-linux and test-macos
+        # below, with these same steps.
         # Windows runs its tests as two halves on two runners (nextest's
         # --partition), as `test (windows-latest 1/2)` and `2/2`: its job
         # finished last in 17 of 33 green PR runs on 2-3 Nov, about 13
@@ -65,7 +66,7 @@ jobs:
     env: &test-env
       CARGO_PROFILE_RELEASE_DEBUG: "0"
       CARGO_PROFILE_RELEASE_OVERFLOW_CHECKS: ${{ matrix.os == 'ubuntu-24.04' && 'true' || 'false' }}
-    # test-linux runs these same steps (a YAML alias of this list).
+    # test-linux and test-macos run these same steps (a YAML alias of this list).
     steps: &test-steps
       # Two commits: on a pull request, GitHub's merge commit and its base.
       - uses: actions/checkout@v7
@@ -107,8 +108,8 @@ jobs:
         with:
           toolchain: ${{ matrix.os == 'ubuntu-24.04' && '1.90.0' || 'stable' }}
           components: rustfmt, clippy
-      # One cache key for each OS, as before test-linux had a job of its
-      # own: the key otherwise names the job, and a new key would add a
+      # One cache key for each OS, as before Linux and macOS had jobs of
+      # their own: the key otherwise names the job, and a new key would add a
       # cache while the repository's sit near GitHub's 10 GB limit.
       - uses: Swatinem/rust-cache@v2
         if: steps.changes.outputs.full != 'false'
@@ -195,6 +196,40 @@ jobs:
           RESULT: ${{ needs.test-linux.result }}
         run: |
           echo "Linux tests, both halves: $RESULT"
+          test "$RESULT" = success
+
+  # macOS's tests as two halves, as Linux's are, as `test (macos-latest
+  # 1/2)` and `2/2`. Once Linux's were split it was the slowest job: on
+  # 25 Nov a pull request's test run took 25 to 27 minutes after a 7-minute
+  # build (35 minutes of 45), and main, which runs every test on macOS,
+  # took 39 at 0c63103. Only 1/2 runs fmt, clippy and the doc tests, and
+  # saves the rust cache.
+  test-macos:
+    name: test (${{ matrix.os }} ${{ matrix.part }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest]
+        part: [1/2, 2/2]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env: *test-env
+    steps: *test-steps
+
+  # The required check `test (macos-latest)`, as test-linux-result is
+  # Linux's: it always runs, and passes only when both halves did.
+  test-macos-result:
+    name: test (macos-latest)
+    needs: test-macos
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Both halves passed
+        env:
+          RESULT: ${{ needs.test-macos.result }}
+        run: |
+          echo "macOS tests, both halves: $RESULT"
           test "$RESULT" = success
 
   mcp-renderer:
