@@ -165,8 +165,11 @@ pub fn false_alarm(z: f64, n: usize, fmax: f64, t: &[f64], w: &[f64]) -> f64 {
 
 /// Each reading's weight: one over the square of the scatter from one
 /// reading to the next among the readings either side of it (up to
-/// [`SCATTER_HALF`] each way, in the same stretch), robustly (the median
-/// absolute difference), normalised to sum to 1.
+/// [`SCATTER_HALF`] each way, in the same stretch), normalised to sum
+/// to 1. The scatter is core's one step σ,
+/// [`crate::dsp::robust_sd_from_steps`] on the signed steps: their
+/// spread about their own median, so a steady local drift is not counted
+/// as scatter (#2274).
 fn weights(y: &[f64], stretch: &[usize]) -> Vec<f64> {
     let n = y.len();
     let mut w = vec![0.0; n];
@@ -175,10 +178,10 @@ fn weights(y: &[f64], stretch: &[usize]) -> Vec<f64> {
         let hi = (i + SCATTER_HALF + 1).min(n);
         let d: Vec<f64> = (lo + 1..hi)
             .filter(|&j| stretch[j] == stretch[i] && stretch[j - 1] == stretch[i])
-            .map(|j| (y[j] - y[j - 1]).abs())
+            .map(|j| y[j] - y[j - 1])
             .collect();
         let sd = if d.len() >= 5 {
-            crate::dsp::robust_sd_about(&d, 0.0) / std::f64::consts::SQRT_2
+            crate::dsp::robust_sd_from_steps(&d)
         } else {
             f64::NAN
         };
@@ -626,6 +629,27 @@ mod tests {
         // Equal but for rounding: 1000 + x carries fewer of x's digits.
         let (a, b) = (weights(&y, &stretch), weights(&lifted, &stretch));
         for (u, v) in a.iter().zip(&b) {
+            assert!((u / v - 1.0).abs() < 1e-9, "{u} {v}");
+        }
+    }
+
+    #[test]
+    fn a_steady_drift_is_not_scatter() {
+        // Two stretches of the same noise, the second drifting 5 per
+        // reading. The scatter is taken about the steps' own centre
+        // (#2274), so the drift leaves each weight as it was; about 0 it
+        // would read as scatter and cut the second stretch's weights more
+        // than twentyfold.
+        let mut rng = Rng::new(8);
+        let noise: Vec<f64> = (0..200).map(|_| rng.normal()).collect();
+        let y: Vec<f64> = noise
+            .iter()
+            .copied()
+            .chain(noise.iter().enumerate().map(|(i, v)| v + 5.0 * i as f64))
+            .collect();
+        let stretch: Vec<usize> = (0..400).map(|i| (i >= 200) as usize).collect();
+        let w = weights(&y, &stretch);
+        for (u, v) in w[..200].iter().zip(&w[200..]) {
             assert!((u / v - 1.0).abs() < 1e-9, "{u} {v}");
         }
     }
