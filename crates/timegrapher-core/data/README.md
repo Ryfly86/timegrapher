@@ -35,7 +35,7 @@ A JSON array, one object per calibre:
 | Field | Meaning |
 | --- | --- |
 | `calibre` | Name shown to the user, e.g. "ETA 2824-2" |
-| `maker` | Maker, or "(clone)" for a copy |
+| `maker` | Maker, with "(clone)" only for a maker known for copies alone. A maker that also makes calibres of its own (Shanghai Jinghe) is written plainly, and its copies carry a "clone of" relation in `related`, which marks their title "(clone)" (#2304) |
 | `family` | Other names that match: sister calibres with the same train, the names this project's session files use (e.g. "3235", "DD4130") |
 | `former_names` | Names the row had in earlier versions of the table (the 97 variant rows were first named with "vph"); they still match, with or without the maker, but are not searched or shown in the app. Left out when there are none |
 | `common` | `true` for common and modern calibres, the short list the app offers first; uncommon and vintage ones (most of the imported list) leave it out and appear when the list is expanded or searched |
@@ -521,5 +521,6 @@ and 20/3 seconds respectively; the cannon/minutes assembly also turns hourly.
 Original Third/Fourth/Fifth filenames map to centre/third/fourth roles.
 The genuine AP3120 and Miyota-based replicas receive no transferred counts.
 The existing 53° lift setting is retained. This project identifies Jinghe as
-the SA3120 manufacturer; it is listed under Shanghai Jinghe (clone), with
-APS/ZF retained as marketed aliases.
+the SA3120 manufacturer; it is listed under Shanghai Jinghe as a "clone
+of" the Audemars Piguet 3120 (#2304), with APS/ZF retained as marketed
+aliases.

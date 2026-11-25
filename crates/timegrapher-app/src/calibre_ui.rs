@@ -18,7 +18,7 @@ use crate::theme;
 use eframe::egui::{self, RichText, Vec2};
 use std::path::PathBuf;
 use std::sync::OnceLock;
-use timegrapher_core::calibre_page::{self, figure_words, source_parts, with_maker_name};
+use timegrapher_core::calibre_page::{self, figure_words, source_parts};
 use timegrapher_core::calibre_store::{
     Catalog, CustomCalibre, CustomWheel, Entry, Origin, Slot, UserCalibres,
 };
@@ -1713,7 +1713,7 @@ impl Calibres {
         let Some(e) = self.find(&name) else { return };
         let custom = e.is_custom();
         let mut title = match e {
-            Entry::Table(c) => with_maker_name(&c.maker, &c.calibre),
+            Entry::Table(c) => calibre_page::title(c),
             Entry::Custom(_) => label(e),
         };
         if name == current {

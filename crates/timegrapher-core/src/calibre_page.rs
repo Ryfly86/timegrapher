@@ -543,7 +543,7 @@ fn inverses(table: &[Calibre]) -> Inverses<'_> {
 
 fn link(c: &Calibre) -> Link {
     Link {
-        name: with_maker_name(&c.maker, &c.calibre),
+        name: title(c),
         path: path(c),
     }
 }
@@ -624,7 +624,7 @@ fn wheel_rank(name: &str) -> usize {
 
 /// The page of `c`; `inv` holds the relations other rows state about it.
 fn page(c: &Calibre, inv: &Inverses) -> Page {
-    let title = with_maker_name(&c.maker, &c.calibre);
+    let title = title(c);
     let mut cite = Numbered::default();
     for s in c.sources.iter().map(String::as_str).chain(field_sources(c)) {
         cite.number(s);
@@ -848,6 +848,23 @@ fn capitalised(s: &str) -> String {
     c.next()
         .map(|f| f.to_uppercase().collect::<String>() + c.as_str())
         .unwrap_or_default()
+}
+
+/// The title of a row, as its page and the app's Calibres pane head it:
+/// [`with_maker_name`], marked "(clone)" when the row is a "clone of"
+/// another and its title doesn't already say so. A maker that also makes
+/// calibres of its own is not a clone maker, so the mark sits on the row
+/// (#2304).
+pub fn title(c: &Calibre) -> String {
+    let named = with_maker_name(&c.maker, &c.calibre);
+    let says_clone = named
+        .split(|ch: char| !ch.is_alphanumeric())
+        .any(|word| word.eq_ignore_ascii_case("clone"));
+    if !says_clone && c.related.iter().any(|r| r.relation == "clone of") {
+        format!("{named} (clone)")
+    } else {
+        named
+    }
 }
 
 /// A calibre's name with its maker in front, unless the name already

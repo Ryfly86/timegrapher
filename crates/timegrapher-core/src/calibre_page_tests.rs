@@ -614,3 +614,58 @@ fn a_curly_quote_closes() {
         "51°"
     );
 }
+
+/// Jinghe's pages: one maker, the clone mark only on its clones' titles,
+/// and each calibre's own slug as it was under "Shanghai Jinghe (clone)"
+/// and "Clone (maker not named)", so only the maker part of an old
+/// address changes (#2304).
+#[test]
+fn jinghes_clones_alone_are_titled_clones() {
+    for (name, title, path) in [
+        (
+            "JH3235",
+            "Shanghai Jinghe JH3235 (clone)",
+            "/calibres/shanghai-jinghe/jh3235/",
+        ),
+        (
+            "SA3120",
+            "Shanghai Jinghe SA3120 (clone)",
+            "/calibres/shanghai-jinghe/sa3120/",
+        ),
+        (
+            "VR3135",
+            "Shanghai Jinghe VR3135 (clone)",
+            "/calibres/shanghai-jinghe/vr3135/",
+        ),
+        (
+            "SA4401",
+            "Shanghai Jinghe SA4401 (clone)",
+            "/calibres/shanghai-jinghe/sa4401/",
+        ),
+        (
+            "Jinghe JH8002",
+            "Jinghe JH8002",
+            "/calibres/shanghai-jinghe/jh8002/",
+        ),
+    ] {
+        let p = page_of(find(name).unwrap());
+        assert_eq!(p.title, title, "{name}");
+        assert_eq!(p.path, path, "{name}");
+        assert_eq!(p.maker_slug, "shanghai-jinghe", "{name}");
+    }
+    let jh = page_of(find("JH3235").unwrap());
+    let of = jh.related.iter().find(|r| r.label == "Clone of").unwrap();
+    assert_eq!(of.calibres[0].name, "Rolex 3235");
+    assert!(of.source.is_some());
+    let rolex = page_of(find("Rolex 3235").unwrap());
+    let by = rolex
+        .related
+        .iter()
+        .find(|r| r.label == "Cloned by")
+        .unwrap();
+    let names: Vec<&str> = by.calibres.iter().map(|l| l.name.as_str()).collect();
+    assert_eq!(names, ["Shanghai Jinghe JH3235 (clone)"]);
+    // A clone maker's rows keep the mark the maker gives them.
+    let sh = page_of(find("SH3135").unwrap());
+    assert!(sh.title.contains("(clone)"), "{}", sh.title);
+}

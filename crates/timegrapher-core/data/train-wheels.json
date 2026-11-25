@@ -1942,7 +1942,7 @@
   },
   {
     "calibre": "VR3135",
-    "maker": "Clone (maker not named)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "VR31xx"
     ],
@@ -2002,14 +2002,22 @@
       "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)",
       "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: its sister movements now have their own rows)",
-      "https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350 (an RWI forum post, quoted in the notes, 2026-11-16)"
+      "https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350 (an RWI forum post, quoted in the notes, 2026-11-16)",
+      "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (made by Shanghai Jinghe)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date (the 3135's layout). Its sister movements on the same train have their own rows (#1822). Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix, not an identified movement manufacturer. Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it. A post on RWI (https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350), quoted on 2026-11-16: \"The JH6001-1 is almost certainly what we call the VR3135\". It identifies the movement only; no figure in this row comes from it."
+    "notes": "Date (the 3135's layout). Its sister movements on the same train have their own rows (#1822). Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix; the movement is made by Shanghai Jinghe (#2304). Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it. A post on RWI (https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350), quoted on 2026-11-16: \"The JH6001-1 is almost certainly what we call the VR3135\". It identifies the movement only; no figure in this row comes from it.",
+    "related": [
+      {
+        "calibre": "Rolex 3135",
+        "relation": "clone of",
+        "source": "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (VR3135: Jinghe's clone of the Rolex 3135)"
+      }
+    ]
   },
   {
     "calibre": "VR3130",
-    "maker": "Clone (maker not named)",
+    "maker": "Shanghai Jinghe",
     "family": [],
     "common": true,
     "bph": 28800,
@@ -2067,11 +2075,17 @@
       "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)",
       "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)",
-      "https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350 (an RWI forum post, quoted in the notes, 2026-11-16)"
+      "https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350 (an RWI forum post, quoted in the notes, 2026-11-16)",
+      "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (made by Shanghai Jinghe)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Time only, no date (the 3130's layout). Shares the going train, escapement, beat rate and lift setting of VR3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix, not an identified movement manufacturer. Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it. A post on RWI (https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350), quoted on 2026-11-16: \"The JH6000-1 is almost certainly what we call the VR3130\". It identifies the movement only; no figure in this row comes from it.",
+    "notes": "Time only, no date (the 3130's layout). Shares the going train, escapement, beat rate and lift setting of VR3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix; the movement is made by Shanghai Jinghe (#2304). Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it. A post on RWI (https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350), quoted on 2026-11-16: \"The JH6000-1 is almost certainly what we call the VR3130\". It identifies the movement only; no figure in this row comes from it.",
     "related": [
+      {
+        "calibre": "Rolex 3130",
+        "relation": "clone of",
+        "source": "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (VR3130: Jinghe's clone of the Rolex 3130)"
+      },
       {
         "calibre": "VR3135",
         "relation": "same base as",
@@ -2081,78 +2095,7 @@
   },
   {
     "calibre": "VR3186",
-    "maker": "Clone (maker not named)",
-    "family": [],
-    "common": true,
-    "bph": 28800,
-    "escape_teeth": 20,
-    "lift_angle_deg": 52,
-    "seconds": "centre (fourth wheel)",
-    "wheels": [
-      {
-        "name": "escape wheel",
-        "period_s": 5,
-        "teeth": 20,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
-        "pinion": 10
-      },
-      {
-        "name": "fourth wheel",
-        "period_s": 60,
-        "teeth": 120,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
-        "pinion": 18
-      },
-      {
-        "name": "third wheel",
-        "period_s": 320,
-        "teeth": 96,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
-        "pinion": 12
-      },
-      {
-        "name": "centre wheel",
-        "period_s": 2160,
-        "teeth": 81,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
-        "pinion": 12
-      },
-      {
-        "name": "barrel",
-        "period_s": 18000,
-        "teeth": 100,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx"
-      },
-      {
-        "name": "cannon pinion",
-        "period_s": 3600,
-        "basis": "derived: carries the minute hand; separate from the 2160-second second wheel"
-      },
-      {
-        "name": "balance",
-        "period_s": 0.25,
-        "basis": "derived from the beat rate"
-      }
-    ],
-    "sources": [
-      "https://forum.replica-watch.info/threads/comprehensive-guide-to-clone-movements-found-in-rolex-reps.10936248/ (a true clone, part compatible with genuine parts; no shock setting on the escape wheel)",
-      "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)",
-      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
-      "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
-    ],
-    "confidence": "derived from tooth counts",
-    "notes": "Date and an independently set 24-hour hand (the 3186's layout). Shares the going train, escapement, beat rate and lift setting of VR3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix, not an identified movement manufacturer. Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it.",
-    "related": [
-      {
-        "calibre": "VR3135",
-        "relation": "same base as",
-        "source": "https://github.com/peterhudson/timegrapher/issues/1822 (the project’s issue splitting the sister movements into rows) (\"`VR3135`: VR3130, VR3186 and VR3187.\")"
-      }
-    ]
-  },
-  {
-    "calibre": "VR3187",
-    "maker": "Clone (maker not named)",
+    "maker": "Shanghai Jinghe",
     "family": [],
     "common": true,
     "bph": 28800,
@@ -2210,11 +2153,94 @@
       "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)",
       "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)",
-      "https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350 (an RWI forum post, quoted in the notes, 2026-11-16)"
+      "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (made by Shanghai Jinghe)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date and an independently set 24-hour hand (the 3187's layout). Shares the going train, escapement, beat rate and lift setting of VR3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix, not an identified movement manufacturer. Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it. A post on RWI (https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350), quoted on 2026-11-16: \"The JH6002-1 is almost certainly what we call the VR3187\". It identifies the movement only; no figure in this row comes from it.",
+    "notes": "Date and an independently set 24-hour hand (the 3186's layout). Shares the going train, escapement, beat rate and lift setting of VR3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix; the movement is made by Shanghai Jinghe (#2304). Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it.",
     "related": [
+      {
+        "calibre": "Rolex 3186",
+        "relation": "clone of",
+        "source": "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (VR3186: Jinghe's clone of the Rolex 3186)"
+      },
+      {
+        "calibre": "VR3135",
+        "relation": "same base as",
+        "source": "https://github.com/peterhudson/timegrapher/issues/1822 (the project’s issue splitting the sister movements into rows) (\"`VR3135`: VR3130, VR3186 and VR3187.\")"
+      }
+    ]
+  },
+  {
+    "calibre": "VR3187",
+    "maker": "Shanghai Jinghe",
+    "family": [],
+    "common": true,
+    "bph": 28800,
+    "escape_teeth": 20,
+    "lift_angle_deg": 52,
+    "seconds": "centre (fourth wheel)",
+    "wheels": [
+      {
+        "name": "escape wheel",
+        "period_s": 5,
+        "teeth": 20,
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "pinion": 10
+      },
+      {
+        "name": "fourth wheel",
+        "period_s": 60,
+        "teeth": 120,
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "pinion": 18
+      },
+      {
+        "name": "third wheel",
+        "period_s": 320,
+        "teeth": 96,
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "pinion": 12
+      },
+      {
+        "name": "centre wheel",
+        "period_s": 2160,
+        "teeth": 81,
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
+        "pinion": 12
+      },
+      {
+        "name": "barrel",
+        "period_s": 18000,
+        "teeth": 100,
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx"
+      },
+      {
+        "name": "cannon pinion",
+        "period_s": 3600,
+        "basis": "derived: carries the minute hand; separate from the 2160-second second wheel"
+      },
+      {
+        "name": "balance",
+        "period_s": 0.25,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "https://forum.replica-watch.info/threads/comprehensive-guide-to-clone-movements-found-in-rolex-reps.10936248/ (a true clone, part compatible with genuine parts; no shock setting on the escape wheel)",
+      "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)",
+      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
+      "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)",
+      "https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350 (an RWI forum post, quoted in the notes, 2026-11-16)",
+      "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (made by Shanghai Jinghe)"
+    ],
+    "confidence": "derived from tooth counts",
+    "notes": "Date and an independently set 24-hour hand (the 3187's layout). Shares the going train, escapement, beat rate and lift setting of VR3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix; the movement is made by Shanghai Jinghe (#2304). Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it. A post on RWI (https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350), quoted on 2026-11-16: \"The JH6002-1 is almost certainly what we call the VR3187\". It identifies the movement only; no figure in this row comes from it.",
+    "related": [
+      {
+        "calibre": "Rolex 3187",
+        "relation": "clone of",
+        "source": "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (VR3187: Jinghe's clone of the Rolex 3187)"
+      },
       {
         "calibre": "VR3135",
         "relation": "same base as",
@@ -2864,7 +2890,7 @@
   },
   {
     "calibre": "JH3230",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "Jinghe 3230"
     ],
@@ -2926,6 +2952,11 @@
     "notes": "Time only (hours, minutes, seconds), no date. Shares the counted 32xx going train, escapement, beat rate and lift setting with JH3235; only the motion works differ. Had been an alias of JH3235 until 2026-11-15 (#1820). A 32xx clone with a free-sprung balance and flat hairspring. The 59° lift setting is applied to the JH32xx family by maintainer decision from the DD3285 optical/acoustic study (2026-11-03). No JH specimen was measured; this is a family-level empirical default, not a measured JH physical lift angle. It has a shock setting for the escape wheel. Power reserve not documented. Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by this project's 2026-10-19 photographs. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion.",
     "related": [
       {
+        "calibre": "Rolex 3230",
+        "relation": "clone of",
+        "source": "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (JH3230: Jinghe's clone of the Rolex 3230)"
+      },
+      {
         "calibre": "JH3235",
         "relation": "same base as",
         "source": "https://github.com/peterhudson/timegrapher/issues/1820 (the project’s issue on the 32xx rows) (\"They share the counted 32xx going train and escapement\")"
@@ -2934,7 +2965,7 @@
   },
   {
     "calibre": "JH3235",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "Jinghe 3235",
       "JH32xx",
@@ -2995,11 +3026,18 @@
       "https://github.com/peterhudson/timegrapher/issues/1820 (2026-11-15: 3230, 3255 and 3285 split into their own rows; this row keeps the family names)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date. The 3230, 3255 and 3285 have their own rows with the same going train (#1820). A 32xx clone with a free-sprung balance and flat hairspring. The 59° lift setting is applied to the JH32xx family by maintainer decision from the DD3285 optical/acoustic study (2026-11-03). No JH specimen was measured; this is a family-level empirical default, not a measured JH physical lift angle. It has a shock setting for the escape wheel. Power reserve not documented. Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by this project's 2026-10-19 photographs. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion."
+    "notes": "Date. The 3230, 3255 and 3285 have their own rows with the same going train (#1820). A 32xx clone with a free-sprung balance and flat hairspring. The 59° lift setting is applied to the JH32xx family by maintainer decision from the DD3285 optical/acoustic study (2026-11-03). No JH specimen was measured; this is a family-level empirical default, not a measured JH physical lift angle. It has a shock setting for the escape wheel. Power reserve not documented. Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by this project's 2026-10-19 photographs. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion.",
+    "related": [
+      {
+        "calibre": "Rolex 3235",
+        "relation": "clone of",
+        "source": "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (JH3235: Jinghe's clone of the Rolex 3235)"
+      }
+    ]
   },
   {
     "calibre": "JH3255",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "Jinghe 3255"
     ],
@@ -3061,6 +3099,11 @@
     "notes": "Day and date. Shares the counted 32xx going train, escapement, beat rate and lift setting with JH3235; only the motion works differ. Had been an alias of JH3235 until 2026-11-15 (#1820). A 32xx clone with a free-sprung balance and flat hairspring. The 59° lift setting is applied to the JH32xx family by maintainer decision from the DD3285 optical/acoustic study (2026-11-03). No JH specimen was measured; this is a family-level empirical default, not a measured JH physical lift angle. It has a shock setting for the escape wheel. Power reserve not documented. Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by this project's 2026-10-19 photographs. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion.",
     "related": [
       {
+        "calibre": "Rolex 3255",
+        "relation": "clone of",
+        "source": "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (JH3255: Jinghe's clone of the Rolex 3255)"
+      },
+      {
         "calibre": "JH3235",
         "relation": "same base as",
         "source": "https://github.com/peterhudson/timegrapher/issues/1820 (the project’s issue on the 32xx rows) (\"They share the counted 32xx going train and escapement\")"
@@ -3069,7 +3112,7 @@
   },
   {
     "calibre": "JH3285",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "Jinghe 3285"
     ],
@@ -3130,6 +3173,11 @@
     "confidence": "derived from tooth counts",
     "notes": "Date and an independently set 24-hour (GMT) hand. Shares the counted 32xx going train, escapement, beat rate and lift setting with JH3235; only the motion works differ. Had been an alias of JH3235 until 2026-11-15 (#1820). A 32xx clone with a free-sprung balance and flat hairspring. The 59° lift setting is applied to the JH32xx family by maintainer decision from the DD3285 optical/acoustic study (2026-11-03). No JH specimen was measured; this is a family-level empirical default, not a measured JH physical lift angle. It has a shock setting for the escape wheel. Power reserve not documented. Train counts and periods apply to all genuine Rolex, Dandong and Jinghe 32xx (3230, 3235, 3255, 3285), as confirmed by this project's 2026-10-19 photographs. They do not apply to VR32xx or SH32xx. The centre wheel here is the photographed second wheel that drives the cannon pinion.",
     "related": [
+      {
+        "calibre": "Rolex 3285",
+        "relation": "clone of",
+        "source": "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (JH3285: Jinghe's clone of the Rolex 3285)"
+      },
       {
         "calibre": "JH3235",
         "relation": "same base as",
@@ -3773,7 +3821,7 @@
   },
   {
     "calibre": "SA3120",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "3120 (clone)",
       "APS 3120",
@@ -3850,11 +3898,18 @@
     ],
     "confidence": "derived from tooth counts",
     "notes": "Photographed AP3120 clone train: barrel 104, simple intermediate 40 with no pinion, offset centre 80/13, third 75/10, fourth 81/10, escape 20/9, minutes-drive pinion 13. Contributor physically confirms the intermediate rim meshes directly with the barrel; its two pivots carry no pinion. It drives both the centre and minutes pinions. The one-hour cannon and one-minute fourth/centre-seconds periods agree with the counted train at 21600 bph. Original Third/Fourth/Fifth filenames map to centre/third/fourth roles. SA3120 is made by Jinghe, confirmed by this project on 2026-10-21. APS/ZF names are retained as marketed aliases, not movement manufacturers. Genuine AP3120 and older 28800 bph Miyota 9015-based replicas are outside this contribution. Existing 53° lift setting is retained from the forum guide; photographs do not establish lift angle.",
-    "escape_teeth": 20
+    "escape_teeth": 20,
+    "related": [
+      {
+        "calibre": "Audemars Piguet 3120",
+        "relation": "clone of",
+        "source": "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (SA3120: Jinghe's clone of the Audemars Piguet 3120)"
+      }
+    ]
   },
   {
     "calibre": "SA4302",
-    "maker": "Clone (maker not named)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "4302 (clone)",
       "APS 4302",
@@ -3884,14 +3939,22 @@
     "sources": [
       "https://forum.replica-watch.info/threads/apsf-and-zf-royal-oak-15500-w-4302-clone-caliber.10917856/page-16 (a ZF V3 timegrapher reading at 28,800, lift 52°)",
       "https://clonology.is/product/clone-ap-royal-oak-ref-15500-blue-dial-swiss-movement/ (28,800 BPH, 70 h)",
-      "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)"
+      "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)",
+      "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (made by Shanghai Jinghe)"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "An all-in-one clone of the 4302 at 28,800 bph, about 65 to 70 h. Earlier versions used a Miyota 9015 instead."
+    "notes": "An all-in-one clone of the 4302 at 28,800 bph, about 65 to 70 h. Earlier versions used a Miyota 9015 instead.",
+    "related": [
+      {
+        "calibre": "Audemars Piguet 4302",
+        "relation": "clone of",
+        "source": "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (SA4302: Jinghe's clone of the Audemars Piguet 4302)"
+      }
+    ]
   },
   {
     "calibre": "SA4401",
-    "maker": "Clone (maker not named)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "4401 (clone)",
       "APS 4401"
@@ -3918,10 +3981,18 @@
     ],
     "sources": [
       "https://noobfactory.us/product/aps-factory-audemars-piguet-royal-oak-chronograph-26240-steel-41mm-purple-super-clone/ (28,800 vph, 70 h)",
-      "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)"
+      "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)",
+      "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (made by Shanghai Jinghe)"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "An integrated flyback chronograph clone of the 4401; that it is one, and its beat rate, rest only on one dealer's page. Lift angle as the 4401, probably 50 to 52°, not settled; that range rests only on one author's forum guide to lift angles."
+    "notes": "An integrated flyback chronograph clone of the 4401; that it is one, and its beat rate, rest only on one dealer's page. Lift angle as the 4401, probably 50 to 52°, not settled; that range rests only on one author's forum guide to lift angles.",
+    "related": [
+      {
+        "calibre": "Audemars Piguet 4401",
+        "relation": "clone of",
+        "source": "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (SA4401: Jinghe's clone of the Audemars Piguet 4401)"
+      }
+    ]
   },
   {
     "calibre": "Seiko NH35A",
@@ -86669,7 +86740,7 @@
   },
   {
     "calibre": "Jinghe JH8501",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH8501"
     ],
@@ -86701,7 +86772,7 @@
   },
   {
     "calibre": "Jinghe JH8002",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH8002"
     ],
@@ -86741,7 +86812,7 @@
   },
   {
     "calibre": "Jinghe JH8003-2",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH8003-2"
     ],
@@ -86785,7 +86856,7 @@
   },
   {
     "calibre": "Jinghe JH8032",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH8032"
     ],
@@ -86821,7 +86892,7 @@
   },
   {
     "calibre": "Jinghe JH8033",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH8033"
     ],
@@ -86865,7 +86936,7 @@
   },
   {
     "calibre": "Jinghe JH8056",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH8056"
     ],
@@ -86905,7 +86976,7 @@
   },
   {
     "calibre": "Jinghe JH8058",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH8058"
     ],
@@ -86949,7 +87020,7 @@
   },
   {
     "calibre": "Jinghe JH8087",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH8087"
     ],
@@ -86985,7 +87056,7 @@
   },
   {
     "calibre": "Jinghe JH7152",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH7152"
     ],
@@ -87020,7 +87091,7 @@
   },
   {
     "calibre": "Jinghe JH7155",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH7155"
     ],
@@ -87055,7 +87126,7 @@
   },
   {
     "calibre": "Jinghe JH7156",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH7156"
     ],
@@ -87090,7 +87161,7 @@
   },
   {
     "calibre": "Jinghe JH7157",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH7157"
     ],
@@ -87124,7 +87195,7 @@
   },
   {
     "calibre": "Jinghe JH7158-1",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH7158-1"
     ],
@@ -87158,7 +87229,7 @@
   },
   {
     "calibre": "Jinghe JH7301",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH7301"
     ],
@@ -87193,7 +87264,7 @@
   },
   {
     "calibre": "Jinghe JH6203",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH6203"
     ],
@@ -87224,7 +87295,7 @@
   },
   {
     "calibre": "Jinghe JH5031",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH5031"
     ],
@@ -87254,7 +87325,7 @@
   },
   {
     "calibre": "Jinghe JH4033-1",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH4033-1"
     ],
@@ -87284,7 +87355,7 @@
   },
   {
     "calibre": "Jinghe JH3005P",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH3005P"
     ],
@@ -87314,7 +87385,7 @@
   },
   {
     "calibre": "Jinghe JH3034",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH3034"
     ],
@@ -87344,7 +87415,7 @@
   },
   {
     "calibre": "Jinghe JH2019-2P",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH2019-2P"
     ],
@@ -87374,7 +87445,7 @@
   },
   {
     "calibre": "Jinghe JH2032P",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH2032P"
     ],
@@ -87404,7 +87475,7 @@
   },
   {
     "calibre": "Jinghe JH1008P",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH1008P"
     ],
@@ -87434,7 +87505,7 @@
   },
   {
     "calibre": "Jinghe JH1025P",
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "family": [
       "JH1025P"
     ],

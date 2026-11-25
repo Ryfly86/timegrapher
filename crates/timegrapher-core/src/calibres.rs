@@ -709,7 +709,7 @@ mod tests {
                 );
             }
             let expected_lift = match c.maker.as_str() {
-                "Peacock (Dandong)" | "Shanghai Jinghe (clone)" => 59.0,
+                "Peacock (Dandong)" | "Shanghai Jinghe" => 59.0,
                 _ if name.contains("53°") => 53.0,
                 _ => 55.0,
             };
@@ -728,7 +728,7 @@ mod tests {
         for (maker, name_of) in [
             ("Rolex", "Rolex "),
             ("Peacock (Dandong)", "Dandong "),
-            ("Shanghai Jinghe (clone)", "JH"),
+            ("Shanghai Jinghe", "JH"),
         ] {
             let base = find(&format!("{name_of}3235")).unwrap();
             for number in ["3230", "3235", "3255", "3285"] {
@@ -1141,7 +1141,9 @@ mod tests {
     }
 
     #[test]
-    fn ap_chronograph_clones_name_no_maker_and_keep_their_old_names() {
+    fn ap_chronograph_clones_are_jinghes_and_keep_their_old_names() {
+        // Made by Jinghe (#2304), until then filed under "Clone (maker not
+        // named)".
         for (name, row) in [
             ("SA4401", "SA4401"),
             ("APS 4401", "SA4401"),
@@ -1149,7 +1151,47 @@ mod tests {
         ] {
             let c = find(name).unwrap();
             assert_eq!(c.calibre, row, "{name}");
-            assert_eq!(c.maker, "Clone (maker not named)", "{name}");
+            assert_eq!(c.maker, "Shanghai Jinghe", "{name}");
+        }
+    }
+
+    /// Jinghe is a maker, not a clone maker: only the rows it makes as
+    /// copies are clones, each a sourced "clone of" its original (#2304).
+    #[test]
+    fn only_jinghes_clones_are_marked_as_clones() {
+        let clones = [
+            ("JH3230", "Rolex 3230"),
+            ("JH3235", "Rolex 3235"),
+            ("JH3255", "Rolex 3255"),
+            ("JH3285", "Rolex 3285"),
+            ("SA3120", "Audemars Piguet 3120"),
+            ("VR3130", "Rolex 3130"),
+            ("VR3135", "Rolex 3135"),
+            ("VR3186", "Rolex 3186"),
+            ("VR3187", "Rolex 3187"),
+            ("SA4302", "Audemars Piguet 4302"),
+            ("SA4401", "Audemars Piguet 4401"),
+        ];
+        assert!(makers().iter().all(|m| !m.maker.contains("Jinghe (clone)")));
+        assert!(all().iter().all(|c| c.maker != "Clone (maker not named)"));
+        let jinghe: Vec<&Calibre> = all()
+            .iter()
+            .filter(|c| c.maker == "Shanghai Jinghe")
+            .collect();
+        assert_eq!(jinghe.len(), 34);
+        for c in jinghe {
+            let of: Vec<&str> = c
+                .related
+                .iter()
+                .filter(|r| r.relation == "clone of")
+                .map(|r| r.calibre.as_str())
+                .collect();
+            let expected: Vec<&str> = clones
+                .iter()
+                .filter(|(row, _)| *row == c.calibre)
+                .map(|(_, original)| *original)
+                .collect();
+            assert_eq!(of, expected, "{}", c.calibre);
         }
     }
 
