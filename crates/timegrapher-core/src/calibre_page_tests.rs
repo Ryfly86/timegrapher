@@ -475,13 +475,20 @@ fn counts_are_shown_as_stored() {
     let get = |n: &str| w.iter().find(|l| l.name == n).unwrap();
     let fourth = get("Fourth Wheel");
     assert_eq!((fourth.teeth, fourth.leaves), (Some(80), Some(8)));
+    assert_eq!(fourth.period.as_deref(), Some("60 s"));
     assert!(fourth.blank.is_empty());
     let escape = get("Escape Wheel");
     assert_eq!((escape.teeth, escape.leaves), (Some(15), None));
     assert_eq!(escape.blank, ["leaves"]);
+    assert_eq!(escape.period.as_deref(), Some("5 s"));
     let cannon = get("Cannon Pinion");
     assert_eq!((cannon.teeth, cannon.leaves), (Some(78), Some(16)));
     assert!(cannon.blank.is_empty());
+    assert_eq!(cannon.period.as_deref(), Some("3600 s"));
+    // A going-train arbor the row leaves out has no period, and says so.
+    let third = get("Third Wheel");
+    assert_eq!(third.period, None);
+    assert!(third.blank.contains(&"period"));
 }
 
 /// A stored wheel outside the going train has teeth and a pinion, so a
