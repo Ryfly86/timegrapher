@@ -620,6 +620,12 @@ impl TimegrapherApp {
         rate.and_then(|_| self.live_usb_not_yet())
     }
 
+    /// What the recording's own clock, once read live, did to the Rate
+    /// figure `rate` (#2283): only with a figure it is about.
+    pub(super) fn clock_read_note(&self, rate: Option<f64>) -> Option<String> {
+        rate.and_then(|_| self.live_usb_read_note())
+    }
+
     /// The settle's wait, with the Settle note after its sentence.
     fn settle_words(&self, left_s: f64) -> (String, String) {
         let (title, text) = wait_words(measure::Wait::Settling { left_s });
@@ -900,8 +906,12 @@ impl TimegrapherApp {
             };
         }
         // Live, before the recording's own clock is read: first, so the
-        // figure isn't taken for the one the take will read (#1721).
-        if let Some(n) = self.clock_not_yet(rate) {
+        // figure isn't taken for the one the take will read (#1721); once
+        // read, what it did to the figure (#2283).
+        if let Some(n) = self
+            .clock_not_yet(rate)
+            .or_else(|| self.clock_read_note(rate))
+        {
             behind = format!("{n}\n\n{}", behind.trim_start());
         }
         let (fig, spark, place) = sparkline::lay(rows.inner, rows.figure, rows.controls);
