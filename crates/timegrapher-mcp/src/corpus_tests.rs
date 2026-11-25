@@ -380,11 +380,35 @@ fn a_profile_with_a_calibre_reads_at_its_lift() {
     assert_eq!(lift_read(&doc), Some(lift));
 }
 
+/// A sound file no take lists, measured by `beat_shape` with a calibre
+/// and no lift angle, is read at the calibre's lift angle from the table,
+/// and at the default without one (#2102).
+#[test]
+fn a_shape_with_a_calibre_reads_at_its_lift() {
+    let Some(cli) = cli() else {
+        return;
+    };
+    let name = "DD3235";
+    let lift = timegrapher_core::calibres::find(name)
+        .and_then(|c| c.lift_angle_deg)
+        .expect("the table's lift angle");
+    let default = tool_on_synthetic(&cli, "beat_shape", None);
+    assert_eq!(lift_read(&default), Some(52.0));
+    let doc = tool_on_synthetic(&cli, "beat_shape", Some(name));
+    assert_eq!(lift_read(&doc), Some(lift));
+}
+
 /// `tick_tock_profile` on a synthetic recording in a folder of its own,
 /// with `calibre` if given.
 fn profile_of_synthetic(cli: &Path, calibre: Option<&str>) -> Value {
+    tool_on_synthetic(cli, "tick_tock_profile", calibre)
+}
+
+/// The tool `name` on a synthetic recording in a folder of its own, with
+/// `calibre` if given.
+fn tool_on_synthetic(cli: &Path, name: &str, calibre: Option<&str>) -> Value {
     let dir = std::env::temp_dir().join(format!(
-        "tg-mcp-profile-calibre-{}-{}",
+        "tg-mcp-{name}-calibre-{}-{}",
         calibre.unwrap_or("none"),
         std::process::id()
     ));
@@ -401,7 +425,9 @@ fn profile_of_synthetic(cli: &Path, calibre: Option<&str>) -> Value {
     if let Some(c) = calibre {
         args["calibre"] = json!(c);
     }
-    let doc = profile(cli, args);
+    let tool = tools::find(name).expect("the tool");
+    let line = tools::command_line(tool, args.as_object().unwrap()).expect("a command line");
+    let doc = run(cli, &line);
     let _ = std::fs::remove_dir_all(&dir);
     doc
 }
