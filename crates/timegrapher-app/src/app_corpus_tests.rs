@@ -70,12 +70,12 @@ fn opened(dir: &Path) -> TimegrapherApp {
     app.set_average(10.0);
     app.start_batch(dir);
     let t = Instant::now();
-    while app.batch.is_some() && t.elapsed().as_secs() < OPEN_LIMIT_S {
+    while app.recording.batch.is_some() && t.elapsed().as_secs() < OPEN_LIMIT_S {
         app.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     assert!(
-        app.batch.is_none(),
+        app.recording.batch.is_none(),
         "{dir:?} still opening after {OPEN_LIMIT_S} s"
     );
     app
@@ -294,8 +294,8 @@ fn the_empty_stands_profile_withholds_with_the_cards() {
     let mut app = opened(&dir);
     // Opened as File > Open Recording opens it, so the shape at a moment
     // the session kept none for is worked out from the recording.
-    app.input = Input::File;
-    app.file_path = dir.display().to_string();
+    app.recording.input = Input::File;
+    app.recording.file_path = dir.display().to_string();
     let latest = app.latest_s();
     let mut withheld = 0;
     for average in [2.0, 4.0, 10.0, 30.0] {
@@ -574,7 +574,7 @@ fn pane_differences(id: &str, root: &Path, cli: &Path) -> (Vec<(String, String)>
             format!("{ours} in the app, {theirs} from session"),
         ));
     }
-    let length = app.live.as_ref().map_or(0.0, |l| l.duration_s());
+    let length = app.recording.live.as_ref().map_or(0.0, |l| l.duration_s());
     (out, run, length)
 }
 
@@ -953,7 +953,7 @@ fn window_opened(dir: &Path) -> (TimegrapherApp, egui::Context) {
     let t = Instant::now();
     loop {
         let _ = window_frame(&mut app, &ctx);
-        if app.live.is_some() && app.batch.is_none() {
+        if app.recording.live.is_some() && app.recording.batch.is_none() {
             break;
         }
         assert!(
@@ -1079,7 +1079,7 @@ fn a_stopped_takes_cards_read_to_the_watchs_last_beat() {
                 // its saved take opens (#2151).
                 let live = app
                     .stopped_take()
-                    .map_or(app.live.as_ref().unwrap(), |s| &s.live);
+                    .map_or(app.recording.live.as_ref().unwrap(), |s| &s.live);
                 let t = timegrapher_core::beats::last_watch_beat_s(live.beats())
                     .expect("the watch's run is long enough");
                 let want = live.reading_at(t, average);
@@ -1563,9 +1563,9 @@ fn possible_beats(app: &TimegrapherApp) -> Vec<(f64, f64)> {
 /// The largest lead, ms, of the beats from `from` to `to` s on the strip
 /// as it is anchored now.
 fn widest_lead(app: &TimegrapherApp, from: f64, to: f64) -> f64 {
-    let live = app.live.as_ref().unwrap();
+    let live = app.recording.live.as_ref().unwrap();
     let period = 3600.0 / live.bph().unwrap() as f64;
-    let anchor = app.anchor.expect("anchored");
+    let anchor = app.recording.anchor.expect("anchored");
     let breaks = app.take.take_breaks.as_deref().unwrap_or_default();
     live.beats()
         .iter()
@@ -1591,7 +1591,7 @@ fn the_stand_at_both_ends_is_possible_beats_and_left_out_of_fit() {
     let Some(app) = stand_both_ends("stand-ends") else {
         return;
     };
-    let live = app.live.as_ref().unwrap();
+    let live = app.recording.live.as_ref().unwrap();
     let faint = possible_beats(&app);
     let possible = |t: f64| timegrapher_core::live::in_spans(&faint, t);
     let noise = live
@@ -1662,7 +1662,7 @@ fn auto_centre_centres_on_the_watch_not_the_stand_after_it() {
     // The watch's last seconds lie near the centre line.
     let fitted = widest_lead(&app, 165.0, 170.0);
     assert!(fitted < 20.0, "Fit with Auto-Centre: {fitted} ms");
-    app.anchor = None;
+    app.recording.anchor = None;
     app.centre();
     let centred = widest_lead(&app, 165.0, 170.0);
     assert!(centred < 20.0, "Auto-Centre: {centred} ms");

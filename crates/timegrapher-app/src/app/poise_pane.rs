@@ -244,7 +244,7 @@ impl TimegrapherApp {
         if self.poise_test().is_some() {
             self.panes_view.results_rects[0] = Some(ui.max_rect());
         }
-        let now = self.live.as_ref().map(|l| l.duration_s());
+        let now = self.recording.live.as_ref().map(|l| l.duration_s());
         let phase = match (self.test.guided.as_mut(), now) {
             (Some(t), Some(now)) if t.kind == guided::Kind::Poise => Some(t.tick(now)),
             _ => None,

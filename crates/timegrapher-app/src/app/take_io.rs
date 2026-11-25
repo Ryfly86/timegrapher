@@ -55,7 +55,7 @@ impl TimegrapherApp {
     pub(super) fn set_average(&mut self, seconds: f64) {
         self.take.average_s = seconds;
         let span = self.sound_span();
-        if let Some(l) = self.live.as_mut() {
+        if let Some(l) = self.recording.live.as_mut() {
             l.set_profile_span(span);
         }
         // The sound kept so far covered the old span.
@@ -90,15 +90,16 @@ impl TimegrapherApp {
         self.session.discard_recording();
         self.session.clear();
         self.put_input_clock(None);
-        self.live = Some(LiveAnalyzer::new(sample_rate, self.live_config()).with_figures_as_file());
-        self.live_usb = Some(live_usb::LiveUsb::new(sample_rate));
-        self.source_label = label;
+        self.recording.live =
+            Some(LiveAnalyzer::new(sample_rate, self.live_config()).with_figures_as_file());
+        self.recording.live_usb = Some(live_usb::LiveUsb::new(sample_rate));
+        self.recording.source_label = label;
         self.panes_view.gutter_fresh = true;
-        self.anchor = None;
+        self.recording.anchor = None;
         self.clear_trends();
         self.panes_view.strip_end = None;
-        self.meter.level = Level::default();
-        self.meter.clipped_at = None;
+        self.recording.meter.level = Level::default();
+        self.recording.meter.clipped_at = None;
         self.message = None;
         self.results.sound_history.clear();
         self.keeping.no_sound = None;
@@ -112,29 +113,6 @@ impl TimegrapherApp {
         // Its masks, once nothing of the last test's is left.
         self.mask_engine();
         self.take.rev.new_take();
-    }
-
-    /// List the inputs, once, and keep the chosen one if it is still there,
-    /// else take the first.
-    pub(super) fn ensure_devices(&mut self) {
-        if !self.devices_listed {
-            self.rescan();
-        }
-    }
-
-    /// List the inputs again, after one is plugged in.
-    pub(super) fn rescan(&mut self) {
-        self.devices = capture::list().unwrap_or_default();
-        self.devices_listed = true;
-        let there = self
-            .device
-            .as_ref()
-            .is_some_and(|d| self.devices.iter().any(|x| &x.id == d));
-        if !there {
-            self.device = capture::choices(&self.devices)
-                .first()
-                .map(|c| c.id.clone());
-        }
     }
 
     /// Listen, the masks on the recording on show saved or let go: and
@@ -184,7 +162,7 @@ impl TimegrapherApp {
         if let Some(s) = self.take.mic_setup.take() {
             self.set_watch_setup(s);
         }
-        match capture::open_input(self.device.as_deref(), None) {
+        match capture::open_input(self.recording.device.as_deref(), None) {
             Ok(c) => {
                 let label = self.device_label(&c);
                 applog::info(&format!(
@@ -203,12 +181,12 @@ impl TimegrapherApp {
                     c.sample_rate,
                     format!("{label} at {} Hz, {}-bit", c.sample_rate, c.bits),
                 );
-                self.opened_at = Instant::now();
-                self.audio_at = None;
-                self.gaps = None;
+                self.recording.opened_at = Instant::now();
+                self.recording.audio_at = None;
+                self.recording.gaps = None;
                 self.session.listen();
                 self.put_input_clock(clocks.get(&c.label).cloned());
-                self.clock_track = Some(ClockTrack {
+                self.recording.clock_track = Some(ClockTrack {
                     device: c.label.clone(),
                     shown: label.clone(),
                     tracker: timegrapher_core::clock::ClockTracker::new(c.sample_rate),
@@ -227,29 +205,25 @@ impl TimegrapherApp {
                         "Can't keep the sound for saving later: {e}. The readings still work."
                     )),
                 }
-                self.input_fault = None;
-                self.capture = Some(c);
+                self.recording.input_fault = None;
+                self.recording.capture = Some(c);
                 self.apply_agc();
             }
-            Err(e) => {
-                let m = format!("Can't open the input. {}", capture::explain_error(&e));
-                self.input_fault = Some(m.clone());
-                self.error(m);
-            }
+            Err(e) => self.input_failed(&e),
         }
     }
 
     fn device_label(&self, c: &Capture) -> String {
-        capture::choices(&self.devices)
+        capture::choices(&self.recording.devices)
             .into_iter()
-            .find(|ch| Some(&ch.id) == self.device.as_ref())
+            .find(|ch| Some(&ch.id) == self.recording.device.as_ref())
             .map_or_else(|| c.label.clone(), |ch| ch.label)
     }
 
     /// A microphone session that is paused and can carry on.
     pub(super) fn can_resume(&self) -> bool {
         self.session.allows(Action::Resume)
-            && self.live.is_some()
+            && self.recording.live.is_some()
             && !self.running()
             && self.saved_hours_reachable()
     }
@@ -258,7 +232,7 @@ impl TimegrapherApp {
     /// wait: an input whose sound server died can hang as it closes, and
     /// the window must not hang with it.
     fn release_capture(&mut self) {
-        if let Some(c) = self.capture.take() {
+        if let Some(c) = self.recording.capture.take() {
             if !drop_within(c, RELEASE_WAIT) {
                 applog::warn("the input didn't close in time; carrying on without it");
             }
@@ -273,7 +247,7 @@ impl TimegrapherApp {
         let mut lives = Vec::new();
         let mut failure = None;
         // Taken faster than a live input sends, so this ends.
-        while let Some(cap) = self.capture.as_ref().filter(|c| !c.is_file) {
+        while let Some(cap) = self.recording.capture.as_ref().filter(|c| !c.is_file) {
             let event = match cap.rx.try_recv() {
                 Err(TryRecvError::Empty) => break,
                 event => event,
@@ -292,7 +266,7 @@ impl TimegrapherApp {
 
     /// Stop listening for now, keeping everything.
     pub(super) fn pause(&mut self) {
-        if self.capture.is_none() {
+        if self.recording.capture.is_none() {
             return;
         }
         // The sound the input sent, and what core's gap rule holds, is the take's (#873).
@@ -306,10 +280,10 @@ impl TimegrapherApp {
             return self.recording_failed(e);
         }
         self.release_capture();
-        self.live.iter_mut().for_each(|l| l.settle());
+        self.recording.live.iter_mut().for_each(|l| l.settle());
         if self.session.mic() {
             applog::info("microphone stopped and released");
-            let now = self.live.as_ref().map_or(0.0, |l| l.duration_s());
+            let now = self.recording.live.as_ref().map_or(0.0, |l| l.duration_s());
             if let Ok(Err(e)) = self.session.pause(now) {
                 return self
                     .recording_failed(format!("Couldn't close the kept sound at the pause: {e}"));
@@ -320,7 +294,7 @@ impl TimegrapherApp {
         // An input that failed just before the pause says so, as listening
         // would have.
         if let Some(CaptureFailure::Input(error)) = failure {
-            self.input_fault = Some(error.clone());
+            self.recording.input_fault = Some(error.clone());
             self.error(error);
         }
     }
@@ -367,7 +341,7 @@ impl TimegrapherApp {
     /// as it comes ([`TimegrapherApp::stream_tick`]): a Quick Listen take
     /// once saved, or a watch's own take.
     pub(super) fn kept_take(&self) -> bool {
-        let into_watch = if self.quick_listen {
+        let into_watch = if self.recording.quick_listen {
             self.session.saved_to().is_some()
         } else {
             self.open_watch().is_some()
@@ -423,8 +397,8 @@ impl TimegrapherApp {
         if self.refuse_faulted_recording() || self.analysis_save_busy() {
             return;
         }
-        let rate = self.live.as_ref().map(|l| l.sample_rate());
-        match capture::open_input(self.device.as_deref(), rate) {
+        let rate = self.recording.live.as_ref().map(|l| l.sample_rate());
+        match capture::open_input(self.recording.device.as_deref(), rate) {
             Ok(c) => {
                 let shown = self.device_label(&c);
                 if let Some(why) = self.resume_refusal(&c.label, &shown, c.sample_rate) {
@@ -434,27 +408,23 @@ impl TimegrapherApp {
                     Ok(p) => p,
                     Err(e) => return self.error(e.to_string()),
                 };
-                if let Some(l) = self.live.as_mut() {
+                if let Some(l) = self.recording.live.as_mut() {
                     l.skip(paused);
                     self.session.resumed_at(l.duration_s());
                 }
                 // A settling begun at Resume is left out, too.
                 self.mask_engine();
-                self.opened_at = Instant::now();
-                self.audio_at = None;
-                self.gaps = None;
+                self.recording.opened_at = Instant::now();
+                self.recording.audio_at = None;
+                self.recording.gaps = None;
                 self.panes_view.strip_end = None;
                 self.message = None;
                 applog::info(&format!("microphone resumed at {} Hz", c.sample_rate));
-                self.input_fault = None;
-                self.capture = Some(c);
+                self.recording.input_fault = None;
+                self.recording.capture = Some(c);
                 self.apply_agc();
             }
-            Err(e) => {
-                let m = format!("Can't open the input. {}", capture::explain_error(&e));
-                self.input_fault = Some(m.clone());
-                self.error(m);
-            }
+            Err(e) => self.input_failed(&e),
         }
     }
 
@@ -468,7 +438,7 @@ impl TimegrapherApp {
         shown: &str,
         sample_rate: u32,
     ) -> Option<String> {
-        let rate = self.live.as_ref().map(|l| l.sample_rate());
+        let rate = self.recording.live.as_ref().map(|l| l.sample_rate());
         if Some(sample_rate) != rate {
             return Some(format!(
                 "The microphone opened at {sample_rate} Hz this time, not the {} Hz this session \
@@ -476,7 +446,7 @@ impl TimegrapherApp {
                 rate.unwrap_or_default()
             ));
         }
-        let track = self.clock_track.as_ref()?;
+        let track = self.recording.clock_track.as_ref()?;
         let first = &track.shown;
         (track.device != label).then(|| {
             format!(
@@ -505,7 +475,7 @@ impl TimegrapherApp {
         self.take_thrown_away();
         self.session.discard_recording();
         self.session.clear();
-        self.live = None;
+        self.recording.live = None;
         self.restore_live_strip();
         self.put_masked(Vec::new());
         self.take.opened_masks = None;
@@ -529,10 +499,10 @@ impl TimegrapherApp {
         self.test.guided_unused.clear();
         self.test.guided_measured.clear();
         self.mask_engine();
-        self.source_label.clear();
+        self.recording.source_label.clear();
         // The recording opened goes too: what follows is a new take.
-        if self.input == Input::File {
-            self.input = Input::Microphone;
+        if self.recording.input == Input::File {
+            self.recording.input = Input::Microphone;
             self.keeping.opened_path.clear();
             if let Some(s) = self.take.mic_setup.take() {
                 self.set_watch_setup(s);
@@ -540,7 +510,7 @@ impl TimegrapherApp {
         }
         if listening && close_error.is_none() {
             self.start_microphone();
-        } else if !self.quick_listen {
+        } else if !self.recording.quick_listen {
             // The next take is of the watch picked.
             if let Some(w) = self.open_watch().map(|e| e.watch.clone()) {
                 self.apply_watch(&w);
@@ -604,7 +574,7 @@ impl TimegrapherApp {
     /// again, opening a recording or quitting lets it go. Save keeps it. A
     /// take of a watch, or picking one, asks.
     pub(super) fn quick_unsaved(&self) -> bool {
-        self.quick_listen && self.session.mic() && self.session.saved_to().is_none()
+        self.recording.quick_listen && self.session.mic() && self.session.saved_to().is_none()
     }
 
     /// A recording opened from disk whose masked stretches or positions
@@ -1288,7 +1258,7 @@ impl TimegrapherApp {
             lift_deg: self.take.lift_deg,
             app: serde_json::json!({
                 "reading": self.reading(),
-                "showing": self.source_label,
+                "showing": self.recording.source_label,
                 "watch": self.take.watch.trim(),
                 "calibre": self.take.calibre,
                 "position": self.take.position.code(),
@@ -1325,8 +1295,8 @@ impl TimegrapherApp {
                 kept: None,
             });
         }
-        let path = PathBuf::from(self.file_path.trim());
-        if self.file_path.trim().is_empty() || !path.exists() {
+        let path = PathBuf::from(self.recording.file_path.trim());
+        if self.recording.file_path.trim().is_empty() || !path.exists() {
             return None;
         }
         let manifest = read_manifest(&path).ok().flatten();
@@ -1355,7 +1325,7 @@ impl TimegrapherApp {
         // The five minutes up to the strip's newest edge, when the strip
         // has been moved back; else the start.
         let end = match self.panes_view.strip_end {
-            Some(_) if self.live.is_some() => self.strip_end_s(),
+            Some(_) if self.recording.live.is_some() => self.strip_end_s(),
             _ => report::SPAN_S,
         }
         .clamp(report::SPAN_S.min(total), total);
@@ -1482,7 +1452,10 @@ impl TimegrapherApp {
         let mut m = Manifest {
             watch: (!self.take.watch.trim().is_empty()).then(|| self.take.watch.trim().to_string()),
             calibre: (!self.take.calibre.is_empty()).then(|| self.take.calibre.clone()),
-            bph: self.take.bph.or(self.live.as_ref().and_then(|l| l.bph())),
+            bph: self
+                .take
+                .bph
+                .or(self.recording.live.as_ref().and_then(|l| l.bph())),
             lift: Some(self.take.lift_deg),
             lift_known: Some(self.lift_known()),
             ..Default::default()
@@ -1653,9 +1626,9 @@ impl TimegrapherApp {
     #[cfg(test)]
     pub(super) fn start_replay_at(&mut self, path: &Path, speed: f32) {
         // Its settings read nothing again, as an open's don't (#1241).
-        let outer = std::mem::replace(&mut self.opening, true);
+        let outer = std::mem::replace(&mut self.recording.opening, true);
         self.replay_at(path, speed);
-        self.opening = outer;
+        self.recording.opening = outer;
     }
 
     #[cfg(test)]
@@ -1728,8 +1701,8 @@ impl TimegrapherApp {
                         None => n,
                     });
                 }
-                if self.file_path.trim() != path.display().to_string() {
-                    self.file_path = path.display().to_string();
+                if self.recording.file_path.trim() != path.display().to_string() {
+                    self.recording.file_path = path.display().to_string();
                 }
                 self.reset_session(c.sample_rate, c.label.clone());
                 self.session.replay();
@@ -1738,14 +1711,14 @@ impl TimegrapherApp {
                     self.session.load_recorded(&s, &t, self.take.position);
                 }
                 if let (Some(live), Some(breaks)) =
-                    (self.live.as_mut(), self.session.replay_breaks())
+                    (self.recording.live.as_mut(), self.session.replay_breaks())
                 {
                     live.set_breaks(breaks);
                 }
                 self.mask_engine();
                 self.keeping.opened_path = path.display().to_string();
                 c.set_speed(speed);
-                self.capture = Some(c);
+                self.recording.capture = Some(c);
                 if let Some(n) = self.keeping.open_note.take() {
                     self.info_msg(n);
                 }
@@ -1759,7 +1732,7 @@ impl TimegrapherApp {
     fn open_failed(&mut self, e: String) {
         self.error(e);
         if !self.keeping.opened_path.is_empty() {
-            self.file_path = self.keeping.opened_path.clone();
+            self.recording.file_path = self.keeping.opened_path.clone();
         }
     }
 
@@ -1811,9 +1784,9 @@ impl TimegrapherApp {
     /// a calibre in it reads nothing on show again (#1241).
     pub(super) fn set_watch_setup(&mut self, s: WatchSetup) {
         self.take.watch = s.watch;
-        let outer = std::mem::replace(&mut self.opening, true);
+        let outer = std::mem::replace(&mut self.recording.opening, true);
         self.set_calibre(s.calibre);
-        self.opening = outer;
+        self.recording.opening = outer;
         self.put_lift(s.lift_deg);
         self.take.lift_context = s.lift_context;
         self.put_bph(s.bph);
@@ -1828,9 +1801,9 @@ impl TimegrapherApp {
     /// `carried`, else from the defaults. The settings it puts in place
     /// for it read nothing again, since it is about to be read with them.
     pub(super) fn analyse_whole(&mut self, path: &Path, carried: Option<WatchSetup>) {
-        let outer = std::mem::replace(&mut self.opening, true);
+        let outer = std::mem::replace(&mut self.recording.opening, true);
         self.open_whole(path, carried);
-        self.opening = outer;
+        self.recording.opening = outer;
     }
 
     fn open_whole(&mut self, path: &Path, carried: Option<WatchSetup>) {
@@ -1853,8 +1826,8 @@ impl TimegrapherApp {
             Ok(manifest) => manifest,
             Err(e) => return self.open_failed(e),
         };
-        if self.file_path.trim() != path.display().to_string() {
-            self.file_path = path.display().to_string();
+        if self.recording.file_path.trim() != path.display().to_string() {
+            self.recording.file_path = path.display().to_string();
         }
         if checkpoint::is_kept(path) {
             return self.open_analysis_only(path, manifest);
@@ -1921,12 +1894,12 @@ impl TimegrapherApp {
         self.reset_session(info.sample_rate, label.clone());
         self.load_reserve(path);
         self.session.analyse();
-        (self.live, self.live_usb) = (None, None);
+        (self.recording.live, self.recording.live_usb) = (None, None);
         // Nothing of the take before's clock carries over, whichever
         // way this one is kept; a take that fails to open leaves it.
         self.put_take_clock(None, None);
         self.put_take_breaks(None, None);
-        self.batch = Some(Batch {
+        self.recording.batch = Some(Batch {
             rx,
             progress,
             cancel,
@@ -2070,12 +2043,12 @@ impl TimegrapherApp {
         self.load_reserve(path);
         self.keeping.no_sound = Some(Vec::new());
         self.session.analyse();
-        (self.live, self.live_usb) = (None, None);
+        (self.recording.live, self.recording.live_usb) = (None, None);
         // Nothing of the take before's clock carries over, whichever
         // way this one is kept; a take that fails to open leaves it.
         self.put_take_clock(None, None);
         self.put_take_breaks(None, None);
-        self.batch = Some(Batch {
+        self.recording.batch = Some(Batch {
             rx,
             progress,
             cancel,
@@ -2094,17 +2067,17 @@ impl TimegrapherApp {
     /// Stop listening, and any analysis under way. A
     /// microphone session pauses, so it can carry on or be saved.
     pub(super) fn stop(&mut self) {
-        if self.capture.as_ref().is_some_and(|c| !c.is_file) {
+        if self.recording.capture.as_ref().is_some_and(|c| !c.is_file) {
             self.pause();
         } else if matches!(
             self.session.state(),
             session::State::Replaying | session::State::Analysing
         ) {
-            let now = self.live.as_ref().map_or(0.0, |l| l.duration_s());
+            let now = self.recording.live.as_ref().map_or(0.0, |l| l.duration_s());
             let _ = self.session.stop(now);
         }
         self.release_capture();
-        self.batch = None;
+        self.recording.batch = None;
     }
 
     /// Cancel the opening under way: nothing is opened, and the window no
@@ -2112,7 +2085,7 @@ impl TimegrapherApp {
     pub(super) fn cancel_open(&mut self) {
         // Nothing of the take is left: the watch's setup from before the
         // open comes back, and there is no take to save (#1238).
-        self.input = Input::File;
+        self.recording.input = Input::File;
         self.new_session();
     }
 
@@ -2143,7 +2116,7 @@ impl TimegrapherApp {
     pub(super) fn recording_failed(&mut self, mut reason: String) {
         // Release the input before attempting any remaining close/flush work.
         self.release_capture();
-        let now = self.live.as_ref().map_or(0.0, |l| l.duration_s());
+        let now = self.recording.live.as_ref().map_or(0.0, |l| l.duration_s());
         if self.session.state() == session::State::Listening {
             if let Ok(Err(e)) = self.session.pause(now) {
                 reason.push_str(&format!("; closing the kept sound also failed: {e}"));
@@ -2181,7 +2154,10 @@ impl TimegrapherApp {
     }
 
     fn take_block(&mut self, l: Live) -> Result<(), CaptureFailure> {
-        let (Some(cap), Some(live)) = (self.capture.as_ref(), self.live.as_mut()) else {
+        let (Some(cap), Some(live)) = (
+            self.recording.capture.as_ref(),
+            self.recording.live.as_mut(),
+        ) else {
             return Ok(());
         };
         // A cut ends a backlog culled after a break: a break with no time
@@ -2213,7 +2189,7 @@ impl TimegrapherApp {
                         &self.test.guided_unused,
                     ));
                 }
-                if let Some(t) = self.clock_track.as_mut() {
+                if let Some(t) = self.recording.clock_track.as_mut() {
                     t.restart(live.sample_rate());
                 }
                 if let Some(m) = said {
@@ -2223,21 +2199,22 @@ impl TimegrapherApp {
                 return Ok(());
             }
         };
-        kept_analysis::keep_block(&mut self.session, &self.kept_live, &b)?;
-        if let Some(t) = self.clock_track.as_mut() {
+        kept_analysis::keep_block(&mut self.session, &self.recording.kept_live, &b)?;
+        if let Some(t) = self.recording.clock_track.as_mut() {
             t.push(b.samples.len(), b.at);
         }
         let l = Level::of(&b.samples);
-        if self.meter.level_at.elapsed().as_secs_f64() > 0.5
-            || l.peak_dbfs > self.meter.level.peak_dbfs
+        if self.recording.meter.level_at.elapsed().as_secs_f64() > 0.5
+            || l.peak_dbfs > self.recording.meter.level.peak_dbfs
         {
-            self.meter.level = l;
-            self.meter.level_at = Instant::now();
+            self.recording.meter.level = l;
+            self.recording.meter.level_at = Instant::now();
         }
         if l.clipped_fraction > 0.0 {
-            self.meter.clipped_at = Some(Instant::now());
+            self.recording.meter.clipped_at = Some(Instant::now());
         }
-        self.live_usb.iter_mut().for_each(|u| u.push(&b.samples));
+        let usb = &mut self.recording.live_usb;
+        usb.iter_mut().for_each(|u| u.push(&b.samples));
         // Never stalled for the figures read as a file (#1987): a sped-up
         // replay's catch up when the template is built again, or on Stop.
         if live.push_without_waiting(&b.samples) {
@@ -2245,12 +2222,12 @@ impl TimegrapherApp {
             // or two after it: the points read since reached
             // across it, so they go.
             let jumps = live.jumps();
-            if jumps != self.jumps_seen.as_slice() {
+            if jumps != self.recording.jumps_seen.as_slice() {
                 let recent = live.duration_s() - 10.0;
                 let new = jumps
                     .iter()
                     .copied()
-                    .filter(|j| *j > recent && !self.jumps_seen.contains(j))
+                    .filter(|j| *j > recent && !self.recording.jumps_seen.contains(j))
                     .reduce(f64::min);
                 if let Some(j) = new {
                     // So does a run read meanwhile, which reaches across it.
@@ -2258,7 +2235,7 @@ impl TimegrapherApp {
                     self.results.trend.retain(|p| p.t <= j);
                     self.results.sound_history.retain(|h| h.0 <= j);
                 }
-                self.jumps_seen = jumps.to_vec();
+                self.recording.jumps_seen = jumps.to_vec();
             }
             // While the watch settles after a move nothing is
             // read; then the readings start afresh.
@@ -2297,10 +2274,12 @@ impl TimegrapherApp {
         let started = Instant::now();
         // After a while with nothing run, the input gets the usual grace
         // before it counts as quiet.
-        if self.polled_at.elapsed() > Duration::from_secs(2) && self.audio_at.is_some() {
-            self.audio_at = Some(started);
+        if self.recording.polled_at.elapsed() > Duration::from_secs(2)
+            && self.recording.audio_at.is_some()
+        {
+            self.recording.audio_at = Some(started);
         }
-        self.polled_at = started;
+        self.recording.polled_at = started;
         // The charts are read in the background, from the frame
         // ([`Self::refresh_trend_shown`]), listening too (#1825).
         let (taken, ended, failure) = self.take_blocks(started, budget);
@@ -2336,14 +2315,19 @@ impl TimegrapherApp {
         match event {
             Ok(Event::Audio(b)) if is_file => (vec![Live::Block(b)], false, None),
             Ok(Event::Audio(b)) => {
-                let rate = self.live.as_ref().map_or(1, |l| l.sample_rate());
-                let lives = self.gaps.get_or_insert_with(|| GapWatch::new(rate)).push(b);
+                let rate = self.recording.live.as_ref().map_or(1, |l| l.sample_rate());
+                let lives = self
+                    .recording
+                    .gaps
+                    .get_or_insert_with(|| GapWatch::new(rate))
+                    .push(b);
                 (lives, false, None)
             }
             // Only a live input drops sound (#483): a break, never spliced.
             Ok(Event::Lost(frames)) => {
-                let rate = self.live.as_ref().map_or(1, |l| l.sample_rate());
+                let rate = self.recording.live.as_ref().map_or(1, |l| l.sample_rate());
                 let lives = self
+                    .recording
                     .gaps
                     .get_or_insert_with(|| GapWatch::new(rate))
                     .lost(frames);
@@ -2352,8 +2336,9 @@ impl TimegrapherApp {
             // A glitch the input carries on after (#1046): a break, never
             // a stop.
             Ok(Event::Glitch) => {
-                let rate = self.live.as_ref().map_or(1, |l| l.sample_rate());
+                let rate = self.recording.live.as_ref().map_or(1, |l| l.sample_rate());
                 let lives = self
+                    .recording
                     .gaps
                     .get_or_insert_with(|| GapWatch::new(rate))
                     .glitch();
@@ -2367,7 +2352,11 @@ impl TimegrapherApp {
 
     /// What core's gap rule still holds, let through at the input's end.
     fn finish_gaps(&mut self) -> Vec<Live> {
-        self.gaps.as_mut().map(GapWatch::finish).unwrap_or_default()
+        self.recording
+            .gaps
+            .as_mut()
+            .map(GapWatch::finish)
+            .unwrap_or_default()
     }
 
     /// Take the blocks the input has sent, for up to `budget` once one is
@@ -2381,8 +2370,8 @@ impl TimegrapherApp {
         let mut taken = 0;
         let mut ended = false;
         let mut failure = None;
-        while self.live.is_some() {
-            let Some(cap) = self.capture.as_ref() else {
+        while self.recording.live.is_some() {
+            let Some(cap) = self.recording.capture.as_ref() else {
                 break;
             };
             if taken > 0 && started.elapsed() > budget {
@@ -2397,7 +2386,7 @@ impl TimegrapherApp {
                 taken += 1;
                 // Heard as it arrives, though core's gap rule may hold it a
                 // while.
-                self.audio_at = Some(Instant::now());
+                self.recording.audio_at = Some(Instant::now());
             }
             let (came, end, fail) = self.input_event(event, is_file);
             ended |= end;
@@ -2427,7 +2416,7 @@ impl TimegrapherApp {
         if let Some(CaptureFailure::Recording(error)) = failure {
             self.recording_failed(error);
         } else {
-            let was_file = self.capture.as_ref().is_some_and(|c| c.is_file);
+            let was_file = self.recording.capture.as_ref().is_some_and(|c| c.is_file);
             if ended && !self.reserve_input_failed(was_file) {
                 self.stop();
                 if was_file {
@@ -2436,7 +2425,7 @@ impl TimegrapherApp {
             }
             if let Some(CaptureFailure::Input(error)) = failure {
                 // Settings > Microphone says why listening stopped.
-                self.input_fault = Some(error.clone());
+                self.recording.input_fault = Some(error.clone());
                 // A close error during stop is a recording fault in its own
                 // right, even when the input failure triggered the stop.
                 let message = match self.session.recording_fault() {
@@ -2450,8 +2439,8 @@ impl TimegrapherApp {
 
     /// Beat lock gained or lost, for the log.
     fn note_lock(&mut self) {
-        let bph = self.live.as_ref().and_then(|l| l.bph());
-        if bph != self.take.locked_bph && self.capture.is_some() {
+        let bph = self.recording.live.as_ref().and_then(|l| l.bph());
+        if bph != self.take.locked_bph && self.recording.capture.is_some() {
             match bph {
                 Some(b) => applog::info(&format!("locked on to the beat at {b} beats per hour")),
                 None => applog::warn("lost the beat"),
@@ -2463,7 +2452,7 @@ impl TimegrapherApp {
     /// Show a recording opened whole once its analysis is done.
     pub(super) fn poll_batch(&mut self) {
         let mut done = None;
-        if let Some(b) = &self.batch {
+        if let Some(b) = &self.recording.batch {
             match b.rx.try_recv() {
                 Ok(r) => done = Some(r),
                 Err(TryRecvError::Empty) => {}
@@ -2475,6 +2464,7 @@ impl TimegrapherApp {
         }
         if let Some(r) = done {
             let (label, stretches, settles) = self
+                .recording
                 .batch
                 .take()
                 .map(|b| (b.label.clone(), b.stretches.clone(), b.settles.clone()))
@@ -2535,12 +2525,12 @@ impl TimegrapherApp {
 
     /// Keep the strip anchored: centre on the first beats, then hold.
     fn hold_anchor(&mut self) {
-        if self.anchor.is_none() {
-            if let Some(live) = &self.live {
+        if self.recording.anchor.is_none() {
+            if let Some(live) = &self.recording.live {
                 if let Some(bph) = live.bph() {
                     let beats = live.beats();
                     if beats.len() >= 16 {
-                        self.anchor = Anchor::centre_on_true(
+                        self.recording.anchor = Anchor::centre_on_true(
                             &beats[..16],
                             3600.0 / bph as f64,
                             16,
@@ -2607,7 +2597,7 @@ impl TimegrapherApp {
             self.take.position,
         );
         self.take.opened_positions = Some(self.positions_now());
-        self.live = Some(live);
+        self.recording.live = Some(live);
         // The opened take's labels, not those drawn while it opened
         // (Walter's HOLD on #1239).
         self.panes_view.gutter_fresh = true;
@@ -2618,8 +2608,8 @@ impl TimegrapherApp {
             Some(points) => self.put_trend(points),
             None => (self.results.trend, self.results.strip_points) = (Vec::new(), None),
         }
-        self.source_label = label;
-        self.anchor = None;
+        self.recording.source_label = label;
+        self.recording.anchor = None;
         self.panes_view.strip_end = None;
         self.fit_take();
         // A long take that isn't a test: its run, read as one in the

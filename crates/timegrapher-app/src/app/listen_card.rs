@@ -41,7 +41,7 @@ impl TimegrapherApp {
         // A Positions Test finished, while listening goes on, sets nothing.
         let testing = (self.running() && self.guided_running()) || self.reserve_running();
         let listening = self.running() && self.session.mic();
-        !testing && (listening || self.live.is_none())
+        !testing && (listening || self.recording.live.is_none())
     }
 
     /// Why the Position card's buttons can't be pressed now.
@@ -488,7 +488,7 @@ impl TimegrapherApp {
                 egui::pos2(r.left() + 4.0, r.bottom() - 5.5),
                 egui::pos2(r.right() - 4.0, r.bottom() - 2.0),
             );
-            let live = self.live.is_some();
+            let live = self.recording.live.is_some();
             let code_y = if live {
                 (r.top() + bar.top()) / 2.0
             } else {
@@ -533,7 +533,7 @@ impl TimegrapherApp {
     /// Listen's hover.
     pub(super) fn listen_buttons(&mut self, ui: &mut egui::Ui, compact: bool) {
         let area = ui.max_rect();
-        let length = length_text(self.live.as_ref().map_or(0.0, |l| l.duration_s()));
+        let length = length_text(self.recording.live.as_ref().map_or(0.0, |l| l.duration_s()));
         let state = self.state_words();
         let top = egui::Rect::from_min_size(area.min, Vec2::new(area.width(), theme::FIGURE_ROW_H));
         let foot = egui::Rect::from_min_max(
@@ -552,7 +552,7 @@ impl TimegrapherApp {
         self.listen_go(ui_b, compact.then_some(length_hint.as_str()));
         // A watch's take saves itself as it goes, and a test's at its end.
         let testing = self.ready_test().is_some() || self.test_listening();
-        if (!self.session.mic() || self.quick_listen) && !testing {
+        if (!self.session.mic() || self.recording.quick_listen) && !testing {
             self.save_menu(ui_b, LISTEN_BUTTON);
         }
         if !compact {
@@ -586,7 +586,7 @@ impl TimegrapherApp {
         let word = |ui: &mut egui::Ui, b: egui::Button<'_>| {
             ui.add(b.min_size(Vec2::new(0.0, LISTEN_BUTTON)))
         };
-        let was_listen = self.listen_tap.take();
+        let was_listen = self.recording.listen_tap.take();
         if let Some(kind) = self.ready_test() {
             self.listen_start_test(ui_b, kind, length_hint);
         } else if self.test_listening() {
@@ -627,13 +627,13 @@ impl TimegrapherApp {
             }
             let (now, pressed) = ui_b.input(|i| (i.time, i.pointer.any_pressed()));
             let tap = listen_tap(was_listen, now, pressed);
-            self.listen_tap = Some(tap);
+            self.recording.listen_tap = Some(tap);
             if tap.0.is_infinite() {
                 ui_b.ctx().request_repaint(); // so the count starts unprompted
             }
             let armed = tap.1;
             if ui_b
-                .add_enabled_ui(!self.running() && self.batch.is_none(), |ui| {
+                .add_enabled_ui(!self.running() && self.recording.batch.is_none(), |ui| {
                     theme::icon_button(ui, Icon::Listen, LISTEN_BUTTON, 8, pal.accent, true, false)
                 })
                 .inner
@@ -790,7 +790,9 @@ impl TimegrapherApp {
     /// Whether the Save menu offers Unsorted Takes: a Quick Listen not
     /// saved yet goes there, as File > Save puts it.
     pub(super) fn saves_into_unsorted(&self) -> bool {
-        self.quick_listen && self.session.saved_to().is_none() && self.watch_takes_dir().is_some()
+        self.recording.quick_listen
+            && self.session.saved_to().is_none()
+            && self.watch_takes_dir().is_some()
     }
 
     pub(super) fn save_menu(&mut self, ui: &mut egui::Ui, size: f32) {
@@ -804,7 +806,7 @@ impl TimegrapherApp {
             Ok(Some(l)) if l.read_only.is_none() => self.recent_watches(),
             _ => Vec::new(),
         };
-        let into_watch = self.addable_take().is_some() || self.quick_listen;
+        let into_watch = self.addable_take().is_some() || self.recording.quick_listen;
         let into_unsorted = can && self.saves_into_unsorted();
         let listening = self.running();
         // A take opened with painting or masks changed: kept in its folder.
@@ -853,8 +855,9 @@ impl TimegrapherApp {
                     }
                     if into_watch {
                         // A Quick Listen heard is kept in one and goes on.
-                        let keeps = !listening || self.quick_listen;
-                        let heard = (listening && self.quick_listen).then_some(KEEP_HEARD_HINT);
+                        let keeps = !listening || self.recording.quick_listen;
+                        let heard =
+                            (listening && self.recording.quick_listen).then_some(KEEP_HEARD_HINT);
                         save_menu_watches(ui, &watches, keeps, heard, can, &mut picked, &mut new);
                     }
                     if let Some(place) = &recording_in {
@@ -1017,7 +1020,7 @@ impl TimegrapherApp {
         }
         let free = !self.running();
         // A Quick Listen heard can still be given its watch.
-        let keeps = free || self.quick_listen;
+        let keeps = free || self.recording.quick_listen;
         if !free {
             // Said once, above what it dims, so no hint covers a row.
             ui.label(
@@ -1085,7 +1088,7 @@ impl TimegrapherApp {
     pub(super) fn line_pick(&mut self, id: Option<String>, asked: bool) {
         if self.running() {
             // A Quick Listen heard is kept in the watch, and goes on.
-            if let Some(id) = id.filter(|_| self.quick_listen) {
+            if let Some(id) = id.filter(|_| self.recording.quick_listen) {
                 self.keep_in_watch(&id);
             }
             return;
@@ -1097,7 +1100,7 @@ impl TimegrapherApp {
         // A recording opened from outside the Watches folder stays, as it
         // was measured, to be kept in the watch picked (#1966).
         let keeps = id.is_some() && self.shown_outside_watches();
-        if !keeps && (self.live.is_some() || self.session.recorder.is_some()) {
+        if !keeps && (self.recording.live.is_some() || self.session.recorder.is_some()) {
             if !asked && self.line_pick_asks() {
                 self.confirm = Some(Confirm::PickWatch(id));
                 return;
@@ -1400,7 +1403,7 @@ impl TimegrapherApp {
     pub(super) fn new_take(&mut self, kind: NewTake, asked: bool) {
         // A test is set up over a Quick Listen still listening, which
         // stops once its sound is asked about; never over a test.
-        let over = kind == NewTake::Listen || self.test_listening() || !self.quick_listen;
+        let over = kind == NewTake::Listen || self.test_listening() || !self.recording.quick_listen;
         if self.behind_save(move |a| a.new_take(kind, asked))
             || self.saving_busy()
             || (self.running() && over)
@@ -1466,9 +1469,9 @@ impl TimegrapherApp {
     /// The test set up and waiting for Start Test, while the Bench stays
     /// clear.
     pub(super) fn ready_test(&self) -> Option<NewTake> {
-        self.test
-            .test_ready
-            .filter(|_| self.live.is_none() && !self.running() && self.batch.is_none())
+        self.test.test_ready.filter(|_| {
+            self.recording.live.is_none() && !self.running() && self.recording.batch.is_none()
+        })
     }
 
     /// Whether a test is under way and listening: the Listen card's Stop
@@ -1604,7 +1607,7 @@ impl TimegrapherApp {
     /// What a new take starts from: an empty session and the open watch's
     /// details. Opens no input, so tests can check it.
     pub(super) fn take_setup(&mut self) {
-        if self.live.is_some() || self.session.recorder.is_some() {
+        if self.recording.live.is_some() || self.session.recorder.is_some() {
             self.new_session();
         }
         if let Some(w) = self.open_watch().map(|e| e.watch.clone()) {
@@ -1613,10 +1616,10 @@ impl TimegrapherApp {
             if let Some(s) = self.take.mic_setup.take() {
                 self.set_watch_setup(s);
             }
-            self.quick_listen = false;
+            self.recording.quick_listen = false;
             self.apply_watch(&w);
         }
-        self.input = Input::Microphone;
+        self.recording.input = Input::Microphone;
     }
 
     /// Save the unsaved Quick Listen take into the watch `id`, as a take of
@@ -1625,7 +1628,7 @@ impl TimegrapherApp {
         // A Quick Listen still heard goes on: it is the watch's take from
         // now, saved into it as it goes.
         let heard = self.running();
-        if heard && !self.quick_listen {
+        if heard && !self.recording.quick_listen {
             return;
         }
         // Its earlier hours gone with its take: nothing can be kept, so the
@@ -1642,7 +1645,7 @@ impl TimegrapherApp {
         };
         self.watches_view.watch_open = Some(id.to_string());
         self.watches_view.unsorted_open = false;
-        self.quick_listen = false;
+        self.recording.quick_listen = false;
         self.take.watch = name;
         if let Some(w) = self.open_watch().map(|e| e.watch.clone()) {
             self.take_watch_details(&w);
@@ -1699,7 +1702,7 @@ impl TimegrapherApp {
             self.take.lift_context = (l, true);
         }
         let bph = self.cal.bph(&self.take.calibre).or(w.bph);
-        let heard = self.live.as_ref().and_then(|l| l.bph());
+        let heard = self.recording.live.as_ref().and_then(|l| l.bph());
         if bph.is_some() && heard.is_none_or(|h| Some(h) == bph) {
             self.put_bph(bph);
         }
@@ -1828,7 +1831,7 @@ impl TimegrapherApp {
         applog::info(&format!("position {} to {}", old.code(), pos.code()));
         self.take.position = pos;
         let going = self.session.allows(Action::Move);
-        if let (Some(l), true) = (self.live.as_mut(), going) {
+        if let (Some(l), true) = (self.recording.live.as_mut(), going) {
             l.new_stretch();
             let at = l.duration_s();
             let _ = self.session.move_to(at, old, pos);
@@ -1868,7 +1871,7 @@ impl TimegrapherApp {
     /// in a live take or the take on show: what each position button's
     /// bar fills with.
     pub(super) fn recorded_in(&self, p: Position) -> f64 {
-        if self.live.is_none() {
+        if self.recording.live.is_none() {
             return 0.0;
         }
         let end = self.latest_s();

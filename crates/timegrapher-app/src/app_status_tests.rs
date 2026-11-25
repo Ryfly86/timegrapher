@@ -144,7 +144,7 @@ fn the_status_bar_cuts_its_left_side_short_of_the_notices() {
         false,
     ));
     // Listening to an input with a long name, whose words can be cut.
-    app.source_label = "USB PnP Sound Device Analog Stereo Microphone Input".into();
+    app.recording.source_label = "USB PnP Sound Device Analog Stereo Microphone Input".into();
     let _tx = queued_capture(&mut app, &base);
     // Every few pixels from 800 to 1000, where the passing message comes
     // and goes, and wide.
@@ -212,7 +212,7 @@ fn the_status_bar_cuts_its_left_side_short_of_the_notices() {
 fn a_long_take_name_ends_in_an_ellipsis() {
     let ctx = themed();
     let mut app = synthetic(15.0, 0.0);
-    app.input = Input::File;
+    app.recording.input = Input::File;
     app.keeping.opened_path =
         "a take with a name far wider than the status bar has room for at 800 by 600.wav".into();
     let crash = std::env::temp_dir().join(format!("tg-crash-name-{}.log", std::process::id()));

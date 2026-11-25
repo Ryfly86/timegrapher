@@ -60,10 +60,13 @@ impl TimegrapherApp {
     /// as measured while listening, else its stored correction.
     fn to_true(&self) -> impl Fn(f64) -> f64 + use<> {
         let fit = self
+            .recording
             .clock_track
             .as_ref()
             .and_then(|c| c.fit.clone())
-            .or_else(|| self.reading_clock(self.live.as_ref().map_or(0.0, |l| l.duration_s())));
+            .or_else(|| {
+                self.reading_clock(self.recording.live.as_ref().map_or(0.0, |l| l.duration_s()))
+            });
         move |s| fit.as_ref().map_or(s, |f| f.map(s))
     }
 
@@ -231,14 +234,14 @@ impl TimegrapherApp {
     /// take opened over listening's own.
     pub(super) fn reserve_session(&mut self) {
         let pos = self.take.position;
-        if self.live.is_some() || self.session.recorder.is_some() {
+        if self.recording.live.is_some() || self.session.recorder.is_some() {
             self.new_session();
         }
         self.take.position = pos;
-        self.input = Input::Microphone;
+        self.recording.input = Input::Microphone;
         // Never Quick Listen, whose sound goes without a question: a test
         // keeps its take.
-        self.quick_listen = false;
+        self.recording.quick_listen = false;
     }
 
     /// The test itself, once its session is listening: in the position the
@@ -253,8 +256,8 @@ impl TimegrapherApp {
             .recorder
             .as_ref()
             .map_or_else(String::new, |r| r.started_utc().to_string());
-        let now = self.live.as_ref().map_or(0.0, |l| l.duration_s());
-        if let Some(l) = self.live.as_mut() {
+        let now = self.recording.live.as_ref().map_or(0.0, |l| l.duration_s());
+        if let Some(l) = self.recording.live.as_mut() {
             let n = l.config().max_beats.max(reserve::RUN_BEATS_KEPT);
             l.set_max_beats(n);
         }
@@ -282,7 +285,7 @@ impl TimegrapherApp {
     /// sound that has come in, and follow a Power Reserve Test to its
     /// end. Called from [`crate::pump`]'s thread.
     pub(crate) fn pump(&mut self) -> usize {
-        if self.capture.is_none() {
+        if self.recording.capture.is_none() {
             return 0;
         }
         let taken = self.poll_for(super::PUMP_BUDGET);
@@ -310,7 +313,7 @@ impl TimegrapherApp {
         if !self.reserve_running() {
             return;
         }
-        let Some(live) = self.live.as_ref() else {
+        let Some(live) = self.recording.live.as_ref() else {
             return;
         };
         let now = live.duration_s();
@@ -319,7 +322,7 @@ impl TimegrapherApp {
         }
         self.test.reserve_read_s = now;
         let beat_s = power_reserve::beat_s(self.reserve_bph());
-        let Some(live) = self.live.as_ref() else {
+        let Some(live) = self.recording.live.as_ref() else {
             return;
         };
         let ended = self
@@ -365,7 +368,7 @@ impl TimegrapherApp {
     /// while locked, kept in the test, else the rate it last ran at
     /// ([`reserve::Test::bph`]).
     fn reserve_bph(&mut self) -> Option<u32> {
-        let now = self.live.as_ref().and_then(|l| l.bph());
+        let now = self.recording.live.as_ref().and_then(|l| l.bph());
         let t = self.test.reserve.as_mut()?;
         if now.is_some() {
             t.bph = now;
@@ -380,6 +383,7 @@ impl TimegrapherApp {
     fn reserve_hours(&self, first: f64, to: f64, from_hour: u32) -> Vec<power_reserve::Hour> {
         let bph = self.test.reserve.as_ref().and_then(|t| t.bph);
         let Some(log) = self
+            .recording
             .live
             .as_ref()
             .and_then(|l| steady::log_of_at(l, l.bph().or(bph)))
@@ -387,6 +391,7 @@ impl TimegrapherApp {
             return Vec::new();
         };
         let fit = self
+            .recording
             .clock_track
             .as_ref()
             .and_then(|c| c.fit.clone())
@@ -443,13 +448,13 @@ impl TimegrapherApp {
         if self.reserve_is_test() {
             return None;
         }
-        let live = self.live.clone()?;
+        let live = self.recording.live.clone()?;
         let (take_clock, opened) = (
             self.take.take_clock.clone(),
             self.take.take_breaks.is_some(),
         );
         let (ppm, take_breaks) = (
-            self.clock.as_ref().map(|c| c.ppm),
+            self.recording.clock.as_ref().map(|c| c.ppm),
             self.take.take_breaks.clone(),
         );
         let codes: Vec<&'static str> = self
@@ -553,7 +558,7 @@ impl TimegrapherApp {
         let Some(t) = self.test.reserve.as_mut() else {
             return;
         };
-        if let Some(live) = self.live.as_ref() {
+        if let Some(live) = self.recording.live.as_ref() {
             t.update(live.beats(), beat_s, live.duration_s());
         }
         if t.running() {
@@ -567,8 +572,12 @@ impl TimegrapherApp {
     /// stall's message goes, as core gives no break for a late backlog
     /// with nothing lost (Felix on #2018).
     pub(super) fn mic_stalled(&mut self) -> bool {
-        let quiet = self.audio_at.unwrap_or(self.opened_at).elapsed();
-        let mic = self.capture.as_ref().is_some_and(|c| !c.is_file);
+        let quiet = self
+            .recording
+            .audio_at
+            .unwrap_or(self.recording.opened_at)
+            .elapsed();
+        let mic = self.recording.capture.as_ref().is_some_and(|c| !c.is_file);
         if quiet.as_secs_f64() <= 3.0 {
             if self.message.as_ref().is_some_and(|m| m.0 == stall_words()) {
                 self.message = None;
@@ -755,7 +764,11 @@ impl TimegrapherApp {
         let free = if self.test.reserve.is_none() {
             self.reserve_takes_dir().ok().and_then(|d| {
                 let have = reserve::free_bytes(&d)?;
-                let rate = self.capture.as_ref().map_or(48_000, |c| c.sample_rate);
+                let rate = self
+                    .recording
+                    .capture
+                    .as_ref()
+                    .map_or(48_000, |c| c.sample_rate);
                 Some((have, reserve::bytes_needed(rate)))
             })
         } else {

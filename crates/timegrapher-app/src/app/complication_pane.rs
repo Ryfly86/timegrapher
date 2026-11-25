@@ -107,10 +107,14 @@ impl TimegrapherApp {
             .complication_saved
             .as_ref()
             .is_some_and(|t| t.readings.is_none());
-        if unread && self.batch.is_none() {
-            let log = self.live.as_ref().and_then(steady::log_of)?;
+        if unread && self.recording.batch.is_none() {
+            let log = self.recording.live.as_ref().and_then(steady::log_of)?;
             let clock = self.reading_clock(log.duration_s);
-            let bph = self.live.as_ref().and_then(|l| l.config().analysis.bph);
+            let bph = self
+                .recording
+                .live
+                .as_ref()
+                .and_then(|l| l.config().analysis.bph);
             let masked = self.take.masked.clone();
             if let Some(t) = self.test.complication_saved.as_mut() {
                 t.bph_set = bph;
@@ -199,7 +203,7 @@ impl TimegrapherApp {
         if self.complication_test().is_some() {
             self.panes_view.results_rects[0] = Some(ui.max_rect());
         }
-        let now = self.live.as_ref().map(|l| l.duration_s());
+        let now = self.recording.live.as_ref().map(|l| l.duration_s());
         let phase = match (self.test.guided.as_mut(), now) {
             (Some(t), Some(now)) if t.kind == guided::Kind::Complication => Some(t.tick(now)),
             _ => None,

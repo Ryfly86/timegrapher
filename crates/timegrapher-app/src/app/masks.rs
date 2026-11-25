@@ -69,7 +69,7 @@ impl TimegrapherApp {
     /// take's Complication Test when next shown. Other views read from
     /// the same beats, so they agree (#1645).
     pub(super) fn reread_guided(&mut self) {
-        if let Some(log) = self.live.as_ref().and_then(steady::log_of) {
+        if let Some(log) = self.recording.live.as_ref().and_then(steady::log_of) {
             let clock = self.reading_clock(log.duration_s);
             if let Some(test) = self.test.guided.as_mut() {
                 test.lift_deg = Some(self.take.lift_deg);
@@ -311,7 +311,7 @@ impl TimegrapherApp {
     /// out afresh.
     pub(super) fn positions_moved(&mut self, now: Position) {
         self.take.position = now;
-        if let Some(live) = self.live.as_mut() {
+        if let Some(live) = self.recording.live.as_mut() {
             let heard = live.duration_s();
             let stretches = self.session.stretches();
             let mut breaks: Vec<f64> = stretches
@@ -341,7 +341,7 @@ impl TimegrapherApp {
     /// Give the engine its masks ([`Self::engine_masked`]).
     pub(super) fn mask_engine(&mut self) {
         let masked = self.engine_masked();
-        if let Some(live) = self.live.as_mut() {
+        if let Some(live) = self.recording.live.as_mut() {
             live.set_masked(&masked);
         }
     }

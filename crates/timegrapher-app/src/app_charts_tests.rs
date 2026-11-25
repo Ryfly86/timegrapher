@@ -38,7 +38,7 @@ fn a_readings_beat_error_falls_back_to_the_drop() {
 #[test]
 fn rate_distribution_counts_two_second_stretches() {
     let mut app = synthetic(30.0, 12.0);
-    let live = app.live.as_mut().unwrap();
+    let live = app.recording.live.as_mut().unwrap();
     live.set_breaks(vec![15.0]);
     let mut r = RateTwoS::default();
     r.refresh(live, &[(5.0, 7.5)]);
@@ -689,7 +689,7 @@ fn a_take_opened_after_a_wide_one_fits_the_gutter_afresh() {
     // Opened as File > Open does.
     app.open_recording(&wav, false);
     let t = Instant::now();
-    while app.batch.is_some() && t.elapsed().as_secs() < 120 {
+    while app.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
         // What is drawn while it opens: wide labels, as the take before's.
         frame(&mut app);
         let _ = ctx.run(egui::RawInput::default(), |ctx| {
@@ -697,7 +697,7 @@ fn a_take_opened_after_a_wide_one_fits_the_gutter_afresh() {
         });
         app.poll();
     }
-    assert!(app.batch.is_none(), "{:?}", app.message);
+    assert!(app.recording.batch.is_none(), "{:?}", app.message);
     for _ in 0..3 {
         frame(&mut app);
     }
@@ -800,7 +800,7 @@ fn readings_over_time_charts_share_one_gutter() {
         ctx.run(input, |ctx| app.panels(ctx))
     };
     // Read here rather than on its own thread.
-    let log = steady::log_of(app.live.as_ref().unwrap()).unwrap();
+    let log = steady::log_of(app.recording.live.as_ref().unwrap()).unwrap();
     app.results.steady = Some((app.take.rev, steady::compute(&log, None)));
     let mut out = pass(&mut app);
     for _ in 0..3 {
@@ -871,7 +871,7 @@ fn time_panes_under_the_strip_put_a_late_time_at_one_place() {
         // listening they read again only every so often: Readings Over
         // Time still ends where the strip does, at the take's end.
         let short = synthetic(310.0, 20.0);
-        let log = steady::log_of(short.live.as_ref().unwrap()).unwrap();
+        let log = steady::log_of(short.recording.live.as_ref().unwrap()).unwrap();
         app.results.steady = Some((app.take.rev, steady::compute(&log, None)));
         let mut out = pass(&mut app);
         for _ in 0..3 {
@@ -902,7 +902,7 @@ fn time_panes_under_the_strip_put_a_late_time_at_one_place() {
 #[test]
 fn readings_over_time_ends_where_its_clock_does() {
     let app = synthetic(310.0, 20.0);
-    let log = steady::log_of(app.live.as_ref().unwrap()).unwrap();
+    let log = steady::log_of(app.recording.live.as_ref().unwrap()).unwrap();
     let mut s = steady::compute(&log, None);
     let joined = steady::Opts::default();
     s.upto_s = 0.0;
@@ -939,7 +939,7 @@ fn joined_readings_over_time_says_whose_time_it_is() {
             let end = app.latest_s();
             app.paint_position(0.0, end);
         }
-        let log = steady::log_of(app.live.as_ref().unwrap()).unwrap();
+        let log = steady::log_of(app.recording.live.as_ref().unwrap()).unwrap();
         app.results.steady = Some((app.take.rev, steady::compute(&log, None)));
         let ctx = themed();
         let mut out = None;
@@ -1168,7 +1168,7 @@ fn the_charts_draw_no_scales_before_there_is_a_reading() {
     assert!(!scales(&text), "{text}");
     // Opening a take.
     let (_tx, rx) = std::sync::mpsc::channel();
-    app.batch = Some(Batch {
+    app.recording.batch = Some(Batch {
         rx,
         progress: Default::default(),
         cancel: Default::default(),

@@ -70,8 +70,8 @@ fn a_steady_take_runs_on_through_a_pause_on_the_strip() {
         app.show_log(log, "paused".into(), vec![], vec![]);
         let half = app.panes_view.strip.half_width_ms;
         assert!(half <= 1.0, "follow {follow}: ±{half} ms");
-        let live = app.live.as_ref().unwrap();
-        let anchor = app.anchor.unwrap();
+        let live = app.recording.live.as_ref().unwrap();
+        let anchor = app.recording.anchor.unwrap();
         for b in live.beats() {
             let lead = anchor.lead_on_true(b, 0.125, &breaks, app.take_rate_clock());
             assert!(lead.abs() < half, "{} at {}: {lead}", b.index, b.time);
@@ -180,9 +180,9 @@ fn dragging_the_strip_looks_back_and_returns() {
         lead_shift_ms: 1.0,
         ..Default::default()
     };
-    let before = app.anchor.unwrap().time;
+    let before = app.recording.anchor.unwrap().time;
     app.apply_strip_input(slide, app.strip_end_s());
-    assert!((app.anchor.unwrap().time - before - 0.001).abs() < 1e-12);
+    assert!((app.recording.anchor.unwrap().time - before - 0.001).abs() < 1e-12);
     assert!(!app.panes_view.follow, "sliding by hand ends auto-centring");
 
     // Zoomed out within the 40 s take.
@@ -301,7 +301,7 @@ fn zooming_out_stops_at_the_take() {
 #[test]
 fn the_sound_panes_follow_the_strips_newest_edge() {
     let mut app = synthetic(40.0, 0.0);
-    let heard = app.live.as_ref().unwrap().tick_profiles()[0]
+    let heard = app.recording.live.as_ref().unwrap().tick_profiles()[0]
         .clone()
         .unwrap();
     // A kept sound every 2 s, each told apart by its beats.
@@ -886,7 +886,7 @@ fn time_of_day_on_a_segment_opened_alone_has_no_clock() {
     for (unlisted, clock) in [(None, true), (Some(Unlisted::NotTheTake), false)] {
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
         app.panes_view.strip.clock = true;
-        app.input = Input::File;
+        app.recording.input = Input::File;
         app.keeping.opened_path = take.display().to_string();
         app.put_take_breaks(Some(Vec::new()), unlisted);
         let wall = app.strip_wall(&egui::Context::default());

@@ -189,7 +189,7 @@ impl TimegrapherApp {
     /// When the take begun began, Unix seconds: its recording's start,
     /// else now while it listens; none before a take.
     pub(super) fn began_unix(&self) -> Option<f64> {
-        self.live.as_ref()?;
+        self.recording.live.as_ref()?;
         Some(self.recording_began_unix().unwrap_or_else(guided::unix_now))
     }
 
@@ -279,7 +279,7 @@ impl TimegrapherApp {
         if let Some(h) = self.shown_wind() {
             return WindField::began(h, true);
         }
-        if self.live.is_some() {
+        if self.recording.live.is_some() {
             // The Positions Test and a Power Reserve Test set their own
             // wind; a Dynamic Poise or Complication Test doesn't (Gus).
             let own = self.test.reserve.is_some()
@@ -324,7 +324,7 @@ impl TimegrapherApp {
             WindPick::HoursBefore(h) => Some(began - h.max(0.0) * 3600.0),
             WindPick::NotGiven => None,
         });
-        if self.live.is_some() {
+        if self.recording.live.is_some() {
             self.resave_take_wind();
         }
     }
@@ -341,7 +341,7 @@ impl TimegrapherApp {
     /// closed.
     pub(super) fn wind_menu(&mut self, ui: &mut egui::Ui) -> Option<WindPick> {
         let shown = self.shown_wind();
-        let begun = shown.is_some() || self.live.is_some();
+        let begun = shown.is_some() || self.recording.live.is_some();
         if self.take.wind.ago.is_empty() {
             let h = match shown {
                 Some(h) => h,

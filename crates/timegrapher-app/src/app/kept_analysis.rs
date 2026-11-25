@@ -70,7 +70,7 @@ impl TimegrapherApp {
     /// Whether the take records into a reading of its own, its sound never
     /// written.
     pub(super) fn kept_running(&self) -> bool {
-        self.kept_live.run.is_some()
+        self.recording.kept_live.run.is_some()
     }
 
     /// Record the session just started as its analysis alone: none of its
@@ -108,7 +108,7 @@ impl TimegrapherApp {
             ));
             return false;
         }
-        self.kept_live = Kept {
+        self.recording.kept_live = Kept {
             run: Some(Keeper::start(KeepAs {
                 sample_rate: r.info().sample_rate,
                 bytes_per_frame: r.bytes_per_frame(),
@@ -129,9 +129,9 @@ impl TimegrapherApp {
     /// can't be kept on the disk, take in its write once done, and write
     /// it again a minute after a write failed.
     pub(super) fn kept_follow(&mut self) {
-        if let Some(k) = &self.kept_live.run {
+        if let Some(k) = &self.recording.kept_live.run {
             let failed = k.checkpointed().failed;
-            if failed != self.kept_live.said {
+            if failed != self.recording.kept_live.said {
                 if let Some(e) = &failed {
                     let m = format!(
                         "The test's analysis couldn't be kept on the disk as it goes ({e}). \
@@ -140,17 +140,18 @@ impl TimegrapherApp {
                     applog::error(&m);
                     self.message = Some((m, true));
                 }
-                self.kept_live.said = failed;
+                self.recording.kept_live.said = failed;
             }
         }
         self.kept_written();
         let again = self
+            .recording
             .kept_live
             .unwritten
             .as_ref()
             .is_some_and(|(_, at)| at.elapsed() >= STREAM_RETRY);
         if again {
-            if let Some((u, _)) = self.kept_live.unwritten.take() {
+            if let Some((u, _)) = self.recording.kept_live.unwritten.take() {
                 let at = u.recording.clone();
                 self.write_kept(at, Box::new(move || Ok(u)));
             }
@@ -160,7 +161,7 @@ impl TimegrapherApp {
     /// How long until a failed write is tried again, for the window to
     /// draw then on its own.
     pub(super) fn kept_retry_in(&self) -> Option<std::time::Duration> {
-        let (_, at) = self.kept_live.unwritten.as_ref()?;
+        let (_, at) = self.recording.kept_live.unwritten.as_ref()?;
         Some(STREAM_RETRY.saturating_sub(at.elapsed()))
     }
 
@@ -168,7 +169,7 @@ impl TimegrapherApp {
     /// `dest`: its analysis finished, and the take written beside the
     /// recording's other files on a thread of its own.
     pub(super) fn save_kept(&mut self, dest: PathBuf) {
-        let Some(keeper) = self.kept_live.run.take() else {
+        let Some(keeper) = self.recording.kept_live.run.take() else {
             return;
         };
         let prepared = self.kept_companions();
@@ -263,14 +264,14 @@ impl TimegrapherApp {
             };
             let _ = tx.send(written);
         });
-        self.kept_live.writing = Some((rx, recording));
+        self.recording.kept_live.writing = Some((rx, recording));
     }
 
     /// The take written, once it is: the session saved there, and the
     /// analysis kept on the disk as it went let go; or, when it couldn't
     /// be, kept to write again.
     fn kept_written(&mut self) {
-        let Some((rx, recording)) = &self.kept_live.writing else {
+        let Some((rx, recording)) = &self.recording.kept_live.writing else {
             return;
         };
         let recording = recording.clone();
@@ -279,7 +280,7 @@ impl TimegrapherApp {
             Err(TryRecvError::Empty) => return,
             Err(TryRecvError::Disconnected) => (Err("it stopped part way".into()), None),
         };
-        self.kept_live.writing = None;
+        self.recording.kept_live.writing = None;
         match written {
             (Ok(dir), Some(u)) => {
                 self.info_msg(format!(
@@ -299,7 +300,7 @@ impl TimegrapherApp {
                      the app and written again in a minute: keep the app open until it's kept.",
                     u.dest.display()
                 ));
-                self.kept_live.unwritten = Some((u, Instant::now()));
+                self.recording.kept_live.unwritten = Some((u, Instant::now()));
             }
             (r, None) => {
                 let e = r.err().unwrap_or_default();
@@ -353,7 +354,7 @@ impl TimegrapherApp {
     /// A failed write tried again at the next follow, as a minute on.
     #[cfg(test)]
     pub(super) fn kept_write_now(&mut self) {
-        if let Some((_, at)) = self.kept_live.unwritten.as_mut() {
+        if let Some((_, at)) = self.recording.kept_live.unwritten.as_mut() {
             *at -= STREAM_RETRY;
         }
     }
@@ -361,13 +362,13 @@ impl TimegrapherApp {
     /// Whether a take kept as its analysis alone is being written, for
     /// the window to draw until it is and show it saved.
     pub(super) fn kept_writing(&self) -> bool {
-        self.kept_live.writing.is_some()
+        self.recording.kept_live.writing.is_some()
     }
 
     /// Whether a take kept as its analysis alone is being written: what
     /// would begin a new session waits until it is, and says so.
     pub(super) fn kept_writing_busy(&mut self) -> bool {
-        if self.kept_live.writing.is_none() {
+        if self.recording.kept_live.writing.is_none() {
             return false;
         }
         self.info_msg("Writing the test's take: wait until it is kept.".into());
@@ -411,7 +412,7 @@ impl TimegrapherApp {
         if let Some(to) = self.session.saved_to() {
             return Some(file_name(to));
         }
-        if self.input != Input::File || self.keeping.opened_path.is_empty() {
+        if self.recording.input != Input::File || self.keeping.opened_path.is_empty() {
             return None;
         }
         let path = Path::new(&self.keeping.opened_path);

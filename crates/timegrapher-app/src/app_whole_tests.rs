@@ -40,7 +40,7 @@ fn whole_take_beat_error_keeps_its_size_across_a_turn() {
             snippets: Vec::new(),
         };
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-        app.live = Some(LiveAnalyzer::from_log(log, LiveConfig::default()));
+        app.recording.live = Some(LiveAnalyzer::from_log(log, LiveConfig::default()));
         app
     };
     let sizes = |w: &WholeTake| w.m.caveats.contains(&Caveat::BeatErrorAsSize);
@@ -94,13 +94,13 @@ fn the_whole_take_is_read_at_any_length_and_any_average() {
 fn whole_take_is_the_session_reading() {
     let app = synthetic(60.0, 12.0);
     let w = app.whole_take().expect("whole take");
-    let log = steady::log_of(app.live.as_ref().unwrap()).unwrap();
+    let log = steady::log_of(app.recording.live.as_ref().unwrap()).unwrap();
     let spans = app.current_spans();
     // Just listened to, the take reads to its last reading with a
     // watch heard, never past its end.
     let to = app
         .last_heard_s()
-        .min(app.live.as_ref().unwrap().duration_s());
+        .min(app.recording.live.as_ref().unwrap().duration_s());
     let from = spans[0].0.max(0.0);
     let m = timegrapher_core::session::measure(&log, None, from, to);
     assert_eq!(w.m.rate_s_per_day, m.rate_s_per_day);
@@ -118,9 +118,9 @@ fn a_take_whose_breaks_are_not_its_own_lists_says_so() {
     // Opened as a take is, its beats read to its end: an opened take's
     // cards read to its end (#2073), and the engine listened to here had
     // not yet read the last of its sound.
-    let mut log = steady::log_of(app.live.as_ref().unwrap()).unwrap();
+    let mut log = steady::log_of(app.recording.live.as_ref().unwrap()).unwrap();
     log.duration_s = log.beats.last().unwrap().time;
-    app.live = Some(LiveAnalyzer::from_log(log, LiveConfig::default()));
+    app.recording.live = Some(LiveAnalyzer::from_log(log, LiveConfig::default()));
     app.put_take_breaks(Some(Vec::new()), Some(Unlisted::Unreadable));
     let w = app.whole_take().expect("whole take");
     assert!(

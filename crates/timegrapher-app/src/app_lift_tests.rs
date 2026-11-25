@@ -111,7 +111,8 @@ fn a_new_lift_rescales_every_amplitude() {
     let table = |app: &TimegrapherApp| app.free_table(&ctx).expect("a table").mean[1].unwrap();
     let whole = |app: &TimegrapherApp| app.whole_take().unwrap().m.amplitude_deg.unwrap();
     let profiles = |app: &TimegrapherApp| -> Vec<f64> {
-        app.live
+        app.recording
+            .live
             .as_ref()
             .unwrap()
             .tick_profiles()
@@ -312,7 +313,12 @@ fn a_new_lift_rereads_every_guided_tests_amplitudes() {
                 break;
             }
         }
-        let log = app.live.as_ref().and_then(steady::log_of).unwrap();
+        let log = app
+            .recording
+            .live
+            .as_ref()
+            .and_then(steady::log_of)
+            .unwrap();
         test.finish(&log, None, &app.take.masked);
         app.test.guided = Some(test);
         // 18 s measured per step: a 10 s step can hold no whole 10 s

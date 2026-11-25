@@ -84,7 +84,7 @@ fn steadiness_leaves_a_hole_out_and_stops_at_its_ends() {
     let app = two_entries_in_one_position();
     let runs = app.current_runs();
     assert_eq!(runs.holes, [(337.0, 377.0)]);
-    let log = steady::log_of(app.live.as_ref().unwrap()).unwrap();
+    let log = steady::log_of(app.recording.live.as_ref().unwrap()).unwrap();
     let (joined, breaks) = app.steady_log(log, &runs, None);
     // Joined from 20 s, the run's start: the hole is 317 s to 357 s.
     assert!(
