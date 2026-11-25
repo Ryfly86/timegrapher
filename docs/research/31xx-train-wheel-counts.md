@@ -104,7 +104,9 @@ shipped values.
 The separate Rolex 3131 row receives the train under the contributor's
 all-Rolex-31xx coverage. Its existing 52° lift setting is retained. The new
 DD/VS row deliberately leaves lift angle unspecified; it can be supplied
-from separate escapement evidence.
+from separate escapement evidence. (Supplied 2026-11-25 by #2299: this
+project's bench report that DD31xx pallet forks can be swapped for genuine
+ones gives the DD31xx rows the genuine 3135's 52°.)
 
 ## Evidence and counting method
 
