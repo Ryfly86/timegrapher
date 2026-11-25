@@ -50,6 +50,9 @@ fn alternating_score(ac: &[f64], period: f64, fs: f64) -> f64 {
 
 /// How many beats on from a beat `dt_s` seconds after it, `beat_s` a beat:
 /// the nearest whole count, at least one. Peaks are numbered on by it.
+/// The count is provisional: across a hole, [`jumps_among_good`] and
+/// [`crate::breaks::renumber`] number the beats again from their timing,
+/// and that decides (#2229).
 pub fn beats_on(dt_s: f64, beat_s: f64) -> i64 {
     (dt_s / beat_s).round().max(1.0) as i64
 }

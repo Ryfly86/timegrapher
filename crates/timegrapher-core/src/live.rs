@@ -838,13 +838,13 @@ impl LiveAnalyzer {
         let old = self.cfg.analysis.amplitude.lift_deg;
         if lift_deg > 0.0 && lift_deg != old {
             if let Some(bph) = self.bph {
-                // A swing is two beats.
-                let osc_period_s = 2.0 * crate::timing::beat_period_s(None, bph);
+                // A swing is two beats, at the balance's own period (#2228).
+                let osc_period_s = 2.0 * crate::timing::own_beat_period_s(&self.beats, bph);
                 amplitude::relift(&mut self.amp, osc_period_s, old, lift_deg);
                 // Each profile read again from its own edges at the new
                 // lift, through the same gate, not scaled (#1539).
                 for p in self.profiles.iter_mut().flatten() {
-                    p.amplitude_deg = p.amplitude_at(osc_period_s, lift_deg);
+                    p.amplitude_deg = p.at_lift(osc_period_s, old, lift_deg);
                 }
             }
             self.cfg.analysis.amplitude.lift_deg = lift_deg;
@@ -1022,8 +1022,12 @@ impl LiveAnalyzer {
         self.redrop_heard_blocks(&numbered[..anchor], off);
         self.take_beats(x, &env, &numbered[anchor..], off, to, beat);
         self.find_jumps_and_trim();
-        self.amplitude_pass(&env, &numbered, off, from, to, beat);
-        self.update_profiles(to, beat);
+        // Amplitude and the profiles read their degrees at the balance's
+        // own period, not the set rate's (#2228); the templates are cut
+        // for the set rate's, as a saved read cuts them.
+        let own = crate::timing::own_beat_period_s(&numbered, bph);
+        self.amplitude_pass(&env, &numbered, off, (from, to), [beat, own]);
+        self.update_profiles_at(to, [beat, own]);
         self.settled_to = to;
     }
 
@@ -1213,9 +1217,8 @@ impl LiveAnalyzer {
         env: &[f32],
         numbered: &[Beat],
         off: f64,
-        from: f64,
-        to: f64,
-        beat: f64,
+        (from, to): (f64, f64),
+        beat: [f64; 2],
     ) {
         let fs = self.fs;
         let a = &self.cfg.analysis;
@@ -1242,14 +1245,12 @@ impl LiveAnalyzer {
             stop += w;
         }
         if stop > start {
-            let wins = amplitude::windows_between(
+            let wins = amplitude::windows_between_at(
                 env,
                 fs,
                 numbered,
-                2.0 * beat,
-                w,
-                start - off,
-                stop - off,
+                beat.map(|b| 2.0 * b),
+                (w, start - off, stop - off),
                 &a.amplitude,
             );
             let new = self.amp.len();
@@ -1320,8 +1321,16 @@ impl LiveAnalyzer {
         self.back_to_watchs_lock();
     }
 
-    /// The Tick and Tock profiles from the sound kept up to `to`.
+    /// [`Self::update_profiles_at`] at one beat, for the tests.
+    #[cfg(test)]
     fn update_profiles(&mut self, to: f64, beat: f64) {
+        self.update_profiles_at(to, [beat; 2]);
+    }
+
+    /// The Tick and Tock profiles from the sound kept up to `to`, cut for
+    /// the set rate's beat and read in degrees at the balance's own,
+    /// seconds (#2228).
+    fn update_profiles_at(&mut self, to: f64, [beat, own]: [f64; 2]) {
         let fs = self.fs;
         // After the windows, so those of this pass follow a swap too.
         self.settle_sides();
@@ -1343,7 +1352,7 @@ impl LiveAnalyzer {
                 .map(|s| s.3.as_slice())
                 .collect();
             let guide = guides[usize::from(!even)];
-            profile::from_snippets(&w, fs, side, 2.0 * beat, &a.amplitude, guide, win)
+            profile::from_snippets(&w, fs, side, 2.0 * own, &a.amplitude, guide, win)
                 .filter(|_| sided)
         });
     }
@@ -1734,7 +1743,7 @@ impl LiveAnalyzer {
         // the beats the scatter is read from, as a saved reading judges
         // its stretch's ([`BeatLog::beat_sound`]), not the latest run's.
         let sound_beats = crate::session::stretch_beats(&self.beats, scatter_from, end_s);
-        let beat_sound = match (bph, &self.beats[sound_beats]) {
+        let beat_sound = match (bph, &self.beats[sound_beats.clone()]) {
             (Some(b), [first, .., last]) if measure::beat_sound_needed(jitter_us, b, assessed) => {
                 let snips: Vec<(f64, bool, &[f32])> = self
                     .sample
@@ -1749,7 +1758,7 @@ impl LiveAnalyzer {
                     first.time,
                     last.time,
                     self.fs,
-                    2.0 * 3600.0 / b as f64,
+                    2.0 * crate::timing::own_beat_period_s(&self.beats[sound_beats.clone()], b),
                     &self.cfg.analysis.amplitude,
                 )
             }

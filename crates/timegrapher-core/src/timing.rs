@@ -147,6 +147,15 @@ pub fn beat_period_s(fit: Option<&TimingFit>, bph: u32) -> f64 {
     fit.map_or(3600.0 / bph as f64, |f| f.period_s)
 }
 
+/// The balance's own beat period, s, fitted over the beats `beats` as
+/// the rate is, or the nominal 3600/bph before there is a fit. Amplitude,
+/// the tick profiles and the BE angle turn times into degrees with it,
+/// never with the set rate's period, so a watch off its set rate reads its
+/// true amplitude (Norm on #2224, #2228).
+pub fn own_beat_period_s(beats: &[Beat], bph: u32) -> f64 {
+    beat_period_s(fit(beats, bph).as_ref(), bph)
+}
+
 /// The beat period, s, of a watch whose nominal period is `nominal` s and
 /// which gains `rate_s_per_day`: the inverse of the rate the fit reads,
 /// `(nominal / period - 1) * 86400`. The one rule for it (#640).

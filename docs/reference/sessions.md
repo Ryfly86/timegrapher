@@ -105,7 +105,8 @@ New desktop and `record` session files pair `lift` with `lift_known = true`
 This records the setting's context, not a verified physical lift angle. The
 marker applies only to its accompanying numeric `lift`; an explicit CLI
 `--lift`, including 52, wins over both. An assumed lift gives way to the
-lift of the calibre the file names, when the calibre table gives one
+lift of the calibre it is read with (the file's, or `--calibre`), when the
+calibre table gives one
 (`take::lift_setting`); a calibre name without a lift value does not make an
 assumed angle known. The desktop does not follow this yet when it opens a
 take (#2232).
