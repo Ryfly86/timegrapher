@@ -20,8 +20,9 @@ they are. So does everything around it:
 
 ## 2. The mark
 
-A dial with the sound of one tick inside it, drawn as the app's Scope
-shows it: a small first burst, then the drop, ringing down.
+The mark is called **the Drop**. It is a dial with the sound of one tick
+inside it, drawn as the app's Scope shows it: a small first burst, then
+the drop, the loudest sound in a tick, ringing down.
 
 ![The mark and the name](logo/lockup.svg)
 
