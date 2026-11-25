@@ -471,8 +471,7 @@ impl TimegrapherApp {
         let Ok(Some(l)) = &self.library else {
             return None;
         };
-        let canon = |p: &Path| std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf());
-        if l.read_only.is_some() || canon(path).starts_with(canon(&l.root)) {
+        if l.read_only.is_some() || library::not_already_in(path, &l.root).is_err() {
             return None;
         }
         let inner = take_folder(path).ok()?;

@@ -1131,3 +1131,64 @@ fn an_analysis_that_stops_without_answering_says_it_failed() {
     assert_eq!(said, "Analysis failed: it stopped part way");
     assert!(bad);
 }
+
+/// Keep in a Watch… and Open ask core's one import-path guard
+/// (`library::not_already_in`, #1656) whether a recording is already in
+/// the watches: one opened through a link into the Watches folder is in
+/// them, so neither offers to add it (before, Keep in a Watch… offered it
+/// and the add was then refused), and a folder holding the Watches
+/// folder, with a recording of its own, can't be added either.
+#[cfg(unix)]
+#[test]
+fn a_recording_reached_through_a_link_into_the_watches_is_not_offered_to_them() {
+    let base = std::env::temp_dir().join(format!("tg-app-import-link-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let root = base.join("Timegrapher Data");
+    let mut lib = library::Library::create(&root).unwrap();
+    lib.add(&library::Watch::new("Pepsi")).unwrap();
+    let pepsi = lib.find("Pepsi").unwrap().watch.id.clone();
+    let takes = lib.find("Pepsi").unwrap().dir.join(library::TAKES);
+    drop(lib);
+    let lone = takes.join("2026-10-22 14.30").join("pepsi_DU.wav");
+    std::fs::create_dir_all(lone.parent().unwrap()).unwrap();
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate: 8000,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
+    };
+    let mut w = hound::WavWriter::create(&lone, spec).unwrap();
+    for _ in 0..8000 {
+        w.write_sample(0i16).unwrap();
+    }
+    w.finalize().unwrap();
+    let link = base.join("Linked");
+    std::os::unix::fs::symlink(&root, &link).unwrap();
+    let through = link.join(lone.strip_prefix(&root).unwrap()).to_path_buf();
+    assert!(through.is_file() && !through.starts_with(&root));
+    // A recording of its own in the folder holding the Watches folder,
+    // so Open would ask to add that folder if the guard missed it.
+    std::fs::copy(&lone, base.join("loose_DU.wav")).unwrap();
+
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.use_library(Some(root.clone()));
+    app.pick_watch(&pepsi);
+    app.bench.recording.input = Input::File;
+    for (opened, why) in [
+        (&lone, "in the watches"),
+        (&through, "in the watches through a link"),
+        (&base, "holds the watches"),
+    ] {
+        app.bench.keeping.opened_path = opened.display().to_string();
+        assert_eq!(app.addable_take(), None, "{why}");
+        assert!(app.open_ask_for(opened).is_none(), "{why}");
+    }
+    // A recording outside them is still offered.
+    let outside = base.join("outside").join("pepsi_DU.wav");
+    std::fs::create_dir_all(outside.parent().unwrap()).unwrap();
+    std::fs::copy(&lone, &outside).unwrap();
+    app.bench.keeping.opened_path = outside.display().to_string();
+    assert_eq!(app.addable_take(), Some(outside.clone()));
+    assert!(app.open_ask_for(&outside).is_some());
+    let _ = std::fs::remove_dir_all(&base);
+}

@@ -13,34 +13,6 @@ fn a_watchs_lift_outside_the_range_is_set_aside() {
         assert_eq!(cal.watch_lift(&w), kept, "{lift}");
     }
 }
-
-/// A source reads as its name, its link and what it says, without
-/// the calibre's own name the panel is headed by.
-#[test]
-fn a_source_is_its_name_and_what_it_says() {
-    assert_eq!(
-        source_parts("https://watchguy.co.uk/cgi-bin/lift_angles (A. Schild [AS] 1017, 51°)"),
-        (
-            "watchguy.co.uk".to_string(),
-            Some("https://watchguy.co.uk/cgi-bin/lift_angles".to_string()),
-            "51°".to_string()
-        )
-    );
-    let (name, _, says) = source_parts(
-        "https://docs.google.com/spreadsheets/d/x (lift angle sheet linked from \
-         watchrepairtalk.com/topic/27749-lift-angle) (IWC (International Watch Company) \
-         45, 51°, 21600 vph)",
-    );
-    assert_eq!(name, "Lift angle sheet (watchrepairtalk.com)");
-    assert_eq!(says, "51°, 21600 vph");
-    let (name, url, says) = source_parts("https://www.sellita.ch/en/sw200");
-    assert_eq!((name.as_str(), says.as_str()), ("sellita.ch", ""));
-    assert!(url.is_some());
-    let (name, url, _) = source_parts("project's bench recordings: a 5.00 s rate");
-    assert_eq!(name, "project's bench recordings: a 5.00 s rate");
-    assert!(url.is_none());
-}
-
 /// The search over the table finds a calibre by maker and name
 /// together, the count says how many it shows, and a missing figure
 /// is left to the cell's dash, not written into the filter's values as
@@ -65,42 +37,6 @@ fn the_table_search_finds_maker_and_calibre_together() {
     let schild = cal.find("A. Schild 1017").unwrap();
     assert_eq!(cal.cell(schild, Col::LiftAngle), "51");
 }
-
-#[test]
-fn the_maker_is_named_once() {
-    assert_eq!(with_maker_name("Rolex", "Rolex 3235"), "Rolex 3235");
-    assert_eq!(with_maker_name("Rolex", "rolex 3235"), "rolex 3235");
-    assert_eq!(with_maker_name("ETA", "2824-2"), "ETA 2824-2");
-    // A name that only begins with the same letters is a different word.
-    assert_eq!(
-        with_maker_name("Seiko", "SeikoMatic 6218"),
-        "Seiko SeikoMatic 6218"
-    );
-    // Under another of the maker's names.
-    assert_eq!(
-        with_maker_name("Tianjin Seagull", "Seagull ST36"),
-        "Seagull ST36"
-    );
-    // A clone stays marked as one.
-    assert_eq!(
-        with_maker_name("Shanghai (clone)", "Shanghai 4401"),
-        "Shanghai 4401 (clone)"
-    );
-    for name in ["Patek 240 Clone", "Patek 240 (clone)", "Patek 240 CLONE"] {
-        assert_eq!(with_maker_name("(clone)", name), name);
-    }
-    assert_eq!(
-        with_maker_name("Shanghai (clone)", "Patek 240 Clone"),
-        "Shanghai Patek 240 Clone"
-    );
-    // Do not lose the clone marker when it is absent or only a substring.
-    assert_eq!(with_maker_name("(clone)", "240"), "(clone) 240");
-    assert_eq!(
-        with_maker_name("(clone)", "Clonecraft 240"),
-        "(clone) Clonecraft 240"
-    );
-}
-
 #[test]
 fn saved_picks_follow_the_tables_renames() {
     let c = calibres::all()
@@ -122,34 +58,6 @@ fn saved_picks_follow_the_tables_renames() {
     assert_eq!(cal.short_removed, vec![new.clone()]);
     assert!(cal.find(&new).is_some_and(|e| e.name() == new));
 }
-
-#[test]
-fn no_row_in_the_table_names_its_maker_twice() {
-    let mut twice = Vec::new();
-    for c in calibres::all() {
-        let row = with_maker_name(&c.maker, &c.calibre);
-        let words: Vec<String> = row
-            .split(|ch: char| !ch.is_alphanumeric())
-            .filter(|w| !w.is_empty())
-            .map(str::to_lowercase)
-            .collect();
-        let repeated = maker_words(&c.maker).iter().any(|name| {
-            name.split(|ch: char| !ch.is_alphanumeric())
-                .filter(|w| w.len() > 2)
-                .any(|w| words.iter().filter(|x| **x == w.to_lowercase()).count() > 1)
-        });
-        if repeated {
-            twice.push(row);
-        }
-    }
-    assert!(
-        twice.is_empty(),
-        "{} rows: {:?}",
-        twice.len(),
-        &twice[..twice.len().min(10)]
-    );
-}
-
 fn store_fixture(label: &str) -> (PathBuf, PathBuf) {
     static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let id = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);

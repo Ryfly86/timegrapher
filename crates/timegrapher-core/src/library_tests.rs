@@ -2094,3 +2094,58 @@ fn a_new_folder_is_made_as_its_name_is_picked() {
     );
     let _ = fs::remove_dir_all(&takes);
 }
+
+/// The one import-path guard (#1656) the app asks too, before a watches
+/// folder exists: a path under a watches folder not made yet is in it,
+/// one beside it is not, and one holding it is refused. A take folder is
+/// one with a session file or a recorder's session.json, and nothing else.
+#[test]
+fn the_import_guard_and_take_test_are_one_rule() {
+    let base = scratch("import-rule");
+    let root = base.join("Timegrapher Data");
+    assert!(!root.exists());
+    let inside = root.join("Pepsi").join(TAKES).join("t");
+    let e = not_already_in(&inside, &root).unwrap_err();
+    assert!(e.contains("is already in your watches"), "{e}");
+    assert!(not_already_in(&root, &root).is_err());
+    assert!(not_already_in(&base.join("Timegrapher Data 2"), &root).is_ok());
+    let e = not_already_in(&base, &root).unwrap_err();
+    assert!(e.contains("holds your watches folder"), "{e}");
+
+    let dir = base.join("take");
+    fs::create_dir_all(&dir).unwrap();
+    assert!(!is_take_folder(&dir));
+    fs::write(dir.join("a.wav"), b"").unwrap();
+    assert!(!is_take_folder(&dir));
+    fs::create_dir(dir.join(take::MANIFEST)).unwrap();
+    assert!(!is_take_folder(&dir), "a folder named session.toml");
+    fs::remove_dir(dir.join(take::MANIFEST)).unwrap();
+    for name in [take::MANIFEST, take::RECORD] {
+        fs::write(dir.join(name), b"").unwrap();
+        assert!(is_take_folder(&dir), "{name}");
+        fs::remove_file(dir.join(name)).unwrap();
+    }
+    let _ = fs::remove_dir_all(&base);
+}
+
+/// The import guard follows a link in the watches folder's own path too:
+/// a path inside the real folder is in the watches named through a link,
+/// and a path through the link is in the real one (Trevor 36 on #2286).
+#[cfg(unix)]
+#[test]
+fn the_import_guard_follows_a_link_to_the_watches_folder() {
+    let base = scratch("import-root-link");
+    let root = base.join("Timegrapher Data");
+    let inside = root.join("Pepsi").join(TAKES).join("t");
+    fs::create_dir_all(&inside).unwrap();
+    let link = base.join("Linked Data");
+    std::os::unix::fs::symlink(&root, &link).unwrap();
+    let e = not_already_in(&inside, &link).unwrap_err();
+    assert!(e.contains("is already in your watches"), "{e}");
+    let through = link.join("Pepsi").join(TAKES).join("t");
+    assert!(not_already_in(&through, &root).is_err());
+    let e = not_already_in(&base, &link).unwrap_err();
+    assert!(e.contains("holds your watches folder"), "{e}");
+    assert!(not_already_in(&base.join("elsewhere"), &link).is_ok());
+    let _ = fs::remove_dir_all(&base);
+}

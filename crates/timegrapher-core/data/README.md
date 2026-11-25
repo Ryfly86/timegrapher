@@ -45,7 +45,7 @@ A JSON array, one object per calibre:
 | `seconds` | Where the seconds hand sits and how it is driven |
 | `wheels` | `name` (lower case), `period_s` (one full turn, seconds), and where known `teeth`, `pinion` (leaves on the same arbor) and `basis` (how the period is known); empty when no wheel's period is known |
 | `sources` | Where each figure came from. A source with a web address starts with it, then `(what the source is)` and `(what it says)`, so the app can show the address as a link |
-| `confidence` | The best basis in the entry: "derived from tooth counts", "measured" (from this project's recordings), "derived from the beat rate", or "published list" (an imported row, below) |
+| `confidence` | The best basis in the entry: "published list" (an imported row, below), "maker's page", "dealer's page", "press article", "derived from tooth counts", "derived from tooth counts; accepted escape pair" (the escape wheel pair taken as the family standard, not counted), "derived from the beat rate", "inferred family transfer" (a sister calibre's train), or "measured" (from this project's recordings) |
 | `notes` | What is inferred, where sources disagree, what is missing |
 | `years` | Optional. `from`, `to`, `approx` and `source`: when the calibre was made, from a cited source, never inferred from serial numbers |
 | `summary` | Optional. A list of `text` and `source`: a short factual description, one sourced sentence each; any quote verbatim |

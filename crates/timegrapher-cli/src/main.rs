@@ -363,7 +363,10 @@ enum Command {
     /// The table of calibres: beat rate, lift angle, escape wheel teeth and
     /// the turn of each train wheel, for `--calibre`, with the wheel periods
     /// and calibres added in the app (calibres.json in the settings folder).
+    #[command(args_conflicts_with_subcommands = true)]
     Calibres {
+        #[command(subcommand)]
+        action: Option<CalibresAction>,
         /// Show only this calibre, with every wheel: its period from the
         /// table or the user, or unknown; and its notes and sources.
         name: Option<String>,
@@ -776,6 +779,19 @@ enum Command {
         /// Amplitude change during the fault, degrees.
         #[arg(long, default_value_t = -15.0, value_parser = parse_finite)]
         fault_amplitude: f64,
+    },
+}
+
+#[derive(Subcommand)]
+enum CalibresAction {
+    /// Every calibre in the shipped table as its reference page shows it,
+    /// for opentimegrapher.org/calibres/: each line's words, headings,
+    /// page addresses, links and alt text, all made by core. A calibre
+    /// added in the app is not included.
+    Export {
+        /// Print the export as JSON (`timegrapher.calibres-export/1`).
+        #[arg(long)]
+        json: bool,
     },
 }
 
@@ -1321,9 +1337,16 @@ fn table_command(c: Command) -> Result<(), String> {
                 timegrapher_core::audio::write_wav(&out, &audio).map_err(|e| e.to_string())
             }
         },
-        Command::Calibres { name, search, json } => {
-            calibres_cmd::run(name.as_deref(), search.as_deref(), json)
-        }
+        Command::Calibres {
+            action: Some(CalibresAction::Export { json }),
+            ..
+        } => calibres_cmd::export(json),
+        Command::Calibres {
+            action: None,
+            name,
+            search,
+            json,
+        } => calibres_cmd::run(name.as_deref(), search.as_deref(), json),
         Command::Watches {
             action,
             library,

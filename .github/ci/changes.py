@@ -9,7 +9,9 @@ For a pull request CI checks out GitHub's merge commit, so BASE is HEAD^1
 Everything but a pull request is a full run. A pull request is a light run
 only when every file it changes is Markdown that nothing compiles in and no
 test reads, edited or added in place: never a deletion or rename, never the
-watchmaker skill, packaging, or a document the MCP server compiles in
+watchmaker skill, packaging, core's calibre data folder
+(crates/timegrapher-core/data/, whose README a core test reads), or a
+document the MCP server compiles in
 (MCP_DOCS, kept equal to guidance.rs by the offline tests). In a light run
 all eight CI jobs still run and report: the test jobs run only their offline
 Python tests, the three regress jobs skip their corpus and engine steps, and mcp-renderer
@@ -32,8 +34,9 @@ MCP_DOCS = {
     "docs/reference/series.md",
     "docs/reference/fault-signatures.md",
 }
-# Markdown here is compiled in (the skill) or read by packaging's tests.
-FULL_PREFIXES = ("skills/", "packaging/")
+# Markdown here is compiled in (the skill), read by packaging's tests, or
+# read by core's calibre tests (data/README.md's confidence list, #2281).
+FULL_PREFIXES = ("skills/", "packaging/", "crates/timegrapher-core/data/")
 # Files and folders the downloads' pages are rendered from or link to
 # (packaging/docs_html.py): a change here re-runs the render and link check.
 PAGE_FILES = {"README.md", "LICENSE"}

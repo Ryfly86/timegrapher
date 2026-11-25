@@ -25,7 +25,8 @@ class Light(unittest.TestCase):
     def test_compiled_in_markdown_is_full(self):
         for path in sorted(changes.MCP_DOCS) + ["skills/watchmaker/SKILL.md",
                                                  "skills/watchmaker/references/long-runs.md",
-                                                 "packaging/macos/start-here.md"]:
+                                                 "packaging/macos/start-here.md",
+                                                 "crates/timegrapher-core/data/README.md"]:
             self.assertFalse(changes.light([("M", path)]), path)
 
     def test_deleting_or_renaming_markdown_is_full(self):
