@@ -52,6 +52,11 @@ A JSON array, one object per calibre:
 | `issues` | Optional. A list of `text` and `source`: faults a service document, maker bulletin or named watchmaker's write-up reports; no "common" or "often" unless the source says so |
 | `related` | Optional. A list of `calibre` (an exact row name), `relation` ("clone of", "based on", "successor of" or "same base as", read as "this row … that calibre") and `source`. Stored on the row described; the app shows the inverse on the other row. Never carries figures across |
 | `assets` | Optional. A list of `path` and `kind`: makers' files kept in peterhudson/timegrapher-calibres, linked from the app, never bundled. `kind` is "spec sheet", "drawing", "manual", "photo (dial side)", "photo (balance side)" or "photo" |
+| `jewels` | Optional. `value` and `source`: the jewel count a source states |
+| `diameter` | Optional. `mm` (a string as written, "25.60"), `lignes` (as written, without ‴, e.g. "11½") and `source`: either or both as the source states them. Neither is worked out from the other |
+| `height_mm` | Optional. `value` (a string as the source writes it, "4.60", at most 0.01 mm) and `source` |
+| `power_reserve_h` | Optional. Figures are strings as written ("38.5", at most one decimal): `value` (with `approx: true` only where the source says "about") or `from` and `to` for a range, and `source` |
+| `functions` | Optional. `value` and `source`: functions the source states, from the fixed list in `calibre_specs.rs` ("hand winding", "automatic winding", "hacking", "date", "quickset date", "day", "GMT hand", "chronograph", "power reserve indicator", "moon phase"). One not listed is unknown. The seconds hand's place stays in `seconds` |
 | `escapement` | Optional, and absent for a Swiss lever. `kind` ("co-axial", "pin lever" or "detent") and `source`. A flagged calibre can still be picked; the app says Timegrapher doesn't measure that escapement yet |
 
 ## Makers' other names

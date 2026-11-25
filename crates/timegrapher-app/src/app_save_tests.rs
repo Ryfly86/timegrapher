@@ -1075,3 +1075,100 @@ fn save_again_after_move_watches_saves_where_the_take_went() {
     app.session.discard_recording();
     std::fs::remove_dir_all(base).unwrap();
 }
+
+/// An app listening into the watch "Pepsi" of a new library, its sound
+/// not yet saved, whose first save is refused: the recording's folder
+/// holds a file of the session file's name, which a save never
+/// overwrites. Returns the app, the scratch folder, the watch's takes, and
+/// the local minute the take started, which names its folder.
+fn refused_first_save(tag: &str) -> (TimegrapherApp, PathBuf, PathBuf, String) {
+    let base = std::env::temp_dir().join(format!("tg-app-claim-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let root = base.join("Timegrapher Data");
+    let mut lib = library::Library::create(&root).unwrap();
+    let takes = lib
+        .add(&library::Watch::new("Pepsi"))
+        .unwrap()
+        .join(library::TAKES);
+    let pepsi = lib.find("Pepsi").unwrap().watch.id.clone();
+    drop(lib);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.use_library(Some(root));
+    app.pick_watch(&pepsi);
+    app.session.listen();
+    let info = app.info("", 48000, 16);
+    let mut r = Recorder::start(&base.join("unsaved"), info).unwrap();
+    r.write(&timegrapher_core::capture::Block {
+        samples: vec![0.0; 48000 * 6],
+        at: std::time::SystemTime::now(),
+    })
+    .unwrap();
+    let minute = watches::local_minute(r.started_utc()).unwrap();
+    std::fs::write(r.dir().join(MANIFEST), "").unwrap();
+    app.session.recorder = Some(r);
+    (app, base, takes, minute)
+}
+
+/// Let the refused save of [`refused_first_save`] go ahead.
+fn allow_save(app: &mut TimegrapherApp) {
+    let r = app.session.recorder.as_ref().unwrap();
+    std::fs::remove_file(r.dir().join(MANIFEST)).unwrap();
+    app.message = None;
+}
+
+/// A take saved into a watch has its folder made as it is named: while
+/// its first save hasn't written (here it is refused), another take
+/// started in that minute is given the next name, and the save tried
+/// again writes into the folder it was given (#1988 N3, Trevor on #2268).
+#[test]
+fn a_take_saved_into_a_watch_holds_its_folder_before_its_first_save() {
+    let (mut app, base, takes, minute) = refused_first_save("watch");
+    app.save_again();
+    assert!(app.bench.keeping.saving.is_none(), "refused");
+    assert!(app.message.as_ref().is_some_and(|(_, bad)| *bad));
+    let held = takes.join(&minute);
+    assert!(held.is_dir(), "made as it was named");
+    let other = library::make_unused_dir(&takes, &minute).unwrap();
+    assert_eq!(other, takes.join(format!("{minute} 2")));
+    allow_save(&mut app);
+    app.save_again();
+    app.wait_for_save();
+    assert_eq!(app.session.saved_to(), Some(held.as_path()));
+    assert!(held.join(MANIFEST).is_file());
+    assert_eq!(std::fs::read_dir(&other).unwrap().count(), 0);
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// The same for a Power Reserve Test's take, saved as the test ends: its
+/// folder is made as it is named, before its save writes (Trevor on
+/// #2268).
+#[test]
+fn a_power_reserve_take_holds_its_folder_before_its_first_save() {
+    let (mut app, base, takes, minute) = refused_first_save("reserve");
+    let started = app
+        .session
+        .recorder
+        .as_ref()
+        .unwrap()
+        .started_utc()
+        .to_string();
+    app.bench.test.reserve = Some(reserve::Test::new(
+        app.bench.take.position,
+        true,
+        started,
+        0.0,
+    ));
+    app.save_reserve();
+    assert!(app.bench.keeping.saving.is_none(), "refused");
+    let name = library::power_reserve_take_name(&minute);
+    let held = takes.join(&name);
+    assert!(held.is_dir(), "made as it was named");
+    let other = library::make_unused_dir(&takes, &name).unwrap();
+    assert_eq!(other, takes.join(format!("{name} 2")));
+    allow_save(&mut app);
+    app.save_reserve();
+    app.wait_for_save();
+    assert_eq!(app.session.saved_to(), Some(held.as_path()));
+    assert_eq!(std::fs::read_dir(&other).unwrap().count(), 0);
+    let _ = std::fs::remove_dir_all(&base);
+}

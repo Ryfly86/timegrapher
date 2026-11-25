@@ -17,6 +17,7 @@ use std::path::PathBuf;
 use timegrapher_core::be_angle;
 use timegrapher_core::beats::Beat;
 use timegrapher_core::confidence::Figure;
+use timegrapher_core::csv;
 use timegrapher_core::figure_text::{base_digits, figure, fixed_text, true_minus};
 use timegrapher_core::library::length_text;
 use timegrapher_core::power_reserve::{self, Ending, Heard, Results};
@@ -1146,19 +1147,13 @@ pub fn csv_dialog(dir: &std::path::Path) -> rfd::FileDialog {
 }
 
 /// The run as text with `sep` between columns, for Copy and a CSV file:
-/// the run, then the hours.
+/// the run, then the hours. Each field is quoted by core [`csv::field`].
 pub fn results_text(r: &Results, watch: &str, sep: char) -> String {
     let mut out = String::new();
     let line = |cells: &[String]| {
         cells
             .iter()
-            .map(|c| {
-                if sep == ',' && c.contains(',') {
-                    format!("\"{c}\"")
-                } else {
-                    c.clone()
-                }
-            })
+            .map(|c| csv::field(c, sep))
             .collect::<Vec<_>>()
             .join(&sep.to_string())
             + "\n"
@@ -1319,6 +1314,18 @@ mod tests {
             part.span_s = span;
             assert_eq!(hour_label(&part), label);
         }
+    }
+
+    #[test]
+    fn a_watch_name_with_a_quote_or_a_tab_keeps_its_column() {
+        // The table's fields are quoted by core `csv::field`, as the
+        // Positions Test's are: a quote is doubled, and a tab is quoted
+        // where tabs split the columns (the clipboard).
+        let r = finished_run(1).results.unwrap();
+        let csv = results_text(&r, "Dad's \"Pepsi\"", ',');
+        assert!(csv.starts_with("Watch,\"Dad's \"\"Pepsi\"\"\"\n"), "{csv}");
+        let tsv = results_text(&r, "Pepsi\t1972", '\t');
+        assert!(tsv.starts_with("Watch\t\"Pepsi\t1972\"\n"), "{tsv}");
     }
 
     /// The run line's hover says only what is true of the take now: kept

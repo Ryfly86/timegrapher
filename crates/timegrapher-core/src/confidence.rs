@@ -630,7 +630,7 @@ impl Noise {
             return None;
         }
         Some(Noise {
-            s: crate::dsp::robust_sd(&d) / std::f64::consts::SQRT_2,
+            s: crate::dsp::robust_sd_from_steps(&d),
             rho: corrected_lag_one_levels(levels),
         })
     }

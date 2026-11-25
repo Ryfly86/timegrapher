@@ -663,7 +663,8 @@ pub fn sound_files(paths: &[PathBuf]) -> Result<Vec<PathBuf>, String> {
 pub fn kept_at_lift(log: &BeatLog, lift_deg: f64) -> BeatLog {
     let mut log = log.clone();
     if lift_deg > 0.0 && log.lift_deg > 0.0 && lift_deg != log.lift_deg && log.bph > 0 {
-        let osc = 7200.0 / log.bph as f64;
+        // The balance's own period, as the windows were read (#2228).
+        let osc = 2.0 * crate::timing::own_beat_period_s(&log.beats, log.bph);
         crate::amplitude::relift(&mut log.amplitude_windows, osc, log.lift_deg, lift_deg);
         log.lift_deg = lift_deg;
     }

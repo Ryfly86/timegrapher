@@ -50,6 +50,9 @@ fn alternating_score(ac: &[f64], period: f64, fs: f64) -> f64 {
 
 /// How many beats on from a beat `dt_s` seconds after it, `beat_s` a beat:
 /// the nearest whole count, at least one. Peaks are numbered on by it.
+/// The count is provisional: across a hole, [`jumps_among_good`] and
+/// [`crate::breaks::renumber`] number the beats again from their timing,
+/// and that decides (#2229).
 pub fn beats_on(dt_s: f64, beat_s: f64) -> i64 {
     (dt_s / beat_s).round().max(1.0) as i64
 }
@@ -979,14 +982,12 @@ fn side_line(run: &[(i64, f64)]) -> Option<impl Fn(i64) -> f64> {
     if steps.is_empty() {
         return None;
     }
-    steps.sort_by(f64::total_cmp);
-    let step = steps[steps.len() / 2];
+    let step = crate::dsp::upper_median(&mut steps);
     let n0 = run[0].0;
     let mut off: Vec<f64> = (run.iter())
         .map(|&(n, t)| t - step * (n - n0) as f64)
         .collect();
-    off.sort_by(f64::total_cmp);
-    let t0 = off[off.len() / 2];
+    let t0 = crate::dsp::upper_median(&mut off);
     Some(move |n: i64| t0 + step * (n - n0) as f64)
 }
 
@@ -1729,10 +1730,7 @@ fn jumps_in(beats: &[Beat]) -> Vec<usize> {
     if after.iter().any(|v| v.len() < MIN_SIDE_BEATS) {
         return Vec::new();
     }
-    let med = |v: &mut Vec<f64>| {
-        v.sort_by(|a, b| a.total_cmp(b));
-        v[v.len() / 2]
-    };
+    let med = |v: &mut Vec<f64>| crate::dsp::upper_median(v);
     let step = [med(&mut after[0]), med(&mut after[1])];
     // Beats that scatter like noise (an empty stand) have no timing to
     // jump from: the median interval's spread must be under a quarter of a

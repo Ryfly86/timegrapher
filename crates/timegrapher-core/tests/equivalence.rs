@@ -951,6 +951,51 @@ fn a_calibre_then_auto_at_the_found_rate_keeps_every_reading() {
     assert!(compared >= 30, "{compared} moments with readings");
 }
 
+/// Read again as live reads what it has heard (#2261): at each ask,
+/// before the first chunk is whole, across its end and up to and past
+/// two chunks, a read resumed from the last read's state is a full read's
+/// log to the bit, every field. Runs where `TIMEGRAPHER_CORPUS` is set.
+#[test]
+fn a_resumed_read_of_real_sound_is_a_full_reads_to_the_bit() {
+    use timegrapher_core::stream::{analyze_samples, analyze_samples_resumed};
+    let Some(root) = std::env::var_os("TIMEGRAPHER_CORPUS").map(PathBuf::from) else {
+        assert!(
+            std::env::var_os("TIMEGRAPHER_REQUIRE_CORPUS").is_none(),
+            "TIMEGRAPHER_CORPUS is not set"
+        );
+        eprintln!("SKIP resumed reads: TIMEGRAPHER_CORPUS not set");
+        return;
+    };
+    let cfg = StreamConfig::default();
+    for take in ["ym42_DD_30min", "eta2824_holder_DU_30min"] {
+        let audio = cut(
+            load(&root.join("takes").join(take).join(REAL_FILE)).unwrap(),
+            100.0,
+        );
+        let fs = audio.sample_rate;
+        let mut from = None;
+        let mut resumed = 0;
+        for s in [30.0, 47.5, 48.0, 48.5, 70.0, 93.9, 94.0, 94.5, 100.0] {
+            let x = &audio.samples[..((s * fs as f64) as usize).min(audio.samples.len())];
+            let had = from.clone();
+            let (log, next) = analyze_samples_resumed(x, fs, &cfg, from.take());
+            resumed += usize::from(
+                had.as_ref()
+                    .zip(next.as_ref())
+                    .is_some_and(|(a, b)| std::sync::Arc::ptr_eq(a, b)),
+            );
+            let full = analyze_samples(x, fs, &cfg);
+            assert!(!full.beats.is_empty(), "{take} to {s} s");
+            assert!(
+                format!("{log:?}") == format!("{full:?}"),
+                "{take} to {s} s: the resumed log differs from a full read's"
+            );
+            from = next;
+        }
+        assert_eq!(resumed, 6, "{take}: resumed at every ask past 48 s");
+    }
+}
+
 fn corpus_files() -> Vec<PathBuf> {
     corpus_takes(&REAL_TAKES)
 }

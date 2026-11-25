@@ -116,9 +116,7 @@ fn line(x: &[f32], fs: u32, f0: u32) -> Option<(f64, f64)> {
     let grid: Vec<f64> = (-m..=m).map(|i| i as f64 * step).collect();
     let p: Vec<f64> = grid.iter().map(|&d| power(d)).collect();
     let (i, &peak) = p.iter().enumerate().max_by(|a, b| a.1.total_cmp(b.1))?;
-    let mut sorted = p.clone();
-    sorted.sort_by(|a, b| a.total_cmp(b));
-    let floor = sorted[sorted.len() / 2];
+    let floor = crate::dsp::upper_median(&mut p.clone());
     if floor <= 0.0 || i == 0 || i + 1 == p.len() {
         return None;
     }

@@ -368,13 +368,14 @@ pub struct Hour {
 
 impl Hour {
     /// Its beat error as an angle ([`crate::be_angle`]), from its own
-    /// amplitude and beat error at its beat rate, as the table writes
-    /// them (no ±). None without an amplitude, a beat error or a rate.
+    /// amplitude and beat error at the balance's own period, from its
+    /// beat rate and rate, as the table writes them (no ±). None without
+    /// an amplitude, a beat error or a beat rate.
     pub fn be_angle(&self) -> Option<crate::be_angle::Angle> {
-        crate::be_angle::Angle::of(
+        crate::be_angle::Angle::at(
             (self.amplitude_deg?, None),
             (self.beat_error_ms?, None),
-            self.bph?,
+            crate::be_angle::beat_period_of(self.bph, self.rate_s_per_day)?,
         )
     }
 

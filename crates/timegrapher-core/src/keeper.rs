@@ -255,7 +255,8 @@ impl SecondReading {
         if local.is_empty() {
             return None;
         }
-        let beat_s = 3600.0 / bph.max(1) as f64;
+        // The balance's own period, as live reads its profiles (#2228).
+        let beat_s = crate::timing::own_beat_period_s(&local, bph.max(1));
         let env = envelope(x, fs, &cfg.analysis.envelope);
         let amp = &cfg.analysis.amplitude;
         let sides = profile::profiles(
