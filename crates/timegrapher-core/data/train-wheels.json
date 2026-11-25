@@ -3845,7 +3845,6 @@
       "docs/research/ap3120-clone-train-wheel-counts.md — this project's six AP3120 clone microscope photographs, 21600 bph, hand periods and physically checked pinionless intermediate wheel, 2026-10-21",
       "https://forum.replica-watch.info/threads/aps-15400-super-clone-3120mvt.10248933/page-10 ('This movement is 21600bph')",
       "https://forum.replica-watch.info/threads/zf-new-release-15400-with-cal-3120.10367719/page-2 ('21600 vph')",
-      "https://clonology.is/product/audemars-piguet-royal-oak-ref15710st-oo-a027ca-01-off-shore-diver-swiss-3120-clone-movement-replica/ (21,600)",
       "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)"
     ],
     "confidence": "derived from tooth counts",
@@ -3883,11 +3882,10 @@
     ],
     "sources": [
       "https://forum.replica-watch.info/threads/apsf-and-zf-royal-oak-15500-w-4302-clone-caliber.10917856/page-16 (a ZF V3 timegrapher reading at 28,800, lift 52°)",
-      "https://clonology.is/product/clone-ap-royal-oak-ref-15500-blue-dial-swiss-movement/ (28,800 BPH, 70 h)",
       "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "An all-in-one clone of the 4302 at 28,800 bph, about 65 to 70 h. Earlier versions used a Miyota 9015 instead."
+    "notes": "An all-in-one clone of the 4302 at 28,800 bph. Earlier versions used a Miyota 9015 instead."
   },
   {
     "calibre": "SA4401",
@@ -3917,11 +3915,11 @@
       }
     ],
     "sources": [
-      "https://noobfactory.us/product/aps-factory-audemars-piguet-royal-oak-chronograph-26240-steel-41mm-purple-super-clone/ (28,800 vph, 70 h)",
+      "https://github.com/peterhudson/timegrapher/issues/2304 (this project, 2026-11-25: SA4401 is one of Shanghai Jinghe's clone calibres, a clone of the 4401)",
       "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "An integrated flyback chronograph clone of the 4401; that it is one, and its beat rate, rest only on one dealer's page. Lift angle as the 4401, probably 50 to 52°, not settled; that range rests only on one author's forum guide to lift angles."
+    "notes": "An integrated flyback chronograph clone of the 4401 (#2304). Its 28,800 bph is the genuine 4401's beat rate and is not confirmed on the clone. Lift angle as the 4401, probably 50 to 52°, not settled; that range rests only on one author's forum guide to lift angles."
   },
   {
     "calibre": "Seiko NH35A",
