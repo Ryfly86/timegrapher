@@ -297,6 +297,19 @@ mod tests {
         assert!(NO_INPUT_HINT.contains("list_sound_inputs"));
     }
 
+    /// Core `capture::find`'s two errors, as the command line prints
+    /// them, each carry the hint: no default input, and a name no input
+    /// matches (#2103).
+    #[test]
+    fn core_capture_find_errors_carry_the_hint() {
+        for said in [
+            "error: no default sound input; name one (see the list of devices)",
+            "error: no sound input matches 'Scarlett'",
+        ] {
+            assert_eq!(failure_text(said), format!("{said}\n{NO_INPUT_HINT}"));
+        }
+    }
+
     /// Any other failure keeps its error lines, a message over several
     /// lines whole, without the hint; a crash with no `error:` line keeps
     /// all it said.
