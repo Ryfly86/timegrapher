@@ -91,9 +91,11 @@ pub(crate) fn new_take_names() -> Vec<(&'static str, &'static str, &'static str)
 impl TimegrapherApp {
     /// The test whose take Keep This … Test? asks about, while it asks.
     fn test_to_keep(&self) -> Option<NewTake> {
-        match self.test_keep? {
+        match self.bench.test.test_keep? {
             TestKeep::Positions => Some(
-                self.guided
+                self.bench
+                    .test
+                    .guided
                     .as_ref()
                     .map_or(NewTake::Positions, |t| NewTake::of(t.kind)),
             ),
@@ -108,7 +110,7 @@ impl TimegrapherApp {
         // as the Calibre card's title says (No Watch (Quick Listen)).
         let file = self.take_name();
         let named = self.named_watch().map_or_else(String::new, |w| w.0);
-        let quick = self.quick_listen || file.is_none() && named.is_empty();
+        let quick = self.bench.recording.quick_listen || file.is_none() && named.is_empty();
         let name =
             file.unwrap_or_else(|| if quick { "Quick Listen" } else { "New Take" }.to_string());
         let watch = if !named.is_empty() {
@@ -127,7 +129,13 @@ impl TimegrapherApp {
             // Ended, and Keep This … Test? asked: still that test's take
             // (#2003), never Quick Listen's, which is never asked about.
             Some((kind, self.state_words().to_string()))
-        } else if let Some(t) = self.guided.as_ref().filter(|_| self.test_listening()) {
+        } else if let Some(t) = self
+            .bench
+            .test
+            .guided
+            .as_ref()
+            .filter(|_| self.test_listening())
+        {
             let of = t.order().len();
             let step = (t.step + 1).min(of);
             Some((

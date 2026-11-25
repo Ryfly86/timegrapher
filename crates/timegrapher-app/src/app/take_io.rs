@@ -18,7 +18,7 @@ impl TimegrapherApp {
     /// file gives them (`stretches`, `settles`), or as they were for one
     /// read again at a new beat rate.
     fn inputs_for(&self, stretches: &[(f64, Position)], settles: &[(f64, f64)]) -> OpenInputs {
-        match &self.carried_positions {
+        match &self.bench.take.carried_positions {
             Some((now, _)) => self.open_inputs(&now.0 .0, &now.0 .1),
             None => self.open_inputs(stretches, settles),
         }
@@ -32,11 +32,11 @@ impl TimegrapherApp {
         settles: &[(f64, f64)],
     ) -> OpenInputs {
         OpenInputs {
-            bph: self.bph,
-            lift_deg: self.lift_deg,
+            bph: self.bench.take.bph,
+            lift_deg: self.bench.take.lift_deg,
             lift_known: self.lift_known(),
-            average_s: self.average_s,
-            masked: self.masked.clone(),
+            average_s: self.bench.take.average_s,
+            masked: self.bench.take.masked.clone(),
             changes: stretches.iter().map(|s| s.0).collect(),
             settles: settles.to_vec(),
         }
@@ -46,36 +46,36 @@ impl TimegrapherApp {
     /// so it describes the same beats as the readings, up to the engine's
     /// limit.
     pub(super) fn sound_span(&self) -> f64 {
-        profile_span_s(self.average_s)
+        profile_span_s(self.bench.take.average_s)
     }
 
     /// A new averaging time, for the readings and every pane: the readings
     /// over the whole session are worked out again (while listening, in the
     /// background), and the tick and tock sound follows it.
     pub(super) fn set_average(&mut self, seconds: f64) {
-        self.average_s = seconds;
+        self.bench.take.average_s = seconds;
         let span = self.sound_span();
-        if let Some(l) = self.live.as_mut() {
+        if let Some(l) = self.bench.recording.live.as_mut() {
             l.set_profile_span(span);
         }
         // The sound kept so far covered the old span.
-        self.sound_at = None;
+        self.bench.results.sound_at = None;
         self.refresh_trend();
     }
 
     /// Clear every run of readings, for a new session or a change that
     /// makes them all out of date; new readings fill them again.
     pub(super) fn clear_trends(&mut self) {
-        self.strip_points = None;
-        self.trend.clear();
+        self.bench.results.strip_points = None;
+        self.bench.results.trend.clear();
     }
 
     pub(super) fn info(&self, device: &str, sample_rate: u32, bits: u16) -> SessionInfo {
         SessionInfo {
-            watch: self.watch.clone(),
-            position: self.position.code().into(),
-            lift_deg: self.lift_deg,
-            bph: self.bph,
+            watch: self.bench.take.watch.clone(),
+            position: self.bench.take.position.code().into(),
+            lift_deg: self.bench.take.lift_deg,
+            bph: self.bench.take.bph,
             device: device.into(),
             sample_rate,
             bits,
@@ -90,51 +90,46 @@ impl TimegrapherApp {
         self.session.discard_recording();
         self.session.clear();
         self.put_input_clock(None);
-        self.live = Some(LiveAnalyzer::new(sample_rate, self.live_config()).with_figures_as_file());
-        self.live_usb = Some(live_usb::LiveUsb::new(sample_rate));
-        self.source_label = label;
-        self.panes_view.gutter_fresh = true;
-        self.anchor = None;
+        self.bench.recording.live =
+            Some(LiveAnalyzer::new(sample_rate, self.live_config()).with_figures_as_file());
+        self.bench.recording.live_usb = Some(live_usb::LiveUsb::new(sample_rate));
+        self.bench.recording.source_label = label;
+        self.bench.panes_view.gutter_fresh = true;
+        self.bench.recording.anchor = None;
         self.clear_trends();
-        self.panes_view.strip_end = None;
-        self.meter.level = Level::default();
-        self.meter.clipped_at = None;
+        self.bench.panes_view.strip_end = None;
+        self.bench.recording.meter.level = Level::default();
+        self.bench.recording.meter.clipped_at = None;
         self.message = None;
-        self.sound_history.clear();
-        self.no_sound = None;
-        self.analysis_kept_to = None;
-        self.guided = None;
-        self.test.reserve = None;
-        self.bg.reserve_live = None;
-        self.bg.reserve_live_s = 0.0;
-        self.guided_unused.clear();
-        self.guided_measured.clear();
+        self.let_sound_and_test_go();
+        self.bench.test.guided_unused.clear();
+        self.bench.test.guided_measured.clear();
         // Its masks, once nothing of the last test's is left.
         self.mask_engine();
-        self.rev.new_take();
+        self.bench.take.rev.new_take();
     }
 
-    /// List the inputs, once, and keep the chosen one if it is still there,
-    /// else take the first.
-    pub(super) fn ensure_devices(&mut self) {
-        if !self.devices_listed {
-            self.rescan();
-        }
+    /// The sound heard and kept, and the guided test, let go: for a new
+    /// session or a take read afresh.
+    fn let_sound_and_test_go(&mut self) {
+        self.bench.results.sound_history.clear();
+        self.bench.keeping.no_sound = None;
+        self.bench.keeping.analysis_kept_to = None;
+        self.bench.test.guided = None;
+        self.bench.test.reserve = None;
+        self.bench.results.bg.reserve_live = None;
+        self.bench.results.bg.reserve_live_s = 0.0;
     }
 
-    /// List the inputs again, after one is plugged in.
-    pub(super) fn rescan(&mut self) {
-        self.devices = capture::list().unwrap_or_default();
-        self.devices_listed = true;
-        let there = self
-            .device
-            .as_ref()
-            .is_some_and(|d| self.devices.iter().any(|x| &x.id == d));
-        if !there {
-            self.device = capture::choices(&self.devices)
-                .first()
-                .map(|c| c.id.clone());
-        }
+    /// A take about to be read from its file: analysing, with nothing of
+    /// the live engine before it.
+    fn read_afresh(&mut self) {
+        self.session.analyse();
+        (self.bench.recording.live, self.bench.recording.live_usb) = (None, None);
+        // Nothing of the take before's clock carries over, whichever
+        // way this one is kept; a take that fails to open leaves it.
+        self.put_take_clock(None, None);
+        self.put_take_breaks(None, None);
     }
 
     /// Listen, the masks on the recording on show saved or let go: and
@@ -142,18 +137,18 @@ impl TimegrapherApp {
     /// until listening starts, so a microphone that fails to open leaves
     /// them to save.
     pub(super) fn listen_after_ask(&mut self) {
-        self.masks_let_go = true;
-        match self.guided_after_ask.take() {
+        self.bench.take.masks_let_go = true;
+        match self.bench.test.guided_after_ask.take() {
             Some((kind, half)) => self.start_guided_test(kind, half),
             None => self.start_microphone(),
         }
-        self.masks_let_go = false;
+        self.bench.take.masks_let_go = false;
     }
 
     /// Listen to the microphone: carry on the paused session if there is
     /// one, else start a new one.
     pub(super) fn start_microphone(&mut self) {
-        let let_go = std::mem::take(&mut self.masks_let_go);
+        let let_go = std::mem::take(&mut self.bench.take.masks_let_go);
         if self.refuse_faulted_recording() || self.analysis_save_busy() {
             return;
         }
@@ -181,10 +176,10 @@ impl TimegrapherApp {
         };
         self.ensure_devices();
         self.stop();
-        if let Some(s) = self.mic_setup.take() {
+        if let Some(s) = self.bench.take.mic_setup.take() {
             self.set_watch_setup(s);
         }
-        match capture::open_input(self.device.as_deref(), None) {
+        match capture::open_input(self.bench.recording.device.as_deref(), None) {
             Ok(c) => {
                 let label = self.device_label(&c);
                 applog::info(&format!(
@@ -193,22 +188,22 @@ impl TimegrapherApp {
                 ));
                 // A new take: nothing of it masked yet.
                 self.put_masked(Vec::new());
-                self.opened_masks = None;
-                self.opened_positions = None;
+                self.bench.take.opened_masks = None;
+                self.bench.take.opened_positions = None;
                 self.put_take_clock(None, None);
                 self.put_take_breaks(None, None);
-                self.masking = false;
-                self.brush = None;
+                self.bench.take.masking = false;
+                self.bench.take.brush = None;
                 self.reset_session(
                     c.sample_rate,
                     format!("{label} at {} Hz, {}-bit", c.sample_rate, c.bits),
                 );
-                self.opened_at = Instant::now();
-                self.audio_at = None;
-                self.gaps = None;
+                self.bench.recording.opened_at = Instant::now();
+                self.bench.recording.audio_at = None;
+                self.bench.recording.gaps = None;
                 self.session.listen();
                 self.put_input_clock(clocks.get(&c.label).cloned());
-                self.clock_track = Some(ClockTrack {
+                self.bench.recording.clock_track = Some(ClockTrack {
                     device: c.label.clone(),
                     shown: label.clone(),
                     tracker: timegrapher_core::clock::ClockTracker::new(c.sample_rate),
@@ -227,29 +222,25 @@ impl TimegrapherApp {
                         "Can't keep the sound for saving later: {e}. The readings still work."
                     )),
                 }
-                self.input_fault = None;
-                self.capture = Some(c);
+                self.bench.recording.input_fault = None;
+                self.bench.recording.capture = Some(c);
                 self.apply_agc();
             }
-            Err(e) => {
-                let m = format!("Can't open the input. {}", capture::explain_error(&e));
-                self.input_fault = Some(m.clone());
-                self.error(m);
-            }
+            Err(e) => self.input_failed(&e),
         }
     }
 
     fn device_label(&self, c: &Capture) -> String {
-        capture::choices(&self.devices)
+        capture::choices(&self.bench.recording.devices)
             .into_iter()
-            .find(|ch| Some(&ch.id) == self.device.as_ref())
+            .find(|ch| Some(&ch.id) == self.bench.recording.device.as_ref())
             .map_or_else(|| c.label.clone(), |ch| ch.label)
     }
 
     /// A microphone session that is paused and can carry on.
     pub(super) fn can_resume(&self) -> bool {
         self.session.allows(Action::Resume)
-            && self.live.is_some()
+            && self.bench.recording.live.is_some()
             && !self.running()
             && self.saved_hours_reachable()
     }
@@ -258,7 +249,7 @@ impl TimegrapherApp {
     /// wait: an input whose sound server died can hang as it closes, and
     /// the window must not hang with it.
     fn release_capture(&mut self) {
-        if let Some(c) = self.capture.take() {
+        if let Some(c) = self.bench.recording.capture.take() {
             if !drop_within(c, RELEASE_WAIT) {
                 applog::warn("the input didn't close in time; carrying on without it");
             }
@@ -273,7 +264,7 @@ impl TimegrapherApp {
         let mut lives = Vec::new();
         let mut failure = None;
         // Taken faster than a live input sends, so this ends.
-        while let Some(cap) = self.capture.as_ref().filter(|c| !c.is_file) {
+        while let Some(cap) = self.bench.recording.capture.as_ref().filter(|c| !c.is_file) {
             let event = match cap.rx.try_recv() {
                 Err(TryRecvError::Empty) => break,
                 event => event,
@@ -292,7 +283,7 @@ impl TimegrapherApp {
 
     /// Stop listening for now, keeping everything.
     pub(super) fn pause(&mut self) {
-        if self.capture.is_none() {
+        if self.bench.recording.capture.is_none() {
             return;
         }
         // The sound the input sent, and what core's gap rule holds, is the take's (#873).
@@ -306,10 +297,19 @@ impl TimegrapherApp {
             return self.recording_failed(e);
         }
         self.release_capture();
-        self.live.iter_mut().for_each(|l| l.settle());
+        self.bench
+            .recording
+            .live
+            .iter_mut()
+            .for_each(|l| l.settle());
         if self.session.mic() {
             applog::info("microphone stopped and released");
-            let now = self.live.as_ref().map_or(0.0, |l| l.duration_s());
+            let now = self
+                .bench
+                .recording
+                .live
+                .as_ref()
+                .map_or(0.0, |l| l.duration_s());
             if let Ok(Err(e)) = self.session.pause(now) {
                 return self
                     .recording_failed(format!("Couldn't close the kept sound at the pause: {e}"));
@@ -320,7 +320,7 @@ impl TimegrapherApp {
         // An input that failed just before the pause says so, as listening
         // would have.
         if let Some(CaptureFailure::Input(error)) = failure {
-            self.input_fault = Some(error.clone());
+            self.bench.recording.input_fault = Some(error.clone());
             self.error(error);
         }
     }
@@ -331,19 +331,19 @@ impl TimegrapherApp {
     pub(super) fn stop_listening(&mut self) {
         // Stop during a Power Reserve Test ends the test, which keeps its take.
         if self.reserve_running() {
-            if let Some(t) = self.test.reserve.as_mut() {
+            if let Some(t) = self.bench.test.reserve.as_mut() {
                 t.stop();
             }
             return self.end_reserve();
         }
         self.pause();
         // A Positions Test with no watch picked: asked where it goes.
-        if self.positions_take
+        if self.bench.test.positions_take
             && self.open_watch().is_none()
             && self.session.saved_to().is_none()
             && self.session.allows(Action::Save)
         {
-            self.test_keep = Some(TestKeep::Positions);
+            self.bench.test.test_keep = Some(TestKeep::Positions);
             return;
         }
         // Never a folder dialog at a Stop: only where Save… needs none.
@@ -367,7 +367,7 @@ impl TimegrapherApp {
     /// as it comes ([`TimegrapherApp::stream_tick`]): a Quick Listen take
     /// once saved, or a watch's own take.
     pub(super) fn kept_take(&self) -> bool {
-        let into_watch = if self.quick_listen {
+        let into_watch = if self.bench.recording.quick_listen {
             self.session.saved_to().is_some()
         } else {
             self.open_watch().is_some()
@@ -393,9 +393,8 @@ impl TimegrapherApp {
     /// A save the user asked for being written: one of a take recording
     /// into its folder as it goes doesn't count, as it is waited for.
     pub(super) fn saving_asked(&self) -> bool {
-        self.saving
-            .as_ref()
-            .is_some_and(|s| s.streamed == Streamed::No)
+        let saving = &self.bench.keeping.saving;
+        saving.as_ref().is_some_and(|s| s.streamed == Streamed::No)
     }
 
     /// Where a take recording into its folder is kept, as the Save icon
@@ -424,8 +423,8 @@ impl TimegrapherApp {
         if self.refuse_faulted_recording() || self.analysis_save_busy() {
             return;
         }
-        let rate = self.live.as_ref().map(|l| l.sample_rate());
-        match capture::open_input(self.device.as_deref(), rate) {
+        let rate = self.bench.recording.live.as_ref().map(|l| l.sample_rate());
+        match capture::open_input(self.bench.recording.device.as_deref(), rate) {
             Ok(c) => {
                 let shown = self.device_label(&c);
                 if let Some(why) = self.resume_refusal(&c.label, &shown, c.sample_rate) {
@@ -435,27 +434,23 @@ impl TimegrapherApp {
                     Ok(p) => p,
                     Err(e) => return self.error(e.to_string()),
                 };
-                if let Some(l) = self.live.as_mut() {
+                if let Some(l) = self.bench.recording.live.as_mut() {
                     l.skip(paused);
                     self.session.resumed_at(l.duration_s());
                 }
                 // A settling begun at Resume is left out, too.
                 self.mask_engine();
-                self.opened_at = Instant::now();
-                self.audio_at = None;
-                self.gaps = None;
-                self.panes_view.strip_end = None;
+                self.bench.recording.opened_at = Instant::now();
+                self.bench.recording.audio_at = None;
+                self.bench.recording.gaps = None;
+                self.bench.panes_view.strip_end = None;
                 self.message = None;
                 applog::info(&format!("microphone resumed at {} Hz", c.sample_rate));
-                self.input_fault = None;
-                self.capture = Some(c);
+                self.bench.recording.input_fault = None;
+                self.bench.recording.capture = Some(c);
                 self.apply_agc();
             }
-            Err(e) => {
-                let m = format!("Can't open the input. {}", capture::explain_error(&e));
-                self.input_fault = Some(m.clone());
-                self.error(m);
-            }
+            Err(e) => self.input_failed(&e),
         }
     }
 
@@ -469,7 +464,7 @@ impl TimegrapherApp {
         shown: &str,
         sample_rate: u32,
     ) -> Option<String> {
-        let rate = self.live.as_ref().map(|l| l.sample_rate());
+        let rate = self.bench.recording.live.as_ref().map(|l| l.sample_rate());
         if Some(sample_rate) != rate {
             return Some(format!(
                 "The microphone opened at {sample_rate} Hz this time, not the {} Hz this session \
@@ -477,7 +472,7 @@ impl TimegrapherApp {
                 rate.unwrap_or_default()
             ));
         }
-        let track = self.clock_track.as_ref()?;
+        let track = self.bench.recording.clock_track.as_ref()?;
         let first = &track.shown;
         (track.device != label).then(|| {
             format!(
@@ -506,42 +501,36 @@ impl TimegrapherApp {
         self.take_thrown_away();
         self.session.discard_recording();
         self.session.clear();
-        self.live = None;
+        self.bench.recording.live = None;
         self.restore_live_strip();
         self.put_masked(Vec::new());
-        self.opened_masks = None;
-        self.opened_positions = None;
+        self.bench.take.opened_masks = None;
+        self.bench.take.opened_positions = None;
         self.put_take_clock(None, None);
         self.put_take_breaks(None, None);
-        self.masking = false;
-        self.brush = None;
+        self.bench.take.masking = false;
+        self.bench.take.brush = None;
         self.clear_trends();
-        self.sound_history.clear();
-        self.no_sound = None;
-        self.analysis_kept_to = None;
-        self.guided = None;
-        self.test.reserve = None;
-        self.bg.reserve_live = None;
-        self.bg.reserve_live_s = 0.0;
-        self.positions_take = false;
-        self.guided_saved = None;
-        self.test.complication_saved = None;
-        self.test_keep = None;
-        self.guided_unused.clear();
-        self.guided_measured.clear();
+        self.let_sound_and_test_go();
+        self.bench.test.positions_take = false;
+        self.bench.test.guided_saved = None;
+        self.bench.test.complication_saved = None;
+        self.bench.test.test_keep = None;
+        self.bench.test.guided_unused.clear();
+        self.bench.test.guided_measured.clear();
         self.mask_engine();
-        self.source_label.clear();
+        self.bench.recording.source_label.clear();
         // The recording opened goes too: what follows is a new take.
-        if self.input == Input::File {
-            self.input = Input::Microphone;
-            self.opened_path.clear();
-            if let Some(s) = self.mic_setup.take() {
+        if self.bench.recording.input == Input::File {
+            self.bench.recording.input = Input::Microphone;
+            self.bench.keeping.opened_path.clear();
+            if let Some(s) = self.bench.take.mic_setup.take() {
                 self.set_watch_setup(s);
             }
         }
         if listening && close_error.is_none() {
             self.start_microphone();
-        } else if !self.quick_listen {
+        } else if !self.bench.recording.quick_listen {
             // The next take is of the watch picked.
             if let Some(w) = self.open_watch().map(|e| e.watch.clone()) {
                 self.apply_watch(&w);
@@ -560,35 +549,33 @@ impl TimegrapherApp {
     /// Memory-only saved-edit inputs. Continuing audio must not make a short
     /// tail look like a settings edit by extending a clipped position range.
     pub(super) fn save_metadata(&self) -> session::Metadata {
-        let guided_ranges = self
-            .guided
-            .as_ref()
-            .map_or_else(Vec::new, |t| t.stretches().to_vec());
+        let guided = self.bench.test.guided.as_ref();
+        let guided_ranges = guided.map_or_else(Vec::new, |t| t.stretches().to_vec());
         let guided_wind_h = (!guided_ranges.is_empty())
-            .then(|| self.guided.as_ref().and_then(|t| t.wind_h()))
+            .then(|| guided.and_then(|t| t.wind_h()))
             .flatten();
         let mut about = self.guided_about();
         // Auto detection may evolve with sound. Track the selected setting,
         // while save_into still writes the effective BPH as before.
-        about.bph = self.bph;
+        about.bph = self.bench.take.bph;
         session::Metadata {
             // session.json retains the raw name; manifest/results trim theirs.
-            watch: self.watch.clone(),
-            calibre: self.calibre.clone(),
-            position: self.position.code().into(),
-            bph: self.bph,
-            lift_deg: self.lift_deg,
+            watch: self.bench.take.watch.clone(),
+            calibre: self.bench.take.calibre.clone(),
+            position: self.bench.take.position.code().into(),
+            bph: self.bench.take.bph,
+            lift_deg: self.bench.take.lift_deg,
             lift_known: self.lift_known(),
             wheels: self
                 .cal
-                .custom_wheels(&self.calibre)
+                .custom_wheels(&self.bench.take.calibre)
                 .unwrap_or_default()
                 .into_iter()
                 .collect(),
             guided_ranges,
             guided_wind_h,
-            full_wind: self.guided.as_ref().and_then(|t| t.kept(&about)),
-            masked: self.masked.clone(),
+            full_wind: guided.and_then(|t| t.kept(&about)),
+            masked: self.bench.take.masked.clone(),
         }
     }
 
@@ -607,7 +594,7 @@ impl TimegrapherApp {
     /// again, opening a recording or quitting lets it go. Save keeps it. A
     /// take of a watch, or picking one, asks.
     pub(super) fn quick_unsaved(&self) -> bool {
-        self.quick_listen && self.session.mic() && self.session.saved_to().is_none()
+        self.bench.recording.quick_listen && self.session.mic() && self.session.saved_to().is_none()
     }
 
     /// A recording opened from disk whose masked stretches or positions
@@ -619,11 +606,8 @@ impl TimegrapherApp {
     /// A recording opened from disk whose masked stretches have changed
     /// since it was opened or last saved to.
     fn masks_changed(&self) -> bool {
-        !self.session.mic()
-            && self
-                .opened_masks
-                .as_ref()
-                .is_some_and(|m| *m != self.masked)
+        let t = &self.bench.take;
+        !self.session.mic() && t.opened_masks.as_ref().is_some_and(|m| *m != t.masked)
     }
 
     /// A recording opened from disk whose positions have been painted
@@ -631,6 +615,8 @@ impl TimegrapherApp {
     fn positions_changed(&self) -> bool {
         !self.session.mic()
             && self
+                .bench
+                .take
                 .opened_positions
                 .as_ref()
                 .is_some_and(|p| *p != self.positions_now())
@@ -642,7 +628,7 @@ impl TimegrapherApp {
     /// recording; one with no times while the watch stayed put.
     fn opened_entries(&self) -> Entries {
         entries_of(
-            &self.session.position_spans(self.position),
+            &self.session.position_spans(self.bench.take.position),
             &self.session.settles(),
         )
     }
@@ -688,8 +674,14 @@ impl TimegrapherApp {
     /// recorded here with the same settings would have, which makes its
     /// folder a take; refused where the folder holds other recordings.
     pub(super) fn save_marks(&mut self) {
-        let path = PathBuf::from(&self.opened_path);
-        let masked: Vec<[f64; 2]> = self.masked.iter().map(|&(a, b)| [a, b]).collect();
+        let path = PathBuf::from(&self.bench.keeping.opened_path);
+        let masked: Vec<[f64; 2]> = self
+            .bench
+            .take
+            .masked
+            .iter()
+            .map(|&(a, b)| [a, b])
+            .collect();
         let positions = self.positions_changed().then(|| self.opened_entries());
         let what = match (self.masks_changed(), positions.is_some()) {
             (true, true) => "the masked stretches and the positions",
@@ -705,8 +697,8 @@ impl TimegrapherApp {
         };
         match saved {
             Ok(file) => {
-                self.opened_masks = Some(self.masked.clone());
-                self.opened_positions = Some(self.positions_now());
+                self.bench.take.opened_masks = Some(self.bench.take.masked.clone());
+                self.bench.take.opened_positions = Some(self.positions_now());
                 self.info_msg(format!("Saved {what} to {}.", file.display()));
                 // A take in a watch: its row in the Watches view reads what
                 // was saved.
@@ -796,7 +788,7 @@ impl TimegrapherApp {
                 self.save_into_as(&parent, streamed);
                 // Into a take in a watch, its row then reads what was saved
                 // (a take recording into its folder: at the end).
-                if let Some(s) = &mut self.saving {
+                if let Some(s) = &mut self.bench.keeping.saving {
                     s.rescan = streamed == Streamed::No;
                 }
             }
@@ -831,7 +823,7 @@ impl TimegrapherApp {
             r.name_first_copy(name.to_owned());
         }
         self.save_into_as(takes, streamed);
-        if let Some(s) = &mut self.saving {
+        if let Some(s) = &mut self.bench.keeping.saving {
             s.rescan = true;
         }
     }
@@ -900,15 +892,17 @@ impl TimegrapherApp {
         // With no new full-wind result (including a 24-hour half), preserve
         // the earlier result file for comparison, as Save Again always has.
         let begun = match streamed {
-            Streamed::No => r.begin_save(parent, &self.calibre, result.as_ref(), &files),
-            Streamed::Yes => r.begin_stream_save(parent, &self.calibre, result.as_ref(), &files),
+            Streamed::No => r.begin_save(parent, &self.bench.take.calibre, result.as_ref(), &files),
+            Streamed::Yes => {
+                r.begin_stream_save(parent, &self.bench.take.calibre, result.as_ref(), &files)
+            }
         };
         let pending = match begun {
             Ok(p) => p,
             Err(e) => return self.error(format!("Saving the recording failed: {e}")),
         };
         // A saved take's calibre is among the recent ones.
-        let c = self.calibre.clone();
+        let c = self.bench.take.calibre.clone();
         self.cal.remember(&c);
         let dest = pending.dest().to_path_buf();
         let spawned = std::thread::Builder::new()
@@ -916,7 +910,7 @@ impl TimegrapherApp {
             .spawn(move || pending.write());
         match spawned {
             Ok(thread) => {
-                self.saving = Some(Saving {
+                self.bench.keeping.saving = Some(Saving {
                     thread,
                     dest,
                     parent: parent.to_path_buf(),
@@ -936,7 +930,7 @@ impl TimegrapherApp {
     pub(super) fn results_files(&self) -> Result<Vec<(&'static str, Vec<u8>)>, String> {
         let about = self.guided_about();
         let mut files = Vec::new();
-        if let Some(k) = self.guided.as_ref().and_then(|t| t.kept(&about)) {
+        if let Some(k) = self.bench.test.guided.as_ref().and_then(|t| t.kept(&about)) {
             let text = serde_json::to_string_pretty(&k)
                 .map_err(|e| format!("Couldn't prepare {}: {e}", guided::RESULTS_FILE))?;
             files.push((guided::RESULTS_FILE, (text + "\n").into_bytes()));
@@ -944,11 +938,12 @@ impl TimegrapherApp {
         // A Dynamic Poise Test's take is marked as one, so its row names the
         // test and never one stop's figures (#2002).
         let poise = |t: &guided::Test| t.kind == guided::Kind::Poise && t.readings.is_some();
-        if self.guided.as_ref().is_some_and(poise) {
+        if self.bench.test.guided.as_ref().is_some_and(poise) {
             files.push((library::POISE_TEST_FILE, library::POISE_TEST_TEXT.into()));
         }
         // A long take's run read as one is never written into the take.
         if let Some(r) = self
+            .bench
             .test
             .reserve
             .as_ref()
@@ -965,20 +960,17 @@ impl TimegrapherApp {
     /// another or throw the sound it is copying away.
     pub(super) fn saving_busy(&mut self) -> bool {
         // Asks waiting on a save go first: this one never jumps them.
-        if !self.after_save.is_empty() {
+        if !self.bench.keeping.after_save.is_empty() {
             self.info_msg("Saving into its take: wait until it is written.".into());
             return true;
         }
         // A take recording into its folder: its few seconds are written
         // first, then what was asked for goes ahead.
-        if self
-            .saving
-            .as_ref()
-            .is_some_and(|s| s.streamed == Streamed::Yes)
-        {
+        let saving = &self.bench.keeping.saving;
+        if saving.as_ref().is_some_and(|s| s.streamed == Streamed::Yes) {
             self.wait_for_save();
         }
-        if self.saving.is_none() {
+        if self.bench.keeping.saving.is_none() {
             return false;
         }
         self.info_msg(
@@ -994,10 +986,10 @@ impl TimegrapherApp {
     /// in the order asked, and the window carries on meanwhile rather than
     /// waiting on the copy, or refusing (#1216).
     pub(super) fn behind_save(&mut self, then: impl FnOnce(&mut Self) + Send + 'static) -> bool {
-        if self.after_save.is_empty() && self.saving.is_none() {
+        if self.bench.keeping.after_save.is_empty() && self.bench.keeping.saving.is_none() {
             return false;
         }
-        self.after_save.push(Box::new(then));
+        self.bench.keeping.after_save.push(Box::new(then));
         self.info_msg("Saving into its take: this goes ahead once it is written.".into());
         true
     }
@@ -1005,12 +997,14 @@ impl TimegrapherApp {
     /// Whether the window closes now, once a Stop's save into the take
     /// and the asks waiting on it are all done.
     pub(super) fn closes_after_save(&self) -> bool {
-        self.close_after_save && self.saving.is_none() && self.after_save.is_empty()
+        let k = &self.bench.keeping;
+        k.close_after_save && k.saving.is_none() && k.after_save.is_empty()
     }
 
     /// The save being written, once it is done.
     pub(super) fn poll_saving(&mut self) {
-        if self.saving.as_ref().is_some_and(|s| s.thread.is_finished()) {
+        let saving = &self.bench.keeping.saving;
+        if saving.as_ref().is_some_and(|s| s.thread.is_finished()) {
             self.wait_for_save();
         }
     }
@@ -1018,7 +1012,7 @@ impl TimegrapherApp {
     /// Wait for the save being written, if there is one, and say how it
     /// went.
     pub(super) fn wait_for_save(&mut self) {
-        let Some(s) = self.saving.take() else {
+        let Some(s) = self.bench.keeping.saving.take() else {
             return;
         };
         match s.thread.join() {
@@ -1039,7 +1033,7 @@ impl TimegrapherApp {
                         copy.dir.display()
                     ));
                 }
-                self.save_dir = s.parent.display().to_string();
+                self.bench.keeping.save_dir = s.parent.display().to_string();
                 // A take saved with listening stopped is whole: the command
                 // the user set runs on it. A take saving into its folder as
                 // it goes isn't yet.
@@ -1075,11 +1069,11 @@ impl TimegrapherApp {
     /// in the order asked, once no save is. One that starts a save of its
     /// own (a Stop's) holds the rest until that is written too.
     pub(super) fn run_after_save(&mut self) {
-        while self.saving.is_none() && !self.after_save.is_empty() {
-            let mut rest = std::mem::take(&mut self.after_save);
+        while self.bench.keeping.saving.is_none() && !self.bench.keeping.after_save.is_empty() {
+            let mut rest = std::mem::take(&mut self.bench.keeping.after_save);
             rest.remove(0)(self);
-            rest.append(&mut self.after_save);
-            self.after_save = rest;
+            rest.append(&mut self.bench.keeping.after_save);
+            self.bench.keeping.after_save = rest;
         }
     }
 
@@ -1090,13 +1084,14 @@ impl TimegrapherApp {
     /// take and the quit: the pause can take the hour from under a copy
     /// still under way (#1230).
     pub(super) fn save_failed(&mut self, streamed: Streamed, dest: &Path, e: String) {
-        if streamed == Streamed::Yes && !self.running() && !self.after_save.is_empty() {
+        if streamed == Streamed::Yes && !self.running() && !self.bench.keeping.after_save.is_empty()
+        {
             return applog::info(&format!(
                 "a save into {} failed after the Stop, whose save follows: {e}",
                 dest.display()
             ));
         }
-        self.close_after_save = false;
+        self.bench.keeping.close_after_save = false;
         if streamed == Streamed::Yes {
             // The promise holds only while the take records: once its
             // recording has failed, nothing is tried again (#1380).
@@ -1107,7 +1102,7 @@ impl TimegrapherApp {
                     dest.display()
                 ));
             }
-            self.stream_wait = Some(Instant::now());
+            self.bench.keeping.stream_wait = Some(Instant::now());
             return self.error(format!(
                 "Couldn't add the sound to {}: {e}. It is kept here, and tried again in a \
                  minute.",
@@ -1117,192 +1112,25 @@ impl TimegrapherApp {
         self.error(format!("Saving the recording failed: {e}"))
     }
 
-    /// While the session is being kept as its analysis alone, say so and
-    /// refuse what would throw its sound away or add to it.
-    pub(super) fn analysis_save_busy(&mut self) -> bool {
-        if self.analysis_save.is_none() {
-            return self.kept_writing_busy();
-        }
-        self.info_msg(
-            "Keeping the analysis of this session: it is reading the session's sound and \
-             writing its analysis, so wait until it is done, or press Cancel beside its \
-             progress."
-                .into(),
-        );
-        true
-    }
-
-    /// Whether the session can be kept as its analysis alone now: a
-    /// microphone session with sound, not listening.
-    pub(super) fn can_save_analysis(&self) -> bool {
-        self.session.allows(Action::Save)
-            && !self.running()
-            && self.analysis_save.is_none()
-            && self.session.recorder.is_some()
-    }
-
-    /// Keep the session as its analysis alone, in a new folder inside one
-    /// the user picks.
-    pub(super) fn save_analysis_only(&mut self) {
-        if self.refuse_faulted_recording() || self.refuse_hours_gone() || !self.can_save_analysis()
-        {
-            return;
-        }
-        let mut d = rfd::FileDialog::new()
-            .set_title("Choose Where to Keep the Analysis (the Take Gets Its Own Folder Inside)");
-        let start = self.save_start();
-        if start.is_dir() {
-            d = d.set_directory(&start);
-        }
-        self.pick(Picker::one(d, Pick::Folder, |a, parent| {
-            if a.can_save_analysis() {
-                a.start_analysis_save(&parent);
-            }
-        }));
-    }
-
-    /// Read the session's sound again for its analysis, in the background,
-    /// then write it as a take with no sound inside `parent`.
-    pub(super) fn start_analysis_save(&mut self, parent: &Path) {
-        let mut manifest = self.take_manifest();
-        manifest.audio = Some(false);
-        let prepared = (|| -> Result<_, String> {
-            let result = self
-                .reading()
-                .map(serde_json::to_value)
-                .transpose()
-                .map_err(|e| format!("Couldn't prepare the saved reading: {e}"))?;
-            let text = toml::to_string_pretty(&manifest)
-                .map_err(|e| format!("Couldn't prepare {MANIFEST}: {e}"))?;
-            let kept = self.results_files()?;
-            Ok((result, text, kept))
-        })();
-        let (result, text, kept) = match prepared {
-            Ok(p) => p,
-            Err(e) => return self.error(e),
-        };
-        self.note_settings();
-        let Some(r) = self.session.recorder.as_mut() else {
-            return;
-        };
-        let total_s = r.duration_s();
-        let mut required = vec![(MANIFEST, text.as_bytes())];
-        required.extend(kept.iter().map(|(n, b)| (*n, b.as_slice())));
-        let (name, companions) =
-            match r.analysis_copy_files(&self.calibre, result.as_ref(), &required) {
-                Ok(c) => c,
-                Err(e) => return self.error(format!("Keeping the analysis failed: {e}")),
-            };
-        let files = r.segment_paths();
-        let dest = parent.join(name);
-        // Read as the take on show is read: its beat rate and lift, and
-        // the escape teeth core gives its session file and calibre (#1324).
-        let cfg = self.entry_settings(&manifest).stream;
-        let shapes = timegrapher_core::analysis_take::shape_stretches(&manifest, total_s);
-        let software = report::software();
-        let (tx, rx) = std::sync::mpsc::channel();
-        let progress = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
-        let cancel = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let (p2, c2) = (progress.clone(), cancel.clone());
-        std::thread::spawn(move || {
-            let paths: Vec<&Path> = files.iter().map(|f| f.as_path()).collect();
-            let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let stored = timegrapher_core::analysis_take::measure(
-                    &paths,
-                    &cfg,
-                    &shapes,
-                    software,
-                    |s| {
-                        p2.store(s.to_bits(), std::sync::atomic::Ordering::Relaxed);
-                        if c2.load(std::sync::atomic::Ordering::Relaxed) {
-                            std::panic::resume_unwind(Box::new(Cancelled));
-                        }
-                    },
-                )
-                .map_err(|e| e.to_string())?;
-                let cancelled = || c2.load(std::sync::atomic::Ordering::Relaxed);
-                if cancelled() {
-                    std::panic::resume_unwind(Box::new(Cancelled));
-                }
-                let dir = timegrapher_core::analysis_take::save(&dest, &companions, &stored)
-                    .map_err(|e| e.to_string())?;
-                // Cancelled while it was being written: the folder is this
-                // job's own (the save refuses one already there), so it goes.
-                if cancelled() {
-                    let _ = std::fs::remove_dir_all(&dir);
-                    std::panic::resume_unwind(Box::new(Cancelled));
-                }
-                Ok(dir)
-            }));
-            match r {
-                Ok(r) => {
-                    // No one left to tell (cancelled after its last check):
-                    // the folder it wrote goes too.
-                    if let Err(std::sync::mpsc::SendError(Ok(dir))) = tx.send(r) {
-                        let _ = std::fs::remove_dir_all(dir);
-                    }
-                }
-                Err(e) if e.is::<Cancelled>() => {}
-                Err(e) => std::panic::resume_unwind(e),
-            }
-        });
-        self.save_dir = parent.display().to_string();
-        self.analysis_save = Some(AnalysisSave {
-            rx,
-            progress,
-            cancel,
-            total_s,
-        });
-    }
-
-    /// The analysis being kept, once it is written.
-    fn poll_analysis_save(&mut self) {
-        let Some(job) = &self.analysis_save else {
-            return;
-        };
-        let done = match job.rx.try_recv() {
-            Ok(r) => r,
-            Err(TryRecvError::Empty) => return,
-            Err(TryRecvError::Disconnected) => Err("it stopped part way".into()),
-        };
-        let Some(job) = self.analysis_save.take() else {
-            return;
-        };
-        match done {
-            Ok(dir) => {
-                let size = folder_size(&dir);
-                self.info_msg(format!(
-                    "Kept the analysis of {} of sound in {}, without the sound ({}).",
-                    length_text(job.total_s),
-                    dir.display(),
-                    size_text(size)
-                ));
-                self.analysis_kept_to = Some((dir, job.total_s));
-                self.test_kept_without_sound();
-            }
-            Err(e) => self.error(format!("Keeping the analysis failed: {e}")),
-        }
-    }
-
     /// Open Report a Problem with the sound the app has: the live
     /// session's, or the recording open.
     pub(super) fn open_report(&mut self) {
         let shown = report::Shown {
-            bph: self.bph,
-            lift_deg: self.lift_deg,
+            bph: self.bench.take.bph,
+            lift_deg: self.bench.take.lift_deg,
             app: serde_json::json!({
                 "reading": self.reading(),
-                "showing": self.source_label,
-                "watch": self.watch.trim(),
-                "calibre": self.calibre,
-                "position": self.position.code(),
-                "bph_set": self.bph,
-                "lift_deg": self.lift_deg,
-                "averaging_s": self.average_s,
+                "showing": self.bench.recording.source_label,
+                "watch": self.bench.take.watch.trim(),
+                "calibre": self.bench.take.calibre,
+                "position": self.bench.take.position.code(),
+                "bph_set": self.bench.take.bph,
+                "lift_deg": self.bench.take.lift_deg,
+                "averaging_s": self.bench.take.average_s,
                 "at_s": self.latest_s(),
                 // Stretches masked out on the strip, in the session's
                 // seconds, so an analysis of the excerpt can leave them out too.
-                "masked": self.masked,
+                "masked": self.bench.take.masked,
             }),
         };
         let source = self.report_source();
@@ -1329,8 +1157,8 @@ impl TimegrapherApp {
                 kept: None,
             });
         }
-        let path = PathBuf::from(self.file_path.trim());
-        if self.file_path.trim().is_empty() || !path.exists() {
+        let path = PathBuf::from(self.bench.recording.file_path.trim());
+        if self.bench.recording.file_path.trim().is_empty() || !path.exists() {
             return None;
         }
         let manifest = read_manifest(&path).ok().flatten();
@@ -1358,8 +1186,8 @@ impl TimegrapherApp {
         }
         // The five minutes up to the strip's newest edge, when the strip
         // has been moved back; else the start.
-        let end = match self.panes_view.strip_end {
-            Some(_) if self.live.is_some() => self.strip_end_s(),
+        let end = match self.bench.panes_view.strip_end {
+            Some(_) if self.bench.recording.live.is_some() => self.strip_end_s(),
             _ => report::SPAN_S,
         }
         .clamp(report::SPAN_S.min(total), total);
@@ -1399,6 +1227,8 @@ impl TimegrapherApp {
         // opened, even one in a settling gap; `timegrapher session`
         // counts only the part inside an entry's stretch.
         let masked: Vec<[f64; 2]> = self
+            .bench
+            .take
             .masked
             .iter()
             .filter_map(|&(a, b)| Some([self.session.audio_of(a)?, self.session.audio_of(b)?]))
@@ -1429,13 +1259,17 @@ impl TimegrapherApp {
         // A Complication Test's stretches say which is Off and which On,
         // so its results come back when the take is opened (#1620).
         let step = |i: usize| {
-            self.guided
+            self.bench
+                .test
+                .guided
                 .as_ref()
                 .filter(|t| t.kind == guided::Kind::Complication)
                 .and_then(|_| timegrapher_core::complication::ORDER.get(i))
                 .map(|s| s.saved_name().to_string())
         };
         let test: Vec<RecordingEntry> = self
+            .bench
+            .test
             .guided
             .as_ref()
             .map_or(&[][..], |t| t.stretches())
@@ -1481,14 +1315,19 @@ impl TimegrapherApp {
     /// whether that lift was chosen or assumed.
     pub(super) fn manifest_header(&self) -> Manifest {
         let mut m = Manifest {
-            watch: (!self.watch.trim().is_empty()).then(|| self.watch.trim().to_string()),
-            calibre: (!self.calibre.is_empty()).then(|| self.calibre.clone()),
-            bph: self.bph.or(self.live.as_ref().and_then(|l| l.bph())),
-            lift: Some(self.lift_deg),
+            watch: (!self.bench.take.watch.trim().is_empty())
+                .then(|| self.bench.take.watch.trim().to_string()),
+            calibre: (!self.bench.take.calibre.is_empty()).then(|| self.bench.take.calibre.clone()),
+            bph: self
+                .bench
+                .take
+                .bph
+                .or(self.bench.recording.live.as_ref().and_then(|l| l.bph())),
+            lift: Some(self.bench.take.lift_deg),
             lift_known: Some(self.lift_known()),
             ..Default::default()
         };
-        if let Some(w) = self.cal.custom_wheels(&self.calibre) {
+        if let Some(w) = self.cal.custom_wheels(&self.bench.take.calibre) {
             m.wheels = w.into_iter().collect();
         }
         m
@@ -1499,11 +1338,11 @@ impl TimegrapherApp {
     /// `power-reserve.json`, so its pane shows the run.
     pub(super) fn load_reserve(&mut self, path: &Path) {
         let dir = take_dir(path).unwrap_or(path);
-        self.positions_take = timegrapher_core::library::is_positions_test(dir);
+        self.bench.test.positions_take = timegrapher_core::library::is_positions_test(dir);
         self.load_saved_test(dir);
         self.load_saved_complication(dir);
         // A test's take opens on its results.
-        if self.positions_take {
+        if self.bench.test.positions_take {
             self.reveal_pane(Pane::PositionsTest);
         }
         let Ok(text) = std::fs::read_to_string(dir.join(power_reserve::FILE)) else {
@@ -1517,16 +1356,20 @@ impl TimegrapherApp {
                 ))
             }
         };
-        let position = Position::from_name(&r.position).unwrap_or(self.position);
+        let position = Position::from_name(&r.position).unwrap_or(self.bench.take.position);
         let mut t = reserve::Test::new(position, r.sound_kept, r.started_utc.clone(), 0.0);
         t.ending = Some(r.ending);
         t.saved = Some(dir.to_path_buf());
-        let h = reserve::run_h(&r.hours, false, self.panes_view.reserve_series);
+        let h = reserve::run_h(&r.hours, false, self.bench.panes_view.reserve_series);
         t.results = Some(r);
-        self.test.reserve = Some(t);
+        self.bench.test.reserve = Some(t);
         self.reveal_pane(Pane::PowerReserve);
         // The run's charts and table, not the line before a test.
-        grow_row(&mut self.panes_view.panes.tiles, Pane::PowerReserve, h);
+        grow_row(
+            &mut self.bench.panes_view.panes.tiles,
+            Pane::PowerReserve,
+            h,
+        );
     }
 
     /// Take what a session file says about a recording: the watch, its
@@ -1556,7 +1399,7 @@ impl TimegrapherApp {
         layout: Option<&[EntryWindow]>,
     ) -> (Stretches, Vec<(f64, f64)>) {
         if let Some(w) = &m.watch {
-            self.watch = w.clone();
+            self.bench.take.watch = w.clone();
         }
         if let Some(c) = &m.calibre {
             let wheels: Vec<(String, f64)> =
@@ -1564,27 +1407,28 @@ impl TimegrapherApp {
             self.cal.adopt(c, &wheels);
             self.set_calibre(c.clone());
         }
-        if let Some(l) = m.lift {
-            self.set_lift(l);
-            // Whether that lift was supplied, by core's one rule for
-            // session files (#685): older ones did not record it.
+        if m.lift.is_some() {
+            // The lift by core's one rule, as `session` reads it (#2232):
+            // a supplied lift stands, an assumed one gives way to the
+            // calibre's, and an older file's is read by #685.
             let cal = m
                 .calibre
                 .as_deref()
                 .and_then(|n| timegrapher_core::take::calibre_named(n, &self.cal.user));
-            let known = timegrapher_core::take::file_lift_known(m, cal.as_ref());
-            self.lift_context = (l, known.unwrap_or(false));
+            let lift = timegrapher_core::take::lift_setting(None, Some(m), cal.as_ref());
+            self.set_lift(lift.lift_deg);
+            self.bench.take.lift_context = (lift.lift_deg, lift.known);
         }
         if m.bph.is_some() {
             self.put_bph(m.bph);
         }
         self.put_masked(manifest_masks(entries, layout));
-        self.opened_masks = Some(self.masked.clone());
+        self.bench.take.opened_masks = Some(self.bench.take.masked.clone());
         let (out, settles) = manifest_positions(m, entries, duration_s, layout);
         // What was recorded under any painting, loaded with the positions.
-        self.pending_recorded = recorded_of(m);
+        self.bench.take.pending_recorded = recorded_of(m);
         if let Some(&(_, p)) = out.first() {
-            self.position = p;
+            self.bench.take.position = p;
         }
         (out, settles)
     }
@@ -1634,7 +1478,7 @@ impl TimegrapherApp {
             // Listen is a Quick Listen (Hugh).
             self.watches_view.watch_open = None;
             self.watches_view.unsorted_open = false;
-            self.mic_setup = Some(WatchSetup::default());
+            self.bench.take.mic_setup = Some(WatchSetup::default());
         }
         self.start_batch(path);
     }
@@ -1653,9 +1497,9 @@ impl TimegrapherApp {
     #[cfg(test)]
     pub(super) fn start_replay_at(&mut self, path: &Path, speed: f32) {
         // Its settings read nothing again, as an open's don't (#1241).
-        let outer = std::mem::replace(&mut self.opening, true);
+        let outer = std::mem::replace(&mut self.bench.recording.opening, true);
         self.replay_at(path, speed);
-        self.opening = outer;
+        self.bench.recording.opening = outer;
     }
 
     #[cfg(test)]
@@ -1677,12 +1521,12 @@ impl TimegrapherApp {
             }
         }
         self.stop();
-        self.pending_recorded = None;
+        self.bench.take.pending_recorded = None;
         self.put_take_clock(None, None);
         self.put_take_breaks(None, None);
         self.put_masked(Vec::new());
-        self.masking = false;
-        self.brush = None;
+        self.bench.take.masking = false;
+        self.bench.take.brush = None;
         let inner = match take_folder(path) {
             Ok(p) => p,
             Err(e) => return self.open_failed(e),
@@ -1712,7 +1556,7 @@ impl TimegrapherApp {
                     Some((m, entries)) => {
                         self.keep_mic_setup();
                         self.set_watch_setup(WatchSetup::default());
-                        self.open_note = None;
+                        self.bench.keeping.open_note = None;
                         let layout = folder_layout(path, &m, &entries);
                         let windows = layout.as_ref().map(|l| l.1.as_slice());
                         self.apply_manifest_placed(&m, &entries, None, windows)
@@ -1723,30 +1567,32 @@ impl TimegrapherApp {
                     }
                 };
                 if let Some(n) = order_warning(&files) {
-                    self.open_note = Some(match self.open_note.take() {
-                        Some(o) => format!("{o} {n}"),
-                        None => n,
-                    });
+                    self.bench.keeping.open_note =
+                        Some(match self.bench.keeping.open_note.take() {
+                            Some(o) => format!("{o} {n}"),
+                            None => n,
+                        });
                 }
-                if self.file_path.trim() != path.display().to_string() {
-                    self.file_path = path.display().to_string();
+                if self.bench.recording.file_path.trim() != path.display().to_string() {
+                    self.bench.recording.file_path = path.display().to_string();
                 }
                 self.reset_session(c.sample_rate, c.label.clone());
                 self.session.replay();
                 self.session.load(&stretches, &settles);
-                if let Some((s, t)) = self.pending_recorded.take() {
-                    self.session.load_recorded(&s, &t, self.position);
+                if let Some((s, t)) = self.bench.take.pending_recorded.take() {
+                    self.session.load_recorded(&s, &t, self.bench.take.position);
                 }
-                if let (Some(live), Some(breaks)) =
-                    (self.live.as_mut(), self.session.replay_breaks())
-                {
+                if let (Some(live), Some(breaks)) = (
+                    self.bench.recording.live.as_mut(),
+                    self.session.replay_breaks(),
+                ) {
                     live.set_breaks(breaks);
                 }
                 self.mask_engine();
-                self.opened_path = path.display().to_string();
+                self.bench.keeping.opened_path = path.display().to_string();
                 c.set_speed(speed);
-                self.capture = Some(c);
-                if let Some(n) = self.open_note.take() {
+                self.bench.recording.capture = Some(c);
+                if let Some(n) = self.bench.keeping.open_note.take() {
                     self.info_msg(n);
                 }
             }
@@ -1758,16 +1604,16 @@ impl TimegrapherApp {
     /// to the one still shown.
     fn open_failed(&mut self, e: String) {
         self.error(e);
-        if !self.opened_path.is_empty() {
-            self.file_path = self.opened_path.clone();
+        if !self.bench.keeping.opened_path.is_empty() {
+            self.bench.recording.file_path = self.bench.keeping.opened_path.clone();
         }
     }
 
     /// The microphone's watch set aside, the first time a recording is
     /// opened over it.
     fn keep_mic_setup(&mut self) {
-        if self.mic_setup.is_none() {
-            self.mic_setup = Some(self.watch_setup());
+        if self.bench.take.mic_setup.is_none() {
+            self.bench.take.mic_setup = Some(self.watch_setup());
         }
     }
 
@@ -1775,15 +1621,15 @@ impl TimegrapherApp {
     /// the last take's watch, with its position from the file's name when
     /// it carries one (reverso_DU_…), and a note saying so.
     fn fresh_setup(&mut self, path: &Path, files: &[PathBuf]) {
-        self.opened_masks = Some(Vec::new());
+        self.bench.take.opened_masks = Some(Vec::new());
         self.keep_mic_setup();
         self.set_watch_setup(WatchSetup::default());
         let from_name =
             position_in_name(path).or_else(|| files.first().and_then(|f| position_in_name(f)));
         if let Some(p) = from_name {
-            self.position = p;
+            self.bench.take.position = p;
         }
-        self.open_note = Some(match from_name {
+        self.bench.keeping.open_note = Some(match from_name {
             Some(p) => format!(
                 "No watch settings in the file: Calibre Not Set, Lift {DEFAULT_LIFT_DEG}°, \
                  {} from the file name.",
@@ -1798,26 +1644,26 @@ impl TimegrapherApp {
 
     pub(super) fn watch_setup(&self) -> WatchSetup {
         WatchSetup {
-            watch: self.watch.clone(),
-            calibre: self.calibre.clone(),
-            lift_deg: self.lift_deg,
-            lift_context: self.lift_context,
-            bph: self.bph,
-            position: self.position,
+            watch: self.bench.take.watch.clone(),
+            calibre: self.bench.take.calibre.clone(),
+            lift_deg: self.bench.take.lift_deg,
+            lift_context: self.bench.take.lift_context,
+            bph: self.bench.take.bph,
+            position: self.bench.take.position,
         }
     }
 
     /// Put a whole watch setup in place. Its beat rate is put with it, so
     /// a calibre in it reads nothing on show again (#1241).
     pub(super) fn set_watch_setup(&mut self, s: WatchSetup) {
-        self.watch = s.watch;
-        let outer = std::mem::replace(&mut self.opening, true);
+        self.bench.take.watch = s.watch;
+        let outer = std::mem::replace(&mut self.bench.recording.opening, true);
         self.set_calibre(s.calibre);
-        self.opening = outer;
+        self.bench.recording.opening = outer;
         self.put_lift(s.lift_deg);
-        self.lift_context = s.lift_context;
+        self.bench.take.lift_context = s.lift_context;
         self.put_bph(s.bph);
-        self.position = s.position;
+        self.bench.take.position = s.position;
     }
 
     pub(super) fn start_batch(&mut self, path: &Path) {
@@ -1828,9 +1674,9 @@ impl TimegrapherApp {
     /// `carried`, else from the defaults. The settings it puts in place
     /// for it read nothing again, since it is about to be read with them.
     pub(super) fn analyse_whole(&mut self, path: &Path, carried: Option<WatchSetup>) {
-        let outer = std::mem::replace(&mut self.opening, true);
+        let outer = std::mem::replace(&mut self.bench.recording.opening, true);
         self.open_whole(path, carried);
-        self.opening = outer;
+        self.bench.recording.opening = outer;
     }
 
     fn open_whole(&mut self, path: &Path, carried: Option<WatchSetup>) {
@@ -1853,8 +1699,8 @@ impl TimegrapherApp {
             Ok(manifest) => manifest,
             Err(e) => return self.open_failed(e),
         };
-        if self.file_path.trim() != path.display().to_string() {
-            self.file_path = path.display().to_string();
+        if self.bench.recording.file_path.trim() != path.display().to_string() {
+            self.bench.recording.file_path = path.display().to_string();
         }
         if checkpoint::is_kept(path) {
             return self.open_analysis_only(path, manifest);
@@ -1891,7 +1737,7 @@ impl TimegrapherApp {
         };
         // Read again for a new beat rate: the settings as they were, not
         // as the take saved them.
-        if let Some(s) = self.reread_with.take() {
+        if let Some(s) = self.bench.take.reread_with.take() {
             self.set_watch_setup(s);
         }
         if let Some(m) = carried_masks {
@@ -1917,16 +1763,11 @@ impl TimegrapherApp {
             None,
             inputs,
         );
-        self.opened_path = path.display().to_string();
+        self.bench.keeping.opened_path = path.display().to_string();
         self.reset_session(info.sample_rate, label.clone());
         self.load_reserve(path);
-        self.session.analyse();
-        (self.live, self.live_usb) = (None, None);
-        // Nothing of the take before's clock carries over, whichever
-        // way this one is kept; a take that fails to open leaves it.
-        self.put_take_clock(None, None);
-        self.put_take_breaks(None, None);
-        self.batch = Some(Batch {
+        self.read_afresh();
+        self.bench.recording.batch = Some(Batch {
             rx,
             progress,
             cancel,
@@ -1947,17 +1788,17 @@ impl TimegrapherApp {
     /// back once it opens; they are returned.
     fn clear_for_open(&mut self, carried: bool) -> Option<Vec<(f64, f64)>> {
         self.stop();
-        if self.reread_with.is_none() {
-            self.carried_positions = None;
+        if self.bench.take.reread_with.is_none() {
+            self.bench.take.carried_positions = None;
         }
-        self.pending_recorded = None;
+        self.bench.take.pending_recorded = None;
         // Masks carried with the settings stay; anything else opened
         // starts with what its session file masks.
-        let carried_masks = carried.then(|| self.masked.clone());
+        let carried_masks = carried.then(|| self.bench.take.masked.clone());
         self.put_masked(Vec::new());
         if carried_masks.is_none() {
-            self.masking = false;
-            self.brush = None;
+            self.bench.take.masking = false;
+            self.bench.take.brush = None;
         }
         carried_masks
     }
@@ -1991,20 +1832,20 @@ impl TimegrapherApp {
                 Some(s) => {
                     self.keep_mic_setup();
                     self.set_watch_setup(s);
-                    self.open_note = None;
+                    self.bench.keeping.open_note = None;
                 }
                 None => self.fresh_setup(path, files),
             }
         } else {
             self.keep_mic_setup();
             self.set_watch_setup(WatchSetup::default());
-            self.open_note = None;
+            self.bench.keeping.open_note = None;
         }
     }
 
     /// Add `n` to the note shown about the take just opened.
     fn add_open_note(&mut self, n: &str) {
-        self.open_note = Some(match self.open_note.take() {
+        self.bench.keeping.open_note = Some(match self.bench.keeping.open_note.take() {
             Some(o) => format!("{o} {n}"),
             None => n.to_string(),
         });
@@ -2039,7 +1880,7 @@ impl TimegrapherApp {
         };
         self.keep_mic_setup();
         self.set_watch_setup(WatchSetup::default());
-        self.open_note = parts;
+        self.bench.keeping.open_note = parts;
         let (stretches, settles) = self.apply_manifest(&m, &entries, Some(header.duration_s));
         self.watch_fills_in(path, &m);
         let label = kept_label(path, &name);
@@ -2065,17 +1906,12 @@ impl TimegrapherApp {
             Some(duration_s),
             inputs,
         );
-        self.opened_path = path.display().to_string();
+        self.bench.keeping.opened_path = path.display().to_string();
         self.reset_session(header.sample_rate, label.clone());
         self.load_reserve(path);
-        self.no_sound = Some(Vec::new());
-        self.session.analyse();
-        (self.live, self.live_usb) = (None, None);
-        // Nothing of the take before's clock carries over, whichever
-        // way this one is kept; a take that fails to open leaves it.
-        self.put_take_clock(None, None);
-        self.put_take_breaks(None, None);
-        self.batch = Some(Batch {
+        self.bench.keeping.no_sound = Some(Vec::new());
+        self.read_afresh();
+        self.bench.recording.batch = Some(Batch {
             rx,
             progress,
             cancel,
@@ -2094,17 +1930,28 @@ impl TimegrapherApp {
     /// Stop listening, and any analysis under way. A
     /// microphone session pauses, so it can carry on or be saved.
     pub(super) fn stop(&mut self) {
-        if self.capture.as_ref().is_some_and(|c| !c.is_file) {
+        if self
+            .bench
+            .recording
+            .capture
+            .as_ref()
+            .is_some_and(|c| !c.is_file)
+        {
             self.pause();
         } else if matches!(
             self.session.state(),
             session::State::Replaying | session::State::Analysing
         ) {
-            let now = self.live.as_ref().map_or(0.0, |l| l.duration_s());
+            let now = self
+                .bench
+                .recording
+                .live
+                .as_ref()
+                .map_or(0.0, |l| l.duration_s());
             let _ = self.session.stop(now);
         }
         self.release_capture();
-        self.batch = None;
+        self.bench.recording.batch = None;
     }
 
     /// Cancel the opening under way: nothing is opened, and the window no
@@ -2112,7 +1959,7 @@ impl TimegrapherApp {
     pub(super) fn cancel_open(&mut self) {
         // Nothing of the take is left: the watch's setup from before the
         // open comes back, and there is no take to save (#1238).
-        self.input = Input::File;
+        self.bench.recording.input = Input::File;
         self.new_session();
     }
 
@@ -2143,14 +1990,19 @@ impl TimegrapherApp {
     pub(super) fn recording_failed(&mut self, mut reason: String) {
         // Release the input before attempting any remaining close/flush work.
         self.release_capture();
-        let now = self.live.as_ref().map_or(0.0, |l| l.duration_s());
+        let now = self
+            .bench
+            .recording
+            .live
+            .as_ref()
+            .map_or(0.0, |l| l.duration_s());
         if self.session.state() == session::State::Listening {
             if let Ok(Err(e)) = self.session.pause(now) {
                 reason.push_str(&format!("; closing the kept sound also failed: {e}"));
             }
         }
         self.session.recording_failed(now, reason);
-        self.stream_wait = None;
+        self.bench.keeping.stream_wait = None;
         self.reserve_failed();
         if let Ok(Some(l)) = &mut self.library {
             l.scan();
@@ -2181,7 +2033,10 @@ impl TimegrapherApp {
     }
 
     fn take_block(&mut self, l: Live) -> Result<(), CaptureFailure> {
-        let (Some(cap), Some(live)) = (self.capture.as_ref(), self.live.as_mut()) else {
+        let (Some(cap), Some(live)) = (
+            self.bench.recording.capture.as_ref(),
+            self.bench.recording.live.as_mut(),
+        ) else {
             return Ok(());
         };
         // A cut ends a backlog culled after a break: a break with no time
@@ -2208,12 +2063,12 @@ impl TimegrapherApp {
                     live.skip(gap);
                     self.session.resumed_at(live.duration_s());
                     live.set_masked(&super::masks::engine_masks(
-                        &self.masked,
+                        &self.bench.take.masked,
                         &self.session,
-                        &self.guided_unused,
+                        &self.bench.test.guided_unused,
                     ));
                 }
-                if let Some(t) = self.clock_track.as_mut() {
+                if let Some(t) = self.bench.recording.clock_track.as_mut() {
                     t.restart(live.sample_rate());
                 }
                 if let Some(m) = said {
@@ -2223,21 +2078,22 @@ impl TimegrapherApp {
                 return Ok(());
             }
         };
-        kept_analysis::keep_block(&mut self.session, &self.kept_live, &b)?;
-        if let Some(t) = self.clock_track.as_mut() {
+        kept_analysis::keep_block(&mut self.session, &self.bench.recording.kept_live, &b)?;
+        if let Some(t) = self.bench.recording.clock_track.as_mut() {
             t.push(b.samples.len(), b.at);
         }
         let l = Level::of(&b.samples);
-        if self.meter.level_at.elapsed().as_secs_f64() > 0.5
-            || l.peak_dbfs > self.meter.level.peak_dbfs
+        if self.bench.recording.meter.level_at.elapsed().as_secs_f64() > 0.5
+            || l.peak_dbfs > self.bench.recording.meter.level.peak_dbfs
         {
-            self.meter.level = l;
-            self.meter.level_at = Instant::now();
+            self.bench.recording.meter.level = l;
+            self.bench.recording.meter.level_at = Instant::now();
         }
         if l.clipped_fraction > 0.0 {
-            self.meter.clipped_at = Some(Instant::now());
+            self.bench.recording.meter.clipped_at = Some(Instant::now());
         }
-        self.live_usb.iter_mut().for_each(|u| u.push(&b.samples));
+        let usb = &mut self.bench.recording.live_usb;
+        usb.iter_mut().for_each(|u| u.push(&b.samples));
         // Never stalled for the figures read as a file (#1987): a sped-up
         // replay's catch up when the template is built again, or on Stop.
         if live.push_without_waiting(&b.samples) {
@@ -2245,20 +2101,20 @@ impl TimegrapherApp {
             // or two after it: the points read since reached
             // across it, so they go.
             let jumps = live.jumps();
-            if jumps != self.jumps_seen.as_slice() {
+            if jumps != self.bench.recording.jumps_seen.as_slice() {
                 let recent = live.duration_s() - 10.0;
                 let new = jumps
                     .iter()
                     .copied()
-                    .filter(|j| *j > recent && !self.jumps_seen.contains(j))
+                    .filter(|j| *j > recent && !self.bench.recording.jumps_seen.contains(j))
                     .reduce(f64::min);
                 if let Some(j) = new {
                     // So does a run read meanwhile, which reaches across it.
-                    self.bg.trend = None;
-                    self.trend.retain(|p| p.t <= j);
-                    self.sound_history.retain(|h| h.0 <= j);
+                    self.bench.results.bg.trend = None;
+                    self.bench.results.trend.retain(|p| p.t <= j);
+                    self.bench.results.sound_history.retain(|h| h.0 <= j);
                 }
-                self.jumps_seen = jumps.to_vec();
+                self.bench.recording.jumps_seen = jumps.to_vec();
             }
             // While the watch settles after a move nothing is
             // read; then the readings start afresh.
@@ -2270,23 +2126,21 @@ impl TimegrapherApp {
                 }
                 None => {}
             }
-            let r = live.reading(self.average_s);
+            let r = live.reading(self.bench.take.average_s);
             if !self.session.replay_reading_allowed(r.time_s) {
                 return Ok(());
             }
-            self.trend.push(TrendPoint::of(r.time_s, &r));
+            self.bench.results.trend.push(TrendPoint::of(r.time_s, &r));
             let p = live.tick_profiles();
-            let due = self
-                .sound_history
-                .last()
-                .is_none_or(|h| r.time_s - h.0 >= SOUND_EVERY_S);
+            let sound = &mut self.bench.results.sound_history;
+            let due = sound.last().is_none_or(|h| r.time_s - h.0 >= SOUND_EVERY_S);
             if due && p.iter().any(Option::is_some) {
                 let kept = scope_panes::Kept {
-                    span_s: profile_span_s(self.average_s),
+                    span_s: profile_span_s(self.bench.take.average_s),
                     sides: p.clone(),
                 };
-                self.sound_history.push((r.time_s, kept));
-                scope_panes::thin_sound(&mut self.sound_history);
+                sound.push((r.time_s, kept));
+                scope_panes::thin_sound(sound);
             }
         }
         Ok(())
@@ -2299,10 +2153,12 @@ impl TimegrapherApp {
         let started = Instant::now();
         // After a while with nothing run, the input gets the usual grace
         // before it counts as quiet.
-        if self.polled_at.elapsed() > Duration::from_secs(2) && self.audio_at.is_some() {
-            self.audio_at = Some(started);
+        if self.bench.recording.polled_at.elapsed() > Duration::from_secs(2)
+            && self.bench.recording.audio_at.is_some()
+        {
+            self.bench.recording.audio_at = Some(started);
         }
-        self.polled_at = started;
+        self.bench.recording.polled_at = started;
         // The charts are read in the background, from the frame
         // ([`Self::refresh_trend_shown`]), listening too (#1825).
         let (taken, ended, failure) = self.take_blocks(started, budget);
@@ -2338,14 +2194,31 @@ impl TimegrapherApp {
         match event {
             Ok(Event::Audio(b)) if is_file => (vec![Live::Block(b)], false, None),
             Ok(Event::Audio(b)) => {
-                let rate = self.live.as_ref().map_or(1, |l| l.sample_rate());
-                let lives = self.gaps.get_or_insert_with(|| GapWatch::new(rate)).push(b);
+                let rate = self
+                    .bench
+                    .recording
+                    .live
+                    .as_ref()
+                    .map_or(1, |l| l.sample_rate());
+                let lives = self
+                    .bench
+                    .recording
+                    .gaps
+                    .get_or_insert_with(|| GapWatch::new(rate))
+                    .push(b);
                 (lives, false, None)
             }
             // Only a live input drops sound (#483): a break, never spliced.
             Ok(Event::Lost(frames)) => {
-                let rate = self.live.as_ref().map_or(1, |l| l.sample_rate());
+                let rate = self
+                    .bench
+                    .recording
+                    .live
+                    .as_ref()
+                    .map_or(1, |l| l.sample_rate());
                 let lives = self
+                    .bench
+                    .recording
                     .gaps
                     .get_or_insert_with(|| GapWatch::new(rate))
                     .lost(frames);
@@ -2354,8 +2227,15 @@ impl TimegrapherApp {
             // A glitch the input carries on after (#1046): a break, never
             // a stop.
             Ok(Event::Glitch) => {
-                let rate = self.live.as_ref().map_or(1, |l| l.sample_rate());
+                let rate = self
+                    .bench
+                    .recording
+                    .live
+                    .as_ref()
+                    .map_or(1, |l| l.sample_rate());
                 let lives = self
+                    .bench
+                    .recording
                     .gaps
                     .get_or_insert_with(|| GapWatch::new(rate))
                     .glitch();
@@ -2369,7 +2249,12 @@ impl TimegrapherApp {
 
     /// What core's gap rule still holds, let through at the input's end.
     fn finish_gaps(&mut self) -> Vec<Live> {
-        self.gaps.as_mut().map(GapWatch::finish).unwrap_or_default()
+        self.bench
+            .recording
+            .gaps
+            .as_mut()
+            .map(GapWatch::finish)
+            .unwrap_or_default()
     }
 
     /// Take the blocks the input has sent, for up to `budget` once one is
@@ -2383,8 +2268,8 @@ impl TimegrapherApp {
         let mut taken = 0;
         let mut ended = false;
         let mut failure = None;
-        while self.live.is_some() {
-            let Some(cap) = self.capture.as_ref() else {
+        while self.bench.recording.live.is_some() {
+            let Some(cap) = self.bench.recording.capture.as_ref() else {
                 break;
             };
             if taken > 0 && started.elapsed() > budget {
@@ -2399,7 +2284,7 @@ impl TimegrapherApp {
                 taken += 1;
                 // Heard as it arrives, though core's gap rule may hold it a
                 // while.
-                self.audio_at = Some(Instant::now());
+                self.bench.recording.audio_at = Some(Instant::now());
             }
             let (came, end, fail) = self.input_event(event, is_file);
             ended |= end;
@@ -2429,7 +2314,12 @@ impl TimegrapherApp {
         if let Some(CaptureFailure::Recording(error)) = failure {
             self.recording_failed(error);
         } else {
-            let was_file = self.capture.as_ref().is_some_and(|c| c.is_file);
+            let was_file = self
+                .bench
+                .recording
+                .capture
+                .as_ref()
+                .is_some_and(|c| c.is_file);
             if ended && !self.reserve_input_failed(was_file) {
                 self.stop();
                 if was_file {
@@ -2438,7 +2328,7 @@ impl TimegrapherApp {
             }
             if let Some(CaptureFailure::Input(error)) = failure {
                 // Settings > Microphone says why listening stopped.
-                self.input_fault = Some(error.clone());
+                self.bench.recording.input_fault = Some(error.clone());
                 // A close error during stop is a recording fault in its own
                 // right, even when the input failure triggered the stop.
                 let message = match self.session.recording_fault() {
@@ -2452,20 +2342,20 @@ impl TimegrapherApp {
 
     /// Beat lock gained or lost, for the log.
     fn note_lock(&mut self) {
-        let bph = self.live.as_ref().and_then(|l| l.bph());
-        if bph != self.locked_bph && self.capture.is_some() {
+        let bph = self.bench.recording.live.as_ref().and_then(|l| l.bph());
+        if bph != self.bench.take.locked_bph && self.bench.recording.capture.is_some() {
             match bph {
                 Some(b) => applog::info(&format!("locked on to the beat at {b} beats per hour")),
                 None => applog::warn("lost the beat"),
             }
         }
-        self.locked_bph = bph;
+        self.bench.take.locked_bph = bph;
     }
 
     /// Show a recording opened whole once its analysis is done.
     pub(super) fn poll_batch(&mut self) {
         let mut done = None;
-        if let Some(b) = &self.batch {
+        if let Some(b) = &self.bench.recording.batch {
             match b.rx.try_recv() {
                 Ok(r) => done = Some(r),
                 Err(TryRecvError::Empty) => {}
@@ -2477,6 +2367,8 @@ impl TimegrapherApp {
         }
         if let Some(r) = done {
             let (label, stretches, settles) = self
+                .bench
+                .recording
                 .batch
                 .take()
                 .map(|b| (b.label.clone(), b.stretches.clone(), b.settles.clone()))
@@ -2496,10 +2388,10 @@ impl TimegrapherApp {
                     self.put_take_clock(clock, clock_source);
                     self.put_take_breaks(Some(breaks), unlisted);
                     // Read again at a new beat rate: the positions as they were.
-                    let carried = self.carried_positions.take();
+                    let carried = self.bench.take.carried_positions.take();
                     let (stretches, settles) = match &carried {
                         Some((now, _)) => {
-                            self.pending_recorded = now.1.clone();
+                            self.bench.take.pending_recorded = now.1.clone();
                             now.0.clone()
                         }
                         None => (stretches, settles),
@@ -2507,7 +2399,7 @@ impl TimegrapherApp {
                     // The readings readied with the engine, unless what
                     // they rest on changed while the take opened.
                     let now = self.open_inputs(&stretches, &settles);
-                    let breaks = self.take_breaks.clone().unwrap_or_default();
+                    let breaks = self.bench.take.take_breaks.clone().unwrap_or_default();
                     let trend = if now == inputs {
                         Some(trend)
                     } else {
@@ -2516,12 +2408,12 @@ impl TimegrapherApp {
                     };
                     self.show_engine(live, trend, label, stretches, settles);
                     if let Some((_, opened)) = carried {
-                        self.opened_positions = opened;
+                        self.bench.take.opened_positions = opened;
                     }
                     // A take with no sound shows the profiles it kept,
                     // averaged over the Average Over window (#979).
                     if let Some(k) = profiles {
-                        self.no_sound = Some(k);
+                        self.bench.keeping.no_sound = Some(k);
                     }
                 }
                 Ok(None) => {}
@@ -2537,17 +2429,17 @@ impl TimegrapherApp {
 
     /// Keep the strip anchored: centre on the first beats, then hold.
     fn hold_anchor(&mut self) {
-        if self.anchor.is_none() {
-            if let Some(live) = &self.live {
+        if self.bench.recording.anchor.is_none() {
+            if let Some(live) = &self.bench.recording.live {
                 if let Some(bph) = live.bph() {
                     let beats = live.beats();
                     if beats.len() >= 16 {
-                        self.anchor = Anchor::centre_on_true(
+                        self.bench.recording.anchor = Anchor::centre_on_true(
                             &beats[..16],
                             3600.0 / bph as f64,
                             16,
-                            self.take_breaks.as_deref().unwrap_or_default(),
-                            Self::rate_clock(&self.take_clock),
+                            self.bench.take.take_breaks.as_deref().unwrap_or_default(),
+                            Self::rate_clock(&self.bench.take.take_clock),
                         );
                     }
                 }
@@ -2567,9 +2459,9 @@ impl TimegrapherApp {
         self.land_log(log, label, stretches, settles);
         // Read here what the window reads in the background.
         self.refresh_trend();
-        self.bg.reserve = None;
+        self.bench.results.bg.reserve = None;
         self.reserve_from_long_take();
-        self.bg.reserve_of = Some(self.rev);
+        self.bench.results.bg.reserve_of = Some(self.bench.take.rev);
     }
 
     /// Show a take's beats, `log`, as an opened take lands whose readings
@@ -2584,7 +2476,7 @@ impl TimegrapherApp {
         settles: Vec<(f64, f64)>,
     ) {
         let inputs = self.open_inputs(&stretches, &settles);
-        let breaks = self.take_breaks.as_deref().unwrap_or_default();
+        let breaks = self.bench.take.take_breaks.as_deref().unwrap_or_default();
         let live = ready_engine(log, &inputs, breaks, self.take_rate_clock());
         self.show_engine(live, None, label, stretches, settles);
     }
@@ -2600,34 +2492,36 @@ impl TimegrapherApp {
         stretches: Vec<(f64, Position)>,
         settles: Vec<(f64, f64)>,
     ) {
-        let recorded = self.pending_recorded.take();
-        self.position = load_positions(
+        let recorded = self.bench.take.pending_recorded.take();
+        self.bench.take.position = load_positions(
             &mut self.session,
             &stretches,
             &settles,
             recorded,
-            self.position,
+            self.bench.take.position,
         );
-        self.opened_positions = Some(self.positions_now());
-        self.live = Some(live);
+        self.bench.take.opened_positions = Some(self.positions_now());
+        self.bench.recording.live = Some(live);
         // The opened take's labels, not those drawn while it opened
         // (Walter's HOLD on #1239).
-        self.panes_view.gutter_fresh = true;
-        self.rev.new_take();
+        self.bench.panes_view.gutter_fresh = true;
+        self.bench.take.rev.new_take();
         // Readings not readied with the engine are read in the
         // background by the next frame (#1014).
         match trend {
             Some(points) => self.put_trend(points),
-            None => (self.trend, self.strip_points) = (Vec::new(), None),
+            None => {
+                (self.bench.results.trend, self.bench.results.strip_points) = (Vec::new(), None)
+            }
         }
-        self.source_label = label;
-        self.anchor = None;
-        self.panes_view.strip_end = None;
+        self.bench.recording.source_label = label;
+        self.bench.recording.anchor = None;
+        self.bench.panes_view.strip_end = None;
         self.fit_take();
         // A long take that isn't a test: its run, read as one in the
         // background.
-        self.bg.reserve = Some(None);
-        let done = if self.no_sound.is_some() {
+        self.bench.results.bg.reserve = Some(None);
+        let done = if self.bench.keeping.no_sound.is_some() {
             "Opened the analysis kept without its sound: the readings, charts and tests are as \
              they were measured, and the Scope needs the sound. Drag the strip to look \
              back."
@@ -2635,7 +2529,7 @@ impl TimegrapherApp {
             "Analysed the whole recording. Drag the strip to look back."
         };
         // The note first: the status bar cuts a long message at its end.
-        let m = match self.open_note.take() {
+        let m = match self.bench.keeping.open_note.take() {
             Some(n) => format!("{n} {done}"),
             None => done.to_string(),
         };

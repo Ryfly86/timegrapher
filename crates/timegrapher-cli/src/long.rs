@@ -254,7 +254,8 @@ impl ResolvedTrain {
     /// neither does, the lift is the default and the reading says so
     /// (`lift_unknown`).
     fn lift_given(&self, flag: Option<f64>) -> Option<f64> {
-        flag.or(self.calibre.as_ref().and_then(|c| c.lift_angle_deg))
+        let lift = take::lift_setting(flag, None, self.calibre.as_ref());
+        lift.known.then_some(lift.lift_deg)
     }
 
     /// What `lift_deg` fell back on, said as `analyze` says it, when

@@ -182,7 +182,7 @@ impl super::TimegrapherApp {
             })
         });
         if let Some(p) = pressed.filter(|_| self.position_editable()) {
-            if p != self.position {
+            if p != self.bench.take.position {
                 self.change_position(p);
             }
         }
@@ -192,6 +192,6 @@ impl super::TimegrapherApp {
     /// while it shows a 45° stop, so it never shows one it has no button
     /// for.
     pub(super) fn card_ten(&self) -> bool {
-        self.ten_positions || self.shown_position().is_half_hour()
+        self.bench.test.ten_positions || self.shown_position().is_half_hour()
     }
 }

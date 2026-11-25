@@ -15,18 +15,18 @@ fn a_complication_test_is_set_up_in_the_cards_position() {
     app.watches_view.view = View::Watches;
     app.set_position(Position::CrownUp);
     assert!(!pane_visible(
-        &app.panes_view.panes.tiles,
+        &app.bench.panes_view.panes.tiles,
         Pane::Complication
     ));
     app.new_take(NewTake::Complication, false);
     assert_eq!(app.watches_view.view, View::Bench);
     assert_eq!(app.ready_test(), Some(NewTake::Complication));
     assert!(pane_visible(
-        &app.panes_view.panes.tiles,
+        &app.bench.panes_view.panes.tiles,
         Pane::Complication
     ));
-    assert_eq!(app.position, Position::CrownUp, "the card stays");
-    assert!(app.guided.is_none() && !app.running());
+    assert_eq!(app.bench.take.position, Position::CrownUp, "the card stays");
+    assert!(app.bench.test.guided.is_none() && !app.running());
     assert_eq!(NewTake::Complication.name(), "Complication Test");
 }
 
@@ -65,7 +65,7 @@ fn measured(name: &str) -> (TimegrapherApp, std::path::PathBuf, impl Sized) {
     let mut app = synthetic_swinging(T0 + 3.0 * EACH + 5.0, 4.0, amp, extra);
     app.session.listen();
     let tx = queued_capture(&mut app, &base);
-    let mut test = guided::Test::complication(app.position).timed(SETTLE, EACH - SETTLE);
+    let mut test = guided::Test::complication(app.bench.take.position).timed(SETTLE, EACH - SETTLE);
     let mut t = T0;
     test.tick(t);
     for i in 0..3 {
@@ -75,7 +75,7 @@ fn measured(name: &str) -> (TimegrapherApp, std::path::PathBuf, impl Sized) {
             assert!(test.advance(t).is_some());
         }
     }
-    app.guided = Some(test);
+    app.bench.test.guided = Some(test);
     assert!(app.test_listening());
     let ctx = egui::Context::default();
     app.guided_tick(&ctx);
@@ -230,12 +230,12 @@ fn a_plot_turned_off_gives_the_others_its_room(app: &mut TimegrapherApp) {
         top("Rate") - top("Amplitude")
     };
     let three = gap(&draw_at(app, size));
-    app.panes_view.complication_series = [true, true, false];
+    app.bench.panes_view.complication_series = [true, true, false];
     let drawn = draw_at(app, size);
     let titles = drawn.iter().filter(|(t, _)| t == "Beat Error").count();
     assert_eq!(titles, 1, "the table's heading alone");
     assert!(gap(&drawn) > three + 20.0, "{three} then {}", gap(&drawn));
-    app.panes_view.complication_series = [true; 3];
+    app.bench.panes_view.complication_series = [true; 3];
 }
 
 /// Every switch off (#1852): no plot, track or time axis, the table
@@ -246,7 +246,7 @@ fn every_plot_off_leaves_the_table(app: &mut TimegrapherApp) {
         drawn.iter().filter(|(t, _)| t == name).count()
     };
     let three = draw_at(app, size);
-    app.panes_view.complication_series = [false; 3];
+    app.bench.panes_view.complication_series = [false; 3];
     let none = draw_at(app, size);
     for name in ["Amplitude", "Rate", "Beat Error"] {
         assert_eq!(count(&none, name), 1, "{name}: the table's heading alone");
@@ -256,7 +256,7 @@ fn every_plot_off_leaves_the_table(app: &mut TimegrapherApp) {
         "the track's names go"
     );
     assert!(none.iter().any(|(t, _)| t == "On less Off"), "{none:?}");
-    app.panes_view.complication_series = [true; 3];
+    app.bench.panes_view.complication_series = [true; 3];
 }
 
 /// At 1280×600 each plot keeps its least height, the column scrolling
@@ -347,7 +347,7 @@ fn a_take_opened_again_starts_at_the_top(app: &mut TimegrapherApp) {
         (kept - scrolled).abs() < 1.0,
         "kept: {scrolled} then {kept}"
     );
-    app.rev.new_take();
+    app.bench.take.rev.new_take();
     let opened = amplitude_top(app, 0.0);
     assert!(
         (opened - at_top).abs() < 1.0,
@@ -403,7 +403,12 @@ fn a_new_lift_rereads_it(again: &mut TimegrapherApp) {
         "the opened take's test"
     );
     let amps = |app: &TimegrapherApp| -> Vec<f64> {
-        let kept = app.test.complication_saved.as_ref().expect("its test");
+        let kept = app
+            .bench
+            .test
+            .complication_saved
+            .as_ref()
+            .expect("its test");
         kept.readings
             .as_ref()
             .expect("read")
@@ -412,7 +417,7 @@ fn a_new_lift_rereads_it(again: &mut TimegrapherApp) {
             .collect()
     };
     let was = amps(again);
-    let k = 60.0 / again.lift_deg;
+    let k = 60.0 / again.bench.take.lift_deg;
     again.set_lift(60.0);
     draw_at(again, Vec2::new(1280.0, 900.0));
     let now = amps(again);
@@ -459,13 +464,13 @@ fn a_saved_complication_take_opened_again_shows_its_results() {
             .unwrap()
             .write(&block)
             .unwrap();
-        let live = app.live.as_mut().unwrap();
+        let live = app.bench.recording.live.as_mut().unwrap();
         for b in s.chunks(960) {
             live.push(b);
         }
     }
     let tx = queued_capture(&mut app, &base);
-    let mut test = guided::Test::complication(app.position).timed(SETTLE, EACH - SETTLE);
+    let mut test = guided::Test::complication(app.bench.take.position).timed(SETTLE, EACH - SETTLE);
     let mut t = T0;
     test.tick(t);
     for i in 0..3 {
@@ -475,7 +480,7 @@ fn a_saved_complication_take_opened_again_shows_its_results() {
             assert!(test.advance(t).is_some());
         }
     }
-    app.guided = Some(test);
+    app.bench.test.guided = Some(test);
     app.guided_tick(&egui::Context::default());
     let before = app.complication_test().expect("finished");
     let first: Vec<_> = before
@@ -496,12 +501,12 @@ fn a_saved_complication_take_opened_again_shows_its_results() {
     let mut again = TimegrapherApp::with_devices(Vec::new(), None);
     again.start_batch(&saved);
     let clock = Instant::now();
-    while again.batch.is_some() && clock.elapsed().as_secs() < 300 {
+    while again.bench.recording.batch.is_some() && clock.elapsed().as_secs() < 300 {
         again.poll();
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    assert!(again.live.is_some(), "{:?}", again.message);
-    assert!(again.guided.is_none(), "no test on the Bench");
+    assert!(again.bench.recording.live.is_some(), "{:?}", again.message);
+    assert!(again.bench.test.guided.is_none(), "no test on the Bench");
     each_stretch_is_the_takes_own(&mut again);
     let drawn = draw_at(&mut again, Vec2::new(1280.0, 900.0));
     let texts: Vec<&str> = drawn.iter().map(|(t, _)| t.as_str()).collect();
@@ -513,7 +518,8 @@ fn a_saved_complication_take_opened_again_shows_its_results() {
         "{texts:?}"
     );
     // The same stretches read the same way as at the end of the run.
-    let kept = again.test.complication_saved.as_ref().expect("its test");
+    let saved = again.bench.test.complication_saved.as_ref();
+    let kept = saved.expect("its test");
     let back: Vec<_> = kept
         .readings
         .as_ref()
@@ -536,8 +542,8 @@ fn a_saved_complication_take_opened_again_shows_its_results() {
 /// opened take, Each Stretch gives the take's, its stretches one by one,
 /// not the time in its one position (Walter on #1843).
 fn each_stretch_is_the_takes_own(again: &mut TimegrapherApp) {
-    let was = again.guided_measure_s;
-    again.guided_measure_s = 30.0;
+    let was = again.bench.test.guided_measure_s;
+    again.bench.test.guided_measure_s = 30.0;
     let drawn = draw_at(again, Vec2::new(1280.0, 900.0));
     let texts: Vec<&str> = drawn.iter().map(|(t, _)| t.as_str()).collect();
     let each = texts.iter().position(|t| *t == "Each Stretch");
@@ -546,7 +552,7 @@ fn each_stretch_is_the_takes_own(again: &mut TimegrapherApp) {
         Some(&"1 min"),
         "{texts:?}"
     );
-    again.guided_measure_s = was;
+    again.bench.test.guided_measure_s = was;
 }
 
 /// Between stretches the banner says to turn the complication on, and
@@ -554,10 +560,10 @@ fn each_stretch_is_the_takes_own(again: &mut TimegrapherApp) {
 #[test]
 fn the_banner_says_to_turn_the_complication_on() {
     let mut app = synthetic_swinging(30.0, 0.0, |_| 280.0, |_| 0.0);
-    let mut test = guided::Test::complication(app.position).timed(1.0, 5.0);
+    let mut test = guided::Test::complication(app.bench.take.position).timed(1.0, 5.0);
     test.tick(0.0);
     assert_eq!(test.tick(10.0), guided::Phase::Turn);
-    app.guided = Some(test);
+    app.bench.test.guided = Some(test);
     let drawn = draw_at(&mut app, Vec2::new(1280.0, 900.0));
     let texts: Vec<&str> = drawn.iter().map(|(t, _)| t.as_str()).collect();
     assert!(texts.contains(&"Turn the complication on"), "{texts:?}");

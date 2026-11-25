@@ -7,7 +7,7 @@ use super::*;
 #[test]
 fn moving_steadiness_out_leaves_the_profile_showing() {
     let app = synthetic(40.0, 0.0);
-    let mut tree = app.panes_view.panes.clone();
+    let mut tree = app.bench.panes_view.panes.clone();
     let steady = tree.tiles.find_pane(&Pane::SteadyReadings).unwrap();
     let sound = tree.tiles.find_pane(&Pane::Sound).unwrap();
     let tabs = tree.tiles.parent_of(steady).unwrap();
@@ -57,7 +57,7 @@ fn steadiness_stops_at_a_takes_breaks_with_their_gaps() {
     assert_eq!(breaks(&app), [cut(200.0, 0.0), cut(400.0, 0.0)]);
     // Opened: the take's own break keeps the 30 s its gap held, as
     // `series` reads it; the other jump has none.
-    app.take_breaks = Some(vec![cut(200.0, 30.0)]);
+    app.bench.take.take_breaks = Some(vec![cut(200.0, 30.0)]);
     assert_eq!(breaks(&app), [cut(200.0, 30.0), cut(400.0, 0.0)]);
 }
 
@@ -84,7 +84,7 @@ fn steadiness_leaves_a_hole_out_and_stops_at_its_ends() {
     let app = two_entries_in_one_position();
     let runs = app.current_runs();
     assert_eq!(runs.holes, [(337.0, 377.0)]);
-    let log = steady::log_of(app.live.as_ref().unwrap()).unwrap();
+    let log = steady::log_of(app.bench.recording.live.as_ref().unwrap()).unwrap();
     let (joined, breaks) = app.steady_log(log, &runs, None);
     // Joined from 20 s, the run's start: the hole is 317 s to 357 s.
     assert!(
@@ -128,14 +128,15 @@ fn the_distributions_take_no_window_in_a_hole() {
 fn each_steady_panes_series_are_kept() {
     use steady::View;
     let mut app = synthetic(5.0, 0.0);
-    app.panes_view
+    app.bench
+        .panes_view
         .steady_series
         .insert(View::Fft, [false, true, false]);
     let s = app.settings();
     let mut back = TimegrapherApp::with_devices(Vec::new(), None);
     back.apply_settings(s.clone());
     assert_eq!(
-        back.panes_view.steady_series[&View::Fft],
+        back.bench.panes_view.steady_series[&View::Fft],
         [false, true, false]
     );
     assert_eq!(back.series_shown(View::Cycle), RATE_ONLY);
@@ -154,7 +155,7 @@ fn each_steady_panes_series_are_kept() {
     back.apply_settings(older);
     for p in Pane::STEADY {
         assert_eq!(
-            back.panes_view.steady_series[&p.steady_view().unwrap()],
+            back.bench.panes_view.steady_series[&p.steady_view().unwrap()],
             [true, false, false]
         );
     }
@@ -194,15 +195,16 @@ fn the_fft_timing_switch_needs_rate_shown() {
         vec![egui::Event::PointerMoved(at), button(true), button(false)]
     };
     for (series, flips) in [(RATE_ONLY, true), ([false, true, false], false)] {
-        app.panes_view
+        app.bench
+            .panes_view
             .steady_series
             .insert(steady::View::Fft, series);
-        app.panes_view.fft_timing = false;
+        app.bench.panes_view.fft_timing = false;
         pass(&mut app, Vec::new());
         let at = pass(&mut app, Vec::new()).expect("Timing drawn").center();
         pass(&mut app, click(at));
         pass(&mut app, Vec::new());
-        assert_eq!(app.panes_view.fft_timing, flips, "{series:?}");
+        assert_eq!(app.bench.panes_view.fft_timing, flips, "{series:?}");
     }
 }
 
@@ -289,8 +291,8 @@ fn a_panes_wheel_periods_switch_changes_that_pane_only() {
             .map(|(_, r)| r)
     };
     let (fft, periods) = (
-        app.panes_view.show_marks.wheels.on(View::Fft),
-        app.panes_view.show_marks.wheels.on(View::Periods),
+        app.bench.panes_view.show_marks.wheels.on(View::Fft),
+        app.bench.panes_view.show_marks.wheels.on(View::Periods),
     );
     pass(&mut app, Vec::new());
     let at = pass(&mut app, Vec::new())
@@ -307,31 +309,40 @@ fn a_panes_wheel_periods_switch_changes_that_pane_only() {
         vec![egui::Event::PointerMoved(at), button(true), button(false)],
     );
     pass(&mut app, Vec::new());
-    assert_eq!(app.panes_view.show_marks.wheels.on(View::Fft), !fft);
-    assert_eq!(app.panes_view.show_marks.wheels.on(View::Periods), periods);
+    assert_eq!(app.bench.panes_view.show_marks.wheels.on(View::Fft), !fft);
+    assert_eq!(
+        app.bench.panes_view.show_marks.wheels.on(View::Periods),
+        periods
+    );
     // Only the pane switched is noted: Periods, drawn too, keeps the
     // default, as do the panes' Info and dB Scale.
     assert_eq!(
-        app.panes_view.show_marks.wheels.saved(),
+        app.bench.panes_view.show_marks.wheels.saved(),
         vec![(View::Fft, !fft)]
     );
     assert!(
-        app.panes_view.steady_info.saved().is_empty() && app.panes_view.maps_db.saved().is_empty()
+        app.bench.panes_view.steady_info.saved().is_empty()
+            && app.bench.panes_view.maps_db.saved().is_empty()
     );
     // Mesh is its own switch: Wheel Periods leaves it as it was (#1764).
-    assert!(app.panes_view.show_marks.meshes.saved().is_empty());
-    app.panes_view.show_marks.meshes.set(View::Stft, false);
-    app.panes_view.maps_db.set(View::Wavelet, true);
-    app.panes_view.steady_info.set(View::Cusum, true);
+    assert!(app.bench.panes_view.show_marks.meshes.saved().is_empty());
+    let marks = &mut app.bench.panes_view.show_marks;
+    marks.meshes.set(View::Stft, false);
+    app.bench.panes_view.maps_db.set(View::Wavelet, true);
+    app.bench.panes_view.steady_info.set(View::Cusum, true);
 
     let mut back = TimegrapherApp::with_devices(Vec::new(), None);
     back.apply_settings(app.settings());
     for (switch, on, off) in [
-        (&back.panes_view.show_marks.wheels, View::Periods, View::Fft),
-        (&back.panes_view.maps_db, View::Wavelet, View::Stft),
-        (&back.panes_view.steady_info, View::Cusum, View::Allan),
         (
-            &back.panes_view.show_marks.meshes,
+            &back.bench.panes_view.show_marks.wheels,
+            View::Periods,
+            View::Fft,
+        ),
+        (&back.bench.panes_view.maps_db, View::Wavelet, View::Stft),
+        (&back.bench.panes_view.steady_info, View::Cusum, View::Allan),
+        (
+            &back.bench.panes_view.show_marks.meshes,
             View::Wavelet,
             View::Stft,
         ),
@@ -346,6 +357,7 @@ fn a_panes_wheel_periods_switch_changes_that_pane_only() {
     for p in Pane::STEADY {
         assert!(
             !back
+                .bench
                 .panes_view
                 .show_marks
                 .wheels

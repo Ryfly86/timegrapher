@@ -86,7 +86,9 @@ struct Picture<'a> {
 impl TimegrapherApp {
     /// The Dynamic Poise test, if that is the guided test on the Bench.
     pub(super) fn poise_test(&self) -> Option<&guided::Test> {
-        self.guided
+        self.bench
+            .test
+            .guided
             .as_ref()
             .filter(|t| t.kind == guided::Kind::Poise)
     }
@@ -112,12 +114,13 @@ impl TimegrapherApp {
                 .into_iter()
                 .enumerate()
                 {
-                    let mut on = self.panes_view.poise_views[i];
+                    let mut on = self.bench.panes_view.poise_views[i];
                     if theme::toggle(ui, name, &mut on)
                         .on_hover_text(hint)
                         .clicked()
                     {
-                        self.panes_view.poise_views[i] = !self.panes_view.poise_views[i];
+                        self.bench.panes_view.poise_views[i] =
+                            !self.bench.panes_view.poise_views[i];
                     }
                 }
             },
@@ -205,7 +208,7 @@ impl TimegrapherApp {
         &self,
         ctx: &egui::Context,
     ) -> Option<Vec<timegrapher_core::session::Reading>> {
-        if self.guided.is_some() {
+        if self.bench.test.guided.is_some() {
             return None;
         }
         self.free_table_shown(ctx)
@@ -216,7 +219,7 @@ impl TimegrapherApp {
     /// With no test on the Bench, the take's upright stops marked under
     /// 10 s, too short to read: each label and duration.
     fn poise_short(&self, ctx: &egui::Context) -> Vec<(String, f64)> {
-        if self.guided.is_some() {
+        if self.bench.test.guided.is_some() {
             return Vec::new();
         }
         self.free_table_shown(ctx)
@@ -226,14 +229,14 @@ impl TimegrapherApp {
 
     /// The pane's toolbar, with the Info toggle pinned at its right.
     pub(super) fn poise_tools(&mut self, ui: &mut egui::Ui, title: &str) {
-        let mut info = self.panes_view.poise_info;
+        let mut info = self.bench.panes_view.poise_info;
         let hint = "Info: the fit in full, the twice-round check, and why near 220° the heavy \
                     spot is not stated";
         theme::pane_toolbar_info(ui, title, &help::DYNAMIC_POISE, (&mut info, hint), |ui| {
             self.poise_settings(ui);
             self.export_button(ui, Pane::DynamicPoise);
         });
-        self.panes_view.poise_info = info;
+        self.bench.panes_view.poise_info = info;
     }
 
     /// The pane: the banner while the test runs, then the table and the
@@ -241,10 +244,10 @@ impl TimegrapherApp {
     pub(super) fn poise_pane(&mut self, ui: &mut egui::Ui) {
         // Where Keep This Test? keeps clear of, as the Positions Test's.
         if self.poise_test().is_some() {
-            self.panes_view.results_rects[0] = Some(ui.max_rect());
+            self.bench.panes_view.results_rects[0] = Some(ui.max_rect());
         }
-        let now = self.live.as_ref().map(|l| l.duration_s());
-        let phase = match (self.guided.as_mut(), now) {
+        let now = self.bench.recording.live.as_ref().map(|l| l.duration_s());
+        let phase = match (self.bench.test.guided.as_mut(), now) {
             (Some(t), Some(now)) if t.kind == guided::Kind::Poise => Some(t.tick(now)),
             _ => None,
         };
@@ -268,16 +271,19 @@ impl TimegrapherApp {
             });
         let kept = self.poise_kept(ui.ctx());
         let short = self.poise_short(ui.ctx());
-        let info = self.panes_view.poise_info;
-        let view = self.panes_view.poise_views;
-        let settle = (self.guided_settle_s, self.guided_measure_s);
+        let info = self.bench.panes_view.poise_info;
+        let view = self.bench.panes_view.poise_views;
+        let settle = (
+            self.bench.test.guided_settle_s,
+            self.bench.test.guided_measure_s,
+        );
         let action = poise_body(
             ui,
             (self.poise_test(), phase, live.as_ref()),
             (
                 kept.as_deref(),
                 &short,
-                self.guided.is_none() && !self.running(),
+                self.bench.test.guided.is_none() && !self.running(),
             ),
             amp_now.as_deref(),
             (view, info),

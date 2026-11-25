@@ -11,35 +11,64 @@ fn hidden_panes_stay_hidden_through_a_new_direction() {
     let ctx = themed();
     frames(&mut app, &ctx, 2);
     for p in [Pane::Charts, Pane::Distributions, Pane::Strip] {
-        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
+        set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, false);
     }
     frames(&mut app, &ctx, 2);
-    app.panes_view.strip.horizontal = true;
+    app.bench.panes_view.strip.horizontal = true;
     app.relayout(true);
     frames(&mut app, &ctx, 3);
     for p in [Pane::Charts, Pane::Distributions, Pane::Strip] {
         assert!(
-            !pane_visible(&app.panes_view.panes.tiles, p),
+            !pane_visible(&app.bench.panes_view.panes.tiles, p),
             "{p:?} came back"
         );
     }
-    assert!(pane_visible(&app.panes_view.panes.tiles, Pane::Sound));
+    assert!(pane_visible(&app.bench.panes_view.panes.tiles, Pane::Sound));
 }
 
 #[test]
 fn a_new_averaging_time_redraws_the_whole_chart() {
     let mut app = synthetic(30.0, 20.0);
-    let before = app.trend.len();
+    let before = app.bench.results.trend.len();
     assert!(before > 20);
-    assert_eq!(app.live.as_ref().unwrap().config().profile_s, 10.0);
+    assert_eq!(
+        app.bench
+            .recording
+            .live
+            .as_ref()
+            .unwrap()
+            .config()
+            .profile_s,
+        10.0
+    );
     app.set_average(4.0);
     // The tick and tock sound covers the same beats as the readings.
-    assert_eq!(app.live.as_ref().unwrap().config().profile_s, 4.0);
+    assert_eq!(
+        app.bench
+            .recording
+            .live
+            .as_ref()
+            .unwrap()
+            .config()
+            .profile_s,
+        4.0
+    );
     // Every point now uses 4 s of beats, back to the start.
-    let early = app.trend.iter().find(|p| p.t >= 8.0).unwrap();
-    let r = app.live.as_ref().unwrap().reading_at(early.t, 4.0);
+    let early = app.bench.results.trend.iter().find(|p| p.t >= 8.0).unwrap();
+    let r = app
+        .bench
+        .recording
+        .live
+        .as_ref()
+        .unwrap()
+        .reading_at(early.t, 4.0);
     assert_eq!(early.rate_s_per_day, r.rate_s_per_day);
-    assert!((app.trend.last().unwrap().t - app.live.as_ref().unwrap().duration_s()).abs() <= 0.5);
+    assert!(
+        (app.bench.results.trend.last().unwrap().t
+            - app.bench.recording.live.as_ref().unwrap().duration_s())
+        .abs()
+            <= 0.5
+    );
 }
 
 #[test]
@@ -100,40 +129,56 @@ fn hidden_panes_leave_no_empty_frames_and_come_back() {
 
     // A new strip direction keeps the choice.
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Sound, false);
+    set_pane_visible(&mut app.bench.panes_view.panes.tiles, Pane::Sound, false);
     app.relayout(true);
-    assert!(!pane_visible(&app.panes_view.panes.tiles, Pane::Sound));
-    assert!(pane_visible(&app.panes_view.panes.tiles, Pane::Strip));
+    assert!(!pane_visible(
+        &app.bench.panes_view.panes.tiles,
+        Pane::Sound
+    ));
+    assert!(pane_visible(&app.bench.panes_view.panes.tiles, Pane::Strip));
 }
 
 #[test]
 fn histograms_start_hidden_and_keep_their_switch_through_a_relayout() {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     assert!(!pane_visible(
-        &app.panes_view.panes.tiles,
+        &app.bench.panes_view.panes.tiles,
         Pane::Distributions
     ));
     // The charts start hidden too, in Quick Listen's layout.
-    assert!(!pane_visible(&app.panes_view.panes.tiles, Pane::Charts));
-    set_pane_visible(&mut app.panes_view.panes.tiles, Pane::Distributions, true);
+    assert!(!pane_visible(
+        &app.bench.panes_view.panes.tiles,
+        Pane::Charts
+    ));
+    set_pane_visible(
+        &mut app.bench.panes_view.panes.tiles,
+        Pane::Distributions,
+        true,
+    );
     app.relayout(true);
     assert!(pane_visible(
-        &app.panes_view.panes.tiles,
+        &app.bench.panes_view.panes.tiles,
         Pane::Distributions
     ));
-    assert!(!pane_visible(&app.panes_view.panes.tiles, Pane::Charts));
+    assert!(!pane_visible(
+        &app.bench.panes_view.panes.tiles,
+        Pane::Charts
+    ));
 }
 
 #[test]
 fn launching_and_replaying_touch_no_input() {
     // `new` lists nothing; a replay never needs to.
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    app.devices_listed = false;
+    app.bench.recording.devices_listed = false;
     app.apply_settings(Settings {
         device: Some("alsa:hw:CARD=Device,DEV=0".into()),
         ..Settings::default()
     });
-    assert_eq!(app.device.as_deref(), Some("alsa:hw:CARD=Device,DEV=0"));
+    assert_eq!(
+        app.bench.recording.device.as_deref(),
+        Some("alsa:hw:CARD=Device,DEV=0")
+    );
     let dir = std::env::temp_dir().join("tg-app-no-input");
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("take.wav");
@@ -149,12 +194,12 @@ fn launching_and_replaying_touch_no_input() {
     app.start_replay(&path);
     let ctx = themed();
     frames(&mut app, &ctx, 3);
-    assert!(!app.devices_listed);
+    assert!(!app.bench.recording.devices_listed);
     // Nor does the microphone view, until its menu opens or Start.
     app.stop();
-    app.input = Input::Microphone;
+    app.bench.recording.input = Input::Microphone;
     frames(&mut app, &ctx, 2);
-    assert!(!app.devices_listed);
+    assert!(!app.bench.recording.devices_listed);
 }
 
 fn replay_context_fixture(name: &str, single: bool) -> (PathBuf, PathBuf) {
@@ -189,7 +234,7 @@ fn replay_context_fixture(name: &str, single: bool) -> (PathBuf, PathBuf) {
 // Drain the real replay source without analyzing it. End follows file close,
 // so later directory cleanup cannot race the reader on Windows.
 fn drain_replay_source(app: &TimegrapherApp) -> usize {
-    let c = app.capture.as_ref().unwrap();
+    let c = app.bench.recording.capture.as_ref().unwrap();
     let mut samples = 0;
     let started = Instant::now();
     loop {
@@ -218,7 +263,7 @@ fn whole_recording_viewer_keeps_known_jumps_with_or_without_position_cuts() {
     for case in 0..3 {
         let with_positions = case == 1;
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-        app.average_s = 60.0;
+        app.bench.take.average_s = 60.0;
         let log = BeatLog {
             lock_template_kept: false,
             sample_rate: 48000,
@@ -260,7 +305,7 @@ fn whole_recording_viewer_keeps_known_jumps_with_or_without_position_cuts() {
             (vec![], vec![])
         };
         app.show_log(log, "known phase step".into(), positions, settles);
-        let live = app.live.as_ref().unwrap();
+        let live = app.bench.recording.live.as_ref().unwrap();
         let expected = if with_positions {
             vec![30.0, 40.0, 60.03, 90.0, 100.0]
         } else {
@@ -312,16 +357,20 @@ fn replay_restores_saved_history_and_a_position_change_preserves_it() {
     let breaks = [30.0, 40.0, 60.0, 70.0];
     assert_eq!(app.session.stretches(), positions);
     assert_eq!(app.session.settles(), settles);
-    assert_eq!(app.live.as_ref().unwrap().breaks(), breaks);
+    assert_eq!(app.bench.recording.live.as_ref().unwrap().breaks(), breaks);
     assert_eq!(
-        (app.watch.as_str(), app.lift_deg, app.bph),
+        (
+            app.bench.take.watch.as_str(),
+            app.bench.take.lift_deg,
+            app.bench.take.bph
+        ),
         ("Replay Watch", 49.0, Some(28800))
     );
     app.change_position(Position::DialDown);
-    assert_eq!(app.position, Position::DialDown);
+    assert_eq!(app.bench.take.position, Position::DialDown);
     assert_eq!(app.session.stretches(), positions);
     assert_eq!(app.session.settles(), settles);
-    assert_eq!(app.live.as_ref().unwrap().breaks(), breaks);
+    assert_eq!(app.bench.recording.live.as_ref().unwrap().breaks(), breaks);
     app.stop();
     assert!(app.session.has_replay_context());
     // A segment alone does not match the folder's '.' entries.
@@ -330,7 +379,14 @@ fn replay_restores_saved_history_and_a_position_change_preserves_it() {
     assert!(!app.session.has_replay_context());
     assert!(app.session.stretches().is_empty());
     assert!(app.session.settles().is_empty());
-    assert!(app.live.as_ref().unwrap().breaks().is_empty());
+    assert!(app
+        .bench
+        .recording
+        .live
+        .as_ref()
+        .unwrap()
+        .breaks()
+        .is_empty());
     app.change_position(Position::DialDown);
     assert!(
         !app.session.stretches().is_empty(),
@@ -339,7 +395,7 @@ fn replay_restores_saved_history_and_a_position_change_preserves_it() {
     app.start_replay_at(&path, 100.0);
     assert_eq!(drain_replay_source(&app), 9000);
     assert_eq!(app.session.stretches(), positions);
-    assert_eq!(app.live.as_ref().unwrap().breaks(), breaks);
+    assert_eq!(app.bench.recording.live.as_ref().unwrap().breaks(), breaks);
     app.new_session();
     assert!(!app.session.has_replay_context());
     std::fs::remove_dir_all(dir).unwrap();
@@ -356,8 +412,11 @@ fn replay_uses_the_same_matching_file_manifest_as_whole_take_analysis() {
     assert_eq!(drain_replay_source(&replay), 9000);
     assert_eq!(replay.session.stretches(), positions);
     assert_eq!(replay.session.settles(), settles);
-    assert_eq!(replay.watch, batch.watch);
-    assert_eq!((replay.lift_deg, replay.bph), (batch.lift_deg, batch.bph));
+    assert_eq!(replay.bench.take.watch, batch.bench.take.watch);
+    assert_eq!(
+        (replay.bench.take.lift_deg, replay.bench.take.bph),
+        (batch.bench.take.lift_deg, batch.bench.take.bph)
+    );
     replay.stop();
     std::fs::remove_dir_all(dir).unwrap();
 }
@@ -372,27 +431,39 @@ fn replay_poll_does_not_publish_readings_inside_saved_settling() {
         &[(0.0, Position::DialUp), (8.0, Position::DialDown)],
         &[(8.0, 14.0)],
     );
-    app.live
+    app.bench
+        .recording
+        .live
         .as_mut()
         .unwrap()
         .set_breaks(app.session.replay_breaks().unwrap());
     app.clear_trends();
     let tx = queued_capture(&mut app, &base);
-    app.capture.as_mut().unwrap().is_file = true;
+    app.bench.recording.capture.as_mut().unwrap().is_file = true;
     tx.send(Event::Audio(timegrapher_core::capture::Block {
         samples: vec![0.0; 24000],
         at: std::time::SystemTime::now(),
     }))
     .unwrap();
     app.poll();
-    let at = app.live.as_ref().unwrap().reading(app.average_s).time_s;
+    let at = app
+        .bench
+        .recording
+        .live
+        .as_ref()
+        .unwrap()
+        .reading(app.bench.take.average_s)
+        .time_s;
     assert!(
         at > 8.0 && at <= 14.0,
         "fixture must read within the saved settle: {at}"
     );
-    assert!(app.trend.is_empty());
+    assert!(app.bench.results.trend.is_empty());
     assert!(app.reading().is_none());
-    assert_eq!(app.live.as_ref().unwrap().breaks(), &[8.0, 14.0]);
+    assert_eq!(
+        app.bench.recording.live.as_ref().unwrap().breaks(),
+        &[8.0, 14.0]
+    );
     app.stop();
     drop(tx);
     std::fs::remove_dir_all(base).unwrap();
@@ -422,19 +493,26 @@ fn replay_readouts_and_rebuilt_trends_respect_imported_settling() {
         by_count: Vec::new(),
         snippets: Vec::new(),
     };
-    app.live = Some(LiveAnalyzer::from_log(log, app.live_config()));
+    app.bench.recording.live = Some(LiveAnalyzer::from_log(log, app.live_config()));
     app.session.replay();
     app.session.load(
         &[(0.0, Position::DialUp), (30.0, Position::DialDown)],
         &[(30.0, 40.0)],
     );
-    app.live
+    app.bench
+        .recording
+        .live
         .as_mut()
         .unwrap()
         .set_breaks(app.session.replay_breaks().unwrap());
     app.rebuild_trend();
-    assert!(!app.trend.is_empty());
-    assert!(app.trend.iter().all(|p| p.t <= 30.0 || p.t > 40.0));
+    assert!(!app.bench.results.trend.is_empty());
+    assert!(app
+        .bench
+        .results
+        .trend
+        .iter()
+        .all(|p| p.t <= 30.0 || p.t > 40.0));
     assert!(app.reading_at_time(35.0).is_none());
     let after = app.reading_at_time(41.0).unwrap();
     assert!(
@@ -462,27 +540,27 @@ fn the_cards_read_at_the_strips_newest_edge() {
     };
     // Low amplitude for the first half, high for the second.
     let audio = generate(&cfg, |t| if t < 45.0 { 220.0 } else { 300.0 }, |_| 0.0);
-    let live = app.live.as_mut().unwrap();
+    let live = app.bench.recording.live.as_mut().unwrap();
     for b in audio.samples.chunks(960) {
         live.push(b);
     }
     app.poll();
     // The sound panes still say the moment too (#1068): out of the way.
     for p in [Pane::Sound, Pane::Scope] {
-        set_pane_visible(&mut app.panes_view.panes.tiles, p, false);
+        set_pane_visible(&mut app.bench.panes_view.panes.tiles, p, false);
     }
     let ctx = themed();
     let amp = |app: &TimegrapherApp| app.card_reading().and_then(|r| r.amplitude_deg);
     let live_amp = amp(&app).expect("a live amplitude");
     assert!((live_amp - 300.0).abs() < 15.0, "{live_amp}");
-    app.panes_view.strip_end = Some(40.0);
+    app.bench.panes_view.strip_end = Some(40.0);
     let moment = app.sound_moment().expect("the moment");
-    app.panes_view.strip_end = None;
+    app.bench.panes_view.strip_end = None;
     frames(&mut app, &ctx, 2);
     let text = painted_text(&ctx.run(screen(), |ctx| app.panels(ctx)));
     assert!(!text.contains(&moment), "{text}");
     // Moved back to 40 s: the first half's amplitude, the moment said.
-    app.panes_view.strip_end = Some(40.0);
+    app.bench.panes_view.strip_end = Some(40.0);
     let back = app.card_reading().expect("a reading at 40 s");
     assert!((back.time_s - 40.0).abs() < 1.0, "{}", back.time_s);
     let back_amp = back.amplitude_deg.expect("an amplitude at 40 s");
@@ -499,6 +577,6 @@ fn the_cards_read_at_the_strips_newest_edge() {
         Some(format!("{moment}, set by the Paper Strip."))
     );
     // Back to the newest beats: live again.
-    app.panes_view.strip_end = None;
+    app.bench.panes_view.strip_end = None;
     assert_eq!(amp(&app), Some(live_amp));
 }

@@ -11,14 +11,16 @@ impl TimegrapherApp {
     pub(super) fn series_shown(&self, view: steady::View) -> [bool; 3] {
         if view.is_map() {
             steady::one_series(
-                self.panes_view
+                self.bench
+                    .panes_view
                     .steady_series
                     .get(&steady::View::Stft)
                     .copied()
                     .unwrap_or(RATE_ONLY),
             )
         } else {
-            self.panes_view
+            self.bench
+                .panes_view
                 .steady_series
                 .get(&view)
                 .copied()
@@ -33,7 +35,8 @@ impl TimegrapherApp {
         if view.is_map() {
             steady::series_choice(
                 ui,
-                self.panes_view
+                self.bench
+                    .panes_view
                     .steady_series
                     .entry(steady::View::Stft)
                     .or_insert(RATE_ONLY),
@@ -41,7 +44,8 @@ impl TimegrapherApp {
         } else {
             steady::series_switches(
                 ui,
-                self.panes_view
+                self.bench
+                    .panes_view
                     .steady_series
                     .entry(view)
                     .or_insert(RATE_ONLY),
@@ -55,7 +59,7 @@ impl TimegrapherApp {
                 Icon::Db,
                 accent,
                 "dB Scale",
-                &mut self.panes_view.periods_db,
+                &mut self.bench.panes_view.periods_db,
                 "Show the scores in decibels. Off: linear.",
             );
         }
@@ -69,7 +73,7 @@ impl TimegrapherApp {
                 Icon::Stopwatch,
                 accent,
                 "Timing",
-                &mut self.panes_view.fft_timing,
+                &mut self.bench.panes_view.fft_timing,
                 "Draw rate as the beat timing's spectrum, in ms, at every period, rather than \
                  the swing it makes in 10 s rate readings, in s/d",
                 (!rate_shown).then_some("Turn Rate on to draw it as the beat timing's spectrum."),
@@ -77,7 +81,7 @@ impl TimegrapherApp {
         }
         if matches!(view, steady::View::Stft | steady::View::Wavelet) {
             theme::bar_gap(ui);
-            let mut db = self.panes_view.maps_db.on(view);
+            let mut db = self.bench.panes_view.maps_db.on(view);
             theme::tool_switch(
                 ui,
                 Icon::Db,
@@ -86,13 +90,13 @@ impl TimegrapherApp {
                 &mut db,
                 "Show the sizes in decibels. Off: linear.",
             );
-            self.panes_view.maps_db.set(view, db);
+            self.bench.panes_view.maps_db.set(view, db);
         }
         if matches!(
             view,
             steady::View::Periods | steady::View::Fft | steady::View::Stft | steady::View::Wavelet
         ) {
-            let marks = &mut self.panes_view.show_marks;
+            let marks = &mut self.bench.panes_view.show_marks;
             let mut wheels = marks.wheels.on(view);
             theme::tool_switch(
                 ui,
@@ -119,7 +123,7 @@ impl TimegrapherApp {
 
     /// What the panes shown this pass or the last want read (#1830).
     pub(super) fn steady_need(&self, pass: u64) -> steady::Need {
-        let shown = |k: usize| self.bg.shown_pass[k].is_some_and(|p| p + 1 >= pass);
+        let shown = |k: usize| self.bench.results.bg.shown_pass[k].is_some_and(|p| p + 1 >= pass);
         if shown(1) {
             steady::Need::Maps
         } else if shown(0) {
@@ -132,9 +136,15 @@ impl TimegrapherApp {
     /// The seconds of the session read so far for `need`: none when
     /// nothing read answers it.
     fn steady_upto(&self, need: steady::Need) -> Option<f64> {
-        let tests = self.steady.as_ref().map(|s| &s.1);
+        let tests = self.bench.results.steady.as_ref().map(|s| &s.1);
         let tests = tests.filter(|s| need < steady::Need::Maps || s.maps.is_some());
-        let alone = self.bg.isochronism.as_ref().map(|i| i.1.upto_s);
+        let alone = self
+            .bench
+            .results
+            .bg
+            .isochronism
+            .as_ref()
+            .map(|i| i.1.upto_s);
         let alone = alone.filter(|_| need == steady::Need::Isochronism);
         tests
             .map(|s| s.upto_s)
@@ -148,8 +158,13 @@ impl TimegrapherApp {
     pub(super) fn isochronism_shown(
         &self,
     ) -> Option<(Option<&IsochronismCurve>, Option<&IsochronismWalk>)> {
-        let tests = self.steady.as_ref().map(|s| (&s.1.report, s.1.upto_s));
-        let alone = self.bg.isochronism.as_ref().map(|i| &i.1);
+        let tests = self
+            .bench
+            .results
+            .steady
+            .as_ref()
+            .map(|s| (&s.1.report, s.1.upto_s));
+        let alone = self.bench.results.bg.isochronism.as_ref().map(|i| &i.1);
         if let Some(a) = alone.filter(|a| tests.is_none_or(|(_, u)| a.upto_s > u)) {
             return Some((a.isochronism.as_ref(), a.walk.as_ref()));
         }
@@ -160,39 +175,53 @@ impl TimegrapherApp {
     pub(super) fn update_steady(&mut self, ctx: &egui::Context) -> f64 {
         // What was read before the take's settings, clock, breaks or masks
         // last changed is read again.
-        if self.steady_job.as_ref().is_some_and(|j| j.0 != self.rev) {
-            self.steady_job = None;
-        }
-        if self.steady.as_ref().is_some_and(|s| s.0 != self.rev) {
-            self.steady = None;
+        if self
+            .bench
+            .results
+            .steady_job
+            .as_ref()
+            .is_some_and(|j| j.0 != self.bench.take.rev)
+        {
+            self.bench.results.steady_job = None;
         }
         if self
+            .bench
+            .results
+            .steady
+            .as_ref()
+            .is_some_and(|s| s.0 != self.bench.take.rev)
+        {
+            self.bench.results.steady = None;
+        }
+        if self
+            .bench
+            .results
             .bg
             .isochronism
             .as_ref()
-            .is_some_and(|s| s.0 != self.rev)
+            .is_some_and(|s| s.0 != self.bench.take.rev)
         {
-            self.bg.isochronism = None;
+            self.bench.results.bg.isochronism = None;
         }
-        if let Some((rev, rx)) = &self.steady_job {
+        if let Some((rev, rx)) = &self.bench.results.steady_job {
             match rx.try_recv() {
                 Ok(steady::Answer::Tests(s)) => {
-                    self.steady = Some((*rev, *s));
-                    self.steady_job = None;
+                    self.bench.results.steady = Some((*rev, *s));
+                    self.bench.results.steady_job = None;
                 }
                 Ok(steady::Answer::Isochronism(i)) => {
-                    self.bg.isochronism = Some((*rev, i));
-                    self.steady_job = None;
+                    self.bench.results.bg.isochronism = Some((*rev, i));
+                    self.bench.results.steady_job = None;
                 }
-                Err(TryRecvError::Disconnected) => self.steady_job = None,
+                Err(TryRecvError::Disconnected) => self.bench.results.steady_job = None,
                 Err(TryRecvError::Empty) => {}
             }
         }
         // Only the beats in the position the watch is in now, joined.
         let runs = self.current_runs();
-        let clock = Self::rate_clock(&self.take_clock).cloned();
+        let clock = Self::rate_clock(&self.bench.take.take_clock).cloned();
         let joined = !self.session.stretches().is_empty();
-        let dur = self.live.as_ref().map_or(0.0, |l| {
+        let dur = self.bench.recording.live.as_ref().map_or(0.0, |l| {
             steady::joined_duration(
                 &runs.read,
                 l.duration_s(),
@@ -205,8 +234,8 @@ impl TimegrapherApp {
             Some(u) if self.running() => dur - u >= steady::RERUN_S,
             Some(u) => dur - u > 1.0,
         };
-        if self.steady_job.is_none() && due && dur >= steady::MIN_S {
-            let log = self.live.as_ref().and_then(steady::log_of);
+        if self.bench.results.steady_job.is_none() && due && dur >= steady::MIN_S {
+            let log = self.bench.recording.live.as_ref().and_then(steady::log_of);
             if let Some((log, breaks)) = log.map(|l| self.steady_log(l, &runs, clock.as_ref())) {
                 let wheels = self.calibre_wheels();
                 let meshes = self.calibre_meshes();
@@ -214,7 +243,7 @@ impl TimegrapherApp {
                 let (tx, rx) = std::sync::mpsc::channel();
                 let ctx = ctx.clone();
                 let stage = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0));
-                self.steady_work = (stage.clone(), std::time::Instant::now());
+                self.bench.results.steady_work = (stage.clone(), std::time::Instant::now());
                 std::thread::spawn(move || {
                     let mut a =
                         steady::compute_for(need, &log, &breaks, wheels, clock.as_ref(), &stage);
@@ -224,7 +253,7 @@ impl TimegrapherApp {
                     let _ = tx.send(a);
                     ctx.request_repaint();
                 });
-                self.steady_job = Some((self.rev, rx));
+                self.bench.results.steady_job = Some((self.bench.take.rev, rx));
             }
         }
         dur
@@ -241,7 +270,7 @@ impl TimegrapherApp {
         runs: &timegrapher_core::take_context::Stretches<Position>,
         clock: Option<&timegrapher_core::clock::ClockFit>,
     ) -> (BeatLog, Vec<timegrapher_core::breaks::Break>) {
-        let mut opened = self.take_breaks.clone().unwrap_or_default();
+        let mut opened = self.bench.take.take_breaks.clone().unwrap_or_default();
         if self.session.stretches().is_empty() {
             let breaks = steady::reading_breaks(opened, &log);
             (log, breaks)
@@ -259,11 +288,11 @@ impl TimegrapherApp {
     /// how long they've taken, for the Steadiness and Isochronism panes.
     /// Nothing when they aren't running.
     fn steady_working(&self, ui: &mut egui::Ui) {
-        if self.steady_job.is_none() {
+        if self.bench.results.steady_job.is_none() {
             return;
         }
         let pal = theme::pal(ui);
-        let (stage, since) = &self.steady_work;
+        let (stage, since) = &self.bench.results.steady_work;
         let stage = stage.load(std::sync::atomic::Ordering::Relaxed);
         ui.horizontal(|ui| {
             ui.add(egui::Spinner::new().size(12.0).color(pal.text_secondary));
@@ -292,9 +321,9 @@ impl TimegrapherApp {
         match self.isochronism_shown() {
             Some((curve, walk)) => {
                 let walk = walk.and_then(timegrapher_core::steady_views::walk_view);
-                isochronism::ui(ui, curve, walk.as_ref(), self.panes_view.iso_view);
+                isochronism::ui(ui, curve, walk.as_ref(), self.bench.panes_view.iso_view);
             }
-            None if self.steady_job.is_some() => {}
+            None if self.bench.results.steady_job.is_some() => {}
             None => {
                 ui.label(
                     RichText::new(self.steady_wait(dur))
@@ -308,7 +337,7 @@ impl TimegrapherApp {
     /// What the steadiness tests wait for, in the terms of what is being
     /// done: a Positions Test never stays long enough in one position.
     fn steady_wait(&self, dur: f64) -> String {
-        if self.guided.is_some() {
+        if self.bench.test.guided.is_some() {
             "Needs 5 minutes of beats in one position, longer than a Positions Test \
              stays in each. Record one position for 5 minutes or more to see it."
                 .to_string()
@@ -322,18 +351,18 @@ impl TimegrapherApp {
 
     pub(super) fn steady_pane(&mut self, ui: &mut egui::Ui, view: steady::View) {
         let pass = Some(ui.ctx().cumulative_pass_nr());
-        self.bg.shown_pass[0] = pass;
+        self.bench.results.bg.shown_pass[0] = pass;
         if matches!(view, steady::View::Stft | steady::View::Wavelet) {
-            self.bg.shown_pass[1] = pass;
+            self.bench.results.bg.shown_pass[1] = pass;
         }
         let dur = self.update_steady(ui.ctx());
-        let upto = self.steady.as_ref().map(|s| s.1.upto_s);
-        let working = self.steady_job.is_some();
+        let upto = self.bench.results.steady.as_ref().map(|s| s.1.upto_s);
+        let working = self.bench.results.steady_job.is_some();
         let joined = !self.session.stretches().is_empty();
         let of = if !joined {
             String::new()
         } else {
-            format!("{} ", self.position.name())
+            format!("{} ", self.bench.take.position.name())
         };
         self.steady_working(ui);
         let status = match upto {
@@ -343,7 +372,7 @@ impl TimegrapherApp {
         };
         steady::draw(
             ui,
-            self.steady.as_ref().map(|s| &s.1),
+            self.bench.results.steady.as_ref().map(|s| &s.1),
             &status,
             view,
             &self.series_shown(view),
@@ -357,14 +386,14 @@ impl TimegrapherApp {
     pub(super) fn steady_opts(&self, view: steady::View) -> steady::Opts {
         let joined = !self.session.stretches().is_empty();
         steady::Opts {
-            periods_db: self.panes_view.periods_db,
-            fft_timing: self.panes_view.fft_timing,
-            maps_db: self.panes_view.maps_db.on(view),
-            wheels: self.panes_view.show_marks.wheels.on(view),
-            meshes: self.panes_view.show_marks.meshes.on(view),
-            info: self.panes_view.steady_info.on(view),
+            periods_db: self.bench.panes_view.periods_db,
+            fft_timing: self.bench.panes_view.fft_timing,
+            maps_db: self.bench.panes_view.maps_db.on(view),
+            wheels: self.bench.panes_view.show_marks.wheels.on(view),
+            meshes: self.bench.panes_view.show_marks.meshes.on(view),
+            info: self.bench.panes_view.steady_info.on(view),
             take_span: self.take_span().filter(|_| !joined),
-            joined_in: joined.then(|| self.position.code()),
+            joined_in: joined.then(|| self.bench.take.position.code()),
         }
     }
 }

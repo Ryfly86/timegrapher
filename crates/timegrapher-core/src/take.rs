@@ -282,6 +282,9 @@ pub fn breaks(
 /// nor its session file says (Witschi's 20 s).
 pub const SETTLE_S: f64 = 20.0;
 
+#[path = "take_lift.rs"]
+mod lift;
+pub use lift::{file_lift_known, lift_setting, LiftSetting};
 #[path = "take_settle.rs"]
 mod settle;
 pub use settle::{cut_from_one, handled, listed_unread, settles_through};
@@ -784,44 +787,20 @@ pub struct Given {
 ///
 /// - beat rate: given, else the session file's, else the calibre's;
 ///   none means it is measured;
-/// - lift angle: given, else the session file's, else the calibre's,
-///   else [`DEFAULT_LIFT_DEG`]; known when given, when the session file
-///   gives it and [`file_lift_known`] says so, or when the calibre does;
+/// - lift angle: by [`lift_setting`];
 /// - escape wheel teeth: the session file's, else the calibre's, else
 ///   [`ESCAPE_TEETH`].
 pub fn stream_settings(m: &Manifest, cal: Option<&Calibre>, given: Given) -> StreamConfig {
     let mut cfg = StreamConfig::default();
     cfg.analysis.bph = given.bph.or(m.bph).or(cal.and_then(|c| c.bph));
-    cfg.analysis.amplitude.lift_deg = given
-        .lift_deg
-        .or(m.lift)
-        .or(cal.and_then(|c| c.lift_angle_deg))
-        .unwrap_or(DEFAULT_LIFT_DEG);
-    cfg.analysis.lift_known = if given.lift_deg.is_some() {
-        true
-    } else if let Some(known) = file_lift_known(m, cal) {
-        known
-    } else {
-        cal.is_some_and(|c| c.lift_angle_deg.is_some())
-    };
+    let lift = lift_setting(given.lift_deg, Some(m), cal);
+    cfg.analysis.amplitude.lift_deg = lift.lift_deg;
+    cfg.analysis.lift_known = lift.known;
     cfg.analysis.escape_teeth = m
         .escape_teeth
         .or(cal.and_then(|c| c.escape_teeth))
         .unwrap_or(ESCAPE_TEETH);
     cfg
-}
-
-/// Whether the lift a session file `m` gives was supplied, or `None`
-/// when it gives none: its `lift_known` where it says, else (an older
-/// file, which did not record it) supplied unless it is the default
-/// [`DEFAULT_LIFT_DEG`] and its calibre `cal` gives no lift (#685). Core,
-/// the CLI and the desktop take it from here.
-pub fn file_lift_known(m: &Manifest, cal: Option<&Calibre>) -> Option<bool> {
-    let lift = m.lift?;
-    Some(
-        m.lift_known
-            .unwrap_or(lift != DEFAULT_LIFT_DEG || cal.is_some_and(|c| c.lift_angle_deg.is_some())),
-    )
 }
 
 /// Where a setting such as the lift angle came from, so a surface can say
@@ -2598,8 +2577,9 @@ mod tests {
                 .unwrap();
         let from_file = stream_settings(&file, Some(&cal), Given::default());
         assert_eq!(from_file.analysis.bph, Some(18_000));
-        assert_eq!(from_file.analysis.amplitude.lift_deg, 50.0);
-        assert!(!from_file.analysis.lift_known);
+        // An assumed lift gives way to the calibre's (#2226).
+        assert_eq!(from_file.analysis.amplitude.lift_deg, 44.0);
+        assert!(from_file.analysis.lift_known);
         assert_eq!(from_file.analysis.escape_teeth, 15);
 
         let given = Given {
