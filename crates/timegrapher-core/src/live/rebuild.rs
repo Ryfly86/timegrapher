@@ -484,14 +484,29 @@ mod tests {
             quality: 1.0,
         };
         let old: Vec<Beat> = (0..10).map(|i| at(i as f64 * 0.2, i)).collect();
-        // Two of the ten counts do not move: the median move is still 1,
-        // where the least would be 0 (Vernon 28 on #2273).
         let new: Vec<Beat> = (0..10)
-            .map(|i| at(i as f64 * 0.2 + 0.0003, i + i64::from(i >= 2)))
+            .map(|i| at(i as f64 * 0.2 + 0.0003, i + 1))
             .collect();
         let (dt, di) = moved(&old, &new).unwrap();
         assert!((dt - 0.0003).abs() < 1e-12 && di == 1, "{dt} {di}");
         assert_eq!(moved(&old, &[at(5.0, 0)]), None);
+    }
+
+    /// The count moves by the median of the beats' moves: with two of
+    /// ten not moving it is still 1, where the least would be 0 (Vernon
+    /// 28 on #2273).
+    #[test]
+    fn the_count_moves_by_its_median_not_its_least() {
+        let at = |t: f64, index: i64| Beat {
+            time: t,
+            index,
+            quality: 1.0,
+        };
+        let old: Vec<Beat> = (0..10).map(|i| at(i as f64 * 0.2, i)).collect();
+        let new: Vec<Beat> = (0..10)
+            .map(|i| at(i as f64 * 0.2 + 0.0003, i + i64::from(i >= 2)))
+            .collect();
+        assert_eq!(moved(&old, &new).map(|m| m.1), Some(1));
     }
 
     /// The takeover is refused when the sound read again gives both sides
