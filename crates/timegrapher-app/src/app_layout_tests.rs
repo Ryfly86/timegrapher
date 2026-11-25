@@ -960,19 +960,13 @@ fn the_tab_rows_arrows_stay_put_and_grey_at_its_ends() {
     let (left, _) = arrow(&drawn, "⏴");
     let (right, _) = arrow(&drawn, "⏵");
     let picked = |a: &TimegrapherApp| {
-        a.bench
-            .panes_view
-            .panes
-            .tiles
-            .iter()
-            .find_map(|(_, t)| match t {
-                egui_tiles::Tile::Container(egui_tiles::Container::Tabs(t))
-                    if t.children.len() > 4 =>
-                {
-                    t.active
-                }
-                _ => None,
-            })
+        let tiles = &a.bench.panes_view.panes.tiles;
+        tiles.iter().find_map(|(_, t)| match t {
+            egui_tiles::Tile::Container(egui_tiles::Container::Tabs(t)) if t.children.len() > 4 => {
+                t.active
+            }
+            _ => None,
+        })
     };
     let was_picked = picked(&app);
     let mut click = |app: &mut TimegrapherApp, at: egui::Pos2| {
@@ -1332,20 +1326,9 @@ fn a_dragged_divider_stands_until_a_pane_in_its_row_changes() {
         pass(&mut app);
     }
     // The strip's row (its tabs, if any), and the column it is in.
-    let mut strip_id = app
-        .bench
-        .panes_view
-        .panes
-        .tiles
-        .find_pane(&Pane::Strip)
-        .unwrap();
-    let mut column = app
-        .bench
-        .panes_view
-        .panes
-        .tiles
-        .parent_of(strip_id)
-        .unwrap();
+    let tiles = &app.bench.panes_view.panes.tiles;
+    let mut strip_id = tiles.find_pane(&Pane::Strip).unwrap();
+    let mut column = tiles.parent_of(strip_id).unwrap();
     if matches!(
         app.bench.panes_view.panes.tiles.get(column),
         Some(egui_tiles::Tile::Container(egui_tiles::Container::Tabs(_)))

@@ -106,23 +106,16 @@ impl TimegrapherApp {
         if let Some((lo, hi)) = y_range {
             plot = plot.default_y_bounds(lo, hi);
         }
-        let marker = self
-            .bench
-            .panes_view
-            .strip_end
-            .is_some()
-            .then(|| self.strip_end_s());
+        let ends = self.bench.panes_view.strip_end.is_some();
+        let marker = ends.then(|| self.strip_end_s());
         let lookup = series.clone();
         let colour = series.first().map_or(pal.text_secondary, |l| l.key);
         let to_live = self.bench.panes_view.charts_to_live_now;
         // A new averaging time spreads the values wider or narrower, so the
         // scale follows it, keeping the time shown.
-        let rescale = self
-            .bench
-            .panes_view
-            .chart_average_drawn
-            .insert(steady::title(reading), average)
-            .is_some_and(|was| was != average);
+        let drawn = &mut self.bench.panes_view.chart_average_drawn;
+        let was = drawn.insert(steady::title(reading), average);
+        let rescale = was.is_some_and(|was| was != average);
         let follow = self.bench.panes_view.charts_follow;
         let resp = plot.show(ui, |p| {
             grid.draw(p, pal);

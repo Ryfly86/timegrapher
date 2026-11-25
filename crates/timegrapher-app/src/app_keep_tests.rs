@@ -2310,12 +2310,8 @@ fn a_new_watch_for_a_recording_that_cant_be_added_is_taken_back() {
     a.started = "2026-10-22 14:30".into();
     let need = app.open_need(&a);
     app.answer_open_ask(a, need);
-    assert!(app
-        .bench
-        .keeping
-        .open_ask
-        .as_ref()
-        .is_some_and(|a| a.error.is_some()));
+    let asked = app.bench.keeping.open_ask.as_ref();
+    assert!(asked.is_some_and(|a| a.error.is_some()));
     app.bench.keeping.open_ask = None;
     let ask = |app: &TimegrapherApp| {
         let mut a = app.open_ask_for(&take).expect("asked");
@@ -2328,12 +2324,8 @@ fn a_new_watch_for_a_recording_that_cant_be_added_is_taken_back() {
     let a = ask(&app);
     let need = app.open_need(&a);
     app.answer_open_ask(a, need);
-    let why = app
-        .bench
-        .keeping
-        .open_ask
-        .as_ref()
-        .and_then(|a| a.error.clone());
+    let asked = app.bench.keeping.open_ask.as_ref();
+    let why = asked.and_then(|a| a.error.clone());
     assert!(
         why.as_deref().is_some_and(|w| w.contains("link")),
         "{why:?}"

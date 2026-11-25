@@ -518,12 +518,8 @@ fn a_saved_complication_take_opened_again_shows_its_results() {
         "{texts:?}"
     );
     // The same stretches read the same way as at the end of the run.
-    let kept = again
-        .bench
-        .test
-        .complication_saved
-        .as_ref()
-        .expect("its test");
+    let saved = again.bench.test.complication_saved.as_ref();
+    let kept = saved.expect("its test");
     let back: Vec<_> = kept
         .readings
         .as_ref()

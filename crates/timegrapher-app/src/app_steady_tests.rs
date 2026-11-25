@@ -326,11 +326,8 @@ fn a_panes_wheel_periods_switch_changes_that_pane_only() {
     );
     // Mesh is its own switch: Wheel Periods leaves it as it was (#1764).
     assert!(app.bench.panes_view.show_marks.meshes.saved().is_empty());
-    app.bench
-        .panes_view
-        .show_marks
-        .meshes
-        .set(View::Stft, false);
+    let marks = &mut app.bench.panes_view.show_marks;
+    marks.meshes.set(View::Stft, false);
     app.bench.panes_view.maps_db.set(View::Wavelet, true);
     app.bench.panes_view.steady_info.set(View::Cusum, true);
 

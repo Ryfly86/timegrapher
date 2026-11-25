@@ -101,6 +101,17 @@ impl TimegrapherApp {
         self.bench.recording.meter.level = Level::default();
         self.bench.recording.meter.clipped_at = None;
         self.message = None;
+        self.let_sound_and_test_go();
+        self.bench.test.guided_unused.clear();
+        self.bench.test.guided_measured.clear();
+        // Its masks, once nothing of the last test's is left.
+        self.mask_engine();
+        self.bench.take.rev.new_take();
+    }
+
+    /// The sound heard and kept, and the guided test, let go: for a new
+    /// session or a take read afresh.
+    fn let_sound_and_test_go(&mut self) {
         self.bench.results.sound_history.clear();
         self.bench.keeping.no_sound = None;
         self.bench.keeping.analysis_kept_to = None;
@@ -108,11 +119,17 @@ impl TimegrapherApp {
         self.bench.test.reserve = None;
         self.bench.results.bg.reserve_live = None;
         self.bench.results.bg.reserve_live_s = 0.0;
-        self.bench.test.guided_unused.clear();
-        self.bench.test.guided_measured.clear();
-        // Its masks, once nothing of the last test's is left.
-        self.mask_engine();
-        self.bench.take.rev.new_take();
+    }
+
+    /// A take about to be read from its file: analysing, with nothing of
+    /// the live engine before it.
+    fn read_afresh(&mut self) {
+        self.session.analyse();
+        (self.bench.recording.live, self.bench.recording.live_usb) = (None, None);
+        // Nothing of the take before's clock carries over, whichever
+        // way this one is kept; a take that fails to open leaves it.
+        self.put_take_clock(None, None);
+        self.put_take_breaks(None, None);
     }
 
     /// Listen, the masks on the recording on show saved or let go: and
@@ -494,13 +511,7 @@ impl TimegrapherApp {
         self.bench.take.masking = false;
         self.bench.take.brush = None;
         self.clear_trends();
-        self.bench.results.sound_history.clear();
-        self.bench.keeping.no_sound = None;
-        self.bench.keeping.analysis_kept_to = None;
-        self.bench.test.guided = None;
-        self.bench.test.reserve = None;
-        self.bench.results.bg.reserve_live = None;
-        self.bench.results.bg.reserve_live_s = 0.0;
+        self.let_sound_and_test_go();
         self.bench.test.positions_take = false;
         self.bench.test.guided_saved = None;
         self.bench.test.complication_saved = None;
@@ -1755,12 +1766,7 @@ impl TimegrapherApp {
         self.bench.keeping.opened_path = path.display().to_string();
         self.reset_session(info.sample_rate, label.clone());
         self.load_reserve(path);
-        self.session.analyse();
-        (self.bench.recording.live, self.bench.recording.live_usb) = (None, None);
-        // Nothing of the take before's clock carries over, whichever
-        // way this one is kept; a take that fails to open leaves it.
-        self.put_take_clock(None, None);
-        self.put_take_breaks(None, None);
+        self.read_afresh();
         self.bench.recording.batch = Some(Batch {
             rx,
             progress,
@@ -1904,12 +1910,7 @@ impl TimegrapherApp {
         self.reset_session(header.sample_rate, label.clone());
         self.load_reserve(path);
         self.bench.keeping.no_sound = Some(Vec::new());
-        self.session.analyse();
-        (self.bench.recording.live, self.bench.recording.live_usb) = (None, None);
-        // Nothing of the take before's clock carries over, whichever
-        // way this one is kept; a take that fails to open leaves it.
-        self.put_take_clock(None, None);
-        self.put_take_breaks(None, None);
+        self.read_afresh();
         self.bench.recording.batch = Some(Batch {
             rx,
             progress,

@@ -757,13 +757,7 @@ impl TimegrapherApp {
             // The clock the rate line's reading is on: the live engine's.
             clock: self.take_rate_clock(),
             // The peaks heard while guessing are no beats of the log.
-            beats_gen: self
-                .bench
-                .recording
-                .live
-                .as_ref()
-                .filter(|_| !guessing)
-                .map(|l| l.beats_gen()),
+            beats_gen: (!guessing).then(|| live.beats_gen()),
             wall: wall.as_ref(),
         };
         let live = &self.bench.recording.live;

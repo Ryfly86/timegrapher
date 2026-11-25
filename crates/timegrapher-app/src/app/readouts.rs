@@ -745,13 +745,8 @@ impl TimegrapherApp {
         // A compact Listen card has no room beside its buttons for the
         // take's length: it goes in the title row, before the "?".
         let length = listen_compact.then(|| {
-            let length = length_text(
-                self.bench
-                    .recording
-                    .live
-                    .as_ref()
-                    .map_or(0.0, |l| l.duration_s()),
-            );
+            let live = self.bench.recording.live.as_ref();
+            let length = length_text(live.map_or(0.0, |l| l.duration_s()));
             (
                 length.clone(),
                 format!(
