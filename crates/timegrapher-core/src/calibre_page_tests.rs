@@ -433,6 +433,20 @@ fn wheels_are_listed_in_train_order() {
     );
 }
 
+/// One test of a maker at the front of a name, for the page's address and
+/// the title alike.
+#[test]
+fn a_maker_begins_a_name_only_as_a_whole_word() {
+    assert_eq!(maker_prefix("Rolex", "Rolex 3135"), Some(" 3135"));
+    assert_eq!(maker_prefix("Rolex", "rolex"), Some(""));
+    assert_eq!(maker_prefix("Seiko", "SeikoMatic 6218"), None);
+    assert_eq!(
+        maker_prefix("Audemars Piguet", "Audemars Piguet 15202"),
+        Some(" 15202")
+    );
+    assert_eq!(maker_prefix("ETA", "2824-2"), None);
+}
+
 /// The page's address leaves out the maker under any of its names.
 #[test]
 fn the_address_names_the_maker_once() {
@@ -484,8 +498,16 @@ fn every_confidence_has_a_basis_sentence() {
         .lines()
         .find(|l| l.starts_with("| `confidence` |"))
         .expect("the README's confidence row");
-    for named in row.split('"').skip(1).step_by(2) {
-        assert!(CONFIDENCES.contains(&named), "{named}");
+    let named: Vec<&str> = row.split('"').skip(1).step_by(2).collect();
+    for n in &named {
+        assert!(CONFIDENCES.contains(n), "{n}");
+    }
+    // And the README names every one (Norm on #2281).
+    for v in CONFIDENCES {
+        assert!(
+            named.contains(&v),
+            "the README's confidence row lacks {v:?}"
+        );
     }
 }
 
@@ -501,6 +523,12 @@ fn a_quote_is_never_cut_at_its_commas() {
     assert_eq!(
         says(r#"https://x.example/a (posts) (under "Movado 5, Movado 6": f = 18000 A/h)"#),
         r#"under "Movado 5, Movado 6": f = 18000 A/h"#
+    );
+    assert_eq!(
+        says(
+            r#"https://x.example/a (Sellita catalogue 2024, SW200-1) ("Stop second device … 1) Manual winding")"#
+        ),
+        r#""Stop second device … 1) Manual winding""#
     );
     assert_eq!(
         says(r#"https://x.example/a (PATEK PHlLIPPE 13" chrono, 43°, 18000 vph)"#),
@@ -539,7 +567,7 @@ fn every_quote_is_whole() {
                 // cut only if its source's marks pair and its own don't.
                 let paired = |t: &str| t.matches('"').count().is_multiple_of(2);
                 let from = raw.iter().find(|r| r.contains(q.as_str()));
-                if from.is_none_or(|r| paired(r) && !paired(&q)) {
+                if q.starts_with('(') || from.is_none_or(|r| paired(r) && !paired(&q)) {
                     bad.push(format!("{}: {q}", c.calibre));
                 }
             }

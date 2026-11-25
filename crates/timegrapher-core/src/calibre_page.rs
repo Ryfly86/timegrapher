@@ -383,25 +383,29 @@ fn spelt_word(ch: char) -> Option<&'static str> {
     })
 }
 
-/// A calibre's name without its maker in front under any of the maker's
-/// names, as its page's slug takes it ("2824-2" for ETA 2824-2, "8215"
+/// A calibre's name without its maker in front ([`maker_prefix`]), as its
+/// page's slug takes it ("2824-2" for ETA 2824-2, "8215"
 /// for Miyota 8215 by Miyota (Citizen)); the whole name when nothing is
 /// left.
 fn short_name<'a>(maker: &str, name: &'a str) -> &'a str {
-    let mut words = maker_words(maker);
-    // The longest first, so "Tianjin Seagull" goes before "Tianjin".
-    words.sort_by_key(|w| std::cmp::Reverse(w.len()));
-    words
-        .iter()
-        .filter(|w| !w.is_empty())
-        .find_map(|w| {
-            let head = name.get(..w.len())?;
-            let rest = &name[w.len()..];
-            (head.eq_ignore_ascii_case(w) && rest.starts_with(|ch: char| !ch.is_alphanumeric()))
-                .then_some(rest)
-        })
+    maker_prefix(maker, name)
         .filter(|rest| !slug(rest).is_empty())
         .unwrap_or(name)
+}
+
+/// What follows the maker at the front of `name` under any of the maker's
+/// names, ignoring case, the longest name first ("Tianjin Seagull" before
+/// "Tianjin"); `None` when `name` doesn't begin with one as a whole word
+/// ("SeikoMatic" doesn't begin with "Seiko"). The one test both a page's
+/// address and [`with_maker_name`] use (Vernon on #2281).
+pub fn maker_prefix<'a>(maker: &str, name: &'a str) -> Option<&'a str> {
+    let mut words = maker_words(maker);
+    words.sort_by_key(|w| std::cmp::Reverse(w.len()));
+    words.iter().filter(|w| !w.is_empty()).find_map(|w| {
+        let head = name.get(..w.len())?;
+        let rest = &name[w.len()..];
+        (head.eq_ignore_ascii_case(w) && !rest.starts_with(char::is_alphanumeric)).then_some(rest)
+    })
 }
 
 /// The page address of `name` under `maker`.
@@ -767,8 +771,17 @@ fn paren_groups(s: &str) -> Option<Vec<String>> {
     let mut groups = Vec::new();
     let mut depth = 0;
     let mut cur = String::new();
+    // A bracket inside a paired quote ("… 1) Manual winding") is the
+    // quote's own (Hugh on #2281); a lone `"` is an inch mark.
+    let quotes_pair = s.matches('"').count().is_multiple_of(2);
+    let mut quoted = false;
     for ch in s.chars() {
         match ch {
+            '"' if quotes_pair && depth > 0 => {
+                quoted = !quoted;
+                cur.push(ch);
+            }
+            c if quoted => cur.push(c),
             '(' => {
                 if depth > 0 {
                     cur.push(ch);
@@ -854,17 +867,7 @@ pub fn with_maker_name(maker: &str, name: &str) -> String {
             };
         }
     }
-    let starts_with = |word: &str| {
-        !word.is_empty()
-            && name
-                .get(..word.len())
-                .is_some_and(|head| head.eq_ignore_ascii_case(word))
-            && name[word.len()..]
-                .chars()
-                .next()
-                .is_none_or(|c| !c.is_alphanumeric())
-    };
-    if maker_words(maker).iter().any(|w| starts_with(w)) {
+    if maker_prefix(maker, name).is_some() {
         // The maker goes, but not what it says about the calibre.
         match maker.strip_suffix(" (clone)") {
             Some(_) => format!("{name} (clone)"),
