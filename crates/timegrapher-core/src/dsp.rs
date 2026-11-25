@@ -386,7 +386,8 @@ pub fn upper_median_f32(v: &mut [f32]) -> f32 {
 
 /// [`upper_median_f32`] of `f64` values: always one of the values. The
 /// core sites that read this order statistic rather than the [`median`]
-/// share it, so each is one call to rule on (#839, #1988).
+/// share it, so each is one call to rule on (#839, #1988). Internal
+/// levels only; shown figures use median (#839, Norm on #2273).
 pub fn upper_median(v: &mut [f64]) -> f64 {
     middle(v, f64::total_cmp).map_or(f64::NAN, |(_, hi)| hi)
 }
