@@ -1982,6 +1982,14 @@ fn a_live_reading_gives_the_beat_rate_heard() {
         timing::MeasuredRate::of(18_000, r.rate_s_per_day, r.rate_error_s_per_day).unwrap()
     );
     assert_eq!((m.whole(), m.offset_from(18_000)), (17_570.0, -430.0));
+    // With a rate ± of 4.8 s/d, the beat rate heard's ± is
+    // 18,000 × 4.8 / 86,400 = 1 bph.
+    let with_pm = LiveReading {
+        rate_error_s_per_day: Some(4.8),
+        ..r.clone()
+    };
+    let se = with_pm.measured().unwrap().se.unwrap();
+    assert!((se - 18_000.0 * 4.8 / 86_400.0).abs() < 1e-12, "{se}");
     // No rate, as before a watch is heard: none.
     let quiet = LiveAnalyzer::new(48_000, LiveConfig::default()).reading(10.0);
     assert_eq!(quiet.measured(), None);

@@ -1264,6 +1264,14 @@ mod tests {
             assert!(doc.get("bph_measured_se").is_some());
             let want = 28_800.0 * (1.0 + ppm.unwrap_or(0.0) * 1e-6);
             assert!((m.bph - want).abs() < 1e-3, "{ppm:?}: {}", m.bph);
+            // With a rate ± of 4.8 s/d, the beat rate heard's ± is
+            // 28,800 × 4.8 / 86,400 = 1.6 bph.
+            let mut with_pm = r.clone();
+            with_pm.measurement.confidence.as_mut().unwrap().rate.se = Some(4.8);
+            let se = serde_json::to_value(&with_pm).unwrap()["bph_measured_se"]
+                .as_f64()
+                .unwrap();
+            assert!((se - 28_800.0 * 4.8 / 86_400.0).abs() < 1e-12, "{se}");
         }
     }
 

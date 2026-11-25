@@ -449,8 +449,7 @@ impl MeasuredRate {
     /// rate is the fit's reading of ([`period_s`]), so on the rate's own
     /// clock and stretch. Its ± is `bph × σ_r / 86,400` with `bph` the
     /// rate read against, since the rate heard is `bph × (1 + r / 86,400)`
-    /// (Norm on #2223,
-    /// point 3). None with no rate.
+    /// (Norm on #2223, point 3, and on #2303). None with no rate.
     pub fn of(bph: u32, rate_s_per_day: Option<f64>, rate_se: Option<f64>) -> Option<Self> {
         let rate = rate_s_per_day.filter(|r| r.is_finite())?;
         let heard = vph_of_period(period_s(3600.0 / f64::from(bph), rate));

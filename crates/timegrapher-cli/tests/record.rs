@@ -113,6 +113,10 @@ fn takes_build_up_a_session() {
     assert_eq!(j["check"]["bph"], 28800);
     let rate = j["check"]["rate_s_per_day"].as_f64().unwrap();
     assert!((rate - 5.0).abs() < 0.5, "rate {rate}");
+    // The beat rate heard is the check's own rate's (#2223).
+    let heard = j["check"]["bph_measured"].as_f64().unwrap();
+    let want = 28_800.0 * (1.0 + rate / 86_400.0);
+    assert!((heard - want).abs() < 1e-6, "{heard} {want}");
     // No time since winding was given, so none is claimed.
     assert!(j["wind_h"].is_null());
     // The check reads the stretch `session` reads: after the settling
@@ -268,6 +272,7 @@ fn an_empty_stand_is_kept_and_stated() {
     let j = doc(&out);
     assert_eq!(j["check"]["watch_heard"], false);
     assert!(j["check"]["rate_s_per_day"].is_null());
+    assert!(j["check"].get("bph_measured").is_none());
     assert!(j["check"]["timing_scatter_fraction"].as_f64().unwrap() >= 0.02);
     let toml = fs::read_to_string(sess.join("session.toml")).unwrap();
     assert!(
