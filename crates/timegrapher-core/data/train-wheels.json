@@ -6764,7 +6764,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bettlach 1333, 50°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Ebauches Bettlach (EB) 1333, 50°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://watch-movements-archive.com/watch-movement/eb-1333/ (Watch Movements Archive entry, Ebauches Bettlach 1333; 17jewels' EB 1333 page https://www.17jewels.info/movements/e/eb/eb-1333/ gives the same) (\"Jewels: 17\")"
+    }
   },
   {
     "calibre": "Ebauches Bettlach 1333-66",
@@ -7977,7 +7981,13 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bettlach 8461, 60°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Ebauches Bettlach (EB) 8461, 60°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "hand winding"
+      ],
+      "source": "https://17jewels.info/movements/e/eb/eb-8461/ (17jewels entry, EB 8461; Watch Movements Archive https://watch-movements-archive.com/watch-movement/eb-8461/ gives \"Winding: Manual (Crown)\") (\"The manual wind, medium sized pin lever movement EB 8461\")"
+    }
   },
   {
     "calibre": "Ebauches Bettlach 8462",
@@ -31053,7 +31063,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Landeron 51, 42°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Landeron 51, 42°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://watch-movements-archive.com/watch-movement/landeron-51/ (Watch Movements Archive entry, Landeron 51; Grail Watch's entry https://reference.grail-watch.com/movement/landeron-51/ gives the same) (\"Jewels: 17\")"
+    }
   },
   {
     "calibre": "Landeron 149",
@@ -44463,7 +44477,15 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (A. Schild 1525, 52°, 18000 vph)",
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (A. SCHILD 1525, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://watch-movements-archive.com/watch-movement/as-1525/ (Watch Movements Archive entry, A. Schild 1525; 17jewels' AS 1525 page https://17jewels.info/movements/a/as/as-1525/ gives the same) (\"Jewels: 17\")"
+    },
+    "diameter": {
+      "lignes": "10½",
+      "source": "https://17jewels.info/movements/a/as/as-1525/ (17jewels entry, AS 1525; Watch Movements Archive https://watch-movements-archive.com/watch-movement/as-1525/ gives \"10 1/2'''\") (\"Size: 10 1/2'''\")"
+    }
   },
   {
     "calibre": "A. Schild 1526",
@@ -45372,7 +45394,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (A. Schild [AS] 1759, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (A. Schild 1759, 52°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "diameter": {
+      "lignes": "11½",
+      "source": "https://17jewels.info/movements/a/as/as-1759/ (17jewels entry, AS 1759; Watch Movements Archive https://watch-movements-archive.com/watch-movement/as-1759/ gives \"11 1/2'''\") (\"Size: 11 1/2'''\")"
+    }
   },
   {
     "calibre": "A. Schild 1767",
@@ -50271,7 +50297,11 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Unitas 6325, 49°, 21600 vph)",
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (UNITAS 6325, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://watch-movements-archive.com/watch-movement/unitas-6325/ (Watch Movements Archive entry, Unitas 6325; 17jewels' Unitas 6325 page https://17jewels.info/movements/u/unitas/unitas-6325/ gives the same) (\"Jewels: 17\")"
+    }
   },
   {
     "calibre": "Unitas 6326",
@@ -52363,7 +52393,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Valjoux 72, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Valjoux 72, 52°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://watch-movements-archive.com/watch-movement/valjoux-72/ (Watch Movements Archive entry, Valjoux 72; Old Swiss Watches' page https://oldswisswatches.com/watch-parts-branded/valjoux-calibre-movement-and-spare-parts/valjoux-72/ gives \"17 jewels\") (\"Jewels: 17\")"
+    }
   },
   {
     "calibre": "Valjoux 88",
@@ -53138,7 +53172,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Valjoux 7730, 48°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Valjoux 7730, 48°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://reference.grail-watch.com/movement/valjoux-7730/ (Grail Watch entry, Valjoux 7730; Watch Wiki https://www.watch-wiki.net/doku.php?id=valjoux_7730 gives \"17 jewels\") (\"Jewels: 17\")"
+    },
+    "functions": {
+      "value": [
+        "chronograph"
+      ],
+      "source": "https://reference.grail-watch.com/movement/valjoux-7730/ (Grail Watch entry, Valjoux 7730; Watch Wiki https://www.watch-wiki.net/doku.php?id=valjoux_7730 gives \"cam switching chronograph movement\") (\"Cam Switching Chronograph\")"
+    }
   },
   {
     "calibre": "Valjoux 7731",
@@ -55691,7 +55735,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (A. Schild 1287, 52°)",
       "https://watch-wiki.org/index.php?title=AS_1287 (Watch-Wiki: AS 1287) (\"Halbschwingungen = 18.000\")"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://watch-movements-archive.com/watch-movement/as-1287/ (Watch Movements Archive entry, A. Schild 1287; 17jewels' AS 1287 page https://www.17jewels.info/movements/a/as/as-1287/ gives the same) (\"Jewels: 17\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding"
+      ],
+      "source": "https://www.17jewels.info/movements/a/as/as-1287/ (17jewels entry, AS 1287; Watch Movements Archive https://watch-movements-archive.com/watch-movement/as-1287/ gives \"Winding: Manual (Crown)\") (\"hand wound movement\")"
+    }
   },
   {
     "calibre": "A. Schild 1290",
@@ -55965,7 +56019,13 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Bettlach 8805, 42°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Ebauches Bettlach (EB) 8805, 42°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "date"
+      ],
+      "source": "https://watch-movements-archive.com/watch-movement/eb-8805/ (Watch Movements Archive entry, EB 8805; 17jewels https://www.17jewels.info/movements/e/eb/eb-8805/ lists \"QG (date indication (aperture))\") (\"Date, Day, Month...: Date\")"
+    }
   },
   {
     "calibre": "Ebauches Bettlach 8806",
@@ -58473,7 +58533,17 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 1256, 52°)",
       "https://ranfft.org/caliber/3917-ETA-1256 (Ranfft: ETA 1256, read 2026-11-17) (18000 bph, 52°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://watch-movements-archive.com/watch-movement/eta-1256-girard-perregaux-47/ (Watch Movements Archive entry, ETA 1256; 17jewels' ETA 1256 page https://17jewels.info/movements/e/eta/eta-1256/ gives the same) (\"Jewels: 17\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://watch-movements-archive.com/watch-movement/eta-1256-girard-perregaux-47/ (Watch Movements Archive entry, ETA 1256; 17jewels https://17jewels.info/movements/e/eta/eta-1256/ lists \"AUT (selfwinding)\") (\"Winding: Automatic\")"
+    }
   },
   {
     "calibre": "ETA 1260",
@@ -58799,7 +58869,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2365, 51°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2365, 51°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://watch-movements-archive.com/watch-movement/eta-2365/ (Watch Movements Archive entry, ETA 2365; 17jewels https://www.17jewels.info/movements/e/eta/eta-2365/ lists \"AUT (selfwinding)\") (\"Winding: Automatic\")"
+    },
+    "diameter": {
+      "lignes": "7¾",
+      "source": "https://www.17jewels.info/movements/e/eta/eta-2365/ (17jewels entry, ETA 2365; Watch Movements Archive https://watch-movements-archive.com/watch-movement/eta-2365/ gives \"7 3/4'''\") (\"Size: 7 3/4'''\")"
+    }
   },
   {
     "calibre": "ETA 2366",
@@ -58872,7 +58952,21 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2370, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2370, 52°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://watch-movements-archive.com/watch-movement/eta-2370/ (Watch Movements Archive entry, ETA 2370; 17jewels' ETA 2370 page https://www.17jewels.info/movements/e/eta/eta-2370/ gives the same) (\"Jewels: 17\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding"
+      ],
+      "source": "https://watch-movements-archive.com/watch-movement/eta-2370/ (Watch Movements Archive entry, ETA 2370; Old Swiss Watches https://oldswisswatches.com/watch-parts-branded/eta-calibre-movement-and-spare-parts/eta-2370/ gives \"manual wind\") (\"Winding: Manual (Crown)\")"
+    },
+    "diameter": {
+      "lignes": "11½",
+      "source": "https://www.17jewels.info/movements/e/eta/eta-2370/ (17jewels entry, ETA 2370; Watch Movements Archive https://watch-movements-archive.com/watch-movement/eta-2370/ gives \"11 1/2'''\") (\"Size: 11 1/2'''\")"
+    }
   },
   {
     "calibre": "ETA 2373",
@@ -58939,7 +59033,21 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2390, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2390, 52°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://17jewels.info/movements/e/eta/eta-2390/ (17jewels entry, ETA 2390; Caliber Corner https://calibercorner.com/eta-caliber-2390/ gives \"17 jewels\") (\"Number of jewels: 17\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding"
+      ],
+      "source": "https://calibercorner.com/eta-caliber-2390/ (Caliber Corner entry, ETA 2390; WatchMovementDB https://watchmovementdb.com/watch-parts-branded/eta-calibre-movement-and-spare-parts/eta-2390/ gives \"manual wind\") (\"Mechanical, manual-wind\")"
+    },
+    "diameter": {
+      "lignes": "10½",
+      "source": "https://17jewels.info/movements/e/eta/eta-2390/ (17jewels entry, ETA 2390; Caliber Corner https://calibercorner.com/eta-caliber-2390/ gives \"10.5”’\") (\"Size: 10 1/2'''\")"
+    }
   },
   {
     "calibre": "ETA 2391",
@@ -59174,7 +59282,18 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2472, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2472, 52°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date"
+      ],
+      "source": "https://watch-movements-archive.com/watch-movement/eta-2472/ (Watch Movements Archive entry, ETA 2472; 17jewels https://17jewels.info/movements/e/eta/eta-2472/ lists \"AUT (selfwinding)\" and \"QG (date indication (aperture))\") (\"Winding: Automatic … Date, Day, Month...: Date\")"
+    },
+    "diameter": {
+      "lignes": "11½",
+      "source": "https://17jewels.info/movements/e/eta/eta-2472/ (17jewels entry, ETA 2472; Watch Movements Archive https://watch-movements-archive.com/watch-movement/eta-2472/ gives \"11 1/2'''\") (\"Size: 11 1/2'''\")"
+    }
   },
   {
     "calibre": "ETA 2474",
@@ -59391,7 +59510,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2512, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2512, 52°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "diameter": {
+      "lignes": "7¾",
+      "source": "https://17jewels.info/movements/e/eta/eta-2512/ (17jewels entry, ETA 2512; Watch Movements Archive https://watch-movements-archive.com/watch-movement/eta-2512-dugena-3364-bm-775/ gives \"7 3/4'''\") (\"Size: 7 3/4'''\")"
+    }
   },
   {
     "calibre": "ETA 2520",
@@ -59517,7 +59640,15 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2540, 51°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2540, 51°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://www.17jewels.info/movements/e/eta/eta-2540/ (17jewels entry, ETA 2540; Watch Wiki https://www.watch-wiki.net/doku.php?id=eta_2540 gives \"17 jewels\") (\"Number of jewels: 17\")"
+    },
+    "diameter": {
+      "lignes": "7¾",
+      "source": "https://www.17jewels.info/movements/e/eta/eta-2540/ (17jewels entry, ETA 2540; Watch Wiki https://www.watch-wiki.net/doku.php?id=eta_2540 gives \"7¾ ligne\") (\"Size: 7 3/4'''\")"
+    }
   },
   {
     "calibre": "ETA 2541",
@@ -59913,7 +60044,13 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2650, 53°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2650, 53°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://reference.grail-watch.com/movement/eta-2650/ (Grail Watch entry, ETA 2650; 17jewels https://17jewels.info/movements/e/eta/eta-2650/ lists \"AUT (selfwinding)\") (\"Winding: Automatic\")"
+    }
   },
   {
     "calibre": "ETA 2651",
@@ -59967,7 +60104,12 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2660, 53°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2660, 53°, 28800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "diameter": {
+      "mm": "17.20",
+      "lignes": "7¾",
+      "source": "https://www.phfactor.net/wtf/ETA/27_ETA2660%2C2671%2C2678.pdf (ETA technical communication ETA 2660 / 2671 / 2678, one size for all three) (\"7¾´´´ … Ø 17,20 mm\")"
+    }
   },
   {
     "calibre": "ETA 2661",
@@ -60039,7 +60181,12 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2671, 53°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2671, 53°, 28800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "diameter": {
+      "mm": "17.20",
+      "lignes": "7¾",
+      "source": "https://www.phfactor.net/wtf/ETA/27_ETA2660%2C2671%2C2678.pdf (ETA technical communication ETA 2660 / 2671 / 2678, one size for all three) (\"7¾´´´ … Ø 17,20 mm\")"
+    }
   },
   {
     "calibre": "ETA 2678",
@@ -60057,7 +60204,12 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2678, 53°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2678, 53°, 28800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "diameter": {
+      "mm": "17.20",
+      "lignes": "7¾",
+      "source": "https://www.phfactor.net/wtf/ETA/27_ETA2660%2C2671%2C2678.pdf (ETA technical communication ETA 2660 / 2671 / 2678, one size for all three) (\"7¾´´´ … Ø 17,20 mm\")"
+    }
   },
   {
     "calibre": "ETA 2722",
@@ -61538,7 +61690,14 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 2873, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (ETA 2873, 52°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "automatic winding",
+        "date"
+      ],
+      "source": "https://watch-movements-archive.com/watch-movement/eta-2873/ (Watch Movements Archive entry, ETA 2873; 17jewels https://www.17jewels.info/movements/e/eta/eta-2873/ lists \"AUT (selfwinding)\" and \"QG (date indication (aperture))\") (\"Winding: Automatic … Date, Day, Month...: Date\")"
+    }
   },
   {
     "calibre": "ETA 2878",
@@ -61655,7 +61814,17 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (ETA 7001, 50°)",
       "https://ranfft.org/caliber/4259-ETA-7001 (Ranfft: ETA 7001, read 2026-11-17) (21600 bph, 50°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://reference.grail-watch.com/movement/eta-7001/ (Grail Watch entry, ETA 7001; Caliber Corner https://calibercorner.com/eta-caliber-7001/ gives 17) (\"Jewels: 17\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding"
+      ],
+      "source": "https://reference.grail-watch.com/movement/eta-7001/ (Grail Watch entry, ETA 7001; Caliber Corner https://calibercorner.com/eta-caliber-7001/ gives \"Mechanical, manual wind\") (\"Winding: Hand winding\")"
+    }
   },
   {
     "calibre": "ETA 746",
@@ -62200,7 +62369,11 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Felsa 465, 52°)",
       "https://ranfft.org/caliber/5162-Felsa-465 (Ranfft: Felsa 465, read 2026-11-17) (18000 bph, 52°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "jewels": {
+      "value": 17,
+      "source": "https://watch-movements-archive.com/watch-movement/felsa-465/ (Watch Movements Archive entry, Felsa 465; 17jewels' Felsa 465 page https://17jewels.info/movements/f/felsa/felsa-465/ gives the same) (\"Jewels: 17\")"
+    }
   },
   {
     "calibre": "Felsa 695",
@@ -62446,7 +62619,26 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Frederic Piguet 1180, 53°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Frederic Piguet 1180, 53°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "diameter": {
+      "mm": "25.60",
+      "source": "https://tempuseuropa.com/en/movement/frederic-piguet-1185 (Tempus Europa page on the FP 1180 family; Grail Watch's family table https://reference.grail-watch.com/family/fp-1180/ gives 25.60 for each) (\"All: 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "3.95",
+      "source": "https://tempuseuropa.com/en/movement/frederic-piguet-1185 (Tempus Europa page on the FP 1180 family; Grail Watch's family table https://reference.grail-watch.com/family/fp-1180/ gives 3.95 for the 1180) (\"1180 hand-wound, 3.95 mm\")"
+    },
+    "jewels": {
+      "value": 29,
+      "source": "https://tempuseuropa.com/en/movement/frederic-piguet-1185 (Tempus Europa page on the FP 1180 family; Grail Watch's family table https://reference.grail-watch.com/family/fp-1180/ gives 29 for the 1180) (\"1180 hand-wound, 3.95 mm, 29 jewels\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "chronograph"
+      ],
+      "source": "https://tempuseuropa.com/en/movement/frederic-piguet-1185 (Tempus Europa page on the FP 1180 family, all chronographs; Grail Watch's family table https://reference.grail-watch.com/family/fp-1180/ gives the same winding and chronograph for the 1180) (\"1180 hand-wound\")"
+    }
   },
   {
     "calibre": "Frederic Piguet 1181",
@@ -62457,7 +62649,22 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Frederic Piguet 1181, 53°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Frederic Piguet 1181, 53°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "diameter": {
+      "mm": "25.60",
+      "source": "https://tempuseuropa.com/en/movement/frederic-piguet-1185 (Tempus Europa page on the FP 1180 family; Grail Watch's family table https://reference.grail-watch.com/family/fp-1180/ gives 25.60 for each) (\"All: 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "5.35",
+      "source": "https://tempuseuropa.com/en/movement/frederic-piguet-1185 (Tempus Europa page on the FP 1180 family; Grail Watch's family table https://reference.grail-watch.com/family/fp-1180/ gives 5.35 for the 1181) (\"1181 hand-wound split seconds, 5.35 mm\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "chronograph"
+      ],
+      "source": "https://tempuseuropa.com/en/movement/frederic-piguet-1185 (Tempus Europa page on the FP 1180 family, all chronographs; Grail Watch's family table https://reference.grail-watch.com/family/fp-1180/ gives the same winding and chronograph for the 1181) (\"With split seconds, the hand-wound one is the 1181\")"
+    }
   },
   {
     "calibre": "Frederic Piguet 1185",
@@ -62477,7 +62684,23 @@
       "https://tempuseuropa.com/en/movement/frederic-piguet-1185 (Tempus Europa, Frédéric Piguet Calibre 1185) (3 Hz (21,600 vph))",
       "https://www.emmywatch.com/db/movement/frederic_piguet--1185/ (EmmyWatch, Frederic Piguet 1185 Watch Movement) (Frequency: 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "diameter": {
+      "mm": "25.60",
+      "source": "https://tempuseuropa.com/en/movement/frederic-piguet-1185 (Tempus Europa page on the FP 1180 family; Grail Watch's family table https://reference.grail-watch.com/family/fp-1180/ gives 25.60 for each) (\"All: 25.60 mm\")"
+    },
+    "jewels": {
+      "value": 37,
+      "source": "https://tempuseuropa.com/en/movement/frederic-piguet-1185 (Tempus Europa page on the FP 1185; Grail Watch's family table https://reference.grail-watch.com/family/fp-1180/ gives 37 for the 1185) (\"Jewels: 37\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "chronograph",
+        "date"
+      ],
+      "source": "https://tempuseuropa.com/en/movement/frederic-piguet-1185 (Tempus Europa page on the FP 1180 family, all chronographs; Grail Watch's family table https://reference.grail-watch.com/family/fp-1180/ gives the same winding and chronograph for the 1185) (\"Type: automatic chronograph, date\")"
+    }
   },
   {
     "calibre": "Frederic Piguet 1186",
@@ -62488,7 +62711,22 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Frederic Piguet 1186, 53°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Frederic Piguet 1186, 53°)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "diameter": {
+      "mm": "25.60",
+      "source": "https://tempuseuropa.com/en/movement/frederic-piguet-1185 (Tempus Europa page on the FP 1180 family; Grail Watch's family table https://reference.grail-watch.com/family/fp-1180/ gives 25.60 for each) (\"All: 25.60 mm\")"
+    },
+    "height_mm": {
+      "value": "6.90",
+      "source": "https://tempuseuropa.com/en/movement/frederic-piguet-1185 (Tempus Europa page on the FP 1180 family; Grail Watch's family table https://reference.grail-watch.com/family/fp-1180/ gives 6.90 for the 1186) (\"1186 automatic split seconds, 6.90 mm\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding",
+        "chronograph"
+      ],
+      "source": "https://tempuseuropa.com/en/movement/frederic-piguet-1185 (Tempus Europa page on the FP 1180 family, all chronographs; Grail Watch's family table https://reference.grail-watch.com/family/fp-1180/ gives the same winding and chronograph for the 1186) (\"the automatic, the 1186\")"
+    }
   },
   {
     "calibre": "Frederic Piguet 15",
@@ -110176,7 +110414,17 @@
       "https://ronda.ronda.hausformat.net/en/watch-movement-finder/caliber/r0102 (Ronda movement finder, R01-02) (Lift angle 53°; 25'200 A/h (3.5 Hz))"
     ],
     "confidence": "press article",
-    "notes": "3.5 Hz. Lift angle 53° from Ronda's own page for the R01-02; the R01-01 page could not be read (timegrapher-calibres#6)."
+    "notes": "3.5 Hz. Lift angle 53° from Ronda's own page for the R01-02; the R01-01 page could not be read (timegrapher-calibres#6).",
+    "power_reserve_h": {
+      "value": "80",
+      "source": "https://www.ronda.ch/en/about-ronda-group/ronda-headquarters/history (Ronda's history page, R01 Mechanical Series) (\"a Swiss Made automatic movement with an 80-hour power reserve\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://www.ronda.ch/en/about-ronda-group/ronda-headquarters/history (Ronda's history page, R01 Mechanical Series) (\"a Swiss Made automatic movement\")"
+    }
   },
   {
     "calibre": "Seiko 4R34",
