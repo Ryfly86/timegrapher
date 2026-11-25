@@ -5769,7 +5769,33 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Audemars Piguet 2003, 56°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Audemars-Piguet 2003, 56°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "diameter": {
+      "mm": "20.8",
+      "lignes": "9",
+      "source": "https://apchronicles.audemarspiguet.com/en/calibre/calibre-2003 (Audemars Piguet Chronicles, calibre 2003) (\"Diameter of 9 lignes (20.8 mm), thickness of 1.64 mm.\")"
+    },
+    "height_mm": {
+      "value": "1.64",
+      "source": "https://apchronicles.audemarspiguet.com/en/calibre/calibre-2003 (Audemars Piguet Chronicles, calibre 2003) (\"Diameter of 9 lignes (20.8 mm), thickness of 1.64 mm.\")"
+    },
+    "years": {
+      "from": 1952,
+      "to": 2003,
+      "source": "https://apchronicles.audemarspiguet.com/en/calibre/calibre-2003 (Audemars Piguet Chronicles, calibre 2003) (\"1952–2003. Calibre 2003.\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://apchronicles.audemarspiguet.com/en/calibre/calibre-2003 (Audemars Piguet Chronicles, calibre 2003) (\"this movement remained the world’s thinnest selfwinding mechanism for half a century\")"
+    },
+    "summary": [
+      {
+        "text": "Audemars Piguet says its ébauche was developed by Maurice Audemars at LeCoultre & Cie, under reference 803.",
+        "source": "https://apchronicles.audemarspiguet.com/en/calibre/calibre-2003 (Audemars Piguet Chronicles, calibre 2003) (\"Its “ébauche” was developed by Maurice Audemars, at LeCoultre & Cie (later Jaeger-LeCoultre) under reference 803.\")"
+      }
+    ]
   },
   {
     "calibre": "Audemars Piguet 2005",
@@ -11988,7 +12014,21 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (BREGUET 502.3, 60°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "height_mm": {
+      "value": "2.4",
+      "source": "https://www.breguet.com/en/watches/classique/classique-5157/5157bb119v6 (Breguet Classique 5157 page, movement 502.3) (\"Thickness 2.4 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "45",
+      "source": "https://www.breguet.com/en/watches/classique/classique-5157/5157bb119v6 (Breguet Classique 5157 page, movement 502.3) (\"Power reserve 45 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://www.breguet.com/en/watches/classique/classique-5157/5157bb119v6 (Breguet Classique 5157 page, movement 502.3) (\"Winding Automatic winding\")"
+    }
   },
   {
     "calibre": "Breguet 502.3 SD",
@@ -12005,7 +12045,21 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (BREGUET 502.3 SD, 60°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "height_mm": {
+      "value": "2.4",
+      "source": "https://www.breguet.com/en/watches/classique/classique-7147/7147bb299wu (Breguet Classique 7147 page, movement 502.3 SD) (\"Thickness 2.4 mm\")"
+    },
+    "power_reserve_h": {
+      "value": "45",
+      "source": "https://www.breguet.com/en/watches/classique/classique-7147/7147bb299wu (Breguet Classique 7147 page, movement 502.3 SD) (\"Power reserve 45 hours\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://www.breguet.com/en/watches/classique/classique-7147/7147bb299wu (Breguet Classique 7147 page, movement 502.3 SD) (\"Winding Automatic winding\")"
+    }
   },
   {
     "calibre": "Breguet 503",
@@ -39127,7 +39181,13 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Patek-Philippe 12-120, 46°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Patek Philippe 12-120, 46°, 18000 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "hand winding"
+      ],
+      "source": "https://static.patek.com/pdf/pressreleases/en/2021_PatekPhilippe_Calatrava_Ref_6119.pdf (Patek Philippe press release, Calatrava Ref. 6119, 2021) (\"the same manually wound caliber 12-120 movement\")"
+    }
   },
   {
     "calibre": "Patek Philippe 12-400",
@@ -39201,7 +39261,13 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Patek-Philippe 16-250, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Patek Philippe 16-250, 52°, 28800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "hand winding"
+      ],
+      "source": "https://static.patek.com/pdf/pressreleases/en/2021_PatekPhilippe_Calatrava_Ref_6119.pdf (Patek Philippe press release, Calatrava Ref. 6119, 2021) (\"the manually wound caliber 16-250 movement\")"
+    }
   },
   {
     "calibre": "Patek Philippe 17\" 140",
@@ -39409,7 +39475,13 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Patek-Philippe 177, 59°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Patek Philippe 177, 59°, 21600 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "functions": {
+      "value": [
+        "hand winding"
+      ],
+      "source": "https://static.patek.com/pdf/pressreleases/en/2021_PatekPhilippe_Calatrava_Ref_6119.pdf (Patek Philippe press release, Calatrava Ref. 6119, 2021) (\"The Ref. 3520D with a manually wound movement (caliber 177)\")"
+    }
   },
   {
     "calibre": "Patek Philippe 215",
@@ -39428,7 +39500,11 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Patek-Philippe 215, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Patek Philippe 215, 52°, 28800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "height_mm": {
+      "value": "2.55",
+      "source": "https://static.patek.com/pdf/pressreleases/en/2021_PatekPhilippe_Calatrava_Ref_6119.pdf (Patek Philippe press release, Calatrava Ref. 6119, 2021) (\"height of 2.55 mm of the caliber 215 movement\")"
+    }
   },
   {
     "calibre": "Patek Philippe 350",
@@ -40264,7 +40340,21 @@
     "sources": [
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (PIAGET 9P, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "height_mm": {
+      "value": "2",
+      "source": "https://www.piaget.com/us-en/movement/ultra-thin-movements (Piaget, ultra-thin movements) (\"starting with the 9P hand-wound movement at only 2mm thick.\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding"
+      ],
+      "source": "https://www.piaget.com/us-en/movement/ultra-thin-movements (Piaget, ultra-thin movements) (\"starting with the 9P hand-wound movement at only 2mm thick.\")"
+    },
+    "years": {
+      "from": 1957,
+      "source": "https://www.piaget.com/us-en/maison-piaget/ultra-thin (Piaget, ultra-thin history) (\"The hand-wound 9P (1957) and self-winding 12P (1960)\")"
+    }
   },
   {
     "calibre": "Piaget 9P2",
@@ -40302,7 +40392,27 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Piaget 12P, 51°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Piaget 12P, 51°, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "height_mm": {
+      "value": "2.3",
+      "source": "https://www.piaget.com/us-en/movement/ultra-thin-movements (Piaget, ultra-thin movements) (\"At just 2.3 mm thick, the 12P caliber\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://www.piaget.com/us-en/movement/ultra-thin-movements (Piaget, ultra-thin movements) (\"the launch of the self-winding 12P caliber in 1960\")"
+    },
+    "years": {
+      "from": 1960,
+      "source": "https://www.piaget.com/us-en/maison-piaget/ultra-thin (Piaget, ultra-thin history) (\"The hand-wound 9P (1957) and self-winding 12P (1960)\")"
+    },
+    "summary": [
+      {
+        "text": "Piaget says the 12P winds with a 24-carat gold micro-rotor built into the movement.",
+        "source": "https://www.piaget.com/us-en/movement/ultra-thin-movements (Piaget, ultra-thin movements) (\"24-carat gold micro-rotor integrated within the movement\")"
+      }
+    ]
   },
   {
     "calibre": "Piaget 12P1",
@@ -51270,7 +51380,23 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Universal Geneve 66, 50°, 19800 vph)",
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (UNIVERSAL GENEVE 66, 19800 vph)"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1966,
+      "source": "https://www.universalgeneve.com/us-en/history/ (Universal Genève history, 1966) (\"The caliber 66 makes its appearance on the White Shadow, Gilt Shadow and Golden Shadow\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://www.universalgeneve.com/us-en/history/ (Universal Genève history, 1966) (\"The caliber 66 will hold the record for the thinnest self-winding movement until 1978.\")"
+    },
+    "summary": [
+      {
+        "text": "Universal Genève first fitted it to the White Shadow, Gilt Shadow and Golden Shadow.",
+        "source": "https://www.universalgeneve.com/us-en/history/ (Universal Genève history, 1966) (\"The caliber 66 makes its appearance on the White Shadow, Gilt Shadow and Golden Shadow\")"
+      }
+    ]
   },
   {
     "calibre": "Universal Geneve 67",
@@ -54466,7 +54592,27 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Zenith 135, 52°)",
       "https://watch-wiki.org/index.php?title=Zenith_135 (Watch-Wiki: Zenith 135) (\"Halbschwingungen = 18.000\")"
     ],
-    "confidence": "published list"
+    "confidence": "published list",
+    "years": {
+      "from": 1949,
+      "to": 1962,
+      "source": "https://pressroom.zenith-watches.com/app/uploads/2025/03/PRESS_KIT_GFJ.pdf (Zenith press kit, Georges Favre-Jacot, calibre 135) (\"It was produced from 1949 to 1962\")"
+    },
+    "diameter": {
+      "mm": "30",
+      "lignes": "13",
+      "source": "https://pressroom.zenith-watches.com/app/uploads/2025/03/PRESS_KIT_GFJ.pdf (Zenith press kit, Georges Favre-Jacot, calibre 135) (\"13 lines (or 30mm, the maximum size allowed\")"
+    },
+    "height_mm": {
+      "value": "5",
+      "source": "https://pressroom.zenith-watches.com/app/uploads/2025/03/PRESS_KIT_GFJ.pdf (Zenith press kit, Georges Favre-Jacot, calibre 135) (\"and 5mm in thickness.\")"
+    },
+    "summary": [
+      {
+        "text": "Zenith made it in two versions, the commercial 135 and the 135-O.",
+        "source": "https://pressroom.zenith-watches.com/app/uploads/2025/03/PRESS_KIT_GFJ.pdf (Zenith press kit, Georges Favre-Jacot, calibre 135) (\"a commercial variant (135), and an “O” iteration (135-O)\")"
+      }
+    ]
   },
   {
     "calibre": "Zenith 18-23-3 A",
