@@ -2,11 +2,17 @@ name: Calibre data
 
 # Publishes the calibre table, as `timegrapher calibres export --json`
 # writes it (timegrapher.calibres-export/1), for opentimegrapher.org's
-# calibre pages, and later for the app's calibre-data check (#2287). Each
-# push to main that changes the table or the export code replaces the file
+# calibre pages, and later for the app's calibre-data check (#2287). After
+# a push to main that could change it, a changed export replaces the file
 # at one fixed address:
 #
 #   https://github.com/peterhudson/timegrapher/releases/download/calibre-data/calibres-export.json.gz
+#
+# The paths are wide (all of core and the CLI, and the version and lock
+# files) so the list can't fall behind the code the export reads. Most such
+# pushes leave the export as it was: the run compares it with the published
+# file, leaving out the `software` block (commit and build date, new on
+# every build), and publishes nothing when the rest is unchanged.
 #
 # The file sits on a rolling release tagged `calibre-data`, moved to the
 # commit it was made from. That release is a pre-release and is never made
@@ -21,18 +27,20 @@ on:
   push:
     branches: [main]
     paths:
-      - "crates/timegrapher-core/data/train-wheels.json"
-      - "crates/timegrapher-core/src/calibre_page.rs"
-      - "crates/timegrapher-core/src/calibre_specs.rs"
-      - "crates/timegrapher-core/src/calibres.rs"
+      - "crates/timegrapher-core/**"
+      - "crates/timegrapher-cli/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
       - ".github/workflows/calibre-data.yml"
   workflow_dispatch:
 
 permissions:
   contents: write
 
-# One run at a time, so an older commit's data never replaces a newer one's;
-# a newer push waits for the running one rather than cancelling it.
+# One run at a time, so an older commit's data never replaces a newer one's.
+# A newer push waits for the running one; GitHub keeps one waiting run per
+# group, so a later push replaces a waiting one. The first step also skips
+# a run whose commit is older than the one calibre-data already holds.
 concurrency:
   group: calibre-data
   cancel-in-progress: false
@@ -43,38 +51,70 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    # The token goes only to the steps that call gh, never to the build,
+    # whose dependency build scripts would otherwise see a write token.
     env:
-      GH_TOKEN: ${{ github.token }}
       TAG: calibre-data
       ASSET: calibres-export.json.gz
     steps:
+      # A re-run of an old run, or a run that waited behind a newer one,
+      # must not put back older data. Main's head is not the test: a later
+      # push that misses the paths above starts no run of its own.
+      - name: Skip if calibre-data already holds a newer commit
+        id: head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # gh prints a 404's body on stdout, so keep the output only on success.
+          if ! published="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq .object.sha 2>/dev/null)"; then
+            published=""
+          fi
+          status=new
+          if [ -n "$published" ]; then
+            status="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${published}...${GITHUB_SHA}" --jq .status)"
+          fi
+          if [ "$status" = behind ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "calibre-data already holds $published, newer than $GITHUB_SHA. Nothing to do."
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "calibre-data holds ${published:-nothing}; this commit is $status of it."
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.head.outputs.publish == 'true'
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        if: steps.head.outputs.publish == 'true'
         with:
           toolchain: stable
       # The same build as ci.yml's regress checks, so their cache serves it;
       # this job never saves one (the repository's caches are near the limit).
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        if: steps.head.outputs.publish == 'true'
         with:
           shared-key: regress
           save-if: false
       - name: Build
+        if: steps.head.outputs.publish == 'true'
         run: cargo build --locked --release -p timegrapher-cli --no-default-features
 
       - name: Export and check
+        if: steps.head.outputs.publish == 'true'
         id: export
         run: |
           set -euo pipefail
           out="$RUNNER_TEMP/out"
           mkdir -p "$out"
           ./target/release/timegrapher calibres export --json > "$out/calibres-export.json"
-          # -n leaves out the file name and time, so the same table gives
-          # the same bytes.
+          # -n leaves out the file name and time from the gzip header. The
+          # bytes still change with each build: the envelope's `software`
+          # block names the commit and the build date.
           gzip -9 -n -c "$out/calibres-export.json" > "$out/$ASSET"
-          # Read back the file that is uploaded, not the one before gzip.
-          python3 - "$out/$ASSET" <<'PY' >> "$GITHUB_OUTPUT"
+          # Read back the file that is uploaded, not the one before gzip:
+          # the schema, one page per row of the table, no two at one path.
+          python3 - "$out/$ASSET" crates/timegrapher-core/data/train-wheels.json <<'PY' >> "$GITHUB_OUTPUT"
           import gzip, json, sys
           with gzip.open(sys.argv[1], "rt", encoding="utf-8") as f:
               doc = json.load(f)
@@ -84,11 +124,52 @@ jobs:
           calibres = doc.get("calibres")
           if not isinstance(calibres, list) or not calibres:
               sys.exit("the export holds no calibres")
+          with open(sys.argv[2], encoding="utf-8") as f:
+              rows = len(json.load(f))
+          if len(calibres) != rows:
+              sys.exit(f"the export has {len(calibres)} calibres, the table {rows} rows")
+          paths = [c.get("path") for c in calibres]
+          if None in paths or len(set(paths)) != len(paths):
+              sys.exit("two calibres share a page path, or one has none")
           print(f"calibres={len(calibres)}")
           PY
           echo "dir=$out" >> "$GITHUB_OUTPUT"
 
+      - name: Compare with the published file
+        if: steps.head.outputs.publish == 'true'
+        id: diff
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUT: ${{ steps.export.outputs.dir }}
+        run: |
+          set -euo pipefail
+          if ! gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$ASSET" \
+              --output "$RUNNER_TEMP/published.json.gz" 2>/dev/null; then
+            echo "Nothing published yet."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python3 - "$RUNNER_TEMP/published.json.gz" "$OUT/$ASSET" <<'PY' >> "$GITHUB_OUTPUT"
+          import gzip, json, sys
+          def body(path):
+              try:
+                  with gzip.open(path, "rt", encoding="utf-8") as f:
+                      doc = json.load(f)
+              except (OSError, ValueError):
+                  return None
+              doc.pop("software", None)
+              return doc
+          old, new = body(sys.argv[1]), body(sys.argv[2])
+          same = old is not None and old == new
+          print("changed=" + ("false" if same else "true"))
+          print("Unchanged apart from the build details: nothing to publish." if same
+                else "The export changed.", file=sys.stderr)
+          PY
+
       - name: Move the calibre-data tag to this commit
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --silent 2>/dev/null; then
@@ -100,7 +181,9 @@ jobs:
           fi
 
       - name: Publish to the calibre-data pre-release
+        if: steps.diff.outputs.changed == 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           OUT: ${{ steps.export.outputs.dir }}
           COUNT: ${{ steps.export.outputs.calibres }}
         run: |
@@ -109,7 +192,7 @@ jobs:
           date="$(git log -1 --format=%cd --date=format-local:'%Y-%m-%d %H:%M UTC' "${GITHUB_SHA}")"
           notes="$RUNNER_TEMP/notes.md"
           {
-            echo "The calibre table as \`timegrapher calibres export --json\` writes it (\`timegrapher.calibres-export/1\`), for opentimegrapher.org's calibre pages. Replaced on every change to the table; not an app release."
+            echo "The calibre table as \`timegrapher calibres export --json\` writes it (\`timegrapher.calibres-export/1\`), for opentimegrapher.org's calibre pages. Replaced whenever the export changes; not an app release."
             echo
             echo "- Commit: ${GITHUB_SHA}"
             echo "- Committed: ${date}"
@@ -133,6 +216,8 @@ jobs:
       # case to catch.
       - name: Check releases/latest is still an app release
         if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           latest="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq .tag_name)"
@@ -142,6 +227,7 @@ jobs:
           esac
 
       - name: Ask the site to rebuild
+        if: steps.diff.outputs.changed == 'true'
         env:
           HOOK: ${{ secrets.CLOUDFLARE_SITE_DEPLOY_HOOK }}
         run: |
