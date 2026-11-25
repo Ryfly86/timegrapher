@@ -34835,17 +34835,7 @@
       "https://docs.google.com/spreadsheets/d/teAKORqEYkv8yFz96BRHbkg (lift angle sheet linked from watchrepairtalk.com/topic/27749-lift-angle) (LORSA 81, 52°, 21600 vph)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Lorsa 81, 52°, 21600 vph)"
     ],
-    "confidence": "published list",
-    "jewels": {
-      "value": 17,
-      "source": "https://17jewels.info/movements/l/lorsa/lorsa-81/ (17jewels, Lorsa 81; WatchTraderHub https://www.watchtraderhub.com/movements/lorsa-81 gives the same) (\"Number of jewels: 17\" … \"6 3/4 x 8 ligne, 17 jewels.\")"
-    },
-    "functions": {
-      "value": [
-        "hand winding"
-      ],
-      "source": "https://www.watchtraderhub.com/movements/lorsa-81 (WatchTraderHub, Lorsa 81; 17jewels https://17jewels.info/movements/l/lorsa/lorsa-81/ gives the same) (\"Movement Type | Manual Winding\" … \"tonneau shaped windup movements\")"
-    }
+    "confidence": "published list"
   },
   {
     "calibre": "Lorsa 82",
@@ -38665,11 +38655,7 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Oris 712, 46°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Oris 712, 46°, 18000 vph)"
     ],
-    "confidence": "published list",
-    "jewels": {
-      "value": 17,
-      "source": "https://17jewels.info/movements/o/oris/oris-712/ (17jewels, Oris 712; WatchTraderHub https://www.watchtraderhub.com/movements/oris-712 gives the same) (\"Number of jewels: 17\" … \"17 jewels\")"
-    }
+    "confidence": "published list"
   },
   {
     "calibre": "Oris 715",
@@ -56489,10 +56475,6 @@
       "https://www.blancpain.com/en-us/taxonomy/term/10506 (Blancpain, Caliber 1151) (3Hz)"
     ],
     "confidence": "published list",
-    "jewels": {
-      "value": 28,
-      "source": "https://dials.co/calibers/blancpain/1151 (dials.co, Blancpain 1151; WatchTraderHub https://www.watchtraderhub.com/movements/blancpain-1151 gives the same) (\"Jewels 28\" … \"28 jewels\")"
-    },
     "functions": {
       "value": [
         "automatic winding",
@@ -57025,11 +57007,7 @@
       "https://watchguy.co.uk/cgi-bin/lift_angles (Certina 13-21, 51°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Certina 13-21, 51°, 19800 vph)"
     ],
-    "confidence": "published list",
-    "jewels": {
-      "value": 17,
-      "source": "https://www.watchtraderhub.com/movements/certina-13-21 (WatchTraderHub, Certina 13-21; 17jewels https://17jewels.info/movements/c/certina/certina-13-21/ gives the same) (\"17 jewels\" … \"Number of jewels: 17\")"
-    }
+    "confidence": "published list"
   },
   {
     "calibre": "Certina 13-51",
