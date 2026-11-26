@@ -1725,3 +1725,68 @@ fn a_click_on_the_banner_never_scrolls_the_pane() {
         now += 0.5;
     }
 }
+
+/// Every scroll area in the app is made through `theme::scroll`, the one
+/// place that turns egui's drag-to-scroll off, and none sets its own
+/// scroll source (#2146: #2113's fix had reached the Positions Test pane
+/// alone).
+#[test]
+fn every_scroll_area_is_made_through_the_one_place() {
+    use std::path::Path;
+    let mut dirs = vec![Path::new(env!("CARGO_MANIFEST_DIR")).join("src")];
+    let mut seen = 0;
+    while let Some(d) = dirs.pop() {
+        for e in std::fs::read_dir(&d).unwrap() {
+            let p = e.unwrap().path();
+            let name = p.file_name().unwrap().to_string_lossy().to_string();
+            if p.is_dir() {
+                dirs.push(p);
+                continue;
+            }
+            if !name.ends_with(".rs") || name.ends_with("_tests.rs") {
+                continue;
+            }
+            let text = std::fs::read_to_string(&p).unwrap();
+            let areas = text.matches("egui::ScrollArea::").count();
+            let through = text.matches("scroll(egui::ScrollArea::").count();
+            assert_eq!(
+                areas, through,
+                "{name}: a scroll area not made by theme::scroll"
+            );
+            if name != "theme.rs" {
+                assert!(
+                    !text.contains("scroll_source("),
+                    "{name} sets a scroll source"
+                );
+            }
+            seen += areas;
+        }
+    }
+    assert!(seen > 10, "{seen} scroll areas found");
+}
+
+/// The one place makes every scroll area scroll by the wheel and its bar
+/// alone, never by dragging its contents: the setting #2113's test shows
+/// keeps a fast click from coasting the Positions Test pane (#2146).
+/// egui keeps the setting private, so it is read from the area's debug
+/// text.
+#[test]
+fn the_one_place_turns_drag_to_scroll_off() {
+    let source = |area: &egui::ScrollArea| {
+        let text = format!("{area:?}");
+        let at = text.find("scroll_source").expect("a scroll source");
+        text[at..].split('}').next().unwrap_or_default().to_string()
+    };
+    for area in [
+        egui::ScrollArea::vertical(),
+        egui::ScrollArea::horizontal(),
+        egui::ScrollArea::both(),
+    ] {
+        // egui's own default drags.
+        assert!(source(&area).contains("drag: true"), "{}", source(&area));
+        let ours = source(&theme::scroll(area));
+        assert!(ours.contains("drag: false"), "{ours}");
+        assert!(ours.contains("scroll_bar: true"), "{ours}");
+        assert!(ours.contains("mouse_wheel: true"), "{ours}");
+    }
+}

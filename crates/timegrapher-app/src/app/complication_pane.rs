@@ -631,31 +631,15 @@ fn draw_one(
         .collect();
     values.extend(change.map(|c| c.off.value));
     let grid = egui::Stroke::new(1.0_f32, pal.separator);
-    if let (Some(&a), Some(&b)) = (
-        values.iter().min_by(|a, b| a.total_cmp(b)),
-        values.iter().max_by(|a, b| a.total_cmp(b)),
-    ) {
-        // At least five places of the figure, about the middle.
-        let least = f64::from(MIN_SPAN_PLACES) * 10f64.powi(-(q.digits() as i32));
-        let mid = (a + b) / 2.0;
-        values.extend([mid - least / 2.0, mid + least / 2.0]);
-    }
-    let Some((lo, hi)) = chart_scale::data_range(&values) else {
-        painter.hline(area.x_range(), area.bottom(), grid);
-        return;
-    };
-    let (lo, hi, base) = chart_scale::round_ends(lo, hi);
-    let mut step = base;
-    let y = |v: f64| area.bottom() - ((v - lo) / (hi - lo)) as f32 * area.height();
-    // A rounder step where the labels would touch: at least two labels'
-    // height apart (Hugh on #1799).
     let label_h = painter
         .layout_no_wrap("0".into(), egui::FontId::proportional(11.0), pal.text)
         .size()
         .y;
-    while step < hi - lo && (step / (hi - lo)) as f32 * area.height() < 2.0 * label_h {
-        step = chart_scale::round_step(step + step);
-    }
+    let Some((lo, hi, base, step)) = value_scale(q, values, area.height(), label_h) else {
+        painter.hline(area.x_range(), area.bottom(), grid);
+        return;
+    };
+    let y = |v: f64| area.bottom() - ((v - lo) / (hi - lo)) as f32 * area.height();
     let n = ((hi - lo) / base).round() as i64;
     // The scale's lines at its own step, those on the rounder one kept.
     let on_step = |v: f64| ((v / step).round() * step - v).abs() < base / 2.0;
@@ -712,6 +696,50 @@ fn draw_one(
         }
         painter.circle(p, DOT_R, colour, egui::Stroke::new(1.5_f32, pal.card));
     }
+}
+
+/// A plot's value scale over `values` (each figure with its ± and where
+/// On would sit), `h` points tall with labels `label_h` high: its ends,
+/// the step its grid lines fall on and the rounder step labelled, as
+/// `(lo, hi, base, step)`; none without values.
+fn value_scale(
+    q: SeriesKind,
+    mut values: Vec<f64>,
+    h: f32,
+    label_h: f32,
+) -> Option<(f64, f64, f64, f64)> {
+    if let (Some(&a), Some(&b)) = (
+        values.iter().min_by(|a, b| a.total_cmp(b)),
+        values.iter().max_by(|a, b| a.total_cmp(b)),
+    ) {
+        // At least five places of the figure, about the middle.
+        let least = f64::from(MIN_SPAN_PLACES) * 10f64.powi(-(q.digits() as i32));
+        let mid = (a + b) / 2.0;
+        values.extend([mid - least / 2.0, mid + least / 2.0]);
+    }
+    let (lo, hi) = chart_scale::data_range(&values)?;
+    let (lo, hi, base) = chart_scale::round_ends(lo, hi);
+    let mut step = base;
+    // A rounder step where the labels would touch: at least two labels'
+    // height apart (Hugh on #1799).
+    while step < hi - lo && (step / (hi - lo)) as f32 * h < 2.0 * label_h {
+        step = chart_scale::round_step(step + step);
+    }
+    // Ends on the rounder step where fewer than two of its lines would
+    // fall between them, so the scale always reads at two labels at
+    // least (#2129: one "230" alone said nothing of the scale).
+    if marks_between(lo, hi, step) < 2 {
+        let (lo, hi, step) = chart_scale::round_ends_at(lo, hi, step);
+        return Some((lo, hi, step, step));
+    }
+    Some((lo, hi, base, step))
+}
+
+/// How many whole steps of `step` lie from `lo` to `hi`, ends included.
+fn marks_between(lo: f64, hi: f64, step: f64) -> i64 {
+    let first = (lo / step - 1e-9).ceil() as i64;
+    let last = (hi / step + 1e-9).floor() as i64;
+    (last - first + 1).max(0)
 }
 
 /// One part of the key under the plots: its mark and its words.
@@ -848,5 +876,33 @@ mod tests {
         assert_eq!(time_step(180.0), 30.0);
         assert_eq!(time_step(400.0), 120.0);
         assert!(theme::TIME_STEPS.contains(&time_step(5000.0)));
+    }
+
+    /// However a stretch's figure and the plot's height fall, its scale
+    /// reads at two labels at least (#2129: an amplitude of 231° on a
+    /// short plot read at one "230" alone).
+    #[test]
+    fn every_scale_reads_at_two_labels_at_least() {
+        for q in [
+            SeriesKind::Amplitude,
+            SeriesKind::Rate,
+            SeriesKind::BeatError,
+        ] {
+            for k in 0..400 {
+                let v = 0.37 * f64::from(k) - 20.0;
+                for e in [0.0, 0.05, 1.5] {
+                    for h in [40.0, 70.0, 90.0, 160.0] {
+                        let (lo, hi, base, step) =
+                            value_scale(q, vec![v - e, v + e], h, 13.0).expect("a scale");
+                        assert!(
+                            marks_between(lo, hi, step) >= 2,
+                            "{q:?} {v} ± {e} on {h} pt: {lo} to {hi} by {step}"
+                        );
+                        assert!(lo <= v - e && hi >= v + e, "{q:?} {v}: {lo} to {hi}");
+                        assert!(base <= step, "{base} {step}");
+                    }
+                }
+            }
+        }
     }
 }

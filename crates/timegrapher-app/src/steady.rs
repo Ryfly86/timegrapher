@@ -606,6 +606,18 @@ fn even_grid(input: GridInput) -> Vec<GridMark> {
     theme::even_grid(input, 24.0, &[])
 }
 
+/// The Autocorrelation plot's grid: [`even_grid`]'s lines up to the
+/// highest correlation drawn (`top`, 1 at lag 0) and none above it, in
+/// the room kept for the Ljung–Box note, so the scale never reads past
+/// what a correlation can be (#2129: its labels ran to 1.35).
+fn correlation_grid(top: f64) -> impl Fn(GridInput) -> Vec<GridMark> {
+    move |input| {
+        let mut marks = even_grid(input);
+        marks.retain(|m| m.value <= top + m.step_size / 2.0);
+        marks
+    }
+}
+
 /// The grid of a series' readings over time: rate and beat error have a
 /// zero line (0 s/d, 0 ms), amplitude none.
 fn value_grid(k: SeriesKind) -> strength::Grid {
@@ -873,7 +885,7 @@ fn rows(
         let row_h = (fits(n, h) - 4.0).max(MIN_ROW);
         // The bar always shows, so a row below the pane's edge is not
         // missed.
-        egui::ScrollArea::vertical()
+        crate::theme::scroll(egui::ScrollArea::vertical())
             .auto_shrink([false, false])
             .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
             .show(ui, |ui| {
@@ -1611,7 +1623,8 @@ fn autocorrelation_plot(ui: &mut egui::Ui, r: Row<'_>) {
     let short = note_short(ui, &None, (i, view));
     let fill = ui.visuals().extreme_bg_color.gamma_multiply(0.8);
     let ljung = format!("Ljung–Box p = {} ", steadiness::p_text(a.p_value));
-    let grid = strength::Grid::new(time_grid, even_grid).zero_y();
+    let top = pts.iter().map(|p| p[1]).fold(-1.0, f64::max);
+    let grid = strength::Grid::new(time_grid, correlation_grid(top)).zero_y();
     let resp = grid
         .on(base)
         .x_axis_formatter(clear_of_edge(plot_w, lag_text))
@@ -1730,15 +1743,11 @@ fn allan_plot(ui: &mut egui::Ui, r: Row<'_>) {
         .show(ui, |p| {
             grid.draw(p, pal);
             p.line(
-                Line::new("independent", white)
+                Line::new("independent", white.clone())
                     .color(pal.callout)
                     .style(dashed)
                     .width(strength::CALL_OUT_W),
             );
-            // Name the dashed line where it ends.
-            if let Some(at) = last {
-                mark_label(p, at, independent.into(), pal.text_secondary, false);
-            }
             // The line runs on through the hollow points, faint there.
             let faint: Vec<[f64; 2]> = judged.last().into_iter().chain(&hollow).copied().collect();
             p.line(
@@ -1766,24 +1775,56 @@ fn allan_plot(ui: &mut egui::Ui, r: Row<'_>) {
                         .radius(2.5_f32),
                 );
             }
-            if let Some((at, text)) = &least {
-                mark_label(p, *at, text.clone(), pal.text, false);
-            }
         });
-    // The hollow points' note, once, at the first of them: on a plate in
-    // the nearest place clear of the trace and of the other two labels,
-    // which otherwise it would sit on (Walter on #2012).
-    if let (Some(&first), Some(note)) = (hollow.first(), a.hollow_note) {
-        let t = &resp.transform;
-        let avoid: Vec<egui::Rect> = last
-            .map(|at| (at, independent.to_string()))
-            .into_iter()
-            .chain(least)
-            .map(|(at, text)| mark_label_rect(ui, t, at, &text, false))
-            .collect();
-        let fill = ui.visuals().extreme_bg_color.gamma_multiply(0.8);
-        let id = ui.id().with(("hollow note", i, view));
-        marks::beside(ui, t, first, note, &trace, &avoid, fill, short, id);
+    // Each label on a plate in the nearest place that neither the trace
+    // nor the dashed line crosses, and off the labels placed before it:
+    // the least scatter, then the dashed line's name where it ends, then
+    // the hollow points' note at the first of them (#2129: the dashed
+    // line ran through the first two; Walter on #2012: the note sat on
+    // the dashed line's name).
+    let notes = [
+        least.map(|(at, text)| (at, text, pal.text, "least scatter")),
+        last.map(|at| (at, independent.into(), pal.text_secondary, "independent")),
+        hollow
+            .first()
+            .zip(a.hollow_note)
+            .map(|(&at, note)| (at, note.to_string(), pal.text, "hollow note")),
+    ];
+    let id = ui.id().with((i, view));
+    plot_notes(ui, &resp.transform, &notes, vec![trace, white], (short, id));
+}
+
+/// A note on a plot: its point, words, colour and name.
+type PlotNote<'a> = ([f64; 2], String, Color32, &'a str);
+
+/// A plot's notes, each `(point, words, colour, name)`, placed in turn
+/// by [`marks::beside_lines`] off every line in `lines` (plot
+/// coordinates) and off the plates and leaders of those placed before
+/// it; `short` and `id` as there, each note's id `id` with its name.
+fn plot_notes(
+    ui: &egui::Ui,
+    t: &egui_plot::PlotTransform,
+    notes: &[Option<PlotNote<'_>>],
+    mut lines: Vec<Vec<[f64; 2]>>,
+    (short, id): (bool, egui::Id),
+) {
+    let fill = ui.visuals().extreme_bg_color.gamma_multiply(0.8);
+    let mut avoid: Vec<egui::Rect> = Vec::new();
+    for (at, text, colour, key) in notes.iter().flatten() {
+        let placed = (*at, text.as_str(), *colour);
+        let on: Vec<&[[f64; 2]]> = lines.iter().map(Vec::as_slice).collect();
+        let Some((plate, leader)) =
+            marks::beside_lines(ui, t, placed, &on, &avoid, fill, short, id.with(key))
+        else {
+            continue;
+        };
+        // A later note keeps off this one's plate and its leader.
+        avoid.push(plate);
+        let plot = |p: egui::Pos2| {
+            let v = t.value_from_position(p);
+            [v.x, v.y]
+        };
+        lines.push(leader.map(plot).to_vec());
     }
 }
 
@@ -2410,24 +2451,6 @@ fn mark_label_place(
         format!("  {text}")
     };
     (egui::Align2([h, v]), text)
-}
-
-/// The screen space [`mark_label`]'s note takes on the plot `t` maps, so
-/// another note can keep off it.
-fn mark_label_rect(
-    ui: &egui::Ui,
-    t: &egui_plot::PlotTransform,
-    at: [f64; 2],
-    text: &str,
-    above: bool,
-) -> egui::Rect {
-    let (anchor, text) = mark_label_place(t, at, text, above);
-    let font = egui::TextStyle::Small.resolve(ui.style());
-    let size = ui
-        .fonts_mut(|f| f.layout_no_wrap(text, font, Color32::PLACEHOLDER))
-        .size();
-    let dot = t.position_from_point(&PlotPoint::new(at[0], at[1]));
-    anchor.anchor_size(dot, size)
 }
 
 /// A plain number for a linear axis, with no "-0.0".

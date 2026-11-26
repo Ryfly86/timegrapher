@@ -783,7 +783,8 @@ pub fn room_above(lo: f64, y: f64, top: f64, h: f32) -> f64 {
 /// leader. Clear is inside the plot, not crossed by the trace (`trace`,
 /// plot coordinates) and off `avoid` (other notes on the plot, screen).
 /// On a `short` plot, or where nothing is clear, the note is the dot's
-/// hover. `id` keeps the place it took.
+/// hover. `id` keeps the place it took. The plate's place, where drawn,
+/// so a later note can keep off it.
 #[allow(clippy::too_many_arguments)]
 pub fn beside(
     ui: &egui::Ui,
@@ -795,34 +796,62 @@ pub fn beside(
     fill: Color32,
     short: bool,
     id: egui::Id,
-) {
+) -> Option<egui::Rect> {
+    let text = theme::pal(ui).text;
+    beside_lines(ui, t, (at, note, text), &[trace], avoid, fill, short, id).map(|(r, _)| r)
+}
+
+/// [`beside`] for a plot of several lines (`lines`, each in plot
+/// coordinates), none of which may cross the note, written in `colour`
+/// (`note`: its point, words and colour). The plate's place and its
+/// leader's ends (screen), where drawn.
+#[allow(clippy::too_many_arguments)]
+pub fn beside_lines(
+    ui: &egui::Ui,
+    t: &egui_plot::PlotTransform,
+    (at, note, colour): ([f64; 2], &str, Color32),
+    lines: &[&[[f64; 2]]],
+    avoid: &[egui::Rect],
+    fill: Color32,
+    short: bool,
+    id: egui::Id,
+) -> Option<(egui::Rect, [egui::Pos2; 2])> {
     let frame = *t.frame();
     let dot = t.position_from_point(&egui_plot::PlotPoint::new(at[0], at[1]));
     if !frame.contains(dot) {
-        return;
+        return None;
     }
     let pal = theme::pal(ui);
     let mut job = egui::text::LayoutJob::single_section(
         note.to_string(),
         egui::TextFormat {
             font_id: egui::FontId::proportional(NAME_SIZE),
-            color: pal.text,
+            color: colour,
             ..Default::default()
         },
     );
     job.wrap.max_rows = 1;
     let g = ui.fonts_mut(|f| f.layout_job(job));
     let size = egui::vec2(g.size().x + 2.0 * NOTE_PAD, ROW_H + 2.0 * NOTE_PAD);
-    let pts: Vec<egui::Pos2> = trace
+    let screen: Vec<Vec<egui::Pos2>> = lines
         .iter()
-        .map(|p| t.position_from_point(&egui_plot::PlotPoint::new(p[0], p[1])))
+        .map(|l| {
+            l.iter()
+                .map(|p| t.position_from_point(&egui_plot::PlotPoint::new(p[0], p[1])))
+                .collect()
+        })
         .collect();
     let spots = beside_spots(dot, size, frame.top());
     let inner = frame.shrink(1.0);
+    // Clear: inside the plot, off every line, and neither the plate nor
+    // its leader on another note.
     let clear = |r: egui::Rect| {
+        let leader = [dot, r.clamp(dot)];
         inner.contains_rect(r)
-            && !crosses(r.expand(2.0), &pts)
-            && !avoid.iter().any(|a| a.intersects(r))
+            && !screen.iter().any(|pts| crosses(r.expand(2.0), pts))
+            && !avoid
+                .iter()
+                .any(|a| a.intersects(r) || crosses(*a, &leader))
     };
     let was = ui.data(|d| d.get_temp::<Option<u8>>(id)).flatten();
     let place = if short {
@@ -833,7 +862,8 @@ pub fn beside(
     ui.data_mut(|d| d.insert_temp(id, place));
     let Some(k) = place else {
         let hit = egui::Rect::from_center_size(dot, egui::vec2(12.0, 12.0));
-        return hover(ui, id.with("hover"), hit, note);
+        hover(ui, id.with("hover"), hit, note);
+        return None;
     };
     let rect = spots[k as usize];
     let painter = ui.painter_at(frame);
@@ -852,6 +882,7 @@ pub fn beside(
         g,
         Color32::PLACEHOLDER,
     );
+    Some((rect, [dot, near]))
 }
 
 #[cfg(test)]

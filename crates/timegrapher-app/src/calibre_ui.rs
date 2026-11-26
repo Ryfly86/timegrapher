@@ -574,7 +574,7 @@ impl Calibres {
                 // Short List grows. It keeps one height, searching or not:
                 // egui sizes a menu from its last frame, so a list shrunk
                 // to a short search's hits would leave the menu that small.
-                egui::ScrollArea::vertical()
+                crate::theme::scroll(egui::ScrollArea::vertical())
                     .id_salt("calibre list")
                     .max_height(list_h)
                     .min_scrolled_height(list_h)
@@ -940,7 +940,7 @@ impl Calibres {
         d.set_clip_rect(rect.intersect(ui.clip_rect()));
         theme::card().fill(pal.card).show(&mut d, |ui| {
             ui.set_min_size(ui.available_size());
-            egui::ScrollArea::vertical()
+            crate::theme::scroll(egui::ScrollArea::vertical())
                 .id_salt("manage details")
                 .auto_shrink([false, false])
                 .show(ui, |ui| self.details(ui, current, version, shown, out));
@@ -974,7 +974,7 @@ impl Calibres {
             }
             // Rows touch, as a table's do.
             ui.spacing_mut().item_spacing.y = 0.0;
-            egui::ScrollArea::vertical()
+            crate::theme::scroll(egui::ScrollArea::vertical())
                 .id_salt("manage list")
                 .auto_shrink([false, false])
                 .show_rows(ui, ROW_H, rows.len(), |ui, range| {
@@ -1475,7 +1475,7 @@ impl Calibres {
                     }
                 }
                 let mut flips: Vec<(String, bool)> = Vec::new();
-                egui::ScrollArea::vertical()
+                crate::theme::scroll(egui::ScrollArea::vertical())
                     .id_salt(("funnel values", col as usize))
                     .min_scrolled_height(list_h)
                     .max_height(list_h)

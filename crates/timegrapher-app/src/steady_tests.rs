@@ -1955,12 +1955,10 @@ fn allan_points_on_too_few_differences_are_hollow() {
     assert!(judged.contains(&best) && !hollow.contains(&best));
 }
 
-/// The hollow points' note keeps clear of the dashed line's name and of
-/// the least scatter's, where the first hollow point sits by them
-/// (Walter on #2012: it was drawn over "if the readings were
-/// independent").
-#[test]
-fn the_hollow_note_keeps_clear_of_the_allan_plots_other_labels() {
+/// A session whose rate has an Allan deviation running above the
+/// independent line, its last point, on too few differences, just over
+/// the line's end.
+fn allan_session() -> Steadiness {
     use timegrapher_core::steadiness::{
         Allan, ALLAN_HOLLOW_NOTE, ALLAN_JUDGED_DIFFERENCES as JUDGED,
     };
@@ -2015,6 +2013,17 @@ fn the_hollow_note_keeps_clear_of_the_allan_plots_other_labels() {
         max_excess: 1.05,
         hollow_note: Some(ALLAN_HOLLOW_NOTE),
     });
+    s
+}
+
+/// The hollow points' note keeps clear of the dashed line's name and of
+/// the least scatter's, where the first hollow point sits by them
+/// (Walter on #2012: it was drawn over "if the readings were
+/// independent").
+#[test]
+fn the_hollow_note_keeps_clear_of_the_allan_plots_other_labels() {
+    use timegrapher_core::steadiness::ALLAN_HOLLOW_NOTE;
+    let s = allan_session();
     let ctx = egui::Context::default();
     theme::install(&ctx);
     fn texts(shape: &egui::Shape, into: &mut Vec<(String, egui::Rect)>) {
@@ -2059,5 +2068,101 @@ fn the_hollow_note_keeps_clear_of_the_allan_plots_other_labels() {
                 "{w}: the note is on \"{other}\""
             );
         }
+    }
+}
+
+/// The Allan plot's labels sit where neither the deviation's line nor the
+/// dashed independent line runs through their words (#2129: on two
+/// takes of the v1.1 shakedown the dashed line struck through "least
+/// scatter at 3 min: 0.02 ms" and "if the readings were independent").
+#[test]
+fn no_line_runs_through_the_allan_plots_labels() {
+    let s = allan_session();
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    // Every shape, flat, in the order drawn.
+    fn flat(shape: &egui::Shape, into: &mut Vec<egui::Shape>) {
+        match shape {
+            egui::Shape::Vec(v) => v.iter().for_each(|s| flat(s, into)),
+            s => into.push(s.clone()),
+        }
+    }
+    for (w, h) in [
+        (700.0, 500.0),
+        (900.0, 300.0),
+        (1400.0, 500.0),
+        (1900.0, 700.0),
+    ] {
+        let mut all = Vec::new();
+        // Twice, as a note keeps the place it took last frame.
+        for _ in 0..2 {
+            let input = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(w, h))),
+                ..Default::default()
+            };
+            let out = ctx.run(input, |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    let shown = [true, false, false];
+                    draw(ui, Some(&s), "allan", View::Allan, &shown, Opts::default());
+                });
+            });
+            all.clear();
+            out.shapes.iter().for_each(|c| flat(&c.shape, &mut all));
+        }
+        // The plotted lines: every run of segments that is neither across
+        // nor down (the grid and the axes are).
+        let sloped = |a: egui::Pos2, b: egui::Pos2| a.x != b.x && a.y != b.y;
+        let mut lines: Vec<[egui::Pos2; 2]> = Vec::new();
+        for s in &all {
+            match s {
+                egui::Shape::LineSegment { points, .. } if sloped(points[0], points[1]) => {
+                    lines.push(*points);
+                }
+                egui::Shape::Path(p) => lines.extend(
+                    p.points
+                        .windows(2)
+                        .filter(|q| sloped(q[0], q[1]))
+                        .map(|q| [q[0], q[1]]),
+                ),
+                _ => {}
+            }
+        }
+        let mut seen = 0;
+        for s in &all {
+            let egui::Shape::Text(t) = s else { continue };
+            let text = t.galley.text().trim();
+            if !(text.starts_with("least scatter at") || text == "if the readings were independent")
+            {
+                continue;
+            }
+            seen += 1;
+            let r = t.visual_bounding_rect();
+            for l in &lines {
+                assert!(
+                    !crate::marks::crosses(r, l),
+                    "{w}x{h}: a line {l:?} runs through \"{text}\" at {r:?}"
+                );
+            }
+        }
+        assert_eq!(seen, 2, "{w}x{h}: both labels drawn");
+    }
+}
+
+/// The Autocorrelation plot's scale stops at a correlation of 1: the
+/// room above it, kept for the Ljung–Box note, has no grid line or label
+/// (#2129: its labels ran 1.05 to 1.35).
+#[test]
+fn the_autocorrelation_scale_stops_at_one() {
+    for (lo, step) in [(-0.3, 0.05), (-0.25, 0.1), (-1.0, 0.25), (-0.2, 0.01)] {
+        let marks = correlation_grid(1.0)(GridInput {
+            bounds: (lo, 1.35),
+            base_step_size: step,
+        });
+        let top = marks.iter().map(|m| m.value).fold(f64::MIN, f64::max);
+        assert!(top <= 1.0 + 1e-9, "{lo}, {step}: a mark at {top}");
+        assert!(
+            top >= 1.0 - step - 1e-9,
+            "{lo}, {step}: none near 1, top {top}"
+        );
     }
 }

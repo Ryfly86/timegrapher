@@ -924,7 +924,7 @@ impl TimegrapherApp {
             },
         );
         if self.bench.keeping.crash_shown {
-            egui::ScrollArea::vertical()
+            crate::theme::scroll(egui::ScrollArea::vertical())
                 .id_salt("crash-record")
                 .max_height(200.0)
                 .show(ui, |ui| {
