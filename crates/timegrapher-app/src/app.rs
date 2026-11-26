@@ -100,6 +100,7 @@ mod take_add;
 mod take_io;
 mod take_reads;
 mod take_settings;
+use take_settings::WatchSetup;
 mod test_body;
 mod test_read;
 mod watches_pane;
@@ -2589,32 +2590,6 @@ pub(crate) fn nearest_at(points: &[[f64; 2]], x: f64) -> Option<usize> {
         _ => i,
     };
     Some(near)
-}
-
-/// The Watch settings a take is read with.
-#[derive(Clone, Debug, PartialEq)]
-struct WatchSetup {
-    watch: String,
-    calibre: String,
-    escapement_set: Option<timegrapher_core::escapement::Escapement>,
-    lift_deg: f64,
-    lift_context: (f64, bool),
-    bph: Option<u32>,
-    position: Position,
-}
-
-impl Default for WatchSetup {
-    fn default() -> Self {
-        WatchSetup {
-            watch: String::new(),
-            calibre: String::new(),
-            escapement_set: None,
-            lift_deg: DEFAULT_LIFT_DEG,
-            lift_context: (DEFAULT_LIFT_DEG, false),
-            bph: None,
-            position: Position::DialUp,
-        }
-    }
 }
 
 /// The position a recording's file or folder name carries, as a word of

@@ -115,3 +115,29 @@ impl Default for TakeSettings {
         }
     }
 }
+
+/// The Watch settings a take is read with.
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct WatchSetup {
+    pub(super) watch: String,
+    pub(super) calibre: String,
+    pub(super) escapement_set: Option<timegrapher_core::escapement::Escapement>,
+    pub(super) lift_deg: f64,
+    pub(super) lift_context: (f64, bool),
+    pub(super) bph: Option<u32>,
+    pub(super) position: Position,
+}
+
+impl Default for WatchSetup {
+    fn default() -> Self {
+        WatchSetup {
+            watch: String::new(),
+            calibre: String::new(),
+            escapement_set: None,
+            lift_deg: DEFAULT_LIFT_DEG,
+            lift_context: (DEFAULT_LIFT_DEG, false),
+            bph: None,
+            position: Position::DialUp,
+        }
+    }
+}

@@ -1502,6 +1502,24 @@ impl LiveAnalyzer {
         escapement.drop_beat_error(fit.map(|f| f.beat_error_ms))
     }
 
+    /// Adds to `caveats` the one a reading's beat error from `source`
+    /// carries, with the unlock as `figures` found it, as the take's
+    /// escapement gives it
+    /// ([`crate::escapement::Escapement::beat_error_caveat`]).
+    fn say_beat_error(
+        &self,
+        caveats: &mut Vec<Caveat>,
+        source: Option<crate::session::BeatErrorSource>,
+        figures: &crate::session::WindowFigures,
+        shown: bool,
+    ) {
+        let escapement = self.cfg.analysis.amplitude.escapement;
+        let inconsistent = figures.unlock_inconsistent;
+        if let Some(caveat) = escapement.beat_error_caveat(source, inconsistent, shown) {
+            measure::add(caveats, caveat);
+        }
+    }
+
     /// [`Self::reading_at`] from this analyzer's own beats.
     fn own_reading_at(&self, end_s: f64, average_s: f64) -> LiveReading {
         let window_from = end_s - average_s;
@@ -1559,13 +1577,8 @@ impl LiveAnalyzer {
         let beat_error_source =
             crate::session::chosen_beat_error(beat_error_unlock_ms, beat_error_ms)
                 .map(|(_, source)| source);
-        if let Some(caveat) = self.cfg.analysis.amplitude.escapement.beat_error_caveat(
-            beat_error_source,
-            figures.unlock_inconsistent,
-            read && sides_known,
-        ) {
-            measure::add(&mut caveats, caveat);
-        }
+        let shown = read && sides_known;
+        self.say_beat_error(&mut caveats, beat_error_source, &figures, shown);
         self.window_caveats(&mut caveats, masked_s);
         let whole = holes.whole(&self.beats, window_from, end_s, GAP_S);
         LiveReading {
