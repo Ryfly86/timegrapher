@@ -1675,7 +1675,7 @@ impl TimegrapherApp {
             hist_readings: self.bench.panes_view.hist_readings,
             iso_view: self.bench.panes_view.iso_view,
             sound: self.bench.panes_view.sound_opts,
-            folded: self.bench.panes_view.folded.iter().cloned().collect(),
+            folded: self.watches_view.folded.iter().cloned().collect(),
             theme: self.theme,
             steady_series: RATE_ONLY,
             steady_shown: self
@@ -1796,6 +1796,7 @@ impl TimegrapherApp {
         // A layout from before the panes moved starts afresh.
         let panes = panes.filter(|_| layout >= LAYOUT);
         (self.library_dir, self.watches_view.watch_list_shows) = (library, watch_list_shows);
+        self.watches_view.folded = folded.into_iter().collect();
         (self.check_at_start, self.keep_awake) = (check_updates, keep_awake);
         // One Average Over for every pane; a pane's own time, saved by an
         // older app, is read and left out.
@@ -1822,8 +1823,7 @@ impl TimegrapherApp {
         (v.reserve_series, v.positions_series) = (reserve_series, positions_series);
         (v.hist_cumulative, v.reserve_info) = (hist_cumulative, reserve_info);
         (v.positions_info, v.hist_readings) = (positions_info, hist_readings);
-        (v.iso_view, v.folded) = (iso_view, folded.into_iter().collect());
-        (v.periods_db, v.fft_timing) = (periods_db, fft_timing);
+        (v.iso_view, v.periods_db, v.fft_timing) = (iso_view, periods_db, fft_timing);
         v.maps_db = steady::PerPane::new(maps_db_set, maps_db);
         v.show_marks = steady::MarkSwitches::new(marks);
         v.steady_info = steady::PerPane::new(steady_info_set, steady_info);

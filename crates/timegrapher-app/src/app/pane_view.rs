@@ -94,8 +94,6 @@ pub(super) struct PaneView {
     /// Each Steadiness pane's Info panel open.
     pub(super) steady_info: steady::PerPane,
     pub(super) scope_view: scope::View,
-    /// Watches view groups folded down to their caption.
-    pub(super) folded: std::collections::BTreeSet<String>,
     /// The rate, amplitude and beat error figures above the panes.
     pub(super) show_readings: bool,
     /// Those cards pinned open in the layout, else a strip that opens them.
@@ -166,7 +164,6 @@ impl Default for PaneView {
             show_marks: steady::MarkSwitches::new(Default::default()),
             steady_info: steady::PerPane::new(Vec::new(), false),
             scope_view: scope::View::default(),
-            folded: Default::default(),
             show_readings: true,
             readings_pinned: true,
             results_rects: [None; 2],
