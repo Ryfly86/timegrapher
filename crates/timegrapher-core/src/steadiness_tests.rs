@@ -2849,6 +2849,17 @@ fn too_few_readings_says_only_what_is_missing() {
         "20 2 s beat error readings over 40 s: too few to search for structure, which needs \
          at least 30 readings, covering at least 2 min."
     );
+    // At each rule's edge, the rule met is not named.
+    assert_eq!(
+        headline(SeriesKind::Rate, 12, 10.0),
+        "12 10 s rate readings over 120 s: too few to search for structure, which needs at \
+         least 30 readings."
+    );
+    assert_eq!(
+        headline(SeriesKind::Amplitude, 30, 2.0),
+        "30 2 s amplitude readings over 60 s: too few to search for structure, which needs \
+         readings covering at least 2 min."
+    );
     // From 30 readings over 2 min the search runs.
     let ran = check_series(
         SeriesKind::Rate,
