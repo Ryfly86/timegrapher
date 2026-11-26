@@ -139,3 +139,85 @@ fn the_beat_error_chip_says_why_a_co_axial_has_none() {
         assert_eq!(readouts::limits_chip_words(&one, |_| true), chip, "{why:?}");
     }
 }
+
+/// The app's whole-take log of a co-axial session is read for a co-axial:
+/// no drop beat error, and the reading says where its beat error comes
+/// from (Norm on #2319).
+#[test]
+fn a_co_axial_sessions_whole_take_log_is_read_as_one() {
+    use timegrapher_core::measure::Caveat;
+    use timegrapher_core::synth::{generate, SynthConfig};
+    let audio = generate(
+        &SynthConfig {
+            bph: 28_800,
+            duration_s: 30.0,
+            beat_error_ms: 0.6,
+            ..Default::default()
+        },
+        |_| 280.0,
+        |_| 0.0,
+    );
+    for escapement in [CoAxial, SwissLever] {
+        let mut cfg = timegrapher_core::live::LiveConfig::default();
+        cfg.analysis.bph = Some(28_800);
+        cfg.analysis.amplitude.escapement = escapement;
+        let mut live = LiveAnalyzer::new(48_000, cfg);
+        live.push(&audio.samples);
+        let log = crate::steady::log_of(&live).expect("a log");
+        assert_eq!(log.escapement, escapement);
+        let m = timegrapher_core::session::measure(&log, None, 0.0, log.duration_s);
+        let said = m
+            .caveats
+            .iter()
+            .any(|c| matches!(c, Caveat::CoaxialBeatError { .. }));
+        assert_eq!(
+            m.beat_error_ms.is_none(),
+            escapement == CoAxial,
+            "{escapement:?}"
+        );
+        assert_eq!(said, escapement == CoAxial, "{escapement:?}");
+    }
+}
+
+/// A stopped co-axial card still finding the beat at the watch's last
+/// beat reads as the saved read of its own span: read for a co-axial, so
+/// no drop beat error and its co-axial caveat (Norm on #2319; the lever's
+/// case is `a_stopped_card_still_finding_reads_its_own_span`).
+#[test]
+fn a_stopped_co_axial_card_reads_its_own_span_as_a_co_axial() {
+    use timegrapher_core::measure::Caveat;
+    let base = std::env::temp_dir().join(format!("tg-coaxial-span-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app =
+        super::readouts_tests::stopped_short_return_as(&base, (30.0, 20.0, 11.0), |app| {
+            app.bench.take.escapement_set = Some(CoAxial)
+        });
+    assert_eq!(app.escapement(), CoAxial);
+    let mut read = 0;
+    for average in timegrapher_core::live::AVERAGES {
+        app.bench.take.average_s = average;
+        let _ = app.whole_take();
+        let s = app.stopped_take().expect("stopped");
+        let at = timegrapher_core::beats::last_watch_beat_s(s.live.beats()).expect("a last beat");
+        if !s.live.reading_at(at, average).finding_beat {
+            continue;
+        }
+        let own = app.own_span_read(at - average, at).expect("its span read");
+        let r = app.card_reading().expect("a reading");
+        assert!(!r.finding_beat, "{average} s: {r:?}");
+        assert_eq!(own.beat_error_ms, None, "{average} s: {own:?}");
+        assert_eq!(r.beat_error_ms, None, "{average} s: {r:?}");
+        if r.watch_heard {
+            read += 1;
+            assert!(
+                r.caveats
+                    .iter()
+                    .any(|c| matches!(c, Caveat::CoaxialBeatError { .. })),
+                "{average} s: {:?}",
+                r.caveats
+            );
+        }
+    }
+    assert!(read > 0, "a card read as its own span's saved read");
+    let _ = std::fs::remove_dir_all(base);
+}
