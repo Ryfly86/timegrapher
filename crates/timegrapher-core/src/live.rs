@@ -243,7 +243,20 @@ pub struct LiveReading {
     pub whole_take: bool,
 }
 
+/// Whether a stretch holds no beat at all: no beat rate found, or none
+/// of its `beats_used` beats in it (an opened recording of silence, a
+/// beat rate just set anew). The one rule for the app's cards and chip
+/// and a reading's own caveats (Vernon on #2319).
+pub fn no_beat(bph: Option<u32>, beats_used: usize) -> bool {
+    bph.is_none() || beats_used == 0
+}
+
 impl LiveReading {
+    /// Whether this reading's stretch holds no beat at all ([`no_beat`]).
+    pub fn no_beat(&self) -> bool {
+        no_beat(self.bph, self.beats_used)
+    }
+
     /// The beat rate heard over this reading (#2223): from its rate, on
     /// the clock it is shown on, read against `bph`, with the rate's ±.
     /// None with no rate or no beat rate.
@@ -1624,7 +1637,7 @@ impl LiveAnalyzer {
                 .map(|(_, source)| source);
         // Said only with beats read: a reading with none, as just after
         // the beat rate is set anew, waits for beats (Walter on #2319).
-        let shown = read && sides_known && fit.is_some_and(|f| f.beats_used > 0);
+        let shown = read && sides_known && !no_beat(bph, fit.map_or(0, |f| f.beats_used));
         self.say_beat_error(&mut caveats, beat_error_source, &figures, shown);
         self.window_caveats(&mut caveats, masked_s);
         let whole = holes.whole(&self.beats, window_from, end_s, GAP_S);
@@ -2277,6 +2290,8 @@ mod jump_tests;
 mod count_tests;
 #[cfg(test)]
 mod drop_why_tests;
+#[cfg(test)]
+mod escapement_tests;
 #[cfg(test)]
 mod sound_tests;
 

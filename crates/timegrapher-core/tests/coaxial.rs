@@ -468,9 +468,13 @@ fn every_co_axial_reading_says_where_its_beat_error_comes_from() {
 }
 
 /// A reading with no figures says nothing of where its beat error comes
-/// from: no regular beat, so no "unlock not found".
+/// from: no regular beat, so no "unlock not found", in `analyze` and a
+/// saved take's reading, and none in a long-run report with no beats
+/// (Vernon on #2319).
 #[test]
 fn a_co_axial_with_no_watch_heard_says_nothing_of_its_beat_error() {
+    use timegrapher_core::longrun::analyse;
+    use timegrapher_core::longterm::LongConfig;
     let mut cfg = SynthConfig {
         duration_s: 20.0,
         ..Default::default()
@@ -479,12 +483,113 @@ fn a_co_axial_with_no_watch_heard_says_nothing_of_its_beat_error() {
         s.gain = 0.0;
     }
     let audio = generate(&cfg, |_| AMPLITUDE_DEG, |_| 0.0);
-    let s = analyze(&audio, &stream_cfg(LIFT_DEG, Escapement::CoAxial).analysis).summary;
+    let said = |c: &[Caveat]| {
+        c.iter()
+            .any(|c| matches!(c, Caveat::CoaxialBeatError { .. }))
+    };
+    let stream = stream_cfg(LIFT_DEG, Escapement::CoAxial);
+    let s = analyze(&audio, &stream.analysis).summary;
     assert!(!s.watch_heard);
-    assert!(!s
-        .caveats
-        .iter()
-        .any(|c| matches!(c, Caveat::CoaxialBeatError { .. })));
+    assert!(!said(&s.caveats), "analyze");
+    let log = analyze_samples(&audio.samples, cfg.sample_rate, &stream);
+    assert_eq!(log.escapement, Escapement::CoAxial);
+    let m = read(&log);
+    assert!(!m.watch_heard);
+    assert!(!said(&m.caveats), "session: {:?}", m.caveats);
+    // The long-run report has no judge of a watch heard: it fits what
+    // beats it finds, noise too. With none found it has no fit, and says
+    // nothing (as `BeatErrorAsSize` does not).
+    let mut quiet = log_at(LIFT_DEG, Escapement::CoAxial, true);
+    assert!(said(&analyse(&quiet, None, &LongConfig::default()).caveats));
+    quiet.beats.clear();
+    let r = analyse(&quiet, None, &LongConfig::default());
+    assert!(r.overall.is_none());
+    assert!(!said(&r.caveats), "long: {:?}", r.caveats);
+}
+
+/// A take whose unlock reads one way in 6 s of every 10 and the other in
+/// the rest (#1439's case, as `analyze` meets it on a lever): read for a
+/// co-axial it gives no beat error, and says the unlock's disagree, in a
+/// saved take's reading, `analyze` and live alike (Vernon on #2319). A
+/// lever's falls back to the drop and says the same of it.
+#[test]
+fn a_co_axial_with_an_inconsistent_unlock_says_so() {
+    use timegrapher_core::audio::Audio;
+    use timegrapher_core::measure::DropWhy;
+    let take = |even_unlock_lead_s: f64| {
+        let cfg = SynthConfig {
+            duration_s: 90.0,
+            beat_error_ms: BEAT_ERROR_MS,
+            even_unlock_lead_s,
+            ..Default::default()
+        };
+        generate(&cfg, |_| 270.0, |_| 0.0)
+    };
+    let (far, near) = (take(0.0015), take(0.0));
+    let fs = far.sample_rate as f64;
+    // Spliced between beats, 6 s of every 10 from the far take.
+    let samples: Vec<f32> = (0..far.samples.len())
+        .map(|i| match (i as f64 / fs - 0.1125).rem_euclid(10.0) < 6.0 {
+            true => far.samples[i],
+            false => near.samples[i],
+        })
+        .collect();
+    let audio = Audio {
+        sample_rate: far.sample_rate,
+        samples,
+    };
+    let said = |c: &[Caveat]| -> Vec<Caveat> {
+        c.iter()
+            .filter(|c| {
+                matches!(
+                    c,
+                    Caveat::CoaxialBeatError { .. } | Caveat::BeatErrorFromDrop { .. }
+                )
+            })
+            .copied()
+            .collect()
+    };
+    for (escapement, want) in [
+        (
+            Escapement::CoAxial,
+            Caveat::CoaxialBeatError {
+                why: Some(DropWhy::UnlockInconsistent),
+            },
+        ),
+        (
+            Escapement::SwissLever,
+            Caveat::BeatErrorFromDrop {
+                why: DropWhy::UnlockInconsistent,
+            },
+        ),
+    ] {
+        let mut stream = StreamConfig::default();
+        stream.analysis.bph = Some(28_800);
+        stream.analysis.amplitude.escapement = escapement;
+        let s = analyze(&audio, &stream.analysis).summary;
+        assert_eq!(s.beat_error_unlock_ms, None, "analyze {escapement:?}");
+        assert_eq!(said(&s.caveats), vec![want], "analyze {escapement:?}");
+        let log = analyze_samples(&audio.samples, audio.sample_rate, &stream);
+        let m = read(&log);
+        assert_eq!(m.beat_error_unlock_ms, None, "session {escapement:?}");
+        assert_eq!(said(&m.caveats), vec![want], "session {escapement:?}");
+        let cfg = LiveConfig {
+            analysis: stream.analysis.clone(),
+            ..Default::default()
+        };
+        let mut l = LiveAnalyzer::new(audio.sample_rate, cfg);
+        for c in audio.samples.chunks(4800) {
+            l.push(c);
+        }
+        let r = l.reading(80.0);
+        assert_eq!(r.beat_error_unlock_ms, None, "live {escapement:?}");
+        assert_eq!(said(&r.caveats), vec![want], "live {escapement:?}");
+        if escapement == Escapement::CoAxial {
+            assert_eq!(s.beat_error_source, None);
+            assert_eq!(m.beat_error_source, None);
+            assert_eq!(r.beat_error_source, None);
+        }
+    }
 }
 
 /// Live listening set to another escapement, as when a co-axial calibre

@@ -1968,6 +1968,14 @@ pub(crate) fn custom<'a>(
     }
 }
 
+/// The tag shown in place of a calibre's lift angle in the table, for an
+/// escapement Timegrapher doesn't read for yet (#1872); none for a
+/// co-axial, whose lift angle is shown as a lever's (#2313).
+fn lift_tag(x: Option<&calibres::Escapement>) -> Option<&'static str> {
+    x.filter(|x| x.read_for().is_none())
+        .map(|_| calibres::Escapement::TAG)
+}
+
 /// A beat rate or lift angle in `cell`, right-aligned so the digits line
 /// up; a dim dash where the list gives nothing.
 fn number_cell(ui: &egui::Ui, e: Entry<'_>, col: Col, cell: egui::Rect) {
@@ -1975,11 +1983,11 @@ fn number_cell(ui: &egui::Ui, e: Entry<'_>, col: Col, cell: egui::Rect) {
     // A calibre whose escapement isn't measured yet: the muted tag in
     // place of its lift angle, which still sorts the column (#1872). A
     // co-axial's lift angle shows as a lever's: it is read for (#2313).
-    if col == Col::LiftAngle && e.escapement().is_some_and(|x| x.read_for().is_none()) {
+    if let Some(tag) = lift_tag(e.escapement()).filter(|_| col == Col::LiftAngle) {
         ui.painter().with_clip_rect(cell).text(
             egui::pos2(cell.right() - NUMBER_PAD, cell.center().y),
             egui::Align2::RIGHT_CENTER,
-            calibres::Escapement::TAG,
+            tag,
             egui::FontId::proportional(TAG_SIZE),
             pal.text_tertiary,
         );
@@ -2432,11 +2440,17 @@ fn menu_line(ui: &mut egui::Ui, e: Entry<'_>, text: String, current: &str, picke
     // A calibre whose escapement isn't measured yet can still be picked,
     // its tag beside its name (#1872); a co-axial's says it is read for
     // in beta (#2313).
-    let text = match e.escapement() {
+    let text = menu_text(text, e.escapement());
+    picked.item(ui, e.name() == current, text, &hint(e), e.name());
+}
+
+/// A calibre's menu line `text`, its escapement's tag beside it where it
+/// has one ([`calibres::Escapement::tag`]).
+fn menu_text(text: String, x: Option<&calibres::Escapement>) -> String {
+    match x {
         Some(x) => format!("{text}  ·  {}", x.tag()),
         None => text,
-    };
-    picked.item(ui, e.name() == current, text, &hint(e), e.name());
+    }
 }
 
 /// Every calibre the app knows, by any of its names or its maker, without

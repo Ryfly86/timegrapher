@@ -615,3 +615,29 @@ fn a_dialogs_calibre_menu_opens_above_it_every_time() {
         }
     }
 }
+
+/// The table's lift angle cell and the menu's line say how a calibre's
+/// escapement is read: a co-axial's lift angle as a lever's and "Co-axial
+/// (beta)" in the menu; one not read for, "Not supported yet" in both
+/// (#1872, #2313; Vernon on #2319).
+#[test]
+fn the_table_and_menu_say_how_an_escapement_is_read() {
+    let cal = Calibres::in_memory();
+    let coaxial = cal.find("Omega 3861").unwrap().escapement();
+    assert_eq!(lift_tag(coaxial), None);
+    assert_eq!(
+        menu_text("Omega 3861".into(), coaxial),
+        "Omega 3861  ·  Co-axial (beta)"
+    );
+    let detent = calibres::Escapement {
+        kind: "detent".into(),
+        source: String::new(),
+    };
+    assert_eq!(lift_tag(Some(&detent)), Some("Not supported yet"));
+    assert_eq!(
+        menu_text("Chronometer".into(), Some(&detent)),
+        "Chronometer  ·  Not supported yet"
+    );
+    assert_eq!(lift_tag(None), None);
+    assert_eq!(menu_text("ETA 2824-2".into(), None), "ETA 2824-2");
+}

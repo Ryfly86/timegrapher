@@ -79,10 +79,10 @@ pub(super) fn beat_error_card_wait(
     card_wait(unheard, r, be.is_some(), false).or(sides.filter(|_| be.is_none()))
 }
 
-/// Whether a reading's stretch holds no beat at all: no beat rate found,
-/// or none of its beats in the stretch (an opened recording of silence).
+/// Whether a reading's stretch holds no beat at all, by core's one rule
+/// ([`LiveReading::no_beat`]).
 pub(super) fn no_beat(r: &LiveReading) -> bool {
-    r.bph.is_none() || r.beats_used == 0
+    r.no_beat()
 }
 
 /// A wait's short words and its hover sentence, as core gives them.

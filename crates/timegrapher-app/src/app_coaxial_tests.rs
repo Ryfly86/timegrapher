@@ -50,6 +50,15 @@ fn a_session_files_escapement_outranks_the_calibres() {
     app.apply_manifest_placed(&m, &[], None, None);
     assert_eq!(app.escapement(), CoAxial);
     assert_eq!(app.manifest_header().escapement, Some(CoAxial));
+    // The watch setup carries the key: put back, each setup reads as it
+    // did (Vernon on #2319).
+    let keyed = app.watch_setup();
+    app.set_watch_setup(mic.clone());
+    assert_eq!(app.bench.take.escapement_set, None);
+    assert_eq!(app.escapement(), SwissLever);
+    app.set_watch_setup(keyed);
+    assert_eq!(app.bench.take.escapement_set, Some(CoAxial));
+    assert_eq!(app.escapement(), CoAxial);
     let m = Manifest {
         calibre: Some("Omega 3861".into()),
         escapement: Some(SwissLever),
@@ -104,4 +113,29 @@ fn the_estimate_chip_tries_shorter_words_before_the_count() {
     let two = [one[0].clone(), one[0].clone()];
     let words = |room: usize| readouts::limits_chip_words(&two, |w| w.len() <= room);
     assert_eq!(words(30), "Co-axial Estimate (beta) +1");
+}
+
+/// The Beat Error chip says where a co-axial's beat error comes from in
+/// core's short words, for each reason there is none (Vernon on #2319).
+#[test]
+fn the_beat_error_chip_says_why_a_co_axial_has_none() {
+    use timegrapher_core::measure::{Caveat, DropWhy};
+    for (why, short, chip) in [
+        (None, "co-axial (beta)", "Co-axial (beta)"),
+        (
+            Some(DropWhy::UnlockNotFound),
+            "co-axial: unlock not found",
+            "Co-axial: Unlock Not Found",
+        ),
+        (
+            Some(DropWhy::UnlockInconsistent),
+            "co-axial: the unlock's signs disagree beyond their spread",
+            "Co-axial: the Unlock's Signs Disagree Beyond Their Spread",
+        ),
+    ] {
+        let c = Caveat::CoaxialBeatError { why };
+        let one = [(c.short(52.0, 0).unwrap(), c.long(None).unwrap())];
+        assert_eq!(one[0].0, short, "{why:?}");
+        assert_eq!(readouts::limits_chip_words(&one, |_| true), chip, "{why:?}");
+    }
 }
