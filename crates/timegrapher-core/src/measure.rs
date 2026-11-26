@@ -47,6 +47,17 @@ pub fn regularity_assessed(listened_s: f64, holds_window: bool) -> bool {
     holds_window && listened_s >= SHORT_SPAN_S - 1e-6
 }
 
+/// The fact for a recording read from its start too short for
+/// [`regularity_assessed`]: "Beat regularity not assessed: 5.0 s of sound,
+/// 10 s needed". The wording for the doctor (Norm on #2363); `analyze`'s
+/// text in CLI `main.rs` takes it once that file is free (#2367).
+pub fn not_assessed_text(listened_s: f64) -> String {
+    format!(
+        "Beat regularity not assessed: {} s of sound, {SHORT_SPAN_S} s needed",
+        crate::library::fixed_text(listened_s, 1)
+    )
+}
+
 /// False when a regular beat was looked for and not found: where
 /// regularity is `assessed` ([`regularity_assessed`]), the beat timing
 /// scatter is at or above [`crate::beats::NO_WATCH_JITTER_FRACTION`] of a
@@ -1731,6 +1742,15 @@ mod tests {
     }
 
     use super::*;
+
+    /// The not-assessed fact names the sound heard and the span needed.
+    #[test]
+    fn the_not_assessed_fact_names_the_sound_and_the_span() {
+        assert_eq!(
+            not_assessed_text(5.0),
+            "Beat regularity not assessed: 5.0 s of sound, 10 s needed"
+        );
+    }
 
     /// The kept-template caveat names the first chunk's length from
     /// `stream` and the lock-on window's from `live`, not numbers of its
