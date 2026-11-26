@@ -99,6 +99,10 @@ struct Check {
     beats_found: usize,
     beats_expected: usize,
     rate_s_per_day: Option<f64>,
+    /// The beat rate heard over the stretch read, from its rate
+    /// (`bph_measured`, `bph_measured_se`; #2223).
+    #[serde(flatten)]
+    measured: Option<timegrapher_core::timing::MeasuredRate>,
     amplitude_deg: Option<f64>,
     beat_error_ms: Option<f64>,
     clipping: Clipping,
@@ -798,6 +802,11 @@ impl Feed {
             _ => Vec::new(),
         };
         let col = |i: usize| -> Vec<Option<f64>> { self.trend.iter().map(|p| p.0[i]).collect() };
+        // The reading with the beat rate heard beside its rate (#2223).
+        let mut reading = json!(r);
+        if let Some(m) = r.measured() {
+            m.write_into(&mut reading);
+        }
         let doc = json!({
             "schema": "timegrapher.live/1",
             "position": self.position,
@@ -806,7 +815,7 @@ impl Feed {
             "done": done,
             "average_s": AVERAGE_S,
             "beats_heard": beats.len(),
-            "reading": r,
+            "reading": reading,
             "strip": { "span_s": STRIP_S, "period_s": period, "beats": strip },
             "trend": { "t_s": col(0), "rate": col(1), "amplitude": col(2), "beat_error": col(3),
                 "beat_error_source": self.trend.iter().map(|p| p.1).collect::<Vec<_>>() },
@@ -1013,6 +1022,7 @@ fn check(dir: &Path, set: &Settings) -> Result<Check, String> {
             beats_found,
             beats_expected: beats::expected_beats(to_s - from_s, bph).round() as usize,
             rate_s_per_day: m.and_then(|m| m.rate_s_per_day),
+            measured: m.and_then(|m| m.measured(bph)),
             amplitude_deg: m.and_then(|m| m.amplitude_deg),
             beat_error_ms: m.and_then(|m| m.beat_error_signed()),
             clipping,
@@ -1717,6 +1727,7 @@ mod tests {
             beats_found: 8,
             beats_expected: 8,
             rate_s_per_day: None,
+            measured: None,
             amplitude_deg: None,
             beat_error_ms: None,
             clipping: Clipping {

@@ -120,6 +120,8 @@ pub mod base_digits {
     pub const CLOCK: usize = 1;
     /// Slope of the rate against the amplitude, s/d per degree.
     pub const SLOPE: usize = 2;
+    /// Beat rate heard, bph (`timing::MeasuredRate`; Norm on #2223).
+    pub const BEAT_RATE_HEARD: usize = 0;
 }
 
 /// The decimals a difference within one take takes beyond its figure's

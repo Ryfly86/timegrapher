@@ -89,6 +89,11 @@ fn a_live_take_keeps_its_readings_in_the_file() {
     assert_eq!(last["recorded_s"], seconds);
     let rate = last["reading"]["rate_s_per_day"].as_f64().unwrap();
     assert!((rate - 6.0).abs() < 3.0, "rate {rate}");
+    // The frame's reading gives the beat rate heard from its rate (#2223).
+    let bph = last["reading"]["bph"].as_f64().unwrap();
+    let heard = last["reading"]["bph_measured"].as_f64().unwrap();
+    let want = bph * (1.0 + rate / 86_400.0);
+    assert!((heard - want).abs() < 1e-6, "{heard} {want}");
     let beats = last["strip"]["beats"].as_array().unwrap();
     assert!(beats.len() > 10, "{} beats on the strip", beats.len());
     let t = &last["trend"];

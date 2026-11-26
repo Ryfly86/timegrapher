@@ -14,6 +14,8 @@ beat_error_unlock_ms
 beats_found
 beats_found_fraction
 bph
+bph_measured
+bph_measured_se
 bph_set
 caveats
 caveats[].code

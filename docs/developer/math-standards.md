@@ -65,6 +65,7 @@ Each word below means exactly this, everywhere: in the code, the docs, the app a
 |---|---|---|
 | **Beat rate** | The beats an hour the watch is made to give, for example 28,800. Its nominal beat period is 3,600 s over the beat rate. | `BeatLog::bph` |
 | **Rate** | Seconds a day the watch gains (+) or loses (−): the nominal beat period over the period the rate fit finds, less 1, times 86,400. | `timing.rs:163` |
+| **Beat rate heard** | The beats an hour the balance actually gives: 3,600 s over the beat period the rate is read from, on the rate's clock and stretch. A balance at 17,570 read against 18,000 hears 17570, 430 bph slow. | `timing::MeasuredRate` |
 | **Amplitude** | How far the balance swings from rest, in degrees. Worked out from the time between the unlock and the drop, the lift angle and the beat rate. | `amplitude.rs` |
 | **Beat error** | Half the difference between the two alternating intervals, Tick to Tock and Tock to Tick, in ms. It is signed: + when Tick comes late. It is read from the unlock, else from the rate fit at the drop. | `session::beat_error_signed` |
 | **Lift angle** | The angle the balance turns while the escapement drives it. It comes from the take or its calibre, else 52° is assumed with a caveat. | `take::DEFAULT_LIFT_DEG` |
@@ -379,6 +380,7 @@ Each item below breaks rule 1, 2 or 4. Each gets an issue. None changes a figure
 | Jitter | µs | 1 µs | None |
 | Clock | ppm, + card fast (#657) | 0.1 ppm | Always |
 | Slope against amplitude | s/d per degree | 0.01 | Always |
+| Beat rate heard | bph (vph for a Swiss lever) | 1 bph | None; its offset from a set rate is signed |
 
 - **The ±** is written at the figure's place, rounded up, and never below one unit of the place: a 0.3° ± on an amplitude reads "149° ± 1°", a 0.04 s/d ± on a rate "+11.4 ± 0.1 s/d". Rounding an uncertainty up is the safe direction. The exact ± and the values it came from go in the hover ("± 0.3° from 5 windows; shown to the nearest 1°").
 - **A spread written after ±** (Steadiness's "± from one reading to the next", the Allan plot's least scatter) follows the ± rule: at the figure's place, rounded up (Norm, 13 Nov, #1470). Plot axis ticks are a scale, not figures, and keep 3 significant figures.
@@ -392,6 +394,7 @@ Each item below breaks rule 1, 2 or 4. Each gets an issue. None changes a figure
 - **One formatter (decided 12 Nov, built in #1470):** core's `figure_text` (`base_digits`, `figure_with_pm`, `pm_text`) writes the value, its ± and the place for every surface (cards, tables, strip labels, the CLI, MCP and reports). Nothing else rounds a figure for text, and a surface that needs a place names a `base_digits` constant instead of typing one.
 - **Not rounded:** JSON is never rounded. CSV keeps full precision, as data. Charts and sparklines plot full precision; the rule is about text.
 - **Rate:** (P_nominal / P − 1) × 86,400, exact, with P the fitted beat period (`timing.rs:163`).
+- **Beat rate heard:** 3600 / P (`timing::vph_of_period`), with P the beat period the rate beside it is read from, on that rate's clock and stretch (`timing::MeasuredRate`): never a second fit and never snapped to a standard rate. Its ± is bph_set × σ_r / 86,400 from the rate's ±, bph_set being the rate the rate is read against (the heard rate is bph_set × (1 + r / 86,400)), none when the rate has none, and written at 1 bph by the ± rule above. Its offset from a set rate is the heard rate at its place less the set rate, a difference of figures; Auto's guess is not a set rate (Norm on #2223).
 - **Synthetic takes:** the generator steps each beat by P/(1 + r/86400) (`timing::period_s`, through `synth::period`), the period the timing fit reads r from, so a take made at +100 s/d reads +100 s/d (#816; finding N5).
 
 ---
