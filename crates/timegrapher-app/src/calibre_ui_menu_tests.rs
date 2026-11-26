@@ -97,12 +97,58 @@ fn the_calibre_menu_searches_every_calibre() {
     );
     frame(&mut c, vec![egui::Event::Text(rare.calibre.clone())]);
     let found = frame(&mut c, vec![]);
-    let want = format!("{} · {}", rare.calibre, rare.maker);
+    // Its name and maker, then its lift where the list gives one (#2339).
+    let want = line_text(
+        Entry::Table(rare),
+        format!(
+            "{} · {}",
+            calibre_page::marked(rare, &rare.calibre),
+            rare.maker
+        ),
+    );
     assert!(
         texts(&found).contains(&want),
         "{want} not in {:?}",
         texts(&found)
     );
+}
+
+/// Rows sharing a number can give lifts degrees apart, so each row in the
+/// menu says its own (#2339): every "3235" row a search lists ends in its
+/// lift angle, and a row without one says none.
+#[test]
+fn each_calibre_in_the_menu_shows_its_lift_angle() {
+    let mut c = Calibres::in_memory();
+    let ctx = egui::Context::default();
+    crate::theme::install(&ctx);
+    let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(600.0, 800.0));
+    click_the_button(&ctx, screen, &mut c);
+    frame(&ctx, screen, &mut c, vec![egui::Event::Text("3235".into())]);
+    let shown = texts(&frame(&ctx, screen, &mut c, vec![]));
+    let rows: Vec<&Calibre> = calibres::all()
+        .iter()
+        .filter(|x| x.calibre.contains("3235") && x.escapement.is_none())
+        .collect();
+    assert!(rows.len() >= 2, "the list has one 3235: {rows:?}");
+    let mut lifts = Vec::new();
+    for r in rows {
+        let lift = r.lift_angle_deg.expect("every 3235 row gives its lift");
+        let want = format!(
+            "{} · {} · {}",
+            calibre_page::marked(r, &r.calibre),
+            r.maker,
+            calibre_page::lift_angle_text(lift)
+        );
+        assert!(shown.contains(&want), "{want} not in {shown:?}");
+        lifts.push(lift);
+    }
+    // The rows this was raised for differ: the menu tells them apart.
+    assert!(lifts.iter().any(|l| *l != lifts[0]), "{lifts:?}");
+    let bare = calibres::all()
+        .iter()
+        .find(|x| x.lift_angle_deg.is_none() && x.escapement.is_none())
+        .expect("a row without a lift");
+    assert_eq!(line_text(Entry::Table(bare), "x".into()), "x");
 }
 
 #[test]

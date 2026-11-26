@@ -2433,13 +2433,25 @@ impl Picked {
 
 /// One calibre in the menu, ticked when it is `current`.
 fn menu_line(ui: &mut egui::Ui, e: Entry<'_>, text: String, current: &str, picked: &Picked) {
-    // A calibre whose escapement isn't measured yet can still be picked,
-    // its tag beside its name (#1872).
-    let text = match e.escapement() {
-        Some(_) => format!("{text}  ·  {}", calibres::Escapement::TAG),
-        None => text,
-    };
-    picked.item(ui, e.name() == current, text, &hint(e), e.name());
+    picked.item(
+        ui,
+        e.name() == current,
+        line_text(e, text),
+        &hint(e),
+        e.name(),
+    );
+}
+
+/// A calibre's words in the menu: `text`, then its lift angle where the
+/// list gives one, since rows sharing a number can differ by several
+/// degrees (#2339). A calibre whose escapement isn't measured yet can
+/// still be picked, its tag in place of the lift (#1872).
+fn line_text(e: Entry<'_>, text: String) -> String {
+    match (e.escapement(), e.lift_angle_deg()) {
+        (Some(_), _) => format!("{text}  ·  {}", calibres::Escapement::TAG),
+        (None, Some(l)) => format!("{text} · {}", calibre_page::lift_angle_text(l)),
+        (None, None) => text,
+    }
 }
 
 /// Every calibre the app knows, by any of its names or its maker, without
