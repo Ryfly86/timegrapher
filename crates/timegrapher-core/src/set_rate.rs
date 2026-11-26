@@ -81,9 +81,10 @@ pub fn session_set_aside_text(calibre: Option<&Calibre>, bph: Option<u32>) -> Op
 /// `session.json` names no beat rate set by hand (its `bph`, from
 /// [`crate::recorder::SessionInfo`], is null). A take with no
 /// `session.json`, one that can't be read, or one the recorder did not
-/// write (no `lift_deg`) is not. Becomes
-/// `recorder::recorded_setup(dir).is_some_and(|s| s.bph.is_none())` once
-/// that reader is on main (#2393), so the file is read in one place.
+/// write (no `lift_deg`) is not, nor is one with no `bph` key: only a
+/// `bph` written null says Auto. Moves onto `recorder::recorded_setup`
+/// (#2393), with a flag for a `bph` written null, once that reader is on
+/// main, so the file is read in one place.
 pub fn recorded_on_auto(dir: &std::path::Path) -> bool {
     let json = crate::breaks::read_session(&dir.join(crate::take::RECORD));
     let auto = |v: &serde_json::Value| {

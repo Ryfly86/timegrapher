@@ -153,3 +153,20 @@ fn a_recorders_own_file_says_whether_it_was_on_auto() {
     }
     let _ = std::fs::remove_dir_all(&parent);
 }
+
+/// Only a `bph` written null says Auto: a file with no `bph` key, or not
+/// the recorder's (no `lift_deg`), never does.
+#[test]
+fn a_missing_bph_is_never_auto() {
+    let dir = take_dir("missing", None);
+    let write = |s: &str| std::fs::write(dir.join(take::RECORD), s).unwrap();
+    write(r#"{"watch": "", "position": "DU", "lift_deg": 52.0}"#);
+    assert!(!recorded_on_auto(&dir));
+    write(r#"{"bph": null}"#);
+    assert!(!recorded_on_auto(&dir));
+    write("not json");
+    assert!(!recorded_on_auto(&dir));
+    write(r#"{"watch": "", "position": "DU", "lift_deg": 52.0, "bph": null}"#);
+    assert!(recorded_on_auto(&dir));
+    let _ = std::fs::remove_dir_all(&dir);
+}
