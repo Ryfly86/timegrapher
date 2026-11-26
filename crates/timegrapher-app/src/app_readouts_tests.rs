@@ -1,7 +1,7 @@
 //! Inputs and their gain, what the cards and readings say, the profiles,
 //! exporting a pane, and the empty and error states.
 
-use super::readouts::{reading_limits, take_limits};
+use super::readouts::{no_watch_below, no_watch_hover, reading_limits, take_limits};
 use super::tests::{frames, painted_text, screen, synthetic, themed};
 use super::*;
 use timegrapher_core::synth::{generate, SynthConfig};
@@ -2746,4 +2746,34 @@ fn the_be_angle_line_is_at_the_readings_own_period() {
         readouts::be_angle_words(&r, 52.0).as_deref(),
         Some(own.as_str())
     );
+}
+
+/// Beats regular but no run long enough to read (#2257): the cards'
+/// hover is core's reason alone, and the status card says what a
+/// reading needs, with no hover about scattered beats; scattered beats
+/// keep both as before (Hugh on #2311).
+#[test]
+fn a_run_too_short_is_not_called_scattered() {
+    use timegrapher_core::measure::NoWatchReason;
+    let mut r = LiveAnalyzer::new(48_000, LiveConfig::default()).reading(2.0);
+    r.caveats = vec![Caveat::NoWatch {
+        reason: NoWatchReason::TooShort,
+    }];
+    assert_eq!(
+        no_watch_hover(Some(&r)),
+        "No regular beat found (the beats were regular, but no run of them lasted the 10 s \
+         a reading needs)."
+    );
+    assert_eq!(
+        no_watch_below(Some(&r)),
+        (
+            "The readings and charts need a run of regular beats lasting 10 s or more.".to_string(),
+            None
+        )
+    );
+    r.caveats = vec![Caveat::NoWatch {
+        reason: NoWatchReason::Scatter,
+    }];
+    assert!(no_watch_hover(Some(&r)).ends_with(*help::NO_REGULAR_BEAT));
+    assert_eq!(no_watch_below(Some(&r)).1, Some(*help::NO_REGULAR_BEAT));
 }

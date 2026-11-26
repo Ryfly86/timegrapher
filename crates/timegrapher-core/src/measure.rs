@@ -378,6 +378,17 @@ pub fn no_watch_text(
     }
 }
 
+/// What a reading too short to read needs, said under its title where
+/// the readings go: the [`NoWatchReason::TooShort`] rule's length, from
+/// [`crate::timing::MIN_PIECE_S`] (Hugh on #2311). No time until figures:
+/// live shows them some seconds after a run reaches it.
+pub fn too_short_need_text() -> String {
+    format!(
+        "The readings and charts need a run of regular beats lasting {} or more.",
+        crate::figure_text::duration_text(crate::timing::MIN_PIECE_S)
+    )
+}
+
 /// What the `no_watch` caveat ([`Caveat::NoWatch`]) was found on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -575,7 +586,10 @@ pub enum Caveat {
     /// [`crate::beats::NO_WATCH_JITTER_FRACTION`] of a beat (`reason`
     /// `scatter`), or, with under [`SHORT_SPAN_S`] of sound, neither the
     /// Tick's nor the Tock's averaged sound shows an unlock or a drop
-    /// (`no_beat_sound`). No readings are given.
+    /// (`no_beat_sound`), or `too_short`, the beats came in regular runs,
+    /// but none that began after a pause, a cut or the recording's start
+    /// lasted the 10 s a reading needs ([`NoWatchReason::TooShort`]). No
+    /// readings are given.
     NoWatch {
         #[serde(default)]
         reason: NoWatchReason,
