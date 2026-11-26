@@ -14,6 +14,16 @@ pub const BPH_RANGE: std::ops::RangeInclusive<u32> = 12_000..=72_000;
 /// Why a beat rate outside [`BPH_RANGE`] is refused.
 pub const BPH_RANGE_TEXT: &str = "beat rate must be a whole number from 12000 to 72000 bph";
 
+/// Why a beat rate `whose` gives (`the IWC 9520's`, `Grandpa's`) is
+/// not read at: it lies outside [`BPH_RANGE`], so it is set aside.
+pub fn bph_set_aside_text(whose: &str, bph: u32) -> String {
+    format!(
+        "{whose} beat rate of {bph} bph is set aside, outside {} to {} bph",
+        BPH_RANGE.start(),
+        BPH_RANGE.end()
+    )
+}
+
 /// `value` if it lies in [`BPH_RANGE`].
 pub fn bph(value: u64) -> Result<u32, String> {
     u32::try_from(value)

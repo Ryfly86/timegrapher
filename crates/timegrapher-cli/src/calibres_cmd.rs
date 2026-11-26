@@ -98,7 +98,7 @@ fn resolve_train(
 ) -> Resolved {
     let c = train.calibre.as_ref();
     let lift = timegrapher_core::take::lift_setting(lift_deg, None, c);
-    let table = c.and_then(|c| c.bph);
+    let table = c.and_then(timegrapher_core::set_rate::calibre_rate);
     Resolved {
         bph: bph.or(table),
         bph_from: timegrapher_core::set_rate::BphFrom::of(bph, None, table),

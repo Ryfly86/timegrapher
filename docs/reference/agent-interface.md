@@ -666,8 +666,11 @@ range (core `input_domain::LIFT_RANGE_DEG`, which the app's lift fields use too)
   the slowest and fastest standard rates; a decimal is refused, never rounded),
   for `analyze`, `shape`, `profile`, `long`, `series`, `doctor`, `record`,
   `session`, `synth` and `report`, as are a session file's `bph`, MCP's `bph`
-  and `watches edit --bph`. A library watch whose `watch.toml` gives a rate
-  outside it has that rate set aside: `record` says so and reads it on Auto.
+  and `watches edit --bph`. A rate kept outside it, a library watch's
+  `watch.toml` rate or a calibre row's (the table's `IWC 9520` at 8000 bph, or a
+  custom calibre), is set aside: the reading hears the rate, as with no rate set,
+  and says why (`analyze`'s text, `session`'s `calibre_notes`, a note from
+  `record`).
 - `--lift`: from 10 to 90 degrees, for `analyze`, `shape`, `profile`, `long`,
   `series`, `record`, `session` and `report`, as are a session file's `lift`
   and MCP's `lift_deg`.

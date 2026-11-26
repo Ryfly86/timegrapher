@@ -133,3 +133,23 @@ fn a_session_file_outside_the_range_is_refused_and_left_as_it_is() {
     }
     assert_eq!(std::fs::read_to_string(&manifest).unwrap(), text);
 }
+
+#[test]
+fn a_calibre_rate_outside_the_range_is_heard_and_said() {
+    let dir = Dir::new("calibre-aside");
+    let wav = dir.0.join("take.wav").to_string_lossy().into_owned();
+    let out = run(&["synth", &wav, "--duration=40", "--bph=18000", "--rate=0"]);
+    assert!(out.status.success(), "{out:?}");
+    let doc = json(&["analyze", &wav, "--calibre=IWC 9520", "--json"]);
+    assert!(doc["bph_set"].is_null(), "{doc}");
+    assert!(doc.get("bph_set_from").is_none());
+    assert_eq!(doc["bph"], 18000);
+    let out = run(&["analyze", &wav, "--calibre=IWC 9520"]);
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        text.lines().any(|l| l
+            == "Set rate     the IWC 9520's beat rate of 8000 bph is set aside, \
+                outside 12000 to 72000 bph, so the rate is heard"),
+        "{text}"
+    );
+}

@@ -113,6 +113,11 @@ impl Options {
             }
         }
         let from = |flag: bool| if flag { "the flag" } else { "the session file" };
+        if let Some(why) = timegrapher_core::set_rate::set_aside_why(Some(c))
+            .filter(|_| self.bph.or(m.bph).is_none())
+        {
+            notes.push(format!("{why}, so the rate is heard"));
+        }
         if let Some((b, cb)) = self.bph.or(m.bph).zip(c.bph).filter(|&(b, cb)| b != cb) {
             notes.push(format!(
                 "the {} beats at {cb} bph, {} says {b}; using {b}",
@@ -326,7 +331,9 @@ fn init(paths: &[PathBuf], o: &Options) -> Result<(), String> {
     let cal = selection.train.calibre.as_ref();
     t.push_str(&format!(
         "bph = {}\n",
-        o.bph.or(cal.and_then(|c| c.bph)).unwrap_or(28800)
+        o.bph
+            .or(cal.and_then(timegrapher_core::set_rate::calibre_rate))
+            .unwrap_or(28800)
     ));
     t.push_str(&format!(
         "lift = {}\n",

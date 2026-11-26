@@ -164,6 +164,8 @@ struct Placed {
     _library: Option<Library>,
     /// The watch it was made under, without a FOLDER.
     watch: Option<String>,
+    /// Why that watch's own beat rate is set aside, if it is.
+    bph_set_aside: Option<String>,
     /// A Power Reserve Test filed into a library: the local minute it
     /// started, which names its take. The take is then one folder, as
     /// the app keeps one ([`library::power_reserve_take_dir`], #1732),
@@ -204,6 +206,7 @@ fn place(o: &mut Options) -> Result<Placed, String> {
         return Ok(Placed {
             _library: held,
             watch: None,
+            bph_set_aside: None,
             reserve_take: None,
         });
     }
@@ -237,13 +240,10 @@ fn place(o: &mut Options) -> Result<Placed, String> {
     if o.calibre.is_none() {
         o.calibre = w.calibre.clone().filter(|c| !c.trim().is_empty());
     }
-    if let (None, Some(b)) = (o.bph, w.bph_set_aside()) {
-        eprintln!(
-            "note: {}'s beat rate of {b} bph is set aside ({}); it is read on Auto",
-            w.name,
-            timegrapher_core::input_domain::BPH_RANGE_TEXT
-        );
-    }
+    let aside = w
+        .bph_set_aside()
+        .filter(|_| o.bph.is_none())
+        .map(|b| timegrapher_core::input_domain::bph_set_aside_text(&format!("{}'s", w.name), b));
     o.bph = o.bph.or(w.beat_rate());
     o.lift = o.lift.or(w.lift);
     let started = chrono::Local::now()
@@ -263,6 +263,7 @@ fn place(o: &mut Options) -> Result<Placed, String> {
     });
     Ok(Placed {
         watch: Some(w.name.clone()),
+        bph_set_aside: aside,
         _library: Some(lib),
         reserve_take,
     })
@@ -315,14 +316,46 @@ fn record(o: &Options) -> Result<(Options, Report, serde_json::Value), String> {
         return Err("--wind-h must be 0 or more".into());
     }
     let placed = place(&mut o)?;
-    let (rep, settings) = record_in(&o, placed.watch, placed.reserve_take.as_deref())?;
+    let aside = placed.bph_set_aside.as_deref();
+    let (rep, settings) = record_in(&o, placed.watch, placed.reserve_take.as_deref(), aside)?;
     Ok((o, rep, settings))
+}
+
+/// Say that the calibre's beat rate was set aside, when no other rate is
+/// set, so the take is read on Auto (Norm on #2321).
+fn say_calibre_set_aside(calibre: Option<&take::Calibre>, bph: Option<u32>) {
+    if let Some(note) = calibre_set_aside_note(calibre, bph) {
+        eprintln!("{note}");
+    }
+}
+
+fn calibre_set_aside_note(calibre: Option<&take::Calibre>, bph: Option<u32>) -> Option<String> {
+    use timegrapher_core::set_rate;
+    let why = set_rate::set_aside_why(calibre).filter(|_| bph.is_none())?;
+    Some(format!(
+        "note: {why}, {}",
+        set_rate::read_at_text(None, None)
+    ))
+}
+
+/// Say, before recording, that the library watch's own beat rate was
+/// set aside (`why`), and how the take is read instead (Hugh on #2321).
+fn say_watch_set_aside(set: &Settings, why: Option<&str>) {
+    if let Some(note) = watch_set_aside_note(set, why) {
+        eprintln!("{note}");
+    }
+}
+
+fn watch_set_aside_note(set: &Settings, why: Option<&str>) -> Option<String> {
+    let read = timegrapher_core::set_rate::read_at_text(set.bph, set.bph_from);
+    Some(format!("note: {}, {read}", why?))
 }
 
 fn record_in(
     o: &Options,
     library_watch: Option<String>,
     reserve_take: Option<&str>,
+    watch_aside: Option<&str>,
 ) -> Result<(Report, serde_json::Value), String> {
     let pos = Position::parse(&o.position).ok_or_else(|| {
         format!(
@@ -333,6 +366,7 @@ fn record_in(
     })?;
     fs::create_dir_all(o.dir()).map_err(|e| format!("{}: {e}", o.dir().display()))?;
     let set = settings(o)?;
+    say_watch_set_aside(&set, watch_aside);
 
     let started = recorder::utc(SystemTime::now());
     let (rec, source, sample_rate, ending, stopped_early) = capture(o, pos, &set)?;
@@ -440,12 +474,13 @@ fn settings_with(
         train.resolve_label_with(user)?
     };
     let table = selected.calibre.as_ref();
-    let table_bph = table.and_then(|c| c.bph);
+    let table_bph = table.and_then(timegrapher_core::set_rate::calibre_rate);
     let bph = o.bph.or(table_bph);
     let calibre = table.map(|c| c.name.clone());
     // The lift every reader reads (#2226).
     let lift = take::lift_setting(o.lift, m.as_ref(), table);
     let Some(m) = m else {
+        say_calibre_set_aside(table, bph);
         return Ok(Settings {
             watch: o.watch.clone(),
             calibre,
@@ -467,11 +502,7 @@ fn settings_with(
     };
     // An inherited catalogue fills holes only. A newly supplied flag/calibre
     // still cannot change a session's persisted numeric/context settings.
-    let given_bph = o.bph.or(if o.calibre.is_some() {
-        table.and_then(|c| c.bph)
-    } else {
-        None
-    });
+    let given_bph = o.bph.or(if o.calibre.is_some() { table_bph } else { None });
     let given_lift = o.lift.or(if o.calibre.is_some() {
         table.and_then(|c| c.lift_angle_deg)
     } else {
@@ -496,6 +527,7 @@ fn settings_with(
             file.display()
         ));
     }
+    say_calibre_set_aside(table, m.bph.or(bph));
     Ok(Settings {
         watch: m.watch.or(o.watch.clone()),
         calibre: m.calibre.or(calibre),
@@ -1336,6 +1368,43 @@ mod tests {
     use super::*;
     use timegrapher_core::stream::StreamConfig;
 
+    /// The notes `record` gives when a beat rate is set aside, each as a
+    /// whole line (Hugh on #2321).
+    #[test]
+    fn a_rate_set_aside_says_how_the_take_is_read() {
+        let set = |bph, bph_from| Settings {
+            watch: None,
+            calibre: None,
+            bph,
+            bph_from,
+            lift: 52.0,
+            lift_known: true,
+            lift_from: take::SettingFrom::Given,
+            settle_s: None,
+        };
+        let why = "Grandpa's beat rate of 10800 bph is set aside, outside 12000 to 72000 bph";
+        assert_eq!(watch_set_aside_note(&set(None, None), None), None);
+        assert_eq!(
+            watch_set_aside_note(&set(None, None), Some(why)).unwrap(),
+            "note: Grandpa's beat rate of 10800 bph is set aside, outside 12000 to 72000 bph, \
+             so this take is read on Auto"
+        );
+        let calibre = Some(timegrapher_core::set_rate::BphFrom::Calibre);
+        assert_eq!(
+            watch_set_aside_note(&set(Some(21_600), calibre), Some(why)).unwrap(),
+            "note: Grandpa's beat rate of 10800 bph is set aside, outside 12000 to 72000 bph, \
+             so this take is read at the calibre's 21600 bph"
+        );
+        let user = timegrapher_core::calibre_store::UserCalibres::default();
+        let iwc = take::calibre_named("IWC 9520", &user);
+        assert_eq!(
+            calibre_set_aside_note(iwc.as_ref(), None).unwrap(),
+            "note: the IWC 9520's beat rate of 8000 bph is set aside, outside 12000 to 72000 bph, \
+             so this take is read on Auto"
+        );
+        assert_eq!(calibre_set_aside_note(iwc.as_ref(), Some(18_000)), None);
+    }
+
     #[test]
     fn live_trend_sources_stay_aligned_when_older_points_are_thinned() {
         use session::BeatErrorSource::{Drop, Unlock};
@@ -1419,6 +1488,7 @@ mod tests {
             watch: None,
             calibre: None,
             bph: Some(28800),
+            bph_from: None,
             lift: 52.0,
             lift_known: true,
             lift_from: take::SettingFrom::Given,

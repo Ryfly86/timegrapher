@@ -1837,6 +1837,11 @@ fn print_summary(
             s.bph
         );
     }
+    if let Some(why) =
+        timegrapher_core::set_rate::set_aside_why(calibre).filter(|_| s.bph_set.is_none())
+    {
+        println!("Set rate     {why}, so the rate is heard");
+    }
     print_rate(s, clock);
     println!(
         "Jitter       {} us per beat (within 10 s windows)",
