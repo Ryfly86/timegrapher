@@ -2446,13 +2446,14 @@ fn menu_line(ui: &mut egui::Ui, e: Entry<'_>, text: String, current: &str, picke
 /// list gives one, since rows sharing a number can differ by several
 /// degrees (#2339). A calibre whose escapement isn't measured yet can
 /// still be picked, its tag in place of the lift (#1872). A name that
-/// already ends in its lift, "Rolex 3235 (53°)", says it once.
+/// already states its lift, "Rolex 3235 (53°)" or "Citizen 20 (21,600
+/// bph, 52°)", says it once.
 fn line_text(e: Entry<'_>, text: String) -> String {
     match (e.escapement(), e.lift_angle_deg()) {
         (Some(_), _) => format!("{text}  ·  {}", calibres::Escapement::TAG),
         (None, Some(l)) => {
             let lift = calibre_page::lift_angle_text(l);
-            if e.name().ends_with(&format!("({lift})")) {
+            if names_its_lift(e.name(), &lift) {
                 text
             } else {
                 format!("{text} · {lift}")
@@ -2460,6 +2461,15 @@ fn line_text(e: Entry<'_>, text: String) -> String {
         }
         (None, None) => text,
     }
+}
+
+/// Whether `name` ends in a bracket that states `lift` as one of its
+/// parts: "(53°)", "(21,600 bph, 52°)". A bracket elsewhere in the name,
+/// "Miyota (Citizen) 9100", doesn't.
+fn names_its_lift(name: &str, lift: &str) -> bool {
+    name.strip_suffix(')')
+        .and_then(|n| n.rsplit_once('('))
+        .is_some_and(|(_, inside)| inside.split(", ").any(|part| part == lift))
 }
 
 /// Every calibre the app knows, by any of its names or its maker, without
