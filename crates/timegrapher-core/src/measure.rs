@@ -378,13 +378,13 @@ pub fn no_watch_text(
     }
 }
 
-/// What a reading too short to read needs, said under its title where
-/// the readings go: the [`NoWatchReason::TooShort`] rule's length, from
+/// What a reading too short to read needs, said over the strip that draws
+/// its beats: the [`NoWatchReason::TooShort`] rule's length, from
 /// [`crate::timing::MIN_PIECE_S`] (Hugh on #2311). No time until figures:
 /// live shows them some seconds after a run reaches it.
 pub fn too_short_need_text() -> String {
     format!(
-        "The readings and charts need a run of regular beats lasting {} or more.",
+        "A reading needs a run of regular beats lasting {} or more.",
         crate::figure_text::duration_text(crate::timing::MIN_PIECE_S)
     )
 }
