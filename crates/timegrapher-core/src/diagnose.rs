@@ -617,20 +617,7 @@ mod tests {
     /// with no count of beats (#2091).
     #[test]
     fn noise_alone_gives_no_readings() {
-        let mut state = 0x9e37_79b9_7f4a_7c15u64;
-        let samples = (0..30 * 48_000)
-            .map(|_| {
-                state ^= state << 13;
-                state ^= state >> 7;
-                state ^= state << 17;
-                (((state >> 11) as f64 / (1u64 << 53) as f64) - 0.5) as f32 * 0.02
-            })
-            .collect();
-        let a = Audio {
-            sample_rate: 48_000,
-            samples,
-        };
-        let c = check(&a, &DiagnoseConfig::default());
+        let c = check(&white_noise(30), &DiagnoseConfig::default());
         assert!(!c.watch_heard);
         assert_eq!((c.rate_s_per_day, c.beat_error_ms), (None, None));
         assert_eq!(c.rate_corrected_s_per_day, None);
@@ -651,6 +638,34 @@ mod tests {
             "{}",
             no_ticks[0].evidence
         );
+    }
+
+    /// 5 s of noise, the live doctor's default on an empty stand: no watch
+    /// heard, so no not-assessed fact under the no-regular-beat condition
+    /// (Vernon on #2363).
+    #[test]
+    fn five_seconds_of_noise_is_not_awaiting_a_verdict() {
+        let c = check(&white_noise(5), &DiagnoseConfig::default());
+        assert!(!c.watch_heard);
+        assert_eq!(c.not_assessed, None);
+        assert_eq!((c.rate_s_per_day, c.beat_error_ms), (None, None));
+    }
+
+    /// `seconds` of seeded white noise at 48 kHz, about −41 dBFS RMS.
+    fn white_noise(seconds: usize) -> Audio {
+        let mut state = 0x9e37_79b9_7f4a_7c15u64;
+        let samples = (0..seconds * 48_000)
+            .map(|_| {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                (((state >> 11) as f64 / (1u64 << 53) as f64) - 0.5) as f32 * 0.02
+            })
+            .collect();
+        Audio {
+            sample_rate: 48_000,
+            samples,
+        }
     }
 
     /// The not-assessed fact is given only where a watch is heard, with no
