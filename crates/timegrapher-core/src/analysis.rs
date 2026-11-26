@@ -561,9 +561,38 @@ fn take_shape(
     fits: &Fits,
     bph: u32,
 ) -> crate::shape::Measures {
-    let beat_s = crate::timing::beat_period_s(fits.overall.as_ref(), bph);
-    let r = crate::shape::analyze(env, fs, beats, beat_s, &Default::default());
+    let r = beats_shape(env, fs, beats, fits.overall.as_ref(), bph);
     crate::shape::Measures::of(&r, &fits.clear)
+}
+
+/// The shape of `beats` in `env` at `fs`, measured on the beat period of
+/// their fit `overall` (or 3600/`bph` with none).
+fn beats_shape(
+    env: &[f32],
+    fs: f64,
+    beats: &[Beat],
+    overall: Option<&TimingFit>,
+    bph: u32,
+) -> crate::shape::ShapeReport {
+    let beat_s = crate::timing::beat_period_s(overall, bph);
+    crate::shape::analyze(env, fs, beats, beat_s, &Default::default())
+}
+
+/// The shape of the beats [`analyze`] read from `audio` with `cfg` (`a`):
+/// on `cfg`'s envelope, on
+/// `a`'s beats, whose sides are named as its beat error names them
+/// ([`beats::SideCheck`]), and on their fitted period. The one reading
+/// behind `analyze`'s shape and `timegrapher shape`, so both give each
+/// side the same sounds (#2104).
+pub fn shape_report(
+    audio: &Audio,
+    cfg: &AnalysisConfig,
+    a: &Analysis,
+) -> crate::shape::ShapeReport {
+    let fs = audio.sample_rate as f64;
+    let env = envelope(&audio.samples, fs, &cfg.envelope);
+    let s = &a.summary;
+    beats_shape(&env, fs, &a.beats, s.overall.as_ref(), s.bph)
 }
 
 /// Whether a watch is heard in `beats` at `bph`, listened to from
