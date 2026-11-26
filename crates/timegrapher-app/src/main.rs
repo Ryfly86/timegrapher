@@ -104,7 +104,12 @@ fn parse_args() -> Result<Args, String> {
             "--devices" => a.devices = true,
             // Analysing all at once is all the app does; the old flag still works.
             "--analyse" | "--analyze" => {}
-            "--bph" => a.bph = Some(num(value("--bph")?, "--bph")? as u32),
+            "--bph" => {
+                a.bph = Some(
+                    timegrapher_core::input_domain::bph_text(&value("--bph")?)
+                        .map_err(|e| format!("--bph: {e}"))?,
+                )
+            }
             "--lift" => a.lift = num(value("--lift")?, "--lift")?,
             "--average" => a.average_s = num(value("--average")?, "--average")?,
             "--every" => a.every_s = num(value("--every")?, "--every")?,

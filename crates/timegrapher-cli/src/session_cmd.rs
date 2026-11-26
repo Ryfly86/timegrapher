@@ -113,7 +113,16 @@ impl Options {
             }
         }
         let from = |flag: bool| if flag { "the flag" } else { "the session file" };
-        if let Some((b, cb)) = self.bph.or(m.bph).zip(c.bph).filter(|&(b, cb)| b != cb) {
+        notes.extend(timegrapher_core::set_rate::session_set_aside_text(
+            Some(c),
+            self.bph.or(m.bph),
+        ));
+        if let Some((b, cb)) = self
+            .bph
+            .or(m.bph)
+            .zip(c.bph)
+            .filter(|&(b, cb)| b != cb && timegrapher_core::set_rate::in_range(cb))
+        {
             notes.push(format!(
                 "the {} beats at {cb} bph, {} says {b}; using {b}",
                 c.name,
@@ -324,10 +333,19 @@ fn init(paths: &[PathBuf], o: &Options) -> Result<(), String> {
     t.push_str("watch = \"\"\ncalibre = \"\"\n");
     let selection = o.calibre(&Manifest::default())?;
     let cal = selection.train.calibre.as_ref();
-    t.push_str(&format!(
-        "bph = {}\n",
-        o.bph.or(cal.and_then(|c| c.bph)).unwrap_or(28800)
-    ));
+    let aside = timegrapher_core::set_rate::session_set_aside_text(cal, o.bph);
+    match &aside {
+        // Set aside, the rate is left for the session to hear (Walter on #2321).
+        Some(note) => t.push_str(&format!(
+            "# {note}. To set a rate, write bph = <the watch's beat rate> here.\n"
+        )),
+        None => t.push_str(&format!(
+            "bph = {}\n",
+            o.bph
+                .or(cal.and_then(timegrapher_core::set_rate::calibre_rate))
+                .unwrap_or(28800)
+        )),
+    }
     t.push_str(&format!(
         "lift = {}\n",
         take::lift_setting(o.lift, None, cal).lift_deg
@@ -370,6 +388,9 @@ fn init(paths: &[PathBuf], o: &Options) -> Result<(), String> {
         );
     }
     fs::write(&target, t).map_err(|e| format!("{}: {e}", target.display()))?;
+    if let Some(note) = aside {
+        eprintln!("note: {note}");
+    }
     println!(
         "Wrote {} with {} recording(s); check the positions, then run it",
         target.display(),
@@ -796,6 +817,7 @@ fn read_one_inner(
     Ok((
         Reading {
             bph_set: cfg.analysis.bph,
+            bph_set_from: cfg.analysis.bph_from,
             label,
             position,
             wind_h: e.wind_h,

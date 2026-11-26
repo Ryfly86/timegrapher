@@ -41,6 +41,7 @@ fn reading(position: Position, wind_h: f64, rate: f64, amp: f64, beat_error: f64
     let log = log_of(&cfg, amp, position.code());
     Reading {
         bph_set: Some(cfg.bph),
+        bph_set_from: None,
         label: format!("{}.wav", position.code()),
         position,
         wind_h: Some(wind_h),

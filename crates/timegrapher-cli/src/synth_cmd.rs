@@ -84,6 +84,7 @@ fn session_files(
         watch: Some(watch),
         calibre: None,
         bph: Some(scenarios::BPH),
+        bph_from: None,
         lift: scenarios::LIFT_DEG,
         lift_known: true,
         lift_from: timegrapher_core::take::SettingFrom::Given,

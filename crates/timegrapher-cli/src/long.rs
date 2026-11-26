@@ -13,6 +13,7 @@ use timegrapher_core::library::{fixed_text, signed_text};
 use timegrapher_core::longrun::{self, LongReport};
 use timegrapher_core::longterm::{false_alarm_text, Component, LongConfig};
 use timegrapher_core::periodicity::{common_escape_wheels, standard_wheels, Wheel};
+use timegrapher_core::set_rate;
 use timegrapher_core::stream::{BeatLog, StreamConfig};
 use timegrapher_core::take_context::{Masks, TakeContext};
 use timegrapher_core::timefreq::size_number;
@@ -59,7 +60,7 @@ impl Train<'_> {
         let Some(c) = calibre else {
             return uncalibred(bph, self.escape_teeth);
         };
-        if let Some(cb) = c.bph.filter(|&cb| cb != bph) {
+        if let Some(cb) = c.bph.filter(|&cb| cb != bph && set_rate::in_range(cb)) {
             eprintln!(
                 "note: the {} beats at {cb} bph, the recording at {bph}",
                 c.calibre
@@ -228,7 +229,7 @@ impl ResolvedTrain {
         let Some(c) = &self.calibre else {
             return uncalibred(bph, self.escape_teeth);
         };
-        if let Some(cb) = c.bph.filter(|&cb| cb != bph) {
+        if let Some(cb) = c.bph.filter(|&cb| cb != bph && set_rate::in_range(cb)) {
             eprintln!(
                 "note: the {} beats at {cb} bph, the recording at {bph}",
                 c.name

@@ -2150,3 +2150,32 @@ fn the_import_guard_follows_a_link_to_the_watches_folder() {
     assert!(not_already_in(&base.join("elsewhere"), &link).is_ok());
     let _ = fs::remove_dir_all(&base);
 }
+
+/// A watch file giving a beat rate outside 12,000 to 72,000 bph (edited
+/// by hand) is read, not refused: the rate is set aside and the watch is
+/// read on Auto (Norm on #2224).
+#[test]
+fn a_watch_rate_outside_the_range_is_set_aside() {
+    let dir = std::env::temp_dir().join(format!("tg-watch-bph-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join(WATCH_FILE),
+        "id = \"0123456789abcdef\"\nname = \"Old clock\"\nbph = 10800\n",
+    )
+    .unwrap();
+    let w = Watch::read(&dir).unwrap();
+    assert_eq!(w.bph, Some(10_800));
+    assert_eq!(w.beat_rate(), None);
+    assert_eq!(w.bph_set_aside(), Some(10_800));
+    for b in [12_000, 17_570, 72_000] {
+        let w = Watch {
+            bph: Some(b),
+            ..Watch::new("In range")
+        };
+        assert_eq!((w.beat_rate(), w.bph_set_aside()), (Some(b), None), "{b}");
+    }
+    let mut w = Watch::new("Typed");
+    assert!(w.set_bph(Some(10_800), FromCalibre::default()).is_err());
+    assert_eq!(w.bph, None);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
