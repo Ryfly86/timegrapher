@@ -168,7 +168,9 @@ fn a_session_with_a_calibre_rate_outside_the_range_says_so() {
     let take = dir.0.to_string_lossy().into_owned();
     let doc = json(&["session", &take, "--json"]);
     assert!(doc["readings"][0]["bph_set"].is_null(), "{doc}");
-    let notes = doc["input"]["settings"]["calibre_notes"].as_array().unwrap();
+    let notes = doc["input"]["settings"]["calibre_notes"]
+        .as_array()
+        .unwrap();
     assert!(
         notes.iter().any(|n| n
             == "the IWC 9520's beat rate of 8000 bph is set aside, outside 12000 to 72000 bph, \
