@@ -308,7 +308,11 @@ impl TimegrapherApp {
     /// The saved read of the whole take's stretches from `from` to `to` s,
     /// read here and kept: a stopped card's own span, while live still
     /// finds the beat there (core's `LiveReading::read_as_saved`).
-    fn own_span_read(&self, from: f64, to: f64) -> Option<timegrapher_core::session::Measurement> {
+    pub(super) fn own_span_read(
+        &self,
+        from: f64,
+        to: f64,
+    ) -> Option<timegrapher_core::session::Measurement> {
         let mut key = self.whole_key()?;
         key.spans = (key.spans.iter())
             .map(|&(a, b)| (a.max(from), b.min(to)))

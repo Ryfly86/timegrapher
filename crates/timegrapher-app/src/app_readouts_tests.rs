@@ -2889,3 +2889,37 @@ fn a_stopped_card_reads_its_own_span_after_a_long_run() {
     }
     let _ = std::fs::remove_dir_all(base);
 }
+
+/// 30 s of watch, 20 s of noise, then 11 s back, stopped: at the watch's
+/// last beat live is still finding the beat at every Average Over, and
+/// the whole take hears the watch, so each card reads as the saved read
+/// of its own last seconds gives it (the take's reader over that span,
+/// as its Watches row reads), never Finding the Beat (Norm's ruling on
+/// #2311, case 3).
+#[test]
+fn a_stopped_card_still_finding_reads_its_own_span() {
+    use timegrapher_core::measure::no_watch_reason_in;
+    let base = std::env::temp_dir().join(format!("tg-finding-span-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = stopped_short_return(&base, (30.0, 20.0, 11.0));
+    for average in timegrapher_core::live::AVERAGES {
+        app.bench.take.average_s = average;
+        assert!(app.whole_take().expect("a whole take").m.watch_heard);
+        let s = app.stopped_take().expect("stopped");
+        let at = timegrapher_core::beats::last_watch_beat_s(s.live.beats()).expect("a last beat");
+        assert!(s.live.reading_at(at, average).finding_beat, "{average} s");
+        let own = app.own_span_read(at - average, at).expect("its span read");
+        assert!(own.start_s >= at - average && own.end_s == at, "{own:?}");
+        let r = app.card_reading().expect("a reading");
+        assert!(!r.finding_beat && !r.whole_take, "{average} s: {r:?}");
+        assert_eq!(r.watch_heard, own.watch_heard, "{average} s: {r:?}");
+        assert_eq!(r.rate_s_per_day, own.rate_s_per_day, "{average} s");
+        assert_eq!(r.caveats, own.caveats, "{average} s");
+        assert_eq!(
+            no_watch_reason_in(&r.caveats),
+            no_watch_reason_in(&own.caveats),
+            "{average} s"
+        );
+    }
+    let _ = std::fs::remove_dir_all(base);
+}
