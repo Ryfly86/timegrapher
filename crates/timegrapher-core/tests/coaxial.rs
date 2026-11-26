@@ -298,3 +298,121 @@ fn a_long_run_report_reads_a_co_axial_as_a_take_does() {
     assert!(r.slices.iter().any(|s| s.beat_error_ms.is_some()));
     assert!(!r.caveats.contains(&Caveat::CoaxialEstimate));
 }
+
+/// Each place a co-axial reading could fall back to the drop, on the watch
+/// whose unlock is never heard, so the drop is all there is to fall back
+/// to; each against a lever's, which does fall back, so the check sees it.
+#[test]
+fn no_reading_of_a_co_axial_falls_back_to_the_drop() {
+    for (escapement, drop) in [(Escapement::CoAxial, false), (Escapement::SwissLever, true)] {
+        let log = log_at(LIFT_DEG, escapement, false);
+        // The windows' choice.
+        let sel = session::select_window_beat_errors(&log.amplitude_windows, log.escapement);
+        assert_eq!(sel.beat_error_source.is_some(), drop, "{escapement:?}");
+        assert_eq!(
+            log.amplitude_windows
+                .iter()
+                .any(|w| session::window_beat_error(w, log.escapement).is_some()),
+            drop,
+            "{escapement:?}"
+        );
+        // `analyze`.
+        let (_, audio) = watch(false);
+        let s = analyze(&audio, &stream_cfg(LIFT_DEG, escapement).analysis).summary;
+        assert_eq!(s.beat_error_source.is_some(), drop, "{escapement:?}");
+        assert_eq!(has_drop_caveat(&s.caveats), drop, "{escapement:?}");
+        // Live, from a kept log, under a config that names no escapement:
+        // the log's own is read for.
+        let cfg = LiveConfig {
+            analysis: stream_cfg(LIFT_DEG, Escapement::SwissLever).analysis,
+            ..Default::default()
+        };
+        let r = LiveAnalyzer::from_log(log, cfg).reading(20.0);
+        assert!(r.watch_heard);
+        assert_eq!(r.beat_error_ms.is_some(), drop, "{escapement:?}");
+    }
+}
+
+/// A co-axial read from the beat cache is read for a co-axial.
+#[test]
+fn a_co_axial_read_from_the_beat_cache_stays_one() {
+    use std::time::{Duration, SystemTime};
+    use timegrapher_core::beat_cache;
+    let d = std::env::temp_dir().join(format!("tg-coaxial-cache-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&d);
+    std::fs::create_dir_all(&d).unwrap();
+    let wav = d.join("watch.wav");
+    let (_, audio) = watch(true);
+    timegrapher_core::audio::write_wav(&wav, &audio).unwrap();
+    // Older than a file still being written.
+    std::fs::File::options()
+        .write(true)
+        .open(&wav)
+        .unwrap()
+        .set_modified(SystemTime::now() - Duration::from_secs(600))
+        .unwrap();
+    let cfg = stream_cfg(52.0, Escapement::CoAxial);
+    let log = log_at(52.0, Escapement::CoAxial, true);
+    let cache = d.join("cache");
+    beat_cache::write(&cache, &[wav.as_path()], &cfg, &log, 0.5).unwrap();
+    let (got, _) = beat_cache::read(&cache, &[wav.as_path()], &cfg).expect("kept");
+    assert_eq!(got.escapement, Escapement::CoAxial);
+    assert_eq!(read(&got).beat_error_ms, None);
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+/// The two-state blocks of a co-axial, in a `session` reading and in the
+/// Steadiness check, give no drop beat error: a watch whose amplitude
+/// steps between 310° and 270° every 30 s over 7 minutes.
+#[test]
+fn a_co_axial_two_state_gives_no_drop_beat_error() {
+    use timegrapher_core::longrun::analyse;
+    use timegrapher_core::longterm::LongConfig;
+    use timegrapher_core::steadiness::{self, SeriesKind};
+    let synth = SynthConfig {
+        duration_s: 420.0,
+        bph: 21_600,
+        lift_deg: LIFT_DEG,
+        beat_error_ms: BEAT_ERROR_MS,
+        ..Default::default()
+    };
+    let audio = generate(
+        &synth,
+        |t| {
+            if (t / 30.0).floor() as i64 % 2 == 0 {
+                310.0
+            } else {
+                270.0
+            }
+        },
+        |_| 0.0,
+    );
+    for (escapement, drop) in [(Escapement::CoAxial, false), (Escapement::SwissLever, true)] {
+        let log = analyze_samples(
+            &audio.samples,
+            synth.sample_rate,
+            &stream_cfg(LIFT_DEG, escapement),
+        );
+        let m = read(&log);
+        let two = &m.amplitude_states;
+        assert!(
+            two.beat_error_unlock_ms.is_some(),
+            "{escapement:?}: {two:?}"
+        );
+        assert_eq!(two.beat_error_drop_ms.is_some(), drop, "{escapement:?}");
+        let lc = LongConfig::default();
+        let long = analyse(&log, None, &lc);
+        let report = steadiness::check(&log, None, &long, &lc, &Default::default());
+        let two = report
+            .series
+            .iter()
+            .find(|s| s.series == SeriesKind::Amplitude)
+            .and_then(|s| s.two_state.as_ref())
+            .expect("the amplitude's two-state find");
+        assert!(
+            two.beat_error_unlock_ms.is_some(),
+            "{escapement:?}: {two:?}"
+        );
+        assert_eq!(two.beat_error_drop_ms.is_some(), drop, "{escapement:?}");
+    }
+}

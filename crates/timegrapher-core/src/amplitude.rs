@@ -321,7 +321,8 @@ pub fn at_lift(
     w.set_culled([ec, oc]);
     // As at the first read: each side found counts, kept or culled,
     // unless both are culled on a Swiss lever (#1977, #2313). [`relift`]
-    // screens it after.
+    // screens it after, and that screen decides: this clause only saves
+    // the work.
     if changed {
         let unheard = ek.is_none() && ok.is_none() && escapement.both_culled_unheard();
         w.beat_error_unlock_ms = (!unheard)
@@ -975,7 +976,9 @@ fn window_of(
     let (even, odd) = (kept(even_all), kept(odd_all));
     let beat_error_ms = timing::beat_error_ms(win);
     // Each side found counts, kept or culled, unless both are culled on
-    // a Swiss lever ([`screen_unlock_beat_error`], #1977, #2313).
+    // a Swiss lever ([`screen_unlock_beat_error`], #1977, #2313). The
+    // stream screens every window after, and that screen decides: this
+    // clause only saves the work.
     let unheard = even.is_none() && odd.is_none() && cfg.escapement.both_culled_unheard();
     let beat_error_unlock_ms = (!unheard)
         .then(|| {

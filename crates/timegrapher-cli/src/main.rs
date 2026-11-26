@@ -1765,7 +1765,8 @@ fn opt(v: Option<f64>, digits: usize) -> String {
 /// Beat error from the unlock as the headline, with the drop's alongside;
 /// from the drop, why (`why`, core's reason: the unlock not found, or its
 /// signs disagreeing, #1439). `drop_ms` is none on a co-axial
-/// (`Escapement::drop_beat_error`, #2313): the unlock's alone, or none.
+/// (`Escapement::drop_beat_error`, #2313): the unlock's alone, or "none",
+/// with no reason, as core records none for a co-axial's missing unlock.
 pub fn beat_error_text(
     unlock_ms: Option<f64>,
     drop_ms: Option<f64>,
@@ -1776,7 +1777,7 @@ pub fn beat_error_text(
         (Some(u), Some(d)) => format!("{} ms (from the unlock; {} ms from the drop)", be(u), be(d)),
         (Some(u), None) => format!("{} ms (from the unlock)", be(u)),
         (None, Some(d)) => format!("{} ms from the drop ({})", be(d), why.words()),
-        (None, None) => format!("none ({})", why.words()),
+        (None, None) => "none".into(),
     }
 }
 
@@ -2362,9 +2363,7 @@ mod beat_error_wording {
         let why = DropWhy::of(&[]);
         let text = beat_error_text(Some(0.62), None, why);
         assert_eq!(text, "0.62 ms (from the unlock)");
-        let text = beat_error_text(None, None, why);
-        assert!(text.contains(DropWhy::UnlockNotFound.words()), "{text}");
-        assert!(!text.contains("drop"), "{text}");
+        assert_eq!(beat_error_text(None, None, why), "none");
     }
 }
 
