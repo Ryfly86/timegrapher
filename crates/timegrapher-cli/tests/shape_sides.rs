@@ -125,13 +125,19 @@ fn shape_says_a_co_axial_amplitude_is_an_estimate() {
         .iter()
         .position(|l| l.starts_with("amplitude, deg"))
         .unwrap_or_else(|| panic!("{table}"));
-    assert!(
-        rows[at + 1..]
-            .iter()
-            .take_while(|l| l.starts_with("  "))
-            .any(|l| l.trim() == words),
-        "{table}"
-    );
+    let under: Vec<&str> = rows[at + 1..]
+        .iter()
+        .take_while(|l| l.starts_with("  "))
+        .map(|l| l.trim())
+        .collect();
+    assert!(under.contains(&words), "{table}");
+    // A caveat on the rate alone, which analyze gives this take too, is
+    // not said under the amplitude.
+    let clock = timegrapher_core::measure::Caveat::ClockUnknown
+        .short(52.0, 0)
+        .unwrap();
+    assert!(analyze.contains(&clock), "{analyze}");
+    assert!(!under.contains(&clock.as_str()), "{table}");
     // A lever's amplitude carries no such words.
     let lever = run(&config, &["shape", w]);
     assert!(lever.contains("amplitude, deg"), "{lever}");
