@@ -3986,9 +3986,8 @@
       }
     ],
     "sources": [
-      "https://github.com/peterhudson/timegrapher/issues/2304 (this project, 2026-11-25: SA4401 is one of Shanghai Jinghe's clone calibres, a clone of the 4401)",
       "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)",
-      "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (made by Shanghai Jinghe)"
+      "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (made by Shanghai Jinghe; SA4401 is its clone of the 4401)"
     ],
     "confidence": "derived from the beat rate",
     "notes": "An integrated flyback chronograph clone of the 4401 (#2304). Its 28,800 bph is the genuine 4401's beat rate and is not confirmed on the clone. Lift angle as the 4401, probably 50 to 52°, not settled; that range rests only on one author's forum guide to lift angles.",
