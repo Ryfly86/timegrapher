@@ -1616,7 +1616,33 @@ mod tests {
         // A day in 1 s blocks, each 0.999 ms short of a second apart.
         assert!(paced(1.0, 0.999_001, 86_400).iter().all(|e| e == "audio"));
         assert!(paced(1.99, 1.0, 1).iter().all(|e| e == "audio"));
+        // Exactly two seconds ahead is still within the limit.
+        assert_eq!(paced(2.0, 1.0, 1), ["audio"]);
         assert_eq!(paced(2.01, 1.0, 1), [FAST_TEXT]);
+    }
+
+    /// Once refused, an input stays refused though it falls back within
+    /// the limit: a 2.01 s first block, then 20 s at real time, by when
+    /// the 0.1% share has grown past the 0.01 s it was over, gives the
+    /// refusal and nothing else.
+    #[test]
+    fn a_refused_input_stays_refused() {
+        let (tx, rx) = sync_channel(64);
+        let mut feed = LiveQueue::new(tx, 1_000);
+        let start = Instant::now();
+        let block = |n: usize| Block {
+            samples: vec![0.0; n],
+            at: SystemTime::UNIX_EPOCH,
+        };
+        feed.send_at(block(2_010), start);
+        for k in 1..=20 {
+            feed.send_at(block(1_000), start + Duration::from_secs(k));
+        }
+        let got: Vec<Event> = rx.try_iter().collect();
+        assert!(
+            matches!(&got[..], [Event::Error(e)] if e == FAST_TEXT),
+            "{got:?}"
+        );
     }
 
     /// The refusal waits for room in a full queue, and goes once.
