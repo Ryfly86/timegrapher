@@ -348,13 +348,40 @@ fn an_off_standard_watch_opened_on_auto_has_no_rate_in_s_per_day() {
     };
     let audio = generate(&cfg, |_| 280.0, |_| 0.0);
     timegrapher_core::audio::write_wav(&wav, &audio).unwrap();
-    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    app.open_recording(&wav, false);
-    let t = std::time::Instant::now();
-    while app.bench.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
-        app.poll();
-    }
-    assert!(app.bench.recording.batch.is_none(), "{:?}", app.message);
+    // At a set rate: the take with its session file naming 18,000.
+    let take = base.join("set");
+    std::fs::create_dir_all(&take).unwrap();
+    timegrapher_core::audio::write_wav(&take.join("off.wav"), &audio).unwrap();
+    std::fs::write(
+        take.join("session.toml"),
+        "bph = 18000\n\n[[recording]]\nfile = 'off.wav'\nposition = 'DU'\n",
+    )
+    .unwrap();
+    let opened = |bph: Option<u32>| {
+        let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+        app.open_recording(if bph.is_some() { &take } else { &wav }, false);
+        let t = std::time::Instant::now();
+        while app.bench.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
+            app.poll();
+        }
+        assert!(app.bench.recording.batch.is_none(), "{:?}", app.message);
+        app
+    };
+    // Set to 18,000, the whole take, the cards and the table read the
+    // rate against it, with no caveat.
+    let mut set = opened(Some(18_000));
+    let w = set.whole_take().expect("the whole take at 18,000");
+    let rate =
+        w.m.rate_s_per_day
+            .unwrap_or_else(|| panic!("{:?}", w.m.caveats));
+    assert!((rate + 2059.1).abs() < 1.0, "{rate}");
+    assert!(off_standard(&w.m.caveats).is_none(), "{:?}", w.m.caveats);
+    set.bench.take.average_s = 10.0;
+    assert!(set.reading().and_then(|r| r.rate_s_per_day).is_some());
+    let t = set.free_table(&egui::Context::default()).expect("a table");
+    assert!(t.mean[0].is_some(), "{t:?}");
+    assert_eq!(set.take_manifest().bph, Some(18_000));
+    let mut app = opened(None);
     let _ = std::fs::remove_dir_all(&base);
     let w = app.whole_take().expect("the whole take");
     assert_eq!(w.m.rate_s_per_day, None, "{:?}", w.m.caveats);
@@ -395,4 +422,45 @@ fn an_off_standard_watch_opened_on_auto_has_no_rate_in_s_per_day() {
     // Saved, the take names no beat rate: it was Auto, and Auto's guess
     // is not a set rate (#2357).
     assert_eq!(app.take_manifest().bph, None);
+}
+
+/// A take's Positions Test table, its six and its upright stops, read by
+/// `take_reads::read_table` (#2253): on Auto, in a lock off every
+/// standard rate, no row of either and no value over them is in s/d, and
+/// each row names the caveat; at the rate set, every row reads its rate.
+#[test]
+fn an_off_standard_takes_table_and_upright_stops_have_no_rate_on_auto() {
+    use timegrapher_core::measure::off_standard;
+    use timegrapher_core::session::Position;
+    use timegrapher_core::synth::{generate, SynthConfig};
+    let cfg = SynthConfig {
+        bph: 17_570,
+        duration_s: 90.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let stream = timegrapher_core::stream::StreamConfig::default();
+    let log = timegrapher_core::stream::analyze_samples(&audio.samples, 48_000, &stream);
+    let stretches = [
+        (Position::CH, 0.0, 30.0),
+        (Position::H9, 30.0, 60.0),
+        (Position::H7h30, 60.0, 90.0),
+    ];
+    for bph_set in [None, Some(log.bph)] {
+        let t = super::take_reads::read_table(&log, None, &[], &[], &stretches, bph_set);
+        let rows: Vec<_> = (t.six.0.iter()).chain(t.upright.0.iter()).collect();
+        assert!(t.upright.0.len() >= 2 && t.six.0.len() >= 2, "{t:?}");
+        for r in rows {
+            let m = &r.measurement;
+            let at = format!("{bph_set:?} {:?}", r.position);
+            assert_eq!(m.rate_s_per_day.is_none(), bph_set.is_none(), "{at}: {m:?}");
+            assert_eq!(
+                off_standard(&m.caveats).is_some(),
+                bph_set.is_none(),
+                "{at}"
+            );
+            assert!(m.amplitude_deg.is_some(), "{at}");
+        }
+        assert_eq!(t.mean[0].is_none(), bph_set.is_none(), "{bph_set:?}: {t:?}");
+    }
 }

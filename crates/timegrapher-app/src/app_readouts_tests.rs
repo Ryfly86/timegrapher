@@ -2802,14 +2802,20 @@ fn stopped_short_return(base: &Path, (first, gap, back): (f64, f64, f64)) -> Tim
             .wrapping_add(1_442_695_040_888_963_407);
         *s = 1.5 * rms * ((x >> 33) as f32 / (1u64 << 31) as f32 - 0.5);
     }
-    stopped_listened(base, &audio)
+    stopped_listened(base, &audio, None)
 }
 
-/// `audio` at 48 kHz listened to through the capture on Auto as the
-/// window hears it, stopped, and its Stop read in.
-fn stopped_listened(base: &Path, audio: &timegrapher_core::audio::Audio) -> TimegrapherApp {
+/// `audio` at 48 kHz listened to through the capture at the beat rate
+/// `bph` (Auto with none) as the window hears it, stopped, and its Stop
+/// read in.
+fn stopped_listened(
+    base: &Path,
+    audio: &timegrapher_core::audio::Audio,
+    bph: Option<u32>,
+) -> TimegrapherApp {
     use timegrapher_core::capture::{Block, Event};
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.bench.take.bph = bph;
     app.reset_session(48000, "short return".into());
     app.session.listen();
     let info = app.info("short return", 48000, 16);
@@ -2934,7 +2940,8 @@ fn a_stopped_card_still_finding_reads_its_own_span() {
 /// Auto's lock is off every standard rate, so at Stop the whole take and
 /// the cards at every Average Over give no rate in s/d and name the
 /// caveat `off_standard_rate`, as while it listened and as `analyze`
-/// reads its sound (#2253).
+/// reads its sound (#2253). Set to 18,000, the same take reads its rate
+/// against it.
 #[test]
 fn an_off_standard_watch_stopped_on_auto_has_no_rate_in_s_per_day() {
     use timegrapher_core::measure::off_standard;
@@ -2945,7 +2952,18 @@ fn an_off_standard_watch_stopped_on_auto_has_no_rate_in_s_per_day() {
         duration_s: 60.0,
         ..Default::default()
     };
-    let mut app = stopped_listened(&base, &generate(&cfg, |_| 280.0, |_| 0.0));
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let _ = std::fs::create_dir_all(base.join("set"));
+    let set = stopped_listened(&base.join("set"), &audio, Some(18_000));
+    let w = set.whole_take().expect("the whole take at 18,000");
+    let rate =
+        w.m.rate_s_per_day
+            .unwrap_or_else(|| panic!("{:?}", w.m.caveats));
+    assert!((rate + 2059.1).abs() < 1.0, "{rate}");
+    assert!(off_standard(&w.m.caveats).is_none(), "{:?}", w.m.caveats);
+    let r = set.card_reading().expect("a reading");
+    assert!(r.rate_s_per_day.is_some(), "{r:?}");
+    let mut app = stopped_listened(&base, &audio, None);
     let w = app.whole_take().expect("the whole take");
     assert_eq!(w.m.rate_s_per_day, None, "{:?}", w.m.caveats);
     assert!(off_standard(&w.m.caveats).is_some(), "{:?}", w.m.caveats);
