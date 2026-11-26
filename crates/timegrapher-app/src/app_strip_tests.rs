@@ -159,7 +159,7 @@ fn the_fit_switch_never_moves_the_strip_toolbar() {
 #[test]
 fn dragging_the_strip_looks_back_and_returns() {
     let mut app = synthetic(40.0, 0.0);
-    let latest = app.paper_latest_s();
+    let latest = app.latest_s();
     let back = StripInput {
         time_shift_s: -5.0,
         ..Default::default()
@@ -284,7 +284,7 @@ fn a_zoom_leaves_a_round_length() {
 #[test]
 fn zooming_out_stops_at_the_take() {
     let mut app = synthetic(40.0, 0.0);
-    let latest = app.paper_latest_s();
+    let latest = app.latest_s();
     app.bench.panes_view.strip.set_span(10.0);
     let out = StripInput {
         span_factor: 10.0,
@@ -324,7 +324,7 @@ fn the_sound_panes_follow_the_strips_newest_edge() {
         )
     };
     app.bench.results.sound_history = (5..=20).map(|k| kept(2.0 * k as f64)).collect();
-    let latest = app.paper_latest_s();
+    let latest = app.latest_s();
     let beats_shown = |app: &mut TimegrapherApp| {
         let end = app.strip_end_s();
         let s = app.profiles_at(end);
@@ -725,10 +725,9 @@ fn masked_beats_are_faint_under_the_hatching() {
     assert!(last_masked < first_line && last_masked < first_full);
 }
 
-/// The take's span ends at the sound heard, its newest beat or its newest
-/// reading, whichever is latest, with none before there is any; with Fit
-/// on, the strip's newest edge is that end and never past it (#1256). The
-/// sound counts though no beat comes in it, so the paper moves on (#2125).
+/// The take's span ends at its newest beat or its newest reading, whichever
+/// is later, with none before there is either; with Fit on, the strip's
+/// newest edge is that end and never past it (#1256).
 #[test]
 fn the_takes_span_ends_at_its_newest_beat_or_reading() {
     let empty = TimegrapherApp::with_devices(Vec::new(), None);
@@ -736,8 +735,6 @@ fn the_takes_span_ends_at_its_newest_beat_or_reading() {
     let mut app = synthetic(40.0, 0.0);
     let beat = app.latest_s();
     assert!(beat > 30.0, "{beat}");
-    let heard = app.bench.recording.live.as_ref().unwrap().duration_s();
-    assert!(heard > beat, "{heard} after the last beat at {beat}");
     let reading = |t| TrendPoint {
         t,
         rate_s_per_day: Some(1.0),
@@ -752,7 +749,7 @@ fn the_takes_span_ends_at_its_newest_beat_or_reading() {
         heard: true,
     };
     app.bench.results.trend = vec![reading(beat - 10.0)];
-    assert_eq!(app.take_span(), Some((0.0, heard)));
+    assert_eq!(app.take_span(), Some((0.0, beat)));
     app.bench.results.trend = vec![reading(beat - 10.0), reading(beat + 5.0)];
     assert_eq!(app.take_span(), Some((0.0, beat + 5.0)));
 
@@ -765,7 +762,7 @@ fn the_takes_span_ends_at_its_newest_beat_or_reading() {
     assert_eq!(app.strip_end_s(), 12.0);
     app.bench.panes_view.strip_fit = false;
     app.bench.panes_view.strip_end = None;
-    assert_eq!(app.strip_end_s(), heard);
+    assert_eq!(app.strip_end_s(), beat);
 }
 
 /// Still paper has nothing to fit: Fit leaves the Length alone while the
@@ -973,11 +970,13 @@ fn hear(
     }
 }
 
-/// The watch taken off the stand mid take: the paper moves on with the
-/// sound while the app listens, and once stopped it ends where the sound
-/// does, not at the last beat (#2125, #2335). The amplitude line already
-/// drawn keeps its shape as more sound comes in, though core's reading
-/// at a moment worked out again later can differ a little (#2125).
+/// The watch taken off the stand mid take (#2125, #2335; Hugh, Walter and
+/// Vernon on #2373). While it beats, its newest beat is at the paper's
+/// edge, within a beat. Once the beats stop, the paper moves on with the
+/// sound the engine has finished with, and the strip says the cards'
+/// wait; looking back and coming forward again go by that edge, not the
+/// last beat. Once stopped, the strip ends where the cards' readings do,
+/// at the watch's last beat.
 #[test]
 fn the_strip_moves_on_when_the_stand_goes_silent() {
     use timegrapher_core::synth::{generate, SynthConfig};
@@ -991,33 +990,84 @@ fn the_strip_moves_on_when_the_stand_goes_silent() {
         rate_s_per_day: 5.0,
         ..Default::default()
     };
-    let audio = generate(&cfg, |t| 270.0 + 10.0 * (t / 7.0).sin(), |_| 0.0);
+    let audio = generate(&cfg, |_| 270.0, |_| 0.0);
     hear(&mut app, &tx, &audio.samples, 2000);
-    let heard = |app: &TimegrapherApp| app.bench.recording.live.as_ref().unwrap().duration_s();
+    let live = |app: &TimegrapherApp| {
+        let l = app.bench.recording.live.as_ref().unwrap();
+        (l.settled_s(), l.duration_s())
+    };
     let end = app.strip_end_s();
-    assert_eq!(end, heard(&app), "the newest edge is the sound heard");
-    let avg = app.bench.take.average_s;
-    let (before, _) = app.strip_trend(end - 30.0, end, avg);
+    let beat = 3600.0 / 28800.0;
     let last_beat = app.latest_s();
+    assert!(
+        end >= last_beat && end - last_beat < beat,
+        "beating, the newest beat at {last_beat} is at the edge {end}"
+    );
     hear(&mut app, &tx, &vec![0.0; 48000 * 15], 42_000);
     let later = app.strip_end_s();
+    let (settled, heard) = live(&app);
     assert!(app.latest_s() < last_beat + 1.0, "no beat in the silence");
-    assert_eq!(later, heard(&app), "the paper moved on to {later}");
-    let (after, _) = app.strip_trend(later - 30.0, later, avg);
-    let moved: Vec<_> = (before.iter())
-        .filter(|p| p.t <= last_beat && p.t >= later - 30.0)
-        .filter_map(|p| {
-            let now = after.iter().find(|q| q.t == p.t);
-            (now.map(|q| q.amplitude_deg) != Some(p.amplitude_deg)).then_some(p.t)
-        })
-        .collect();
-    assert!(moved.is_empty(), "drawn amplitude moved at {moved:?}");
-    app.stop();
+    assert_eq!(later, settled, "the paper moved on to {later}");
+    assert!(later > last_beat + 10.0 && later <= heard, "{later}");
+    let wait = timegrapher_core::measure::Wait::NoBeats.title();
+    let note = app.strip_note_shown(false, &[], false, later);
     assert_eq!(
-        app.strip_end_s(),
-        heard(&app),
-        "stopped, the paper ends with the sound"
+        note,
+        Some(format!("{wait}.")),
+        "the strip says the cards' wait"
     );
+    assert!(!app.strip_looking_back(later), "at the edge, live");
+    // Back 3 s, still after the last beat: looking back, and saying so.
+    let back = StripInput {
+        time_shift_s: -3.0,
+        ..Default::default()
+    };
+    app.apply_strip_input(back, later);
+    assert_eq!(app.bench.panes_view.strip_end, Some(later - 3.0));
+    assert!(app.strip_looking_back(app.strip_end_s()));
+    // Zoomed in about a time after the last beat: still looking back.
+    let zoom = StripInput {
+        span_factor: 0.5,
+        zoom_at: Some(later - 4.0),
+        ..Default::default()
+    };
+    app.apply_strip_input(zoom, later - 3.0);
+    let at = app.bench.panes_view.strip_end.expect("still looking back");
+    assert!(at > last_beat && at < later, "{at}");
+    // Forward past the edge: live again.
+    let forward = StripInput {
+        time_shift_s: 10.0,
+        ..Default::default()
+    };
+    app.apply_strip_input(forward, app.strip_end_s());
+    assert_eq!(app.bench.panes_view.strip_end, None);
+    app.stop();
+    let cards = timegrapher_core::beats::last_watch_beat_s(
+        app.bench.recording.live.as_ref().unwrap().beats(),
+    );
+    assert_eq!(
+        Some(app.strip_end_s()),
+        cards,
+        "stopped, the strip ends where the cards read"
+    );
+    drop(tx);
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// After a silent start, stand noise that the engine takes for no watch:
+/// stopped, the strip ends with the sound, as no watch's beat ends it
+/// (#2335).
+#[test]
+fn stopped_on_stand_noise_the_strip_ends_with_the_sound() {
+    let base = std::env::temp_dir().join(format!("tg-strip-noise-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "noise".into());
+    let tx = super::tests::queued_capture(&mut app, &base);
+    hear(&mut app, &tx, &vec![0.0; 48000 * 15], 2000);
+    app.stop();
+    let heard = app.bench.recording.live.as_ref().unwrap().duration_s();
+    assert_eq!(app.strip_end_s(), heard);
     drop(tx);
     let _ = std::fs::remove_dir_all(base);
 }
