@@ -46,8 +46,9 @@ fn faint(signal_x: Option<f64>) -> bool {
 /// than was measured, and it reads under 3.0× exactly when the ticks are
 /// [`faint`] (Norm on #2091). The one formatter for it.
 pub fn signal_text(signal_x: f64) -> String {
-    // The small nudge keeps a figure such as 2.3, held as 2.2999…, at 2.3.
-    let shown = (signal_x * 10.0 + 1e-9).floor() / 10.0;
+    // The nudge, on the f32 scale `signal_x` is measured on, keeps 2.3f32
+    // (2.2999999523 as f64) at 2.3; the largest f32 under 3.0 still reads 2.9.
+    let shown = (signal_x * 10.0 + 1e-6).floor() / 10.0;
     format!("{}×", crate::library::fixed_text(shown, 1))
 }
 
@@ -149,6 +150,10 @@ pub struct SignalCheck {
     pub beat_error_ms: Option<f64>,
     /// Where `beat_error_ms` is measured from: `unlock` or `drop`.
     pub beat_error_source: Option<BeatErrorSource>,
+    /// Why `analyze` gives no figures though it hears a watch: the
+    /// recording is under 10 s and the beat sound is not yet judged
+    /// ([`crate::measure::not_assessed_text`]); none otherwise.
+    pub not_assessed: Option<String>,
     /// The gain change `doctor --apply` makes, dB: it sets the peak to
     /// about −10 dBFS ([`TARGET_PEAK_DBFS`]), or steps down 6 dB when the
     /// input clips. Negative means down. `None` when the peak is between
@@ -288,11 +293,13 @@ pub fn check(audio: &Audio, cfg: &DiagnoseConfig) -> SignalCheck {
         );
     }
     let suggested = suggested_gain(peak, silent, clipping, too_quiet);
-    let beat_error = crate::session::chosen_beat_error(
-        read.beat_error_unlock_ms,
-        read.escapement
-            .drop_beat_error(read.overall.map(|f| f.beat_error_ms)),
-    );
+    let beat_error = read.headline_beat_error();
+    // `analyze` hears a watch but gives no figures yet: under 10 s with
+    // the beat sound not judged (#2014); said in `analyze`'s words.
+    let not_assessed = (read.watch_heard
+        && beat_error.is_none()
+        && !crate::measure::regularity_assessed(duration_s, true))
+    .then(|| crate::measure::not_assessed_text(duration_s));
 
     SignalCheck {
         sample_rate: audio.sample_rate,
@@ -314,6 +321,7 @@ pub fn check(audio: &Audio, cfg: &DiagnoseConfig) -> SignalCheck {
         rate_corrected_s_per_day: read.rate_corrected_s_per_day,
         beat_error_ms: beat_error.map(|(v, _)| v.abs()),
         beat_error_source: beat_error.map(|(_, s)| s),
+        not_assessed,
         suggested_gain_change_db: suggested,
         issues,
     }
@@ -517,6 +525,9 @@ mod tests {
         assert!(!faint(Some(3.0)));
         assert_eq!(signal_text(2.3), "2.3×");
         assert_eq!(signal_text(17.87), "17.8×");
+        // `signal_x` is an f32 figure (`live::signal_figure`).
+        assert_eq!(signal_text(f64::from(2.3f32)), "2.3×");
+        assert_eq!(signal_text(f64::from(2.9999998f32)), "2.9×");
     }
 
     /// One or two clipped samples are a stray, not clipping: only three or

@@ -14,7 +14,6 @@ use timegrapher_core::audio::{self, Audio};
 use timegrapher_core::diagnose::{self, DiagnoseConfig, SignalCheck};
 use timegrapher_core::figure_text::figure;
 use timegrapher_core::library::{base_digits, fixed_text, signed_text};
-use timegrapher_core::measure;
 use timegrapher_core::mixer::{self, Fix, Mixer};
 use timegrapher_core::session::BeatErrorSource;
 
@@ -234,14 +233,10 @@ fn print_check(c: &SignalCheck) {
     if let (Some(r), Some(b)) = (rate, c.beat_error_ms) {
         let corrected = c.rate_corrected_s_per_day.is_some();
         println!("{}", quick_look_line(r, b, c.beat_error_source, corrected));
-    } else if c.watch_heard && !measure::regularity_assessed(c.duration_s, true) {
+    } else if let Some(why) = &c.not_assessed {
         // `analyze` waits for more sound before it gives figures (#2014),
-        // and says so as `analyze` does (Norm on #2091).
-        println!(
-            "Quick look   none (beat regularity not assessed: {} s of sound, {} s needed)",
-            fixed_text(c.duration_s, 1),
-            measure::SHORT_SPAN_S
-        );
+        // in its words (core `measure::not_assessed_text`).
+        println!("Quick look   none. {why}");
     }
     if c.issues.is_empty() {
         println!("None of the checked conditions detected.");

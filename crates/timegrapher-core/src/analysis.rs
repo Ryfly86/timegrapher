@@ -197,6 +197,20 @@ impl Summary {
         self.caveats
             .retain(|c| *c != crate::measure::Caveat::ClockUnknown);
     }
+
+    /// The beat error this reading leads with, signed, ms, and where it
+    /// is from: the one [`settle_beat_error`] chose (`beat_error_source`),
+    /// read back, never chosen again, so every reader of a summary (the
+    /// doctor's quick look among them, #2095) gives the same one.
+    pub fn headline_beat_error(&self) -> Option<(f64, crate::session::BeatErrorSource)> {
+        use crate::session::BeatErrorSource;
+        let source = self.beat_error_source?;
+        let value = match source {
+            BeatErrorSource::Unlock => self.beat_error_unlock_ms,
+            BeatErrorSource::Drop => self.overall.map(|f| f.beat_error_ms),
+        }?;
+        Some((value, source))
+    }
 }
 
 /// How much of the recording is clipped: the samples, and the beats with a
