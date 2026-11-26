@@ -90,7 +90,7 @@ pub(super) fn test_body(
                 .iter()
                 .copied()
                 .find(|w| main_w >= w + GAP + layout.result_min_w);
-            let mut scroll = egui::ScrollArea::both()
+            let mut scroll = crate::theme::scroll(egui::ScrollArea::both())
                 .id_salt(id)
                 .auto_shrink([false, false]);
             if layout.top {
@@ -115,7 +115,7 @@ pub(super) fn test_body(
                     // that, it scrolls on its own, never cut off (Hugh on
                     // #1794).
                     ui.vertical(|ui| {
-                        let mut result = egui::ScrollArea::vertical()
+                        let mut result = crate::theme::scroll(egui::ScrollArea::vertical())
                             .id_salt((id, "result"))
                             .auto_shrink([false, false]);
                         if layout.top {
@@ -148,7 +148,7 @@ pub(super) fn test_body(
             ui.add_space(GAP / 2.0);
             ui.vertical(|ui| {
                 ui.set_width(INFO_W);
-                egui::ScrollArea::vertical()
+                crate::theme::scroll(egui::ScrollArea::vertical())
                     .id_salt((id, "info"))
                     .auto_shrink([false, false])
                     .show(ui, |ui| (parts.info)(ui));
