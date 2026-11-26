@@ -1622,7 +1622,9 @@ impl LiveAnalyzer {
         let beat_error_source =
             crate::session::chosen_beat_error(beat_error_unlock_ms, beat_error_ms)
                 .map(|(_, source)| source);
-        let shown = read && sides_known;
+        // Said only with beats read: a reading with none, as just after
+        // the beat rate is set anew, waits for beats (Walter on #2319).
+        let shown = read && sides_known && fit.is_some_and(|f| f.beats_used > 0);
         self.say_beat_error(&mut caveats, beat_error_source, &figures, shown);
         self.window_caveats(&mut caveats, masked_s);
         let whole = holes.whole(&self.beats, window_from, end_s, GAP_S);

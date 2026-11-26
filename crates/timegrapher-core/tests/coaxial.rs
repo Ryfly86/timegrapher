@@ -528,3 +528,37 @@ fn live_set_to_another_escapement_reads_as_one_read_for_it() {
     l.set_escapement(Escapement::SwissLever);
     assert_eq!(figures(&l.reading(20.0)), lever);
 }
+
+/// A reading with no beats read, as when a co-axial calibre of another
+/// beat rate is picked while listening, says nothing of its beat error:
+/// it waits for beats (Walter on #2319).
+#[test]
+fn a_co_axial_reading_with_no_beats_read_says_nothing_of_its_beat_error() {
+    let (synth, audio) = watch(true);
+    let cfg = LiveConfig {
+        analysis: stream_cfg(LIFT_DEG, Escapement::CoAxial).analysis,
+        ..Default::default()
+    };
+    let mut l = LiveAnalyzer::new(synth.sample_rate, cfg);
+    let (first, rest) = audio.samples.split_at(audio.samples.len() / 2);
+    for c in first.chunks(4800) {
+        l.push(c);
+    }
+    let said = |r: &timegrapher_core::live::LiveReading| {
+        r.caveats
+            .iter()
+            .any(|c| matches!(c, Caveat::CoaxialBeatError { .. }))
+    };
+    assert!(said(&l.reading(10.0)), "heard at its own rate");
+    l.set_bph(Some(25_200));
+    let mut waited = false;
+    for c in rest.chunks(4800) {
+        l.push(c);
+        let r = l.reading(10.0);
+        if r.beats_used == 0 {
+            waited = true;
+            assert!(!said(&r), "no beats read at {:.1} s", r.time_s);
+        }
+    }
+    assert!(waited, "the wrong rate read no beats at some point");
+}
