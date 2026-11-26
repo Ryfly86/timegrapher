@@ -68585,6 +68585,116 @@
     }
   },
   {
+    "calibre": "Omega 2500D",
+    "maker": "Omega",
+    "bph": 25200,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.285714,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "https://www.cousinsuk.com/PDF/categories/4435_Omega%202500A,2500B,2500C,2500D.pdf (Omega technical guide, Calibre 2500) (p. 4: \"2500D (3.5 Hz)\")"
+    ],
+    "confidence": "maker's page",
+    "escapement": {
+      "kind": "co-axial",
+      "source": "https://www.cousinsuk.com/PDF/categories/4435_Omega%202500A,2500B,2500C,2500D.pdf (Omega technical guide, Calibre 2500) (cover: \"Automatic movement, Co-Axial escapement, date\")"
+    },
+    "notes": "No lift angle: the guide's cover table gives \"30° / 38°\", \"38°\" and \"38°\" against four versions, and its text does not say which applies to the 2500D."
+  },
+  {
+    "calibre": "Omega 3861",
+    "maker": "Omega",
+    "bph": 21600,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.333333,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "https://www.omegawatches.com/en-us/watch-omega-speedmaster-moonwatch-professional-co-axial-master-chronometer-chronograph-42-mm-31030425004001 (Omega, Speedmaster Moonwatch Professional 310.30.42.50.04.001, Calibre OMEGA 3861) (\"Frequency 3 Hz\")"
+    ],
+    "confidence": "maker's page",
+    "escapement": {
+      "kind": "co-axial",
+      "source": "https://www.omegawatches.com/en-us/watch-omega-speedmaster-moonwatch-professional-co-axial-master-chronometer-chronograph-42-mm-31030425004001 (Omega, Speedmaster Moonwatch Professional 310.30.42.50.04.001, Calibre OMEGA 3861) (\"Manual-winding chronograph movement with Co-Axial escapement.\")"
+    },
+    "notes": "3 Hz is 21,600 bph. No lift angle: no checked source gives one; figures seen only in forum posts are not used (#2313).",
+    "power_reserve_h": {
+      "value": "50",
+      "source": "https://www.omegawatches.com/en-us/watch-omega-speedmaster-moonwatch-professional-co-axial-master-chronometer-chronograph-42-mm-31030425004001 (Omega, Speedmaster Moonwatch Professional 310.30.42.50.04.001, Calibre OMEGA 3861) (\"50 hours Power reserve\")"
+    },
+    "functions": {
+      "value": [
+        "hand winding",
+        "chronograph"
+      ],
+      "source": "https://www.omegawatches.com/en-us/watch-omega-speedmaster-moonwatch-professional-co-axial-master-chronometer-chronograph-42-mm-31030425004001 (Omega, Speedmaster Moonwatch Professional 310.30.42.50.04.001, Calibre OMEGA 3861) (\"Manual-winding chronograph movement with Co-Axial escapement.\")"
+    }
+  },
+  {
+    "calibre": "Omega 8500",
+    "maker": "Omega",
+    "family": [
+      "Omega 8501"
+    ],
+    "bph": 25200,
+    "lift_angle_deg": 38.0,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.285714,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "https://www.horlogeforum.nl/uploads/db9961/original/3X/b/5/b56c75c899ea8c195c0ae0964d8b1c66c94997a3.pdf (WatchTime, October 2007, \"Omega's Alpha Dog\", data box; article text reproduced in a 2009 compilation from a blog, uploaded to horlogeforum.nl) (\"angle of lift = 38°; 25,200 vph (3.5 hertz)\")",
+      "https://calibercorner.com/omega-co-axial-calibers (Caliber Corner, Omega Co-Axial Calibers) (\"Most of the 8000 family of in-house Omega movements with the Co-Axial escapement have a lift angle of 38 degrees, but this can vary.\")"
+    ],
+    "confidence": "press article",
+    "escapement": {
+      "kind": "co-axial",
+      "source": "https://www.horlogeforum.nl/uploads/db9961/original/3X/b/5/b56c75c899ea8c195c0ae0964d8b1c66c94997a3.pdf (WatchTime, October 2007, \"Omega's Alpha Dog\", data box; article text reproduced in a 2009 compilation from a blog, uploaded to horlogeforum.nl) (\"co-axial escapement with freely oscillating balance spring without index\")"
+    },
+    "notes": "WatchTime's data box covers the 8500 and the 8501. Caliber Corner gives 38° for most of the 8000 family, not the 8500 by name, and 36° for the 8806 and 8807."
+  },
+  {
+    "calibre": "Omega 8900",
+    "maker": "Omega",
+    "bph": 25200,
+    "wheels": [
+      {
+        "name": "balance",
+        "period_s": 0.285714,
+        "basis": "derived from the beat rate"
+      }
+    ],
+    "sources": [
+      "https://www.omegawatches.com/en-us/watch-omega-constellation-co-axial-master-chronometer-41-mm-13133412101001 (Omega, Constellation 131.33.41.21.01.001, Calibre OMEGA 8900) (\"Frequency 3,5 Hz\")"
+    ],
+    "confidence": "maker's page",
+    "escapement": {
+      "kind": "co-axial",
+      "source": "https://www.omegawatches.com/en-us/watch-omega-constellation-co-axial-master-chronometer-41-mm-13133412101001 (Omega, Constellation 131.33.41.21.01.001, Calibre OMEGA 8900) (\"Self-winding movement with Co-Axial escapement.\")"
+    },
+    "notes": "3.5 Hz is 25,200 bph. No lift angle: no checked source gives one for the 8900 (#2313).",
+    "power_reserve_h": {
+      "value": "60",
+      "source": "https://www.omegawatches.com/en-us/watch-omega-constellation-co-axial-master-chronometer-41-mm-13133412101001 (Omega, Constellation 131.33.41.21.01.001, Calibre OMEGA 8900) (\"60 hours Power reserve\")"
+    },
+    "functions": {
+      "value": [
+        "automatic winding"
+      ],
+      "source": "https://www.omegawatches.com/en-us/watch-omega-constellation-co-axial-master-chronometer-41-mm-13133412101001 (Omega, Constellation 131.33.41.21.01.001, Calibre OMEGA 8900) (\"Self-winding movement with Co-Axial escapement.\")"
+    }
+  },
+  {
     "calibre": "Omega 251",
     "maker": "Omega",
     "bph": 21600,
