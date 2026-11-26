@@ -61,7 +61,10 @@ impl LiveAnalyzer {
     pub(super) fn lock_off_standard(&self, t: f64) -> bool {
         let locks = &self.locks.0;
         let Some(i) = locks.iter().rposition(|l| l.from_s <= t) else {
-            return false;
+            // An imported beat log's beats, in no lock of this engine's:
+            // the log's own verdict while read at its rate on Auto (#2327).
+            return self.cfg.analysis.bph.is_none()
+                && self.log_off_standard.is_some_and(|b| self.bph == Some(b));
         };
         let lock = &locks[i];
         let to = locks.get(i + 1).map_or(t, |n| n.from_s.min(t));

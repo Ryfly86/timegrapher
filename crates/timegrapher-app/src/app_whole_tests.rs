@@ -327,3 +327,51 @@ fn a_takes_row_reads_its_last_position_as_the_bench_does() {
     }
     assert!(wrong.is_empty(), "{}", wrong.join("\n"));
 }
+
+/// A watch beating 17,570 bph on Auto, opened as File > Open opens it
+/// (#2327): Auto's lock is off every standard rate, so the whole take,
+/// the cards at its end, the charts' points and its Positions Test table
+/// give no rate in s/d and name the caveat `off_standard_rate`, as
+/// `analyze` and a saved take's reading do (#2253).
+#[test]
+fn an_off_standard_watch_opened_on_auto_has_no_rate_in_s_per_day() {
+    use timegrapher_core::measure::off_standard;
+    use timegrapher_core::synth::{generate, SynthConfig};
+    let base = std::env::temp_dir().join(format!("tg-off-standard-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let wav = base.join("off.wav");
+    let cfg = SynthConfig {
+        bph: 17_570,
+        duration_s: 60.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    timegrapher_core::audio::write_wav(&wav, &audio).unwrap();
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.open_recording(&wav, false);
+    let t = std::time::Instant::now();
+    while app.bench.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
+        app.poll();
+    }
+    assert!(app.bench.recording.batch.is_none(), "{:?}", app.message);
+    let _ = std::fs::remove_dir_all(&base);
+    let w = app.whole_take().expect("the whole take");
+    assert_eq!(w.m.rate_s_per_day, None, "{:?}", w.m.caveats);
+    let o = off_standard(&w.m.caveats).unwrap_or_else(|| panic!("{:?}", w.m.caveats));
+    assert!((o.bph_measured - 17_570.0).abs() < 2.0, "{o:?}");
+    for average in [10.0, 60.0] {
+        app.bench.take.average_s = average;
+        let r = app.reading().expect("a reading at the end");
+        assert_eq!(r.rate_s_per_day, None, "over {average} s: {r:?}");
+        assert!(
+            off_standard(&r.caveats).is_some(),
+            "over {average} s: {:?}",
+            r.caveats
+        );
+    }
+    let rates: Vec<f64> = (app.bench.results.trend.iter())
+        .filter_map(|p| p.rate_s_per_day)
+        .collect();
+    assert!(rates.is_empty(), "the charts' rates: {rates:?}");
+}

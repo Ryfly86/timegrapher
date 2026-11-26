@@ -335,6 +335,9 @@ impl TimegrapherApp {
     fn whole_reader(&self, spans: Vec<(f64, f64)>) -> WholeRead {
         let ppm = self.bench.recording.clock.as_ref().map(|c| c.ppm);
         let lift_known = self.lift_known();
+        let bph_set = (self.stopped_take().map(|s| &s.live))
+            .or(self.bench.recording.live.as_ref())
+            .and_then(|l| l.config().analysis.bph);
         // Just stopped: the take as its saved take opens (#2151).
         let (opened, log, masks, take_clock, take_breaks, unlisted) = match self.stopped_take() {
             Some(s) => (
@@ -374,6 +377,11 @@ impl TimegrapherApp {
                 (&spans, &spans),
             )?;
             m.take_doubts(lift_known, unlisted);
+            // On Auto, a lock off every standard rate gives no rate in s/d,
+            // as a saved take's reading and `analyze` give none (#2327).
+            if timegrapher_core::analysis::lock_off_standard(bph_set, &log) {
+                m.read_off_standard(log.bph);
+            }
             let span = m.measured_s();
             Some(WholeTake { m, span })
         };
@@ -726,7 +734,8 @@ pub(super) fn clipped(
 
 /// The Positions Test table of `log` over `stretches`, on `clock`, cut
 /// at `breaks`, with `masked` left out: core's table of the six and of
-/// the upright stops, at the beat rate set (`bph_set`). The one reading
+/// the upright stops, at the beat rate set (`bph_set`), with no rate in
+/// s/d where Auto's lock is off every standard rate. The one reading
 /// of a take's positions, for its This Take table and for Compare With
 /// reading another take (#1851), so the two agree to the bit.
 pub(super) fn read_table(
@@ -737,7 +746,7 @@ pub(super) fn read_table(
     stretches: &[(core_session::Position, f64, f64)],
     bph_set: Option<u32>,
 ) -> guided::FreeTable {
-    let t = core_session::positions_table(
+    let mut t = core_session::positions_table(
         log,
         clock,
         breaks,
@@ -745,12 +754,18 @@ pub(super) fn read_table(
         stretches,
         core_session::POSITION_MIN_S,
     );
-    let upright = core_session::position_rows(
+    let mut upright = core_session::position_rows(
         &core_session::Position::UPRIGHT,
         (log, clock, breaks, masked),
         stretches,
         core_session::POSITION_MIN_S,
     );
+    // On Auto, a lock off every standard rate gives no position a rate in
+    // s/d, as `session` reads each (#2253).
+    if timegrapher_core::analysis::lock_off_standard(bph_set, log) {
+        t.read_off_standard(log.bph);
+        core_session::read_rows_off_standard(&mut upright, log.bph);
+    }
     guided::free_table(
         &t,
         guided::take_readings(&guided::card_rows(&t), log.bph, bph_set),

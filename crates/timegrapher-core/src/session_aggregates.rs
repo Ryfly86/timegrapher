@@ -267,6 +267,15 @@ pub fn positions_table(
         stretches,
         min_s,
     );
+    PositionsTable {
+        indices: indices_of(&rows),
+        rows,
+    }
+}
+
+/// The values over `rows`' positions read, as [`positions_table`] gives
+/// them.
+fn indices_of(rows: &[PositionRow]) -> StateIndices {
     let figures: Vec<SourcedFigures> = rows
         .iter()
         .filter_map(|r| {
@@ -280,9 +289,29 @@ pub fn positions_table(
             ))
         })
         .collect();
-    PositionsTable {
-        indices: sourced_indices(None, &figures),
-        rows,
+    sourced_indices(None, &figures)
+}
+
+impl PositionsTable {
+    /// The table of a take whose lock is judged off every standard rate
+    /// on Auto ([`crate::analysis::lock_off_standard`]), as `session`
+    /// reads each position of such a take: every row read at `bph` by
+    /// [`read_rows_off_standard`], and the values over the positions read
+    /// again from them, so none is in s/d (#2253). The caller judges the
+    /// lock; this never does.
+    pub fn read_off_standard(&mut self, bph: u32) {
+        read_rows_off_standard(&mut self.rows, bph);
+        self.indices = indices_of(&self.rows);
+    }
+}
+
+/// Each of `rows` read at `bph` in a lock judged off every standard rate
+/// ([`Measurement::read_off_standard`]): no rate in s/d, the caveat
+/// `off_standard_rate` with the beat rate heard. The caller judges the
+/// lock.
+pub fn read_rows_off_standard(rows: &mut [PositionRow], bph: u32) {
+    for m in rows.iter_mut().filter_map(|r| r.measurement.as_mut()) {
+        m.read_off_standard(bph);
     }
 }
 

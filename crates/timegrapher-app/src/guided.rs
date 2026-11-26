@@ -840,8 +840,13 @@ impl Test {
             stops.push((from, to));
         }
         stops.sort_by(|a, b| a.0.total_cmp(&b.0));
-        let measurement: Measurement =
+        let mut measurement: Measurement =
             session::measure_reading(log, clock, &jumps, masked, (from, to), &stops);
+        // On Auto, a lock off every standard rate gives no rate in s/d, as
+        // `session` reads the saved take's positions (#2253).
+        if timegrapher_core::analysis::lock_off_standard(self.bph_set, log) {
+            measurement.read_off_standard(log.bph);
+        }
         self.reading_of(i, to - from, log.bph, measurement)
     }
 

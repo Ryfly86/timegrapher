@@ -1557,8 +1557,7 @@ pub fn measure_opened(
     measurement.take_doubts(cfg.analysis.lift_known, unlisted);
     // On Auto, a lock off every standard rate gives no rate in s/d
     // (#2223), judged once on the lock's first 10 s (Norm on #2316).
-    let lock = crate::analysis::lock_rate_of(&log);
-    if crate::timing::OffStandard::of(cfg.analysis.bph, log.bph, lock).is_some() {
+    if crate::analysis::lock_off_standard(cfg.analysis.bph, &log) {
         measurement.read_off_standard(log.bph);
     }
     measurement.clock_ppm = clock_ppm;
