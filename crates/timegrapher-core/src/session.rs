@@ -462,21 +462,21 @@ impl Measurement {
         crate::timing::MeasuredRate::of(bph, self.rate_s_per_day, se)
     }
 
-    /// Auto's reach check (Norm on #2223, point 5), as
-    /// [`crate::analysis::Summary::read_off_standard`] makes it: with no
-    /// rate set (`bph_set`) and the rate read against `bph` further than
-    /// [`crate::beats::STANDARD_REACH_S_PER_DAY`] from it, the rate
-    /// readings and their ± are left out and the caveat
-    /// `off_standard_rate` gives the beat rate heard. Every reader of a
-    /// stretch on Auto calls it where it knows the rate was not set.
-    pub fn read_off_standard(&mut self, bph_set: Option<u32>, bph: u32) {
+    /// A reading in a lock judged off every standard rate on Auto
+    /// ([`crate::timing::OffStandard::of`]), as
+    /// [`crate::analysis::Summary::read_off_standard`] reads it: the rate
+    /// readings, their ± and the rate's states are left out, and the
+    /// caveat `off_standard_rate` gives the beat rate heard, read against
+    /// `bph`. The caller judges the lock; this never does.
+    pub fn read_off_standard(&mut self, bph: u32) {
         let se = self.confidence.as_ref().and_then(|c| c.rate.se);
-        let Some(o) = crate::timing::OffStandard::of(bph_set, bph, self.rate_s_per_day, se) else {
+        let Some(o) = crate::timing::OffStandard::reading(bph, self.rate_s_per_day, se) else {
             return;
         };
         self.rate_s_per_day = None;
         self.rate_window_median_s_per_day = None;
         (self.rate_p05, self.rate_p95) = (None, None);
+        self.rate_states = twostate::find(&[], &twostate::Params::default());
         crate::measure::off_standard_withheld(o, self.confidence.as_mut(), &mut self.caveats);
     }
 

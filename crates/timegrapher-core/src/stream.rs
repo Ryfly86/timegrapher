@@ -95,6 +95,25 @@ pub struct BeatLog {
 }
 
 impl BeatLog {
+    /// A log read on Auto, of a watch heard, takes the standard rate
+    /// nearest the beat rate heard over its lock's first
+    /// [`crate::beats::GUESS_SPAN_S`]
+    /// ([`crate::analysis::lock_rate_of`]) when that is in reach and is
+    /// not the rate guessed (Norm on #2316): 17,280 at +990 s/d, guessed
+    /// as 18,000, is read at 17,280. Only the rate it is read against
+    /// moves; within the gap to the next standard rate, the beats count
+    /// the same at either.
+    pub fn take_nearest_standard(&mut self) {
+        if self.bph == 0 {
+            return;
+        }
+        let near = crate::analysis::lock_rate_of(self)
+            .and_then(|r| crate::timing::OffStandard::nearest_in_reach(self.bph, r));
+        if let Some(n) = near {
+            self.bph = n;
+        }
+    }
+
     /// Leave out everything before `from_s` (audio seconds): the beats, the
     /// amplitude windows that start before it, and the jumps, clipped beats
     /// and kept envelope windows there. The beats keep their numbers, so

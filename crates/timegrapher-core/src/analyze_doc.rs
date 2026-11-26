@@ -24,9 +24,11 @@ pub fn settings(cfg: &AnalysisConfig, calibre: Option<&str>) -> Value {
 /// (what tg reads and the regression check compares), with the clock's
 /// correction beside them when one is known (`ppm` fast, and where it came
 /// from in words), and the beat rate heard ([`measured`]). Off every
-/// standard rate on Auto ([`Summary::read_off_standard`], read at that
-/// correction), no rate in s/d is given: the fit's in `overall` and the
-/// corrected one are null too (Norm on #2223, point 5).
+/// standard rate on Auto (the verdict `analyze` made on the card's
+/// clock, never made again here; its figures re-read at that correction
+/// by [`Summary::read_off_standard`]), no rate in s/d is given: the fit's
+/// in `overall` and the corrected one are null too (Norm on #2223, point
+/// 5, and on #2316).
 pub fn body(summary: &Summary, clock: Option<(f64, &str)>) -> Result<Value, String> {
     let ppm = clock.map(|(ppm, _)| ppm);
     let read;

@@ -495,7 +495,7 @@ fn off_standard_text(o: &crate::timing::OffStandard) -> String {
     let rate = crate::figure_text::base_digits::RATE;
     let side = |s: &crate::timing::StandardSide| {
         let r = crate::figure_text::signed_text(s.rate_s_per_day, rate);
-        format!("{r} s/d against {}", s.bph)
+        format!("{r} s/d against {} bph", s.bph)
     };
     let sides: Vec<String> = o.below.iter().chain(o.above.iter()).map(side).collect();
     format!(
@@ -818,7 +818,7 @@ impl Caveat {
                 format!("{sides} faint side{} left out", plural(*sides))
             }
             Caveat::SetRateDisagrees { heard } => format!("{heard} bph heard"),
-            Caveat::OffStandardRate(o) => format!("not a standard rate: {}", heard_bph(o)),
+            Caveat::OffStandardRate(_) => "not a standard rate".to_string(),
             Caveat::ShortSpan { span_s } => format!("{span_s:.0} s of beats"),
             Caveat::Clipped { fraction } => format!("{:.0}% clipped", fraction * 100.0),
             Caveat::BeatsMissing { fraction } => {

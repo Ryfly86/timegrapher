@@ -254,25 +254,25 @@ impl LiveReading {
         crate::timing::MeasuredRate::of(self.bph?, self.rate_s_per_day, self.rate_error_s_per_day)
     }
 
-    /// Auto's reach check (Norm on #2223, point 5), as `analyze` and
-    /// `session` make it ([`crate::timing::OffStandard`]): with no rate
-    /// set and this reading's rate further than
-    /// [`crate::beats::STANDARD_REACH_S_PER_DAY`] from the rate guessed,
-    /// its rate and ± are left out and the caveat `off_standard_rate`
-    /// gives the beat rate heard. A reading read before is read again.
+    /// This reading, in a lock judged off every standard rate on Auto
+    /// ([`LiveAnalyzer::lock_off_standard`], Norm on #2223 and #2316), as
+    /// `analyze` and `session` read it: its rate and ± are left out and
+    /// the caveat `off_standard_rate` gives the beat rate heard. A reading
+    /// read before is read again. The lock is judged by the caller; this
+    /// never judges it.
     pub fn read_off_standard(&mut self) {
         let Some(bph) = self.bph else { return };
         let before = measure::off_standard(&self.caveats);
         self.caveats
             .retain(|c| !matches!(c, Caveat::OffStandardRate(_)));
         let (rate, se) = match before {
-            Some(o) => (
+            Some(o) if self.rate_s_per_day.is_none() => (
                 Some(o.measured().rate_against(bph)),
                 o.bph_measured_se.map(|s| s * 86_400.0 / f64::from(bph)),
             ),
-            None => (self.rate_s_per_day, self.rate_error_s_per_day),
+            _ => (self.rate_s_per_day, self.rate_error_s_per_day),
         };
-        let Some(o) = crate::timing::OffStandard::of(self.bph_set, bph, rate, se) else {
+        let Some(o) = crate::timing::OffStandard::reading(bph, rate, se) else {
             return;
         };
         self.rate_s_per_day = None;
@@ -300,6 +300,7 @@ impl LiveReading {
         if !holds || !self.watch_heard || !whole.watch_heard || self.listening.is_some() {
             return self;
         }
+        let off = measure::off_standard(&self.caveats).is_some();
         let c = whole.confidence;
         let mut r = Self {
             rate_s_per_day: whole.rate_s_per_day,
@@ -321,7 +322,12 @@ impl LiveReading {
             whole_take: true,
             ..self
         };
-        r.read_off_standard();
+        // The lock's verdict is this reading's; whole's rate is read in it.
+        r.caveats
+            .retain(|c| !matches!(c, Caveat::OffStandardRate(_)));
+        if off {
+            r.read_off_standard();
+        }
         r
     }
 }
@@ -1069,6 +1075,7 @@ impl LiveAnalyzer {
         self.amplitude_pass(&env, &numbered, off, (from, to), [beat, own]);
         self.update_profiles_at(to, [beat, own]);
         self.settled_to = to;
+        self.take_nearest_standard();
     }
 
     /// The beats in this pass's envelope `env` of samples `x`, at the rate
@@ -1401,7 +1408,9 @@ impl LiveAnalyzer {
     pub fn reading(&self, average_s: f64) -> LiveReading {
         // Read as a file, to the end of the sound the newest read covered.
         if let Some(mut r) = self.reading_as_file(self.settled_to, f64::INFINITY, average_s) {
-            r.read_off_standard();
+            if self.lock_off_standard(self.settled_to) {
+                r.read_off_standard();
+            }
             return r;
         }
         self.reading_at(self.settled_to, average_s)
@@ -1495,12 +1504,14 @@ impl LiveAnalyzer {
     }
 
     /// Readings over the `average_s` seconds before `end_s`.
-    /// On Auto, off every standard rate, it gives no rate in s/d
-    /// ([`LiveReading::read_off_standard`], #2223).
+    /// On Auto, in a lock off every standard rate, it gives no rate in
+    /// s/d ([`LiveReading::read_off_standard`], #2223).
     pub fn reading_at(&self, end_s: f64, average_s: f64) -> LiveReading {
         let mut r = (self.reading_as_file(end_s, end_s, average_s))
             .unwrap_or_else(|| self.own_reading_at(end_s, average_s));
-        r.read_off_standard();
+        if self.lock_off_standard(end_s) {
+            r.read_off_standard();
+        }
         r
     }
 

@@ -1,9 +1,13 @@
-//! Auto far from every standard rate (Norm on #2223, point 5): after the
-//! fit, a rate further than `beats::STANDARD_REACH_S_PER_DAY` from the
-//! standard rate guessed gives no rate in s/d, the beat rate heard, and
-//! the caveat `off_standard_rate` with the standard rate on each side.
-//! `analyze`, live and a saved take's reading make the one check.
+//! Auto far from every standard rate (Norm on #2223, point 5, and on
+//! #2316): each lock on Auto is judged once, on its first
+//! `beats::GUESS_SPAN_S` of beats. Further than
+//! `beats::STANDARD_REACH_S_PER_DAY` from every standard rate, its
+//! readings give no rate in s/d, the beat rate heard, and the caveat
+//! `off_standard_rate` with the standard rate on each side. Within reach
+//! of a standard rate that is not the one guessed, the lock takes that
+//! one. `analyze`, live and a saved take's reading make the one check.
 
+use serde_json::Value;
 use timegrapher_core::analysis::{analyze, AnalysisConfig, Summary};
 use timegrapher_core::audio::Audio;
 use timegrapher_core::live::{LiveAnalyzer, LiveConfig, LiveReading};
@@ -36,11 +40,7 @@ fn set(bph: Option<u32>) -> AnalysisConfig {
 }
 
 fn live(audio: &Audio, bph: Option<u32>) -> LiveAnalyzer {
-    let cfg = LiveConfig {
-        analysis: set(bph),
-        ..Default::default()
-    };
-    let mut l = LiveAnalyzer::new(audio.sample_rate, cfg);
+    let mut l = LiveAnalyzer::new(audio.sample_rate, live_cfg(bph));
     for c in audio.samples.chunks(4800) {
         l.push(c);
     }
@@ -198,18 +198,15 @@ fn a_set_rate_is_never_off_standard() {
 /// The caveat in words: the beat rate heard, the reach, and each side.
 #[test]
 fn the_caveat_in_words() {
-    let o = OffStandard::of(None, 18_000, Some(-2_059.11), None).unwrap();
+    let o = OffStandard::reading(18_000, Some(-2_059.11), None).unwrap();
     let c = Caveat::OffStandardRate(o);
-    assert_eq!(
-        c.short(52.0, 0).as_deref(),
-        Some("not a standard rate: 17571 bph")
-    );
+    assert_eq!(c.short(52.0, 0).as_deref(), Some("not a standard rate"));
     assert_eq!(
         c.long(None).as_deref(),
         Some(
             "The beat rate heard, 17571 bph, is more than 1000 s/d from every standard rate \
-             (+1455.1 s/d against 17280; -2059.1 s/d against 18000), so no rate in s/d is \
-             given."
+             (+1455.1 s/d against 17280 bph; -2059.1 s/d against 18000 bph), so no rate in \
+             s/d is given."
         )
     );
     assert_eq!(
@@ -255,50 +252,417 @@ fn the_analyze_document_off_standard() {
 }
 
 /// Each side is the nearest standard rate, none past the slowest or the
-/// fastest; within the reach, or with a rate set, there is no caveat.
+/// fastest; within the reach of any standard rate, or with a rate set,
+/// there is no caveat.
 #[test]
 fn the_sides_and_the_reach() {
-    let o = OffStandard::of(None, 12_000, Some(-8_640.0), None).unwrap();
+    let o = OffStandard::of(None, 12_000, Some(-8_640.0)).unwrap();
     assert_eq!(o.below, None);
     assert_eq!(o.above.map(|s| s.bph), Some(12_000));
-    let o = OffStandard::of(None, 72_000, Some(2_000.0), None).unwrap();
+    let o = OffStandard::of(None, 72_000, Some(2_000.0)).unwrap();
     assert_eq!((o.below.map(|s| s.bph), o.above), (Some(72_000), None));
-    assert!(OffStandard::of(None, 18_000, Some(1_000.0), None).is_none());
-    assert!(OffStandard::of(None, 18_000, Some(-1_000.0), None).is_none());
-    assert!(OffStandard::of(None, 18_000, Some(1_000.01), None).is_some());
-    assert!(OffStandard::of(Some(18_000), 18_000, Some(-2_059.0), None).is_none());
-    assert!(OffStandard::of(None, 18_000, None, None).is_none());
+    assert!(OffStandard::of(None, 18_000, Some(1_000.0)).is_none());
+    assert!(OffStandard::of(None, 18_000, Some(-1_000.0)).is_none());
+    assert!(OffStandard::of(None, 18_000, Some(1_000.01)).is_some());
+    assert!(OffStandard::of(Some(18_000), 18_000, Some(-2_059.0)).is_none());
+    assert!(OffStandard::of(None, 18_000, None).is_none());
+    // In reach of 17,280, though guessed as 18,000: no caveat, and the
+    // lock takes 17,280.
+    let r = (heard(17_280, 990.0) / 18_000.0 - 1.0) * 86_400.0;
+    assert!(OffStandard::of(None, 18_000, Some(r)).is_none());
+    assert_eq!(OffStandard::nearest_in_reach(18_000, r), Some(17_280));
+    assert_eq!(OffStandard::nearest_in_reach(18_000, 900.0), Some(18_000));
+    assert_eq!(OffStandard::nearest_in_reach(18_000, -2_059.0), None);
     // The rate's ± goes into the beat rate heard's, `bph × σ / 86,400`,
     // never shown as s/d.
-    let o = OffStandard::of(None, 18_000, Some(-2_059.0), Some(4.8)).unwrap();
+    let o = OffStandard::reading(18_000, Some(-2_059.0), Some(4.8)).unwrap();
     assert!((o.bph_measured_se.unwrap() - 1.0).abs() < 1e-12, "{o:?}");
     assert_eq!(timegrapher_core::beats::STANDARD_REACH_S_PER_DAY, 1_000.0);
 }
 
-/// A saved take's reading on Auto makes the same check
-/// (`session::Measurement::read_off_standard`, which `take::measure_opened`
-/// calls for every `session` reading and `record` check): no rate, the
-/// beat rate heard as `analyze` reads it, and nothing with a rate set.
+/// Norm's sweep (on #2316, from Hugh's question): over every gap
+/// between standard rates and past 12,000 and 72,000, read against
+/// every standard rate as the guess, whenever the caveat is made every
+/// side it names is further than 1000 s/d off, and whenever it is not,
+/// one side is within 1000 s/d. The same holds as `debug_assert!`s in
+/// `OffStandard::of`.
+#[test]
+fn every_gap_off_standard_only_with_no_side_in_reach() {
+    use timegrapher_core::beats::STANDARD_BPH;
+    let reach = |r: f64| r.abs() <= 1_000.0;
+    let (mut off, mut on) = (0, 0);
+    // From 10,000 to 75,000 bph heard, in steps of 0.25 bph, and each
+    // reach's edges exactly.
+    let edges = STANDARD_BPH.iter().flat_map(|&b| {
+        let b = f64::from(b);
+        [-1_000.0, 1_000.0].map(|r| b * (1.0 + r / 86_400.0))
+    });
+    let heards = (0..260_000)
+        .map(|i| 10_000.0 + 0.25 * f64::from(i))
+        .chain(edges);
+    for h in heards {
+        for &guess in &STANDARD_BPH {
+            let rate = (h / f64::from(guess) - 1.0) * 86_400.0;
+            let sides = OffStandard::reading(guess, Some(rate), None).unwrap();
+            let sides: Vec<f64> = [sides.below, sides.above]
+                .into_iter()
+                .flatten()
+                .map(|s| s.rate_s_per_day)
+                .collect();
+            match OffStandard::of(None, guess, Some(rate)) {
+                Some(o) => {
+                    off += 1;
+                    for s in [o.below, o.above].into_iter().flatten() {
+                        assert!(!reach(s.rate_s_per_day), "{h} bph on {guess}: {o:?}");
+                    }
+                }
+                None => {
+                    on += 1;
+                    assert!(
+                        sides.iter().any(|&r| reach(r)),
+                        "{h} bph on {guess}: {sides:?}"
+                    );
+                }
+            }
+        }
+    }
+    assert!(off > 0 && on > 0, "{off} off, {on} in reach");
+}
+
+/// A lock on Auto takes the standard rate nearest the beat rate heard
+/// when that is in reach and is not the rate guessed (Norm on #2316): a
+/// balance at 17,280 gaining 990 s/d, which Auto guesses as 18,000, reads
+/// 17,280 and its rate, as the same sound set to 17,280 reads it within
+/// 0.05 s/d: in `analyze`, a take's reading, and live at every
+/// averaging time from its first reading. There is no caveat.
+#[test]
+fn a_lock_takes_the_nearest_standard_in_reach() {
+    let audio = watch(17_280, 990.0, 60.0);
+    let set_17280 = analyze(&audio, &set(Some(17_280))).summary;
+    let want = set_17280.rate_s_per_day.expect("a set rate's rate");
+    let s = analyze(&audio, &set(None)).summary;
+    assert_eq!(s.bph, 17_280);
+    assert!(off_standard(&s.caveats).is_none(), "{:?}", s.caveats);
+    let got = s.rate_s_per_day.expect("a rate");
+    assert!((got - want).abs() < 0.05, "analyze {got} for {want}");
+    // A take's reading (`take::measure_opened`), on Auto and set.
+    let (log, read) = opened(&audio, None);
+    assert_eq!(log.bph, 17_280);
+    assert!(off_standard(&read.caveats).is_none(), "{:?}", read.caveats);
+    let (_, set_read) = opened(&audio, Some(17_280));
+    let (got, want) = (
+        read.rate_s_per_day.unwrap(),
+        set_read.rate_s_per_day.unwrap(),
+    );
+    assert!((got - want).abs() < 0.05, "take {got} for {want}");
+    // Live, each second, at every averaging time.
+    let auto = LiveAnalyzer::new(audio.sample_rate, live_cfg(None));
+    let set_live = LiveAnalyzer::new(audio.sample_rate, live_cfg(Some(17_280)));
+    let mut first = None;
+    each_second(&audio, [auto, set_live], |t, [a, b]| {
+        for average_s in timegrapher_core::live::AVERAGES {
+            let (r, w) = (a.reading(average_s), b.reading(average_s));
+            let Some(want) = w.rate_s_per_day else {
+                continue;
+            };
+            first.get_or_insert(t);
+            let at = format!("at {t} s over {average_s} s");
+            assert_eq!(r.bph, Some(17_280), "{at}");
+            assert!(off_standard(&r.caveats).is_none(), "{at}: {:?}", r.caveats);
+            let got = r.rate_s_per_day.unwrap_or_else(|| panic!("{at}: no rate"));
+            assert!((got - want).abs() < 0.05, "{at}: {got} for {want}");
+        }
+    });
+    assert!(
+        first.is_some_and(|t| t <= 5),
+        "first reading at {first:?} s"
+    );
+}
+
+/// A 28,800 watch running down from -200 to -2200 s/d over a minute is
+/// within reach on its first 10 s, so every reading keeps its rate in
+/// s/d, the last ones far past 1000 s/d off (#1968's dying watch), in
+/// `analyze` and live at every averaging time.
+#[test]
+fn a_watch_running_down_keeps_its_rate() {
+    let cfg = SynthConfig {
+        bph: 28_800,
+        rate_s_per_day: -200.0,
+        duration_s: 60.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |t| -2_000.0 * t / 60.0);
+    let s = analyze(&audio, &set(None)).summary;
+    assert_eq!(s.bph, 28_800);
+    assert!(off_standard(&s.caveats).is_none(), "{:?}", s.caveats);
+    assert!(s.rate_s_per_day.is_some());
+    let l = live(&audio, None);
+    for average_s in timegrapher_core::live::AVERAGES {
+        let r = l.reading(average_s);
+        assert!(
+            off_standard(&r.caveats).is_none(),
+            "{average_s}: {:?}",
+            r.caveats
+        );
+        assert!(r.rate_s_per_day.is_some(), "{average_s}");
+    }
+    let last = l.reading(2.0).rate_s_per_day.unwrap();
+    assert!(last < -1_500.0, "{last}");
+}
+
+/// A balance at 17,570 on Auto is off every standard rate from its first
+/// reading, live at every averaging time: no reading gives a rate in s/d.
+#[test]
+fn off_standard_from_the_first_reading() {
+    let audio = watch(17_570, 5.0, 30.0);
+    let l = LiveAnalyzer::new(audio.sample_rate, live_cfg(None));
+    let mut read = 0;
+    each_second(&audio, [l], |t, [l]| {
+        for average_s in timegrapher_core::live::AVERAGES {
+            let r = l.reading(average_s);
+            if r.bph.is_none() || !r.watch_heard || r.finding_beat {
+                continue;
+            }
+            read += 1;
+            let at = format!("at {t} s over {average_s} s");
+            assert!(off_standard(&r.caveats).is_some(), "{at}: {:?}", r.caveats);
+            assert_eq!(r.rate_s_per_day, None, "{at}");
+        }
+    });
+    assert!(read > 0);
+}
+
+/// One verdict per lock, near the line: an 18,000 watch whose rate swings
+/// ±30 s/d about -985 (in reach on its first 10 s) gives a rate in every
+/// reading, and one about -1015 (out of reach) gives none, at 2 s and at
+/// 60 s alike, though their 2 s readings cross the line. Each swing
+/// starts away from the line, so the lock's first seconds, judged on the
+/// beats they have, side with its first 10 s.
+#[test]
+fn one_verdict_per_lock_near_the_line() {
+    for (centre, off, away) in [(-985.0, false, 1.0), (-1_015.0, true, -1.0)] {
+        let cfg = SynthConfig {
+            bph: 18_000,
+            rate_s_per_day: centre,
+            duration_s: 60.0,
+            ..Default::default()
+        };
+        // A whole swing in 10 s, so the first 10 s average its centre.
+        let swing = |t: f64| away * 30.0 * (std::f64::consts::TAU * t / 10.0).sin();
+        let audio = generate(&cfg, |_| 280.0, swing);
+        let s = analyze(&audio, &set(None)).summary;
+        assert_eq!(off_standard(&s.caveats).is_some(), off, "{centre}");
+        let l = LiveAnalyzer::new(audio.sample_rate, live_cfg(None));
+        each_second(&audio, [l], |t, [l]| {
+            for average_s in [2.0, 60.0] {
+                let r = l.reading(average_s);
+                if r.bph.is_none() || !r.watch_heard || r.finding_beat {
+                    continue;
+                }
+                let at = format!("{centre} at {t} s over {average_s} s");
+                assert_eq!(off_standard(&r.caveats).is_some(), off, "{at}");
+                assert_eq!(r.rate_s_per_day.is_none(), off, "{at}");
+            }
+        });
+    }
+}
+
+/// The edges of the gap between 17,280 and 18,000: 18,000 at -990 s/d
+/// is in reach of 18,000 and 17,280 at +1010 is in reach of neither, in
+/// `analyze` and live.
+#[test]
+fn the_gap_edges() {
+    for (bph, rate, off) in [(18_000, -990.0, false), (17_280, 1_010.0, true)] {
+        let audio = watch(bph, rate, 40.0);
+        let s = analyze(&audio, &set(None)).summary;
+        let r = live(&audio, None).reading(20.0);
+        for (caveats, read, how) in [
+            (&s.caveats, s.rate_s_per_day, "analyze"),
+            (&r.caveats, r.rate_s_per_day, "live"),
+        ] {
+            assert_eq!(off_standard(caveats).is_some(), off, "{bph} {rate} {how}");
+            assert_eq!(read.is_none(), off, "{bph} {rate} {how}");
+        }
+        if !off {
+            assert_eq!((s.bph, r.bph), (bph, Some(bph)));
+            assert!((s.rate_s_per_day.unwrap() - rate).abs() < 0.5);
+        }
+    }
+}
+
+/// The verdict is made on the card's clock, and a document's correction
+/// never makes it again (Trevor and Norm on #2316): 18,000 at +1001.5 s/d
+/// with the card 20 ppm slow keeps the caveat, its figures corrected,
+/// and +999.0 with the card 20 ppm fast keeps its rate.
+#[test]
+fn a_clock_correction_reads_the_figures_but_never_the_verdict() {
+    let s = analyze(&watch(18_000, 1_001.5, 40.0), &set(None)).summary;
+    let card = side_rate(&off_standard(&s.caveats).expect("off"), 18_000);
+    let doc = timegrapher_core::analyze_doc::body(&s, Some((-20.0, "given"))).unwrap();
+    let c = (doc["caveats"].as_array().unwrap().iter())
+        .find(|c| c["code"] == "off_standard_rate")
+        .expect("the caveat stays");
+    let corrected = timegrapher_core::clockstore::correct_rate(card, -20.0);
+    assert!(
+        corrected.abs() < 1_000.0,
+        "{corrected}: a correction that crosses the line"
+    );
+    assert_eq!(c["below"]["bph"], 18_000, "{c}");
+    let got = c["below"]["rate_s_per_day"].as_f64().unwrap();
+    assert!((got - corrected).abs() < 1e-6, "{c}");
+    assert!(doc["rate_s_per_day"].is_null());
+
+    let s = analyze(&watch(18_000, 999.0, 40.0), &set(None)).summary;
+    assert!(off_standard(&s.caveats).is_none());
+    let doc = timegrapher_core::analyze_doc::body(&s, Some((20.0, "given"))).unwrap();
+    let corrected = doc["rate_corrected_s_per_day"]
+        .as_f64()
+        .or(doc["clock"]["rate_s_per_day"].as_f64());
+    assert!(doc["rate_s_per_day"].is_number(), "{doc}");
+    assert!(
+        corrected.is_some_and(|r| r.abs() > 1_000.0),
+        "{corrected:?}"
+    );
+    let codes: Vec<&Value> = doc["caveats"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| &c["code"])
+        .collect();
+    assert!(
+        !codes.iter().any(|c| *c == "off_standard_rate"),
+        "{codes:?}"
+    );
+}
+
+/// A new lock is judged afresh: 17,570 for 15 s, a 6 s silence, then
+/// 28,800 for 30 s reads 28,800 and its rate over the last 10 s; the
+/// reverse reads the caveat and no rate.
+#[test]
+fn a_lock_found_again_is_judged_again() {
+    let gap = |a: &Audio, b: &Audio| {
+        let mut samples = a.samples.clone();
+        samples.extend(std::iter::repeat_n(0.0, 6 * a.sample_rate as usize));
+        samples.extend_from_slice(&b.samples);
+        Audio {
+            samples,
+            sample_rate: a.sample_rate,
+        }
+    };
+    let (slow, fast) = (watch(17_570, 5.0, 15.0), watch(28_800, 5.0, 30.0));
+    let r = live(&gap(&slow, &fast), None).reading(10.0);
+    assert_eq!(r.bph, Some(28_800));
+    assert!(off_standard(&r.caveats).is_none(), "{:?}", r.caveats);
+    assert!(r.rate_s_per_day.is_some_and(|x| (x - 5.0).abs() < 1.0));
+    let (fast, slow) = (watch(28_800, 5.0, 15.0), watch(17_570, 5.0, 30.0));
+    let r = live(&gap(&fast, &slow), None).reading(10.0);
+    assert!(off_standard(&r.caveats).is_some(), "{:?}", r.caveats);
+    assert_eq!(r.rate_s_per_day, None);
+}
+
+/// A saved take's reading on Auto makes the same check: its beat log's
+/// lock (`analysis::lock_rate_of`) is judged as `analyze` judges it, in
+/// `take::measure_opened`, which every `session` reading and `record`
+/// check reads through. `session::Measurement::read_off_standard` leaves
+/// out the rate, its spread and its states and gives the beat rate heard
+/// as `analyze` reads it. Set to 18,000, there is no caveat.
 #[test]
 fn a_saved_reading_on_auto_is_off_standard_as_analyze_is() {
     let audio = watch(17_570, 5.0, 40.0);
     let saved = off_standard(&analyze(&audio, &set(None)).summary.caveats).unwrap();
-    let cfg = timegrapher_core::stream::StreamConfig::default();
-    let log = timegrapher_core::stream::analyze_samples(&audio.samples, audio.sample_rate, &cfg);
-    let read = timegrapher_core::session::measure(&log, None, 0.0, log.duration_s);
-    let mut set_18000 = read.clone();
-    set_18000.read_off_standard(Some(18_000), log.bph);
+    let log = log_of(&audio, None);
+    let lock = timegrapher_core::analysis::lock_rate_of(&log);
+    assert!(OffStandard::of(None, log.bph, lock).is_some());
+    assert!(OffStandard::of(Some(18_000), log.bph, lock).is_none());
+    let (_, set_18000) = opened(&audio, Some(18_000));
     assert!(off_standard(&set_18000.caveats).is_none());
     assert!(set_18000.rate_s_per_day.is_some());
-    let mut m = read;
-    m.read_off_standard(None, log.bph);
+    let (log, m) = opened(&audio, None);
     let o = off_standard(&m.caveats).expect("off_standard_rate");
     assert_eq!(m.rate_s_per_day, None);
     assert_eq!(m.rate_window_median_s_per_day, None);
     assert_eq!((m.rate_p05, m.rate_p95), (None, None));
+    let none = timegrapher_core::twostate::find(&[], &Default::default());
+    assert_eq!(
+        serde_json::to_value(&m.rate_states).unwrap(),
+        serde_json::to_value(&none).unwrap()
+    );
     assert_eq!(m.measured(log.bph).map(|h| h.bph), Some(o.bph_measured));
     for side in [17_280, 18_000] {
         let (read, want) = (side_rate(&o, side), side_rate(&saved, side));
         assert!((read - want).abs() < 0.05, "{read} for {want} at {side}");
+    }
+}
+
+/// `audio` written to a file and read as a take's one entry is read
+/// (`take::open_files`, `take::measure_opened`), on Auto or set: its beat
+/// log and its reading.
+fn opened(
+    audio: &Audio,
+    bph: Option<u32>,
+) -> (
+    timegrapher_core::stream::BeatLog,
+    timegrapher_core::session::Measurement,
+) {
+    use timegrapher_core::take;
+    let dir = std::env::temp_dir().join(format!(
+        "tg-off-standard-{}-{:?}-{}",
+        std::process::id(),
+        bph,
+        audio.samples.len()
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    let wav = dir.join("take.wav");
+    timegrapher_core::audio::write_wav(&wav, audio).unwrap();
+    let s = take::EntrySettings {
+        stream: timegrapher_core::stream::StreamConfig {
+            analysis: set(bph),
+            ..Default::default()
+        },
+        card_clock: true,
+        settle_s: Some(0.0),
+    };
+    let (usb, card) = (|_: &[_]| Ok(None), |_: &std::path::Path| Ok(None));
+    let o = take::open_files(std::slice::from_ref(&wav), None, &s, usb, card, |_, _| {}).unwrap();
+    let e = timegrapher_core::session::RecordingEntry {
+        file: wav.display().to_string(),
+        ..Default::default()
+    };
+    let read = take::measure_opened(o, &Default::default(), &e, &s).unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    (read.log, read.measurement)
+}
+
+/// The beat log of `audio` read as a file, on Auto or at a set rate.
+fn log_of(audio: &Audio, bph: Option<u32>) -> timegrapher_core::stream::BeatLog {
+    let cfg = timegrapher_core::stream::StreamConfig {
+        analysis: set(bph),
+        ..Default::default()
+    };
+    timegrapher_core::stream::analyze_samples(&audio.samples, audio.sample_rate, &cfg)
+}
+
+fn live_cfg(bph: Option<u32>) -> LiveConfig {
+    LiveConfig {
+        analysis: set(bph),
+        ..Default::default()
+    }
+}
+
+/// `audio` pushed in 0.1 s blocks to each analyzer in `ls`, with `at`
+/// called after each whole second, with the seconds pushed.
+fn each_second<const N: usize>(
+    audio: &Audio,
+    mut ls: [LiveAnalyzer; N],
+    mut at: impl FnMut(u32, &[LiveAnalyzer; N]),
+) {
+    let block = audio.sample_rate as usize / 10;
+    for (i, c) in audio.samples.chunks(block).enumerate() {
+        for l in &mut ls {
+            l.push(c);
+        }
+        if (i + 1) % 10 == 0 {
+            at(((i + 1) / 10) as u32, &ls);
+        }
     }
 }

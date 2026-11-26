@@ -148,15 +148,15 @@ impl Summary {
         self.shape = None;
     }
 
-    /// Auto's reach check (Norm on #2223, point 5): with no rate set and
-    /// the rate further than [`crate::beats::STANDARD_REACH_S_PER_DAY`]
-    /// from the standard rate guessed ([`crate::timing::OffStandard`]),
-    /// the rate readings and their ± are left out and the caveat
-    /// `off_standard_rate` gives the beat rate heard. The rate is read on
-    /// the card's clock, or corrected at `ppm` fast where the reader
-    /// corrects it ([`crate::analyze_doc::body`]); a caveat read before
-    /// is read again. `overall` stays: it is the fit at `bph`, and the
-    /// beat error from the drop is read from it.
+    /// A reading in a lock judged off every standard rate on Auto
+    /// ([`crate::timing::OffStandard::of`], Norm on #2223 and #2316): the
+    /// rate readings and their ± are left out, and the caveat
+    /// `off_standard_rate` gives the beat rate heard from `overall`, on
+    /// the card's clock or corrected at `ppm` fast where the reader
+    /// corrects it ([`crate::analyze_doc::body`]). A caveat made before is
+    /// made again; the verdict is never judged again here. `overall`
+    /// stays: it is the fit at `bph`, and the drop beat error is read
+    /// from it.
     pub fn read_off_standard(&mut self, ppm: Option<f64>) {
         // A reading read before keeps its rate's ± in the caveat, as
         // `bph × σ / 86,400` ([`crate::timing::MeasuredRate::of`]).
@@ -171,8 +171,7 @@ impl Summary {
             })
         });
         let se = self.confidence.as_ref().and_then(|c| c.rate.se).or(before);
-        let read = self.watch_heard.then_some(rate).flatten();
-        let Some(o) = crate::timing::OffStandard::of(self.bph_set, self.bph, read, se) else {
+        let Some(o) = crate::timing::OffStandard::reading(self.bph, rate, se) else {
             return;
         };
         self.rate_s_per_day = None;
@@ -267,12 +266,54 @@ pub struct Analysis {
     pub residuals: Vec<f64>,
     pub rate_windows: Vec<WindowFit>,
     pub amplitude_windows: Vec<AmplitudeWindow>,
+    /// The rate of the lock read ([`crate::timing::lock_rate`]), from
+    /// its first beats after any lead, with its jumps as cuts: what
+    /// [`analyze`] judges the lock on (Norm on #2316).
+    #[serde(skip)]
+    pub(crate) lock_rate: Option<f64>,
 }
 
 pub fn analyze(audio: &Audio, cfg: &AnalysisConfig) -> Analysis {
     let fs = audio.sample_rate as f64;
     let env = envelope(&audio.samples, fs, &cfg.envelope);
-    let first_guess = beats::guess_bph(&env, fs);
+    let read = analyze_guessed(audio, cfg, &env);
+    judge_lock(audio, cfg, &env, read)
+}
+
+/// The lock [`analyze`] read on Auto, judged once on its first
+/// [`beats::GUESS_SPAN_S`] of beats ([`crate::timing::lock_rate`], Norm on
+/// #2316): read again at the standard rate nearest the beat rate heard
+/// when that is in reach and is not the rate guessed, as if it were set
+/// (its `bph_set` stays none); off every standard rate
+/// ([`Summary::read_off_standard`]) when none is in reach.
+fn judge_lock(audio: &Audio, cfg: &AnalysisConfig, env: &[f32], mut read: Analysis) -> Analysis {
+    let s = &read.summary;
+    if cfg.bph.is_some() || !s.watch_heard {
+        return read;
+    }
+    let bph = s.bph;
+    let Some(rate) = read.lock_rate else {
+        return read;
+    };
+    match crate::timing::OffStandard::nearest_in_reach(bph, rate) {
+        Some(n) if n != bph => {
+            let again = read_take(audio, cfg, Some(n));
+            let again = analyze_read(audio, cfg, env, again, (n, n));
+            if again.summary.watch_heard {
+                return again;
+            }
+        }
+        Some(_) => {}
+        None => read.summary.read_off_standard(None),
+    }
+    read
+}
+
+/// [`analyze`]'s read at the rate set, or guessed on Auto, before its
+/// lock is judged.
+fn analyze_guessed(audio: &Audio, cfg: &AnalysisConfig, env: &[f32]) -> Analysis {
+    let fs = audio.sample_rate as f64;
+    let first_guess = beats::guess_bph(env, fs);
     let bph = cfg.bph.unwrap_or(first_guess);
     let (log, lead_s) = read_take(audio, cfg, Some(bph));
     // The rate heard is guessed where the watch starts, after any lead of
@@ -283,7 +324,7 @@ pub fn analyze(audio: &Audio, cfg: &AnalysisConfig) -> Analysis {
         Some(_) => after_lead.unwrap_or(first_guess),
         None => bph,
     };
-    let first = analyze_read(audio, cfg, &env, (log, lead_s), (bph, guessed));
+    let first = analyze_read(audio, cfg, env, (log, lead_s), (bph, guessed));
     let doubted = !first.summary.watch_heard || after_lead.is_some_and(|g| g != bph);
     if cfg.bph.is_some() || !doubted {
         return first;
@@ -302,7 +343,7 @@ pub fn analyze(audio: &Audio, cfg: &AnalysisConfig) -> Analysis {
         return first;
     }
     let again = read_take(audio, cfg, Some(settled));
-    let again = analyze_read(audio, cfg, &env, again, (settled, settled));
+    let again = analyze_read(audio, cfg, env, again, (settled, settled));
     if reads_better(&again.summary, &first.summary) {
         again
     } else {
@@ -366,6 +407,7 @@ fn analyze_read(
 ) -> Analysis {
     let fs = audio.sample_rate as f64;
     let from_s = lead_s.unwrap_or(0.0);
+    let lock_rate = crate::timing::lock_rate(&log.beats, bph, &log.jumps);
     // Under 10 s the beats' averaged sound says whether a watch is heard.
     let beat_sound = log.beat_sound(&log.beats, &cfg.amplitude);
     let beats = log.beats;
@@ -458,13 +500,13 @@ fn analyze_read(
         summary.withhold_readings();
     }
     settle_beat_error(&mut summary, fits.figures.unlock_inconsistent);
-    summary.read_off_standard(None);
     Analysis {
         summary,
         beats,
         residuals: fits.residuals,
         rate_windows: fits.rate_windows,
         amplitude_windows,
+        lock_rate,
     }
 }
 
@@ -774,6 +816,16 @@ fn settle_beat_error(summary: &mut Summary, inconsistent: bool) {
     {
         crate::measure::add(&mut summary.caveats, caveat);
     }
+}
+
+/// The rate of the lock a beat log on Auto was read at
+/// ([`crate::timing::lock_rate`]): over its first
+/// [`beats::GUESS_SPAN_S`] of beats after any lead of noise ([`lead_of`]),
+/// as [`analyze`] judges its read. A take's reading judges its lock on it.
+pub fn lock_rate_of(log: &crate::stream::BeatLog) -> Option<f64> {
+    let from = lead_of(log, log.duration_s).unwrap_or(f64::NEG_INFINITY);
+    let i = log.beats.partition_point(|b| b.time < from);
+    crate::timing::lock_rate(&log.beats[i..], log.bph, &log.jumps)
 }
 
 /// Where the watch starts in `log` after a lead of noise, judged as a
