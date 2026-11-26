@@ -861,7 +861,8 @@ pub use lead::{
 #[path = "beat_error_aggregate.rs"]
 mod beat_error_aggregate;
 pub use beat_error_aggregate::{
-    select_beat_errors, select_window_beat_errors, BeatErrorSelection, BeatErrorSources,
+    select_beat_errors, select_window_beat_errors, window_beat_error, BeatErrorSelection,
+    BeatErrorSources,
 };
 
 /// The event used for a reading's selected beat error.
@@ -1063,7 +1064,7 @@ pub fn measure_reading(
                 tick: w.even_deg,
                 tock: w.odd_deg,
                 beat_error_unlock_ms: w.beat_error_unlock_ms,
-                beat_error_drop_ms: w.beat_error_ms,
+                beat_error_drop_ms: log.escapement.drop_beat_error(w.beat_error_ms),
                 tick_unlock_ms: w.even_unlock_ms,
                 tock_unlock_ms: w.odd_unlock_ms,
             })
@@ -1141,7 +1142,8 @@ pub fn measure_reading(
         clock_ppm: None,
         clock_source: None,
         rate_s_per_day: fit.map(|f| f.rate_s_per_day),
-        beat_error_ms: fit.map(|f| f.beat_error_ms),
+        // None on a co-axial: the beat times' beat error is no drop's (#2313).
+        beat_error_ms: log.escapement.drop_beat_error(fit.map(|f| f.beat_error_ms)),
         beat_error_unlock_ms: figures.beat_error_unlock_ms,
         beat_error_source: None,
         amplitude_deg: figures.amplitude_deg,
@@ -1319,6 +1321,9 @@ pub fn measure_reading(
         .beat_error_source
         .and_then(|s| s.caveat_why(figures.unlock_inconsistent))
     {
+        crate::measure::add(&mut m.caveats, caveat);
+    }
+    if let Some(caveat) = log.escapement.amplitude_caveat(m.amplitude_deg.is_some()) {
         crate::measure::add(&mut m.caveats, caveat);
     }
     m
@@ -2168,6 +2173,11 @@ pub struct Manifest {
     /// Absent metadata retains each reader's legacy inference.
     pub lift_known: Option<bool>,
     pub escape_teeth: Option<u32>,
+    /// The escapement the take is read for (`"co-axial"` or `"swiss
+    /// lever"`), over its calibre's (#2313,
+    /// [`crate::escapement::Escapement::setting`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub escapement: Option<crate::escapement::Escapement>,
     /// More wheels to name in the cycle search, as name = seconds per
     /// turn, e.g. { "third wheel" = 450.0 }.
     #[serde(default)]

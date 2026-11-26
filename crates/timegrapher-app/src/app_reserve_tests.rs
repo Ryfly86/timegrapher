@@ -910,6 +910,7 @@ fn the_live_hours_match_a_fresh_read_after_each_refresh() {
         duration_s,
         bph: 28_800,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats: (0..(duration_s * 8.0) as i64)
             .map(|index| Beat {
                 index,
@@ -982,6 +983,7 @@ fn long_log(run_s: f64) -> BeatLog {
         duration_s: run_s + 60.0,
         bph: 3600,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats: (0..n)
             .map(|index| timegrapher_core::beats::Beat {
                 index,

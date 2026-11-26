@@ -919,6 +919,7 @@ pub(super) fn long_log(hours: f64) -> BeatLog {
         duration_s,
         bph: 28800,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats: (0..(duration_s * 8.0) as i64)
             .map(|index| timegrapher_core::beats::Beat {
                 index,

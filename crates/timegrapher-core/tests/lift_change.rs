@@ -58,6 +58,7 @@ fn a_lone_wrong_sound_stays_out_after_a_live_lift_change() {
         duration_s: 40.0,
         bph: 28800,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats: Vec::new(),
         amplitude_windows: (0..20).map(w).collect(),
         clipped_beats: Vec::new(),

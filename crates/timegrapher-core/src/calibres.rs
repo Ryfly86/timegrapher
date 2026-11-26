@@ -1533,7 +1533,8 @@ mod tests {
 
     /// A calibre with an escapement Timegrapher does not measure yet says
     /// which one, from the fixed list, with a source that starts with its
-    /// address (#1872); the Omega 2500 family is co-axial.
+    /// address (#1872); the Omega 2500, 3861, 8500 and 8900 are co-axial
+    /// (#2313).
     #[test]
     fn non_lever_escapements_are_named_and_sourced() {
         let mut flagged = 0;
@@ -1548,10 +1549,25 @@ mod tests {
             );
             assert!(e.source.starts_with("https://"), "{}", c.calibre);
         }
-        assert_eq!(flagged, 4);
-        for n in ["Omega 2500", "Omega 2500A", "Omega 2500B", "Omega 2500C"] {
+        assert_eq!(flagged, 8);
+        let coaxial = [
+            "Omega 2500",
+            "Omega 2500A",
+            "Omega 2500B",
+            "Omega 2500C",
+            "Omega 2500D",
+            "Omega 3861",
+            "Omega 8500",
+            "Omega 8501",
+            "Omega 8900",
+        ];
+        for n in coaxial {
             let e = find(n).unwrap().escapement.as_ref().unwrap();
             assert_eq!(e.kind, "co-axial", "{n}");
+        }
+        // The co-axial rows added for #2313 carry their makers' beat rates.
+        for (n, bph) in [("Omega 3861", 21600), ("Omega 8900", 25200)] {
+            assert_eq!(find(n).unwrap().bph, Some(bph), "{n}");
         }
         assert!(find("ETA 2824-2").unwrap().escapement.is_none());
         let e = find("Omega 2500").unwrap().escapement.clone().unwrap();

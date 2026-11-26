@@ -45,6 +45,7 @@ fn paused_take() -> (BeatLog, Vec<Break>) {
         duration_s: 240.0,
         bph: 28800,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats,
         amplitude_windows: vec![],
         clipped_beats: vec![],

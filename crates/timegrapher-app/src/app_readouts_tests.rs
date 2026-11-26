@@ -1757,6 +1757,7 @@ fn the_cards_say_listening_until_ten_seconds_are_heard() {
         duration_s: live.duration_s(),
         bph: live.bph().expect("bph"),
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats: live.beats().to_vec(),
         amplitude_windows: Vec::new(),
         clipped_beats: Vec::new(),
@@ -2288,6 +2289,7 @@ fn an_opened_recording_of_silence_says_no_beats_heard() {
         duration_s: 60.0,
         bph: 21_600,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats: Vec::new(),
         amplitude_windows: Vec::new(),
         clipped_beats: Vec::new(),
@@ -2396,6 +2398,7 @@ fn silence_gives_the_strip_and_the_cards_one_verdict() {
         duration_s: 60.0,
         bph: 21_600,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats: Vec::new(),
         amplitude_windows: Vec::new(),
         clipped_beats: Vec::new(),
@@ -2518,6 +2521,7 @@ fn under_ten_seconds_heard_and_over_says_so_on_every_card() {
         duration_s: 6.0,
         bph: live.bph().expect("bph"),
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats: live
             .beats()
             .iter()

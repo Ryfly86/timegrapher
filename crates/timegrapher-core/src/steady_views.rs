@@ -1455,6 +1455,7 @@ mod tests {
             duration_s: 40.0,
             bph: 28800,
             lift_deg: 52.0,
+            escapement: Default::default(),
             beats: (0..320)
                 .map(|index| crate::beats::Beat {
                     time: index as f64 * 0.125,
@@ -1583,6 +1584,7 @@ mod tests {
             duration_s: live.duration_s(),
             bph: live.bph().expect("beat rate"),
             lift_deg: live.config().analysis.amplitude.lift_deg,
+            escapement: Default::default(),
             beats: live.beats().to_vec(),
             amplitude_windows: live.amplitude_windows().to_vec(),
             clipped_beats: live.clipped_beats().to_vec(),
@@ -1668,6 +1670,7 @@ mod tests {
             duration_s: live.duration_s(),
             bph: live.bph().expect("beat rate"),
             lift_deg: live.config().analysis.amplitude.lift_deg,
+            escapement: Default::default(),
             beats: live.beats().to_vec(),
             amplitude_windows: live.amplitude_windows().to_vec(),
             clipped_beats: live.clipped_beats().to_vec(),
@@ -1757,6 +1760,7 @@ mod tests {
             duration_s: live.duration_s(),
             bph: live.bph().expect("beat rate"),
             lift_deg: live.config().analysis.amplitude.lift_deg,
+            escapement: Default::default(),
             beats: live.beats().to_vec(),
             amplitude_windows: live.amplitude_windows().to_vec(),
             clipped_beats: live.clipped_beats().to_vec(),

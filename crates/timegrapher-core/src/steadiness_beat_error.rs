@@ -145,14 +145,14 @@ pub(super) fn grid(
         cuts.amplitude_windows(&log.amplitude_windows)
             .into_iter()
             .filter(|w| in_span(w)),
+        log.escapement,
     );
     let turned = crate::longrun::beat_error_turns(log, clock, breaks);
     let grid = windows_grid(log, clock, breaks, &|w| {
         if !in_span(w) {
             return None;
         }
-        let (value, source) =
-            crate::session::chosen_beat_error(w.beat_error_unlock_ms, w.beat_error_ms)?;
+        let (value, source) = crate::session::window_beat_error(w, log.escapement)?;
         (Some(source) == selected.beat_error_source).then_some(if turned {
             value.abs()
         } else {
@@ -185,6 +185,7 @@ mod tests {
             duration_s: n as f64 * 2.0,
             bph: 28800,
             lift_deg: 52.0,
+            escapement: Default::default(),
             beats: vec![],
             clipped_beats: vec![],
             clipped_samples: 0,

@@ -270,6 +270,7 @@ fn whole_recording_viewer_keeps_known_jumps_with_or_without_position_cuts() {
             duration_s: 120.0,
             bph: 28800,
             lift_deg: 52.0,
+            escapement: Default::default(),
             beats: (0..960)
                 .map(|index| timegrapher_core::beats::Beat {
                     index,
@@ -478,6 +479,7 @@ fn replay_readouts_and_rebuilt_trends_respect_imported_settling() {
         duration_s: 90.0,
         bph: 28800,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats: (0..720)
             .map(|i| timegrapher_core::beats::Beat {
                 index: i,

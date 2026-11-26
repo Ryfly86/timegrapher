@@ -295,6 +295,7 @@ fn one_silence_is_one_break() {
             duration_s: a.duration_s(),
             bph: a.bph().unwrap(),
             lift_deg: a.config().analysis.amplitude.lift_deg,
+            escapement: Default::default(),
             beats: a.beats().to_vec(),
             amplitude_windows: a.amplitude_windows().to_vec(),
             clipped_beats: Vec::new(),
@@ -359,6 +360,7 @@ pub(super) fn viewer_phase_log(before_rate: f64, after_rate: f64) -> BeatLog {
         duration_s: 120.0,
         bph: 28800,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats: (0..960)
             .map(|index| Beat {
                 index,
@@ -1015,6 +1017,7 @@ fn a_short_tidy_run_after_noise_is_no_watch_live_or_saved() {
         duration_s: 120.0,
         bph: 28800,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats: times
             .iter()
             .enumerate()
@@ -1395,6 +1398,7 @@ fn clipped_beats_are_counted_as_they_settle() {
         duration_s: a.duration_s(),
         bph: a.bph().unwrap(),
         lift_deg: a.config().analysis.amplitude.lift_deg,
+        escapement: Default::default(),
         beats: a.beats().to_vec(),
         amplitude_windows: a.amp.clone(),
         clipped_beats: a.clipped_beats().to_vec(),
@@ -1609,6 +1613,7 @@ fn live_and_saved_read_one_stretch_alike() {
         duration_s: a.duration_s(),
         bph: a.bph().unwrap(),
         lift_deg: a.config().analysis.amplitude.lift_deg,
+        escapement: Default::default(),
         beats: a.beats().to_vec(),
         amplitude_windows: a.amp.clone(),
         clipped_beats: a.clipped_beats().to_vec(),
@@ -1655,6 +1660,7 @@ fn a_reading_finds_its_windows_by_halving() {
         duration_s: heard.duration_s(),
         bph: heard.bph().unwrap(),
         lift_deg: heard.config().analysis.amplitude.lift_deg,
+        escapement: Default::default(),
         beats: heard.beats().to_vec(),
         amplitude_windows: heard.amp.clone(),
         clipped_beats: heard.clipped_beats().to_vec(),

@@ -201,7 +201,11 @@ fn a_lift_change_off_the_set_rate_reads_at_the_own_period() {
         if from > lift {
             assert_eq!(windows_mean(&log), None, "{at}: culled at {from}°");
         }
-        let saved = windows_mean(&timegrapher_core::take::kept_at_lift(&log, to));
+        let saved = windows_mean(&timegrapher_core::take::kept_at_lift(
+            &log,
+            to,
+            Default::default(),
+        ));
         let saved = saved.unwrap_or_else(|| panic!("{at}: no saved amplitude"));
         assert!(
             (saved - want).abs() < 1.0,

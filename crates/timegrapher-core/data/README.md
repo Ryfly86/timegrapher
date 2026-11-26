@@ -11,7 +11,9 @@ Timegrapher measures Swiss lever escapements only, because the
 measurement assumes a lever's unlock and drop. A calibre with another
 escapement (co-axial, pin lever, detent) stays in the table so it can be
 found, but carries an `escapement` field with a source, and the app and
-CLI say it is not supported yet.
+CLI say it is not supported yet. Co-axial support is planned (#2313): the
+engine will read this field to measure a co-axial calibre, and the rows'
+lift angles come only from a checked source.
 
 ## DD32xx and JH32xx empirical lift setting
 
