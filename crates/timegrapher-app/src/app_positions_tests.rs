@@ -1875,3 +1875,57 @@ fn a_kept_test_keeps_the_beat_rate_its_position_was_measured_at() {
     assert!(text.contains("28800") && !text.contains("21600"), "{text}");
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// A position measured while Auto hears another rate is read as it is
+/// measured at the test's rate, as Stop reads it (Vernon 62 on #2447):
+/// Dial Up at 28800 bph, then Dial Down with a 21600 bph watch on the
+/// stand. Its running row and its row after Stop agree. That row is not
+/// a reading of this watch; #2448 has it give no figures.
+#[test]
+fn a_position_heard_at_another_rate_reads_as_stop_reads_it() {
+    let mut app = synthetic(5.0, 0.0);
+    assert_eq!(app.bench.take.bph, None, "on Auto");
+    let start = app.bench.recording.live.as_ref().unwrap().duration_s();
+    let mut test = guided::Test::new().timed(2.0, 20.0);
+    test.tick(start);
+    app.bench.test.guided = Some(test);
+    let ctx = egui::Context::default();
+    let feed = |app: &mut TimegrapherApp, bph: u32, secs: f64| {
+        let audio = generate(
+            &SynthConfig {
+                duration_s: secs,
+                bph,
+                rate_s_per_day: 30.0,
+                ..Default::default()
+            },
+            |_| 280.0,
+            |_| 0.0,
+        );
+        for b in audio.samples.chunks(48_000) {
+            let live = app.bench.recording.live.as_mut().unwrap();
+            for s in b.chunks(960) {
+                live.push(s);
+            }
+            app.guided_tick(&ctx);
+        }
+    };
+    feed(&mut app, 28_800, 25.0);
+    let now = app.bench.recording.live.as_ref().unwrap().duration_s();
+    app.apply_guided_action(guided::Action::Next, now);
+    feed(&mut app, 21_600, 25.0);
+    assert_eq!(
+        app.bench.recording.live.as_ref().and_then(|l| l.bph()),
+        Some(21_600),
+        "Auto heard the other watch"
+    );
+    let rows = |app: &TimegrapherApp| -> Vec<u32> {
+        let test = app.bench.test.guided.as_ref().unwrap();
+        test.readings_so_far().iter().map(|r| r.bph).collect()
+    };
+    let running = rows(&app);
+    assert_eq!(running.len(), 2, "Dial Down read as it was measured");
+    app.stop_test();
+    assert!(app.bench.test.guided.as_ref().unwrap().readings.is_some());
+    assert_eq!(rows(&app), running, "Stop reads each row as it ran");
+    assert_eq!(running, [28_800, 28_800], "the test's one rate");
+}
