@@ -1845,15 +1845,8 @@ pub fn pane(
     let id = ui.id().with("guided banner on");
     let changed = ui.data(|d| d.get_temp::<bool>(id)) != Some(banner_on);
     ui.data_mut(|d| d.insert_temp(id, banner_on));
-    // Wheel and scroll bar only: egui's drag-to-scroll (for touch) took
-    // a click on the banner, as the pointer jumped to it, for a flick and
-    // coasted the table down by itself, hiding the banner (#2113).
-    let mut area = egui::ScrollArea::both()
-        .auto_shrink([false, false])
-        .scroll_source(egui::scroll_area::ScrollSource {
-            drag: false,
-            ..egui::scroll_area::ScrollSource::ALL
-        });
+    // Wheel and scroll bar only, as every scroll area (#2113).
+    let mut area = theme::scroll(egui::ScrollArea::both()).auto_shrink([false, false]);
     if changed {
         area = area.vertical_scroll_offset(0.0);
     }
