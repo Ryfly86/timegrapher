@@ -2232,7 +2232,9 @@ fn judged_s(fitted: bool, end_s: f64, judged_from: f64, heard_since: f64, holes:
 mod as_file;
 pub use as_file::{AS_FILE_MAX_S, READ_LAG_CAP_S};
 mod held;
+mod kept_trend;
 mod locks;
+pub use kept_trend::keep_trend_point;
 mod rebuild;
 mod unheard;
 pub use unheard::{in_spans, unheard_spans};
