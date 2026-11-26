@@ -212,6 +212,19 @@ impl Watch {
         self.bph = given.bph.or(self.bph);
     }
 
+    /// The beat rate the watch is read at, when inside
+    /// [`crate::input_domain::BPH_RANGE`]: one outside it (a watch file
+    /// edited by hand, or kept from before the range) is set aside, so the
+    /// watch reads on Auto (Norm on #2224).
+    pub fn beat_rate(&self) -> Option<u32> {
+        self.bph.filter(|b| crate::set_rate::in_range(*b))
+    }
+
+    /// The beat rate [`Watch::beat_rate`] set aside, if any.
+    pub fn bph_set_aside(&self) -> Option<u32> {
+        self.bph.filter(|b| !crate::set_rate::in_range(*b))
+    }
+
     /// Set the lift angle by hand: refused when the calibre gives one
     /// (`given`), or out of range.
     pub fn set_lift(&mut self, lift: f64, given: FromCalibre) -> Result<(), String> {

@@ -1532,6 +1532,9 @@ pub struct Reading {
     /// The supplied beat rate (option, calibre or session file), never a guess.
     /// With no supplied rate, no-watch text gives scatter only in ms (#857).
     pub bph_set: Option<u32>,
+    /// Where `bph_set` came from ([`crate::set_rate::BphFrom`]); left out
+    /// with no rate set.
+    pub bph_set_from: Option<crate::set_rate::BphFrom>,
     pub measurement: Measurement,
     pub cycles: Vec<Cycle>,
     pub shape: Option<ShapeSummary>,
@@ -1546,60 +1549,8 @@ impl Reading {
     }
 }
 
-impl Serialize for Reading {
-    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        /// The reading as written: its fields in order, with the beat
-        /// rate heard after its measurement.
-        #[derive(Serialize)]
-        struct Written<'a> {
-            label: &'a String,
-            position: &'a Position,
-            wind_h: &'a Option<f64>,
-            date: &'a Option<String>,
-            notes: &'a Option<String>,
-            duration_s: &'a f64,
-            bph: &'a u32,
-            bph_set: &'a Option<u32>,
-            measurement: &'a Measurement,
-            #[serde(flatten)]
-            measured: Option<crate::timing::MeasuredRate>,
-            cycles: &'a Vec<Cycle>,
-            shape: &'a Option<ShapeSummary>,
-            reference: &'a Option<Reference>,
-        }
-        // Every field named, so a new one cannot be left unwritten.
-        let Reading {
-            label,
-            position,
-            wind_h,
-            date,
-            notes,
-            duration_s,
-            bph,
-            bph_set,
-            measurement,
-            cycles,
-            shape,
-            reference,
-        } = self;
-        Written {
-            label,
-            position,
-            wind_h,
-            date,
-            notes,
-            duration_s,
-            bph,
-            bph_set,
-            measurement,
-            measured: self.measured(),
-            cycles,
-            shape,
-            reference,
-        }
-        .serialize(s)
-    }
-}
+#[path = "session_reading_json.rs"]
+mod reading_json;
 
 /// One position at one state of wind (repeat readings averaged).
 #[derive(Debug, Clone, Serialize)]
@@ -2491,7 +2442,7 @@ mod manifest_input_tests {
         for value in [10.0, 52.0, 90.0] {
             for ppm in [999_999.999_999_999_9, 12.5, 0.0, -0.0, -12.5, -f64::MAX] {
                 let m = Manifest {
-                    bph: Some(u32::MAX),
+                    bph: Some(72_000),
                     lift: Some(value),
                     lift_known: Some(false),
                     escape_teeth: Some(u32::MAX),

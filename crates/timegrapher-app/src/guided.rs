@@ -856,6 +856,8 @@ impl Test {
         let p = *self.order.get(i)?;
         Some(Reading {
             bph_set: self.bph_set,
+            // Where the app's set rate came from is step 5's (#2224).
+            bph_set_from: None,
             label: self.step_name(i),
             position: session::Position::parse(p.code())?,
             wind_h: self.wind_h(),
@@ -2440,6 +2442,7 @@ pub fn take_readings(
                     duration_s: r.duration_s,
                     bph,
                     bph_set,
+                    bph_set_from: None,
                     measurement: r.measurement.clone()?,
                     cycles: Vec::new(),
                     shape: None,
