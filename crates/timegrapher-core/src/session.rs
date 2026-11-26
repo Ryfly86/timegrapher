@@ -1091,8 +1091,20 @@ pub fn measure_reading(
         None => listened_s,
     };
     let assessed = crate::measure::regularity_assessed(judged_s, judged.holds_window);
-    let no_watch =
-        crate::measure::no_watch_reason_of(jitter_us, log.bph, (assessed, beat_sound), &beats);
+    // Its runs from the latest cut before the stretch, counted from its
+    // start: a run the stretch's start cuts is no short run (Norm on #2311).
+    let cut_from = holes.look_back_from(from_t);
+    let since_cut: Vec<Beat> = holes
+        .beats(&log.beats[stretch_beats(&log.beats, 0.0, to_s)])
+        .into_iter()
+        .filter(|b| b.time >= cut_from)
+        .collect();
+    let no_watch = crate::measure::no_watch_reason_of(
+        jitter_us,
+        log.bph,
+        (assessed, beat_sound),
+        (&since_cut, from_t),
+    );
     // The sound behind the reading: since the latest cut, or the
     // stretch's own where it reads across one.
     let awaiting =

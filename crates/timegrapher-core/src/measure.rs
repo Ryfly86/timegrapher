@@ -404,9 +404,21 @@ pub fn regular_run(fit: Option<&crate::timing::TimingFit>, bph: u32) -> bool {
 
 /// Whether beats with no 10 s scatter window fitted (`jitter_us` None)
 /// came in regular runs too short to read: the longest run of `beats`'
-/// good ones between pauses ([`crate::clean::beat_pauses`]) is a
-/// [`regular_run`], fitted as a reading fits its stretch.
-pub fn too_short(jitter_us: Option<f64>, beats: &[crate::beats::Beat], bph: u32) -> bool {
+/// good ones between pauses ([`crate::clean::beat_pauses`]) that began at
+/// or after `from_s` is a [`regular_run`], fitted as a reading fits its
+/// stretch.
+///
+/// `beats` are all those since the take's start or its latest cut, and
+/// `from_s` is where the reader's own beats start (its look back or its
+/// span). A run that began before `from_s` was cut by the reader, not by
+/// a pause, so it is not a short run and does not count; only a run that
+/// began after a pause, a cut or the take's start does (Norm on #2311).
+pub fn too_short(
+    jitter_us: Option<f64>,
+    beats: &[crate::beats::Beat],
+    from_s: f64,
+    bph: u32,
+) -> bool {
     if jitter_us.is_some() {
         return false;
     }
@@ -424,22 +436,26 @@ pub fn too_short(jitter_us: Option<f64>, beats: &[crate::beats::Beat], bph: u32)
         _ => 0.0,
     };
     runs.into_iter()
+        .filter(|r| r.first().is_some_and(|b| b.time >= from_s))
         .max_by(|a, b| span(a).total_cmp(&span(b)))
         .is_some_and(|run| regular_run(crate::timing::fit(run, bph).as_ref(), bph))
 }
 
 /// [`no_watch_reason`], with a scatter that no window could read, of
-/// `beats` that came in short regular runs, said as
-/// [`NoWatchReason::TooShort`] ([`too_short`]): the one reason every
-/// reader gives (Norm on #2257).
+/// beats that came in short regular runs, said as
+/// [`NoWatchReason::TooShort`] ([`too_short`] of `beats` since the take's
+/// start or latest cut, counting runs begun from `from_s`): the one
+/// reason every reader gives (Norm on #2257).
 pub fn no_watch_reason_of(
     jitter_us: Option<f64>,
     bph: u32,
     (assessed, beat_sound): (bool, Option<bool>),
-    beats: &[crate::beats::Beat],
+    (beats, from_s): (&[crate::beats::Beat], f64),
 ) -> Option<NoWatchReason> {
     match no_watch_reason(jitter_us, bph, assessed, beat_sound)? {
-        NoWatchReason::Scatter if too_short(jitter_us, beats, bph) => Some(NoWatchReason::TooShort),
+        NoWatchReason::Scatter if too_short(jitter_us, beats, from_s, bph) => {
+            Some(NoWatchReason::TooShort)
+        }
         r => Some(r),
     }
 }

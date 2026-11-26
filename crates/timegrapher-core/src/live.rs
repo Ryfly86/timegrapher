@@ -1802,7 +1802,7 @@ impl LiveAnalyzer {
         // the beats the scatter is read from, as a saved reading judges
         // its stretch's ([`BeatLog::beat_sound`]), not the latest run's.
         let sound_beats = crate::session::stretch_beats(&self.beats, scatter_from, end_s);
-        let beat_sound = match (bph, &self.beats[sound_beats.clone()]) {
+        let beat_sound = match (bph, &self.beats[sound_beats]) {
             (Some(b), [first, .., last]) if measure::beat_sound_needed(jitter_us, b, assessed) => {
                 let snips: Vec<(f64, bool, &[f32])> = self
                     .sample
@@ -1824,11 +1824,16 @@ impl LiveAnalyzer {
             _ => None,
         };
         let no_watch = match bph {
+            // Its runs from the latest break, counted from its look back:
+            // a run the look back cuts is no short run (Norm on #2311).
             Some(b) => measure::no_watch_reason_of(
                 jitter_us,
                 b,
                 (assessed, beat_sound),
-                &self.beats[sound_beats],
+                (
+                    &self.beats[crate::session::stretch_beats(&self.beats, heard_since, end_s)],
+                    scatter_from,
+                ),
             ),
             // No beat rate found: judged on the sound it would have been
             // judged over, its look back too, as a 10 s average is (#1965).

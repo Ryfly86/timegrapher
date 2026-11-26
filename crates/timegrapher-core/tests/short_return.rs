@@ -324,3 +324,38 @@ fn a_pause_of_a_window_or_more_is_a_watch_arriving() {
         }
     }
 }
+
+/// Norm's HOLD on #2311: the watch read for 15 s, then lifted into
+/// [`GAP_S`]-style stand noise for 40 s, never put back. Live's look
+/// back cuts the read run, which is no short run: never too short, at
+/// any Average Over, set and Auto, live each second and stopped.
+#[test]
+fn a_lift_after_a_read_run_is_never_too_short() {
+    let audio = put_back_after(15.0, 40.0, 0.0);
+    for bph in [Some(28_800), None] {
+        let (l, readings) = listen(&audio, bph);
+        for (t, rs) in &readings {
+            for (r, avg) in rs.iter().zip(AVERAGES) {
+                assert_ne!(
+                    no_watch_reason_in(&r.caveats),
+                    Some(NoWatchReason::TooShort),
+                    "{bph:?} at {t:.1} s, {avg} s: {r:?}"
+                );
+            }
+        }
+        let w = whole(&audio, bph);
+        for r in stopped(&l, &w) {
+            assert_ne!(
+                no_watch_reason_in(&r.caveats),
+                Some(NoWatchReason::TooShort),
+                "{bph:?} stopped: {r:?}"
+            );
+        }
+        let a = analyze(&audio, &set(bph)).summary;
+        assert_ne!(
+            no_watch_reason_in(&a.caveats),
+            Some(NoWatchReason::TooShort),
+            "{bph:?}"
+        );
+    }
+}
