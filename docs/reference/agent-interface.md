@@ -669,8 +669,10 @@ range (core `input_domain::LIFT_RANGE_DEG`, which the app's lift fields use too)
   and `watches edit --bph`. A rate kept outside it, a library watch's
   `watch.toml` rate or a calibre row's (the table's `IWC 9520` at 8000 bph, or a
   custom calibre), is set aside: the reading hears the beat rate (Auto), as with no rate
-  set, and says why (`analyze`'s text, `session`'s `calibre_notes`, a note from
-  `record`).
+  set, and says why: `analyze`'s `Set rate` line, or a `note:` line on stderr
+  with `--json`; `session`'s `calibre_notes`; a `note:` line on stderr from
+  `record` and `session --init`, which writes the `bph` line commented. MCP
+  passes stderr's notes on.
 - `--lift`: from 10 to 90 degrees, for `analyze`, `shape`, `profile`, `long`,
   `series`, `record`, `session` and `report`, as are a session file's `lift`
   and MCP's `lift_deg`.

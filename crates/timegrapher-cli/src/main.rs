@@ -1531,6 +1531,16 @@ fn run_analyze(
     }
     if json {
         use timegrapher_core::analyze_doc;
+        // The text says it on its Set rate line; the JSON leaves it to stderr,
+        // as `record` does (Max on #2321).
+        if let Some(why) = timegrapher_core::set_rate::set_aside_why(calibre)
+            .filter(|_| a.summary.bph_set.is_none())
+        {
+            eprintln!(
+                "note: {why}, {}",
+                timegrapher_core::set_rate::read_at_text(None, None)
+            );
+        }
         let settings = analyze_doc::settings(cfg, calibre.map(|c| c.name.as_str()));
         let mut body = analyze_doc::body(
             &a.summary,

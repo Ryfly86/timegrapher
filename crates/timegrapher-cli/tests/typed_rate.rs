@@ -140,7 +140,16 @@ fn a_calibre_rate_outside_the_range_is_heard_and_said() {
     let wav = dir.0.join("take.wav").to_string_lossy().into_owned();
     let out = run(&["synth", &wav, "--duration=40", "--bph=18000", "--rate=0"]);
     assert!(out.status.success(), "{out:?}");
-    let doc = json(&["analyze", &wav, "--calibre=IWC 9520", "--json"]);
+    let out = run(&["analyze", &wav, "--calibre=IWC 9520", "--json"]);
+    assert!(out.status.success(), "{out:?}");
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.lines().any(|l| l
+            == "note: the IWC 9520's beat rate of 8000 bph is set aside, \
+                outside 12000 to 72000 bph, so this take is read on Auto"),
+        "{err}"
+    );
+    let doc: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     assert!(doc["bph_set"].is_null(), "{doc}");
     assert!(doc.get("bph_set_from").is_none());
     assert_eq!(doc["bph"], 18000);
