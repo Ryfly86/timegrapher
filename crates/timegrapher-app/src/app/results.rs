@@ -6,8 +6,9 @@ use super::*;
 /// What the bench has read from the take on show, and what it is reading.
 pub(super) struct Results {
     /// Readings worked out afresh over the strip's window when the run kept
-    /// for the whole take is too sparse there, with what they were for.
-    pub(super) strip_points: Option<(StripKey, Vec<TrendPoint>)>,
+    /// for the whole take is too sparse there, with what they were for and
+    /// what they keep (see [`StripDrawn`]).
+    pub(super) strip_points: Option<(StripKey, Vec<TrendPoint>, result_keys::StripDrawn)>,
     /// Core's readings the Distributions pane counts (#1144), what they were
     /// read for and up to, and the run in the background that replaces them.
     pub(super) dist_readings: Option<result_keys::DistRead<DistReadings>>,

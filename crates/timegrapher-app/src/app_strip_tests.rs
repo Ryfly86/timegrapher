@@ -159,7 +159,7 @@ fn the_fit_switch_never_moves_the_strip_toolbar() {
 #[test]
 fn dragging_the_strip_looks_back_and_returns() {
     let mut app = synthetic(40.0, 0.0);
-    let latest = app.latest_s();
+    let latest = app.paper_latest_s();
     let back = StripInput {
         time_shift_s: -5.0,
         ..Default::default()
@@ -284,7 +284,7 @@ fn a_zoom_leaves_a_round_length() {
 #[test]
 fn zooming_out_stops_at_the_take() {
     let mut app = synthetic(40.0, 0.0);
-    let latest = app.latest_s();
+    let latest = app.paper_latest_s();
     app.bench.panes_view.strip.set_span(10.0);
     let out = StripInput {
         span_factor: 10.0,
@@ -324,7 +324,7 @@ fn the_sound_panes_follow_the_strips_newest_edge() {
         )
     };
     app.bench.results.sound_history = (5..=20).map(|k| kept(2.0 * k as f64)).collect();
-    let latest = app.latest_s();
+    let latest = app.paper_latest_s();
     let beats_shown = |app: &mut TimegrapherApp| {
         let end = app.strip_end_s();
         let s = app.profiles_at(end);
@@ -725,9 +725,10 @@ fn masked_beats_are_faint_under_the_hatching() {
     assert!(last_masked < first_line && last_masked < first_full);
 }
 
-/// The take's span ends at its newest beat or its newest reading, whichever
-/// is later, with none before there is either; with Fit on, the strip's
-/// newest edge is that end and never past it (#1256).
+/// The take's span ends at the sound heard, its newest beat or its newest
+/// reading, whichever is latest, with none before there is any; with Fit
+/// on, the strip's newest edge is that end and never past it (#1256). The
+/// sound counts though no beat comes in it, so the paper moves on (#2125).
 #[test]
 fn the_takes_span_ends_at_its_newest_beat_or_reading() {
     let empty = TimegrapherApp::with_devices(Vec::new(), None);
@@ -735,6 +736,8 @@ fn the_takes_span_ends_at_its_newest_beat_or_reading() {
     let mut app = synthetic(40.0, 0.0);
     let beat = app.latest_s();
     assert!(beat > 30.0, "{beat}");
+    let heard = app.bench.recording.live.as_ref().unwrap().duration_s();
+    assert!(heard > beat, "{heard} after the last beat at {beat}");
     let reading = |t| TrendPoint {
         t,
         rate_s_per_day: Some(1.0),
@@ -749,7 +752,7 @@ fn the_takes_span_ends_at_its_newest_beat_or_reading() {
         heard: true,
     };
     app.bench.results.trend = vec![reading(beat - 10.0)];
-    assert_eq!(app.take_span(), Some((0.0, beat)));
+    assert_eq!(app.take_span(), Some((0.0, heard)));
     app.bench.results.trend = vec![reading(beat - 10.0), reading(beat + 5.0)];
     assert_eq!(app.take_span(), Some((0.0, beat + 5.0)));
 
@@ -762,7 +765,7 @@ fn the_takes_span_ends_at_its_newest_beat_or_reading() {
     assert_eq!(app.strip_end_s(), 12.0);
     app.bench.panes_view.strip_fit = false;
     app.bench.panes_view.strip_end = None;
-    assert_eq!(app.strip_end_s(), beat);
+    assert_eq!(app.strip_end_s(), heard);
 }
 
 /// Still paper has nothing to fit: Fit leaves the Length alone while the
@@ -941,4 +944,80 @@ fn time_of_day_says_when_the_takes_start_is_not_known() {
     assert_eq!(app.strip_time_of_day_hint(&ctx), does);
     app.session.discard_recording();
     let _ = std::fs::remove_dir_all(&base);
+}
+
+/// Sends `samples` to the app as a microphone does, in 20 ms blocks
+/// stamped from `from_ms`, and takes them all in.
+fn hear(
+    app: &mut TimegrapherApp,
+    tx: &std::sync::mpsc::Sender<Event>,
+    samples: &[f32],
+    from_ms: u64,
+) {
+    let blocks = samples.chunks(960).count();
+    for (k, b) in samples.chunks(960).enumerate() {
+        tx.send(Event::Audio(timegrapher_core::capture::Block {
+            samples: b.to_vec(),
+            at: std::time::UNIX_EPOCH + std::time::Duration::from_millis(from_ms + 20 * k as u64),
+        }))
+        .unwrap();
+    }
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(300);
+    let mut taken = 0;
+    while taken < blocks {
+        taken += app.poll_for(std::time::Duration::from_millis(500));
+        assert!(
+            std::time::Instant::now() < deadline,
+            "took {taken} of {blocks} blocks"
+        );
+    }
+}
+
+/// The watch taken off the stand mid take: the paper moves on with the
+/// sound while the app listens, and once stopped it ends where the sound
+/// does, not at the last beat (#2125, #2335). The amplitude line already
+/// drawn keeps its shape as more sound comes in, though core's reading
+/// at a moment worked out again later can differ a little (#2125).
+#[test]
+fn the_strip_moves_on_when_the_stand_goes_silent() {
+    use timegrapher_core::synth::{generate, SynthConfig};
+    let base = std::env::temp_dir().join(format!("tg-strip-silent-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "silent".into());
+    let tx = super::tests::queued_capture(&mut app, &base);
+    let cfg = SynthConfig {
+        duration_s: 40.0,
+        rate_s_per_day: 5.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |t| 270.0 + 10.0 * (t / 7.0).sin(), |_| 0.0);
+    hear(&mut app, &tx, &audio.samples, 2000);
+    let heard = |app: &TimegrapherApp| app.bench.recording.live.as_ref().unwrap().duration_s();
+    let end = app.strip_end_s();
+    assert_eq!(end, heard(&app), "the newest edge is the sound heard");
+    let avg = app.bench.take.average_s;
+    let (before, _) = app.strip_trend(end - 30.0, end, avg);
+    let last_beat = app.latest_s();
+    hear(&mut app, &tx, &vec![0.0; 48000 * 15], 42_000);
+    let later = app.strip_end_s();
+    assert!(app.latest_s() < last_beat + 1.0, "no beat in the silence");
+    assert_eq!(later, heard(&app), "the paper moved on to {later}");
+    let (after, _) = app.strip_trend(later - 30.0, later, avg);
+    let moved: Vec<_> = (before.iter())
+        .filter(|p| p.t <= last_beat && p.t >= later - 30.0)
+        .filter_map(|p| {
+            let now = after.iter().find(|q| q.t == p.t);
+            (now.map(|q| q.amplitude_deg) != Some(p.amplitude_deg)).then_some(p.t)
+        })
+        .collect();
+    assert!(moved.is_empty(), "drawn amplitude moved at {moved:?}");
+    app.stop();
+    assert_eq!(
+        app.strip_end_s(),
+        heard(&app),
+        "stopped, the paper ends with the sound"
+    );
+    drop(tx);
+    let _ = std::fs::remove_dir_all(base);
 }

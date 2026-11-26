@@ -951,7 +951,9 @@ fn an_opened_take_fits_the_strip() {
         app.bench.panes_view.strip.set_half_width(1.0);
         // 12 ms gained over the two minutes.
         app.show_log(gaining_log(1e-4), "gaining".into(), vec![], vec![]);
-        assert!((app.bench.panes_view.strip.span_s - app.latest_s()).abs() < 1e-9);
+        // To the end of its sound, past its last beat (#2125).
+        assert!((app.bench.panes_view.strip.span_s - app.paper_latest_s()).abs() < 1e-9);
+        assert_eq!(app.paper_latest_s(), 120.0);
         assert!(app.bench.panes_view.strip.span_s > 119.0);
         let half = app.bench.panes_view.strip.half_width_ms;
         // Centred, the spread is ±6 ms; kept on the newest beats, it

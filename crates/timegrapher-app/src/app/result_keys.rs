@@ -52,6 +52,19 @@ impl Default for TrendKey {
     }
 }
 
+/// What the strip's own readings drawn so far stand on, so that ink
+/// already on the paper doesn't change by itself (#2125): the newest beat
+/// when they were worked out (its bits), up to which each reading had all
+/// its beats, and the jumps found by then. A reading worked out again at
+/// the same time with more sound heard can come out a little different,
+/// as the live engine reads the newest sound again; each one up to that
+/// beat is kept as drawn while neither has changed.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct StripDrawn {
+    pub(super) beats_to: u64,
+    pub(super) jumps: usize,
+}
+
 /// What the strip's own readings were worked out for: the window in
 /// steps, the averaging time (ms), the spacing (its bits), how much sound
 /// there was (in whole steps while listening) and what the readings rest

@@ -199,9 +199,10 @@ impl TimegrapherApp {
 
     /// The take's span on every stacked time pane's axis, the fitted
     /// strip's, the charts' and Readings Over Time's: from its start to its
-    /// end or now, its newest beat or its newest reading, whichever is
-    /// later (a reading's time is its window's end). None before there is
-    /// any (Hugh, #1252).
+    /// end or now, the sound heard, its newest beat or its newest reading,
+    /// whichever is latest (a reading's time is its window's end; the sound
+    /// counts though no beat comes, #2125). None before there is any
+    /// (Hugh, #1252).
     pub(super) fn take_span(&self) -> Option<(f64, f64)> {
         let end = self
             .bench
@@ -209,8 +210,16 @@ impl TimegrapherApp {
             .trend
             .last()
             .map_or(0.0, |p| p.t)
-            .max(self.latest_s());
+            .max(self.paper_latest_s());
         (end > 0.0).then_some((0.0, end))
+    }
+
+    /// The paper's newest moment, s: the sound heard so far, never before
+    /// the newest beat. The paper moves on while the app listens, though
+    /// no beat comes, as a printing timegrapher's does (#2335, #2125).
+    pub(super) fn paper_latest_s(&self) -> f64 {
+        let heard = (self.bench.recording.live.as_ref()).map_or(0.0, LiveAnalyzer::duration_s);
+        heard.max(self.latest_s())
     }
 
     /// The time at the strip's newest edge: with Fit on, the take's end,
@@ -219,7 +228,7 @@ impl TimegrapherApp {
         let latest = if self.strip_fitted() {
             self.take_span().map_or(0.0, |(_, end)| end)
         } else {
-            self.latest_s()
+            self.paper_latest_s()
         };
         self.bench
             .panes_view
@@ -662,20 +671,35 @@ impl TimegrapherApp {
             },
             rev: self.bench.take.rev,
         };
-        if let Some((k, pts)) = &self.bench.results.strip_points {
+        let drawn = result_keys::StripDrawn {
+            beats_to: live.beats().last().map_or(0.0, |b| b.time).to_bits(),
+            jumps: live.jumps().len(),
+        };
+        let mut was: &[TrendPoint] = &[];
+        if let Some((k, pts, d)) = &self.bench.results.strip_points {
             if *k == key {
                 return (pts.clone(), step);
             }
+            if drawn_still_stands(k, d, &key, &drawn) {
+                let to = f64::from_bits(d.beats_to);
+                was = &pts[..pts.partition_point(|p| p.t <= to)];
+            }
         }
         let mut pts = Vec::new();
-        let mut t = key.from as f64 * step;
-        while t <= (key.to as f64 * step).min(live.duration_s()) + 1e-9 {
-            if t > 0.0 && self.session.replay_reading_allowed(t) {
-                pts.push(TrendPoint::of(t, &live.reading_at(t, seconds)));
+        for k in key.from..=key.to {
+            let t = k as f64 * step;
+            if t > live.duration_s() + 1e-9 {
+                break;
             }
-            t += step;
+            if t > 0.0 && self.session.replay_reading_allowed(t) {
+                let kept = was.binary_search_by(|p| p.t.total_cmp(&t)).ok();
+                pts.push(kept.map_or_else(
+                    || TrendPoint::of(t, &live.reading_at(t, seconds)),
+                    |i| was[i],
+                ));
+            }
         }
-        self.bench.results.strip_points = Some((key, pts.clone()));
+        self.bench.results.strip_points = Some((key, pts.clone(), drawn));
         (pts, step)
     }
 
@@ -736,7 +760,8 @@ impl TimegrapherApp {
             self.centre();
         }
         let end = self.strip_end_s();
-        let looking_back = self.bench.panes_view.strip_end.is_some() && end < self.latest_s() - 0.5;
+        let looking_back =
+            self.bench.panes_view.strip_end.is_some() && end < self.paper_latest_s() - 0.5;
         let note = self.strip_note_shown(guessing, &candidates, looking_back, end);
         let from = end - self.bench.panes_view.strip.span_s - 5.0;
         let (trend, _) = self.strip_trend(from, end, self.bench.take.average_s);
@@ -921,7 +946,7 @@ impl TimegrapherApp {
             let was = self.bench.panes_view.strip.span_s;
             // Zoomed out no further than the take: past it is only blank
             // paper.
-            let take = was.max(self.latest_s());
+            let take = was.max(self.paper_latest_s());
             // Small zooms add up, while the strip shows the round length
             // nearest where they are heading.
             let from = self
@@ -937,10 +962,10 @@ impl TimegrapherApp {
                 .strip
                 .set_span(round_span(wish).min(take));
             // Looking back, the time under the pointer stays under it;
-            // live, the newest beat stays at the edge, so a zoom never
+            // live, the newest sound stays at the edge, so a zoom never
             // moves the moment the cards and the Profile show.
             if let (Some(t), Some(_)) = (input.zoom_at, self.bench.panes_view.strip_end) {
-                let latest = self.latest_s();
+                let latest = self.paper_latest_s();
                 let to = t + (end - t) * self.bench.panes_view.strip.span_s / was;
                 self.bench.panes_view.strip_end = if to >= latest {
                     None
@@ -956,7 +981,7 @@ impl TimegrapherApp {
                 .set_half_width(self.bench.panes_view.strip.half_width_ms * input.width_factor);
         }
         if input.time_shift_s != 0.0 {
-            let latest = self.latest_s();
+            let latest = self.paper_latest_s();
             let to = end + input.time_shift_s;
             self.bench.panes_view.strip_end = if to >= latest {
                 None
@@ -1033,6 +1058,19 @@ fn strip_note(
 pub(super) fn strip_step(span_s: f64) -> f64 {
     let doublings = (span_s / 400.0 / 0.5).max(1.0).log2().ceil();
     0.5 * doublings.exp2()
+}
+
+/// Whether the strip's readings drawn for `was` (standing on `drawn`)
+/// still stand for `key` (on `now`): the same averaging, spacing and
+/// revision, and no jump found since, which reads the beats around it
+/// again (#2125).
+fn drawn_still_stands(
+    was: &StripKey,
+    drawn: &result_keys::StripDrawn,
+    key: &StripKey,
+    now: &result_keys::StripDrawn,
+) -> bool {
+    (was.average, was.step, was.rev) == (key.average, key.step, key.rev) && drawn.jumps == now.jumps
 }
 
 /// The longest stretch of the window from `from` to `end` that `kept`

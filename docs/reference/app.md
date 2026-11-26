@@ -1380,7 +1380,10 @@ drawn, as the rest would only lie under them.
 
 **Still Paper**, the switch after Direction (a sheet with a trace that
 runs off its right edge and carries on from the left, lit while on). Off,
-the paper slides along under the pen, the newest beats at its edge. On,
+the paper slides along under the pen, the newest sound heard at its
+edge: it moves on while the app listens though no beat comes, as a
+printing timegrapher's paper does, and the readings' lines already drawn
+over it keep their shape. On,
 the paper stays put and the pen
 sweeps along it, back to the start every Length, as a scope draws: a time
 lies (t mod Length) / Length of the way along, laps starting at take time
@@ -1396,7 +1399,8 @@ pen. The choice is kept between runs.
 
 **Fit**, the switch beside Length (arrows out to two edges, lit while
 on), shows the whole session so far along the strip, up to the take's
-end: its newest beat or its newest reading, whichever is later, the same
+end: the sound heard, its newest beat or its newest reading, whichever
+is latest, the same
 end the charts and Readings Over Time have (its last 80 hours when it is
 longer):
 
@@ -1414,9 +1418,9 @@ longer):
 
 On the strip, the mouse wheel or a trackpad swipe either way (with Shift
 too) moves along the session (live or not), as dragging along the
-time axis does, and back at the newest beat it is live again. Cmd on the
+time axis does, and back at the newest sound it is live again. Cmd on the
 Mac, or Ctrl elsewhere, and the wheel (or a pinch) changes the length, out
-to no more than the take: live, the newest beat stays at the edge; looking
+to no more than the take: live, the newest sound stays at the edge; looking
 back, the time under the pointer stays where it is; Alt (Option on a Mac) and the wheel changes the width. Dragging across slides the trace, and a double
 click returns to the newest beats and centres them. **Auto-Centre** (a
 pushpin on a dashed line, lit while on) keeps
