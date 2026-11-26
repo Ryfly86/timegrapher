@@ -1389,4 +1389,49 @@ mod tests {
         assert_eq!(shown_at(on_name, &inside), ["Mesh says"]);
         assert_eq!(shown_at(egui::pos2(95.0, 180.0), &inside), ["Wheel says"]);
     }
+
+    /// A note's leader never runs over another note: where the first
+    /// place's plate is clear but its leader crosses another note, the
+    /// note takes the next place (#2129).
+    #[test]
+    fn a_leader_keeps_off_another_note() {
+        let ctx = egui::Context::default();
+        crate::theme::install(&ctx);
+        let frame = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(400.0, 300.0));
+        let t = egui_plot::PlotTransform::new(
+            frame,
+            egui_plot::PlotBounds::from_min_max([0.0, 0.0], [400.0, 300.0]),
+            egui::Vec2b::new(false, false),
+        );
+        let place = |avoid: &[egui::Rect]| {
+            let mut out = None;
+            let _ = ctx.run(Default::default(), |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    let colour = crate::theme::pal(ui).text;
+                    let id = egui::Id::new(("leader", avoid.len()));
+                    out = beside_lines(
+                        ui,
+                        &t,
+                        ([200.0, 150.0], "a note", colour),
+                        &[],
+                        avoid,
+                        Color32::BLACK,
+                        false,
+                        id,
+                    );
+                });
+            });
+            out.expect("placed")
+        };
+        let dot = t.position_from_point(&egui_plot::PlotPoint::new(200.0, 150.0));
+        // Alone: above right, its leader running up and right.
+        let (plate, _) = place(&[]);
+        assert!(plate.left() > dot.x && plate.bottom() < dot.y, "{plate:?}");
+        // Another note on that leader only, clear of the plate.
+        let other = egui::Rect::from_min_size(dot + egui::vec2(3.0, -5.0), egui::vec2(2.0, 2.0));
+        assert!(!other.intersects(plate));
+        let (moved, leader) = place(&[other]);
+        assert!(!crosses(other, &leader), "{leader:?} over {other:?}");
+        assert!(moved.right() < dot.x, "{moved:?}");
+    }
 }

@@ -2136,6 +2136,16 @@ fn no_line_runs_through_the_allan_plots_labels() {
                 continue;
             }
             seen += 1;
+            // The dashed line's name in the dashed line's quieter grey,
+            // as on main; the least scatter in the text's.
+            let pal = theme::palette(ctx.style().visuals.dark_mode);
+            let want = if text.starts_with("least") {
+                pal.text
+            } else {
+                pal.text_secondary
+            };
+            let colour = t.galley.job.sections.first().map(|s| s.format.color);
+            assert_eq!(colour, Some(want), "{w}x{h}: \"{text}\"'s colour");
             let r = t.visual_bounding_rect();
             for l in &lines {
                 assert!(
@@ -2165,4 +2175,104 @@ fn the_autocorrelation_scale_stops_at_one() {
             "{lo}, {step}: none near 1, top {top}"
         );
     }
+}
+
+/// The Autocorrelation plot itself labels nothing in the room above its
+/// highest correlation (#2129): the plot is held to `correlation_grid`,
+/// not only the helper.
+#[test]
+fn the_autocorrelation_plot_labels_nothing_above_one() {
+    let s = allan_session();
+    let a = s.report.series[0].autocorrelation.as_ref().expect("acf");
+    // The highest correlation drawn: 1 at lag 0, or a little over where
+    // core's estimate passes it at a long lag.
+    let top =
+        a.r.iter()
+            .copied()
+            .filter(|r| r.is_finite())
+            .fold(1.0, f64::max);
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    fn texts(shape: &egui::Shape, into: &mut Vec<String>) {
+        match shape {
+            egui::Shape::Text(t) => into.push(t.galley.text().to_string()),
+            egui::Shape::Vec(v) => v.iter().for_each(|s| texts(s, into)),
+            _ => {}
+        }
+    }
+    for h in [300.0, 500.0, 900.0] {
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                Vec2::new(900.0, h),
+            )),
+            ..Default::default()
+        };
+        let out = ctx.run(input, |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                let shown = [true, false, false];
+                draw(
+                    ui,
+                    Some(&s),
+                    "acf",
+                    View::Autocorrelation,
+                    &shown,
+                    Opts::default(),
+                );
+            });
+        });
+        let mut all = Vec::new();
+        out.shapes.iter().for_each(|c| texts(&c.shape, &mut all));
+        let numbers: Vec<f64> = all
+            .iter()
+            .filter_map(|t| t.replace('\u{2212}', "-").parse::<f64>().ok())
+            .collect();
+        assert!(
+            numbers.iter().any(|&v| (v - 1.0).abs() < 1e-9),
+            "{h}: no 1 in {all:?}"
+        );
+        // Nothing a step (at most 0.05 here) past it: the room kept for
+        // the Ljung–Box note, up to 1.35, is unlabelled.
+        assert!(
+            numbers.iter().all(|&v| v <= top + 0.05 + 1e-9),
+            "{h}: {all:?}"
+        );
+    }
+}
+
+/// A plot's notes keep off each other's plates: two notes side by side,
+/// the second's first place on the first's plate but clear of its
+/// leader, so only keeping off the plate moves it (the #2012 rule, now
+/// in `plot_notes`).
+#[test]
+fn plot_notes_keep_off_each_others_plates() {
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    let frame = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), Vec2::new(400.0, 300.0));
+    let t = egui_plot::PlotTransform::new(
+        frame,
+        egui_plot::PlotBounds::from_min_max([0.0, 0.0], [400.0, 300.0]),
+        egui::Vec2b::new(false, false),
+    );
+    let fill = ctx.style().visuals.extreme_bg_color.gamma_multiply(0.8);
+    let out = ctx.run(Default::default(), |ctx| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            let c = theme::pal(ui).text;
+            let notes = [
+                Some(([200.0, 150.0], "the first note here".to_string(), c, "a")),
+                Some(([230.0, 150.0], "the second note".to_string(), c, "b")),
+            ];
+            plot_notes(ui, &t, &notes, Vec::new(), (false, egui::Id::new("notes")));
+        });
+    });
+    let plates: Vec<egui::Rect> = out
+        .shapes
+        .iter()
+        .filter_map(|c| match &c.shape {
+            egui::Shape::Rect(r) if r.fill == fill => Some(r.rect),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(plates.len(), 2, "{plates:?}");
+    assert!(!plates[0].intersects(plates[1]), "{plates:?}");
 }

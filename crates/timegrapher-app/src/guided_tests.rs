@@ -1747,7 +1747,9 @@ fn every_scroll_area_is_made_through_the_one_place() {
                 continue;
             }
             let text = std::fs::read_to_string(&p).unwrap();
-            let areas = text.matches("egui::ScrollArea::").count();
+            // Any path to it: `egui::ScrollArea::`, a `containers::`
+            // path, or a `use` of the type.
+            let areas = text.matches("ScrollArea::").count();
             let through = text.matches("scroll(egui::ScrollArea::").count();
             assert_eq!(
                 areas, through,

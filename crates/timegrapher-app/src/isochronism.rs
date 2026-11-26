@@ -1797,4 +1797,25 @@ mod tests {
         assert!(t.iter().any(|t| t == "Off the scale: 1"), "{t:?}");
         assert_eq!(named(&w), 1, "{t:?}");
     }
+
+    /// An hour bead off the scale has no name either (#2129).
+    #[test]
+    fn an_hour_bead_off_the_scale_has_no_name() {
+        let ctx = egui::Context::default();
+        theme::install(&ctx);
+        let size = egui::vec2(1400.0, 700.0);
+        let mut w = long_walk();
+        let bead = w.beads.first().expect("an hour bead").clone();
+        let named = |w: &WalkView| {
+            texts_of(&frame_of(&ctx, size, Some(w), View::Walk))
+                .iter()
+                .filter(|(t, _)| *t == bead.text)
+                .count()
+        };
+        assert_eq!(named(&w), 1, "{} named on the scale", bead.text);
+        // Only a thin dot can fall off: the full ones set the scale.
+        w.dots[bead.dot].thin = true;
+        w.dots[bead.dot].rate_s_per_day -= 1000.0;
+        assert_eq!(named(&w), 0, "{} named off the scale", bead.text);
+    }
 }
