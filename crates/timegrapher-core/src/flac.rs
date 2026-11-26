@@ -441,11 +441,11 @@ fn sync_folder(file: &Path) -> Result<(), AudioError> {
     crate::recorder::sync_folder(dir).map_err(AudioError::Io)
 }
 
-/// The open WAV `wav`, read from its start.
-fn wav_reader(wav: &File) -> Result<hound::WavReader<BufReader<&File>>, AudioError> {
-    let mut from = wav;
-    from.seek(SeekFrom::Start(0)).map_err(AudioError::Io)?;
-    hound::WavReader::new(BufReader::new(from)).map_err(AudioError::Wav)
+/// The open WAV `wav`, read from its start, all the sound it holds
+/// ([`crate::audio::wav_reader`]), so a FLAC kept of a take whose program
+/// stopped holds its last seconds too (#2054).
+fn wav_reader(wav: &File) -> Result<crate::audio::WavFile<&File>, AudioError> {
+    crate::audio::wav_reader(wav)
 }
 
 /// Keep the WAV `wav` as FLAC: [`encode_wav`] beside it under the same
