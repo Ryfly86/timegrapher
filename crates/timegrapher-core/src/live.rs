@@ -258,23 +258,20 @@ impl LiveReading {
     /// ([`LiveAnalyzer::lock_off_standard`], Norm on #2223 and #2316), as
     /// `analyze` and `session` read it: its rate and ± are left out and
     /// the caveat `off_standard_rate` gives the beat rate heard. A reading
-    /// read before is read again. The lock is judged by the caller; this
-    /// never judges it.
+    /// with no rate (one read off already) is left as it is. The lock is
+    /// judged by the caller; this never judges it.
     pub fn read_off_standard(&mut self) {
-        let Some(bph) = self.bph else { return };
-        let before = measure::off_standard(&self.caveats);
-        self.caveats
-            .retain(|c| !matches!(c, Caveat::OffStandardRate(_)));
-        let (rate, se) = match before {
-            Some(o) if self.rate_s_per_day.is_none() => (
-                Some(o.measured().rate_against(bph)),
-                o.bph_measured_se.map(|s| s * 86_400.0 / f64::from(bph)),
-            ),
-            _ => (self.rate_s_per_day, self.rate_error_s_per_day),
+        // With no rate to read, as a reading read off already is, nothing
+        // is read again: any caveat it has stands.
+        let (Some(bph), Some(_)) = (self.bph, self.rate_s_per_day) else {
+            return;
         };
+        let (rate, se) = (self.rate_s_per_day, self.rate_error_s_per_day);
         let Some(o) = crate::timing::OffStandard::reading(bph, rate, se) else {
             return;
         };
+        self.caveats
+            .retain(|c| !matches!(c, Caveat::OffStandardRate(_)));
         self.rate_s_per_day = None;
         self.rate_error_s_per_day = None;
         self.rate_no_pm = None;

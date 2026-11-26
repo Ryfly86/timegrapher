@@ -682,3 +682,108 @@ fn each_second<const N: usize>(
         }
     }
 }
+
+/// Live with its figures read as a file (Trevor on #2316): once what was
+/// heard is read again as a file, 17,570 on Auto still has no rate, with
+/// the caveat's sides equal to `analyze`'s within 0.05 s/d, and 17,280 at
+/// +990 reads 17,280 and its rate, as `analyze` does, not "finding the
+/// beat".
+#[test]
+fn read_as_a_file_on_auto_judges_as_analyze_does() {
+    for (bph, rate) in [(17_570, 5.0), (17_280, 990.0)] {
+        let audio = watch(bph, rate, 40.0);
+        let s = analyze(&audio, &set(None)).summary;
+        let mut l = LiveAnalyzer::new(audio.sample_rate, live_cfg(None)).with_figures_as_file();
+        for c in audio.samples.chunks(4800) {
+            l.push(c);
+        }
+        l.read_as_file_now();
+        assert!(l.reads_as_file(), "{bph}");
+        for average_s in [10.0, 30.0] {
+            let at = format!("{bph} over {average_s} s");
+            let r = l.reading(average_s);
+            assert!(!r.finding_beat && r.watch_heard, "{at}: {r:?}");
+            match off_standard(&s.caveats) {
+                Some(saved) => {
+                    let o =
+                        off_standard(&r.caveats).unwrap_or_else(|| panic!("{at}: {:?}", r.caveats));
+                    no_live_rate(&r);
+                    for side in [17_280, 18_000] {
+                        let (got, want) = (side_rate(&o, side), side_rate(&saved, side));
+                        assert!(
+                            (got - want).abs() < 0.05,
+                            "{at}: {got} for {want} at {side}"
+                        );
+                    }
+                }
+                None => {
+                    assert_eq!((s.bph, r.bph), (17_280, Some(17_280)), "{at}");
+                    assert!(off_standard(&r.caveats).is_none(), "{at}: {:?}", r.caveats);
+                    let got = r.rate_s_per_day.unwrap_or_else(|| panic!("{at}: no rate"));
+                    assert!((got - rate).abs() < 0.5, "{at}: {got}");
+                }
+            }
+        }
+    }
+}
+
+/// A live reading at a take's end, read as the take's whole reading
+/// (`LiveReading::at_whole_end`, Trevor on #2316): in a lock off every
+/// standard rate it has no rate in s/d and keeps the caveat, though the
+/// whole reading it takes its figures from has its rate.
+#[test]
+fn a_reading_at_the_whole_end_keeps_the_locks_verdict() {
+    let audio = watch(17_570, 5.0, 40.0);
+    let l = live(&audio, None);
+    let r = l.reading(40.0);
+    assert!(off_standard(&r.caveats).is_some());
+    let log = log_of(&audio, None);
+    let whole = timegrapher_core::session::measure(&log, None, 0.0, r.time_s);
+    assert!(
+        whole.rate_s_per_day.is_some(),
+        "whole is read without the verdict"
+    );
+    let end = r.clone().at_whole_end(&whole, 40.0);
+    assert!(end.whole_take, "the whole reading holds: {whole:?}");
+    no_live_rate(&end);
+    let o = off_standard(&end.caveats).unwrap_or_else(|| panic!("{:?}", end.caveats));
+    let want = OffStandard::reading(log.bph, whole.rate_s_per_day, None).unwrap();
+    assert!(
+        (side_rate(&o, 18_000) - side_rate(&want, 18_000)).abs() < 1e-9,
+        "{o:?}"
+    );
+}
+
+/// A take with a lead of stand noise before the watch (Trevor on #2316):
+/// its lock is judged on its first 10 s after the lead
+/// (`analysis::lock_rate_of`), as `analyze` judges it. 17,570 read at
+/// 18,000 after 8 s of noise: the lock's rate is the watch's, -2059.1
+/// s/d, and the lock is off every standard rate, as in `analyze`.
+#[test]
+fn a_take_with_a_noise_lead_is_judged_after_the_lead() {
+    let audio = noise_lead(watch(17_570, 5.0, 50.0), 8.0);
+    let s = analyze(&audio, &set(None)).summary;
+    let lead = |c: &[Caveat]| c.iter().any(|c| matches!(c, Caveat::LeadLeftOut { .. }));
+    assert!(lead(&s.caveats), "{:?}", s.caveats);
+    let saved = off_standard(&s.caveats).expect("analyze off");
+    let log = log_of(&audio, Some(18_000));
+    let lock = timegrapher_core::analysis::lock_rate_of(&log).expect("a lock rate");
+    let want = side_rate(&saved, 18_000);
+    assert!((lock - want).abs() < 0.5, "{lock} for {want}");
+    assert!(OffStandard::of(None, log.bph, Some(lock)).is_some());
+}
+
+/// `audio` with its first `secs` replaced by noise, 60 times the RMS of
+/// the watch's sound there: loud enough to be read as a lead of noise.
+fn noise_lead(mut audio: Audio, secs: f64) -> Audio {
+    let n = (secs * audio.sample_rate as f64) as usize;
+    let rms = (audio.samples[..n].iter().map(|v| v * v).sum::<f32>() / n as f32).sqrt();
+    let mut x: u64 = 987_654_321;
+    for s in &mut audio.samples[..n] {
+        x = x
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        *s = 60.0 * rms * ((x >> 33) as f32 / (1u64 << 31) as f32 - 0.5);
+    }
+    audio
+}
