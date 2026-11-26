@@ -314,7 +314,7 @@ pub(super) fn be_angle_words(r: &LiveReading, lift_deg: f64) -> Option<String> {
     let angle = timegrapher_core::be_angle::Angle::at(
         (amp, r.amplitude_error_deg),
         (be, be_pm),
-        timegrapher_core::be_angle::beat_period_of(r.bph, r.rate_s_per_day)?,
+        timegrapher_core::be_angle::beat_period_of(r.bph, r.rate_s_per_day, &r.caveats)?,
     )?;
     Some(timegrapher_core::be_angle::card_words(
         &angle, amp, lift_deg,

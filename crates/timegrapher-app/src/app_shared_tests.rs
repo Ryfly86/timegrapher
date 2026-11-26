@@ -28,7 +28,21 @@ pub(super) fn synthetic_swinging(
     amp: impl Fn(f64) -> f64,
     extra: impl Fn(f64) -> f64,
 ) -> TimegrapherApp {
+    synthetic_set(seconds, rate, None, amp, extra)
+}
+
+/// [`synthetic_swinging`] heard with the beat rate set to `bph`, or on
+/// Auto with none: a set rate is read against however far the watch is
+/// from it, where Auto past 1000 s/d gives no rate (#2223).
+pub(super) fn synthetic_set(
+    seconds: f64,
+    rate: f64,
+    bph: Option<u32>,
+    amp: impl Fn(f64) -> f64,
+    extra: impl Fn(f64) -> f64,
+) -> TimegrapherApp {
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.bench.take.bph = bph;
     app.reset_session(48000, "syn".into());
     let cfg = SynthConfig {
         duration_s: seconds,

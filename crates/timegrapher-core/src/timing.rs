@@ -192,6 +192,28 @@ pub fn fit(beats: &[Beat], bph: u32) -> Option<TimingFit> {
     Some(fit_of(&coef, &sel, coef[1], bph))
 }
 
+/// A lock's rate, s/d read at `bph` on the card's clock: the fit over
+/// its first [`crate::beats::GUESS_SPAN_S`] of beats from the first of
+/// `beats` (all of them, if fewer), as the rate was guessed on. The rate
+/// [`OffStandard::of`] judges the lock on, once (Norm on #2316). The
+/// count does not carry across a jump in `cuts` (sorted), so each run
+/// between them is fitted on its own and the rates are weighted by the
+/// beats each used.
+pub fn lock_rate(beats: &[Beat], bph: u32, cuts: &[f64]) -> Option<f64> {
+    let t0 = beats.first()?.time;
+    let n = beats.partition_point(|b| b.time < t0 + crate::beats::GUESS_SPAN_S);
+    let fits: Vec<TimingFit> = pieces(&beats[..n], cuts)
+        .into_iter()
+        .filter_map(|p| fit(p, bph))
+        .collect();
+    let used: usize = fits.iter().map(|f| f.beats_used).sum();
+    let sum: f64 = fits
+        .iter()
+        .map(|f| f.rate_s_per_day * f.beats_used as f64)
+        .sum();
+    (used > 0).then(|| sum / used as f64)
+}
+
 /// The fit `coef` of the beats `sel`, its rate read from `period` s.
 fn fit_of(coef: &[f64; 3], sel: &[&Beat], period: f64, bph: u32) -> TimingFit {
     let nominal = 3600.0 / bph as f64;
@@ -482,6 +504,148 @@ impl MeasuredRate {
             (doc.as_object_mut(), serde_json::to_value(self))
         {
             d.extend(m);
+        }
+    }
+
+    /// The rate, s/d, that the beat rate heard reads against the beat
+    /// rate `bph`: `(bph heard / bph − 1) × 86,400`, from the periods, so
+    /// unrounded and never a difference of rates (Norm on #2225).
+    pub fn rate_against(&self, bph: u32) -> f64 {
+        (self.bph / f64::from(bph) - 1.0) * 86_400.0
+    }
+}
+
+/// Whether a rate read against a standard rate, s/d, is within
+/// [`crate::beats::STANDARD_REACH_S_PER_DAY`] of it, the one rule: 1.16%,
+/// under half the narrowest gap between standard rates (17,280 to 18,000
+/// is 4.1%), so no rate is in reach of two standards, and wide enough for
+/// a badly magnetised watch. The guess's own slack is only where it
+/// searches (Norm on #2223, point 5).
+pub fn in_standard_reach(rate_s_per_day: f64) -> bool {
+    rate_s_per_day.abs() <= crate::beats::STANDARD_REACH_S_PER_DAY
+}
+
+/// A standard beat rate beside the beat rate heard, and the rate the
+/// watch reads against it, s/d ([`MeasuredRate::rate_against`]).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, serde::Deserialize)]
+pub struct StandardSide {
+    pub bph: u32,
+    pub rate_s_per_day: f64,
+}
+
+/// A watch on Auto heard further than
+/// [`crate::beats::STANDARD_REACH_S_PER_DAY`] from the standard rate it
+/// was read against (Norm on #2223, point 5): no standard rate is in
+/// reach, so no rate in s/d is given. What is given is the beat rate
+/// heard, with its ±, and the standard rate on each side of it with the
+/// rate the watch reads against each. Auto never picks one of them as
+/// the target. The caveat `off_standard_rate`
+/// ([`crate::measure::Caveat::OffStandardRate`]).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, serde::Deserialize)]
+pub struct OffStandard {
+    /// The beat rate heard, bph ([`MeasuredRate`]).
+    pub bph_measured: f64,
+    /// Its standard error, bph; null when the rate has no ±, as the
+    /// reading's own `bph_measured_se`.
+    #[serde(default)]
+    pub bph_measured_se: Option<f64>,
+    /// The nearest standard rate below the beat rate heard; none below
+    /// the slowest.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub below: Option<StandardSide>,
+    /// The nearest standard rate above it; none above the fastest.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub above: Option<StandardSide>,
+}
+
+impl OffStandard {
+    /// The standard rate the beat rate heard over a lock is nearest, when
+    /// it is within [`crate::beats::STANDARD_REACH_S_PER_DAY`] of it (Norm
+    /// on #2316): `lock_rate` is the lock's rate in s/d read at `bph`, on
+    /// the card's clock, over its first [`crate::beats::GUESS_SPAN_S`] of
+    /// beats. A lock on Auto takes this standard even when it is not the
+    /// one guessed (17,280 at +990 s/d guessed as 18,000). None when no
+    /// standard is within reach.
+    pub fn nearest_in_reach(bph: u32, lock_rate: f64) -> Option<u32> {
+        let m = MeasuredRate::of(bph, Some(lock_rate).filter(|r| r.is_finite()), None)?;
+        crate::beats::STANDARD_BPH
+            .iter()
+            // The rate read at `bph` is its own, to the bit.
+            .map(|&b| {
+                (
+                    b,
+                    if b == bph {
+                        lock_rate
+                    } else {
+                        m.rate_against(b)
+                    },
+                )
+            })
+            .filter(|&(_, r)| in_standard_reach(r))
+            .min_by(|x, y| x.1.abs().total_cmp(&y.1.abs()))
+            .map(|(b, _)| b)
+    }
+
+    /// A lock's verdict (Norm on #2223 and #2316): on Auto (no `bph_set`),
+    /// the lock read at `bph` is off every standard rate when its
+    /// `lock_rate` ([`Self::nearest_in_reach`]) is further than the reach
+    /// from every one of [`crate::beats::STANDARD_BPH`], not only from the
+    /// rate guessed. Then it gives the lock's own figures. Judged once per
+    /// lock: every reading in the lock takes the verdict, however its own
+    /// rate moves, so a watch running down keeps its s/d. None with a rate
+    /// set, with no rate for the lock yet, or with a standard in reach.
+    pub fn of(bph_set: Option<u32>, bph: u32, lock_rate: Option<f64>) -> Option<Self> {
+        let rate = lock_rate.filter(|r| r.is_finite() && bph_set.is_none())?;
+        let near = Self::nearest_in_reach(bph, rate);
+        let o = Self::reading(bph, Some(rate), None);
+        let sides = |o: &Self| [o.below, o.above].into_iter().flatten();
+        // Off: no side in reach. In reach: the side nearest is (Norm).
+        debug_assert!(
+            near.is_some()
+                || o.as_ref()
+                    .is_some_and(|o| sides(o).all(|s| !in_standard_reach(s.rate_s_per_day))),
+            "off-standard with a side in reach at {bph} bph, {rate} s/d"
+        );
+        debug_assert!(
+            near.is_none()
+                || o.as_ref()
+                    .is_some_and(|o| sides(o).any(|s| in_standard_reach(s.rate_s_per_day))),
+            "a standard in reach that is no side at {bph} bph, {rate} s/d"
+        );
+        o.filter(|_| near.is_none())
+    }
+
+    /// The figures of one reading in a lock judged off every standard rate
+    /// ([`Self::of`]): its own rate `rate_s_per_day` (± `rate_se`), read
+    /// against the beat rate `bph`, as the beat rate heard, and the
+    /// standard rate on each side with the rate read against each. None
+    /// with no rate.
+    pub fn reading(bph: u32, rate_s_per_day: Option<f64>, rate_se: Option<f64>) -> Option<Self> {
+        let rate = rate_s_per_day.filter(|r| r.is_finite())?;
+        let m = MeasuredRate::of(bph, Some(rate), rate_se)?;
+        // The rate read at `bph` is its own, to the bit.
+        let side = |b: &u32| StandardSide {
+            bph: *b,
+            rate_s_per_day: if *b == bph { rate } else { m.rate_against(*b) },
+        };
+        let standard = crate::beats::STANDARD_BPH;
+        Some(OffStandard {
+            bph_measured: m.bph,
+            bph_measured_se: m.se,
+            below: standard
+                .iter()
+                .rev()
+                .find(|&&b| f64::from(b) <= m.bph)
+                .map(side),
+            above: standard.iter().find(|&&b| f64::from(b) > m.bph).map(side),
+        })
+    }
+
+    /// The beat rate heard, as every reading gives it beside its rate.
+    pub fn measured(&self) -> MeasuredRate {
+        MeasuredRate {
+            bph: self.bph_measured,
+            se: self.bph_measured_se,
         }
     }
 }
