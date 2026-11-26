@@ -8,11 +8,11 @@ use super::*;
 /// A dimmed File Save with a recording opened that the library can take:
 /// the route that keeps it (#2385).
 pub(super) const OPENED_KEEP_HINT: &str =
-    "An opened recording is kept with Save on the Listen card, in one of your watches";
+    "Keep this recording in a watch with Save on the Listen card";
 /// A dimmed File Save with a recording opened that is already in the
 /// library, or no library to keep it in (#2385).
 pub(super) const OPENED_STAYS_HINT: &str =
-    "Nothing to save: an opened recording stays where it is on disk";
+    "Nothing to save: this recording stays where it is on disk";
 
 /// What a menu item does, whichever menu bar it is in. Its shortcut and
 /// both menu bars run it through [`TimegrapherApp::run_menu_command`].
@@ -306,10 +306,8 @@ impl TimegrapherApp {
         self.menu_item(ui, MenuCommand::Save, "Save…", save_hint, off);
         let off = if saving {
             SAVING_HINT
-        } else if self.opened_recording() {
-            nothing
         } else {
-            "Save once first; Save… asks where"
+            self.save_as_off_hint()
         };
         self.menu_item(ui, MenuCommand::SaveAs, "Save As…", SAVE_AS_HINT, off);
         let off = if self.bench.keeping.analysis_save.is_some() {
@@ -342,9 +340,14 @@ impl TimegrapherApp {
         }
     }
 
-    /// Whether a recording opened from disk is on show.
-    fn opened_recording(&self) -> bool {
-        self.bench.recording.input == Input::File && !self.bench.keeping.opened_path.is_empty()
+    /// What a dimmed Save As says when no save is under way: an opened
+    /// recording is kept as Save's hint says; a take is saved once first.
+    pub(super) fn save_as_off_hint(&self) -> &'static str {
+        if self.opened_recording() {
+            self.nothing_to_save_hint()
+        } else {
+            "Save once first; Save… asks where"
+        }
     }
 
     fn edit_menu(&mut self, ui: &mut egui::Ui) {

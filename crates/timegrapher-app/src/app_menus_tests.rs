@@ -384,15 +384,18 @@ fn a_dimmed_save_names_how_an_opened_recording_is_kept() {
     app.use_library(Some(root.clone()));
     let nothing = "Nothing to save yet: listen to a watch first";
     assert_eq!(app.nothing_to_save_hint(), nothing);
+    assert_eq!(app.save_as_off_hint(), "Save once first; Save… asks where");
 
     app.bench.recording.input = Input::File;
     app.bench.keeping.opened_path = outside.display().to_string();
     assert!(app.addable_take().is_some());
     assert_eq!(app.nothing_to_save_hint(), OPENED_KEEP_HINT);
+    assert_eq!(app.save_as_off_hint(), OPENED_KEEP_HINT);
 
     app.bench.keeping.opened_path = inside.display().to_string();
     assert!(app.addable_take().is_none());
     assert_eq!(app.nothing_to_save_hint(), OPENED_STAYS_HINT);
+    assert_eq!(app.save_as_off_hint(), OPENED_STAYS_HINT);
 
     for hint in [OPENED_KEEP_HINT, OPENED_STAYS_HINT] {
         assert!(
