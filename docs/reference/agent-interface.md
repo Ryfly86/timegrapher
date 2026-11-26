@@ -57,7 +57,7 @@ on each `session` reading (also inside an analyzed take), on `record.check`, and
 on a live reading. `bph` and `timing_scatter_fraction` retain their numerical
 meaning. When no regular beat was found and `bph_set` is null or absent, text
 gives the timing scatter in ms without a percentage of a guessed beat (#857).
-Beside `bph_set` wherever it appears, `bph_set_from` says where the set rate came
+Beside `bph_set`, `bph_set_from` says where the set rate came
 from (#2224): `standard` (given with `--bph` or MCP's `bph` as one of the
 standard rates, 12000, 14400, 17280, 18000, 19800, 21600, 25200, 28800,
 36000, 43200 and 72000, core `beats::STANDARD_BPH`), `typed` (given as any other whole rate in range),
@@ -668,8 +668,8 @@ range (core `input_domain::LIFT_RANGE_DEG`, which the app's lift fields use too)
   `session`, `synth` and `report`, as are a session file's `bph`, MCP's `bph`
   and `watches edit --bph`. A rate kept outside it, a library watch's
   `watch.toml` rate or a calibre row's (the table's `IWC 9520` at 8000 bph, or a
-  custom calibre), is set aside: the reading hears the rate, as with no rate set,
-  and says why (`analyze`'s text, `session`'s `calibre_notes`, a note from
+  custom calibre), is set aside: the reading hears the beat rate (Auto), as with no rate
+  set, and says why (`analyze`'s text, `session`'s `calibre_notes`, a note from
   `record`).
 - `--lift`: from 10 to 90 degrees, for `analyze`, `shape`, `profile`, `long`,
   `series`, `record`, `session` and `report`, as are a session file's `lift`

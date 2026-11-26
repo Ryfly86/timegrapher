@@ -116,7 +116,7 @@ impl Options {
         if let Some(why) = timegrapher_core::set_rate::set_aside_why(Some(c))
             .filter(|_| self.bph.or(m.bph).is_none())
         {
-            notes.push(format!("{why}, so the rate is heard"));
+            notes.push(format!("{why}, so the session's takes are read on Auto"));
         }
         if let Some((b, cb)) = self.bph.or(m.bph).zip(c.bph).filter(|&(b, cb)| b != cb) {
             notes.push(format!(

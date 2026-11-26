@@ -1840,7 +1840,10 @@ fn print_summary(
     if let Some(why) =
         timegrapher_core::set_rate::set_aside_why(calibre).filter(|_| s.bph_set.is_none())
     {
-        println!("Set rate     {why}, so the rate is heard");
+        println!(
+            "Set rate     {why}, {}",
+            timegrapher_core::set_rate::read_at_text(None, None)
+        );
     }
     print_rate(s, clock);
     println!(

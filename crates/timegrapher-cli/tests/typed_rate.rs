@@ -149,7 +149,30 @@ fn a_calibre_rate_outside_the_range_is_heard_and_said() {
     assert!(
         text.lines().any(|l| l
             == "Set rate     the IWC 9520's beat rate of 8000 bph is set aside, \
-                outside 12000 to 72000 bph, so the rate is heard"),
+                outside 12000 to 72000 bph, so this take is read on Auto"),
         "{text}"
+    );
+}
+
+#[test]
+fn a_session_with_a_calibre_rate_outside_the_range_says_so() {
+    let dir = Dir::new("session-calibre-aside");
+    let wav = dir.0.join("take.wav").to_string_lossy().into_owned();
+    let out = run(&["synth", &wav, "--duration=40", "--bph=18000", "--rate=0"]);
+    assert!(out.status.success(), "{out:?}");
+    std::fs::write(
+        dir.0.join("session.toml"),
+        "calibre = \"IWC 9520\"\nlift = 40\n\n[[recording]]\nfile = \"take.wav\"\nposition = \"DU\"\n",
+    )
+    .unwrap();
+    let take = dir.0.to_string_lossy().into_owned();
+    let doc = json(&["session", &take, "--json"]);
+    assert!(doc["readings"][0]["bph_set"].is_null(), "{doc}");
+    let notes = doc["input"]["settings"]["calibre_notes"].as_array().unwrap();
+    assert!(
+        notes.iter().any(|n| n
+            == "the IWC 9520's beat rate of 8000 bph is set aside, outside 12000 to 72000 bph, \
+                so the session's takes are read on Auto"),
+        "{notes:?}"
     );
 }
