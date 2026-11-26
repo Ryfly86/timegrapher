@@ -42,6 +42,8 @@ pub(super) struct WatchesView {
     pub(super) take_readings: watches::TakeReadings,
     /// The watches' photos as thumbnails, read in the background.
     pub(super) thumbs: photos::Thumbs,
+    /// Watches view groups folded down to their caption.
+    pub(super) folded: std::collections::BTreeSet<String>,
 }
 
 impl Default for WatchesView {
@@ -62,6 +64,7 @@ impl Default for WatchesView {
             take_ask: None,
             take_readings: watches::TakeReadings::default(),
             thumbs: Default::default(),
+            folded: Default::default(),
         }
     }
 }
