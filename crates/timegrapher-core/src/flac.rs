@@ -191,13 +191,21 @@ pub fn kept_name(p: &Path) -> PathBuf {
 /// FLAC at `flac` is always a whole, checked one. The WAV is left as it
 /// is. Returns the frames converted.
 pub fn encode_wav(wav: &Path, flac: &Path) -> Result<u64, AudioError> {
-    encode_wav_file(&File::open(wav).map_err(AudioError::Io)?, flac)
+    let own = crate::audio::recorded(wav);
+    encode_wav_as(&File::open(wav).map_err(AudioError::Io)?, flac, own)
 }
 
 /// [`encode_wav`] from a WAV already open, read from its start: a file
 /// held open is read whole even when its name is deleted meanwhile.
+/// The WAV is one of a take's own sound files, read to the end of its
+/// sound ([`crate::audio::wav_reader`]).
 pub fn encode_wav_file(wav: &File, flac: &Path) -> Result<u64, AudioError> {
-    let reader = wav_reader(wav)?;
+    encode_wav_as(wav, flac, true)
+}
+
+/// [`encode_wav_file`], read to the end of its sound when `own`.
+fn encode_wav_as(wav: &File, flac: &Path, own: bool) -> Result<u64, AudioError> {
+    let reader = wav_reader(wav, own)?;
     let spec = reader.spec();
     let format = Format {
         sample_rate: spec.sample_rate,
@@ -218,7 +226,7 @@ pub fn encode_wav_file(wav: &File, flac: &Path) -> Result<u64, AudioError> {
             }
             Ok(())
         },
-        |part| same_samples_file(wav, part),
+        |part| same_samples_as(wav, part, own),
     )
 }
 
@@ -444,8 +452,8 @@ fn sync_folder(file: &Path) -> Result<(), AudioError> {
 /// The open WAV `wav`, read from its start, all the sound it holds
 /// ([`crate::audio::wav_reader`]), so a FLAC kept of a take whose program
 /// stopped holds its last seconds too (#2054).
-fn wav_reader(wav: &File) -> Result<crate::audio::WavFile<&File>, AudioError> {
-    crate::audio::wav_reader(wav)
+fn wav_reader(wav: &File, own: bool) -> Result<crate::audio::WavFile<&File>, AudioError> {
+    crate::audio::wav_reader(wav, own)
 }
 
 /// Keep the WAV `wav` as FLAC: [`encode_wav`] beside it under the same
@@ -464,12 +472,19 @@ pub fn keep_as_flac(wav: &Path) -> Result<PathBuf, AudioError> {
 /// kept as ([`kept_samples`]), in the same format, read side by side a
 /// sample at a time.
 pub fn same_samples(wav: &Path, flac: &Path) -> Result<bool, AudioError> {
-    same_samples_file(&File::open(wav).map_err(AudioError::Io)?, flac)
+    let own = crate::audio::recorded(wav);
+    same_samples_as(&File::open(wav).map_err(AudioError::Io)?, flac, own)
 }
 
 /// [`same_samples`] for a WAV already open, read from its start.
+/// The WAV is one of a take's own sound files, as for [`encode_wav_file`].
 pub fn same_samples_file(wav: &File, flac: &Path) -> Result<bool, AudioError> {
-    let w = wav_reader(wav)?;
+    same_samples_as(wav, flac, true)
+}
+
+/// [`same_samples_file`], read to the end of its sound when `own`.
+fn same_samples_as(wav: &File, flac: &Path, own: bool) -> Result<bool, AudioError> {
+    let w = wav_reader(wav, own)?;
     let mut f = claxon::FlacReader::open(flac).map_err(AudioError::Flac)?;
     let (ws, fs) = (w.spec(), f.streaminfo());
     if ws.sample_rate != fs.sample_rate

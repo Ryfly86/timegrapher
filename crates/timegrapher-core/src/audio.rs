@@ -158,20 +158,42 @@ impl<R: std::io::Seek> std::io::Seek for OnDisk<R> {
 /// A WAV `hound` reads, every sound reader's way in ([`wav_reader`]).
 pub type WavFile<R = std::fs::File> = hound::WavReader<std::io::BufReader<OnDisk<R>>>;
 
-/// Open the WAV at `path` ([`wav_reader`]).
+/// Open the WAV at `path` ([`wav_reader`]): read to the end of its
+/// sound when it is one of a take's own sound files ([`recorded`]).
 pub fn open_wav(path: &Path) -> Result<WavFile, AudioError> {
-    wav_reader(std::fs::File::open(path).map_err(AudioError::Io)?)
+    wav_reader(
+        std::fs::File::open(path).map_err(AudioError::Io)?,
+        recorded(path),
+    )
 }
 
-/// Read the WAV `file` from its start, all of the sound it holds. A take
-/// whose program stopped (a crash, a kill, power lost) keeps sound past
-/// the length its header last gave, since each flush writes the header
-/// again only after the sound before it (#2054). When the data chunk
-/// runs to the end of the file and the file holds more than its header
-/// says, the sound is read to the end, in whole frames.
-pub fn wav_reader<R: std::io::Read + std::io::Seek>(mut file: R) -> Result<WavFile<R>, AudioError> {
+/// Whether `path` names a WAV as the recorder names a take's sound
+/// (`audio-001.wav`, ...): the only files whose header can lag their sound,
+/// since only the recorder writes a WAV while it is read (#2054).
+pub fn recorded(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|n| n.to_str())
+        .map(|n| n.to_ascii_lowercase())
+        .is_some_and(|n| n.starts_with("audio-") && n.ends_with(".wav"))
+}
+
+/// Read the WAV `file` from its start. When `own` (a take's own sound
+/// file, [`recorded`]), all of the sound it holds: a take whose program
+/// stopped (a crash, a kill, power lost) keeps sound past the length its
+/// header last gave, since each flush writes the header again only after
+/// the sound before it (#2054). When the data chunk runs to the end of
+/// the file and the file holds more than its header says, the sound is
+/// read to the end, in whole frames. Any other WAV reads as its header
+/// says, whatever follows its sound.
+pub fn wav_reader<R: std::io::Read + std::io::Seek>(
+    mut file: R,
+    own: bool,
+) -> Result<WavFile<R>, AudioError> {
     use std::io::SeekFrom;
-    let patch = stale_data_length(&mut file).map_err(AudioError::Io)?;
+    let patch = match own {
+        true => stale_data_length(&mut file).map_err(AudioError::Io)?,
+        false => None,
+    };
     file.seek(SeekFrom::Start(0)).map_err(AudioError::Io)?;
     let on_disk = OnDisk {
         inner: file,
@@ -217,7 +239,9 @@ fn stale_data_length<R: std::io::Read + std::io::Seek>(
             let Some(frame) = frame.filter(|&b| b > 0) else {
                 return Ok(None);
             };
-            if len >= on_disk || chunk_follows(f, start + len + (len & 1), end)? {
+            // An odd length is followed by a pad byte, not sound.
+            let padded = len + (len & 1);
+            if padded >= on_disk || chunk_follows(f, start + padded, end)? {
                 return Ok(None);
             }
             let whole = (on_disk.min(u64::from(u32::MAX)) / frame) * frame;
