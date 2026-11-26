@@ -58,17 +58,23 @@ neither, though at 9 s hiss had read as a watch with readings.
 "No regular beat found (timing scatter X ms, Y% of a beat)", or, for
 `too_short`, the sentence that says so, with no readings beside it.
 
-When no regular beat is found, every reading describes noise. The program
-withholds them; don't work any out. `bph` and `beats_found` may still be
+When no regular beat is found, the program withholds every reading; don't
+work any out. With `scatter` or `no_beat_sound` they would describe noise. `bph` and `beats_found` may still be
 there: the beat rate set or listened for, and a count of what the tracker
 found in the noise. Neither says a watch was heard.
 
-What to do: ask whether the watch is running, and whether it is clamped
+What to do for `scatter` or `no_beat_sound`: ask whether the watch is running, and whether it is clamped
 firmly against the microphone; then run `doctor`. When `doctor`'s levels
 are clean as well (no clipping, no automatic gain, a sensible peak), say
 it plainly: the stand is empty or the watch has stopped. Tell them: *"I
 couldn't hear the watch; is it running, and pressed against the
 microphone?"*
+
+For `too_short`, the watch was heard, but a pause, a cut or the
+recording's start broke its beats into runs under 10 s. Ask them to
+record again with the watch held against the microphone for 10 s or more
+without lifting it. Tell them: *"I heard the watch, but not for 10
+seconds in one go; let's record it again for longer."*
 
 ## How good is the measurement?
 
@@ -111,7 +117,7 @@ and say the ones that apply in plain words.
 
 | Code | Means | Do | Tell them |
 | --- | --- | --- | --- |
-| `no_watch` | No regular beat found; the readings are withheld. `reason` says how: `scatter`, `no_beat_sound`, or `too_short`, the beats came in regular runs, but none that began after a pause, a cut or the recording's start lasted the 10 s a reading needs. | As [above](#was-a-regular-beat-found). | "I couldn't hear the watch." |
+| `no_watch` | No regular beat found; the readings are withheld. `reason` says how: `scatter`, `no_beat_sound`, or `too_short`, the beats came in regular runs, but none that began after a pause, a cut or the recording's start lasted the 10 s a reading needs. | As [above](#was-a-regular-beat-found). | "I couldn't hear the watch." For `too_short`: "I heard the watch, but not for 10 seconds in one go." |
 | `set_rate_disagrees` | The beat rate given (`--bph` or the calibre's) is not the one the recording runs at; `heard` is the one it does. | Quote no reading. Check the calibre; run `analyze` again without `--bph`. | "The watch isn't beating at the rate I was told; let me check which movement it is." |
 | `short_span` | Under 10 s of beats (`span_s`). | Quote no reading. Record longer. | "That was too short to judge; let's record it longer." |
 | `clipped` | A share of beats clipped (`fraction`). | Over 1%: hold neither amplitude nor beat error to a tolerance; lower the level and record again. | "The microphone was too loud, so the amplitude may be off; the rate is fine." |
