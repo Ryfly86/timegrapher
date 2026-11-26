@@ -1198,8 +1198,83 @@ fn the_charts_draw_no_scales_before_there_is_a_reading() {
     let text = draw(&mut app);
     assert!(text.contains("begin with the first reading"), "{text}");
     assert!(!scales(&text), "{text}");
-    app.bench.results.trend = trend;
+    app.bench.results.trend = trend.clone();
     let text = draw(&mut app);
     assert!(app.charts_waiting().is_none());
     assert!(scales(&text), "{text}");
+    // Readings that hear no watch, as of silence: words, not an empty
+    // "0 s/d" scale, listening and stopped alike (#2183).
+    let silent: Vec<TrendPoint> = trend
+        .iter()
+        .map(|p| TrendPoint {
+            t: p.t,
+            rate_s_per_day: None,
+            amplitude_deg: None,
+            amplitude_even_deg: None,
+            amplitude_odd_deg: None,
+            beat_error_unlock_ms: None,
+            beat_error_ms: None,
+            rate_error_s_per_day: None,
+            amplitude_error_deg: None,
+            beat_error_unlock_error_ms: None,
+            heard: false,
+        })
+        .collect();
+    app.bench.results.trend = silent;
+    let text = draw(&mut app);
+    assert!(text.contains("No watch heard"), "{text}");
+    assert!(!scales(&text), "{text}");
+    // Beat Error alone turned on, with no beat error read yet: what the
+    // charts wait for, not an empty scale.
+    let mut no_be = trend.clone();
+    for p in &mut no_be {
+        (p.beat_error_ms, p.beat_error_unlock_ms) = (None, None);
+    }
+    app.bench.results.trend = no_be;
+    app.bench.panes_view.chart_series = [false, false, true];
+    let text = draw(&mut app);
+    assert!(text.contains("the charts turned on"), "{text}");
+    assert!(!scales(&text), "{text}");
+}
+
+/// A reading alone, as between two gaps or a long Average Over's first,
+/// is drawn as a dot: egui_plot draws a line of one point 0.9 pt across,
+/// so the chart stood empty beside a card with a rate (#2183).
+#[test]
+fn a_reading_alone_is_a_dot() {
+    let ctx = themed();
+    let mut app = synthetic(60.0, 20.0);
+    let one = app
+        .bench
+        .results
+        .trend
+        .iter()
+        .rev()
+        .find(|p| p.rate_s_per_day.is_some())
+        .cloned()
+        .expect("a reading");
+    app.bench.results.trend = vec![one];
+    let dots = |app: &mut TimegrapherApp| {
+        let mut n = 0;
+        for _ in 0..2 {
+            let input = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    Vec2::new(1280.0, 700.0),
+                )),
+                ..Default::default()
+            };
+            let out = ctx.run(input, |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| app.charts_pane(ui));
+            });
+            n = out
+                .shapes
+                .iter()
+                .filter(|c| matches!(&c.shape, egui::Shape::Circle(d) if d.radius >= 2.0))
+                .count();
+        }
+        n
+    };
+    assert!(app.charts_waiting().is_none());
+    assert_eq!(dots(&mut app), 1);
 }

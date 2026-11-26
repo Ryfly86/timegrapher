@@ -9,7 +9,11 @@ impl TimegrapherApp {
     /// other, sharing the pane's height and its time axis.
     pub(super) fn charts_pane(&mut self, ui: &mut egui::Ui) {
         let shown = self.bench.panes_view.chart_series;
-        self.note_need(ui, Pane::Charts, STACKED_MIN_H);
+        // Room for every chart turned on, not one alone: in the starting
+        // layout at 1920 x 1080 the Beat Error chart had none while the
+        // strip had room to spare (#2342 item 1).
+        let n = shown.iter().filter(|&&on| on).count();
+        self.note_need(ui, Pane::Charts, stacked_h(ui, n, STACKED_MIN_H));
         // No scales with nothing on them: while a take opens, or before
         // its first reading, one line in their place (#1973).
         if let Some(line) = self.charts_waiting() {
@@ -37,18 +41,44 @@ impl TimegrapherApp {
     }
 
     /// What the Charts pane says in place of its charts while there is no
-    /// reading to draw: before anything is open, while a take opens, and
-    /// before a take's first reading. None once there is one.
+    /// reading to draw: before anything is open, while a take opens,
+    /// before a take's first reading, and while no reading has a figure
+    /// for a chart turned on, as with no watch heard (#2183). None once
+    /// one has.
     pub(super) fn charts_waiting(&self) -> Option<&'static str> {
+        let trend = &self.bench.results.trend;
         if self.bench.recording.batch.is_some() {
             Some("Opening the take: its charts appear once it is read.")
         } else if self.bench.recording.live.is_none() {
             Some("Listen to a watch or open a recording to see its readings here.")
-        } else if self.bench.results.trend.is_empty() {
+        } else if trend.is_empty() {
             Some("The charts begin with the first reading.")
-        } else {
+        } else if self.charts_have_figures() {
             None
+        } else if trend.iter().any(|p| p.heard) {
+            Some("No reading yet has a figure for the charts turned on.")
+        } else if self.running() {
+            Some("No watch heard yet: the charts begin with the first reading of one.")
+        } else {
+            Some("No watch heard in this take: no reading has a figure to chart.")
         }
+    }
+
+    /// Whether any chart turned on has a point to draw.
+    fn charts_have_figures(&self) -> bool {
+        // The colours don't matter here, only the points.
+        let pal = &theme::LIGHT;
+        let average = self.bench.take.average_s;
+        steady::SERIES
+            .into_iter()
+            .zip(self.bench.panes_view.chart_series)
+            .filter(|&(_, on)| on)
+            .any(|(k, _)| {
+                chart_lines(k, &self.bench.results.trend, average, pal)
+                    .0
+                    .iter()
+                    .any(|l| !l.pts.is_empty())
+            })
     }
 
     /// The pane's one way back to the whole session, in its toolbar as
@@ -194,6 +224,21 @@ impl TimegrapherApp {
         }
         (moved, hover, at_newest)
     }
+}
+
+/// The gap between two plots stacked in a pane ([`stacked`]).
+pub(super) const STACKED_GAP: f32 = 6.0;
+
+/// A stacked gap with the layout's spacing either side of it, so the last
+/// plot's axis isn't cut by the pane's foot.
+pub(super) fn step_gap(ui: &egui::Ui) -> f32 {
+    STACKED_GAP + 2.0 * ui.spacing().item_spacing.y
+}
+
+/// The height `n` plots stacked in a pane ([`stacked`]) take at `least`
+/// each, the gaps between them included.
+pub(super) fn stacked_h(ui: &egui::Ui, n: usize, least: f32) -> f32 {
+    n as f32 * least + n.saturating_sub(1) as f32 * step_gap(ui)
 }
 
 /// A click on a chart, the time under the pointer, whether it was moved
@@ -382,6 +427,16 @@ fn draw_chart(
         // Broken where there is no reading (a masked stretch, a
         // pause, beats not found), not drawn straight across.
         for seg in segments(&l.pts) {
+            // A reading alone is a dot: egui_plot draws a line of one
+            // point 0.9 pt across, too small to see (#2183).
+            if let [one] = seg[..] {
+                p.points(
+                    Points::new(l.name.clone(), vec![one])
+                        .color(l.color)
+                        .radius(w * 1.5),
+                );
+                continue;
+            }
             if let Some(c) = l.under {
                 p.line(
                     Line::new(format!("{} gaps", l.name), seg.clone())

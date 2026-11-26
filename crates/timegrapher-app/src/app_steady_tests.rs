@@ -376,3 +376,42 @@ fn a_panes_wheel_periods_switch_changes_that_pane_only() {
     assert!(s.marks.show_meshes && s.marks.show_meshes_set.is_empty());
     assert_eq!(s.marks.show_wheels_set, vec![(View::Fft, !fft)]);
 }
+
+/// The Steadiness panes' wait counts the beats heard, never the silence
+/// (#2183): readings that hear no watch say none is heard, however long
+/// the sound; a watch heard from part way counts from there.
+#[test]
+fn the_steadiness_wait_counts_beats_not_sound() {
+    let mut app = synthetic(40.0, 5.0);
+    let heard = app.steady_wait();
+    assert!(heard.ends_with("of beats so far."), "{heard}");
+    assert!(!heard.contains("0:00"), "{heard}");
+    for p in &mut app.bench.results.trend {
+        p.heard = false;
+    }
+    let none = app.steady_wait();
+    assert_eq!(
+        none,
+        "Needs 5 minutes of beats in one position; none heard so far."
+    );
+    // Heard from 20 s on: 10 s before that reading, to the end.
+    for p in &mut app.bench.results.trend {
+        p.heard = p.t >= 20.0;
+    }
+    let end = app.bench.recording.live.as_ref().unwrap().duration_s();
+    let from = app
+        .bench
+        .results
+        .trend
+        .iter()
+        .find(|p| p.heard)
+        .map(|p| p.t - app.bench.take.average_s)
+        .unwrap();
+    assert_eq!(
+        app.steady_wait(),
+        format!(
+            "Needs 5 minutes of beats in one position; {} of beats so far.",
+            length_text(end - from)
+        )
+    );
+}

@@ -1124,7 +1124,9 @@ through at least three 2° steps, which a run-down over some hours gives
 (a long run-down is one way; any take over a wide range of amplitude
 does).
 A note on what it needs is behind the **?** in its toolbar. Until there are 5 minutes of beats in one position, the
-Steadiness and Isochronism tabs say so; during a Positions Test they say
+Steadiness and Isochronism tabs say so, with how much of the watch has
+been heard so far, never the silence or the stand's noise ("none heard so
+far" while no reading hears a watch); during a Positions Test they say
 that the test never stays that long in one position. Steadiness scrolls
 with a bar always showing when the pane is too short for every row.
 
@@ -1208,9 +1210,10 @@ it: the charts of rate, amplitude and beat error over the session, the
 distributions, the Steadiness views, Isochronism, the Positions Test and
 Power Reserve. Charts and Distributions open as tabs behind the profile,
 so showing them never takes room from the strip. No pane on show is laid
-out shorter than 140 pt (240 pt wide side by side), and Charts and
-Distributions are kept tall enough for their toolbar and one plot at a
-readable height (about 60 pt of plot for a distribution): the room comes
+out shorter than 140 pt (240 pt wide side by side). Charts is kept tall
+enough for its toolbar and every chart turned on, and Distributions for
+its toolbar and one plot, at a readable height (about 60 pt of plot for a
+distribution): the room comes
 from the panes with some to spare, and a window too small for them all
 keeps the Paper Strip's least first (its lane, 100 pt of dots and its
 time axis) and shares the rest in proportion. A plot pane left too short
@@ -1545,9 +1548,13 @@ unlock and from the drop) over the whole take, one chart above the other
 in the one pane, each with its reading's name at its top left. The hare,
 the swing and the seesaw in the pane's toolbar show or hide the Rate,
 Amplitude and Beat Error charts; the charts shown share the pane's
-height, and at least one stays on. A pane too short for every chart draws
+height, and at least one stays on. With nothing to draw (before the
+first reading, or while no reading hears a watch) the pane says so in one
+line in place of empty scales (#2183), and a reading alone, between gaps,
+is a dot. A pane too short for every chart draws
 the first ones at a readable height and names the rest at its foot ("Beat
-Error not shown: no room"); the Distributions pane names them in a grey
+Error not shown: no room"), though the pane is kept tall enough for all
+it shows where the panes around it have room to spare; the Distributions pane names them in a grey
 chip under its first plot's title, what to do in the chip's hover. Each
 reading keeps its colour across
 the app (rate magenta, amplitude violet, beat error amber), so a second line
