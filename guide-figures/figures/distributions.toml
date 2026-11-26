@@ -1,15 +1,17 @@
 # Chapter 8, Charts and Distributions: the Distributions pane alone, on
 # the first 12 hours of a 64 h 51 min take of a Dandong 3235, fully wound
-# and dial up, the Rate plot alone (the pane opens so).
+# and dial up, the Rate and Beat Error plots (the pane opens on Rate alone).
 output = "distributions.png"
 
 actions = [["sleep", 60]]
 
 # 1 the series switches, left of the pane; 2 Show, 3 Values, 4 Export,
-# above their controls; 5 the summary line, 6 the dashed line, 7 the
-# percent scale, 8 a reading in the fast tail.
+# above their controls; 5 the Rate plot's facts box, top left; 6 the
+# dashed line; 7 the percent scale; 8 a reading in the fast tail; 9 the
+# Beat Error plot's source chip.
 marks = [[1, 28, 157], [2, 190, 129], [3, 224, 129], [4, 258, 129],
-         [5, 780, 187], [6, 1265, 295], [7, 92, 562], [8, 1520, 398]]
+         [5, 348, 222], [6, 1400, 212], [7, 30, 390], [8, 1650, 292],
+         [9, 252, 631]]
 
 layout = "Distributions"
 
@@ -32,3 +34,4 @@ at_most = 1200
 
 [settings]
 show_readings = false
+dist_series = [true, false, true]
