@@ -375,7 +375,7 @@ impl Hour {
         crate::be_angle::Angle::at(
             (self.amplitude_deg?, None),
             (self.beat_error_ms?, None),
-            crate::be_angle::beat_period_of(self.bph, self.rate_s_per_day)?,
+            crate::be_angle::beat_period_of(self.bph, self.rate_s_per_day, &self.caveats)?,
         )
     }
 

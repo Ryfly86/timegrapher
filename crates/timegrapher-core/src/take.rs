@@ -1513,7 +1513,7 @@ pub fn measure_opened(
     let OpenedEntry {
         files,
         kept,
-        log,
+        mut log,
         clock: fit,
         clock_from,
         clock_ppm,
@@ -1533,16 +1533,34 @@ pub fn measure_opened(
     } = reading_window(e, m, s.settle_s, log.duration_s).map_err(EntryError::NoReading)?;
     // A lead of noise before the watch is left out of the reading (#844).
     let read = read_stretches(m, &e.file, s.settle_s, log.duration_s);
-    let mut measurement = session::measure_from_lead(
-        &log,
-        fit.as_ref(),
-        &breaks,
-        &masked,
-        (settle_s, end_s),
-        &read,
-        start_s,
-    );
+    let measure = |log: &BeatLog| {
+        session::measure_from_lead(
+            log,
+            fit.as_ref(),
+            &breaks,
+            &masked,
+            (settle_s, end_s),
+            &read,
+            start_s,
+        )
+    };
+    let mut measurement = measure(&log);
+    // On Auto, a watch heard within reach of a standard rate other than
+    // the one guessed is read at that one (Norm on #2316).
+    if cfg.analysis.bph.is_none() && measurement.watch_heard {
+        let guessed = log.bph;
+        log.take_nearest_standard();
+        if log.bph != guessed {
+            measurement = measure(&log);
+        }
+    }
     measurement.take_doubts(cfg.analysis.lift_known, unlisted);
+    // On Auto, a lock off every standard rate gives no rate in s/d
+    // (#2223), judged once on the lock's first 10 s (Norm on #2316).
+    let lock = crate::analysis::lock_rate_of(&log);
+    if crate::timing::OffStandard::of(cfg.analysis.bph, log.bph, lock).is_some() {
+        measurement.read_off_standard(log.bph);
+    }
     measurement.clock_ppm = clock_ppm;
     measurement.clock_source = clock_source.clone();
     Ok(EntryRead {

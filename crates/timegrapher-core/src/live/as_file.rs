@@ -332,7 +332,12 @@ impl LiveAnalyzer {
     }
 
     /// `log` as the figures' analyzer, set as live is.
-    fn view_of(&self, log: BeatLog) -> LiveAnalyzer {
+    fn view_of(&self, mut log: BeatLog) -> LiveAnalyzer {
+        // On Auto, a watch heard: the read takes the nearest standard rate
+        // as live's lock does ([`LiveAnalyzer::take_nearest_standard`]).
+        if self.found_bph && self.cfg.analysis.bph.is_none() {
+            log.take_nearest_standard();
+        }
         let mut v = LiveAnalyzer::from_log(log, self.cfg.clone());
         v.rate_clock = self.rate_clock.clone();
         v.clock_known = self.clock_known;

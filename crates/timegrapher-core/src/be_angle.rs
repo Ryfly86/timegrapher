@@ -46,8 +46,17 @@ pub fn degrees_at(amplitude_deg: f64, beat_error_ms: f64, beat_period_s: f64) ->
 /// The balance's own beat period, s, of a reading at `bph` that reads
 /// `rate_s_per_day` ([`crate::timing::period_s`]), the period its
 /// amplitude was read with; the nominal 3600/bph where it reads no rate.
-/// None without a beat rate.
-pub fn beat_period_of(bph: Option<u32>, rate_s_per_day: Option<f64>) -> Option<f64> {
+/// A reading off every standard rate on Auto has no rate but its
+/// `caveats` give the beat rate heard, whose period it is (#2223). None
+/// without a beat rate.
+pub fn beat_period_of(
+    bph: Option<u32>,
+    rate_s_per_day: Option<f64>,
+    caveats: &[crate::measure::Caveat],
+) -> Option<f64> {
+    if let Some(o) = crate::measure::off_standard(caveats) {
+        return Some(3600.0 / o.bph_measured);
+    }
     let nominal = 3600.0 / f64::from(bph.filter(|&b| b > 0)?);
     Some(rate_s_per_day.map_or(nominal, |r| crate::timing::period_s(nominal, r)))
 }
