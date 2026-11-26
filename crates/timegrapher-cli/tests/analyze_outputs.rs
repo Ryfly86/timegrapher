@@ -56,7 +56,7 @@ fn an_output_naming_the_recording_is_refused_and_the_recording_kept() {
 
 /// A take folder, as the app saves one, is read as its one recording with
 /// the take's own settings (its session file's calibre, lift and beat
-/// rate) by `analyze` and `shape`, giving the file's document, and that
+/// rate) by `analyze`, `shape` and `profile`, giving the file's document, and that
 /// recording is still refused as an output (#2092).
 #[test]
 fn a_take_folder_is_read_as_its_recording() {
@@ -89,6 +89,7 @@ fn a_take_folder_is_read_as_its_recording() {
     assert!(file["take"].is_object(), "{file}");
     assert_eq!(json("analyze", &take), file);
     assert_eq!(json("shape", &take), json("shape", &wav));
+    assert_eq!(json("profile", &take), json("profile", &wav));
     let before = std::fs::read(&wav).unwrap();
     let arg = format!("--beats={}", wav.display());
     let out = tg(&["analyze".as_ref(), take.as_os_str(), arg.as_ref()]);
