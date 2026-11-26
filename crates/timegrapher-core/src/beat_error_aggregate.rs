@@ -84,17 +84,33 @@ pub fn select_beat_errors(
     }
 }
 
-/// [`select_beat_errors`] over the amplitude's windows, each offering its
-/// chosen beat error; the caveats count windows, not readings.
+/// A window's chosen beat error, read for `escapement`: its unlock's
+/// where found, else its drop's, never on a co-axial (#2313,
+/// [`crate::escapement::Escapement::drop_beat_error`]). The one choice
+/// for every statistic over windows.
+pub fn window_beat_error(
+    w: &crate::amplitude::AmplitudeWindow,
+    escapement: crate::escapement::Escapement,
+) -> Option<(f64, BeatErrorSource)> {
+    chosen_beat_error(
+        w.beat_error_unlock_ms,
+        escapement.drop_beat_error(w.beat_error_ms),
+    )
+}
+
+/// [`select_beat_errors`] over the amplitude's windows, read for
+/// `escapement`, each offering its chosen beat error
+/// ([`window_beat_error`]); the caveats count windows, not readings.
 pub fn select_window_beat_errors<'a>(
     windows: impl IntoIterator<Item = &'a crate::amplitude::AmplitudeWindow>,
+    escapement: crate::escapement::Escapement,
 ) -> BeatErrorSelection {
     BeatErrorSelection {
         counted: Counted::Windows,
         ..select_beat_errors(
             windows
                 .into_iter()
-                .map(|w| chosen_beat_error(w.beat_error_unlock_ms, w.beat_error_ms)),
+                .map(|w| window_beat_error(w, escapement)),
         )
     }
 }
@@ -173,7 +189,7 @@ mod tests {
             window(None, Some(8.0)),
             window(Some(0.5), None),
         ];
-        let selected = select_window_beat_errors(&windows);
+        let selected = select_window_beat_errors(&windows, Default::default());
         let by_reading = select_beat_errors(
             windows
                 .iter()

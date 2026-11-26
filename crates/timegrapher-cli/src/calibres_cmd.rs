@@ -27,6 +27,9 @@ pub struct Resolved {
     /// The lift angle came from the flag or the calibre, not the default.
     pub lift_known: bool,
     pub escape_teeth: u32,
+    /// The escapement read for (#2313): the session file's, else the
+    /// calibre's, else the Swiss lever.
+    pub escapement: timegrapher_core::escapement::Escapement,
     pub(crate) train: crate::long::ResolvedTrain,
 }
 
@@ -79,6 +82,7 @@ pub fn resolve_for(
         lift_deg: set.amplitude.lift_deg,
         lift_known: set.lift_known,
         escape_teeth: escape_teeth.unwrap_or(set.escape_teeth),
+        escapement: set.amplitude.escapement,
         train,
     })
 }
@@ -98,6 +102,7 @@ fn resolve_train(
         escape_teeth: escape_teeth
             .or(c.and_then(|c| c.escape_teeth))
             .unwrap_or(DEFAULT_ESCAPE_TEETH),
+        escapement: train.escapement(),
         train,
     }
 }

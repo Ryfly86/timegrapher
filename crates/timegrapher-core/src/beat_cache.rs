@@ -137,7 +137,9 @@ pub fn read(dir: &Path, files: &[&Path], cfg: &StreamConfig) -> Option<(BeatLog,
     flate2::read::GzDecoder::new(&raw[..])
         .read_to_end(&mut bytes)
         .ok()?;
-    let got = decode(&bytes)?;
+    let mut got = decode(&bytes)?;
+    // Read for the escapement the key holds (#2313).
+    got.0.escapement = cfg.analysis.amplitude.escapement;
     // Used now: last to go when the folder is held to its size.
     let _ = fs::File::options()
         .write(true)
@@ -389,6 +391,7 @@ pub fn decode(bytes: &[u8]) -> Option<(BeatLog, f32)> {
         duration_s,
         bph,
         lift_deg,
+        escapement: Default::default(),
         beats,
         amplitude_windows,
         clipped_beats,

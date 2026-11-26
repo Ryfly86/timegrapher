@@ -831,6 +831,7 @@ pub(crate) fn stored_from(
         duration_s: header.duration_s,
         bph: header.bph,
         lift_deg: header.lift_deg,
+        escapement: Default::default(),
         beats,
         amplitude_windows: windows,
         clipped_beats: clipped,

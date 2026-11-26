@@ -1052,6 +1052,7 @@ fn measure_command(c: Command) -> Result<(), String> {
                     ..Default::default()
                 };
                 cfg.amplitude.lift_deg = r.lift_deg;
+                cfg.amplitude.escapement = r.escapement;
                 cfg.envelope.notch_hz = notch;
                 cfg.envelope.highpass_hz = highpass;
                 let take = session_cmd::take_of(&file, bph, lift, calibre.clone());
@@ -1129,6 +1130,7 @@ fn profile_command(c: Command) -> Result<(), String> {
         ..Default::default()
     };
     cfg.amplitude.lift_deg = r.lift_deg;
+    cfg.amplitude.escapement = r.escapement;
     cfg.envelope.notch_hz = notch;
     cfg.envelope.highpass_hz = highpass;
     let o = profile_cmd::Options {
@@ -1762,23 +1764,20 @@ fn opt(v: Option<f64>, digits: usize) -> String {
 
 /// Beat error from the unlock as the headline, with the drop's alongside;
 /// from the drop, why (`why`, core's reason: the unlock not found, or its
-/// signs disagreeing, #1439).
+/// signs disagreeing, #1439). `drop_ms` is none on a co-axial
+/// (`Escapement::drop_beat_error`, #2313): the unlock's alone, or "none",
+/// with no reason, as core records none for a co-axial's missing unlock.
 pub fn beat_error_text(
     unlock_ms: Option<f64>,
-    drop_ms: f64,
+    drop_ms: Option<f64>,
     why: timegrapher_core::measure::DropWhy,
 ) -> String {
-    match unlock_ms {
-        Some(u) => format!(
-            "{} ms (from the unlock; {} ms from the drop)",
-            fixed_text(u.abs(), base_digits::BEAT_ERROR),
-            fixed_text(drop_ms.abs(), base_digits::BEAT_ERROR)
-        ),
-        None => format!(
-            "{} ms from the drop ({})",
-            fixed_text(drop_ms.abs(), base_digits::BEAT_ERROR),
-            why.words()
-        ),
+    let be = |v: f64| fixed_text(v.abs(), base_digits::BEAT_ERROR);
+    match (unlock_ms, drop_ms) {
+        (Some(u), Some(d)) => format!("{} ms (from the unlock; {} ms from the drop)", be(u), be(d)),
+        (Some(u), None) => format!("{} ms (from the unlock)", be(u)),
+        (None, Some(d)) => format!("{} ms from the drop ({})", be(d), why.words()),
+        (None, None) => "none".into(),
     }
 }
 
@@ -1908,17 +1907,21 @@ fn print_rate(s: &timegrapher_core::analysis::Summary, clock: Option<&(f64, Stri
         let be_se = c
             .and_then(|c| c.beat_error.se)
             .filter(|e| e.is_finite() && *e > 0.0);
+        let drop = s.escapement.drop_beat_error(Some(f.beat_error_ms));
         match (s.beat_error_unlock_ms, be_se) {
             (Some(u), Some(_)) => println!(
-                "Beat error   {} ms (from the unlock; {} ms from the drop)",
+                "Beat error   {} ms (from the unlock{})",
                 figure_with_pm(u.abs(), be_se, base_digits::BEAT_ERROR, false),
-                figure(f.beat_error_ms.abs(), be_se, base_digits::BEAT_ERROR, false)
+                drop.map_or(String::new(), |d| format!(
+                    "; {} ms from the drop",
+                    figure(d.abs(), be_se, base_digits::BEAT_ERROR, false)
+                ))
             ),
             _ => println!(
                 "Beat error   {}",
                 beat_error_text(
                     s.beat_error_unlock_ms,
-                    f.beat_error_ms,
+                    drop,
                     timegrapher_core::measure::DropWhy::of(&s.caveats)
                 )
             ),
@@ -2147,11 +2150,21 @@ fn write_windows(p: &Path, a: &Analysis) -> std::io::Result<()> {
         w,
         "kind,start_s,end_s,rate_s_per_day,beat_error_ms,beat_error_unlock_ms,amplitude_even_deg,amplitude_odd_deg,unlock_even_ms,unlock_odd_ms,drop_even_ms,drop_odd_ms"
     )?;
+    // The drop's beat error, none on a co-axial (#2313).
+    let drop = |v: Option<f64>| {
+        a.summary
+            .escapement
+            .drop_beat_error(v)
+            .map_or(String::new(), |v| format!("{v:.3}"))
+    };
     for r in &a.rate_windows {
         writeln!(
             w,
-            "rate,{:.2},{:.2},{:.2},{:.3},,,,,,,",
-            r.start_s, r.end_s, r.fit.rate_s_per_day, r.fit.beat_error_ms
+            "rate,{:.2},{:.2},{:.2},{},,,,,,,",
+            r.start_s,
+            r.end_s,
+            r.fit.rate_s_per_day,
+            drop(Some(r.fit.beat_error_ms))
         )?;
     }
     for m in &a.amplitude_windows {
@@ -2160,7 +2173,7 @@ fn write_windows(p: &Path, a: &Analysis) -> std::io::Result<()> {
             "amplitude,{:.2},{:.2},,{},{},{},{},{},{},{},{}",
             m.start_s,
             m.end_s,
-            m.beat_error_ms.map_or(String::new(), |v| format!("{v:.3}")),
+            drop(m.beat_error_ms),
             m.beat_error_unlock_ms
                 .map_or(String::new(), |v| format!("{v:.3}")),
             opt(m.even_deg, 1).replace('-', ""),
@@ -2338,11 +2351,19 @@ mod beat_error_wording {
         }];
         let why = DropWhy::of(&inconsistent);
         assert_eq!(why, DropWhy::UnlockInconsistent);
-        let text = beat_error_text(None, 0.45, why);
+        let text = beat_error_text(None, Some(0.45), why);
         assert!(text.contains(DropWhy::UnlockInconsistent.words()), "{text}");
         assert!(!text.contains(DropWhy::UnlockNotFound.words()), "{text}");
-        let text = beat_error_text(None, 0.45, DropWhy::of(&[Caveat::FROM_DROP]));
+        let text = beat_error_text(None, Some(0.45), DropWhy::of(&[Caveat::FROM_DROP]));
         assert!(text.contains(DropWhy::UnlockNotFound.words()), "{text}");
+    }
+
+    #[test]
+    fn a_co_axial_beat_error_gives_no_drop() {
+        let why = DropWhy::of(&[]);
+        let text = beat_error_text(Some(0.62), None, why);
+        assert_eq!(text, "0.62 ms (from the unlock)");
+        assert_eq!(beat_error_text(None, None, why), "none");
     }
 }
 

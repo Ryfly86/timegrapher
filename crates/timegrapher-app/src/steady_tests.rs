@@ -900,6 +900,7 @@ fn context_log() -> BeatLog {
         duration_s: 120.0,
         bph: 28800,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats: (0..960)
             .map(|index| timegrapher_core::beats::Beat {
                 time: index as f64 * 0.125 + if index >= 480 { 0.03 } else { 0.0 },
@@ -1157,6 +1158,7 @@ fn views_leave_out_a_rate_reading_over_a_dropout() {
         duration_s: 200.0,
         bph: 28800,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats,
         amplitude_windows: vec![],
         clipped_beats: vec![],
@@ -1446,6 +1448,7 @@ fn a_repeats_note_is_hover_only_on_a_short_plot() {
         duration_s: 1200.0,
         bph: 28800,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats,
         amplitude_windows: vec![],
         clipped_beats: vec![],
@@ -1974,6 +1977,7 @@ fn the_hollow_note_keeps_clear_of_the_allan_plots_other_labels() {
         duration_s: 1200.0,
         bph: 28800,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats,
         amplitude_windows: vec![],
         clipped_beats: vec![],

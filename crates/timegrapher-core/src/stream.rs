@@ -56,6 +56,10 @@ pub struct BeatLog {
     pub duration_s: f64,
     pub bph: u32,
     pub lift_deg: f64,
+    /// The escapement the windows were read for (#2313): a co-axial's
+    /// readings give no drop beat error, and its amplitude is an estimate.
+    #[serde(skip_serializing_if = "crate::escapement::Escapement::is_swiss_lever")]
+    pub escapement: crate::escapement::Escapement,
     pub beats: Vec<Beat>,
     pub amplitude_windows: Vec<AmplitudeWindow>,
     /// Times of the beats with a clipped sample within their template
@@ -1013,12 +1017,17 @@ impl State {
             duration_s: total as f64 / self.fs,
             bph: self.bph,
             lift_deg: self.cfg.analysis.amplitude.lift_deg,
+            escapement: self.cfg.analysis.amplitude.escapement,
             beats: self.beats,
             amplitude_windows: {
                 let mut amp = self.amp;
                 let w = self.cfg.analysis.amplitude_window_s;
                 amplitude::withhold_faint_by_chunk(&mut amp, |s| amplitude_chunk_of(s, w));
-                amplitude::reject_side_outliers(&mut amp, amplitude::OUTLIER_SPAN_S);
+                amplitude::reject_side_outliers(
+                    &mut amp,
+                    amplitude::OUTLIER_SPAN_S,
+                    self.cfg.analysis.amplitude.escapement,
+                );
                 amp
             },
             clipped_beats: self.clipped_beats,

@@ -922,6 +922,7 @@ fn gaining_log(gain: f64) -> BeatLog {
         duration_s: 120.0,
         bph: 28800,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats: (0..960)
             .map(|index| timegrapher_core::beats::Beat {
                 index,

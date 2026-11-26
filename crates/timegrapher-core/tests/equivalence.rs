@@ -580,6 +580,7 @@ fn a_look_back_with_no_beats_judges_nothing() {
         duration_s: 25.0,
         bph: 28_800,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats,
         amplitude_windows: Vec::new(),
         clipped_beats: Vec::new(),

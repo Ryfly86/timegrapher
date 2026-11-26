@@ -2005,6 +2005,7 @@ fn a_window_goes_in_the_cell_its_middle_lies_in() {
         duration_s: 10.0,
         bph: 28800,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats: Vec::new(),
         amplitude_windows: vec![w(0.0, 2.0, 250.0), w(3.2, 4.0, 260.0), w(6.0, 8.0, 270.0)],
         clipped_beats: vec![],
