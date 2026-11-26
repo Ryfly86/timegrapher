@@ -400,6 +400,7 @@ fn with_read_figures(own: LiveReading, read: LiveReading) -> LiveReading {
     LiveReading {
         bph: own.bph,
         bph_set: own.bph_set,
+        bph_set_from: own.bph_set_from,
         snr: own.snr,
         clipped_beats: own.clipped_beats,
         clipped_fraction: own.clipped_fraction,

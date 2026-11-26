@@ -1311,7 +1311,7 @@ fn add_into(
     let m = Manifest {
         watch: Some(watch.name.clone()),
         calibre: watch.calibre.clone().filter(|c| !c.is_empty()),
-        bph: fill.bph.or(watch.bph),
+        bph: fill.bph.or(watch.beat_rate()),
         lift: lift.map(|l| l.0),
         lift_known: lift.map(|l| l.1),
         recordings: vec![RecordingEntry {

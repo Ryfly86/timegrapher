@@ -57,6 +57,13 @@ on each `session` reading (also inside an analyzed take), on `record.check`, and
 on a live reading. `bph` and `timing_scatter_fraction` retain their numerical
 meaning. When no regular beat was found and `bph_set` is null or absent, text
 gives the timing scatter in ms without a percentage of a guessed beat (#857).
+Beside it wherever it appears, `bph_set_from` says where the set rate came
+from (#2224): `standard` (given with `--bph` or MCP's `bph` as one of the
+standard rates, 12000, 14400, 17280, 18000, 19800, 21600, 25200, 28800,
+36000, 43200 and 72000), `typed` (given as any other whole rate in range),
+`calibre` (the calibre's table row) or `session` (the take's session file).
+It is left out when `bph_set` is null. A rate a `record` takes from a
+library watch counts as given.
 
 `software` tells builds apart: `git_hash` is the short commit hash
 (`"unknown"` in a build from a source tarball, without git), `git_dirty`
@@ -654,8 +661,12 @@ Before command execution, explicit analysis/acquisition arguments are checked fo
 mathematical and representation constraints, and the lift angle for its one
 range (core `input_domain::LIFT_RANGE_DEG`, which the app's lift fields use too):
 
-- `--bph`: a positive `u32` (1 through 4294967295), for `analyze`, `shape`,
-  `profile`, `long`, `series`, `doctor`, `record`, `session`, `synth` and `report`.
+- `--bph`: a whole number from 12000 to 72000 (core `input_domain::BPH_RANGE`,
+  the slowest and fastest standard rates; a decimal is refused, never rounded),
+  for `analyze`, `shape`, `profile`, `long`, `series`, `doctor`, `record`,
+  `session`, `synth` and `report`, as are a session file's `bph`, MCP's `bph`
+  and `watches edit --bph`. A library watch whose `watch.toml` gives a rate
+  outside it has that rate set aside: `record` says so and reads it on Auto.
 - `--lift`: from 10 to 90 degrees, for `analyze`, `shape`, `profile`, `long`,
   `series`, `record`, `session` and `report`, as are a session file's `lift`
   and MCP's `lift_deg`.

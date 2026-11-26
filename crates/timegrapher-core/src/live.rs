@@ -132,6 +132,10 @@ pub struct LiveReading {
     /// The supplied beat rate (option, calibre or session file), never a guess.
     /// With no supplied rate, no-watch text gives scatter only in ms (#857).
     pub bph_set: Option<u32>,
+    /// Where `bph_set` came from ([`crate::set_rate::BphFrom`]); left out
+    /// with no rate set.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bph_set_from: Option<crate::set_rate::BphFrom>,
     pub rate_s_per_day: Option<f64>,
     /// Signed beat error from the fit to the beat times (near the drop), ms.
     pub beat_error_ms: Option<f64>,
@@ -811,6 +815,8 @@ impl LiveAnalyzer {
         let heard = self.bph.is_some();
         if bph != self.cfg.analysis.bph {
             let was = std::mem::replace(&mut self.cfg.analysis.bph, bph);
+            // A rate set here is given for this reading.
+            self.cfg.analysis.bph_from = crate::set_rate::BphFrom::of(bph, None, None);
             // The rate the beats are already read at, or Auto where Auto
             // found that rate: the beats so far stand. Auto after a rate
             // set by hand listens for the rate afresh.
@@ -1597,6 +1603,7 @@ impl LiveAnalyzer {
         let whole = holes.whole(&self.beats, window_from, end_s, GAP_S);
         LiveReading {
             bph_set: self.cfg.analysis.bph,
+            bph_set_from: self.cfg.analysis.bph.and(self.cfg.analysis.bph_from),
             time_s: end_s,
             bph,
             rate_s_per_day: heard(fit.map(|f| f.rate_s_per_day)).map(|v| {

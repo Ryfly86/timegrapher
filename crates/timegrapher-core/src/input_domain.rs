@@ -1,15 +1,25 @@
 //! Shared scalar domains used by explicit CLI/MCP input parsers and selected
 //! Manifest consumption points, before their analysis or recording work.
 //! These are mathematical/type constraints, not empirical watch operating
-//! ranges, except the lift angle's [`LIFT_RANGE_DEG`], one rule for every
-//! surface.
+//! ranges, except the lift angle's [`LIFT_RANGE_DEG`] and the beat rate's
+//! [`BPH_RANGE`], one rule each for every surface.
 //! Other persisted/programmatic configurations are not automatically validated.
 
+/// The beat rates that can be set, bph: whole numbers from the slowest
+/// standard rate to the fastest ([`crate::beats::STANDARD_BPH`]), the
+/// range the engine is tested over (Norm on #2224). One rule for
+/// `--bph`, MCP, session files and the library.
+pub const BPH_RANGE: std::ops::RangeInclusive<u32> = 12_000..=72_000;
+
+/// Why a beat rate outside [`BPH_RANGE`] is refused.
+pub const BPH_RANGE_TEXT: &str = "the beat rate must be a whole number from 12000 to 72000 bph";
+
+/// `value` if it lies in [`BPH_RANGE`].
 pub fn bph(value: u64) -> Result<u32, String> {
     u32::try_from(value)
         .ok()
-        .filter(|&v| v > 0)
-        .ok_or_else(|| "BPH must be an integer from 1 through 4294967295".into())
+        .filter(|v| BPH_RANGE.contains(v))
+        .ok_or_else(|| BPH_RANGE_TEXT.into())
 }
 
 pub fn escape_teeth(value: u32) -> Result<u32, String> {
@@ -174,5 +184,27 @@ mod tests {
                 "{a}"
             );
         }
+    }
+
+    /// Any whole rate from 12,000 to 72,000 bph is taken, the ends
+    /// included; one outside says the range (Norm on #2224).
+    #[test]
+    fn a_beat_rate_is_taken_from_12000_to_72000_bph() {
+        for b in [12_000, 17_570, 18_000, 28_800, 72_000] {
+            assert_eq!(bph(b), Ok(b as u32), "{b}");
+        }
+        for b in [0, 1, 8_000, 11_999, 72_001, u32::MAX as u64, u64::MAX] {
+            assert_eq!(bph(b), Err(BPH_RANGE_TEXT.to_string()), "{b}");
+        }
+        assert!(BPH_RANGE_TEXT.contains("12000") && BPH_RANGE_TEXT.contains("72000"));
+    }
+
+    /// The range runs from the slowest standard rate to the fastest.
+    #[test]
+    fn the_beat_rate_range_ends_at_the_standard_rates() {
+        let standard = crate::beats::STANDARD_BPH;
+        assert_eq!(*BPH_RANGE.start(), standard[0]);
+        assert_eq!(*BPH_RANGE.end(), standard[standard.len() - 1]);
+        assert!(standard.iter().all(|b| BPH_RANGE.contains(b)));
     }
 }

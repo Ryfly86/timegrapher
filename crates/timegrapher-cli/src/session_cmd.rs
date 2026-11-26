@@ -796,6 +796,7 @@ fn read_one_inner(
     Ok((
         Reading {
             bph_set: cfg.analysis.bph,
+            bph_set_from: cfg.analysis.bph_from,
             label,
             position,
             wind_h: e.wind_h,

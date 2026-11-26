@@ -782,7 +782,9 @@ pub struct Given {
 /// - escapement: by [`crate::escapement::Escapement::setting`] (#2313).
 pub fn stream_settings(m: &Manifest, cal: Option<&Calibre>, given: Given) -> StreamConfig {
     let mut cfg = StreamConfig::default();
-    cfg.analysis.bph = given.bph.or(m.bph).or(cal.and_then(|c| c.bph));
+    let table = cal.and_then(|c| c.bph);
+    cfg.analysis.bph = given.bph.or(m.bph).or(table);
+    cfg.analysis.bph_from = crate::set_rate::BphFrom::of(given.bph, m.bph, table);
     let lift = lift_setting(given.lift_deg, Some(m), cal);
     cfg.analysis.amplitude.lift_deg = lift.lift_deg;
     cfg.analysis.lift_known = lift.known;

@@ -23,6 +23,8 @@ pub use timegrapher_core::take::ESCAPE_TEETH as DEFAULT_ESCAPE_TEETH;
 /// calibre's figure, then the default.
 pub struct Resolved {
     pub bph: Option<u32>,
+    /// Where `bph` came from (`bph_set_from`, #2224).
+    pub bph_from: Option<timegrapher_core::set_rate::BphFrom>,
     pub lift_deg: f64,
     /// The lift angle came from the flag or the calibre, not the default.
     pub lift_known: bool,
@@ -79,6 +81,7 @@ pub fn resolve_for(
     let set = timegrapher_core::take::stream_settings(&m, train.calibre.as_ref(), given).analysis;
     Ok(Resolved {
         bph: set.bph,
+        bph_from: set.bph_from,
         lift_deg: set.amplitude.lift_deg,
         lift_known: set.lift_known,
         escape_teeth: escape_teeth.unwrap_or(set.escape_teeth),
@@ -95,8 +98,10 @@ fn resolve_train(
 ) -> Resolved {
     let c = train.calibre.as_ref();
     let lift = timegrapher_core::take::lift_setting(lift_deg, None, c);
+    let table = c.and_then(|c| c.bph);
     Resolved {
-        bph: bph.or(c.and_then(|c| c.bph)),
+        bph: bph.or(table),
+        bph_from: timegrapher_core::set_rate::BphFrom::of(bph, None, table),
         lift_deg: lift.lift_deg,
         lift_known: lift.known,
         escape_teeth: escape_teeth

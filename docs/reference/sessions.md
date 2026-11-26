@@ -52,7 +52,9 @@ position = "CH"
 clock = "ym42_DU_2h/clocklog.txt"   # see long-runs.md
 ```
 
-When a session manifest is consumed, `bph` must be a positive `u32`,
+When a session manifest is consumed, `bph` must be a whole number from
+12000 to 72000, the range `--bph` and MCP take too (a take outside it is
+refused when opened, naming the file, and the file is left as it is),
 `lift` (including its `lift_angle` alias) must be from 10 to 90 degrees,
 the one lift range the app, the command line and MCP use too,
 `escape_teeth` must be a positive `u32`, and `card_ppm_fast` must be finite with

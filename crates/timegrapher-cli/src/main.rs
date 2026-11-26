@@ -36,7 +36,7 @@ use timegrapher_core::{analyze, load, Analysis, AnalysisConfig};
 fn parse_bph(text: &str) -> Result<u32, String> {
     let value = text
         .parse::<u64>()
-        .map_err(|_| "BPH must be an integer from 1 through 4294967295".to_string())?;
+        .map_err(|_| timegrapher_core::input_domain::BPH_RANGE_TEXT.to_string())?;
     timegrapher_core::input_domain::bph(value)
 }
 fn parse_lift(text: &str) -> Result<f64, String> {
@@ -1047,6 +1047,7 @@ fn measure_command(c: Command) -> Result<(), String> {
             .and_then(|r| {
                 let mut cfg = AnalysisConfig {
                     bph: r.bph,
+                    bph_from: r.bph_from,
                     escape_teeth: r.escape_teeth,
                     lift_known: r.lift_known,
                     ..Default::default()
@@ -1127,6 +1128,7 @@ fn profile_command(c: Command) -> Result<(), String> {
     let r = calibres_cmd::resolve_for(&file, calibre.as_deref(), bph, lift, None)?;
     let mut cfg = AnalysisConfig {
         bph: r.bph,
+        bph_from: r.bph_from,
         ..Default::default()
     };
     cfg.amplitude.lift_deg = r.lift_deg;
@@ -2336,7 +2338,7 @@ mod numeric_input_tests {
                 "timegrapher",
                 "analyze",
                 "unused.wav",
-                "--bph=1",
+                "--bph=12000",
                 "--lift=52",
                 "--escape-teeth=1",
                 &format!("--card-ppm={ppm}")
@@ -2347,7 +2349,7 @@ mod numeric_input_tests {
             "timegrapher",
             "analyze",
             "unused.wav",
-            "--bph=4294967295",
+            "--bph=72000",
             "--lift=90",
             "--escape-teeth=4294967295"
         ])

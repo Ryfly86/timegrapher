@@ -96,6 +96,9 @@ struct Check {
     timing_scatter_fraction: Option<f64>,
     bph: u32,
     bph_set: Option<u32>,
+    /// Where `bph_set` came from; left out with no rate set.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bph_set_from: Option<timegrapher_core::set_rate::BphFrom>,
     beats_found: usize,
     beats_expected: usize,
     rate_s_per_day: Option<f64>,
@@ -136,6 +139,8 @@ pub(crate) struct Settings {
     pub(crate) watch: Option<String>,
     pub(crate) calibre: Option<String>,
     pub(crate) bph: Option<u32>,
+    /// Where `bph` came from (`bph_set_from`, #2224).
+    pub(crate) bph_from: Option<timegrapher_core::set_rate::BphFrom>,
     pub(crate) lift: f64,
     pub(crate) lift_known: bool,
     /// Where the lift angle came from (#1648).
@@ -232,7 +237,14 @@ fn place(o: &mut Options) -> Result<Placed, String> {
     if o.calibre.is_none() {
         o.calibre = w.calibre.clone().filter(|c| !c.trim().is_empty());
     }
-    o.bph = o.bph.or(w.bph);
+    if let (None, Some(b)) = (o.bph, w.bph_set_aside()) {
+        eprintln!(
+            "note: {}'s beat rate of {b} bph is set aside ({}); it is read on Auto",
+            w.name,
+            timegrapher_core::input_domain::BPH_RANGE_TEXT
+        );
+    }
+    o.bph = o.bph.or(w.beat_rate());
     o.lift = o.lift.or(w.lift);
     let started = chrono::Local::now()
         .format(library::TAKE_NAME_TIME)
@@ -428,7 +440,8 @@ fn settings_with(
         train.resolve_label_with(user)?
     };
     let table = selected.calibre.as_ref();
-    let bph = o.bph.or(table.and_then(|c| c.bph));
+    let table_bph = table.and_then(|c| c.bph);
+    let bph = o.bph.or(table_bph);
     let calibre = table.map(|c| c.name.clone());
     // The lift every reader reads (#2226).
     let lift = take::lift_setting(o.lift, m.as_ref(), table);
@@ -437,6 +450,7 @@ fn settings_with(
             watch: o.watch.clone(),
             calibre,
             bph,
+            bph_from: timegrapher_core::set_rate::BphFrom::of(o.bph, None, table_bph),
             lift: lift.lift_deg,
             lift_known: lift.known,
             lift_from: lift.from,
@@ -486,6 +500,7 @@ fn settings_with(
         watch: m.watch.or(o.watch.clone()),
         calibre: m.calibre.or(calibre),
         bph: m.bph.or(bph),
+        bph_from: timegrapher_core::set_rate::BphFrom::of(o.bph, m.bph, table_bph),
         lift: lift.lift_deg,
         lift_known: lift.known,
         lift_from: lift.from,
@@ -1013,6 +1028,7 @@ fn check(dir: &Path, set: &Settings) -> Result<Check, String> {
         let m = m.filter(|_| heard);
         Check {
             bph_set: set.bph,
+            bph_set_from: set.bph.and(set.bph_from),
             from_s,
             to_s,
             watch_heard,
@@ -1315,6 +1331,7 @@ mod tests {
             watch: None,
             calibre: None,
             bph: Some(28800),
+            bph_from: None,
             lift: 52.0,
             lift_known: true,
             lift_from: take::SettingFrom::Given,
@@ -1384,6 +1401,7 @@ mod tests {
             watch: None,
             calibre: None,
             bph: Some(28800),
+            bph_from: None,
             lift: 52.0,
             lift_known: true,
             lift_from: take::SettingFrom::Given,
@@ -1452,6 +1470,7 @@ mod tests {
             watch: None,
             calibre: None,
             bph: Some(28800),
+            bph_from: None,
             lift: 52.0,
             lift_known: true,
             lift_from: take::SettingFrom::Given,
@@ -1496,6 +1515,7 @@ mod tests {
                 watch: None,
                 calibre: None,
                 bph,
+                bph_from: None,
                 lift: 52.0,
                 lift_known: true,
                 lift_from: take::SettingFrom::Given,
@@ -1620,6 +1640,7 @@ mod tests {
             watch: None,
             calibre: None,
             bph: Some(28800),
+            bph_from: None,
             lift: 52.0,
             lift_known: true,
             lift_from: take::SettingFrom::Given,
@@ -1668,6 +1689,7 @@ mod tests {
             watch: None,
             calibre: None,
             bph: Some(28800),
+            bph_from: None,
             lift: 52.0,
             lift_known: true,
             lift_from: take::SettingFrom::Given,
@@ -1711,12 +1733,14 @@ mod tests {
             watch: None,
             calibre: None,
             bph: Some(28800),
+            bph_from: None,
             lift: 52.0,
             lift_known: true,
             lift_from: take::SettingFrom::Given,
             settle_s: None,
         };
         let check = || Check {
+            bph_set_from: None,
             from_s: 0.0,
             to_s: 1.0,
             watch_heard: true,
