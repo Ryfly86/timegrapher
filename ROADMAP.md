@@ -21,7 +21,7 @@ Before any new feature, the project is fixing the bugs found in testing:
   findings of an outside audit of the repository.
 
 Version 1.1.0 is the current release. A 1.1.1 point release follows once the
-audit's fixes are in.
+shakedown fixes and the audit's data-loss and wrong-rate fixes are in.
 
 Co-axial escapements are being added as a beta
 ([#2313](https://github.com/peterhudson/timegrapher/issues/2313)): the rate
@@ -56,7 +56,7 @@ Later, in this order, with no version yet:
 
 Every point release also carries smaller work:
 
-- The name "Open Timegrapher" in the app ([#1874](https://github.com/peterhudson/timegrapher/issues/1874)) and replacing the unmaintained `chrono` dependency flagged by a security advisory ([#1856](https://github.com/peterhudson/timegrapher/issues/1856)), both in the first one.
+- The name "Open Timegrapher" in the app ([#1874](https://github.com/peterhudson/timegrapher/issues/1874)) and replacing the unmaintained `chrono` dependency flagged by a security advisory ([#1856](https://github.com/peterhudson/timegrapher/issues/1856)), both in 1.2.
 - Bugs found in testing 1.1, gathered in [#2130](https://github.com/peterhudson/timegrapher/issues/2130), plus others filed since.
 - Live and saved readings agree: [#1819](https://github.com/peterhudson/timegrapher/issues/1819), [#1817](https://github.com/peterhudson/timegrapher/issues/1817), [#1827](https://github.com/peterhudson/timegrapher/issues/1827), [#1730](https://github.com/peterhudson/timegrapher/issues/1730), [#1917](https://github.com/peterhudson/timegrapher/issues/1917).
 - Amplitude edge cases: [#1704](https://github.com/peterhudson/timegrapher/issues/1704), [#1707](https://github.com/peterhudson/timegrapher/issues/1707), [#1709](https://github.com/peterhudson/timegrapher/issues/1709), [#1788](https://github.com/peterhudson/timegrapher/issues/1788), [#1791](https://github.com/peterhudson/timegrapher/issues/1791).
