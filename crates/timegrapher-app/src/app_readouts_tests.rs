@@ -1,7 +1,7 @@
 //! Inputs and their gain, what the cards and readings say, the profiles,
 //! exporting a pane, and the empty and error states.
 
-use super::readouts::{no_watch_below, no_watch_hover, reading_limits, take_limits};
+use super::readouts::{beats_were_regular, no_watch_hover, reading_limits, take_limits};
 use super::tests::{frames, painted_text, screen, synthetic, themed};
 use super::*;
 use timegrapher_core::synth::{generate, SynthConfig};
@@ -2749,9 +2749,8 @@ fn the_be_angle_line_is_at_the_readings_own_period() {
 }
 
 /// Beats regular but no run long enough to read (#2257): the cards'
-/// hover is core's reason alone, and the status card says what a
-/// reading needs, with no hover about scattered beats; scattered beats
-/// keep both as before (Hugh on #2311).
+/// hover is core's reason alone, and its beats are a watch's; scattered
+/// beats keep the hover about scatter as before (Hugh on #2311).
 #[test]
 fn a_run_too_short_is_not_called_scattered() {
     use timegrapher_core::measure::NoWatchReason;
@@ -2764,16 +2763,104 @@ fn a_run_too_short_is_not_called_scattered() {
         "No regular beat found (the beats were regular, but no run of them lasted the 10 s \
          a reading needs)."
     );
-    assert_eq!(
-        no_watch_below(Some(&r)),
-        (
-            "The readings and charts need a run of regular beats lasting 10 s or more.".to_string(),
-            None
-        )
-    );
+    assert!(beats_were_regular(&r));
     r.caveats = vec![Caveat::NoWatch {
         reason: NoWatchReason::Scatter,
     }];
     assert!(no_watch_hover(Some(&r)).ends_with(*help::NO_REGULAR_BEAT));
-    assert_eq!(no_watch_below(Some(&r)).1, Some(*help::NO_REGULAR_BEAT));
+    assert!(!beats_were_regular(&r));
+}
+
+/// A synthetic watch at 28,800 heard `first` s, then `gap` s of noise
+/// peaking at 0.75 times its RMS, then 9 s of the watch again, listened
+/// to through the capture as the window hears it, stopped, and its Stop
+/// read in.
+fn stopped_short_return(base: &Path, (first, gap): (f64, f64)) -> TimegrapherApp {
+    use timegrapher_core::capture::{Block, Event};
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "short return".into());
+    app.session.listen();
+    let info = app.info("short return", 48000, 16);
+    app.session.recorder = Some(Recorder::start(&base.join("live"), info).unwrap());
+    let tx = super::tests::queued_capture(&mut app, base);
+    let cfg = SynthConfig {
+        bph: 28_800,
+        duration_s: first + gap + 9.0,
+        ..Default::default()
+    };
+    let mut audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let span = (first * 48_000.0) as usize..((first + gap) * 48_000.0) as usize;
+    let rms = (audio.samples[span.clone()]
+        .iter()
+        .map(|v| v * v)
+        .sum::<f32>()
+        / span.len() as f32)
+        .sqrt();
+    let mut x: u64 = 12_345;
+    for s in &mut audio.samples[span] {
+        x = x
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        *s = 1.5 * rms * ((x >> 33) as f32 / (1u64 << 31) as f32 - 0.5);
+    }
+    for (k, samples) in audio.samples.chunks(960).enumerate() {
+        let us = 3e6 + (k * 960) as f64 / 48_000.0 * 1e6;
+        let at = std::time::UNIX_EPOCH + std::time::Duration::from_micros(us as u64);
+        let samples = samples.to_vec();
+        tx.send(Event::Audio(Block { samples, at })).unwrap();
+    }
+    while app.poll_for(std::time::Duration::from_secs(60)) > 0 {}
+    app.stop();
+    let t = std::time::Instant::now();
+    while app.stop_read_waits().is_some() {
+        app.poll_stop_read();
+        assert!(
+            t.elapsed().as_secs() < 120,
+            "the Stop read is still under way"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    app.poll_stop_read();
+    assert!(
+        app.stopped_take().is_some(),
+        "the take stopped is read whole"
+    );
+    app
+}
+
+/// A watch put back for 9 s after noise, stopped, after 7 s of it heard
+/// first or none: at every Average Over its cards read the whole take's
+/// verdict, too short, never Finding the Beat, whose wait can't end once
+/// the take has; and the strip shows the run's beats, saying what a
+/// reading needs, never "no regular beat found yet" (Walter 46 on #2311).
+#[test]
+fn a_stopped_short_return_reads_too_short_at_every_average() {
+    use timegrapher_core::measure::{no_watch_reason_in, too_short_need_text, NoWatchReason};
+    let ctx = themed();
+    for (n, take) in [(7.0, 20.0), (0.0, 12.0)].into_iter().enumerate() {
+        let base = std::env::temp_dir().join(format!("tg-short-return-{}-{n}", std::process::id()));
+        let _ = std::fs::create_dir_all(&base);
+        let mut app = stopped_short_return(&base, take);
+        for average in timegrapher_core::live::AVERAGES {
+            app.bench.take.average_s = average;
+            let _ = app.whole_take();
+            let r = app.card_reading().expect("a reading");
+            assert!(
+                !r.finding_beat && !r.watch_heard,
+                "{take:?} at {average} s: {r:?}"
+            );
+            assert_eq!(
+                no_watch_reason_in(&r.caveats),
+                Some(NoWatchReason::TooShort),
+                "{take:?} at {average} s: {r:?}"
+            );
+            let strip = strip_text(&mut app, &ctx, true);
+            assert!(
+                strip.contains(&too_short_need_text()),
+                "{take:?} at {average} s: {strip}"
+            );
+            assert!(!strip.contains("yet"), "{take:?} at {average} s: {strip}");
+        }
+        let _ = std::fs::remove_dir_all(base);
+    }
 }

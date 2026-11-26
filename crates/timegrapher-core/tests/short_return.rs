@@ -25,7 +25,8 @@ fn noise(x: &mut u64) -> f32 {
 }
 
 /// A synthetic balance beating 28,800 at 280° for `first` s, then
-/// [`GAP_S`] of noise at 1.5 times the sound's RMS there, then the watch
+/// [`GAP_S`] of uniform noise peaking at 0.75 times the sound's RMS there
+/// (its own RMS about 0.43 times the watch's, Walter 46), then the watch
 /// again for `back` s.
 fn put_back(first: f64, back: f64) -> Audio {
     put_back_after(first, GAP_S, back)
@@ -120,7 +121,7 @@ fn whole(audio: &Audio, bph: Option<u32>) -> Measurement {
 
 /// The stopped take's reading at every Average Over that holds the whole
 /// take, as the desktop reads it at Stop: a shorter one reads its own
-/// last seconds (`LiveReading::at_whole_end`).
+/// last seconds where it hears the watch (`LiveReading::at_whole_end`).
 fn stopped(l: &LiveAnalyzer, w: &Measurement) -> Vec<LiveReading> {
     let end = l.duration_s();
     AVERAGES
@@ -189,6 +190,18 @@ fn a_short_return_is_found_and_stops_as_too_short() {
                 "{bph:?}"
             );
         }
+        // Finding the beat at Stop, at any shorter Average Over too: the
+        // whole's verdict, since that wait can't end (Walter 46 on #2311).
+        let end = l.duration_s();
+        for avg in AVERAGES {
+            let r = l.reading_at(end, avg).at_whole_end(&w, avg);
+            assert!(!r.watch_heard && !r.finding_beat, "{bph:?}, {avg} s: {r:?}");
+            assert_eq!(
+                no_watch_reason_in(&r.caveats),
+                Some(NoWatchReason::TooShort),
+                "{bph:?}, {avg} s"
+            );
+        }
     }
 }
 
@@ -231,6 +244,11 @@ fn a_return_is_read_once_a_window_fits_over_it() {
             (heard - rate).abs() < 0.05,
             "{bph_at:?}: {heard} for {rate}"
         );
+        // Stopped, no Average Over is left finding the beat (Walter 46).
+        for avg in AVERAGES {
+            let r = l.reading_at(end, avg).at_whole_end(&w, avg);
+            assert!(!r.finding_beat, "{bph_at:?}, {avg} s: {r:?}");
+        }
     }
 }
 

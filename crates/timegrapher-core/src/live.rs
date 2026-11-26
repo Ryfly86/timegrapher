@@ -263,15 +263,21 @@ impl LiveReading {
     /// bit (#2073, Norm). The engine corrects a rate fitted on the sound's
     /// time by the clock's slope, where `session` fits it on the clock's
     /// time: the same rate, but not the same float. A watch still being
-    /// found at the end is read the same: whether a run is read is the
+    /// found at the end is read the same, at any averaging time, since its
+    /// wait can't end once the take has: whether a run is read is the
     /// whole's to say, so the stopped take reads as `analyze` does, figures
-    /// or no regular beat with its reason (Norm on #2257). With a shorter
-    /// averaging time, or no watch heard nor being found, this reading
-    /// stands.
+    /// or no regular beat with its reason (Norm on #2257, Walter 46 on
+    /// #2311). A heard reading with a shorter averaging time, or no watch
+    /// heard nor being found, stands.
     #[must_use]
     pub fn at_whole_end(self, whole: &crate::session::Measurement, average_s: f64) -> Self {
-        let holds = whole.end_s == self.time_s && whole.start_s >= self.time_s - average_s;
-        if !holds || !(self.watch_heard || self.finding_beat) || self.listening.is_some() {
+        let ends = whole.end_s == self.time_s;
+        let holds = ends && whole.start_s >= self.time_s - average_s;
+        // Finding the beat waits for more of the watch, which a stopped
+        // take never gives: at any averaging time, the whole says whether
+        // the run is read (Walter 46 on #2311).
+        let finding = ends && self.finding_beat;
+        if !(holds && self.watch_heard || finding) || self.listening.is_some() {
             return self;
         }
         if !whole.watch_heard {
