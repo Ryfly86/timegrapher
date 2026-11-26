@@ -1776,19 +1776,25 @@ fn allan_plot(ui: &mut egui::Ui, r: Row<'_>) {
                 );
             }
         });
-    // Each label on a plate in the nearest place that neither the trace
-    // nor the dashed line crosses, and off the labels placed before it:
-    // the least scatter, then the dashed line's name where it ends, then
-    // the hollow points' note at the first of them (#2129: the dashed
-    // line ran through the first two; Walter on #2012: the note sat on
-    // the dashed line's name).
-    // On a short plot only the hollow note is its point's hover: the
-    // least scatter is the plot's figure and the dashed line's name the
-    // key to it, so they take a plate wherever one is clear (Hugh 28).
+    // Each label on a plate near its point that neither the trace nor
+    // the dashed line crosses, nor its short leader, and off the labels
+    // placed before it (#2129: the dashed line ran through the labels;
+    // Walter on #2012: the hollow note sat on the dashed line's name;
+    // Walter 50 on #2359: long leaders ran side by side). On a short plot
+    // only the hollow note is its point's hover: the least scatter is the
+    // plot's figure and the dashed line's name the key to it (Hugh 28).
     let note = PlotNote::new;
+    // The dashed line's name where it ends, else along it.
+    let along = last.map(|_| along_line(&white));
+    // The two notes on a point first, then the dashed line's name, which
+    // may stand anywhere along its line.
     let notes = [
-        least.map(|(at, text)| note(at, text, pal.text, "least scatter", false)),
-        last.map(|at| {
+        least.map(|(at, text)| note(vec![at], text, pal.text, "least scatter", false)),
+        hollow
+            .first()
+            .zip(a.hollow_note)
+            .map(|(&at, n)| note(vec![at], n.to_string(), pal.text, "hollow note", short)),
+        along.map(|at| {
             note(
                 at,
                 independent.into(),
@@ -1797,19 +1803,27 @@ fn allan_plot(ui: &mut egui::Ui, r: Row<'_>) {
                 false,
             )
         }),
-        hollow
-            .first()
-            .zip(a.hollow_note)
-            .map(|(&at, n)| note(at, n.to_string(), pal.text, "hollow note", short)),
     ];
     let id = ui.id().with((i, view));
     plot_notes(ui, &resp.transform, &notes, vec![trace, white], id);
 }
 
-/// A note on a plot: its point, words, colour and name, and whether it
-/// is its point's hover alone (`short`, as [`marks::beside`]'s).
+/// The places a line's name may stand by, nearest its end first: its
+/// last point, then back along it, each point and each segment's middle.
+fn along_line(line: &[[f64; 2]]) -> Vec<[f64; 2]> {
+    let mid = |a: [f64; 2], b: [f64; 2]| [(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0];
+    let mut out: Vec<[f64; 2]> = line.last().copied().into_iter().collect();
+    for s in line.windows(2).rev() {
+        out.extend([mid(s[0], s[1]), s[0]]);
+    }
+    out
+}
+
+/// A note on a plot: the points it may stand by, nearest first, its
+/// words, colour and name, and whether it is its point's hover alone
+/// (`short`, as [`marks::beside`]'s).
 struct PlotNote<'a> {
-    at: [f64; 2],
+    at: Vec<[f64; 2]>,
     text: String,
     colour: Color32,
     name: &'a str,
@@ -1817,7 +1831,7 @@ struct PlotNote<'a> {
 }
 
 impl<'a> PlotNote<'a> {
-    fn new(at: [f64; 2], text: String, colour: Color32, name: &'a str, short: bool) -> Self {
+    fn new(at: Vec<[f64; 2]>, text: String, colour: Color32, name: &'a str, short: bool) -> Self {
         PlotNote {
             at,
             text,
@@ -1841,7 +1855,7 @@ fn plot_notes(
     let fill = ui.visuals().extreme_bg_color.gamma_multiply(0.8);
     let mut avoid: Vec<egui::Rect> = Vec::new();
     for n in notes.iter().flatten() {
-        let placed = (n.at, n.text.as_str(), n.colour);
+        let placed = (n.at.as_slice(), n.text.as_str(), n.colour);
         let on: Vec<&[[f64; 2]]> = lines.iter().map(Vec::as_slice).collect();
         let nid = id.with(n.name);
         let Some((plate, leader)) =

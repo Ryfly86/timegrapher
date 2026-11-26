@@ -1959,6 +1959,13 @@ fn allan_points_on_too_few_differences_are_hollow() {
 /// independent line, its last point, on too few differences, just over
 /// the line's end.
 fn allan_session() -> Steadiness {
+    allan_session_from(7)
+}
+
+/// [`allan_session`] with the points from `first` on hollow, on too few
+/// differences, and the least scatter just before them: the earlier
+/// `first`, the more room around the hollow note (4 leaves it mid-plot).
+fn allan_session_from(first: usize) -> Steadiness {
     use timegrapher_core::steadiness::{
         Allan, ALLAN_HOLLOW_NOTE, ALLAN_JUDGED_DIFFERENCES as JUDGED,
     };
@@ -1996,15 +2003,15 @@ fn allan_session() -> Steadiness {
     let deviation: Vec<f64> = white
         .iter()
         .enumerate()
-        .map(|(i, w)| if i < 7 { w * 1.3 } else { w * 1.1 })
+        .map(|(i, w)| if i < first { w * 1.3 } else { w * 1.1 })
         .collect();
     let pairs: Vec<usize> = (0..8)
-        .map(|i| if i < 7 { 4000 >> i } else { JUDGED - 1 })
+        .map(|i| if i < first { 4000 >> i } else { JUDGED - 1 })
         .collect();
     s.report.series[0].allan = Some(Allan {
         judged: pairs.iter().map(|&n| n >= JUDGED).collect(),
-        best_tau_s: Some(tau[6]),
-        best_deviation: Some(deviation[6]),
+        best_tau_s: Some(tau[first - 1]),
+        best_deviation: Some(deviation[first - 1]),
         tau_s: tau,
         deviation,
         white,
@@ -2023,7 +2030,11 @@ fn allan_session() -> Steadiness {
 #[test]
 fn the_hollow_note_keeps_clear_of_the_allan_plots_other_labels() {
     use timegrapher_core::steadiness::ALLAN_HOLLOW_NOTE;
-    let s = allan_session();
+    // The hollow points from the sixth on: at the plot's foot by the
+    // line's end (`allan_session`) the note has no place within a short
+    // leader that crosses no line, so it is its point's hover there
+    // (Walter 50 on #2359); here it has room, by the other two labels.
+    let s = allan_session_from(5);
     let ctx = egui::Context::default();
     theme::install(&ctx);
     fn texts(shape: &egui::Shape, into: &mut Vec<(String, egui::Rect)>) {
@@ -2071,6 +2082,42 @@ fn the_hollow_note_keeps_clear_of_the_allan_plots_other_labels() {
     }
 }
 
+/// Each note's leader on a plot (`all` its shapes, `lines` its plotted
+/// lines) is short and crosses no other leader and no plotted line
+/// (Walter 50 on #2359: two leaders of 230 px ran side by side across the
+/// dashed line).
+fn leaders_short_and_clear(
+    all: &[egui::Shape],
+    lines: &[[egui::Pos2; 2]],
+    pal: &theme::Palette,
+    (w, h): (f32, f32),
+) {
+    let leaders: Vec<[egui::Pos2; 2]> = all
+        .iter()
+        .filter_map(|s| match s {
+            egui::Shape::LineSegment { points, stroke }
+                if stroke.width == 1.0 && stroke.color == pal.text_secondary =>
+            {
+                Some(*points)
+            }
+            _ => None,
+        })
+        .collect();
+    for l in &leaders {
+        let long = l[0].distance(l[1]);
+        assert!(
+            long <= crate::marks::LEADER_MAX,
+            "{w}x{h}: a leader {long} long"
+        );
+        for o in lines.iter().filter(|o| *o != l) {
+            assert!(
+                !crate::marks::segments_cross(*l, *o),
+                "{w}x{h}: leader {l:?} crosses {o:?}"
+            );
+        }
+    }
+}
+
 /// The Allan plot's labels sit where neither the deviation's line nor the
 /// dashed independent line runs through their words (#2129: on two
 /// takes of the v1.1 shakedown the dashed line struck through "least
@@ -2092,6 +2139,10 @@ fn no_line_runs_through_the_allan_plots_labels() {
         (900.0, 300.0),
         (1400.0, 500.0),
         (1900.0, 700.0),
+        // A third of 1920x1080 and of 2560x1440, as with all three series
+        // shown (Walter 50 on #2359).
+        (1920.0, 330.0),
+        (2560.0, 450.0),
     ] {
         let mut all = Vec::new();
         // Twice, as a note keeps the place it took last frame.
@@ -2127,6 +2178,12 @@ fn no_line_runs_through_the_allan_plots_labels() {
                 _ => {}
             }
         }
+        leaders_short_and_clear(
+            &all,
+            &lines,
+            theme::palette(ctx.style().visuals.dark_mode),
+            (w, h),
+        );
         let mut seen = 0;
         for s in &all {
             let egui::Shape::Text(t) = s else { continue };
@@ -2154,7 +2211,14 @@ fn no_line_runs_through_the_allan_plots_labels() {
                 );
             }
         }
-        assert_eq!(seen, 2, "{w}x{h}: both labels drawn");
+        let names: Vec<String> = all
+            .iter()
+            .filter_map(|s| match s {
+                egui::Shape::Text(t) => Some(t.galley.text().to_string()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(seen, 2, "{w}x{h}: both labels drawn {names:?}");
     }
 }
 
@@ -2258,8 +2322,8 @@ fn plot_notes_keep_off_each_others_plates() {
     let out = ctx.run(Default::default(), |ctx| {
         egui::CentralPanel::default().show(ctx, |ui| {
             let c = theme::pal(ui).text;
-            let note = |at, text: &str, name| PlotNote {
-                at,
+            let note = |at: [f64; 2], text: &str, name| PlotNote {
+                at: vec![at],
                 text: text.to_string(),
                 colour: c,
                 name,
@@ -2290,7 +2354,9 @@ fn plot_notes_keep_off_each_others_plates() {
 #[test]
 fn a_short_allan_plot_still_shows_its_figure_and_its_lines_name() {
     use timegrapher_core::steadiness::ALLAN_HOLLOW_NOTE;
-    let s = allan_session();
+    // The hollow points mid-plot, so the hollow note has room by them
+    // and is hover only for the short rule (Vernon 57 on #2359).
+    let s = allan_session_from(4);
     let ctx = egui::Context::default();
     theme::install(&ctx);
     fn texts(shape: &egui::Shape, into: &mut Vec<String>) {
@@ -2300,28 +2366,35 @@ fn a_short_allan_plot_still_shows_its_figure_and_its_lines_name() {
             _ => {}
         }
     }
-    let mut all = Vec::new();
-    // Short: a pane of 130 pt leaves the plot under 100 inside its axis.
-    for _ in 0..2 {
-        let input = egui::RawInput {
-            screen_rect: Some(egui::Rect::from_min_size(
-                egui::Pos2::ZERO,
-                Vec2::new(1900.0, 900.0),
-            )),
-            ..Default::default()
-        };
-        let out = ctx.run(input, |ctx| {
-            egui::CentralPanel::default().show(ctx, |ui| {
-                ui.allocate_ui(Vec2::new(1880.0, 130.0), |ui| {
-                    ui.set_max_height(130.0);
-                    let shown = [true, false, false];
-                    draw(ui, Some(&s), "short", View::Allan, &shown, Opts::default());
+    let drawn = |pane_h: f32| {
+        let mut all = Vec::new();
+        for _ in 0..2 {
+            let input = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    Vec2::new(1900.0, 900.0),
+                )),
+                ..Default::default()
+            };
+            let out = ctx.run(input, |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    ui.allocate_ui(Vec2::new(1880.0, pane_h), |ui| {
+                        ui.set_max_height(pane_h);
+                        let shown = [true, false, false];
+                        draw(ui, Some(&s), "short", View::Allan, &shown, Opts::default());
+                    });
                 });
             });
-        });
-        all.clear();
-        out.shapes.iter().for_each(|c| texts(&c.shape, &mut all));
-    }
+            all.clear();
+            out.shapes.iter().for_each(|c| texts(&c.shape, &mut all));
+        }
+        all
+    };
+    // Tall, the hollow note finds its plate by its point.
+    let tall = drawn(500.0);
+    assert!(tall.iter().any(|t| t == ALLAN_HOLLOW_NOTE), "{tall:?}");
+    // Short: a pane of 130 pt leaves the plot under 100 inside its axis.
+    let all = drawn(130.0);
     let least = all.iter().find(|t| t.starts_with("least scatter at"));
     let least = least.unwrap_or_else(|| panic!("no least scatter in {all:?}"));
     assert!(least.contains(':'), "{least}: not whole");

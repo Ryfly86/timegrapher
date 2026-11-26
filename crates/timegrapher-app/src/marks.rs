@@ -798,18 +798,22 @@ pub fn beside(
     id: egui::Id,
 ) -> Option<egui::Rect> {
     let text = theme::pal(ui).text;
-    beside_lines(ui, t, (at, note, text), &[trace], avoid, fill, short, id).map(|(r, _)| r)
+    beside_lines(ui, t, (&[at], note, text), &[trace], avoid, fill, short, id).map(|(r, _)| r)
 }
 
 /// [`beside`] for a plot of several lines (`lines`, each in plot
-/// coordinates), none of which may cross the note, written in `colour`
-/// (`note`: its point, words and colour). The plate's place and its
-/// leader's ends (screen), where drawn.
+/// coordinates), none of which may cross the note or its leader, written
+/// in `colour` (`note`: its candidate points, nearest first, its words and
+/// colour). The note takes the first point with a clear place, so a
+/// line's name can sit along the line where its end has no room. A
+/// leader is short ([`LEADER_MAX`]) and crosses no line and no note in
+/// `avoid`. The plate's place and its leader's ends (screen), where
+/// drawn; else the first point's hover.
 #[allow(clippy::too_many_arguments)]
 pub fn beside_lines(
     ui: &egui::Ui,
     t: &egui_plot::PlotTransform,
-    (at, note, colour): ([f64; 2], &str, Color32),
+    (ats, note, colour): (&[[f64; 2]], &str, Color32),
     lines: &[&[[f64; 2]]],
     avoid: &[egui::Rect],
     fill: Color32,
@@ -817,10 +821,13 @@ pub fn beside_lines(
     id: egui::Id,
 ) -> Option<(egui::Rect, [egui::Pos2; 2])> {
     let frame = *t.frame();
-    let dot = t.position_from_point(&egui_plot::PlotPoint::new(at[0], at[1]));
-    if !frame.contains(dot) {
-        return None;
-    }
+    let to_screen = |p: &[f64; 2]| t.position_from_point(&egui_plot::PlotPoint::new(p[0], p[1]));
+    let dots: Vec<egui::Pos2> = ats
+        .iter()
+        .map(to_screen)
+        .filter(|d| frame.contains(*d))
+        .collect();
+    let first = *dots.first()?;
     let pal = theme::pal(ui);
     let mut job = egui::text::LayoutJob::single_section(
         note.to_string(),
@@ -835,44 +842,58 @@ pub fn beside_lines(
     let size = egui::vec2(g.size().x + 2.0 * NOTE_PAD, ROW_H + 2.0 * NOTE_PAD);
     let screen: Vec<Vec<egui::Pos2>> = lines
         .iter()
-        .map(|l| {
-            l.iter()
-                .map(|p| t.position_from_point(&egui_plot::PlotPoint::new(p[0], p[1])))
-                .collect()
-        })
+        .map(|l| l.iter().map(to_screen).collect())
         .collect();
-    let spots = beside_spots(dot, size, frame.top());
     let inner = frame.shrink(1.0);
-    // Clear: inside the plot, off every line, and neither the plate nor
-    // its leader on another note.
-    let clear = |r: egui::Rect| {
-        let leader = [dot, r.clamp(dot)];
+    // Clear: inside the plot, off every line, its leader short and
+    // crossing no line, and neither on another note.
+    let clear = |dot: egui::Pos2, r: egui::Rect| {
+        let near = r.clamp(dot);
+        let from = leader_start(dot, near);
         inner.contains_rect(r)
-            && !screen.iter().any(|pts| crosses(r.expand(2.0), pts))
+            && dot.distance(near) <= LEADER_MAX
+            && !screen.iter().any(|pts| {
+                crosses(r.expand(2.0), pts)
+                    || pts
+                        .windows(2)
+                        .any(|s| segments_cross([from, near], [s[0], s[1]]))
+            })
             && !avoid
                 .iter()
-                .any(|a| a.intersects(r) || crosses(*a, &leader))
+                .any(|a| a.intersects(r) || crosses(*a, &[from, near]))
     };
-    let was = ui.data(|d| d.get_temp::<Option<u8>>(id)).flatten();
+    let was = ui.data(|d| d.get_temp::<Option<(u8, u8)>>(id)).flatten();
     let place = if short {
         None
     } else {
-        beside_place(&spots, &clear, was)
+        let at = |i: usize| {
+            let spots = note_spots(dots[i], size, frame);
+            let held = was.filter(|w| usize::from(w.0) == i).map(|w| w.1);
+            beside_place(&spots, &|r| clear(dots[i], r), held).map(|k| (i as u8, k))
+        };
+        // The point it took last frame while still clear there, so it
+        // doesn't hop; else the first point with a clear place.
+        was.and_then(|w| {
+            (usize::from(w.0) < dots.len())
+                .then(|| at(usize::from(w.0)))
+                .flatten()
+        })
+        .or_else(|| (0..dots.len()).find_map(at))
     };
     ui.data_mut(|d| d.insert_temp(id, place));
-    let Some(k) = place else {
-        let hit = egui::Rect::from_center_size(dot, egui::vec2(12.0, 12.0));
+    let Some((i, k)) = place else {
+        let hit = egui::Rect::from_center_size(first, egui::vec2(12.0, 12.0));
         hover(ui, id.with("hover"), hit, note);
         return None;
     };
-    let rect = spots[k as usize];
+    let dot = dots[usize::from(i)];
+    let rect = note_spots(dot, size, frame)[usize::from(k)];
     let painter = ui.painter_at(frame);
     // The leader, from the dot's edge to the plate's nearest point.
     let near = rect.clamp(dot);
-    let d = near - dot;
-    if d.length() > 4.0 {
+    if dot.distance(near) > LEADER_GAP {
         painter.line_segment(
-            [dot + d.normalized() * 4.0, near],
+            [leader_start(dot, near), near],
             egui::Stroke::new(1.0_f32, pal.text_secondary),
         );
     }
@@ -883,6 +904,74 @@ pub fn beside_lines(
         Color32::PLACEHOLDER,
     );
     Some((rect, [dot, near]))
+}
+
+/// The places a note `size` big may take beside `dot` on a plot of
+/// `frame`, nearest first: [`beside_spots`]' places, and level with the
+/// dot right and left, and down a row at a time to the plot's foot, all
+/// in order of how far the plate stands from the dot, so a note sits as
+/// close to its point as it can.
+fn note_spots(dot: egui::Pos2, size: egui::Vec2, frame: egui::Rect) -> Vec<egui::Rect> {
+    let at = |dx: f32, dy: f32| egui::Rect::from_min_size(dot + egui::vec2(dx, dy), size);
+    let inner = frame.shrink(1.0);
+    // Across: right, left, centred, and slid in against either edge.
+    let across = [
+        NOTE_OFF,
+        -NOTE_OFF - size.x,
+        -size.x / 2.0,
+        inner.right() - size.x - dot.x,
+        inner.left() - dot.x,
+    ];
+    let mut rows = vec![-size.y / 2.0];
+    let mut off = NOTE_OFF;
+    while dot.y - off - size.y >= frame.top() || dot.y + off + size.y <= frame.bottom() {
+        rows.extend([-off - size.y, off]);
+        off += ROW_H;
+    }
+    let mut rest: Vec<egui::Rect> = rows
+        .iter()
+        .flat_map(|&dy| across.iter().map(move |&dx| at(dx, dy)))
+        .collect();
+    rest.sort_by(|a, b| a.distance_to_pos(dot).total_cmp(&b.distance_to_pos(dot)));
+    // The four next to the dot first, as [`beside_spots`] gives them;
+    // the rest nearest first.
+    let mut spots: Vec<egui::Rect> = beside_spots(dot, size, frame.top())
+        .into_iter()
+        .take(4)
+        .collect();
+    spots.extend(rest);
+    spots
+}
+
+/// The longest leader a note may have, points: its own row and two more,
+/// so a note sits by its point, never across the plot from it (Walter
+/// on #2359: leaders of 230 px ran side by side).
+pub const LEADER_MAX: f32 = 3.0 * NOTE_ROOM;
+
+/// How far a leader stands off its dot, points.
+const LEADER_GAP: f32 = 4.0;
+
+/// Where a leader from `dot` to `near` starts: [`LEADER_GAP`] off the
+/// dot, so the line the dot sits on doesn't count as crossing it.
+fn leader_start(dot: egui::Pos2, near: egui::Pos2) -> egui::Pos2 {
+    let d = near - dot;
+    if d.length() > LEADER_GAP {
+        dot + d.normalized() * LEADER_GAP
+    } else {
+        near
+    }
+}
+
+/// Whether the segments `a` and `b` cross or touch.
+pub fn segments_cross(a: [egui::Pos2; 2], b: [egui::Pos2; 2]) -> bool {
+    let side =
+        |p: egui::Pos2, q: egui::Pos2, r: egui::Pos2| (q - p).x * (r - p).y - (q - p).y * (r - p).x;
+    let (d1, d2) = (side(b[0], b[1], a[0]), side(b[0], b[1], a[1]));
+    let (d3, d4) = (side(a[0], a[1], b[0]), side(a[0], a[1], b[1]));
+    if a[0] == a[1] {
+        return false;
+    }
+    (d1 * d2 <= 0.0) && (d3 * d4 <= 0.0) && !(d1 == 0.0 && d2 == 0.0)
 }
 
 #[cfg(test)]
@@ -1412,7 +1501,7 @@ mod tests {
                     out = beside_lines(
                         ui,
                         &t,
-                        ([200.0, 150.0], "a note", colour),
+                        (&[[200.0, 150.0]], "a note", colour),
                         &[],
                         avoid,
                         Color32::BLACK,
