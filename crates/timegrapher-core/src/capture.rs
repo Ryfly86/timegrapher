@@ -108,23 +108,73 @@ pub const LOST_TEXT: &str = "the input dropped sound because nothing took it in 
 pub const GLITCH_TEXT: &str =
     "the computer fell behind reading this input for a moment, and some sound may be lost";
 
+/// How many seconds of sound a live input may send ahead of the wall
+/// clock before it is refused: room for a sound card's first buffer, and
+/// for a burst after the computer was slow to call for the sound (#2379).
+pub const FAST_INPUT_AHEAD_S: f64 = 2.0;
+
+/// The share of the time listened that a live input may run ahead, beyond
+/// [`FAST_INPUT_AHEAD_S`]: 1,000 parts per million, ten times a cheap sound
+/// card's clock error, so a sound card's clock is never mistaken for a
+/// fast input over a take of days (#2379).
+pub const FAST_INPUT_AHEAD_SHARE: f64 = 0.001;
+
+/// Why a live input is refused when it sends sound faster than real time,
+/// as a null input does that makes up silence as fast as it is asked
+/// (#2379).
+pub const FAST_TEXT: &str = "this input sends sound faster than real time, so a watch can't be \
+     timed from it. Choose another input";
+
 /// The sending side of a live input's queue. A block that doesn't fit is
 /// dropped and counted, and the count goes as [`Event::Lost`] ahead of the
-/// next block that fits, so the loss is known where it fell.
+/// next block that fits, so the loss is known where it fell. An input that
+/// sends sound faster than real time ([`FAST_INPUT_AHEAD_S`]) is refused:
+/// [`Event::Error`] with [`FAST_TEXT`] goes once, and nothing after it.
 pub struct LiveQueue {
     tx: SyncSender<Event>,
     lost: u64,
+    /// The input's frames per second.
+    rate: u32,
+    /// When the first block arrived, and the frames sent since then,
+    /// counted with that first block.
+    first: Option<Instant>,
+    frames: u64,
+    /// Refused as too fast; and whether the refusal has gone.
+    fast: bool,
+    told: bool,
 }
 
 impl LiveQueue {
-    pub fn new(tx: SyncSender<Event>) -> Self {
-        LiveQueue { tx, lost: 0 }
+    pub fn new(tx: SyncSender<Event>, rate: u32) -> Self {
+        LiveQueue {
+            tx,
+            lost: 0,
+            rate,
+            first: None,
+            frames: 0,
+            fast: false,
+            told: false,
+        }
     }
 
     /// Queue `b`, or drop it and count its frames when the queue is full.
     /// Never waits, as an audio callback mustn't.
     pub fn send(&mut self, b: Block) {
+        self.send_at(b, Instant::now());
+    }
+
+    /// [`LiveQueue::send`], for a block arriving at `now`.
+    fn send_at(&mut self, b: Block, now: Instant) {
         let frames = b.samples.len() as u64;
+        if !self.fast {
+            self.fast = self.runs_ahead(frames, now);
+        }
+        if self.fast {
+            if !self.told {
+                self.told = self.tx.try_send(Event::Error(FAST_TEXT.into())).is_ok();
+            }
+            return;
+        }
         if self.lost > 0 {
             match self.tx.try_send(Event::Lost(self.lost)) {
                 Ok(()) => self.lost = 0,
@@ -138,6 +188,16 @@ impl LiveQueue {
         if let Err(TrySendError::Full(_)) = self.tx.try_send(Event::Audio(b)) {
             self.lost += frames;
         }
+    }
+
+    /// Whether, with `frames` more arriving at `now`, the input has sent
+    /// more sound than the wall clock allows since its first block.
+    fn runs_ahead(&mut self, frames: u64, now: Instant) -> bool {
+        let first = *self.first.get_or_insert(now);
+        self.frames += frames;
+        let listened = now.saturating_duration_since(first).as_secs_f64();
+        let sent = self.frames as f64 / f64::from(self.rate.max(1));
+        sent - listened > FAST_INPUT_AHEAD_S + listened * FAST_INPUT_AHEAD_SHARE
     }
 }
 
@@ -1065,7 +1125,7 @@ mod device {
     {
         let ch = config.channels.max(1) as usize;
         let err_tx = tx.clone();
-        let mut queue = LiveQueue::new(tx);
+        let mut queue = LiveQueue::new(tx, config.sample_rate);
         device.build_input_stream(
             *config,
             move |data: &[T], _: &cpal::InputCallbackInfo| {
@@ -1470,7 +1530,7 @@ mod tests {
     #[test]
     fn a_full_queue_drops_sound_and_says_how_much_before_the_next_block() {
         let (tx, rx) = sync_channel(2);
-        let mut feed = LiveQueue::new(tx);
+        let mut feed = LiveQueue::new(tx, 48_000);
         let at = SystemTime::UNIX_EPOCH;
         let block = |k: usize, n: usize| Block {
             samples: vec![k as f32; n],
@@ -1506,5 +1566,81 @@ mod tests {
         feed.send(block(10, 10));
         feed.send(block(11, 10));
         assert_eq!(got(&rx), ["audio 10", "audio 11"]);
+    }
+
+    /// Blocks of `secs` seconds at 1 kHz, `n` of them, sent `every` seconds
+    /// apart from one start, the queue drained after each: what came out.
+    fn paced(secs: f64, every: f64, n: usize) -> Vec<String> {
+        let (tx, rx) = sync_channel(4);
+        let mut feed = LiveQueue::new(tx, 1_000);
+        let start = Instant::now();
+        let mut out = Vec::new();
+        for k in 0..n {
+            let at = start + Duration::from_secs_f64(k as f64 * every);
+            feed.send_at(
+                Block {
+                    samples: vec![0.0; (secs * 1_000.0) as usize],
+                    at: SystemTime::UNIX_EPOCH,
+                },
+                at,
+            );
+            out.extend(rx.try_iter().map(|e| match e {
+                Event::Audio(_) => "audio".to_string(),
+                Event::Error(e) => e,
+                other => format!("{other:?}"),
+            }));
+        }
+        out
+    }
+
+    /// A null input makes up silence as fast as it is asked (#2379): at
+    /// 2.5 times real time it is refused once it is two seconds ahead, with
+    /// one error, and nothing after it.
+    #[test]
+    fn an_input_faster_than_real_time_is_refused_once() {
+        // 0.1 s blocks every 0.04 s: 0.06 s further ahead each block, so
+        // the 33rd (3.3 s sent at 1.28 s) is the first over two seconds
+        // ahead.
+        let out = paced(0.1, 0.04, 200);
+        assert_eq!(out.len(), 33, "{out:?}");
+        assert!(out[..32].iter().all(|e| e == "audio"), "{out:?}");
+        assert_eq!(out[32], FAST_TEXT);
+    }
+
+    /// A sound card at its own pace, or 999 parts per million fast over
+    /// a whole day, is never refused; nor is a first buffer of nearly two
+    /// seconds.
+    #[test]
+    fn an_input_at_its_own_pace_is_never_refused() {
+        assert!(paced(0.01, 0.01, 10_000).iter().all(|e| e == "audio"));
+        // A day in 1 s blocks, each 0.999 ms short of a second apart.
+        assert!(paced(1.0, 0.999_001, 86_400).iter().all(|e| e == "audio"));
+        assert!(paced(1.99, 1.0, 1).iter().all(|e| e == "audio"));
+        assert_eq!(paced(2.01, 1.0, 1), [FAST_TEXT]);
+    }
+
+    /// The refusal waits for room in a full queue, and goes once.
+    #[test]
+    fn the_refusal_waits_for_room_and_goes_once() {
+        let (tx, rx) = sync_channel(1);
+        let mut feed = LiveQueue::new(tx, 1_000);
+        let at = Instant::now();
+        let block = |n: usize| Block {
+            samples: vec![0.0; n],
+            at: SystemTime::UNIX_EPOCH,
+        };
+        feed.send_at(block(1_000), at);
+        // Three seconds at once, with the queue full: refused, not told.
+        feed.send_at(block(3_000), at);
+        feed.send_at(block(10), at);
+        assert!(matches!(rx.try_recv(), Ok(Event::Audio(_))));
+        assert!(rx.try_recv().is_err());
+        feed.send_at(block(10), at);
+        feed.send_at(block(10), at);
+        let got: Vec<Event> = rx.try_iter().collect();
+        assert!(
+            matches!(&got[..], [Event::Error(e)] if e == FAST_TEXT),
+            "{got:?}"
+        );
     }
 }
