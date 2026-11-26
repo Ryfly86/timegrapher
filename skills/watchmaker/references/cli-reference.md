@@ -121,7 +121,11 @@ JSON body:
 `tick_level_dbfs`, `noise_level_dbfs`, `tick_to_noise_db`, `signal_x`
 (read it against the table in setup-and-microphone.md), `gap_rise_db`
 (background rise between ticks; several dB means automatic gain),
-`rate_s_per_day`, `beat_error_ms` (a few seconds only, uncalibrated),
+`watch_heard`, `rate_s_per_day` (card's clock) and
+`rate_corrected_s_per_day` (corrected where the recording's USB lines
+apply), `beat_error_ms` with `beat_error_source` (`unlock` or `drop`):
+`analyze`'s reading of the same sound, null where it gives none (no
+regular beat, or under 10 s not yet judged),
 `suggested_gain_change_db` (negative: turn down), and `issues`:
 `[{ code, title, evidence }]` with `code` one of `silent`, `too_quiet`,
 `clipping`, `hot`, `agc_suspected`, `no_ticks` (`doctor/2`). What each

@@ -450,7 +450,9 @@ the id or name from `devices`), or reads `--file`, and reports in `check`:
 | `tick_level_dbfs`, `noise_level_dbfs`, `tick_to_noise_db` | ticks against the background between them (high-passed at 1.5 kHz) |
 | `signal_x` | median beat peak over the median envelope, the desktop app's "signal N×"; pure noise reads about 2× (see [validation.md](../research/validation.md#signal-above-noise-signal_x-what-the-added-noise-tests-showed)) |
 | `gap_rise_db` | background late in the gap over early in it, dB |
-| `rate_s_per_day`, `beat_error_ms` | from a few seconds, on the sound card's clock |
+| `watch_heard` | whether a watch is heard, as `analyze` decides it; false where no regular beat is found, as on an empty stand |
+| `rate_s_per_day`, `rate_corrected_s_per_day` | `analyze`'s rate on the sound card's clock, and corrected for it where the recording's USB lines apply (else null); both null where `analyze` gives no rate |
+| `beat_error_ms`, `beat_error_source` | `analyze`'s headline beat error, unsigned, and where it is from (`unlock`, else `drop`); null where `analyze` gives none: no regular beat found, or under 10 s of sound not yet judged |
 | `suggested_gain_change_db` | the change `--apply` makes: it sets the peak to about −10 dBFS (a −6 dB step when clipped) |
 | `issues[]` | the conditions detected, each `code`, `title` (the condition with its figure) and `evidence` (the measurements) |
 
@@ -458,7 +460,10 @@ Issue codes, each a condition detected: `silent` (peak under −80 dBFS),
 `too_quiet` (peak under −30 dBFS), `clipping` (three or more clipped
 samples), `hot` (peak above −6 dBFS, not clipped), `agc_suspected` (the
 background rises more than 3 dB between ticks), `no_ticks` (no regular
-beat found: fewer than half the beats expected, or `signal_x` under 3×).
+beat found, as `analyze` finds it, titled in its words; or `signal_x`
+under 3×, a set-up condition that leaves the readings to `analyze`). The
+text output shows the signal figure rounded down to 0.1×, so it reads
+under 3.0× exactly when `no_ticks` names it faint.
 
 On Linux, `mixer` holds the sound card's ALSA controls (read with
 `amixer -c CARD scontents`; the card comes from `--card`, the device id, or

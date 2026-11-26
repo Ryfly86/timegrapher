@@ -14,7 +14,9 @@ use timegrapher_core::audio::{self, Audio};
 use timegrapher_core::diagnose::{self, DiagnoseConfig, SignalCheck};
 use timegrapher_core::figure_text::figure;
 use timegrapher_core::library::{base_digits, fixed_text, signed_text};
+use timegrapher_core::measure;
 use timegrapher_core::mixer::{self, Fix, Mixer};
+use timegrapher_core::session::BeatErrorSource;
 
 pub struct Options {
     pub device: Option<String>,
@@ -153,11 +155,15 @@ fn opt(v: Option<f64>, unit: &str) -> String {
     })
 }
 
-/// The text line for the signal figure. With no figure it says why
+/// The text line for the signal figure, to 0.1× as the conditions give it
+/// (core `diagnose::signal_text`, #2091). With no figure it says why
 /// rather than printing "-" (#811).
 fn signal_line(signal_x: Option<f64>) -> String {
     match signal_x {
-        Some(x) => format!("Signal       {}× above the background", fixed_text(x, 0)),
+        Some(x) => format!(
+            "Signal       {} above the background",
+            diagnose::signal_text(x)
+        ),
         None => {
             "Signal       not measured: no beats, or the sound is mostly digital silence".into()
         }
@@ -176,15 +182,42 @@ fn gap_rise_line(gap_rise_db: Option<f64>) -> String {
     }
 }
 
-/// The quick look's line: the rate signed as every surface signs it, so
-/// one that rounds to zero reads 0.0, never -0.0 (#815), and both figures
-/// at their place, as every figure is written (core's `figure`, #1470).
-fn quick_look_line(rate_s_per_day: f64, beat_error_ms: f64) -> String {
+/// The quick look's line: `analyze`'s rate and beat error (#2095), the
+/// rate signed as every surface signs it, so one that rounds to zero reads
+/// 0.0, never -0.0 (#815), and both figures at their place, as every
+/// figure is written (core's `figure`, #1470); then where the beat error
+/// is from and which clock the rate is on (core `diagnose::quick_look_basis`).
+fn quick_look_line(
+    rate_s_per_day: f64,
+    beat_error_ms: f64,
+    source: Option<BeatErrorSource>,
+    corrected: bool,
+) -> String {
     format!(
-        "Quick look   rate {} s/d, beat error {} ms (on the sound card's clock)",
+        "Quick look   rate {} s/d, beat error {} ms {}",
         figure(rate_s_per_day, None, base_digits::RATE, true),
-        figure(beat_error_ms, None, base_digits::BEAT_ERROR, false)
+        figure(beat_error_ms, None, base_digits::BEAT_ERROR, false),
+        diagnose::quick_look_basis(source, corrected)
     )
+}
+
+/// The ticks line: the beats found and their levels where a watch is
+/// heard; where none is (`analyze`'s rule), no count of beats or tick
+/// level, since they would be noise (#2091), only the background a set-up
+/// needs. The condition below says why.
+fn ticks_line(c: &SignalCheck) -> String {
+    let tick = c.tick_level_dbfs.map_or("no tick to measure".into(), |t| {
+        format!("tick {}", opt(Some(t), " dBFS"))
+    });
+    let background = fixed_text(c.noise_level_dbfs, 1);
+    if c.watch_heard {
+        format!(
+            "Ticks        {} of about {} beats at {} bph; {tick}, background {background} dBFS",
+            c.beats_found, c.beats_expected, c.bph
+        )
+    } else {
+        format!("Ticks        none heard; background {background} dBFS")
+    }
 }
 
 fn print_check(c: &SignalCheck) {
@@ -194,22 +227,21 @@ fn print_check(c: &SignalCheck) {
         fixed_text(c.rms_dbfs, 1),
         c.clipped_samples
     );
-    println!(
-        "Ticks        {} of about {} beats at {} bph; {}, background {} dBFS",
-        c.beats_found,
-        c.beats_expected,
-        c.bph,
-        c.tick_level_dbfs
-            .map_or("no tick to measure".into(), |t| format!(
-                "tick {}",
-                opt(Some(t), " dBFS")
-            )),
-        fixed_text(c.noise_level_dbfs, 1),
-    );
+    println!("{}", ticks_line(c));
     println!("{}", signal_line(c.signal_x));
     println!("{}", gap_rise_line(c.gap_rise_db));
-    if let (Some(r), Some(b)) = (c.rate_s_per_day, c.beat_error_ms) {
-        println!("{}", quick_look_line(r, b));
+    let rate = c.rate_corrected_s_per_day.or(c.rate_s_per_day);
+    if let (Some(r), Some(b)) = (rate, c.beat_error_ms) {
+        let corrected = c.rate_corrected_s_per_day.is_some();
+        println!("{}", quick_look_line(r, b, c.beat_error_source, corrected));
+    } else if c.watch_heard && !measure::regularity_assessed(c.duration_s, true) {
+        // `analyze` waits for more sound before it gives figures (#2014),
+        // and says so as `analyze` does (Norm on #2091).
+        println!(
+            "Quick look   none (beat regularity not assessed: {} s of sound, {} s needed)",
+            fixed_text(c.duration_s, 1),
+            measure::SHORT_SPAN_S
+        );
     }
     if c.issues.is_empty() {
         println!("None of the checked conditions detected.");
@@ -298,17 +330,19 @@ mod tests {
     /// gaining watch, and no sign where it rounds to zero (#815).
     #[test]
     fn the_quick_look_rate_has_no_minus_zero() {
-        assert!(quick_look_line(-0.04, 0.3).starts_with("Quick look   rate 0.0 s/d, "));
-        assert!(quick_look_line(2.36, 0.3).starts_with("Quick look   rate +2.4 s/d, "));
-        assert!(quick_look_line(-2.36, 0.3).starts_with("Quick look   rate -2.4 s/d, "));
+        assert!(quick_look_line(-0.04, 0.3, None, false).starts_with("Quick look   rate 0.0 s/d, "));
+        assert!(quick_look_line(2.36, 0.3, None, false).starts_with("Quick look   rate +2.4 s/d, "));
+        assert!(
+            quick_look_line(-2.36, 0.3, None, false).starts_with("Quick look   rate -2.4 s/d, ")
+        );
     }
 
     /// The quick look's beat error is at beat error's place, as the app's
     /// card and `analyze` write it (#1470).
     #[test]
     fn the_quick_look_beat_error_takes_its_base_decimals() {
-        assert!(quick_look_line(1.0, 0.347).contains("beat error 0.35 ms"));
-        assert!(quick_look_line(1.0, -0.001).contains("beat error 0.00 ms"));
+        assert!(quick_look_line(1.0, 0.347, None, false).contains("beat error 0.35 ms"));
+        assert!(quick_look_line(1.0, -0.001, None, false).contains("beat error 0.00 ms"));
     }
 
     #[test]
@@ -324,7 +358,14 @@ mod tests {
     fn no_signal_figure_says_why_rather_than_a_dash() {
         assert_eq!(
             signal_line(Some(17.87)),
-            "Signal       18× above the background"
+            "Signal       17.8× above the background"
+        );
+        // The figure the condition names, as it names it (#2091): 2.96
+        // reads 2.9× on both lines, never 3× on one and under 3× on the
+        // other.
+        assert_eq!(
+            signal_line(Some(2.96)),
+            "Signal       2.9× above the background"
         );
         let none = signal_line(None);
         assert!(none.contains("not measured"), "{none}");

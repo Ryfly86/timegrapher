@@ -9,7 +9,7 @@
 use crate::audio::Audio;
 use crate::beats;
 use crate::dsp::{envelope, median, EnvelopeConfig};
-use crate::timing;
+use crate::session::BeatErrorSource;
 use serde::Serialize;
 
 /// The peak level, dBFS, that `doctor --apply` sets the input to: about
@@ -39,6 +39,16 @@ pub const NO_TICKS_SIGNAL_X: f64 = 3.0;
 /// decide (#784).
 fn faint(signal_x: Option<f64>) -> bool {
     signal_x.is_some_and(|x| x < NO_TICKS_SIGNAL_X)
+}
+
+/// The signal figure as every line of the check shows it: to 0.1×,
+/// rounded down, as "2.9×", so the figure shown never claims more signal
+/// than was measured, and it reads under 3.0× exactly when the ticks are
+/// [`faint`] (Norm on #2091). The one formatter for it.
+pub fn signal_text(signal_x: f64) -> String {
+    // The small nudge keeps a figure such as 2.3, held as 2.2999…, at 2.3.
+    let shown = (signal_x * 10.0 + 1e-9).floor() / 10.0;
+    format!("{}×", crate::library::fixed_text(shown, 1))
 }
 
 #[derive(Debug, Clone)]
@@ -75,8 +85,8 @@ pub enum IssueCode {
     /// it does when the input's automatic gain turns down on each tick
     /// and back up in the gaps.
     AgcSuspected,
-    /// No regular beat found: fewer than half the beats expected, no fit,
-    /// or `signal_x` under [`NO_TICKS_SIGNAL_X`].
+    /// No regular beat found, as `analyze` finds it, or `signal_x` under
+    /// [`NO_TICKS_SIGNAL_X`].
     NoTicks,
 }
 
@@ -122,8 +132,23 @@ pub struct SignalCheck {
     /// Background late in the gap between ticks over early in it, dB.
     /// Near 0 for a fixed gain; several dB when automatic gain pumps.
     pub gap_rise_db: Option<f64>,
+    /// Whether a watch is heard, as `analyze` decides it
+    /// ([`crate::analysis::Summary::watch_heard`]): false where a regular
+    /// beat was looked for and not found, as on an empty stand. The rate
+    /// and beat error are then none (#2091).
+    pub watch_heard: bool,
+    /// The whole-recording rate on the sound card's clock, `analyze`'s
+    /// ([`crate::analysis::Summary::rate_s_per_day`]), s/d.
     pub rate_s_per_day: Option<f64>,
+    /// That rate corrected for the sound card's clock from the USB lines
+    /// in the recording, where they apply, as `analyze` leads with
+    /// ([`crate::analysis::Summary::rate_corrected_s_per_day`]), s/d.
+    pub rate_corrected_s_per_day: Option<f64>,
+    /// The beat error `analyze` leads with, unsigned, ms: from the unlock,
+    /// else from the drop (`beat_error_source`; #2095).
     pub beat_error_ms: Option<f64>,
+    /// Where `beat_error_ms` is measured from: `unlock` or `drop`.
+    pub beat_error_source: Option<BeatErrorSource>,
     /// The gain change `doctor --apply` makes, dB: it sets the peak to
     /// about −10 dBFS ([`TARGET_PEAK_DBFS`]), or steps down 6 dB when the
     /// input clips. Negative means down. `None` when the peak is between
@@ -194,8 +219,11 @@ pub fn check(audio: &Audio, cfg: &DiagnoseConfig) -> SignalCheck {
         (x.iter().map(|&v| (v as f64 - dc).powi(2)).sum::<f64>() / x.len().max(1) as f64).sqrt();
     let clipped = count_clipped(x, cfg.clip_level);
 
+    // The check's own beats below are for the levels and the signal
+    // figure; the readings are `analyze`'s.
+    let read = quick_look(audio, cfg);
     let env = envelope(x, fs, &cfg.envelope);
-    let bph = cfg.bph.unwrap_or_else(|| beats::guess_bph(&env, fs));
+    let bph = read.bph;
     let beat_s = 3600.0 / bph as f64;
     let expected = (duration_s / beat_s).floor() as usize;
     let (found, _) = if peak > 0.0 {
@@ -204,7 +232,6 @@ pub fn check(audio: &Audio, cfg: &DiagnoseConfig) -> SignalCheck {
         (Vec::new(), Vec::new())
     };
     let good: Vec<_> = found.iter().filter(|b| b.is_good()).copied().collect();
-    let fit = timing::fit(&good, bph);
 
     let Levels {
         tick,
@@ -229,28 +256,28 @@ pub fn check(audio: &Audio, cfg: &DiagnoseConfig) -> SignalCheck {
             evidence,
         })
     };
-    let few_beats = good.len() < expected / 2 || fit.is_none();
     let faint = faint(signal_x);
-    let signal = signal_x.map_or("no signal figure".into(), |x| format!("signal {x:.1}×"));
-    if !silent && (few_beats || faint) {
-        // The title names the test that fired: no timing fit, under half
-        // the beats expected, or ticks too faint over the noise however
-        // well they time (#772).
-        let title = if fit.is_none() {
-            beats::no_regular_beat_text(None, None)
-        } else if few_beats {
-            format!(
-                "No regular beat found (only {} of about {expected} beats)",
-                good.len()
+    let signal = signal_x.map_or("no signal figure".into(), |x| {
+        format!("signal {}", signal_text(x))
+    });
+    if !silent && (!read.watch_heard || faint) {
+        // No regular beat is `analyze`'s verdict alone, in its words
+        // (Norm on #2091); ticks too faint over the noise is a set-up
+        // condition, named however well they time (#772), that leaves the
+        // readings to `analyze`.
+        let (title, evidence) = if !read.watch_heard {
+            let reason = crate::measure::no_watch_reason_in(&read.caveats).unwrap_or_default();
+            (
+                crate::measure::no_watch_text(reason, read.jitter_us, read.bph_set),
+                signal.clone(),
             )
         } else {
-            format!("Ticks too faint over the noise ({signal}, under {NO_TICKS_SIGNAL_X:.0}×)")
+            (
+                format!("Ticks too faint over the noise ({signal}, under {NO_TICKS_SIGNAL_X:.0}×)"),
+                format!("{} of about {expected} beats found, {signal}", good.len()),
+            )
         };
-        add(
-            IssueCode::NoTicks,
-            title,
-            format!("{} of about {expected} beats found, {signal}", good.len()),
-        );
+        add(IssueCode::NoTicks, title, evidence);
     }
     let too_quiet = !silent && !clipping && db(peak) < QUIET_PEAK_DBFS;
     if too_quiet {
@@ -261,6 +288,11 @@ pub fn check(audio: &Audio, cfg: &DiagnoseConfig) -> SignalCheck {
         );
     }
     let suggested = suggested_gain(peak, silent, clipping, too_quiet);
+    let beat_error = crate::session::chosen_beat_error(
+        read.beat_error_unlock_ms,
+        read.escapement
+            .drop_beat_error(read.overall.map(|f| f.beat_error_ms)),
+    );
 
     SignalCheck {
         sample_rate: audio.sample_rate,
@@ -277,11 +309,47 @@ pub fn check(audio: &Audio, cfg: &DiagnoseConfig) -> SignalCheck {
         tick_to_noise_db: tick_to_noise,
         signal_x,
         gap_rise_db: gap_rise,
-        rate_s_per_day: fit.map(|f| f.rate_s_per_day),
-        beat_error_ms: fit.map(|f| f.beat_error_ms.abs()),
+        watch_heard: read.watch_heard,
+        rate_s_per_day: read.rate_s_per_day,
+        rate_corrected_s_per_day: read.rate_corrected_s_per_day,
+        beat_error_ms: beat_error.map(|(v, _)| v.abs()),
+        beat_error_source: beat_error.map(|(_, s)| s),
         suggested_gain_change_db: suggested,
         issues,
     }
+}
+
+/// The quick look: `analyze`'s reading of the same sound, at the beat rate
+/// given if one is: whether a watch is heard, its rate and its beat error
+/// (#2091, #2095; Norm: the doctor fits nothing of its own).
+fn quick_look(audio: &Audio, cfg: &DiagnoseConfig) -> crate::analysis::Summary {
+    crate::analysis::analyze(
+        audio,
+        &crate::analysis::AnalysisConfig {
+            bph: cfg.bph,
+            bph_from: crate::set_rate::BphFrom::of(cfg.bph, None, None),
+            envelope: cfg.envelope.clone(),
+            ..Default::default()
+        },
+    )
+    .summary
+}
+
+/// The quick look's words after its figures: where the beat error is
+/// measured from and which clock the rate is on, as `analyze` says them
+/// (#2095): "(from the unlock; corrected for the sound card's clock)".
+pub fn quick_look_basis(source: Option<BeatErrorSource>, corrected: bool) -> String {
+    let from = match source {
+        Some(BeatErrorSource::Unlock) => "from the unlock; ",
+        Some(BeatErrorSource::Drop) => "from the drop; ",
+        None => "",
+    };
+    let clock = if corrected {
+        "corrected for the sound card's clock"
+    } else {
+        "on the sound card's clock"
+    };
+    format!("({from}{clock})")
 }
 
 /// The tick, background and in-gap rise levels of a recording.
@@ -438,6 +506,19 @@ mod tests {
         assert!(!faint(None));
     }
 
+    /// The signal figure is shown rounded down to 0.1×, so it reads under
+    /// 3.0× exactly when it is faint (Norm on #2091): 2.96 reads 2.9× and
+    /// is faint, 3.0 reads 3.0× and is not.
+    #[test]
+    fn the_signal_figure_reads_under_3_exactly_when_faint() {
+        assert_eq!(signal_text(2.96), "2.9×");
+        assert!(faint(Some(2.96)));
+        assert_eq!(signal_text(3.0), "3.0×");
+        assert!(!faint(Some(3.0)));
+        assert_eq!(signal_text(2.3), "2.3×");
+        assert_eq!(signal_text(17.87), "17.8×");
+    }
+
     /// One or two clipped samples are a stray, not clipping: only three or
     /// more name Clipping and step the gain down 6 dB. Below that a peak
     /// near full scale is only Hot.
@@ -485,6 +566,73 @@ mod tests {
         // Three equal samples are not a flat top, at the end or not.
         x.pop();
         assert!(clipped_indices(&x, 0.99).is_empty());
+    }
+
+    /// The quick look is `analyze`'s reading of the same sound (Norm on
+    /// #2095): its rate on the card's clock, and its headline beat error
+    /// from the unlock with its source, not a fit of the check's own.
+    #[test]
+    fn the_quick_look_is_analyzes_reading() {
+        use crate::synth::{generate, SynthConfig};
+        let a = generate(
+            &SynthConfig {
+                duration_s: 30.0,
+                rate_s_per_day: 12.0,
+                beat_error_ms: 0.6,
+                ..Default::default()
+            },
+            |_| 270.0,
+            |_| 0.0,
+        );
+        let c = check(&a, &DiagnoseConfig::default());
+        let s = crate::analysis::analyze(&a, &crate::analysis::AnalysisConfig::default()).summary;
+        assert!(c.watch_heard);
+        assert_eq!(c.rate_s_per_day, s.rate_s_per_day);
+        assert_eq!(c.rate_corrected_s_per_day, s.rate_corrected_s_per_day);
+        assert_eq!(c.beat_error_source, Some(BeatErrorSource::Unlock));
+        assert_eq!(c.beat_error_ms, s.beat_error_unlock_ms.map(f64::abs));
+        assert!(c.issues.is_empty(), "{:?}", c.issues);
+    }
+
+    /// Noise alone, as on an empty stand, gives no rate and no beat error,
+    /// and the condition is `analyze`'s no regular beat, in its words,
+    /// with no count of beats (#2091).
+    #[test]
+    fn noise_alone_gives_no_readings() {
+        let mut state = 0x9e37_79b9_7f4a_7c15u64;
+        let samples = (0..30 * 48_000)
+            .map(|_| {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                (((state >> 11) as f64 / (1u64 << 53) as f64) - 0.5) as f32 * 0.02
+            })
+            .collect();
+        let a = Audio {
+            sample_rate: 48_000,
+            samples,
+        };
+        let c = check(&a, &DiagnoseConfig::default());
+        assert!(!c.watch_heard);
+        assert_eq!((c.rate_s_per_day, c.beat_error_ms), (None, None));
+        assert_eq!(c.rate_corrected_s_per_day, None);
+        assert_eq!(c.beat_error_source, None);
+        let no_ticks: Vec<_> = c
+            .issues
+            .iter()
+            .filter(|i| i.code == IssueCode::NoTicks)
+            .collect();
+        assert_eq!(no_ticks.len(), 1, "{:?}", c.issues);
+        assert!(
+            no_ticks[0].title.starts_with("No regular beat found ("),
+            "{}",
+            no_ticks[0].title
+        );
+        assert!(
+            !no_ticks[0].evidence.contains("beats found"),
+            "{}",
+            no_ticks[0].evidence
+        );
     }
 
     /// Gaussian noise of standard deviation `sigma`, rectified: the
