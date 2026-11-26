@@ -1590,6 +1590,7 @@ mod tests {
             watch: None,
             calibre: None,
             bph: Some(28800),
+            bph_from: None,
             lift: 52.0,
             lift_known: true,
             lift_from: take::SettingFrom::Given,
