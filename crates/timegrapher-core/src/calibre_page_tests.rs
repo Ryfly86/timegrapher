@@ -426,11 +426,106 @@ fn wheels_are_listed_in_train_order() {
         [
             "Barrel",
             "Centre Wheel",
+            "Third Wheel",
+            "Fourth Wheel",
             "Escape Wheel",
             "Balance",
             "Cannon Pinion"
         ]
     );
+}
+
+/// Every page has a row for each arbor of the going train, so each count
+/// has a place; a cell that applies but is unknown is named blank, and one
+/// that does not apply (the barrel's pinion, the balance's teeth) is not
+/// (#2301).
+#[test]
+fn every_going_train_arbor_has_a_row_with_its_blanks() {
+    let c = row(r#", "wheels": [{"name": "balance", "period_s": 0.25}]"#);
+    let w = page_of(&c).wheels;
+    let rows: Vec<(&str, Vec<&str>)> = w
+        .iter()
+        .map(|l| (l.name.as_str(), l.blank.clone()))
+        .collect();
+    assert_eq!(
+        rows,
+        [
+            ("Barrel", vec!["teeth", "period"]),
+            ("Centre Wheel", vec!["teeth", "leaves", "period"]),
+            ("Third Wheel", vec!["teeth", "leaves", "period"]),
+            ("Fourth Wheel", vec!["teeth", "leaves", "period"]),
+            ("Escape Wheel", vec!["teeth", "leaves", "period"]),
+            ("Balance", vec![]),
+        ]
+    );
+    assert_eq!(w[5].period.as_deref(), Some("0.25 s"));
+    assert!(w.iter().all(|l| l.teeth.is_none() && l.leaves.is_none()));
+}
+
+/// Counts are shown as the table stores them; the escape wheel's teeth
+/// come from `escape_teeth` when its wheel has none.
+#[test]
+fn counts_are_shown_as_stored() {
+    let c = row(
+        r#", "escape_teeth": 15, "wheels": [{"name": "escape wheel", "period_s": 5},
+            {"name": "fourth wheel", "period_s": 60, "teeth": 80, "pinion": 8},
+            {"name": "cannon pinion", "period_s": 3600, "teeth": 78, "pinion": 16}]"#,
+    );
+    let w = page_of(&c).wheels;
+    let get = |n: &str| w.iter().find(|l| l.name == n).unwrap();
+    let fourth = get("Fourth Wheel");
+    assert_eq!((fourth.teeth, fourth.leaves), (Some(80), Some(8)));
+    assert_eq!(fourth.period.as_deref(), Some("60 s"));
+    assert!(fourth.blank.is_empty());
+    let escape = get("Escape Wheel");
+    assert_eq!((escape.teeth, escape.leaves), (Some(15), None));
+    assert_eq!(escape.blank, ["leaves"]);
+    assert_eq!(escape.period.as_deref(), Some("5 s"));
+    let cannon = get("Cannon Pinion");
+    assert_eq!((cannon.teeth, cannon.leaves), (Some(78), Some(16)));
+    assert!(cannon.blank.is_empty());
+    assert_eq!(cannon.period.as_deref(), Some("3600 s"));
+    // A going-train arbor the row leaves out has no period, and says so.
+    let third = get("Third Wheel");
+    assert_eq!(third.period, None);
+    assert!(third.blank.contains(&"period"));
+}
+
+/// A stored wheel outside the going train has teeth and a pinion, so a
+/// count the table lacks is blank; the balance has neither (Norm, #2306).
+#[test]
+fn other_wheels_mark_their_missing_counts_blank() {
+    let c = row(r#", "wheels": [{"name": "balance", "period_s": 0.25},
+            {"name": "cannon pinion", "period_s": 3600},
+            {"name": "seconds wheel", "period_s": 60, "teeth": 70}]"#);
+    let w = page_of(&c).wheels;
+    let get = |n: &str| w.iter().find(|l| l.name == n).unwrap();
+    assert_eq!(get("Cannon Pinion").blank, ["teeth", "leaves"]);
+    assert_eq!(get("Seconds Wheel").blank, ["leaves"]);
+    assert!(get("Balance").blank.is_empty());
+    let stored = find("ETA 2892-A2").expect("2892-A2 in the table");
+    let cannon = page_of(stored)
+        .wheels
+        .into_iter()
+        .find(|l| l.name == "Cannon Pinion")
+        .expect("2892-A2 stores its cannon pinion");
+    // The table stores its period only.
+    assert_eq!((cannon.teeth, cannon.leaves), (None, None));
+    assert_eq!(cannon.blank, ["teeth", "leaves"]);
+}
+
+/// The ETA 2824-2 in the shipped table has its whole going train counted.
+#[test]
+fn a_counted_train_has_no_blank_counts() {
+    let c = find("ETA 2824-2").expect("2824-2 in the table");
+    let p = page_of(c);
+    for l in p.wheels.iter().take(5) {
+        assert!(l.teeth.is_some(), "{}", l.name);
+        assert!(!l.blank.contains(&"teeth"), "{}", l.name);
+    }
+    assert_eq!(p.wheels[0].name, "Barrel");
+    assert_eq!(p.wheels[0].teeth, Some(101));
+    assert_eq!(p.wheels[1].leaves, Some(17));
 }
 
 /// One test of a maker at the front of a name, for the page's address and

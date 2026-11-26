@@ -137,7 +137,7 @@ fn settings_come_back_as_they_were_left() {
     app.bench.panes_view.show_readings = false;
     app.bench.panes_view.sound_opts.scale = profiles::Scale::Decibels;
     app.bench.panes_view.hist_cumulative = true;
-    app.bench.panes_view.folded.insert("Window".into());
+    app.watches_view.folded.insert("Window".into());
     set_pane_visible(
         &mut app.bench.panes_view.panes.tiles,
         Pane::Distributions,
@@ -154,7 +154,7 @@ fn settings_come_back_as_they_were_left() {
         profiles::Scale::Decibels
     );
     assert!(again.bench.panes_view.hist_cumulative);
-    assert!(again.bench.panes_view.folded.contains("Window"));
+    assert!(again.watches_view.folded.contains("Window"));
     assert_eq!(again.bench.take.average_s, 30.0);
     assert!(pane_visible(
         &again.bench.panes_view.panes.tiles,
