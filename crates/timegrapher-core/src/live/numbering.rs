@@ -5,11 +5,11 @@
 use super::{fresh_gen, LiveAnalyzer};
 use crate::timing::Anchor;
 
-/// One renumbering: every beat from `from_s` seconds on moved by `dt_s`
-/// seconds and `di` in the count.
+/// One renumbering: every beat numbered `from` or later (as numbered
+/// before the move) moved by `dt_s` seconds and `di` in the count.
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Move {
-    from_s: f64,
+    from: i64,
     dt_s: f64,
     di: i64,
 }
@@ -33,11 +33,12 @@ impl Default for Numbering {
 }
 
 impl Numbering {
-    /// Every beat from `from_s` on numbered one further: the sides were
-    /// named, or found swapped after a jump ([`crate::beats::SideCheck`]).
-    pub(super) fn one_further_from(&mut self, from_s: f64) {
+    /// Every beat numbered `from` or later numbered one further: the sides
+    /// were named, or found swapped after a jump
+    /// ([`crate::beats::SideCheck`]).
+    pub(super) fn one_further_from(&mut self, from: i64) {
         self.moves.push(Move {
-            from_s,
+            from,
             dt_s: 0.0,
             di: 1,
         });
@@ -53,7 +54,7 @@ impl Numbering {
         };
         let mut moves = self.moves;
         moves.push(Move {
-            from_s: f64::NEG_INFINITY,
+            from: i64::MIN,
             dt_s,
             di,
         });
@@ -100,8 +101,10 @@ impl LiveAnalyzer {
             return false;
         };
         let new = n.moves.get(was.moves..).unwrap_or_default();
+        // By the anchor's beat number, not its time: the anchor's time is
+        // projected from several beats and may fall either side of a jump.
         for m in new {
-            if a.time >= m.from_s {
+            if a.index >= m.from {
                 (a.time, a.index) = (a.time + m.dt_s, a.index + m.di);
             }
         }
@@ -209,11 +212,11 @@ mod tests {
     #[test]
     fn a_renumbering_after_the_anchor_leaves_it_and_each_is_followed_once() {
         let (mut live, mut anchor, mut seen) = anchored();
-        live.numbering.one_further_from(8.0);
+        live.numbering.one_further_from(41);
         assert!(live.follow_numbering(&mut anchor, &mut seen));
         assert_eq!(anchor.map(|a| a.index), Some(40));
         assert!(!live.follow_numbering(&mut anchor, &mut seen));
-        live.numbering.one_further_from(f64::NEG_INFINITY);
+        live.numbering.one_further_from(40);
         assert!(live.follow_numbering(&mut anchor, &mut seen));
         assert!(!live.follow_numbering(&mut anchor, &mut seen));
         assert_eq!(anchor.map(|a| a.index), Some(41));

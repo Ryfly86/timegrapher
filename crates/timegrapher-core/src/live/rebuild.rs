@@ -331,6 +331,53 @@ mod tests {
         assert!(l.breaks().is_empty() && l.template_rebuild_given_up().is_none());
     }
 
+    /// #2318 (finding 3b): a strip anchored before the takeover follows it
+    /// ([`LiveAnalyzer::follow_numbering`]): the anchor is kept, not set
+    /// again, and a beat drawn before the switch keeps its lead through it.
+    #[test]
+    fn a_beat_drawn_before_the_takeover_keeps_its_lead_through_it() {
+        use crate::live::NumberingSeen;
+        use crate::timing::Anchor;
+        let (mut anchor, mut seen) = (None::<Anchor>, NumberingSeen::default());
+        let mut drawn: Option<(f64, f64)> = None;
+        let mut through = None;
+        let l = heard(80.0, |l, t| {
+            l.follow_numbering(&mut anchor, &mut seen);
+            let p = 3600.0 / l.bph().unwrap_or(28800) as f64;
+            let beats = l.beats();
+            if anchor.is_none() && beats.len() >= 16 && t < 20.0 {
+                anchor = Anchor::centre_on(&beats[..16], p, 16);
+            }
+            let Some(a) = anchor else {
+                return;
+            };
+            // One beat drawn at 20 s, well before the switch.
+            if drawn.is_none() && t >= 20.0 {
+                let b = beats
+                    .iter()
+                    .find(|b| b.time >= 10.0)
+                    .expect("a beat at 10 s");
+                drawn = Some((b.time, a.lead_ms(b, p)));
+            }
+            if let (Some((bt, lead)), Some(_)) = (drawn, l.template_switch_s()) {
+                if through.is_none() {
+                    let b = beats
+                        .iter()
+                        .min_by(|x, y| (x.time - bt).abs().total_cmp(&(y.time - bt).abs()));
+                    through = b.map(|b| (b.time - bt, a.lead_ms(b, p) - lead));
+                }
+            }
+        });
+        assert!(l.template_shift().is_some(), "taken over, paired");
+        assert!(
+            anchor.is_some(),
+            "the anchor followed the takeover, not dropped"
+        );
+        let (dt, dlead) = through.expect("the beat seen after the switch");
+        assert!(dt.abs() < 0.001, "the same beat: {dt} s apart");
+        assert!(dlead.abs() < 1.0, "its lead moved {dlead} ms");
+    }
+
     /// What the caller changes while the first chunk is read again reaches
     /// the copy that takes over: lift, masks, known flags, clock, profile
     /// span and the beats kept.

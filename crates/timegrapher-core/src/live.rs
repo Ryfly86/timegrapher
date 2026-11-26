@@ -790,11 +790,14 @@ impl LiveAnalyzer {
         let Some((t, beats::SideCall::Swapped)) = self.sides.settle() else {
             return;
         };
+        let from = self.beats.iter().find(|b| b.time >= t).map(|b| b.index);
         for b in self.beats.iter_mut().filter(|b| b.time >= t) {
             b.index += 1;
         }
         self.beats_gen = fresh_gen();
-        self.numbering.one_further_from(t);
+        if let Some(from) = from {
+            self.numbering.one_further_from(from);
+        }
         for s in self.snippets.iter_mut().filter(|s| s.0 >= t) {
             s.1 = !s.1;
         }
