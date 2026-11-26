@@ -1074,17 +1074,18 @@ const CLOCK_UNKNOWN_LONG: &str = "This input's clock hasn't been measured, so th
      the sound card's own clock error.";
 
 /// [`Caveat::CoaxialEstimate`] in a few words (the owner's, #2313).
-pub const COAXIAL_ESTIMATE_SHORT: &str = "co-axial escapement estimate (beta)";
+pub const COAXIAL_ESTIMATE_SHORT: &str = "co-axial estimate (beta)";
 
 /// [`Caveat::CoaxialEstimate`] as a sentence.
 pub const COAXIAL_ESTIMATE_LONG: &str = "The amplitude is a co-axial escapement estimate \
      (beta): it uses the Swiss lever's formula and has not been checked against a reference.";
 
-/// [`Caveat::CoaxialBeatError`] in a few words: where the beat error
-/// comes from, or why there is none.
+/// [`Caveat::CoaxialBeatError`] in a few words, short enough for a card's
+/// chip at 1920 wide (Walter on #2317): that the take is read for a
+/// co-axial, or why it has no beat error.
 fn coaxial_beat_error_short(why: Option<DropWhy>) -> String {
     match why {
-        None => "co-axial: beat error from the unlock".to_string(),
+        None => "co-axial (beta)".to_string(),
         Some(w) => format!("co-axial: {}", w.words()),
     }
 }
