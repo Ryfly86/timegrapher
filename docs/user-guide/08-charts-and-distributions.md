@@ -91,7 +91,7 @@ All the charts pan and zoom together.
 
 ## Distributions
 
-![The Distributions pane showing the Rate plot over the first 12 hours of the same run-down, marks 1 to 8](images/distributions.png)
+![The Distributions pane showing the Rate and Beat Error plots over the first 12 hours of the same run-down, marks 1 to 9](images/distributions.png)
 
 **What it shows:** how the values of each reading spread over the take
 in the position the watch is in now. A masked stretch is left out.
@@ -113,24 +113,25 @@ and a low amplitude, or a rate that jumps between two values.
 
 | Mark | Part | What it shows |
 | --- | --- | --- |
-| 5 | The facts box | How many values, the median, the middle 80%, the values left off the scale (only when there are any), and the peaks (only when there is more than one). The plot's title names the reading, and the one position counted when the take has positions. On a short plot the rows flow into two columns; shorter still, the peaks go first, then the middle 80%, then the count, and hovering the box gives them all. The median and the count off the scale always stay. |
+| 5 | The facts box, at the top left of each plot | How many values, the median, the middle 80%, the values left off the scale (only when there are any), and the peaks (only when there is more than one). The plot's title names the reading, and the one position counted when the take has positions. On a short plot the rows flow into two columns; shorter still, the peaks go first, then the middle 80%, then the count, and hovering the box gives them all. The median and the count off the scale always stay. |
 | 6 | The dashed line | Where the values would fall if they came from one steady state. It goes through the median, with a slope from the middle half of the values. |
 | 7 | The percent scale | Each value's rank, spaced in standard deviations and labelled in percent. 50% is the median. |
 | 8 | A value | One reading. In the picture, the fastest readings bend away to the right of the line. |
+| 9 | The source chip | Under the Beat Error plot's title: where its beat error is read from, **Beat Error from the Unlock** or **Beat Error from the Drop**. Hover the chip for its caveats, when there are any, such as readings left out. |
 
 A pane too short for every plot names those it leaves out in a grey chip under the first plot's title, such as "Beat Error not shown: no room"; hover the chip for what to do.
 
-The beat error's plot has a grey chip under its title naming where its beat error is read from, the unlock or the drop. Hover the chip for its caveats, when there are any, such as readings left out.
-
 **In the picture** are the first 12 hours of the run in the Charts
-picture: 4317 rate readings, median −67.3 s/d, the middle 80% from
-−77.3 to −56.4 s/d. From the bottom to about the 85% line the points
+picture: 4317 rate readings, median −67.4 s/d, the middle 80% from
+−77.5 to −56.3 s/d. From the bottom to about the 90% line the points
 lie along the dashed line: one steady rate with random scatter. Above
 it they bend away to the right: a tail of fast readings that one steady
 state doesn't give. Readings Over Time (chapter 10) shows where much of
 it comes from: the first 47 minutes after winding, at about −46 s/d,
 before the rate settled near −68 s/d. A plain average would mix the two
-and hide that the watch has a second, faster state.
+and hide that the watch has a second, faster state. The beat error,
+turned on below it, is read from the unlock: median 0.43 ms, the middle
+80% from 0.39 to 0.46 ms.
 
 ### Reading Probability Paper
 

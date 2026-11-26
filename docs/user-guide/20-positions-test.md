@@ -25,6 +25,7 @@ menu.
 
 | Mark | Control | What it does | Why you'd use it |
 | --- | --- | --- | --- |
+| | **Series** (three icons, at the left) | Turns each chart on or off: Rate, Amplitude, Beat Error. The charts sit beside the table, or above it in a narrow pane: each position a dot on a lane of its own, Horizontal then Vertical, the averages as grey dashed lines. With all three off, the table stands alone. | To see at a glance which position stands out, or to give the table the whole pane. |
 | | **New Test** | Sets a test up on a clear Bench and starts nothing; **Start Test** on the Listen card starts it. **Cancel Test** takes its place until then. Sound not saved is asked about first. | To begin. |
 | | **Wind** | For a watch picked in the Watches view: **Full Wind**, just after winding, or **24 Hours After**, set against a full-wind test picked in **Compare With**. | To run the 24-hour half of the comparison (below). |
 | | **Load Full-Wind Results…** | With no watch picked, loads the full-wind half from a file. | The same, without a watch. |
