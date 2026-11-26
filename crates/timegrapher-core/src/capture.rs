@@ -639,7 +639,13 @@ pub fn no_input(error: &str) -> bool {
 /// A plainer account of an error from opening or reading an input.
 pub fn explain_error(e: &str) -> String {
     let l = e.to_lowercase();
-    if l.contains("no longer available")
+    if e == FAST_TEXT {
+        // Said after "Input stopped.", so as a sentence of its own.
+        let mut c = e.chars();
+        c.next()
+            .map(|f| f.to_uppercase().chain(c).collect())
+            .unwrap_or_default()
+    } else if l.contains("no longer available")
         || l.contains("unplugged")
         || l.contains("busy")
         || l.contains("not available")
@@ -1477,6 +1483,11 @@ mod tests {
         assert!(explain_error("A buffer underrun or overrun occurred.")
             .starts_with("The computer fell behind reading this input"));
         assert_eq!(explain_error("something else"), "something else");
+        // A fast input's refusal reads as a sentence after "Input stopped."
+        // (#2379), its words kept.
+        let fast = explain_error(FAST_TEXT);
+        assert!(fast.starts_with("This input sends sound faster than real time"));
+        assert_eq!(fast.to_lowercase(), FAST_TEXT.to_lowercase());
     }
 
     /// `no_input` counts core's own two errors as `find` builds them, and
