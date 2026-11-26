@@ -296,10 +296,7 @@ pub fn check(audio: &Audio, cfg: &DiagnoseConfig) -> SignalCheck {
     let beat_error = read.headline_beat_error();
     // `analyze` hears a watch but gives no figures yet: under 10 s with
     // the beat sound not judged (#2014); said in `analyze`'s words.
-    let not_assessed = (read.watch_heard
-        && beat_error.is_none()
-        && !crate::measure::regularity_assessed(duration_s, true))
-    .then(|| crate::measure::not_assessed_text(duration_s));
+    let not_assessed = not_assessed(read.watch_heard, beat_error.is_some(), duration_s);
 
     SignalCheck {
         sample_rate: audio.sample_rate,
@@ -341,6 +338,16 @@ fn quick_look(audio: &Audio, cfg: &DiagnoseConfig) -> crate::analysis::Summary {
         },
     )
     .summary
+}
+
+/// Why `analyze` gives no figures though it hears a watch: `duration_s`
+/// of sound read from its start is too short for its regularity to be
+/// assessed, and the beat sound did not decide (#2014). None where a
+/// watch is not heard (the no-regular-beat condition says why), where
+/// there is a beat error, or where the recording is long enough.
+fn not_assessed(watch_heard: bool, has_figures: bool, duration_s: f64) -> Option<String> {
+    (watch_heard && !has_figures && !crate::measure::regularity_assessed(duration_s, true))
+        .then(|| crate::measure::not_assessed_text(duration_s))
 }
 
 /// The quick look's words after its figures: where the beat error is
@@ -644,6 +651,152 @@ mod tests {
             "{}",
             no_ticks[0].evidence
         );
+    }
+
+    /// The not-assessed fact is given only where a watch is heard, with no
+    /// figures, in under 10 s of sound.
+    #[test]
+    fn not_assessed_only_for_a_short_watch_with_no_figures() {
+        assert_eq!(
+            not_assessed(true, false, 5.0).as_deref(),
+            Some("Beat regularity not assessed: 5.0 s of sound, 10 s needed")
+        );
+        assert_eq!(not_assessed(false, false, 5.0), None);
+        assert_eq!(not_assessed(true, true, 5.0), None);
+        assert_eq!(not_assessed(true, false, 10.0), None);
+    }
+
+    /// The quick look's basis words, whole, for every source and clock.
+    #[test]
+    fn the_quick_look_basis_names_source_and_clock() {
+        let card = "on the sound card's clock";
+        let fixed = "corrected for the sound card's clock";
+        let cases = [
+            (
+                Some(BeatErrorSource::Unlock),
+                false,
+                format!("(from the unlock; {card})"),
+            ),
+            (
+                Some(BeatErrorSource::Unlock),
+                true,
+                format!("(from the unlock; {fixed})"),
+            ),
+            (
+                Some(BeatErrorSource::Drop),
+                false,
+                format!("(from the drop; {card})"),
+            ),
+            (
+                Some(BeatErrorSource::Drop),
+                true,
+                format!("(from the drop; {fixed})"),
+            ),
+            (None, false, format!("({card})")),
+            (None, true, format!("({fixed})")),
+        ];
+        for (source, corrected, want) in cases {
+            assert_eq!(quick_look_basis(source, corrected), want);
+        }
+    }
+
+    /// A beat rate given is the one read, not the one guessed: a 28,800
+    /// bph watch checked at 21,600 is read at 21,600.
+    #[test]
+    fn a_beat_rate_given_is_used() {
+        use crate::synth::{generate, SynthConfig};
+        let a = generate(
+            &SynthConfig {
+                duration_s: 12.0,
+                bph: 28_800,
+                ..Default::default()
+            },
+            |_| 270.0,
+            |_| 0.0,
+        );
+        assert_eq!(check(&a, &DiagnoseConfig::default()).bph, 28_800);
+        let given = DiagnoseConfig {
+            bph: Some(21_600),
+            ..Default::default()
+        };
+        assert_eq!(check(&a, &given).bph, 21_600);
+    }
+
+    /// Loud clicks at irregular times, as a stand knocked about: the
+    /// signal is well over 3×, so the faint test does not fire, yet no
+    /// regular beat is heard: one `no_ticks`, in `analyze`'s words, and
+    /// no readings (Vernon on #2363).
+    #[test]
+    fn loud_irregular_clicks_give_no_readings() {
+        let fs = 48_000usize;
+        let mut state = 0x2545_f491_4f6c_dd1du64;
+        let mut uniform = || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            (state >> 11) as f64 / (1u64 << 53) as f64
+        };
+        let mut samples: Vec<f32> = (0..30 * fs)
+            .map(|_| ((uniform() - 0.5) * 0.002) as f32)
+            .collect();
+        let mut t = 0.05;
+        while t < 29.9 {
+            let i = (t * fs as f64) as usize;
+            for k in 0..96 {
+                let decay = (-(k as f64) / 20.0).exp();
+                samples[i + k] += (0.5 * decay * if k % 2 == 0 { 1.0 } else { -1.0 }) as f32;
+            }
+            t += 0.08 + 0.25 * uniform();
+        }
+        let c = check(
+            &Audio {
+                sample_rate: fs as u32,
+                samples,
+            },
+            &DiagnoseConfig::default(),
+        );
+        assert!(
+            c.signal_x.is_some_and(|x| x >= NO_TICKS_SIGNAL_X),
+            "{:?}",
+            c.signal_x
+        );
+        assert!(!c.watch_heard);
+        assert_eq!((c.rate_s_per_day, c.beat_error_ms), (None, None));
+        let no_ticks: Vec<_> = c
+            .issues
+            .iter()
+            .filter(|i| i.code == IssueCode::NoTicks)
+            .collect();
+        assert_eq!(no_ticks.len(), 1, "{:?}", c.issues);
+        assert!(
+            no_ticks[0].title.starts_with("No regular beat found ("),
+            "{}",
+            no_ticks[0].title
+        );
+    }
+
+    /// With the USB bus's lines in the sound, the quick look carries
+    /// `analyze`'s corrected rate beside the card's.
+    #[test]
+    fn usb_lines_give_the_corrected_rate() {
+        use crate::synth::{generate, SynthConfig};
+        let a = generate(
+            &SynthConfig {
+                duration_s: 120.0,
+                ..Default::default()
+            },
+            |_| 270.0,
+            |_| 0.0,
+        );
+        let a = Audio {
+            samples: crate::edge_takes::with_usb_lines(a.samples, 20.0),
+            sample_rate: a.sample_rate,
+        };
+        let c = check(&a, &DiagnoseConfig::default());
+        let s = crate::analysis::analyze(&a, &crate::analysis::AnalysisConfig::default()).summary;
+        assert!(c.rate_corrected_s_per_day.is_some());
+        assert_eq!(c.rate_corrected_s_per_day, s.rate_corrected_s_per_day);
+        assert_ne!(c.rate_corrected_s_per_day, c.rate_s_per_day);
     }
 
     /// Gaussian noise of standard deviation `sigma`, rectified: the

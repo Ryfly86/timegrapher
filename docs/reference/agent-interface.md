@@ -446,13 +446,14 @@ the id or name from `devices`), or reads `--file`, and reports in `check`:
 | `peak_dbfs`, `rms_dbfs` | level relative to full scale |
 | `dc_offset` | mean of the samples relative to full scale |
 | `clipped_samples` | samples at full scale, plus flat tops below it (clipping before the converter) |
-| `bph`, `beats_expected`, `beats_found` | the beat rate used and the beats found |
-| `tick_level_dbfs`, `noise_level_dbfs`, `tick_to_noise_db` | ticks against the background between them (high-passed at 1.5 kHz) |
+| `bph`, `beats_expected`, `beats_found` | the beat rate used and the peaks the check found; where `watch_heard` is false they are noise, not a watch's beats |
+| `tick_level_dbfs`, `noise_level_dbfs`, `tick_to_noise_db` | ticks against the background between them (high-passed at 1.5 kHz); where `watch_heard` is false the tick level is the noise's peaks |
 | `signal_x` | median beat peak over the median envelope, the desktop app's "signal N×"; pure noise reads about 2× (see [validation.md](../research/validation.md#signal-above-noise-signal_x-what-the-added-noise-tests-showed)) |
 | `gap_rise_db` | background late in the gap over early in it, dB |
 | `watch_heard` | whether a watch is heard, as `analyze` decides it; false where no regular beat is found, as on an empty stand |
 | `rate_s_per_day`, `rate_corrected_s_per_day` | `analyze`'s rate on the sound card's clock, and corrected for it where the recording's USB lines apply (else null); both null where `analyze` gives no rate |
 | `beat_error_ms`, `beat_error_source` | `analyze`'s headline beat error, unsigned, and where it is from (`unlock`, else `drop`); null where `analyze` gives none: no regular beat found, or under 10 s of sound not yet judged |
+| `not_assessed` | why `analyze` gives no figures though it hears a watch ("Beat regularity not assessed: 5.0 s of sound, 10 s needed"); null otherwise |
 | `suggested_gain_change_db` | the change `--apply` makes: it sets the peak to about −10 dBFS (a −6 dB step when clipped) |
 | `issues[]` | the conditions detected, each `code`, `title` (the condition with its figure) and `evidence` (the measurements) |
 

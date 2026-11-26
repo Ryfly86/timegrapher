@@ -1055,4 +1055,32 @@ mod tests {
         assert!((still[0] - 10.0).abs() < 0.1, "{still:?}");
         assert_eq!(periods((0.01 * fs) as usize), still);
     }
+
+    /// The headline beat error reads back the source chosen: from the
+    /// drop, the whole-recording fit's, never the unlock's figure.
+    #[test]
+    fn the_headline_beat_error_reads_back_the_source_chosen() {
+        use crate::session::BeatErrorSource;
+        let a = generate(
+            &SynthConfig {
+                duration_s: 30.0,
+                beat_error_ms: 0.6,
+                ..Default::default()
+            },
+            |_| 270.0,
+            |_| 0.0,
+        );
+        let mut s = analyze(&a, &AnalysisConfig::default()).summary;
+        let drop = s.overall.unwrap().beat_error_ms;
+        let unlock = s.beat_error_unlock_ms.unwrap();
+        assert_eq!(
+            s.headline_beat_error(),
+            Some((unlock, BeatErrorSource::Unlock))
+        );
+        s.beat_error_source = Some(BeatErrorSource::Drop);
+        s.beat_error_unlock_ms = Some(9.0);
+        assert_eq!(s.headline_beat_error(), Some((drop, BeatErrorSource::Drop)));
+        s.beat_error_source = None;
+        assert_eq!(s.headline_beat_error(), None);
+    }
 }

@@ -117,7 +117,8 @@ JSON body:
 | `after` | The check repeated after applying (live only) |
 
 `check` fields: `sample_rate`, `duration_s`, `peak_dbfs`, `rms_dbfs`,
-`dc_offset`, `clipped_samples`, `bph`, `beats_expected`, `beats_found`,
+`dc_offset`, `clipped_samples`, `bph`, `beats_expected`, `beats_found`
+(peaks found: noise where `watch_heard` is false),
 `tick_level_dbfs`, `noise_level_dbfs`, `tick_to_noise_db`, `signal_x`
 (read it against the table in setup-and-microphone.md), `gap_rise_db`
 (background rise between ticks; several dB means automatic gain),
@@ -125,7 +126,8 @@ JSON body:
 `rate_corrected_s_per_day` (corrected where the recording's USB lines
 apply), `beat_error_ms` with `beat_error_source` (`unlock` or `drop`):
 `analyze`'s reading of the same sound, null where it gives none (no
-regular beat, or under 10 s not yet judged),
+regular beat, or under 10 s not yet judged), `not_assessed` (why there
+are no figures though a watch is heard, else null),
 `suggested_gain_change_db` (negative: turn down), and `issues`:
 `[{ code, title, evidence }]` with `code` one of `silent`, `too_quiet`,
 `clipping`, `hot`, `agc_suspected`, `no_ticks` (`doctor/2`). What each
