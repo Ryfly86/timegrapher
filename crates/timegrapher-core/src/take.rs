@@ -868,9 +868,12 @@ pub fn correction(
 
 /// The sound card's error read from the USB lines in the first of
 /// `files` ([`clock::usb_lines`]), with its source text; `None` when the
-/// recording has none.
+/// recording has none, or lines that don't apply
+/// ([`crate::usbclock::UsbClock::applies`]).
 pub fn usb(files: &[PathBuf]) -> Result<Option<(f64, String)>, String> {
-    Ok(clock::usb_lines(files)?.map(|c| c.correction()))
+    Ok(clock::usb_lines(files)?
+        .and_then(crate::usbclock::UsbClock::applied)
+        .map(|c| c.correction()))
 }
 
 /// The correction known for a take with session file `m` whose first
@@ -1439,14 +1442,18 @@ fn entry_clock(
         _ if card_clock => Ok(ReadClock::default()),
         // Read as it was recorded: its sound is not here.
         Some(k) => {
-            let usb_known = k.header.usb_clock.map(|u| {
-                crate::usbclock::UsbClock {
-                    ppm: u.ppm,
-                    lines: u.lines,
-                    spread_ppm: u.spread_ppm,
-                }
-                .correction()
-            });
+            let usb_known = k
+                .header
+                .usb_clock
+                .and_then(|u| {
+                    crate::usbclock::UsbClock {
+                        ppm: u.ppm,
+                        lines: u.lines,
+                        spread_ppm: u.spread_ppm,
+                    }
+                    .applied()
+                })
+                .map(|u| u.correction());
             let h = &k.header;
             read_clock(
                 log,

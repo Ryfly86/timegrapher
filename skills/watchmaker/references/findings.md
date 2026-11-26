@@ -133,6 +133,10 @@ and say the ones that apply in plain words.
 timegraphers read it. When the recording carries the USB microphone's
 1 kHz lines, `usb_clock` gives the card's error (`ppm` fast, `lines`,
 `spread_ppm`) and `rate_corrected_s_per_day` the rate with it removed.
+When `usb_clock` has `withheld` (`usb_lines_implausible`: the lines read
+the card more than 100 ppm off, as through a hub or Thunderbolt dock),
+they correct nothing: `rate_corrected_s_per_day` is `null`. Quote the
+card's-clock rate and give the `usb_lines_not_used` caveat's words.
 For a rate within a few s/d, quote the corrected rate and say so. Name
 the clock with every rate you quote ("on the sound card's clock" or
 "corrected for the card's clock"). When comparing with another

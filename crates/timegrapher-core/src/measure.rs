@@ -516,6 +516,9 @@ pub enum Caveat {
     LiftUnknown,
     /// The sound card's clock is not corrected.
     ClockUnknown,
+    /// The recording's USB lines read the card `ppm` fast, past
+    /// [`crate::usbclock::MAX_CARD_PPM`], so they correct nothing (#2283).
+    UsbLinesNotUsed { ppm: f64 },
     /// The recording's USB lines correct the rates, and its clock log, which
     /// would correct them on its own, measures the card differently by
     /// more than its own scatter ([`crate::clock::ClockFit::sources_disagree`]):
@@ -676,7 +679,9 @@ impl Caveat {
     pub fn scopes(&self) -> &'static [Scope] {
         use Scope::{Amplitude, BeatError, Rate, Take};
         match self {
-            Caveat::ClockUnknown | Caveat::ClockSourcesDisagree { .. } => &[Rate],
+            Caveat::ClockUnknown
+            | Caveat::ClockSourcesDisagree { .. }
+            | Caveat::UsbLinesNotUsed { .. } => &[Rate],
             Caveat::LiftUnknown | Caveat::Clipped { .. } | Caveat::FaintSidesWithheld { .. } => {
                 &[Amplitude, BeatError]
             }
@@ -765,6 +770,7 @@ impl Caveat {
             Caveat::LiftUnknown => lift_words(lift_deg, false),
             Caveat::ClockUnknown => "input clock not corrected".to_string(),
             Caveat::ClockSourcesDisagree { .. } => self.sources_disagree()?.short(),
+            Caveat::UsbLinesNotUsed { ppm } => usb_not_used(*ppm).not_used_short()?,
             Caveat::Breaks { count } => format!("{count} break{}", plural(*count)),
             Caveat::BreaksUnlisted { .. } => "breaks from the clock log".to_string(),
             Caveat::PausesUnseen { count } => {
@@ -838,6 +844,7 @@ impl Caveat {
                 let note = self.sources_disagree()?.note();
                 format!("{}{}.", note[..1].to_uppercase(), &note[1..])
             }
+            Caveat::UsbLinesNotUsed { ppm } => usb_not_used(*ppm).not_used_text()?,
             Caveat::Breaks { count } => format!(
                 "{count} break{} in this stretch: a hole in the sound, such as when the \
                  computer slept, or a stumble where the beats stepped off together by more \
@@ -937,6 +944,7 @@ impl Caveat {
             Caveat::LiftUnknown => 5,
             Caveat::ClockUnknown => 6,
             Caveat::ClockSourcesDisagree { .. } => 7,
+            Caveat::UsbLinesNotUsed { .. } => 7,
             Caveat::Breaks { .. } => 8,
             Caveat::BreaksUnlisted { .. } => 9,
             Caveat::PausesUnseen { .. } => 10,
@@ -966,6 +974,16 @@ impl From<crate::clock::SourcesDisagree> for Caveat {
             log_ppm_sd: d.log_ppm_sd,
             against: d.against,
         }
+    }
+}
+
+/// [`Caveat::UsbLinesNotUsed`]'s reading, to word it as the USB lines'
+/// own ([`crate::usbclock::UsbClock::not_used_text`]).
+fn usb_not_used(ppm: f64) -> crate::usbclock::UsbClock {
+    crate::usbclock::UsbClock {
+        ppm,
+        lines: 0,
+        spread_ppm: 0.0,
     }
 }
 

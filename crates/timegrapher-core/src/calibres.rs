@@ -657,7 +657,7 @@ mod tests {
             ("Rolex 3255 (53°)", Some(53.0)),
             ("VR3235", Some(52.0)),
             ("VR3285", None),
-            ("DD3135", None),
+            ("DD3135", Some(52.0)),
             ("DD324", Some(52.0)),
         ] {
             let c = find(name).unwrap();
@@ -1116,7 +1116,24 @@ mod tests {
                 .iter()
                 .any(|s| s.contains("31xx-train-wheel-counts.md")));
         }
-        assert_eq!(find("DD3135").unwrap().lift_angle_deg, None);
+        // #2299: this project's bench report gives the DD31xx the genuine
+        // 3135's 52° lift; every DD31xx row and alias carries it and cites it.
+        for name in [
+            "Dandong 3135",
+            "Dandong 3130",
+            "Dandong 3186",
+            "Dandong 3187",
+        ] {
+            let c = find(name).unwrap();
+            assert_eq!(c.lift_angle_deg, Some(52.0), "{name}");
+            assert!(
+                c.sources.iter().any(|s| s.contains("issues/2299")),
+                "{name}"
+            );
+            for alias in &c.family {
+                assert_eq!(find(alias).unwrap().lift_angle_deg, Some(52.0), "{alias}");
+            }
+        }
         assert_eq!(find("Rolex 3135").unwrap().lift_angle_deg, Some(52.0));
         assert_eq!(find("VR3135").unwrap().lift_angle_deg, Some(52.0));
         // A shared number/family must not assign these measurements to SH,
@@ -1704,5 +1721,158 @@ mod tests {
             }
         }
         assert!(named.is_empty(), "{} rows: {named:?}", named.len());
+    }
+
+    /// The replica seller check (#2307), shared by the two tests below.
+    mod replica_seller {
+        use sha2::{Digest, Sha256};
+
+        const BLOCKED: [&str; 3] = [
+            "204ce06ed4943a7545bdfbdfec28c2460332975e86f97b28885e23fceb4d4fea",
+            "17f7c20690be076afb462544543dc0fe3142335bba0f4f787fa3540ac7542c73",
+            "2ae201209116b2cd3b30b9e9a8b163e8fd22bedd65798ef4f6084118850c2370",
+        ];
+        const ALLOWED_HOSTS: [&str; 1] = ["forum.replica-watch.info"];
+        const HOST_WORDS: [&str; 4] = ["replica", "replicas", "clone", "clones"];
+        const SHOP: [&str; 9] = [
+            "product",
+            "products",
+            "product-page",
+            "shop",
+            "store",
+            "cart",
+            "item",
+            "items",
+            "collections",
+        ];
+        const OFFERS: [&str; 3] = ["replica", "super-clone", "superclone"];
+        pub(super) fn texts<'a>(v: &'a serde_json::Value, out: &mut Vec<&'a str>) {
+            match v {
+                serde_json::Value::String(s) => out.push(s),
+                serde_json::Value::Array(a) => a.iter().for_each(|x| texts(x, out)),
+                serde_json::Value::Object(o) => o.values().for_each(|x| texts(x, out)),
+                _ => {}
+            }
+        }
+        /// The host and the rest of a lower-cased address, with any
+        /// scheme, user info, port and trailing dot taken off.
+        fn split(url: &str) -> (String, String) {
+            let rest = url.split_once("://").map_or(url, |(_, r)| r);
+            let end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
+            let (auth, path) = rest.split_at(end);
+            let host = auth.rsplit_once('@').map_or(auth, |(_, h)| h);
+            let host = host.split(':').next().unwrap_or_default();
+            (host.trim_end_matches('.').to_owned(), path.to_owned())
+        }
+        pub(super) fn refused(url: &str) -> bool {
+            let (host, path) = split(&url.to_lowercase());
+            let mut h = host.as_str();
+            loop {
+                let hex: String = Sha256::digest(h.as_bytes())
+                    .iter()
+                    .map(|b| format!("{b:02x}"))
+                    .collect();
+                if BLOCKED.contains(&hex.as_str()) {
+                    return true;
+                }
+                match h.split_once('.') {
+                    Some((_, up)) if up.contains('.') => h = up,
+                    _ => break,
+                }
+            }
+            if !ALLOWED_HOSTS.contains(&host.as_str())
+                && host.split(['.', '-']).any(|w| HOST_WORDS.contains(&w))
+            {
+                return true;
+            }
+            let shop = path.split(['/', '?', '#']).any(|seg| SHOP.contains(&seg));
+            shop && OFFERS.iter().any(|w| path.contains(w))
+        }
+        /// Every address in a text: from each "http" or "www." to the
+        /// next space, quote or bracket, case ignored.
+        pub(super) fn addresses(s: &str) -> Vec<String> {
+            let lower = s.to_lowercase();
+            let mut out = Vec::new();
+            for start in ["http", "www."] {
+                for (i, _) in lower.match_indices(start) {
+                    if start == "www." && lower[..i].ends_with("//") {
+                        continue;
+                    }
+                    let url = lower[i..]
+                        .split(|c: char| c.is_whitespace() || "\"'()<>".contains(c))
+                        .next()
+                        .unwrap_or_default();
+                    if url.contains("://") || start == "www." {
+                        out.push(url.to_owned());
+                    }
+                }
+            }
+            out
+        }
+    }
+
+    /// No calibre row or maker links to a replica seller (#2307). Sellers
+    /// of replicas are not sources: selling them is illegal and their
+    /// pages are unreliable. The replica-watch.info forum stays allowed.
+    /// Known seller sites are listed by the SHA-256 of their host, so this
+    /// file names none of them (the third hash is a made-up host that
+    /// proves the check). A host with "replica" or "clone" as a word, and
+    /// a shop page offering a replica or a super clone, are refused too;
+    /// legal movement clones on parts shops pass.
+    #[test]
+    fn no_source_links_to_a_replica_seller() {
+        use replica_seller::{addresses, refused, texts};
+        let mut hits = Vec::new();
+        for text in [DATA, MAKERS] {
+            let rows: serde_json::Value = serde_json::from_str(text).unwrap();
+            let mut out = Vec::new();
+            texts(&rows, &mut out);
+            for s in out {
+                hits.extend(addresses(s).into_iter().filter(|u| refused(u)));
+            }
+        }
+        assert!(
+            hits.is_empty(),
+            "{} replica seller links: {hits:?}",
+            hits.len()
+        );
+    }
+
+    /// The replica seller check refuses what it should and passes the
+    /// forum and legitimate shops, whatever the address's case or form.
+    #[test]
+    fn the_replica_seller_check_bites_and_spares_legal_shops() {
+        use replica_seller::{addresses, refused};
+        for url in [
+            "https://blocked-seller.example/x",
+            "https://www.blocked-seller.example/x",
+            "HTTPS://WWW.Blocked-Seller.Example/x",
+            "https://blocked-seller.example:443/x",
+            "https://a@blocked-seller.example/x",
+            "https://blocked-seller.example./x",
+            "https://blocked-seller.example?x=1",
+            "https://shop.example/product/rolex-super-clone-3235/",
+            "https://shop.example/products/a-replica-watch",
+            "https://best-replicas.example/",
+            "https://clone.example/",
+        ] {
+            assert!(refused(url), "{url}");
+        }
+        assert_eq!(
+            addresses("see HTTPS://Blocked-Seller.Example/x and www.blocked-seller.example/y."),
+            [
+                "https://blocked-seller.example/x",
+                "www.blocked-seller.example/y."
+            ]
+        );
+        for url in [
+            "https://forum.replica-watch.info/threads/x-clone-caliber.1/",
+            "https://en.seagullwatch.com/products/tourbillon-movement-ty801-st8001",
+            "https://chinesewatchwiki.net/Clone_movements",
+            "https://parts.example/products/unitas-6497-clone-movement",
+            "https://cyclone.example/",
+        ] {
+            assert!(!refused(url), "{url}");
+        }
     }
 }
