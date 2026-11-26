@@ -1419,20 +1419,31 @@ mod tests {
         for chunk in sound.samples.chunks(4800) {
             feed.live.push(chunk);
         }
-        // 7,200 readings over the first 18 s: two hours' worth at 1 s,
-        // on a grid scaled to the 20 s of sound.
-        feed.trend_step_s = 1.0 / 400.0;
-        for i in 0..7200 {
-            let point = ([Some(i as f64 / 400.0), None, None, None], None);
+        // 7,200 readings over the first 18 s: two hours' worth, on a grid
+        // scaled to the 20 s of sound, from a first step of 1/300 s (so
+        // the step ends at 32/300 s, which doesn't divide 20 s).
+        assert_eq!(feed.trend_step_s, 1.0, "the step starts at 1 s");
+        feed.trend_step_s = 1.0 / 300.0;
+        let keep = |feed: &mut Feed, t: f64| {
             let at = |p: &TrendPoint| p.0[0].unwrap();
             feed.trend_newest = keep_trend_point(
                 &mut feed.trend,
                 &mut feed.trend_step_s,
                 MAX_TREND,
                 at,
-                point,
+                ([Some(t), None, None, None], None),
             );
+        };
+        for i in 0..7200 {
+            keep(&mut feed, i as f64 / 400.0);
         }
+        // One more reading early in the step the done frame falls in, so
+        // the done frame is not kept and is given as the newest.
+        let recorded = feed.live.duration_s();
+        let step = feed.trend_step_s;
+        let in_last = (recorded / step).floor() * step + 1.0 / 400.0;
+        assert!(in_last < recorded, "{in_last} {recorded}");
+        keep(&mut feed, in_last);
         feed.finish();
         let doc: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
         let times: Vec<f64> = doc["trend"]["t_s"]
@@ -1444,12 +1455,16 @@ mod tests {
         assert!(times.len() <= MAX_TREND, "{} points", times.len());
         assert!(times.len() > MAX_TREND / 2, "{} points", times.len());
         assert_eq!(times[0], 0.0);
+        // The written trend ends at the done frame, the newest reading,
+        // after the kept reading in its step, each time once.
         assert_eq!(*times.last().unwrap(), doc["recorded_s"].as_f64().unwrap());
-        let gaps: Vec<f64> = times[..times.len() - 1]
+        assert_eq!(times[times.len() - 2], in_last);
+        assert!(times.windows(2).all(|w| w[1] > w[0]), "out of order");
+        assert_eq!(feed.trend_step_s, step);
+        let gaps: Vec<f64> = times[..times.len() - 2]
             .windows(2)
             .map(|w| w[1] - w[0])
             .collect();
-        let step = feed.trend_step_s;
         // Each kept point is the first heard in its step: even to within
         // one reading's spacing.
         let even = |g: &f64| (g - step).abs() <= 1.0 / 400.0 + 1e-9;

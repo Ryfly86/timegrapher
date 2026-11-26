@@ -10,7 +10,8 @@
 /// points stay one step apart over the whole take, the take's first point
 /// among them. Returns the point when it is not among `kept`: the newest
 /// reading, for the caller to give after them, so the trend always ends at
-/// the latest reading.
+/// the latest reading. A reading at the same time as the newest kept one
+/// replaces it, so no time is given twice.
 pub fn keep_trend_point<T: Clone>(
     kept: &mut Vec<T>,
     step_s: &mut f64,
@@ -18,14 +19,23 @@ pub fn keep_trend_point<T: Clone>(
     t_s: impl Fn(&T) -> f64,
     point: T,
 ) -> Option<T> {
+    let t = t_s(&point);
+    // A time that is not finite and at least 0 never shares a step, so
+    // thinning would never end.
+    debug_assert!(t.is_finite() && t >= 0.0, "trend time {t}");
     let slot = |p: &T, step: f64| (t_s(p) / step).floor();
+    if let Some(last) = kept.last_mut() {
+        if t_s(last) == t {
+            *last = point;
+            return None;
+        }
+    }
     let fresh = kept
         .last()
         .is_none_or(|last| slot(&point, *step_s) > slot(last, *step_s));
     if !fresh {
         return Some(point);
     }
-    let t = t_s(&point);
     kept.push(point.clone());
     while kept.len() > max.saturating_sub(1).max(1) {
         *step_s *= 2.0;
@@ -93,6 +103,16 @@ mod tests {
         assert_eq!(keep_trend_point(&mut kept, &mut step, 300, f, 9.0), None);
         assert_eq!(kept, vec![1.0, 9.0]);
         assert_eq!(step, 4.0);
+    }
+
+    /// A reading at the same time as the newest kept one replaces it, so
+    /// the time is given once, with the later reading.
+    #[test]
+    fn a_reading_at_a_kept_time_replaces_it() {
+        let (mut kept, mut step) = (vec![(0.0, 'a'), (1.0, 'b')], 1.0);
+        let newest = keep_trend_point(&mut kept, &mut step, 300, |p: &(f64, char)| p.0, (1.0, 'c'));
+        assert_eq!(newest, None);
+        assert_eq!(kept, vec![(0.0, 'a'), (1.0, 'c')]);
     }
 
     /// When thinning drops the point just added, it comes back as the
