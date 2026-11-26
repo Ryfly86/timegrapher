@@ -2016,7 +2016,7 @@ fn the_settled_time_moves_on_with_the_sound() {
     );
     let mut live = LiveAnalyzer::new(audio.sample_rate, LiveConfig::default());
     let quiet = vec![0.0_f32; 15 * audio.sample_rate as usize];
-    let mut beating = 0.0;
+    let (mut beating, mut beating_heard) = (0.0, 0.0);
     for (k, chunk) in audio
         .samples
         .chunks(960)
@@ -2030,13 +2030,17 @@ fn the_settled_time_moves_on_with_the_sound() {
             assert!(b.time <= settled, "beat {} after {settled}", b.time);
         }
         if (k + 1) * 960 == audio.samples.len() {
-            beating = settled;
+            (beating, beating_heard) = (settled, heard);
         }
     }
     let last_beat = live.beats().last().expect("beats").time;
     assert!(
         beating > 19.0 && beating - last_beat < 1.0,
         "{beating} {last_beat}"
+    );
+    assert!(
+        beating < beating_heard,
+        "beating, {beating} behind the sound {beating_heard}"
     );
     let (settled, heard) = (live.settled_s(), live.duration_s());
     assert!(

@@ -1009,6 +1009,11 @@ fn the_strip_moves_on_when_the_stand_goes_silent() {
     assert!(app.latest_s() < last_beat + 1.0, "no beat in the silence");
     assert_eq!(later, settled, "the paper moved on to {later}");
     assert!(later > last_beat + 10.0 && later <= heard, "{later}");
+    // Fit's end moves on with the paper, not only with new readings.
+    let trend = std::mem::take(&mut app.bench.results.trend);
+    let span = app.take_span().expect("a span").1;
+    assert_eq!(span, settled, "Fit's end moves on with the paper");
+    app.bench.results.trend = trend;
     let wait = timegrapher_core::measure::Wait::NoBeats.title();
     let note = app.strip_note_shown(false, &[], false, later);
     assert_eq!(
@@ -1041,6 +1046,15 @@ fn the_strip_moves_on_when_the_stand_goes_silent() {
     };
     app.apply_strip_input(forward, app.strip_end_s());
     assert_eq!(app.bench.panes_view.strip_end, None);
+    // Zoomed out live, the strip stops at the paper's newest moment.
+    app.bench.panes_view.strip_fit = false;
+    app.bench.panes_view.strip.set_span(10.0);
+    let out = StripInput {
+        span_factor: 100.0,
+        ..Default::default()
+    };
+    app.apply_strip_input(out, app.strip_end_s());
+    assert_eq!(app.bench.panes_view.strip.span_s, settled);
     app.stop();
     let cards = timegrapher_core::beats::last_watch_beat_s(
         app.bench.recording.live.as_ref().unwrap().beats(),
@@ -1054,11 +1068,10 @@ fn the_strip_moves_on_when_the_stand_goes_silent() {
     let _ = std::fs::remove_dir_all(base);
 }
 
-/// After a silent start, stand noise that the engine takes for no watch:
-/// stopped, the strip ends with the sound, as no watch's beat ends it
-/// (#2335).
+/// Silence only, as a silent start before the stand is heard: stopped,
+/// the strip ends with the sound, as no watch's beat ends it (#2335).
 #[test]
-fn stopped_on_stand_noise_the_strip_ends_with_the_sound() {
+fn stopped_on_silence_the_strip_ends_with_the_sound() {
     let base = std::env::temp_dir().join(format!("tg-strip-noise-{}", std::process::id()));
     let _ = std::fs::create_dir_all(&base);
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
