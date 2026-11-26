@@ -27,23 +27,21 @@ pub fn fact(c: &Value, lift_deg: Option<f64>) -> Option<String> {
 /// timing scatter of the beats, in ms and as a share of the beat period,
 /// when the measurement gives it (`jitter_us`, with the beat rate).
 pub fn no_regular_beat(m: &Value, bph: Option<f64>) -> String {
-    let no_sound = m["caveats"]
+    use timegrapher_core::measure::NoWatchReason;
+    // The reason as core reads it (scatter where none is given), in
+    // core's words for it.
+    let reason = m["caveats"]
         .as_array()
         .into_iter()
         .flatten()
-        .any(|c| c["code"] == "no_watch" && c["reason"] == "no_beat_sound");
-    let said = match bph.filter(|b| *b > 0.0) {
-        _ if no_sound => timegrapher_core::measure::no_watch_text(
-            timegrapher_core::measure::NoWatchReason::NoBeatSound,
-            None,
-            None,
-        ),
-        Some(b) => timegrapher_core::session::no_regular_beat(
-            m["jitter_us"].as_f64(),
-            Some(b.round() as u32),
-        ),
-        None => timegrapher_core::session::no_regular_beat(m["jitter_us"].as_f64(), None),
-    };
+        .find(|c| c["code"] == "no_watch")
+        .and_then(|c| serde_json::from_value::<NoWatchReason>(c["reason"].clone()).ok())
+        .unwrap_or_default();
+    let said = timegrapher_core::measure::no_watch_text(
+        reason,
+        m["jitter_us"].as_f64(),
+        bph.filter(|b| *b > 0.0).map(|b| b.round() as u32),
+    );
     format!("{said}. {}", timegrapher_core::session::NO_READINGS)
 }
 
@@ -120,7 +118,6 @@ pub fn limits(doc: &Value) -> Vec<Value> {
     let bph = doc["bph_set"].as_f64();
     // No regular beat is said with the measurement's own timing scatter.
     let say = |c: &Value, m: &Value, bph: Option<f64>| match c["code"].as_str() {
-        Some("no_watch") if c["reason"] == "no_beat_sound" => fact(c, lift),
         Some("no_watch") => Some(no_regular_beat(m, bph)),
         _ => fact(c, lift),
     };
@@ -431,6 +428,41 @@ mod tests {
             no_regular_beat(&Value::Null, Some(28800.0)),
             "No regular beat found (too few beats to time). There are no rate, amplitude or \
              beat error readings."
+        );
+    }
+
+    /// Each no-watch reason in core's words, read through serde: a run
+    /// too short and beats with no unlock or drop are never given the
+    /// timing scatter (Vernon on #2311).
+    #[test]
+    fn each_no_watch_reason_says_core_s_sentence() {
+        let said = |reason: &str| {
+            notes(
+                &json!({ "schema": "timegrapher.analyze/2", "bph": 28800, "bph_set": 28800,
+                "jitter_us": 8600.0, "watch_heard": false,
+                "caveats": [{ "code": "no_watch", "reason": reason }] }),
+            )
+        };
+        let tail = " There are no rate, amplitude or beat error readings.";
+        assert_eq!(
+            said("too_short"),
+            [format!(
+                "No regular beat found (the beats were regular, but no run of them lasted the \
+                 10 s a reading needs).{tail}"
+            )]
+        );
+        assert_eq!(
+            said("no_beat_sound"),
+            [format!(
+                "No regular beat found (neither the Tick's nor the Tock's sound shows an \
+                 unlock or a drop).{tail}"
+            )]
+        );
+        assert_eq!(
+            said("scatter"),
+            [format!(
+                "No regular beat found (timing scatter 8.6 ms, 6.9% of a beat).{tail}"
+            )]
         );
     }
 

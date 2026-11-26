@@ -1,7 +1,7 @@
 //! Inputs and their gain, what the cards and readings say, the profiles,
 //! exporting a pane, and the empty and error states.
 
-use super::readouts::{reading_limits, take_limits};
+use super::readouts::{beats_were_regular, no_watch_hover, reading_limits, take_limits};
 use super::tests::{frames, painted_text, screen, synthetic, synthetic_set, themed};
 use super::*;
 use timegrapher_core::synth::{generate, SynthConfig};
@@ -2752,4 +2752,174 @@ fn the_be_angle_line_is_at_the_readings_own_period() {
         readouts::be_angle_words(&r, 52.0).as_deref(),
         Some(own.as_str())
     );
+}
+
+/// Beats regular but no run long enough to read (#2257): the cards'
+/// hover is core's reason alone, and its beats are a watch's; scattered
+/// beats keep the hover about scatter as before (Hugh on #2311).
+#[test]
+fn a_run_too_short_is_not_called_scattered() {
+    use timegrapher_core::measure::NoWatchReason;
+    let mut r = LiveAnalyzer::new(48_000, LiveConfig::default()).reading(2.0);
+    r.caveats = vec![Caveat::NoWatch {
+        reason: NoWatchReason::TooShort,
+    }];
+    assert_eq!(
+        no_watch_hover(Some(&r)),
+        "No regular beat found (the beats were regular, but no run of them lasted the 10 s \
+         a reading needs)."
+    );
+    assert!(beats_were_regular(&r));
+    r.caveats = vec![Caveat::NoWatch {
+        reason: NoWatchReason::Scatter,
+    }];
+    assert!(no_watch_hover(Some(&r)).ends_with(*help::NO_REGULAR_BEAT));
+    assert!(!beats_were_regular(&r));
+}
+
+/// A synthetic watch at 28,800 heard `first` s, then `gap` s of noise
+/// peaking at 0.75 times its RMS, then `back` s of the watch again,
+/// listened to through the capture as the window hears it, stopped, and
+/// its Stop read in.
+fn stopped_short_return(base: &Path, (first, gap, back): (f64, f64, f64)) -> TimegrapherApp {
+    use timegrapher_core::capture::{Block, Event};
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "short return".into());
+    app.session.listen();
+    let info = app.info("short return", 48000, 16);
+    app.session.recorder = Some(Recorder::start(&base.join("live"), info).unwrap());
+    let tx = super::tests::queued_capture(&mut app, base);
+    let cfg = SynthConfig {
+        bph: 28_800,
+        duration_s: first + gap + back,
+        ..Default::default()
+    };
+    let mut audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let span = (first * 48_000.0) as usize..((first + gap) * 48_000.0) as usize;
+    let rms = (audio.samples[span.clone()]
+        .iter()
+        .map(|v| v * v)
+        .sum::<f32>()
+        / span.len() as f32)
+        .sqrt();
+    let mut x: u64 = 12_345;
+    for s in &mut audio.samples[span] {
+        x = x
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        *s = 1.5 * rms * ((x >> 33) as f32 / (1u64 << 31) as f32 - 0.5);
+    }
+    for (k, samples) in audio.samples.chunks(960).enumerate() {
+        let us = 3e6 + (k * 960) as f64 / 48_000.0 * 1e6;
+        let at = std::time::UNIX_EPOCH + std::time::Duration::from_micros(us as u64);
+        let samples = samples.to_vec();
+        tx.send(Event::Audio(Block { samples, at })).unwrap();
+    }
+    while app.poll_for(std::time::Duration::from_secs(60)) > 0 {}
+    app.stop();
+    let t = std::time::Instant::now();
+    while app.stop_read_waits().is_some() {
+        app.poll_stop_read();
+        assert!(
+            t.elapsed().as_secs() < 120,
+            "the Stop read is still under way"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    app.poll_stop_read();
+    assert!(
+        app.stopped_take().is_some(),
+        "the take stopped is read whole"
+    );
+    app
+}
+
+/// A watch put back for 9 s after noise, stopped, after 7 s of it heard
+/// first or none: at every Average Over its cards read the whole take's
+/// verdict, too short, never Finding the Beat, whose wait can't end once
+/// the take has; and the strip shows the run's beats, saying what a
+/// reading needs, never "no regular beat found yet" (Walter 46 on #2311).
+#[test]
+fn a_stopped_short_return_reads_too_short_at_every_average() {
+    use timegrapher_core::measure::{no_watch_reason_in, too_short_need_text, NoWatchReason};
+    let ctx = themed();
+    for (n, take) in [(7.0, 20.0, 9.0), (0.0, 12.0, 9.0)].into_iter().enumerate() {
+        let base = std::env::temp_dir().join(format!("tg-short-return-{}-{n}", std::process::id()));
+        let _ = std::fs::create_dir_all(&base);
+        let mut app = stopped_short_return(&base, take);
+        for average in timegrapher_core::live::AVERAGES {
+            app.bench.take.average_s = average;
+            let _ = app.whole_take();
+            let r = app.card_reading().expect("a reading");
+            assert!(
+                !r.finding_beat && !r.watch_heard,
+                "{take:?} at {average} s: {r:?}"
+            );
+            assert_eq!(
+                no_watch_reason_in(&r.caveats),
+                Some(NoWatchReason::TooShort),
+                "{take:?} at {average} s: {r:?}"
+            );
+            let strip = strip_text(&mut app, &ctx, true);
+            assert!(
+                strip.contains(&too_short_need_text()),
+                "{take:?} at {average} s: {strip}"
+            );
+            assert!(!strip.contains("yet"), "{take:?} at {average} s: {strip}");
+        }
+        let _ = std::fs::remove_dir_all(base);
+    }
+}
+
+/// 120 s of watch, 20 s of noise, then 12 s back, stopped: the whole take
+/// hears the watch, so a card whose Average Over is shorter than the take
+/// reads its own last seconds as the saved read gives them: never the
+/// whole take's figures, never Finding the Beat (Norm's ruling on #2311).
+#[test]
+fn a_stopped_card_reads_its_own_span_after_a_long_run() {
+    let base = std::env::temp_dir().join(format!("tg-own-span-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = stopped_short_return(&base, (120.0, 20.0, 12.0));
+    for average in timegrapher_core::live::AVERAGES {
+        app.bench.take.average_s = average;
+        let _ = app.whole_take();
+        let r = app.card_reading().expect("a reading");
+        assert!(!r.whole_take && !r.finding_beat, "{average} s: {r:?}");
+        assert!(r.span_s <= average + 1e-6, "{average} s: {r:?}");
+    }
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// 30 s of watch, 20 s of noise, then 11 s back, stopped: at the watch's
+/// last beat live is still finding the beat at every Average Over, and
+/// the whole take hears the watch, so each card reads as the saved read
+/// of its own last seconds gives it (the take's reader over that span,
+/// as its Watches row reads), never Finding the Beat (Norm's ruling on
+/// #2311, case 3).
+#[test]
+fn a_stopped_card_still_finding_reads_its_own_span() {
+    use timegrapher_core::measure::no_watch_reason_in;
+    let base = std::env::temp_dir().join(format!("tg-finding-span-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = stopped_short_return(&base, (30.0, 20.0, 11.0));
+    for average in timegrapher_core::live::AVERAGES {
+        app.bench.take.average_s = average;
+        assert!(app.whole_take().expect("a whole take").m.watch_heard);
+        let s = app.stopped_take().expect("stopped");
+        let at = timegrapher_core::beats::last_watch_beat_s(s.live.beats()).expect("a last beat");
+        assert!(s.live.reading_at(at, average).finding_beat, "{average} s");
+        let own = app.own_span_read(at - average, at).expect("its span read");
+        assert!(own.start_s >= at - average && own.end_s == at, "{own:?}");
+        let r = app.card_reading().expect("a reading");
+        assert!(!r.finding_beat && !r.whole_take, "{average} s: {r:?}");
+        assert_eq!(r.watch_heard, own.watch_heard, "{average} s: {r:?}");
+        assert_eq!(r.rate_s_per_day, own.rate_s_per_day, "{average} s");
+        assert_eq!(r.caveats, own.caveats, "{average} s");
+        assert_eq!(
+            no_watch_reason_in(&r.caveats),
+            no_watch_reason_in(&own.caveats),
+            "{average} s"
+        );
+    }
+    let _ = std::fs::remove_dir_all(base);
 }
