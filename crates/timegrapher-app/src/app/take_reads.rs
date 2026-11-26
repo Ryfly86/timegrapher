@@ -379,9 +379,7 @@ impl TimegrapherApp {
             m.take_doubts(lift_known, unlisted);
             // On Auto, a lock off every standard rate gives no rate in s/d,
             // as a saved take's reading and `analyze` give none (#2327).
-            if timegrapher_core::analysis::lock_off_standard(bph_set, &log) {
-                m.read_off_standard(log.bph);
-            }
+            m.judge_lock(bph_set, &log);
             let span = m.measured_s();
             Some(WholeTake { m, span })
         };
@@ -762,10 +760,8 @@ pub(super) fn read_table(
     );
     // On Auto, a lock off every standard rate gives no position a rate in
     // s/d, as `session` reads each (#2253).
-    if timegrapher_core::analysis::lock_off_standard(bph_set, log) {
-        t.read_off_standard(log.bph);
-        core_session::read_rows_off_standard(&mut upright, log.bph);
-    }
+    t.judge_lock(bph_set, log);
+    core_session::judge_rows_lock(&mut upright, bph_set, log);
     guided::free_table(
         &t,
         guided::take_readings(&guided::card_rows(&t), log.bph, bph_set),

@@ -844,9 +844,7 @@ impl Test {
             session::measure_reading(log, clock, &jumps, masked, (from, to), &stops);
         // On Auto, a lock off every standard rate gives no rate in s/d, as
         // `session` reads the saved take's positions (#2253).
-        if timegrapher_core::analysis::lock_off_standard(self.bph_set, log) {
-            measurement.read_off_standard(log.bph);
-        }
+        measurement.judge_lock(self.bph_set, log);
         self.reading_of(i, to - from, log.bph, measurement)
     }
 

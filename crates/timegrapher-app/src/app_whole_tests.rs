@@ -378,4 +378,21 @@ fn an_off_standard_watch_opened_on_auto_has_no_rate_in_s_per_day() {
     assert!(t.read > 0, "{t:?}");
     assert_eq!((t.mean[0], t.largest[0]), (None, None), "{t:?}");
     assert!(t.mean[1].is_some(), "amplitude stays: {t:?}");
+    // Over 2 s and 4 s the Rate card waits for no more beats: no number
+    // of them brings a rate in s/d here, and the chip says why (#2357).
+    let ctx = themed();
+    for average in [2.0, 4.0] {
+        app.bench.take.average_s = average;
+        let mut out = ctx.run(super::tests::screen(), |ctx| app.panels(ctx));
+        for _ in 0..2 {
+            out = ctx.run(super::tests::screen(), |ctx| app.panels(ctx));
+        }
+        let shown = painted_text(&out);
+        let wait = timegrapher_core::measure::WAITING_FOR_MORE_BEATS;
+        assert!(!shown.contains(wait), "over {average} s:\n{shown}");
+        assert!(!shown.contains("More Beats"), "over {average} s:\n{shown}");
+    }
+    // Saved, the take names no beat rate: it was Auto, and Auto's guess
+    // is not a set rate (#2357).
+    assert_eq!(app.take_manifest().bph, None);
 }

@@ -878,7 +878,11 @@ impl TimegrapherApp {
         }
         // In the unit's place: what the reading waits on, as every card
         // says it, or why it is the position before.
-        let status = c.wait(rate.is_some(), false).or_else(|| {
+        // A lock off every standard rate gives no rate however many beats
+        // come: its chip says why, so the card waits for nothing (#2357).
+        let off =
+            c.r.is_some_and(|r| measure::off_standard(&r.caveats).is_some());
+        let status = c.wait(rate.is_some(), off).or_else(|| {
             self.stopped_in_settle().map(|at| {
                 (
                     "Before the Move".to_string(),

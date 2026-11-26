@@ -424,11 +424,11 @@ pub struct LiveAnalyzer {
     /// silence lets a guessed rate go, so readings back in the log still
     /// fit.
     logged_bph: Option<u32>,
-    /// An imported beat log's rate, where its lock was judged off every
-    /// standard rate on Auto as a take's reading judges it
+    /// Whether an imported beat log's lock was judged off every standard
+    /// rate on Auto, as a take's reading judges it
     /// ([`crate::analysis::lock_off_standard`], #2327): the verdict of
     /// its beats, which no lock of this engine's holds.
-    log_off_standard: Option<u32>,
+    log_off_standard: bool,
     /// Known jumps in an imported beat log. Replacing position/settling
     /// boundaries must not erase these intrinsic discontinuities.
     intrinsic_breaks: Vec<f64>,
@@ -525,7 +525,7 @@ impl LiveAnalyzer {
             quiet_passes: 0,
             candidates: VecDeque::new(),
             logged_bph: None,
-            log_off_standard: None,
+            log_off_standard: false,
             intrinsic_breaks: Vec::new(),
             by_count: Vec::new(),
             breaks: Vec::new(),
@@ -539,8 +539,7 @@ impl LiveAnalyzer {
     /// so a file can be looked at on the same screen as a live watch.
     pub fn from_log(log: BeatLog, cfg: LiveConfig) -> Self {
         let mut a = LiveAnalyzer::new(log.sample_rate, cfg);
-        a.log_off_standard =
-            crate::analysis::lock_off_standard(a.cfg.analysis.bph, &log).then_some(log.bph);
+        a.log_off_standard = crate::analysis::lock_off_standard(a.cfg.analysis.bph, &log);
         a.cfg.analysis.amplitude.lift_deg = log.lift_deg;
         a.cfg.analysis.amplitude.escapement = log.escapement;
         a.total = (log.duration_s * a.fs).round() as u64;
@@ -691,7 +690,6 @@ impl LiveAnalyzer {
         self.found_bph = false;
         self.doubt = None;
         self.logged_bph = self.bph;
-        self.log_off_standard = None;
         self.forget_locks();
         self.beats.clear();
         self.beats_gen = fresh_gen();

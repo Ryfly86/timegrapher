@@ -791,16 +791,19 @@ fn noise_lead(mut audio: Audio, secs: f64) -> Audio {
 /// A whole reading judged off every standard rate already, as the app
 /// reads its whole take (#2253, #2327): a live reading at its end keeps
 /// that verdict, no rate in s/d and the caveat with the whole's figures,
-/// though whole has no rate left to read again (Trevor's trap on #2316).
+/// though whole has no rate left to read again (Trevor's trap on #2316),
+/// and though the live reading's own lock was not judged off: here it
+/// is read at a set rate, so only the whole's verdict can give it.
 #[test]
 fn a_whole_read_off_already_keeps_its_verdict_at_the_end() {
     let audio = watch(17_570, 5.0, 40.0);
-    let l = live(&audio, None);
-    let r = l.reading(40.0);
     let log = log_of(&audio, None);
+    let l = live(&audio, Some(log.bph));
+    let r = l.reading(40.0);
+    assert!(off_standard(&r.caveats).is_none() && r.rate_s_per_day.is_some());
     let mut whole = timegrapher_core::session::measure(&log, None, 0.0, r.time_s);
-    assert!(timegrapher_core::analysis::lock_off_standard(None, &log));
-    whole.read_off_standard(log.bph);
+    whole.judge_lock(None, &log);
+    assert!(whole.rate_s_per_day.is_none(), "{:?}", whole.caveats);
     let want = off_standard(&whole.caveats).expect("whole read off");
     let end = r.at_whole_end(&whole, 40.0);
     assert!(end.whole_take, "the whole reading holds: {whole:?}");
@@ -841,10 +844,18 @@ fn an_engine_from_a_log_takes_the_logs_verdict() {
     let r = set.reading_at(set.duration_s(), 10.0);
     assert!(r.rate_s_per_day.is_some(), "{r:?}");
     assert!(off_standard(&r.caveats).is_none(), "{:?}", r.caveats);
+    // Its rate then set to the one its beats are read at: they stand, and
+    // the log's Auto verdict no longer holds.
+    let mut l = l;
+    let bph = l.bph().expect("a rate");
+    l.set_bph(Some(bph));
+    let r = l.reading_at(l.duration_s(), 10.0);
+    assert!(r.watch_heard && r.rate_s_per_day.is_some(), "{r:?}");
+    assert!(off_standard(&r.caveats).is_none(), "{:?}", r.caveats);
 }
 
 /// A take's Positions Test table in a lock off every standard rate
-/// (`PositionsTable::read_off_standard`): no position has a rate in s/d,
+/// (`PositionsTable::judge_lock`): no position has a rate in s/d,
 /// each names the caveat, and no value over the positions is in s/d;
 /// amplitude stays, as `session` reads each position (#2253).
 #[test]
@@ -864,7 +875,9 @@ fn a_positions_table_off_standard_has_no_rate() {
         "read at the guess: {:?}",
         t.indices
     );
-    t.read_off_standard(log.bph);
+    t.judge_lock(Some(log.bph), &log);
+    assert!(t.indices.d_rate.is_some(), "a set rate is never read off");
+    t.judge_lock(None, &log);
     assert_eq!(read(&t), 2);
     for m in t.rows.iter().filter_map(|r| r.measurement.as_ref()) {
         assert_eq!(m.rate_s_per_day, None);
