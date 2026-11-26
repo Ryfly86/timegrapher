@@ -12,7 +12,7 @@
 pub const BPH_RANGE: std::ops::RangeInclusive<u32> = 12_000..=72_000;
 
 /// Why a beat rate outside [`BPH_RANGE`] is refused.
-pub const BPH_RANGE_TEXT: &str = "the beat rate must be a whole number from 12000 to 72000 bph";
+pub const BPH_RANGE_TEXT: &str = "beat rate must be a whole number from 12000 to 72000 bph";
 
 /// `value` if it lies in [`BPH_RANGE`].
 pub fn bph(value: u64) -> Result<u32, String> {
@@ -196,7 +196,14 @@ mod tests {
         for b in [0, 1, 8_000, 11_999, 72_001, u32::MAX as u64, u64::MAX] {
             assert_eq!(bph(b), Err(BPH_RANGE_TEXT.to_string()), "{b}");
         }
-        assert!(BPH_RANGE_TEXT.contains("12000") && BPH_RANGE_TEXT.contains("72000"));
+        assert_eq!(
+            BPH_RANGE_TEXT,
+            format!(
+                "beat rate must be a whole number from {} to {} bph",
+                BPH_RANGE.start(),
+                BPH_RANGE.end()
+            )
+        );
     }
 
     /// The range runs from the slowest standard rate to the fastest.

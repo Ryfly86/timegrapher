@@ -828,8 +828,6 @@ pub fn definition(t: &ToolSpec) -> Value {
     d
 }
 
-/// The averaging time `n` for `p`, refused by its own name when it is
-/// not one of the app's ([`timegrapher_core::input_domain::average_s`]).
 /// A beat rate as given, when a whole number in
 /// [`timegrapher_core::input_domain::BPH_RANGE`]; a decimal is refused,
 /// never rounded (#2224).
@@ -840,6 +838,8 @@ fn beat_rate_arg(t: &ToolSpec, p: &Param, n: &serde_json::Number) -> Result<Vec<
     Ok(vec![n.to_string()])
 }
 
+/// The averaging time `n` for `p`, refused by its own name when it is
+/// not one of the app's ([`timegrapher_core::input_domain::average_s`]).
 fn average_arg(t: &ToolSpec, p: &Param, n: &serde_json::Number) -> Result<Vec<String>, String> {
     timegrapher_core::input_domain::average_s(n.as_f64().unwrap_or(f64::NAN))
         .map_err(|e| format!("{}: {}: {e}", t.name, p.name))?;

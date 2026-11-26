@@ -57,12 +57,13 @@ on each `session` reading (also inside an analyzed take), on `record.check`, and
 on a live reading. `bph` and `timing_scatter_fraction` retain their numerical
 meaning. When no regular beat was found and `bph_set` is null or absent, text
 gives the timing scatter in ms without a percentage of a guessed beat (#857).
-Beside it wherever it appears, `bph_set_from` says where the set rate came
+Beside `bph_set` wherever it appears, `bph_set_from` says where the set rate came
 from (#2224): `standard` (given with `--bph` or MCP's `bph` as one of the
 standard rates, 12000, 14400, 17280, 18000, 19800, 21600, 25200, 28800,
-36000, 43200 and 72000), `typed` (given as any other whole rate in range),
+36000, 43200 and 72000, core `beats::STANDARD_BPH`), `typed` (given as any other whole rate in range),
 `calibre` (the calibre's table row) or `session` (the take's session file).
-It is left out when `bph_set` is null. A rate a `record` takes from a
+It is given on `analyze`, each `session` reading and `record.check`, not yet
+on a live reading, and is left out when `bph_set` is null. A rate a `record` takes from a
 library watch counts as given.
 
 `software` tells builds apart: `git_hash` is the short commit hash

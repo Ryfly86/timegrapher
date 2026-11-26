@@ -76,7 +76,7 @@ fn a_rate_outside_the_range_or_with_a_decimal_is_refused() {
         assert_eq!(out.status.code(), Some(2), "{bph}: {out:?}");
         let err = String::from_utf8_lossy(&out.stderr);
         assert!(
-            err.contains("the beat rate must be a whole number from 12000 to 72000 bph"),
+            err.contains("beat rate must be a whole number from 12000 to 72000 bph"),
             "{bph}: {err}"
         );
     }
