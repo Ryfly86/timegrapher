@@ -2241,7 +2241,8 @@ keeps up to date. Sound that hasn't been saved is never thrown away
 without asking, except a Quick Listen take's: New Session, opening a
 recording, starting a take of a watch, closing the window and File > Quit
 ask whether to save it first, while unsaved Quick Listen sound goes
-without a question, unless a watch is picked or a New Test set up over it. Until it is
+without a question, unless a watch is picked or a New Test set up over
+it. Until it is
 saved it is kept in a folder of the app's own (`timegrapher/unsaved`
 under `~/.local/share` on Linux, `~/Library/Application Support` on a
 Mac, `%LOCALAPPDATA%` on Windows), which the system doesn't clear. When

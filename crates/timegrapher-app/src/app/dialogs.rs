@@ -21,13 +21,7 @@ impl TimegrapherApp {
         if self.bench.keeping.saving.is_some() {
             return self.confirm_saving_dialog(ctx);
         }
-        let ask = match what {
-            Confirm::PickWatch(_) => self.line_pick_asks(),
-            Confirm::NewTake(kind) => self.new_take_asks(kind),
-            Confirm::ReserveStart => self.line_pick_asks(),
-            _ => self.needs_save_confirmation(),
-        };
-        if !ask {
+        if !self.confirm_asks(&what) {
             self.confirm = None;
             return self.confirmed(what, ctx);
         }
@@ -79,7 +73,7 @@ impl TimegrapherApp {
         match choice {
             Some(0) if masks => {
                 self.save_marks();
-                if self.needs_save_confirmation() {
+                if self.confirm_asks(&what) {
                     return; // saving failed
                 }
             }
@@ -89,8 +83,10 @@ impl TimegrapherApp {
                 if self.bench.keeping.saving.is_some() {
                     return; // asked again, or carried on, once it is written
                 }
-                if self.needs_save_confirmation() {
-                    return; // the folder dialog was cancelled, or saving failed
+                // The same question as above: a Quick Listen's sound waits
+                // for the folder picked, rather than going before it shows.
+                if self.confirm_asks(&what) {
+                    return; // the folder dialog is open or was cancelled, or saving failed
                 }
             }
             Some(1) => {}
@@ -103,6 +99,16 @@ impl TimegrapherApp {
         }
         self.confirm = None;
         self.confirmed(what, ctx);
+    }
+
+    /// Whether `what` still asks before throwing away unsaved sound: one
+    /// rule for showing the question and for carrying on after Save….
+    pub(super) fn confirm_asks(&self, what: &Confirm) -> bool {
+        match what {
+            Confirm::PickWatch(_) | Confirm::ReserveStart => self.line_pick_asks(),
+            Confirm::NewTake(kind) => self.new_take_asks(*kind),
+            _ => self.needs_save_confirmation(),
+        }
     }
 
     /// What the question before throwing away unsaved sound says will be

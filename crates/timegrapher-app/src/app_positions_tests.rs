@@ -1591,10 +1591,30 @@ fn a_45_degree_stop_gets_its_own_row_outside_the_average() {
     let _ = std::fs::remove_dir_all(base);
 }
 
+/// A Quick Listen listening with `secs` s of sound not saved, no watch
+/// picked; its sound kept under `dir`.
+fn quick_listening(base: &std::path::Path, dir: &str, secs: usize) -> TimegrapherApp {
+    let mut app = synthetic(5.0, 0.0);
+    let _ = queued_capture(&mut app, base);
+    app.session.listen();
+    let info = app.info("Quick", 48000, 16);
+    let mut r = Recorder::start(&base.join(dir), info).unwrap();
+    r.write(&timegrapher_core::capture::Block {
+        samples: vec![0.0; 48000 * secs],
+        at: std::time::SystemTime::now(),
+    })
+    .unwrap();
+    app.session.recorder = Some(r);
+    app.bench.recording.quick_listen = true;
+    assert!(app.running() && app.quick_unsaved() && app.open_watch().is_none());
+    app
+}
+
 /// New Test over a Quick Listen still listening, with no watch picked,
 /// asks about its unsaved sound before setting the test up, for each
 /// test (#2328); once asked, the listening stops and the test is set
-/// up. Listening again lets the sound go unasked, as before.
+/// up. Listening again lets the sound go unasked, as before, and so
+/// does New Test over 5 s or less of sound, or sound already saved.
 #[test]
 fn a_new_test_over_a_quick_listen_asks_first() {
     let base = std::env::temp_dir().join(format!("tg-app-new-test-quick-{}", std::process::id()));
@@ -1607,19 +1627,7 @@ fn a_new_test_over_a_quick_listen_asks_first() {
         NewTake::Complication,
         NewTake::PowerReserve,
     ] {
-        let mut app = synthetic(5.0, 0.0);
-        let _tx = queued_capture(&mut app, &base);
-        app.session.listen();
-        let info = app.info("Quick", 48000, 16);
-        let mut r = Recorder::start(&base.join("scratch"), info).unwrap();
-        r.write(&timegrapher_core::capture::Block {
-            samples: vec![0.0; 48000 * 30],
-            at: std::time::SystemTime::now(),
-        })
-        .unwrap();
-        app.session.recorder = Some(r);
-        app.bench.recording.quick_listen = true;
-        assert!(app.running() && app.quick_unsaved() && app.open_watch().is_none());
+        let mut app = quick_listening(&base, "scratch", 30);
         app.new_take(kind, false);
         assert_eq!(app.confirm, Some(Confirm::NewTake(kind)), "{kind:?}");
         // The question shows, rather than carrying on unasked.
@@ -1637,18 +1645,57 @@ fn a_new_test_over_a_quick_listen_asks_first() {
         assert_eq!(app.ready_test(), Some(kind), "{kind:?}");
     }
     // Listening again, with no watch, lets the sound go unasked.
-    let mut app = synthetic(5.0, 0.0);
-    app.session.listen();
-    let info = app.info("Quick", 48000, 16);
-    let mut r = Recorder::start(&base.join("again"), info).unwrap();
-    r.write(&timegrapher_core::capture::Block {
-        samples: vec![0.0; 48000 * 30],
-        at: std::time::SystemTime::now(),
-    })
-    .unwrap();
-    app.session.recorder = Some(r);
-    app.bench.recording.quick_listen = true;
+    let app = quick_listening(&base, "again", 30);
     assert!(!app.new_take_asks(NewTake::Listen));
     assert!(app.new_take_asks(NewTake::Positions));
+    // 5 s or less isn't asked about: the test is set up at once.
+    let mut app = quick_listening(&base, "short", 5);
+    app.new_take(NewTake::Positions, false);
+    assert_eq!(app.confirm, None);
+    assert_eq!(app.ready_test(), Some(NewTake::Positions));
+    // Nor is sound already saved.
+    let mut app = quick_listening(&base, "saved", 30);
+    let snap = app.session.metadata_snapshot(app.save_metadata());
+    app.session.mark_saved(30.0, base.join("kept"), snap);
+    assert!(!app.quick_unsaved());
+    app.new_take(NewTake::Poise, false);
+    assert_eq!(app.confirm, None);
+    assert_eq!(app.ready_test(), Some(NewTake::Poise));
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// Save… (Return) on New Test's question over a Quick Listen, with no
+/// Watches folder to save it into, asks for a folder and waits for it:
+/// the listening and its sound stay until the folder is picked.
+#[test]
+fn save_on_new_tests_question_waits_for_the_folder() {
+    let base = std::env::temp_dir().join(format!("tg-app-new-test-save-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let mut app = quick_listening(&base, "scratch", 30);
+    assert!(app.watch_takes_dir().is_none(), "no Watches folder");
+    app.new_take(NewTake::Positions, false);
+    assert_eq!(app.confirm, Some(Confirm::NewTake(NewTake::Positions)));
+    let ctx = themed();
+    let enter = |pressed| egui::Event::Key {
+        key: egui::Key::Enter,
+        physical_key: None,
+        pressed,
+        repeat: false,
+        modifiers: Default::default(),
+    };
+    let _ = ctx.run(egui::RawInput::default(), |ctx| app.confirm_dialog(ctx));
+    let input = egui::RawInput {
+        events: vec![enter(true), enter(false)],
+        ..Default::default()
+    };
+    let _ = ctx.run(input, |ctx| app.confirm_dialog(ctx));
+    assert!(app.picking(), "the folder dialog is asked for");
+    for _ in 0..2 {
+        let _ = ctx.run(egui::RawInput::default(), |ctx| app.confirm_dialog(ctx));
+    }
+    assert_eq!(app.confirm, Some(Confirm::NewTake(NewTake::Positions)));
+    assert!(app.running() && app.session.recorder.is_some());
+    assert_eq!(app.ready_test(), None);
     let _ = std::fs::remove_dir_all(&base);
 }
