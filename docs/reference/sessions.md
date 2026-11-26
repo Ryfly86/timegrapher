@@ -183,6 +183,13 @@ aside: the session's takes are read on Auto, `calibre_notes` says so, and
 `session --init` writes the same note as a comment in place of the `bph` line (see
 `--bph` in [agent-interface.md](agent-interface.md)).
 
+A take recorded on Auto is read on Auto. Its `session.json` beside the
+session file says so (its `bph` is `null`), and the session file's `bph`
+is then the rate Auto guessed while recording, so it and the calibre's
+rate give way: `session`, the app's File > Open and the Watches view
+read the beat rate heard. `--bph` still sets the rate. A take with no
+`session.json`, or whose `bph` names a rate, reads as above.
+
 `escapement = "co-axial"` (or `"swiss lever"`) says which escapement the
 take is read for, over the calibre's: a calibre the table marks co-axial
 (the Omega 2500D, 3861, 8500, 8501 and 8900) is read as one without it.

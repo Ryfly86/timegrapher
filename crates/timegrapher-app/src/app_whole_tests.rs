@@ -421,6 +421,55 @@ fn an_off_standard_watch_opened_on_auto_has_no_rate_in_s_per_day() {
     }
 }
 
+/// A take recorded on Auto, opened (Peter on #2357): its `session.json`
+/// says `bph: null`, so the 17,280 its `session.toml` keeps is Auto's
+/// guess. It opens on Auto, as `timegrapher session` reads it, and its
+/// lock off every standard rate gives no rate in s/d. Recorded at 17,280,
+/// it reads at 17,280.
+#[test]
+fn a_take_recorded_on_auto_opens_on_auto() {
+    use timegrapher_core::measure::off_standard;
+    use timegrapher_core::synth::{generate, SynthConfig};
+    let base = std::env::temp_dir().join(format!("tg-as-recorded-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let cfg = SynthConfig {
+        bph: 17_570,
+        duration_s: 40.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let opened = |info: &str| {
+        let take = base.join(info);
+        std::fs::create_dir_all(&take).unwrap();
+        timegrapher_core::audio::write_wav(&take.join("off.wav"), &audio).unwrap();
+        std::fs::write(
+            take.join("session.toml"),
+            "bph = 17280\n\n[[recording]]\nfile = 'off.wav'\nposition = 'DU'\n",
+        )
+        .unwrap();
+        let json = format!(r#"{{"watch": "", "position": "DU", "lift_deg": 52.0, "bph": {info}}}"#);
+        std::fs::write(take.join(timegrapher_core::take::RECORD), json).unwrap();
+        let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+        app.open_recording(&take, false);
+        let t = std::time::Instant::now();
+        while app.bench.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
+            app.poll();
+        }
+        assert!(app.bench.recording.batch.is_none(), "{:?}", app.message);
+        app
+    };
+    let auto = opened("null");
+    let set = opened("17280");
+    let _ = std::fs::remove_dir_all(&base);
+    assert_eq!(auto.bench.take.bph, None);
+    let w = auto.whole_take().expect("the whole take on Auto");
+    assert_eq!(w.m.rate_s_per_day, None, "{:?}", w.m.caveats);
+    assert!(off_standard(&w.m.caveats).is_some(), "{:?}", w.m.caveats);
+    assert_eq!(set.bench.take.bph, Some(17_280));
+    let w = set.whole_take().expect("the whole take at 17,280");
+    assert!(w.m.rate_s_per_day.is_some_and(|r| r > 1_000.0), "{:?}", w.m);
+}
+
 /// A take's Positions Test table, its six and its upright stops, read by
 /// `take_reads::read_table` (#2253): on Auto, in a lock off every
 /// standard rate, no row of either and no value over them is in s/d, and

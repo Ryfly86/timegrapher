@@ -1389,6 +1389,18 @@ impl TimegrapherApp {
         self.apply_manifest_placed(m, entries, duration_s, None)
     }
 
+    /// The take at `path`, its session file just put in place, on Auto
+    /// where it was recorded on Auto: the beat rate its session file or
+    /// calibre gave was then Auto's guess or not the one chosen (core's
+    /// `set_rate::recorded_on_auto`, Peter on #2357), as every reader of
+    /// the take reads it.
+    fn rate_as_recorded(&mut self, path: &Path) {
+        let dir = timegrapher_core::take_path::folder(path);
+        if dir.is_some_and(timegrapher_core::set_rate::recorded_on_auto) {
+            self.put_bph(None);
+        }
+    }
+
     /// [`Self::apply_manifest`] for a take opened from a folder of several
     /// sound files, `layout` (core's [`folder_layout`], one window per
     /// entry) placing each on the strip: an entry for one of them gives its
@@ -1562,7 +1574,9 @@ impl TimegrapherApp {
                         self.bench.keeping.open_note = None;
                         let layout = folder_layout(path, &m, &entries);
                         let windows = layout.as_ref().map(|l| l.1.as_slice());
-                        self.apply_manifest_placed(&m, &entries, None, windows)
+                        let out = self.apply_manifest_placed(&m, &entries, None, windows);
+                        self.rate_as_recorded(path);
+                        out
                     }
                     None => {
                         self.fresh_setup(path, &files);
@@ -1733,6 +1747,7 @@ impl TimegrapherApp {
                 let length = length.filter(|_| files.len() == 1);
                 let windows = layout.as_ref().map(|l| l.1.as_slice());
                 let out = self.apply_manifest_placed(&m, &entries, length, windows);
+                self.rate_as_recorded(path);
                 self.watch_fills_in(path, &m);
                 out
             }
@@ -1885,6 +1900,7 @@ impl TimegrapherApp {
         self.set_watch_setup(WatchSetup::default());
         self.bench.keeping.open_note = parts;
         let (stretches, settles) = self.apply_manifest(&m, &entries, Some(header.duration_s));
+        self.rate_as_recorded(path);
         self.watch_fills_in(path, &m);
         let label = kept_label(path, &name);
         // Its beats, its own clock log with its USB lines' figure as

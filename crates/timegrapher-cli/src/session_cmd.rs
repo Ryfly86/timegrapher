@@ -447,7 +447,9 @@ pub(crate) struct Ctx<'a> {
 /// The analysis settings for a session's recordings, and its calibre.
 fn stream_config<'a>(c: &Ctx<'a>) -> Result<(StreamConfig, Option<&'a ResolvedCalibre>), String> {
     let cal = c.calibre.train.calibre.as_ref();
-    Ok((take::stream_settings(c.m, cal, c.o.given()), cal))
+    let mut cfg = take::stream_settings(c.m, cal, c.o.given());
+    timegrapher_core::set_rate::read_as_recorded(c.base, &mut cfg.analysis);
+    Ok((cfg, cal))
 }
 
 /// Whether the lift angle came from `--lift`, the session file or

@@ -77,6 +77,46 @@ pub fn session_set_aside_text(calibre: Option<&Calibre>, bph: Option<u32>) -> Op
     Some(format!("{why}, so the session's takes are read on Auto"))
 }
 
+/// Whether the take in `dir` was recorded on Auto: the recorder's
+/// `session.json` names no beat rate set by hand (its `bph`, from
+/// [`crate::recorder::SessionInfo`], is null). A take with no
+/// `session.json`, one that can't be read, or one the recorder did not
+/// write (no `lift_deg`) is not. Becomes
+/// `recorder::recorded_setup(dir).is_some_and(|s| s.bph.is_none())` once
+/// that reader is on main (#2393), so the file is read in one place.
+pub fn recorded_on_auto(dir: &std::path::Path) -> bool {
+    let json = crate::breaks::read_session(&dir.join(crate::take::RECORD));
+    let auto = |v: &serde_json::Value| {
+        v.get("lift_deg").is_some() && v.get("bph") == Some(&serde_json::Value::Null)
+    };
+    matches!(json, Ok(Some(v)) if auto(&v))
+}
+
+/// The take in `dir` read as it was recorded (Peter, 26 Nov 2026, on
+/// #2357): where `a`'s beat rate is the session file's or the calibre's,
+/// not given for this reading, and the take was recorded on Auto
+/// ([`recorded_on_auto`]), on Auto. Its session file's `bph` was then the
+/// rate Auto guessed, never one set, and the calibre's rate was not the
+/// one chosen. A rate given for the reading stands. The one rule for
+/// every reader of a take's entries ([`crate::take::open_entry`]) and
+/// for what a reading says it was read at.
+pub fn read_as_recorded(dir: &std::path::Path, a: &mut AnalysisConfig) {
+    let kept = matches!(a.bph_from, Some(BphFrom::Session | BphFrom::Calibre));
+    if kept && recorded_on_auto(dir) {
+        (a.bph, a.bph_from) = (None, None);
+    }
+}
+
+/// [`read_as_recorded`] for an entry's settings `s`.
+pub fn as_recorded(
+    dir: &std::path::Path,
+    s: &crate::take::EntrySettings,
+) -> crate::take::EntrySettings {
+    let mut stream = s.stream.clone();
+    read_as_recorded(dir, &mut stream.analysis);
+    crate::take::EntrySettings { stream, ..*s }
+}
+
 /// Set `a`'s beat rate and where it came from: `given` for this reading,
 /// else what the session file `kept`, else the calibre's
 /// ([`calibre_rate`]); none means it is heard.

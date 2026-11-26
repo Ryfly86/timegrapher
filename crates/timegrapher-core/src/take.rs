@@ -931,6 +931,8 @@ pub struct OpenedEntry {
     /// its peak level ([`crate::analysis::Clipping::of`]); `None` for a
     /// take kept as its analysis alone.
     pub peak: Option<f32>,
+    /// The beat rate set it was read at: none on Auto ([`crate::set_rate::as_recorded`]).
+    pub bph_set: Option<u32>,
 }
 
 impl OpenedEntry {
@@ -1093,6 +1095,7 @@ pub fn open_entry(
     correction: impl FnOnce(&Path) -> Result<Option<(f64, String)>, String>,
     progress: impl FnMut(f64, f64),
 ) -> Result<OpenedEntry, String> {
+    let s = &crate::set_rate::as_recorded(base, s);
     let path = base.join(&e.file);
     let kept = kept_take(&path, m, e)?;
     let files = match &kept {
@@ -1219,6 +1222,7 @@ fn open_sound(
         unlisted,
         masked: Vec::new(),
         peak,
+        bph_set: s.stream.analysis.bph,
     };
     Ok(with_masks(opened, masked))
 }
@@ -1523,8 +1527,8 @@ pub fn measure_opened(
         unlisted,
         masked,
         peak: _,
+        bph_set,
     } = opened;
-    let cfg = &s.stream;
     let Window {
         start_s,
         stop_s,
@@ -1547,17 +1551,17 @@ pub fn measure_opened(
     let mut measurement = measure(&log);
     // On Auto, a watch heard within reach of a standard rate other than
     // the one guessed is read at that one (Norm on #2316).
-    if cfg.analysis.bph.is_none() && measurement.watch_heard {
+    if bph_set.is_none() && measurement.watch_heard {
         let guessed = log.bph;
         log.take_nearest_standard();
         if log.bph != guessed {
             measurement = measure(&log);
         }
     }
-    measurement.take_doubts(cfg.analysis.lift_known, unlisted);
+    measurement.take_doubts(s.stream.analysis.lift_known, unlisted);
     // On Auto, a lock off every standard rate gives no rate in s/d
     // (#2223), judged once on the lock's first 10 s (Norm on #2316).
-    measurement.judge_lock(cfg.analysis.bph, &log);
+    measurement.judge_lock(bph_set, &log);
     measurement.clock_ppm = clock_ppm;
     measurement.clock_source = clock_source.clone();
     Ok(EntryRead {
