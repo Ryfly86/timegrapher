@@ -2258,11 +2258,18 @@ fn plot_notes_keep_off_each_others_plates() {
     let out = ctx.run(Default::default(), |ctx| {
         egui::CentralPanel::default().show(ctx, |ui| {
             let c = theme::pal(ui).text;
+            let note = |at, text: &str, name| PlotNote {
+                at,
+                text: text.to_string(),
+                colour: c,
+                name,
+                short: false,
+            };
             let notes = [
-                Some(([200.0, 150.0], "the first note here".to_string(), c, "a")),
-                Some(([230.0, 150.0], "the second note".to_string(), c, "b")),
+                Some(note([200.0, 150.0], "the first note here", "a")),
+                Some(note([230.0, 150.0], "the second note", "b")),
             ];
-            plot_notes(ui, &t, &notes, Vec::new(), (false, egui::Id::new("notes")));
+            plot_notes(ui, &t, &notes, Vec::new(), egui::Id::new("notes"));
         });
     });
     let plates: Vec<egui::Rect> = out
@@ -2275,4 +2282,52 @@ fn plot_notes_keep_off_each_others_plates() {
         .collect();
     assert_eq!(plates.len(), 2, "{plates:?}");
     assert!(!plates[0].intersects(plates[1]), "{plates:?}");
+}
+
+/// On a short Allan plot (under 100 pt) the least scatter and the dashed
+/// line's name still take a plate where one is clear, whole; only the
+/// hollow note is its point's hover there (Hugh 28 on #2129's fix).
+#[test]
+fn a_short_allan_plot_still_shows_its_figure_and_its_lines_name() {
+    use timegrapher_core::steadiness::ALLAN_HOLLOW_NOTE;
+    let s = allan_session();
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    fn texts(shape: &egui::Shape, into: &mut Vec<String>) {
+        match shape {
+            egui::Shape::Text(t) => into.push(t.galley.text().trim().to_string()),
+            egui::Shape::Vec(v) => v.iter().for_each(|s| texts(s, into)),
+            _ => {}
+        }
+    }
+    let mut all = Vec::new();
+    // Short: a pane of 130 pt leaves the plot under 100 inside its axis.
+    for _ in 0..2 {
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                Vec2::new(1900.0, 900.0),
+            )),
+            ..Default::default()
+        };
+        let out = ctx.run(input, |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                ui.allocate_ui(Vec2::new(1880.0, 130.0), |ui| {
+                    ui.set_max_height(130.0);
+                    let shown = [true, false, false];
+                    draw(ui, Some(&s), "short", View::Allan, &shown, Opts::default());
+                });
+            });
+        });
+        all.clear();
+        out.shapes.iter().for_each(|c| texts(&c.shape, &mut all));
+    }
+    let least = all.iter().find(|t| t.starts_with("least scatter at"));
+    let least = least.unwrap_or_else(|| panic!("no least scatter in {all:?}"));
+    assert!(least.contains(':'), "{least}: not whole");
+    assert!(
+        all.iter().any(|t| t == "if the readings were independent"),
+        "{all:?}"
+    );
+    assert!(!all.iter().any(|t| t == ALLAN_HOLLOW_NOTE), "{all:?}");
 }

@@ -1782,39 +1782,70 @@ fn allan_plot(ui: &mut egui::Ui, r: Row<'_>) {
     // the hollow points' note at the first of them (#2129: the dashed
     // line ran through the first two; Walter on #2012: the note sat on
     // the dashed line's name).
+    // On a short plot only the hollow note is its point's hover: the
+    // least scatter is the plot's figure and the dashed line's name the
+    // key to it, so they take a plate wherever one is clear (Hugh 28).
+    let note = PlotNote::new;
     let notes = [
-        least.map(|(at, text)| (at, text, pal.text, "least scatter")),
-        last.map(|at| (at, independent.into(), pal.text_secondary, "independent")),
+        least.map(|(at, text)| note(at, text, pal.text, "least scatter", false)),
+        last.map(|at| {
+            note(
+                at,
+                independent.into(),
+                pal.text_secondary,
+                "independent",
+                false,
+            )
+        }),
         hollow
             .first()
             .zip(a.hollow_note)
-            .map(|(&at, note)| (at, note.to_string(), pal.text, "hollow note")),
+            .map(|(&at, n)| note(at, n.to_string(), pal.text, "hollow note", short)),
     ];
     let id = ui.id().with((i, view));
-    plot_notes(ui, &resp.transform, &notes, vec![trace, white], (short, id));
+    plot_notes(ui, &resp.transform, &notes, vec![trace, white], id);
 }
 
-/// A note on a plot: its point, words, colour and name.
-type PlotNote<'a> = ([f64; 2], String, Color32, &'a str);
+/// A note on a plot: its point, words, colour and name, and whether it
+/// is its point's hover alone (`short`, as [`marks::beside`]'s).
+struct PlotNote<'a> {
+    at: [f64; 2],
+    text: String,
+    colour: Color32,
+    name: &'a str,
+    short: bool,
+}
 
-/// A plot's notes, each `(point, words, colour, name)`, placed in turn
-/// by [`marks::beside_lines`] off every line in `lines` (plot
-/// coordinates) and off the plates and leaders of those placed before
-/// it; `short` and `id` as there, each note's id `id` with its name.
+impl<'a> PlotNote<'a> {
+    fn new(at: [f64; 2], text: String, colour: Color32, name: &'a str, short: bool) -> Self {
+        PlotNote {
+            at,
+            text,
+            colour,
+            name,
+            short,
+        }
+    }
+}
+
+/// A plot's notes, placed in turn by [`marks::beside_lines`] off every
+/// line in `lines` (plot coordinates) and off the plates and leaders of
+/// those placed before it, each note's id `id` with its name.
 fn plot_notes(
     ui: &egui::Ui,
     t: &egui_plot::PlotTransform,
     notes: &[Option<PlotNote<'_>>],
     mut lines: Vec<Vec<[f64; 2]>>,
-    (short, id): (bool, egui::Id),
+    id: egui::Id,
 ) {
     let fill = ui.visuals().extreme_bg_color.gamma_multiply(0.8);
     let mut avoid: Vec<egui::Rect> = Vec::new();
-    for (at, text, colour, key) in notes.iter().flatten() {
-        let placed = (*at, text.as_str(), *colour);
+    for n in notes.iter().flatten() {
+        let placed = (n.at, n.text.as_str(), n.colour);
         let on: Vec<&[[f64; 2]]> = lines.iter().map(Vec::as_slice).collect();
+        let nid = id.with(n.name);
         let Some((plate, leader)) =
-            marks::beside_lines(ui, t, placed, &on, &avoid, fill, short, id.with(key))
+            marks::beside_lines(ui, t, placed, &on, &avoid, fill, n.short, nid)
         else {
             continue;
         };
