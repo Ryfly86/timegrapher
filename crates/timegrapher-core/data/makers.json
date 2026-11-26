@@ -106,14 +106,15 @@
     ]
   },
   {
-    "maker": "Shanghai Jinghe (clone)",
+    "maker": "Shanghai Jinghe",
     "common": true,
     "aliases": [
       "Jinghe",
       "JH"
     ],
     "sources": [
-      "The JH prefix in clone calibre names (JH3235); no neutral reference lists the prefixes"
+      "http://en.jingheshiye.com/jingdianzhizuo/ (Jinghe's own English product pages)",
+      "https://github.com/peterhudson/timegrapher/issues/2304 (this project, 2026-11-25: Jinghe is a maker; only its JH32xx, SA3120, VR31xx, SA4302 and SA4401 are clones)"
     ]
   },
   {

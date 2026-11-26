@@ -1250,6 +1250,31 @@ mod tests {
         assert!(!rate_chart(&html).contains("<path class=\"ref\""));
     }
 
+    /// Each reading gives the beat rate heard (#2223) from its own rate,
+    /// on the clock that rate is on: a card 20 ppm fast hears 28,800
+    /// exactly, so the reading on true time hears 20 ppm more.
+    #[test]
+    fn a_reading_gives_the_beat_rate_heard_from_its_rate() {
+        for ppm in [None, Some(20.0)] {
+            let r = reading(ppm, Position::CH);
+            let m = r.measurement.measured(r.bph).unwrap();
+            assert_eq!(r.measured(), Some(m));
+            let doc = serde_json::to_value(&r).unwrap();
+            assert_eq!(doc["bph_measured"], m.bph);
+            assert!(doc.get("bph_measured_se").is_some());
+            let want = 28_800.0 * (1.0 + ppm.unwrap_or(0.0) * 1e-6);
+            assert!((m.bph - want).abs() < 1e-3, "{ppm:?}: {}", m.bph);
+            // With a rate ± of 4.8 s/d, the beat rate heard's ± is
+            // 28,800 × 4.8 / 86,400 = 1.6 bph.
+            let mut with_pm = r.clone();
+            with_pm.measurement.confidence.as_mut().unwrap().rate.se = Some(4.8);
+            let se = serde_json::to_value(&with_pm).unwrap()["bph_measured_se"]
+                .as_f64()
+                .unwrap();
+            assert!((se - 28_800.0 * 4.8 / 86_400.0).abs() < 1e-12, "{se}");
+        }
+    }
+
     #[test]
     fn a_reference_clock_is_read_from_the_session_file_and_given_back_as_set() {
         use timegrapher_core::session::Reference;

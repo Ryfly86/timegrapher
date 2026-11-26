@@ -709,3 +709,79 @@ fn a_curly_quote_closes() {
         "51°"
     );
 }
+
+/// Jinghe's pages: one maker, the clone mark only on its clones' titles,
+/// and each calibre's own slug as it was under "Shanghai Jinghe (clone)"
+/// and "Clone (maker not named)", so only the maker part of an old
+/// address changes (#2304).
+#[test]
+fn jinghes_clones_alone_are_titled_clones() {
+    for (name, title, path) in [
+        (
+            "JH3235",
+            "Shanghai Jinghe JH3235 (clone)",
+            "/calibres/shanghai-jinghe/jh3235/",
+        ),
+        (
+            "SA3120",
+            "Shanghai Jinghe SA3120 (clone)",
+            "/calibres/shanghai-jinghe/sa3120/",
+        ),
+        (
+            "VR3135",
+            "Shanghai Jinghe VR3135 (clone)",
+            "/calibres/shanghai-jinghe/vr3135/",
+        ),
+        (
+            "SA4401",
+            "Shanghai Jinghe SA4401 (clone)",
+            "/calibres/shanghai-jinghe/sa4401/",
+        ),
+        (
+            "Jinghe JH8002",
+            "Jinghe JH8002",
+            "/calibres/shanghai-jinghe/jh8002/",
+        ),
+    ] {
+        let p = page_of(find(name).unwrap());
+        assert_eq!(p.title, title, "{name}");
+        assert_eq!(p.path, path, "{name}");
+        assert_eq!(p.maker_slug, "shanghai-jinghe", "{name}");
+    }
+    let jh = page_of(find("JH3235").unwrap());
+    let of = jh.related.iter().find(|r| r.label == "Clone of").unwrap();
+    assert_eq!(of.calibres[0].name, "Rolex 3235");
+    assert!(of.source.is_some());
+    let rolex = page_of(find("Rolex 3235").unwrap());
+    let by = rolex
+        .related
+        .iter()
+        .find(|r| r.label == "Cloned by")
+        .unwrap();
+    let names: Vec<&str> = by.calibres.iter().map(|l| l.name.as_str()).collect();
+    assert_eq!(names, ["Shanghai Jinghe JH3235 (clone)"]);
+    // A clone maker's rows keep the mark the maker gives them.
+    let sh = page_of(find("SH3135").unwrap());
+    assert!(sh.title.contains("(clone)"), "{}", sh.title);
+}
+
+/// The clone mark goes on a "clone of" row once, never twice, and never
+/// on a row that isn't one (#2304).
+#[test]
+fn a_clone_is_marked_once() {
+    let src = "https://example.com/c (c) (c)";
+    let clone = row(&format!(
+        r#", "related": [{{"calibre": "ETA 2824-2", "relation": "clone of", "source": "{src}"}}]"#
+    ));
+    assert_eq!(marked(&clone, "Test 1"), "Test 1 (clone)");
+    assert_eq!(marked(&clone, "Test 1 Clone"), "Test 1 Clone");
+    assert_eq!(marked(&clone, "Test 1 (clone)"), "Test 1 (clone)");
+    assert_eq!(marked(&clone, "Clonecraft 1"), "Clonecraft 1 (clone)");
+    assert_eq!(title(&clone), "Test 1 (clone)");
+    let based = row(&format!(
+        r#", "related": [{{"calibre": "ETA 2824-2", "relation": "based on", "source": "{src}"}}]"#
+    ));
+    assert_eq!(marked(&based, "Test 1"), "Test 1");
+    assert_eq!(marked(find("Jinghe JH8002").unwrap(), "JH8002"), "JH8002");
+    assert_eq!(marked(find("VR3135").unwrap(), "VR3135"), "VR3135 (clone)");
+}

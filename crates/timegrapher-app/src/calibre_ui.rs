@@ -18,7 +18,7 @@ use crate::theme;
 use eframe::egui::{self, RichText, Vec2};
 use std::path::PathBuf;
 use std::sync::OnceLock;
-use timegrapher_core::calibre_page::{self, figure_words, source_parts, with_maker_name};
+use timegrapher_core::calibre_page::{self, figure_words, source_parts};
 use timegrapher_core::calibre_store::{
     Catalog, CustomCalibre, CustomWheel, Entry, Origin, Slot, UserCalibres,
 };
@@ -1655,7 +1655,10 @@ impl Calibres {
         let pal = theme::pal(ui);
         let mut text = self.cell(e, col);
         if col == Col::Calibre {
-            text = short_name(e).to_string();
+            text = match e {
+                Entry::Table(c) => calibre_page::marked(c, short_name(e)),
+                Entry::Custom(_) => short_name(e).to_string(),
+            };
             if e.name() == current {
                 text += "  (this watch)";
             }
@@ -1713,7 +1716,7 @@ impl Calibres {
         let Some(e) = self.find(&name) else { return };
         let custom = e.is_custom();
         let mut title = match e {
-            Entry::Table(c) => with_maker_name(&c.maker, &c.calibre),
+            Entry::Table(c) => calibre_page::title(c),
             Entry::Custom(_) => label(e),
         };
         if name == current {
@@ -2459,7 +2462,7 @@ fn search_hits(ui: &mut egui::Ui, catalog: &Catalog<'_>, q: &str, current: &str,
     const MOST: usize = 200;
     for e in found.iter().take(MOST) {
         let text = match e {
-            Entry::Table(c) => format!("{} · {}", c.calibre, c.maker),
+            Entry::Table(c) => format!("{} · {}", calibre_page::marked(c, &c.calibre), c.maker),
             Entry::Custom(_) => label(*e),
         };
         menu_line(ui, *e, text, current, picked);

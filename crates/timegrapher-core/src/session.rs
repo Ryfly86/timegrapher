@@ -451,6 +451,14 @@ pub struct Measurement {
 }
 
 impl Measurement {
+    /// The beat rate heard over this measurement where it is read against
+    /// `bph` (#2223): from its rate, on its clock, and the rate's ±. None
+    /// when no rate is read.
+    pub fn measured(&self, bph: u32) -> Option<crate::timing::MeasuredRate> {
+        let se = self.confidence.as_ref().and_then(|c| c.rate.se);
+        crate::timing::MeasuredRate::of(bph, self.rate_s_per_day, se)
+    }
+
     /// The lift angle was a default, not the calibre's: the caveat is
     /// named, as `analyze` names it. [`measure`] takes the lift angle as
     /// known.
@@ -1479,8 +1487,11 @@ pub fn shape_summary(r: &ShapeReport, from_s: f64, measured_s: f64) -> ShapeSumm
     }
 }
 
-/// Everything learnt from one recording.
-#[derive(Debug, Clone, Serialize)]
+/// Everything learnt from one recording. Its JSON also gives the beat
+/// rate heard ([`Reading::measured`]) as `bph_measured` and
+/// `bph_measured_se`, after `measurement`, worked out as it is written so
+/// it never stands apart from the rate it comes from.
+#[derive(Debug, Clone)]
 pub struct Reading {
     /// The recording's name, as shown in the report.
     pub label: String,
@@ -1499,6 +1510,69 @@ pub struct Reading {
     pub cycles: Vec<Cycle>,
     pub shape: Option<ShapeSummary>,
     pub reference: Option<Reference>,
+}
+
+impl Reading {
+    /// The beat rate heard over this reading's measurement, read against
+    /// its `bph` (#2223); none when the measurement has no rate.
+    pub fn measured(&self) -> Option<crate::timing::MeasuredRate> {
+        self.measurement.measured(self.bph)
+    }
+}
+
+impl Serialize for Reading {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        /// The reading as written: its fields in order, with the beat
+        /// rate heard after its measurement.
+        #[derive(Serialize)]
+        struct Written<'a> {
+            label: &'a String,
+            position: &'a Position,
+            wind_h: &'a Option<f64>,
+            date: &'a Option<String>,
+            notes: &'a Option<String>,
+            duration_s: &'a f64,
+            bph: &'a u32,
+            bph_set: &'a Option<u32>,
+            measurement: &'a Measurement,
+            #[serde(flatten)]
+            measured: Option<crate::timing::MeasuredRate>,
+            cycles: &'a Vec<Cycle>,
+            shape: &'a Option<ShapeSummary>,
+            reference: &'a Option<Reference>,
+        }
+        // Every field named, so a new one cannot be left unwritten.
+        let Reading {
+            label,
+            position,
+            wind_h,
+            date,
+            notes,
+            duration_s,
+            bph,
+            bph_set,
+            measurement,
+            cycles,
+            shape,
+            reference,
+        } = self;
+        Written {
+            label,
+            position,
+            wind_h,
+            date,
+            notes,
+            duration_s,
+            bph,
+            bph_set,
+            measurement,
+            measured: self.measured(),
+            cycles,
+            shape,
+            reference,
+        }
+        .serialize(s)
+    }
 }
 
 /// One position at one state of wind (repeat readings averaged).

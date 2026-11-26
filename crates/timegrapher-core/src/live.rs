@@ -244,6 +244,13 @@ pub struct LiveReading {
 }
 
 impl LiveReading {
+    /// The beat rate heard over this reading (#2223): from its rate, on
+    /// the clock it is shown on, read against `bph`, with the rate's ±.
+    /// None with no rate or no beat rate.
+    pub fn measured(&self) -> Option<crate::timing::MeasuredRate> {
+        crate::timing::MeasuredRate::of(self.bph?, self.rate_s_per_day, self.rate_error_s_per_day)
+    }
+
     /// This reading, at a take's end, as the take's whole reading `whole`
     /// (`session`'s, [`crate::session::measure_together`]) gives it, where
     /// `whole` ends where this reading does and the averaging time
