@@ -153,6 +153,46 @@ fn a_settings_message_takes_its_rows_caption() {
 
 /// An input that won't open says so in the Microphone row's caption,
 /// on one line, and the row below stays put.
+/// Keep Awake's caption follows its switch (#2382): off, it never says
+/// the computer is held awake; a Power Reserve Test, which holds it with
+/// the switch off, still says when the system refuses.
+#[test]
+fn keep_awakes_caption_follows_its_switch() {
+    let ctx = themed();
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    let draw = |app: &mut TimegrapherApp| {
+        let mut out = None;
+        for _ in 0..2 {
+            out = Some(ctx.run(screen(), |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| app.general_settings(ui));
+            }));
+        }
+        painted_at(&out.unwrap())
+    };
+    let on = "While listening, the computer doesn't sleep on its own. The screen can still lock.";
+    let off = "Off: the computer can sleep while listening, except in a Power Reserve Test.";
+    let refused = "Not being kept awake: the system didn't allow it.";
+    let says = |drawn: &[(String, egui::Pos2)], t: &str| drawn.iter().any(|(s, _)| s == t);
+    app.keep_awake = true;
+    let drawn = draw(&mut app);
+    assert!(says(&drawn, on) && !says(&drawn, off), "{drawn:?}");
+    app.keep_awake = false;
+    let drawn = draw(&mut app);
+    assert!(says(&drawn, off) && !says(&drawn, on), "{drawn:?}");
+    // A refusal left from before the switch went off isn't this switch's.
+    app.awake_fault = Some("no session bus".into());
+    let drawn = draw(&mut app);
+    assert!(says(&drawn, off) && !says(&drawn, refused), "{drawn:?}");
+    app.bench.test.reserve = Some(reserve::Test::new(
+        Position::CrownLeft,
+        false,
+        "2026-10-22T16:15:00Z".into(),
+        0.0,
+    ));
+    let drawn = draw(&mut app);
+    assert!(says(&drawn, refused) && !says(&drawn, on), "{drawn:?}");
+}
+
 #[test]
 fn an_input_that_wont_open_says_so_in_its_rows_caption() {
     let ctx = themed();

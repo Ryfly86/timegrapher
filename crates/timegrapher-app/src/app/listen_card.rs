@@ -1957,7 +1957,9 @@ impl TimegrapherApp {
                 format!("The thread that does both didn't start: {e}"),
             ));
         }
-        match (self.keep_awake, &self.awake_fault) {
+        // A Power Reserve Test holds the computer awake with the switch
+        // off too, so a refusal then is said as well.
+        match (self.keep_awake || self.reserve_running(), &self.awake_fault) {
             (true, Some(e)) => Some((
                 "Not being kept awake: the system didn't allow it.".into(),
                 format!("What the system said: {e}"),
