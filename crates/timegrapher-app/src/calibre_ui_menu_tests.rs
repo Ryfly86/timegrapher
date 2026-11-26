@@ -720,3 +720,83 @@ fn an_escapement_not_measured_shows_its_tag_not_its_lift() {
         format!("Omega 8500  ·  {}", calibres::Escapement::TAG)
     );
 }
+
+/// Astra's shakedown, #2377: in Edit Watch, one Escape in a drop-down or
+/// menu closes only that, never the dialog and the edits typed into it.
+/// A second Escape, with nothing open, is Cancel.
+#[test]
+fn escape_in_an_edit_watch_menu_closes_only_the_menu() {
+    use timegrapher_core::library::{Field, FieldKind, Watch};
+    let mut c = Calibres::in_memory();
+    let ctx = egui::Context::default();
+    crate::theme::install(&ctx);
+    let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1920.0, 1080.0));
+    let input = |events| egui::RawInput {
+        screen_rect: Some(screen),
+        events,
+        ..Default::default()
+    };
+    // (the button that opens it, words seen only while it is open)
+    let menus = [
+        ("Text", "Money"),
+        ("Auto", "18000 bph"),
+        ("Add Field", "Your Own…"),
+        ("Not Set", "Search every calibre"),
+    ];
+    for (button, inside) in menus {
+        let mut watch = Watch::new("Scratch");
+        watch.notes = Some("Timing".into());
+        watch.fields.push(Field {
+            label: "Reference".into(),
+            kind: FieldKind::Text,
+            value: "R1".into(),
+        });
+        let mut f = crate::watches::Form {
+            watch,
+            new: false,
+            error: None,
+        };
+        let mut run = |events: Vec<egui::Event>| {
+            let mut act = None;
+            let out = ctx.run(input(events), |ctx| {
+                egui::CentralPanel::default().show(ctx, |_ui| {});
+                act = crate::watches::form(ctx, &mut f, &mut c);
+                crate::theme::popups_above_dialogs(ctx);
+            });
+            let kept = (f.watch.notes.clone(), f.watch.fields.len());
+            (act, out, kept)
+        };
+        run(vec![]);
+        let (_, out, _) = run(vec![]);
+        let at = drawn_at(&out, button).unwrap_or_else(|| panic!("the {button} button"));
+        run(click(at.center()));
+        run(vec![]);
+        let (_, out, _) = run(vec![]);
+        assert!(drawn_at(&out, inside).is_some(), "{button}: menu open");
+        let (act, _, _) = run(key(egui::Key::Escape));
+        assert!(act.is_none(), "{button}: Escape closed the dialog");
+        let (act, out, (notes, fields)) = run(vec![]);
+        assert!(act.is_none(), "{button}: the dialog closed after");
+        assert!(
+            drawn_at(&out, inside).is_none(),
+            "{button}: menu still open"
+        );
+        assert!(
+            drawn_at(&out, "Edit Watch").is_some(),
+            "{button}: dialog gone"
+        );
+        assert_eq!(notes.as_deref(), Some("Timing"), "{button}");
+        assert_eq!(fields, 1, "{button}");
+        // Nothing open now: Escape is Cancel.
+        let (act, _, _) = run(key(egui::Key::Escape));
+        assert!(
+            matches!(act, Some(crate::watches::FormAction::Cancel)),
+            "{button}: the second Escape didn't cancel"
+        );
+        for _ in 0..2 {
+            let _ = ctx.run(input(vec![]), |ctx| {
+                egui::CentralPanel::default().show(ctx, |_ui| {});
+            });
+        }
+    }
+}

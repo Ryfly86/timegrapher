@@ -1183,8 +1183,25 @@ pub fn dialog_buttons_right(ui: &mut Ui, buttons: &[DialogButton<'_>]) -> Option
     hit
 }
 
-/// Return and Escape on a dialog's button row.
+/// Was a drop-down or menu open as this pass began, in the dialog `ui`
+/// is in? egui's drop-downs close on the Escape without consuming it,
+/// so by the button row the menu is already shut: the row records what
+/// it saw each pass and reads the pass before (#2377).
+fn menu_was_open(ui: &Ui) -> bool {
+    let id = egui::Id::new("dialog menu open").with(ui.layer_id());
+    let pass = ui.ctx().cumulative_pass_nr();
+    let was = ui
+        .data(|d| d.get_temp::<(u64, bool)>(id))
+        .is_some_and(|(last, open)| open && last + 1 == pass);
+    let open = egui::Popup::is_any_open(ui.ctx());
+    ui.data_mut(|d| d.insert_temp(id, (pass, open)));
+    was
+}
+
+/// Return and Escape on a dialog's button row. An Escape that closes an
+/// open drop-down or menu closes only that, never the dialog (#2377).
 pub fn dialog_keys(ui: &Ui, buttons: &[DialogButton<'_>]) -> Option<usize> {
+    let menu_was_open = menu_was_open(ui);
     let free = ui.memory(|m| m.focused().is_none());
     let find = |role| {
         buttons
@@ -1194,7 +1211,7 @@ pub fn dialog_keys(ui: &Ui, buttons: &[DialogButton<'_>]) -> Option<usize> {
     if free && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
         return find(Role::Default);
     }
-    if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+    if !menu_was_open && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
         return find(Role::Cancel);
     }
     None
