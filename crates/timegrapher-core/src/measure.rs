@@ -516,6 +516,22 @@ pub fn off_standard(caveats: &[Caveat]) -> Option<crate::timing::OffStandard> {
     })
 }
 
+/// What every reading off every standard rate keeps beside its blanked
+/// rate figures: no rate ± in `confidence`, and the caveat `o` (#2223).
+pub fn off_standard_withheld(
+    o: crate::timing::OffStandard,
+    confidence: Option<&mut Confidence>,
+    caveats: &mut Vec<Caveat>,
+) {
+    if let Some(c) = confidence {
+        c.rate = confidence::Reading {
+            se: None,
+            no_pm: None,
+        };
+    }
+    add(caveats, Caveat::OffStandardRate(o));
+}
+
 /// [`Caveat::LockTemplateKept`] as a sentence, with the first chunk's
 /// length from [`crate::stream::StreamConfig`] and the lock-on window's
 /// from [`crate::live::LiveConfig`].

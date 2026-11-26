@@ -177,18 +177,8 @@ impl Summary {
         };
         self.rate_s_per_day = None;
         self.rate_corrected_s_per_day = None;
-        self.rate_p05 = None;
-        self.rate_p95 = None;
-        if let Some(c) = self.confidence.as_mut() {
-            c.rate = crate::confidence::Reading {
-                se: None,
-                no_pm: None,
-            };
-        }
-        crate::measure::add(
-            &mut self.caveats,
-            crate::measure::Caveat::OffStandardRate(o),
-        );
+        (self.rate_p05, self.rate_p95) = (None, None);
+        crate::measure::off_standard_withheld(o, self.confidence.as_mut(), &mut self.caveats);
     }
 
     /// The sound card's clock is known from elsewhere (a stored or given

@@ -476,18 +476,8 @@ impl Measurement {
         };
         self.rate_s_per_day = None;
         self.rate_window_median_s_per_day = None;
-        self.rate_p05 = None;
-        self.rate_p95 = None;
-        if let Some(c) = self.confidence.as_mut() {
-            c.rate = crate::confidence::Reading {
-                se: None,
-                no_pm: None,
-            };
-        }
-        crate::measure::add(
-            &mut self.caveats,
-            crate::measure::Caveat::OffStandardRate(o),
-        );
+        (self.rate_p05, self.rate_p95) = (None, None);
+        crate::measure::off_standard_withheld(o, self.confidence.as_mut(), &mut self.caveats);
     }
 
     /// The lift angle was a default, not the calibre's: the caveat is
