@@ -34,6 +34,9 @@ pub(super) struct Results {
     pub(super) trend_key: TrendKey,
     /// The last [`TimegrapherApp::whole_take`] and what it was read from.
     pub(super) whole_take: std::cell::RefCell<Option<(WholeKey, Option<WholeTake>)>>,
+    /// The last stopped card's own span read, and what it was read from
+    /// (`TimegrapherApp::own_span_read`).
+    pub(super) own_span: std::cell::RefCell<Option<(WholeKey, Option<WholeTake>)>>,
     /// The last [`TimegrapherApp::free_table`] and what it was read from.
     pub(super) free_table: std::cell::RefCell<Option<(FreeKey, Option<guided::FreeTable>)>>,
     /// The next table while listening, read in the background, and what
@@ -67,6 +70,7 @@ impl Default for Results {
             trend: Vec::new(),
             trend_key: TrendKey::default(),
             whole_take: Default::default(),
+            own_span: Default::default(),
             free_table: Default::default(),
             free_job: Default::default(),
             whole_job: Default::default(),

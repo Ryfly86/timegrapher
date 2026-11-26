@@ -2776,10 +2776,10 @@ fn a_run_too_short_is_not_called_scattered() {
 }
 
 /// A synthetic watch at 28,800 heard `first` s, then `gap` s of noise
-/// peaking at 0.75 times its RMS, then 9 s of the watch again, listened
-/// to through the capture as the window hears it, stopped, and its Stop
-/// read in.
-fn stopped_short_return(base: &Path, (first, gap): (f64, f64)) -> TimegrapherApp {
+/// peaking at 0.75 times its RMS, then `back` s of the watch again,
+/// listened to through the capture as the window hears it, stopped, and
+/// its Stop read in.
+fn stopped_short_return(base: &Path, (first, gap, back): (f64, f64, f64)) -> TimegrapherApp {
     use timegrapher_core::capture::{Block, Event};
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
     app.reset_session(48000, "short return".into());
@@ -2789,7 +2789,7 @@ fn stopped_short_return(base: &Path, (first, gap): (f64, f64)) -> TimegrapherApp
     let tx = super::tests::queued_capture(&mut app, base);
     let cfg = SynthConfig {
         bph: 28_800,
-        duration_s: first + gap + 9.0,
+        duration_s: first + gap + back,
         ..Default::default()
     };
     let mut audio = generate(&cfg, |_| 280.0, |_| 0.0);
@@ -2841,7 +2841,7 @@ fn stopped_short_return(base: &Path, (first, gap): (f64, f64)) -> TimegrapherApp
 fn a_stopped_short_return_reads_too_short_at_every_average() {
     use timegrapher_core::measure::{no_watch_reason_in, too_short_need_text, NoWatchReason};
     let ctx = themed();
-    for (n, take) in [(7.0, 20.0), (0.0, 12.0)].into_iter().enumerate() {
+    for (n, take) in [(7.0, 20.0, 9.0), (0.0, 12.0, 9.0)].into_iter().enumerate() {
         let base = std::env::temp_dir().join(format!("tg-short-return-{}-{n}", std::process::id()));
         let _ = std::fs::create_dir_all(&base);
         let mut app = stopped_short_return(&base, take);
@@ -2867,4 +2867,23 @@ fn a_stopped_short_return_reads_too_short_at_every_average() {
         }
         let _ = std::fs::remove_dir_all(base);
     }
+}
+
+/// 120 s of watch, 20 s of noise, then 12 s back, stopped: the whole take
+/// hears the watch, so a card whose Average Over is shorter than the take
+/// reads its own last seconds as the saved read gives them: never the
+/// whole take's figures, never Finding the Beat (Norm's ruling on #2311).
+#[test]
+fn a_stopped_card_reads_its_own_span_after_a_long_run() {
+    let base = std::env::temp_dir().join(format!("tg-own-span-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = stopped_short_return(&base, (120.0, 20.0, 12.0));
+    for average in timegrapher_core::live::AVERAGES {
+        app.bench.take.average_s = average;
+        let _ = app.whole_take();
+        let r = app.card_reading().expect("a reading");
+        assert!(!r.whole_take && !r.finding_beat, "{average} s: {r:?}");
+        assert!(r.span_s <= average + 1e-6, "{average} s: {r:?}");
+    }
+    let _ = std::fs::remove_dir_all(base);
 }

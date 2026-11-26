@@ -263,31 +263,34 @@ impl LiveReading {
     /// bit (#2073, Norm). The engine corrects a rate fitted on the sound's
     /// time by the clock's slope, where `session` fits it on the clock's
     /// time: the same rate, but not the same float. A watch still being
-    /// found at the end is read the same, at any averaging time, since its
-    /// wait can't end once the take has: whether a run is read is the
+    /// found at the end is read the same: whether a run is read is the
     /// whole's to say, so the stopped take reads as `analyze` does, figures
-    /// or no regular beat with its reason (Norm on #2257, Walter 46 on
-    /// #2311). A heard reading with a shorter averaging time, or no watch
-    /// heard nor being found, stands.
+    /// or no regular beat with its reason (Norm on #2257). Where `whole`
+    /// hears no watch, so does any reading at its end, over any averaging
+    /// time, with the whole's reason (Walter 46 and Norm on #2311). Otherwise,
+    /// with a shorter averaging time, or no watch heard nor being found,
+    /// this reading stands; one still being found is then read as its own
+    /// span's saved read gives it ([`Self::read_as_saved`]).
     #[must_use]
     pub fn at_whole_end(self, whole: &crate::session::Measurement, average_s: f64) -> Self {
         let ends = whole.end_s == self.time_s;
         let holds = ends && whole.start_s >= self.time_s - average_s;
-        // Finding the beat waits for more of the watch, which a stopped
-        // take never gives: at any averaging time, the whole says whether
-        // the run is read (Walter 46 on #2311).
-        let finding = ends && self.finding_beat;
-        if !(holds && self.watch_heard || finding) || self.listening.is_some() {
-            return self;
-        }
-        if !whole.watch_heard {
+        // A whole that hears no watch reads no run anywhere in it, so no
+        // shorter span of it reads one either, whatever live last said
+        // there (Norm's ruling and Walter 46 on #2311).
+        if ends && !whole.watch_heard {
             return Self {
                 jitter_us: whole.jitter_us,
                 caveats: whole.caveats.clone(),
                 finding_beat: false,
+                listening: None,
                 whole_take: true,
                 ..as_file::without_figures(self)
             };
+        }
+        let shown = self.watch_heard || self.finding_beat;
+        if !holds || !shown || self.listening.is_some() {
+            return self;
         }
         let c = whole.confidence;
         Self {
@@ -311,6 +314,24 @@ impl LiveReading {
             caveats: whole.caveats.clone(),
             whole_take: true,
             ..self
+        }
+    }
+
+    /// A stopped take's reading still finding the beat, as the saved read
+    /// of its own span, `own` ([`crate::session::measure_together`] over
+    /// the last `average_s` to this reading's time), gives it: that wait
+    /// can't end once the take has, and the card's figures are its Average
+    /// Over's, never the whole take's (Norm's ruling on #2311). Its
+    /// figures, or no regular beat with its reason; a reading not being
+    /// found stands.
+    #[must_use]
+    pub fn read_as_saved(self, own: &crate::session::Measurement, average_s: f64) -> Self {
+        if !self.finding_beat {
+            return self;
+        }
+        Self {
+            whole_take: false,
+            ..self.at_whole_end(own, average_s)
         }
     }
 }

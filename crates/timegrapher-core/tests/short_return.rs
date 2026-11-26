@@ -8,9 +8,9 @@ use timegrapher_core::analysis::{analyze, AnalysisConfig};
 use timegrapher_core::audio::Audio;
 use timegrapher_core::breaks::Break;
 use timegrapher_core::live::{LiveAnalyzer, LiveConfig, LiveReading, ARRIVING_PAUSE_S, AVERAGES};
-use timegrapher_core::measure::{no_watch_reason_in, NoWatchReason};
+use timegrapher_core::measure::{no_watch_reason_in, Caveat, NoWatchReason};
 use timegrapher_core::session::{self, Measurement};
-use timegrapher_core::stream::{analyze_samples, StreamConfig};
+use timegrapher_core::stream::{analyze_samples, BeatLog, StreamConfig};
 use timegrapher_core::synth::{generate, SynthConfig};
 
 /// How long the gap of noise is, s.
@@ -110,13 +110,34 @@ fn listen(audio: &Audio, bph: Option<u32>) -> (LiveAnalyzer, Vec<(f64, Vec<LiveR
 
 /// The take's whole reading, as the stopped take is read.
 fn whole(audio: &Audio, bph: Option<u32>) -> Measurement {
+    let log = saved_log(audio, bph);
+    saved_read(&log, 0.0, log.duration_s)
+}
+
+/// `audio` as a saved take logs it.
+fn saved_log(audio: &Audio, bph: Option<u32>) -> BeatLog {
     let cfg = StreamConfig {
         analysis: set(bph),
         ..Default::default()
     };
-    let log = analyze_samples(&audio.samples, audio.sample_rate, &cfg);
-    let span = [(0.0, log.duration_s)];
-    session::measure_together(&log, None, &[], &[], (&span, &span)).unwrap()
+    analyze_samples(&audio.samples, audio.sample_rate, &cfg)
+}
+
+/// The saved read of `log` from `from` to `to` s.
+fn saved_read(log: &BeatLog, from: f64, to: f64) -> Measurement {
+    let span = [(from.max(0.0), to)];
+    session::measure_together(log, None, &[], &[], (&span, &span)).unwrap()
+}
+
+/// A stopped take's card at Average Over `avg`, at its end, as the
+/// desktop reads it: the whole take's reading where that is the card's
+/// (`at_whole_end`), else live's, read as its own span's saved read
+/// gives it while it is still finding the beat (`read_as_saved`).
+fn card(l: &LiveAnalyzer, log: &BeatLog, w: &Measurement, avg: f64) -> LiveReading {
+    let end = l.duration_s();
+    l.reading_at(end, avg)
+        .at_whole_end(w, avg)
+        .read_as_saved(&saved_read(log, end - avg, end), avg)
 }
 
 /// The stopped take's reading at every Average Over that holds the whole
@@ -192,15 +213,28 @@ fn a_short_return_is_found_and_stops_as_too_short() {
         }
         // Finding the beat at Stop, at any shorter Average Over too: the
         // whole's verdict, since that wait can't end (Walter 46 on #2311).
+        // So too where live's last reading there was no watch for another
+        // reason (Walter 46).
         let end = l.duration_s();
         for avg in AVERAGES {
-            let r = l.reading_at(end, avg).at_whole_end(&w, avg);
-            assert!(!r.watch_heard && !r.finding_beat, "{bph:?}, {avg} s: {r:?}");
-            assert_eq!(
-                no_watch_reason_in(&r.caveats),
-                Some(NoWatchReason::TooShort),
-                "{bph:?}, {avg} s"
-            );
+            let live = l.reading_at(end, avg);
+            let other = LiveReading {
+                watch_heard: false,
+                finding_beat: false,
+                caveats: vec![Caveat::NoWatch {
+                    reason: NoWatchReason::Scatter,
+                }],
+                ..live.clone()
+            };
+            for r in [live, other] {
+                let r = r.at_whole_end(&w, avg);
+                assert!(!r.watch_heard && !r.finding_beat, "{bph:?}, {avg} s: {r:?}");
+                assert_eq!(
+                    no_watch_reason_in(&r.caveats),
+                    Some(NoWatchReason::TooShort),
+                    "{bph:?}, {avg} s"
+                );
+            }
         }
     }
 }
@@ -245,8 +279,9 @@ fn a_return_is_read_once_a_window_fits_over_it() {
             "{bph_at:?}: {heard} for {rate}"
         );
         // Stopped, no Average Over is left finding the beat (Walter 46).
+        let log = saved_log(&audio, bph);
         for avg in AVERAGES {
-            let r = l.reading_at(end, avg).at_whole_end(&w, avg);
+            let r = card(&l, &log, &w, avg);
             assert!(!r.finding_beat, "{bph_at:?}, {avg} s: {r:?}");
         }
     }
@@ -573,5 +608,61 @@ fn an_irregular_return_is_not_found() {
                 "at {t:.1} s, {avg} s: {r:?}"
             );
         }
+    }
+}
+
+/// Norm's ruling on #2311, (i) to (iii): 120 s of watch, 20 s of noise,
+/// then 12 s or 30 s back, at 28,800 and on Auto. The whole take hears
+/// the watch, so a stopped card whose Average Over is shorter reads its
+/// own span: never the whole take's figures, never finding the beat, but
+/// the saved read of its own last seconds, figures or no regular beat
+/// with its reason. One that holds the take reads the whole's, to the bit.
+#[test]
+fn a_stopped_card_reads_its_own_span_after_a_long_run() {
+    for (back_s, bph) in [12.0, 30.0]
+        .into_iter()
+        .flat_map(|s| [(s, Some(28_800)), (s, None)])
+    {
+        let audio = put_back(120.0, back_s);
+        let at = (back_s, bph);
+        let log = saved_log(&audio, bph);
+        let w = saved_read(&log, 0.0, log.duration_s);
+        assert!(w.watch_heard, "{at:?}");
+        let (l, _) = listen(&audio, bph);
+        let end = l.duration_s();
+        for avg in AVERAGES {
+            let r = card(&l, &log, &w, avg);
+            let own = saved_read(&log, end - avg, end);
+            let at = format!("{at:?}, {avg} s");
+            assert!(!r.whole_take && !r.finding_beat, "{at}: {r:?}");
+            assert_eq!(r.watch_heard, own.watch_heard, "{at}: {r:?} / {own:?}");
+            // Read as saved, the card is its span's read to the bit. A card
+            // live still hears stands, as on main: from 10 s on it is that
+            // read within 0.05 s/d; over 2 s or 4 s a heard card and a read
+            // of those seconds alone may differ more (0.9 s/d here).
+            let read = l.reading_at(end, avg).finding_beat;
+            match (r.rate_s_per_day, own.rate_s_per_day) {
+                (Some(x), Some(y)) if read => assert_eq!(x, y, "{at}"),
+                (Some(x), Some(y)) if avg >= 10.0 => {
+                    assert!((x - y).abs() < 0.05, "{at}: {x} for {y}");
+                }
+                (Some(_), Some(_)) => {}
+                (x, y) => assert_eq!(x, y, "{at}"),
+            }
+            assert_eq!(
+                no_watch_reason_in(&r.caveats),
+                no_watch_reason_in(&own.caveats),
+                "{at}"
+            );
+        }
+        // 30 s back: the 10 s card reads the return.
+        if back_s == 30.0 {
+            let r = card(&l, &log, &w, 10.0);
+            assert!(r.rate_s_per_day.is_some(), "{at:?}: {r:?}");
+        }
+        // An Average Over that holds the take: the whole's, to the bit.
+        let r = card(&l, &log, &w, end);
+        assert!(r.whole_take, "{at:?}");
+        assert_eq!(r.rate_s_per_day, w.rate_s_per_day, "{at:?}");
     }
 }
