@@ -373,7 +373,7 @@ pub fn no_watch_text(
         NoWatchReason::TooShort => format!(
             "No regular beat found (the beats were regular, but no run of them lasted the {} \
              a reading needs)",
-            crate::figure_text::duration_text(RATE_WINDOW_S)
+            crate::figure_text::duration_text(crate::timing::MIN_PIECE_S)
         ),
     }
 }

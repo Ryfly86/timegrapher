@@ -184,31 +184,45 @@ fn a_short_return_is_found_and_stops_as_too_short() {
     }
 }
 
-/// (b) 7 s, 20 s of noise, 20 s back: live's figures come only once a
-/// 10 s window fits over the run put back, at every Average Over, and do
-/// come; stopped, the take reads `analyze`'s rate.
+/// (b) 7 s, 20 s of noise, then 15 s (Norm's case) or 20 s back: live's
+/// figures never come before a 10 s window fits over the run put back,
+/// at any Average Over. With 20 s back they come before the end; with 15
+/// s the end may still be finding the beat. Stopped, both read
+/// `analyze`'s rate.
 #[test]
 fn a_return_is_read_once_a_window_fits_over_it() {
-    let audio = put_back(7.0, 20.0);
-    for bph in [Some(28_800), None] {
+    for (back_s, bph) in [15.0, 20.0]
+        .into_iter()
+        .flat_map(|s| [(s, Some(28_800)), (s, None)])
+    {
+        let audio = put_back(7.0, back_s);
+        let bph_at = (back_s, bph);
         let rate = analyze(&audio, &set(bph)).summary.rate_s_per_day;
-        let rate = rate.unwrap_or_else(|| panic!("{bph:?}: analyze reads a rate"));
+        let rate = rate.unwrap_or_else(|| panic!("{bph_at:?}: analyze reads a rate"));
         let (l, readings) = listen(&audio, bph);
         let back = back_at(&l, 7.0 + GAP_S);
         for (t, rs) in readings.iter().filter(|(t, _)| *t > 7.0 + GAP_S) {
             for (r, avg) in rs.iter().zip(AVERAGES) {
                 if r.rate_s_per_day.is_some() {
-                    assert!(*t >= back + 10.0, "{bph:?} at {t:.1} s, {avg} s: {r:?}");
+                    assert!(*t >= back + 10.0, "{bph_at:?} at {t:.1} s, {avg} s: {r:?}");
                 }
             }
         }
         let (_, last) = readings.last().unwrap();
-        assert!(last.iter().all(|r| r.rate_s_per_day.is_some()), "{bph:?}");
+        // 20 s back meets the finding wait (`FINDING_S`) before the end;
+        // 15 s back may not, and is then still finding the beat, never
+        // no regular beat.
+        let read = |r: &LiveReading| r.rate_s_per_day.is_some();
+        let ok = |r: &LiveReading| read(r) || (back_s < 20.0 && r.finding_beat);
+        assert!(last.iter().all(ok), "{bph_at:?}: {last:?}");
         let w = whole(&audio, bph);
         let end = l.duration_s();
         let r = l.reading_at(end, end).at_whole_end(&w, end);
         let heard = r.rate_s_per_day.expect("a stopped rate");
-        assert!((heard - rate).abs() < 0.05, "{bph:?}: {heard} for {rate}");
+        assert!(
+            (heard - rate).abs() < 0.05,
+            "{bph_at:?}: {heard} for {rate}"
+        );
     }
 }
 
