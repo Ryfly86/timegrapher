@@ -426,7 +426,7 @@ impl TimegrapherApp {
         ui.add_space(6.0);
         match tab {
             Tab::General => {
-                egui::ScrollArea::vertical()
+                crate::theme::scroll(egui::ScrollArea::vertical())
                     .id_salt("general settings")
                     .auto_shrink([false, true])
                     .show(ui, |ui| {
@@ -434,7 +434,7 @@ impl TimegrapherApp {
                     });
             }
             Tab::Microphone => {
-                egui::ScrollArea::vertical()
+                crate::theme::scroll(egui::ScrollArea::vertical())
                     .id_salt("microphone settings")
                     .auto_shrink([false, true])
                     .show(ui, |ui| {
@@ -464,7 +464,7 @@ impl TimegrapherApp {
                     });
             }
             Tab::WatchesFolder => {
-                egui::ScrollArea::vertical()
+                crate::theme::scroll(egui::ScrollArea::vertical())
                     .id_salt("watches folder settings")
                     .auto_shrink([false, true])
                     .show(ui, |ui| {

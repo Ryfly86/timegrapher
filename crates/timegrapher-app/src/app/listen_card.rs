@@ -844,6 +844,9 @@ impl TimegrapherApp {
             egui::Popup::menu(&button)
                 .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
                 .show(|ui| {
+                    // Each item on one line, the menu as wide as its
+                    // longest: a watch's name broke at its hyphen (#2129).
+                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
                     if changes {
                         if ui
                             .button("Save Changes")

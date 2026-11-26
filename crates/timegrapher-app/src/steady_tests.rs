@@ -1955,12 +1955,17 @@ fn allan_points_on_too_few_differences_are_hollow() {
     assert!(judged.contains(&best) && !hollow.contains(&best));
 }
 
-/// The hollow points' note keeps clear of the dashed line's name and of
-/// the least scatter's, where the first hollow point sits by them
-/// (Walter on #2012: it was drawn over "if the readings were
-/// independent").
-#[test]
-fn the_hollow_note_keeps_clear_of_the_allan_plots_other_labels() {
+/// A session whose rate has an Allan deviation running above the
+/// independent line, its last point, on too few differences, just over
+/// the line's end.
+fn allan_session() -> Steadiness {
+    allan_session_from(7)
+}
+
+/// [`allan_session`] with the points from `first` on hollow, on too few
+/// differences, and the least scatter just before them: the earlier
+/// `first`, the more room around the hollow note (4 leaves it mid-plot).
+fn allan_session_from(first: usize) -> Steadiness {
     use timegrapher_core::steadiness::{
         Allan, ALLAN_HOLLOW_NOTE, ALLAN_JUDGED_DIFFERENCES as JUDGED,
     };
@@ -1998,15 +2003,15 @@ fn the_hollow_note_keeps_clear_of_the_allan_plots_other_labels() {
     let deviation: Vec<f64> = white
         .iter()
         .enumerate()
-        .map(|(i, w)| if i < 7 { w * 1.3 } else { w * 1.1 })
+        .map(|(i, w)| if i < first { w * 1.3 } else { w * 1.1 })
         .collect();
     let pairs: Vec<usize> = (0..8)
-        .map(|i| if i < 7 { 4000 >> i } else { JUDGED - 1 })
+        .map(|i| if i < first { 4000 >> i } else { JUDGED - 1 })
         .collect();
     s.report.series[0].allan = Some(Allan {
         judged: pairs.iter().map(|&n| n >= JUDGED).collect(),
-        best_tau_s: Some(tau[6]),
-        best_deviation: Some(deviation[6]),
+        best_tau_s: Some(tau[first - 1]),
+        best_deviation: Some(deviation[first - 1]),
         tau_s: tau,
         deviation,
         white,
@@ -2015,6 +2020,21 @@ fn the_hollow_note_keeps_clear_of_the_allan_plots_other_labels() {
         max_excess: 1.05,
         hollow_note: Some(ALLAN_HOLLOW_NOTE),
     });
+    s
+}
+
+/// The hollow points' note keeps clear of the dashed line's name and of
+/// the least scatter's, where the first hollow point sits by them
+/// (Walter on #2012: it was drawn over "if the readings were
+/// independent").
+#[test]
+fn the_hollow_note_keeps_clear_of_the_allan_plots_other_labels() {
+    use timegrapher_core::steadiness::ALLAN_HOLLOW_NOTE;
+    // The hollow points from the sixth on: at the plot's foot by the
+    // line's end (`allan_session`) the note has no place within a short
+    // leader that crosses no line, so it is its point's hover there
+    // (Walter 50 on #2359); here it has room, by the other two labels.
+    let s = allan_session_from(5);
     let ctx = egui::Context::default();
     theme::install(&ctx);
     fn texts(shape: &egui::Shape, into: &mut Vec<(String, egui::Rect)>) {
@@ -2060,4 +2080,327 @@ fn the_hollow_note_keeps_clear_of_the_allan_plots_other_labels() {
             );
         }
     }
+}
+
+/// Each note's leader on a plot (`all` its shapes, `lines` its plotted
+/// lines) is short and crosses no other leader and no plotted line
+/// (Walter 50 on #2359: two leaders of 230 px ran side by side across the
+/// dashed line).
+fn leaders_short_and_clear(
+    all: &[egui::Shape],
+    lines: &[[egui::Pos2; 2]],
+    pal: &theme::Palette,
+    (w, h): (f32, f32),
+) {
+    let leaders: Vec<[egui::Pos2; 2]> = all
+        .iter()
+        .filter_map(|s| match s {
+            egui::Shape::LineSegment { points, stroke }
+                if stroke.width == 1.0 && stroke.color == pal.text_secondary =>
+            {
+                Some(*points)
+            }
+            _ => None,
+        })
+        .collect();
+    for l in &leaders {
+        let long = l[0].distance(l[1]);
+        assert!(
+            long <= crate::marks::LEADER_MAX,
+            "{w}x{h}: a leader {long} long"
+        );
+        for o in lines.iter().filter(|o| *o != l) {
+            assert!(
+                !crate::marks::segments_cross(*l, *o),
+                "{w}x{h}: leader {l:?} crosses {o:?}"
+            );
+        }
+    }
+}
+
+/// The Allan plot's labels sit where neither the deviation's line nor the
+/// dashed independent line runs through their words (#2129: on two
+/// takes of the v1.1 shakedown the dashed line struck through "least
+/// scatter at 3 min: 0.02 ms" and "if the readings were independent").
+#[test]
+fn no_line_runs_through_the_allan_plots_labels() {
+    let s = allan_session();
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    // Every shape, flat, in the order drawn.
+    fn flat(shape: &egui::Shape, into: &mut Vec<egui::Shape>) {
+        match shape {
+            egui::Shape::Vec(v) => v.iter().for_each(|s| flat(s, into)),
+            s => into.push(s.clone()),
+        }
+    }
+    for (w, h) in [
+        (700.0, 500.0),
+        (900.0, 300.0),
+        (1400.0, 500.0),
+        (1900.0, 700.0),
+        // A third of 1920x1080 and of 2560x1440, as with all three series
+        // shown (Walter 50 on #2359).
+        (1920.0, 330.0),
+        (2560.0, 450.0),
+    ] {
+        let mut all = Vec::new();
+        // Twice, as a note keeps the place it took last frame.
+        for _ in 0..2 {
+            let input = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(w, h))),
+                ..Default::default()
+            };
+            let out = ctx.run(input, |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    let shown = [true, false, false];
+                    draw(ui, Some(&s), "allan", View::Allan, &shown, Opts::default());
+                });
+            });
+            all.clear();
+            out.shapes.iter().for_each(|c| flat(&c.shape, &mut all));
+        }
+        // The plotted lines: every run of segments that is neither across
+        // nor down (the grid and the axes are).
+        let sloped = |a: egui::Pos2, b: egui::Pos2| a.x != b.x && a.y != b.y;
+        let mut lines: Vec<[egui::Pos2; 2]> = Vec::new();
+        for s in &all {
+            match s {
+                egui::Shape::LineSegment { points, .. } if sloped(points[0], points[1]) => {
+                    lines.push(*points);
+                }
+                egui::Shape::Path(p) => lines.extend(
+                    p.points
+                        .windows(2)
+                        .filter(|q| sloped(q[0], q[1]))
+                        .map(|q| [q[0], q[1]]),
+                ),
+                _ => {}
+            }
+        }
+        leaders_short_and_clear(
+            &all,
+            &lines,
+            theme::palette(ctx.style().visuals.dark_mode),
+            (w, h),
+        );
+        let mut seen = 0;
+        for s in &all {
+            let egui::Shape::Text(t) = s else { continue };
+            let text = t.galley.text().trim();
+            if !(text.starts_with("least scatter at") || text == "if the readings were independent")
+            {
+                continue;
+            }
+            seen += 1;
+            // The dashed line's name in the dashed line's quieter grey,
+            // as on main; the least scatter in the text's.
+            let pal = theme::palette(ctx.style().visuals.dark_mode);
+            let want = if text.starts_with("least") {
+                pal.text
+            } else {
+                pal.text_secondary
+            };
+            let colour = t.galley.job.sections.first().map(|s| s.format.color);
+            assert_eq!(colour, Some(want), "{w}x{h}: \"{text}\"'s colour");
+            let r = t.visual_bounding_rect();
+            for l in &lines {
+                assert!(
+                    !crate::marks::crosses(r, l),
+                    "{w}x{h}: a line {l:?} runs through \"{text}\" at {r:?}"
+                );
+            }
+        }
+        let names: Vec<String> = all
+            .iter()
+            .filter_map(|s| match s {
+                egui::Shape::Text(t) => Some(t.galley.text().to_string()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(seen, 2, "{w}x{h}: both labels drawn {names:?}");
+    }
+}
+
+/// The Autocorrelation plot's scale stops at a correlation of 1: the
+/// room above it, kept for the Ljung–Box note, has no grid line or label
+/// (#2129: its labels ran 1.05 to 1.35).
+#[test]
+fn the_autocorrelation_scale_stops_at_one() {
+    for (lo, step) in [(-0.3, 0.05), (-0.25, 0.1), (-1.0, 0.25), (-0.2, 0.01)] {
+        let marks = correlation_grid(1.0)(GridInput {
+            bounds: (lo, 1.35),
+            base_step_size: step,
+        });
+        let top = marks.iter().map(|m| m.value).fold(f64::MIN, f64::max);
+        assert!(top <= 1.0 + 1e-9, "{lo}, {step}: a mark at {top}");
+        assert!(
+            top >= 1.0 - step - 1e-9,
+            "{lo}, {step}: none near 1, top {top}"
+        );
+    }
+}
+
+/// The Autocorrelation plot itself labels nothing in the room above its
+/// highest correlation (#2129): the plot is held to `correlation_grid`,
+/// not only the helper.
+#[test]
+fn the_autocorrelation_plot_labels_nothing_above_one() {
+    let s = allan_session();
+    let a = s.report.series[0].autocorrelation.as_ref().expect("acf");
+    // The highest correlation drawn: 1 at lag 0, or a little over where
+    // core's estimate passes it at a long lag.
+    let top =
+        a.r.iter()
+            .copied()
+            .filter(|r| r.is_finite())
+            .fold(1.0, f64::max);
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    fn texts(shape: &egui::Shape, into: &mut Vec<String>) {
+        match shape {
+            egui::Shape::Text(t) => into.push(t.galley.text().to_string()),
+            egui::Shape::Vec(v) => v.iter().for_each(|s| texts(s, into)),
+            _ => {}
+        }
+    }
+    for h in [300.0, 500.0, 900.0] {
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                Vec2::new(900.0, h),
+            )),
+            ..Default::default()
+        };
+        let out = ctx.run(input, |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                let shown = [true, false, false];
+                draw(
+                    ui,
+                    Some(&s),
+                    "acf",
+                    View::Autocorrelation,
+                    &shown,
+                    Opts::default(),
+                );
+            });
+        });
+        let mut all = Vec::new();
+        out.shapes.iter().for_each(|c| texts(&c.shape, &mut all));
+        let numbers: Vec<f64> = all
+            .iter()
+            .filter_map(|t| t.replace('\u{2212}', "-").parse::<f64>().ok())
+            .collect();
+        assert!(
+            numbers.iter().any(|&v| (v - 1.0).abs() < 1e-9),
+            "{h}: no 1 in {all:?}"
+        );
+        // Nothing a step (at most 0.05 here) past it: the room kept for
+        // the Ljung–Box note, up to 1.35, is unlabelled.
+        assert!(
+            numbers.iter().all(|&v| v <= top + 0.05 + 1e-9),
+            "{h}: {all:?}"
+        );
+    }
+}
+
+/// A plot's notes keep off each other's plates: two notes side by side,
+/// the second's first place on the first's plate but clear of its
+/// leader, so only keeping off the plate moves it (the #2012 rule, now
+/// in `plot_notes`).
+#[test]
+fn plot_notes_keep_off_each_others_plates() {
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    let frame = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), Vec2::new(400.0, 300.0));
+    let t = egui_plot::PlotTransform::new(
+        frame,
+        egui_plot::PlotBounds::from_min_max([0.0, 0.0], [400.0, 300.0]),
+        egui::Vec2b::new(false, false),
+    );
+    let fill = ctx.style().visuals.extreme_bg_color.gamma_multiply(0.8);
+    let out = ctx.run(Default::default(), |ctx| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            let c = theme::pal(ui).text;
+            let note = |at: [f64; 2], text: &str, name| PlotNote {
+                at: vec![at],
+                text: text.to_string(),
+                colour: c,
+                name,
+                short: false,
+            };
+            let notes = [
+                Some(note([200.0, 150.0], "the first note here", "a")),
+                Some(note([230.0, 150.0], "the second note", "b")),
+            ];
+            plot_notes(ui, &t, &notes, Vec::new(), egui::Id::new("notes"));
+        });
+    });
+    let plates: Vec<egui::Rect> = out
+        .shapes
+        .iter()
+        .filter_map(|c| match &c.shape {
+            egui::Shape::Rect(r) if r.fill == fill => Some(r.rect),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(plates.len(), 2, "{plates:?}");
+    assert!(!plates[0].intersects(plates[1]), "{plates:?}");
+}
+
+/// On a short Allan plot (under 100 pt) the least scatter and the dashed
+/// line's name still take a plate where one is clear, whole; only the
+/// hollow note is its point's hover there (Hugh 28 on #2129's fix).
+#[test]
+fn a_short_allan_plot_still_shows_its_figure_and_its_lines_name() {
+    use timegrapher_core::steadiness::ALLAN_HOLLOW_NOTE;
+    // The hollow points mid-plot, so the hollow note has room by them
+    // and is hover only for the short rule (Vernon 57 on #2359).
+    let s = allan_session_from(4);
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    fn texts(shape: &egui::Shape, into: &mut Vec<String>) {
+        match shape {
+            egui::Shape::Text(t) => into.push(t.galley.text().trim().to_string()),
+            egui::Shape::Vec(v) => v.iter().for_each(|s| texts(s, into)),
+            _ => {}
+        }
+    }
+    let drawn = |pane_h: f32| {
+        let mut all = Vec::new();
+        for _ in 0..2 {
+            let input = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    Vec2::new(1900.0, 900.0),
+                )),
+                ..Default::default()
+            };
+            let out = ctx.run(input, |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    ui.allocate_ui(Vec2::new(1880.0, pane_h), |ui| {
+                        ui.set_max_height(pane_h);
+                        let shown = [true, false, false];
+                        draw(ui, Some(&s), "short", View::Allan, &shown, Opts::default());
+                    });
+                });
+            });
+            all.clear();
+            out.shapes.iter().for_each(|c| texts(&c.shape, &mut all));
+        }
+        all
+    };
+    // Tall, the hollow note finds its plate by its point.
+    let tall = drawn(500.0);
+    assert!(tall.iter().any(|t| t == ALLAN_HOLLOW_NOTE), "{tall:?}");
+    // Short: a pane of 130 pt leaves the plot under 100 inside its axis.
+    let all = drawn(130.0);
+    let least = all.iter().find(|t| t.starts_with("least scatter at"));
+    let least = least.unwrap_or_else(|| panic!("no least scatter in {all:?}"));
+    assert!(least.contains(':'), "{least}: not whole");
+    assert!(
+        all.iter().any(|t| t == "if the readings were independent"),
+        "{all:?}"
+    );
+    assert!(!all.iter().any(|t| t == ALLAN_HOLLOW_NOTE), "{all:?}");
 }
