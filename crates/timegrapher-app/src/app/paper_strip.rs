@@ -679,6 +679,37 @@ impl TimegrapherApp {
         (pts, step)
     }
 
+    /// The line over the strip as shown (see [`strip_note`]). With no beat
+    /// at all, the cards' wait leads it, so the strip and the cards say one
+    /// verdict (#2044); it counts the faint dots in view, so it says what is
+    /// drawn: on pure silence only the peak as the microphone opens
+    /// (#2053). Beats regular but no run long enough to read: the strip
+    /// shows them, and says what a reading needs (Walter 46 on #2311).
+    fn strip_note_shown(
+        &self,
+        guessing: bool,
+        candidates: &[Beat],
+        looking_back: bool,
+        end: f64,
+    ) -> Option<String> {
+        let reading = self.reading();
+        if !guessing
+            && !looking_back
+            && reading
+                .as_ref()
+                .is_some_and(super::readouts::beats_were_regular)
+        {
+            return Some(timegrapher_core::measure::too_short_need_text());
+        }
+        let wait = guessing
+            .then_some(reading)
+            .flatten()
+            .and_then(|r| self.waiting(Some(&r)))
+            .map(|(title, _)| title);
+        let dots = dots_in_view(candidates, end - self.bench.panes_view.strip.span_s, end);
+        strip_note(guessing, (wait.as_deref(), dots), looking_back, end)
+    }
+
     pub(super) fn strip_pane(&mut self, ui: &mut egui::Ui) {
         // Before there is a take to show, or while nothing in it beats
         // regularly: where things stand, in the strip's place.
@@ -706,17 +737,7 @@ impl TimegrapherApp {
         }
         let end = self.strip_end_s();
         let looking_back = self.bench.panes_view.strip_end.is_some() && end < self.latest_s() - 0.5;
-        // With no beat at all, the cards' wait leads the note, so the strip
-        // and the cards say one verdict (#2044).
-        let wait = guessing
-            .then(|| self.reading())
-            .flatten()
-            .and_then(|r| self.waiting(Some(&r)))
-            .map(|(title, _)| title);
-        // The faint dots in view, so the note says what is drawn: on pure
-        // silence only the peak as the microphone opens (#2053).
-        let dots = dots_in_view(&candidates, end - self.bench.panes_view.strip.span_s, end);
-        let note = strip_note(guessing, (wait.as_deref(), dots), looking_back, end);
+        let note = self.strip_note_shown(guessing, &candidates, looking_back, end);
         let from = end - self.bench.panes_view.strip.span_s - 5.0;
         let (trend, _) = self.strip_trend(from, end, self.bench.take.average_s);
         let live = &self.bench.recording.live;

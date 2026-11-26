@@ -221,7 +221,9 @@ impl TimegrapherApp {
     /// the watch's last beat (core's `beats::last_watch_beat_s`), never at
     /// a later point whose look-back still hears the watch over a quiet
     /// stand's hiss; with no run of beats long enough for that, at the
-    /// last beat with a watch heard, as before.
+    /// last beat with a watch heard, as before. One still finding the beat
+    /// there reads as the saved read of its own span (core's
+    /// `LiveReading::read_as_saved`, Norm on #2311).
     pub(super) fn stopped_reading(&self, live: &LiveAnalyzer, average: f64) -> LiveReading {
         // Just stopped: the take as its saved take opens (#2151).
         let stopped = self.stopped_take();
@@ -239,7 +241,13 @@ impl TimegrapherApp {
                     None => self.latest_s().min(self.last_heard_s()),
                 },
             );
-        live.reading_at(at, average)
+        let r = live.reading_at(at, average);
+        // Still finding the beat, a wait the stopped take can't end: as
+        // the saved read of its own span gives it (Norm on #2311).
+        match r.finding_beat.then(|| self.own_span_read(at - average, at)) {
+            Some(Some(own)) => r.read_as_saved(&own, average),
+            _ => r,
+        }
     }
 
     /// What the whole reading on show is of, in words, as a take's row
@@ -254,6 +262,17 @@ impl TimegrapherApp {
     /// The whole take as kept (`Ok`), or what it is to be read from
     /// (`Err`); none while listening or with nothing to read.
     fn whole_read(&self) -> Option<Result<Option<WholeTake>, WholeKey>> {
+        let key = self.whole_key()?;
+        if let Some((k, w)) = self.bench.results.whole_take.borrow().as_ref() {
+            if *k == key {
+                return Some(Ok(w.clone()));
+            }
+        }
+        Some(Err(key))
+    }
+
+    /// What the whole take is read from (see [`Self::whole_read`]).
+    fn whole_key(&self) -> Option<WholeKey> {
         if self.running() {
             return None;
         }
@@ -283,12 +302,31 @@ impl TimegrapherApp {
             rev: self.bench.take.rev,
             stopped: stopped.is_some(),
         };
-        if let Some((k, w)) = self.bench.results.whole_take.borrow().as_ref() {
-            if *k == key {
-                return Some(Ok(w.clone()));
-            }
+        Some(key)
+    }
+
+    /// The saved read of the whole take's stretches from `from` to `to` s,
+    /// read here and kept: a stopped card's own span, while live still
+    /// finds the beat there (core's `LiveReading::read_as_saved`).
+    pub(super) fn own_span_read(
+        &self,
+        from: f64,
+        to: f64,
+    ) -> Option<timegrapher_core::session::Measurement> {
+        let mut key = self.whole_key()?;
+        key.spans = (key.spans.iter())
+            .map(|&(a, b)| (a.max(from), b.min(to)))
+            .filter(|(a, b)| a < b)
+            .collect();
+        let kept = self.bench.results.own_span.borrow();
+        if let Some((_, w)) = kept.as_ref().filter(|(k, _)| *k == key) {
+            return w.as_ref().map(|w| w.m.clone());
         }
-        Some(Err(key))
+        drop(kept);
+        let w = self.whole_reader(key.spans.clone())();
+        let m = w.as_ref().map(|w| w.m.clone());
+        *self.bench.results.own_span.borrow_mut() = Some((key, w));
+        m
     }
 
     /// The reading of the whole take over its stretches `spans` (see

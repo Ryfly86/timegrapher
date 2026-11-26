@@ -369,7 +369,24 @@ pub fn no_watch_text(
              or a drop)"
                 .into()
         }
+        // Hugh's words (#2257).
+        NoWatchReason::TooShort => format!(
+            "No regular beat found (the beats were regular, but no run of them lasted the {} \
+             a reading needs)",
+            crate::figure_text::duration_text(crate::timing::MIN_PIECE_S)
+        ),
     }
+}
+
+/// What a reading too short to read needs, said over the strip that draws
+/// its beats: the [`NoWatchReason::TooShort`] rule's length, from
+/// [`crate::timing::MIN_PIECE_S`] (Hugh on #2311). No time until figures:
+/// live shows them some seconds after a run reaches it.
+pub fn too_short_need_text() -> String {
+    format!(
+        "A reading needs a run of regular beats lasting {} or more.",
+        crate::figure_text::duration_text(crate::timing::MIN_PIECE_S)
+    )
 }
 
 /// What the `no_watch` caveat ([`Caveat::NoWatch`]) was found on.
@@ -382,6 +399,86 @@ pub enum NoWatchReason {
     /// With less sound, the beats' averaged sound: neither the Tick's nor
     /// the Tock's shows an unlock or a drop ([`beat_sound_found`]).
     NoBeatSound,
+    /// No 10 s scatter window fitted, but the beats came in a regular
+    /// run ([`regular_run`]), each run between pauses too short for one
+    /// ([`too_short`], Norm on #2257).
+    TooShort,
+}
+
+impl NoWatchReason {
+    /// Whether the reason says the beats were regular: only
+    /// [`NoWatchReason::TooShort`]. Words about beats that don't come at
+    /// regular intervals go beside every other reason, never beside this
+    /// one (Hugh, Vernon on #2311).
+    pub fn beats_were_regular(self) -> bool {
+        self == NoWatchReason::TooShort
+    }
+}
+
+/// Whether a run of beats, fitted as `fit`, is a watch's by its timing:
+/// its own scatter under [`crate::beats::NO_WATCH_JITTER_FRACTION`] of a
+/// beat at `bph`. The one test live's Finding the Beat and the
+/// [`NoWatchReason::TooShort`] reason share (Norm on #2257).
+pub fn regular_run(fit: Option<&crate::timing::TimingFit>, bph: u32) -> bool {
+    fit.is_some_and(|f| crate::beats::watch_heard(Some(f.jitter_us), bph))
+}
+
+/// Whether beats with no 10 s scatter window fitted (`jitter_us` None)
+/// came in regular runs too short to read: the longest run of `beats`'
+/// good ones between pauses ([`crate::clean::beat_pauses`]) that began at
+/// or after `from_s` is a [`regular_run`], fitted as a reading fits its
+/// stretch.
+///
+/// `beats` are all those since the take's start or its latest cut, and
+/// `from_s` is where the reader's own beats start (its look back or its
+/// span). A run that began before `from_s` was cut by the reader, not by
+/// a pause, so it is not a short run and does not count; only a run that
+/// began after a pause, a cut or the take's start does (Norm on #2311).
+pub fn too_short(
+    jitter_us: Option<f64>,
+    beats: &[crate::beats::Beat],
+    from_s: f64,
+    bph: u32,
+) -> bool {
+    if jitter_us.is_some() {
+        return false;
+    }
+    let good: Vec<crate::beats::Beat> = beats.iter().filter(|b| b.is_good()).copied().collect();
+    let mut runs = Vec::new();
+    let mut lo = 0;
+    for c in crate::clean::beat_pauses(&good) {
+        let hi = lo + good[lo..].partition_point(|b| b.time < c);
+        runs.push(&good[lo..hi]);
+        lo = hi;
+    }
+    runs.push(&good[lo..]);
+    let span = |r: &[crate::beats::Beat]| match (r.first(), r.last()) {
+        (Some(a), Some(b)) => b.time - a.time,
+        _ => 0.0,
+    };
+    runs.into_iter()
+        .filter(|r| r.first().is_some_and(|b| b.time >= from_s))
+        .max_by(|a, b| span(a).total_cmp(&span(b)))
+        .is_some_and(|run| regular_run(crate::timing::fit(run, bph).as_ref(), bph))
+}
+
+/// [`no_watch_reason`], with a scatter that no window could read, of
+/// beats that came in short regular runs, said as
+/// [`NoWatchReason::TooShort`] ([`too_short`] of `beats` since the take's
+/// start or latest cut, counting runs begun from `from_s`): the one
+/// reason every reader gives (Norm on #2257).
+pub fn no_watch_reason_of(
+    jitter_us: Option<f64>,
+    bph: u32,
+    (assessed, beat_sound): (bool, Option<bool>),
+    (beats, from_s): (&[crate::beats::Beat], f64),
+) -> Option<NoWatchReason> {
+    match no_watch_reason(jitter_us, bph, assessed, beat_sound)? {
+        NoWatchReason::Scatter if too_short(jitter_us, beats, from_s, bph) => {
+            Some(NoWatchReason::TooShort)
+        }
+        r => Some(r),
+    }
 }
 
 /// What a [`Caveat::BeatErrorSourceReadings`] counted.
@@ -558,7 +655,10 @@ pub enum Caveat {
     /// [`crate::beats::NO_WATCH_JITTER_FRACTION`] of a beat (`reason`
     /// `scatter`), or, with under [`SHORT_SPAN_S`] of sound, neither the
     /// Tick's nor the Tock's averaged sound shows an unlock or a drop
-    /// (`no_beat_sound`). No readings are given.
+    /// (`no_beat_sound`), or `too_short`, the beats came in regular runs,
+    /// but none that began after a pause, a cut or the recording's start
+    /// lasted the 10 s a reading needs ([`NoWatchReason::TooShort`]). No
+    /// readings are given.
     NoWatch {
         #[serde(default)]
         reason: NoWatchReason,
@@ -1359,6 +1459,31 @@ pub fn assess_in(
 
 #[cfg(test)]
 mod tests {
+
+    /// [`too_short`] tests the longest run begun from `from_s`: a regular
+    /// 9 s run, then after a pause a 2 s burst at no steady rate, is too
+    /// short by the 9 s run; from inside the 9 s run, only the burst
+    /// counts, and it is not regular (Vernon on #2311).
+    #[test]
+    fn too_short_tests_the_longest_run_begun_from_its_start() {
+        let beat = |index: i64, time: f64| crate::beats::Beat {
+            index,
+            time,
+            quality: 1.0,
+        };
+        let mut beats: Vec<_> = (0..72)
+            .map(|i| beat(i, f64::from(i as i32) * 0.125))
+            .collect();
+        // Offsets of up to 40% of a beat, as no watch beats.
+        let jumble = [0.0, 0.05, -0.04, 0.03, -0.05, 0.045, -0.02, 0.04];
+        beats.extend((0..16).map(|i| {
+            let k = 112 + i;
+            beat(k, f64::from(k as i32) * 0.125 + jumble[i as usize % 8])
+        }));
+        assert!(too_short(None, &beats, f64::NEG_INFINITY, 28_800));
+        assert!(!too_short(None, &beats, 1.0, 28_800));
+        assert!(!too_short(Some(100.0), &beats, f64::NEG_INFINITY, 28_800));
+    }
     /// The Finding the Beat hover names the wait for the Average Over in
     /// use, in the Measure field's words (Hugh on #2187, #2178).
     #[test]
@@ -2349,6 +2474,12 @@ mod tests {
             no_watch_text(NoWatchReason::NoBeatSound, Some(900.0), Some(28800)),
             "No regular beat found (neither the Tick's nor the Tock's sound shows an unlock \
              or a drop)"
+        );
+        // Hugh on #2257: the whole sentence, its length from the window.
+        assert_eq!(
+            no_watch_text(NoWatchReason::TooShort, None, Some(28800)),
+            "No regular beat found (the beats were regular, but no run of them lasted the \
+             10 s a reading needs)"
         );
     }
 

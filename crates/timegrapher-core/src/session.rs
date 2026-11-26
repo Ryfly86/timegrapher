@@ -1121,7 +1121,20 @@ pub fn measure_reading(
         None => listened_s,
     };
     let assessed = crate::measure::regularity_assessed(judged_s, judged.holds_window);
-    let no_watch = crate::measure::no_watch_reason(jitter_us, log.bph, assessed, beat_sound);
+    // Its runs from the latest cut before the stretch, counted from its
+    // start: a run the stretch's start cuts is no short run (Norm on #2311).
+    let cut_from = holes.look_back_from(from_t);
+    let since_cut: Vec<Beat> = holes
+        .beats(&log.beats[stretch_beats(&log.beats, 0.0, to_s)])
+        .into_iter()
+        .filter(|b| b.time >= cut_from)
+        .collect();
+    let no_watch = crate::measure::no_watch_reason_of(
+        jitter_us,
+        log.bph,
+        (assessed, beat_sound),
+        (&since_cut, from_t),
+    );
     // The sound behind the reading: since the latest cut, or the
     // stretch's own where it reads across one.
     let awaiting =
@@ -1913,15 +1926,14 @@ pub fn no_regular_beat(jitter_us: Option<f64>, bph_set: Option<u32>) -> String {
 /// amplitude or beat error readings."
 pub const NO_READINGS: &str = "There are no rate, amplitude or beat error readings.";
 
-/// [`no_regular_beat`] for a measurement, or, when its beats' sound shows
-/// no unlock or drop on either side, that fact.
+/// [`crate::measure::no_watch_text`] for a measurement, by its no-watch
+/// reason ([`crate::measure::NoWatchReason::Scatter`] where it gives none).
 pub fn no_regular_beat_in(m: &Measurement, bph_set: Option<u32>) -> String {
-    match crate::measure::no_watch_reason_in(&m.caveats) {
-        Some(r @ crate::measure::NoWatchReason::NoBeatSound) => {
-            crate::measure::no_watch_text(r, None, None)
-        }
-        _ => no_regular_beat(m.jitter_us, bph_set),
-    }
+    crate::measure::no_watch_text(
+        crate::measure::no_watch_reason_in(&m.caveats).unwrap_or_default(),
+        m.jitter_us,
+        bph_set,
+    )
 }
 
 #[expect(

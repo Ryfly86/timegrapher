@@ -151,11 +151,13 @@ horizontal", quote `dvh_amplitude`, never `d_amplitude`.
 Work through them in this order. The reasons are in
 [reading-the-numbers.md](references/reading-the-numbers.md).
 
-1. **Is the measurement sound?** First `watch_heard`: when it is false
-   no watch was heard (an empty stand, a stopped watch, no contact), and
-   every number describes noise, so show none of them. Readings that are
-   absent (null) beside `watch_heard` false mean the same: no watch was
-   heard. Then `caveats` (on `analyze`, on each `session` reading, and
+1. **Is the measurement sound?** First `watch_heard`: when it is false,
+   show none of the numbers. With the `no_watch` reason `scatter` or
+   `no_beat_sound`, no watch was heard (an empty stand, a stopped watch,
+   no contact) and every number describes noise. With `too_short`, the
+   watch was heard, but no run of its beats lasted 10 s: ask for a longer
+   recording. Readings that are absent (null) beside `watch_heard` false
+   mean the same. Then `caveats` (on `analyze`, on each `session` reading, and
    on `long` and `series`): what limits the readings, each code with
    what to do in
    [findings.md](references/findings.md#what-limits-the-readings-caveats).
