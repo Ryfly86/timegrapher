@@ -248,7 +248,37 @@ impl LiveReading {
     /// the clock it is shown on, read against `bph`, with the rate's ±.
     /// None with no rate or no beat rate.
     pub fn measured(&self) -> Option<crate::timing::MeasuredRate> {
+        if let Some(o) = measure::off_standard(&self.caveats) {
+            return Some(o.measured());
+        }
         crate::timing::MeasuredRate::of(self.bph?, self.rate_s_per_day, self.rate_error_s_per_day)
+    }
+
+    /// Auto's reach check (Norm on #2223, point 5), as `analyze` and
+    /// `session` make it ([`crate::timing::OffStandard`]): with no rate
+    /// set and this reading's rate further than
+    /// [`crate::beats::STANDARD_REACH_S_PER_DAY`] from the rate guessed,
+    /// its rate and ± are left out and the caveat `off_standard_rate`
+    /// gives the beat rate heard. A reading read before is read again.
+    pub fn read_off_standard(&mut self) {
+        let Some(bph) = self.bph else { return };
+        let before = measure::off_standard(&self.caveats);
+        self.caveats
+            .retain(|c| !matches!(c, Caveat::OffStandardRate(_)));
+        let (rate, se) = match before {
+            Some(o) => (
+                Some(o.measured().rate_against(bph)),
+                o.bph_measured_se.map(|s| s * 86_400.0 / f64::from(bph)),
+            ),
+            None => (self.rate_s_per_day, self.rate_error_s_per_day),
+        };
+        let Some(o) = crate::timing::OffStandard::of(self.bph_set, bph, rate, se) else {
+            return;
+        };
+        self.rate_s_per_day = None;
+        self.rate_error_s_per_day = None;
+        self.rate_no_pm = None;
+        measure::add(&mut self.caveats, Caveat::OffStandardRate(o));
     }
 
     /// This reading, at a take's end, as the take's whole reading `whole`
@@ -271,7 +301,7 @@ impl LiveReading {
             return self;
         }
         let c = whole.confidence;
-        Self {
+        let mut r = Self {
             rate_s_per_day: whole.rate_s_per_day,
             rate_error_s_per_day: c.and_then(|c| c.rate.se),
             rate_no_pm: c.and_then(|c| c.rate.no_pm),
@@ -290,7 +320,9 @@ impl LiveReading {
             caveats: whole.caveats.clone(),
             whole_take: true,
             ..self
-        }
+        };
+        r.read_off_standard();
+        r
     }
 }
 
@@ -1368,7 +1400,8 @@ impl LiveAnalyzer {
     /// Readings over the last `average_s` seconds of settled beats.
     pub fn reading(&self, average_s: f64) -> LiveReading {
         // Read as a file, to the end of the sound the newest read covered.
-        if let Some(r) = self.reading_as_file(self.settled_to, f64::INFINITY, average_s) {
+        if let Some(mut r) = self.reading_as_file(self.settled_to, f64::INFINITY, average_s) {
+            r.read_off_standard();
             return r;
         }
         self.reading_at(self.settled_to, average_s)
@@ -1462,9 +1495,13 @@ impl LiveAnalyzer {
     }
 
     /// Readings over the `average_s` seconds before `end_s`.
+    /// On Auto, off every standard rate, it gives no rate in s/d
+    /// ([`LiveReading::read_off_standard`], #2223).
     pub fn reading_at(&self, end_s: f64, average_s: f64) -> LiveReading {
-        (self.reading_as_file(end_s, end_s, average_s))
-            .unwrap_or_else(|| self.own_reading_at(end_s, average_s))
+        let mut r = (self.reading_as_file(end_s, end_s, average_s))
+            .unwrap_or_else(|| self.own_reading_at(end_s, average_s));
+        r.read_off_standard();
+        r
     }
 
     /// [`Self::reading_at`] from this analyzer's own beats.

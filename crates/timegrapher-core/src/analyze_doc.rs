@@ -23,17 +23,41 @@ pub fn settings(cfg: &AnalysisConfig, calibre: Option<&str>) -> Value {
 /// The document's body: the summary, its rates on the sound card's clock
 /// (what tg reads and the regression check compares), with the clock's
 /// correction beside them when one is known (`ppm` fast, and where it came
-/// from in words), and the beat rate heard ([`measured`]).
+/// from in words), and the beat rate heard ([`measured`]). Off every
+/// standard rate on Auto ([`Summary::read_off_standard`], read at that
+/// correction), no rate in s/d is given: the fit's in `overall` and the
+/// corrected one are null too (Norm on #2223, point 5).
 pub fn body(summary: &Summary, clock: Option<(f64, &str)>) -> Result<Value, String> {
+    let ppm = clock.map(|(ppm, _)| ppm);
+    let read;
+    let summary = match crate::measure::off_standard(&summary.caveats) {
+        Some(_) if ppm.is_some() => {
+            let mut s = summary.clone();
+            s.read_off_standard(ppm);
+            read = s;
+            &read
+        }
+        _ => summary,
+    };
+    let off = crate::measure::off_standard(&summary.caveats).is_some();
     let mut body = serde_json::to_value(summary).map_err(|e| e.to_string())?;
-    if let Some(m) = measured(summary, clock.map(|(ppm, _)| ppm)) {
+    if let Some(m) = measured(summary, ppm) {
         m.write_into(&mut body);
+    }
+    if off {
+        if let Some(o) = body["overall"].as_object_mut() {
+            o.insert("rate_s_per_day".into(), Value::Null);
+        }
     }
     if let Some((ppm, from)) = clock {
         body["clock"] = crate::clockstore::correction_json(
             ppm,
             from,
-            summary.overall.as_ref().map(|f| f.rate_s_per_day),
+            summary
+                .overall
+                .as_ref()
+                .filter(|_| !off)
+                .map(|f| f.rate_s_per_day),
         );
     }
     Ok(body)
@@ -41,9 +65,14 @@ pub fn body(summary: &Summary, clock: Option<(f64, &str)>) -> Result<Value, Stri
 
 /// The beat rate heard over the whole recording (#2223): from the fit
 /// over every beat, on the clock its rate is shown on, corrected at `ppm`
-/// when the document carries a correction, with the rate's ±. None when
-/// no regular beat is found, as every reading.
+/// when the document carries a correction, with the rate's ±. Off every
+/// standard rate, the caveat's ([`crate::timing::OffStandard`]), which
+/// [`body`] reads at the same correction. None when no regular beat is
+/// found, as every reading.
 pub fn measured(summary: &Summary, ppm: Option<f64>) -> Option<crate::timing::MeasuredRate> {
+    if let Some(o) = crate::measure::off_standard(&summary.caveats) {
+        return Some(o.measured());
+    }
     let rate = summary.overall.as_ref().map(|f| {
         ppm.map_or(f.rate_s_per_day, |p| {
             crate::clockstore::correct_rate(f.rate_s_per_day, p)

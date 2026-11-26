@@ -1825,10 +1825,12 @@ fn print_summary(
         "Jitter       {} us per beat (within 10 s windows)",
         opt(s.jitter_us, 0)
     );
-    println!(
-        "{}",
-        rate_spread_line(s.rate_p05, s.rate_p95, clock.map(|c| c.0))
-    );
+    if measure::off_standard(&s.caveats).is_none() {
+        println!(
+            "{}",
+            rate_spread_line(s.rate_p05, s.rate_p95, clock.map(|c| c.0))
+        );
+    }
     // Tick and Tock have no ± of their own; they are at the amplitude's
     // place, as the figure beside them (#1470).
     let side = |x: Option<f64>| {
@@ -1884,9 +1886,17 @@ fn rate_spread_line(p05: Option<f64>, p95: Option<f64>, ppm: Option<f64>) -> Str
 /// take the same place as the figure beside them.
 fn print_rate(s: &timegrapher_core::analysis::Summary, clock: Option<&(f64, String)>) {
     let c = s.confidence.as_ref();
+    // On Auto off every standard rate, no rate in s/d (#2223).
+    let off = s
+        .caveats
+        .iter()
+        .find(|c| matches!(c, timegrapher_core::measure::Caveat::OffStandardRate(_)));
     if let Some(f) = &s.overall {
         let rate_se = c.and_then(|c| c.rate.se);
         match clock {
+            _ if off.is_some() => {
+                println!("Rate         {}", off.and_then(|c| c.long(None)).unwrap_or_default());
+            }
             Some((ppm, from)) => println!(
                 "Rate         {} s/d, corrected for the sound card's clock ({} ppm {}, {from}); {} s/d on the card's clock",
                 figure_with_pm(
@@ -1941,6 +1951,7 @@ fn print_conditions(
             // Said on their own lines.
             Caveat::NoWatch { .. }
             | Caveat::SetRateDisagrees { .. }
+            | Caveat::OffStandardRate(_)
             | Caveat::Clipped { .. }
             | Caveat::BeatsMissing { .. } => None,
             Caveat::LiftUnknown => c.short(s.lift_deg, s.beats_found).map(|w| {

@@ -18,6 +18,10 @@ pub const STANDARD_BPH: [u32; 11] = [
     12000, 14400, 17280, 18000, 19800, 21600, 25200, 28800, 36000, 43200, 72000,
 ];
 
+/// Auto's reach after the fit, s/d: 1.16%, half the narrowest gap between
+/// standard rates (17,280 to 18,000 is 4.1%) or less; beyond it no rate is
+/// read ([`crate::timing::OffStandard`], Norm on #2223, point 5).
+pub const STANDARD_REACH_S_PER_DAY: f64 = 1000.0;
 /// Fractional rate slack for beat and full-oscillation rate inference.
 /// Beat error moves alternating intervals, but not their sum.
 const GUESS_RATE_SLACK: f64 = 0.004;

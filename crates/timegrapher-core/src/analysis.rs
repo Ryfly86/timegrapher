@@ -148,6 +148,49 @@ impl Summary {
         self.shape = None;
     }
 
+    /// Auto's reach check (Norm on #2223, point 5): with no rate set and
+    /// the rate further than [`crate::beats::STANDARD_REACH_S_PER_DAY`]
+    /// from the standard rate guessed ([`crate::timing::OffStandard`]),
+    /// the rate readings and their ± are left out and the caveat
+    /// `off_standard_rate` gives the beat rate heard. The rate is read on
+    /// the card's clock, or corrected at `ppm` fast where the reader
+    /// corrects it ([`crate::analyze_doc::body`]); a caveat read before
+    /// is read again. `overall` stays: it is the fit at `bph`, and the
+    /// beat error from the drop is read from it.
+    pub fn read_off_standard(&mut self, ppm: Option<f64>) {
+        // A reading read before keeps its rate's ± in the caveat, as
+        // `bph × σ / 86,400` ([`crate::timing::MeasuredRate::of`]).
+        let before = crate::measure::off_standard(&self.caveats)
+            .and_then(|o| o.bph_measured_se)
+            .map(|s| s * 86_400.0 / f64::from(self.bph));
+        self.caveats
+            .retain(|c| !matches!(c, crate::measure::Caveat::OffStandardRate(_)));
+        let rate = self.overall.as_ref().map(|f| {
+            ppm.map_or(f.rate_s_per_day, |p| {
+                crate::clockstore::correct_rate(f.rate_s_per_day, p)
+            })
+        });
+        let se = self.confidence.as_ref().and_then(|c| c.rate.se).or(before);
+        let read = self.watch_heard.then_some(rate).flatten();
+        let Some(o) = crate::timing::OffStandard::of(self.bph_set, self.bph, read, se) else {
+            return;
+        };
+        self.rate_s_per_day = None;
+        self.rate_corrected_s_per_day = None;
+        self.rate_p05 = None;
+        self.rate_p95 = None;
+        if let Some(c) = self.confidence.as_mut() {
+            c.rate = crate::confidence::Reading {
+                se: None,
+                no_pm: None,
+            };
+        }
+        crate::measure::add(
+            &mut self.caveats,
+            crate::measure::Caveat::OffStandardRate(o),
+        );
+    }
+
     /// The sound card's clock is known from elsewhere (a stored or given
     /// correction): the `clock_unknown` condition no longer holds.
     pub fn clock_known(&mut self) {
@@ -425,6 +468,7 @@ fn analyze_read(
         summary.withhold_readings();
     }
     settle_beat_error(&mut summary, fits.figures.unlock_inconsistent);
+    summary.read_off_standard(None);
     Analysis {
         summary,
         beats,

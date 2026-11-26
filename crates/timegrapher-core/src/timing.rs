@@ -484,6 +484,100 @@ impl MeasuredRate {
             d.extend(m);
         }
     }
+
+    /// The rate, s/d, that the beat rate heard reads against the beat
+    /// rate `bph`: `(bph heard / bph − 1) × 86,400`, from the periods, so
+    /// unrounded and never a difference of rates (Norm on #2225).
+    pub fn rate_against(&self, bph: u32) -> f64 {
+        (self.bph / f64::from(bph) - 1.0) * 86_400.0
+    }
+}
+
+/// Whether a rate read on Auto against the standard rate guessed, s/d, is
+/// within [`crate::beats::STANDARD_REACH_S_PER_DAY`] of it, the one rule:
+/// no rate is in reach of two standards, and a badly magnetised watch is
+/// still in reach. The guess's own slack is only where it searches.
+pub fn in_standard_reach(rate_s_per_day: f64) -> bool {
+    rate_s_per_day.abs() <= crate::beats::STANDARD_REACH_S_PER_DAY
+}
+
+/// A standard beat rate beside the beat rate heard, and the rate the
+/// watch reads against it, s/d ([`MeasuredRate::rate_against`]).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, serde::Deserialize)]
+pub struct StandardSide {
+    pub bph: u32,
+    pub rate_s_per_day: f64,
+}
+
+/// A watch on Auto heard further than
+/// [`crate::beats::STANDARD_REACH_S_PER_DAY`] from the standard rate it
+/// was read against (Norm on #2223, point 5): no standard rate is in
+/// reach, so no rate in s/d is given. What is given is the beat rate
+/// heard, with its ±, and the standard rate on each side of it with the
+/// rate the watch reads against each. Auto never picks one of them as
+/// the target. The caveat `off_standard_rate`
+/// ([`crate::measure::Caveat::OffStandardRate`]).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, serde::Deserialize)]
+pub struct OffStandard {
+    /// The beat rate heard, bph ([`MeasuredRate`]).
+    pub bph_measured: f64,
+    /// Its standard error, bph; none when the rate has no ±.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bph_measured_se: Option<f64>,
+    /// The nearest standard rate below the beat rate heard; none below
+    /// the slowest.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub below: Option<StandardSide>,
+    /// The nearest standard rate above it; none above the fastest.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub above: Option<StandardSide>,
+}
+
+impl OffStandard {
+    /// The one reach check (Norm on #2223, point 5): a rate
+    /// `rate_s_per_day` (± `rate_se`) read against the beat rate `bph`
+    /// that Auto guessed is off-standard when it is further than
+    /// [`crate::beats::STANDARD_REACH_S_PER_DAY`] from it. None when the
+    /// beat rate was set (`bph_set`: a set rate is the target, however
+    /// far), with no rate, or within reach.
+    pub fn of(
+        bph_set: Option<u32>,
+        bph: u32,
+        rate_s_per_day: Option<f64>,
+        rate_se: Option<f64>,
+    ) -> Option<Self> {
+        if bph_set.is_some() {
+            return None;
+        }
+        let rate = rate_s_per_day.filter(|r| r.is_finite())?;
+        if in_standard_reach(rate) {
+            return None;
+        }
+        let m = MeasuredRate::of(bph, Some(rate), rate_se)?;
+        let side = |b: &u32| StandardSide {
+            bph: *b,
+            rate_s_per_day: m.rate_against(*b),
+        };
+        let standard = crate::beats::STANDARD_BPH;
+        Some(OffStandard {
+            bph_measured: m.bph,
+            bph_measured_se: m.se,
+            below: standard
+                .iter()
+                .rev()
+                .find(|&&b| f64::from(b) <= m.bph)
+                .map(side),
+            above: standard.iter().find(|&&b| f64::from(b) > m.bph).map(side),
+        })
+    }
+
+    /// The beat rate heard, as every reading gives it beside its rate.
+    pub fn measured(&self) -> MeasuredRate {
+        MeasuredRate {
+            bph: self.bph_measured,
+            se: self.bph_measured_se,
+        }
+    }
 }
 
 #[cfg(test)]

@@ -1545,6 +1545,8 @@ pub fn measure_opened(
         start_s,
     );
     measurement.take_doubts(cfg.analysis.lift_known, unlisted);
+    // On Auto, off every standard rate, no rate in s/d (#2223).
+    measurement.read_off_standard(cfg.analysis.bph, log.bph);
     measurement.clock_ppm = clock_ppm;
     measurement.clock_source = clock_source.clone();
     Ok(EntryRead {
