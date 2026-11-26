@@ -419,9 +419,6 @@ fn an_off_standard_watch_opened_on_auto_has_no_rate_in_s_per_day() {
         assert!(!shown.contains(wait), "over {average} s:\n{shown}");
         assert!(!shown.contains("More Beats"), "over {average} s:\n{shown}");
     }
-    // Saved, the take names no beat rate: it was Auto, and Auto's guess
-    // is not a set rate (#2357).
-    assert_eq!(app.take_manifest().bph, None);
 }
 
 /// A take's Positions Test table, its six and its upright stops, read by

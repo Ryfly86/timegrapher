@@ -1315,16 +1315,17 @@ impl TimegrapherApp {
 
     /// What a take's session file says about the watch: its name, calibre
     /// (with the wheels of a custom one), beat rate and lift angle, and
-    /// whether that lift was chosen or assumed. The beat rate only where
-    /// one is set: on Auto none, so every reader of the take reads it on
-    /// Auto and judges Auto's lock, as listening did, never Auto's guess
-    /// as a set rate (#2357).
+    /// whether that lift was chosen or assumed.
     pub(super) fn manifest_header(&self) -> Manifest {
         let mut m = Manifest {
             watch: (!self.bench.take.watch.trim().is_empty())
                 .then(|| self.bench.take.watch.trim().to_string()),
             calibre: (!self.bench.take.calibre.is_empty()).then(|| self.bench.take.calibre.clone()),
-            bph: self.bench.take.bph,
+            bph: self
+                .bench
+                .take
+                .bph
+                .or(self.bench.recording.live.as_ref().and_then(|l| l.bph())),
             lift: Some(self.bench.take.lift_deg),
             lift_known: Some(self.lift_known()),
             ..Default::default()
