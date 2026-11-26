@@ -1235,9 +1235,12 @@ fn unsaved_sound_opens_with_the_watch_it_was_heard_with() {
     assert!(next.lift_known());
     assert_eq!(next.bench.take.bph, Some(cfg.bph));
     assert_eq!(next.bench.take.position, Position::CrownLeft);
-    let note = next.bench.keeping.open_note.clone().unwrap_or_default();
-    let shown = format!("{:?} {note}", next.message);
-    assert!(!shown.contains("No watch settings"), "{shown}");
+    // It opens as a saved take does, with no note of its own.
+    assert_eq!(next.bench.keeping.open_note, None);
+    assert_eq!(
+        next.message.as_ref().map(|m| m.0.as_str()),
+        Some("Analysed the whole recording. Drag the strip to look back.")
+    );
     let amp = next
         .whole_take()
         .and_then(|w| w.m.amplitude_deg)

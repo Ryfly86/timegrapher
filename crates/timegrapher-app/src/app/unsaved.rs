@@ -178,7 +178,7 @@ impl TimegrapherApp {
     /// and position its session.json was written with as it was heard,
     /// as a saved take opens with its session file's (#2376). A value
     /// that can't stand keeps the default, the position the file's name.
-    /// The calibre isn't written there, so the note says it is not set.
+    /// The calibre isn't written there, so it opens with none.
     pub(super) fn put_recorded(&mut self, r: RecordedSetup, path: &Path) {
         let fresh = WatchSetup::default();
         let position = r
@@ -194,10 +194,9 @@ impl TimegrapherApp {
             position,
             ..fresh
         });
-        self.bench.keeping.open_note = Some(format!(
-            "Watch settings from the recording: Calibre Not Set, Lift {lift_deg}°, {}.",
-            position.label()
-        ));
+        // Opened as a saved take opens: the Watch card shows them, so no
+        // note says them again (Hugh on #2393).
+        self.bench.keeping.open_note = None;
     }
 }
 
