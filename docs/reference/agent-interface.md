@@ -559,9 +559,12 @@ that can be read; the text output and the app's Watches view show it in
 place of the rate as heard. A take is `incomplete` when a file its session file lists
 is not there, or a folder it lists holds no sound. A NAME that matches no
 watch, or a folder with no library in it, exits 1 with one line on
-stderr naming it. The text form of `list` gives each watch's calibre,
+stderr naming it, except that `list` with no `--library`, before the app
+has made its library in the home folder, gives no watches and exits 0
+(as the app's Watches view says "No watches yet"). The text form of `list` gives each watch's calibre,
 number of takes, the UTC start of its newest take and its size; `show`
-gives the watch's details and each take on a line. Each watch's `id` (in
+gives the watch's details and each take on a line, with its `path` on a
+`Folder:` line under it. Each watch's `id` (in
 both documents; `null` for `show Unsorted`) is the random id in its
 `watch.toml`: it stays when the watch is renamed, so a program that keeps
 its own record of a watch can find it again by it.

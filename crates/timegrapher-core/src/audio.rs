@@ -22,6 +22,9 @@ pub enum AudioError {
     Wav(hound::Error),
     Flac(claxon::Error),
     Unsupported(String),
+    /// A folder given where one recording is read: it holds none, or
+    /// several ([`recording_of`]).
+    Folder(String),
 }
 
 impl fmt::Display for AudioError {
@@ -31,6 +34,7 @@ impl fmt::Display for AudioError {
             AudioError::Wav(e) => write!(f, "WAV: {e}"),
             AudioError::Flac(e) => write!(f, "FLAC: {e}"),
             AudioError::Unsupported(s) => write!(f, "unsupported audio: {s}"),
+            AudioError::Folder(s) => write!(f, "{s}"),
         }
     }
 }
@@ -89,16 +93,41 @@ fn not_found(e: &AudioError) -> bool {
 /// there but its FLAC is, read that: the hour was kept as FLAC (#503)
 /// after the list naming it was made, for instance while a take was open.
 /// The FLAC holds the same samples, checked before the WAV went.
+/// A folder, such as a take folder, is read as its one recording
+/// ([`recording_of`]).
 pub(crate) fn kept<T>(
     path: &Path,
     mut read: impl FnMut(&Path) -> Result<T, AudioError>,
 ) -> Result<T, AudioError> {
+    let one;
+    let path = if path.is_dir() {
+        one = recording_of(path)?;
+        one.as_path()
+    } else {
+        path
+    };
     match read(path) {
         Err(e) if not_found(&e) => match kept_path(path) {
             Some(flac) => read(&flac),
             None => Err(e),
         },
         r => r,
+    }
+}
+
+/// The one recording in the folder `dir`, as a take folder holding a
+/// single WAV or FLAC is read where one recording is asked for (#2092).
+/// A folder of several, a take of hours, says to name one or read the
+/// take whole (a folder of none is refused by `recordings_in`). Callers put the folder's name in
+/// front, as for any file they read.
+fn recording_of(dir: &Path) -> Result<std::path::PathBuf, AudioError> {
+    let mut files = crate::take_path::recordings_in(dir).map_err(AudioError::Folder)?;
+    match files.len() {
+        1 => Ok(files.remove(0)),
+        n => Err(AudioError::Folder(format!(
+            "a take folder of {n} recordings: name one of them, \
+             or read the whole take as a session or a long run"
+        ))),
     }
 }
 
@@ -484,6 +513,40 @@ mod tests {
         assert!(not_found(&load(&gone).unwrap_err()));
         assert!(not_found(&info(&gone).unwrap_err()));
         assert!(not_found(&head(&gone, 10).unwrap_err()));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A take folder holding one recording is read as that recording by
+    /// every reader, as `analyze` is given one (#2092); one holding
+    /// several says to name one or read the take whole, with no talk of
+    /// a file extension.
+    #[test]
+    fn a_take_folder_reads_as_its_one_recording() {
+        let dir = std::env::temp_dir().join(format!("tg-audio-folder-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let [(wav, _), (flac, _)] = files(&dir);
+        let take = dir.join("take");
+        std::fs::create_dir_all(&take).unwrap();
+        std::fs::rename(&wav, take.join("a.wav")).unwrap();
+        let file = load(&take.join("a.wav")).unwrap();
+        let folder = load(&take).unwrap();
+        assert_eq!(folder.samples, file.samples);
+        assert_eq!(info(&take).unwrap().frames, Some(8000));
+        assert_eq!(head(&take, 100).unwrap(), file.samples[..100]);
+        std::fs::rename(&flac, take.join("b.flac")).unwrap();
+        for e in [
+            load(&take).unwrap_err(),
+            info(&take).unwrap_err(),
+            head(&take, 10).unwrap_err(),
+        ] {
+            let e = e.to_string();
+            assert_eq!(
+                e,
+                "a take folder of 2 recordings: name one of them, \
+                 or read the whole take as a session or a long run"
+            );
+        }
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

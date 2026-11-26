@@ -455,3 +455,66 @@ fn watches_show_gives_the_full_wind_and_each_takes_wind() {
     let _ = std::fs::remove_dir_all(&root);
     let _ = std::fs::remove_dir_all(config_dir());
 }
+
+/// `show` gives each take's folder under its line, the folder `move-take`
+/// and `session` take, as its help says (#2101).
+#[test]
+fn show_gives_each_takes_folder_to_pass_on() {
+    let root = library("folder");
+    let lib = root.to_string_lossy().into_owned();
+    let out = run(&["watches", "show", "Pepsi", "--library", &lib]);
+    assert!(out.status.success(), "{out:?}");
+    let text = String::from_utf8_lossy(&out.stdout);
+    let take = root
+        .join("Pepsi")
+        .join(TAKES)
+        .join("2026-10-20 14.32 Dial Up");
+    let lines: Vec<&str> = text.lines().collect();
+    let at = lines
+        .iter()
+        .position(|l| l.starts_with("    2026-10-20 14.32 Dial Up: "))
+        .unwrap();
+    assert_eq!(
+        lines[at + 1],
+        format!("      Folder: {}", take.display()),
+        "{text}"
+    );
+    let _ = std::fs::remove_dir_all(&root);
+    let _ = std::fs::remove_dir_all(config_dir());
+}
+
+/// With no `--library`, `list` before the app has made its library in the
+/// home folder lists no watches, as the app says "No watches yet"
+/// (#2342 item 10); a `--library` with none is still refused.
+#[test]
+fn list_before_the_first_watch_lists_none() {
+    let home = std::env::temp_dir().join(format!("tg-cli-watches-home-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&home);
+    std::fs::create_dir_all(&home).unwrap();
+    let list = |json: bool| {
+        let mut c = Command::new(env!("CARGO_BIN_EXE_timegrapher"));
+        c.args(["watches", "list"])
+            .env("HOME", &home)
+            .env("USERPROFILE", &home)
+            .env("TIMEGRAPHER_CONFIG_DIR", config_dir());
+        if json {
+            c.arg("--json");
+        }
+        c.output().unwrap()
+    };
+    let out = list(false);
+    assert!(out.status.success(), "{out:?}");
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(text.contains("Timegrapher Data: no watches yet"), "{text}");
+    let out = list(true);
+    assert!(out.status.success(), "{out:?}");
+    let doc: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(doc["schema"], "timegrapher.watches/1");
+    assert_eq!(doc["watches"], serde_json::json!([]));
+    assert_eq!(doc["unsorted"], 0);
+    assert!(!home.join("Timegrapher Data").exists(), "nothing is made");
+    let out = run(&["watches", "list", "--library", &home.to_string_lossy()]);
+    assert_eq!(out.status.code(), Some(1));
+    let _ = std::fs::remove_dir_all(&home);
+    let _ = std::fs::remove_dir_all(config_dir());
+}

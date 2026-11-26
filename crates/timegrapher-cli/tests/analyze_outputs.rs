@@ -1,4 +1,5 @@
-//! `analyze` never writes over the recording it reads (#1876).
+//! `analyze` never writes over the recording it reads (#1876), and reads
+//! a take folder as the recording in it (#2092).
 use std::{path::PathBuf, process::Command};
 
 struct Dir(PathBuf);
@@ -51,4 +52,41 @@ fn an_output_naming_the_recording_is_refused_and_the_recording_kept() {
         !csv.exists(),
         "nothing is written when two outputs share a file"
     );
+}
+
+/// A take folder, as the app saves one, is read as its one recording, and
+/// that recording is still refused as an output (#2092).
+#[test]
+fn a_take_folder_is_read_as_its_recording() {
+    let dir = Dir(std::env::temp_dir().join(format!("tg-outputs-take-{}", std::process::id())));
+    let take = dir.0.join("take");
+    std::fs::create_dir_all(&take).unwrap();
+    let wav = take.join("take_part01-001.wav");
+    let made = tg(&["synth".as_ref(), wav.as_os_str(), "--duration=10".as_ref()]);
+    assert!(made.status.success(), "{made:?}");
+    let json = |p: &std::path::Path| {
+        let out = tg(&[
+            "analyze".as_ref(),
+            p.as_os_str(),
+            "--bph=28800".as_ref(),
+            "--json".as_ref(),
+        ]);
+        assert!(out.status.success(), "{out:?}");
+        let mut doc: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+        doc.as_object_mut().unwrap().remove("input");
+        doc
+    };
+    assert_eq!(json(&take), json(&wav));
+    let before = std::fs::read(&wav).unwrap();
+    let arg = format!("--beats={}", wav.display());
+    let out = tg(&["analyze".as_ref(), take.as_os_str(), arg.as_ref()]);
+    assert!(!out.status.success(), "{out:?}");
+    assert!(String::from_utf8_lossy(&out.stderr).contains("recording being read"));
+    assert_eq!(std::fs::read(&wav).unwrap(), before);
+    std::fs::copy(&wav, take.join("take_part01-002.wav")).unwrap();
+    let out = tg(&["analyze".as_ref(), take.as_os_str()]);
+    assert_eq!(out.status.code(), Some(1), "{out:?}");
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(err.contains("a take folder of 2 recordings"), "{err}");
+    assert!(!err.contains("extension"), "{err}");
 }

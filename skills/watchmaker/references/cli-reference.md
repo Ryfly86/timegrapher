@@ -159,11 +159,14 @@ newest take and size, and how many takes wait in Unsorted; archived
 watches only with `--all`. `show NAME` (`watch/1`) gives one watch's
 details and every take, newest first, found by its name ignoring case;
 `show Unsorted` gives the takes Quick Listen made. A field the user
-never set is `null`. Each take's `path` is a take folder to pass to
-`session`, `long` or `series`; `audio` false means the take kept only
+never set is `null`. Each take's `path` (the `Folder:` line under it in
+the text) is a take folder to pass to `session`, `long`, `series` or
+`watches move-take`; `audio` false means the take kept only
 its analysis, so it can't be measured again; `at_end` is the readings
 the app showed when the take was saved, not a new analysis. A NAME that
-matches no watch exits 1. Through the MCP server: `list_watches` and
+matches no watch exits 1. With no `--library`, `list` before the app
+has made its library lists no watches; a `--library` folder with no
+library in it exits 1. Through the MCP server: `list_watches` and
 `show_watch`.
 
 ## record
@@ -228,6 +231,10 @@ timegrapher analyze FILE [--bph N] [--lift DEG] [--notch HZ,HZ,...]
                     [--highpass HZ] [--escape-teeth N]
                     [--beats CSV] [--windows CSV] [--json]
 ```
+
+FILE is a WAV or FLAC file, or a take folder holding one; a take folder
+of several recordings exits 1 asking for one of them, or `session` or
+`long` for the whole take.
 
 | Option | Default | Meaning |
 | --- | --- | --- |
