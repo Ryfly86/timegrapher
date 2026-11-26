@@ -83,3 +83,25 @@ fn a_co_axial_calibres_lift_is_set_as_a_levers() {
     assert_eq!(x.tag(), timegrapher_core::calibres::Escapement::COAXIAL_TAG);
     assert_eq!(x.sentence(), timegrapher_core::calibres::COAXIAL_SENTENCE);
 }
+
+/// The amplitude's co-axial caveat keeps the owner's full words wherever
+/// they fit, and tries core's shorter ones before the count (Hugh on
+/// #2319).
+#[test]
+fn the_estimate_chip_tries_shorter_words_before_the_count() {
+    use timegrapher_core::measure::{Caveat, COAXIAL_ESTIMATE_SHORTER};
+    let c = Caveat::CoaxialEstimate;
+    let one = [(c.short(52.0, 0).unwrap(), c.long(None).unwrap())];
+    assert_eq!(one[0].0, "co-axial escapement estimate (beta)");
+    let words = |room: usize| readouts::limits_chip_words(&one, |w| w.len() <= room);
+    assert_eq!(words(99), "Co-axial Escapement Estimate (beta)");
+    assert_eq!(words(30), "Co-axial Estimate (beta)");
+    assert_eq!(words(10), "1 limit");
+    assert_eq!(
+        COAXIAL_ESTIMATE_SHORTER.len(),
+        "Co-axial Estimate (beta)".len()
+    );
+    let two = [one[0].clone(), one[0].clone()];
+    let words = |room: usize| readouts::limits_chip_words(&two, |w| w.len() <= room);
+    assert_eq!(words(30), "Co-axial Estimate (beta) +1");
+}

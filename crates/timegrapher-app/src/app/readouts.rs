@@ -442,8 +442,10 @@ pub(crate) fn trend_chip(
 }
 
 /// What a card's limits chip says, the first form that `fits` (Hugh,
-/// #1808): the first limit's words and how many more, then how many
-/// limits, then nothing, a bare warning chip. Every card's the same way.
+/// #1808): the first limit's words and how many more, then its shorter
+/// words where core gives some (`measure::shorter_words`, Hugh on #2319),
+/// then how many limits, then nothing, a bare warning chip. Every card's
+/// the same way.
 pub(crate) fn limits_chip_words(
     limits: &[(String, String)],
     fits: impl Fn(&str) -> bool,
@@ -458,8 +460,17 @@ pub(crate) fn limits_chip_words(
         1 => "1 limit".to_string(),
         _ => format!("{n} limits"),
     };
-    [named, count]
+    // The first limit's shorter words, where core gives it some.
+    let shorter = limits
+        .first()
+        .and_then(|l| timegrapher_core::measure::shorter_words(&l.0))
+        .map(|w| match n {
+            0 | 1 => chip_words(w),
+            _ => format!("{} +{}", chip_words(w), n - 1),
+        });
+    [Some(named), shorter, Some(count)]
         .into_iter()
+        .flatten()
         .find(|w| fits(w))
         .unwrap_or_default()
 }

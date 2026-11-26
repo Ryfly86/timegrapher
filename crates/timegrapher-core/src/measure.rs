@@ -1141,7 +1141,18 @@ const CLOCK_UNKNOWN_LONG: &str = "This input's clock hasn't been measured, so th
      the sound card's own clock error.";
 
 /// [`Caveat::CoaxialEstimate`] in a few words (the owner's, #2313).
-pub const COAXIAL_ESTIMATE_SHORT: &str = "co-axial estimate (beta)";
+pub const COAXIAL_ESTIMATE_SHORT: &str = "co-axial escapement estimate (beta)";
+
+/// [`COAXIAL_ESTIMATE_SHORT`] shorter still, for a mark that has no room
+/// for it (Hugh on #2319): the app's chip tries it next.
+pub const COAXIAL_ESTIMATE_SHORTER: &str = "co-axial estimate (beta)";
+
+/// A caveat's few words ([`Caveat::short`]) shorter still, where it has a
+/// shorter form, for a mark too narrow for them: the one place each
+/// limit's forms are kept.
+pub fn shorter_words(short: &str) -> Option<&'static str> {
+    (short == COAXIAL_ESTIMATE_SHORT).then_some(COAXIAL_ESTIMATE_SHORTER)
+}
 
 /// [`Caveat::CoaxialEstimate`] as a sentence.
 pub const COAXIAL_ESTIMATE_LONG: &str = "The amplitude is a co-axial escapement estimate \
@@ -1160,15 +1171,19 @@ fn coaxial_beat_error_short(why: Option<DropWhy>) -> String {
 /// [`Caveat::CoaxialBeatError`] as a sentence.
 fn coaxial_beat_error_long(why: Option<DropWhy>) -> String {
     let lead = "Read for a co-axial escapement (beta): the beat error is the unlock's alone";
+    let lead_none =
+        "Read for a co-axial escapement (beta): the beat error is taken from the unlock only";
     match why {
         None => format!(
             "{lead}. The drop's is not used: on a co-axial the two sides end on different \
              events."
         ),
-        Some(DropWhy::UnlockNotFound) => format!("{lead}, and the unlock was not found."),
+        Some(DropWhy::UnlockNotFound) => {
+            format!("{lead_none}, and the unlock was not found, so none is given.")
+        }
         Some(DropWhy::UnlockInconsistent) => format!(
-            "{lead}, and the unlock's beat errors disagree in sign more than their spread \
-             allows."
+            "{lead_none}, and the unlock's beat errors disagree in sign more than their \
+             spread allows, so none is given."
         ),
     }
 }
