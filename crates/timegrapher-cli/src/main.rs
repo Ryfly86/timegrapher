@@ -1088,7 +1088,8 @@ fn measure_command(c: Command) -> Result<(), String> {
     }
 }
 
-/// What `analyze` reads a recording with, and `shape` with it (#2104):
+/// What `analyze` reads a recording with, and `shape` and `profile` with
+/// it (#2104):
 /// the resolved beat rate, lift angle, escapement and escape wheel, and
 /// the envelope's notches and high-pass corner.
 fn analysis_config(r: &calibres_cmd::Resolved, notch: Vec<f64>, highpass: f64) -> AnalysisConfig {
@@ -1124,17 +1125,8 @@ fn profile_command(c: Command) -> Result<(), String> {
         unreachable!("measure_command passes profile_command only Profile")
     };
     let r = calibres_cmd::resolve_for(&file, calibre.as_deref(), bph, lift, None)?;
-    let mut cfg = AnalysisConfig {
-        bph: r.bph,
-        bph_from: r.bph_from,
-        ..Default::default()
-    };
-    cfg.amplitude.lift_deg = r.lift_deg;
-    cfg.amplitude.escapement = r.escapement;
-    cfg.envelope.notch_hz = notch;
-    cfg.envelope.highpass_hz = highpass;
     let o = profile_cmd::Options {
-        cfg,
+        cfg: analysis_config(&r, notch, highpass),
         at_s: at,
         span_s: span,
         json,
