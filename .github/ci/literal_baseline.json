@@ -173,7 +173,7 @@
     },
     "crates/timegrapher-app/src/marks.rs": {
      "bounds": 3,
-     "comparisons": 8,
+     "comparisons": 7,
      "constants": 0,
      "defaults": 0
     },
@@ -282,7 +282,7 @@
    },
    "total": {
     "bounds": 99,
-    "comparisons": 88,
+    "comparisons": 87,
     "constants": 62,
     "defaults": 2
    }
