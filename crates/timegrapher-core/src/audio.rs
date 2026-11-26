@@ -99,19 +99,26 @@ pub(crate) fn kept<T>(
     path: &Path,
     mut read: impl FnMut(&Path) -> Result<T, AudioError>,
 ) -> Result<T, AudioError> {
-    let one;
-    let path = if path.is_dir() {
-        one = recording_of(path)?;
-        one.as_path()
-    } else {
-        path
-    };
+    let path = recording(path)?;
+    let path = path.as_path();
     match read(path) {
         Err(e) if not_found(&e) => match kept_path(path) {
             Some(flac) => read(&flac),
             None => Err(e),
         },
         r => r,
+    }
+}
+
+/// The recording `path` names: the file itself, or a folder's one
+/// recording ([`recording_of`]). The one rule for every reader of one
+/// recording, so a command can map a take folder to its file before it
+/// looks for the take's settings beside it (#2092).
+pub fn recording(path: &Path) -> Result<std::path::PathBuf, AudioError> {
+    if path.is_dir() {
+        recording_of(path)
+    } else {
+        Ok(path.to_path_buf())
     }
 }
 

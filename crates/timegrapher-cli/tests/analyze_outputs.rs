@@ -54,29 +54,41 @@ fn an_output_naming_the_recording_is_refused_and_the_recording_kept() {
     );
 }
 
-/// A take folder, as the app saves one, is read as its one recording, and
-/// that recording is still refused as an output (#2092).
+/// A take folder, as the app saves one, is read as its one recording with
+/// the take's own settings (its session file's calibre, lift and beat
+/// rate) by `analyze` and `shape`, giving the file's document, and that
+/// recording is still refused as an output (#2092).
 #[test]
 fn a_take_folder_is_read_as_its_recording() {
     let dir = Dir(std::env::temp_dir().join(format!("tg-outputs-take-{}", std::process::id())));
     let take = dir.0.join("take");
     std::fs::create_dir_all(&take).unwrap();
     let wav = take.join("take_part01-001.wav");
-    let made = tg(&["synth".as_ref(), wav.as_os_str(), "--duration=10".as_ref()]);
+    let made = tg(&[
+        "synth".as_ref(),
+        wav.as_os_str(),
+        "--duration=40".as_ref(),
+        "--bph=18000".as_ref(),
+    ]);
     assert!(made.status.success(), "{made:?}");
-    let json = |p: &std::path::Path| {
-        let out = tg(&[
-            "analyze".as_ref(),
-            p.as_os_str(),
-            "--bph=28800".as_ref(),
-            "--json".as_ref(),
-        ]);
+    std::fs::write(
+        take.join("session.toml"),
+        "calibre = \"ETA 2824-2\"\nlift = 40\nbph = 18000\n\n[[recording]]\nfile = \".\"\nposition = \"DU\"\n",
+    )
+    .unwrap();
+    let json = |command: &str, p: &std::path::Path| {
+        let out = tg(&[command.as_ref(), p.as_os_str(), "--json".as_ref()]);
         assert!(out.status.success(), "{out:?}");
         let mut doc: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
-        doc.as_object_mut().unwrap().remove("input");
+        doc.as_object_mut().unwrap().remove("software");
         doc
     };
-    assert_eq!(json(&take), json(&wav));
+    let file = json("analyze", &wav);
+    assert_eq!(file["lift_deg"], 40.0, "the take's lift is read: {file}");
+    assert_eq!(file["bph"], 18000, "{file}");
+    assert!(file["take"].is_object(), "{file}");
+    assert_eq!(json("analyze", &take), file);
+    assert_eq!(json("shape", &take), json("shape", &wav));
     let before = std::fs::read(&wav).unwrap();
     let arg = format!("--beats={}", wav.display());
     let out = tg(&["analyze".as_ref(), take.as_os_str(), arg.as_ref()]);

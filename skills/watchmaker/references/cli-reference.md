@@ -232,9 +232,11 @@ timegrapher analyze FILE [--bph N] [--lift DEG] [--notch HZ,HZ,...]
                     [--beats CSV] [--windows CSV] [--json]
 ```
 
-FILE is a WAV or FLAC file, or a take folder holding one; a take folder
-of several recordings exits 1 asking for one of them, or `session` or
-`long` for the whole take.
+FILE is a WAV or FLAC file, or a take folder holding one, read as that
+file with the take's session file (calibre, lift, beat rate); a take
+folder of several recordings exits 1 asking for one of them, or `session`
+or `long` for the whole take. `shape` and `profile` take a folder the same
+way.
 
 | Option | Default | Meaning |
 | --- | --- | --- |

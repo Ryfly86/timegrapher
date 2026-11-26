@@ -126,23 +126,13 @@ fn resolved(p: &Path) -> PathBuf {
 
 /// Refuse output files that are the input being read or each other,
 /// before anything is read or written: `analyze x.wav --beats x.wav`
-/// would put a CSV where the recording was (#1876). A take folder given
-/// as the input is read as its recordings (#2092), so none of them may be
-/// an output either.
+/// would put a CSV where the recording was (#1876).
 pub fn files_apart(input: &Path, outputs: &[(&str, &Path)]) -> Result<(), String> {
-    let read: Vec<PathBuf> = if input.is_dir() {
-        timegrapher_core::take_path::recordings_in(input)
-            .unwrap_or_default()
-            .iter()
-            .map(|f| resolved(f))
-            .collect()
-    } else {
-        vec![resolved(input)]
-    };
+    let read = resolved(input);
     let mut seen: Vec<(&str, PathBuf)> = Vec::new();
     for &(flag, p) in outputs {
         let r = resolved(p);
-        if read.contains(&r) {
+        if r == read {
             return Err(format!(
                 "{flag} {} is the recording being read; name another file",
                 p.display()
