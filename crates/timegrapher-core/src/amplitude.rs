@@ -31,6 +31,10 @@ pub struct AmplitudeConfig {
     /// Minimum height of sound 1 (the unlock) as a fraction of the drop's
     /// height above the noise floor; 4 noise SDs is used when that is larger.
     pub onset_fraction: f32,
+    /// The escapement the take is read for (#2313): on a co-axial a
+    /// window's unlock beat error does not depend on the amplitude gate
+    /// ([`screen_unlock_beat_error`]).
+    pub escapement: crate::escapement::Escapement,
 }
 
 impl Default for AmplitudeConfig {
@@ -38,6 +42,7 @@ impl Default for AmplitudeConfig {
         AmplitudeConfig {
             lift_deg: crate::take::DEFAULT_LIFT_DEG,
             onset_fraction: 0.02,
+            escapement: crate::escapement::Escapement::SwissLever,
         }
     }
 }
@@ -270,7 +275,13 @@ type SideAt = (Option<f64>, Option<[f64; 2]>, Option<[f64; 2]>);
 /// after. A
 /// side with an amplitude but no edges kept (a made-up window) is scaled
 /// by the lifts' ratio and gated the same way.
-pub fn at_lift(w: &mut AmplitudeWindow, osc_period_s: f64, from_lift: f64, to_lift: f64) {
+pub fn at_lift(
+    w: &mut AmplitudeWindow,
+    osc_period_s: f64,
+    from_lift: f64,
+    to_lift: f64,
+    escapement: crate::escapement::Escapement,
+) {
     // Each side: (kept edges, culled edges, amplitude), then its new state.
     let sides = [
         (
@@ -309,9 +320,11 @@ pub fn at_lift(w: &mut AmplitudeWindow, osc_period_s: f64, from_lift: f64, to_li
     (w.odd_unlock_ms, w.odd_drop_ms) = (ok.map(|e| e[0]), ok.map(|e| e[1]));
     w.set_culled([ec, oc]);
     // As at the first read: each side found counts, kept or culled,
-    // unless both are culled (#1977). [`relift`] screens it after.
+    // unless both are culled on a Swiss lever (#1977, #2313). [`relift`]
+    // screens it after.
     if changed {
-        w.beat_error_unlock_ms = (ek.is_some() || ok.is_some())
+        let unheard = ek.is_none() && ok.is_none() && escapement.both_culled_unheard();
+        w.beat_error_unlock_ms = (!unheard)
             .then(|| {
                 unlock_beat_error_ms(
                     w.beat_error_ms,
@@ -328,11 +341,17 @@ pub fn at_lift(w: &mut AmplitudeWindow, osc_period_s: f64, from_lift: f64, to_li
 /// wrong-sound sides once over them ([`reject_side_outliers`]), as a read
 /// at that lift is. The one lift change, for a kept take
 /// ([`crate::take::kept_at_lift`]) and for live (#1333).
-pub fn relift(wins: &mut [AmplitudeWindow], osc_period_s: f64, from_lift: f64, to_lift: f64) {
+pub fn relift(
+    wins: &mut [AmplitudeWindow],
+    osc_period_s: f64,
+    from_lift: f64,
+    to_lift: f64,
+    escapement: crate::escapement::Escapement,
+) {
     for w in wins.iter_mut() {
-        at_lift(w, osc_period_s, from_lift, to_lift);
+        at_lift(w, osc_period_s, from_lift, to_lift, escapement);
     }
-    reject_side_outliers(wins, OUTLIER_SPAN_S);
+    reject_side_outliers(wins, OUTLIER_SPAN_S, escapement);
 }
 
 /// The lift the unlock search is sized for, degrees: the largest lift in
@@ -618,9 +637,13 @@ pub const OUTLIER_SPAN_S: f64 = 60.0;
 /// amplitude is left out: the edges stay for the shape view, and the
 /// unlock beat error is a median over windows already. Windows must be in
 /// time order. Returns how many sides were left out.
-pub fn reject_side_outliers(wins: &mut [AmplitudeWindow], span_s: f64) -> usize {
+pub fn reject_side_outliers(
+    wins: &mut [AmplitudeWindow],
+    span_s: f64,
+    escapement: crate::escapement::Escapement,
+) -> usize {
     let n = reject_side_outliers_from(wins, span_s, f64::NEG_INFINITY);
-    screen_unlock_beat_error(wins);
+    screen_unlock_beat_error(wins, escapement);
     n
 }
 
@@ -645,13 +668,20 @@ fn edges_found(w: &AmplitudeWindow) -> [Option<[f64; 2]>; 2] {
 /// every such side whose
 /// unlock-to-drop time is within its own side's far fences over `wins`
 /// ([`crate::dsp::far_fences`]), and none in a window where a side is
-/// outside them, an edge marked on the wrong sound. A window with both
-/// sides culled gives none: no unlock was heard in it, and the drop's
-/// beat error stands. Otherwise the amplitude gate plays no part, so a
-/// lift moves it only where a window's last kept side is culled or its
-/// first comes back. Windows without both sides'
-/// edges are left as they are. Returns how many sides were outside.
-pub fn screen_unlock_beat_error(wins: &mut [AmplitudeWindow]) -> usize {
+/// outside them, an edge marked on the wrong sound. On a Swiss lever a
+/// window with both sides culled gives none: no unlock was heard in it,
+/// and the drop's beat error stands. Otherwise the amplitude gate plays
+/// no part, so a lift moves it only where a window's last kept side is
+/// culled or its first comes back. On a co-axial the gate plays no part
+/// at all (#2313, [`crate::escapement::Escapement::both_culled_unheard`]):
+/// its unlock-to-drop time is shorter than a lever's at the same
+/// amplitude, so a side out of the gate says nothing about its edges, and
+/// the far fences alone screen them. Windows without both sides' edges
+/// are left as they are. Returns how many sides were outside.
+pub fn screen_unlock_beat_error(
+    wins: &mut [AmplitudeWindow],
+    escapement: crate::escapement::Escapement,
+) -> usize {
     let found: Vec<[Option<[f64; 2]>; 2]> = wins.iter().map(edges_found).collect();
     let fences = [0, 1].map(|k| {
         let mut v: Vec<f64> = found
@@ -668,8 +698,12 @@ pub fn screen_unlock_beat_error(wins: &mut [AmplitudeWindow]) -> usize {
     let mut n = 0;
     for (w, f) in wins.iter_mut().zip(found) {
         let [Some(e), Some(o)] = f else { continue };
-        // Both sides culled: no unlock heard at all, so none (#1977).
-        if w.even_unlock_ms.is_none() && w.odd_unlock_ms.is_none() {
+        // Both sides culled on a lever: no unlock heard at all, so none
+        // (#1977).
+        if w.even_unlock_ms.is_none()
+            && w.odd_unlock_ms.is_none()
+            && escapement.both_culled_unheard()
+        {
             w.beat_error_unlock_ms = None;
             continue;
         }
@@ -682,6 +716,24 @@ pub fn screen_unlock_beat_error(wins: &mut [AmplitudeWindow]) -> usize {
         };
     }
     n
+}
+
+/// `wins`, kept for either escapement, as read for `escapement` (#2313):
+/// on a co-axial, screened again ([`screen_unlock_beat_error`]); on a
+/// Swiss lever, with no unlock beat error in a window whose two sides are
+/// both culled, the one way the two reads differ. A log read for the same
+/// escapement is left as it was.
+pub fn kept_for(wins: &mut [AmplitudeWindow], escapement: crate::escapement::Escapement) {
+    if escapement.is_co_axial() {
+        screen_unlock_beat_error(wins, escapement);
+        return;
+    }
+    for w in wins.iter_mut() {
+        let [e, o] = w.culled();
+        if e.is_some() && o.is_some() {
+            w.beat_error_unlock_ms = None;
+        }
+    }
 }
 
 /// [`reject_side_outliers`] for the windows of `wins` whose middle is at
@@ -922,9 +974,10 @@ fn window_of(
     let kept = |s: Option<(Option<f64>, f64, f64)>| s.and_then(|s| Some((s.0?, s.1, s.2)));
     let (even, odd) = (kept(even_all), kept(odd_all));
     let beat_error_ms = timing::beat_error_ms(win);
-    // Each side found counts, kept or culled, unless both are culled
-    // ([`screen_unlock_beat_error`], #1977).
-    let beat_error_unlock_ms = (even.is_some() || odd.is_some())
+    // Each side found counts, kept or culled, unless both are culled on
+    // a Swiss lever ([`screen_unlock_beat_error`], #1977, #2313).
+    let unheard = even.is_none() && odd.is_none() && cfg.escapement.both_culled_unheard();
+    let beat_error_unlock_ms = (!unheard)
         .then(|| {
             unlock_beat_error_ms(
                 beat_error_ms,
@@ -1111,7 +1164,11 @@ mod tests {
             .collect();
         // Window 30's Tock edge lands on the wrong sound.
         wins[30].odd_deg = Some(290.0);
-        let n = super::reject_side_outliers(&mut wins, super::OUTLIER_SPAN_S);
+        let n = super::reject_side_outliers(
+            &mut wins,
+            super::OUTLIER_SPAN_S,
+            crate::escapement::Escapement::SwissLever,
+        );
         assert_eq!(n, 1);
         assert_eq!(wins[30].odd_deg, None);
         assert!(wins[30].even_deg.is_some());
@@ -1145,7 +1202,11 @@ mod tests {
         read[33].odd_deg = Some(275.0);
         read[50].even_deg = Some(200.0);
         let mut whole = read.clone();
-        let n = super::reject_side_outliers(&mut whole, super::OUTLIER_SPAN_S);
+        let n = super::reject_side_outliers(
+            &mut whole,
+            super::OUTLIER_SPAN_S,
+            crate::escapement::Escapement::SwissLever,
+        );
         assert_eq!(n, 3);
         let mid = |w: &super::AmplitudeWindow| (w.start_s + w.end_s) / 2.0;
         let span = super::OUTLIER_SPAN_S;
@@ -1456,7 +1517,13 @@ mod tests {
         assert!(at52 > MAX_AMPLITUDE_DEG, "{at52}");
         // At 45° it passes: the same figure a read at 45° gives.
         let mut lower = w.clone();
-        at_lift(&mut lower, osc, 52.0, 45.0);
+        at_lift(
+            &mut lower,
+            osc,
+            52.0,
+            45.0,
+            crate::escapement::Escapement::SwissLever,
+        );
         let fresh = windows_between(
             &env,
             fs,
@@ -1482,9 +1549,21 @@ mod tests {
         assert!(lower.beat_error_unlock_ms.is_some());
         // Back to 52°, by way of 12° (under the gate): as first read.
         let mut back = lower.clone();
-        at_lift(&mut back, osc, 45.0, 12.0);
+        at_lift(
+            &mut back,
+            osc,
+            45.0,
+            12.0,
+            crate::escapement::Escapement::SwissLever,
+        );
         assert_eq!(back.even_deg, None, "under the gate at 12°");
-        at_lift(&mut back, osc, 12.0, 52.0);
+        at_lift(
+            &mut back,
+            osc,
+            12.0,
+            52.0,
+            crate::escapement::Escapement::SwissLever,
+        );
         assert_eq!(format!("{back:?}"), format!("{w:?}"));
         assert_eq!(back.culled(), w.culled());
     }
@@ -1518,7 +1597,13 @@ mod tests {
             }
         };
         let mut at50: Vec<AmplitudeWindow> = (0..40).map(win).collect();
-        relift(&mut at50, osc, 50.0, 50.0);
+        relift(
+            &mut at50,
+            osc,
+            50.0,
+            50.0,
+            crate::escapement::Escapement::SwissLever,
+        );
         let be = |w: &[AmplitudeWindow]| -> Vec<Option<u64>> {
             w.iter()
                 .map(|x| x.beat_error_unlock_ms.map(f64::to_bits))
@@ -1533,18 +1618,33 @@ mod tests {
         );
         for lift in [52.0, 55.0, 58.0] {
             let mut w = at50.clone();
-            relift(&mut w, osc, 50.0, lift);
+            relift(
+                &mut w,
+                osc,
+                50.0,
+                lift,
+                crate::escapement::Escapement::SwissLever,
+            );
             assert_eq!(be(&w), be(&at50), "at {lift}°");
         }
         // The gate did act: at 58° some odd sides are culled.
         let mut at58 = at50.clone();
-        relift(&mut at58, osc, 50.0, 58.0);
+        relift(
+            &mut at58,
+            osc,
+            50.0,
+            58.0,
+            crate::escapement::Escapement::SwissLever,
+        );
         let culled = at58.iter().filter(|w| w.culled()[1].is_some()).count();
         assert!(culled > 5, "{culled}");
         // At 50° the wrong sound's window keeps its odd side, so its even
         // side is screened: the one side outside.
         let mut again = at50.clone();
-        assert_eq!(screen_unlock_beat_error(&mut again), 1);
+        assert_eq!(
+            screen_unlock_beat_error(&mut again, crate::escapement::Escapement::SwissLever),
+            1
+        );
         // With both sides culled, no unlock was heard: none, as the drop's
         // beat error stands.
         let mut both = at50[0].clone();
@@ -1553,7 +1653,7 @@ mod tests {
         (both.even_drop_ms, both.odd_drop_ms) = (None, None);
         let mut wins = at50.clone();
         wins[0] = both;
-        screen_unlock_beat_error(&mut wins);
+        screen_unlock_beat_error(&mut wins, crate::escapement::Escapement::SwissLever);
         assert_eq!(wins[0].beat_error_unlock_ms, None);
         assert_eq!(be(&wins[1..]), be(&at50[1..]));
     }
@@ -1601,14 +1701,26 @@ mod tests {
             extra: None,
             sound_1: [f32::NAN; 2],
         };
-        at_lift(&mut w, 0.25, 52.0, 56.0);
+        at_lift(
+            &mut w,
+            0.25,
+            52.0,
+            56.0,
+            crate::escapement::Escapement::SwissLever,
+        );
         let again = side_deg(0.007, 0.25, 56.0);
         assert!(again.is_some());
         assert_eq!(w.even_deg, again);
         assert_eq!(w.even_unlock_ms, Some(-7.0));
         assert!((w.odd_deg.unwrap() - 300.0 * 56.0 / 52.0).abs() < 1e-9);
         assert_eq!(w.beat_error_unlock_ms, Some(0.3), "no side changed state");
-        at_lift(&mut w, 0.25, 56.0, 70.0);
+        at_lift(
+            &mut w,
+            0.25,
+            56.0,
+            70.0,
+            crate::escapement::Escapement::SwissLever,
+        );
         assert_eq!(w.odd_deg, None, "403.8° is over the gate");
     }
 

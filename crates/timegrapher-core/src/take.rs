@@ -284,7 +284,7 @@ pub const SETTLE_S: f64 = 20.0;
 
 #[path = "take_lift.rs"]
 mod lift;
-pub use lift::{file_lift_known, lift_setting, LiftSetting};
+pub use lift::{file_lift_known, kept_at_lift, lift_setting, LiftSetting};
 #[path = "take_settle.rs"]
 mod settle;
 pub use settle::{cut_from_one, handled, listed_unread, settles_through};
@@ -653,24 +653,6 @@ pub fn sound_files(paths: &[PathBuf]) -> Result<Vec<PathBuf>, String> {
     Ok(out)
 }
 
-/// A kept take's beat log with its amplitudes at `lift_deg`, the lift this
-/// reading uses, where the analysis was kept at another: each window's
-/// sides are read again from their edges at the new lift and gated there
-/// ([`crate::amplitude::at_lift`]), so a side the kept lift culled can
-/// come back (#1333), then screened for lone wrong-sound sides once over
-/// the log ([`crate::amplitude::reject_side_outliers`]), as a read at
-/// that lift is.
-pub fn kept_at_lift(log: &BeatLog, lift_deg: f64) -> BeatLog {
-    let mut log = log.clone();
-    if lift_deg > 0.0 && log.lift_deg > 0.0 && lift_deg != log.lift_deg && log.bph > 0 {
-        // The balance's own period, as the windows were read (#2228).
-        let osc = 2.0 * crate::timing::own_beat_period_s(&log.beats, log.bph);
-        crate::amplitude::relift(&mut log.amplitude_windows, osc, log.lift_deg, lift_deg);
-        log.lift_deg = lift_deg;
-    }
-    log
-}
-
 /// The stretch of a recording an entry reads, seconds from its start:
 /// `start_s` to `end_s`, or the whole recording when they are left out.
 pub fn span_of(e: &RecordingEntry, duration_s: f64) -> Result<(f64, f64), String> {
@@ -719,6 +701,9 @@ pub struct Calibre {
     /// A lift angle it holds outside the range, set aside.
     pub lift_set_aside_deg: Option<f64>,
     pub escape_teeth: Option<u32>,
+    /// Its escapement where the engine reads for one other than the
+    /// Swiss lever (#2313): the co-axial.
+    pub escapement: Option<crate::escapement::Escapement>,
     pub wheels: Vec<crate::periodicity::Wheel>,
     /// Its meshes, for marking beside the wheels ([`Catalog::meshes`]).
     ///
@@ -770,6 +755,9 @@ pub fn calibre_named(name: &str, user: &crate::calibre_store::UserCalibres) -> O
         lift_angle_deg: entry.lift_angle_deg(),
         lift_set_aside_deg: entry.lift_set_aside_deg(),
         escape_teeth: entry.escape_teeth(),
+        escapement: entry
+            .escapement()
+            .and_then(|e| crate::escapement::Escapement::of_kind(&e.kind)),
         meshes: cat.meshes(entry),
         wheels,
     })
@@ -790,7 +778,8 @@ pub struct Given {
 ///   none means it is measured;
 /// - lift angle: by [`lift_setting`];
 /// - escape wheel teeth: the session file's, else the calibre's, else
-///   [`ESCAPE_TEETH`].
+///   [`ESCAPE_TEETH`];
+/// - escapement: by [`crate::escapement::Escapement::setting`] (#2313).
 pub fn stream_settings(m: &Manifest, cal: Option<&Calibre>, given: Given) -> StreamConfig {
     let mut cfg = StreamConfig::default();
     cfg.analysis.bph = given.bph.or(m.bph).or(cal.and_then(|c| c.bph));
@@ -801,6 +790,8 @@ pub fn stream_settings(m: &Manifest, cal: Option<&Calibre>, given: Given) -> Str
         .escape_teeth
         .or(cal.and_then(|c| c.escape_teeth))
         .unwrap_or(ESCAPE_TEETH);
+    cfg.analysis.amplitude.escapement =
+        crate::escapement::Escapement::setting(m.escapement, cal.and_then(|c| c.escapement));
     cfg
 }
 
@@ -1290,7 +1281,14 @@ fn entry_log(
     progress: impl FnMut(f64, f64),
 ) -> Result<(BeatLog, Option<f32>), String> {
     match kept {
-        Some(k) => Ok((kept_at_lift(&k.log, cfg.analysis.amplitude.lift_deg), None)),
+        Some(k) => Ok((
+            kept_at_lift(
+                &k.log,
+                cfg.analysis.amplitude.lift_deg,
+                cfg.analysis.amplitude.escapement,
+            ),
+            None,
+        )),
         None => sound_log(
             crate::beat_cache::dir().as_deref(),
             paths,
@@ -1701,6 +1699,7 @@ mod tests {
             duration_s: 40.0,
             bph: 28800,
             lift_deg: 52.0,
+            escapement: Default::default(),
             beats: Vec::new(),
             amplitude_windows: [8.5, 9.5, 10.5, 28.5, 29.5].map(w).to_vec(),
             clipped_beats: Vec::new(),
@@ -1817,6 +1816,7 @@ mod tests {
             duration_s,
             bph: 28800,
             lift_deg: 52.0,
+            escapement: Default::default(),
             beats: beats
                 .iter()
                 .enumerate()
@@ -2130,7 +2130,7 @@ mod tests {
         let s = crate::scenarios::find("control").unwrap();
         let kept = crate::scenarios::beat_log(&s, 1);
         let at = kept.lift_deg + 6.0;
-        let read = kept_at_lift(&kept, at);
+        let read = kept_at_lift(&kept, at, Default::default());
         assert_eq!(read.lift_deg, at);
         let k = at / kept.lift_deg;
         assert!(k > 1.0);
@@ -2144,19 +2144,20 @@ mod tests {
             (
                 BeatLog {
                     lift_deg: 0.0,
+                    escapement: Default::default(),
                     ..kept.clone()
                 },
                 58.0,
             ),
         ] {
-            let read = kept_at_lift(&log, at);
+            let read = kept_at_lift(&log, at, Default::default());
             assert_eq!(read.lift_deg, log.lift_deg);
             assert_eq!(
                 read.amplitude_windows[0].even_deg,
                 log.amplitude_windows[0].even_deg
             );
         }
-        let same = kept_at_lift(&kept, kept.lift_deg);
+        let same = kept_at_lift(&kept, kept.lift_deg, Default::default());
         assert_eq!(same.lift_deg, kept.lift_deg);
         assert_eq!(
             same.amplitude_windows[0].even_deg,
@@ -2198,6 +2199,7 @@ mod tests {
             duration_s: 40.0,
             bph: 28800,
             lift_deg: 52.0,
+            escapement: Default::default(),
             beats: Vec::new(),
             amplitude_windows: (0..20).map(w).collect(),
             clipped_beats: Vec::new(),
@@ -2207,7 +2209,7 @@ mod tests {
             by_count: Vec::new(),
             snippets: Vec::new(),
         };
-        let read = kept_at_lift(&kept, 45.0);
+        let read = kept_at_lift(&kept, 45.0, Default::default());
         let at10 = &read.amplitude_windows[10];
         assert_eq!(at10.even_deg, None, "screened as a lone wrong sound");
         assert_eq!(at10.even_unlock_ms, Some(-5.2), "its edges kept");
@@ -2541,6 +2543,7 @@ mod tests {
             lift_angle_deg: lift,
             lift_set_aside_deg: aside,
             escape_teeth: None,
+            escapement: None,
             wheels: Vec::new(),
             meshes: Vec::new(),
         };
@@ -2564,6 +2567,7 @@ mod tests {
             lift_angle_deg: Some(44.0),
             lift_set_aside_deg: None,
             escape_teeth: Some(20),
+            escapement: None,
             wheels: Vec::new(),
             meshes: Vec::new(),
         };
@@ -2610,6 +2614,7 @@ mod tests {
             lift_angle_deg: lift,
             lift_set_aside_deg: None,
             escape_teeth: None,
+            escapement: None,
             wheels: Vec::new(),
             meshes: Vec::new(),
         };
@@ -2851,6 +2856,7 @@ mod tests {
             duration_s: 120.0,
             bph: 28_800,
             lift_deg: 52.0,
+            escapement: Default::default(),
             beats: Vec::new(),
             amplitude_windows: Vec::new(),
             clipped_beats: Vec::new(),
@@ -2895,6 +2901,7 @@ mod tests {
                 duration_s: 120.0,
                 bph: 28_800,
                 lift_deg: 52.0,
+                escapement: Default::default(),
                 beats: (0..960)
                     .map(|index| crate::beats::Beat {
                         index,

@@ -1,6 +1,6 @@
-//! A take's lift angle: whether its session file's was supplied, and the
-//! one rule every reader reads it by (#685, #2226). Split from `take.rs`
-//! by concern.
+//! A take's lift angle: whether its session file's was supplied, the
+//! one rule every reader reads it by (#685, #2226), and a kept log read
+//! at a lift ([`kept_at_lift`]). Split from `take.rs` by concern.
 
 use super::*;
 
@@ -52,6 +52,39 @@ pub fn lift_setting(
     }
 }
 
+/// A kept take's beat log with its amplitudes at `lift_deg`, the lift this
+/// reading uses, where the analysis was kept at another: each window's
+/// sides are read again from their edges at the new lift and gated there
+/// ([`crate::amplitude::at_lift`]), so a side the kept lift culled can
+/// come back (#1333), then screened for lone wrong-sound sides once over
+/// the log ([`crate::amplitude::reject_side_outliers`]), as a read at
+/// that lift is. Read for `escapement` (#2313,
+/// [`crate::amplitude::kept_for`]), so a log kept for either escapement
+/// reads as one read for this one.
+pub fn kept_at_lift(
+    log: &BeatLog,
+    lift_deg: f64,
+    escapement: crate::escapement::Escapement,
+) -> BeatLog {
+    let mut log = log.clone();
+    if lift_deg > 0.0 && log.lift_deg > 0.0 && lift_deg != log.lift_deg && log.bph > 0 {
+        // The balance's own period, as the windows were read (#2228).
+        let osc = 2.0 * crate::timing::own_beat_period_s(&log.beats, log.bph);
+        crate::amplitude::relift(
+            &mut log.amplitude_windows,
+            osc,
+            log.lift_deg,
+            lift_deg,
+            escapement,
+        );
+        log.lift_deg = lift_deg;
+    } else {
+        crate::amplitude::kept_for(&mut log.amplitude_windows, escapement);
+    }
+    log.escapement = escapement;
+    log
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -66,6 +99,7 @@ mod tests {
             lift_angle_deg: Some(59.0),
             lift_set_aside_deg: None,
             escape_teeth: None,
+            escapement: None,
             wheels: Vec::new(),
             meshes: Vec::new(),
         };

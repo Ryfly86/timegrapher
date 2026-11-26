@@ -2202,7 +2202,7 @@ pub fn check(
                 tick: w.even_deg,
                 tock: w.odd_deg,
                 beat_error_unlock_ms: w.beat_error_unlock_ms,
-                beat_error_drop_ms: w.beat_error_ms,
+                beat_error_drop_ms: log.escapement.drop_beat_error(w.beat_error_ms),
                 tick_unlock_ms: w.even_unlock_ms,
                 tock_unlock_ms: w.odd_unlock_ms,
             })
@@ -2796,6 +2796,7 @@ mod window_grid_tests {
             duration_s: windows as f64 * 2.0,
             bph: 18000,
             lift_deg: 52.0,
+            escapement: Default::default(),
             beats: vec![],
             amplitude_windows: (0..windows)
                 .map(|k| {

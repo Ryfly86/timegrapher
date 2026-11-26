@@ -669,6 +669,7 @@ fn a_take_kept_as_analysis_only_reads_as_such() {
         duration_s: 3600.0,
         bph: 28_800,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats: Vec::new(),
         amplitude_windows: Vec::new(),
         clipped_beats: Vec::new(),

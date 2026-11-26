@@ -564,6 +564,7 @@ fn no_rate_window_takes_in_the_ragged_edge_after_a_mask() {
         duration_s: 240.0,
         bph,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats,
         amplitude_windows: Vec::new(),
         clipped_beats: Vec::new(),
@@ -620,6 +621,7 @@ fn no_rate_window_takes_in_the_ragged_edge_after_a_break() {
         duration_s: 240.0 - brk.gap_s,
         bph,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats,
         amplitude_windows: Vec::new(),
         clipped_beats: Vec::new(),
@@ -706,6 +708,7 @@ fn no_rate_window_takes_in_the_ragged_edge_after_a_pause_in_a_clock_log() {
             duration_s: 240.0 - gap_s - short.unwrap_or(0.0),
             bph,
             lift_deg: 52.0,
+            escapement: Default::default(),
             beats,
             amplitude_windows: Vec::new(),
             clipped_beats: Vec::new(),
@@ -759,6 +762,7 @@ fn a_break_with_no_gap_keeps_its_single_cut() {
         duration_s: 120.0,
         bph,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats: beats.clone(),
         amplitude_windows: Vec::new(),
         clipped_beats: Vec::new(),
@@ -816,6 +820,7 @@ fn a_pause_at_either_end_of_a_reading_is_no_missing_beat() {
         duration_s: 120.0,
         bph,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats,
         amplitude_windows: Vec::new(),
         clipped_beats: Vec::new(),
@@ -865,6 +870,7 @@ fn a_reversed_stretch_reads_as_empty_rather_than_panicking() {
         duration_s: 60.0,
         bph: 28_800,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats: (0..480)
             .map(|k| timegrapher_core::beats::Beat {
                 index: k,
@@ -947,6 +953,7 @@ fn a_clock_step_no_listed_pause_explains_is_cut() {
             duration_s: 156.0 - g,
             bph,
             lift_deg: 52.0,
+            escapement: Default::default(),
             beats,
             amplitude_windows: Vec::new(),
             clipped_beats: Vec::new(),
@@ -975,6 +982,7 @@ fn a_stretch_of_exactly_ten_seconds_is_heard() {
             duration_s: duration,
             bph: 28_800,
             lift_deg: 52.0,
+            escapement: Default::default(),
             beats: (0..)
                 .take_while(|&i| i as f64 * 0.125 < duration)
                 .map(|i| timegrapher_core::beats::Beat {
@@ -1362,6 +1370,7 @@ fn a_listed_pause_the_clock_log_did_not_see_is_said() {
         duration_s: 240.0,
         bph,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats,
         amplitude_windows: Vec::new(),
         clipped_beats: Vec::new(),
@@ -1420,6 +1429,7 @@ fn a_hole_is_left_out_and_cut_like_a_mask() {
         duration_s: 100.0,
         bph: 28800,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats: (0..800)
             .map(|index| timegrapher_core::beats::Beat {
                 index,
@@ -1979,6 +1989,7 @@ fn a_saved_stretch_looks_back_past_a_mask() {
             duration_s: 35.0,
             bph: 28_800,
             lift_deg: 52.0,
+            escapement: Default::default(),
             beats: (0..280)
                 .map(|i| timegrapher_core::beats::Beat {
                     index: i,

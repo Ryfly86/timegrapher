@@ -1780,6 +1780,7 @@ mod csv_time_tests {
             duration_s: to,
             bph: 18_000,
             lift_deg: 52.0,
+            escapement: Default::default(),
             beats: (0..)
                 .map(|i| Beat {
                     index: i,

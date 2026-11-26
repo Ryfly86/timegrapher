@@ -103,6 +103,7 @@ fn empty_like(log: &BeatLog) -> BeatLog {
         duration_s: 0.0,
         bph: log.bph,
         lift_deg: log.lift_deg,
+        escapement: log.escapement,
         beats: Vec::new(),
         amplitude_windows: Vec::new(),
         clipped_beats: Vec::new(),
@@ -248,6 +249,7 @@ mod tests {
             duration_s: 200.0,
             bph: 18_000,
             lift_deg: 52.0,
+            escapement: Default::default(),
             beats: (0..1000)
                 .map(|i| Beat {
                     index: i,

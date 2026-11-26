@@ -514,6 +514,11 @@ pub enum Caveat {
     BeatsMissing { fraction: f64 },
     /// The lift angle is a default, not the calibre's.
     LiftUnknown,
+    /// The take is read for a co-axial escapement (#2313,
+    /// [`crate::escapement`]): its amplitude is an estimate (beta), read
+    /// with the Swiss lever's formula and not yet checked against a
+    /// reference.
+    CoaxialEstimate,
     /// The sound card's clock is not corrected.
     ClockUnknown,
     /// The recording's USB lines read the card `ppm` fast, past
@@ -685,6 +690,7 @@ impl Caveat {
             Caveat::LiftUnknown | Caveat::Clipped { .. } | Caveat::FaintSidesWithheld { .. } => {
                 &[Amplitude, BeatError]
             }
+            Caveat::CoaxialEstimate => &[Amplitude],
             Caveat::SidesByCount { .. }
             | Caveat::BeatErrorAsSize
             | Caveat::BeatErrorFromDrop { .. }
@@ -768,6 +774,7 @@ impl Caveat {
                 }
             }
             Caveat::LiftUnknown => lift_words(lift_deg, false),
+            Caveat::CoaxialEstimate => COAXIAL_ESTIMATE_SHORT.to_string(),
             Caveat::ClockUnknown => "input clock not corrected".to_string(),
             Caveat::ClockSourcesDisagree { .. } => self.sources_disagree()?.short(),
             Caveat::UsbLinesNotUsed { ppm } => usb_not_used(*ppm).not_used_short()?,
@@ -837,9 +844,8 @@ impl Caveat {
                          amplitude is worked out from it."
                     .to_string(),
             },
-            Caveat::ClockUnknown => "This input's clock hasn't been measured, so the rate \
-                                     includes the sound card's own clock error."
-                .to_string(),
+            Caveat::CoaxialEstimate => COAXIAL_ESTIMATE_LONG.to_string(),
+            Caveat::ClockUnknown => CLOCK_UNKNOWN_LONG.to_string(),
             Caveat::ClockSourcesDisagree { .. } => {
                 let note = self.sources_disagree()?.note();
                 format!("{}{}.", note[..1].to_uppercase(), &note[1..])
@@ -942,6 +948,7 @@ impl Caveat {
             Caveat::Clipped { .. } => 3,
             Caveat::BeatsMissing { .. } => 4,
             Caveat::LiftUnknown => 5,
+            Caveat::CoaxialEstimate => 5,
             Caveat::ClockUnknown => 6,
             Caveat::ClockSourcesDisagree { .. } => 7,
             Caveat::UsbLinesNotUsed { .. } => 7,
@@ -1036,6 +1043,17 @@ fn uncalibrated_text(model: crate::longterm::NullModel, mix: f64, span_s: f64) -
         span_s / 3600.0
     )
 }
+
+/// [`Caveat::ClockUnknown`] as a sentence.
+const CLOCK_UNKNOWN_LONG: &str = "This input's clock hasn't been measured, so the rate includes \
+     the sound card's own clock error.";
+
+/// [`Caveat::CoaxialEstimate`] in a few words (the owner's, #2313).
+pub const COAXIAL_ESTIMATE_SHORT: &str = "co-axial escapement estimate (beta)";
+
+/// [`Caveat::CoaxialEstimate`] as a sentence.
+pub const COAXIAL_ESTIMATE_LONG: &str = "The amplitude is a co-axial escapement estimate \
+     (beta): it uses the Swiss lever's formula and has not been checked against a reference.";
 
 /// The lift angle an amplitude was worked out from, as every reading
 /// beside an amplitude says it: "lift angle 52°", or "lift angle 52°, the

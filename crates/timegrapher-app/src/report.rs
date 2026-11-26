@@ -1175,6 +1175,7 @@ mod tests {
             amplitude_even_se_deg: None,
             amplitude_odd_se_deg: None,
             lift_deg: 52.0,
+            escapement: Default::default(),
             timing_periods: vec![],
             amplitude_periods: vec![],
             clipping: Clipping {

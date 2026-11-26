@@ -178,6 +178,15 @@ file says 55°; using 55°`), and `summary.json` lists the same notes under
 them, the lift angle is the default 52°, and each reading carries the
 `lift_unknown` caveat.
 
+`escapement = "co-axial"` (or `"swiss lever"`) says which escapement the
+take is read for, over the calibre's: a calibre the table marks co-axial
+(the Omega 2500D, 3861, 8500, 8501 and 8900) is read as one without it.
+Co-axial reading is in beta (#2313): the beat error is the unlock's or
+none, never the drop's (on a co-axial the two sides' last sounds are
+different events), the unlock's is found whatever the lift angle, and the
+amplitude, read with the Swiss lever's formula, carries the
+`coaxial_estimate` caveat.
+
 Paths are relative to the session file. Any recording-level `settle_s` or
 `measure_s` overrides the session's. `shape = false` or `cycles = false`
 at the top skips those parts. A `tolerance` line or a `[limits]` table,

@@ -824,6 +824,7 @@ mod tests {
             duration_s: 600.0,
             bph: 18_000,
             lift_deg: 52.0,
+            escapement: Default::default(),
             beats: (0..3000)
                 .map(|i| Beat {
                     index: i,
@@ -863,6 +864,7 @@ mod tests {
             duration_s: 600.0,
             bph: 18_000,
             lift_deg: 52.0,
+            escapement: Default::default(),
             beats: (0..3000)
                 .map(|i| Beat {
                     index: i,

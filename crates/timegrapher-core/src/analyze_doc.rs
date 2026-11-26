@@ -8,24 +8,39 @@ use crate::analysis::{AnalysisConfig, Summary};
 use serde_json::{json, Value};
 
 /// The settings `analyze` read at, as its document's `input.settings`
-/// gives them; `calibre` is the calibre named, if one was.
+/// gives them; `calibre` is the calibre named, if one was. The escapement
+/// is given only for a co-axial (#2313).
 pub fn settings(cfg: &AnalysisConfig, calibre: Option<&str>) -> Value {
-    json!({
+    let mut s = json!({
         "calibre": calibre,
         "bph": cfg.bph,
         "lift_deg": cfg.amplitude.lift_deg,
         "notch_hz": cfg.envelope.notch_hz,
         "highpass_hz": cfg.envelope.highpass_hz,
         "escape_teeth": cfg.escape_teeth,
-    })
+    });
+    if !cfg.amplitude.escapement.is_swiss_lever() {
+        s["escapement"] = json!(cfg.amplitude.escapement);
+    }
+    s
 }
 
 /// The document's body: the summary, its rates on the sound card's clock
 /// (what tg reads and the regression check compares), with the clock's
 /// correction beside them when one is known (`ppm` fast, and where it came
 /// from in words), and the beat rate heard ([`measured`]).
+///
+/// On a co-axial the overall fit's beat error, the beat times' and not a
+/// drop's, is left out (#2313,
+/// [`crate::escapement::Escapement::drop_beat_error`]).
 pub fn body(summary: &Summary, clock: Option<(f64, &str)>) -> Result<Value, String> {
     let mut body = serde_json::to_value(summary).map_err(|e| e.to_string())?;
+    if let Some(o) = body.get_mut("overall").and_then(Value::as_object_mut) {
+        let drop = summary.overall.map(|f| f.beat_error_ms);
+        if summary.escapement.drop_beat_error(drop).is_none() {
+            o.insert("beat_error_ms".into(), Value::Null);
+        }
+    }
     if let Some(m) = measured(summary, clock.map(|(ppm, _)| ppm)) {
         m.write_into(&mut body);
     }
