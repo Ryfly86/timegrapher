@@ -178,3 +178,111 @@ fn a_session_with_a_calibre_rate_outside_the_range_says_so() {
         "{notes:?}"
     );
 }
+
+fn record(folder: &Path, wav: &str, extra: &[&str]) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_timegrapher"))
+        .env("TIMEGRAPHER_CONFIG_DIR", std::env::temp_dir())
+        .args(["record", folder.to_str().unwrap(), "--file", wav])
+        .args(["--seconds", "35", "--json", "--position", "DU"])
+        .args(extra)
+        .output()
+        .unwrap()
+}
+
+#[test]
+fn a_record_check_says_where_its_rate_came_from() {
+    let dir = Dir::new("record-from");
+    let wav = dir.0.join("take.wav").to_string_lossy().into_owned();
+    let out = run(&["synth", &wav, "--duration=40", "--bph=18000", "--rate=0"]);
+    assert!(out.status.success(), "{out:?}");
+    let check = |folder: &str, extra: &[&str]| {
+        let out = record(&dir.0.join(folder), &wav, extra);
+        assert!(out.status.success(), "{out:?}");
+        let doc: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+        doc["check"].clone()
+    };
+    let c = check("typed", &["--bph", "18001"]);
+    assert_eq!(
+        (c["bph_set"].clone(), c["bph_set_from"].clone()),
+        (18001.into(), "typed".into())
+    );
+    let c = check("standard", &["--bph", "18000"]);
+    assert_eq!(c["bph_set_from"], "standard");
+    // The next position in that folder takes the session file's rate.
+    let c = check("standard", &[]);
+    assert_eq!(
+        (c["bph_set"].clone(), c["bph_set_from"].clone()),
+        (18000.into(), "session".into())
+    );
+    let c = check("auto", &[]);
+    assert!(c["bph_set"].is_null(), "{c}");
+    assert!(c.get("bph_set_from").is_none(), "{c}");
+}
+
+#[test]
+fn a_library_watch_rate_outside_the_range_is_said_before_recording() {
+    use timegrapher_core::library::{Library, Watch};
+    let dir = Dir::new("record-watch-aside");
+    let wav = dir.0.join("take.wav").to_string_lossy().into_owned();
+    let out = run(&["synth", &wav, "--duration=40", "--bph=18000", "--rate=0"]);
+    assert!(out.status.success(), "{out:?}");
+    let root = dir.0.join("Timegrapher Data");
+    let mut lib = Library::create(&root).unwrap();
+    let mut w = Watch::new("Old");
+    w.bph = Some(10_800);
+    lib.add(&w).unwrap();
+    drop(lib);
+    let out = Command::new(env!("CARGO_BIN_EXE_timegrapher"))
+        .env("TIMEGRAPHER_CONFIG_DIR", std::env::temp_dir())
+        .args([
+            "record",
+            "--watch",
+            "Old",
+            "--library",
+            root.to_str().unwrap(),
+        ])
+        .args([
+            "--file",
+            &wav,
+            "--seconds",
+            "35",
+            "--json",
+            "--position",
+            "DU",
+        ])
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "{out:?}");
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.lines().any(|l| l
+            == "note: Old's beat rate of 10800 bph is set aside, \
+                outside 12000 to 72000 bph, so this take is read on Auto"),
+        "{err}"
+    );
+    let doc: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert!(doc["check"]["bph_set"].is_null(), "{doc}");
+    assert_eq!(doc["check"]["bph"], 18000);
+}
+
+#[test]
+fn a_session_begun_on_a_calibre_rate_outside_the_range_is_left_on_auto() {
+    let dir = Dir::new("init-aside");
+    let wav = dir.0.join("take.wav").to_string_lossy().into_owned();
+    let out = run(&["synth", &wav, "--duration=40", "--bph=18000", "--rate=0"]);
+    assert!(out.status.success(), "{out:?}");
+    let take = dir.0.to_string_lossy().into_owned();
+    let out = run(&["session", "--init", &take, "--calibre=IWC 9520"]);
+    assert!(out.status.success(), "{out:?}");
+    let note = "the IWC 9520's beat rate of 8000 bph is set aside, outside 12000 to 72000 bph, \
+                so the session's takes are read on Auto";
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(err.lines().any(|l| l == format!("note: {note}")), "{err}");
+    let text = std::fs::read_to_string(dir.0.join("session.toml")).unwrap();
+    assert!(
+        text.lines()
+            .any(|l| l == format!("# bph = 28800  # {note}")),
+        "{text}"
+    );
+    assert!(!text.lines().any(|l| l.starts_with("bph")), "{text}");
+}

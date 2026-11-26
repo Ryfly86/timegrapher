@@ -70,6 +70,13 @@ pub fn read_at_text(bph: Option<u32>, from: Option<BphFrom>) -> String {
     }
 }
 
+/// What a session file whose calibre's rate is set aside says
+/// ([`set_aside_why`]): its takes are read on Auto, unless a rate is set.
+pub fn session_set_aside_text(calibre: Option<&Calibre>, bph: Option<u32>) -> Option<String> {
+    let why = set_aside_why(calibre).filter(|_| bph.is_none())?;
+    Some(format!("{why}, so the session's takes are read on Auto"))
+}
+
 /// Set `a`'s beat rate and where it came from: `given` for this reading,
 /// else what the session file `kept`, else the calibre's
 /// ([`calibre_rate`]); none means it is heard.
@@ -171,6 +178,14 @@ mod tests {
             );
             let a = stream_settings(&Manifest::default(), Some(&c), Given::default()).analysis;
             assert_eq!((a.bph, a.bph_from), (None, None), "{name}");
+            assert_eq!(
+                session_set_aside_text(Some(&c), None).unwrap(),
+                format!(
+                    "the {name}'s beat rate of {b} bph is set aside, outside 12000 to 72000 bph, \
+                     so the session's takes are read on Auto"
+                )
+            );
+            assert_eq!(session_set_aside_text(Some(&c), Some(18_000)), None);
         }
         let c = crate::take::calibre_named("IWC 9520 (18,000 bph, 40°)", &user).unwrap();
         assert_eq!(

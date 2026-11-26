@@ -34,10 +34,7 @@ use timegrapher_core::synth::{self, SynthConfig};
 use timegrapher_core::{analyze, load, Analysis, AnalysisConfig};
 
 fn parse_bph(text: &str) -> Result<u32, String> {
-    let value = text
-        .parse::<u64>()
-        .map_err(|_| timegrapher_core::input_domain::BPH_RANGE_TEXT.to_string())?;
-    timegrapher_core::input_domain::bph(value)
+    timegrapher_core::input_domain::bph_text(text)
 }
 fn parse_lift(text: &str) -> Result<f64, String> {
     timegrapher_core::input_domain::lift_deg(

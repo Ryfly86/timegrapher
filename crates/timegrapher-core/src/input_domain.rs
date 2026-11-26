@@ -25,6 +25,14 @@ pub fn bph_set_aside_text(whose: &str, bph: u32) -> String {
 }
 
 /// `value` if it lies in [`BPH_RANGE`].
+/// A beat rate typed as text: [`bph`] of a whole number, else refused with
+/// the same words (the CLI's `--bph`, the app's `--headless --bph`).
+pub fn bph_text(text: &str) -> Result<u32, String> {
+    bph(text
+        .parse::<u64>()
+        .map_err(|_| BPH_RANGE_TEXT.to_string())?)
+}
+
 pub fn bph(value: u64) -> Result<u32, String> {
     u32::try_from(value)
         .ok()
@@ -214,6 +222,15 @@ mod tests {
                 BPH_RANGE.end()
             )
         );
+    }
+
+    /// A rate typed as text is taken whole or refused with the range.
+    #[test]
+    fn a_beat_rate_typed_as_text_is_whole_or_refused() {
+        assert_eq!(bph_text("17570"), Ok(17_570));
+        for t in ["17570.5", "17570.0", "abc", "", "-18000", "11999", "72001"] {
+            assert_eq!(bph_text(t), Err(BPH_RANGE_TEXT.to_string()), "{t}");
+        }
     }
 
     /// The range runs from the slowest standard rate to the fastest.
