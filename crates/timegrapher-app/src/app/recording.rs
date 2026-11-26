@@ -57,6 +57,9 @@ pub(super) struct Recording {
     /// When live's first chunk read again took over and why it was not,
     /// as last seen (#1327).
     pub(super) rebuild_seen: RebuildSeen,
+    /// How far the strip's anchor has followed live's renumbering of its
+    /// beats (#2318).
+    pub(super) numbering_seen: timegrapher_core::live::NumberingSeen,
     /// Offer every input the system lists, not just one per microphone.
     pub(super) all_inputs: bool,
     /// When the microphone was opened and when it last sent audio.
@@ -97,6 +100,7 @@ impl Default for Recording {
             kept_live: Default::default(),
             jumps_seen: Vec::new(),
             rebuild_seen: RebuildSeen::default(),
+            numbering_seen: Default::default(),
             all_inputs: false,
             opened_at: Instant::now(),
             audio_at: None,

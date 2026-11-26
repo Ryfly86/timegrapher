@@ -44,7 +44,7 @@ use timegrapher_core::calibres;
 use timegrapher_core::capture::Block;
 use timegrapher_core::library::{self, Library};
 use timegrapher_core::library::{base_digits, fixed_text, signed_text};
-use timegrapher_core::live::{keep_trend_point, LiveAnalyzer, LiveConfig};
+use timegrapher_core::live::{keep_trend_point, LiveAnalyzer, LiveConfig, NumberingSeen};
 use timegrapher_core::power_reserve;
 use timegrapher_core::recorder::{self, Recorder, SessionInfo};
 use timegrapher_core::session::{self, Manifest, Position};
@@ -723,8 +723,13 @@ struct Feed {
     position: &'static str,
     seconds: f64,
     live: LiveAnalyzer,
-    /// The strip's anchor, set once from the first beats as the app does.
+    /// The strip's anchor, set from the first beats as the app does, and
+    /// moved as live renumbers them (#2318).
     anchor: Option<Anchor>,
+    /// How far the anchor has followed live's renumbering.
+    numbering: NumberingSeen,
+    /// Times the strip's beats were renumbered: the strip's `generation`.
+    strip_generation: u64,
     /// Time, rate, amplitude, chosen beat error and its source: the points
     /// kept over the whole take ([`keep_trend_point`]).
     trend: Vec<TrendPoint>,
@@ -747,6 +752,8 @@ impl Feed {
             seconds,
             live: LiveAnalyzer::new(fs_hz, cfg).with_figures_as_file(),
             anchor: None,
+            numbering: NumberingSeen::default(),
+            strip_generation: 0,
             trend: Vec::new(),
             trend_step_s: 1.0,
             trend_newest: None,
@@ -781,6 +788,12 @@ impl Feed {
         let r = self.live.reading(AVERAGE_S);
         let t = self.live.duration_s();
         let period = self.live.bph().map(|b| 3600.0 / b as f64);
+        if self
+            .live
+            .follow_numbering(&mut self.anchor, &mut self.numbering)
+        {
+            self.strip_generation += 1;
+        }
         let beats = self.live.beats();
         if self.anchor.is_none() && beats.len() >= 16 {
             if let Some(p) = period {
@@ -832,7 +845,8 @@ impl Feed {
             "average_s": AVERAGE_S,
             "beats_heard": beats.len(),
             "reading": reading,
-            "strip": { "span_s": STRIP_S, "period_s": period, "beats": strip },
+            "strip": { "span_s": STRIP_S, "period_s": period, "generation": self.strip_generation,
+                "beats": strip },
             "trend": { "t_s": col(0), "rate": col(1), "amplitude": col(2), "beat_error": col(3),
                 "beat_error_source": self.trend_points().map(|p| p.1).collect::<Vec<_>>() },
         });
@@ -1470,6 +1484,76 @@ mod tests {
         let even = |g: &f64| (g - step).abs() <= 1.0 / 400.0 + 1e-9;
         assert!(gaps.iter().all(even), "uneven: {gaps:?}");
         assert!(times.iter().any(|t| (t - 9.0).abs() <= step), "middle gone");
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    /// #2318: with the Tock late, live names the sides the other way round
+    /// about 10 s in and numbers every beat so far one further. A beat the
+    /// strip has written keeps its `lead_ms` (it jumped a beat period, 125
+    /// ms at 28,800 bph), and its `side` changes only with the strip's
+    /// `generation`.
+    #[test]
+    fn a_written_strip_beat_keeps_its_lead_when_the_sides_are_named() {
+        use std::collections::BTreeMap;
+        use timegrapher_core::synth::{generate, SynthConfig};
+        let dir = std::env::temp_dir().join(format!("tg-live-strip-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("live.json");
+        let set = Settings {
+            watch: None,
+            calibre: None,
+            bph: Some(28800),
+            lift: 52.0,
+            lift_known: true,
+            lift_from: take::SettingFrom::Given,
+            settle_s: None,
+        };
+        let mut feed = Feed::new(&path, Position::CH, 20.0, 48000, &set);
+        let sound = generate(
+            &SynthConfig {
+                duration_s: 20.0,
+                beat_error_ms: -1.5,
+                ..Default::default()
+            },
+            |_| 270.0,
+            |_| 0.0,
+        );
+        // Each written beat's lead, side and the strip's generation, once
+        // it is old enough not to be timed again, keyed by its time in 0.1 ms.
+        let mut written: BTreeMap<i64, Vec<(f64, f64, u64)>> = BTreeMap::new();
+        for chunk in sound.samples.chunks(48000) {
+            feed.push(chunk);
+            let doc: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+            let settled = doc["recorded_s"].as_f64().unwrap() - 5.0;
+            let generation = doc["strip"]["generation"].as_u64().unwrap();
+            for b in doc["strip"]["beats"].as_array().unwrap() {
+                let [t, lead, side] = [0, 1, 2].map(|i| b[i].as_f64().unwrap());
+                if t < settled {
+                    let key = (t * 1e4).round() as i64;
+                    written
+                        .entry(key)
+                        .or_default()
+                        .push((lead, side, generation));
+                }
+            }
+        }
+        let mut swapped = 0;
+        for seen in written.values() {
+            let (lead, side, generation) = seen[0];
+            for &(l, s, g) in seen {
+                assert!((l - lead).abs() < 1.0, "lead {lead} then {l} ms");
+                assert!(
+                    s == side || g != generation,
+                    "side swapped without a new generation"
+                );
+                swapped += usize::from(s != side);
+            }
+        }
+        assert!(
+            swapped > 0,
+            "the beats written before the naming swap sides"
+        );
+        assert_eq!(feed.strip_generation, 1, "the sides named once");
         let _ = fs::remove_dir_all(dir);
     }
 
