@@ -282,7 +282,7 @@ sound first, as the Watch line does, then stops the listening and picks
 the watch; while a watch's take is listening, picking another is
 refused until it stops. Its toolbar has, left to right, **New Watch…**
 (a watch and a plus), a search (a loupe; in the name, calibre, notes and
-fields), **Sort** by Name, Last Take or Size, and **List Shows**. In a narrow window, Sort and List Shows fold
+fields), **Sort** by Name, Last Take or Size, and **List Shows** (only once a field has been added to a watch: until then the calibre is its one choice). In a narrow window, Sort and List Shows fold
 into the "…" menu first; New Watch… and the search always stay
 in the row. The Watches folder's location, and Show in Finder (Explorer on
 Windows, File Manager on Linux) for it, are in Settings. Clicking **Unsorted Takes** goes back to Quick Listen: no
