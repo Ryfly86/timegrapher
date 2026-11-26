@@ -6,6 +6,7 @@ use std::path::Path;
 use timegrapher_core::analysis::{self, AnalysisConfig, Summary};
 use timegrapher_core::library::{fixed_text, signed_text};
 use timegrapher_core::load;
+use timegrapher_core::measure::Scope;
 use timegrapher_core::shape::{Shape, ShapeReport, SideReport};
 
 pub struct Options<'a> {
@@ -58,9 +59,10 @@ fn opt(v: Option<f64>, digits: usize) -> String {
         .map_or("-".into(), |x| fixed_text(x, digits))
 }
 
-/// The shape table. Each side's amplitude is `analyze`'s, from `s`: it
-/// is read over the amplitude windows, not from these templates, so the
-/// whole-recording columns have none (#2104).
+/// The shape table. Each side's amplitude is `analyze`'s, from `s`, with
+/// the caveats it carries there: it is read over the amplitude windows,
+/// not from these templates, so the whole-recording columns have none
+/// (#2104).
 fn print_report(r: &ShapeReport, s: &Summary) {
     println!(
         "Beat rate    {} bph; {} windows of 2 s; times from the unlock edge",
@@ -83,6 +85,19 @@ fn print_report(r: &ShapeReport, s: &Summary) {
         print!("{:>10}", opt(v, 0));
     }
     println!();
+    // The amplitude carries the caveats `analyze` gives it, in core's
+    // words (a co-axial's estimate among them).
+    if s.amplitude_even_deg.is_some() || s.amplitude_odd_deg.is_some() {
+        for c in s
+            .caveats
+            .iter()
+            .filter(|c| c.scopes().contains(&Scope::Amplitude))
+        {
+            if let Some(w) = c.short(s.lift_deg, s.beats_found) {
+                println!("  {w}");
+            }
+        }
+    }
     type Row<'a> = (&'a str, &'a dyn Fn(&Shape) -> Option<f64>, usize);
     let rows: [Row; 21] = [
         ("unlock to drop, ms", &|s| Some(s.unlock_to_drop_ms), 2),

@@ -106,3 +106,35 @@ fn shape_names_the_sides_and_reads_the_amplitudes_as_analyze_does() {
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// On a co-axial, the amplitude row carries `analyze`'s caveat for it,
+/// in core's words, as `analyze` says it beside the same figure.
+#[test]
+fn shape_says_a_co_axial_amplitude_is_an_estimate() {
+    let dir = scratch("coaxial");
+    let config = dir.join("config");
+    let wav = dir.join("watch.wav");
+    let w = wav.to_str().unwrap();
+    run(&config, &["synth", w, "--duration", "20", "--bph", "21600"]);
+    let words = timegrapher_core::measure::COAXIAL_ESTIMATE_SHORT;
+    let analyze = run(&config, &["analyze", w, "--calibre", "3861"]);
+    assert!(analyze.contains(words), "{analyze}");
+    let table = run(&config, &["shape", w, "--calibre", "3861"]);
+    let rows: Vec<&str> = table.lines().collect();
+    let at = rows
+        .iter()
+        .position(|l| l.starts_with("amplitude, deg"))
+        .unwrap_or_else(|| panic!("{table}"));
+    assert!(
+        rows[at + 1..]
+            .iter()
+            .take_while(|l| l.starts_with("  "))
+            .any(|l| l.trim() == words),
+        "{table}"
+    );
+    // A lever's amplitude carries no such words.
+    let lever = run(&config, &["shape", w]);
+    assert!(lever.contains("amplitude, deg"), "{lever}");
+    assert!(!lever.contains(words), "{lever}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
