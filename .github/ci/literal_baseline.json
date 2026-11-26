@@ -386,14 +386,14 @@
     "crates/timegrapher-mcp/src/views.rs": {
      "bounds": 0,
      "comparisons": 0,
-     "constants": 3,
+     "constants": 4,
      "defaults": 0
     }
    },
    "total": {
     "bounds": 0,
     "comparisons": 0,
-    "constants": 5,
+    "constants": 6,
     "defaults": 1
    }
   }

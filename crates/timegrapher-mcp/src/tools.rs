@@ -334,10 +334,25 @@ pub const TOOLS: &[ToolSpec] = &[
         name: "beat_shape",
         title: "Beat Shape",
         description: "The three sounds of each side's beat (unlock, impulse, drop): their \
-            timing and level for the Tick (even beats) and the Tock (odd beats), the \
-            evidence for escapement faults.",
+            timing and level for the Tick (even beats) and the Tock (odd beats) over the \
+            whole recording, the evidence for escapement faults; with `windows`, every 2 s \
+            window's too.",
         command: &["shape"],
-        params: &[RECORDING, CALIBRE_READING, BPH, LIFT_OR_CALIBRE],
+        params: &[
+            RECORDING,
+            CALIBRE_READING,
+            BPH,
+            LIFT_OR_CALIBRE,
+            p(
+                WINDOWS,
+                Kind::Switch,
+                Arg::Server,
+                false,
+                "true for every 2 s window's figures as well, a few hundred kB on a \
+                 10 min recording (left out if not given: each side's figures over \
+                 the whole recording are given).",
+            ),
+        ],
         charts: false,
         read_only: true,
         idempotent: true,
@@ -372,9 +387,12 @@ pub const TOOLS: &[ToolSpec] = &[
         title: "Look Up a Calibre",
         description: "The calibre table: each movement's beat rate, lift angle, escape \
             wheel and train, how sure the figures are and their sources. Give a name for \
-            one calibre (an unknown name is an error), or `search` for the calibres that \
-            answer it, best first; with neither, the common calibres and the user's own are \
-            listed. Amplitude depends on the lift angle.",
+            one calibre's whole entry (an unknown name is an error), or `search` for the \
+            calibres that answer it, best first; with neither, the common calibres and the \
+            user's own are listed. A list of several gives each calibre's name, maker, other \
+            names, beat rate, lift angle, escape wheel teeth and how sure the figures are, \
+            at most {shown} of them, with `calibres_listed` saying how many matched: give a \
+            `name` for one's train, sources and notes. Amplitude depends on the lift angle.",
         command: &["calibres"],
         params: &[
             p(
@@ -761,6 +779,10 @@ pub fn notes(t: &ToolSpec) -> Vec<String> {
     notes
 }
 
+/// `beat_shape`'s switch for the per-window figures, read by the server
+/// (`views::shape_compact`, #2097).
+pub const WINDOWS: &str = "windows";
+
 /// `record_position`'s retry identifier, read by the server.
 pub const TAKE_ID: &str = "take_id";
 
@@ -773,6 +795,7 @@ pub fn find(name: &str) -> Option<&'static ToolSpec> {
 pub fn description(t: &ToolSpec) -> String {
     t.description
         .replace("{positions}", &Position::accepted_names())
+        .replace("{shown}", &crate::views::CALIBRES_SHOWN.to_string())
 }
 
 /// The tool's definition as MCP lists it.
