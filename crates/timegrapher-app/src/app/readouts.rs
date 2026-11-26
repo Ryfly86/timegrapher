@@ -700,11 +700,7 @@ impl TimegrapherApp {
         } else {
             (
                 timegrapher_core::measure::NO_WATCH_TITLE.to_string(),
-                format!(
-                    "{}.\n\n{}",
-                    r.as_ref().map(no_regular_beat).unwrap_or_default(),
-                    *help::NO_REGULAR_BEAT
-                ),
+                no_watch_hover(r.as_ref()),
             )
         };
         let unheard = (!heard)
@@ -1975,7 +1971,7 @@ impl TimegrapherApp {
             && !self.bench.results.trend.iter().any(|p| p.heard)
             && self
                 .reading()
-                .is_none_or(|r| !r.watch_heard && !r.finding_beat)
+                .is_none_or(|r| !r.watch_heard && !r.finding_beat && !beats_were_regular(&r))
             && !self.heard_while_settling(live)
     }
 
@@ -2630,4 +2626,24 @@ struct SparkKey {
 struct SparkKept {
     key: SparkKey,
     seconds: Vec<(i64, TrendPoint)>,
+}
+
+/// Whether `r` reads no watch only because no regular run of its beats
+/// lasted long enough (core's `NoWatchReason::beats_were_regular`): its
+/// beats are a watch's, so the strip shows them (Walter 46 on #2311).
+pub(super) fn beats_were_regular(r: &LiveReading) -> bool {
+    timegrapher_core::measure::no_watch_reason_in(&r.caveats)
+        .is_some_and(timegrapher_core::measure::NoWatchReason::beats_were_regular)
+}
+
+/// The hover under a no-watch reading's title: core's reason, then why
+/// beats that scatter are no watch. Beats regular but too short to read
+/// are not scattered, so that reason stands alone (Hugh on #2311).
+pub(super) fn no_watch_hover(r: Option<&LiveReading>) -> String {
+    let why = r.map(no_regular_beat).unwrap_or_default();
+    if r.is_some_and(beats_were_regular) {
+        format!("{why}.")
+    } else {
+        format!("{why}.\n\n{}", *help::NO_REGULAR_BEAT)
+    }
 }

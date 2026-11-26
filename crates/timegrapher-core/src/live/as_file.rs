@@ -428,7 +428,7 @@ fn with_read_figures(own: LiveReading, read: LiveReading) -> LiveReading {
 /// the watch live hears: the beat is still being found, as when live
 /// itself first hears a regular run, its beats heard still counted
 /// (Norm on #2133).
-fn without_figures(own: LiveReading) -> LiveReading {
+pub(super) fn without_figures(own: LiveReading) -> LiveReading {
     LiveReading {
         rate_s_per_day: None,
         beat_error_ms: None,

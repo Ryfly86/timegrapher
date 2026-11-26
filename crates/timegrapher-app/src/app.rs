@@ -1953,27 +1953,27 @@ impl TimegrapherApp {
     }
 
     /// Live's first chunk read again with the file's template took over (#1327): the charts'
-    /// points are read again, a run being read in the background on the old one dropped, and
-    /// the strip's anchor moves with the beats, so the view stays. A given-up rebuild is logged.
+    /// points are read again and a run being read in the background on the old one dropped.
+    /// The strip's anchor moves with every renumbering of the beats (that one, and the sides
+    /// named), so the view stays (#2318). A given-up rebuild is logged.
     fn follow_rebuild(&mut self) {
-        let Some(live) = &self.bench.recording.live else {
+        let rec = &mut self.bench.recording;
+        let Some(live) = &rec.live else {
             return;
         };
+        live.follow_numbering(&mut rec.anchor, &mut rec.numbering_seen);
         let now = recording::RebuildSeen::of(live);
-        let seen = self.bench.recording.rebuild_seen;
-        if now.switch_s != seen.switch_s {
+        if now.switch_s != rec.rebuild_seen.switch_s {
             self.bench.results.bg.trend = None;
             self.bench.results.trend = live.trend(self.bench.take.average_s);
-            if let (Some(a), Some((dt, di))) =
-                (self.bench.recording.anchor.as_mut(), live.template_shift())
-            {
-                (a.time, a.index) = (a.time + dt, a.index + di);
-            }
         }
-        if let Some(why) = now.given_up.filter(|_| now.given_up != seen.given_up) {
+        if let Some(why) = now
+            .given_up
+            .filter(|_| now.given_up != rec.rebuild_seen.given_up)
+        {
             applog::info(&format!("Live kept its first beat template: {why}"));
         }
-        self.bench.recording.rebuild_seen = now;
+        rec.rebuild_seen = now;
     }
 
     fn latest_s(&self) -> f64 {

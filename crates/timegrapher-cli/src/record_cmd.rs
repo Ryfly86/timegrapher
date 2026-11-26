@@ -44,7 +44,7 @@ use timegrapher_core::calibres;
 use timegrapher_core::capture::Block;
 use timegrapher_core::library::{self, Library};
 use timegrapher_core::library::{base_digits, fixed_text, signed_text};
-use timegrapher_core::live::{LiveAnalyzer, LiveConfig};
+use timegrapher_core::live::{keep_trend_point, LiveAnalyzer, LiveConfig, NumberingSeen};
 use timegrapher_core::power_reserve;
 use timegrapher_core::recorder::{self, Recorder, SessionInfo};
 use timegrapher_core::session::{self, Manifest, Position};
@@ -711,6 +711,10 @@ const AVERAGE_S: f64 = timegrapher_core::live::DEFAULT_AVERAGE_S;
 /// Most points kept in the live trend; older ones are thinned.
 const MAX_TREND: usize = 300;
 
+/// One live trend point: time, rate, amplitude, chosen beat error, and
+/// the beat error's source.
+type TrendPoint = ([Option<f64>; 4], Option<session::BeatErrorSource>);
+
 /// The latest readings while recording, kept in a file for a live view
 /// (`timegrapher.live/1`): heard as the app hears it, written about once
 /// a second of audio, each time whole, so a reader never sees half a file.
@@ -719,10 +723,20 @@ struct Feed {
     position: &'static str,
     seconds: f64,
     live: LiveAnalyzer,
-    /// The strip's anchor, set once from the first beats as the app does.
+    /// The strip's anchor, set from the first beats as the app does, and
+    /// moved as live renumbers them (#2318).
     anchor: Option<Anchor>,
-    /// Time, rate, amplitude, chosen beat error and its source, once a second.
-    trend: Vec<([Option<f64>; 4], Option<session::BeatErrorSource>)>,
+    /// How far the anchor has followed live's renumbering.
+    numbering: NumberingSeen,
+    /// Times the strip's beats were renumbered: the strip's `generation`.
+    strip_generation: u64,
+    /// Time, rate, amplitude, chosen beat error and its source: the points
+    /// kept over the whole take ([`keep_trend_point`]).
+    trend: Vec<TrendPoint>,
+    /// The seconds of the take between kept trend points.
+    trend_step_s: f64,
+    /// The newest trend point when it is not kept, given after the rest.
+    trend_newest: Option<TrendPoint>,
     next_s: f64,
 }
 
@@ -738,7 +752,11 @@ impl Feed {
             seconds,
             live: LiveAnalyzer::new(fs_hz, cfg).with_figures_as_file(),
             anchor: None,
+            numbering: NumberingSeen::default(),
+            strip_generation: 0,
             trend: Vec::new(),
+            trend_step_s: 1.0,
+            trend_newest: None,
             next_s: 1.0,
         };
         f.write(false);
@@ -761,10 +779,21 @@ impl Feed {
         self.write(true);
     }
 
+    /// The trend as written: the kept points, then the newest.
+    fn trend_points(&self) -> impl Iterator<Item = &TrendPoint> {
+        self.trend.iter().chain(&self.trend_newest)
+    }
+
     fn write(&mut self, done: bool) {
         let r = self.live.reading(AVERAGE_S);
         let t = self.live.duration_s();
         let period = self.live.bph().map(|b| 3600.0 / b as f64);
+        if self
+            .live
+            .follow_numbering(&mut self.anchor, &mut self.numbering)
+        {
+            self.strip_generation += 1;
+        }
         let beats = self.live.beats();
         if self.anchor.is_none() && beats.len() >= 16 {
             if let Some(p) = period {
@@ -772,7 +801,7 @@ impl Feed {
             }
         }
         if r.beats_used > 0 {
-            self.trend.push((
+            let point = (
                 [
                     Some(t),
                     r.rate_s_per_day,
@@ -780,16 +809,16 @@ impl Feed {
                     session::beat_error_signed(r.beat_error_unlock_ms, r.beat_error_ms),
                 ],
                 r.beat_error_source,
-            ));
-            if self.trend.len() > MAX_TREND {
-                // Every other point of the older half goes.
-                let half = self.trend.len() / 2;
-                let mut k = 0;
-                self.trend.retain(|_| {
-                    k += 1;
-                    k > half || k % 2 == 1
-                });
-            }
+            );
+            // The whole take in at most MAX_TREND points (#2318).
+            let at = |p: &TrendPoint| p.0[0].unwrap_or(0.0);
+            self.trend_newest = keep_trend_point(
+                &mut self.trend,
+                &mut self.trend_step_s,
+                MAX_TREND,
+                at,
+                point,
+            );
         }
         // Each beat's lead on the anchor, ms (positive: early), as the
         // app's strip draws it; Tick is side 0.
@@ -801,7 +830,7 @@ impl Feed {
                 .collect(),
             _ => Vec::new(),
         };
-        let col = |i: usize| -> Vec<Option<f64>> { self.trend.iter().map(|p| p.0[i]).collect() };
+        let col = |i: usize| -> Vec<Option<f64>> { self.trend_points().map(|p| p.0[i]).collect() };
         // The reading with the beat rate heard beside its rate (#2223).
         let mut reading = json!(r);
         if let Some(m) = r.measured() {
@@ -816,9 +845,10 @@ impl Feed {
             "average_s": AVERAGE_S,
             "beats_heard": beats.len(),
             "reading": reading,
-            "strip": { "span_s": STRIP_S, "period_s": period, "beats": strip },
+            "strip": { "span_s": STRIP_S, "period_s": period, "generation": self.strip_generation,
+                "beats": strip },
             "trend": { "t_s": col(0), "rate": col(1), "amplitude": col(2), "beat_error": col(3),
-                "beat_error_source": self.trend.iter().map(|p| p.1).collect::<Vec<_>>() },
+                "beat_error_source": self.trend_points().map(|p| p.1).collect::<Vec<_>>() },
         });
         let tmp = self.path.with_extension("tmp");
         if fs::write(&tmp, doc.to_string()).is_ok() {
@@ -1369,6 +1399,161 @@ mod tests {
             sources.last().unwrap(),
             &doc["reading"]["beat_error_source"]
         );
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    /// The written trend covers the whole take, evenly, in at most
+    /// `MAX_TREND` points, and ends at the done frame's reading (#2318:
+    /// the rule before kept the first point and then only the newest
+    /// stretch, so a long take's middle was gone).
+    #[test]
+    fn live_trend_keeps_the_whole_take_evenly() {
+        use timegrapher_core::synth::{generate, SynthConfig};
+        let dir = std::env::temp_dir().join(format!("tg-live-whole-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("live.json");
+        let set = Settings {
+            watch: None,
+            calibre: None,
+            bph: Some(28800),
+            lift: 52.0,
+            lift_known: true,
+            lift_from: take::SettingFrom::Given,
+            settle_s: None,
+        };
+        let mut feed = Feed::new(&path, Position::CH, 20.0, 48000, &set);
+        let sound = generate(
+            &SynthConfig {
+                duration_s: 20.0,
+                ..Default::default()
+            },
+            |_| 270.0,
+            |_| 0.0,
+        );
+        for chunk in sound.samples.chunks(4800) {
+            feed.live.push(chunk);
+        }
+        // 7,200 readings over the first 18 s: two hours' worth, on a grid
+        // scaled to the 20 s of sound, from a first step of 1/300 s (so
+        // the step ends at 32/300 s, which doesn't divide 20 s).
+        assert_eq!(feed.trend_step_s, 1.0, "the step starts at 1 s");
+        feed.trend_step_s = 1.0 / 300.0;
+        let keep = |feed: &mut Feed, t: f64| {
+            let at = |p: &TrendPoint| p.0[0].unwrap();
+            feed.trend_newest = keep_trend_point(
+                &mut feed.trend,
+                &mut feed.trend_step_s,
+                MAX_TREND,
+                at,
+                ([Some(t), None, None, None], None),
+            );
+        };
+        for i in 0..7200 {
+            keep(&mut feed, i as f64 / 400.0);
+        }
+        // One more reading early in the step the done frame falls in, so
+        // the done frame is not kept and is given as the newest.
+        let recorded = feed.live.duration_s();
+        let step = feed.trend_step_s;
+        let in_last = (recorded / step).floor() * step + 1.0 / 400.0;
+        assert!(in_last < recorded, "{in_last} {recorded}");
+        keep(&mut feed, in_last);
+        feed.finish();
+        let doc: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        let times: Vec<f64> = doc["trend"]["t_s"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|t| t.as_f64().unwrap())
+            .collect();
+        assert!(times.len() <= MAX_TREND, "{} points", times.len());
+        assert!(times.len() > MAX_TREND / 2, "{} points", times.len());
+        assert_eq!(times[0], 0.0);
+        // The written trend ends at the done frame, the newest reading,
+        // after the kept reading in its step, each time once.
+        assert_eq!(*times.last().unwrap(), doc["recorded_s"].as_f64().unwrap());
+        assert_eq!(times[times.len() - 2], in_last);
+        assert!(times.windows(2).all(|w| w[1] > w[0]), "out of order");
+        assert_eq!(feed.trend_step_s, step);
+        let gaps: Vec<f64> = times[..times.len() - 2]
+            .windows(2)
+            .map(|w| w[1] - w[0])
+            .collect();
+        // Each kept point is the first heard in its step: even to within
+        // one reading's spacing.
+        let even = |g: &f64| (g - step).abs() <= 1.0 / 400.0 + 1e-9;
+        assert!(gaps.iter().all(even), "uneven: {gaps:?}");
+        assert!(times.iter().any(|t| (t - 9.0).abs() <= step), "middle gone");
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    /// #2318: with the Tock late, live names the sides the other way round
+    /// about 10 s in and numbers every beat so far one further. A beat the
+    /// strip has written keeps its `lead_ms` (it jumped a beat period, 125
+    /// ms at 28,800 bph), and its `side` changes only with the strip's
+    /// `generation`.
+    #[test]
+    fn a_written_strip_beat_keeps_its_lead_when_the_sides_are_named() {
+        use std::collections::BTreeMap;
+        use timegrapher_core::synth::{generate, SynthConfig};
+        let dir = std::env::temp_dir().join(format!("tg-live-strip-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("live.json");
+        let set = Settings {
+            watch: None,
+            calibre: None,
+            bph: Some(28800),
+            lift: 52.0,
+            lift_known: true,
+            lift_from: take::SettingFrom::Given,
+            settle_s: None,
+        };
+        let mut feed = Feed::new(&path, Position::CH, 20.0, 48000, &set);
+        let sound = generate(
+            &SynthConfig {
+                duration_s: 20.0,
+                beat_error_ms: -1.5,
+                ..Default::default()
+            },
+            |_| 270.0,
+            |_| 0.0,
+        );
+        // Each written beat's lead, side and the strip's generation, once
+        // it is old enough not to be timed again, keyed by its time in 0.1 ms.
+        let mut written: BTreeMap<i64, Vec<(f64, f64, u64)>> = BTreeMap::new();
+        for chunk in sound.samples.chunks(48000) {
+            feed.push(chunk);
+            let doc: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+            let settled = doc["recorded_s"].as_f64().unwrap() - 5.0;
+            let generation = doc["strip"]["generation"].as_u64().unwrap();
+            for b in doc["strip"]["beats"].as_array().unwrap() {
+                let [t, lead, side] = [0, 1, 2].map(|i| b[i].as_f64().unwrap());
+                if t < settled {
+                    let key = (t * 1e4).round() as i64;
+                    written
+                        .entry(key)
+                        .or_default()
+                        .push((lead, side, generation));
+                }
+            }
+        }
+        let mut swapped = 0;
+        for seen in written.values() {
+            let (lead, side, generation) = seen[0];
+            for &(l, s, g) in seen {
+                assert!((l - lead).abs() < 1.0, "lead {lead} then {l} ms");
+                assert!(
+                    s == side || g != generation,
+                    "side swapped without a new generation"
+                );
+                swapped += usize::from(s != side);
+            }
+        }
+        assert!(
+            swapped > 0,
+            "the beats written before the naming swap sides"
+        );
+        assert_eq!(feed.strip_generation, 1, "the sides named once");
         let _ = fs::remove_dir_all(dir);
     }
 
