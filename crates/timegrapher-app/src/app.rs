@@ -2596,6 +2596,7 @@ pub(crate) fn nearest_at(points: &[[f64; 2]], x: f64) -> Option<usize> {
 struct WatchSetup {
     watch: String,
     calibre: String,
+    escapement_set: Option<timegrapher_core::escapement::Escapement>,
     lift_deg: f64,
     lift_context: (f64, bool),
     bph: Option<u32>,
@@ -2607,6 +2608,7 @@ impl Default for WatchSetup {
         WatchSetup {
             watch: String::new(),
             calibre: String::new(),
+            escapement_set: None,
             lift_deg: DEFAULT_LIFT_DEG,
             lift_context: (DEFAULT_LIFT_DEG, false),
             bph: None,
@@ -3231,6 +3233,7 @@ impl eframe::App for TimegrapherApp {
         if let Some(l) = &mut self.bench.recording.live {
             l.set_known(lift_known, clock_known);
         }
+        self.keep_escapement();
         // A file dropped on the window is opened, where the desktop passes
         // drops on (not yet on Wayland).
         let dropped: Vec<PathBuf> = ctx.input(|i| {
@@ -3473,6 +3476,10 @@ mod steady_tests;
 #[cfg(test)]
 #[path = "app_lift_tests.rs"]
 mod lift_tests;
+
+#[cfg(test)]
+#[path = "app_coaxial_tests.rs"]
+mod coaxial_tests;
 
 #[cfg(test)]
 #[path = "app_strip_tests.rs"]

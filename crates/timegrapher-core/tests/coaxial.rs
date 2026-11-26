@@ -416,3 +416,115 @@ fn a_co_axial_two_state_gives_no_drop_beat_error() {
         assert_eq!(two.beat_error_drop_ms.is_some(), drop, "{escapement:?}");
     }
 }
+
+/// Every co-axial reading says where its beat error comes from: the
+/// unlock's alone, or none and why (Hugh's option (a) on #2317), in a
+/// saved take's reading, `analyze`, live and the long-run report alike. A
+/// lever's carries no such caveat.
+#[test]
+fn every_co_axial_reading_says_where_its_beat_error_comes_from() {
+    use timegrapher_core::longrun::analyse;
+    use timegrapher_core::longterm::LongConfig;
+    use timegrapher_core::measure::DropWhy;
+    let coaxial = |c: &[Caveat]| -> Vec<Caveat> {
+        c.iter()
+            .filter(|c| matches!(c, Caveat::CoaxialBeatError { .. }))
+            .copied()
+            .collect()
+    };
+    for heard in [true, false] {
+        let said = vec![Caveat::CoaxialBeatError {
+            why: (!heard).then_some(DropWhy::UnlockNotFound),
+        }];
+        for (escapement, want) in [
+            (Escapement::CoAxial, said),
+            (Escapement::SwissLever, vec![]),
+        ] {
+            let log = log_at(LIFT_DEG, escapement, heard);
+            let m = read(&log);
+            assert_eq!(coaxial(&m.caveats), want, "session {escapement:?} {heard}");
+            let (_, audio) = watch(heard);
+            let s = analyze(&audio, &stream_cfg(LIFT_DEG, escapement).analysis).summary;
+            assert_eq!(coaxial(&s.caveats), want, "analyze {escapement:?} {heard}");
+            let r = analyse(&log, None, &LongConfig::default());
+            assert_eq!(coaxial(&r.caveats), want, "long {escapement:?} {heard}");
+            let cfg = LiveConfig {
+                analysis: stream_cfg(LIFT_DEG, escapement).analysis,
+                ..Default::default()
+            };
+            let r = LiveAnalyzer::from_log(log, cfg).reading(20.0);
+            assert_eq!(coaxial(&r.caveats), want, "live {escapement:?} {heard}");
+        }
+    }
+    // The JSON code and its reason, as agents read them.
+    let c = Caveat::CoaxialBeatError {
+        why: Some(DropWhy::UnlockNotFound),
+    };
+    let v = serde_json::to_value(c).unwrap();
+    assert_eq!(v["code"], "coaxial_beat_error");
+    assert_eq!(v["why"], "unlock_not_found");
+    let v = serde_json::to_value(Caveat::CoaxialBeatError { why: None }).unwrap();
+    assert!(v.get("why").is_none(), "{v}");
+}
+
+/// A reading with no figures says nothing of where its beat error comes
+/// from: no regular beat, so no "unlock not found".
+#[test]
+fn a_co_axial_with_no_watch_heard_says_nothing_of_its_beat_error() {
+    let mut cfg = SynthConfig {
+        duration_s: 20.0,
+        ..Default::default()
+    };
+    for s in cfg.sounds.iter_mut() {
+        s.gain = 0.0;
+    }
+    let audio = generate(&cfg, |_| AMPLITUDE_DEG, |_| 0.0);
+    let s = analyze(&audio, &stream_cfg(LIFT_DEG, Escapement::CoAxial).analysis).summary;
+    assert!(!s.watch_heard);
+    assert!(!s
+        .caveats
+        .iter()
+        .any(|c| matches!(c, Caveat::CoaxialBeatError { .. })));
+}
+
+/// Live listening set to another escapement, as when a co-axial calibre
+/// is picked while listening, reads every reading as one read for it from
+/// the start, and back again.
+#[test]
+fn live_set_to_another_escapement_reads_as_one_read_for_it() {
+    let (synth, audio) = watch(true);
+    let at = |escapement| {
+        let cfg = LiveConfig {
+            analysis: stream_cfg(52.0, escapement).analysis,
+            ..Default::default()
+        };
+        let mut l = LiveAnalyzer::new(synth.sample_rate, cfg);
+        for c in audio.samples.chunks(4800) {
+            l.push(c);
+        }
+        l
+    };
+    let figures = |r: &timegrapher_core::live::LiveReading| {
+        (
+            r.beat_error_ms,
+            r.beat_error_unlock_ms,
+            r.beat_error_source,
+            r.caveats.clone(),
+        )
+    };
+    let lever = figures(&at(Escapement::SwissLever).reading(20.0));
+    let coaxial = figures(&at(Escapement::CoAxial).reading(20.0));
+    // The two differ at 52°: the lever loses the unlock, the co-axial
+    // keeps it and gives no drop.
+    assert_eq!(lever.2, Some(BeatErrorSource::Drop));
+    assert_eq!(coaxial.2, Some(BeatErrorSource::Unlock));
+    let mut l = at(Escapement::SwissLever);
+    l.set_escapement(Escapement::CoAxial);
+    assert_eq!(
+        l.config().analysis.amplitude.escapement,
+        Escapement::CoAxial
+    );
+    assert_eq!(figures(&l.reading(20.0)), coaxial);
+    l.set_escapement(Escapement::SwissLever);
+    assert_eq!(figures(&l.reading(20.0)), lever);
+}

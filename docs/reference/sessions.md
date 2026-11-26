@@ -185,7 +185,10 @@ Co-axial reading is in beta (#2313): the beat error is the unlock's or
 none, never the drop's (on a co-axial the two sides' last sounds are
 different events), the unlock's is found whatever the lift angle, and the
 amplitude, read with the Swiss lever's formula, carries the
-`coaxial_estimate` caveat.
+`coaxial_estimate` caveat. Each reading carries `coaxial_beat_error`, with
+`why` when it has no beat error. The app reads a take, and listens live,
+for the escapement this key or the calibre gives, and saves the key back
+with a take that had it.
 
 Paths are relative to the session file. Any recording-level `settle_s` or
 `measure_s` overrides the session's. `shape = false` or `cycles = false`

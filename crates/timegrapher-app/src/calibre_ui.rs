@@ -1729,8 +1729,9 @@ impl Calibres {
                 ui.label(RichText::new(aka).small().color(pal.text_tertiary));
             }
         }
-        // Its escapement, when Timegrapher doesn't measure it yet, with
-        // where that comes from in the hover (#1872).
+        // Its escapement, when not a Swiss lever: how a co-axial is read
+        // (#2313), or that it isn't measured yet (#1872), with where that
+        // comes from in the hover.
         if let Some(x) = e.escapement() {
             ui.add_space(6.0);
             let said = calibre_page::escapement_part(x);
@@ -1972,8 +1973,9 @@ pub(crate) fn custom<'a>(
 fn number_cell(ui: &egui::Ui, e: Entry<'_>, col: Col, cell: egui::Rect) {
     let pal = theme::pal(ui);
     // A calibre whose escapement isn't measured yet: the muted tag in
-    // place of its lift angle, which still sorts the column (#1872).
-    if col == Col::LiftAngle && e.escapement().is_some() {
+    // place of its lift angle, which still sorts the column (#1872). A
+    // co-axial's lift angle shows as a lever's: it is read for (#2313).
+    if col == Col::LiftAngle && e.escapement().is_some_and(|x| x.read_for().is_none()) {
         ui.painter().with_clip_rect(cell).text(
             egui::pos2(cell.right() - NUMBER_PAD, cell.center().y),
             egui::Align2::RIGHT_CENTER,
@@ -2428,9 +2430,10 @@ impl Picked {
 /// One calibre in the menu, ticked when it is `current`.
 fn menu_line(ui: &mut egui::Ui, e: Entry<'_>, text: String, current: &str, picked: &Picked) {
     // A calibre whose escapement isn't measured yet can still be picked,
-    // its tag beside its name (#1872).
+    // its tag beside its name (#1872); a co-axial's says it is read for
+    // in beta (#2313).
     let text = match e.escapement() {
-        Some(_) => format!("{text}  ·  {}", calibres::Escapement::TAG),
+        Some(x) => format!("{text}  ·  {}", x.tag()),
         None => text,
     };
     picked.item(ui, e.name() == current, text, &hint(e), e.name());

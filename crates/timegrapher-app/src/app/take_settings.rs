@@ -22,6 +22,11 @@ pub(super) struct TakeSettings {
     /// The calibre picked on the Calibre card: a name in the table or one of the
     /// user's own, or empty when not set.
     pub(super) calibre: String,
+    /// The escapement the take on show's session file sets (its
+    /// `escapement` key), which outranks its calibre's (core's
+    /// `Escapement::setting`, #2313); None for a microphone session and a
+    /// file that sets none.
+    pub(super) escapement_set: Option<timegrapher_core::escapement::Escapement>,
     /// Stretches masked out of the readings on the strip, start and end in
     /// the session's seconds, sorted and apart. Saved with the take.
     pub(super) masked: Vec<(f64, f64)>,
@@ -90,6 +95,7 @@ impl Default for TakeSettings {
             average_s: timegrapher_core::live::DEFAULT_AVERAGE_S,
             watch: String::new(),
             calibre: String::new(),
+            escapement_set: None,
             masked: Vec::new(),
             opened_masks: None,
             masking: false,

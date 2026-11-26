@@ -35,6 +35,7 @@ impl TimegrapherApp {
             bph: self.bench.take.bph,
             lift_deg: self.bench.take.lift_deg,
             lift_known: self.lift_known(),
+            escapement: self.escapement(),
             average_s: self.bench.take.average_s,
             masked: self.bench.take.masked.clone(),
             changes: stretches.iter().map(|s| s.0).collect(),
@@ -1328,6 +1329,7 @@ impl TimegrapherApp {
                 .or(self.bench.recording.live.as_ref().and_then(|l| l.bph())),
             lift: Some(self.bench.take.lift_deg),
             lift_known: Some(self.lift_known()),
+            escapement: self.bench.take.escapement_set,
             ..Default::default()
         };
         if let Some(w) = self.cal.custom_wheels(&self.bench.take.calibre) {
@@ -1410,6 +1412,8 @@ impl TimegrapherApp {
             self.cal.adopt(c, &wheels);
             self.set_calibre(c.clone());
         }
+        // The file's own escapement, outranking the calibre's (#2313).
+        self.bench.take.escapement_set = m.escapement;
         if m.lift.is_some() {
             // The lift by core's one rule, as `session` reads it (#2232):
             // a supplied lift stands, an assumed one gives way to the
@@ -1649,6 +1653,7 @@ impl TimegrapherApp {
         WatchSetup {
             watch: self.bench.take.watch.clone(),
             calibre: self.bench.take.calibre.clone(),
+            escapement_set: self.bench.take.escapement_set,
             lift_deg: self.bench.take.lift_deg,
             lift_context: self.bench.take.lift_context,
             bph: self.bench.take.bph,
@@ -1662,6 +1667,7 @@ impl TimegrapherApp {
         self.bench.take.watch = s.watch;
         let outer = std::mem::replace(&mut self.bench.recording.opening, true);
         self.set_calibre(s.calibre);
+        self.bench.take.escapement_set = s.escapement_set;
         self.bench.recording.opening = outer;
         self.put_lift(s.lift_deg);
         self.bench.take.lift_context = s.lift_context;
@@ -2638,6 +2644,8 @@ pub(super) struct OpenInputs {
     pub(super) bph: Option<u32>,
     pub(super) lift_deg: f64,
     pub(super) lift_known: bool,
+    /// The escapement read for (#2313).
+    pub(super) escapement: timegrapher_core::escapement::Escapement,
     pub(super) average_s: f64,
     pub(super) masked: Vec<(f64, f64)>,
     /// Where each position began, and the settling before each one's
@@ -2652,6 +2660,7 @@ fn config_for(i: &OpenInputs) -> LiveConfig {
     c.analysis.bph = i.bph;
     c.analysis.amplitude.lift_deg = i.lift_deg;
     c.analysis.lift_known = i.lift_known;
+    c.analysis.amplitude.escapement = i.escapement;
     c.profile_s = profile_span_s(i.average_s);
     // Every beat of as long as the strip can show, a power reserve
     // run's limit, rather than the engine's day: a take listened to

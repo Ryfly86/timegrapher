@@ -864,6 +864,22 @@ impl LiveAnalyzer {
         self.in_held(|l| l.set_lift(lift_deg));
     }
 
+    /// Read for escapement `escapement` from now on (#2313): the windows
+    /// kept so far read again for it as a kept take's are
+    /// ([`amplitude::kept_for`]), so every reading, the ones before the
+    /// change too, is the new escapement's. Nothing moves when it is the
+    /// one already read for.
+    pub fn set_escapement(&mut self, escapement: crate::escapement::Escapement) {
+        if escapement == self.cfg.analysis.amplitude.escapement {
+            return;
+        }
+        amplitude::kept_for(&mut self.amp, escapement);
+        self.cfg.analysis.amplitude.escapement = escapement;
+        self.in_shadow(|l| l.set_escapement(escapement));
+        self.in_view(|l| l.set_escapement(escapement));
+        self.in_held(|l| l.set_escapement(escapement));
+    }
+
     /// Keep up to `n` beats from now on, the oldest dropped beyond them.
     pub fn set_max_beats(&mut self, n: usize) {
         self.cfg.max_beats = n;
@@ -1523,8 +1539,8 @@ impl LiveAnalyzer {
         let read = watch_heard && listening.is_none();
         let heard = |v: Option<f64>| v.filter(|_| read);
         // Figures that name a side wait until the sides are told apart.
-        let sided = self.sides_known_at(end_s);
-        let sided = |v: Option<f64>| heard(v).filter(|_| sided);
+        let sides_known = self.sides_known_at(end_s);
+        let sided = |v: Option<f64>| heard(v).filter(|_| sides_known);
         let clipped_fraction = st.clipped_fraction();
         let take = measure::TakeWindows {
             rate: take_rate,
@@ -1543,9 +1559,11 @@ impl LiveAnalyzer {
         let beat_error_source =
             crate::session::chosen_beat_error(beat_error_unlock_ms, beat_error_ms)
                 .map(|(_, source)| source);
-        if let Some(caveat) =
-            beat_error_source.and_then(|s| s.caveat_why(figures.unlock_inconsistent))
-        {
+        if let Some(caveat) = self.cfg.analysis.amplitude.escapement.beat_error_caveat(
+            beat_error_source,
+            figures.unlock_inconsistent,
+            read && sides_known,
+        ) {
             measure::add(&mut caveats, caveat);
         }
         self.window_caveats(&mut caveats, masked_s);

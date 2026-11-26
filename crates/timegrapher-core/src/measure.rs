@@ -406,7 +406,9 @@ impl Counted {
     }
 }
 
-/// Why a beat error comes from the drop ([`Caveat::BeatErrorFromDrop`]).
+/// Why the unlock gives no beat error: so a Swiss lever's comes from the
+/// drop ([`Caveat::BeatErrorFromDrop`]), and a co-axial has none
+/// ([`Caveat::CoaxialBeatError`], #2313).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DropWhy {
@@ -425,7 +427,7 @@ impl DropWhy {
     }
 
     /// The reason in a few words, as the command line gives it beside a
-    /// beat error from the drop.
+    /// beat error from the drop, or beside a co-axial's "none".
     pub fn words(self) -> &'static str {
         match self {
             Self::UnlockNotFound => "unlock not found",
@@ -443,6 +445,16 @@ impl DropWhy {
                 _ => None,
             })
             .unwrap_or_default()
+    }
+
+    /// Why a co-axial reading in `caveats` has no beat error
+    /// ([`Caveat::CoaxialBeatError`]); None where it has one, or is not
+    /// read for a co-axial.
+    pub fn coaxial_of(caveats: &[Caveat]) -> Option<Self> {
+        caveats.iter().find_map(|c| match c {
+            Caveat::CoaxialBeatError { why } => *why,
+            _ => None,
+        })
     }
 
     /// The caveat's sentence for this reason, as a reading's hover gives it.
@@ -566,6 +578,15 @@ pub enum Caveat {
     BeatErrorFromDrop {
         #[serde(default, skip_serializing_if = "DropWhy::is_not_found")]
         why: DropWhy,
+    },
+    /// The take is read for a co-axial escapement (#2313,
+    /// [`crate::escapement`]), so its beat error is the unlock's alone,
+    /// never the drop's; `why` says why there is none, where there is
+    /// none: the unlock not found, or its signs disagreeing (#1439).
+    /// Given with every co-axial reading that gives readings.
+    CoaxialBeatError {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        why: Option<DropWhy>,
     },
     /// Saved readings of unknown event were excluded from a pooled figure.
     BeatErrorUnknownSource { readings: usize },
@@ -694,6 +715,7 @@ impl Caveat {
             Caveat::SidesByCount { .. }
             | Caveat::BeatErrorAsSize
             | Caveat::BeatErrorFromDrop { .. }
+            | Caveat::CoaxialBeatError { .. }
             | Caveat::BeatErrorUnknownSource { .. }
             | Caveat::BeatErrorSourceReadings { .. } => &[BeatError],
             Caveat::ReadingWindows { reading, .. } => match reading {
@@ -759,6 +781,7 @@ impl Caveat {
                 format!("{readings} beat-error readings with no recorded source left out")
             }
             Caveat::BeatErrorFromDrop { .. } => "beat error from the drop".to_string(),
+            Caveat::CoaxialBeatError { why } => coaxial_beat_error_short(*why),
             Caveat::FaintSidesWithheld { sides, .. } => {
                 format!("{sides} faint side{} left out", plural(*sides))
             }
@@ -818,6 +841,7 @@ impl Caveat {
             Caveat::BeatErrorUnknownSource { readings } =>
                 format!("The beat-error aggregate leaves out {readings} reading{} whose source was not recorded.", plural(*readings)),
             Caveat::BeatErrorFromDrop { why } => why.sentence().to_string(),
+            Caveat::CoaxialBeatError { why } => coaxial_beat_error_long(*why),
             Caveat::FaintSidesWithheld { sides, windows } => faint_sides_text(*sides, *windows),
             Caveat::SetRateDisagrees { heard } => {
                 format!("The beat rate set differs from the {heard} bph heard.")
@@ -962,6 +986,7 @@ impl Caveat {
             Caveat::LeadLeftOut { .. } => 15,
             Caveat::LockTemplateKept => 15,
             Caveat::BeatErrorFromDrop { .. } => 16,
+            Caveat::CoaxialBeatError { .. } => 16,
             Caveat::BeatErrorSourceReadings { .. } => 18,
             Caveat::BeatErrorUnknownSource { .. } => 19,
             Caveat::ReadingWindows { .. } => 17,
@@ -1054,6 +1079,31 @@ pub const COAXIAL_ESTIMATE_SHORT: &str = "co-axial escapement estimate (beta)";
 /// [`Caveat::CoaxialEstimate`] as a sentence.
 pub const COAXIAL_ESTIMATE_LONG: &str = "The amplitude is a co-axial escapement estimate \
      (beta): it uses the Swiss lever's formula and has not been checked against a reference.";
+
+/// [`Caveat::CoaxialBeatError`] in a few words: where the beat error
+/// comes from, or why there is none.
+fn coaxial_beat_error_short(why: Option<DropWhy>) -> String {
+    match why {
+        None => "co-axial: beat error from the unlock".to_string(),
+        Some(w) => format!("co-axial: {}", w.words()),
+    }
+}
+
+/// [`Caveat::CoaxialBeatError`] as a sentence.
+fn coaxial_beat_error_long(why: Option<DropWhy>) -> String {
+    let lead = "Read for a co-axial escapement (beta): the beat error is the unlock's alone";
+    match why {
+        None => format!(
+            "{lead}. The drop's is not used: on a co-axial the two sides end on different \
+             events."
+        ),
+        Some(DropWhy::UnlockNotFound) => format!("{lead}, and the unlock was not found."),
+        Some(DropWhy::UnlockInconsistent) => format!(
+            "{lead}, and the unlock's beat errors disagree in sign more than their spread \
+             allows."
+        ),
+    }
+}
 
 /// The lift angle an amplitude was worked out from, as every reading
 /// beside an amplitude says it: "lift angle 52°", or "lift angle 52°, the

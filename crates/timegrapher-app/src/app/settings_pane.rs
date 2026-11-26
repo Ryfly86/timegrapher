@@ -810,6 +810,29 @@ impl TimegrapherApp {
         }
     }
 
+    /// The escapement the take on show is read for, by core's one rule
+    /// (`Escapement::setting`, #2313): its session file's, else its
+    /// calibre's where Timegrapher reads for it, else the Swiss lever.
+    pub(super) fn escapement(&self) -> timegrapher_core::escapement::Escapement {
+        let calibre = self
+            .cal
+            .find(&self.bench.take.calibre)
+            .and_then(|e| e.escapement())
+            .and_then(|x| x.read_for());
+        timegrapher_core::escapement::Escapement::setting(self.bench.take.escapement_set, calibre)
+    }
+
+    /// The engine listening, or holding the take on show, read for
+    /// [`Self::escapement`] (#2313): a co-axial calibre picked, or put
+    /// back, while listening reads every reading for it. Each frame, as
+    /// what the readings rest on is.
+    pub(super) fn keep_escapement(&mut self) {
+        let escapement = self.escapement();
+        if let Some(l) = &mut self.bench.recording.live {
+            l.set_escapement(escapement);
+        }
+    }
+
     pub(super) fn set_lift(&mut self, lift: f64) {
         self.put_lift(lift);
         if let Some(l) = self.bench.recording.live.as_mut() {
