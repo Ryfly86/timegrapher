@@ -265,3 +265,36 @@ fn a_takes_escapement_comes_from_its_file_or_its_calibre() {
         Escapement::SwissLever
     );
 }
+
+/// The long-run report reads a co-axial as a take does: no slice and no
+/// whole-run drop beat error, the unlock's where it is heard, none where it
+/// isn't, and the caveat on its amplitude.
+#[test]
+fn a_long_run_report_reads_a_co_axial_as_a_take_does() {
+    use timegrapher_core::longrun::analyse;
+    use timegrapher_core::longterm::LongConfig;
+    let lc = LongConfig::default();
+    let r = analyse(&log_at(LIFT_DEG, Escapement::CoAxial, true), None, &lc);
+    assert_eq!(r.escapement, Escapement::CoAxial);
+    assert!(r.overall.is_some());
+    assert_eq!(r.drop_beat_error_ms(), None);
+    assert!(!r.slices.is_empty());
+    assert!(r.slices.iter().all(|s| s.beat_error_ms.is_none()));
+    assert!(r.slices.iter().any(|s| s.beat_error_unlock_ms.is_some()));
+    let be = r.beat_error_unlock_ms.expect("the unlock's beat error");
+    assert!((be.abs() - BEAT_ERROR_MS).abs() < 0.1, "{be}");
+    assert!(r.amplitude_deg.is_some());
+    assert!(r.caveats.contains(&Caveat::CoaxialEstimate));
+    assert!(!has_drop_caveat(&r.caveats));
+    // Not heard: no beat error from either.
+    let r = analyse(&log_at(LIFT_DEG, Escapement::CoAxial, false), None, &lc);
+    assert!(r.overall.is_some());
+    assert_eq!(r.drop_beat_error_ms(), None);
+    assert_eq!(r.beat_error_unlock_ms, None);
+    assert!(r.slices.iter().all(|s| s.beat_error_ms.is_none()));
+    // A lever's report is as before: the drop's given, no caveat.
+    let r = analyse(&log_at(LIFT_DEG, Escapement::SwissLever, false), None, &lc);
+    assert!(r.drop_beat_error_ms().is_some());
+    assert!(r.slices.iter().any(|s| s.beat_error_ms.is_some()));
+    assert!(!r.caveats.contains(&Caveat::CoaxialEstimate));
+}

@@ -35,12 +35,7 @@ pub fn settings(cfg: &AnalysisConfig, calibre: Option<&str>) -> Value {
 /// [`crate::escapement::Escapement::drop_beat_error`]).
 pub fn body(summary: &Summary, clock: Option<(f64, &str)>) -> Result<Value, String> {
     let mut body = serde_json::to_value(summary).map_err(|e| e.to_string())?;
-    if let Some(o) = body.get_mut("overall").and_then(Value::as_object_mut) {
-        let drop = summary.overall.map(|f| f.beat_error_ms);
-        if summary.escapement.drop_beat_error(drop).is_none() {
-            o.insert("beat_error_ms".into(), Value::Null);
-        }
-    }
+    body["overall"] = summary.escapement.overall_json(summary.overall.as_ref());
     if let Some(m) = measured(summary, clock.map(|(ppm, _)| ppm)) {
         m.write_into(&mut body);
     }

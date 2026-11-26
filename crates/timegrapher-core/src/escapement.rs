@@ -67,6 +67,19 @@ impl Escapement {
         self.is_swiss_lever()
     }
 
+    /// A whole-run fit `overall` as a document gives it: on a co-axial
+    /// with no `beat_error_ms`, the beat times' and not a drop's (null).
+    /// The one rule for `analyze`'s and `long`'s `overall`.
+    pub fn overall_json(self, overall: Option<&crate::timing::TimingFit>) -> serde_json::Value {
+        let mut v = serde_json::to_value(overall).unwrap_or_default();
+        if let Some(o) = v.as_object_mut() {
+            if self.is_co_axial() {
+                o.insert("beat_error_ms".into(), serde_json::Value::Null);
+            }
+        }
+        v
+    }
+
     /// The caveat a reading with an amplitude carries: on a co-axial, that
     /// it is an estimate (beta).
     pub fn amplitude_caveat(self, amplitude_shown: bool) -> Option<crate::measure::Caveat> {

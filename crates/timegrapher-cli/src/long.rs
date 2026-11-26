@@ -8,6 +8,7 @@ use timegrapher_core::calibre_store::{self, UserCalibres};
 #[cfg(test)]
 use timegrapher_core::calibres::{self, Calibre};
 use timegrapher_core::clock::{self, ClockFit};
+use timegrapher_core::escapement::Escapement;
 use timegrapher_core::library::{fixed_text, signed_text};
 use timegrapher_core::longrun::{self, LongReport};
 use timegrapher_core::longterm::{false_alarm_text, Component, LongConfig};
@@ -15,7 +16,7 @@ use timegrapher_core::periodicity::{common_escape_wheels, standard_wheels, Wheel
 use timegrapher_core::stream::{BeatLog, StreamConfig};
 use timegrapher_core::take_context::{Masks, TakeContext};
 use timegrapher_core::timefreq::size_number;
-use timegrapher_core::{audio, joined, take, take_path, timing};
+use timegrapher_core::{audio, joined, take, take_path};
 
 /// Which wheels to name: a calibre's train, the escape wheel at a given
 /// number of teeth, or both common escape wheels when neither is given.
@@ -111,6 +112,16 @@ pub(crate) struct ResolvedTrain {
 
 /// A calibre as the catalogue gives it ([`take::calibre_named`]).
 pub(crate) type ResolvedCalibre = take::Calibre;
+
+impl ResolvedTrain {
+    /// The escapement a recording with no session file is read for: its
+    /// calibre's ([`timegrapher_core::escapement::Escapement::setting`],
+    /// #2313).
+    pub(crate) fn escapement(&self) -> Escapement {
+        let calibre = self.calibre.as_ref().and_then(|c| c.escapement);
+        Escapement::setting(None, calibre)
+    }
+}
 
 impl Train<'_> {
     /// The train of the take `m`: a calibre given is looked up; the
@@ -398,6 +409,7 @@ pub(crate) fn read(
     let resolved_train = train.resolve()?;
     let mut cfg = cfg.clone();
     cfg.analysis.amplitude.lift_deg = resolved_train.lift_deg(lift);
+    cfg.analysis.amplitude.escapement = resolved_train.escapement();
     cfg.analysis.lift_known = resolved_train.lift_given(lift).is_some();
     let files = expand_dirs(files)?;
     note_join_order(&files);
@@ -471,6 +483,7 @@ fn read_take(
     cfg.analysis.amplitude.lift_deg = set.analysis.amplitude.lift_deg;
     cfg.analysis.lift_known = set.analysis.lift_known;
     cfg.analysis.escape_teeth = set.analysis.escape_teeth;
+    cfg.analysis.amplitude.escapement = set.analysis.amplitude.escapement;
     if lift.is_none() && m.lift.is_none() {
         if let Some(note) = resolved_train.lift_default_note(None) {
             eprintln!("{note}");
@@ -831,7 +844,11 @@ struct Summary<'a> {
     /// The take's pauses and jumps, as `LongReport` gives them (#1297).
     #[serde(skip_serializing_if = "<[_]>::is_empty")]
     breaks: &'a [timegrapher_core::breaks::Break],
-    overall: &'a Option<timing::TimingFit>,
+    /// The run's whole fit, its drop's beat error null on a co-axial
+    /// (`Escapement::overall_json`, #2313).
+    overall: serde_json::Value,
+    #[serde(skip_serializing_if = "Escapement::is_swiss_lever")]
+    escapement: Escapement,
     beat_error_unlock_ms: Option<f64>,
     rate_p05: Option<f64>,
     rate_p95: Option<f64>,
@@ -896,7 +913,8 @@ impl<'a> From<&'a LongReport> for Summary<'a> {
             clean_fraction: r.clean_fraction,
             clock: &r.clock,
             breaks: &r.breaks,
-            overall: &r.overall,
+            overall: r.escapement.overall_json(r.overall.as_ref()),
+            escapement: r.escapement,
             beat_error_unlock_ms: r.beat_error_unlock_ms,
             rate_p05: r.rate_p05,
             rate_p95: r.rate_p95,
@@ -1022,7 +1040,7 @@ fn print_summary(r: &LongReport, clock_note: Option<&str>) {
             "Beat error   {}",
             crate::beat_error_text(
                 r.beat_error_unlock_ms,
-                f.beat_error_ms,
+                r.escapement.drop_beat_error(Some(f.beat_error_ms)),
                 timegrapher_core::measure::DropWhy::of(&r.caveats)
             )
         );
@@ -1112,7 +1130,9 @@ fn write_amplitude(
             cuts.true_time(a.start_s),
             a.even_deg.map_or(String::new(), |v| format!("{v:.1}")),
             a.odd_deg.map_or(String::new(), |v| format!("{v:.1}")),
-            a.beat_error_ms.map_or(String::new(), |v| format!("{v:.3}")),
+            log.escapement
+                .drop_beat_error(a.beat_error_ms)
+                .map_or(String::new(), |v| format!("{v:.3}")),
             a.beat_error_unlock_ms
                 .map_or(String::new(), |v| format!("{v:.3}"))
         )?;
