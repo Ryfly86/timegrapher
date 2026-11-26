@@ -1192,3 +1192,60 @@ fn a_recording_reached_through_a_link_into_the_watches_is_not_offered_to_them() 
     assert!(app.open_ask_for(&outside).is_some());
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// Sound never saved opens with the lift angle, beat rate and position
+/// its session.json was heard with, not the defaults: a watch heard at
+/// 55° reads its own amplitude, not 13° less at 52° (#2376).
+#[test]
+fn unsaved_sound_opens_with_the_watch_it_was_heard_with() {
+    let base = std::env::temp_dir().join(format!("tg-app-recovered-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let cfg = SynthConfig {
+        duration_s: 60.0,
+        lift_deg: 55.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.bench.take.lift_deg = 55.0;
+    app.bench.take.bph = Some(cfg.bph);
+    app.bench.take.position = Position::CrownLeft;
+    let mut r = Recorder::start(&base, app.info("", audio.sample_rate, 16)).unwrap();
+    r.write(&timegrapher_core::capture::Block {
+        samples: audio.samples.clone(),
+        at: std::time::SystemTime::now(),
+    })
+    .unwrap();
+    r.flush().unwrap();
+    let dir = r.dir().to_path_buf();
+    // The app stopped without saving it: no session.toml, only the
+    // recorder's own session.json.
+    drop(r);
+    drop(app);
+    assert!(!dir.join(MANIFEST).exists());
+
+    let mut next = TimegrapherApp::with_devices(Vec::new(), None);
+    next.open_recording(&dir, true);
+    let t = Instant::now();
+    while next.bench.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
+        next.poll();
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    assert_eq!(next.bench.take.lift_deg, 55.0);
+    assert!(next.lift_known());
+    assert_eq!(next.bench.take.bph, Some(cfg.bph));
+    assert_eq!(next.bench.take.position, Position::CrownLeft);
+    let note = next.bench.keeping.open_note.clone().unwrap_or_default();
+    let shown = format!("{:?} {note}", next.message);
+    assert!(!shown.contains("No watch settings"), "{shown}");
+    let amp = next
+        .whole_take()
+        .and_then(|w| w.m.amplitude_deg)
+        .expect("an amplitude");
+    assert!(
+        (amp - 280.0).abs() < 5.0,
+        "{amp}° read for 280° heard at 55°"
+    );
+    drop(next);
+    let _ = std::fs::remove_dir_all(&base);
+}

@@ -35,6 +35,7 @@ mod claim;
 mod closed_hour;
 #[cfg(test)]
 mod no_sound_tests;
+mod recorded;
 mod released;
 #[cfg(test)]
 mod released_tests;
@@ -43,6 +44,7 @@ mod saved_flac;
 mod session_file_tests;
 mod settle;
 use closed_hour::{open_closed_hour, open_in_place};
+pub use recorded::{recorded_setup, RecordedSetup};
 use released::HeldWhole;
 pub use saved_flac::{holding_wav, keep_saved_as_flac, keep_saved_as_flac_unless};
 use settle::{held_open, settled};

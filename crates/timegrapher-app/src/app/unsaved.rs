@@ -3,6 +3,7 @@
 //! (2c of #1514), offered back at the next start.
 
 use super::*;
+use timegrapher_core::recorder::RecordedSetup;
 
 /// A session that was never saved or thrown away: the app quit without
 /// asking (on macOS, Cmd+Q and Quit in the app menu or the Dock), or was
@@ -171,6 +172,32 @@ impl TimegrapherApp {
             .recorder
             .as_ref()
             .is_none_or(Recorder::hours_reachable)
+    }
+
+    /// Sound that was never saved opens with the lift angle, beat rate
+    /// and position its session.json was written with as it was heard,
+    /// as a saved take opens with its session file's (#2376). A value
+    /// that can't stand keeps the default, the position the file's name.
+    /// The calibre isn't written there, so the note says it is not set.
+    pub(super) fn put_recorded(&mut self, r: RecordedSetup, path: &Path) {
+        let fresh = WatchSetup::default();
+        let position = r
+            .position
+            .as_deref()
+            .and_then(Position::from_name)
+            .or_else(|| position_in_name(path))
+            .unwrap_or(fresh.position);
+        let lift_deg = r.lift_deg.unwrap_or(fresh.lift_deg);
+        self.set_watch_setup(WatchSetup {
+            lift_deg,
+            bph: r.bph,
+            position,
+            ..fresh
+        });
+        self.bench.keeping.open_note = Some(format!(
+            "Watch settings from the recording: Calibre Not Set, Lift {lift_deg}°, {}.",
+            position.label()
+        ));
     }
 }
 
