@@ -478,6 +478,65 @@ fn faint_sides_text(sides: usize, windows: usize) -> String {
     )
 }
 
+/// The beat rate heard of [`Caveat::OffStandardRate`] at its place, as
+/// the figure gives it: "17571 bph".
+fn heard_bph(o: &crate::timing::OffStandard) -> String {
+    let digits = crate::figure_text::base_digits::BEAT_RATE_HEARD;
+    format!(
+        "{} bph",
+        crate::figure_text::fixed_text(o.bph_measured, digits)
+    )
+}
+
+/// [`Caveat::OffStandardRate`] as a sentence: that no rate in s/d is
+/// given because the lock was judged off every standard rate, then this
+/// reading's beat rate heard and how far it is from the standard rate on
+/// each side (Norm on #2223, point 5; Hugh on #2316).
+fn off_standard_text(o: &crate::timing::OffStandard) -> String {
+    let rate = crate::figure_text::base_digits::RATE;
+    let side = |s: &crate::timing::StandardSide| {
+        let r = crate::figure_text::signed_text(s.rate_s_per_day, rate);
+        format!("{r} s/d against {} bph", s.bph)
+    };
+    let sides: Vec<String> = o.below.iter().chain(o.above.iter()).map(side).collect();
+    // The verdict is the lock's; the figures are this reading's, so the
+    // sentence holds when a reading's own rate is back in reach (Hugh on
+    // #2316).
+    format!(
+        "No rate in s/d: over the first {:.0} s after Auto locked on to the beat, the watch \
+         was more than {:.0} s/d from every standard rate. This reading: {} heard, {}.",
+        crate::beats::GUESS_SPAN_S,
+        crate::beats::STANDARD_REACH_S_PER_DAY,
+        heard_bph(o),
+        sides.join(", "),
+    )
+}
+
+/// The beat rate heard where a reading is off every standard rate
+/// ([`Caveat::OffStandardRate`]), for a reading whose rate is then none.
+pub fn off_standard(caveats: &[Caveat]) -> Option<crate::timing::OffStandard> {
+    caveats.iter().find_map(|c| match c {
+        Caveat::OffStandardRate(o) => Some(*o),
+        _ => None,
+    })
+}
+
+/// What every reading off every standard rate keeps beside its blanked
+/// rate figures: no rate ± in `confidence`, and the caveat `o` (#2223).
+pub fn off_standard_withheld(
+    o: crate::timing::OffStandard,
+    confidence: Option<&mut Confidence>,
+    caveats: &mut Vec<Caveat>,
+) {
+    if let Some(c) = confidence {
+        c.rate = confidence::Reading {
+            se: None,
+            no_pm: None,
+        };
+    }
+    add(caveats, Caveat::OffStandardRate(o));
+}
+
 /// [`Caveat::LockTemplateKept`] as a sentence, with the first chunk's
 /// length from [`crate::stream::StreamConfig`] and the lock-on window's
 /// from [`crate::live::LiveConfig`].
@@ -506,6 +565,12 @@ pub enum Caveat {
     },
     /// A set beat rate (`--bph`, `--calibre`) differs from the one heard.
     SetRateDisagrees { heard: u32 },
+    /// On Auto, the rate read against the standard rate guessed is
+    /// further than [`crate::beats::STANDARD_REACH_S_PER_DAY`] from it:
+    /// no rate in s/d is given, and this gives the beat rate heard and
+    /// the standard rate on each side ([`crate::timing::OffStandard`],
+    /// Norm on #2223).
+    OffStandardRate(crate::timing::OffStandard),
     /// More than [`crate::analysis::Clipping::NOTED_FRACTION`] of the beats
     /// have a clipped sample; `fraction` is their share.
     Clipped { fraction: f64 },
@@ -686,7 +751,8 @@ impl Caveat {
         match self {
             Caveat::ClockUnknown
             | Caveat::ClockSourcesDisagree { .. }
-            | Caveat::UsbLinesNotUsed { .. } => &[Rate],
+            | Caveat::UsbLinesNotUsed { .. }
+            | Caveat::OffStandardRate(_) => &[Rate],
             Caveat::LiftUnknown | Caveat::Clipped { .. } | Caveat::FaintSidesWithheld { .. } => {
                 &[Amplitude, BeatError]
             }
@@ -763,6 +829,7 @@ impl Caveat {
                 format!("{sides} faint side{} left out", plural(*sides))
             }
             Caveat::SetRateDisagrees { heard } => format!("{heard} bph heard"),
+            Caveat::OffStandardRate(_) => "not a standard rate".to_string(),
             Caveat::ShortSpan { span_s } => format!("{span_s:.0} s of beats"),
             Caveat::Clipped { fraction } => format!("{:.0}% clipped", fraction * 100.0),
             Caveat::BeatsMissing { fraction } => {
@@ -819,9 +886,8 @@ impl Caveat {
                 format!("The beat-error aggregate leaves out {readings} reading{} whose source was not recorded.", plural(*readings)),
             Caveat::BeatErrorFromDrop { why } => why.sentence().to_string(),
             Caveat::FaintSidesWithheld { sides, windows } => faint_sides_text(*sides, *windows),
-            Caveat::SetRateDisagrees { heard } => {
-                format!("The beat rate set differs from the {heard} bph heard.")
-            }
+            Caveat::SetRateDisagrees { heard } => format!("The beat rate set differs from the {heard} bph heard."),
+            Caveat::OffStandardRate(o) => off_standard_text(o),
             Caveat::ShortSpan { span_s } => format!(
                 "The beats span {span_s:.0} s, under the {SHORT_SPAN_S:.0} s needed to judge \
                  whether they are regular."
@@ -944,6 +1010,7 @@ impl Caveat {
         match self {
             Caveat::NoWatch { .. } => 0,
             Caveat::SetRateDisagrees { .. } => 1,
+            Caveat::OffStandardRate(_) => 1,
             Caveat::ShortSpan { .. } => 2,
             Caveat::Clipped { .. } => 3,
             Caveat::BeatsMissing { .. } => 4,

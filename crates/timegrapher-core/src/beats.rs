@@ -18,6 +18,10 @@ pub const STANDARD_BPH: [u32; 11] = [
     12000, 14400, 17280, 18000, 19800, 21600, 25200, 28800, 36000, 43200, 72000,
 ];
 
+/// Auto's reach, s/d, judged once per lock ([`crate::timing::OffStandard`], #2223).
+pub const STANDARD_REACH_S_PER_DAY: f64 = 1000.0;
+/// The sound Auto guesses from and each lock's reach is judged on, s.
+pub const GUESS_SPAN_S: f64 = 10.0;
 /// Fractional rate slack for beat and full-oscillation rate inference.
 /// Beat error moves alternating intervals, but not their sum.
 const GUESS_RATE_SLACK: f64 = 0.004;
@@ -73,7 +77,7 @@ pub fn beats_on(dt_s: f64, beat_s: f64) -> i64 {
 /// scoring above 0, as in digital silence, the guess is 28,800 bph.
 pub fn guess_bph(env: &[f32], fs: f64) -> u32 {
     let env = &env[sound_onset(env, fs).unwrap_or(0)..];
-    let n = env.len().min((fs * 10.0) as usize);
+    let n = env.len().min((fs * GUESS_SPAN_S) as usize);
     // Smooth over 2 ms so beat error and jitter don't split the peaks.
     let smooth = crate::dsp::moving_average(&env[..n], (0.002 * fs) as usize);
     let seg = &smooth[..];

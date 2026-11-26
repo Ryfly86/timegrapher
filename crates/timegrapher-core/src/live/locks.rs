@@ -51,6 +51,50 @@ impl LiveAnalyzer {
         }
     }
 
+    /// Whether the lock that holds at `t` (the latest found by then) is
+    /// off every standard rate on Auto ([`crate::timing::OffStandard::of`],
+    /// Norm on #2223 and #2316): judged once, on its first
+    /// [`beats::GUESS_SPAN_S`] of beats ([`crate::timing::lock_rate`]), or
+    /// on all of them up to `t` while it has fewer, so every reading in
+    /// the lock takes one verdict however its own rate moves. A lock
+    /// found again after a silence or a doubted lock is judged afresh.
+    pub(super) fn lock_off_standard(&self, t: f64) -> bool {
+        let locks = &self.locks.0;
+        let Some(i) = locks.iter().rposition(|l| l.from_s <= t) else {
+            return false;
+        };
+        let lock = &locks[i];
+        let to = locks.get(i + 1).map_or(t, |n| n.from_s.min(t));
+        let a = self.beats.partition_point(|b| b.time < lock.from_s);
+        let z = self.beats.partition_point(|b| b.time <= to);
+        let rate = crate::timing::lock_rate(&self.beats[a..z.max(a)], lock.bph, &self.breaks);
+        crate::timing::OffStandard::of(self.cfg.analysis.bph, lock.bph, rate).is_some()
+    }
+
+    /// On Auto, the lock held takes the standard rate nearest the beat
+    /// rate heard over its first [`beats::GUESS_SPAN_S`]
+    /// ([`crate::timing::lock_rate`]) when that is in reach and is not the
+    /// rate guessed (Norm on #2316), as a read of the same sound as a file
+    /// takes it ([`crate::stream::BeatLog::take_nearest_standard`]): only
+    /// the rate its beats are read against moves, so 17,280 at +990 s/d,
+    /// guessed as 18,000, reads as the same sound set to 17,280.
+    pub(super) fn take_nearest_standard(&mut self) {
+        let (Some(bph), true, None) = (self.bph, self.found_bph, self.cfg.analysis.bph) else {
+            return;
+        };
+        let Some(lock) = self.locks.0.last_mut().filter(|l| l.bph == bph) else {
+            return;
+        };
+        let a = self.beats.partition_point(|b| b.time < lock.from_s);
+        let rate = crate::timing::lock_rate(&self.beats[a..], bph, &self.breaks);
+        let near = rate.and_then(|r| crate::timing::OffStandard::nearest_in_reach(bph, r));
+        if let Some(n) = near.filter(|&n| n != bph) {
+            lock.bph = n;
+            self.bph = Some(n);
+            self.logged_bph = Some(n);
+        }
+    }
+
     /// The Tick and Tock as they stand now.
     fn sided_now(&self) -> Box<Sided> {
         Box::new(Sided {

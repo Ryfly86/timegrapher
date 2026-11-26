@@ -455,8 +455,29 @@ impl Measurement {
     /// `bph` (#2223): from its rate, on its clock, and the rate's ±. None
     /// when no rate is read.
     pub fn measured(&self, bph: u32) -> Option<crate::timing::MeasuredRate> {
+        if let Some(o) = crate::measure::off_standard(&self.caveats) {
+            return Some(o.measured());
+        }
         let se = self.confidence.as_ref().and_then(|c| c.rate.se);
         crate::timing::MeasuredRate::of(bph, self.rate_s_per_day, se)
+    }
+
+    /// A reading in a lock judged off every standard rate on Auto
+    /// ([`crate::timing::OffStandard::of`]), as
+    /// [`crate::analysis::Summary::read_off_standard`] reads it: the rate
+    /// readings, their ± and the rate's states are left out, and the
+    /// caveat `off_standard_rate` gives the beat rate heard, read against
+    /// `bph`. The caller judges the lock; this never does.
+    pub fn read_off_standard(&mut self, bph: u32) {
+        let se = self.confidence.as_ref().and_then(|c| c.rate.se);
+        let Some(o) = crate::timing::OffStandard::reading(bph, self.rate_s_per_day, se) else {
+            return;
+        };
+        self.rate_s_per_day = None;
+        self.rate_window_median_s_per_day = None;
+        (self.rate_p05, self.rate_p95) = (None, None);
+        self.rate_states = twostate::find(&[], &twostate::Params::default());
+        crate::measure::off_standard_withheld(o, self.confidence.as_mut(), &mut self.caveats);
     }
 
     /// The lift angle was a default, not the calibre's: the caveat is

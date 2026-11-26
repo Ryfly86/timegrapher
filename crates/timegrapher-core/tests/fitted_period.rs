@@ -63,7 +63,9 @@ fn a_watch_off_its_set_rate_reads_its_own_amplitude() {
         // The synth's watch gains its default rate on its own beat.
         let gains = SynthConfig::default().rate_s_per_day;
         let true_period = timegrapher_core::timing::period_s(3600.0 / true_bph as f64, gains);
-        let period = timegrapher_core::be_angle::beat_period_of(r.bph, r.rate_s_per_day).unwrap();
+        let period =
+            timegrapher_core::be_angle::beat_period_of(r.bph, r.rate_s_per_day, &r.caveats)
+                .unwrap();
         assert!((period / true_period - 1.0).abs() < 1e-6, "{period}");
         let at = timegrapher_core::be_angle::degrees_at(heard, 0.5, period);
         let own = timegrapher_core::be_angle::degrees_at(280.0, 0.5, true_period);
@@ -111,7 +113,17 @@ fn a_dropout_does_not_miscount_a_watch_off_its_set_rate() {
             let audio = with_gap(watch(17_570, 40.0), gap, noise);
             let at = format!("{set_bph:?}, {gap} s gap (noise {noise})");
             let summary = analyze(&audio, &set(set_bph)).summary;
-            let rate = summary.rate_s_per_day.expect("a rate");
+            // On Auto, 17,570 is off every standard rate: no rate in s/d,
+            // and the rate it reads against 18,000 is its caveat's (#2223).
+            let rate = match set_bph {
+                Some(_) => summary.rate_s_per_day.expect("a rate"),
+                None => {
+                    timegrapher_core::measure::off_standard(&summary.caveats)
+                        .and_then(|o| o.above.filter(|s| s.bph == 18_000))
+                        .expect("off_standard_rate against 18000")
+                        .rate_s_per_day
+                }
+            };
             assert!((rate - whole).abs() < 0.05, "{at}: {rate} for {whole}");
             // The amplitude at the balance's own period, not at one fitted
             // across the hole on a provisional count (Trevor on #2252).
