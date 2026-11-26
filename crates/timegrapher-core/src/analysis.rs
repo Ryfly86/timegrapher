@@ -16,6 +16,8 @@ use serde::Serialize;
 pub struct AnalysisConfig {
     /// Beat rate; `None` guesses it from the recording.
     pub bph: Option<u32>,
+    /// Where `bph` came from (`None` with no `bph`: Auto).
+    pub bph_from: Option<crate::set_rate::BphFrom>,
     pub envelope: EnvelopeConfig,
     pub amplitude: AmplitudeConfig,
     /// Window for the rate-over-time series, seconds.
@@ -31,6 +33,7 @@ impl Default for AnalysisConfig {
     fn default() -> Self {
         AnalysisConfig {
             bph: None,
+            bph_from: None,
             envelope: EnvelopeConfig::default(),
             amplitude: AmplitudeConfig::default(),
             rate_window_s: crate::measure::RATE_WINDOW_S,
@@ -49,6 +52,9 @@ pub struct Summary {
     /// The supplied beat rate (option, calibre or session file), never a guess.
     /// With no supplied rate, no-watch text gives scatter only in ms (#857).
     pub bph_set: Option<u32>,
+    /// Where `bph_set` came from; left out with no rate set.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bph_set_from: Option<crate::set_rate::BphFrom>,
     /// The beat rate the recording sounds like, when a set `bph` differs
     /// from it: every reading is then measured against the set rate.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -449,7 +455,6 @@ fn analyze_read(
         &heard,
         lead_s,
     );
-    let doubts = assessment.doubts;
     let mut confidence = assessment.confidence;
     if let Some(c) = confidence.as_mut() {
         f.floor_confidence(c);
@@ -461,6 +466,7 @@ fn analyze_read(
     let shape = (watch_heard && !heard.awaiting).then(|| take_shape(env, fs, &beats, &fits, bph));
     let mut summary = Summary {
         bph_set: cfg.bph,
+        bph_set_from: cfg.bph.and(cfg.bph_from),
         duration_s: duration,
         sample_rate: audio.sample_rate,
         bph,
@@ -496,7 +502,7 @@ fn analyze_read(
             fits.overall
                 .map(|f| crate::clockstore::correct_rate(f.rate_s_per_day, c.ppm))
         }),
-        doubts,
+        doubts: assessment.doubts,
         confidence,
         caveats,
         shape,

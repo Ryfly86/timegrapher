@@ -79,6 +79,7 @@ pub mod recording_order;
 pub mod redact;
 pub mod scenarios;
 pub mod session;
+pub mod set_rate;
 pub mod shape;
 pub mod sound_sample;
 pub mod spectrum;

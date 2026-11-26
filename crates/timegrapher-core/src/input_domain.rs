@@ -1,15 +1,43 @@
 //! Shared scalar domains used by explicit CLI/MCP input parsers and selected
 //! Manifest consumption points, before their analysis or recording work.
 //! These are mathematical/type constraints, not empirical watch operating
-//! ranges, except the lift angle's [`LIFT_RANGE_DEG`], one rule for every
-//! surface.
+//! ranges, except the lift angle's [`LIFT_RANGE_DEG`] and the beat rate's
+//! [`BPH_RANGE`], one rule each for every surface.
 //! Other persisted/programmatic configurations are not automatically validated.
 
+/// The beat rates that can be set, bph: whole numbers from the slowest
+/// standard rate to the fastest ([`crate::beats::STANDARD_BPH`]), the
+/// range the engine is tested over (Norm on #2224). One rule for
+/// `--bph`, MCP, session files and the library.
+pub const BPH_RANGE: std::ops::RangeInclusive<u32> = 12_000..=72_000;
+
+/// Why a beat rate outside [`BPH_RANGE`] is refused.
+pub const BPH_RANGE_TEXT: &str = "beat rate must be a whole number from 12000 to 72000 bph";
+
+/// Why a beat rate `whose` gives (`the IWC 9520's`, `Grandpa's`) is
+/// not read at: it lies outside [`BPH_RANGE`], so it is set aside.
+pub fn bph_set_aside_text(whose: &str, bph: u32) -> String {
+    format!(
+        "{whose} beat rate of {bph} bph is set aside, outside {} to {} bph",
+        BPH_RANGE.start(),
+        BPH_RANGE.end()
+    )
+}
+
+/// A beat rate typed as text: [`bph`] of a whole number, else refused with
+/// the same words (the CLI's `--bph`, the app's `--headless --bph`).
+pub fn bph_text(text: &str) -> Result<u32, String> {
+    bph(text
+        .parse::<u64>()
+        .map_err(|_| BPH_RANGE_TEXT.to_string())?)
+}
+
+/// `value` if it lies in [`BPH_RANGE`].
 pub fn bph(value: u64) -> Result<u32, String> {
     u32::try_from(value)
         .ok()
-        .filter(|&v| v > 0)
-        .ok_or_else(|| "BPH must be an integer from 1 through 4294967295".into())
+        .filter(|v| BPH_RANGE.contains(v))
+        .ok_or_else(|| BPH_RANGE_TEXT.into())
 }
 
 pub fn escape_teeth(value: u32) -> Result<u32, String> {
@@ -118,8 +146,8 @@ mod tests {
     fn explicit_scalar_domains_have_no_empirical_operating_limits_but_lift() {
         assert!(bph(0).is_err());
         assert!(bph(u32::MAX as u64 + 1).is_err());
-        assert_eq!(bph(1).unwrap(), 1);
-        assert_eq!(bph(u32::MAX as u64).unwrap(), u32::MAX);
+        assert_eq!(bph(12_000).unwrap(), 12_000);
+        assert_eq!(bph(72_000).unwrap(), 72_000);
         assert!(escape_teeth(0).is_err());
         assert_eq!(escape_teeth(u32::MAX).unwrap(), u32::MAX);
         for value in [
@@ -174,5 +202,43 @@ mod tests {
                 "{a}"
             );
         }
+    }
+
+    /// Any whole rate from 12,000 to 72,000 bph is taken, the ends
+    /// included; one outside says the range (Norm on #2224).
+    #[test]
+    fn a_beat_rate_is_taken_from_12000_to_72000_bph() {
+        for b in [12_000, 17_570, 18_000, 28_800, 72_000] {
+            assert_eq!(bph(b), Ok(b as u32), "{b}");
+        }
+        for b in [0, 1, 8_000, 11_999, 72_001, u32::MAX as u64, u64::MAX] {
+            assert_eq!(bph(b), Err(BPH_RANGE_TEXT.to_string()), "{b}");
+        }
+        assert_eq!(
+            BPH_RANGE_TEXT,
+            format!(
+                "beat rate must be a whole number from {} to {} bph",
+                BPH_RANGE.start(),
+                BPH_RANGE.end()
+            )
+        );
+    }
+
+    /// A rate typed as text is taken whole or refused with the range.
+    #[test]
+    fn a_beat_rate_typed_as_text_is_whole_or_refused() {
+        assert_eq!(bph_text("17570"), Ok(17_570));
+        for t in ["17570.5", "17570.0", "abc", "", "-18000", "11999", "72001"] {
+            assert_eq!(bph_text(t), Err(BPH_RANGE_TEXT.to_string()), "{t}");
+        }
+    }
+
+    /// The range runs from the slowest standard rate to the fastest.
+    #[test]
+    fn the_beat_rate_range_ends_at_the_standard_rates() {
+        let standard = crate::beats::STANDARD_BPH;
+        assert_eq!(*BPH_RANGE.start(), standard[0]);
+        assert_eq!(*BPH_RANGE.end(), standard[standard.len() - 1]);
+        assert!(standard.iter().all(|b| BPH_RANGE.contains(b)));
     }
 }
