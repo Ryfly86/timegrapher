@@ -121,7 +121,7 @@ live `doctor` checks again and reports the result under `after`.
 | `clipping` | Samples at full scale, or flat-topped peaks below it (clipping in the analogue stage). Amplitude and shape may be off; the rate is not. | Lower the mic level (it suggests about −6 dB and a re-check); turn off any "boost". |
 | `hot` | Peaks above −6 dBFS, not yet clipping. | Lower the level a step or two; a fully wound watch at high amplitude is louder. |
 | `agc_suspected` | The background rises by more than 3 dB through the gap between ticks: automatic gain turning down on each tick and back up in the gaps. | Turn off auto gain / AGC / "audio enhancements". |
-| `no_ticks` | Fewer than half the expected beats, or signal below 3×. | Watch stopped? Not touching the mic? Very noisy room? Wrong device? Wrong beat rate (give `--bph`)? |
+| `no_ticks` | No regular beat found (as `analyze` finds it, with no rate or beat error given), or signal below 3×. | Watch stopped? Not touching the mic? Very noisy room? Wrong device? Wrong beat rate (give `--bph`)? |
 
 The signal figure (`signal_x`) is how many times louder the typical
 beat is than the background between beats. What each level is good for
