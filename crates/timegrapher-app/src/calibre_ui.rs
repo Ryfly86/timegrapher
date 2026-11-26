@@ -2443,11 +2443,48 @@ impl Picked {
 
 /// One calibre in the menu, ticked when it is `current`.
 fn menu_line(ui: &mut egui::Ui, e: Entry<'_>, text: String, current: &str, picked: &Picked) {
-    // A calibre whose escapement isn't measured yet can still be picked,
-    // its tag beside its name (#1872); a co-axial's says it is read for
-    // in beta (#2313).
-    let text = menu_text(text, e.escapement());
-    picked.item(ui, e.name() == current, text, &hint(e), e.name());
+    picked.item(
+        ui,
+        e.name() == current,
+        line_text(e, text),
+        &hint(e),
+        e.name(),
+    );
+}
+
+/// A calibre's words in the menu: `text`, then its lift angle where the
+/// list gives one, since rows sharing a number can differ by several
+/// degrees (#2339). A calibre whose escapement isn't read for yet can
+/// still be picked, its tag in place of the lift (#1872, [`lift_tag`]); a
+/// co-axial, read for in beta, shows its lift and then its tag (#2313,
+/// [`menu_text`]). A name that already states its lift, "Rolex 3235
+/// (53°)" or "Citizen 20 (21,600 bph, 52°)", says it once.
+fn line_text(e: Entry<'_>, text: String) -> String {
+    let x = e.escapement();
+    if let Some(tag) = lift_tag(x) {
+        return format!("{text}  ·  {tag}");
+    }
+    let text = match e.lift_angle_deg() {
+        Some(l) => {
+            let lift = calibre_page::lift_angle_text(l);
+            if names_its_lift(e.name(), &lift) {
+                text
+            } else {
+                format!("{text} · {lift}")
+            }
+        }
+        None => text,
+    };
+    menu_text(text, x)
+}
+
+/// Whether `name` ends in a bracket that states `lift` as one of its
+/// parts: "(53°)", "(21,600 bph, 52°)". A bracket elsewhere in the name,
+/// "Miyota (Citizen) 9100", doesn't.
+fn names_its_lift(name: &str, lift: &str) -> bool {
+    name.strip_suffix(')')
+        .and_then(|n| n.rsplit_once('('))
+        .is_some_and(|(_, inside)| inside.split(", ").any(|part| part == lift))
 }
 
 /// A calibre's menu line `text`, its escapement's tag beside it where it
