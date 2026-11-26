@@ -1699,3 +1699,81 @@ fn save_on_new_tests_question_waits_for_the_folder() {
     assert_eq!(app.ready_test(), None);
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// A position measured on Auto keeps the beat rate it was measured at
+/// (#2375): another watch heard at 21600 bph while the test waits to be
+/// turned, time the strip marks Not Used, changes neither the Copy's
+/// Beat Rate line nor, after Stop, the row's rate read at 28800 bph.
+#[test]
+fn a_measured_position_keeps_the_beat_rate_it_was_measured_at() {
+    let mut app = synthetic(5.0, 0.0);
+    assert_eq!(app.bench.take.bph, None, "on Auto");
+    let start = app.bench.recording.live.as_ref().unwrap().duration_s();
+    let mut test = guided::Test::new().timed(2.0, 20.0);
+    test.tick(start);
+    app.bench.test.guided = Some(test);
+    let ctx = egui::Context::default();
+    let feed = |app: &mut TimegrapherApp, bph: u32, rate: f64, secs: f64| {
+        let audio = generate(
+            &SynthConfig {
+                duration_s: secs,
+                bph,
+                rate_s_per_day: rate,
+                ..Default::default()
+            },
+            |_| 280.0,
+            |_| 0.0,
+        );
+        for b in audio.samples.chunks(48_000) {
+            let live = app.bench.recording.live.as_mut().unwrap();
+            for s in b.chunks(960) {
+                live.push(s);
+            }
+            app.guided_tick(&ctx);
+        }
+    };
+    // Dial Up at +30 s/d, 28800 bph, measured and read.
+    feed(&mut app, 28_800, 30.0, 25.0);
+    let du =
+        |app: &TimegrapherApp| app.bench.test.guided.as_ref().unwrap().readings_so_far()[0].clone();
+    assert_eq!(du(&app).bph, 28_800);
+    let rate_of =
+        |r: &timegrapher_core::session::Reading| r.measurement.rate_s_per_day.expect("a rate");
+    let read_at = rate_of(&du(&app));
+    assert!((read_at - 30.0).abs() < 5.0, "{read_at}");
+    let copied = |app: &TimegrapherApp| {
+        guided::export_text(
+            app.bench.test.guided.as_ref().unwrap(),
+            &app.guided_about(),
+            '\t',
+        )
+    };
+    let text = copied(&app);
+    assert!(text.contains("28800"), "{text}");
+    // Before Dial Down is started, a 21600 bph watch on the stand.
+    feed(&mut app, 21_600, 0.0, 40.0);
+    assert_eq!(
+        app.bench.recording.live.as_ref().and_then(|l| l.bph()),
+        Some(21_600),
+        "Auto heard the other watch"
+    );
+    let text = copied(&app);
+    assert!(!text.contains("21600"), "{text}");
+    assert!(text.contains("28800"), "{text}");
+    // Stopped: the row is read at the rate it was measured at.
+    app.stop_test();
+    let test = app.bench.test.guided.as_ref().unwrap();
+    assert!(test.readings.is_some(), "finished");
+    let row = &test.readings_so_far()[0];
+    assert_eq!(row.bph, 28_800);
+    let stopped = rate_of(row);
+    assert!((stopped - 30.0).abs() < 5.0, "{stopped}");
+    let text = copied(&app);
+    assert!(!text.contains("21600"), "{text}");
+    // A stretch of the other watch masked: read again, still at 28800.
+    app.mask(40.0, 45.0);
+    let row = &app.bench.test.guided.as_ref().unwrap().readings_so_far()[0];
+    assert_eq!(row.bph, 28_800, "read again after a mask");
+    let masked = rate_of(row);
+    assert!((masked - 30.0).abs() < 5.0, "{masked}");
+}
