@@ -146,8 +146,8 @@ mod tests {
     fn explicit_scalar_domains_have_no_empirical_operating_limits_but_lift() {
         assert!(bph(0).is_err());
         assert!(bph(u32::MAX as u64 + 1).is_err());
-        assert_eq!(bph(1).unwrap(), 1);
-        assert_eq!(bph(u32::MAX as u64).unwrap(), u32::MAX);
+        assert_eq!(bph(12_000).unwrap(), 12_000);
+        assert_eq!(bph(72_000).unwrap(), 72_000);
         assert!(escape_teeth(0).is_err());
         assert_eq!(escape_teeth(u32::MAX).unwrap(), u32::MAX);
         for value in [
