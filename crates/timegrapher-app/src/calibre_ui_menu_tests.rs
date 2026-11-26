@@ -97,12 +97,66 @@ fn the_calibre_menu_searches_every_calibre() {
     );
     frame(&mut c, vec![egui::Event::Text(rare.calibre.clone())]);
     let found = frame(&mut c, vec![]);
-    let want = format!("{} · {}", rare.calibre, rare.maker);
+    // Its name and maker, then its lift where the list gives one (#2339).
+    let want = line_text(
+        Entry::Table(rare),
+        format!(
+            "{} · {}",
+            calibre_page::marked(rare, &rare.calibre),
+            rare.maker
+        ),
+    );
     assert!(
         texts(&found).contains(&want),
         "{want} not in {:?}",
         texts(&found)
     );
+}
+
+/// Rows sharing a number can give lifts degrees apart, so each row in the
+/// menu says its own (#2339): every "3235" row a search lists ends in its
+/// lift angle, and a row without one says none.
+#[test]
+fn each_calibre_in_the_menu_shows_its_lift_angle() {
+    let mut c = Calibres::in_memory();
+    let ctx = egui::Context::default();
+    crate::theme::install(&ctx);
+    let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(600.0, 800.0));
+    click_the_button(&ctx, screen, &mut c);
+    frame(&ctx, screen, &mut c, vec![egui::Event::Text("3235".into())]);
+    let shown = texts(&frame(&ctx, screen, &mut c, vec![]));
+    let rows: Vec<&Calibre> = calibres::all()
+        .iter()
+        .filter(|x| x.calibre.contains("3235") && x.escapement.is_none())
+        .collect();
+    assert!(rows.len() >= 2, "the list has one 3235: {rows:?}");
+    let mut lifts = Vec::new();
+    for r in rows {
+        let lift = r.lift_angle_deg.expect("every 3235 row gives its lift");
+        let lift_text = calibre_page::lift_angle_text(lift);
+        let name = format!("{} · {}", calibre_page::marked(r, &r.calibre), r.maker);
+        // A name already stating its lift says it once.
+        let want = if names_its_lift(&r.calibre, &lift_text) {
+            name
+        } else {
+            format!("{name} · {lift_text}")
+        };
+        assert!(shown.contains(&want), "{want} not in {shown:?}");
+        lifts.push(lift);
+    }
+    // The row named with its lift says it once, whole (Hugh, #2352).
+    assert!(
+        shown.iter().any(|t| t == "Rolex 3235 (53°) · Rolex"),
+        "{shown:?}"
+    );
+    assert!(!shown.iter().any(|t| t.contains("(53°) · Rolex · 53°")));
+    // The rows this was raised for differ: the menu tells them apart.
+    assert!(lifts.iter().any(|l| *l != lifts[0]), "{lifts:?}");
+    let bare = calibres::all()
+        .iter()
+        .find(|x| x.lift_angle_deg.is_none() && x.escapement.is_none())
+        .expect("a row without a lift");
+    assert_eq!(line_text(Entry::Table(bare), "x".into()), "x");
 }
 
 #[test]
@@ -614,4 +668,55 @@ fn a_dialogs_calibre_menu_opens_above_it_every_time() {
             });
         }
     }
+}
+
+/// A name that already states its lift inside a longer bracket says it
+/// once; a bracket elsewhere in a name keeps the lift (Trevor, #2352).
+#[test]
+fn a_name_stating_its_lift_says_it_once() {
+    let line = |name: &str| {
+        let c = calibres::all()
+            .iter()
+            .find(|c| c.calibre == name)
+            .unwrap_or_else(|| panic!("{name} not in the table"));
+        line_text(Entry::Table(c), c.calibre.clone())
+    };
+    assert_eq!(
+        line("Citizen 20 (21,600 bph, 52°)"),
+        "Citizen 20 (21,600 bph, 52°)"
+    );
+    assert_eq!(line("Rolex 3235 (53°)"), "Rolex 3235 (53°)");
+    let miyota = calibres::all()
+        .iter()
+        .find(|c| c.calibre == "Miyota (Citizen) 9100")
+        .expect("Miyota (Citizen) 9100 in the table");
+    let lift = calibre_page::lift_angle_text(miyota.lift_angle_deg.expect("it gives a lift"));
+    assert_eq!(
+        line("Miyota (Citizen) 9100"),
+        format!("Miyota (Citizen) 9100 · {lift}")
+    );
+    // No row names a lift other than its own, so none loses a lift it
+    // doesn't state (a not-measured escapement shows its tag instead).
+    for c in calibres::all().iter().filter(|c| c.escapement.is_none()) {
+        if let Some(l) = c.lift_angle_deg {
+            let t = line_text(Entry::Table(c), c.calibre.clone());
+            assert!(t.contains(&calibre_page::lift_angle_text(l)), "{t}");
+        }
+    }
+}
+
+/// A calibre whose escapement isn't measured yet shows its tag in place
+/// of its lift (#1872), as the Manage Calibres table does: an Omega 8500
+/// row gives 38° but the menu says only the tag.
+#[test]
+fn an_escapement_not_measured_shows_its_tag_not_its_lift() {
+    let c = calibres::all()
+        .iter()
+        .find(|c| c.calibre == "Omega 8500")
+        .expect("Omega 8500 in the table");
+    assert!(c.escapement.is_some() && c.lift_angle_deg.is_some());
+    assert_eq!(
+        line_text(Entry::Table(c), c.calibre.clone()),
+        format!("Omega 8500  ·  {}", calibres::Escapement::TAG)
+    );
 }
