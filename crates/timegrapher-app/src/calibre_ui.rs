@@ -2445,11 +2445,19 @@ fn menu_line(ui: &mut egui::Ui, e: Entry<'_>, text: String, current: &str, picke
 /// A calibre's words in the menu: `text`, then its lift angle where the
 /// list gives one, since rows sharing a number can differ by several
 /// degrees (#2339). A calibre whose escapement isn't measured yet can
-/// still be picked, its tag in place of the lift (#1872).
+/// still be picked, its tag in place of the lift (#1872). A name that
+/// already ends in its lift, "Rolex 3235 (53°)", says it once.
 fn line_text(e: Entry<'_>, text: String) -> String {
     match (e.escapement(), e.lift_angle_deg()) {
         (Some(_), _) => format!("{text}  ·  {}", calibres::Escapement::TAG),
-        (None, Some(l)) => format!("{text} · {}", calibre_page::lift_angle_text(l)),
+        (None, Some(l)) => {
+            let lift = calibre_page::lift_angle_text(l);
+            if e.name().ends_with(&format!("({lift})")) {
+                text
+            } else {
+                format!("{text} · {lift}")
+            }
+        }
         (None, None) => text,
     }
 }

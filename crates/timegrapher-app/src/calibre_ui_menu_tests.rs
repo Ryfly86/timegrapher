@@ -133,15 +133,23 @@ fn each_calibre_in_the_menu_shows_its_lift_angle() {
     let mut lifts = Vec::new();
     for r in rows {
         let lift = r.lift_angle_deg.expect("every 3235 row gives its lift");
-        let want = format!(
-            "{} · {} · {}",
-            calibre_page::marked(r, &r.calibre),
-            r.maker,
-            calibre_page::lift_angle_text(lift)
-        );
+        let lift_text = calibre_page::lift_angle_text(lift);
+        let name = format!("{} · {}", calibre_page::marked(r, &r.calibre), r.maker);
+        // A name already ending in its lift says it once.
+        let want = if r.calibre.ends_with(&format!("({lift_text})")) {
+            name
+        } else {
+            format!("{name} · {lift_text}")
+        };
         assert!(shown.contains(&want), "{want} not in {shown:?}");
         lifts.push(lift);
     }
+    // The row named with its lift says it once, whole (Hugh, #2352).
+    assert!(
+        shown.iter().any(|t| t == "Rolex 3235 (53°) · Rolex"),
+        "{shown:?}"
+    );
+    assert!(!shown.iter().any(|t| t.contains("(53°) · Rolex · 53°")));
     // The rows this was raised for differ: the menu tells them apart.
     assert!(lifts.iter().any(|l| *l != lifts[0]), "{lifts:?}");
     let bare = calibres::all()
