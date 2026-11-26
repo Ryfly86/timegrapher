@@ -24,7 +24,6 @@ pub fn bph_set_aside_text(whose: &str, bph: u32) -> String {
     )
 }
 
-/// `value` if it lies in [`BPH_RANGE`].
 /// A beat rate typed as text: [`bph`] of a whole number, else refused with
 /// the same words (the CLI's `--bph`, the app's `--headless --bph`).
 pub fn bph_text(text: &str) -> Result<u32, String> {
@@ -33,6 +32,7 @@ pub fn bph_text(text: &str) -> Result<u32, String> {
         .map_err(|_| BPH_RANGE_TEXT.to_string())?)
 }
 
+/// `value` if it lies in [`BPH_RANGE`].
 pub fn bph(value: u64) -> Result<u32, String> {
     u32::try_from(value)
         .ok()

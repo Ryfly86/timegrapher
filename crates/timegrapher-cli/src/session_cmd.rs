@@ -117,7 +117,12 @@ impl Options {
             Some(c),
             self.bph.or(m.bph),
         ));
-        if let Some((b, cb)) = self.bph.or(m.bph).zip(c.bph).filter(|&(b, cb)| b != cb) {
+        if let Some((b, cb)) = self
+            .bph
+            .or(m.bph)
+            .zip(c.bph)
+            .filter(|&(b, cb)| b != cb && timegrapher_core::set_rate::in_range(cb))
+        {
             notes.push(format!(
                 "the {} beats at {cb} bph, {} says {b}; using {b}",
                 c.name,
