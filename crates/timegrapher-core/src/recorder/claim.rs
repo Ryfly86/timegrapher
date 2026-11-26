@@ -39,13 +39,9 @@ impl Recorder {
     /// start, watch and `calibre`, with ` 2` and on where that is taken.
     /// A save into another folder never writes into a take already there
     /// (#2401). Refused where the copy would be, or hold, the live
-    /// recording. Returns its name, its folder as the caller spelled
-    /// `parent`, and whether it is a new one.
-    pub(super) fn copy_dest(
-        &self,
-        parent: &Path,
-        calibre: &str,
-    ) -> io::Result<(OsString, PathBuf, bool)> {
+    /// recording. Returns its folder as the caller spelled `parent`, and
+    /// whether it is a new one.
+    pub(super) fn copy_dest(&self, parent: &Path, calibre: &str) -> io::Result<(PathBuf, bool)> {
         // Resolve identities only for these checks. Keep the caller's
         // spelling for filesystem work and paths returned or shown to them.
         let canonical = fs::canonicalize(parent)?;
@@ -66,8 +62,7 @@ impl Recorder {
             Ok(dest)
         };
         if let Some(name) = self.kept_in(&canonical) {
-            let dest = separate(&name)?;
-            return Ok((name, dest, false));
+            return Ok((separate(&name)?, false));
         }
         let base = self
             .saved_name
@@ -76,15 +71,37 @@ impl Recorder {
         separate(&base)?;
         let free = crate::library::unused_dir(parent, &base.to_string_lossy());
         let name = free.file_name().map_or(base, ToOwned::to_owned);
-        let dest = separate(&name)?;
-        Ok((name, dest, true))
+        Ok((separate(&name)?, true))
+    }
+
+    /// Note `dir` as a copy saved: the one Save Again saves into, and the
+    /// one a save into its folder updates.
+    pub(super) fn note_copy(&mut self, dir: &Path) {
+        let Some(name) = dir.file_name().map(ToOwned::to_owned) else {
+            return;
+        };
+        self.saved_name = Some(name.clone());
+        self.claimed = None;
+        if let Some(parent) = dir.parent().and_then(|p| fs::canonicalize(p).ok()) {
+            self.copies.retain(|(p, _)| *p != parent);
+            self.copies.push((parent, name));
+        }
+    }
+
+    /// The copy saved at `from` is now at `to` (filed under a watch).
+    pub(super) fn copy_renamed(&mut self, from: &Path, to: &Path) {
+        let parent = from.parent().and_then(|p| fs::canonicalize(p).ok());
+        let name = from.file_name();
+        self.copies
+            .retain(|(p, n)| Some(p) != parent.as_ref() || Some(n.as_os_str()) != name);
+        self.note_copy(to);
     }
 
     /// The name of this copy's folder in the folder resolved as
     /// `canonical`: the copy saved there, or one made there for it.
     fn kept_in(&self, canonical: &Path) -> Option<OsString> {
-        if self.saved_parent.as_deref() == Some(canonical) {
-            return self.saved_name.clone();
+        if let Some((_, name)) = self.copies.iter().find(|(p, _)| p == canonical) {
+            return Some(name.clone());
         }
         self.claimed
             .as_ref()
@@ -158,6 +175,10 @@ mod tests {
         let into_b = a.save_copy(&b_takes, "", None).unwrap();
         assert_eq!(into_b, b_takes.join(format!("{name} 2")));
         assert_eq!(fs::read(into_b.join("audio-001.wav")).unwrap(), a_sound);
+        // Back into A's watch: A's own copy again, no other made there.
+        assert_eq!(a.save_copy(&a_takes, "", None).unwrap(), a_dir);
+        assert_eq!(fs::read_dir(&a_takes).unwrap().count(), 1);
+        assert_eq!(a.save_copy(&b_takes, "", None).unwrap(), into_b);
         // Saved again there, it goes on into its own folder.
         assert_eq!(a.save_copy(&b_takes, "", None).unwrap(), into_b);
         assert_eq!(a.claim_first_copy(&b_takes, name).unwrap(), into_b);
@@ -171,6 +192,30 @@ mod tests {
         drop((a, b));
         let _ = fs::remove_dir_all(base);
         let _ = fs::remove_dir_all(other);
+    }
+
+    /// A new copy's folder made by another save between choosing its name
+    /// and writing it is never written into: the save is refused and the
+    /// other save's file left as it is (#2401).
+    #[test]
+    fn a_new_copys_folder_made_meanwhile_is_left_alone() {
+        let (mut r, base) = save_fixture("save-as-race");
+        let takes = base.join("B").join("takes");
+        let name = r.copy_name("");
+        fs::create_dir_all(takes.join(&name)).unwrap();
+        let pending = r.begin_save(&takes, "", None, &[]).unwrap();
+        let dest = pending.dest().to_path_buf();
+        assert_eq!(
+            dest.file_name().unwrap().to_string_lossy(),
+            format!("{} 2", name.to_string_lossy())
+        );
+        fs::create_dir(&dest).unwrap();
+        fs::write(dest.join("audio-001.wav"), b"other").unwrap();
+        assert!(pending.write().is_err());
+        assert_eq!(fs::read(dest.join("audio-001.wav")).unwrap(), b"other");
+        assert_eq!(fs::read_dir(&dest).unwrap().count(), 1);
+        drop(r);
+        let _ = fs::remove_dir_all(base);
     }
 
     /// Two takes started in the same minute, each named before either is
