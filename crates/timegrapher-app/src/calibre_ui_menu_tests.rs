@@ -681,7 +681,7 @@ fn the_table_and_menu_say_how_an_escapement_is_read() {
     assert_eq!(lift_tag(coaxial), None);
     assert_eq!(
         menu_text("Omega 3861".into(), coaxial),
-        "Omega 3861  ·  Co-axial (beta)"
+        "Omega 3861 · Co-axial (beta)"
     );
     let detent = calibres::Escapement {
         kind: "detent".into(),
@@ -690,7 +690,7 @@ fn the_table_and_menu_say_how_an_escapement_is_read() {
     assert_eq!(lift_tag(Some(&detent)), Some("Not supported yet"));
     assert_eq!(
         menu_text("Chronometer".into(), Some(&detent)),
-        "Chronometer  ·  Not supported yet"
+        "Chronometer · Not supported yet"
     );
     assert_eq!(lift_tag(None), None);
     assert_eq!(menu_text("ETA 2824-2".into(), None), "ETA 2824-2");
@@ -744,7 +744,7 @@ fn a_co_axial_shows_its_lift_and_its_beta_tag() {
     assert!(c.escapement.is_some() && c.lift_angle_deg.is_some());
     assert_eq!(
         line_text(Entry::Table(c), c.calibre.clone()),
-        format!("Omega 8500 · 38°  ·  {}", calibres::Escapement::COAXIAL_TAG)
+        format!("Omega 8500 · 38° · {}", calibres::Escapement::COAXIAL_TAG)
     );
     // A table row lives as long as the table: one made here is leaked.
     let detent: &'static mut _ = Box::leak(Box::new(c.clone()));
@@ -754,6 +754,6 @@ fn a_co_axial_shows_its_lift_and_its_beta_tag() {
     });
     assert_eq!(
         line_text(Entry::Table(detent), detent.calibre.clone()),
-        format!("Omega 8500  ·  {}", calibres::Escapement::TAG)
+        format!("Omega 8500 · {}", calibres::Escapement::TAG)
     );
 }

@@ -2462,7 +2462,7 @@ fn menu_line(ui: &mut egui::Ui, e: Entry<'_>, text: String, current: &str, picke
 fn line_text(e: Entry<'_>, text: String) -> String {
     let x = e.escapement();
     if let Some(tag) = lift_tag(x) {
-        return format!("{text}  ·  {tag}");
+        return format!("{text} · {tag}");
     }
     let text = match e.lift_angle_deg() {
         Some(l) => {
@@ -2491,7 +2491,7 @@ fn names_its_lift(name: &str, lift: &str) -> bool {
 /// has one ([`calibres::Escapement::tag`]).
 fn menu_text(text: String, x: Option<&calibres::Escapement>) -> String {
     match x {
-        Some(x) => format!("{text}  ·  {}", x.tag()),
+        Some(x) => format!("{text} · {}", x.tag()),
         None => text,
     }
 }
