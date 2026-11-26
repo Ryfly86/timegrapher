@@ -170,3 +170,104 @@ fn a_missing_bph_is_never_auto() {
     assert!(recorded_on_auto(&dir));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Keep Analysis Only measures a take recorded on Auto on Auto
+/// (`analysis_take::plan_keep`), and one recorded at a rate at it.
+#[test]
+fn keep_analysis_only_measures_as_recorded() {
+    for (name, info, want) in [
+        ("keep-auto", "null", None),
+        ("keep-set", "17280", Some(17_280)),
+    ] {
+        let dir = take_dir(name, Some(info));
+        std::fs::write(
+            dir.join(take::MANIFEST),
+            "bph = 17280\n\n[[recording]]\nfile = '.'\nposition = 'DU'\n",
+        )
+        .unwrap();
+        let plan = timegrapher_core::analysis_take::plan_keep(&dir, &Default::default()).unwrap();
+        assert_eq!(plan.cfg.analysis.bph, want, "{name}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+/// A take recorded on Auto and moved into a watch that sets its beat
+/// rate (#1283): the move marks `session.json`
+/// (`set_rate::mark_watch_rate`), and the watch's rate in `session.toml`
+/// stands. The rest of the file is as it was, and a second mark changes
+/// nothing.
+#[test]
+fn a_watchs_rate_marked_stands_on_a_take_recorded_on_auto() {
+    use timegrapher_core::set_rate::{mark_watch_rate, WATCH_RATE_KEY};
+    let dir = take_dir("watch", Some("null"));
+    let file = dir.join(take::RECORD);
+    let before: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
+    assert!(recorded_on_auto(&dir));
+    assert!(mark_watch_rate(&dir).unwrap());
+    let text = std::fs::read_to_string(&file).unwrap();
+    let mut after: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(after[WATCH_RATE_KEY], true, "{text}");
+    after.as_object_mut().unwrap().remove(WATCH_RATE_KEY);
+    assert_eq!(after, before);
+    assert!(!recorded_on_auto(&dir));
+    let m = read(&dir, &manifest(Some(17_280), None), None);
+    assert!(m.rate_s_per_day.is_some_and(|r| r > 1_000.0), "{m:?}");
+    assert!(!mark_watch_rate(&dir).unwrap());
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), text);
+    // A take with no session.json has nothing to mark.
+    std::fs::remove_file(&file).unwrap();
+    assert!(!mark_watch_rate(&dir).unwrap());
+    assert!(!file.exists());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// What a real recorder writes takes the mark and reads back.
+#[test]
+fn a_recorders_own_file_takes_the_watch_mark() {
+    use timegrapher_core::recorder::{Recorder, SessionInfo};
+    let parent = std::env::temp_dir().join(format!("tg-as-recorded-{}-mark", std::process::id()));
+    let _ = std::fs::remove_dir_all(&parent);
+    std::fs::create_dir_all(&parent).unwrap();
+    let info = SessionInfo {
+        watch: String::new(),
+        position: "DU".into(),
+        lift_deg: 52.0,
+        bph: None,
+        device: "test".into(),
+        sample_rate: 8_000,
+        bits: 16,
+        software: "test".into(),
+    };
+    let r = Recorder::start(&parent, info).unwrap();
+    assert!(recorded_on_auto(r.dir()));
+    assert!(timegrapher_core::set_rate::mark_watch_rate(r.dir()).unwrap());
+    assert!(!recorded_on_auto(r.dir()));
+    let _ = std::fs::remove_dir_all(&parent);
+}
+
+/// A take recorded on Auto whose watch is in reach of a standard rate
+/// other than the one Auto guessed (Vernon 56's C7): 17,280 gaining
+/// 990 s/d, which Auto guesses as 18,000, the session file keeping that
+/// guess. On Auto its lock takes the nearest standard in reach
+/// (`BeatLog::take_nearest_standard`) and reads its rate against 17,280,
+/// as the same sound set to 17,280 reads it.
+#[test]
+fn a_take_recorded_on_auto_reads_against_the_nearest_standard() {
+    let dir = take_dir("nearest", Some("null"));
+    let cfg = SynthConfig {
+        bph: 17_280,
+        rate_s_per_day: 990.0,
+        duration_s: 40.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    timegrapher_core::audio::write_wav(&dir.join("take.wav"), &audio).unwrap();
+    let m = read(&dir, &manifest(Some(18_000), None), None);
+    let want = read(&dir, &manifest(Some(18_000), None), Some(17_280));
+    let _ = std::fs::remove_dir_all(&dir);
+    let rate = m.rate_s_per_day.unwrap_or_else(|| panic!("{m:?}"));
+    let want = want.rate_s_per_day.expect("a set rate's rate");
+    assert!((rate - want).abs() < 0.05, "{rate} for {want}");
+    assert!(off_standard(&m.caveats).is_none(), "{:?}", m.caveats);
+}

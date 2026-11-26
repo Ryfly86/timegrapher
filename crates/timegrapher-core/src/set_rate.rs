@@ -77,20 +77,69 @@ pub fn session_set_aside_text(calibre: Option<&Calibre>, bph: Option<u32>) -> Op
     Some(format!("{why}, so the session's takes are read on Auto"))
 }
 
-/// Whether the take in `dir` was recorded on Auto: the recorder's
-/// `session.json` names no beat rate set by hand (its `bph`, from
-/// [`crate::recorder::SessionInfo`], is null). A take with no
+/// The top-level key in a take's `session.json` that says a watch the
+/// take was moved into set its beat rate in `session.toml` (#1283), so
+/// that rate stands although the take was recorded on Auto (Peter,
+/// 26 Nov 2026, on #2357). Older builds ignore it.
+pub const WATCH_RATE_KEY: &str = "bph_from_watch";
+
+/// Whether the take in `dir` is read on Auto as it was recorded: the
+/// recorder's `session.json` names no beat rate set by hand (its `bph`,
+/// from [`crate::recorder::SessionInfo`], is null), and no watch it was
+/// moved into set one since ([`WATCH_RATE_KEY`]). A take with no
 /// `session.json`, one that can't be read, or one the recorder did not
 /// write (no `lift_deg`) is not, nor is one with no `bph` key: only a
 /// `bph` written null says Auto. Moves onto `recorder::recorded_setup`
 /// (#2393), with a flag for a `bph` written null, once that reader is on
 /// main, so the file is read in one place.
 pub fn recorded_on_auto(dir: &std::path::Path) -> bool {
+    use serde_json::Value;
     let json = crate::breaks::read_session(&dir.join(crate::take::RECORD));
-    let auto = |v: &serde_json::Value| {
-        v.get("lift_deg").is_some() && v.get("bph") == Some(&serde_json::Value::Null)
+    let auto = |v: &Value| {
+        let watch = v.get(WATCH_RATE_KEY) == Some(&Value::Bool(true));
+        v.get("lift_deg").is_some() && v.get("bph") == Some(&Value::Null) && !watch
     };
     matches!(json, Ok(Some(v)) if auto(&v))
+}
+
+/// Mark the take in `dir` as one whose beat rate a watch set
+/// ([`WATCH_RATE_KEY`]): written into its `session.json` as the first
+/// key, the rest of the file as it was. A take with no `session.json`, or
+/// one already marked, is left as it is; one that isn't a JSON object is
+/// refused. Whether it was marked now.
+pub fn mark_watch_rate(dir: &std::path::Path) -> Result<bool, String> {
+    use serde_json::Value;
+    let file = dir.join(crate::take::RECORD);
+    let text = match crate::recorder::read_settled(&file) {
+        Ok(t) => t,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(e) => return Err(format!("{}: {e}", file.display())),
+    };
+    let bad = || {
+        format!(
+            "{} is not a session file this build can read",
+            file.display()
+        )
+    };
+    let v: Value = serde_json::from_str(&text).map_err(|_| bad())?;
+    let o = v.as_object().ok_or_else(bad)?;
+    if o.get(WATCH_RATE_KEY) == Some(&Value::Bool(true)) {
+        return Ok(false);
+    }
+    let key = format!("\"{WATCH_RATE_KEY}\": true");
+    let open = text.find('{').ok_or_else(bad)?;
+    let (head, rest) = text.split_at(open + 1);
+    let marked = if o.contains_key(WATCH_RATE_KEY) {
+        let mut o = o.clone();
+        o.insert(WATCH_RATE_KEY.into(), Value::Bool(true));
+        serde_json::to_string_pretty(&o).map_err(|e| e.to_string())?
+    } else if o.is_empty() {
+        format!("{{{key}}}\n")
+    } else {
+        format!("{head}\n  {key},{rest}")
+    };
+    crate::library::write_atomic(&file, marked.as_bytes())?;
+    Ok(true)
 }
 
 /// The take in `dir` read as it was recorded (Peter, 26 Nov 2026, on

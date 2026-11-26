@@ -1494,6 +1494,12 @@ fn file_take_under(
     if doc.to_string() != text {
         write_replacing(&file, &doc.to_string())?;
     }
+    // The watch's beat rate stands, though the take was recorded on Auto
+    // (Peter on #2357): read again where that changes its rate.
+    if !timegrapher_core::checkpoint::is_kept(take) && cal.watch_bph(w).is_some() {
+        let on_auto = timegrapher_core::set_rate::recorded_on_auto(take);
+        changed |= timegrapher_core::set_rate::mark_watch_rate(take)? && on_auto;
+    }
     Ok(changed)
 }
 

@@ -423,9 +423,10 @@ fn an_off_standard_watch_opened_on_auto_has_no_rate_in_s_per_day() {
 
 /// A take recorded on Auto, opened (Peter on #2357): its `session.json`
 /// says `bph: null`, so the 17,280 its `session.toml` keeps is Auto's
-/// guess. It opens on Auto, as `timegrapher session` reads it, and its
-/// lock off every standard rate gives no rate in s/d. Recorded at 17,280,
-/// it reads at 17,280.
+/// guess. It opens on Auto, as `timegrapher session` reads it, whether
+/// its session file names its one sound file or the folder holds two,
+/// and its lock off every standard rate gives no rate in s/d. Recorded at
+/// 17,280, it reads at 17,280.
 #[test]
 fn a_take_recorded_on_auto_opens_on_auto() {
     use timegrapher_core::measure::off_standard;
@@ -438,13 +439,31 @@ fn a_take_recorded_on_auto_opens_on_auto() {
         ..Default::default()
     };
     let audio = generate(&cfg, |_| 280.0, |_| 0.0);
-    let opened = |info: &str| {
-        let take = base.join(info);
+    // One sound file named in the session file, or the folder's two.
+    let opened = |info: &str, parts: bool| {
+        let take = base.join(format!("{info}-{parts}"));
         std::fs::create_dir_all(&take).unwrap();
-        timegrapher_core::audio::write_wav(&take.join("off.wav"), &audio).unwrap();
+        let file = if parts {
+            let half = audio.samples.len() / 2;
+            for (i, s) in [&audio.samples[..half], &audio.samples[half..]]
+                .iter()
+                .enumerate()
+            {
+                let part = timegrapher_core::audio::Audio {
+                    samples: s.to_vec(),
+                    sample_rate: audio.sample_rate,
+                };
+                let name = format!("off-{:03}.wav", i + 1);
+                timegrapher_core::audio::write_wav(&take.join(name), &part).unwrap();
+            }
+            "."
+        } else {
+            timegrapher_core::audio::write_wav(&take.join("off.wav"), &audio).unwrap();
+            "off.wav"
+        };
         std::fs::write(
             take.join("session.toml"),
-            "bph = 17280\n\n[[recording]]\nfile = 'off.wav'\nposition = 'DU'\n",
+            format!("bph = 17280\n\n[[recording]]\nfile = '{file}'\nposition = 'DU'\n"),
         )
         .unwrap();
         let json = format!(r#"{{"watch": "", "position": "DU", "lift_deg": 52.0, "bph": {info}}}"#);
@@ -458,13 +477,19 @@ fn a_take_recorded_on_auto_opens_on_auto() {
         assert!(app.bench.recording.batch.is_none(), "{:?}", app.message);
         app
     };
-    let auto = opened("null");
-    let set = opened("17280");
+    let (auto, parts) = (opened("null", false), opened("null", true));
+    let set = opened("17280", false);
     let _ = std::fs::remove_dir_all(&base);
-    assert_eq!(auto.bench.take.bph, None);
-    let w = auto.whole_take().expect("the whole take on Auto");
-    assert_eq!(w.m.rate_s_per_day, None, "{:?}", w.m.caveats);
-    assert!(off_standard(&w.m.caveats).is_some(), "{:?}", w.m.caveats);
+    for (auto, how) in [(auto, "one file"), (parts, "a folder of two")] {
+        assert_eq!(auto.bench.take.bph, None, "{how}");
+        let w = auto.whole_take().expect("the whole take on Auto");
+        assert_eq!(w.m.rate_s_per_day, None, "{how}: {:?}", w.m.caveats);
+        assert!(
+            off_standard(&w.m.caveats).is_some(),
+            "{how}: {:?}",
+            w.m.caveats
+        );
+    }
     assert_eq!(set.bench.take.bph, Some(17_280));
     let w = set.whole_take().expect("the whole take at 17,280");
     assert!(w.m.rate_s_per_day.is_some_and(|r| r > 1_000.0), "{:?}", w.m);
@@ -509,4 +534,124 @@ fn an_off_standard_takes_table_and_upright_stops_have_no_rate_on_auto() {
         }
         assert_eq!(t.mean[0].is_none(), bph_set.is_none(), "{bph_set:?}: {t:?}");
     }
+}
+
+/// A take recorded on Auto, moved into a watch that sets a beat rate
+/// (#1283): the move marks the take's `session.json`, so the watch's rate
+/// stands (Peter on #2357), even where it is the rate Auto guessed and
+/// `session.toml` does not change, and the take on show is read again at
+/// it. Before the move it opens on Auto.
+#[test]
+fn a_take_recorded_on_auto_moved_into_a_watch_takes_its_rate() {
+    use timegrapher_core::{library, synth::generate, synth::SynthConfig};
+    let base = std::env::temp_dir().join(format!("tg-app-move-auto-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let root = base.join("Timegrapher Data");
+    let mut lib = library::Library::create(&root).unwrap();
+    let pepsi = lib.add(&library::Watch::new("Pepsi")).unwrap();
+    let mut own = library::Watch::new("Own");
+    own.bph = Some(17_280);
+    lib.add(&own).unwrap();
+    let own_id = lib.find("Own").unwrap().watch.id.clone();
+    drop(lib);
+    let take = pepsi.join(library::TAKES).join("2026-11-26 10.00 Dial Up");
+    std::fs::create_dir_all(&take).unwrap();
+    let cfg = SynthConfig {
+        bph: 17_570,
+        duration_s: 40.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    timegrapher_core::audio::write_wav(&take.join("take_part01-001.wav"), &audio).unwrap();
+    std::fs::write(
+        take.join(timegrapher_core::take::MANIFEST),
+        "watch = \"Pepsi\"\nbph = 17280\n\n[[recording]]\nfile = \".\"\nposition = \"DU\"\n",
+    )
+    .unwrap();
+    let record = r#"{"watch": "Pepsi", "position": "DU", "lift_deg": 52.0, "bph": null}"#;
+    std::fs::write(take.join(timegrapher_core::take::RECORD), record).unwrap();
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.use_library(Some(root.clone()));
+    let open = |app: &mut TimegrapherApp| {
+        let t = std::time::Instant::now();
+        while app.bench.recording.batch.is_some() && t.elapsed().as_secs() < 60 {
+            app.poll();
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+    };
+    app.take_action(Some(watches::TakeAction::Open(take.clone())));
+    open(&mut app);
+    assert_eq!(app.bench.take.bph, None, "opened on Auto");
+    app.watches_view.take_readings.wait();
+    app.move_take(&take, &own_id);
+    let at = root
+        .join("Own")
+        .join(library::TAKES)
+        .join(take.file_name().unwrap());
+    assert!(!timegrapher_core::set_rate::recorded_on_auto(&at));
+    assert!(app.bench.recording.batch.is_some(), "read again");
+    open(&mut app);
+    assert_eq!(app.take_on_show().as_ref(), Some(&at));
+    assert_eq!(app.bench.take.bph, Some(17_280));
+    let w = app.whole_take().expect("the whole take at 17,280");
+    assert!(w.m.rate_s_per_day.is_some_and(|r| r > 1_000.0), "{:?}", w.m);
+    drop(app);
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// The other two opens of a take recorded on Auto (Vernon 56's P2 and
+/// P4): played (Play, the folder of sound files on the strip) and kept
+/// as its analysis alone then opened. Each opens on Auto, as File > Open
+/// does (`apply_take_manifest`).
+#[test]
+fn a_take_recorded_on_auto_plays_and_opens_kept_on_auto() {
+    use timegrapher_core::synth::{generate, SynthConfig};
+    let base = std::env::temp_dir().join(format!("tg-as-recorded-play-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let take = base.join("take");
+    std::fs::create_dir_all(&take).unwrap();
+    let cfg = SynthConfig {
+        bph: 17_570,
+        duration_s: 40.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    timegrapher_core::audio::write_wav(&take.join("take_part01-001.wav"), &audio).unwrap();
+    std::fs::write(
+        take.join(timegrapher_core::take::MANIFEST),
+        "bph = 17280\n\n[[recording]]\nfile = \".\"\nposition = \"DU\"\n",
+    )
+    .unwrap();
+    let record = r#"{"watch": "", "position": "DU", "lift_deg": 52.0, "bph": null}"#;
+    std::fs::write(take.join(timegrapher_core::take::RECORD), record).unwrap();
+    // Played.
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.bench.take.bph = Some(18_000);
+    app.start_replay(&take);
+    assert!(
+        app.message.as_ref().is_none_or(|(_, e)| !e),
+        "{:?}",
+        app.message
+    );
+    assert_eq!(app.bench.take.bph, None, "played");
+    app.stop();
+    // Kept as its analysis alone, then opened.
+    let plan = timegrapher_core::analysis_take::plan_keep(&take, &Default::default()).unwrap();
+    let kept =
+        timegrapher_core::analysis_take::write_kept(&take, &plan, serde_json::Value::Null, |_| {})
+            .unwrap();
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.bench.take.bph = Some(18_000);
+    app.open_recording(&kept, false);
+    let t = std::time::Instant::now();
+    while app.bench.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
+        app.poll();
+    }
+    let _ = std::fs::remove_dir_all(&base);
+    assert!(
+        app.message.as_ref().is_none_or(|(_, e)| !e),
+        "{:?}",
+        app.message
+    );
+    assert_eq!(app.bench.take.bph, None, "kept");
 }
