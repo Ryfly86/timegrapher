@@ -1379,7 +1379,10 @@ impl TimegrapherApp {
     /// calibre (a custom one is added to the custom calibres from its wheels),
     /// the lift angle and beat rate. Returns the positions it lists through
     /// the recording, oldest first, and the settling before each: a gap
-    /// between one position's end and the next one's start.
+    /// between one position's end and the next one's start. An open of a
+    /// take puts it in place with [`Self::apply_take_manifest`]; the tests
+    /// ask it here.
+    #[cfg(test)]
     pub(super) fn apply_manifest(
         &mut self,
         m: &Manifest,
