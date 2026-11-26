@@ -180,7 +180,7 @@ file says 55°; using 55°`), and `summary.json` lists the same notes under
 them, the lift angle is the default 52°, and each reading carries the
 `lift_unknown` caveat. A calibre's beat rate outside 12000 to 72000 bph is set
 aside: the session's takes are read on Auto, `calibre_notes` says so, and
-`session --init` writes the `bph` line commented with the same note (see
+`session --init` writes the same note as a comment in place of the `bph` line (see
 `--bph` in [agent-interface.md](agent-interface.md)).
 
 `escapement = "co-axial"` (or `"swiss lever"`) says which escapement the

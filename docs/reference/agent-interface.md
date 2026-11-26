@@ -671,7 +671,7 @@ range (core `input_domain::LIFT_RANGE_DEG`, which the app's lift fields use too)
   custom calibre), is set aside: the reading hears the beat rate (Auto), as with no rate
   set, and says why: `analyze`'s `Set rate` line, or a `note:` line on stderr
   with `--json`; `session`'s `calibre_notes`; a `note:` line on stderr from
-  `record` and `session --init`, which writes the `bph` line commented. MCP
+  `record` and `session --init`, which writes the note in the session file as a comment in place of the `bph` line. MCP
   passes stderr's notes on.
 - `--lift`: from 10 to 90 degrees, for `analyze`, `shape`, `profile`, `long`,
   `series`, `record`, `session` and `report`, as are a session file's `lift`

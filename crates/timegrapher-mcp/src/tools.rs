@@ -156,8 +156,8 @@ const CALIBRE_READING: Param = p(
     Arg::Flag("--calibre"),
     false,
     "The movement, e.g. \"ETA 2824-2\" or \"Rolex 3235\": its beat rate and lift angle \
-     are used where bph and lift_deg are not given; a beat rate outside the bph range is set \
-     aside and the beat rate heard, with a note. An unknown name is an error that \
+     are used where bph and lift_deg are not given; a calibre's beat rate outside 12000 to \
+     72000 bph is set aside and the take is read on Auto, with a note. An unknown name is an error that \
      suggests a wider search; list_calibres has the known ones.",
 );
 const DEVICE: Param = p(
