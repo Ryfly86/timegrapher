@@ -374,4 +374,8 @@ fn an_off_standard_watch_opened_on_auto_has_no_rate_in_s_per_day() {
         .filter_map(|p| p.rate_s_per_day)
         .collect();
     assert!(rates.is_empty(), "the charts' rates: {rates:?}");
+    let t = app.free_table(&egui::Context::default()).expect("a table");
+    assert!(t.read > 0, "{t:?}");
+    assert_eq!((t.mean[0], t.largest[0]), (None, None), "{t:?}");
+    assert!(t.mean[1].is_some(), "amplitude stays: {t:?}");
 }
