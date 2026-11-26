@@ -575,7 +575,7 @@ fn inverses(table: &[Calibre]) -> Inverses<'_> {
 
 fn link(c: &Calibre) -> Link {
     Link {
-        name: with_maker_name(&c.maker, &c.calibre),
+        name: title(c),
         path: path(c),
     }
 }
@@ -720,7 +720,7 @@ fn period_words(s: f64) -> String {
 
 /// The page of `c`; `inv` holds the relations other rows state about it.
 fn page(c: &Calibre, inv: &Inverses) -> Page {
-    let title = with_maker_name(&c.maker, &c.calibre);
+    let title = title(c);
     let mut cite = Numbered::default();
     for s in c.sources.iter().map(String::as_str).chain(field_sources(c)) {
         cite.number(s);
@@ -938,6 +938,32 @@ fn capitalised(s: &str) -> String {
         .unwrap_or_default()
 }
 
+/// The title of a row, as its page and the app's Calibres pane head it:
+/// [`with_maker_name`], [`marked`] as a clone where it is one (#2304).
+pub fn title(c: &Calibre) -> String {
+    marked(c, &with_maker_name(&c.maker, &c.calibre))
+}
+
+/// `shown`, a name of `c` as some list or heading shows it, with "(clone)"
+/// after it when the row is a "clone of" another and `shown` doesn't say
+/// so already. A maker that also makes calibres of its own is not a clone
+/// maker, so the mark sits on the row (#2304); the app's list and the
+/// site's titles both take it from here.
+pub fn marked(c: &Calibre, shown: &str) -> String {
+    if !says_clone(shown) && c.related.iter().any(|r| r.relation == "clone of") {
+        format!("{shown} (clone)")
+    } else {
+        shown.to_string()
+    }
+}
+
+/// `s` has the word "clone" in it, in any case ("Patek 240 Clone"), not
+/// only as part of a word ("Clonecraft").
+fn says_clone(s: &str) -> bool {
+    s.split(|ch: char| !ch.is_alphanumeric())
+        .any(|word| word.eq_ignore_ascii_case("clone"))
+}
+
 /// A calibre's name with its maker in front, unless the name already
 /// starts with the maker under one of its names ("Rolex 3235", not "Rolex
 /// Rolex 3235"; "Seagull ST36", not "Tianjin Seagull Seagull ST36").
@@ -945,10 +971,7 @@ pub fn with_maker_name(maker: &str, name: &str) -> String {
     // A clone maker's marker is already in a name such as "Patek 240 Clone",
     // so only the maker itself goes in front.
     if let Some(outer) = maker.strip_suffix("(clone)").map(str::trim_end) {
-        if name
-            .split(|ch: char| !ch.is_alphanumeric())
-            .any(|word| word.eq_ignore_ascii_case("clone"))
-        {
+        if says_clone(name) {
             return match outer {
                 "" => name.to_string(),
                 outer => format!("{outer} {name}"),
