@@ -539,8 +539,8 @@ plain `--json` stays small for agents. The MCP server asks for them and
 keeps them out of what the model reads.
 
 `--maps` (with `--json`) adds `time_frequency`, `coherence`,
-`lomb_scargle`, `wheel_turns`, `kurtograms` and the `wheel_lines` windows, about 4.1 MB on a 2 h take (parts 6 and 7 of the Pepsi replica's
-take, Dandong 3285, where `--views` adds about 0.7 MB).
+`lomb_scargle`, `wheel_turns`, `kurtograms` and the `wheel_lines` windows, about 4.1 MB on a 2 h take (parts 6 and 7 of a DD3285
+take, where `--views` adds about 0.7 MB).
 
 The JSON's top-level `clock` describes the correction actually applied to
 these readings: `ppm`, `rate_error_s_per_day`, `from` (the source), and
