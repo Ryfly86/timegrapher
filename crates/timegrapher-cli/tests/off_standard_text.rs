@@ -48,9 +48,9 @@ fn the_text_off_every_standard_rate() {
     assert!(n.parse::<usize>().is_ok_and(|n| n > 150), "{beats}");
     assert_eq!(
         line(&text, "Rate  "),
-        "Rate         The beat rate heard, 17571 bph, is more than 1000 s/d from every \
-         standard rate (+1455.1 s/d against 17280 bph; -2059.1 s/d against 18000 bph), so no \
-         rate in s/d is given."
+        "Rate         No rate in s/d: over the first 10 s after Auto locked on to the \
+         beat, the watch was more than 1000 s/d from every standard rate. This reading: \
+         17571 bph heard, +1455.1 s/d against 17280 bph, -2059.1 s/d against 18000 bph."
     );
     assert!(!text.contains("Rate spread"), "{text}");
     // With the card 20 ppm fast, the sides are read at the correction,

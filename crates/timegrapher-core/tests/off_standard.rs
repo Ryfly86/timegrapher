@@ -204,9 +204,9 @@ fn the_caveat_in_words() {
     assert_eq!(
         c.long(None).as_deref(),
         Some(
-            "The beat rate heard, 17571 bph, is more than 1000 s/d from every standard rate \
-             (+1455.1 s/d against 17280 bph; -2059.1 s/d against 18000 bph), so no rate in \
-             s/d is given."
+            "No rate in s/d: over the first 10 s after Auto locked on to the beat, the \
+             watch was more than 1000 s/d from every standard rate. This reading: 17571 bph \
+             heard, +1455.1 s/d against 17280 bph, -2059.1 s/d against 18000 bph."
         )
     );
     assert_eq!(
@@ -217,6 +217,22 @@ fn the_caveat_in_words() {
     let json = serde_json::to_value(c).unwrap();
     assert_eq!(json["code"], "off_standard_rate");
     assert_eq!(serde_json::from_value::<Caveat>(json).unwrap(), c);
+}
+
+/// A reading in a lock judged off whose own rate is back within reach of
+/// a side (Hugh on #2316): the words stay true, since the verdict is the
+/// lock's and the figures are the reading's.
+#[test]
+fn the_words_hold_when_a_reading_is_back_in_reach() {
+    let o = OffStandard::reading(18_000, Some(-990.0), None).unwrap();
+    assert_eq!(
+        Caveat::OffStandardRate(o).long(None).as_deref(),
+        Some(
+            "No rate in s/d: over the first 10 s after Auto locked on to the beat, the \
+             watch was more than 1000 s/d from every standard rate. This reading: 17794 bph \
+             heard, +2568.7 s/d against 17280 bph, -990.0 s/d against 18000 bph."
+        )
+    );
 }
 
 /// The JSON of `analyze` off every standard rate: no rate anywhere, the

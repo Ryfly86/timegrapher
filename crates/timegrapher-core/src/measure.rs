@@ -488,9 +488,10 @@ fn heard_bph(o: &crate::timing::OffStandard) -> String {
     )
 }
 
-/// [`Caveat::OffStandardRate`] as a sentence: the beat rate heard, how
-/// far it is from the standard rate on each side, and that no rate in
-/// s/d is given (Norm on #2223, point 5).
+/// [`Caveat::OffStandardRate`] as a sentence: that no rate in s/d is
+/// given because the lock was judged off every standard rate, then this
+/// reading's beat rate heard and how far it is from the standard rate on
+/// each side (Norm on #2223, point 5; Hugh on #2316).
 fn off_standard_text(o: &crate::timing::OffStandard) -> String {
     let rate = crate::figure_text::base_digits::RATE;
     let side = |s: &crate::timing::StandardSide| {
@@ -498,12 +499,16 @@ fn off_standard_text(o: &crate::timing::OffStandard) -> String {
         format!("{r} s/d against {} bph", s.bph)
     };
     let sides: Vec<String> = o.below.iter().chain(o.above.iter()).map(side).collect();
+    // The verdict is the lock's; the figures are this reading's, so the
+    // sentence holds when a reading's own rate is back in reach (Hugh on
+    // #2316).
     format!(
-        "The beat rate heard, {}, is more than {:.0} s/d from every standard rate ({}), \
-         so no rate in s/d is given.",
-        heard_bph(o),
+        "No rate in s/d: over the first {:.0} s after Auto locked on to the beat, the watch \
+         was more than {:.0} s/d from every standard rate. This reading: {} heard, {}.",
+        crate::beats::GUESS_SPAN_S,
         crate::beats::STANDARD_REACH_S_PER_DAY,
-        sides.join("; "),
+        heard_bph(o),
+        sides.join(", "),
     )
 }
 

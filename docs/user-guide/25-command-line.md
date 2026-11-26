@@ -98,6 +98,16 @@ from the take's; the take's are the ones the app shows. The rate is
 corrected for the sound card's clock from the USB lines in the recording (M3), and
 gives the uncorrected figure too.
 
+On Auto, with no beat rate set, a watch more than 1000 s/d from every
+standard rate over the first 10 s after Auto locked on gets no rate in
+s/d. Its Beat rate line names no standard rate, and its Rate line gives
+the beat rate heard instead:
+
+```text
+Beat rate    Auto, 195 beats found
+Rate         No rate in s/d: over the first 10 s after Auto locked on to the beat, the watch was more than 1000 s/d from every standard rate. This reading: 17571 bph heard, +1455.1 s/d against 17280 bph, -2059.1 s/d against 18000 bph.
+```
+
 ## For Scripts and Agents
 
 - `--json` prints exactly one JSON document, starting with `schema`
