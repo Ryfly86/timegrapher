@@ -242,8 +242,9 @@ enum Command {
         /// take's folder is read with its session.toml.
         #[arg(required = true)]
         files: Vec<PathBuf>,
-        /// Clock log for calibrating the sound card: audio position against
-        /// NTP-synced system time (see `docs/reference/long-runs.md`).
+        /// Clock log for calibrating the sound card: a CSV, written during
+        /// the recording, of how much audio had been captured against
+        /// NTP-synced system time, one line a minute or so (`time_ns,bytes`).
         #[arg(long)]
         clock: Option<PathBuf>,
         /// Without a clock log: correct with the clock error stored for
@@ -356,8 +357,7 @@ enum Command {
         /// coherence of the rate with the amplitude and of Tick's
         /// amplitude with Tock's, the Lomb-Scargle periodogram of each
         /// series' readings and each series' kurtogram: about 4.1 MB on a
-        /// 2 h take (parts 6 and 7 of the Pepsi replica's take, Dandong
-        /// 3285).
+        /// 2 h take (parts 6 and 7 of a DD3285 take).
         #[arg(long, requires = "json")]
         maps: bool,
     },
