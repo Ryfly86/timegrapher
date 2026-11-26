@@ -381,6 +381,12 @@ fn large_replies_are_cut_to_what_the_model_reads(c: &mut Client, take: &Path) {
         "{r}"
     );
     assert!(curves["b"]["p90"].is_array(), "{r}");
+    let r = c.call(
+        "tick_tock_profile",
+        json!({ "recording": path(take), "curves": true }),
+    );
+    assert!(r["structuredContent"]["a"]["median"].is_array(), "{r}");
+    assert!(r["structuredContent"].get("projection").is_none(), "{r}");
 
     let r = c.call("list_calibres", json!({}));
     let doc = &r["structuredContent"];

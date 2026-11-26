@@ -189,15 +189,17 @@ async fn call(
 
 /// The compact documents of the tools whose CLI document runs to hundreds
 /// of kB (#2097): `beat_shape` without its windows unless asked for,
-/// `tick_tock_profile` with its curves for the view (returned, for the
-/// result's `_meta`), and `list_calibres`' rows for a list.
+/// `tick_tock_profile` with its curves for the view unless asked for
+/// (returned, for the result's `_meta`), and `list_calibres`' rows for a list.
 fn compact(tool: &tools::ToolSpec, args: &Map<String, Value>, doc: &mut Value) -> Option<Value> {
     match tool.name {
         "beat_shape" if args.get(tools::WINDOWS) != Some(&Value::Bool(true)) => {
             views::shape_compact(doc);
         }
         "list_calibres" => views::calibres_compact(doc),
-        "tick_tock_profile" => return views::profile_charts(doc),
+        "tick_tock_profile" if args.get(tools::CURVES) != Some(&Value::Bool(true)) => {
+            return views::profile_charts(doc);
+        }
         _ => {}
     }
     None

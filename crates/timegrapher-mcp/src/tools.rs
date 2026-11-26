@@ -303,7 +303,8 @@ pub const TOOLS: &[ToolSpec] = &[
         description: "The sound of the Tick and the Tock over a stretch of a recording, with \
             the unlock, drop and sound marks the engine measured on them: the place to look \
             when amplitude or beat error seem wrong. In the JSON, `a` is the Tick (even \
-            beats) and `b` the Tock (odd beats).",
+            beats) and `b` the Tock (odd beats); each side's `median`, `p10` and `p90` \
+            curves go to the charts only, unless `curves` is true.",
         command: &["profile"],
         params: &[
             RECORDING,
@@ -324,6 +325,15 @@ pub const TOOLS: &[ToolSpec] = &[
             CALIBRE_READING,
             BPH,
             LIFT_OR_CALIBRE,
+            p(
+                CURVES,
+                Kind::Switch,
+                Arg::Server,
+                false,
+                "true for each side's `median`, `p10` and `p90` curves in the result as \
+                 well, one value per step (left out if not given: the charts draw them, \
+                 and each side's marks are given).",
+            ),
         ],
         charts: true,
         read_only: true,
@@ -783,6 +793,10 @@ pub fn notes(t: &ToolSpec) -> Vec<String> {
 /// (`views::shape_compact`, #2097).
 pub const WINDOWS: &str = "windows";
 
+/// `tick_tock_profile`'s switch for its curves in the result, read by the
+/// server (`views::profile_charts`, #2097).
+pub const CURVES: &str = "curves";
+
 /// `record_position`'s retry identifier, read by the server.
 pub const TAKE_ID: &str = "take_id";
 
@@ -1237,6 +1251,18 @@ mod tests {
     }
 
     /// run_session names the accepted positions from core (#1492).
+    /// `list_calibres` names its cap from the one constant (#2097).
+    #[test]
+    fn the_calibre_list_names_its_cap() {
+        let d = definition(find("list_calibres").unwrap());
+        let text = d["description"].as_str().unwrap();
+        assert!(!text.contains("{shown}"), "{text}");
+        assert!(
+            text.contains(&format!("at most {} of them", crate::views::CALIBRES_SHOWN)),
+            "{text}"
+        );
+    }
+
     #[test]
     fn descriptions_name_positions_from_core() {
         let d = definition(find("run_session").unwrap());

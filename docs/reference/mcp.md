@@ -177,7 +177,8 @@ so one call does not put hundreds of kB in front of the model (#2097):
   CLI's document unchanged.
 - `tick_tock_profile` (`timegrapher.mcp.profile_compact/1`) moves each
   side's `median`, `p10` and `p90` curves to the view, in the result's
-  `_meta`; each side's marks and beats stay.
+  `_meta`; each side's marks and beats stay. `curves: true` gives the
+  CLI's document unchanged.
 - `list_calibres`, for a list (the common calibres, or more than one
   match of a `search`), gives each calibre's `calibre`, `maker`, `family`,
   `bph`, `lift_angle_deg`, `escape_teeth`, `confidence` and `common` (its
