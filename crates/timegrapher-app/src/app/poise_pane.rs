@@ -1430,7 +1430,7 @@ mod tests {
                     egui::CentralPanel::default().show(ctx, |ui| {
                         let bottom = ui.max_rect().top() + 500.0;
                         ui.set_max_height(500.0);
-                        egui::ScrollArea::vertical()
+                        crate::theme::scroll(egui::ScrollArea::vertical())
                             .vertical_scroll_offset(offset)
                             .show(ui, |ui| {
                                 ui.add_space(100.0);

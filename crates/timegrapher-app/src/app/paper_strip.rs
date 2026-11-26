@@ -715,7 +715,7 @@ impl TimegrapherApp {
         // regularly: where things stand, in the strip's place.
         if self.bench.recording.live.is_none() || self.mic_session_set_aside() {
             // Scrolling where the strip is too short for it, never cut off.
-            egui::ScrollArea::vertical()
+            crate::theme::scroll(egui::ScrollArea::vertical())
                 .id_salt("empty state")
                 .auto_shrink([false, false])
                 .show(ui, |ui| self.empty_state(ui));

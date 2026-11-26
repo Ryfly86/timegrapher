@@ -624,11 +624,14 @@ fn paint_walk(ui: &egui::Ui, t: &PlotTransform, w: &WalkView) {
         (*start, START_RING + 1.25, WALK_START),
         (*end, END_DOT + 1.0, w.last_text.as_str()),
     ];
-    for (at, radius, text) in marks {
+    // A mark off the scale has no name: its dot isn't drawn, so a name
+    // kept inside would float with nothing to name, and the key counts it
+    // as off the scale (#2129: "64 h" sat alone at the plot's foot).
+    for (at, radius, text) in marks.into_iter().filter(|m| frame.contains(m.0)) {
         let g = galley(text);
         name(place_name(at, radius, g.size(), frame, &dots, &drawn), g);
     }
-    for b in &w.beads {
+    for b in w.beads.iter().filter(|b| frame.contains(dots[b.dot])) {
         let (side, align) = bead_side(&dots, b.dot);
         let g = galley(&b.text);
         name(
@@ -1763,5 +1766,56 @@ mod tests {
         let near = nearest_bin(&curve, &t, at + egui::vec2(2.0, 0.0)).unwrap();
         assert_eq!(iso_bin_hover(near), iso_bin_hover(b));
         assert!(nearest_bin(&curve, &t, at + egui::vec2(0.0, HOVER_PX + 1.0)).is_none());
+    }
+
+    /// The end off the scale has no name: its dot isn't drawn, so the
+    /// name kept inside floated by itself at the plot's foot (#2129:
+    /// "64 h" alone near 133°, −140 s/d). The key still names the end and
+    /// counts it off the scale.
+    #[test]
+    fn an_end_off_the_scale_has_no_name() {
+        let ctx = egui::Context::default();
+        theme::install(&ctx);
+        let size = egui::vec2(1400.0, 700.0);
+        let mut w = long_walk();
+        let named = |w: &WalkView| {
+            texts_of(&frame_of(&ctx, size, Some(w), View::Walk))
+                .iter()
+                .filter(|(t, _)| *t == w.last_text)
+                .count()
+        };
+        // On the scale: named by its dot and in the key.
+        assert_eq!(named(&w), 2);
+        let last = w.dots.len() - 1;
+        // Only a thin dot can fall off: the full ones set the scale.
+        w.dots[last].thin = true;
+        w.dots[last].rate_s_per_day -= 1000.0;
+        let t: Vec<String> = texts_of(&frame_of(&ctx, size, Some(&w), View::Walk))
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
+        assert!(t.iter().any(|t| t == "Off the scale: 1"), "{t:?}");
+        assert_eq!(named(&w), 1, "{t:?}");
+    }
+
+    /// An hour bead off the scale has no name either (#2129).
+    #[test]
+    fn an_hour_bead_off_the_scale_has_no_name() {
+        let ctx = egui::Context::default();
+        theme::install(&ctx);
+        let size = egui::vec2(1400.0, 700.0);
+        let mut w = long_walk();
+        let bead = w.beads.first().expect("an hour bead").clone();
+        let named = |w: &WalkView| {
+            texts_of(&frame_of(&ctx, size, Some(w), View::Walk))
+                .iter()
+                .filter(|(t, _)| *t == bead.text)
+                .count()
+        };
+        assert_eq!(named(&w), 1, "{} named on the scale", bead.text);
+        // Only a thin dot can fall off: the full ones set the scale.
+        w.dots[bead.dot].thin = true;
+        w.dots[bead.dot].rate_s_per_day -= 1000.0;
+        assert_eq!(named(&w), 0, "{} named off the scale", bead.text);
     }
 }

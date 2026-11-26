@@ -18,7 +18,7 @@ impl TimegrapherApp {
         }
         self.watches_view.watches_wide = wide;
         let scroll = |ui: &mut egui::Ui, id: &str, add: &mut dyn FnMut(&mut egui::Ui)| {
-            egui::ScrollArea::vertical()
+            crate::theme::scroll(egui::ScrollArea::vertical())
                 .id_salt(id)
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
