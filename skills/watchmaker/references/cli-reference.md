@@ -293,6 +293,13 @@ timegrapher shape FILE [--bph N] [--lift DEG] [--notch HZ,...] [--highpass HZ]
 `--templates` writes the averaged even and odd tick, `time_ms,even,odd`.
 How to read it: [tick-shape.md](tick-shape.md).
 
+`shape` reads the file as `analyze` does: the same beats, with the same
+sides, so `even` and `odd` are `analyze`'s Tick and Tock. The text's
+amplitude row is `analyze`'s amplitude of each side, read over its 2 s
+amplitude windows rather than from these templates, so the
+whole-recording columns give none. Under it are the caveats `analyze`
+gives that amplitude, in its words (such as a co-axial's estimate).
+
 JSON body: `even` and `odd` (one per side), `windows` (each 2 s window's
 `{ start_s, end_s, even, odd }` shapes), `template_start_ms`.
 
