@@ -1252,3 +1252,41 @@ fn unsaved_sound_opens_with_the_watch_it_was_heard_with() {
     drop(next);
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// A recovered take opens at the position its session.json was last
+/// heard in, over the folder name's start position; with none written,
+/// the name's, else Dial Up; a lift that couldn't stand, 52° (#2376).
+#[test]
+fn a_recovered_take_opens_at_the_position_last_heard() {
+    use timegrapher_core::recorder::RecordedSetup;
+    let recorded = |position: Option<&str>| RecordedSetup {
+        watch: String::new(),
+        position: position.map(str::to_string),
+        lift_deg: Some(55.0),
+        bph: None,
+    };
+    let opened = |r: RecordedSetup, name: &str| {
+        let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+        app.put_recorded(r, &std::env::temp_dir().join(name));
+        app
+    };
+    // Started Dial Up (the folder's name), moved to Crown Left.
+    let app = opened(recorded(Some("CL")), "2026-11-26_10-00-00_DU");
+    assert_eq!(app.bench.take.position, Position::CrownLeft);
+    // None written, or one that isn't a position: the name's.
+    for written in [None, Some("sideways")] {
+        let app = opened(recorded(written), "2026-11-26_10-00-00_DD");
+        assert_eq!(app.bench.take.position, Position::DialDown, "{written:?}");
+    }
+    let app = opened(recorded(None), "run");
+    assert_eq!(app.bench.take.position, WatchSetup::default().position);
+    let app = opened(
+        RecordedSetup {
+            lift_deg: None,
+            ..recorded(None)
+        },
+        "run",
+    );
+    assert_eq!(app.bench.take.lift_deg, DEFAULT_LIFT_DEG);
+    assert_eq!(app.bench.keeping.open_note, None);
+}
