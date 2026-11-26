@@ -5,6 +5,15 @@
 
 use super::*;
 
+/// A dimmed File Save with a recording opened that the library can take:
+/// the route that keeps it (#2385).
+pub(super) const OPENED_KEEP_HINT: &str =
+    "An opened recording is kept with Save on the Listen card, in one of your watches";
+/// A dimmed File Save with a recording opened that is already in the
+/// library, or no library to keep it in (#2385).
+pub(super) const OPENED_STAYS_HINT: &str =
+    "Nothing to save: an opened recording stays where it is on disk";
+
 /// What a menu item does, whichever menu bar it is in. Its shortcut and
 /// both menu bars run it through [`TimegrapherApp::run_menu_command`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -277,7 +286,7 @@ impl TimegrapherApp {
     fn file_menu_save(&mut self, ui: &mut egui::Ui) {
         let can_save = self.session.allows(Action::Save);
         let saving = self.saving_asked();
-        let nothing = "Nothing to save yet: listen to a watch first";
+        let nothing = self.nothing_to_save_hint();
         let recording_in = format!(
             "Saving to {} as it records: nothing to save again",
             self.kept_place()
@@ -297,6 +306,8 @@ impl TimegrapherApp {
         self.menu_item(ui, MenuCommand::Save, "Save…", save_hint, off);
         let off = if saving {
             SAVING_HINT
+        } else if self.opened_recording() {
+            nothing
         } else {
             "Save once first; Save… asks where"
         };
@@ -315,6 +326,25 @@ impl TimegrapherApp {
             ANALYSIS_ONLY_HINT,
             off,
         );
+    }
+
+    /// What a dimmed Save says when nothing is being saved (#2385). An
+    /// opened recording is not saved from File: the Listen card's Save
+    /// keeps it in a watch when the library can take it, and otherwise it
+    /// stays where it is.
+    pub(super) fn nothing_to_save_hint(&self) -> &'static str {
+        if self.addable_take().is_some() {
+            OPENED_KEEP_HINT
+        } else if self.opened_recording() {
+            OPENED_STAYS_HINT
+        } else {
+            "Nothing to save yet: listen to a watch first"
+        }
+    }
+
+    /// Whether a recording opened from disk is on show.
+    fn opened_recording(&self) -> bool {
+        self.bench.recording.input == Input::File && !self.bench.keeping.opened_path.is_empty()
     }
 
     fn edit_menu(&mut self, ui: &mut egui::Ui) {

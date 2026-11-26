@@ -360,3 +360,45 @@ fn user_guide_opens_the_manual() {
         .collect();
     assert_eq!(urls, [crate::guide::online()]);
 }
+
+/// A recording opened from disk is not saved from File, so a dimmed
+/// Save, Save As and Save Analysis Only never say to listen first or to
+/// save first: from outside the library they name the Listen card's Save,
+/// which keeps it in a watch, and from inside it they say it stays where
+/// it is (#2385).
+#[test]
+fn a_dimmed_save_names_how_an_opened_recording_is_kept() {
+    let base = std::env::temp_dir().join(format!("tg-app-opened-save-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let root = base.join("Timegrapher Data");
+    let mut lib = library::Library::create(&root).unwrap();
+    lib.add(&library::Watch::new("Pepsi")).unwrap();
+    drop(lib);
+    let outside = base.join("outside").join("bench.flac");
+    std::fs::create_dir_all(outside.parent().unwrap()).unwrap();
+    std::fs::write(&outside, b"").unwrap();
+    let inside = root.join("bench.flac");
+    std::fs::write(&inside, b"").unwrap();
+
+    let mut app = synthetic(5.0, 0.0);
+    app.use_library(Some(root.clone()));
+    let nothing = "Nothing to save yet: listen to a watch first";
+    assert_eq!(app.nothing_to_save_hint(), nothing);
+
+    app.bench.recording.input = Input::File;
+    app.bench.keeping.opened_path = outside.display().to_string();
+    assert!(app.addable_take().is_some());
+    assert_eq!(app.nothing_to_save_hint(), OPENED_KEEP_HINT);
+
+    app.bench.keeping.opened_path = inside.display().to_string();
+    assert!(app.addable_take().is_none());
+    assert_eq!(app.nothing_to_save_hint(), OPENED_STAYS_HINT);
+
+    for hint in [OPENED_KEEP_HINT, OPENED_STAYS_HINT] {
+        assert!(
+            !hint.contains("listen") && !hint.contains("first"),
+            "{hint}"
+        );
+    }
+    let _ = std::fs::remove_dir_all(&base);
+}
