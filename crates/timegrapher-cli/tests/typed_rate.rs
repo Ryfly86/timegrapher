@@ -281,7 +281,8 @@ fn a_session_begun_on_a_calibre_rate_outside_the_range_is_left_on_auto() {
     let text = std::fs::read_to_string(dir.0.join("session.toml")).unwrap();
     assert!(
         text.lines()
-            .any(|l| l == format!("# bph = 28800  # {note}")),
+            .any(|l| l
+                == format!("# {note}. To set a rate, write bph = <the watch's beat rate> here.")),
         "{text}"
     );
     assert!(!text.lines().any(|l| l.starts_with("bph")), "{text}");

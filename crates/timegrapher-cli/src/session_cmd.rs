@@ -331,7 +331,9 @@ fn init(paths: &[PathBuf], o: &Options) -> Result<(), String> {
     let aside = timegrapher_core::set_rate::session_set_aside_text(cal, o.bph);
     match &aside {
         // Set aside, the rate is left for the session to hear (Walter on #2321).
-        Some(note) => t.push_str(&format!("# bph = 28800  # {note}\n")),
+        Some(note) => t.push_str(&format!(
+            "# {note}. To set a rate, write bph = <the watch's beat rate> here.\n"
+        )),
         None => t.push_str(&format!(
             "bph = {}\n",
             o.bph
