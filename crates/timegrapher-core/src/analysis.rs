@@ -197,6 +197,20 @@ impl Summary {
         self.caveats
             .retain(|c| *c != crate::measure::Caveat::ClockUnknown);
     }
+
+    /// The beat error this reading leads with, signed, ms, and where it
+    /// is from: the one [`settle_beat_error`] chose (`beat_error_source`),
+    /// read back, never chosen again, so every reader of a summary (the
+    /// doctor's quick look among them, #2095) gives the same one.
+    pub fn headline_beat_error(&self) -> Option<(f64, crate::session::BeatErrorSource)> {
+        use crate::session::BeatErrorSource;
+        let source = self.beat_error_source?;
+        let value = match source {
+            BeatErrorSource::Unlock => self.beat_error_unlock_ms,
+            BeatErrorSource::Drop => self.overall.map(|f| f.beat_error_ms),
+        }?;
+        Some((value, source))
+    }
 }
 
 /// How much of the recording is clipped: the samples, and the beats with a
@@ -1052,5 +1066,33 @@ mod tests {
         let still = periods(0);
         assert!((still[0] - 10.0).abs() < 0.1, "{still:?}");
         assert_eq!(periods((0.01 * fs) as usize), still);
+    }
+
+    /// The headline beat error reads back the source chosen: from the
+    /// drop, the whole-recording fit's, never the unlock's figure.
+    #[test]
+    fn the_headline_beat_error_reads_back_the_source_chosen() {
+        use crate::session::BeatErrorSource;
+        let a = generate(
+            &SynthConfig {
+                duration_s: 30.0,
+                beat_error_ms: 0.6,
+                ..Default::default()
+            },
+            |_| 270.0,
+            |_| 0.0,
+        );
+        let mut s = analyze(&a, &AnalysisConfig::default()).summary;
+        let drop = s.overall.unwrap().beat_error_ms;
+        let unlock = s.beat_error_unlock_ms.unwrap();
+        assert_eq!(
+            s.headline_beat_error(),
+            Some((unlock, BeatErrorSource::Unlock))
+        );
+        s.beat_error_source = Some(BeatErrorSource::Drop);
+        s.beat_error_unlock_ms = Some(9.0);
+        assert_eq!(s.headline_beat_error(), Some((drop, BeatErrorSource::Drop)));
+        s.beat_error_source = None;
+        assert_eq!(s.headline_beat_error(), None);
     }
 }
