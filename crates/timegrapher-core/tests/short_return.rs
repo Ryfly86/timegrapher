@@ -6,6 +6,7 @@
 
 use timegrapher_core::analysis::{analyze, AnalysisConfig};
 use timegrapher_core::audio::Audio;
+use timegrapher_core::breaks::Break;
 use timegrapher_core::live::{LiveAnalyzer, LiveConfig, LiveReading, ARRIVING_PAUSE_S, AVERAGES};
 use timegrapher_core::measure::{no_watch_reason_in, NoWatchReason};
 use timegrapher_core::session::{self, Measurement};
@@ -172,6 +173,13 @@ fn a_short_return_is_found_and_stops_as_too_short() {
         }
         let w = whole(&audio, bph);
         assert!(!w.watch_heard, "{bph:?}");
+        // The session's note says so in core's words.
+        assert_eq!(
+            session::no_regular_beat_in(&w, bph),
+            "No regular beat found (the beats were regular, but no run of them lasted the 10 s \
+             a reading needs)",
+            "{bph:?}"
+        );
         for r in stopped(&l, &w) {
             assert!(!r.watch_heard && !r.finding_beat, "{bph:?}: {r:?}");
             assert!(r.rate_s_per_day.is_none(), "{bph:?}");
@@ -357,5 +365,195 @@ fn a_lift_after_a_read_run_is_never_too_short() {
             Some(NoWatchReason::TooShort),
             "{bph:?}"
         );
+    }
+}
+
+/// The reading of `log` over the span from `from` to `to`, with `breaks`.
+fn read_span(
+    log: &timegrapher_core::stream::BeatLog,
+    breaks: &[Break],
+    (from, to): (f64, f64),
+) -> Measurement {
+    let span = [(from, to)];
+    session::measure_together(log, None, breaks, &[], (&span, &span)).unwrap()
+}
+
+/// The beat log of `audio`, set or on Auto.
+fn log_of(audio: &Audio, bph: Option<u32>) -> timegrapher_core::stream::BeatLog {
+    let cfg = StreamConfig {
+        analysis: set(bph),
+        ..Default::default()
+    };
+    analyze_samples(&audio.samples, audio.sample_rate, &cfg)
+}
+
+/// Vernon on #2311: a saved reading over a span that starts inside the
+/// watch's 15 s run, then the lift, cuts that run as live's look back
+/// does. The cut run is no short run: the spans read as scattered, never
+/// too short.
+#[test]
+fn a_span_begun_mid_run_is_never_too_short() {
+    let audio = put_back_after(15.0, 40.0, 0.0);
+    for bph in [Some(28_800), None] {
+        let log = log_of(&audio, bph);
+        for span in [(8.0, 20.0), (10.0, 20.0), (10.0, 26.0), (12.0, 30.0)] {
+            let m = read_span(&log, &[], span);
+            assert_eq!(
+                no_watch_reason_in(&m.caveats),
+                Some(NoWatchReason::Scatter),
+                "{bph:?} {span:?}"
+            );
+        }
+    }
+}
+
+/// The watch 15 s, a new position at 15 s with the watch running on, 7 s
+/// more, then 20 s of noise: the run since the new position began at a
+/// cut, so it counts, and it is too short. Read saved from the cut, and
+/// live from 31.5 to 33 s, at every Average Over, set and Auto (Vernon on
+/// #2311).
+#[test]
+fn a_run_begun_at_a_new_position_is_too_short() {
+    let audio = put_back_after(22.0, 20.0, 0.0);
+    let cut = [Break {
+        audio_s: 15.0,
+        gap_s: 0.0,
+    }];
+    for bph in [Some(28_800), None] {
+        let log = log_of(&audio, bph);
+        for to in [26.0, 30.0, 42.0] {
+            let m = read_span(&log, &cut, (15.0, to));
+            assert_eq!(
+                no_watch_reason_in(&m.caveats),
+                Some(NoWatchReason::TooShort),
+                "{bph:?} to {to}"
+            );
+        }
+        let cfg = LiveConfig {
+            analysis: set(bph),
+            ..Default::default()
+        };
+        let mut l = LiveAnalyzer::new(audio.sample_rate, cfg);
+        let mut moved = false;
+        let mut said = Vec::new();
+        for c in audio.samples.chunks(4800) {
+            l.push(c);
+            let t = l.duration_s();
+            if !moved && t >= 15.0 {
+                l.new_stretch();
+                moved = true;
+            }
+            // Past the run's end (22 s) by more than live's finding wait,
+            // while its look back still holds the run's start.
+            if (31.5..=33.0).contains(&t) {
+                said.extend(AVERAGES.iter().map(|&a| (t, a, l.reading(a))));
+            }
+        }
+        assert!(!said.is_empty());
+        for (t, avg, r) in said {
+            assert_eq!(
+                no_watch_reason_in(&r.caveats),
+                Some(NoWatchReason::TooShort),
+                "{bph:?} live at {t:.1} s, {avg} s: {r:?}"
+            );
+        }
+    }
+}
+
+/// A reading live heard, stopped where the whole take hears no watch,
+/// reads as the whole does: no figures, no watch heard (Vernon on #2311).
+#[test]
+fn a_heard_reading_stops_as_the_whole_take_hears_none() {
+    let watch = put_back_after(20.0, 0.0, 0.0);
+    let (l, _) = listen(&watch, Some(28_800));
+    let end = l.duration_s();
+    let live = l.reading_at(end, end);
+    assert!(
+        live.watch_heard && live.rate_s_per_day.is_some(),
+        "{live:?}"
+    );
+    let none = whole(&stand_noise(20.0, None), Some(28_800));
+    assert!(!none.watch_heard);
+    let r = live.at_whole_end(&none, end);
+    assert!(!r.watch_heard, "{r:?}");
+    assert!(
+        r.rate_s_per_day.is_none() && r.amplitude_deg.is_none(),
+        "{r:?}"
+    );
+    assert!(r.beat_error_ms.is_none(), "{r:?}");
+}
+
+/// A mask over the noise is no pause: the watch runs on through it, so
+/// the run after it is not arriving, and live reads it with figures from
+/// 5 s after the mask at every Average Over, set and Auto (Vernon on #2311).
+#[test]
+fn a_masked_gap_is_no_pause() {
+    let audio = put_back(7.0, 20.0);
+    for bph in [Some(28_800), None] {
+        let cfg = LiveConfig {
+            analysis: set(bph),
+            ..Default::default()
+        };
+        let mut l = LiveAnalyzer::new(audio.sample_rate, cfg);
+        l.set_masked(&[(7.0, 7.0 + GAP_S)]);
+        for c in audio.samples.chunks(4800) {
+            l.push(c);
+            let t = l.duration_s();
+            if t >= 7.0 + GAP_S + 5.0 {
+                for &avg in &AVERAGES {
+                    let r = l.reading(avg);
+                    assert!(
+                        r.watch_heard && r.rate_s_per_day.is_some(),
+                        "{bph:?} at {t:.1} s, {avg} s: {r:?}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// Once a window fits over a return, it is no longer arriving: on Auto,
+/// 7 s, 20 s of noise and 30 s back read with figures at every Average
+/// Over from 14 s after the noise, by the finding rule alone (#2008), not
+/// held until the look back has passed the pause (Vernon on #2311).
+#[test]
+fn a_return_a_window_fits_over_is_no_longer_arriving() {
+    let audio = put_back(7.0, 30.0);
+    let (_, readings) = listen(&audio, None);
+    for (t, rs) in readings.iter().filter(|(t, _)| *t >= 7.0 + GAP_S + 14.0) {
+        for (r, avg) in rs.iter().zip(AVERAGES) {
+            assert!(r.rate_s_per_day.is_some(), "at {t:.1} s, {avg} s: {r:?}");
+        }
+    }
+}
+
+/// A return whose timing wanders like no watch's (its rate jumping by up
+/// to 10,000 s/d each beat) is not a beat being found: never Finding the
+/// Beat once its run can be fitted, and no figures (Vernon on #2311).
+#[test]
+fn an_irregular_return_is_not_found() {
+    let cfg = SynthConfig {
+        bph: 28_800,
+        duration_s: 9.0,
+        ..Default::default()
+    };
+    let wander = generate(
+        &cfg,
+        |_| 280.0,
+        |t| {
+            let mut x = (t * 8.0) as u64 + 99;
+            20_000.0 * f64::from(noise(&mut x))
+        },
+    );
+    let mut audio = put_back_after(7.0, GAP_S, 0.0);
+    audio.samples.extend(wander.samples);
+    let (_, readings) = listen(&audio, Some(28_800));
+    for (t, rs) in readings.iter().filter(|(t, _)| *t >= 7.0 + GAP_S + 4.0) {
+        for (r, avg) in rs.iter().zip(AVERAGES) {
+            assert!(
+                !r.finding_beat && r.rate_s_per_day.is_none(),
+                "at {t:.1} s, {avg} s: {r:?}"
+            );
+        }
     }
 }

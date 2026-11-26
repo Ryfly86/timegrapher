@@ -405,6 +405,16 @@ pub enum NoWatchReason {
     TooShort,
 }
 
+impl NoWatchReason {
+    /// Whether the reason says the beats were regular: only
+    /// [`NoWatchReason::TooShort`]. Words about beats that don't come at
+    /// regular intervals go beside every other reason, never beside this
+    /// one (Hugh, Vernon on #2311).
+    pub fn beats_were_regular(self) -> bool {
+        self == NoWatchReason::TooShort
+    }
+}
+
 /// Whether a run of beats, fitted as `fit`, is a watch's by its timing:
 /// its own scatter under [`crate::beats::NO_WATCH_JITTER_FRACTION`] of a
 /// beat at `bph`. The one test live's Finding the Beat and the
@@ -1364,6 +1374,31 @@ pub fn assess_in(
 
 #[cfg(test)]
 mod tests {
+
+    /// [`too_short`] tests the longest run begun from `from_s`: a regular
+    /// 9 s run, then after a pause a 2 s burst at no steady rate, is too
+    /// short by the 9 s run; from inside the 9 s run, only the burst
+    /// counts, and it is not regular (Vernon on #2311).
+    #[test]
+    fn too_short_tests_the_longest_run_begun_from_its_start() {
+        let beat = |index: i64, time: f64| crate::beats::Beat {
+            index,
+            time,
+            quality: 1.0,
+        };
+        let mut beats: Vec<_> = (0..72)
+            .map(|i| beat(i, f64::from(i as i32) * 0.125))
+            .collect();
+        // Offsets of up to 40% of a beat, as no watch beats.
+        let jumble = [0.0, 0.05, -0.04, 0.03, -0.05, 0.045, -0.02, 0.04];
+        beats.extend((0..16).map(|i| {
+            let k = 112 + i;
+            beat(k, f64::from(k as i32) * 0.125 + jumble[i as usize % 8])
+        }));
+        assert!(too_short(None, &beats, f64::NEG_INFINITY, 28_800));
+        assert!(!too_short(None, &beats, 1.0, 28_800));
+        assert!(!too_short(Some(100.0), &beats, f64::NEG_INFINITY, 28_800));
+    }
     /// The Finding the Beat hover names the wait for the Average Over in
     /// use, in the Measure field's words (Hugh on #2187, #2178).
     #[test]

@@ -2622,10 +2622,10 @@ struct SparkKept {
 /// beats that scatter are no watch. Beats regular but too short to read
 /// are not scattered, so that reason stands alone (Hugh on #2311).
 pub(super) fn no_watch_hover(r: Option<&LiveReading>) -> String {
-    use timegrapher_core::measure::{no_watch_reason_in, NoWatchReason};
+    use timegrapher_core::measure::no_watch_reason_in;
     let why = r.map(no_regular_beat).unwrap_or_default();
     match r.and_then(|r| no_watch_reason_in(&r.caveats)) {
-        Some(NoWatchReason::TooShort) => format!("{why}."),
+        Some(reason) if reason.beats_were_regular() => format!("{why}."),
         _ => format!("{why}.\n\n{}", *help::NO_REGULAR_BEAT),
     }
 }
@@ -2634,9 +2634,9 @@ pub(super) fn no_watch_hover(r: Option<&LiveReading>) -> String {
 /// regular but too short to read say what a reading needs, from core,
 /// with no hover about scattered beats (Hugh on #2311).
 pub(super) fn no_watch_below(r: Option<&LiveReading>) -> (String, Option<&'static str>) {
-    use timegrapher_core::measure::{self, no_watch_reason_in, NoWatchReason};
+    use timegrapher_core::measure::{self, no_watch_reason_in};
     match r.and_then(|r| no_watch_reason_in(&r.caveats)) {
-        Some(NoWatchReason::TooShort) => (measure::too_short_need_text(), None),
+        Some(reason) if reason.beats_were_regular() => (measure::too_short_need_text(), None),
         _ => (
             "The sound so far has no beats at regular intervals. The readings and \
              charts appear once a regular beat is found."

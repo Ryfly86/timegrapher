@@ -1881,23 +1881,26 @@ impl LiveAnalyzer {
     ) -> Option<f64> {
         let lo = self.beats.partition_point(|b| b.time < heard_since);
         let hi = self.beats.partition_point(|b| b.time <= end_s);
-        let good: Vec<Beat> = self.beats[lo..hi]
-            .iter()
-            .filter(|b| b.is_good())
-            .copied()
-            .collect();
-        // A pause a mask lies in is the mask's, not the watch's (#2257).
-        let pause = good
-            .windows(2)
-            .rev()
-            .find(|w| {
-                w[1].time - w[0].time >= ARRIVING_PAUSE_S
-                    && crate::session::masked_within(&self.masked, w[0].time, w[1].time) == 0.0
-            })
-            .map(|w| w[1].time)?;
+        // Walked back from the end, only as far as a pause ending within
+        // the look back: the work is the look back's, not the take's.
+        let since = end_s - SCATTER_LOOKBACK_S;
+        let mut good = self.beats[lo..hi].iter().rev().filter(|b| b.is_good());
+        let mut later = good.next()?;
+        let pause = loop {
+            if later.time <= since {
+                return None;
+            }
+            let b = good.next()?;
+            // A pause a mask lies in is the mask's, not the watch's (#2257).
+            if later.time - b.time >= ARRIVING_PAUSE_S
+                && crate::session::masked_within(&self.masked, b.time, later.time) == 0.0
+            {
+                break later.time;
+            }
+            later = b;
+        };
         // A window fitted over the beats after the pause: none spans it.
-        (end_s - pause < SCATTER_LOOKBACK_S && !scatter.iter().any(|w| w.end_s > pause))
-            .then_some(pause)
+        (!scatter.iter().any(|w| w.end_s > pause)).then_some(pause)
     }
 
     /// The beats from `from_s` up to the stretch's end: no window
