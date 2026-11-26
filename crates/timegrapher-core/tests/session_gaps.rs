@@ -58,6 +58,7 @@ fn log(beats: Vec<Beat>) -> BeatLog {
         duration_s: beats.last().unwrap().time + 0.125,
         bph: 28_800,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats,
         amplitude_windows: vec![],
         clipped_beats: vec![],

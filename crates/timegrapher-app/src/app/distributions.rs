@@ -548,7 +548,16 @@ impl TimegrapherApp {
     }
     fn hist_beat_errors(&self, short: bool) -> core_session::BeatErrorSelection {
         if short {
-            return core_session::select_window_beat_errors(self.position_windows());
+            // Read for the take's escapement (#2313): never the drop on a
+            // co-axial.
+            let escapement = self
+                .bench
+                .recording
+                .live
+                .as_ref()
+                .map(|l| l.config().analysis.amplitude.escapement)
+                .unwrap_or_default();
+            return core_session::select_window_beat_errors(self.position_windows(), escapement);
         }
         // The source core chose over the windows the readings are made
         // of, with its caveats.

@@ -437,7 +437,13 @@ pub fn read(take: &Path) -> io::Result<Recovered> {
     header.jumps.retain(|&t| t < end_s);
     header.sided.retain(|&t| t < end_s);
     (header.beats, header.windows, header.profiles) = (beats.len(), windows.len(), profiles.len());
-    amplitude::reject_side_outliers(&mut windows, amplitude::OUTLIER_SPAN_S);
+    // Screened as a lever's; a reading for a co-axial screens them again
+    // ([`crate::take::kept_at_lift`]).
+    amplitude::reject_side_outliers(
+        &mut windows,
+        amplitude::OUTLIER_SPAN_S,
+        crate::escapement::Escapement::SwissLever,
+    );
     Ok(Recovered {
         stored: analysis_take::stored_from(header, (beats, clipped), windows, profiles),
         left_out,

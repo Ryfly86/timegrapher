@@ -470,6 +470,7 @@ impl LiveAnalyzer {
     pub fn from_log(log: BeatLog, cfg: LiveConfig) -> Self {
         let mut a = LiveAnalyzer::new(log.sample_rate, cfg);
         a.cfg.analysis.amplitude.lift_deg = log.lift_deg;
+        a.cfg.analysis.amplitude.escapement = log.escapement;
         a.total = (log.duration_s * a.fs).round() as u64;
         a.settled_to = log.duration_s;
         a.bph = Some(log.bph);
@@ -868,7 +869,8 @@ impl LiveAnalyzer {
             if let Some(bph) = self.bph {
                 // A swing is two beats, at the balance's own period (#2228).
                 let osc_period_s = 2.0 * crate::timing::own_beat_period_s(&self.beats, bph);
-                amplitude::relift(&mut self.amp, osc_period_s, old, lift_deg);
+                let escapement = self.cfg.analysis.amplitude.escapement;
+                amplitude::relift(&mut self.amp, osc_period_s, old, lift_deg, escapement);
                 // Each profile at the new lift (`TickProfile::at_lift`): an
                 // amplitude it has is scaled to it, through the same gate;
                 // one with none is read from its own edges (#1539, #2228).
@@ -1326,7 +1328,7 @@ impl LiveAnalyzer {
         let context = self.amp.partition_point(|x| mid(x) < from_s - span / 2.0);
         amplitude::reject_side_outliers_from(&mut self.amp[context..], span, from_s);
         // Over the whole take so far, as a saved read screens it (#1977).
-        amplitude::screen_unlock_beat_error(&mut self.amp);
+        amplitude::screen_unlock_beat_error(&mut self.amp, self.cfg.analysis.amplitude.escapement);
     }
 
     /// Judge the newest chunk's amplitude windows now, as a saved read of
@@ -1488,6 +1490,23 @@ impl LiveAnalyzer {
             .unwrap_or_else(|| self.own_reading_at(end_s, average_s))
     }
 
+    /// A reading's drop beat error, `fit`'s, as the take's escapement gives
+    /// it ([`crate::escapement::Escapement::drop_beat_error`]), adding to
+    /// `caveats` the one an amplitude carries on a co-axial, where an
+    /// `amplitude` is shown (#2313).
+    fn drop_for(
+        &self,
+        fit: Option<crate::timing::TimingFit>,
+        amplitude: Option<f64>,
+        caveats: &mut Vec<Caveat>,
+    ) -> Option<f64> {
+        let escapement = self.cfg.analysis.amplitude.escapement;
+        if let Some(caveat) = escapement.amplitude_caveat(amplitude.is_some()) {
+            measure::add(caveats, caveat);
+        }
+        escapement.drop_beat_error(fit.map(|f| f.beat_error_ms))
+    }
+
     /// [`Self::reading_at`] from this analyzer's own beats.
     fn own_reading_at(&self, end_s: f64, average_s: f64) -> LiveReading {
         let window_from = end_s - average_s;
@@ -1540,7 +1559,7 @@ impl LiveAnalyzer {
             (end_s, average_s),
         );
         let mut caveats = assessment.caveats;
-        let beat_error_ms = sided(fit.map(|f| f.beat_error_ms));
+        let beat_error_ms = sided(self.drop_for(fit, heard(figures.amplitude_deg), &mut caveats));
         let beat_error_unlock_ms = sided(figures.beat_error_unlock_ms);
         let beat_error_source =
             crate::session::chosen_beat_error(beat_error_unlock_ms, beat_error_ms)

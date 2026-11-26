@@ -46,6 +46,7 @@ pub mod diagnose;
 pub mod distribution;
 pub mod dsp;
 pub mod edge_takes;
+pub mod escapement;
 pub mod excerpt;
 pub mod figure_text;
 pub mod filter;

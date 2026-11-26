@@ -376,6 +376,7 @@ pub fn beat_log(s: &Scenario, seed: u64) -> crate::stream::BeatLog {
         duration_s: s.duration_s,
         bph: BPH,
         lift_deg: LIFT_DEG,
+        escapement: Default::default(),
         beats,
         amplitude_windows,
         clipped_beats: vec![],

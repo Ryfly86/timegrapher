@@ -81,6 +81,11 @@ pub struct LongReport {
     pub overall: Option<TimingFit>,
     /// Signed beat error from the unlock, median of the amplitude windows, ms.
     pub beat_error_unlock_ms: Option<f64>,
+    /// The escapement the run was read for (#2313), given only for a
+    /// co-axial: its slices give no drop beat error, nor does
+    /// [`LongReport::drop_beat_error_ms`].
+    #[serde(skip_serializing_if = "crate::escapement::Escapement::is_swiss_lever")]
+    pub escapement: crate::escapement::Escapement,
     pub rate_p05: Option<f64>,
     pub rate_p95: Option<f64>,
     pub amplitude_deg: Option<f64>,
@@ -316,7 +321,9 @@ fn analyse_read(
             start_s: s,
             end_s: e,
             rate_s_per_day: w.map(|f| f.rate_s_per_day),
-            beat_error_ms: w.map(|f| size(f.beat_error_ms)),
+            beat_error_ms: log
+                .escapement
+                .drop_beat_error(w.map(|f| size(f.beat_error_ms))),
             beat_error_unlock_ms: timing::median_signed(unlocks.into_iter(), turned),
             amplitude_deg: (!amps.is_empty()).then(|| median(&mut amps)),
         });
@@ -350,9 +357,11 @@ fn analyse_read(
             .chain((turned && overall.is_some()).then_some(crate::measure::Caveat::BeatErrorAsSize))
             .chain(read_on.and_then(ClockFit::sources_disagree).map(Into::into))
             .chain((unseen > 0).then_some(crate::measure::Caveat::PausesUnseen { count: unseen }))
+            .chain(log.escapement.amplitude_caveat(!av.is_empty()))
             .collect(),
         overall,
         beat_error_unlock_ms: timing::median_signed(uv.into_iter(), turned),
+        escapement: log.escapement,
         rate_p05: percentile(&rates, 0.05),
         rate_p95: percentile(&rates, 0.95),
         amplitude_deg: {
@@ -366,6 +375,15 @@ fn analyse_read(
         timing,
         amplitude,
         rate_components,
+    }
+}
+
+impl LongReport {
+    /// The run's beat error from the drop, ms, signed: the overall fit's,
+    /// none on a co-axial ([`crate::escapement::Escapement::drop_beat_error`]).
+    pub fn drop_beat_error_ms(&self) -> Option<f64> {
+        self.escapement
+            .drop_beat_error(self.overall.map(|f| f.beat_error_ms))
     }
 }
 
@@ -525,6 +543,7 @@ mod tests {
             duration_s: duration,
             bph: 28800,
             lift_deg: 52.0,
+            escapement: Default::default(),
             beats,
             amplitude_windows: vec![],
             clipped_beats: vec![],
@@ -573,6 +592,7 @@ mod tests {
             duration_s: duration,
             bph: 21600,
             lift_deg: 52.0,
+            escapement: Default::default(),
             beats,
             amplitude_windows: vec![],
             clipped_beats: vec![],
@@ -658,6 +678,7 @@ mod tests {
             duration_s: 400.0,
             bph: 18000,
             lift_deg: 52.0,
+            escapement: Default::default(),
             beats,
             amplitude_windows,
             clipped_beats: vec![],
@@ -729,6 +750,7 @@ mod tests {
                 duration_s: 400.0,
                 bph: 18000,
                 lift_deg: 52.0,
+                escapement: Default::default(),
                 beats,
                 amplitude_windows,
                 clipped_beats: vec![],

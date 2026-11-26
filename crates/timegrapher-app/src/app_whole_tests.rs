@@ -30,6 +30,7 @@ fn whole_take_beat_error_keeps_its_size_across_a_turn() {
             duration_s: 120.0,
             bph: 28_800,
             lift_deg: 52.0,
+            escapement: Default::default(),
             beats,
             amplitude_windows: Vec::new(),
             clipped_beats: Vec::new(),

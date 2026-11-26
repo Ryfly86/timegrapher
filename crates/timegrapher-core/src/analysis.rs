@@ -92,6 +92,10 @@ pub struct Summary {
     pub amplitude_even_se_deg: Option<f64>,
     pub amplitude_odd_se_deg: Option<f64>,
     pub lift_deg: f64,
+    /// The escapement read for (#2313), given only for a co-axial: its
+    /// beat error is the unlock's or none, and its amplitude an estimate.
+    #[serde(skip_serializing_if = "crate::escapement::Escapement::is_swiss_lever")]
+    pub escapement: crate::escapement::Escapement,
     /// Strongest periodic components of the timing and the amplitude.
     pub timing_periods: Vec<Component>,
     pub amplitude_periods: Vec<Component>,
@@ -407,6 +411,7 @@ fn analyze_read(
         amplitude_even_se_deg: f.amplitude_even_deg.and(se(&|w| w.even_deg)),
         amplitude_odd_se_deg: f.amplitude_odd_deg.and(se(&|w| w.odd_deg)),
         lift_deg: cfg.amplitude.lift_deg,
+        escapement: cfg.amplitude.escapement,
         timing_periods,
         amplitude_periods,
         clipping: heard.clipping,
@@ -730,20 +735,25 @@ fn periods(
 
 /// Withholds the readings where no watch is heard, and chooses the beat
 /// error shown, with its caveat: why it is from the drop where it is, the
-/// unlock found `inconsistent` or not found (#1439).
+/// unlock found `inconsistent` or not found (#1439); never the drop on a
+/// co-axial, whose amplitude carries its caveat (#2313).
 fn settle_beat_error(summary: &mut Summary, inconsistent: bool) {
     if !summary.watch_heard {
         summary.withhold_readings();
     }
+    let escapement = summary.escapement;
     summary.beat_error_source = crate::session::chosen_beat_error(
         summary.beat_error_unlock_ms,
-        summary.overall.map(|f| f.beat_error_ms),
+        escapement.drop_beat_error(summary.overall.map(|f| f.beat_error_ms)),
     )
     .map(|(_, source)| source);
     if let Some(caveat) = summary
         .beat_error_source
         .and_then(|s| s.caveat_why(inconsistent))
     {
+        crate::measure::add(&mut summary.caveats, caveat);
+    }
+    if let Some(caveat) = escapement.amplitude_caveat(summary.amplitude_deg.is_some()) {
         crate::measure::add(&mut summary.caveats, caveat);
     }
 }

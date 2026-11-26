@@ -385,6 +385,7 @@ fn a_jump_inside_a_position_is_cut() {
         duration_s: duration,
         bph: 28800,
         lift_deg: 52.0,
+        escapement: Default::default(),
         beats: (0..)
             .map(|index| {
                 let t = index as f64 * period;

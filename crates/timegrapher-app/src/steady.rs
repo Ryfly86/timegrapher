@@ -284,6 +284,7 @@ fn log_masked_at(live: &LiveAnalyzer, masked: &[(f64, f64)], bph: Option<u32>) -
         duration_s: live.duration_s(),
         bph: bph?,
         lift_deg: live.config().analysis.amplitude.lift_deg,
+        escapement: Default::default(),
         beats: live.beats().to_vec(),
         amplitude_windows: live.amplitude_windows().to_vec(),
         clipped_beats: live.clipped_beats().to_vec(),
