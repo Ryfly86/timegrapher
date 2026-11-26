@@ -23,7 +23,7 @@ impl TimegrapherApp {
         }
         let ask = match what {
             Confirm::PickWatch(_) => self.line_pick_asks(),
-            Confirm::NewTake(_) => self.new_take_asks(),
+            Confirm::NewTake(kind) => self.new_take_asks(kind),
             Confirm::ReserveStart => self.line_pick_asks(),
             _ => self.needs_save_confirmation(),
         };

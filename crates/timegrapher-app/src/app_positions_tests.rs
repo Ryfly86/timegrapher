@@ -962,8 +962,7 @@ fn a_settle_changed_after_a_test_leaves_the_test_alone() {
     assert_eq!(settles.len(), 5, "{settles:?}");
     // Kept: what it would save now is what was saved.
     let info = app.info("test", 48000, 16);
-    app.session.recorder =
-        Some(timegrapher_core::recorder::Recorder::start(&base.join("live"), info).unwrap());
+    app.session.recorder = Some(Recorder::start(&base.join("live"), info).unwrap());
     let snap = app.session.metadata_snapshot(app.save_metadata());
     app.session.mark_saved(end, base.clone(), snap);
     assert!(!app.metadata_unsaved());
@@ -1590,4 +1589,66 @@ fn a_45_degree_stop_gets_its_own_row_outside_the_average() {
     assert!(cr < avg && avg < largest && largest < h130, "{drawn}");
     assert!(drawn.contains("6 of 6"), "{drawn}");
     let _ = std::fs::remove_dir_all(base);
+}
+
+/// New Test over a Quick Listen still listening, with no watch picked,
+/// asks about its unsaved sound before setting the test up, for each
+/// test (#2328); once asked, the listening stops and the test is set
+/// up. Listening again lets the sound go unasked, as before.
+#[test]
+fn a_new_test_over_a_quick_listen_asks_first() {
+    let base = std::env::temp_dir().join(format!("tg-app-new-test-quick-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let ctx = themed();
+    for kind in [
+        NewTake::Positions,
+        NewTake::Poise,
+        NewTake::Complication,
+        NewTake::PowerReserve,
+    ] {
+        let mut app = synthetic(5.0, 0.0);
+        let _tx = queued_capture(&mut app, &base);
+        app.session.listen();
+        let info = app.info("Quick", 48000, 16);
+        let mut r = Recorder::start(&base.join("scratch"), info).unwrap();
+        r.write(&timegrapher_core::capture::Block {
+            samples: vec![0.0; 48000 * 30],
+            at: std::time::SystemTime::now(),
+        })
+        .unwrap();
+        app.session.recorder = Some(r);
+        app.bench.recording.quick_listen = true;
+        assert!(app.running() && app.quick_unsaved() && app.open_watch().is_none());
+        app.new_take(kind, false);
+        assert_eq!(app.confirm, Some(Confirm::NewTake(kind)), "{kind:?}");
+        // The question shows, rather than carrying on unasked.
+        for _ in 0..2 {
+            let _ = ctx.run(egui::RawInput::default(), |ctx| app.confirm_dialog(ctx));
+        }
+        assert_eq!(app.confirm, Some(Confirm::NewTake(kind)), "{kind:?}");
+        assert!(app.running(), "{kind:?}: still listening");
+        assert!(app.session.recorder.is_some(), "{kind:?}: nothing let go");
+        assert_eq!(app.ready_test(), None, "{kind:?}");
+        // Don't Save: the listening stops and the test is set up.
+        app.confirm = None;
+        app.new_take(kind, true);
+        assert!(!app.running(), "{kind:?}");
+        assert_eq!(app.ready_test(), Some(kind), "{kind:?}");
+    }
+    // Listening again, with no watch, lets the sound go unasked.
+    let mut app = synthetic(5.0, 0.0);
+    app.session.listen();
+    let info = app.info("Quick", 48000, 16);
+    let mut r = Recorder::start(&base.join("again"), info).unwrap();
+    r.write(&timegrapher_core::capture::Block {
+        samples: vec![0.0; 48000 * 30],
+        at: std::time::SystemTime::now(),
+    })
+    .unwrap();
+    app.session.recorder = Some(r);
+    app.bench.recording.quick_listen = true;
+    assert!(!app.new_take_asks(NewTake::Listen));
+    assert!(app.new_take_asks(NewTake::Positions));
+    let _ = std::fs::remove_dir_all(&base);
 }
