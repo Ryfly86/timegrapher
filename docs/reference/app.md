@@ -1687,12 +1687,15 @@ of each phase's readings, for a phase with at least four; the median shape
 as a line; and a note giving the line's swing, highest less lowest, beside
 the boxes' median height), **Autocorrelation** (with the ±1.96/√n band
 dashed, the repeat marked and the Ljung–Box p-value), **Allan Deviation**
-(log-log, against the dashed line independent readings follow, labelled
+(log-log, against the dashed line independent readings follow, named
 where it ends, with the averaging time of least scatter labelled; times on
 fewer differences than core's `ALLAN_JUDGED_DIFFERENCES` (8) hollow, their
-line faint, noted once "hollow: too few differences to judge" on a
-plate beside the first, as the repeat's note is, clear of the trace and
-the other two labels),
+line faint, noted once "hollow: too few differences to judge" beside the
+first. Each of the three sits on a plate in the nearest place that neither
+line crosses, clear of the others, joined to its point by a short leader
+that crosses no line; the dashed line's name stands by the line's end, or
+further back along it where the end has no room; where no place is clear,
+and for the hollow note on a short plot, it is its point's hover),
 **CUSUM** (with the ±1.36 lines dashed and the largest excursion
 labelled) and **FFT** (the plain amplitude spectrum of each series, like
 Witschi's: the size of the sine wave at each period, log-log, in the
