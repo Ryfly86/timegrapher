@@ -25,7 +25,8 @@ the Save menu. Beyond it:
 - **A test with no watch picked asks where it goes** when it ends:
   **Keep in Unsorted** (the default), **Keep in a Watch…** or **Throw
   Away**. A test's sound is always asked about; a Quick Listen take's
-  never is.
+  is asked about only before a watch is picked or a New Test set up
+  over it.
 - **Save…**, in the File menu, keeps the take: into the watch picked,
   into Unsorted after Quick Listen, and otherwise into a folder you
   pick. **Save Again** (Ctrl+S) brings that copy up to date, and **Save
