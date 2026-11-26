@@ -3,6 +3,7 @@
 
 use super::tests::{frames, queued_capture, synthetic, themed, SETTLE_S};
 use super::*;
+use std::time::Instant;
 use timegrapher_core::synth::{generate, SynthConfig};
 use timegrapher_core::text_report;
 
@@ -1776,4 +1777,101 @@ fn a_measured_position_keeps_the_beat_rate_it_was_measured_at() {
     assert_eq!(row.bph, 28_800, "read again after a mask");
     let masked = rate_of(row);
     assert!((masked - 30.0).abs() < 5.0, "{masked}");
+}
+
+/// [`a_measured_position_keeps_the_beat_rate_it_was_measured_at`] kept
+/// (Walter 62 on #2447): Stop, then saved. The take's session file names
+/// the rate Dial Up was measured at, so its read again from the saved
+/// sound, a mask after it, and its saved results all keep 28800 bph,
+/// though the stand was heard at 21600 at Stop.
+#[test]
+fn a_kept_test_keeps_the_beat_rate_its_position_was_measured_at() {
+    let base = std::env::temp_dir().join(format!("tg-app-2375-kept-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let mut app = synthetic(0.0, 0.0);
+    assert_eq!(app.bench.take.bph, None, "on Auto");
+    app.session.listen();
+    app.session.recorder =
+        Some(Recorder::start(&base.join("live"), app.info("test", 48000, 16)).unwrap());
+    let tx = queued_capture(&mut app, &base);
+    app.bench.test.guided = Some(guided::Test::new().timed(2.0, 20.0));
+    app.bench.test.guided_measure_s = 20.0;
+    app.session.set_settle_s(2.0);
+    app.session.set_state(session::State::Listening);
+    let ctx = egui::Context::default();
+    let mut frames = 0u64;
+    let mut feed = |app: &mut TimegrapherApp, bph: u32, rate: f64, secs: f64| {
+        let audio = generate(
+            &SynthConfig {
+                duration_s: secs,
+                bph,
+                rate_s_per_day: rate,
+                ..Default::default()
+            },
+            |_| 280.0,
+            |_| 0.0,
+        );
+        for s in audio.samples.chunks(48_000) {
+            frames += s.len() as u64;
+            let at = std::time::Duration::from_nanos(frames * 62_500 / 3);
+            tx.send(Event::Audio(timegrapher_core::capture::Block {
+                samples: s.to_vec(),
+                at: std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000) + at,
+            }))
+            .unwrap();
+            let want = frames as f64 / 48_000.0;
+            let t = Instant::now();
+            while app.bench.recording.live.as_ref().unwrap().duration_s() < want - 1e-6
+                && t.elapsed().as_secs() < 30
+            {
+                app.poll();
+            }
+            app.guided_tick(&ctx);
+        }
+    };
+    feed(&mut app, 28_800, 30.0, 25.0);
+    feed(&mut app, 21_600, 0.0, 40.0);
+    assert_eq!(
+        app.bench.recording.live.as_ref().and_then(|l| l.bph()),
+        Some(21_600),
+        "Auto heard the other watch"
+    );
+    app.stop_test();
+    drop(tx);
+    app.save_into(&base.join("saved"));
+    app.wait_for_save();
+    let t = Instant::now();
+    while app.bench.results.bg.test_read.is_some() && t.elapsed().as_secs() < 300 {
+        app.poll();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let rate_of =
+        |r: &timegrapher_core::session::Reading| r.measurement.rate_s_per_day.expect("a rate");
+    let du =
+        |app: &TimegrapherApp| app.bench.test.guided.as_ref().unwrap().readings_so_far()[0].clone();
+    let test = app.bench.test.guided.as_ref().unwrap();
+    assert_eq!(test.saved_read, guided::SavedRead::Read, "read again");
+    let row = du(&app);
+    assert_eq!(row.bph, 28_800, "read again from the saved take");
+    assert!((rate_of(&row) - 30.0).abs() < 5.0, "{}", rate_of(&row));
+    let dir = app.session.saved_to().expect("saved").to_path_buf();
+    let (m, _) = read_manifest(&dir).unwrap().unwrap();
+    assert_eq!(m.bph, Some(28_800), "the session file's rate");
+    let on_disk: guided::FullWind =
+        serde_json::from_str(&std::fs::read_to_string(dir.join(guided::RESULTS_FILE)).unwrap())
+            .unwrap();
+    assert_eq!(on_disk.bph, Some(28_800), "the saved results' rate");
+    // A mask after the save reads Dial Up again at the same rate.
+    app.mask(40.0, 45.0);
+    let row = du(&app);
+    assert_eq!(row.bph, 28_800, "read again after a mask");
+    assert!((rate_of(&row) - 30.0).abs() < 5.0, "{}", rate_of(&row));
+    let text = guided::export_text(
+        app.bench.test.guided.as_ref().unwrap(),
+        &app.guided_about(),
+        '\t',
+    );
+    assert!(text.contains("28800") && !text.contains("21600"), "{text}");
+    let _ = std::fs::remove_dir_all(&base);
 }
