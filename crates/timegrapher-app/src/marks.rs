@@ -1523,4 +1523,83 @@ mod tests {
         assert!(!crosses(other, &leader), "{leader:?} over {other:?}");
         assert!(moved.right() < dot.x, "{moved:?}");
     }
+
+    /// A note along a line keeps the point it took last frame while it
+    /// is still clear there, though an earlier point is clear too, so
+    /// the line's name doesn't hop from frame to frame.
+    #[test]
+    fn a_note_along_a_line_keeps_last_frames_point() {
+        let ctx = egui::Context::default();
+        crate::theme::install(&ctx);
+        let frame = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(400.0, 300.0));
+        let t = egui_plot::PlotTransform::new(
+            frame,
+            egui_plot::PlotBounds::from_min_max([0.0, 0.0], [400.0, 300.0]),
+            egui::Vec2b::new(false, false),
+        );
+        let ats = [[100.0, 150.0], [300.0, 150.0]];
+        let id = egui::Id::new("along");
+        let place = || {
+            let mut out = None;
+            let _ = ctx.run(Default::default(), |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    let colour = crate::theme::pal(ui).text;
+                    out = beside_lines(
+                        ui,
+                        &t,
+                        (&ats, "a line", colour),
+                        &[],
+                        &[],
+                        Color32::BLACK,
+                        false,
+                        id,
+                    );
+                });
+            });
+            out.expect("placed").0
+        };
+        let half = t
+            .position_from_point(&egui_plot::PlotPoint::new(200.0, 150.0))
+            .x;
+        // Nothing held: the first point.
+        assert!(place().right() < half);
+        // The second point held from last frame and still clear: it stays.
+        ctx.data_mut(|d| d.insert_temp(id, Some((1u8, 0u8))));
+        assert!(place().left() > half);
+        assert!(place().left() > half, "kept on the next frame too");
+        // A held point no longer on the line: back to the first.
+        ctx.data_mut(|d| d.insert_temp(id, Some((5u8, 0u8))));
+        assert!(place().right() < half);
+    }
+
+    /// Two segments cross where they pass through or touch each other,
+    /// not where they lie apart, side by side, or along one line.
+    #[test]
+    fn segments_cross_only_where_they_meet() {
+        let p = egui::pos2;
+        let x = [p(0.0, 10.0), p(10.0, 0.0)];
+        assert!(segments_cross([p(0.0, 0.0), p(10.0, 10.0)], x));
+        // Touching at an end counts.
+        assert!(segments_cross(
+            [p(0.0, 0.0), p(10.0, 0.0)],
+            [p(10.0, 0.0), p(10.0, 10.0)]
+        ));
+        // Apart, though their lines would meet past an end: either way
+        // round, and either one short.
+        assert!(!segments_cross([p(0.0, 0.0), p(4.0, 4.0)], x));
+        assert!(!segments_cross(x, [p(6.0, 6.0), p(9.0, 9.0)]));
+        assert!(!segments_cross([p(6.0, 6.0), p(9.0, 9.0)], x));
+        // Side by side.
+        assert!(!segments_cross(
+            [p(0.0, 0.0), p(10.0, 0.0)],
+            [p(0.0, 5.0), p(10.0, 5.0)]
+        ));
+        // Along one line.
+        assert!(!segments_cross(
+            [p(0.0, 0.0), p(10.0, 0.0)],
+            [p(5.0, 0.0), p(15.0, 0.0)]
+        ));
+        // A leader of no length crosses nothing.
+        assert!(!segments_cross([p(5.0, 5.0), p(5.0, 5.0)], x));
+    }
 }
