@@ -266,6 +266,7 @@ impl LiveAnalyzer {
         }
         l.rebuild.switch_s = Some(self.duration_s());
         l.rebuild.shift = moved(&self.beats, &l.beats);
+        l.numbering = std::mem::take(&mut self.numbering).taken_over(l.rebuild.shift);
         *self = l;
     }
 }

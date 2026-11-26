@@ -442,6 +442,9 @@ pub struct LiveAnalyzer {
     /// whole file's reading tells them. Readings that name a side are left
     /// out until it has, and in a stretch it never could.
     sides: beats::SideCheck,
+    /// How the beats already given were renumbered
+    /// ([`LiveAnalyzer::follow_numbering`]).
+    numbering: numbering::Numbering,
     /// The reading as it was before a beat rate change started it again,
     /// still listening at its own rate, so going back brings every beat
     /// back (#1949; [`held::Held`]).
@@ -508,6 +511,7 @@ impl LiveAnalyzer {
             snippets: VecDeque::new(),
             sample: Default::default(),
             sides: beats::SideCheck::default(),
+            numbering: Default::default(),
             snr: None,
             quiet_passes: 0,
             candidates: VecDeque::new(),
@@ -678,6 +682,7 @@ impl LiveAnalyzer {
         self.forget_locks();
         self.beats.clear();
         self.beats_gen = fresh_gen();
+        self.numbering = Default::default();
         self.clipped.clear();
         self.amp.clear();
         self.next_amp_s = None;
@@ -789,6 +794,7 @@ impl LiveAnalyzer {
             b.index += 1;
         }
         self.beats_gen = fresh_gen();
+        self.numbering.one_further_from(t);
         for s in self.snippets.iter_mut().filter(|s| s.0 >= t) {
             s.1 = !s.1;
         }
@@ -2372,6 +2378,8 @@ mod held;
 mod kept_trend;
 mod locks;
 pub use kept_trend::keep_trend_point;
+mod numbering;
+pub use numbering::NumberingSeen;
 mod rebuild;
 mod unheard;
 pub use unheard::{in_spans, unheard_spans};
