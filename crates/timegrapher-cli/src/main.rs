@@ -242,9 +242,12 @@ enum Command {
         /// take's folder is read with its session.toml.
         #[arg(required = true)]
         files: Vec<PathBuf>,
-        /// Clock log for calibrating the sound card: a CSV, written during
-        /// the recording, of how much audio had been captured against
-        /// NTP-synced system time, one line a minute or so (`time_ns,bytes`).
+        /// Clock log for calibrating the sound card: system time
+        /// (NTP-synced) against audio captured, written during the
+        /// recording, a line every minute or less; CSV or
+        /// whitespace-separated, such as `unix_s,frames` or `time_ns,bytes`.
+        /// A take's folder brings its own; this one replaces it for every
+        /// entry.
         #[arg(long)]
         clock: Option<PathBuf>,
         /// Without a clock log: correct with the clock error stored for
