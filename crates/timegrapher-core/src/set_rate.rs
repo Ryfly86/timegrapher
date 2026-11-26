@@ -1,0 +1,205 @@
+//! Where a set beat rate came from (#2224): one rule for every document
+//! that gives `bph_set`.
+
+use crate::analysis::AnalysisConfig;
+use crate::take::{Calibre, SettingFrom};
+
+/// Where a set beat rate came from (`bph_set_from`, Max on #2224): given
+/// for this reading as one of [`crate::beats::STANDARD_BPH`] or typed as
+/// any other, the calibre's table row, or the take's session file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BphFrom {
+    Standard,
+    Typed,
+    Calibre,
+    Session,
+}
+
+impl BphFrom {
+    /// Where the set rate came from, by [`SettingFrom::of`]: `given` for
+    /// this reading, else what a session file `kept`, else a calibre's
+    /// `table` rate. `None` when none sets it, so the rate is heard (Auto).
+    pub fn of(given: Option<u32>, kept: Option<u32>, table: Option<u32>) -> Option<Self> {
+        match SettingFrom::of(given, kept, table) {
+            SettingFrom::Given => Some(match given {
+                Some(b) if crate::beats::STANDARD_BPH.contains(&b) => Self::Standard,
+                _ => Self::Typed,
+            }),
+            SettingFrom::Take => Some(Self::Session),
+            SettingFrom::Calibre => Some(Self::Calibre),
+            SettingFrom::Default => None,
+        }
+    }
+}
+
+/// Whether `bph` lies in [`crate::input_domain::BPH_RANGE`].
+pub fn in_range(bph: u32) -> bool {
+    crate::input_domain::bph(u64::from(bph)).is_ok()
+}
+
+/// The beat rate `calibre` gives a reading: its row's, when in range. One
+/// outside it (the table's IWC 9520 at 8,000 bph, or a custom calibre) is
+/// set aside, so the reading hears the rate (Norm on #2321).
+pub fn calibre_rate(calibre: &Calibre) -> Option<u32> {
+    calibre.bph.filter(|b| in_range(*b))
+}
+
+/// Why `calibre`'s beat rate is not read at, when it is set aside.
+pub fn set_aside_why(calibre: Option<&Calibre>) -> Option<String> {
+    let c = calibre?;
+    let b = c.bph.filter(|b| !in_range(*b))?;
+    Some(crate::input_domain::bph_set_aside_text(
+        &format!("the {}'s", c.name),
+        b,
+    ))
+}
+
+/// How a take is read, said after a rate set aside: on Auto with no
+/// `bph`, else at the rate and where it came from (`from`).
+pub fn read_at_text(bph: Option<u32>, from: Option<BphFrom>) -> String {
+    match (bph, from) {
+        (None, _) => "so this take is read on Auto".into(),
+        (Some(b), Some(BphFrom::Calibre)) => {
+            format!("so this take is read at the calibre's {b} bph")
+        }
+        (Some(b), Some(BphFrom::Session)) => {
+            format!("so this take is read at the session file's {b} bph")
+        }
+        (Some(b), _) => format!("so this take is read at {b} bph"),
+    }
+}
+
+/// What a session file whose calibre's rate is set aside says
+/// ([`set_aside_why`]): its takes are read on Auto, unless a rate is set.
+pub fn session_set_aside_text(calibre: Option<&Calibre>, bph: Option<u32>) -> Option<String> {
+    let why = set_aside_why(calibre).filter(|_| bph.is_none())?;
+    Some(format!("{why}, so the session's takes are read on Auto"))
+}
+
+/// Set `a`'s beat rate and where it came from: `given` for this reading,
+/// else what the session file `kept`, else the calibre's
+/// ([`calibre_rate`]); none means it is heard.
+pub fn set(a: &mut AnalysisConfig, given: Option<u32>, kept: Option<u32>, cal: Option<&Calibre>) {
+    let table = cal.and_then(calibre_rate);
+    a.bph = given.or(kept).or(table);
+    a.bph_from = BphFrom::of(given, kept, table);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::session::Manifest;
+    use crate::take::{stream_settings, Given};
+
+    /// Where a set rate came from: given (a standard rate or a typed
+    /// one), the session file, the calibre, or none on Auto (#2224).
+    #[test]
+    fn a_set_rate_says_where_it_came_from() {
+        use BphFrom::{Session, Standard, Typed};
+        assert_eq!(BphFrom::of(Some(28_800), None, None), Some(Standard));
+        assert_eq!(BphFrom::of(Some(17_570), None, None), Some(Typed));
+        assert_eq!(
+            BphFrom::of(Some(17_570), Some(18_000), Some(21_600)),
+            Some(Typed)
+        );
+        assert_eq!(
+            BphFrom::of(Some(18_000), Some(18_000), None),
+            Some(Standard)
+        );
+        assert_eq!(BphFrom::of(None, Some(17_570), Some(21_600)), Some(Session));
+        assert_eq!(
+            BphFrom::of(None, None, Some(21_600)),
+            Some(BphFrom::Calibre)
+        );
+        assert_eq!(BphFrom::of(None, None, None), None);
+        for b in crate::beats::STANDARD_BPH {
+            assert_eq!(BphFrom::of(Some(b), None, None), Some(Standard), "{b}");
+        }
+        let m: Manifest = toml::from_str("bph = 17570").unwrap();
+        let cal = |bph| Calibre {
+            name: "X".into(),
+            bph,
+            lift_angle_deg: None,
+            lift_set_aside_deg: None,
+            escape_teeth: None,
+            escapement: None,
+            wheels: Vec::new(),
+            meshes: Vec::new(),
+        };
+        let set = |m: &Manifest, c: Option<&Calibre>, bph| {
+            let a = stream_settings(
+                m,
+                c,
+                Given {
+                    bph,
+                    lift_deg: None,
+                },
+            )
+            .analysis;
+            (a.bph, a.bph_from)
+        };
+        assert_eq!(set(&m, None, None), (Some(17_570), Some(Session)));
+        assert_eq!(set(&m, None, Some(28_800)), (Some(28_800), Some(Standard)));
+        let none = Manifest::default();
+        assert_eq!(
+            set(&none, Some(&cal(Some(21_600))), None),
+            (Some(21_600), Some(BphFrom::Calibre))
+        );
+        assert_eq!(set(&none, Some(&cal(None)), None), (None, None));
+    }
+
+    /// A calibre whose rate is outside the range, the table's IWC 9520 at
+    /// 8,000 bph or a custom one at 10,800, gives no rate: the reading
+    /// hears it, and says why (Norm on #2321).
+    #[test]
+    fn a_calibre_rate_outside_the_range_is_set_aside() {
+        use crate::calibre_store::{CustomCalibre, UserCalibres};
+        let mut user = UserCalibres::default();
+        user.put_custom(CustomCalibre {
+            name: "Old clock".into(),
+            maker: None,
+            aliases: Vec::new(),
+            bph: Some(10_800),
+            lift_angle_deg: None,
+            escape_teeth: None,
+            wheels: Vec::new(),
+            notes: None,
+        });
+        for (name, b) in [("IWC 9520", 8_000), ("Old clock", 10_800)] {
+            let c = crate::take::calibre_named(name, &user).unwrap();
+            assert_eq!(c.bph, Some(b), "{name}: the row keeps its rate");
+            assert_eq!(calibre_rate(&c), None, "{name}");
+            assert_eq!(
+                set_aside_why(Some(&c)).unwrap(),
+                format!(
+                    "the {name}'s beat rate of {b} bph is set aside, outside 12000 to 72000 bph"
+                )
+            );
+            let a = stream_settings(&Manifest::default(), Some(&c), Given::default()).analysis;
+            assert_eq!((a.bph, a.bph_from), (None, None), "{name}");
+            assert_eq!(
+                session_set_aside_text(Some(&c), None).unwrap(),
+                format!(
+                    "the {name}'s beat rate of {b} bph is set aside, outside 12000 to 72000 bph, \
+                     so the session's takes are read on Auto"
+                )
+            );
+            assert_eq!(session_set_aside_text(Some(&c), Some(18_000)), None);
+        }
+        let c = crate::take::calibre_named("IWC 9520 (18,000 bph, 40°)", &user).unwrap();
+        assert_eq!(
+            (calibre_rate(&c), set_aside_why(Some(&c))),
+            (Some(18_000), None)
+        );
+        assert_eq!(read_at_text(None, None), "so this take is read on Auto");
+        assert_eq!(
+            read_at_text(Some(21_600), Some(BphFrom::Calibre)),
+            "so this take is read at the calibre's 21600 bph"
+        );
+        assert_eq!(
+            read_at_text(Some(18_000), Some(BphFrom::Session)),
+            "so this take is read at the session file's 18000 bph"
+        );
+    }
+}

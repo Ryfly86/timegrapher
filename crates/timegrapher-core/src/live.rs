@@ -875,6 +875,8 @@ impl LiveAnalyzer {
         let heard = self.bph.is_some();
         if bph != self.cfg.analysis.bph {
             let was = std::mem::replace(&mut self.cfg.analysis.bph, bph);
+            // A rate set here is given for this reading.
+            self.cfg.analysis.bph_from = crate::set_rate::BphFrom::of(bph, None, None);
             // The rate the beats are already read at, or Auto where Auto
             // found that rate: the beats so far stand. Auto after a rate
             // set by hand listens for the rate afresh.

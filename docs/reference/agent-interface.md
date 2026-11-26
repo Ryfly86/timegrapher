@@ -57,6 +57,14 @@ on each `session` reading (also inside an analyzed take), on `record.check`, and
 on a live reading. `bph` and `timing_scatter_fraction` retain their numerical
 meaning. When no regular beat was found and `bph_set` is null or absent, text
 gives the timing scatter in ms without a percentage of a guessed beat (#857).
+Beside `bph_set`, `bph_set_from` says where the set rate came
+from (#2224): `standard` (given with `--bph` or MCP's `bph` as one of the
+standard rates, 12000, 14400, 17280, 18000, 19800, 21600, 25200, 28800,
+36000, 43200 and 72000, core `beats::STANDARD_BPH`), `typed` (given as any other whole rate in range),
+`calibre` (the calibre's table row) or `session` (the take's session file).
+It is given on `analyze`, each `session` reading and `record.check`, not yet
+on a live reading, and is left out when `bph_set` is null. A rate a `record` takes from a
+library watch counts as given.
 
 `software` tells builds apart: `git_hash` is the short commit hash
 (`"unknown"` in a build from a source tarball, without git), `git_dirty`
@@ -654,8 +662,17 @@ Before command execution, explicit analysis/acquisition arguments are checked fo
 mathematical and representation constraints, and the lift angle for its one
 range (core `input_domain::LIFT_RANGE_DEG`, which the app's lift fields use too):
 
-- `--bph`: a positive `u32` (1 through 4294967295), for `analyze`, `shape`,
-  `profile`, `long`, `series`, `doctor`, `record`, `session`, `synth` and `report`.
+- `--bph`: a whole number from 12000 to 72000 (core `input_domain::BPH_RANGE`,
+  the slowest and fastest standard rates; a decimal is refused, never rounded),
+  for `analyze`, `shape`, `profile`, `long`, `series`, `doctor`, `record`,
+  `session`, `synth` and `report`, as are a session file's `bph`, MCP's `bph`
+  and `watches edit --bph`. A rate kept outside it, a library watch's
+  `watch.toml` rate or a calibre row's (the table's `IWC 9520` at 8000 bph, or a
+  custom calibre), is set aside: the reading hears the beat rate (Auto), as with no rate
+  set, and says why: `analyze`'s `Set rate` line, or a `note:` line on stderr
+  with `--json`; `session`'s `calibre_notes`; a `note:` line on stderr from
+  `record` and `session --init`, which writes the note in the session file as a comment in place of the `bph` line. MCP
+  passes stderr's notes on.
 - `--lift`: from 10 to 90 degrees, for `analyze`, `shape`, `profile`, `long`,
   `series`, `record`, `session` and `report`, as are a session file's `lift`
   and MCP's `lift_deg`.

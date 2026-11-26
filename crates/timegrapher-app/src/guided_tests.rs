@@ -1209,6 +1209,7 @@ fn six_readings() -> Vec<Reading> {
                 duration_s: 10.0,
                 bph: 28800,
                 bph_set: Some(28800),
+                bph_set_from: None,
                 measurement: session::measure(&log, None, from, from + 10.0),
                 cycles: Vec::new(),
                 shape: None,

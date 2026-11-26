@@ -921,6 +921,7 @@ mod tests {
         measurement.amplitude_deg = Some(260.0);
         Reading {
             bph_set: Some(28800),
+            bph_set_from: None,
             label: format!("{}.wav", position.code()),
             position,
             wind_h: None,

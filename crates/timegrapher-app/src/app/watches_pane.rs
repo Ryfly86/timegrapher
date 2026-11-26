@@ -1088,7 +1088,7 @@ impl TimegrapherApp {
             self.set_lift(l);
         }
         self.bench.take.lift_context = (l, lift.is_some());
-        let bph = self.cal.bph(&self.bench.take.calibre).or(w.bph);
+        let bph = self.cal.bph(&self.bench.take.calibre).or(w.beat_rate());
         if bph != self.bench.take.bph && !self.set_live_bph(bph) {
             self.bench.recording.anchor = None;
             self.clear_trends();

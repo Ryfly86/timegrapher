@@ -1426,6 +1426,25 @@ fn a_moved_takes_lift_becomes_known_from_its_watch() {
     assert!(!super::watches_pane::settings_of(&mut doc, &w, &cal));
 }
 
+/// A watch whose calibre's rate, or its own, is outside 12,000 to 72,000
+/// bph files a take with no `bph`, so the take opens on Auto (#2224).
+#[test]
+fn a_watch_rate_outside_the_range_files_a_take_on_auto() {
+    let cal = crate::calibre_ui::Calibres::open(None);
+    let mut iwc = library::Watch::new("IWC");
+    iwc.calibre = Some("IWC 9520".into());
+    let mut own = library::Watch::new("Own");
+    own.bph = Some(10_800);
+    for w in [&iwc, &own] {
+        assert_eq!(cal.watch_bph(w), None, "{}", w.name);
+        let mut doc = toml_edit::DocumentMut::new();
+        super::watches_pane::settings_of(&mut doc, w, &cal);
+        assert!(doc.get("bph").is_none(), "{}: {doc}", w.name);
+    }
+    assert_eq!(cal.bph("IWC 9520"), None);
+    assert_eq!(cal.bph("IWC 9520 (18,000 bph, 40°)"), Some(18_000));
+}
+
 /// A recording opened from outside the Watches folder stays on show, as
 /// it was measured, when a watch is picked in Watches, picked on the
 /// Watch line, or added: to be kept in it next (#1966).

@@ -1723,7 +1723,7 @@ impl TimegrapherApp {
             }
             self.bench.take.lift_context = (l, true);
         }
-        let bph = self.cal.bph(&self.bench.take.calibre).or(w.bph);
+        let bph = self.cal.bph(&self.bench.take.calibre).or(w.beat_rate());
         let heard = self.bench.recording.live.as_ref().and_then(|l| l.bph());
         if bph.is_some() && heard.is_none_or(|h| Some(h) == bph) {
             self.put_bph(bph);

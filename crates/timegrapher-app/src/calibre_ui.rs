@@ -386,8 +386,13 @@ impl Calibres {
         self.find(name)?.lift_angle_deg()
     }
 
+    /// The beat rate a take of calibre `name` is read at: none when the
+    /// table gives none, or one outside the range, which is set aside
+    /// ([`timegrapher_core::set_rate::calibre_rate`]).
     pub fn bph(&self, name: &str) -> Option<u32> {
-        self.find(name)?.bph()
+        self.find(name)?
+            .bph()
+            .filter(|b| timegrapher_core::set_rate::in_range(*b))
     }
 
     /// The lift angle a take of `w` starts with: its calibre's where the
@@ -399,7 +404,8 @@ impl Calibres {
 
     /// The beat rate a take of `w` starts with, as [`Self::watch_lift`].
     pub fn watch_bph(&self, w: &timegrapher_core::library::Watch) -> Option<u32> {
-        self.bph(w.calibre.as_deref().unwrap_or_default()).or(w.bph)
+        self.bph(w.calibre.as_deref().unwrap_or_default())
+            .or(w.beat_rate())
     }
 
     /// A custom calibre's wheels, for the session file of a take.

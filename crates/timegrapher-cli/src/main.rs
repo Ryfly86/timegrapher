@@ -34,10 +34,7 @@ use timegrapher_core::synth::{self, SynthConfig};
 use timegrapher_core::{analyze, load, Analysis, AnalysisConfig};
 
 fn parse_bph(text: &str) -> Result<u32, String> {
-    let value = text
-        .parse::<u64>()
-        .map_err(|_| "BPH must be an integer from 1 through 4294967295".to_string())?;
-    timegrapher_core::input_domain::bph(value)
+    timegrapher_core::input_domain::bph_text(text)
 }
 fn parse_lift(text: &str) -> Result<f64, String> {
     timegrapher_core::input_domain::lift_deg(
@@ -1047,6 +1044,7 @@ fn measure_command(c: Command) -> Result<(), String> {
             .and_then(|r| {
                 let mut cfg = AnalysisConfig {
                     bph: r.bph,
+                    bph_from: r.bph_from,
                     escape_teeth: r.escape_teeth,
                     lift_known: r.lift_known,
                     ..Default::default()
@@ -1127,6 +1125,7 @@ fn profile_command(c: Command) -> Result<(), String> {
     let r = calibres_cmd::resolve_for(&file, calibre.as_deref(), bph, lift, None)?;
     let mut cfg = AnalysisConfig {
         bph: r.bph,
+        bph_from: r.bph_from,
         ..Default::default()
     };
     cfg.amplitude.lift_deg = r.lift_deg;
@@ -1532,6 +1531,16 @@ fn run_analyze(
     }
     if json {
         use timegrapher_core::analyze_doc;
+        // The text says it on its Set rate line; the JSON leaves it to stderr,
+        // as `record` does (Max on #2321).
+        if let Some(why) = timegrapher_core::set_rate::set_aside_why(calibre)
+            .filter(|_| a.summary.bph_set.is_none())
+        {
+            eprintln!(
+                "note: {why}, {}",
+                timegrapher_core::set_rate::read_at_text(None, None)
+            );
+        }
         let settings = analyze_doc::settings(cfg, calibre.map(|c| c.name.as_str()));
         let mut body = analyze_doc::body(
             &a.summary,
@@ -1842,6 +1851,14 @@ fn print_summary(
         println!(
             "Set rate     set {} bph; the beats are {heard} bph apart",
             s.bph
+        );
+    }
+    if let Some(why) =
+        timegrapher_core::set_rate::set_aside_why(calibre).filter(|_| s.bph_set.is_none())
+    {
+        println!(
+            "Set rate     {why}, {}",
+            timegrapher_core::set_rate::read_at_text(None, None)
         );
     }
     print_rate(s, clock);
@@ -2341,7 +2358,7 @@ mod numeric_input_tests {
                 "timegrapher",
                 "analyze",
                 "unused.wav",
-                "--bph=1",
+                "--bph=12000",
                 "--lift=52",
                 "--escape-teeth=1",
                 &format!("--card-ppm={ppm}")
@@ -2352,7 +2369,7 @@ mod numeric_input_tests {
             "timegrapher",
             "analyze",
             "unused.wav",
-            "--bph=4294967295",
+            "--bph=72000",
             "--lift=90",
             "--escape-teeth=4294967295"
         ])

@@ -1148,6 +1148,7 @@ mod tests {
         };
         Summary {
             bph_set: Some(28800),
+            bph_set_from: None,
             duration_s: 60.0,
             sample_rate: 48000,
             bph: 28800,

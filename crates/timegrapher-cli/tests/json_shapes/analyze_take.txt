@@ -17,6 +17,7 @@ bph
 bph_measured
 bph_measured_se
 bph_set
+bph_set_from
 caveats
 caveats[].code
 clipping
@@ -100,6 +101,7 @@ take.readings[].bph
 take.readings[].bph_measured
 take.readings[].bph_measured_se
 take.readings[].bph_set
+take.readings[].bph_set_from
 take.readings[].cycles
 take.readings[].date
 take.readings[].duration_s

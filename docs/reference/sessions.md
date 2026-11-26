@@ -52,7 +52,9 @@ position = "CH"
 clock = "ym42_DU_2h/clocklog.txt"   # see long-runs.md
 ```
 
-When a session manifest is consumed, `bph` must be a positive `u32`,
+When a session manifest is consumed, `bph` must be a whole number from
+12000 to 72000, the range `--bph` and MCP take too (a session file with a rate outside
+it is refused when opened, naming the file, and the file is left as it is),
 `lift` (including its `lift_angle` alias) must be from 10 to 90 degrees,
 the one lift range the app, the command line and MCP use too,
 `escape_teeth` must be a positive `u32`, and `card_ppm_fast` must be finite with
@@ -176,7 +178,10 @@ it supplied, and `escape_teeth`, win over the calibre's (an assumed lift,
 file says 55°; using 55°`), and `summary.json` lists the same notes under
 `input.settings.calibre_notes`, beside the `calibre` used. With none of
 them, the lift angle is the default 52°, and each reading carries the
-`lift_unknown` caveat.
+`lift_unknown` caveat. A calibre's beat rate outside 12000 to 72000 bph is set
+aside: the session's takes are read on Auto, `calibre_notes` says so, and
+`session --init` writes the same note as a comment in place of the `bph` line (see
+`--bph` in [agent-interface.md](agent-interface.md)).
 
 `escapement = "co-axial"` (or `"swiss lever"`) says which escapement the
 take is read for, over the calibre's: a calibre the table marks co-axial

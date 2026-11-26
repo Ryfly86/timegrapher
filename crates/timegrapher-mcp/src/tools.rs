@@ -113,7 +113,7 @@ const BPH: Param = p(
     Kind::BeatRate,
     Arg::Flag("--bph"),
     false,
-    "Beat rate in beats per hour, e.g. 28800 (guessed from the sound if left out).",
+    "Beat rate in beats per hour, a whole number from 12000 to 72000, e.g. 28800 or an off-standard 17570 (guessed from the sound if left out).",
 );
 /// For tools that also take a calibre, whose lift angle fills in: the
 /// order the command line reads a recording with (`resolve_for`, core
@@ -156,7 +156,8 @@ const CALIBRE_READING: Param = p(
     Arg::Flag("--calibre"),
     false,
     "The movement, e.g. \"ETA 2824-2\" or \"Rolex 3235\": its beat rate and lift angle \
-     are used where bph and lift_deg are not given. An unknown name is an error that \
+     are used where bph and lift_deg are not given; a calibre's beat rate outside 12000 to \
+     72000 bph is set aside and the take is read on Auto, with a note. An unknown name is an error that \
      suggests a wider search; list_calibres has the known ones.",
 );
 const DEVICE: Param = p(
@@ -781,7 +782,10 @@ pub fn definition(t: &ToolSpec) -> Value {
             Kind::Path | Kind::Text => json!({"type": "string"}),
             Kind::Position => json!({"type": "string", "enum": Position::names()}),
             Kind::Paths => json!({"type": "array", "items": {"type": "string"}, "minItems": 1}),
-            Kind::BeatRate => json!({"type":"integer", "minimum":1, "maximum":u32::MAX}),
+            Kind::BeatRate => {
+                let range = timegrapher_core::input_domain::BPH_RANGE;
+                json!({"type":"integer", "minimum":range.start(), "maximum":range.end()})
+            }
             Kind::LiftAngle => json!({
                 "type": "number",
                 "minimum": timegrapher_core::input_domain::LIFT_RANGE_DEG.start(),
@@ -823,6 +827,16 @@ pub fn definition(t: &ToolSpec) -> Value {
         d["_meta"] = crate::views::tool_meta();
     }
     d
+}
+
+/// A beat rate as given, when a whole number in
+/// [`timegrapher_core::input_domain::BPH_RANGE`]; a decimal is refused,
+/// never rounded (#2224).
+fn beat_rate_arg(t: &ToolSpec, p: &Param, n: &serde_json::Number) -> Result<Vec<String>, String> {
+    // `as_u64` is None for a decimal or a negative number, which `bph` refuses.
+    timegrapher_core::input_domain::bph(n.as_u64().unwrap_or(0))
+        .map_err(|e| format!("{}: {}: {e}", t.name, p.name))?;
+    Ok(vec![n.to_string()])
 }
 
 /// The averaging time `n` for `p`, refused by its own name when it is
@@ -872,14 +886,7 @@ pub fn command_line(t: &ToolSpec, args: &Map<String, Value>) -> Result<Vec<Strin
             (Kind::Position, Value::String(s)) if Position::names().contains(&s.as_str()) => {
                 vec![s.clone()]
             }
-            (Kind::BeatRate, Value::Number(n)) => {
-                let value = n.as_u64().ok_or_else(|| {
-                    format!("{}: {} must be a positive u32 integer", t.name, p.name)
-                })?;
-                timegrapher_core::input_domain::bph(value)
-                    .map_err(|e| format!("{}: {}: {e}", t.name, p.name))?;
-                vec![n.to_string()]
-            }
+            (Kind::BeatRate, Value::Number(n)) => beat_rate_arg(t, p, n)?,
             (Kind::LiftAngle, Value::Number(n)) => {
                 let value = n.as_f64().ok_or_else(|| {
                     format!(
@@ -1292,10 +1299,7 @@ mod numeric_input_tests {
             schema["inputSchema"]["properties"]["average_s"]["enum"],
             json!(timegrapher_core::live::AVERAGES)
         );
-        assert_eq!(
-            schema["inputSchema"]["properties"]["bph"]["maximum"],
-            u32::MAX
-        );
+        assert_eq!(schema["inputSchema"]["properties"]["bph"]["maximum"], 72000);
         assert_eq!(
             schema["inputSchema"]["properties"]["lift_deg"]["minimum"],
             10.0
@@ -1306,10 +1310,10 @@ mod numeric_input_tests {
         );
         let line = command_line(
             t,
-            &args(json!({"recording":full("unused.wav"),"bph":u32::MAX,"lift_deg":52.0})),
+            &args(json!({"recording":full("unused.wav"),"bph":72000,"lift_deg":52.0})),
         )
         .unwrap_or_else(|error| panic!("valid native-path numeric control rejected: {error}"));
-        assert!(line.contains(&format!("--bph={}", u32::MAX)), "{line:?}");
+        assert!(line.contains(&"--bph=72000".to_string()), "{line:?}");
         assert!(line.contains(&"--lift=52.0".to_string()), "{line:?}");
         for (name, field, expected) in [
             ("run_session", "paths", json!([full("unused")])),
@@ -1329,14 +1333,51 @@ mod numeric_input_tests {
         }
     }
 
+    /// A typed rate (#2224): any whole rate from 12,000 to 72,000 bph,
+    /// off-standard ones included, reaches the CLI as given; one outside
+    /// the range, or a decimal, is refused with the range, never rounded.
+    #[test]
+    fn a_beat_rate_is_a_whole_number_from_12000_to_72000() {
+        let t = find("analyze_recording").unwrap();
+        let schema = definition(t);
+        let bph = &schema["inputSchema"]["properties"]["bph"];
+        assert_eq!(
+            (&bph["type"], &bph["minimum"], &bph["maximum"]),
+            (&json!("integer"), &json!(12000), &json!(72000))
+        );
+        for value in [12_000, 17_570, 72_000] {
+            let line = command_line(
+                t,
+                &args(json!({"recording":full("unused.wav"),"bph":value})),
+            )
+            .unwrap();
+            assert!(line.contains(&format!("--bph={value}")), "{line:?}");
+        }
+        for value in [
+            json!(11_999),
+            json!(72_001),
+            json!(17_570.5),
+            json!(17_570.0),
+            json!(u32::MAX),
+        ] {
+            let error = command_line(
+                t,
+                &args(json!({"recording":full("unused.wav"),"bph":value})),
+            )
+            .unwrap_err();
+            assert!(
+                error.contains("bph")
+                    && error.contains(timegrapher_core::input_domain::BPH_RANGE_TEXT),
+                "{value}: {error}"
+            );
+        }
+    }
+
     #[test]
     fn numeric_inputs_validate_report_analysis_settings() {
         let t = find("make_report_bundle").unwrap();
         let schema = definition(t);
-        assert_eq!(
-            schema["inputSchema"]["properties"]["bph"]["maximum"],
-            u32::MAX
-        );
+        assert_eq!(schema["inputSchema"]["properties"]["bph"]["maximum"], 72000);
         assert_eq!(
             schema["inputSchema"]["properties"]["lift_deg"]["minimum"],
             10.0
@@ -1359,6 +1400,6 @@ mod numeric_input_tests {
             let error = command_line(t, &args(a)).unwrap_err();
             assert!(error.contains(field), "wrong rejection: {error}");
         }
-        assert!(command_line(t, &args(json!({"bph":u32::MAX,"lift_deg":52}))).is_ok());
+        assert!(command_line(t, &args(json!({"bph":72000,"lift_deg":52}))).is_ok());
     }
 }

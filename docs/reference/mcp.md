@@ -493,11 +493,15 @@ spectrum arrays move to chart metadata; its text lead carries the same qualifica
 These counts describe the FFT grid, not acoustic coverage or percentage of beats
 heard. Legacy spectra without counts state that support was not recorded.
 
-Explicit measurement BPH must be a positive integer representable by the CLI's
-`u32`; measurement lift must be from 10 to 90 degrees (core
-`input_domain::LIFT_RANGE_DEG`, the one range every surface uses). Invalid
-values are rejected before a CLI child is started. Apart from the lift's range,
-this adds no empirical operating ranges or new defaults. `make_report_bundle` uses these domains too, because its settings are forwarded
+Explicit measurement `bph` must be a whole number from 12000 to 72000 (core
+`input_domain::BPH_RANGE`; the inputSchema gives it as an integer with that
+`minimum` and `maximum`, and a decimal is refused, never rounded), so an
+off-standard rate such as 17570 can be given; measurement lift must be from
+10 to 90 degrees (core `input_domain::LIFT_RANGE_DEG`). Each is one range
+every surface uses. Invalid values are rejected before a CLI child is started.
+Apart from those two ranges, this adds no empirical operating ranges or new
+defaults. The documents a tool returns give `bph_set_from` beside `bph_set`
+(see [agent-interface.md](agent-interface.md)). `make_report_bundle` uses these domains too, because its settings are forwarded
 to analysis subprocesses. These checks do not validate settings loaded
 inside the CLI from manifests, catalogues or clock stores; see the explicit scalar
 input inventory in [agent-interface.md](agent-interface.md#explicit-scalar-input-domains).
