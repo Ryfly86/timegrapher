@@ -216,6 +216,10 @@ fn the_caveat_in_words() {
         c.reading_scope(),
         Some(timegrapher_core::measure::Scope::Rate)
     );
+    // Read back from its JSON, as the MCP server reads caveats.
+    let json = serde_json::to_value(c).unwrap();
+    assert_eq!(json["code"], "off_standard_rate");
+    assert_eq!(serde_json::from_value::<Caveat>(json).unwrap(), c);
 }
 
 /// The JSON of `analyze` off every standard rate: no rate anywhere, the

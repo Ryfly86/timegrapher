@@ -2,7 +2,7 @@
 //! exporting a pane, and the empty and error states.
 
 use super::readouts::{reading_limits, take_limits};
-use super::tests::{frames, painted_text, screen, synthetic, themed};
+use super::tests::{frames, painted_text, screen, synthetic, synthetic_set, themed};
 use super::*;
 use timegrapher_core::synth::{generate, SynthConfig};
 
@@ -1715,7 +1715,9 @@ fn at_800_a_caveat_leaves_the_reading_cards_captions_whole() {
 #[test]
 fn the_reading_figures_share_one_size() {
     for rate in [20.0, -2174.4] {
-        let mut app = synthetic(60.0, rate);
+        // Set to 28,800: on Auto, −2174.4 s/d is past every standard
+        // rate's reach and reads no rate (#2223).
+        let mut app = synthetic_set(60.0, rate, Some(28_800), |_| 280.0, |_| 0.0);
         app.bench.panes_view.readings_pinned = true;
         let ctx = themed();
         for w in [800.0, 1000.0, 1920.0] {
