@@ -277,6 +277,41 @@ fn a_watch_picked_over_a_quick_listen_asks_then_stops() {
     let _ = std::fs::remove_dir_all(base);
 }
 
+/// List Shows is in the Watches toolbar only once a watch has a field
+/// added: before that the calibre is its one choice, and a drop-down of
+/// one says nothing (#2342).
+#[test]
+fn list_shows_waits_for_a_field_to_choose() {
+    let (mut app, base) = line_app("list-shows-one", &["Pepsi"], None);
+    let ctx = themed();
+    let drawn = |app: &mut TimegrapherApp| {
+        for _ in 0..3 {
+            let _ = ctx.run(screen(), |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    app.pane_tools(ui, Pane::Watch);
+                });
+            });
+        }
+        theme::tools_drawn_at(&ctx)
+            .into_iter()
+            .map(|(k, _)| k)
+            .collect::<Vec<_>>()
+    };
+    let keys = drawn(&mut app);
+    assert!(keys.iter().any(|k| k == "Watches/Sort"), "{keys:?}");
+    assert!(!keys.iter().any(|k| k == "Watches/List Shows"), "{keys:?}");
+    if let Ok(Some(l)) = &mut app.library {
+        l.watches[0].watch.fields.push(library::Field {
+            label: "Customer".into(),
+            kind: library::FieldKind::Text,
+            value: "Ada".into(),
+        });
+    }
+    let keys = drawn(&mut app);
+    assert!(keys.iter().any(|k| k == "Watches/List Shows"), "{keys:?}");
+    let _ = std::fs::remove_dir_all(base);
+}
+
 /// List Shows is kept between runs. A field no watch has shows as the
 /// calibre, the choice still kept.
 #[test]

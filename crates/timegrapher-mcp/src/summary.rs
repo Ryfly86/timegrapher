@@ -1026,8 +1026,8 @@ mod tests {
             ),
             (
                 10.0,
-                "12 10 s rate readings over 120 s: too few to search for structure (needs 30 \
-                 readings over 120 s).",
+                "12 10 s rate readings over 120 s: too few to search for structure, which \
+                 needs at least 30 readings.",
             ),
         ] {
             let text = one(step, h);

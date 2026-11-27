@@ -2815,3 +2815,60 @@ fn the_isochronism_alone_is_the_whole_checks() {
     let json = serde_json::to_string;
     assert_eq!(json(&walk).unwrap(), json(&whole.walk).unwrap());
 }
+
+/// Too few readings to search: the headline says what there is, then
+/// only what is still missing, so its two numbers can both be true
+/// (#2342: "28 10 s rate readings over 280 s ... (needs 30 readings
+/// over 120 s)" read as 30 readings of 10 s inside 120 s).
+#[test]
+fn too_few_readings_says_only_what_is_missing() {
+    let headline = |kind, n: usize, step: f64| {
+        check_series(
+            kind,
+            grid(vec![1.0; n], step),
+            None,
+            None,
+            None,
+            &[],
+            &Config::default(),
+        )
+        .headline
+    };
+    assert_eq!(
+        headline(SeriesKind::Rate, 28, 10.0),
+        "28 10 s rate readings over 280 s: too few to search for structure, which needs at \
+         least 30 readings."
+    );
+    assert_eq!(
+        headline(SeriesKind::Amplitude, 40, 2.0),
+        "40 2 s amplitude readings over 80 s: too few to search for structure, which needs \
+         readings covering at least 2 min."
+    );
+    assert_eq!(
+        headline(SeriesKind::BeatError, 20, 2.0),
+        "20 2 s beat error readings over 40 s: too few to search for structure, which needs \
+         at least 30 readings, covering at least 2 min."
+    );
+    // At each rule's edge, the rule met is not named.
+    assert_eq!(
+        headline(SeriesKind::Rate, 12, 10.0),
+        "12 10 s rate readings over 120 s: too few to search for structure, which needs at \
+         least 30 readings."
+    );
+    assert_eq!(
+        headline(SeriesKind::Amplitude, 30, 2.0),
+        "30 2 s amplitude readings over 60 s: too few to search for structure, which needs \
+         readings covering at least 2 min."
+    );
+    // From 30 readings over 2 min the search runs.
+    let ran = check_series(
+        SeriesKind::Rate,
+        grid((0..30).map(|i| f64::from(i % 3)).collect(), 4.0),
+        None,
+        None,
+        None,
+        &[],
+        &Config::default(),
+    );
+    assert_ne!(ran.lead, Lead::TooShort, "{}", ran.headline);
+}

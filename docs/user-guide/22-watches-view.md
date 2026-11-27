@@ -87,8 +87,11 @@ Right-clicking a take, or **…** over the table, opens its menu. Chapter
 - **Keep Analysis Only…**: deletes the take's sound, keeping its
   readings.
 - **Move to Another Watch**: in Unsorted Takes, **File Under a Watch**.
-- **Set Wind**: the take's hours from full wind to its start, "Full
-  wind [ ] h before it began", or **Not Given**. Not on a take being
+- **Set Wind**: the take's hours from full wind to its start. Type
+  them in "Full wind [ ] h before it began" and press **Set**, greyed
+  until the field holds a number of 0 or more; or press **Not Given**.
+  The take's readings are grouped by its wind, and a take with none
+  given is never counted as full wind. Not on a take being
   recorded or saved on the Bench, whose next save would undo it: set
   that one in the Listen card's Wind box (chapter 5).
 - **Delete…**: after asking, with its size. It can't be undone.

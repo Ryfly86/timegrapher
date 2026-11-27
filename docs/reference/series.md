@@ -21,7 +21,7 @@ detect, and adds a sentence for the others:
 | correlation between readings | the lag-1 correlation, the Ljung–Box p, how long the correlation lasts, and the Allan excess |
 | none of these | the number of readings, the median and the reading-to-reading scatter |
 | a period search line faster than the readings | the period, the wheel whose turn it matches, the size, a sine's peak to peak, and that the readings are too coarse to show it, e.g. "the beat timing repeats every 5.0 s, the escape wheel's period, 0.240 ms sine peak to peak; 10 s readings are too coarse to show it". The "none of these" and correlation headlines carry it in place of "no cycle"; the cycle, two levels, level change and trend headlines add it as a sentence of its own ("The beat timing also repeats every 5.0 s, …" beside a slower cycle). For the rate a line under 30 s is the beat timing's swing in ms, and a slower one (with `--reading 20` or longer) the rate's swing in s/d; "faster than the readings" means under three of the readings cycles are looked for in: the 2 s windows for the amplitude and beat error, the readings for the rate |
-| too few readings | N readings over N s (it needs 30 over 120 s) |
+| too few readings | N readings over N s, then only what is still missing: at least 30 readings, or readings covering at least 2 min (gaps counted; it binds only for readings under 4 s), or both |
 
 After these, the headline names the period search's lines it has not
 named yet, as a last sentence: "The amplitude's period search also finds
@@ -539,8 +539,8 @@ plain `--json` stays small for agents. The MCP server asks for them and
 keeps them out of what the model reads.
 
 `--maps` (with `--json`) adds `time_frequency`, `coherence`,
-`lomb_scargle`, `wheel_turns`, `kurtograms` and the `wheel_lines` windows, about 4.1 MB on a 2 h take (parts 6 and 7 of the Pepsi replica's
-take, Dandong 3285, where `--views` adds about 0.7 MB).
+`lomb_scargle`, `wheel_turns`, `kurtograms` and the `wheel_lines` windows, about 4.1 MB on a 2 h take (parts 6 and 7 of a DD3285
+take, where `--views` adds about 0.7 MB).
 
 The JSON's top-level `clock` describes the correction actually applied to
 these readings: `ppm`, `rate_error_s_per_day`, `from` (the source), and

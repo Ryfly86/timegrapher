@@ -282,7 +282,7 @@ sound first, as the Watch line does, then stops the listening and picks
 the watch; while a watch's take is listening, picking another is
 refused until it stops. Its toolbar has, left to right, **New Watch…**
 (a watch and a plus), a search (a loupe; in the name, calibre, notes and
-fields), **Sort** by Name, Last Take or Size, and **List Shows**. In a narrow window, Sort and List Shows fold
+fields), **Sort** by Name, Last Take or Size, and **List Shows** (only while a watch has a field added: otherwise the calibre is its one choice). In a narrow window, Sort and List Shows fold
 into the "…" menu first; New Watch… and the search always stay
 in the row. The Watches folder's location, and Show in Finder (Explorer on
 Windows, File Manager on Linux) for it, are in Settings. Clicking **Unsorted Takes** goes back to Quick Listen: no
@@ -1678,12 +1678,15 @@ of each phase's readings, for a phase with at least four; the median shape
 as a line; and a note giving the line's swing, highest less lowest, beside
 the boxes' median height), **Autocorrelation** (with the ±1.96/√n band
 dashed, the repeat marked and the Ljung–Box p-value), **Allan Deviation**
-(log-log, against the dashed line independent readings follow, labelled
+(log-log, against the dashed line independent readings follow, named
 where it ends, with the averaging time of least scatter labelled; times on
 fewer differences than core's `ALLAN_JUDGED_DIFFERENCES` (8) hollow, their
-line faint, noted once "hollow: too few differences to judge" on a
-plate beside the first, as the repeat's note is, clear of the trace and
-the other two labels),
+line faint, noted once "hollow: too few differences to judge" beside the
+first. Each of the three sits on a plate in the nearest place that neither
+line crosses, clear of the others, joined to its point by a short leader
+that crosses no line; the dashed line's name stands by the line's end, or
+further back along it where the end has no room; where no place is clear,
+and for the hollow note on a short plot, it is its point's hover),
 **CUSUM** (with the ±1.36 lines dashed and the largest excursion
 labelled) and **FFT** (the plain amplitude spectrum of each series, like
 Witschi's: the size of the sine wave at each period, log-log, in the
@@ -2232,14 +2235,15 @@ menu, or in a new one (**New Watch…**), with the settings it ran with
 **Throw Away** deletes it, sound and readings. The question sits at the
 top or the foot of the window, whichever is clear of the test's pane, so
 the test's results stay in view. Quick Listen's sound is never asked
-about; a test's always is. **Save Again** (Ctrl+S) later brings
+about when it stops; a test's always is. **Save Again** (Ctrl+S) later brings
 that copy up to date without asking again, and **Save As…** (Ctrl+Shift+S)
 copies the session to a new folder of your choosing, which Save Again then
 keeps up to date. Sound that hasn't been saved is never thrown away
 without asking, except a Quick Listen take's: New Session, opening a
 recording, starting a take of a watch, closing the window and File > Quit
 ask whether to save it first, while unsaved Quick Listen sound goes
-without a question. Until it is
+without a question, unless a watch is picked or a New Test set up over
+it. Until it is
 saved it is kept in a folder of the app's own (`timegrapher/unsaved`
 under `~/.local/share` on Linux, `~/Library/Application Support` on a
 Mac, `%LOCALAPPDATA%` on Windows), which the system doesn't clear. When

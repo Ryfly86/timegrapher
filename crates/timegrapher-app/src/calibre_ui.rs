@@ -574,7 +574,7 @@ impl Calibres {
                 // Short List grows. It keeps one height, searching or not:
                 // egui sizes a menu from its last frame, so a list shrunk
                 // to a short search's hits would leave the menu that small.
-                egui::ScrollArea::vertical()
+                crate::theme::scroll(egui::ScrollArea::vertical())
                     .id_salt("calibre list")
                     .max_height(list_h)
                     .min_scrolled_height(list_h)
@@ -940,7 +940,7 @@ impl Calibres {
         d.set_clip_rect(rect.intersect(ui.clip_rect()));
         theme::card().fill(pal.card).show(&mut d, |ui| {
             ui.set_min_size(ui.available_size());
-            egui::ScrollArea::vertical()
+            crate::theme::scroll(egui::ScrollArea::vertical())
                 .id_salt("manage details")
                 .auto_shrink([false, false])
                 .show(ui, |ui| self.details(ui, current, version, shown, out));
@@ -974,7 +974,7 @@ impl Calibres {
             }
             // Rows touch, as a table's do.
             ui.spacing_mut().item_spacing.y = 0.0;
-            egui::ScrollArea::vertical()
+            crate::theme::scroll(egui::ScrollArea::vertical())
                 .id_salt("manage list")
                 .auto_shrink([false, false])
                 .show_rows(ui, ROW_H, rows.len(), |ui, range| {
@@ -1475,7 +1475,7 @@ impl Calibres {
                     }
                 }
                 let mut flips: Vec<(String, bool)> = Vec::new();
-                egui::ScrollArea::vertical()
+                crate::theme::scroll(egui::ScrollArea::vertical())
                     .id_salt(("funnel values", col as usize))
                     .min_scrolled_height(list_h)
                     .max_height(list_h)
@@ -2433,13 +2433,43 @@ impl Picked {
 
 /// One calibre in the menu, ticked when it is `current`.
 fn menu_line(ui: &mut egui::Ui, e: Entry<'_>, text: String, current: &str, picked: &Picked) {
-    // A calibre whose escapement isn't measured yet can still be picked,
-    // its tag beside its name (#1872).
-    let text = match e.escapement() {
-        Some(_) => format!("{text}  ·  {}", calibres::Escapement::TAG),
-        None => text,
-    };
-    picked.item(ui, e.name() == current, text, &hint(e), e.name());
+    picked.item(
+        ui,
+        e.name() == current,
+        line_text(e, text),
+        &hint(e),
+        e.name(),
+    );
+}
+
+/// A calibre's words in the menu: `text`, then its lift angle where the
+/// list gives one, since rows sharing a number can differ by several
+/// degrees (#2339). A calibre whose escapement isn't measured yet can
+/// still be picked, its tag in place of the lift (#1872). A name that
+/// already states its lift, "Rolex 3235 (53°)" or "Citizen 20 (21,600
+/// bph, 52°)", says it once.
+fn line_text(e: Entry<'_>, text: String) -> String {
+    match (e.escapement(), e.lift_angle_deg()) {
+        (Some(_), _) => format!("{text}  ·  {}", calibres::Escapement::TAG),
+        (None, Some(l)) => {
+            let lift = calibre_page::lift_angle_text(l);
+            if names_its_lift(e.name(), &lift) {
+                text
+            } else {
+                format!("{text} · {lift}")
+            }
+        }
+        (None, None) => text,
+    }
+}
+
+/// Whether `name` ends in a bracket that states `lift` as one of its
+/// parts: "(53°)", "(21,600 bph, 52°)". A bracket elsewhere in the name,
+/// "Miyota (Citizen) 9100", doesn't.
+fn names_its_lift(name: &str, lift: &str) -> bool {
+    name.strip_suffix(')')
+        .and_then(|n| n.rsplit_once('('))
+        .is_some_and(|(_, inside)| inside.split(", ").any(|part| part == lift))
 }
 
 /// Every calibre the app knows, by any of its names or its maker, without

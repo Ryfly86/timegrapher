@@ -844,6 +844,9 @@ impl TimegrapherApp {
             egui::Popup::menu(&button)
                 .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
                 .show(|ui| {
+                    // Each item on one line, the menu as wide as its
+                    // longest: a watch's name broke at its hyphen (#2129).
+                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
                     if changes {
                         if ui
                             .button("Save Changes")
@@ -1429,7 +1432,7 @@ impl TimegrapherApp {
         {
             return;
         }
-        if !asked && self.new_take_asks() {
+        if !asked && self.new_take_asks(kind) {
             self.confirm = Some(Confirm::NewTake(kind));
             return;
         }
@@ -1615,11 +1618,12 @@ impl TimegrapherApp {
         self.bench.test.guided_after && self.open_watch().is_some() && !self.guided_running()
     }
 
-    /// Whether a new take asks first: a take of a watch asks about Quick
-    /// Listen's sound too, as picking a watch does, as it isn't that
-    /// watch's sound.
-    pub(super) fn new_take_asks(&self) -> bool {
-        if self.open_watch().is_some() {
+    /// Whether a new take of `kind` asks first: a take of a watch, or a
+    /// test set up, asks about Quick Listen's sound too, as picking a
+    /// watch does, as it isn't that take's sound (#2328). Only listening
+    /// again with no watch lets it go unasked.
+    pub(super) fn new_take_asks(&self, kind: NewTake) -> bool {
+        if self.open_watch().is_some() || kind != NewTake::Listen {
             self.line_pick_asks()
         } else {
             self.needs_save_confirmation()

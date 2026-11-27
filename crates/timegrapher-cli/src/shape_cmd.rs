@@ -3,35 +3,35 @@
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
-use timegrapher_core::beats;
-use timegrapher_core::dsp::{envelope, EnvelopeConfig};
+use timegrapher_core::analysis::{self, AnalysisConfig, Summary};
 use timegrapher_core::library::{fixed_text, signed_text};
 use timegrapher_core::load;
-use timegrapher_core::shape::{self, Shape, ShapeReport, SideReport};
+use timegrapher_core::measure::Scope;
+use timegrapher_core::shape::{Shape, ShapeReport, SideReport};
 
 pub struct Options<'a> {
-    pub bph: Option<u32>,
-    pub envelope: EnvelopeConfig,
-    pub lift_deg: f64,
+    /// What `analyze` reads the recording with: the beats, their sides
+    /// and the amplitude are its own (#2104).
+    pub cfg: AnalysisConfig,
     pub json: bool,
     pub templates: Option<&'a Path>,
 }
 
 pub fn run(file: &Path, o: &Options) -> Result<(), String> {
     let audio = load(file).map_err(|e| format!("{}: {e}", file.display()))?;
-    let fs = audio.sample_rate as f64;
-    let env = envelope(&audio.samples, fs, &o.envelope);
-    let bph = o.bph.unwrap_or_else(|| beats::guess_bph(&env, fs));
-    let (r, beat_s) = shape::of_envelope(&env, fs, bph);
+    let a = analysis::analyze(&audio, &o.cfg);
+    let r = analysis::shape_report(&audio, &o.cfg, &a);
     if let Some(p) = o.templates {
-        write_templates(p, &r, fs).map_err(|e| format!("{}: {e}", p.display()))?;
+        write_templates(p, &r, audio.sample_rate as f64)
+            .map_err(|e| format!("{}: {e}", p.display()))?;
     }
+    let s = &a.summary;
     if o.json {
         let settings = serde_json::json!({
-            "bph": bph,
-            "lift_deg": o.lift_deg,
-            "notch_hz": o.envelope.notch_hz,
-            "highpass_hz": o.envelope.highpass_hz,
+            "bph": s.bph,
+            "lift_deg": o.cfg.amplitude.lift_deg,
+            "notch_hz": o.cfg.envelope.notch_hz,
+            "highpass_hz": o.cfg.envelope.highpass_hz,
         });
         crate::output::print(
             "shape",
@@ -39,7 +39,7 @@ pub fn run(file: &Path, o: &Options) -> Result<(), String> {
             &r,
         )?;
     } else {
-        print_report(&r, bph, beat_s, o.lift_deg);
+        print_report(&r, s);
     }
     Ok(())
 }
@@ -59,9 +59,14 @@ fn opt(v: Option<f64>, digits: usize) -> String {
         .map_or("-".into(), |x| fixed_text(x, digits))
 }
 
-fn print_report(r: &ShapeReport, bph: u32, beat_s: f64, lift_deg: f64) {
+/// The shape table. Each side's amplitude is `analyze`'s, from `s`, with
+/// the caveats it carries there: it is read over the amplitude windows,
+/// not from these templates, so the whole-recording columns have none
+/// (#2104).
+fn print_report(r: &ShapeReport, s: &Summary) {
     println!(
-        "Beat rate    {bph} bph; {} windows of 2 s; times from the unlock edge",
+        "Beat rate    {} bph; {} windows of 2 s; times from the unlock edge",
+        s.bph,
         r.windows.len()
     );
     let cols: [(&str, Option<&Shape>); 4] = [
@@ -75,18 +80,27 @@ fn print_report(r: &ShapeReport, bph: u32, beat_s: f64, lift_deg: f64) {
         print!("{name:>10}");
     }
     println!();
+    print!("{:<24}", "amplitude, deg");
+    for v in [s.amplitude_even_deg, s.amplitude_odd_deg, None, None] {
+        print!("{:>10}", opt(v, 0));
+    }
+    println!();
+    // The amplitude carries the caveats `analyze` gives it, in core's
+    // words (a co-axial's estimate among them).
+    if s.amplitude_even_deg.is_some() || s.amplitude_odd_deg.is_some() {
+        for c in s
+            .caveats
+            .iter()
+            .filter(|c| c.scopes().contains(&Scope::Amplitude))
+        {
+            if let Some(w) = c.short(s.lift_deg, s.beats_found) {
+                println!("  {w}");
+            }
+        }
+    }
     type Row<'a> = (&'a str, &'a dyn Fn(&Shape) -> Option<f64>, usize);
-    let amp = |s: &Shape| {
-        let osc = 2.0 * beat_s;
-        Some(timegrapher_core::amplitude::amplitude_deg(
-            s.unlock_to_drop_ms / 1000.0,
-            osc,
-            lift_deg,
-        ))
-    };
-    let rows: [Row; 22] = [
+    let rows: [Row; 21] = [
         ("unlock to drop, ms", &|s| Some(s.unlock_to_drop_ms), 2),
-        ("  amplitude, deg", &amp, 0),
         ("sound 1 rise, ms", &|s| s.t1_ms, 2),
         ("sound 2 rise, ms", &|s| s.t2_ms, 2),
         ("sound 3 rise, ms", &|s| Some(s.t3_ms), 2),
