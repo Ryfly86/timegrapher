@@ -1618,3 +1618,87 @@ fn a_click_on_stop_behind_settings_only_closes_settings() {
     app.bench.recording.capture = None;
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// Listen (▶) beside a recording opened, with nothing unsaved in it,
+/// asks before closing it (#2108): the question names the recording and
+/// what starts, waits for an answer, and Esc (as Cancel) leaves the
+/// recording on show. With its masks changed, the question about
+/// throwing them away is asked instead; with nothing opened, Listen
+/// asks nothing.
+#[test]
+fn listen_over_a_recording_opened_asks_before_closing_it() {
+    let base = std::env::temp_dir().join(format!("tg-app-listen-opened-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let root = base.join("Timegrapher Data");
+    std::fs::create_dir_all(&base).unwrap();
+    library::Library::create(&root).unwrap();
+    let mut app = super::tests::opened_recording(&base, "ym42_DU.wav", 12.0);
+    app.use_library(Some(root));
+    assert!(app.take_on_show().is_some() && !app.needs_save_confirmation());
+    assert!(app.listen_closes_opened());
+    let ctx = theme_ctx();
+    let frame = |app: &mut TimegrapherApp, t: f64, events: Vec<egui::Event>| {
+        let input = egui::RawInput {
+            time: Some(t),
+            events,
+            ..Default::default()
+        };
+        let _ = ctx.run(input, |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| app.listen_go(ui, None));
+        });
+    };
+    // Listen counts from the frame after it shows, then takes a press.
+    frame(&mut app, 0.0, Vec::new());
+    frame(&mut app, 1.0, Vec::new());
+    let at = egui::pos2(8.0 + LISTEN_BUTTON / 2.0, 8.0 + LISTEN_BUTTON / 2.0);
+    frame(&mut app, 2.0, click_at(at));
+    assert_eq!(app.confirm, Some(Confirm::CloseToListen(false)));
+    assert!(
+        !app.running() && app.take_on_show().is_some(),
+        "nothing closed yet"
+    );
+    let mut said = Vec::new();
+    for _ in 0..2 {
+        said = drawn_at(&ctx.run(egui::RawInput::default(), |ctx| app.confirm_dialog(ctx)))
+            .into_iter()
+            .map(|t| t.0)
+            .collect::<Vec<_>>();
+    }
+    for words in [
+        "Close the recording and listen?",
+        "“ym42_DU.wav” closes unchanged, and a Quick Listen starts on the microphone.",
+        "Close and Listen",
+        "Cancel",
+    ] {
+        assert!(said.iter().any(|s| s == words), "{words}: {said:?}");
+    }
+    assert_eq!(
+        app.confirm,
+        Some(Confirm::CloseToListen(false)),
+        "it waits for an answer"
+    );
+    let esc = egui::RawInput {
+        events: vec![egui::Event::Key {
+            key: egui::Key::Escape,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        }],
+        ..Default::default()
+    };
+    let _ = ctx.run(esc, |ctx| app.confirm_dialog(ctx));
+    assert_eq!(app.confirm, None);
+    assert!(
+        !app.running() && app.take_on_show().is_some(),
+        "still on show"
+    );
+    // Masks changed: the question about throwing them away instead.
+    app.bench.take.masked = vec![(3.0, 4.0)];
+    assert!(app.needs_save_confirmation() && !app.listen_closes_opened());
+    // Nothing opened: Listen asks nothing of its own.
+    app.new_session();
+    assert!(app.take_on_show().is_none() && !app.listen_closes_opened());
+    drop(app);
+    let _ = std::fs::remove_dir_all(&base);
+}

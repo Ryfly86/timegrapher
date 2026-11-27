@@ -253,27 +253,76 @@ fn watch_id(app: &TimegrapherApp, name: &str) -> String {
     }
 }
 
-/// A watch picked in the list over a Quick Listen still listening asks
-/// about its unsaved sound first, or stops at once with nothing to ask
-/// about; over a watch's take listening it goes to `pick_watch`, which
-/// refuses; with nothing listening it is picked.
+/// A watch picked in the list, or added there with New Watch…, over a
+/// Quick Listen still listening does what the Watch line does (#2107):
+/// nothing is asked, the Quick Listen is kept in the watch and goes on,
+/// and the watch's page shows. Over a watch's take still listening,
+/// another watch is refused, and its own row shows its page. With
+/// nothing listening, the watch is picked.
 #[test]
-fn a_watch_picked_over_a_quick_listen_asks_then_stops() {
-    assert_eq!(list_pick_route(true, true, true), ListPick::Ask);
-    assert_eq!(list_pick_route(true, true, false), ListPick::StopThenPick);
-    assert_eq!(list_pick_route(true, false, true), ListPick::Pick);
-    assert_eq!(list_pick_route(false, true, true), ListPick::Pick);
-    // Asked and answered with nothing listening, it picks the watch.
-    let (mut app, base) = line_app("list-pick", &["Pepsi"], None);
+fn a_watch_picked_or_added_over_a_quick_listen_keeps_it_listening() {
+    let (mut app, base) = line_app("list-pick", &["Pepsi", "Seiko"], None);
     let pepsi = watch_id(&app, "Pepsi");
+    let seiko = watch_id(&app, "Seiko");
     app.list_pick(pepsi.clone());
     assert_eq!(app.watches_view.watch_open.as_deref(), Some(pepsi.as_str()));
     app.pick_unsorted();
-    app.confirmed(
-        Confirm::PickWatch(Some(pepsi.clone())),
-        &egui::Context::default(),
-    );
+    // A Quick Listen listening, with 30 s of sound not saved.
+    let listen = |app: &mut TimegrapherApp, dir: &str| {
+        assert!(app.quick_listen_ready(true));
+        app.session.listen();
+        let tx = super::tests::queued_capture(app, &base);
+        let info = app.info("Quick", 48000, 16);
+        let mut r = Recorder::start(&base.join(dir), info).unwrap();
+        r.write(&timegrapher_core::capture::Block {
+            samples: vec![0.0; 48000 * 30],
+            at: std::time::SystemTime::now(),
+        })
+        .unwrap();
+        app.session.recorder = Some(r);
+        assert!(app.running() && app.quick_unsaved() && app.line_pick_asks());
+        tx
+    };
+    let kept_in = |app: &TimegrapherApp, name: &str| {
+        assert_eq!(app.confirm, None, "nothing asked");
+        assert!(app.running(), "listening goes on");
+        assert!(app.session.recorder.is_some(), "its sound is kept");
+        assert!(!app.bench.recording.quick_listen);
+        assert_eq!(app.bench.take.watch, name);
+        assert_eq!(
+            app.open_watch().map(|e| e.watch.name.clone()).as_deref(),
+            Some(name)
+        );
+        assert!(!app.list_shown(), "the watch's page shows");
+    };
+    let _tx = listen(&mut app, "first");
+    app.list_pick(pepsi.clone());
+    kept_in(&app, "Pepsi");
+    // Another watch, over the watch's take: refused.
+    app.list_pick(seiko);
     assert_eq!(app.watches_view.watch_open.as_deref(), Some(pepsi.as_str()));
+    assert_eq!(
+        app.message.as_ref().map(|(m, _)| m.as_str()),
+        Some("Stop listening before picking another watch.")
+    );
+    // Its own row, from the list: its page, with no refusal.
+    app.message = None;
+    app.watches_view.list_for = Some(app.watches_view.picked());
+    assert!(app.list_shown());
+    app.list_pick(pepsi);
+    assert!(!app.list_shown() && app.message.is_none());
+    // New Watch… then Add Watch, over a Quick Listen.
+    app.bench.recording.capture = None;
+    let _tx = listen(&mut app, "second");
+    app.watches_view.watch_form = Some(watches::Form {
+        watch: library::Watch::new("Speedy"),
+        new: true,
+        error: None,
+    });
+    app.save_watch_form();
+    kept_in(&app, "Speedy");
+    app.bench.recording.capture = None;
+    drop(app);
     let _ = std::fs::remove_dir_all(base);
 }
 
