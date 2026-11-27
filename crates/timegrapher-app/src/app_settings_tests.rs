@@ -151,8 +151,6 @@ fn a_settings_message_takes_its_rows_caption() {
     }
 }
 
-/// An input that won't open says so in the Microphone row's caption,
-/// on one line, and the row below stays put.
 /// Keep Awake's caption follows its switch (#2382): off, it never says
 /// the computer is held awake; a Power Reserve Test, which holds it with
 /// the switch off, still says when the system refuses.
@@ -193,6 +191,8 @@ fn keep_awakes_caption_follows_its_switch() {
     assert!(says(&drawn, refused) && !says(&drawn, on), "{drawn:?}");
 }
 
+/// An input that won't open says so in the Microphone row's caption,
+/// on one line, and the row below stays put.
 #[test]
 fn an_input_that_wont_open_says_so_in_its_rows_caption() {
     let ctx = themed();
