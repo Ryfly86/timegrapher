@@ -1946,6 +1946,12 @@ impl TimegrapherApp {
         !self.bench.test.guided_unused.is_empty() || !self.bench.test.guided_measured.is_empty()
     }
 
+    /// Whether the app asks to keep the computer awake while listening:
+    /// Keep Awake on, or a Power Reserve Test running with it off.
+    pub(super) fn asks_awake(&self) -> bool {
+        self.keep_awake || self.reserve_running()
+    }
+
     /// What is wrong with keeping the computer awake or taking sound in
     /// the background, for Keep Awake's caption.
     /// One plain line for the caption, and what the system said, for the
@@ -1957,9 +1963,9 @@ impl TimegrapherApp {
                 format!("The thread that does both didn't start: {e}"),
             ));
         }
-        // A Power Reserve Test holds the computer awake with the switch
-        // off too, so a refusal then is said as well.
-        match (self.keep_awake || self.reserve_running(), &self.awake_fault) {
+        // Said whenever the app asks, a Power Reserve Test with the
+        // switch off included.
+        match (self.asks_awake(), &self.awake_fault) {
             (true, Some(e)) => Some((
                 "Not being kept awake: the system didn't allow it.".into(),
                 format!("What the system said: {e}"),
