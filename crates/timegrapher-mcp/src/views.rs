@@ -754,6 +754,131 @@ pub fn take_series_charts(doc: &mut Value) -> Value {
     })
 }
 
+/// The name of `beat_shape`'s compact document: the CLI's `shape`
+/// document without its `windows`, every 2 s window's figures for both
+/// sides (about 470 kB on a 10 min recording, #2097). Each side's
+/// `whole`, `spread` and window counts stay.
+pub const SHAPE_PROJECTION: &str = "timegrapher.mcp.shape_compact/1";
+
+/// What [`shape_compact`] takes out of the CLI's shape document.
+const SHAPE_REMOVED: &[&str] = &["windows"];
+
+/// The name of `tick_tock_profile`'s compact document: the CLI's
+/// `profile` document without each side's curves, which ride to the view
+/// in `_meta` (#2097).
+pub const PROFILE_PROJECTION: &str = "timegrapher.mcp.profile_compact/1";
+
+/// Each side's curves: the median and the 10th and 90th percentile
+/// envelopes, one value per step, which only the chart draws.
+const PROFILE_CURVES: &[&str] = &["median", "p10", "p90"];
+
+/// The name of `list_calibres`'s compact document, for a list of
+/// calibres (the common ones, or a search's matches): each calibre's row
+/// without its train, sources and notes, and at most [`CALIBRES_SHOWN`]
+/// of them, best first. One calibre, by name or as a search's only
+/// match, stays whole (#2097).
+pub const CALIBRES_PROJECTION: &str = "timegrapher.mcp.calibres_compact/1";
+
+/// What a listed calibre keeps: enough to choose one and read its beat
+/// rate and lift angle; `list_calibres` with its `name` gives the rest.
+const CALIBRE_ROW: &[&str] = &[
+    "calibre",
+    "maker",
+    "family",
+    "bph",
+    "lift_angle_deg",
+    "escape_teeth",
+    "confidence",
+    "common",
+];
+
+/// The most calibres a list gives (the common ones are fewer).
+pub const CALIBRES_SHOWN: usize = 100;
+
+/// The `projection` of a compact document of `schema` made from `doc`.
+fn projection(doc: &Value, schema: &str, removed: &[&str], added: &[&str]) -> Value {
+    json!({ "schema": schema, "of": doc["schema"], "removed": removed, "added": added })
+}
+
+/// `beat_shape`'s compact document: `doc` without its per-window figures,
+/// so the model reads each side's whole-recording figures, not thousands of
+/// numbers. The document says so in its `projection`; the tool's `windows`
+/// switch keeps them.
+pub fn shape_compact(doc: &mut Value) {
+    let Some(o) = doc.as_object_mut() else {
+        return;
+    };
+    if o.remove("windows").is_some() {
+        let p = projection(doc, SHAPE_PROJECTION, SHAPE_REMOVED, &[]);
+        doc["projection"] = p;
+    }
+}
+
+/// `tick_tock_profile`'s compact document: each side's curves leave `doc`
+/// for the view, which puts them back (`profileCurves` in view.html), and
+/// the model reads each side's marks and facts. The curves, as
+/// `{"curves": {"a": {...}, "b": {...}}}`, for the result's `_meta`, or
+/// `None` when `doc` had none.
+pub fn profile_charts(doc: &mut Value) -> Option<Value> {
+    let mut curves = Map::new();
+    let mut removed = Vec::new();
+    for side in ["a", "b"] {
+        let Some(o) = doc.get_mut(side).and_then(Value::as_object_mut) else {
+            continue;
+        };
+        let mut taken = Map::new();
+        for &k in PROFILE_CURVES {
+            if let Some(v) = o.remove(k) {
+                taken.insert(k.into(), v);
+                removed.push(format!("{side}.{k}"));
+            }
+        }
+        if !taken.is_empty() {
+            curves.insert(side.into(), Value::Object(taken));
+        }
+    }
+    if curves.is_empty() {
+        return None;
+    }
+    let removed: Vec<&str> = removed.iter().map(String::as_str).collect();
+    doc["projection"] = projection(doc, PROFILE_PROJECTION, &removed, &[]);
+    Some(json!({ "curves": curves }))
+}
+
+/// `list_calibres`'s compact document, for a list of more than one
+/// calibre or the common ones: each calibre cut to [`CALIBRE_ROW`], the
+/// first [`CALIBRES_SHOWN`] in the CLI's order (best first for a
+/// search), with `calibres_listed`, how many the CLI listed. One calibre
+/// stays as the CLI gave it.
+pub fn calibres_compact(doc: &mut Value) {
+    let common = doc["listed"] == "common";
+    let Some(list) = doc.get_mut("calibres").and_then(Value::as_array_mut) else {
+        return;
+    };
+    if !common && list.len() < 2 {
+        return;
+    }
+    let listed = list.len();
+    list.truncate(CALIBRES_SHOWN);
+    for c in list.iter_mut() {
+        if let Some(o) = c.as_object_mut() {
+            o.retain(|k, _| CALIBRE_ROW.contains(&k.as_str()));
+        }
+    }
+    let kept: Vec<String> = CALIBRE_ROW
+        .iter()
+        .map(|k| format!("calibres[].{k}"))
+        .collect();
+    doc["calibres_listed"] = json!(listed);
+    doc["projection"] = json!({
+        "schema": CALIBRES_PROJECTION,
+        "of": doc["schema"],
+        "kept": kept,
+        "shown": CALIBRES_SHOWN,
+        "added": ["calibres_listed"],
+    });
+}
+
 /// Adds `wheel_title` beside a series' `period.wheel` and `cycle.wheel`,
 /// the wheel's name as core title-cases it for a heading ("Fourth
 /// Wheel"), so the view writes it by core's rule, not its own (#1779).
@@ -981,6 +1106,102 @@ pub async fn analyze_charts(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A shape document loses its windows, and says so (#2097).
+    #[test]
+    fn a_shape_reads_without_its_windows() {
+        let mut doc = json!({
+            "schema": "timegrapher.shape/1",
+            "windows": [{ "start_s": 0.0 }, { "start_s": 2.0 }],
+            "even": { "whole": { "t1_ms": 0.3 }, "windows_measured": 2 },
+            "odd": { "whole": { "t1_ms": 0.4 }, "windows_measured": 2 },
+        });
+        shape_compact(&mut doc);
+        assert!(doc.get("windows").is_none(), "{doc}");
+        assert_eq!(doc["even"]["whole"]["t1_ms"], 0.3);
+        assert_eq!(doc["odd"]["windows_measured"], 2);
+        assert_eq!(doc["projection"]["schema"], SHAPE_PROJECTION);
+        assert_eq!(doc["projection"]["of"], "timegrapher.shape/1");
+        assert_eq!(doc["projection"]["removed"], json!(["windows"]));
+        // A document without windows is left as it is.
+        let mut bare = json!({ "schema": "timegrapher.shape/1" });
+        shape_compact(&mut bare);
+        assert_eq!(bare, json!({ "schema": "timegrapher.shape/1" }));
+    }
+
+    /// A profile's curves go to the view; its marks stay (#2097).
+    #[test]
+    fn a_profiles_curves_go_to_the_view() {
+        let side = |beats: u64| {
+            json!({ "beats": beats, "unlock_ms": -8.7, "drop_ms": -0.6, "step_ms": 0.1,
+                    "median": [1.0, 2.0], "p10": [0.5, 1.5], "p90": [1.5, 2.5] })
+        };
+        let mut doc = json!({ "schema": "timegrapher.profile/1", "a": side(120), "b": side(119) });
+        let charts = profile_charts(&mut doc).expect("curves");
+        for k in ["a", "b"] {
+            for c in PROFILE_CURVES {
+                assert!(doc[k].get(*c).is_none(), "{doc}");
+                assert_eq!(charts["curves"][k][*c], side(1)[*c], "{charts}");
+            }
+            assert_eq!(doc[k]["unlock_ms"], -8.7);
+        }
+        assert_eq!(doc["b"]["beats"], 119);
+        assert_eq!(doc["projection"]["schema"], PROFILE_PROJECTION);
+        assert_eq!(
+            doc["projection"]["removed"],
+            json!(["a.median", "a.p10", "a.p90", "b.median", "b.p10", "b.p90"])
+        );
+        // The facts read the same from the compact document.
+        assert_eq!(
+            profile_facts(&doc),
+            profile_facts(&json!({ "a": side(120), "b": side(119) }))
+        );
+        let mut none = json!({ "schema": "timegrapher.profile/1", "failed_profile": true });
+        assert_eq!(profile_charts(&mut none), None);
+        assert!(none.get("projection").is_none());
+    }
+
+    /// A list of calibres gives each one's row, at most CALIBRES_SHOWN;
+    /// one calibre stays whole (#2097).
+    #[test]
+    fn a_list_of_calibres_gives_rows_and_one_stays_whole() {
+        let entry = |i: usize| {
+            json!({ "calibre": format!("C{i}"), "maker": "M", "bph": 28800, "lift_angle_deg": 52.0,
+                    "escape_teeth": 20, "confidence": "c", "common": false, "family": ["x"],
+                    "wheels": [{ "name": "Escape Wheel" }], "sources": ["s"], "notes": "n" })
+        };
+        let many: Vec<Value> = (0..CALIBRES_SHOWN + 5).map(entry).collect();
+        let mut doc =
+            json!({ "schema": "timegrapher.calibres/1", "listed": "matching", "calibres": many });
+        calibres_compact(&mut doc);
+        let list = doc["calibres"].as_array().unwrap();
+        assert_eq!(list.len(), CALIBRES_SHOWN);
+        assert_eq!(list[0]["calibre"], "C0", "best first, as the CLI gave them");
+        assert_eq!(doc["calibres_listed"], CALIBRES_SHOWN + 5);
+        let mut keys: Vec<&str> = list[0]
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        keys.sort_unstable();
+        let mut row = CALIBRE_ROW.to_vec();
+        row.sort_unstable();
+        assert_eq!(keys, row);
+        assert_eq!(doc["projection"]["schema"], CALIBRES_PROJECTION);
+        assert_eq!(doc["projection"]["of"], "timegrapher.calibres/1");
+        // The common calibres are a list even when there is only one.
+        let mut common = json!({ "listed": "common", "calibres": [entry(1)] });
+        calibres_compact(&mut common);
+        assert!(common["calibres"][0].get("wheels").is_none(), "{common}");
+        // One calibre, named or a search's only match, stays whole.
+        for listed in ["matching", "anything"] {
+            let one = json!({ "listed": listed, "calibres": [entry(1)] });
+            let mut doc = one.clone();
+            calibres_compact(&mut doc);
+            assert_eq!(doc, one);
+        }
+    }
 
     #[test]
     fn a_profiles_facts_are_cores() {

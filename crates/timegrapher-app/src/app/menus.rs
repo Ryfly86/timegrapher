@@ -5,6 +5,15 @@
 
 use super::*;
 
+/// A dimmed File Save with a recording opened that the library can take:
+/// the route that keeps it (#2385).
+pub(super) const OPENED_KEEP_HINT: &str =
+    "Keep this recording in a watch with Save on the Listen card";
+/// A dimmed File Save with a recording opened that is already in the
+/// library, or no library to keep it in (#2385).
+pub(super) const OPENED_STAYS_HINT: &str =
+    "Nothing to save: this recording stays where it is on disk";
+
 /// What a menu item does, whichever menu bar it is in. Its shortcut and
 /// both menu bars run it through [`TimegrapherApp::run_menu_command`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -277,7 +286,7 @@ impl TimegrapherApp {
     fn file_menu_save(&mut self, ui: &mut egui::Ui) {
         let can_save = self.session.allows(Action::Save);
         let saving = self.saving_asked();
-        let nothing = "Nothing to save yet: listen to a watch first";
+        let nothing = self.nothing_to_save_hint();
         let recording_in = format!(
             "Saving to {} as it records: nothing to save again",
             self.kept_place()
@@ -298,7 +307,7 @@ impl TimegrapherApp {
         let off = if saving {
             SAVING_HINT
         } else {
-            "Save once first; Save… asks where"
+            self.save_as_off_hint()
         };
         self.menu_item(ui, MenuCommand::SaveAs, "Save As…", SAVE_AS_HINT, off);
         let off = if self.bench.keeping.analysis_save.is_some() {
@@ -315,6 +324,30 @@ impl TimegrapherApp {
             ANALYSIS_ONLY_HINT,
             off,
         );
+    }
+
+    /// What a dimmed Save says when nothing is being saved (#2385). An
+    /// opened recording is not saved from File: the Listen card's Save
+    /// keeps it in a watch when the library can take it, and otherwise it
+    /// stays where it is.
+    pub(super) fn nothing_to_save_hint(&self) -> &'static str {
+        if self.addable_take().is_some() {
+            OPENED_KEEP_HINT
+        } else if self.opened_recording() {
+            OPENED_STAYS_HINT
+        } else {
+            "Nothing to save yet: listen to a watch first"
+        }
+    }
+
+    /// What a dimmed Save As says when no save is under way: an opened
+    /// recording is kept as Save's hint says; a take is saved once first.
+    pub(super) fn save_as_off_hint(&self) -> &'static str {
+        if self.opened_recording() {
+            self.nothing_to_save_hint()
+        } else {
+            "Save once first; Save… asks where"
+        }
     }
 
     fn edit_menu(&mut self, ui: &mut egui::Ui) {
