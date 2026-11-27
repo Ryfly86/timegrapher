@@ -1329,7 +1329,7 @@ fn print_summary(s: &Session) {
     print_states(s);
     print_poise(s);
     println!();
-    print_findings(&s.report);
+    print_findings(&s.report, &s.readings);
 }
 
 /// The Dynamic Poise fit of each state of wind that gives one.
@@ -1505,13 +1505,17 @@ fn print_states(s: &Session) {
     }
 }
 
-fn print_findings(r: &SessionReport) {
+fn print_findings(r: &SessionReport, readings: &[Reading]) {
     if r.findings.is_empty() {
         println!("Findings     none");
     } else {
         println!("Findings");
         for f in &r.findings {
             finding_lines(f);
+        }
+        // Why a cycle is sized in ms, once, not on every line (Norm on #2100).
+        if let Some(note) = timegrapher_core::session::timing_swing_note(readings) {
+            println!("  {note}");
         }
     }
 }

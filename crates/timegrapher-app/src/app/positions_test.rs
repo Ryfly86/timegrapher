@@ -200,7 +200,7 @@ impl TimegrapherApp {
         };
         let phase = test.tick(now);
         if test.needs_reading() {
-            if let Some(log) = self.bench.recording.live.as_ref().and_then(steady::log_of) {
+            if let Some(log) = self.guided_log() {
                 let clock = self.reading_clock(log.duration_s);
                 if let Some(test) = self.bench.test.guided.as_mut() {
                     test.bph_set = self
@@ -242,6 +242,8 @@ impl TimegrapherApp {
     /// stopped part way: the positions measured stay in the table, read
     /// together, and listening stops as at Stop, keeping the take.
     fn end_guided(&mut self, now: f64, whole: bool) {
+        // Read at the rate its positions were measured at (#2375).
+        let log = self.guided_log();
         let Some(mut test) = self.bench.test.guided.take() else {
             return;
         };
@@ -250,7 +252,7 @@ impl TimegrapherApp {
         } else {
             test.stop(now);
         }
-        match self.bench.recording.live.as_ref().and_then(steady::log_of) {
+        match log {
             Some(log) => {
                 let clock = self.reading_clock(log.duration_s);
                 test.bph_set = self
@@ -284,13 +286,30 @@ impl TimegrapherApp {
         guided::About {
             watch: self.bench.take.watch.trim().to_string(),
             calibre: self.bench.take.calibre.clone(),
-            bph: self
-                .bench
-                .take
-                .bph
-                .or(self.bench.recording.live.as_ref().and_then(|l| l.bph())),
+            bph: self.bench.take.bph.or_else(|| self.guided_bph()),
             lift_angle_deg: self.bench.take.lift_deg,
         }
+    }
+
+    /// The beat rate the guided test on the Bench reads its positions at
+    /// (#2375): the rate set, else the one its first position was read
+    /// at, so a rate heard later (another watch on the stand while the
+    /// test waits to be turned, time it doesn't use) never reads again a
+    /// position measured before. Before any is read, the rate heard now.
+    pub(super) fn guided_bph(&self) -> Option<u32> {
+        let live = self.bench.recording.live.as_ref();
+        live.and_then(|l| l.config().analysis.bph)
+            .or_else(|| {
+                let test = self.bench.test.guided.as_ref()?;
+                test.readings_so_far().first().map(|r| r.bph)
+            })
+            .or_else(|| live.and_then(|l| l.bph()))
+    }
+
+    /// The take's beats as the guided test on the Bench reads them: at
+    /// [`Self::guided_bph`], not the rate heard now (#2375).
+    pub(super) fn guided_log(&self) -> Option<BeatLog> {
+        steady::log_of_at(self.bench.recording.live.as_ref()?, self.guided_bph())
     }
 
     /// A guided test's take opened from `dir`: a 24 hour half's saved

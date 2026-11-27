@@ -211,7 +211,9 @@ computer, never tell anyone to open a watch, rule out the set-up before blaming 
 and say how sure you are.
 
 The skill names command-line commands; here each is a tool that runs it for you and \
-returns the same JSON: analyze is analyze_recording, session is run_session, series is \
+returns the same JSON (except beat_shape without each 2 s window's figures unless \
+windows is true, tick_tock_profile without its curves unless curves is true, and \
+list_calibres' lists with each calibre's row only; each says so in its projection): analyze is analyze_recording, session is run_session, series is \
 check_steadiness, long is long_run, profile is tick_tock_profile, shape is beat_shape, \
 doctor --file is check_recording, doctor is check_microphone, devices is \
 list_sound_inputs, calibres is list_calibres (calibres --search is its search), train \

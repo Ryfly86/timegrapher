@@ -20,8 +20,6 @@ use crate::clean::Cuts;
 use crate::clock::ClockFit;
 use crate::dsp::percentile;
 use crate::dsp::{mean_of, median_of};
-use crate::longrun::LongReport;
-use crate::periodicity::Wheel;
 use crate::shape::{ShapeReport, SideReport};
 use crate::stream::BeatLog;
 use crate::timing::{self, WindowFit};
@@ -1361,106 +1359,12 @@ pub fn fixed_clock(ppm: f64, duration_s: f64) -> Option<ClockFit> {
     Some(ClockFit::fixed(ppm, duration_s))
 }
 
-/// A periodic change found in one recording.
-#[derive(Debug, Clone, Serialize)]
-pub struct Cycle {
-    /// "rate" or "amplitude".
-    pub series: &'static str,
-    pub period_s: f64,
-    /// Peak to peak, in `size_unit`: degrees for amplitude; for rate, s/d,
-    /// or the timing swing in ms for a cycle shorter than
-    /// [`crate::longrun::TIMING_UNIT_BELOW_S`], which a rate reading cannot
-    /// follow (see [`crate::longrun::RateComponent::size`]).
-    pub size: f64,
-    /// "s/d", "ms" or "deg".
-    pub size_unit: &'static str,
-    /// -log10 of the false-alarm probability.
-    pub significance: f64,
-    /// Past the simulated null's range ([`crate::longterm::beyond_simulated`]).
-    pub beyond_simulated: bool,
-    pub explained: f64,
-    pub wheel: Option<String>,
-    pub nearest_wheel: Option<(String, f64)>,
-    /// A wheel whose turn is a whole number of these periods, and the
-    /// number: a short, sharp change once per turn also shows here.
-    pub fraction_of: Option<(String, u32)>,
-    /// A longer cycle found in the same series whose period is this one's
-    /// times a whole number, as core's search marks it
-    /// ([`crate::longterm::Component::harmonic_of`]): this one is a
-    /// harmonic of that cycle, not a cycle of its own.
-    pub harmonic_of: Option<crate::longterm::Harmonic>,
-}
-
-impl Cycle {
-    pub fn unit(&self) -> &'static str {
-        self.size_unit
-    }
-
-    /// The size with its unit, e.g. "10.9 s/d" or "0.052 ms".
-    pub fn size_text(&self) -> String {
-        match self.size_unit {
-            "ms" => format!("{:.3} ms", self.size),
-            u => format!("{:.1} {u}", self.size),
-        }
-    }
-}
-
-/// The wheel whose turn a component not tied to a wheel sits at a whole
-/// fraction of (1/2 to 1/6), and the n: by core's one whole-fraction test,
-/// within one resolution (1/span) in frequency of n turns (#775). Only
-/// when exactly one wheel and n fit: a turn about as long as the span
-/// lets neighbouring n both fit, and then the fraction is not told (#787).
-pub(crate) fn wheel_fraction(
-    c: &crate::longterm::Component,
-    wheels: &[Wheel],
-) -> Option<(String, u32)> {
-    if c.wheel.is_some() {
-        return None;
-    }
-    let mut fits = wheels.iter().flat_map(|w| {
-        (2..=6u8)
-            .filter(|&n| {
-                crate::longterm::harmonic_offset(c.period_s, c.resolution_s, n, w.period_s) < 1.0
-            })
-            .map(|n| (w.name.clone(), u32::from(n)))
-    });
-    let one = fits.next()?;
-    fits.next().is_none().then_some(one)
-}
-
-/// The periodic changes `long` found, without their long arrays.
-/// `wheels` are the turn periods searched, used to mark a component at a
-/// whole fraction of a wheel's turn.
-pub fn cycles(r: &LongReport, wheels: &[Wheel]) -> Vec<Cycle> {
-    let fraction = |c: &crate::longterm::Component| wheel_fraction(c, wheels);
-    let rate = r.rate_components.iter().map(|c| Cycle {
-        series: "rate",
-        period_s: c.component.period_s,
-        size: c.size().0,
-        size_unit: c.size().1,
-        significance: c.component.significance,
-        beyond_simulated: c.component.beyond_simulated,
-        explained: c.component.explained,
-        wheel: c.component.wheel.clone(),
-        nearest_wheel: c.component.nearest_wheel.clone(),
-        fraction_of: fraction(&c.component),
-        harmonic_of: c.component.harmonic_of,
-    });
-    let amp = r.amplitude.components.iter().map(|c| Cycle {
-        series: "amplitude",
-        period_s: c.period_s,
-        size: c.peak_to_peak,
-        size_unit: "deg",
-        significance: c.significance,
-        beyond_simulated: c.beyond_simulated,
-        explained: c.explained,
-        wheel: c.wheel.clone(),
-        nearest_wheel: c.nearest_wheel.clone(),
-        fraction_of: fraction(c),
-        harmonic_of: c.harmonic_of,
-    });
-    rate.chain(amp).collect()
-}
+#[path = "session_cycles.rs"]
+mod session_cycles;
+#[cfg(test)]
+pub(crate) use session_cycles::wheel_fraction;
+pub use session_cycles::{cycles, timing_swing_note, timing_swing_text, Cycle, RATE_SHARE_NOTE};
+use session_cycles::{folded_into, harmonic_parent};
 
 /// One pallet stone's beat shape, from `shape`.
 ///
@@ -1982,16 +1886,10 @@ fn findings(readings: &[Reading]) -> Vec<Finding> {
         // reported with that one, not on its own, unless it is a wheel's
         // own line or explains more of the variation than that one does:
         // then it is reported in its own right, the mark a note.
-        let harmonic_of = |c: &Cycle| {
-            let h = c.harmonic_of?;
-            r.cycles
-                .iter()
-                .find(|w| w.series == c.series && w.period_s == h.period_s)
-        };
-        let folded =
-            |c: &Cycle| harmonic_of(c).filter(|w| c.wheel.is_none() && c.explained <= w.explained);
+        let harmonic_of = |c: &Cycle| harmonic_parent(r, c);
+        let folded = |c: &Cycle| folded_into(r, c);
         for c in &r.cycles {
-            let size = format!("{} peak to peak", c.size_text());
+            let size = c.size_words();
             let fa = crate::longterm::false_alarm_text(c.significance, c.beyond_simulated, |s| {
                 format!("{:.0e}", 10f64.powf(-s.min(300.0)))
             });
@@ -2034,8 +1932,12 @@ fn findings(readings: &[Reading]) -> Vec<Finding> {
                     ri,
                     format!("Regular {} change once per turn of the {w}", c.series),
                     format!(
-                        "{} repeats every {:.2} s ({size}, {:.0}% of the variation) in {}; false-alarm chance {fa}{harmonics}",
-                        c.series, c.period_s, c.explained * 100.0, at(r)
+                        "{} repeats every {:.2} s ({size}{}) in {}; false-alarm chance {fa}{harmonics}",
+                        c.series,
+                        c.period_s,
+                        c.share_percent()
+                            .map_or(String::new(), |p| format!(", {p:.0}% of the variation")),
+                        at(r)
                     ),
                 ),
                 None if c.fraction_of.is_some() => {
