@@ -44,7 +44,7 @@ mod saved_flac;
 mod session_file_tests;
 mod settle;
 use closed_hour::{open_closed_hour, open_in_place};
-pub use recorded::{recorded_setup, RecordedSetup, MOVED_TO};
+pub use recorded::{recorded_setup, saved_ranges, Moved, RecordedSetup, SavedRange, MOVED_TO};
 use released::HeldWhole;
 pub use saved_flac::{holding_wav, keep_saved_as_flac, keep_saved_as_flac_unless};
 use settle::{held_open, settled};

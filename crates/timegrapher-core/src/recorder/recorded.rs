@@ -45,53 +45,99 @@ pub struct RecordedSetup {
     pub moves: Vec<(f64, String)>,
 }
 
+/// A move of the watch as a take records: the session's own second it was
+/// made at (pauses counted), the second of sound it was made at (pauses
+/// left out), and the position it was moved to.
+pub type Moved<P> = (f64, f64, P);
+
+/// A saved take's stretch, in its sound's seconds: the start of what is
+/// read, its end, and the position; neither time while there is one.
+pub type SavedRange<P> = (Option<f64>, Option<f64>, P);
+
+/// The stretches a take saves (#2397), started in `first` and moved by
+/// `moves`, oldest first, the watch settling `settle_s` after each, in a
+/// sound `length_s` long: the one rule for the app's live take and for
+/// sound never saved, read back from its `session.json`. A move at or
+/// before the second of sound of the one before replaces it, and a move to
+/// where the watch already is, is none. The first stretch reads from the
+/// start, as no move settles it, unless it is the watch being handled
+/// ([`take::handled`]): then it starts where it ends. Each later one
+/// starts at `settled(at_s, until_s)`, the second of sound its settling
+/// ended (`until_s` the next move's session second, infinite for none),
+/// and no later than its end, so one moved on before it settled reads
+/// nothing.
+pub fn saved_ranges<P: Clone + PartialEq>(
+    first: P,
+    moves: impl IntoIterator<Item = Moved<P>>,
+    settle_s: f64,
+    length_s: f64,
+    mut settled: impl FnMut(f64, f64) -> f64,
+) -> Vec<SavedRange<P>> {
+    let mut kept: Vec<Moved<P>> = vec![(0.0, 0.0, first)];
+    for (at, audio, p) in moves {
+        if kept.last().is_some_and(|s| s.1 >= audio) {
+            kept.pop();
+        }
+        if kept.last().is_none_or(|s| s.2 != p) {
+            kept.push((at, audio, p));
+        }
+    }
+    let one = kept.len() == 1;
+    (0..kept.len())
+        .map(|i| {
+            let (at, audio, p) = &kept[i];
+            let next = kept.get(i + 1);
+            let end = next.map(|s| s.1);
+            let start = match (i, next) {
+                (0, Some(n)) if take::handled(true, n.0 - at, settle_s) => n.1,
+                (0, _) => *audio,
+                _ => settled(*at, next.map_or(f64::INFINITY, |s| s.0)),
+            }
+            .min(end.unwrap_or(length_s));
+            ((!one).then_some(start), end, p.clone())
+        })
+        .collect()
+}
+
+/// A position's code as written, the same as another that names the same
+/// position.
+#[derive(Clone)]
+struct Code<'a>(&'a str);
+
+impl PartialEq for Code<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        session::Position::parse(self.0) == session::Position::parse(other.0)
+    }
+}
+
 impl RecordedSetup {
     /// The take's positions as the entries the app's saved session file
-    /// would have listed (#2397), starting in `first`, the watch settling
-    /// `settle_s` after each move, in a sound `length_s` long (infinite
-    /// where not known): one entry per stretch (file `"."`), each from
-    /// where it settled to the next move, the last to the sound's end, and
-    /// `settle_s = 0` so that nothing is skipped twice. The first reads
-    /// from the start, as no move settles it, unless it is the watch being
-    /// handled ([`take::handled`]); a stretch moved on before it settled
-    /// reads nothing ([`take::reads_nothing`]). Empty while the watch
-    /// stayed in one position.
+    /// would have listed (#2397): [`saved_ranges`], started in `first`,
+    /// settling `settle_s` after each noted move, in a sound `length_s`
+    /// long (infinite where not known), one entry per stretch (file `"."`)
+    /// with `settle_s = 0` so that nothing is skipped twice. Empty while
+    /// the watch stayed in one position.
     pub fn stretches(&self, first: &str, settle_s: f64, length_s: f64) -> Vec<RecordingEntry> {
-        let parse = session::Position::parse;
-        if parse(first).is_none() {
+        if session::Position::parse(first).is_none() {
             return Vec::new();
         }
-        // As the app's live stretches go: a move at the same second as
-        // the one before replaces it, and a move to where the watch is
-        // already is none.
-        let mut at: Vec<(f64, &str)> = vec![(0.0, first)];
-        for (s, code) in &self.moves {
-            if at.last().is_some_and(|l| l.0 >= *s) {
-                at.pop();
-            }
-            if at.last().is_none_or(|l| parse(l.1) != parse(code)) {
-                at.push((*s, code));
-            }
-        }
-        if at.len() < 2 {
+        // No pause is noted, so a move's session second is its sound's.
+        let moves = self.moves.iter().map(|(s, c)| (*s, *s, Code(c)));
+        let ranges = saved_ranges(Code(first), moves, settle_s, length_s, |at, _| {
+            at + settle_s
+        });
+        if ranges.len() < 2 {
             return Vec::new();
         }
-        (0..at.len())
-            .map(|i| {
-                let end_s = at.get(i + 1).map(|n| n.0);
-                let start = match (i, end_s) {
-                    (0, Some(e)) if take::handled(true, e, settle_s) => e,
-                    (0, _) => 0.0,
-                    _ => at[i].0 + settle_s,
-                };
-                RecordingEntry {
-                    file: ".".into(),
-                    position: Some(at[i].1.to_string()),
-                    start_s: Some(start.min(end_s.unwrap_or(length_s))),
-                    end_s,
-                    settle_s: Some(0.0),
-                    ..Default::default()
-                }
+        ranges
+            .into_iter()
+            .map(|(start_s, end_s, code)| RecordingEntry {
+                file: ".".into(),
+                position: Some(code.0.to_string()),
+                start_s,
+                end_s,
+                settle_s: Some(0.0),
+                ..Default::default()
             })
             .collect()
     }
