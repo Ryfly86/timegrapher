@@ -35,8 +35,8 @@ def digest(path):
 
 
 def validate_analysis(document):
-    if not isinstance(document, dict) or document.get("schema") != "timegrapher.analyze/2":
-        raise SmokeError("Expected timegrapher.analyze/2 document")
+    if not isinstance(document, dict) or document.get("schema") != "timegrapher.analyze/3":
+        raise SmokeError("Expected timegrapher.analyze/3 document")
     if document.get("watch_heard") is not True:
         raise SmokeError("Synthetic watch was not heard")
     settings = document.get("input", {}).get("settings", {})

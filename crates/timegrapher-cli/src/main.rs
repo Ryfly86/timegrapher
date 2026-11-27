@@ -89,7 +89,7 @@ const DEVELOPER_ORDER: usize = 1000;
     version = env!("TIMEGRAPHER_LONG_VERSION"),
     about = "Analyse mechanical watch recordings beat by beat",
     after_help = "Every command with --json prints one JSON document with a `schema` field \
-(e.g. timegrapher.analyze/2), the software version and the input it read. \
+(e.g. timegrapher.analyze/3), the software version and the input it read. \
 Exit codes: 0 success, 1 error, 3 a take moved beyond its margins (regress). \
 For live readings, use the desktop app; `record` saves one position of a test.
 

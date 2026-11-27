@@ -18,7 +18,7 @@ import artifact_smoke as smoke
 
 
 def document():
-    return {"schema": "timegrapher.analyze/2", "watch_heard": True,
+    return {"schema": "timegrapher.analyze/3", "watch_heard": True,
             "input": {"settings": {"bph": 28800, "lift_deg": 52}},
             "overall": {"rate_s_per_day": 6.01}, "amplitude_deg": 279.5,
             "beat_error_unlock_ms": 0.4}

@@ -1048,7 +1048,7 @@ fn analyze_like_the_cli(flac: &[u8], bph: Option<u32>, lift_deg: f64) -> Result<
 fn excerpt_document(summary: &Summary, cfg: &AnalysisConfig) -> Result<Value, String> {
     use timegrapher_core::analyze_doc;
     let mut doc = json!({
-        "schema": "timegrapher.analyze/2",
+        "schema": format!("timegrapher.analyze/{}", analyze_doc::VERSION),
         "software": software(),
         "input": {
             "files": [{ "path": "audio/excerpt.flac" }],
