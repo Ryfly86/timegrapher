@@ -7,19 +7,7 @@ fn the_slice_range_reads_as_signed_rates() {
     let dir = std::env::temp_dir().join(format!("tg-long-text-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let run = |args: &[&str]| {
-        let out = Command::new(env!("CARGO_BIN_EXE_timegrapher"))
-            .env("TIMEGRAPHER_CONFIG_DIR", &dir)
-            .args(args)
-            .output()
-            .unwrap();
-        assert!(
-            out.status.success(),
-            "{args:?}: {}",
-            String::from_utf8_lossy(&out.stderr)
-        );
-        String::from_utf8_lossy(&out.stdout).into_owned()
-    };
+    let run = |args: &[&str]| run_in(&dir, args);
     // The synthetic watch runs +5 s/d, so every slice reads fast.
     let wav = dir.join("watch.wav");
     let wav = wav.to_str().unwrap();
@@ -121,12 +109,6 @@ fn rate_lines_give_no_share_and_name_their_swing() {
         .split_once("Periodic changes in rate")
         .expect("the rate search")
         .1;
-    let rows = |part: &str| -> Vec<String> {
-        part.lines()
-            .filter(|l| l.contains(" s ±"))
-            .map(str::to_string)
-            .collect()
-    };
     let rate_rows = rows(rate);
     let amplitude_rows = rows(amplitude);
     assert!(
@@ -166,8 +148,42 @@ fn rate_lines_give_no_share_and_name_their_swing() {
     assert!(html.contains(" ms peak to peak over each turn"));
     assert_eq!(html.matches(RATE_SHARE_WHY).count(), 1);
     assert_eq!(html.matches(&timing_swing_text()).count(), 1);
-    // A fault every 60 s gives a rate line in s/d and none in ms: then
-    // the ms note is not said, in the text or the report.
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Runs the CLI with its config in `dir`, and gives its stdout.
+fn run_in(dir: &std::path::Path, args: &[&str]) -> String {
+    let out = Command::new(env!("CARGO_BIN_EXE_timegrapher"))
+        .env("TIMEGRAPHER_CONFIG_DIR", dir)
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{args:?}: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    String::from_utf8_lossy(&out.stdout).into_owned()
+}
+
+/// The cycle lines of one part of `long`'s text.
+fn rows(part: &str) -> Vec<String> {
+    part.lines()
+        .filter(|l| l.contains(" s ±"))
+        .map(str::to_string)
+        .collect()
+}
+
+/// With no rate line in ms, the ms note is not said, in the text or the
+/// report (Trevor 78 on #2472).
+#[test]
+fn no_ms_rate_line_no_ms_note() {
+    use timegrapher_core::session::{timing_swing_text, RATE_SHARE_NOTE};
+    let dir = std::env::temp_dir().join(format!("tg-long-slow-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let run = |args: &[&str]| run_in(&dir, args);
+    // A fault every 60 s gives a rate line in s/d and none in ms.
     let wav = dir.join("slow.wav");
     let wav = wav.to_str().unwrap();
     run(&[
