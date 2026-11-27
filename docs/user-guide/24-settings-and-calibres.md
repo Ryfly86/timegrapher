@@ -129,9 +129,10 @@ its own.
 ## Co-axial Calibres
 
 Co-axial escapements are read in beta. The calibre table marks Omega's
-co-axial calibres, such as the 2500, 3861, 8500 and 8900. Pick one while
-listening, or open a take of one, and every reading is read for a
-co-axial; every other calibre is read as a Swiss lever. Pick another
+co-axial calibres, such as the 2500, 3861, 8500 and 8900, and a custom
+calibre can be set to Co-axial. Pick one while listening, or open a take
+of one, and every reading is read for a co-axial; every other calibre is
+read as a Swiss lever. Pick another
 calibre while listening and the readings follow it.
 
 - **The Calibre menu** tags it **Co-axial (beta)**. The hover on its
