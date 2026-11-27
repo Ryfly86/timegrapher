@@ -94,7 +94,7 @@ fn read_at(path: &Path) -> Result<Pcm, AudioError> {
         .to_ascii_lowercase();
     match ext.as_str() {
         "wav" => {
-            let mut r = hound::WavReader::open(path).map_err(AudioError::Wav)?;
+            let mut r = crate::audio::open_wav(path)?;
             let s = r.spec();
             if s.sample_format != hound::SampleFormat::Int {
                 return Err(AudioError::Unsupported(

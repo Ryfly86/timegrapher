@@ -72,7 +72,7 @@ fn frames(path: &Path, lo: u64, hi: u64) -> Result<Vec<f32>, String> {
 }
 
 fn wav_frames(path: &Path, lo: u64, hi: u64) -> Result<Vec<f32>, String> {
-    let mut r = hound::WavReader::open(path).map_err(|e| e.to_string())?;
+    let mut r = timegrapher_core::audio::open_wav(path).map_err(|e| e.to_string())?;
     let spec = r.spec();
     let ch = spec.channels.max(1) as usize;
     r.seek(lo as u32).map_err(|e| e.to_string())?;
