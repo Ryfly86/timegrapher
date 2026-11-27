@@ -513,11 +513,17 @@ impl TimegrapherApp {
         }
     }
 
+    /// Whether a recording opened from disk is on show: the one test of
+    /// it (#2391).
+    pub(super) fn opened_recording(&self) -> bool {
+        self.bench.recording.input == Input::File && !self.bench.keeping.opened_path.is_empty()
+    }
+
     /// The recording opened, a lone file or a take, when the library can
     /// take it: outside the library by core's one import-path guard
     /// ([`library::not_already_in`], links followed).
     pub(super) fn addable_take(&self) -> Option<PathBuf> {
-        if self.bench.recording.input != Input::File || self.bench.keeping.opened_path.is_empty() {
+        if !self.opened_recording() {
             return None;
         }
         let p = PathBuf::from(&self.bench.keeping.opened_path);

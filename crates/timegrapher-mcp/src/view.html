@@ -1271,6 +1271,14 @@ function limitsCard(limits) {
   return `<div class="card"><h2>What Limits These Readings</h2><ul class="findings limits">${limits.map((l) => `<li>${l.where ? `<b>${esc(l.where)}</b> ` : ""}${esc(l.text)}</li>`).join("")}</ul></div>`;
 }
 
+// A profile's curves ride in the result's _meta (views.rs profile_charts),
+// so the model reads each side's marks, not every step: put them back.
+function profileCurves(doc, extra) {
+  const c = extra && extra.curves;
+  if (!c) return doc;
+  return { ...doc, a: { ...doc.a, ...c.a }, b: { ...doc.b, ...c.b } };
+}
+
 function profileView(doc, facts) {
   const name = fileName(doc);
   return `<h1>Tick and Tock</h1><p class="sub">${esc(name)}</p>${profileCard(doc, "Tick and Tock Profiles", undefined, facts)}`;
@@ -2852,7 +2860,7 @@ function redraw() {
   } else if (doc.schema.startsWith("timegrapher.session/")) {
     html = sessionView(doc, limits, last._meta && last._meta["timegrapher/reserve"]);
   } else if (doc.schema.startsWith("timegrapher.profile/")) {
-    html = profileView(doc, last._meta && last._meta["timegrapher/profile_facts"]);
+    html = profileView(profileCurves(doc, extra), last._meta && last._meta["timegrapher/profile_facts"]);
   } else if (doc.schema.startsWith("timegrapher.series/")) {
     html = seriesView(doc, extra, limits, last._meta && last._meta["timegrapher/series_limits"]);
   } else if (doc.schema.startsWith("timegrapher.record/")) {
