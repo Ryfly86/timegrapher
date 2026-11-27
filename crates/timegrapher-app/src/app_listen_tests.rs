@@ -1619,24 +1619,32 @@ fn a_click_on_stop_behind_settings_only_closes_settings() {
     let _ = std::fs::remove_dir_all(&base);
 }
 
-/// Listen (▶) beside a recording opened, with nothing unsaved in it,
-/// asks before closing it (#2108): the question names the recording and
-/// what starts, waits for an answer, and Esc (as Cancel) leaves the
-/// recording on show. With its masks changed, the question about
-/// throwing them away is asked instead; with nothing opened, Listen
-/// asks nothing.
-#[test]
-fn listen_over_a_recording_opened_asks_before_closing_it() {
-    let base = std::env::temp_dir().join(format!("tg-app-listen-opened-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
-    let root = base.join("Timegrapher Data");
-    std::fs::create_dir_all(&base).unwrap();
-    library::Library::create(&root).unwrap();
-    let mut app = super::tests::opened_recording(&base, "ym42_DU.wav", 12.0);
-    app.use_library(Some(root));
+/// For #2108's test: the recording in `base` opened, with `pepsi` (in
+/// the library at `root`) picked when `watch`; ▶ pressed, and the
+/// question drawn: the app, what it says, and the context drawn in.
+fn listen_pressed_over_opened(
+    base: &Path,
+    root: &Path,
+    pepsi: &str,
+    watch: bool,
+) -> (TimegrapherApp, Vec<String>, egui::Context) {
+    let ctx = theme_ctx();
+    let mut app = super::tests::opened_recording(base, "ym42_DU.wav", 12.0);
+    app.use_library(Some(root.to_path_buf()));
+    if watch {
+        // A recording from outside the Watches folder stays on show.
+        app.pick_watch(pepsi);
+        assert_eq!(app.open_watch().unwrap().watch.name, "Pepsi");
+    }
+    // An input that can't be opened: Listen is tried, never heard.
+    app.bench.recording.devices_listed = true;
+    app.bench.recording.device = Some("no such input".into());
     assert!(app.take_on_show().is_some() && !app.needs_save_confirmation());
     assert!(app.listen_closes_opened());
-    let ctx = theme_ctx();
+    let name = watch.then_some("Pepsi");
+    assert!(app
+        .listen_hint(name)
+        .ends_with(listen_card::CLOSES_OPENED_HINT));
     let frame = |app: &mut TimegrapherApp, t: f64, events: Vec<egui::Event>| {
         let input = egui::RawInput {
             time: Some(t),
@@ -1652,7 +1660,7 @@ fn listen_over_a_recording_opened_asks_before_closing_it() {
     frame(&mut app, 1.0, Vec::new());
     let at = egui::pos2(8.0 + LISTEN_BUTTON / 2.0, 8.0 + LISTEN_BUTTON / 2.0);
     frame(&mut app, 2.0, click_at(at));
-    assert_eq!(app.confirm, Some(Confirm::CloseToListen(false)));
+    assert_eq!(app.confirm, Some(Confirm::CloseToListen(watch)));
     assert!(
         !app.running() && app.take_on_show().is_some(),
         "nothing closed yet"
@@ -1664,22 +1672,34 @@ fn listen_over_a_recording_opened_asks_before_closing_it() {
             .map(|t| t.0)
             .collect::<Vec<_>>();
     }
-    for words in [
-        "Close the recording and listen?",
-        "“ym42_DU.wav” closes unchanged, and a Quick Listen starts on the microphone.",
-        "Close and Listen",
-        "Cancel",
-    ] {
-        assert!(said.iter().any(|s| s == words), "{words}: {said:?}");
-    }
     assert_eq!(
         app.confirm,
-        Some(Confirm::CloseToListen(false)),
+        Some(Confirm::CloseToListen(watch)),
         "it waits for an answer"
     );
-    let esc = egui::RawInput {
+    (app, said, ctx)
+}
+
+/// Listen (▶) beside a recording opened, with nothing unsaved in it,
+/// asks before closing it (#2108): its hover says so, the question
+/// names the recording and what starts, waits for an answer, and Esc
+/// (as Cancel) leaves the recording on show. Close and Listen closes it
+/// and starts a Quick Listen, or with a watch picked a take of that
+/// watch. With its masks changed, the question about throwing them away
+/// is asked instead; with nothing opened, Listen asks nothing.
+#[test]
+fn listen_over_a_recording_opened_asks_before_closing_it() {
+    let base = std::env::temp_dir().join(format!("tg-app-listen-opened-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let root = base.join("Timegrapher Data");
+    std::fs::create_dir_all(&base).unwrap();
+    let mut lib = library::Library::create(&root).unwrap();
+    lib.add(&library::Watch::new("Pepsi")).unwrap();
+    let pepsi = lib.find("Pepsi").unwrap().watch.id.clone();
+    drop(lib);
+    let key = |key| egui::RawInput {
         events: vec![egui::Event::Key {
-            key: egui::Key::Escape,
+            key,
             physical_key: None,
             pressed: true,
             repeat: false,
@@ -1687,7 +1707,35 @@ fn listen_over_a_recording_opened_asks_before_closing_it() {
         }],
         ..Default::default()
     };
-    let _ = ctx.run(esc, |ctx| app.confirm_dialog(ctx));
+    let next = [(false, "a Quick Listen"), (true, "a new take of Pepsi")];
+    for (watch, starts) in next {
+        let (mut app, said, ctx) = listen_pressed_over_opened(&base, &root, &pepsi, watch);
+        let text =
+            format!("“ym42_DU.wav” closes unchanged, and {starts} starts on the microphone.");
+        for words in [
+            "Close the recording and listen?",
+            text.as_str(),
+            "Close and Listen",
+            "Cancel",
+        ] {
+            assert!(said.iter().any(|s| s == words), "{words}: {said:?}");
+        }
+        // Close and Listen (Return): the recording goes, and Listen
+        // starts, Quick Listen's or the watch's.
+        let _ = ctx.run(key(egui::Key::Enter), |ctx| app.confirm_dialog(ctx));
+        assert_eq!(app.confirm, None, "{starts}");
+        assert!(app.take_on_show().is_none(), "{starts}: closed");
+        assert_eq!(app.bench.recording.input, Input::Microphone, "{starts}");
+        assert_eq!(app.bench.recording.quick_listen, !watch, "{starts}");
+        assert_eq!(
+            app.open_watch().map(|e| e.watch.name.clone()),
+            watch.then(|| "Pepsi".to_string()),
+            "{starts}"
+        );
+    }
+    // Esc (as Cancel): the recording stays on show, nothing listens.
+    let (mut app, _, ctx) = listen_pressed_over_opened(&base, &root, &pepsi, false);
+    let _ = ctx.run(key(egui::Key::Escape), |ctx| app.confirm_dialog(ctx));
     assert_eq!(app.confirm, None);
     assert!(
         !app.running() && app.take_on_show().is_some(),
@@ -1696,9 +1744,15 @@ fn listen_over_a_recording_opened_asks_before_closing_it() {
     // Masks changed: the question about throwing them away instead.
     app.bench.take.masked = vec![(3.0, 4.0)];
     assert!(app.needs_save_confirmation() && !app.listen_closes_opened());
-    // Nothing opened: Listen asks nothing of its own.
+    // Nothing opened: Listen asks nothing of its own, and says nothing.
     app.new_session();
     assert!(app.take_on_show().is_none() && !app.listen_closes_opened());
+    assert!(!app
+        .listen_hint(None)
+        .contains(listen_card::CLOSES_OPENED_HINT));
+    assert!(!app
+        .listen_hint(Some("Pepsi"))
+        .contains(listen_card::CLOSES_OPENED_HINT));
     drop(app);
     let _ = std::fs::remove_dir_all(&base);
 }
