@@ -87,9 +87,11 @@ fn silence_and_noise_only() {
         sample_rate: 48000,
     };
     assert!(codes(&silent).contains(&IssueCode::Silent));
+    // Over the 10 s a verdict needs: under it there is none either way,
+    // so no NoTicks condition (#2333).
     let mut rng = timegrapher_core::synth::Rng::new(3);
     let noise = Audio {
-        samples: (0..48000 * 4)
+        samples: (0..48000 * 12)
             .map(|_| (0.05 * rng.normal()) as f32)
             .collect(),
         sample_rate: 48000,

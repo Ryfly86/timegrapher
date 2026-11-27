@@ -389,8 +389,11 @@ fn a_lock_takes_the_nearest_standard_in_reach() {
             assert!((got - want).abs() < 0.05, "{at}: {got} for {want}");
         }
     });
-    // The first figures once 10 s is heard, the second it is read at
-    // (Norm on #2333; from 5 s before, on the beats' sound).
+    // The first figures once 10 s is heard (Norm on #2333; from 5 s
+    // before, on the beats' sound). Sampled each whole second of sound,
+    // a live reading ends a little before the sound it has (its read
+    // lag), so at 10 s of sound it has not quite 10 s heard: the first
+    // whole second with figures is the next.
     let ten = timegrapher_core::measure::SHORT_SPAN_S as u32;
     assert!(
         first.is_some_and(|t| t <= ten + 1),

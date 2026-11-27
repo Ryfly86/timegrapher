@@ -265,7 +265,10 @@ pub fn check(audio: &Audio, cfg: &DiagnoseConfig) -> SignalCheck {
     let signal = signal_x.map_or("no signal figure".into(), |x| {
         format!("signal {}", signal_text(x))
     });
-    if !silent && (!read.watch_heard || faint) {
+    // While `analyze` waits (under 10 s, Norm on #2333) there is no
+    // verdict either way: neither "No regular beat" nor "Ticks too faint",
+    // which would say ticks are there over an empty stand (Norm 31).
+    if !silent && !read.awaiting && (!read.watch_heard || faint) {
         // No regular beat is `analyze`'s verdict alone, in its words
         // (Norm on #2091); ticks too faint over the noise is a set-up
         // condition, named however well they time (#772), that leaves the
@@ -308,10 +311,12 @@ pub fn check(audio: &Audio, cfg: &DiagnoseConfig) -> SignalCheck {
         bph,
         beats_expected: expected,
         beats_found: good.len(),
-        tick_level_dbfs: tick.map(db),
+        // The ticks' levels only once `analyze` has a verdict: while it
+        // waits, the "beats" may be noise (#2091, #2333).
+        tick_level_dbfs: tick.map(db).filter(|_| !read.awaiting),
         noise_level_dbfs: db(noise),
-        tick_to_noise_db: tick_to_noise,
-        signal_x,
+        tick_to_noise_db: tick_to_noise.filter(|_| !read.awaiting),
+        signal_x: signal_x.filter(|_| !read.awaiting),
         gap_rise_db: gap_rise,
         watch_heard: read.watch_heard,
         rate_s_per_day: read.rate_s_per_day,
@@ -640,24 +645,52 @@ mod tests {
         );
     }
 
-    /// 5 s of noise, the live doctor's default on an empty stand: under
-    /// 10 s there is no verdict either way (Norm on #2333), so no figures,
-    /// no "No regular beat" condition, and the not-assessed fact says the
-    /// 10 s it needs; never both (Vernon on #2363).
+    /// Under 10 s of noise (5 s was the live doctor's default on an
+    /// empty stand) there is no verdict either way (Norm on #2333): no
+    /// figures, no "No regular beat" or faint condition, and the
+    /// not-assessed fact says the 10 s it needs; never both (Vernon on
+    /// #2363, Norm 31 on #2478).
     #[test]
     fn five_seconds_of_noise_awaits_a_verdict() {
-        let c = check(&white_noise(5), &DiagnoseConfig::default());
-        assert_eq!((c.rate_s_per_day, c.beat_error_ms), (None, None));
+        for seconds in [3, 5, 9] {
+            awaits_a_verdict(&check(&white_noise(seconds), &DiagnoseConfig::default()));
+        }
+    }
+
+    /// 5 s of a clean watch waits as noise does: no verdict, no figures,
+    /// no faint condition (Norm 31 on #2478).
+    #[test]
+    fn five_seconds_of_a_watch_awaits_a_verdict() {
+        let a = crate::synth::generate(
+            &crate::synth::SynthConfig {
+                duration_s: 5.0,
+                ..Default::default()
+            },
+            |_| 270.0,
+            |_| 0.0,
+        );
+        awaits_a_verdict(&check(&a, &DiagnoseConfig::default()));
+    }
+
+    /// A check still waiting on `analyze` says only its not-assessed fact
+    /// about the beats: no figures, no tick level or signal figure, and
+    /// no "No regular beat" or "Ticks too faint" condition (Norm 31).
+    fn awaits_a_verdict(c: &SignalCheck) {
+        let at = format!("{} s: {:?}", c.duration_s, c.issues);
+        assert_eq!((c.rate_s_per_day, c.beat_error_ms), (None, None), "{at}");
         assert_eq!(
             c.not_assessed.as_deref(),
-            Some(crate::measure::not_assessed_text(5.0).as_str())
+            Some(crate::measure::not_assessed_text(c.duration_s).as_str()),
+            "{at}"
         );
         assert!(
-            !c.issues
-                .iter()
-                .any(|i| i.title.starts_with("No regular beat")),
-            "{:?}",
-            c.issues
+            !c.issues.iter().any(|i| i.code == IssueCode::NoTicks),
+            "{at}"
+        );
+        assert_eq!(
+            (c.tick_level_dbfs, c.tick_to_noise_db, c.signal_x),
+            (None, None, None),
+            "{at}"
         );
     }
 

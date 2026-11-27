@@ -129,9 +129,23 @@ pub struct Summary {
     /// The shape of the Tick and Tock and the beat error early and late
     /// (see [`crate::shape::Measures`]); `None` when no readings are given.
     pub shape: Option<crate::shape::Measures>,
+    /// The reading waits for its verdict, under 10 s of sound
+    /// ([`crate::measure::awaiting_verdict`], #2333): no figures and no
+    /// verdict either way. Not in the JSON, which says so by its missing
+    /// figures and its `short_span` caveat.
+    #[serde(skip)]
+    pub awaiting: bool,
 }
 
 impl Summary {
+    /// [`Self::withhold_readings`] while the reading waits for its
+    /// verdict ([`Self::awaiting`]).
+    pub fn withhold_while_awaiting(&mut self) {
+        if self.awaiting {
+            self.withhold_readings();
+        }
+    }
+
     /// Clear every reading, as when no regular beat is found: they would
     /// describe noise. What says so (`watch_heard`, `jitter_us`,
     /// `timing_scatter_fraction`, `beats_found`) and what describes the recording and the sound card
@@ -520,10 +534,9 @@ fn analyze_read(
         confidence,
         caveats,
         shape,
+        awaiting: heard.awaiting,
     };
-    if heard.awaiting {
-        summary.withhold_readings();
-    }
+    summary.withhold_while_awaiting();
     settle_beat_error(&mut summary, fits.figures.unlock_inconsistent);
     Analysis {
         summary,
