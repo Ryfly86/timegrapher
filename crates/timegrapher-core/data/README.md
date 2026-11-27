@@ -7,13 +7,14 @@ tooth, an eccentric wheel, a rubbing seconds hand) repeats once per turn,
 so a periodic change in rate or amplitude can be named once these periods
 are known. The table is read by `timegrapher_core::calibres`.
 
-Timegrapher measures Swiss lever escapements only, because the
-measurement assumes a lever's unlock and drop. A calibre with another
-escapement (co-axial, pin lever, detent) stays in the table so it can be
-found, but carries an `escapement` field with a source, and the app and
-CLI say it is not supported yet. Co-axial support is planned (#2313): the
-engine will read this field to measure a co-axial calibre, and the rows'
-lift angles come only from a checked source.
+Timegrapher measures Swiss lever escapements, and co-axial ones in beta
+(#2313). A calibre with another escapement (co-axial, pin lever, detent)
+carries an `escapement` field with a source. A co-axial calibre's takes
+are read for a co-axial: the beat error is the unlock's alone, and the
+amplitude carries the `coaxial_estimate` caveat. A pin lever or a detent
+stays in the table so it can be found, and the app and CLI say it is not
+supported yet. A co-axial row's lift angle comes only from a checked
+source.
 
 ## DD32xx and JH32xx empirical lift setting
 

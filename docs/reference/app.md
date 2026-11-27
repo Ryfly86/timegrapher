@@ -2192,6 +2192,8 @@ left, which Escape presses; and a button that throws something away
 (**Don't Save**, **Throw Away**, **Delete**) at the far left. Where
 throwing away is all the question offers, nothing is the default and
 Return does nothing.
+While a menu or drop-down in the question is open, Escape closes only
+that menu and Return does nothing; the next Escape is Cancel.
 
 At the first launch the app shows **Set Up the Microphone**, and listens
 while it is open. It is three numbered steps: **1, Choose the microphone
