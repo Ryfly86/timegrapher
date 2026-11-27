@@ -1293,3 +1293,32 @@ fn a_recovered_take_opens_at_the_position_last_heard() {
     assert_eq!(app.bench.take.lift_deg, DEFAULT_LIFT_DEG);
     assert_eq!(app.bench.keeping.open_note, None);
 }
+
+/// A recovered take's calibre opens under the table's name for it now,
+/// and its lift, the calibre's, is known, not assumed, even at 52°
+/// (Vernon 73 on #2468).
+#[test]
+fn a_recovered_calibre_opens_under_its_name_now_with_its_lift_known() {
+    use timegrapher_core::recorder::RecordedSetup;
+    let c = timegrapher_core::calibres::all()
+        .iter()
+        .find(|c| !c.former_names.is_empty() && c.lift_angle_deg == Some(DEFAULT_LIFT_DEG))
+        .expect("a renamed calibre in the table whose lift is the default");
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    let r = RecordedSetup {
+        watch: String::new(),
+        position: None,
+        lift_deg: Some(DEFAULT_LIFT_DEG),
+        bph: None,
+        on_auto: true,
+        calibre: Some(c.former_names[0].clone()),
+        escapement: None,
+    };
+    app.put_recorded(r, &std::env::temp_dir().join("run"));
+    assert_eq!(app.bench.take.calibre, c.calibre);
+    assert_eq!(app.bench.take.lift_deg, DEFAULT_LIFT_DEG);
+    assert!(
+        app.lift_known(),
+        "the calibre's lift, not the default assumed"
+    );
+}

@@ -182,10 +182,8 @@ impl TimegrapherApp {
     /// calibre, so opens with none.
     pub(super) fn put_recorded(&mut self, r: RecordedSetup, path: &Path) {
         let fresh = WatchSetup::default();
-        let calibre = r
-            .calibre
-            .map(|c| self.cal.current_name(&c))
-            .unwrap_or_default();
+        // A renamed table row: `set_calibre` puts it under its name now.
+        let calibre = r.calibre.unwrap_or_default();
         // Known as the calibre's lift, as picking it while listening gave.
         let lift_context = self
             .cal
