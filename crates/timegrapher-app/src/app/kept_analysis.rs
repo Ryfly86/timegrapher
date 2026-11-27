@@ -413,7 +413,7 @@ impl TimegrapherApp {
         if let Some(to) = self.session.saved_to() {
             return Some(file_name(to));
         }
-        if self.bench.recording.input != Input::File || self.bench.keeping.opened_path.is_empty() {
+        if !self.opened_recording() {
             return None;
         }
         let path = Path::new(&self.bench.keeping.opened_path);

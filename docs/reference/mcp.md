@@ -168,6 +168,28 @@ document's schema) and the paths it `removed`, `replaced` and `added`
 (`[]` stands for every item of an array). For the full document, run the
 CLI's `series --views --json`.
 
+Three more tools give a compact form, named the same way in `projection`,
+so one call does not put hundreds of kB in front of the model (#2097):
+
+- `beat_shape` (`timegrapher.mcp.shape_compact/1`) leaves out `windows`,
+  every 2 s window's figures (about 470 kB on a 10 min recording); each
+  side's `whole`, `spread` and window counts stay. `windows: true` gives the
+  CLI's document unchanged.
+- `tick_tock_profile` (`timegrapher.mcp.profile_compact/1`) moves each
+  side's `median`, `p10` and `p90` curves to the view, in the result's
+  `_meta`; each side's marks and beats stay. `curves: true` gives the
+  CLI's document unchanged.
+- `list_calibres`, for a list (the common calibres, or more than one
+  match of a `search`), gives each calibre's `calibre`, `maker`, `family`,
+  `bph`, `lift_angle_deg`, `escape_teeth`, `confidence` and `common` (its
+  `projection` lists them as `kept`), at most 100 calibres in the CLI's
+  order, with `calibres_listed`, how many the CLI listed. One calibre, by
+  `name` or as a search's only match, is the CLI's entry unchanged, train,
+  sources and notes included.
+
+The CLI's own documents are unchanged: `timegrapher shape`, `profile` and
+`calibres --json` give them whole.
+
 `analyze_recording`'s lead and view give the rate the CLI chose: the rate
 in its `clock` block where it applied a correction (stored, given, or the
 recording's USB lines, in that order), else the rate on the sound card's

@@ -173,7 +173,7 @@
     },
     "crates/timegrapher-app/src/marks.rs": {
      "bounds": 3,
-     "comparisons": 8,
+     "comparisons": 7,
      "constants": 0,
      "defaults": 0
     },
@@ -282,7 +282,7 @@
    },
    "total": {
     "bounds": 99,
-    "comparisons": 88,
+    "comparisons": 87,
     "constants": 62,
     "defaults": 2
    }
@@ -386,14 +386,14 @@
     "crates/timegrapher-mcp/src/views.rs": {
      "bounds": 0,
      "comparisons": 0,
-     "constants": 3,
+     "constants": 4,
      "defaults": 0
     }
    },
    "total": {
     "bounds": 0,
     "comparisons": 0,
-    "constants": 5,
+    "constants": 6,
     "defaults": 1
    }
   }

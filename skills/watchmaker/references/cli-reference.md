@@ -284,6 +284,13 @@ timegrapher shape FILE [--bph N] [--lift DEG] [--notch HZ,...] [--highpass HZ]
 `--templates` writes the averaged even and odd tick, `time_ms,even,odd`.
 How to read it: [tick-shape.md](tick-shape.md).
 
+`shape` reads the file as `analyze` does: the same beats, with the same
+sides, so `even` and `odd` are `analyze`'s Tick and Tock. The text's
+amplitude row is `analyze`'s amplitude of each side, read over its 2 s
+amplitude windows rather than from these templates, so the
+whole-recording columns give none. Under it are the caveats `analyze`
+gives that amplitude, in its words (such as a co-axial's estimate).
+
 JSON body: `even` and `odd` (one per side), `windows` (each 2 s window's
 `{ start_s, end_s, even, odd }` shapes), `template_start_ms`.
 
@@ -396,7 +403,8 @@ Component fields: `significance` is −log10 of the false-alarm chance (2 =
 1%, 65 = 1e-65); `harmonics` 1 for a smooth wave, up to 8 for a short
 sharp event; `explained` the fraction of the detrended variation;
 `peak_to_peak` in s/d (rate) or degrees (amplitude); `wheel` the matching
-wheel's name or null; `nearest_wheel` `[name, percent_off]`. How to read
+wheel's name or null; `nearest_wheel` `[name, percent_off]`, null past
+10% of the nearest wheel's turn. How to read
 it: [long-runs.md](long-runs.md).
 
 ## series

@@ -221,6 +221,12 @@ pub struct Recorder {
     /// The folder name the first copy was saved under, so Save Again lands
     /// in the same place.
     saved_name: Option<std::ffi::OsString>,
+    /// Each copy saved, by the folder it is in (resolved) and its name: a
+    /// save into one of those folders updates that copy, and into any
+    /// other is a new copy there, never into a take of the same name (#2401).
+    copies: Vec<(PathBuf, std::ffi::OsString)>,
+    /// A folder made for a copy not yet saved ([`Recorder::claim_first_copy`]).
+    claimed: Option<PathBuf>,
     /// The hour still being written as the last save left it in the copy,
     /// and its length there: the next save into the same copy adds only
     /// what came since ([`Recorder::begin_stream_save`]).
@@ -327,6 +333,8 @@ impl Recorder {
             breaks: Vec::new(),
             notes: Vec::new(),
             saved_name: None,
+            copies: Vec::new(),
+            claimed: None,
             grown: None,
             copy_alone: false,
             released: Vec::new(),
@@ -852,27 +860,8 @@ impl Recorder {
         if log_end {
             self.log_last_block()?;
         }
-        let name = self
-            .saved_name
-            .clone()
-            .unwrap_or_else(|| self.copy_name(calibre));
         fs::create_dir_all(parent)?;
-        // Resolve identities only for the overlap check. Keep the caller's
-        // spelling for filesystem work and paths returned or shown to them.
-        let canonical_parent = fs::canonicalize(parent)?;
-        let dest = parent.join(&name);
-        let source = fs::canonicalize(&self.dir)?;
-        let resolved = if dest.exists() {
-            fs::canonicalize(&dest)?
-        } else {
-            canonical_parent.join(&name)
-        };
-        if resolved.starts_with(&source) || source.starts_with(&resolved) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "the saved copy must be separate from the live recording folder",
-            ));
-        }
+        let (dest, fresh) = self.copy_dest(parent, calibre)?;
         self.flush()?;
         if self.reap(false) {
             self.write_session(None, None)?;
@@ -936,7 +925,7 @@ impl Recorder {
         Ok(PendingSave {
             parent: parent.to_path_buf(),
             dest,
-            name,
+            fresh,
             files,
             written,
         })
@@ -1005,9 +994,7 @@ impl Recorder {
     /// watch): Save Again saves into it there, and a take recording into
     /// its folder grows it there.
     pub fn copy_moved(&mut self, from: &Path, to: &Path) {
-        if let Some(name) = to.file_name() {
-            self.saved_name = Some(name.to_owned());
-        }
+        self.copy_renamed(from, to);
         if let Some((path, _)) = self.grown.as_mut() {
             if let Ok(rest) = path.strip_prefix(from) {
                 *path = to.join(rest);
@@ -1019,7 +1006,7 @@ impl Recorder {
     /// Note a copy [`PendingSave::write`] wrote, so Save Again saves into
     /// it.
     pub fn note_saved(&mut self, copy: &SavedCopy) {
-        self.saved_name = Some(copy.name.clone());
+        self.note_copy(&copy.dir);
         self.grown = copy.grown.clone();
         self.saved_into(copy);
         self.take_released(&copy.held_whole);
@@ -1083,7 +1070,8 @@ const SNAPSHOT_HEAD: u64 = 4096;
 pub struct PendingSave {
     parent: PathBuf,
     dest: PathBuf,
-    name: std::ffi::OsString,
+    /// A new copy: its folder must not be there yet (#2401).
+    fresh: bool,
     files: Vec<PendingFile>,
     /// session.json and the companion files, written whole.
     written: NamedFiles,
@@ -1190,7 +1178,6 @@ fn regular_file(p: &Path) -> io::Result<fs::Metadata> {
 pub struct SavedCopy {
     /// The copy's folder, as the caller spelled its parent.
     pub dir: PathBuf,
-    name: std::ffi::OsString,
     /// The hour still being written as copied, and its length there.
     grown: Option<(PathBuf, u64)>,
     /// The closed hours checked in it, on the disk (#2040).
@@ -1218,6 +1205,7 @@ impl PendingSave {
         mut before: impl FnMut(SaveStep, &Path) -> io::Result<()>,
     ) -> io::Result<SavedCopy> {
         let mut update = SaveUpdate::new(&self.parent, &self.dest)?;
+        update.fresh = self.fresh;
         let mut grown = None;
         for f in &self.files {
             let file = f.name();
@@ -1266,7 +1254,6 @@ impl PendingSave {
         let written = released::written(&self.files, &self.dest);
         Ok(SavedCopy {
             dir: self.dest,
-            name: self.name,
             grown,
             held_whole,
             written,
@@ -1346,6 +1333,8 @@ struct SaveUpdate {
     backup: PathBuf,
     dest: PathBuf,
     retain: bool,
+    /// See [`PendingSave`]'s `fresh`.
+    fresh: bool,
 }
 
 impl SaveUpdate {
@@ -1366,6 +1355,7 @@ impl SaveUpdate {
             root,
             dest: dest.to_path_buf(),
             retain: false,
+            fresh: false,
         };
         fs::create_dir(&update.staged)?;
         fs::create_dir(&update.backup)?;
@@ -1395,7 +1385,14 @@ impl SaveUpdate {
         }
         let created = match fs::create_dir(&self.dest) {
             Ok(()) => true,
-            Err(e) if e.kind() == io::ErrorKind::AlreadyExists && self.dest.is_dir() => false,
+            // A new copy's folder is its own, never a take made meanwhile.
+            Err(e)
+                if e.kind() == io::ErrorKind::AlreadyExists
+                    && !self.fresh
+                    && self.dest.is_dir() =>
+            {
+                false
+            }
             Err(e) => return Err(e),
         };
         let mut changed = Vec::new();
@@ -2169,9 +2166,10 @@ mod tests {
         let nested = local.dir().join("nested");
         assert!(!nested.join(local.copy_name("")).exists());
         assert!(local.save_copy(&nested, "", None).is_err());
-        local.saved_name = Some(local.dir().file_name().unwrap().to_os_string());
+        let live = local.dir().to_path_buf();
+        local.note_copy(&live);
         assert!(local.save_copy(&relative.join("live"), "", None).is_err());
-        local.saved_name = Some("live".into());
+        local.note_copy(&relative.join("live"));
         assert!(local.save_copy(&relative, "", None).is_err());
         append_second(&mut local, 1);
         assert_eq!(local.duration_s(), 1.0);
@@ -2244,7 +2242,8 @@ mod tests {
     #[test]
     fn a_copy_cannot_alias_the_live_recording() {
         let (mut r, base) = save_fixture("alias");
-        r.saved_name = Some(r.dir().file_name().unwrap().to_os_string());
+        let live = r.dir().to_path_buf();
+        r.note_copy(&live);
         let before = fs::read(r.dir().join("session.json")).unwrap();
         let source_parent = r.dir().parent().unwrap().to_path_buf();
         assert_eq!(source_parent.join(r.saved_name.as_ref().unwrap()), r.dir());

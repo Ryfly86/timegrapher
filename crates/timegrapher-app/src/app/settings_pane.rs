@@ -426,7 +426,7 @@ impl TimegrapherApp {
         ui.add_space(6.0);
         match tab {
             Tab::General => {
-                egui::ScrollArea::vertical()
+                crate::theme::scroll(egui::ScrollArea::vertical())
                     .id_salt("general settings")
                     .auto_shrink([false, true])
                     .show(ui, |ui| {
@@ -434,7 +434,7 @@ impl TimegrapherApp {
                     });
             }
             Tab::Microphone => {
-                egui::ScrollArea::vertical()
+                crate::theme::scroll(egui::ScrollArea::vertical())
                     .id_salt("microphone settings")
                     .auto_shrink([false, true])
                     .show(ui, |ui| {
@@ -464,7 +464,7 @@ impl TimegrapherApp {
                     });
             }
             Tab::WatchesFolder => {
-                egui::ScrollArea::vertical()
+                crate::theme::scroll(egui::ScrollArea::vertical())
                     .id_salt("watches folder settings")
                     .auto_shrink([false, true])
                     .show(ui, |ui| {
@@ -668,9 +668,13 @@ impl TimegrapherApp {
                 "Keep Awake",
                 match &awake {
                     Some((w, _)) => theme::Caption::Alert(theme::Alert::Warning, w),
-                    None => theme::Caption::Text(
+                    None if self.keep_awake => theme::Caption::Text(
                         "While listening, the computer doesn't sleep on its own. The screen \
                          can still lock.",
+                    ),
+                    None => theme::Caption::Text(
+                        "Off: the computer can sleep while listening, except in a Power \
+                         Reserve Test.",
                     ),
                 },
                 hint,

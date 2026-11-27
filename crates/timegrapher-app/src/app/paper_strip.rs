@@ -199,9 +199,9 @@ impl TimegrapherApp {
 
     /// The take's span on every stacked time pane's axis, the fitted
     /// strip's, the charts' and Readings Over Time's: from its start to its
-    /// end or now, its newest beat or its newest reading, whichever is
-    /// later (a reading's time is its window's end). None before there is
-    /// any (Hugh, #1252).
+    /// end or now, the paper's newest moment ([`Self::paper_latest_s`]) or
+    /// its newest reading, whichever is later (a reading's time is its
+    /// window's end). None before there is any (Hugh, #1252).
     pub(super) fn take_span(&self) -> Option<(f64, f64)> {
         let end = self
             .bench
@@ -209,8 +209,33 @@ impl TimegrapherApp {
             .trend
             .last()
             .map_or(0.0, |p| p.t)
-            .max(self.latest_s());
+            .max(self.paper_latest_s());
         (end > 0.0).then_some((0.0, end))
+    }
+
+    /// The paper's newest moment, s. While listening: the newest beat, or
+    /// once beats stop, the sound the engine has finished with
+    /// ([`LiveAnalyzer::settled_s`]), so the paper moves on though no beat
+    /// comes, as a printing timegrapher's does, while a beating watch's
+    /// newest beat stays at the edge (#2335, #2125; Hugh on #2373).
+    /// Stopped or opened: where the cards' readings end, the last beat of
+    /// the watch heard, else the sound's end (core's one rule,
+    /// [`timegrapher_core::beats::last_watch_beat_s`]), so the strip shows
+    /// what the cards describe (Walter and Vernon on #2373).
+    pub(super) fn paper_latest_s(&self) -> f64 {
+        let Some(live) = &self.bench.recording.live else {
+            return 0.0;
+        };
+        if !self.running() {
+            return timegrapher_core::beats::last_watch_beat_s(live.beats())
+                .unwrap_or_else(|| live.duration_s());
+        }
+        live.settled_s().max(self.latest_s())
+    }
+
+    /// Whether the strip is moved back off its newest moment, at `end`.
+    pub(super) fn strip_looking_back(&self, end: f64) -> bool {
+        self.bench.panes_view.strip_end.is_some() && end < self.paper_latest_s() - 0.5
     }
 
     /// The time at the strip's newest edge: with Fit on, the take's end,
@@ -219,7 +244,7 @@ impl TimegrapherApp {
         let latest = if self.strip_fitted() {
             self.take_span().map_or(0.0, |(_, end)| end)
         } else {
-            self.latest_s()
+            self.paper_latest_s()
         };
         self.bench
             .panes_view
@@ -685,7 +710,7 @@ impl TimegrapherApp {
     /// drawn: on pure silence only the peak as the microphone opens
     /// (#2053). Beats regular but no run long enough to read: the strip
     /// shows them, and says what a reading needs (Walter 46 on #2311).
-    fn strip_note_shown(
+    pub(super) fn strip_note_shown(
         &self,
         guessing: bool,
         candidates: &[Beat],
@@ -701,9 +726,9 @@ impl TimegrapherApp {
         {
             return Some(timegrapher_core::measure::too_short_need_text());
         }
-        let wait = guessing
-            .then_some(reading)
-            .flatten()
+        // The cards' wait, as they say it: with no regular beat yet, or
+        // once the beats stop mid take (#2125).
+        let wait = reading
             .and_then(|r| self.waiting(Some(&r)))
             .map(|(title, _)| title);
         let dots = dots_in_view(candidates, end - self.bench.panes_view.strip.span_s, end);
@@ -715,7 +740,7 @@ impl TimegrapherApp {
         // regularly: where things stand, in the strip's place.
         if self.bench.recording.live.is_none() || self.mic_session_set_aside() {
             // Scrolling where the strip is too short for it, never cut off.
-            egui::ScrollArea::vertical()
+            crate::theme::scroll(egui::ScrollArea::vertical())
                 .id_salt("empty state")
                 .auto_shrink([false, false])
                 .show(ui, |ui| self.empty_state(ui));
@@ -736,7 +761,7 @@ impl TimegrapherApp {
             self.centre();
         }
         let end = self.strip_end_s();
-        let looking_back = self.bench.panes_view.strip_end.is_some() && end < self.latest_s() - 0.5;
+        let looking_back = self.strip_looking_back(end);
         let note = self.strip_note_shown(guessing, &candidates, looking_back, end);
         let from = end - self.bench.panes_view.strip.span_s - 5.0;
         let (trend, _) = self.strip_trend(from, end, self.bench.take.average_s);
@@ -921,7 +946,7 @@ impl TimegrapherApp {
             let was = self.bench.panes_view.strip.span_s;
             // Zoomed out no further than the take: past it is only blank
             // paper.
-            let take = was.max(self.latest_s());
+            let take = was.max(self.paper_latest_s());
             // Small zooms add up, while the strip shows the round length
             // nearest where they are heading.
             let from = self
@@ -937,10 +962,10 @@ impl TimegrapherApp {
                 .strip
                 .set_span(round_span(wish).min(take));
             // Looking back, the time under the pointer stays under it;
-            // live, the newest beat stays at the edge, so a zoom never
+            // live, the newest edge stays where it is, so a zoom never
             // moves the moment the cards and the Profile show.
             if let (Some(t), Some(_)) = (input.zoom_at, self.bench.panes_view.strip_end) {
-                let latest = self.latest_s();
+                let latest = self.paper_latest_s();
                 let to = t + (end - t) * self.bench.panes_view.strip.span_s / was;
                 self.bench.panes_view.strip_end = if to >= latest {
                     None
@@ -956,7 +981,7 @@ impl TimegrapherApp {
                 .set_half_width(self.bench.panes_view.strip.half_width_ms * input.width_factor);
         }
         if input.time_shift_s != 0.0 {
-            let latest = self.latest_s();
+            let latest = self.paper_latest_s();
             let to = end + input.time_shift_s;
             self.bench.panes_view.strip_end = if to >= latest {
                 None
@@ -1019,8 +1044,13 @@ fn strip_note(
             1 => format!("{lead}. The faint dot is a sound that might be a beat."),
             _ => format!("{lead}. The faint dots are sounds that might be beats."),
         })
+    } else if looking_back {
+        Some(format!(
+            "at {}, double-click for the newest beats",
+            length_text(end)
+        ))
     } else {
-        looking_back.then(|| format!("at {}, double-click for the newest beats", length_text(end)))
+        wait.map(|w| format!("{w}."))
     }
 }
 

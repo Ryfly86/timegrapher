@@ -156,13 +156,20 @@ impl TimegrapherApp {
     }
 
     /// The take just stopped couldn't be read whole, for `e`: the cards
-    /// read the live engine, as before, and say so (Hugh on #2164).
+    /// read the live engine, as before, and say so (Hugh on #2164). When
+    /// listening stopped because the input failed, why it stopped is the
+    /// fact to keep on show, and this goes to the log only (#2379).
     fn stop_read_failed(&mut self, e: &str) {
-        self.error(format!(
+        let m = format!(
             "The take stopped couldn't be analysed whole\nThe cards show the figures heard \
              while listening ({e}). Saved and opened again, the take may read slightly \
              differently."
-        ));
+        );
+        if self.bench.recording.input_fault.is_some() {
+            applog::warn(&m);
+        } else {
+            self.error(m);
+        }
     }
 
     /// A Stop read that stops part way, as one that fails does.
