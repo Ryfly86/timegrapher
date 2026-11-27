@@ -146,41 +146,49 @@ fn shape_says_a_co_axial_amplitude_is_an_estimate() {
 }
 
 /// On noise, where `analyze` finds no regular beat, `shape` says so in
-/// `analyze`'s words and prints no table; its JSON keeps its fields, with
-/// no window and no figure (#2371).
+/// `analyze`'s words, that line alone, and prints no table; its JSON keeps
+/// its fields, with no window and no figure (#2371). Both over 10 s (the
+/// timing scatter decides) and under it (the beats' sound decides, and
+/// `analyze` gives no "not assessed" line with it).
 #[test]
 fn shape_measures_nothing_on_noise() {
     let dir = scratch("noise");
     let config = dir.join("config");
-    let wav = dir.join("noise.wav");
-    let w = wav.to_str().unwrap();
-    let mut seed = 1u64;
-    let samples = (0..20 * 48_000)
-        .map(|_| {
-            seed = seed
-                .wrapping_mul(6364136223846793005)
-                .wrapping_add(1442695040888963407);
-            ((seed >> 40) as f32 / (1u64 << 24) as f32 - 0.5) * 0.2
-        })
-        .collect();
-    let audio = timegrapher_core::Audio {
-        samples,
-        sample_rate: 48_000,
-    };
-    timegrapher_core::audio::write_wav(&wav, &audio).unwrap();
-    let analyze = run(&config, &["analyze", w]);
-    let said = analyze
-        .lines()
-        .find(|l| l.starts_with("No regular beat found"))
-        .unwrap_or_else(|| panic!("{analyze}"));
-    let text = run(&config, &["shape", w]);
-    assert_eq!(text.trim_end(), said, "{text}");
-    let s = json(&config, &["shape", w, "--json"]);
-    assert_eq!(s["windows"], Value::Array(vec![]), "{s}");
-    for side in ["even", "odd"] {
-        assert_eq!(s[side]["windows_measured"], 0, "{side}: {s}");
-        assert!(s[side]["windows"]["i12_ms"].is_null(), "{side}: {s}");
-        assert!(s[side]["whole"].is_null(), "{side}: {s}");
+    for seconds in [20, 5] {
+        let wav = dir.join(format!("noise{seconds}.wav"));
+        let w = wav.to_str().unwrap();
+        let mut seed = 1u64;
+        let samples = (0..seconds * 48_000)
+            .map(|_| {
+                seed = seed
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                ((seed >> 40) as f32 / (1u64 << 24) as f32 - 0.5) * 0.2
+            })
+            .collect();
+        let audio = timegrapher_core::Audio {
+            samples,
+            sample_rate: 48_000,
+        };
+        timegrapher_core::audio::write_wav(&wav, &audio).unwrap();
+        let analyze = run(&config, &["analyze", w]);
+        let said: Vec<&str> = analyze.lines().skip(1).collect();
+        assert!(
+            said.len() == 1 && said[0].starts_with("No regular beat found"),
+            "{seconds} s: {analyze}"
+        );
+        let text = run(&config, &["shape", w]);
+        assert_eq!(text.trim_end(), said[0], "{seconds} s: {text}");
+        let s = json(&config, &["shape", w, "--json"]);
+        assert_eq!(s["windows"], Value::Array(vec![]), "{seconds} s: {s}");
+        for side in ["even", "odd"] {
+            assert_eq!(s[side]["windows_measured"], 0, "{seconds} s {side}: {s}");
+            assert!(
+                s[side]["windows"]["i12_ms"].is_null(),
+                "{seconds} s {side}: {s}"
+            );
+            assert!(s[side]["whole"].is_null(), "{seconds} s {side}: {s}");
+        }
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
