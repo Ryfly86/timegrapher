@@ -2,30 +2,36 @@
 
 What the project is working on, what comes next, and ideas that are not yet
 scheduled. Where a line links to an issue, the issue is the live record:
-when they differ, the issue wins. Updated 25 November 2026.
+when they differ, the issue wins. Updated 26 November 2026.
 
 If you'd like to help, read [CONTRIBUTING.md](CONTRIBUTING.md) first. Issues
 labelled [`agent-ready`](https://github.com/peterhudson/timegrapher/labels/agent-ready)
 are ready for someone outside the core team to claim, whether you write the
 code yourself or with an AI agent.
 
-## Now: making the app code easier to work on
+## Now: fixing what testing found
 
-[#1988](https://github.com/peterhudson/timegrapher/issues/1988) reorganises
-the desktop app's code so that each part of its state has one clear owner,
-with no change in what the app does. This makes the app easier to change, and
-gets it ready for timing several watches at once. It is an internal step, not
-a release.
+The desktop app's code reorganisation
+([#1988](https://github.com/peterhudson/timegrapher/issues/1988)) is done.
+Before any new feature, the project is fixing the bugs found in testing:
 
-Until it is done, no other change is merged into the desktop app
-(`crates/timegrapher-app`). Outside it, issues labelled `agent-ready` are
-open to outside contributors now.
+- [#2130](https://github.com/peterhudson/timegrapher/issues/2130) gathers the
+  bugs found in testing 1.1 and in the shakedown runs since.
+- [#2400](https://github.com/peterhudson/timegrapher/issues/2400) tracks the
+  findings of an outside audit of the repository.
 
-Version 1.1.0 is the current release.
+Version 1.1.0 is the current release. A 1.1.1 point release follows once the
+shakedown fixes and the audit's data-loss and wrong-rate fixes are in.
+
+Co-axial escapements are being added as a beta
+([#2313](https://github.com/peterhudson/timegrapher/issues/2313)): the rate
+and beat error, and an amplitude marked as an estimate.
+
+Issues labelled `agent-ready` are open to outside contributors now.
 
 ## Next: one headline per point release
 
-After the refactor, each point release carries one large feature, in this
+After 1.1.1, each point release carries one large feature, in this
 order:
 
 | Release | Headline |
@@ -39,8 +45,6 @@ order:
 
 - [#2236](https://github.com/peterhudson/timegrapher/issues/2236) Listen to the tick: hear the microphone live, switched on and off from the Listen card, with a volume.
 - [#2223](https://github.com/peterhudson/timegrapher/issues/2223) Show the measured beat rate in vph, and how far it is from the set rate, with [#2224](https://github.com/peterhudson/timegrapher/issues/2224) typing an exact beat rate, for balances not at a standard rate.
-- [#2228](https://github.com/peterhudson/timegrapher/issues/2228) Amplitude read with the watch's own measured period, so a watch far off its set rate reads true.
-- [#2247](https://github.com/peterhudson/timegrapher/issues/2247) The live reading carries on across a gap of noise, as the saved reading does.
 
 1.3 also carries [#2222](https://github.com/peterhudson/timegrapher/issues/2222), a History list for each watch: notes on takes, and dated events such as a service, with photos that can go in the PDF report. It also carries [#2225](https://github.com/peterhudson/timegrapher/issues/2225), reading the positions against a measured reference rate, to poise and time a free-sprung balance together.
 
@@ -52,7 +56,7 @@ Later, in this order, with no version yet:
 
 Every point release also carries smaller work:
 
-- The name "Open Timegrapher" in the app ([#1874](https://github.com/peterhudson/timegrapher/issues/1874)) and replacing the unmaintained `chrono` dependency flagged by a security advisory ([#1856](https://github.com/peterhudson/timegrapher/issues/1856)), both in the first one.
+- The name "Open Timegrapher" in the app ([#1874](https://github.com/peterhudson/timegrapher/issues/1874)) and replacing the unmaintained `chrono` dependency flagged by a security advisory ([#1856](https://github.com/peterhudson/timegrapher/issues/1856)), both in 1.2.
 - Bugs found in testing 1.1, gathered in [#2130](https://github.com/peterhudson/timegrapher/issues/2130), plus others filed since.
 - Live and saved readings agree: [#1819](https://github.com/peterhudson/timegrapher/issues/1819), [#1817](https://github.com/peterhudson/timegrapher/issues/1817), [#1827](https://github.com/peterhudson/timegrapher/issues/1827), [#1730](https://github.com/peterhudson/timegrapher/issues/1730), [#1917](https://github.com/peterhudson/timegrapher/issues/1917).
 - Amplitude edge cases: [#1704](https://github.com/peterhudson/timegrapher/issues/1704), [#1707](https://github.com/peterhudson/timegrapher/issues/1707), [#1709](https://github.com/peterhudson/timegrapher/issues/1709), [#1788](https://github.com/peterhudson/timegrapher/issues/1788), [#1791](https://github.com/peterhudson/timegrapher/issues/1791).
@@ -79,4 +83,4 @@ scheduled: the design usually needs deciding first.
 ## Not planned
 
 - Touch and mobile versions ([#1585](https://github.com/peterhudson/timegrapher/issues/1585) records why).
-- Escapements other than the Swiss lever.
+- Escapements other than the Swiss lever and the co-axial.

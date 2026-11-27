@@ -2,7 +2,8 @@ name: CI
 
 # Every push to main and every pull request runs every job and reports the
 # eight required checks. A pull
-# request that only edits or adds Markdown nothing compiles in or tests read
+# request that only edits or adds Markdown nothing compiles in or tests read,
+# user-guide screenshots or guide figure descriptions
 # is a light run (.github/ci/changes.py): every job still runs and reports,
 # the test jobs run only their offline Python tests, the three regress jobs
 # skip their corpus and engine steps, and mcp-renderer runs as usual. The
