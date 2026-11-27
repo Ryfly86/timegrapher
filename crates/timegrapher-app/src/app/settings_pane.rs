@@ -720,12 +720,12 @@ impl TimegrapherApp {
     /// Forget the kept clock of `device`: its rates are read on its own
     /// clock again, here and for the command line and the MCP server.
     pub(super) fn forget_clock(&mut self, device: &str) {
-        let forgot = clockstore::ClockStore::load().and_then(|mut s| {
+        let forgot = clockstore::ClockStore::update(|s| {
             s.remove(device);
-            s.save().map(|_| s)
+            Ok(())
         });
         match forgot {
-            Ok(s) => {
+            Ok(((), s, _)) => {
                 // The microphone session in hand, listening or stopped,
                 // loses its True Clock too.
                 if self
