@@ -35,11 +35,12 @@ fn a_takes_reading_stamp_is_what_the_reading_reads() {
     fs::write(dir.join("session.toml"), "bph = 28800\n").unwrap();
     fs::write(dir.join("parts").join("audio-001.wav"), [0u8; 64]).unwrap();
     let first = reading_stamp(&dir);
+    let whole = stamp(&dir);
     let report = dir.join(crate::take::REPORT_DIR);
     fs::create_dir_all(&report).unwrap();
     fs::write(report.join("summary.json"), "{}").unwrap();
     assert_eq!(reading_stamp(&dir), first);
-    assert_ne!(stamp(&dir), first, "the take's own stamp counts the report");
+    assert_ne!(stamp(&dir), whole, "the take's own stamp counts the report");
     fs::write(dir.join("parts").join("audio-001.wav"), [0u8; 96]).unwrap();
     let sound = reading_stamp(&dir);
     assert_ne!(sound, first, "sound in a folder of its own");
