@@ -1,6 +1,6 @@
 //! The kinds of take New Take starts, and the buttons that start them.
 
-use super::{guided, TestKeep, TimegrapherApp};
+use super::{guided, guided_test::BenchBefore, TestKeep, TimegrapherApp};
 
 /// The kinds of take New Take starts for the watch picked.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,6 +89,31 @@ pub(crate) fn new_take_names() -> Vec<(&'static str, &'static str, &'static str)
 }
 
 impl TimegrapherApp {
+    /// New Test is setting a test up: the Current Position card as it is
+    /// noted, so the Bench can be left as it was. Noted once: a second
+    /// test set up over the first keeps the card from before either.
+    pub(super) fn note_bench_before(&mut self) {
+        if self.ready_test().is_none() {
+            self.bench.test.bench_before = Some(BenchBefore {
+                position: self.bench.take.position,
+                ten: self.bench.test.ten_positions,
+            });
+        }
+    }
+
+    /// The test set up is let go: the card goes back to where it was
+    /// before New Test, unless the test's take is `kept`.
+    pub(super) fn bench_back(&mut self, kept: bool) {
+        let Some(b) = self.bench.test.bench_before.take() else {
+            return;
+        };
+        if !kept {
+            // Set straight, not moved: the take, if any, is going.
+            self.bench.take.position = b.position;
+            self.bench.test.ten_positions = b.ten;
+        }
+    }
+
     /// The test whose take Keep This … Test? asks about, while it asks.
     fn test_to_keep(&self) -> Option<NewTake> {
         match self.bench.test.test_keep? {
