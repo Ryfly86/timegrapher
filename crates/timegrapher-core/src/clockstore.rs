@@ -113,6 +113,43 @@ pub fn path() -> Option<PathBuf> {
     config_dir().map(|d| d.join("clocks.json"))
 }
 
+fn user_path() -> Result<PathBuf, String> {
+    path().ok_or_else(|| "no settings folder (set TIMEGRAPHER_CONFIG_DIR)".to_string())
+}
+
+/// The lock held while the store file `p` is read, changed and written,
+/// creating its folder. As the lock `record` takes to add to a session
+/// file, it is a file in the system's temporary folder named for the
+/// store's full path, so the settings folder holds only its own files. It
+/// is left in place, empty, and the system lets go of the lock when the
+/// holder ends, however it ends. A reader takes no lock: the store is
+/// replaced whole, so it reads the store before a change or after it.
+fn lock(p: &Path) -> Result<fs::File, String> {
+    use sha2::{Digest, Sha256};
+    let dir = match p.parent().filter(|d| !d.as_os_str().is_empty()) {
+        Some(d) => d,
+        None => Path::new("."),
+    };
+    fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    let dir = fs::canonicalize(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    let mut h = Sha256::new();
+    h.update(dir.as_os_str().as_encoded_bytes());
+    h.update([0]);
+    h.update(p.file_name().unwrap_or_default().as_encoded_bytes());
+    let hex: String = h.finalize()[..8]
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
+    let l = std::env::temp_dir().join(format!("timegrapher-clocks-{hex}.lock"));
+    fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(&l)
+        .and_then(|f| f.lock().map(|()| f))
+        .map_err(|e| format!("{}: {e}", l.display()))
+}
+
 /// A recording's provenance sidecar: its own name with `.json` added.
 pub fn sidecar_path(file: &Path) -> PathBuf {
     let mut s = file.as_os_str().to_owned();
@@ -209,9 +246,34 @@ impl ClockStore {
 
     /// Write the user's store, creating its folder.
     pub fn save(&self) -> Result<PathBuf, String> {
-        let p = path().ok_or("no settings folder (set TIMEGRAPHER_CONFIG_DIR)")?;
+        let p = user_path()?;
         self.save_to(&p)?;
         Ok(p)
+    }
+
+    /// Change the user's store: it is read, changed by `change` and
+    /// written back under the store's lock, so a change made by another
+    /// process at the same moment is kept too (#2408). An error from
+    /// `change` leaves the file as it was. Gives `change`'s result, the
+    /// store as written and where it is.
+    pub fn update<T>(
+        change: impl FnOnce(&mut ClockStore) -> Result<T, String>,
+    ) -> Result<(T, ClockStore, PathBuf), String> {
+        let p = user_path()?;
+        let (t, s) = ClockStore::update_at(&p, change)?;
+        Ok((t, s, p))
+    }
+
+    /// [`ClockStore::update`] on the store file `p`.
+    pub fn update_at<T>(
+        p: &Path,
+        change: impl FnOnce(&mut ClockStore) -> Result<T, String>,
+    ) -> Result<(T, ClockStore), String> {
+        let _lock = lock(p)?;
+        let mut s = ClockStore::load_from(p)?;
+        let t = change(&mut s)?;
+        s.write_to(p)?;
+        Ok((t, s))
     }
 
     /// Validate the stored mathematical domains, without imposing calibration ranges.
@@ -240,12 +302,20 @@ impl ClockStore {
         Ok(())
     }
 
+    /// Write the store file `p` whole, under its lock. A change to a store
+    /// already there goes through [`ClockStore::update_at`] instead, or a
+    /// change made meanwhile by another process is lost.
     pub fn save_to(&self, p: &Path) -> Result<(), String> {
         self.validate()
             .map_err(|e| format!("{}: {e}", p.display()))?;
-        if let Some(d) = p.parent() {
-            fs::create_dir_all(d).map_err(|e| format!("{}: {e}", d.display()))?;
-        }
+        let _lock = lock(p)?;
+        self.write_to(p)
+    }
+
+    /// Write `p`, its lock held by the caller.
+    fn write_to(&self, p: &Path) -> Result<(), String> {
+        self.validate()
+            .map_err(|e| format!("{}: {e}", p.display()))?;
         let text = serde_json::to_string_pretty(self).map_err(|e| e.to_string())?;
         // Written beside the store and moved over it once whole, so a save
         // that fails part way leaves the stored corrections as they were
@@ -442,6 +512,56 @@ mod tests {
         assert!(t.remove("Built-in Microphone"));
         assert!(!t.remove("Built-in Microphone"));
         assert!(t.get("Built-in Microphone").is_none());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Changes made at the same moment, each from its own open of the
+    /// store, are all kept: every set and every forget (#2408). Each
+    /// thread opens the lock file itself, as another process would.
+    #[test]
+    fn changes_made_at_once_are_all_kept() {
+        let dir = std::env::temp_dir().join(format!("tg-clocks-at-once-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        let p = dir.join("clocks.json");
+        let mut first = ClockStore::default();
+        for k in 0..8 {
+            first.set(entry(&format!("gone {k}"), 1.0));
+        }
+        first.save_to(&p).unwrap();
+        let start = std::sync::Barrier::new(16);
+        std::thread::scope(|scope| {
+            for t in 0..16 {
+                let (p, start) = (&p, &start);
+                scope.spawn(move || {
+                    start.wait();
+                    for k in 0..10 {
+                        ClockStore::update_at(p, |s| {
+                            s.set(entry(&format!("card {t}.{k}"), f64::from(t)));
+                            Ok(())
+                        })
+                        .unwrap();
+                    }
+                    if t < 8 {
+                        let (gone, _) =
+                            ClockStore::update_at(p, |s| Ok(s.remove(&format!("gone {t}"))))
+                                .unwrap();
+                        assert!(gone);
+                    }
+                });
+            }
+        });
+        let s = ClockStore::load_from(&p).unwrap();
+        assert_eq!(s.devices.len(), 160, "{:?}", s.devices);
+        assert!(s.devices.iter().all(|d| d.device.starts_with("card ")));
+        // A change that fails writes nothing.
+        let before = fs::read(&p).unwrap();
+        let e = ClockStore::update_at(&p, |s| {
+            s.devices.clear();
+            Err::<(), _>("refused".to_string())
+        })
+        .unwrap_err();
+        assert_eq!(e, "refused");
+        assert_eq!(fs::read(&p).unwrap(), before);
         let _ = fs::remove_dir_all(&dir);
     }
 
