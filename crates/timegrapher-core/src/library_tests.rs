@@ -57,6 +57,48 @@ fn a_takes_reading_stamp_is_what_the_reading_reads() {
     let _ = fs::remove_dir_all(&dir);
 }
 
+/// A take's reading stamp changes when a file in it is renamed, and when
+/// a file too big to hash is rewritten at another size with its modified
+/// time set back; a sound folder linked from outside the take changes
+/// its stamp when a file in it does (#2409).
+#[test]
+fn a_reading_stamp_sees_a_rename_a_new_size_and_a_linked_folder() {
+    let root = std::env::temp_dir().join(format!("tg-file-stamp-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&root);
+    let dir = root.join("take");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(dir.join("a.wav"), [0u8; 64]).unwrap();
+    let before = reading_stamp(&dir);
+    fs::rename(dir.join("a.wav"), dir.join("b.wav")).unwrap();
+    assert_ne!(reading_stamp(&dir), before, "a renamed file");
+
+    let big = dir.join("b.wav");
+    let size = usize::try_from(HASHED_UP_TO).unwrap() + 1;
+    fs::write(&big, vec![0u8; size]).unwrap();
+    let when = fs::metadata(&big).unwrap().modified().unwrap();
+    let before = reading_stamp(&dir);
+    fs::write(&big, vec![0u8; size + 1]).unwrap();
+    fs::File::options()
+        .write(true)
+        .open(&big)
+        .unwrap()
+        .set_modified(when)
+        .unwrap();
+    assert_ne!(reading_stamp(&dir), before, "a new size at the old time");
+
+    let linked = root.join("sound");
+    fs::create_dir_all(&linked).unwrap();
+    fs::write(linked.join("part-001.wav"), [0u8; 64]).unwrap();
+    let before = path_stamp(&linked).expect("a folder that is there");
+    fs::write(linked.join("part-001.wav"), [0u8; 96]).unwrap();
+    assert_ne!(
+        path_stamp(&linked).unwrap(),
+        before,
+        "a file in a linked folder"
+    );
+    let _ = fs::remove_dir_all(&root);
+}
+
 /// A take whose unlock is never found reads its beat error from the
 /// drop, as `session` reads it, and so does the reading the app kept
 /// for it at its end.
