@@ -81,6 +81,8 @@ impl TimegrapherApp {
             sample_rate,
             bits,
             software: format!("timegrapher-app {}", env!("CARGO_PKG_VERSION")),
+            calibre: self.bench.take.calibre.clone(),
+            escapement: self.bench.take.escapement_set,
         }
     }
 

@@ -174,13 +174,23 @@ impl TimegrapherApp {
             .is_none_or(Recorder::hours_reachable)
     }
 
-    /// Sound that was never saved opens with the lift angle, beat rate
-    /// and position its session.json was written with as it was heard,
-    /// as a saved take opens with its session file's (#2376). A value
-    /// that can't stand keeps the default, the position the file's name.
-    /// The calibre isn't written there, so it opens with none.
+    /// Sound that was never saved opens with the calibre, escapement,
+    /// lift angle, beat rate and position its session.json was written
+    /// with as it was heard, as a saved take opens with its session
+    /// file's (#2376, #2396). A value that can't stand keeps the default,
+    /// the position the file's name; a file older than #2396 has no
+    /// calibre, so opens with none.
     pub(super) fn put_recorded(&mut self, r: RecordedSetup, path: &Path) {
         let fresh = WatchSetup::default();
+        let calibre = r
+            .calibre
+            .map(|c| self.cal.current_name(&c))
+            .unwrap_or_default();
+        // Known as the calibre's lift, as picking it while listening gave.
+        let lift_context = self
+            .cal
+            .lift(&calibre)
+            .map_or(fresh.lift_context, |l| (l, true));
         let position = r
             .position
             .as_deref()
@@ -189,7 +199,10 @@ impl TimegrapherApp {
             .unwrap_or(fresh.position);
         let lift_deg = r.lift_deg.unwrap_or(fresh.lift_deg);
         self.set_watch_setup(WatchSetup {
+            calibre,
+            escapement_set: r.escapement,
             lift_deg,
+            lift_context,
             bph: r.bph,
             position,
             ..fresh

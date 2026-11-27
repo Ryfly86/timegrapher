@@ -13,6 +13,8 @@ fn info() -> SessionInfo {
         sample_rate: 8000,
         bits: 16,
         software: "test".into(),
+        calibre: String::new(),
+        escapement: None,
     }
 }
 

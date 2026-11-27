@@ -1563,6 +1563,8 @@ mod tests {
             sample_rate: 100,
             bits: 16,
             software: "test".into(),
+            calibre: String::new(),
+            escapement: None,
         };
         let mut s = ten();
         s.listen();

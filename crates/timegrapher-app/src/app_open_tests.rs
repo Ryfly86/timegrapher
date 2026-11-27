@@ -1265,6 +1265,8 @@ fn a_recovered_take_opens_at_the_position_last_heard() {
         lift_deg: Some(55.0),
         bph: None,
         on_auto: true,
+        calibre: None,
+        escapement: None,
     };
     let opened = |r: RecordedSetup, name: &str| {
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);

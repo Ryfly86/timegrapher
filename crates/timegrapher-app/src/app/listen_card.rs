@@ -2044,6 +2044,8 @@ impl TimegrapherApp {
         {
             self.change_bph(bph);
         }
+        // Into the take's session.json, for sound never saved (#2396).
+        self.note_settings();
     }
 }
 
