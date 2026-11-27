@@ -676,10 +676,14 @@ pub fn run(
     };
     lc.wheels.extend(take_wheels);
     lc.wheels.extend(extra);
-    let mut rep = match stretches {
-        Some(_) => longrun::analyse_on_clock(&log, clock.as_ref(), &breaks, &lc),
-        None => longrun::analyse_with_breaks(&log, clock.as_ref(), &breaks, &lc),
-    };
+    let mut rep = longrun::read_take(
+        &log,
+        clock.as_ref(),
+        &breaks,
+        stretches.is_some(),
+        cfg.analysis.bph,
+        &lc,
+    );
     add_caveats(&mut rep.caveats, cfg, unlisted, positions, pauses_unseen);
     // A take read in stretches is on its clock already.
     let clock = clock.filter(|_| stretches.is_none());
@@ -718,11 +722,20 @@ pub fn run(
         out.join("summary.json"),
         fs::write(out.join("summary.json"), &summary),
     )?;
-    write_html(&out, &file, &files, &rep, &lc.wheels, clock_note)?;
+    let no_rate = rep.no_rate_text(cfg.analysis.bph);
+    write_html(
+        &out,
+        &file,
+        &files,
+        &rep,
+        &lc.wheels,
+        clock_note,
+        no_rate.as_deref(),
+    )?;
     if json {
         println!("{summary}");
     } else {
-        print_summary(&rep, &lc.wheels, clock_note);
+        print_summary(&rep, &lc.wheels, clock_note, no_rate.as_deref());
         println!("Report       {}", out.join("report.html").display());
     }
     Ok(())
@@ -789,6 +802,7 @@ fn write_html(
     rep: &LongReport,
     wheels: &[Wheel],
     clock_note: Option<&str>,
+    no_rate: Option<&str>,
 ) -> Result<(), String> {
     let io = |p: PathBuf, r: std::io::Result<()>| r.map_err(|e| format!("{}: {e}", p.display()));
     let name = file
@@ -804,7 +818,7 @@ fn write_html(
         out.join("report.html"),
         fs::write(
             out.join("report.html"),
-            crate::report::html(&title, rep, wheels, clock_note),
+            crate::report::html(&title, rep, wheels, (clock_note, no_rate)),
         ),
     )?;
     Ok(())
@@ -917,7 +931,7 @@ impl<'a> From<&'a LongReport> for Summary<'a> {
             clean_fraction: r.clean_fraction,
             clock: &r.clock,
             breaks: &r.breaks,
-            overall: r.escapement.overall_json(r.overall.as_ref()),
+            overall: r.overall_json(),
             escapement: r.escapement,
             beat_error_unlock_ms: r.beat_error_unlock_ms,
             rate_p05: r.rate_p05,
@@ -978,7 +992,14 @@ pub(crate) fn lift_of(r: &LongReport) -> String {
     timegrapher_core::measure::lift_words(r.lift_deg, known)
 }
 
-fn print_summary(r: &LongReport, wheels: &[Wheel], clock_note: Option<&str>) {
+/// `no_rate`: what the report says in its rate's place where it gives no
+/// rate in s/d ([`LongReport::no_rate_text`]).
+fn print_summary(
+    r: &LongReport,
+    wheels: &[Wheel],
+    clock_note: Option<&str>,
+    no_rate: Option<&str>,
+) {
     println!(
         "Recording    {} at {} Hz, {} bph, {} beats ({}% clean)",
         duration(r.duration_s),
@@ -1008,15 +1029,21 @@ fn print_summary(r: &LongReport, wheels: &[Wheel], clock_note: Option<&str>) {
     if r.clock.as_ref().is_some_and(|c| c.corrects()) {
         println!("             tg, and a session's reference rates, read on the sound card's clock: add the error above to compare");
     }
-    match &r.overall {
-        Some(f) => println!(
+    // No regular beat: the sentence alone, as `analyze` gives it.
+    if let Some(line) = no_rate.filter(|_| r.no_watch().is_some()) {
+        println!("{line}");
+        return;
+    }
+    match (&r.overall, no_rate) {
+        (_, Some(line)) => println!("Rate         {line}"),
+        (Some(f), None) => println!(
             "Rate         {} s/d over the run; {} slices from {} to {} s/d (5th-95th pct)",
             signed(Some(f.rate_s_per_day), 2),
             crate::report::slice_name(r.slice_s),
             signed(r.rate_p05, 1),
             signed(r.rate_p95, 1)
         ),
-        None => println!("Rate         not enough clean beats to fit"),
+        (None, None) => println!("Rate         not enough clean beats to fit"),
     }
     if let Some(f) = &r.overall {
         println!(

@@ -2164,7 +2164,7 @@ pub fn check(
     let holes = Cuts::new(clock, &long.breaks, &[]);
     let map = |t: f64| holes.true_time(t);
     let r = cfg.rate_reading_s;
-    let x = readings::series_readings(log, clock, &long.breaks, r);
+    let x = readings::series_readings(log, clock, &long.breaks, r).judged(long);
     let rate_amplitude = cross_correlation(&x.rate_grid, &x.amp_paired, &x.amp_noise, cfg);
     let (isochronism, walk) = readings::isochronism_of(&x, cfg);
     let readings::SeriesReadings {
@@ -2215,9 +2215,12 @@ pub fn check(
             distribution::distributions(&[], 0.0, 0.0, 0.0)
         }
     };
+    // No regular beat over the take: no amplitude readings (#2355).
+    let heard = long.no_watch().is_none();
     let amp_samples: Vec<twostate::Sample> = holes
         .amplitude_windows(aw)
         .into_iter()
+        .filter(|_| heard)
         .filter_map(|w| {
             Some(twostate::Sample {
                 start_s: map(w.start_s),
