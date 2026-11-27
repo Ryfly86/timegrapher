@@ -10,10 +10,25 @@ name: CI
 # watchmaker skill and the docs the MCP server compiles in always run in full. A pull request that
 # changes a page the downloads carry also runs Release's render and link
 # check of those pages, in the ubuntu test job.
+#
+# A draft pull request runs none of that: each push to a draft runs one
+# quick Linux job, `quick (ubuntu-24.04)` (fmt, clippy and the core crate's
+# tests). None of the eight required checks passes there: mcp-renderer
+# reports "skipped", and the other seven are matrix jobs, which GitHub
+# never makes when skipped, so it shows them as expected. GitHub never merges a draft, so that lets no merge through. The
+# whole suite runs when the pull request is marked ready for review, and on
+# each push while it is ready (#2444). Turning a ready pull request back
+# into a draft starts no run: a run there would put "skipped" over the
+# head's real results, which read as passing once it is ready again. Its
+# next push cancels any full run still going. A pull request opened ready,
+# as outside contributors' are, runs the whole suite on every push.
 on:
   push:
     branches: [main]
   pull_request:
+    # The default three, plus marking a draft ready, which starts the full
+    # suite. Not converted_to_draft (the comment above).
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 # A newer push to a PR cancels that PR's run still in progress, and a newer
@@ -49,6 +64,9 @@ jobs:
             part: 1/2
           - os: windows-latest
             part: 2/2
+    # Every job below but `quick` runs only off a draft (the comment at the
+    # top), and this anchor names the rule for all of them.
+    if: &full-suite ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     runs-on: ${{ matrix.os }}
     # Time limits count from when a runner starts the job, not the queue, and
     # sit above the slowest recent run so a hung job fails within the hour
@@ -183,6 +201,7 @@ jobs:
       matrix:
         os: [ubuntu-24.04]
         part: [1/2, 2/2]
+    if: *full-suite
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     env: *test-env
@@ -197,10 +216,20 @@ jobs:
   # It used to run on a pull request even then; it waited for a runner,
   # and the PR's next run waited for it in the same concurrency group for
   # 7 to 40 minutes (#2455). Main stopped that on 25 Nov (6bedbea).
+  # On a draft it is skipped with its halves (the comment at the top): run,
+  # it would fail on their "skipped". It is a one-entry matrix so that a
+  # skipped run of it is never named `test (ubuntu-24.04)`: GitHub names a
+  # skipped matrix job by its unexpanded name. Once the PR is ready, this
+  # check is only made when both halves end, about 30 minutes in, and until
+  # then a draft run's "skipped" under the required name would read as
+  # passing.
   test-linux-result:
-    name: test (ubuntu-24.04)
+    name: test (${{ matrix.os }})
     needs: test-linux
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || !github.event.pull_request.draft) }}
+    strategy:
+      matrix:
+        os: [ubuntu-24.04]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -224,6 +253,7 @@ jobs:
       matrix:
         os: [macos-latest]
         part: [1/2, 2/2]
+    if: *full-suite
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     env: *test-env
@@ -231,10 +261,14 @@ jobs:
 
   # The required check `test (macos-latest)`, as test-linux-result is
   # Linux's, and runs when that does: it passes only when both halves did.
+  # A one-entry matrix for the same reason as test-linux-result.
   test-macos-result:
-    name: test (macos-latest)
+    name: test (${{ matrix.os }})
     needs: test-macos
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || !github.event.pull_request.draft) }}
+    strategy:
+      matrix:
+        os: [macos-latest]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -246,6 +280,7 @@ jobs:
           test "$RESULT" = success
 
   mcp-renderer:
+    if: *full-suite
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -281,6 +316,61 @@ jobs:
       - name: Copied code
         run: python3 .github/ci/literal_ratchet.py copies
 
+  # The one job a draft pull request runs on each push (the comment at the
+  # top): what most often fails first, on one Linux runner, while the
+  # reviews go on. Not a required check, and never run off a draft.
+  # It builds as Linux's test halves do (same toolchain and CARGO_*
+  # settings), so it restores their rust cache; it saves none, as the
+  # repository's caches sit near GitHub's 10 GB limit.
+  quick:
+    name: quick (ubuntu-24.04)
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_PROFILE_RELEASE_DEBUG: "0"
+      CARGO_PROFILE_RELEASE_OVERFLOW_CHECKS: "true"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - name: Full or light run
+        id: changes
+        shell: bash
+        run: python3 .github/ci/changes.py "${{ github.event_name }}" HEAD^1 HEAD | tee -a "$GITHUB_OUTPUT"
+      - name: Release CI gate tests (offline)
+        run: python3 -m unittest discover -s .github/scripts -p 'test_release_ci_gate.py' -v
+      - name: CI watchdog tests (offline)
+        run: python3 -m unittest discover -s .github/watchdog -p 'test_ci_watchdog.py' -v
+      - name: Packaging script tests (offline)
+        run: python3 -m unittest discover -s packaging -p 'test_*.py' -v
+      - name: Light-run rule tests (offline)
+        run: python3 -m unittest discover -s .github/ci -p 'test_*.py' -v
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.changes.outputs.full != 'false'
+        with:
+          toolchain: '1.90.0'
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        if: steps.changes.outputs.full != 'false'
+        with:
+          shared-key: test
+          save-if: false
+      - name: ALSA headers for sound input
+        if: steps.changes.outputs.full != 'false'
+        run: .github/ci/apt-install.sh libasound2-dev
+      - run: cargo fmt --check
+        if: steps.changes.outputs.full != 'false'
+      - run: cargo clippy --locked --all-targets -- -D warnings
+        if: steps.changes.outputs.full != 'false'
+      - uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        if: steps.changes.outputs.full != 'false'
+        with:
+          tool: cargo-nextest@0.9.148
+      - name: Core tests
+        if: steps.changes.outputs.full != 'false'
+        run: cargo nextest run --locked --release --no-fail-fast -p timegrapher-core
+
   # The public corpus's takes (docs/developer/regress.md), read three ways side by
   # side, each in its own job so none waits for another:
   #   engine: the engine against tg and the baseline, plus its smoke takes,
@@ -297,6 +387,7 @@ jobs:
       fail-fast: false
       matrix:
         check: [engine, app, mcp]
+    if: *full-suite
     runs-on: ubuntu-24.04
     # Above the longest step's own limit plus about 6 minutes of setup,
     # so a hung job still fails within the hour (#2028).

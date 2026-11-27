@@ -121,6 +121,7 @@ cargo test --release --locked --workspace
 Building the desktop app on Linux needs `libasound2-dev`. CI runs eight required
 checks (tests on Linux and macOS, Windows tests in two halves, the MCP renderer
 and three corpus regression checks) and takes about 12 minutes. If one fails, fix the cause.
+A draft PR runs only one quick Linux job (`quick (ubuntu-24.04)`); the eight run once it is ready for review.
 
 Do not change `Cargo.toml`, `Cargo.lock`, `.github/`, any `main.rs` or `lib.rs`, or
 `docs/reference/agent-interface.md` unless your brief lists them. If you must, explain why
