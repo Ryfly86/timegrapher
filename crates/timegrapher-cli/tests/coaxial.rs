@@ -104,6 +104,37 @@ fn analyze_reads_a_co_axial_calibre_as_one() {
     assert_eq!(lever["beat_error_source"], "drop");
 }
 
+/// A custom calibre the user set to co-axial is read as one, as a table
+/// row is (#2387), and `calibres NAME` says how; one left a Swiss lever
+/// is read as a lever.
+#[test]
+fn analyze_reads_a_custom_co_axial_calibre_as_one() {
+    let (d, wav) = take("custom", None);
+    let custom = serde_json::json!({
+        "schema": "timegrapher.user-calibres/1",
+        "custom": [
+            {"name": "Bench CA", "bph": 21600, "wheels": [],
+             "escapement": {"kind": "co-axial", "source": "Added by you"}},
+            {"name": "Bench SL", "bph": 21600, "wheels": []},
+        ],
+    });
+    std::fs::write(d.join("calibres.json"), custom.to_string()).unwrap();
+    let w = wav.to_str().unwrap();
+    says_coaxial(&json(&run(
+        &d,
+        &["analyze", w, "--calibre", "Bench CA", "--json"],
+    )));
+    let lever = json(&run(&d, &["analyze", w, "--calibre", "Bench SL", "--json"]));
+    assert!(lever.get("escapement").is_none());
+    assert_eq!(lever["beat_error_source"], "drop");
+    let shown = run(&d, &["calibres", "Bench CA"]);
+    let text = String::from_utf8_lossy(&shown.stdout);
+    let sentence = timegrapher_core::calibres::COAXIAL_SENTENCE;
+    assert!(text.lines().any(|l| l == sentence), "{text}");
+    let listed = json(&run(&d, &["calibres", "Bench CA", "--json"]));
+    assert_eq!(listed["custom"][0]["escapement"]["kind"], "co-axial");
+}
+
 #[test]
 fn long_reads_a_co_axial_take_as_one() {
     let (d, _) = take("long", Some("bph = 21600\nescapement = \"co-axial\""));

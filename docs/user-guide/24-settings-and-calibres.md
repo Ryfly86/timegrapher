@@ -97,10 +97,13 @@ over and send; nothing is sent from the app. A custom calibre also has
 **Delete Calibre**.
 
 **A custom calibre** starts with no wheels, since nothing about an
-obscure movement is assumed. Its Name, Maker, Beat Rate and Lift Angle
-can be changed in its details; the lift angle is kept between 10° and
-90°. Typing its beat rate fills in the balance's
+obscure movement is assumed. Its Name, Maker, Beat Rate, Lift Angle and
+Escapement can be changed in its details; the lift angle is kept between
+10° and 90°. Typing its beat rate fills in the balance's
 period, two beats: 7200 ÷ bph seconds, 0.25 s at 28,800 bph.
+**Escapement** is Swiss lever unless you pick another: a co-axial is read
+as the list's co-axial calibres are (beta), and a pin lever or detent is
+marked not supported yet. **Share with the Project…** sends it too.
 
 **The short list** starts as the list's common and modern calibres.
 **Reset the Short List**, in the star column's filter, goes back to it.
