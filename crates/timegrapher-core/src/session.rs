@@ -1365,8 +1365,8 @@ mod session_cycles;
 #[cfg(test)]
 pub(crate) use session_cycles::wheel_fraction;
 pub use session_cycles::{
-    cycles, size_text, size_words, timing_swing_note, timing_swing_text, Cycle, RATE_SHARE_NOTE,
-    RATE_SHARE_WHY,
+    cycles, long_timing_swing_note, size_text, size_words, timing_swing_note, timing_swing_text,
+    Cycle, RATE_SHARE_NOTE, RATE_SHARE_WHY,
 };
 use session_cycles::{folded_into, harmonic_parent};
 

@@ -1721,7 +1721,7 @@ pub fn wheel_note(c: &Component, wheels: &[Wheel]) -> String {
             .iter()
             .find(|w| w.name == name)
             .map_or(c.period_s, |w| w.period_s);
-        if c.resolution_s >= 0.01 * turn {
+        if match_reach_s(turn, c.resolution_s) == c.resolution_s {
             format!(
                 "the search's resolution, ±{} s",
                 fixed_text(c.resolution_s, 2)

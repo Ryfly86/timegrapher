@@ -1071,8 +1071,8 @@ fn print_cycles(r: &LongReport, wheels: &[Wheel]) {
     if !r.rate_components.is_empty() {
         println!("  {}", session::RATE_SHARE_NOTE);
     }
-    if r.rate_components.iter().any(|c| c.size().1 == "ms") {
-        println!("  {}", session::timing_swing_text());
+    if let Some(note) = session::long_timing_swing_note(r) {
+        println!("  {note}");
     }
     println!("Periodic changes in amplitude:");
     shortest(&r.amplitude.search);

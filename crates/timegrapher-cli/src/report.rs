@@ -736,10 +736,7 @@ fn rate_cycles(body: &mut String, r: &LongReport, wheels: &[Wheel]) {
     // Said once, not on each line (Norm on #2100).
     let notes = [
         (!r.rate_components.is_empty()).then(|| session::RATE_SHARE_WHY.to_string()),
-        r.rate_components
-            .iter()
-            .any(|c| c.size().1 == "ms")
-            .then(session::timing_swing_text),
+        session::long_timing_swing_note(r),
     ];
     for n in notes.into_iter().flatten() {
         let _ = write!(body, r#"<p class="note">{}</p>"#, esc(&n));

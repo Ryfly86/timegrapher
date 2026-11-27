@@ -129,6 +129,15 @@ pub fn timing_swing_note(readings: &[Reading]) -> Option<String> {
         .then(timing_swing_text)
 }
 
+/// [`timing_swing_text`] when `long` sizes a rate cycle as a timing swing,
+/// for its text and its report alike.
+pub fn long_timing_swing_note(r: &LongReport) -> Option<String> {
+    r.rate_components
+        .iter()
+        .any(|c| c.size().1 == "ms")
+        .then(timing_swing_text)
+}
+
 /// The cycle of `r` a cycle core marks as a harmonic of is reported with,
 /// when it is: not a wheel's own line, and explaining no more of the
 /// variation than that one does.

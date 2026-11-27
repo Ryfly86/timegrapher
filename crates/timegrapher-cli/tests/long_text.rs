@@ -166,5 +166,41 @@ fn rate_lines_give_no_share_and_name_their_swing() {
     assert!(html.contains(" ms peak to peak over each turn"));
     assert_eq!(html.matches(RATE_SHARE_WHY).count(), 1);
     assert_eq!(html.matches(&timing_swing_text()).count(), 1);
+    // A fault every 60 s gives a rate line in s/d and none in ms: then
+    // the ms note is not said, in the text or the report.
+    let wav = dir.join("slow.wav");
+    let wav = wav.to_str().unwrap();
+    run(&[
+        "synth",
+        wav,
+        "--duration",
+        "600",
+        "--snr",
+        "24",
+        "--fault-period",
+        "60",
+    ]);
+    let out = dir.join("slow_long");
+    let text = run(&[
+        "long",
+        wav,
+        "--wheel",
+        "fourth wheel=60",
+        "--out",
+        out.to_str().unwrap(),
+    ]);
+    let rate = text
+        .split_once("Periodic changes in amplitude:")
+        .expect("both searches")
+        .0;
+    let rate_rows = rows(rate);
+    assert!(
+        !rate_rows.is_empty() && rate_rows.iter().all(|r| r.contains(" s/d peak to peak")),
+        "{text}"
+    );
+    assert_eq!(text.matches(RATE_SHARE_NOTE).count(), 1, "{text}");
+    assert!(!text.contains(&timing_swing_text()), "{text}");
+    let html = std::fs::read_to_string(out.join("report.html")).unwrap();
+    assert!(!html.contains(&timing_swing_text()));
     let _ = std::fs::remove_dir_all(&dir);
 }
