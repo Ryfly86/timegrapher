@@ -790,13 +790,13 @@ struct Outside {
     calibre: Option<String>,
     first: Option<PathBuf>,
     correction: Option<(f64, String)>,
-    linked: Vec<(PathBuf, Option<Stamp>)>,
+    linked: Vec<(PathBuf, Option<String>)>,
 }
 
 /// A take's reading as kept, with what it was worked out from.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Kept {
-    stamp: Stamp,
+    stamp: String,
     outside: Outside,
     reading: Reading,
 }
@@ -1079,7 +1079,7 @@ fn outside_from(
     cal: Option<&crate::take::Calibre>,
     first: Option<PathBuf>,
     correction: Option<(f64, String)>,
-    linked: Vec<(PathBuf, Option<Stamp>)>,
+    linked: Vec<(PathBuf, Option<String>)>,
 ) -> Outside {
     Outside {
         engine: ENGINE.into(),
@@ -1163,7 +1163,7 @@ fn leads_out(p: &Path) -> bool {
 /// leading out of it, or from the root), in the order named: `None` for
 /// one that isn't there. What is inside is the take's own stamp's
 /// ([`reading_stamp`]). Quick, it reads no sound.
-fn linked(dir: &Path, m: &Manifest) -> Vec<(PathBuf, Option<Stamp>)> {
+fn linked(dir: &Path, m: &Manifest) -> Vec<(PathBuf, Option<String>)> {
     m.recordings
         .iter()
         .flat_map(|e| std::iter::once(&e.file).chain(e.clock.as_ref()))
@@ -1176,18 +1176,14 @@ fn linked(dir: &Path, m: &Manifest) -> Vec<(PathBuf, Option<Stamp>)> {
         .collect()
 }
 
-/// The fingerprint of the file or folder at `p`, `None` when it isn't
-/// there.
-fn path_stamp(p: &Path) -> Option<Stamp> {
+/// The fingerprint of the file or folder at `p` ([`stamp_digest`]),
+/// `None` when it isn't there.
+fn path_stamp(p: &Path) -> Option<String> {
     let m = fs::metadata(p).ok()?;
     if m.is_dir() {
-        return Some(stamp(p));
+        return Some(stamp_digest(&files_stamp(p, |_| true)));
     }
-    Some(Stamp {
-        bytes: m.len(),
-        entries: 1,
-        newest_ns: modified_ns(&m),
-    })
+    Some(stamp_digest(&[file_stamp(p, p, &m)]))
 }
 
 /// Whether the take in the folder `take_dir` is a Positions Test's: it
@@ -2274,9 +2270,93 @@ fn stamp(dir: &Path) -> Stamp {
 /// (its session file, its sound wherever its entries name it, its clock
 /// log and kept analysis) but the report `timegrapher session` writes into
 /// it ([`crate::take::REPORT_DIR`]).
-fn reading_stamp(dir: &Path) -> Stamp {
+fn reading_stamp(dir: &Path) -> String {
     let report = dir.join(crate::take::REPORT_DIR);
-    stamp_of(dir, |sub| sub != report)
+    stamp_digest(&files_stamp(dir, |sub| sub != report))
+}
+
+/// The SHA-256 of `files` ([`FileStamp`]s in path order), kept in place
+/// of the list so a take of hundreds of parts keeps 64 hex digits in
+/// `readings.json`, not an entry per part.
+fn stamp_digest(files: &[FileStamp]) -> String {
+    use sha2::{Digest, Sha256};
+    format!(
+        "{:x}",
+        Sha256::digest(serde_json::to_vec(files).unwrap_or_default())
+    )
+}
+
+/// One file or folder a kept reading was read from: its path in the
+/// take's folder (`/`-separated), and for a file its bytes, last change
+/// and, when it is small ([`HASHED_UP_TO`]), the SHA-256 of what it
+/// holds. Kept file by file, not summed, so two files that swap names,
+/// or a named file renamed away, change it; the hash sees an edit to the
+/// session file that keeps its size and time (#2409).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct FileStamp {
+    path: String,
+    bytes: u64,
+    modified_ns: u128,
+    sha256: Option<String>,
+}
+
+/// The largest file a [`FileStamp`] hashes: the session file, session.json
+/// and clock logs of short takes are read in whole, never a take's sound,
+/// so checking a kept reading stays quick.
+const HASHED_UP_TO: u64 = 64 * 1024;
+
+/// The [`FileStamp`] of each file and folder in `dir`, looking into each
+/// folder in it that `into` takes.
+fn files_stamp(dir: &Path, into: impl Fn(&Path) -> bool) -> Vec<FileStamp> {
+    let mut files = Vec::new();
+    let mut stack = vec![dir.to_path_buf()];
+    while let Some(d) = stack.pop() {
+        for e in fs::read_dir(&d).into_iter().flatten().flatten() {
+            let Ok(m) = e.metadata() else { continue };
+            let p = e.path();
+            if m.is_dir() {
+                if !into(&p) {
+                    continue;
+                }
+                stack.push(p.clone());
+            }
+            files.push(file_stamp(dir, &p, &m));
+        }
+    }
+    files.sort_by(|a, b| a.path.cmp(&b.path));
+    files
+}
+
+/// The [`FileStamp`] of `p`, described by `m`, its path from `dir`.
+fn file_stamp(dir: &Path, p: &Path, m: &fs::Metadata) -> FileStamp {
+    let path = p
+        .strip_prefix(dir)
+        .unwrap_or(p)
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/");
+    if !m.is_file() {
+        return FileStamp {
+            path,
+            bytes: 0,
+            modified_ns: 0,
+            sha256: None,
+        };
+    }
+    let sha256 = (m.len() <= HASHED_UP_TO)
+        .then(|| fs::read(p).ok())
+        .flatten()
+        .map(|b| {
+            use sha2::{Digest, Sha256};
+            format!("{:x}", Sha256::digest(b))
+        });
+    FileStamp {
+        path,
+        bytes: m.len(),
+        modified_ns: modified_ns(m),
+        sha256,
+    }
 }
 
 /// The fingerprint of the files in `dir`, looking into each folder in it

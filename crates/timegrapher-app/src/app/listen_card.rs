@@ -1887,7 +1887,11 @@ impl TimegrapherApp {
             // note appends in memory before writing session.json, so the
             // change is kept and written next time even if this write
             // fails; the last good file stays as it was (#1639).
-            let noted = r.note(&format!("position {}", pos.code()));
+            let noted = r.note(&format!(
+                "{}{}",
+                timegrapher_core::recorder::MOVED_TO,
+                pos.code()
+            ));
             self.session.note_metadata_change();
             if let Err(e) = noted {
                 self.session_write_failed(&e);

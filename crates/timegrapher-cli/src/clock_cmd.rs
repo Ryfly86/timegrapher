@@ -51,11 +51,13 @@ pub fn run(a: Action, json: bool) -> Result<(), String> {
             store(d, json)
         }
         Action::Forget { device } => {
-            let mut s = ClockStore::load()?;
-            if !s.remove(&device) {
-                return Err(format!("no clock correction stored for '{device}'"));
-            }
-            let p = s.save()?;
+            let ((), _, p) = ClockStore::update(|s| {
+                if s.remove(&device) {
+                    Ok(())
+                } else {
+                    Err(format!("no clock correction stored for '{device}'"))
+                }
+            })?;
             if json {
                 output::print("clock", json!({}), &json!({ "forgot": device, "store": p }))
             } else {
@@ -143,9 +145,10 @@ pub fn describe(d: &DeviceClock) -> String {
 }
 
 fn store(d: DeviceClock, json: bool) -> Result<(), String> {
-    let mut s = ClockStore::load()?;
-    s.set(d.clone());
-    let p = s.save()?;
+    let ((), _, p) = ClockStore::update(|s| {
+        s.set(d.clone());
+        Ok(())
+    })?;
     if json {
         output::print("clock", json!({}), &json!({ "stored": d, "store": p }))
     } else {
@@ -180,9 +183,11 @@ fn report(
         if let Some(w) = fit.unsure() {
             return Err(refusal(d, &w));
         }
-        let mut s = ClockStore::load()?;
-        s.set(d.clone());
-        Some(s.save()?)
+        let ((), _, p) = ClockStore::update(|s| {
+            s.set(d.clone());
+            Ok(())
+        })?;
+        Some(p)
     } else {
         None
     };
