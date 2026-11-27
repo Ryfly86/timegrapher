@@ -39,15 +39,12 @@ pub fn run(file: &Path, o: &Options) -> Result<(), String> {
             &r,
         )?;
     } else if s.shape.is_none() {
-        // No shape where `analyze` reads none: it says why, in its words,
-        // and prints no table (#2371).
-        for line in [crate::no_watch_line(s), crate::regularity_line(s)]
-            .into_iter()
-            .flatten()
-            .take(1)
-        {
-            println!("{line}");
-        }
+        // No shape where `analyze` reads none, and no table: no regular
+        // beat found, in `analyze`'s words, or else no verdict yet on the
+        // sound listened to, after any lead of noise (#2371).
+        let line = crate::no_watch_line(s)
+            .unwrap_or_else(|| timegrapher_core::measure::not_assessed_text(s.listened_s()));
+        println!("{line}");
     } else {
         print_report(&r, s);
     }

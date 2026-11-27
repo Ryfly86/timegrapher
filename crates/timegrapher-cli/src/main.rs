@@ -1801,13 +1801,8 @@ fn no_watch_line(s: &timegrapher_core::analysis::Summary) -> Option<String> {
 /// scatter window once it is 10 s long (#1688). None when it is judged.
 fn regularity_line(s: &timegrapher_core::analysis::Summary) -> Option<String> {
     use timegrapher_core::measure;
-    (!measure::regularity_assessed(s.duration_s, true)).then(|| {
-        format!(
-            "Beat regularity not assessed: {} s of sound, {} s needed",
-            fixed_text(s.duration_s, 1),
-            measure::SHORT_SPAN_S
-        )
-    })
+    (!measure::regularity_assessed(s.duration_s, true))
+        .then(|| measure::not_assessed_text(s.duration_s))
 }
 
 fn print_summary(
