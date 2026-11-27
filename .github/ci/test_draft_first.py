@@ -25,8 +25,10 @@ def job_if(text):
 
 class DraftRule(unittest.TestCase):
     def test_the_draft_state_events_start_a_run(self):
-        self.assertIn("types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]",
-                      WORKFLOW)
+        self.assertIn("types: [opened, synchronize, reopened, ready_for_review]\n", WORKFLOW)
+        # A run on converted_to_draft would skip the required checks on a
+        # head that may already hold their real results.
+        self.assertNotIn("converted_to_draft]", WORKFLOW)
 
     def test_every_job_but_quick_runs_only_off_a_draft(self):
         self.assertIn(f"if: &full-suite ${{{{ {OFF_DRAFT} }}}}", WORKFLOW)
@@ -44,8 +46,9 @@ class DraftRule(unittest.TestCase):
 
     def test_quick_runs_only_on_a_draft_and_is_no_required_check(self):
         text = jobs()["quick"]
-        self.assertIn("github.event.pull_request.draft", job_if(text))
-        self.assertIn("github.event.action != 'converted_to_draft'", job_if(text))
+        # Exactly: `!draft` here would run it beside the full suite.
+        self.assertEqual(job_if(text),
+                         "${{ github.event_name == 'pull_request' && github.event.pull_request.draft }}")
         name = re.search(r"(?m)^    name: (.*)$", text).group(1)
         gate = (ROOT / ".github/scripts/release_ci_gate.py").read_text(encoding="utf-8")
         self.assertNotIn(f'"{name}"', gate)

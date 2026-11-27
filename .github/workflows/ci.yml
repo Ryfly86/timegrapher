@@ -12,19 +12,23 @@ name: CI
 #
 # A draft pull request runs none of that: each push to a draft runs one
 # quick Linux job, `quick (ubuntu-24.04)` (fmt, clippy and the core crate's
-# tests), and the eight required checks report "skipped". GitHub never
-# merges a draft, so a skipped check there can't let a merge through. The
+# tests). None of the eight required checks passes there: mcp-renderer and
+# the two test summaries report "skipped", and the five matrix checks
+# (Windows's halves, regress) are never made, so GitHub shows them as
+# expected. GitHub never merges a draft, so that lets no merge through. The
 # whole suite runs when the pull request is marked ready for review, and on
-# each push while it is ready (#2444). Turning it back into a draft cancels
-# a full run still in progress and runs nothing. A pull request opened
-# ready, as outside contributors' are, runs the whole suite on every push.
+# each push while it is ready (#2444). Turning a ready pull request back
+# into a draft starts no run: a run there would put "skipped" over the
+# head's real results, which read as passing once it is ready again. Its
+# next push cancels any full run still going. A pull request opened ready,
+# as outside contributors' are, runs the whole suite on every push.
 on:
   push:
     branches: [main]
   pull_request:
-    # The default three, plus the two that change a pull request's draft
-    # state, which decides what runs.
-    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
+    # The default three, plus marking a draft ready, which starts the full
+    # suite. Not converted_to_draft (the comment above).
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 # A newer push to a PR cancels that PR's run still in progress, and a newer
@@ -300,7 +304,7 @@ jobs:
   # repository's caches sit near GitHub's 10 GB limit.
   quick:
     name: quick (ubuntu-24.04)
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft && github.event.action != 'converted_to_draft' }}
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
