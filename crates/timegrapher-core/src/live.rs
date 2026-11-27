@@ -586,6 +586,13 @@ impl LiveAnalyzer {
         self.total as f64 / self.fs
     }
 
+    /// The time before which the beats are final, s: a pass leaves the
+    /// newest sound, where a beat may not be complete yet, to a later
+    /// one. It moves on with the sound though no beat comes in it.
+    pub fn settled_s(&self) -> f64 {
+        self.settled_to
+    }
+
     /// The beat rate in use, once known.
     pub fn bph(&self) -> Option<u32> {
         self.bph
