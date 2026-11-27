@@ -1126,7 +1126,9 @@ does).
 A note on what it needs is behind the **?** in its toolbar. Until there are 5 minutes of beats in one position, the
 Steadiness and Isochronism tabs say so, with how much of the watch has
 been heard so far, never the silence or the stand's noise ("none heard so
-far" while no reading hears a watch); during a Positions Test they say
+far" while no reading hears a watch, and no count while no reading yet
+covers a whole Average Over of it), and the tests start once that count
+reaches 5 minutes; during a Positions Test they say
 that the test never stays that long in one position. Steadiness scrolls
 with a bar always showing when the pane is too short for every row.
 
@@ -1550,7 +1552,9 @@ the swing and the seesaw in the pane's toolbar show or hide the Rate,
 Amplitude and Beat Error charts; the charts shown share the pane's
 height, and at least one stays on. With nothing to draw (before the
 first reading, or while no reading hears a watch) the pane says so in one
-line in place of empty scales (#2183), and a reading alone, between gaps,
+line in place of empty scales (#2183): no watch heard, no reading yet
+covering a whole Average Over of the watch (a shorter one charts it), or
+no figure yet for the charts turned on. A reading alone, between gaps,
 is a dot. A pane too short for every chart draws
 the first ones at a readable height and names the rest at its foot ("Beat
 Error not shown: no room"), though the pane is kept tall enough for all

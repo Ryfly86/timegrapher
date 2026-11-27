@@ -384,14 +384,21 @@ fn a_panes_wheel_periods_switch_changes_that_pane_only() {
 fn the_steadiness_wait_counts_beats_not_sound() {
     let mut app = synthetic(40.0, 5.0);
     let heard = app.steady_wait();
-    assert!(heard.ends_with("of beats so far."), "{heard}");
+    assert!(heard.ends_with(" heard so far."), "{heard}");
+    assert!(!heard.contains("none"), "{heard}");
     assert!(!heard.contains("0:00"), "{heard}");
+    // No reading at this Average Over covers the watch whole yet while the
+    // cards read it (Walter on #2449): no count, rather than "none".
     for p in &mut app.bench.results.trend {
         p.heard = false;
     }
-    let none = app.steady_wait();
     assert_eq!(
-        none,
+        app.steady_wait(),
+        "Needs 5 minutes of beats in one position."
+    );
+    // Silence: none heard.
+    assert_eq!(
+        super::tests::silent(19).steady_wait(),
         "Needs 5 minutes of beats in one position; none heard so far."
     );
     // Heard from 20 s on: 10 s before that reading, to the end.
@@ -410,8 +417,52 @@ fn the_steadiness_wait_counts_beats_not_sound() {
     assert_eq!(
         app.steady_wait(),
         format!(
-            "Needs 5 minutes of beats in one position; {} of beats so far.",
+            "Needs 5 minutes of beats in one position; {} heard so far.",
             length_text(end - from)
         )
+    );
+}
+
+/// At a long Average Over no reading covers a whole one of the watch for
+/// its first minute, and each says no watch is heard (`TrendReading::of`):
+/// the waits say what is missing, not that no watch is heard, while the
+/// cards read it (Walter and Vernon on #2449).
+#[test]
+fn a_watch_not_yet_a_whole_average_over_is_not_none_heard() {
+    let mut app = synthetic(40.0, 5.0);
+    app.bench.take.average_s = 60.0;
+    let trend = app.bench.recording.live.as_ref().unwrap().trend(60.0);
+    assert!(trend.iter().all(|p| !p.heard));
+    app.bench.results.trend = trend;
+    assert!(app.cards_unheard().is_none(), "the cards read the watch");
+    assert_eq!(
+        app.steady_wait(),
+        "Needs 5 minutes of beats in one position."
+    );
+    let line = app.charts_waiting().expect("no chart yet");
+    assert!(!line.contains("No watch heard"), "{line}");
+    assert_eq!(
+        line,
+        "No reading in this take covers a whole 1 min Average Over of the watch: a \
+         shorter Average Over charts it."
+    );
+}
+
+/// The tests start on 5 minutes of beats heard, the wait's own count, not
+/// on 5 minutes of sound: 320 s of silence never starts them (Vernon on
+/// #2449, #2451).
+#[test]
+fn silence_never_starts_the_steadiness_tests() {
+    let ctx = egui::Context::default();
+    let mut app = super::tests::silent(320);
+    app.bench.results.bg.shown_pass[0] = Some(ctx.cumulative_pass_nr());
+    for _ in 0..3 {
+        app.update_steady(&ctx);
+    }
+    assert!(app.bench.results.steady_job.is_none());
+    assert!(app.bench.results.steady.is_none());
+    assert_eq!(
+        app.steady_wait(),
+        "Needs 5 minutes of beats in one position; none heard so far."
     );
 }

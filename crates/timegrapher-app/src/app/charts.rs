@@ -45,22 +45,41 @@ impl TimegrapherApp {
     /// before a take's first reading, and while no reading has a figure
     /// for a chart turned on, as with no watch heard (#2183). None once
     /// one has.
-    pub(super) fn charts_waiting(&self) -> Option<&'static str> {
+    pub(super) fn charts_waiting(&self) -> Option<String> {
         let trend = &self.bench.results.trend;
         if self.bench.recording.batch.is_some() {
-            Some("Opening the take: its charts appear once it is read.")
+            Some("Opening the take: its charts appear once it is read.".into())
         } else if self.bench.recording.live.is_none() {
-            Some("Listen to a watch or open a recording to see its readings here.")
+            Some("Listen to a watch or open a recording to see its readings here.".into())
         } else if trend.is_empty() {
-            Some("The charts begin with the first reading.")
+            Some("The charts begin with the first reading.".into())
         } else if self.charts_have_figures() {
             None
         } else if trend.iter().any(|p| p.heard) {
-            Some("No reading yet has a figure for the charts turned on.")
+            Some(if self.running() {
+                "No reading yet has a figure for the charts turned on.".into()
+            } else {
+                "No reading in this take has a figure for the charts turned on.".into()
+            })
+        } else if self.cards_unheard().is_none() {
+            // The cards read a watch, but a chart's reading needs a whole
+            // Average Over of it, and none is yet (Walter on #2449).
+            let average = fields::duration(self.bench.take.average_s);
+            Some(if self.running() {
+                format!(
+                    "No reading yet covers a whole {average} Average Over of the watch: the \
+                     charts begin with the first that does."
+                )
+            } else {
+                format!(
+                    "No reading in this take covers a whole {average} Average Over of the \
+                     watch: a shorter Average Over charts it."
+                )
+            })
         } else if self.running() {
-            Some("No watch heard yet: the charts begin with the first reading of one.")
+            Some("No watch heard yet: the charts begin when one is heard.".into())
         } else {
-            Some("No watch heard in this take: no reading has a figure to chart.")
+            Some("No watch heard in this take: no reading has a figure to chart.".into())
         }
     }
 

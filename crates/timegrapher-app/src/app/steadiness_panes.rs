@@ -234,7 +234,10 @@ impl TimegrapherApp {
             Some(u) if self.running() => dur - u >= steady::RERUN_S,
             Some(u) => dur - u > 1.0,
         };
-        if self.bench.results.steady_job.is_none() && due && dur >= steady::MIN_S {
+        // 5 minutes of beats, not of sound: silence or the stand's noise
+        // alone never starts them (#2451).
+        let enough = dur >= steady::MIN_S && self.heard_in_position() >= steady::MIN_S;
+        if self.bench.results.steady_job.is_none() && due && enough {
             let log = self.bench.recording.live.as_ref().and_then(steady::log_of);
             if let Some((log, breaks)) = log.map(|l| self.steady_log(l, &runs, clock.as_ref())) {
                 let wheels = self.calibre_wheels();
@@ -337,6 +340,20 @@ impl TimegrapherApp {
         }
     }
 
+    /// How long a watch was heard in the position the watch is in now,
+    /// seconds: what "5 minutes of beats" counts, for the tests' start
+    /// and their wait alike (Vernon on #2449).
+    fn heard_in_position(&self) -> f64 {
+        self.bench.recording.live.as_ref().map_or(0.0, |l| {
+            timegrapher_core::live::heard_seconds(
+                &self.bench.results.trend,
+                self.bench.take.average_s,
+                &self.current_runs().read,
+                l.duration_s(),
+            )
+        })
+    }
+
     /// What the steadiness tests wait for, in the terms of what is being
     /// done: a Positions Test never stays long enough in one position.
     /// "So far" is the beats heard in the position, never the silence or
@@ -347,17 +364,15 @@ impl TimegrapherApp {
                     stays in each. Record one position for 5 minutes or more to see it."
                 .to_string();
         }
-        let heard = self.bench.recording.live.as_ref().map_or(0.0, |l| {
-            timegrapher_core::live::heard_seconds(
-                &self.bench.results.trend,
-                self.bench.take.average_s,
-                &self.current_runs().read,
-                l.duration_s(),
-            )
-        });
+        let heard = self.heard_in_position();
+        // The cards read a watch the readings at this Average Over don't
+        // cover whole yet (Walter on #2449): no count, rather than "none".
+        if heard <= 0.0 && self.cards_unheard().is_none() {
+            return "Needs 5 minutes of beats in one position.".to_string();
+        }
         if heard > 0.0 {
             format!(
-                "Needs 5 minutes of beats in one position; {} of beats so far.",
+                "Needs 5 minutes of beats in one position; {} heard so far.",
                 length_text(heard)
             )
         } else {

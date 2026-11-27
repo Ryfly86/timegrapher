@@ -1202,6 +1202,30 @@ fn the_charts_draw_no_scales_before_there_is_a_reading() {
     let text = draw(&mut app);
     assert!(app.charts_waiting().is_none());
     assert!(scales(&text), "{text}");
+}
+
+/// The Charts pane's words where it has nothing to draw, in place of an
+/// empty scale (#2183): readings that hear no watch, readings short of a
+/// whole Average Over, and charts turned on with no figure yet.
+#[test]
+fn the_charts_say_why_they_are_empty() {
+    let ctx = themed();
+    let draw = |app: &mut TimegrapherApp| {
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                Vec2::new(1280.0, 700.0),
+            )),
+            ..Default::default()
+        };
+        let out = ctx.run(input, |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| app.charts_pane(ui));
+        });
+        painted_text(&out)
+    };
+    let scales = |text: &str| text.contains("0:00") || text.contains('°') || text.contains("s/d");
+    let mut app = synthetic(60.0, 20.0);
+    let trend = app.bench.results.trend.clone();
     // Readings that hear no watch, as of silence: words, not an empty
     // "0 s/d" scale, listening and stopped alike (#2183).
     let silent: Vec<TrendPoint> = trend
@@ -1220,10 +1244,34 @@ fn the_charts_draw_no_scales_before_there_is_a_reading() {
             heard: false,
         })
         .collect();
+    // Here the cards read the watch, so it is a reading short of a whole
+    // Average Over, as at 1 min a minute after the watch arrives (Walter
+    // on #2449), not none heard.
     app.bench.results.trend = silent;
     let text = draw(&mut app);
-    assert!(text.contains("No watch heard"), "{text}");
+    assert!(text.contains("covers a whole"), "{text}");
+    assert!(!text.contains("No watch heard"), "{text}");
     assert!(!scales(&text), "{text}");
+    // True silence: none heard, as the cards say; stopped, then listening.
+    let mut quiet = super::tests::silent(15);
+    assert!(quiet.cards_unheard().is_some());
+    let text = draw(&mut quiet);
+    assert!(
+        text.contains("No watch heard in this take: no reading has a figure to chart."),
+        "{text}"
+    );
+    assert!(!scales(&text), "{text}");
+    let base = std::env::temp_dir().join(format!("tg-charts-quiet-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let _tx = super::tests::queued_capture(&mut quiet, &base);
+    assert!(quiet.running());
+    let text = draw(&mut quiet);
+    assert!(
+        text.contains("No watch heard yet: the charts begin when one is heard."),
+        "{text}"
+    );
+    assert!(!scales(&text), "{text}");
+    let _ = std::fs::remove_dir_all(&base);
     // Beat Error alone turned on, with no beat error read yet: what the
     // charts wait for, not an empty scale.
     let mut no_be = trend.clone();
@@ -1233,7 +1281,10 @@ fn the_charts_draw_no_scales_before_there_is_a_reading() {
     app.bench.results.trend = no_be;
     app.bench.panes_view.chart_series = [false, false, true];
     let text = draw(&mut app);
-    assert!(text.contains("the charts turned on"), "{text}");
+    assert!(
+        text.contains("No reading in this take has a figure for the charts turned on."),
+        "{text}"
+    );
     assert!(!scales(&text), "{text}");
 }
 
