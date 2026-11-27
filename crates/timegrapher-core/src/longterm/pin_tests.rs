@@ -270,6 +270,25 @@ fn wheels() -> Vec<Wheel> {
     .collect()
 }
 
+/// A wheel more than [`NEAREST_WHEEL_REACH`] off a cycle's period is not
+/// named as its nearest ("nearest is the fourth wheel, -62.7% off", #2342
+/// item 11; Norm on #2100); one inside it is.
+#[test]
+fn a_far_wheel_is_not_named_nearest() {
+    let (wheel, nearest) = wheel_of(&wheels(), 22.4, 0.5);
+    assert!(wheel.is_none() && nearest.is_none(), "{nearest:?}");
+    // 12% off: past the 10% reach, so not named (a wider reach would be).
+    let (wheel, nearest) = wheel_of(&wheels(), 67.2, 0.5);
+    assert!(wheel.is_none() && nearest.is_none(), "{nearest:?}");
+    let (wheel, nearest) = wheel_of(&wheels(), 65.0, 0.5);
+    assert!(wheel.is_none());
+    let (name, off) = nearest.expect("8% off is named");
+    assert!(
+        name.contains("fourth") && (off - 100.0 * (65.0 / 60.0 - 1.0)).abs() < 1e-9,
+        "{name} {off}"
+    );
+}
+
 /// The nearest wheel is named with how far off it is, never the farthest.
 #[test]
 fn the_nearest_wheel_is_named() {

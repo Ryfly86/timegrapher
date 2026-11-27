@@ -53,7 +53,7 @@ Amplitude    269 deg median; slices from 255 to 270 deg (lift angle 52 deg)
 Periodic changes in rate (the rate itself, not 10 s readings):
       60.00 s ±2.00   swing 36.8 s/d p-p     explains 100%  false alarm <1e-300  matches the fourth wheel (+0.0% off; a match is within ±2.0 s or 1%)
 Periodic changes in amplitude:
-      20.01 s ±0.22   swing 0.3 deg p-p      explains  23%  false alarm <1e-300  no wheel listed within ±0.2 s or 1%; nearest is the fourth wheel, -66.6% off
+      20.01 s ±0.22   swing 0.3 deg p-p      explains  23%  false alarm <1e-300
       60.03 s ±2.00   swing 11.4 deg p-p     explains  97%  false alarm <1e-300  matches the fourth wheel (+0.0% off; a match is within ±2.0 s or 1%)
 Report       syn_long/report.html
 ```
@@ -107,7 +107,7 @@ kept to two harmonics, which round off a short dip; the repository's
     are listed (the program's cut-off). As a rule of thumb, 1e-5 is
     convincing and 1e-50 beyond doubt;
   - **wheel**: which wheel turns at that period, or the nearest one and
-    how far off. A 57 s cycle in a two-hour run (resolution ±0.5 s) is
+    how far off (only within 10% of its turn). A 57 s cycle in a two-hour run (resolution ±0.5 s) is
     *not* the fourth wheel.
 
 The **average cycle** in the report shows the *shape*: a sharp notch once

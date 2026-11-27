@@ -19,15 +19,6 @@ get no labelled issues until that work is done.
 An issue that changes how a reading is computed gets the label only once it
 spells out the method.
 
-Issues labelled [`for Astra`](https://github.com/peterhudson/timegrapher/labels/for%20Astra)
-are kept for the maintainer's own coding agent, and outside contributors
-should leave them alone. They meet the same bar as `agent-ready`, and each
-one says which files, tests and reviews it needs. The agent works the way an
-outside contributor does: it claims the issue with a comment, opens one
-pull request with `Closes #N` and `Assisted-by: Codex`, and answers review
-comments. That pull request goes through the same review here, and the
-maintainer merges it.
-
 **Claiming.** Comment "I'd like to take this" on the issue. A maintainer
 assigns it to you, usually within a day. Hold one claimed issue at a time.
 If there is no draft pull request or progress comment after 7 days, the
