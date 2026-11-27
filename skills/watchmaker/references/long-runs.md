@@ -51,19 +51,22 @@ Rate         +4.00 s/d over the run; 10 s slices from -19.1 to 8.1 s/d (5th-95th
 Beat error   0.40 ms (from the unlock; 0.40 ms from the drop)
 Amplitude    269 deg median; slices from 255 to 270 deg (lift angle 52 deg)
 Periodic changes in rate (the rate itself, not 10 s readings):
-      60.00 s ±2.00   swing 36.8 s/d p-p     explains 100%  false alarm <1e-300  matches the fourth wheel (+0.0% off; a match is within ±2.0 s or 1%)
+  Shortest cycle searched: 3 s
+      59.99 s ±2.00   rate swing 37.02 s/d peak to peak   explains    –  false alarm under 0.0003, beyond the simulated range  matches the fourth wheel (0.0% off; a match is within the search's resolution, ±2.00 s)
+      12.07 s ±0.08   timing swing 0.010 ms peak to peak  explains    –  false alarm 3e-3
+  A rate cycle is found in the beat timing, which wanders as a walk, so a share of its variation says nothing about the cycle and none is given (–).
+  A rate cycle shorter than 30 s is sized as a timing swing in ms: a 10 s rate reading is too coarse to follow it.
 Periodic changes in amplitude:
-      20.01 s ±0.22   swing 0.3 deg p-p      explains  23%  false alarm <1e-300
-      60.03 s ±2.00   swing 11.4 deg p-p     explains  97%  false alarm <1e-300  matches the fourth wheel (+0.0% off; a match is within ±2.0 s or 1%)
+  Shortest cycle searched: 16 s
+      60.03 s ±2.00   11.5 deg peak to peak               explains 100%  false alarm under 0.0003, beyond the simulated range  matches the fourth wheel (0.0% off; a match is within the search's resolution, ±2.00 s)
 Report       syn_long/report.html
 ```
 
 (That one is synthetic: a watch made to lose 30 s/d and 15° for 8 s of
 every minute, `timegrapher synth syn.wav --duration 1800 --rate 8 --snr
 24 --fault-period 60`, read with `timegrapher long syn.wav --wheel
-"fourth wheel=60"`, since with no calibre no wheel is named. The 20.01 s
-amplitude line is a third of that 60 s cycle and matches no wheel. The 60 s amplitude swing reads low,
-11.4° against the 15° put in, because the amplitude's average cycle is
+"fourth wheel=60"`, since with no calibre no wheel is named. The 60 s amplitude swing reads low,
+11.5° against the 15° put in, because the amplitude's average cycle is
 kept to two harmonics, which round off a short dip; the repository's
 `docs/reference/long-runs.md` explains why.)
 
@@ -92,22 +95,29 @@ kept to two harmonics, which round off a short dip; the repository's
 - **Periodic changes.** Each line is a component found:
   - **period ± resolution**: how long one cycle is, and how finely this
     run can tell periods apart (a longer run resolves better);
-  - **swing**: peak to peak size of the average cycle, s/d or degrees.
+  - **swing**: peak to peak size of the average cycle, named by its
+    quantity: a rate cycle under 30 s as a "timing swing" in ms (too
+    fast for a 10 s rate reading to follow), a longer one as a "rate
+    swing" in s/d, an amplitude cycle in degrees.
     It reads high on a sharp step (the cycle is smoothed to a few
     harmonics, which overshoot). Quote this as "the swing a
     timegrapher shows". `series`' two-state finder gives a smaller
     figure for the same watch, the step between its two fitted levels:
     quote that only as "the step between its two states", never as the
     swing;
-  - **explains**: how much of the wandering (after slow drift is removed)
-    this cycle accounts for. As a rule of thumb, 5% is a ripple and 40%
-    or more dominates;
+  - **explains** (amplitude lines only): how much of the wandering
+    (after slow drift is removed) this cycle accounts for. As a rule of
+    thumb, 5% is a ripple and 40% or more dominates. A rate line shows
+    "–": the beat timing wanders as a walk, so a share of it says
+    nothing about the cycle; size a rate line by its swing;
   - **false alarm**: the chance noise alone would have produced a
     component this strong anywhere in the search. Only components under 1%
     are listed (the program's cut-off). As a rule of thumb, 1e-5 is
     convincing and 1e-50 beyond doubt;
   - **wheel**: which wheel turns at that period, or the nearest one and
-    how far off (only within 10% of its turn). A 57 s cycle in a two-hour run (resolution ±0.5 s) is
+    how far off (only within 10% of its turn). A match is within the
+    search's resolution or 1% of the wheel's turn, whichever is wider;
+    the line says which. A 57 s cycle in a two-hour run (resolution ±0.5 s) is
     *not* the fourth wheel.
 
 The **average cycle** in the report shows the *shape*: a sharp notch once

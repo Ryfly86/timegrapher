@@ -405,13 +405,39 @@ const SWAP_ON_DISK: SwapSteps = SwapSteps {
 };
 
 /// A folder name for `name` that every system accepts: the characters
-/// Windows forbids and control characters become `-`, trailing dots and
-/// spaces go, a name Windows keeps for devices (`CON`, `LPT1`, also
-/// with an extension) gets `_` before its first dot, and it is cut to 100
-/// characters first. The name as typed stays in the files.
+/// Windows forbids and control characters become `-`, leading dots and
+/// trailing dots and spaces go (a leading dot hides a folder, and the
+/// library lists no hidden take, #2403), a name Windows keeps for devices
+/// (`CON`, `LPT1`, also with an extension) gets `_` before its first dot,
+/// and it is cut to 100 characters first. The name as typed stays in the
+/// files.
 pub fn folder_name(name: &str) -> String {
+    let s = clean_name(name);
+    if s.is_empty() {
+        "Watch".into()
+    } else {
+        s
+    }
+}
+
+/// [`folder_name`] for a take's folder: the same rules, "Take" where
+/// nothing is left. A take added from outside the library gets a visible
+/// name this way, never one the clearing of stale adds could take for its
+/// own (#2402).
+pub(crate) fn take_folder_name(name: &str) -> String {
+    let s = clean_name(name);
+    if s.is_empty() {
+        "Take".into()
+    } else {
+        s
+    }
+}
+
+/// [`folder_name`]'s rules, empty where nothing is left.
+fn clean_name(name: &str) -> String {
     let mut s: String = name
         .trim()
+        .trim_start_matches(|c: char| c == '.' || c.is_whitespace())
         .chars()
         .map(|c| {
             if c.is_control() || r#"<>:"/\|?*"#.contains(c) {
@@ -442,9 +468,6 @@ pub fn folder_name(name: &str) -> String {
         || numbered("LPT");
     if reserved {
         s.insert(stem_len, '_');
-    }
-    if s.is_empty() {
-        s = "Watch".into();
     }
     s
 }
@@ -1422,7 +1445,9 @@ impl Library {
         };
         self.watches.clear();
         self.unreadable.clear();
-        for dir in subfolders(&self.root) {
+        // Hidden folders too: a watch an earlier version filed under a
+        // name starting with a dot is listed all the same (#2403).
+        for dir in folders(&self.root, true) {
             if !dir.join(WATCH_FILE).is_file() {
                 continue;
             }
@@ -1878,21 +1903,23 @@ impl Library {
             .ok_or("That watch is no longer in your watches")?;
         let takes = to_watch.dir.join(TAKES);
         fs::create_dir_all(&takes).map_err(|e| format!("{}: {e}", takes.display()))?;
-        let to = unused_dir(&takes, name);
+        let name = take_folder_name(name);
+        let to = unused_dir(&takes, &name);
         let staged = staging(&takes, &to);
         let put = (|| {
+            let inner = begin_staging(&staged)?;
             if from.is_dir() {
-                copy_tree(from, &staged, &[])?;
+                copy_tree(from, &inner, &[])?;
             } else {
-                fs::create_dir_all(&staged).map_err(|e| format!("{}: {e}", staged.display()))?;
-                let dst = staged.join(from.file_name().ok_or("The recording has no name")?);
+                fs::create_dir_all(&inner).map_err(|e| format!("{}: {e}", inner.display()))?;
+                let dst = inner.join(from.file_name().ok_or("The recording has no name")?);
                 fs::copy(from, &dst).map_err(|e| format!("{}: {e}", from.display()))?;
             }
             for (file, text) in written {
-                let dst = staged.join(file);
+                let dst = inner.join(file);
                 fs::write(&dst, text).map_err(|e| format!("{}: {e}", dst.display()))?;
             }
-            move_in(&staged, &takes, name, to)
+            move_in(&staged, &takes, &name, to)
         })();
         let to = match put {
             Ok(to) => to,
@@ -1946,25 +1973,42 @@ fn plain(p: &Path) -> bool {
 /// A folder in `takes` to put a take together in before it is moved in
 /// whole as `to`: hidden, so no scan lists it, and of its own, so two
 /// programs adding a take of one name at once (the app, and the command
-/// line adding while the app is open) never clear each other's.
+/// line adding while the app is open) never clear each other's. The take
+/// is put together in [`add::STAGED_TAKE`] inside it ([`begin_staging`]),
+/// so the folder itself is never a take folder: the clearing of stale
+/// adds deletes only such a folder (#2402).
 fn staging(takes: &Path, to: &Path) -> PathBuf {
     takes.join(format!("{}{}-{}", add::ADDING, file_name(to), new_id()))
 }
 
-/// Move the take put together in `staged` into `takes` as `to`, or, where
-/// another program took that name meanwhile, as the next free name for
-/// `base` ([`unused_dir`]). Returns where it went.
+/// Make the staging folder `staged` ([`staging`]), as new, and give the
+/// folder the take is put together in, inside it (not made yet).
+fn begin_staging(staged: &Path) -> Result<PathBuf, String> {
+    fs::create_dir(staged).map_err(|e| format!("{}: {e}", staged.display()))?;
+    Ok(staged.join(add::STAGED_TAKE))
+}
+
+/// Move the take put together in `staged` ([`begin_staging`]) into
+/// `takes` as `to`, or, where another program took that name meanwhile,
+/// as the next free name for `base` ([`unused_dir`]); the staging folder,
+/// empty then, goes. Returns where it went.
 fn move_in(staged: &Path, takes: &Path, base: &str, to: PathBuf) -> Result<PathBuf, String> {
-    match crate::recorder::rename_settled(staged, &to) {
+    let inner = staged.join(add::STAGED_TAKE);
+    let moved = match crate::recorder::rename_settled(&inner, &to) {
         Ok(()) => Ok(to),
         Err(_) if to.exists() => {
             let again = unused_dir(takes, base);
-            crate::recorder::rename_settled(staged, &again)
+            crate::recorder::rename_settled(&inner, &again)
                 .map(|()| again.clone())
                 .map_err(|e| format!("{}: {e}", again.display()))
         }
         Err(e) => Err(format!("{}: {e}", to.display())),
+    };
+    if moved.is_ok() {
+        // Only an empty folder: what is left is cleared when stale.
+        let _ = fs::remove_dir(staged);
     }
+    moved
 }
 
 /// The entry standing for `root/Unsorted`, with no takes yet.
@@ -2178,12 +2222,17 @@ fn file_name(p: &Path) -> String {
 
 /// Folders in `dir` by name, leaving out hidden ones.
 fn subfolders(dir: &Path) -> Vec<PathBuf> {
+    folders(dir, false)
+}
+
+/// Folders in `dir` by name, hidden ones too when `hidden`.
+fn folders(dir: &Path, hidden: bool) -> Vec<PathBuf> {
     let mut v: Vec<PathBuf> = fs::read_dir(dir)
         .into_iter()
         .flatten()
         .flatten()
         .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
-        .filter(|e| !e.file_name().to_string_lossy().starts_with('.'))
+        .filter(|e| hidden || !e.file_name().to_string_lossy().starts_with('.'))
         .map(|e| e.path())
         .collect();
     v.sort();

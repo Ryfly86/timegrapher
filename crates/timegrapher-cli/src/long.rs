@@ -9,14 +9,14 @@ use timegrapher_core::calibre_store::{self, UserCalibres};
 use timegrapher_core::calibres::{self, Calibre};
 use timegrapher_core::clock::{self, ClockFit};
 use timegrapher_core::escapement::Escapement;
-use timegrapher_core::library::{fixed_text, signed_text};
+use timegrapher_core::library::fixed_text;
 use timegrapher_core::longrun::{self, LongReport};
-use timegrapher_core::longterm::{false_alarm_text, Component, LongConfig};
+use timegrapher_core::longterm::{self, false_alarm_text, Component, LongConfig};
 use timegrapher_core::periodicity::{common_escape_wheels, standard_wheels, Wheel};
+use timegrapher_core::session;
 use timegrapher_core::set_rate;
 use timegrapher_core::stream::{BeatLog, StreamConfig};
 use timegrapher_core::take_context::{Masks, TakeContext};
-use timegrapher_core::timefreq::size_number;
 use timegrapher_core::{audio, joined, take, take_path};
 
 /// Which wheels to name: a calibre's train, the escape wheel at a given
@@ -722,7 +722,7 @@ pub fn run(
     if json {
         println!("{summary}");
     } else {
-        print_summary(&rep, clock_note);
+        print_summary(&rep, &lc.wheels, clock_note);
         println!("Report       {}", out.join("report.html").display());
     }
     Ok(())
@@ -965,27 +965,6 @@ pub fn false_alarm(sig: f64) -> String {
     }
 }
 
-pub fn wheel_note(c: &Component) -> String {
-    // The match rule is longterm's: within the search's resolution or 1%
-    // of the wheel's turn, whichever is wider.
-    let rule = format!("±{} s or 1%", fixed_text(c.resolution_s, 1));
-    let pct = |off: f64| format!("{}%", signed_text(off, 1));
-    match (&c.wheel, &c.nearest_wheel) {
-        (Some(w), Some((n, off))) if n == w => {
-            format!(
-                "matches the {w} ({} off; a match is within {rule})",
-                pct(*off)
-            )
-        }
-        (Some(w), _) => format!("matches the {w} (a match is within {rule})"),
-        (None, Some((w, off))) => format!(
-            "no wheel listed within {rule}; nearest is the {w}, {} off",
-            pct(*off)
-        ),
-        (None, None) => String::new(),
-    }
-}
-
 fn opt(v: Option<f64>, digits: usize) -> String {
     v.map_or("-".into(), |x| fixed_text(x, digits))
 }
@@ -999,7 +978,7 @@ pub(crate) fn lift_of(r: &LongReport) -> String {
     timegrapher_core::measure::lift_words(r.lift_deg, known)
 }
 
-fn print_summary(r: &LongReport, clock_note: Option<&str>) {
+fn print_summary(r: &LongReport, wheels: &[Wheel], clock_note: Option<&str>) {
     println!(
         "Recording    {} at {} Hz, {} bph, {} beats ({}% clean)",
         duration(r.duration_s),
@@ -1059,15 +1038,22 @@ fn print_summary(r: &LongReport, clock_note: Option<&str>) {
         opt(r.amplitude_p95, 0),
         lift_of(r)
     );
-    let line = |c: &Component, size: String| {
+    print_cycles(r, wheels);
+}
+
+/// The periodic changes in rate and amplitude, one line each. A rate line
+/// gives no share (Norm on #2100): "–", and why is said once.
+fn print_cycles(r: &LongReport, wheels: &[Wheel]) {
+    let line = |c: &Component, size: String, share: Option<f64>| {
+        let share = share.map_or("–".into(), |p| format!("{}%", fixed_text(p, 0)));
         println!(
-            "  {:>9} s ±{:<6} {:<22} explains {:>3}%  false alarm {:<7}  {}",
+            "  {:>9} s ±{:<6} {:<35} explains {:>4}  false alarm {:<7}  {}",
             fixed_text(c.period_s, 2),
             fixed_text(c.resolution_s, 2),
             size,
-            fixed_text(c.explained * 100.0, 0),
+            share,
             false_alarm_text(c.significance, c.beyond_simulated, false_alarm),
-            wheel_note(c)
+            longterm::wheel_note(c, wheels)
         );
     };
     let shortest = |s: &timegrapher_core::longterm::Search| println!("  {}", s.shortest_text());
@@ -1079,11 +1065,14 @@ fn print_summary(r: &LongReport, clock_note: Option<&str>) {
         println!("  none named ({level}, held across the take's tests)");
     }
     for c in &r.rate_components {
-        let swing = match c.size() {
-            (ms, "ms") => format!("timing swing {} ms p-p", size_number(ms)),
-            (sd, unit) => format!("swing {} {unit} p-p", size_number(sd)),
-        };
-        line(&c.component, swing);
+        let (size, unit) = c.size();
+        line(&c.component, session::size_words(size, unit), None);
+    }
+    if !r.rate_components.is_empty() {
+        println!("  {}", session::RATE_SHARE_NOTE);
+    }
+    if let Some(note) = session::long_timing_swing_note(r) {
+        println!("  {note}");
     }
     println!("Periodic changes in amplitude:");
     shortest(&r.amplitude.search);
@@ -1091,7 +1080,11 @@ fn print_summary(r: &LongReport, clock_note: Option<&str>) {
         println!("  none named ({level}, held across the take's tests)");
     }
     for c in &r.amplitude.components {
-        line(c, format!("swing {} deg p-p", size_number(c.peak_to_peak)));
+        line(
+            c,
+            session::size_words(c.peak_to_peak, "deg"),
+            Some(c.explained * 100.0),
+        );
     }
 }
 
