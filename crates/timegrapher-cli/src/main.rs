@@ -1045,17 +1045,7 @@ fn measure_command(c: Command) -> Result<(), String> {
             json,
         } => calibres_cmd::resolve_for(&file, calibre.as_deref(), bph, lift, escape_teeth)
             .and_then(|r| {
-                let mut cfg = AnalysisConfig {
-                    bph: r.bph,
-                    bph_from: r.bph_from,
-                    escape_teeth: r.escape_teeth,
-                    lift_known: r.lift_known,
-                    ..Default::default()
-                };
-                cfg.amplitude.lift_deg = r.lift_deg;
-                cfg.amplitude.escapement = r.escapement;
-                cfg.envelope.notch_hz = notch;
-                cfg.envelope.highpass_hz = highpass;
+                let cfg = analysis_config(&r, notch, highpass);
                 let take = session_cmd::take_of(&file, bph, lift, calibre.clone());
                 clock_cmd::correction(&file, device.as_deref(), card_ppm).and_then(|c| {
                     run_analyze(
@@ -1089,15 +1079,8 @@ fn measure_command(c: Command) -> Result<(), String> {
             templates,
         } => {
             let r = calibres_cmd::resolve_for(&file, calibre.as_deref(), bph, lift, None)?;
-            let envelope = timegrapher_core::dsp::EnvelopeConfig {
-                notch_hz: notch,
-                highpass_hz: highpass,
-                ..Default::default()
-            };
             let o = shape_cmd::Options {
-                bph: r.bph,
-                envelope,
-                lift_deg: r.lift_deg,
+                cfg: analysis_config(&r, notch, highpass),
                 json,
                 templates: templates.as_deref(),
             };
@@ -1106,6 +1089,25 @@ fn measure_command(c: Command) -> Result<(), String> {
         c @ Command::Profile { .. } => profile_command(c),
         _ => unreachable!("run passes measure_command only Analyze, Shape, Profile"),
     }
+}
+
+/// What `analyze` reads a recording with, and `shape` and `profile` with
+/// it (#2104):
+/// the resolved beat rate, lift angle, escapement and escape wheel, and
+/// the envelope's notches and high-pass corner.
+fn analysis_config(r: &calibres_cmd::Resolved, notch: Vec<f64>, highpass: f64) -> AnalysisConfig {
+    let mut cfg = AnalysisConfig {
+        bph: r.bph,
+        bph_from: r.bph_from,
+        escape_teeth: r.escape_teeth,
+        lift_known: r.lift_known,
+        ..Default::default()
+    };
+    cfg.amplitude.lift_deg = r.lift_deg;
+    cfg.amplitude.escapement = r.escapement;
+    cfg.envelope.notch_hz = notch;
+    cfg.envelope.highpass_hz = highpass;
+    cfg
 }
 
 /// Profile: the sound of the Tick and of the Tock over a stretch.
@@ -1126,17 +1128,8 @@ fn profile_command(c: Command) -> Result<(), String> {
         unreachable!("measure_command passes profile_command only Profile")
     };
     let r = calibres_cmd::resolve_for(&file, calibre.as_deref(), bph, lift, None)?;
-    let mut cfg = AnalysisConfig {
-        bph: r.bph,
-        bph_from: r.bph_from,
-        ..Default::default()
-    };
-    cfg.amplitude.lift_deg = r.lift_deg;
-    cfg.amplitude.escapement = r.escapement;
-    cfg.envelope.notch_hz = notch;
-    cfg.envelope.highpass_hz = highpass;
     let o = profile_cmd::Options {
-        cfg,
+        cfg: analysis_config(&r, notch, highpass),
         at_s: at,
         span_s: span,
         json,

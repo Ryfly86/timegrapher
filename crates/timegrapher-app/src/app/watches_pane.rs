@@ -18,7 +18,7 @@ impl TimegrapherApp {
         }
         self.watches_view.watches_wide = wide;
         let scroll = |ui: &mut egui::Ui, id: &str, add: &mut dyn FnMut(&mut egui::Ui)| {
-            egui::ScrollArea::vertical()
+            crate::theme::scroll(egui::ScrollArea::vertical())
                 .id_salt(id)
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
@@ -1228,6 +1228,11 @@ impl TimegrapherApp {
             }
             _ => Vec::new(),
         };
+        // With no field added to any watch, Calibre is the only choice:
+        // no drop-down of one (#2342). The choice is kept for when one is.
+        if labels.is_empty() {
+            return;
+        }
         // A field no watch has any more shows as Calibre, the choice kept
         // for when one has it again.
         let mut shows = self.list_shows().map(str::to_string);

@@ -424,7 +424,7 @@ fn keep_analysis(dir: &Path, manifest: &str, frames: usize) -> Result<(), String
 
 /// `samples` with the USB bus's lines added, 3 to 10 kHz on true time,
 /// as a card `ppm` slow hears them ([`crate::usbclock`]).
-fn with_usb_lines(mut samples: Vec<f32>, ppm: f64) -> Vec<f32> {
+pub(crate) fn with_usb_lines(mut samples: Vec<f32>, ppm: f64) -> Vec<f32> {
     for k in 3..=10 {
         let f = 1000.0 * k as f64 * (1.0 + ppm * 1e-6);
         for (i, v) in samples.iter_mut().enumerate() {

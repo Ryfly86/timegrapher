@@ -117,11 +117,17 @@ JSON body:
 | `after` | The check repeated after applying (live only) |
 
 `check` fields: `sample_rate`, `duration_s`, `peak_dbfs`, `rms_dbfs`,
-`dc_offset`, `clipped_samples`, `bph`, `beats_expected`, `beats_found`,
+`dc_offset`, `clipped_samples`, `bph`, `beats_expected`, `beats_found`
+(peaks found: noise where `watch_heard` is false),
 `tick_level_dbfs`, `noise_level_dbfs`, `tick_to_noise_db`, `signal_x`
 (read it against the table in setup-and-microphone.md), `gap_rise_db`
 (background rise between ticks; several dB means automatic gain),
-`rate_s_per_day`, `beat_error_ms` (a few seconds only, uncalibrated),
+`watch_heard`, `rate_s_per_day` (card's clock) and
+`rate_corrected_s_per_day` (corrected where the recording's USB lines
+apply), `beat_error_ms` with `beat_error_source` (`unlock` or `drop`):
+`analyze`'s reading of the same sound, null where it gives none (no
+regular beat, or under 10 s not yet judged), `not_assessed` (why there
+are no figures though a watch is heard, else null),
 `suggested_gain_change_db` (negative: turn down), and `issues`:
 `[{ code, title, evidence }]` with `code` one of `silent`, `too_quiet`,
 `clipping`, `hot`, `agc_suspected`, `no_ticks` (`doctor/2`). What each
@@ -277,6 +283,13 @@ timegrapher shape FILE [--bph N] [--lift DEG] [--notch HZ,...] [--highpass HZ]
 
 `--templates` writes the averaged even and odd tick, `time_ms,even,odd`.
 How to read it: [tick-shape.md](tick-shape.md).
+
+`shape` reads the file as `analyze` does: the same beats, with the same
+sides, so `even` and `odd` are `analyze`'s Tick and Tock. The text's
+amplitude row is `analyze`'s amplitude of each side, read over its 2 s
+amplitude windows rather than from these templates, so the
+whole-recording columns give none. Under it are the caveats `analyze`
+gives that amplitude, in its words (such as a co-axial's estimate).
 
 JSON body: `even` and `odd` (one per side), `windows` (each 2 s window's
 `{ start_s, end_s, even, odd }` shapes), `template_start_ms`.
