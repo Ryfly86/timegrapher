@@ -663,6 +663,54 @@ fn the_positions_table_reads_again_every_second_in_the_background_while_listenin
     let _ = std::fs::remove_dir_all(&base);
 }
 
+/// New Test over a Quick Listen whose Positions Test table was being
+/// read again in the background: that read goes with the listening, so
+/// neither the test set up nor Cancel Test after it shows "Reading the
+/// take…" for a read that isn't happening (Shane, #2329).
+#[test]
+fn new_test_over_a_listen_leaves_no_table_being_read() {
+    let base = std::env::temp_dir().join(format!("tg-free-table-new-{}", std::process::id()));
+    std::fs::create_dir_all(&base).unwrap();
+    let mut app = synthetic(20.0, 0.0);
+    app.session.listen();
+    let feed = |app: &mut TimegrapherApp, s: f64| {
+        let cfg = SynthConfig {
+            duration_s: s,
+            ..Default::default()
+        };
+        let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+        let live = app.bench.recording.live.as_mut().unwrap();
+        for b in audio.samples.chunks(960) {
+            live.push(b);
+        }
+    };
+    feed(&mut app, 30.0);
+    let _tx = queued_capture(&mut app, &base);
+    app.bench.recording.quick_listen = true;
+    let ctx = egui::Context::default();
+    app.free_table(&ctx).expect("a table");
+    feed(&mut app, 2.0);
+    app.free_table(&ctx).expect("the table on show");
+    assert!(
+        app.bench.results.free_job.borrow().is_some(),
+        "the next one being read"
+    );
+    // New Test, its sound asked about and let go.
+    app.new_take(NewTake::Positions, true);
+    assert_eq!(app.ready_test(), Some(NewTake::Positions));
+    assert!(
+        !app.free_table_reading(),
+        "no read under way for the test set up"
+    );
+    assert!(
+        app.free_table_shown(&ctx).is_none(),
+        "nothing of the take before"
+    );
+    app.leave_ready_test();
+    assert!(!app.free_table_reading(), "nor after Cancel Test");
+    let _ = std::fs::remove_dir_all(&base);
+}
+
 #[test]
 fn the_guided_test_reads_the_position_under_way_as_it_is_measured() {
     let mut app = synthetic(20.0, 0.0);

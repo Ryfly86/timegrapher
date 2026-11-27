@@ -1454,6 +1454,7 @@ impl TimegrapherApp {
     /// Set a test up on the clear Bench: its pane shown, the Position
     /// card live, waiting for Start Test on the Listen card.
     fn get_ready(&mut self, kind: NewTake) {
+        self.note_bench_before();
         self.bench.test.test_ready = Some(kind);
         self.message = None;
         self.watches_view.view = View::Bench;
@@ -1481,6 +1482,10 @@ impl TimegrapherApp {
     /// picked or loaded for it goes too, so it isn't shown on the Bench
     /// after.
     pub(super) fn leave_ready_test(&mut self) {
+        // Set up only, never begun: the card goes back as it was.
+        if self.ready_test().is_some() {
+            self.bench_back(false);
+        }
         self.bench.test.test_ready = None;
         self.bench.test.guided_earlier = None;
         self.bench.test.guided_earlier_file = false;

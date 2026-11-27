@@ -19,10 +19,14 @@ Rate         +4.00 s/d over the run; 10 s slices from -19.1 to 8.1 s/d (5th-95th
 Beat error   0.40 ms (from the unlock; 0.40 ms from the drop)
 Amplitude    269 deg median; slices from 255 to 270 deg (lift angle 52°, the default)
 Periodic changes in rate (the rate itself, not 10 s readings):
-      60.00 s ±2.00   swing 37 s/d p-p       explains 100%  false alarm <1e-300  matches the fourth wheel (+0.0% off; a match is within ±2.0 s or 1%)
+  Shortest cycle searched: 3 s
+      59.99 s ±2.00   rate swing 37.02 s/d peak to peak   explains    –  false alarm under 0.0003, beyond the simulated range  matches the fourth wheel (0.0% off; a match is within the search's resolution, ±2.00 s)
+      12.07 s ±0.08   timing swing 0.010 ms peak to peak  explains    –  false alarm 3e-3
+  A rate cycle is found in the beat timing, which wanders as a walk, so a share of its variation says nothing about the cycle and none is given (–).
+  A rate cycle shorter than 30 s is sized as a timing swing in ms: a 10 s rate reading is too coarse to follow it.
 Periodic changes in amplitude:
-      20.01 s ±0.22   swing 0.28 deg p-p     explains  23%  false alarm <1e-300
-      60.03 s ±2.00   swing 11 deg p-p       explains  97%  false alarm <1e-300  matches the fourth wheel (+0.0% off; a match is within ±2.0 s or 1%)
+  Shortest cycle searched: 16 s
+      60.03 s ±2.00   11.5 deg peak to peak               explains 100%  false alarm under 0.0003, beyond the simulated range  matches the fourth wheel (0.0% off; a match is within the search's resolution, ±2.00 s)
 Report       syn_long/report.html
 ```
 
@@ -32,10 +36,14 @@ The amplitude is read in 2 s windows, so its search stops at 16 s (eight
 readings a cycle), and a cycle's score counts only its harmonics down to
 there, in sets of 1, 2, 4 or 8. The 60 s cycle's fourth harmonic, at
 15 s, is under that floor, so it scores on two (60 and 30 s), and its
-third harmonic, at 20 s, scored on its own, scores higher. The 20 s line
-is found and taken out first, and the 60 s cycle is read from what is
-left with its average cycle kept to two harmonics, so its swing reads low
-(11.4 against 15°).
+average cycle is kept to two harmonics, so its swing reads low (11.5
+against 15°). A rate line gives no share: it is found in the beat
+timing, a walk, so a share of its variation is no measure of the line
+(the `explained` field in `summary.json` stays). A rate cycle is sized
+as a timing swing in ms below 30 s and as a rate swing in s/d above, one
+place finer than the figure (0.001 ms, 0.01 s/d, 0.1°). A wheel's match
+rule is said as the wider of its two parts, the search's resolution or
+1% of the wheel's turn.
 
 The recording is read in 47 s chunks, so memory use does not grow with
 its length; a 30-minute file takes about 7 s on one core. Results go to a
