@@ -1,13 +1,14 @@
 //! A self-contained HTML report for a long run: inline SVG charts, no
 //! scripts or external files, light and dark themes.
 
-use crate::long::{duration, false_alarm, wheel_note};
+use crate::long::{duration, false_alarm};
 use std::fmt::Write;
 use timegrapher_core::clock;
 use timegrapher_core::library::fixed_text;
 use timegrapher_core::longrun::LongReport;
-use timegrapher_core::longterm::{false_alarm_text, Component, Search};
+use timegrapher_core::longterm::{self, false_alarm_text, Component, Search};
 use timegrapher_core::periodicity::Wheel;
+use timegrapher_core::session;
 use timegrapher_core::{chart_scale, period_ticks};
 
 const W: f64 = 760.0;
@@ -480,10 +481,37 @@ fn raster(c: &Component, kind: RasterKind, unit: &str) -> String {
     s
 }
 
+/// What a component's paragraph says before its false-alarm chance, and
+/// the wheel it matches ([`longterm::wheel_note`]).
+#[derive(Default)]
+struct Said {
+    /// The swing, and for amplitude its share; a rate line has none
+    /// (Norm on #2100).
+    lead: String,
+    wheel: String,
+}
+
+impl Said {
+    fn of(c: &Component, wheels: &[Wheel], swing: String, share: bool) -> Said {
+        let lead = if share {
+            format!(
+                "{swing}; explains {}% of the detrended variation",
+                fixed_text(c.explained * 100.0, 0)
+            )
+        } else {
+            swing
+        };
+        Said {
+            lead,
+            wheel: longterm::wheel_note(c, wheels),
+        }
+    }
+}
+
 fn component(
     c: &Component,
     kind: &str,
-    swing: String,
+    said: Said,
     shape: &[f64],
     points: Option<&[f64]>,
     unit: &str,
@@ -524,14 +552,14 @@ fn component(
     let rows = c.fold.raster.len();
     format!(
         r#"<div class="component"><h3>{kind}: {} s cycle</h3>
-<p>{swing}; explains {}% of the detrended variation; false-alarm chance {}; period known to ±{} s. {}.</p>
+<p>{}; false-alarm chance {}; period known to ±{} s. {}.</p>
 <h4>One cycle, averaged over {rows} cycles</h4>{}
 {}</div>"#,
         fixed_text(c.period_s, 2),
-        fixed_text(c.explained * 100.0, 0),
+        esc(&said.lead),
         false_alarm_text(c.significance, c.beyond_simulated, false_alarm),
         fixed_text(c.resolution_s, 2),
-        esc(&capitalise(&wheel_note(c))),
+        esc(&capitalise(&said.wheel)),
         chart(&xa, &ya, "seconds into the cycle", unit, &lines, &[], None),
         raster(c, raster_kind, unit)
     )
@@ -673,16 +701,18 @@ fn rate_cycles(body: &mut String, r: &LongReport, wheels: &[Wheel]) {
         );
     }
     for c in &r.rate_components {
+        let (size, unit) = c.size();
+        let said = |swing: String| Said::of(&c.component, wheels, swing, false);
         // A cycle too short for a rate reading is drawn as timing, in ms.
-        if c.size().1 == "ms" {
+        if unit == "ms" {
             let ms = |v: &[f64]| v.iter().map(|x| x * 1000.0).collect::<Vec<_>>();
             body.push_str(&component(
                 &c.component,
                 "Timing",
-                format!(
-                    "Beats run early and late by {} ms peak to peak over each turn",
-                    fixed_text(c.timing_swing_ms, 3)
-                ),
+                said(format!(
+                    "Beats run early and late by {} peak to peak over each turn",
+                    session::size_text(size, unit)
+                )),
                 &ms(&c.component.shape),
                 Some(&ms(&c.component.fold.profile)),
                 "ms",
@@ -693,15 +723,23 @@ fn rate_cycles(body: &mut String, r: &LongReport, wheels: &[Wheel]) {
         body.push_str(&component(
             &c.component,
             "Rate",
-            format!(
-                "The rate itself swings {} s/d peak to peak (10 s rate readings show less)",
-                fixed_text(c.rate_swing_s_per_day, 1)
-            ),
+            said(format!(
+                "The rate itself swings {} peak to peak (10 s rate readings show less)",
+                session::size_text(size, unit)
+            )),
             &c.rate_shape,
             None,
             "s/d",
             RasterKind::Rate,
         ));
+    }
+    // Said once, not on each line (Norm on #2100).
+    let notes = [
+        (!r.rate_components.is_empty()).then(|| session::RATE_SHARE_WHY.to_string()),
+        session::long_timing_swing_note(r),
+    ];
+    for n in notes.into_iter().flatten() {
+        let _ = write!(body, r#"<p class="note">{}</p>"#, esc(&n));
     }
 }
 
@@ -722,9 +760,14 @@ fn amplitude_cycles(body: &mut String, r: &LongReport, wheels: &[Wheel]) {
         body.push_str(&component(
             c,
             "Amplitude",
-            format!(
-                "Amplitude swings {} deg peak to peak",
-                fixed_text(c.peak_to_peak, 1)
+            Said::of(
+                c,
+                wheels,
+                format!(
+                    "Amplitude swings {} peak to peak",
+                    session::size_text(c.peak_to_peak, "deg")
+                ),
+                true,
             ),
             &c.shape,
             Some(&c.fold.profile),
@@ -981,7 +1024,7 @@ mod tests {
         let page = component(
             &c,
             "Rate",
-            String::new(),
+            Said::default(),
             &c.shape,
             None,
             "s/d",
@@ -1066,7 +1109,7 @@ mod tests {
         let svg = component(
             &c,
             "amplitude",
-            String::new(),
+            Said::default(),
             &c.shape,
             Some(&points),
             "deg",
