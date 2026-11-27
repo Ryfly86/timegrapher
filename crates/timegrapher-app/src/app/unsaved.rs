@@ -209,6 +209,36 @@ impl TimegrapherApp {
         // note says them again (Hugh on #2393).
         self.bench.keeping.open_note = None;
     }
+
+    /// The positions of sound never saved that was moved as it recorded,
+    /// from the moves its own `session.json` noted, read as a saved take's
+    /// are ([`RecordedSetup::stretches`], #2397): each its own stretch,
+    /// settled for the Settle set now, as saving it would have.
+    /// Nothing while it stayed in one position, or with no such file; the
+    /// position it started in is the file's, else its folder's name.
+    /// `length_s` is the sound's whole length, where known.
+    pub(super) fn recorded_positions(
+        &self,
+        path: &Path,
+        length_s: Option<f64>,
+    ) -> (Stretches, Vec<(f64, f64)>) {
+        let Some(r) = timegrapher_core::recorder::recorded_setup(path) else {
+            return Default::default();
+        };
+        let first = r
+            .first_position
+            .clone()
+            .or_else(|| position_in_name(path).map(|p| p.code().to_string()));
+        let entries = first.map_or_else(Vec::new, |f| {
+            r.stretches(
+                &f,
+                self.session.settle_len(),
+                length_s.unwrap_or(f64::INFINITY),
+            )
+        });
+        let m = timegrapher_core::session::Manifest::default();
+        super::take_io::manifest_positions(&m, &entries, length_s, None)
+    }
 }
 
 /// What was left in `scratch` from earlier sessions, oldest first: sound,

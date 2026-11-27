@@ -1777,7 +1777,10 @@ impl TimegrapherApp {
                 self.watch_fills_in(path, &m);
                 out
             }
-            None => Default::default(),
+            None => {
+                let length = info.frames.map(|f| f as f64 / f64::from(info.sample_rate));
+                self.recorded_positions(path, length)
+            }
         };
         // Read again for a new beat rate: the settings as they were, not
         // as the take saved them.

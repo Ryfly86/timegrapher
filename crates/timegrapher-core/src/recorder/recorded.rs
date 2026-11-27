@@ -5,7 +5,12 @@
 use super::*;
 use crate::escapement::Escapement;
 use crate::input_domain;
+use crate::session::{self, RecordingEntry};
 use serde::Deserialize;
+
+/// The start of the text of a note [`Recorder::note`] keeps for a move
+/// of the watch, followed by the position's code ("position DD").
+pub const MOVED_TO: &str = "position ";
 
 /// The watch settings [`SessionInfo`] wrote into `session.json` as the
 /// recording went, each left out when the file's value can't stand.
@@ -31,6 +36,118 @@ pub struct RecordedSetup {
     /// The take's own escapement, as [`SessionInfo::escapement`] wrote it;
     /// `None` for none, or a value Timegrapher doesn't read for.
     pub escapement: Option<Escapement>,
+    /// The position it started in, as written; `None` for a file older
+    /// than #2397, which wrote none.
+    pub first_position: Option<String>,
+    /// Each move of the watch noted as it recorded ([`MOVED_TO`]), oldest
+    /// first: the second of sound it was moved at and the position's code
+    /// as written, a code that names no position left out.
+    pub moves: Vec<(f64, String)>,
+}
+
+/// A move of the watch as a take records: the session's own second it was
+/// made at (pauses counted), the second of sound it was made at (pauses
+/// left out), and the position it was moved to.
+pub type Moved<P> = (f64, f64, P);
+
+/// A saved take's stretch, in its sound's seconds: the start of what is
+/// read, its end, and the position; neither time while there is one.
+pub type SavedRange<P> = (Option<f64>, Option<f64>, P);
+
+/// The stretches a take saves (#2397), started in `first` and moved by
+/// `moves`, oldest first, the watch settling `settle_s` after each, in a
+/// sound `length_s` long: the one rule for the app's live take and for
+/// sound never saved, read back from its `session.json`. A move at or
+/// before the second of sound of the one before replaces it, and a move to
+/// where the watch already is, is none. The first stretch reads from the
+/// start, as no move settles it, unless it is the watch being handled
+/// ([`take::handled`]): then it starts where it ends. Each later one
+/// starts at `settled(at_s, until_s)`, the second of sound its settling
+/// ended (`until_s` the next move's session second, infinite for none),
+/// and no later than its end, so one moved on before it settled reads
+/// nothing.
+pub fn saved_ranges<P: Clone + PartialEq>(
+    first: P,
+    moves: impl IntoIterator<Item = Moved<P>>,
+    settle_s: f64,
+    length_s: f64,
+    mut settled: impl FnMut(f64, f64) -> f64,
+) -> Vec<SavedRange<P>> {
+    let mut kept: Vec<Moved<P>> = vec![(0.0, 0.0, first)];
+    for (at, audio, p) in moves {
+        if kept.last().is_some_and(|s| s.1 >= audio) {
+            kept.pop();
+        }
+        if kept.last().is_none_or(|s| s.2 != p) {
+            kept.push((at, audio, p));
+        }
+    }
+    let one = kept.len() == 1;
+    (0..kept.len())
+        .map(|i| {
+            let (at, audio, p) = &kept[i];
+            let next = kept.get(i + 1);
+            let end = next.map(|s| s.1);
+            let start = match (i, next) {
+                (0, Some(n)) if take::handled(true, n.0 - at, settle_s) => n.1,
+                (0, _) => *audio,
+                _ => settled(*at, next.map_or(f64::INFINITY, |s| s.0)),
+            }
+            .min(end.unwrap_or(length_s));
+            ((!one).then_some(start), end, p.clone())
+        })
+        .collect()
+}
+
+/// A position's code as written, the same as another that names the same
+/// position.
+#[derive(Clone)]
+struct Code<'a>(&'a str);
+
+impl PartialEq for Code<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        session::Position::parse(self.0) == session::Position::parse(other.0)
+    }
+}
+
+impl RecordedSetup {
+    /// The take's positions as the entries the app's saved session file
+    /// would have listed (#2397): [`saved_ranges`], started in `first`,
+    /// settling `settle_s` after each noted move, in a sound `length_s`
+    /// long (infinite where not known), one entry per stretch (file `"."`)
+    /// with `settle_s = 0` so that nothing is skipped twice. Empty while
+    /// the watch stayed in one position.
+    pub fn stretches(&self, first: &str, settle_s: f64, length_s: f64) -> Vec<RecordingEntry> {
+        if session::Position::parse(first).is_none() {
+            return Vec::new();
+        }
+        // No pause is noted, so a move's session second is its sound's.
+        let moves = self.moves.iter().map(|(s, c)| (*s, *s, Code(c)));
+        let ranges = saved_ranges(Code(first), moves, settle_s, length_s, |at, _| {
+            at + settle_s
+        });
+        if ranges.len() < 2 {
+            return Vec::new();
+        }
+        ranges
+            .into_iter()
+            .map(|(start_s, end_s, code)| RecordingEntry {
+                file: ".".into(),
+                position: Some(code.0.to_string()),
+                start_s,
+                end_s,
+                settle_s: Some(0.0),
+                ..Default::default()
+            })
+            .collect()
+    }
+}
+
+/// A note as [`Recorder::note`] wrote it, read loosely.
+#[derive(Deserialize)]
+struct WrittenNote {
+    audio_s: f64,
+    text: String,
 }
 
 #[derive(Deserialize)]
@@ -51,6 +168,10 @@ struct Written {
     calibre: serde_json::Value,
     #[serde(default)]
     escapement: serde_json::Value,
+    first_position: Option<String>,
+    /// Kept loose, as `calibre` is: a note that can't stand is left out.
+    #[serde(default)]
+    notes: Vec<serde_json::Value>,
 }
 
 /// A key that is there, null or not.
@@ -79,6 +200,15 @@ pub fn recorded_setup(dir: &Path) -> Option<RecordedSetup> {
             .filter(|c| !c.trim().is_empty())
             .map(String::from),
         escapement: serde_json::from_value(w.escapement).ok().flatten(),
+        first_position: w.first_position.filter(|p| !p.trim().is_empty()),
+        moves: w
+            .notes
+            .into_iter()
+            .filter_map(|n| serde_json::from_value::<WrittenNote>(n).ok())
+            .filter(|n| n.audio_s.is_finite())
+            .filter_map(|n| Some((n.audio_s, n.text.strip_prefix(MOVED_TO)?.to_string())))
+            .filter(|(_, code)| session::Position::parse(code).is_some())
+            .collect(),
     })
 }
 
@@ -121,6 +251,8 @@ mod tests {
                 on_auto: false,
                 calibre: Some("Omega 8500".into()),
                 escapement: Some(Escapement::SwissLever),
+                first_position: Some("CL".into()),
+                moves: Vec::new(),
             }
         );
         drop(r);
@@ -201,5 +333,164 @@ mod tests {
             assert_eq!(read(&s), (None, None, Some("DU".into())), "{s}");
         }
         let _ = fs::remove_dir_all(&d);
+    }
+
+    fn second(r: &mut Recorder) {
+        let block = crate::capture::Block {
+            samples: vec![0.0; 8000],
+            at: std::time::SystemTime::now(),
+        };
+        r.write(&block).unwrap();
+    }
+
+    /// Each move noted as it recorded reads back at its second, and the
+    /// position it started in with it; other notes, and a move to a code
+    /// that names no position, are left out (#2397).
+    #[test]
+    fn a_recorders_moves_read_back_with_where_it_started() {
+        let parent = dir("moves");
+        let info = SessionInfo {
+            watch: String::new(),
+            position: "DU".into(),
+            lift_deg: 52.0,
+            bph: None,
+            device: "test".into(),
+            sample_rate: 8000,
+            bits: 16,
+            software: "test".into(),
+            calibre: String::new(),
+            escapement: None,
+        };
+        let mut r = Recorder::start(&parent, info.clone()).unwrap();
+        for _ in 0..30 {
+            second(&mut r);
+        }
+        r.note(&format!("{MOVED_TO}DD")).unwrap();
+        r.set_info(SessionInfo {
+            position: "DD".into(),
+            ..info
+        })
+        .unwrap();
+        for _ in 0..30 {
+            second(&mut r);
+        }
+        r.note("turned to CU").unwrap();
+        r.note(&format!("{MOVED_TO}XX")).unwrap();
+        r.note(&format!("{MOVED_TO}1H30")).unwrap();
+        let got = recorded_setup(r.dir()).unwrap();
+        assert_eq!(got.position.as_deref(), Some("DD"));
+        assert_eq!(got.first_position.as_deref(), Some("DU"));
+        assert_eq!(
+            got.moves,
+            [(30.0, "DD".to_string()), (60.0, "1H30".to_string())]
+        );
+        drop(r);
+        let _ = fs::remove_dir_all(&parent);
+        // A file older than #2397 names no first position; a note that
+        // can't stand is left out on its own.
+        let d = dir("old-notes");
+        let notes = r#"[{"audio_s":"x","text":"position DD"},{"audio_s":5.0,"text":7},
+            {"audio_s":9.0,"text":"position CU"}]"#;
+        let s = format!(r#"{{"position":"CU","lift_deg":52.0,"notes":{notes}}}"#);
+        fs::write(d.join(take::RECORD), s).unwrap();
+        let got = recorded_setup(&d).unwrap();
+        assert_eq!(got.first_position, None);
+        assert_eq!(got.moves, [(9.0, "CU".to_string())]);
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    fn moved(moves: &[(f64, &str)]) -> RecordedSetup {
+        RecordedSetup {
+            watch: String::new(),
+            position: None,
+            lift_deg: None,
+            bph: None,
+            on_auto: false,
+            calibre: None,
+            escapement: None,
+            first_position: None,
+            moves: moves.iter().map(|&(s, c)| (s, c.to_string())).collect(),
+        }
+    }
+
+    /// What `stretches` lists: (position, start, end), every entry file
+    /// "." with `settle_s = 0`, as the app saves a take.
+    fn listed(r: &RecordedSetup, first: &str, length_s: f64) -> Vec<(String, f64, Option<f64>)> {
+        r.stretches(first, 20.0, length_s)
+            .into_iter()
+            .map(|e| {
+                assert_eq!((e.file.as_str(), e.settle_s), (".", Some(0.0)));
+                (e.position.unwrap(), e.start_s.unwrap(), e.end_s)
+            })
+            .collect()
+    }
+
+    /// The stretches of a take moved as it recorded are the entries the
+    /// app's saved session file lists: the first from the start, each
+    /// later one once it settled, to the next move; a move back at the
+    /// same second undoes one, and a move to where it is is none (#2397).
+    #[test]
+    fn a_moved_takes_stretches_are_its_saved_entries() {
+        let s = |p: &str| p.to_string();
+        let r = moved(&[(30.0, "DD"), (60.0, "CU"), (60.0, "DD"), (90.0, "CL")]);
+        assert_eq!(
+            listed(&r, "DU", 200.0),
+            [
+                (s("DU"), 0.0, Some(30.0)),
+                (s("DD"), 50.0, Some(90.0)),
+                (s("CL"), 110.0, None)
+            ]
+        );
+        let r = moved(&[(30.0, "DD"), (60.0, "DD"), (90.0, "CU")]);
+        assert_eq!(
+            listed(&r, "DU", 200.0),
+            [
+                (s("DU"), 0.0, Some(30.0)),
+                (s("DD"), 50.0, Some(90.0)),
+                (s("CU"), 110.0, None)
+            ]
+        );
+        // Moved on before it settled: it reads nothing. The last settling
+        // past the sound's end reads nothing too.
+        let r = moved(&[(30.0, "DD"), (45.0, "CU")]);
+        assert_eq!(
+            listed(&r, "DU", 50.0),
+            [
+                (s("DU"), 0.0, Some(30.0)),
+                (s("DD"), 45.0, Some(45.0)),
+                (s("CU"), 50.0, None)
+            ]
+        );
+        // An opening stretch no longer than the settle is the watch being
+        // handled (take::handled): it reads nothing.
+        for (at, opening) in [(20.0, 20.0), (21.0, 0.0)] {
+            let r = moved(&[(at, "DD")]);
+            assert_eq!(listed(&r, "DU", 200.0)[0], (s("DU"), opening, Some(at)));
+        }
+        // Never moved, or moved only to where it was: one stretch, the
+        // take read whole as before.
+        assert!(moved(&[]).stretches("DU", 20.0, 200.0).is_empty());
+        assert!(moved(&[(30.0, "DU")])
+            .stretches("DU", 20.0, 200.0)
+            .is_empty());
+        assert!(moved(&[(30.0, "DD")])
+            .stretches("XX", 20.0, 200.0)
+            .is_empty());
+    }
+
+    /// Read as a saved take's entries are, the stretches give the changes
+    /// of position and the settling after each (#2397).
+    #[test]
+    fn a_moved_takes_stretches_read_as_a_saved_takes() {
+        use crate::session::{Manifest, Position};
+        let r = moved(&[(30.0, "DD"), (90.0, "CU")]);
+        let entries = r.stretches("DU", 20.0, 200.0);
+        let listed = take::listed_positions(&Manifest::default(), &entries, 200.0);
+        let (changes, settles) = take::positions_of(listed.into_iter());
+        let du = Position::parse("DU").unwrap();
+        let dd = Position::parse("DD").unwrap();
+        let cu = Position::parse("CU").unwrap();
+        assert_eq!(changes, [(0.0, du), (30.0, dd), (90.0, cu)]);
+        assert_eq!(settles, [(30.0, 50.0), (90.0, 110.0)]);
     }
 }
