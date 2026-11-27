@@ -581,3 +581,32 @@ fn scope_read(app: &mut TimegrapherApp, lo: f64, hi: f64) -> Option<(f64, f64, c
 fn block_at(sp: &crate::span::Span, t: f64) -> f32 {
     sp.mono[((t - sp.t0) * sp.rate).round() as usize]
 }
+
+/// An input refused as faster than real time stops listening, and the
+/// refusal stays on show: a take too short to read whole after the stop
+/// goes to the log, never over why listening stopped (#2379).
+#[test]
+fn a_fast_input_refusal_stays_on_show_after_the_stop_read() {
+    let (mut app, base) = save_failure_fixture("fast-input");
+    let tx = queued_capture(&mut app, &base);
+    for k in 0..100u64 {
+        tx.send(block(2000 + 20 * k)).unwrap();
+    }
+    tx.send(Event::Error(capture::FAST_TEXT.into())).unwrap();
+    while app.poll_for(Duration::from_secs(60)) > 0 {}
+    assert!(app.bench.recording.capture.is_none(), "listening stopped");
+    if app.stop_read_waits().is_some() {
+        app.break_stop_read();
+    }
+    app.poll_stop_read();
+    let message = app.message.clone();
+    drop(app);
+    drop(tx);
+    let _ = std::fs::remove_dir_all(base);
+    let (m, is_error) = message.expect("a message is on show");
+    assert!(is_error);
+    assert!(
+        m.starts_with("Input stopped. This input sends sound faster than real time"),
+        "{m}"
+    );
+}
