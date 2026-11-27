@@ -3,6 +3,7 @@
 
 use super::tests::{frames, queued_capture, synthetic, themed, SETTLE_S};
 use super::*;
+use std::time::Instant;
 use timegrapher_core::synth::{generate, SynthConfig};
 use timegrapher_core::text_report;
 
@@ -1698,4 +1699,233 @@ fn save_on_new_tests_question_waits_for_the_folder() {
     assert!(app.running() && app.session.recorder.is_some());
     assert_eq!(app.ready_test(), None);
     let _ = std::fs::remove_dir_all(&base);
+}
+
+/// A position measured on Auto keeps the beat rate it was measured at
+/// (#2375): another watch heard at 21600 bph while the test waits to be
+/// turned, time the strip marks Not Used, changes neither the Copy's
+/// Beat Rate line nor, after Stop, the row's rate read at 28800 bph.
+#[test]
+fn a_measured_position_keeps_the_beat_rate_it_was_measured_at() {
+    let mut app = synthetic(5.0, 0.0);
+    assert_eq!(app.bench.take.bph, None, "on Auto");
+    let start = app.bench.recording.live.as_ref().unwrap().duration_s();
+    let mut test = guided::Test::new().timed(2.0, 20.0);
+    test.tick(start);
+    app.bench.test.guided = Some(test);
+    let ctx = egui::Context::default();
+    let feed = |app: &mut TimegrapherApp, bph: u32, rate: f64, secs: f64| {
+        let audio = generate(
+            &SynthConfig {
+                duration_s: secs,
+                bph,
+                rate_s_per_day: rate,
+                ..Default::default()
+            },
+            |_| 280.0,
+            |_| 0.0,
+        );
+        for b in audio.samples.chunks(48_000) {
+            let live = app.bench.recording.live.as_mut().unwrap();
+            for s in b.chunks(960) {
+                live.push(s);
+            }
+            app.guided_tick(&ctx);
+        }
+    };
+    // Dial Up at +30 s/d, 28800 bph, measured and read.
+    feed(&mut app, 28_800, 30.0, 25.0);
+    let du =
+        |app: &TimegrapherApp| app.bench.test.guided.as_ref().unwrap().readings_so_far()[0].clone();
+    assert_eq!(du(&app).bph, 28_800);
+    let rate_of =
+        |r: &timegrapher_core::session::Reading| r.measurement.rate_s_per_day.expect("a rate");
+    let read_at = rate_of(&du(&app));
+    assert!((read_at - 30.0).abs() < 5.0, "{read_at}");
+    let copied = |app: &TimegrapherApp| {
+        guided::export_text(
+            app.bench.test.guided.as_ref().unwrap(),
+            &app.guided_about(),
+            '\t',
+        )
+    };
+    let text = copied(&app);
+    assert!(text.contains("28800"), "{text}");
+    // Before Dial Down is started, a 21600 bph watch on the stand.
+    feed(&mut app, 21_600, 0.0, 40.0);
+    assert_eq!(
+        app.bench.recording.live.as_ref().and_then(|l| l.bph()),
+        Some(21_600),
+        "Auto heard the other watch"
+    );
+    let text = copied(&app);
+    assert!(!text.contains("21600"), "{text}");
+    assert!(text.contains("28800"), "{text}");
+    // Stopped: the row is read at the rate it was measured at.
+    app.stop_test();
+    let test = app.bench.test.guided.as_ref().unwrap();
+    assert!(test.readings.is_some(), "finished");
+    let row = &test.readings_so_far()[0];
+    assert_eq!(row.bph, 28_800);
+    let stopped = rate_of(row);
+    assert!((stopped - 30.0).abs() < 5.0, "{stopped}");
+    let text = copied(&app);
+    assert!(!text.contains("21600"), "{text}");
+    // A stretch of the other watch masked: read again, still at 28800.
+    app.mask(40.0, 45.0);
+    let row = &app.bench.test.guided.as_ref().unwrap().readings_so_far()[0];
+    assert_eq!(row.bph, 28_800, "read again after a mask");
+    let masked = rate_of(row);
+    assert!((masked - 30.0).abs() < 5.0, "{masked}");
+}
+
+/// [`a_measured_position_keeps_the_beat_rate_it_was_measured_at`] kept
+/// (Walter 62 on #2447): Stop, then saved. The take's session file names
+/// the rate Dial Up was measured at, so its read again from the saved
+/// sound, a mask after it, and its saved results all keep 28800 bph,
+/// though the stand was heard at 21600 at Stop.
+#[test]
+fn a_kept_test_keeps_the_beat_rate_its_position_was_measured_at() {
+    let base = std::env::temp_dir().join(format!("tg-app-2375-kept-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let mut app = synthetic(0.0, 0.0);
+    assert_eq!(app.bench.take.bph, None, "on Auto");
+    app.session.listen();
+    app.session.recorder =
+        Some(Recorder::start(&base.join("live"), app.info("test", 48000, 16)).unwrap());
+    let tx = queued_capture(&mut app, &base);
+    app.bench.test.guided = Some(guided::Test::new().timed(2.0, 20.0));
+    app.bench.test.guided_measure_s = 20.0;
+    app.session.set_settle_s(2.0);
+    app.session.set_state(session::State::Listening);
+    let ctx = egui::Context::default();
+    let mut frames = 0u64;
+    let mut feed = |app: &mut TimegrapherApp, bph: u32, rate: f64, secs: f64| {
+        let audio = generate(
+            &SynthConfig {
+                duration_s: secs,
+                bph,
+                rate_s_per_day: rate,
+                ..Default::default()
+            },
+            |_| 280.0,
+            |_| 0.0,
+        );
+        for s in audio.samples.chunks(48_000) {
+            frames += s.len() as u64;
+            let at = std::time::Duration::from_nanos(frames * 62_500 / 3);
+            tx.send(Event::Audio(timegrapher_core::capture::Block {
+                samples: s.to_vec(),
+                at: std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000) + at,
+            }))
+            .unwrap();
+            let want = frames as f64 / 48_000.0;
+            let t = Instant::now();
+            while app.bench.recording.live.as_ref().unwrap().duration_s() < want - 1e-6
+                && t.elapsed().as_secs() < 30
+            {
+                app.poll();
+            }
+            app.guided_tick(&ctx);
+        }
+    };
+    feed(&mut app, 28_800, 30.0, 25.0);
+    feed(&mut app, 21_600, 0.0, 40.0);
+    assert_eq!(
+        app.bench.recording.live.as_ref().and_then(|l| l.bph()),
+        Some(21_600),
+        "Auto heard the other watch"
+    );
+    app.stop_test();
+    drop(tx);
+    app.save_into(&base.join("saved"));
+    app.wait_for_save();
+    let t = Instant::now();
+    while app.bench.results.bg.test_read.is_some() && t.elapsed().as_secs() < 300 {
+        app.poll();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let rate_of =
+        |r: &timegrapher_core::session::Reading| r.measurement.rate_s_per_day.expect("a rate");
+    let du =
+        |app: &TimegrapherApp| app.bench.test.guided.as_ref().unwrap().readings_so_far()[0].clone();
+    let test = app.bench.test.guided.as_ref().unwrap();
+    assert_eq!(test.saved_read, guided::SavedRead::Read, "read again");
+    let row = du(&app);
+    assert_eq!(row.bph, 28_800, "read again from the saved take");
+    assert!((rate_of(&row) - 30.0).abs() < 5.0, "{}", rate_of(&row));
+    let dir = app.session.saved_to().expect("saved").to_path_buf();
+    let (m, _) = read_manifest(&dir).unwrap().unwrap();
+    assert_eq!(m.bph, Some(28_800), "the session file's rate");
+    let on_disk: guided::FullWind =
+        serde_json::from_str(&std::fs::read_to_string(dir.join(guided::RESULTS_FILE)).unwrap())
+            .unwrap();
+    assert_eq!(on_disk.bph, Some(28_800), "the saved results' rate");
+    // A mask after the save reads Dial Up again at the same rate.
+    app.mask(40.0, 45.0);
+    let row = du(&app);
+    assert_eq!(row.bph, 28_800, "read again after a mask");
+    assert!((rate_of(&row) - 30.0).abs() < 5.0, "{}", rate_of(&row));
+    let text = guided::export_text(
+        app.bench.test.guided.as_ref().unwrap(),
+        &app.guided_about(),
+        '\t',
+    );
+    assert!(text.contains("28800") && !text.contains("21600"), "{text}");
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// A position measured while Auto hears another rate is read as it is
+/// measured at the test's rate, as Stop reads it (Vernon 62 on #2447):
+/// Dial Up at 28800 bph, then Dial Down with a 21600 bph watch on the
+/// stand. Its running row and its row after Stop agree. That row is not
+/// a reading of this watch; #2448 has it give no figures.
+#[test]
+fn a_position_heard_at_another_rate_reads_as_stop_reads_it() {
+    let mut app = synthetic(5.0, 0.0);
+    assert_eq!(app.bench.take.bph, None, "on Auto");
+    let start = app.bench.recording.live.as_ref().unwrap().duration_s();
+    let mut test = guided::Test::new().timed(2.0, 20.0);
+    test.tick(start);
+    app.bench.test.guided = Some(test);
+    let ctx = egui::Context::default();
+    let feed = |app: &mut TimegrapherApp, bph: u32, secs: f64| {
+        let audio = generate(
+            &SynthConfig {
+                duration_s: secs,
+                bph,
+                rate_s_per_day: 30.0,
+                ..Default::default()
+            },
+            |_| 280.0,
+            |_| 0.0,
+        );
+        for b in audio.samples.chunks(48_000) {
+            let live = app.bench.recording.live.as_mut().unwrap();
+            for s in b.chunks(960) {
+                live.push(s);
+            }
+            app.guided_tick(&ctx);
+        }
+    };
+    feed(&mut app, 28_800, 25.0);
+    let now = app.bench.recording.live.as_ref().unwrap().duration_s();
+    app.apply_guided_action(guided::Action::Next, now);
+    feed(&mut app, 21_600, 25.0);
+    assert_eq!(
+        app.bench.recording.live.as_ref().and_then(|l| l.bph()),
+        Some(21_600),
+        "Auto heard the other watch"
+    );
+    let rows = |app: &TimegrapherApp| -> Vec<u32> {
+        let test = app.bench.test.guided.as_ref().unwrap();
+        test.readings_so_far().iter().map(|r| r.bph).collect()
+    };
+    let running = rows(&app);
+    assert_eq!(running.len(), 2, "Dial Down read as it was measured");
+    app.stop_test();
+    assert!(app.bench.test.guided.as_ref().unwrap().readings.is_some());
+    assert_eq!(rows(&app), running, "Stop reads each row as it ran");
+    assert_eq!(running, [28_800, 28_800], "the test's one rate");
 }

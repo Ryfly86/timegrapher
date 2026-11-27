@@ -1322,11 +1322,9 @@ impl TimegrapherApp {
             watch: (!self.bench.take.watch.trim().is_empty())
                 .then(|| self.bench.take.watch.trim().to_string()),
             calibre: (!self.bench.take.calibre.is_empty()).then(|| self.bench.take.calibre.clone()),
-            bph: self
-                .bench
-                .take
-                .bph
-                .or(self.bench.recording.live.as_ref().and_then(|l| l.bph())),
+            // On Auto, a guided test's take names the rate its positions
+            // were measured at, not the one heard at the save (#2375).
+            bph: self.bench.take.bph.or_else(|| self.guided_bph()),
             lift: Some(self.bench.take.lift_deg),
             lift_known: Some(self.lift_known()),
             escapement: self.bench.take.escapement_set,
