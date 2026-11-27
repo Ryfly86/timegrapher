@@ -1025,8 +1025,18 @@ fn run(c: Command) -> Result<(), String> {
     }
 }
 
-/// Analyze, shape and profile: the commands that read one recording.
-fn measure_command(c: Command) -> Result<(), String> {
+/// Analyze, shape and profile: the commands that read one recording. A
+/// take folder of one recording is read as that file from the start, so
+/// its session file's calibre, lift and beat rate, its `take` and its
+/// clock are found as for the file (#2092).
+fn measure_command(mut c: Command) -> Result<(), String> {
+    if let Command::Analyze { file, .. }
+    | Command::Shape { file, .. }
+    | Command::Profile { file, .. } = &mut c
+    {
+        *file = timegrapher_core::audio::recording(file)
+            .map_err(|e| format!("{}: {e}", file.display()))?;
+    }
     match c {
         Command::Analyze {
             file,
