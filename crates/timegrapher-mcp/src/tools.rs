@@ -303,7 +303,8 @@ pub const TOOLS: &[ToolSpec] = &[
         description: "The sound of the Tick and the Tock over a stretch of a recording, with \
             the unlock, drop and sound marks the engine measured on them: the place to look \
             when amplitude or beat error seem wrong. In the JSON, `a` is the Tick (even \
-            beats) and `b` the Tock (odd beats).",
+            beats) and `b` the Tock (odd beats); each side's `median`, `p10` and `p90` \
+            curves go to the charts only, unless `curves` is true.",
         command: &["profile"],
         params: &[
             RECORDING,
@@ -324,6 +325,15 @@ pub const TOOLS: &[ToolSpec] = &[
             CALIBRE_READING,
             BPH,
             LIFT_OR_CALIBRE,
+            p(
+                CURVES,
+                Kind::Switch,
+                Arg::Server,
+                false,
+                "true for each side's `median`, `p10` and `p90` curves in the result as \
+                 well, one value per step (left out if not given: the charts draw them, \
+                 and each side's marks are given).",
+            ),
         ],
         charts: true,
         read_only: true,
@@ -334,10 +344,25 @@ pub const TOOLS: &[ToolSpec] = &[
         name: "beat_shape",
         title: "Beat Shape",
         description: "The three sounds of each side's beat (unlock, impulse, drop): their \
-            timing and level for the Tick (even beats) and the Tock (odd beats), the \
-            evidence for escapement faults.",
+            timing and level for the Tick (even beats) and the Tock (odd beats) over the \
+            whole recording, the evidence for escapement faults; with `windows`, every 2 s \
+            window's too.",
         command: &["shape"],
-        params: &[RECORDING, CALIBRE_READING, BPH, LIFT_OR_CALIBRE],
+        params: &[
+            RECORDING,
+            CALIBRE_READING,
+            BPH,
+            LIFT_OR_CALIBRE,
+            p(
+                WINDOWS,
+                Kind::Switch,
+                Arg::Server,
+                false,
+                "true for every 2 s window's figures as well, a few hundred kB on a \
+                 10 min recording (left out if not given: each side's figures over \
+                 the whole recording are given).",
+            ),
+        ],
         charts: false,
         read_only: true,
         idempotent: true,
@@ -372,9 +397,12 @@ pub const TOOLS: &[ToolSpec] = &[
         title: "Look Up a Calibre",
         description: "The calibre table: each movement's beat rate, lift angle, escape \
             wheel and train, how sure the figures are and their sources. Give a name for \
-            one calibre (an unknown name is an error), or `search` for the calibres that \
-            answer it, best first; with neither, the common calibres and the user's own are \
-            listed. Amplitude depends on the lift angle.",
+            one calibre's whole entry (an unknown name is an error), or `search` for the \
+            calibres that answer it, best first; with neither, the common calibres and the \
+            user's own are listed. A list of several gives each calibre's name, maker, other \
+            names, beat rate, lift angle, escape wheel teeth and how sure the figures are, \
+            at most {shown} of them, with `calibres_listed` saying how many matched: give a \
+            `name` for one's train, sources and notes. Amplitude depends on the lift angle.",
         command: &["calibres"],
         params: &[
             p(
@@ -761,6 +789,14 @@ pub fn notes(t: &ToolSpec) -> Vec<String> {
     notes
 }
 
+/// `beat_shape`'s switch for the per-window figures, read by the server
+/// (`views::shape_compact`, #2097).
+pub const WINDOWS: &str = "windows";
+
+/// `tick_tock_profile`'s switch for its curves in the result, read by the
+/// server (`views::profile_charts`, #2097).
+pub const CURVES: &str = "curves";
+
 /// `record_position`'s retry identifier, read by the server.
 pub const TAKE_ID: &str = "take_id";
 
@@ -773,6 +809,7 @@ pub fn find(name: &str) -> Option<&'static ToolSpec> {
 pub fn description(t: &ToolSpec) -> String {
     t.description
         .replace("{positions}", &Position::accepted_names())
+        .replace("{shown}", &crate::views::CALIBRES_SHOWN.to_string())
 }
 
 /// The tool's definition as MCP lists it.
@@ -1214,6 +1251,18 @@ mod tests {
     }
 
     /// run_session names the accepted positions from core (#1492).
+    /// `list_calibres` names its cap from the one constant (#2097).
+    #[test]
+    fn the_calibre_list_names_its_cap() {
+        let d = definition(find("list_calibres").unwrap());
+        let text = d["description"].as_str().unwrap();
+        assert!(!text.contains("{shown}"), "{text}");
+        assert!(
+            text.contains(&format!("at most {} of them", crate::views::CALIBRES_SHOWN)),
+            "{text}"
+        );
+    }
+
     #[test]
     fn descriptions_name_positions_from_core() {
         let d = definition(find("run_session").unwrap());

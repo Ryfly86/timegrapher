@@ -28,3 +28,24 @@ test("without the server's facts the line is empty, not the view's own", () => {
   assert.equal(context.profileSummary(undefined, 0), "");
   assert.equal(context.profileSummary({ names: facts.names }, 1), "");
 });
+
+// The curves come back from the result's _meta, where the server moved
+// them so the model reads the marks, not every step (#2097).
+const curvesSource = html.match(/^function profileCurves\([^\n]*\{[\s\S]*?^\}/m);
+if (!curvesSource) throw new Error("Missing renderer function: profileCurves");
+vm.runInContext(curvesSource[0], context);
+
+test("each side's curves are put back from the server's charts", () => {
+  const doc = { schema: "timegrapher.profile/1", a: { beats: 120, step_ms: 0.1 }, b: { beats: 119 } };
+  const extra = { curves: { a: { median: [1, 2], p10: [0, 1], p90: [2, 3] }, b: { median: [3] } } };
+  const p = context.profileCurves(doc, extra);
+  assert.deepEqual(JSON.parse(JSON.stringify(p.a)), { beats: 120, step_ms: 0.1, median: [1, 2], p10: [0, 1], p90: [2, 3] });
+  assert.deepEqual(JSON.parse(JSON.stringify(p.b)), { beats: 119, median: [3] });
+  assert.equal(p.schema, doc.schema);
+});
+
+test("a document that kept its curves is drawn as it is", () => {
+  const doc = { a: { median: [1] }, b: { median: [2] } };
+  assert.equal(context.profileCurves(doc, undefined), doc);
+  assert.equal(context.profileCurves(doc, { views: [] }), doc);
+});
