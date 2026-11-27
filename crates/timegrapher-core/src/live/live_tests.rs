@@ -2000,3 +2000,52 @@ fn a_live_reading_gives_the_beat_rate_heard() {
     let quiet = LiveAnalyzer::new(48_000, LiveConfig::default()).reading(10.0);
     assert_eq!(quiet.measured(), None);
 }
+
+/// The settled time runs behind the sound by the engine's hold-back and
+/// never past it; a beat is never after it; and in silence after the
+/// watch it moves on with the sound though no beat comes (#2125).
+#[test]
+fn the_settled_time_moves_on_with_the_sound() {
+    let audio = generate(
+        &SynthConfig {
+            duration_s: 20.0,
+            ..Default::default()
+        },
+        |_| 270.0,
+        |_| 0.0,
+    );
+    let mut live = LiveAnalyzer::new(audio.sample_rate, LiveConfig::default());
+    let quiet = vec![0.0_f32; 15 * audio.sample_rate as usize];
+    let (mut beating, mut beating_heard) = (0.0, 0.0);
+    for (k, chunk) in audio
+        .samples
+        .chunks(960)
+        .chain(quiet.chunks(960))
+        .enumerate()
+    {
+        live.push(chunk);
+        let (settled, heard) = (live.settled_s(), live.duration_s());
+        assert!(settled <= heard, "settled {settled} past the sound {heard}");
+        if let Some(b) = live.beats().last() {
+            assert!(b.time <= settled, "beat {} after {settled}", b.time);
+        }
+        if (k + 1) * 960 == audio.samples.len() {
+            (beating, beating_heard) = (settled, heard);
+        }
+    }
+    let last_beat = live.beats().last().expect("beats").time;
+    assert!(
+        beating > 19.0 && beating - last_beat < 1.0,
+        "{beating} {last_beat}"
+    );
+    assert!(
+        beating < beating_heard,
+        "beating, {beating} behind the sound {beating_heard}"
+    );
+    let (settled, heard) = (live.settled_s(), live.duration_s());
+    assert!(
+        settled > last_beat + 13.0,
+        "{settled} after the beats at {last_beat}"
+    );
+    assert!(heard - settled < 1.0, "{settled} behind {heard}");
+}

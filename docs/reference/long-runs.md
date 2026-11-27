@@ -21,7 +21,7 @@ Amplitude    269 deg median; slices from 255 to 270 deg (lift angle 52°, the de
 Periodic changes in rate (the rate itself, not 10 s readings):
       60.00 s ±2.00   swing 37 s/d p-p       explains 100%  false alarm <1e-300  matches the fourth wheel (+0.0% off; a match is within ±2.0 s or 1%)
 Periodic changes in amplitude:
-      20.01 s ±0.22   swing 0.28 deg p-p     explains  23%  false alarm <1e-300  no wheel listed within ±0.2 s or 1%; nearest is the fourth wheel, -66.6% off
+      20.01 s ±0.22   swing 0.28 deg p-p     explains  23%  false alarm <1e-300
       60.03 s ±2.00   swing 11 deg p-p       explains  97%  false alarm <1e-300  matches the fourth wheel (+0.0% off; a match is within ±2.0 s or 1%)
 Report       syn_long/report.html
 ```
@@ -266,7 +266,8 @@ take with `long`, `series` or `session`.
    would appear at several periods.
 5. **Name.** A component matches a wheel when their periods agree within
    the run's resolution (period squared over run length) or 1%. Otherwise
-   the nearest wheel and how far off it is are given: a 57 s cycle in a
+   the nearest wheel and how far off it is are given, when the period is
+   within 10% of its turn (`longterm::NEAREST_WHEEL_REACH`): a 57 s cycle in a
    two-hour run (resolution scale about 0.5 s) is not the fourth wheel.
    This scale, even when displayed with ±, is not a confidence interval for
    the fitted period; gaps, noise and the number of observed cycles matter.
