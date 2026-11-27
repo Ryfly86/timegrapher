@@ -1805,7 +1805,7 @@ impl Calibres {
         let before = self.user.custom[i].clone();
         let c = &mut self.user.custom[i];
         let typed_name = name_and_maker_rows(ui, c, place);
-        let taken_id = custom_field_id("custom name taken", place);
+        let taken_id = custom_field_id("custom name taken", place, name);
         theme::row(
             ui,
             "Beat Rate",
@@ -2716,9 +2716,14 @@ fn name_and_maker_rows(ui: &mut egui::Ui, c: &mut CustomCalibre, place: &str) ->
         ui,
         "Name",
         Some("What the calibre is called in the menu"),
-        |ui| kept_text(ui, custom_field_id("custom name", place), &c.name),
+        |ui| kept_text(ui, custom_field_id("custom name", place, &c.name), &c.name),
     );
-    let taken_id = custom_field_id("custom name taken", place);
+    let taken_id = custom_field_id("custom name taken", place, &c.name);
+    // Typing again, or Escape, takes back the note on a name refused.
+    let name_id = custom_field_id("custom name", place, &c.name);
+    if ui.memory(|m| m.has_focus(name_id)) || ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+        ui.data_mut(|d| d.remove::<String>(taken_id));
+    }
     if let Some(t) = ui.data(|d| d.get_temp::<String>(taken_id)) {
         let pal = theme::pal(ui);
         ui.label(
@@ -2734,7 +2739,7 @@ fn name_and_maker_rows(ui: &mut egui::Ui, c: &mut CustomCalibre, place: &str) ->
         |ui| {
             kept_text(
                 ui,
-                custom_field_id("custom maker", place),
+                custom_field_id("custom maker", place, &c.name),
                 c.maker.as_deref().unwrap_or_default(),
             )
         },
@@ -2750,9 +2755,11 @@ fn taken_words(name: &str) -> String {
     format!("\"{name}\" is in the list already: pick it there, or type another name.")
 }
 
-/// The id of a custom calibre's text field `what` in `place`.
-fn custom_field_id(what: &str, place: &str) -> egui::Id {
-    egui::Id::new((what, place))
+/// The id of the custom calibre `calibre`'s text field `what` in
+/// `place`: what is typed for one calibre stays with it when another is
+/// selected.
+fn custom_field_id(what: &str, place: &str, calibre: &str) -> egui::Id {
+    egui::Id::new((what, place, calibre))
 }
 
 /// A text box showing `shown`, typed into a copy of its own: Enter or

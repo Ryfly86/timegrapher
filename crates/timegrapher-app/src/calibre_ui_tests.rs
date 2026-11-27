@@ -1013,7 +1013,7 @@ impl Typing {
     fn type_into(&self, c: &mut Calibres, name: &str, what: &str, text: &str) -> Vec<String> {
         self.frame(c, name, vec![]);
         self.ctx
-            .memory_mut(|m| m.request_focus(custom_field_id(what, "manager")));
+            .memory_mut(|m| m.request_focus(custom_field_id(what, "manager", name)));
         self.frame(c, name, vec![]);
         self.frame(c, name, Self::key(egui::Key::A, egui::Modifiers::COMMAND));
         let mut seen = Vec::new();
@@ -1056,7 +1056,7 @@ fn a_taken_name_or_escape_leaves_the_custom_name_as_it_was() {
     t.type_into(&mut c, &name, "custom name", "Omega 8500");
     assert!(t.enter(&mut c, &name).renamed.is_none());
     assert_eq!(c.user.custom[0].name, name);
-    let taken = custom_field_id("custom name taken", "manager");
+    let taken = custom_field_id("custom name taken", "manager", &name);
     let said = t.ctx.data(|d| d.get_temp::<String>(taken));
     assert_eq!(said.as_deref(), Some("Omega 8500"));
     assert!(taken_words("Omega 8500").contains("in the list already"));
@@ -1067,6 +1067,11 @@ fn a_taken_name_or_escape_leaves_the_custom_name_as_it_was() {
         Typing::key(egui::Key::Escape, egui::Modifiers::NONE),
     );
     assert_eq!(c.user.custom[0].name, name);
+    t.frame(&mut c, &name, vec![]);
+    assert!(
+        t.ctx.data(|d| d.get_temp::<String>(taken)).is_none(),
+        "typing again, then Escape, takes back the note"
+    );
     // A name kept clears the note.
     t.type_into(&mut c, &name, "custom name", "Bench 9");
     assert!(t.enter(&mut c, &name).renamed.is_some());
@@ -1084,4 +1089,44 @@ fn a_custom_makers_space_is_kept_while_typing() {
     assert_eq!(c.user.custom[0].maker, None, "nothing kept while typing");
     t.enter(&mut c, &name);
     assert_eq!(c.user.custom[0].maker.as_deref(), Some("La Joux"));
+}
+
+/// A name is kept trimmed: a space typed last is dropped on Return,
+/// and one typed between words stays (#2481, the space that lost the
+/// Name box on main).
+#[test]
+fn a_custom_name_is_kept_trimmed() {
+    let mut c = Calibres::in_memory();
+    let name = c.new_custom("");
+    let t = Typing::new();
+    t.type_into(&mut c, &name, "custom name", "Bench 9 ");
+    assert_eq!(t.enter(&mut c, &name).renamed.as_deref(), Some("Bench 9"));
+    assert_eq!(c.user.custom[0].name, "Bench 9");
+}
+
+/// What is typed for one custom calibre, and the note on a name
+/// refused, stay with that calibre when another is selected before
+/// Return (Trevor 82 on #2482).
+#[test]
+fn typing_for_one_custom_calibre_never_renames_another() {
+    let mut c = Calibres::in_memory();
+    let a = c.new_custom("Bench A");
+    let b = c.new_custom("Bench B");
+    let t = Typing::new();
+    t.type_into(&mut c, &a, "custom name", "Bench C");
+    // B selected before Return: A's box goes, and Return is B's.
+    t.frame(&mut c, &b, vec![]);
+    assert!(t.enter(&mut c, &b).renamed.is_none());
+    let names: Vec<_> = c.user.custom.iter().map(|k| k.name.as_str()).collect();
+    assert_eq!(names, ["Bench A", "Bench B"]);
+    // A refused name's note is A's alone.
+    t.type_into(&mut c, &a, "custom name", "Omega 8500");
+    assert!(t.enter(&mut c, &a).renamed.is_none());
+    let note = |n: &str| {
+        t.ctx
+            .data(|d| d.get_temp::<String>(custom_field_id("custom name taken", "manager", n)))
+    };
+    assert!(note(&a).is_some());
+    t.frame(&mut c, &b, vec![]);
+    assert!(note(&b).is_none());
 }
