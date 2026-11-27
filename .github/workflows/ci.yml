@@ -226,6 +226,8 @@ jobs:
           path: target/nextest/*/junit.xml
           retention-days: 7
           if-no-files-found: warn
+          # A re-run job (by hand or the CI watchdog) replaces its report.
+          overwrite: true
       # Only core's library has doc tests, and a narrow run never tests core.
       - name: Doc tests
         if: matrix.part != '2/2' && steps.changes.outputs.full != 'false' && steps.changes.outputs.packages == ''

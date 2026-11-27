@@ -116,6 +116,12 @@ class ReleaseDraftRule(unittest.TestCase):
         self.assertIsNone(job_if(found["build"]))
         self.assertRegex(found["release"], r"(?m)^    needs: \[version, build\]$")
 
+    def test_the_shared_mode_script_starts_a_run(self):
+        # A change to the script decides what Release builds, so it runs
+        # Release too.
+        paths = RELEASE.split("  pull_request:\n", 1)[1].split("\n  workflow_dispatch:", 1)[0]
+        self.assertIn('      - ".github/ci/pr_mode.sh"\n', paths)
+
     def test_only_pull_request_runs_are_cancelled(self):
         # Tag and Actions-tab runs share the group `release-main` and are
         # never cancelled: two drafts must never pick the same version.
@@ -140,6 +146,25 @@ class TestTimes(unittest.TestCase):
         for name in ("test", "test-linux", "test-macos"):
             text = jobs()[name]
             self.assertTrue("steps: &test-steps" in text or "steps: *test-steps" in text, name)
+        # A re-run job replaces its own report instead of failing.
+        self.assertIn("overwrite: true\n", upload)
+
+    def test_each_test_job_names_its_report_apart(self):
+        # Two jobs uploading one name would fail the second upload. The
+        # name is OS plus half; every test job has two halves.
+        expr = "test-times-${{ matrix.os }}-${{ matrix.part == '2/2' && '2' || '1' }}"
+        self.assertIn(f"name: {expr}\n", WORKFLOW)
+        found = jobs()
+        # The Windows legs are its matrix's `include` (the '' leg is excluded).
+        include = found["test"].split("        include:\n", 1)[1]
+        windows = re.findall(r"(?m)^            part: (\S+)$", include)
+        self.assertEqual(windows, ["1/2", "2/2"])
+        legs = [("windows-latest", part) for part in windows]
+        for name, os_name in (("test-linux", "ubuntu-24.04"), ("test-macos", "macos-latest")):
+            self.assertIn(f"        os: [{os_name}]\n        part: [1/2, 2/2]\n", found[name])
+            legs += [(os_name, "1/2"), (os_name, "2/2")]
+        names = [f"test-times-{o}-{'2' if part == '2/2' else '1'}" for o, part in legs]
+        self.assertEqual(len(set(names)), 6, names)
 
 
 def mode_script():
