@@ -109,11 +109,15 @@ pub fn timing_swing_note(readings: &[Reading]) -> Option<String> {
 /// when it is: not a wheel's own line, and explaining no more of the
 /// variation than that one does.
 pub(super) fn folded_into<'a>(r: &'a Reading, c: &Cycle) -> Option<&'a Cycle> {
+    harmonic_parent(r, c).filter(|w| c.wheel.is_none() && c.explained <= w.explained)
+}
+
+/// The longer cycle of `r` that core marks `c` a harmonic of, if listed.
+pub(super) fn harmonic_parent<'a>(r: &'a Reading, c: &Cycle) -> Option<&'a Cycle> {
     let h = c.harmonic_of?;
     r.cycles
         .iter()
         .find(|w| w.series == c.series && w.period_s == h.period_s)
-        .filter(|w| c.wheel.is_none() && c.explained <= w.explained)
 }
 
 /// The wheel whose turn a component not tied to a wheel sits at a whole

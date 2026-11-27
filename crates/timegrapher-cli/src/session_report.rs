@@ -1180,6 +1180,32 @@ mod tests {
         );
     }
 
+    /// A table with only amplitude rows says neither note (Vernon on #2433).
+    #[test]
+    fn an_amplitude_only_table_says_no_rate_notes() {
+        let mut r = reading(None, Position::CH);
+        r.cycles = vec![session::Cycle {
+            series: "amplitude",
+            period_s: 60.1,
+            size: 7.8,
+            size_unit: "deg",
+            significance: 8.0,
+            beyond_simulated: false,
+            explained: 0.3,
+            wheel: Some("fourth wheel".into()),
+            nearest_wheel: None,
+            fraction_of: None,
+            harmonic_of: None,
+        }];
+        let html = render(vec![r]);
+        assert!(html.contains(r#"<td class="num">30%</td>"#), "{html}");
+        assert!(!html.contains(&esc(session::RATE_SHARE_NOTE)), "{html}");
+        assert!(
+            !html.contains(&esc(&session::timing_swing_text())),
+            "{html}"
+        );
+    }
+
     #[test]
     fn nonzero_clock_keeps_corrected_rate_but_withholds_unsupported_reference_difference() {
         let r = reading(Some(-100.0), Position::CH);

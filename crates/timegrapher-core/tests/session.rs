@@ -1280,12 +1280,33 @@ fn rate_cycles_name_their_quantity_and_give_no_share() {
     assert!(session::timing_swing_text().contains("shorter than 30 s"));
 }
 
-/// With no cycle sized in ms, the reason for ms is not said.
+/// With no cycle sized in ms in a finding, the reason for ms is not said:
+/// not for none, not for one in a reading with no watch heard (it gives no
+/// cycle finding), and not for an ms harmonic folded into its longer cycle.
 #[test]
 fn no_timing_swing_no_note() {
     let mut r = reading(Position::CH, 2.0, 3.0, 280.0, 0.3);
     r.cycles = vec![cycle(60.19, Some("fourth wheel"))];
-    assert_eq!(session::timing_swing_note(&[r]), None);
+    assert_eq!(session::timing_swing_note(std::slice::from_ref(&r)), None);
+    let ms = |period_s: f64| Cycle {
+        size: 0.1,
+        size_unit: "ms",
+        explained: 0.1,
+        ..cycle(period_s, None)
+    };
+    let mut unheard = reading(Position::CH, 2.0, 3.0, 280.0, 0.3);
+    unheard.measurement.watch_heard = false;
+    unheard.cycles = vec![ms(5.0)];
+    assert_eq!(session::timing_swing_note(&[unheard]), None);
+    let mut folded = r.clone();
+    folded.cycles.push(Cycle {
+        harmonic_of: Some(Harmonic {
+            period_s: 60.19,
+            n: 4,
+        }),
+        ..ms(15.05)
+    });
+    assert_eq!(session::timing_swing_note(&[folded]), None);
 }
 
 /// A cycle tied to a wheel is reported with the wheel, a cycle core marks

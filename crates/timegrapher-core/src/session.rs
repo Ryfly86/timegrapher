@@ -1348,10 +1348,10 @@ pub fn fixed_clock(ppm: f64, duration_s: f64) -> Option<ClockFit> {
 
 #[path = "session_cycles.rs"]
 mod session_cycles;
-use session_cycles::folded_into;
 #[cfg(test)]
 pub(crate) use session_cycles::wheel_fraction;
 pub use session_cycles::{cycles, timing_swing_note, timing_swing_text, Cycle, RATE_SHARE_NOTE};
+use session_cycles::{folded_into, harmonic_parent};
 
 /// One pallet stone's beat shape, from `shape`.
 ///
@@ -1872,12 +1872,7 @@ fn findings(readings: &[Reading]) -> Vec<Finding> {
         // reported with that one, not on its own, unless it is a wheel's
         // own line or explains more of the variation than that one does:
         // then it is reported in its own right, the mark a note.
-        let harmonic_of = |c: &Cycle| {
-            let h = c.harmonic_of?;
-            r.cycles
-                .iter()
-                .find(|w| w.series == c.series && w.period_s == h.period_s)
-        };
+        let harmonic_of = |c: &Cycle| harmonic_parent(r, c);
         let folded = |c: &Cycle| folded_into(r, c);
         for c in &r.cycles {
             let size = c.size_words();

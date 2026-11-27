@@ -277,6 +277,9 @@ fn wheels() -> Vec<Wheel> {
 fn a_far_wheel_is_not_named_nearest() {
     let (wheel, nearest) = wheel_of(&wheels(), 22.4, 0.5);
     assert!(wheel.is_none() && nearest.is_none(), "{nearest:?}");
+    // 12% off: past the 10% reach, so not named (a wider reach would be).
+    let (wheel, nearest) = wheel_of(&wheels(), 67.2, 0.5);
+    assert!(wheel.is_none() && nearest.is_none(), "{nearest:?}");
     let (wheel, nearest) = wheel_of(&wheels(), 65.0, 0.5);
     assert!(wheel.is_none());
     let (name, off) = nearest.expect("8% off is named");
