@@ -172,6 +172,46 @@ impl Summary {
         self.shape = None;
     }
 
+    /// Count no beats of a watch where none is heard (Norm on #2378):
+    /// the peaks found are noise, so `beats_found` and its share are 0
+    /// ([`crate::measure::watch_beats`]), and `beats_missing` follows from
+    /// that share by its one rule, with its caveat. No rate is heard in
+    /// noise: `bph_heard` and the `set_rate_disagrees` caveat are left
+    /// out, and with no rate set, so is `timing_scatter_fraction`, a
+    /// share of a rate guessed from noise. `jitter_us` stays, the
+    /// evidence. Only the documents that count beats this way call it
+    /// (`analyze/3`, [`crate::analyze_doc::body`]); the verdict itself
+    /// is made before, on the fraction at the rate tried (#857).
+    pub fn count_no_watch(&mut self) {
+        if self.watch_heard {
+            return;
+        }
+        let (found, bph) =
+            crate::measure::watch_beats(false, self.beats_found, self.bph, self.bph_set);
+        self.beats_found = found;
+        self.beats_found_fraction = 0.0;
+        self.bph_heard = None;
+        if bph.is_none() {
+            self.timing_scatter_fraction = None;
+        }
+        self.doubts.beats_missing = crate::measure::beats_missing(self.beats_found_fraction);
+        self.caveats.retain(|c| {
+            !matches!(
+                c,
+                crate::measure::Caveat::BeatsMissing { .. }
+                    | crate::measure::Caveat::SetRateDisagrees { .. }
+            )
+        });
+        if self.doubts.beats_missing {
+            crate::measure::add(
+                &mut self.caveats,
+                crate::measure::Caveat::BeatsMissing {
+                    fraction: self.beats_found_fraction,
+                },
+            );
+        }
+    }
+
     /// A reading in a lock judged off every standard rate on Auto
     /// ([`crate::timing::OffStandard::of`], Norm on #2223 and #2316): the
     /// rate readings and their ± are left out, and the caveat

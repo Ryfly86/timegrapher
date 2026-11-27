@@ -200,6 +200,32 @@ pub fn beat_sound_found<'a>(
     }
 }
 
+/// The beats of a watch a reading counts, and the beat rate it gives
+/// (Norm on #2378): a beat is a peak in a beat train heard as a watch, so
+/// where none is heard (`watch_heard` false, [`no_watch_reason`]) no
+/// beats of a watch were found, 0, and the beat rate is the one set
+/// (`bph_set`), or none, since a rate guessed from noise is no rate
+/// heard. Where one is heard, the peaks `found` and the rate `bph` read
+/// at. The one rule for every document that counts beats.
+pub fn watch_beats(
+    watch_heard: bool,
+    found: usize,
+    bph: u32,
+    bph_set: Option<u32>,
+) -> (usize, Option<u32>) {
+    if watch_heard {
+        (found, Some(bph))
+    } else {
+        (0, bph_set.map(|_| bph))
+    }
+}
+
+/// Whether too few of the beats expected were found: under
+/// [`confidence::MIN_BEAT_FRACTION`] of them, as `found` gives the share.
+pub fn beats_missing(found: f64) -> bool {
+    found < confidence::MIN_BEAT_FRACTION
+}
+
 /// The reason on the `no_watch` caveat among `caveats`, if there is one.
 pub fn no_watch_reason_in(caveats: &[Caveat]) -> Option<NoWatchReason> {
     caveats.iter().find_map(|c| match c {
@@ -1477,7 +1503,7 @@ pub fn assess_in(
     };
     let doubts = Doubts {
         clipped: crate::analysis::Clipping::noted_fraction(c.clipped_fraction),
-        beats_missing: found < confidence::MIN_BEAT_FRACTION,
+        beats_missing: beats_missing(found),
         lift_unknown: !c.lift_known,
         clock_unknown: !c.clock_known,
     };
