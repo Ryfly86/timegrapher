@@ -181,16 +181,17 @@ jobs:
 
   # The required check `test (ubuntu-24.04)` (branch protection, and the
   # Release gate's .github/scripts/release_ci_gate.py): green only when
-  # both of Linux's halves are. On a pull request it always runs, even when
-  # the run is cancelled, so a failed or cancelled half fails it: a skipped
-  # required check would count as a pass. On main, where no branch rule
-  # reads it and the Release gate needs a success, a run cancelled for a
-  # newer merge skips it: run there, it waited for a runner while the
-  # newer merge's run waited for it (6bedbea's run, 25 Nov).
+  # both of Linux's halves are. `!cancelled()` runs it after a failed half
+  # too, so it fails then. When the run is cancelled it never runs, and
+  # GitHub marks it cancelled, not skipped (a skipped required check would
+  # count as a pass), so the cancelled head still shows no green check.
+  # It used to run on a pull request even then; it waited for a runner,
+  # and the PR's next run waited for it in the same concurrency group for
+  # 7 to 40 minutes (#2455). Main stopped that on 25 Nov (6bedbea).
   test-linux-result:
     name: test (ubuntu-24.04)
     needs: test-linux
-    if: ${{ always() && (github.event_name == 'pull_request' || !cancelled()) }}
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -224,7 +225,7 @@ jobs:
   test-macos-result:
     name: test (macos-latest)
     needs: test-macos
-    if: ${{ always() && (github.event_name == 'pull_request' || !cancelled()) }}
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
