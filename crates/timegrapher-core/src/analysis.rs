@@ -892,6 +892,18 @@ pub fn lock_rate_of(log: &crate::stream::BeatLog) -> Option<f64> {
     crate::timing::lock_rate(&log.beats[i..], log.bph, &log.jumps)
 }
 
+/// Whether the lock a beat log `log` was read at is judged off every
+/// standard rate (Norm on #2223 and #2316): on Auto (`bph_set` none),
+/// its rate over its first [`beats::GUESS_SPAN_S`] ([`lock_rate_of`]) out
+/// of reach of every standard rate ([`crate::timing::OffStandard::of`]).
+/// The one verdict for every reading of a take's beats: a saved take's,
+/// and the app's whole take, stopped or opened, and its positions
+/// (#2253, #2327). Such a reading is then read with its
+/// `read_off_standard`.
+pub fn lock_off_standard(bph_set: Option<u32>, log: &crate::stream::BeatLog) -> bool {
+    bph_set.is_none() && crate::timing::OffStandard::of(None, log.bph, lock_rate_of(log)).is_some()
+}
+
 /// Where the watch starts in `log` after a lead of noise, judged as a
 /// take's reading judges it ([`crate::session::lead_s`]), with the beats'
 /// jumps as its breaks.

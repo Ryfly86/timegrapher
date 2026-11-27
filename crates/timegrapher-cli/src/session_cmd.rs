@@ -165,7 +165,10 @@ impl Options {
     }
 
     /// Beat rate: the flag, else the session file, else the calibre's;
-    /// none means it is measured ([`take::stream_settings`]).
+    /// none means it is measured ([`take::stream_settings`]). Before a
+    /// take recorded on Auto is read so: [`stream_config`] gives the rate
+    /// read at, which `summary.json` says.
+    #[cfg(test)]
     fn bph(&self, m: &Manifest, cal: Option<&ResolvedCalibre>) -> Option<u32> {
         take::stream_settings(m, cal, self.given()).analysis.bph
     }
@@ -447,7 +450,9 @@ pub(crate) struct Ctx<'a> {
 /// The analysis settings for a session's recordings, and its calibre.
 fn stream_config<'a>(c: &Ctx<'a>) -> Result<(StreamConfig, Option<&'a ResolvedCalibre>), String> {
     let cal = c.calibre.train.calibre.as_ref();
-    Ok((take::stream_settings(c.m, cal, c.o.given()), cal))
+    let mut cfg = take::stream_settings(c.m, cal, c.o.given());
+    timegrapher_core::set_rate::read_as_recorded(c.base, &mut cfg.analysis);
+    Ok((cfg, cal))
 }
 
 /// Whether the lift angle came from `--lift`, the session file or
@@ -958,7 +963,7 @@ pub fn run(paths: &[PathBuf], o: &Options) -> Result<(), String> {
     let bph = readings.first().map_or(0, |r| r.bph);
     let files: Vec<PathBuf> = m.recordings.iter().map(|e| base.join(&e.file)).collect();
     let settings = serde_json::json!({
-        "bph": o.bph(&m, cal),
+        "bph": stream_config(&ctx)?.0.analysis.bph,
         "lift_deg": o.lift(&m, cal),
         "calibre": cal.map(|c| c.name.as_str()),
         "calibre_notes": calibre_notes,

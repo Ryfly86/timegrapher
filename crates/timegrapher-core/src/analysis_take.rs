@@ -262,7 +262,10 @@ pub fn plan_keep(
     doc.insert("audio", toml_edit::value(false));
     let mut companions = vec![(MANIFEST.to_string(), doc.to_string().into_bytes())];
     keep_companions(take, take, &mut companions)?;
-    let cfg = keep_settings(&m, user);
+    let mut cfg = keep_settings(&m, user);
+    // A take recorded on Auto is measured on Auto, as every reader of it
+    // reads it.
+    crate::set_rate::read_as_recorded(take, &mut cfg.analysis);
     let shapes = shape_stretches(&m, total_s);
     Ok(KeepPlan {
         files,
