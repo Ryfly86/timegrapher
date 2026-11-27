@@ -1,56 +1,56 @@
-amplitude_deg
-amplitude_p05
-amplitude_p95
-amplitude_periods
-beat_error_unlock_ms
-beats_found
-bph
-caveats
-caveats[].code
-clean_fraction
-clock
-duration_s
-input
-input.files
-input.files[].path
-input.settings
-input.settings.bph
-input.settings.calibre
-input.settings.clock_correction
-input.settings.clock_log
-input.settings.escape_teeth
-input.settings.highpass_hz
-input.settings.lift_deg
-input.settings.masked
-input.settings.mesh_marks
-input.settings.named_meshes
-input.settings.named_wheels
-input.settings.notch_hz
-input.settings.out
-input.settings.reference_lines
-input.settings.reference_lines[].label
-input.settings.reference_lines[].period_s
-input.settings.stretches
-input.settings.take
-input.settings.wheel_marks
-input.settings.wheels
-lift_deg
-overall
-overall.beat_error_ms
-overall.beats_used
-overall.jitter_us
-overall.period_s
-overall.rate_s_per_day
-rate_p05
-rate_p95
-rate_periods
-sample_rate
-schema
-software
-software.arch
-software.build_date
-software.git_dirty
-software.git_hash
-software.name
-software.os
-software.version
+amplitude_deg number
+amplitude_p05 number
+amplitude_p95 number
+amplitude_periods array
+beat_error_unlock_ms number
+beats_found number
+bph number
+caveats array
+caveats[].code string
+clean_fraction number
+clock null
+duration_s number
+input object
+input.files array
+input.files[].path string
+input.settings object
+input.settings.bph null
+input.settings.calibre null
+input.settings.clock_correction null
+input.settings.clock_log null
+input.settings.escape_teeth null
+input.settings.highpass_hz number
+input.settings.lift_deg number
+input.settings.masked array
+input.settings.mesh_marks array
+input.settings.named_meshes array
+input.settings.named_wheels array
+input.settings.notch_hz array
+input.settings.out string
+input.settings.reference_lines array
+input.settings.reference_lines[].label string
+input.settings.reference_lines[].period_s number
+input.settings.stretches null
+input.settings.take null
+input.settings.wheel_marks array
+input.settings.wheels array
+lift_deg number
+overall object
+overall.beat_error_ms number
+overall.beats_used number
+overall.jitter_us number
+overall.period_s number
+overall.rate_s_per_day number
+rate_p05 number
+rate_p95 number
+rate_periods array
+sample_rate number
+schema string
+software object
+software.arch string
+software.build_date string
+software.git_dirty bool
+software.git_hash string
+software.name string
+software.os string
+software.version string

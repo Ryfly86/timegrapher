@@ -12,8 +12,8 @@ The [watchmaker skill](../../skills/watchmaker/SKILL.md) builds on it.
   exactly one JSON document on stdout. Progress and warnings go to stderr.
 - Fields are only added. Every field path of `analyze`, `shape`,
   `profile`, `long`, `series`, `session`, `calibres`, `calibres export`, `watches` and `excerpt` is
-  kept in `crates/timegrapher-cli/tests/json_shapes/`, and a field
-  renamed or removed fails the tests.
+  kept in `crates/timegrapher-cli/tests/json_shapes/` with its type, and a field
+  renamed, removed or changed in type fails the tests (a null matches any type).
 - Exit codes: `0` success, `1` error (message on stderr), `3` from
   `regress` when the engine moved away from tg ([regress](../developer/regress.md)).
   `record` exits 0 for every take it keeps, which is every take. `doctor`

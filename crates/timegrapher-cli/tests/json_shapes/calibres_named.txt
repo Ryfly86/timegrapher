@@ -1,85 +1,85 @@
-calibres
-calibres[].bph
-calibres[].calibre
-calibres[].common
-calibres[].confidence
-calibres[].diameter
-calibres[].diameter.lignes
-calibres[].diameter.mm
-calibres[].diameter.source
-calibres[].escape_teeth
-calibres[].family
-calibres[].functions
-calibres[].functions.source
-calibres[].functions.value
-calibres[].height_mm
-calibres[].height_mm.source
-calibres[].height_mm.value
-calibres[].jewels
-calibres[].jewels.source
-calibres[].jewels.value
-calibres[].lift_angle_deg
-calibres[].maker
-calibres[].notes
-calibres[].power_reserve_h
-calibres[].power_reserve_h.source
-calibres[].power_reserve_h.value
-calibres[].seconds
-calibres[].sources
-calibres[].wheels
-calibres[].wheels[].basis
-calibres[].wheels[].name
-calibres[].wheels[].period_s
-calibres[].wheels[].pinion
-calibres[].wheels[].teeth
-custom
-input
-input.files
-input.settings
-input.settings.name
-input.settings.search
-input.settings.user_calibres
-listed
-schema
-slots
-slots[].basis
-slots[].name
-slots[].origin
-slots[].period_s
-software
-software.arch
-software.build_date
-software.git_dirty
-software.git_hash
-software.name
-software.os
-software.version
-table_size
-train
-train.arbors
-train.arbors[].clash
-train.arbors[].counted_s
-train.arbors[].from
-train.arbors[].from.arbor
-train.arbors[].from.kind
-train.arbors[].leaves
-train.arbors[].name
-train.arbors[].needs
-train.arbors[].step
-train.arbors[].step.arbor
-train.arbors[].step.bph
-train.arbors[].step.kind
-train.arbors[].step.leaves
-train.arbors[].step.outward
-train.arbors[].step.period_s
-train.arbors[].step.teeth
-train.arbors[].teeth
-train.arbors[].typed_s
-train.bph
-train.bph_from_counts
-train.meshes
-train.meshes[].leaves
-train.meshes[].period_s
-train.meshes[].pinion
-train.meshes[].teeth
-train.meshes[].wheel
+calibres array
+calibres[].bph number
+calibres[].calibre string
+calibres[].common bool
+calibres[].confidence string
+calibres[].diameter object
+calibres[].diameter.lignes string
+calibres[].diameter.mm string
+calibres[].diameter.source string
+calibres[].escape_teeth number
+calibres[].family array
+calibres[].functions object
+calibres[].functions.source string
+calibres[].functions.value array
+calibres[].height_mm object
+calibres[].height_mm.source string
+calibres[].height_mm.value string
+calibres[].jewels object
+calibres[].jewels.source string
+calibres[].jewels.value number
+calibres[].lift_angle_deg number
+calibres[].maker string
+calibres[].notes string
+calibres[].power_reserve_h object
+calibres[].power_reserve_h.source string
+calibres[].power_reserve_h.value string
+calibres[].seconds string
+calibres[].sources array
+calibres[].wheels array
+calibres[].wheels[].basis string
+calibres[].wheels[].name string
+calibres[].wheels[].period_s number
+calibres[].wheels[].pinion number
+calibres[].wheels[].teeth number
+custom array
+input object
+input.files array
+input.settings object
+input.settings.name string
+input.settings.search null
+input.settings.user_calibres string
+listed string
+schema string
+slots array
+slots[].basis string
+slots[].name string
+slots[].origin string
+slots[].period_s number
+software object
+software.arch string
+software.build_date string
+software.git_dirty bool
+software.git_hash string
+software.name string
+software.os string
+software.version string
+table_size number
+train object
+train.arbors array
+train.arbors[].clash null
+train.arbors[].counted_s number
+train.arbors[].from object
+train.arbors[].from.arbor string
+train.arbors[].from.kind string
+train.arbors[].leaves number
+train.arbors[].name string
+train.arbors[].needs null
+train.arbors[].step object
+train.arbors[].step.arbor string
+train.arbors[].step.bph number
+train.arbors[].step.kind string
+train.arbors[].step.leaves number
+train.arbors[].step.outward bool
+train.arbors[].step.period_s number
+train.arbors[].step.teeth number
+train.arbors[].teeth number
+train.arbors[].typed_s number
+train.bph number
+train.bph_from_counts null
+train.meshes array
+train.meshes[].leaves number
+train.meshes[].period_s number
+train.meshes[].pinion string
+train.meshes[].teeth number
+train.meshes[].wheel string

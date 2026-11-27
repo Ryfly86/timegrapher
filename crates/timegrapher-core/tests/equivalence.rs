@@ -394,8 +394,53 @@ fn live_matches_analyze_on_real_takes() {
             r.beat_error_ms,
             m.beat_error_ms
         );
+        // Every take here is a running watch, so both sides must read a
+        // rate and an amplitude: `close` lets two missing readings match.
+        assert_none(&what, missing(&r, &m));
         assert_none(&what, live_vs_session(&r, &m));
     }
+}
+
+/// The rate and amplitude that a running watch's live reading or file
+/// reading lacks, named by side.
+fn missing(r: &LiveReading, m: &Measurement) -> Vec<String> {
+    missing_of(
+        [("rate", r.rate_s_per_day), ("amplitude", r.amplitude_deg)],
+        [("rate", m.rate_s_per_day), ("amplitude", m.amplitude_deg)],
+    )
+}
+
+fn missing_of(live: [(&str, Option<f64>); 2], file: [(&str, Option<f64>); 2]) -> Vec<String> {
+    let side = |name: &str, v: [(&str, Option<f64>); 2]| {
+        v.into_iter()
+            .filter(|(_, x)| x.is_none())
+            .map(|(what, _)| format!("no {name} {what}"))
+            .collect::<Vec<_>>()
+    };
+    let mut out = side("live", live);
+    out.extend(side("file", file));
+    out
+}
+
+/// [`missing`] names each reading absent on either side, both sides
+/// absent included, and nothing when all four are there.
+#[test]
+fn a_missing_rate_or_amplitude_is_named() {
+    let some = Some(1.0);
+    let both = |x, y| [("rate", x), ("amplitude", y)];
+    assert!(missing_of(both(some, some), both(some, some)).is_empty());
+    assert_eq!(
+        missing_of(both(None, some), both(None, some)),
+        ["no live rate", "no file rate"]
+    );
+    assert_eq!(
+        missing_of(both(some, None), both(some, some)),
+        ["no live amplitude"]
+    );
+    assert_eq!(
+        missing_of(both(some, some), both(some, None)),
+        ["no file amplitude"]
+    );
 }
 
 /// A live reading against session's of the same interval, beat errors by

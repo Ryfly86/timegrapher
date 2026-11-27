@@ -1,103 +1,103 @@
-calibres
-calibres[].also_known_as
-calibres[].basis
-calibres[].beat_rate
-calibres[].common
-calibres[].documents
-calibres[].documents[].file
-calibres[].documents[].kind
-calibres[].documents[].url
-calibres[].escape_teeth
-calibres[].escapement
-calibres[].escapement.hover
-calibres[].escapement.source
-calibres[].escapement.text
-calibres[].figures
-calibres[].former_paths
-calibres[].functions
-calibres[].functions.hover
-calibres[].functions.source
-calibres[].functions.text
-calibres[].lift_angle
-calibres[].made
-calibres[].made.hover
-calibres[].made.source
-calibres[].made.text
-calibres[].maker
-calibres[].maker_slug
-calibres[].name
-calibres[].notes
-calibres[].path
-calibres[].pictures
-calibres[].pictures[].alt
-calibres[].pictures[].kind
-calibres[].pictures[].url
-calibres[].related
-calibres[].related[].calibres
-calibres[].related[].calibres[].name
-calibres[].related[].calibres[].path
-calibres[].related[].label
-calibres[].related[].source
-calibres[].slug
-calibres[].sources
-calibres[].sources[].name
-calibres[].sources[].number
-calibres[].sources[].quotes
-calibres[].sources[].url
-calibres[].specs
-calibres[].specs.parts
-calibres[].specs.parts[].hover
-calibres[].specs.parts[].source
-calibres[].specs.parts[].text
-calibres[].specs.text
-calibres[].summary
-calibres[].summary[].source
-calibres[].summary[].text
-calibres[].title
-calibres[].wheels
-calibres[].wheels[].blank
-calibres[].wheels[].leaves
-calibres[].wheels[].name
-calibres[].wheels[].period
-calibres[].wheels[].teeth
-headings
-headings.beat_rate
-headings.blank
-headings.blank_hover
-headings.documents
-headings.escape_teeth
-headings.index
-headings.issues
-headings.leaves
-headings.lift_angle
-headings.notes
-headings.open
-headings.period
-headings.picture_caption
-headings.pictures
-headings.related
-headings.sources
-headings.summary
-headings.summary_hover
-headings.teeth
-headings.wheels
-headings.wheels_ask
-headings.wheels_key
-input
-input.files
-input.settings
-makers
-makers[].calibres
-makers[].common
-makers[].maker
-makers[].path
-makers[].slug
-schema
-software
-software.arch
-software.build_date
-software.git_dirty
-software.git_hash
-software.name
-software.os
-software.version
+calibres array
+calibres[].also_known_as string
+calibres[].basis string
+calibres[].beat_rate string
+calibres[].common bool
+calibres[].documents array
+calibres[].documents[].file string
+calibres[].documents[].kind string
+calibres[].documents[].url string
+calibres[].escape_teeth string
+calibres[].escapement object
+calibres[].escapement.hover string
+calibres[].escapement.source number
+calibres[].escapement.text string
+calibres[].figures string
+calibres[].former_paths array
+calibres[].functions object
+calibres[].functions.hover string
+calibres[].functions.source number
+calibres[].functions.text string
+calibres[].lift_angle string
+calibres[].made object
+calibres[].made.hover string
+calibres[].made.source number
+calibres[].made.text string
+calibres[].maker string
+calibres[].maker_slug string
+calibres[].name string
+calibres[].notes string
+calibres[].path string
+calibres[].pictures array
+calibres[].pictures[].alt string
+calibres[].pictures[].kind string
+calibres[].pictures[].url string
+calibres[].related array
+calibres[].related[].calibres array
+calibres[].related[].calibres[].name string
+calibres[].related[].calibres[].path string
+calibres[].related[].label string
+calibres[].related[].source number
+calibres[].slug string
+calibres[].sources array
+calibres[].sources[].name string
+calibres[].sources[].number number
+calibres[].sources[].quotes array
+calibres[].sources[].url string
+calibres[].specs object
+calibres[].specs.parts array
+calibres[].specs.parts[].hover string
+calibres[].specs.parts[].source number
+calibres[].specs.parts[].text string
+calibres[].specs.text string
+calibres[].summary array
+calibres[].summary[].source number
+calibres[].summary[].text string
+calibres[].title string
+calibres[].wheels array
+calibres[].wheels[].blank array
+calibres[].wheels[].leaves number
+calibres[].wheels[].name string
+calibres[].wheels[].period string
+calibres[].wheels[].teeth number
+headings object
+headings.beat_rate string
+headings.blank string
+headings.blank_hover string
+headings.documents string
+headings.escape_teeth string
+headings.index string
+headings.issues string
+headings.leaves string
+headings.lift_angle string
+headings.notes string
+headings.open string
+headings.period string
+headings.picture_caption string
+headings.pictures string
+headings.related string
+headings.sources string
+headings.summary string
+headings.summary_hover string
+headings.teeth string
+headings.wheels string
+headings.wheels_ask string
+headings.wheels_key string
+input object
+input.files array
+input.settings object
+makers array
+makers[].calibres number
+makers[].common bool
+makers[].maker string
+makers[].path string
+makers[].slug string
+schema string
+software object
+software.arch string
+software.build_date string
+software.git_dirty bool
+software.git_hash string
+software.name string
+software.os string
+software.version string
