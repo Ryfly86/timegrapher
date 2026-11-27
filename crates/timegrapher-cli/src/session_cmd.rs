@@ -719,7 +719,7 @@ fn shape_of(
         analysis_take::shape_stretch(&read.masked, read.settle_s, read.end_s)
     {
         let (x, fs) = excerpt(&read.files, from, len)?;
-        analysis_take::measure_shape(&x, fs, read.log.bph, from)
+        analysis_take::measure_shape(&x, fs, &read.log.beats, read.log.bph, from)
     } else {
         None
     };

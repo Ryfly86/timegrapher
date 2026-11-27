@@ -517,7 +517,9 @@ Each reading is:
 - periodic changes in rate and amplitude, from the same search as `long`,
   named after the wheel whose turn they match;
 - beat shape (as `shape`) on the first 60 s after settling, or on
-  unmasked sound when the recording has `masked` (see above);
+  unmasked sound when the recording has `masked` (see above), read on
+  the reading's own beats, so its Tick and Tock are the sides the
+  reading's amplitude and beat error name;
 - whether amplitude and rate sit at two levels the watch switches
   between (see [Two states](#two-states)).
 

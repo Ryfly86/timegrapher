@@ -299,6 +299,9 @@ amplitude row is `analyze`'s amplitude of each side, read over its 2 s
 amplitude windows rather than from these templates, so the
 whole-recording columns give none. Under it are the caveats `analyze`
 gives that amplitude, in its words (such as a co-axial's estimate).
+Where `analyze` finds no regular beat, `shape` says so in `analyze`'s
+words and prints no table; its JSON then has no window and every figure
+null.
 
 JSON body: `even` and `odd` (one per side), `windows` (each 2 s window's
 `{ start_s, end_s, even, odd }` shapes), `template_start_ms`.

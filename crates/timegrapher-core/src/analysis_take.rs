@@ -444,15 +444,34 @@ pub fn measure_from(
 
 /// The beat shape of the sound `x`, from `from_s` seconds into the
 /// recording: the one way `timegrapher session` measures it, from a take's
-/// sound or when a take is kept as its analysis. None for no sound.
-pub fn measure_shape(x: &[f32], fs: f64, bph: u32, from_s: f64) -> Option<ShapeSummary> {
+/// sound or when a take is kept as its analysis. It is read on the
+/// reading's own `beats` (audio time) at `bph`, those within `x`, so each
+/// side's sounds are the side its amplitude and beat error name
+/// ([`beats::SideCheck`], #2369), and on their fitted period. None for no
+/// sound.
+pub fn measure_shape(
+    x: &[f32],
+    fs: f64,
+    beats: &[Beat],
+    bph: u32,
+    from_s: f64,
+) -> Option<ShapeSummary> {
     if x.is_empty() {
         return None;
     }
+    let to_s = from_s + x.len() as f64 / fs;
+    let local: Vec<Beat> = beats
+        .iter()
+        .filter(|b| b.time >= from_s && b.time < to_s)
+        .map(|b| Beat {
+            time: b.time - from_s,
+            ..*b
+        })
+        .collect();
     // `session` measures the shape on the default envelope, whatever the
     // beats were found with.
     let env = envelope(x, fs, &crate::dsp::EnvelopeConfig::default());
-    let (r, _) = shape::of_envelope(&env, fs, bph);
+    let r = shape::of_beats(&env, fs, &local, bph);
     Some(session::shape_summary(&r, from_s, x.len() as f64 / fs))
 }
 
@@ -1572,14 +1591,72 @@ mod tests {
                     .collect();
                 let mut click = vec![0.0f32; n];
                 click[n / 2] = 0.9;
-                let quiet = measure_shape(&silence, fs, 28_800, 0.0);
+                // The beats a reading finds in each, as the shape is read
+                // on them.
+                let found = |x: &[f32]| {
+                    let env = envelope(x, fs, &crate::dsp::EnvelopeConfig::default());
+                    beats::detect(&env, fs, 28_800).0
+                };
+                let quiet = measure_shape(&silence, fs, &found(&silence), 28_800, 0.0);
                 assert!(quiet.as_ref().is_some_and(no_figure), "{fs} Hz, {s} s");
-                let _ = measure_shape(&hiss, fs, 28_800, 0.0);
-                let one = measure_shape(&click, fs, 28_800, 0.0);
+                let _ = measure_shape(&hiss, fs, &found(&hiss), 28_800, 0.0);
+                let one = measure_shape(&click, fs, &found(&click), 28_800, 0.0);
                 if n == 1 {
                     assert!(one.as_ref().is_some_and(no_figure), "{fs} Hz, one sample");
                 }
             }
+        }
+    }
+
+    /// The shape names each side as the reading's own beats do, wherever
+    /// its stretch starts (#2369). The watch's two sides differ (one
+    /// lifts 0.4 ms longer, the other sounds louder); a stretch that starts
+    /// on a Tick and one that starts a beat later, on a Tock, both give
+    /// each side the sounds `analyze`'s shape gives it over the whole
+    /// recording, on the beats its beat error names. Found afresh in the
+    /// stretch, as before, the louder side was taken as the first beat
+    /// and so named Tick.
+    #[test]
+    fn the_shape_keeps_the_readings_sides_wherever_its_stretch_starts() {
+        let audio = crate::synth::generate(
+            &crate::synth::SynthConfig {
+                duration_s: 40.0,
+                even_unlock_lead_s: 0.0004,
+                odd_gains: Some([0.5, 0.35, 1.6]),
+                ..Default::default()
+            },
+            |_| 250.0,
+            |_| 0.0,
+        );
+        let fs = audio.sample_rate as f64;
+        let cfg = crate::analysis::AnalysisConfig {
+            bph: Some(28_800),
+            ..Default::default()
+        };
+        let a = crate::analysis::analyze(&audio, &cfg);
+        let whole = crate::analysis::shape_report(&audio, &cfg, &a);
+        let shape_from = |from_s: f64| {
+            let x = &audio.samples[(from_s * fs) as usize..((from_s + 30.0) * fs) as usize];
+            measure_shape(x, fs, &a.beats, 28_800, from_s).expect("a shape")
+        };
+        let first = |even: bool| {
+            a.beats
+                .iter()
+                .find(|b| b.is_good() && b.time > 5.0 && (b.index.rem_euclid(2) == 0) == even)
+                .expect("a beat after 5 s")
+                .time
+        };
+        let sides = |m: &ShapeSummary| (m.even.i13_ms.unwrap(), m.odd.i13_ms.unwrap());
+        let want = sides(&session::shape_summary(&whole, 0.0, 40.0));
+        // The sides differ in the shape, so a swap would show.
+        assert!((want.0 - want.1).abs() > 0.2, "{want:?}");
+        for even in [true, false] {
+            let got = sides(&shape_from(first(even) - 0.02));
+            assert!(
+                (got.0 - want.0).abs() < 0.1 && (got.1 - want.1).abs() < 0.1,
+                "from a {} beat: Tick and Tock {got:?} ms, analyze {want:?} ms",
+                if even { "Tick" } else { "Tock" }
+            );
         }
     }
 

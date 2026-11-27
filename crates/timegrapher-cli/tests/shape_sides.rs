@@ -144,3 +144,75 @@ fn shape_says_a_co_axial_amplitude_is_an_estimate() {
     assert!(!lever.contains(words), "{lever}");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// On noise, where `analyze` finds no regular beat, `shape` says so in
+/// `analyze`'s words, that line alone, and prints no table; its JSON keeps
+/// its fields, with no window and no figure (#2371). Both over 10 s (the
+/// timing scatter decides) and under it (the beats' sound decides, and
+/// `analyze` gives no "not assessed" line with it).
+#[test]
+fn shape_measures_nothing_on_noise() {
+    let dir = scratch("noise");
+    let config = dir.join("config");
+    for seconds in [20, 5] {
+        let wav = dir.join(format!("noise{seconds}.wav"));
+        let w = wav.to_str().unwrap();
+        let mut seed = 1u64;
+        let samples = (0..seconds * 48_000)
+            .map(|_| {
+                seed = seed
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                ((seed >> 40) as f32 / (1u64 << 24) as f32 - 0.5) * 0.2
+            })
+            .collect();
+        let audio = timegrapher_core::Audio {
+            samples,
+            sample_rate: 48_000,
+        };
+        timegrapher_core::audio::write_wav(&wav, &audio).unwrap();
+        let analyze = run(&config, &["analyze", w]);
+        let said: Vec<&str> = analyze.lines().skip(1).collect();
+        assert!(
+            said.len() == 1 && said[0].starts_with("No regular beat found"),
+            "{seconds} s: {analyze}"
+        );
+        let text = run(&config, &["shape", w]);
+        assert_eq!(text.trim_end(), said[0], "{seconds} s: {text}");
+        let s = json(&config, &["shape", w, "--json"]);
+        assert_eq!(s["windows"], Value::Array(vec![]), "{seconds} s: {s}");
+        for side in ["even", "odd"] {
+            assert_eq!(s[side]["windows_measured"], 0, "{seconds} s {side}: {s}");
+            assert!(
+                s[side]["windows"]["i12_ms"].is_null(),
+                "{seconds} s {side}: {s}"
+            );
+            assert!(s[side]["whole"].is_null(), "{seconds} s {side}: {s}");
+        }
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Half a second of a watch: too little for any verdict, so `analyze`
+/// reads no shape and says "Beat regularity not assessed". `shape` says
+/// exactly that line, on the same seconds, and prints no table (#2371).
+#[test]
+fn shape_on_a_moment_of_sound_says_what_analyze_says() {
+    let dir = scratch("moment");
+    let config = dir.join("config");
+    let wav = dir.join("moment.wav");
+    let w = wav.to_str().unwrap();
+    run(&config, &["synth", w, "--duration", "0.5"]);
+    let a = json(&config, &["analyze", w, "--json"]);
+    assert!(a["shape"].is_null(), "{a}");
+    let analyze = run(&config, &["analyze", w]);
+    let said = analyze
+        .lines()
+        .find(|l| l.starts_with("Beat regularity not assessed"))
+        .unwrap_or_else(|| panic!("{analyze}"));
+    let text = run(&config, &["shape", w]);
+    assert_eq!(text.trim_end(), said, "{text}");
+    let s = json(&config, &["shape", w, "--json"]);
+    assert_eq!(s["windows"], Value::Array(vec![]), "{s}");
+    let _ = std::fs::remove_dir_all(&dir);
+}

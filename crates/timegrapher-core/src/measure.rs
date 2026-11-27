@@ -49,8 +49,8 @@ pub fn regularity_assessed(listened_s: f64, holds_window: bool) -> bool {
 
 /// The fact for a recording read from its start too short for
 /// [`regularity_assessed`]: "Beat regularity not assessed: 5.0 s of sound,
-/// 10 s needed". The wording for the doctor (Norm on #2363); `analyze`'s
-/// text in CLI `main.rs` takes it once that file is free (#2367).
+/// 10 s needed". The wording for the doctor (Norm on #2363), `analyze`'s
+/// text (#2367) and `shape`'s (#2371).
 pub fn not_assessed_text(listened_s: f64) -> String {
     format!(
         "Beat regularity not assessed: {} s of sound, {SHORT_SPAN_S} s needed",
