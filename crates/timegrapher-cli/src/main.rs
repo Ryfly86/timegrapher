@@ -1805,6 +1805,25 @@ pub fn beat_error_text(
     }
 }
 
+/// `analyze`'s text for a recording with no regular beat found, in core's
+/// words; None when a watch is heard. `shape` says the same (#2371).
+fn no_watch_line(s: &timegrapher_core::analysis::Summary) -> Option<String> {
+    use timegrapher_core::measure;
+    (!s.watch_heard).then(|| {
+        let reason = measure::no_watch_reason_in(&s.caveats).unwrap_or_default();
+        measure::no_watch_text(reason, s.jitter_us, s.bph_set)
+    })
+}
+
+/// `analyze`'s line for a recording too short for its beats' regularity
+/// to be judged: a whole recording read from its start holds a whole
+/// scatter window once it is 10 s long (#1688). None when it is judged.
+fn regularity_line(s: &timegrapher_core::analysis::Summary) -> Option<String> {
+    use timegrapher_core::measure;
+    (!measure::regularity_assessed(s.duration_s, true))
+        .then(|| measure::not_assessed_text(s.duration_s))
+}
+
 fn print_summary(
     a: &Analysis,
     clock: Option<&(f64, String)>,
@@ -1828,19 +1847,12 @@ fn print_summary(
         fixed_text(s.duration_s, 1),
         s.sample_rate
     );
-    if !s.watch_heard {
-        let reason = measure::no_watch_reason_in(&s.caveats).unwrap_or_default();
-        println!("{}", measure::no_watch_text(reason, s.jitter_us, s.bph_set));
+    if let Some(line) = no_watch_line(s) {
+        println!("{line}");
         return;
     }
-    // A whole recording read from its start holds a whole scatter
-    // window once it is 10 s long (#1688).
-    if !measure::regularity_assessed(s.duration_s, true) {
-        println!(
-            "Beat regularity not assessed: {} s of sound, {} s needed",
-            fixed_text(s.duration_s, 1),
-            measure::SHORT_SPAN_S
-        );
+    if let Some(line) = regularity_line(s) {
+        println!("{line}");
     }
     // Off every standard rate, no standard rate is named (Hugh on #2316).
     if measure::off_standard(&s.caveats).is_some() {

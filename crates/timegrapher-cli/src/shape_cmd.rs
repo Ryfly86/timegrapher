@@ -38,6 +38,14 @@ pub fn run(file: &Path, o: &Options) -> Result<(), String> {
             crate::output::input(&[file.to_path_buf()], settings),
             &r,
         )?;
+    } else if s.shape.is_none() {
+        // No shape where `analyze` reads none, and no table: `analyze`'s
+        // own line for it, no regular beat found or no verdict yet on a
+        // recording under 10 s (#2371).
+        let line = crate::no_watch_line(s).or_else(|| crate::regularity_line(s));
+        if let Some(line) = line {
+            println!("{line}");
+        }
     } else {
         print_report(&r, s);
     }

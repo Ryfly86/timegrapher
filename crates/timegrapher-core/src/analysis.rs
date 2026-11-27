@@ -583,7 +583,9 @@ fn beats_shape(
 /// `a`'s beats, whose sides are named as its beat error names them
 /// ([`beats::SideCheck`]), and on their fitted period. The one reading
 /// behind `analyze`'s shape and `timegrapher shape`, so both give each
-/// side the same sounds (#2104).
+/// side the same sounds (#2104). Where `analyze` reads no shape (no
+/// regular beat found, or no verdict yet), it is read on no beats: no
+/// window and no figure, so nothing is measured on noise (#2371).
 pub fn shape_report(
     audio: &Audio,
     cfg: &AnalysisConfig,
@@ -592,7 +594,8 @@ pub fn shape_report(
     let fs = audio.sample_rate as f64;
     let env = envelope(&audio.samples, fs, &cfg.envelope);
     let s = &a.summary;
-    beats_shape(&env, fs, &a.beats, s.overall.as_ref(), s.bph)
+    let beats: &[Beat] = if s.shape.is_some() { &a.beats } else { &[] };
+    beats_shape(&env, fs, beats, s.overall.as_ref(), s.bph)
 }
 
 /// Whether a watch is heard in `beats` at `bph`, listened to from
