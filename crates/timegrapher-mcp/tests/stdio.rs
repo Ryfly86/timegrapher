@@ -323,10 +323,86 @@ fn a_chat_app_reads_a_watch() {
     sessions_checks_and_mistakes(&mut c, &dir, &take);
     recorded_position_by_position(&mut c, &dir);
     the_compact_series_says_how_it_differs(&mut c, &cli, &take);
+    large_replies_are_cut_to_what_the_model_reads(&mut c, &take);
     the_view_skill_and_prompt(&mut c, &tools);
 
     drop(c);
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// `beat_shape`, `tick_tock_profile` and a list of calibres give what a
+/// model can read, not hundreds of kB: each window's figures on request,
+/// the profile's curves to the view, each listed calibre's row (#2097).
+fn large_replies_are_cut_to_what_the_model_reads(c: &mut Client, take: &Path) {
+    let text = |r: &Value| {
+        r["content"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|b| b["text"].as_str())
+            .collect::<String>()
+    };
+    let r = c.call("beat_shape", json!({ "recording": path(take) }));
+    assert!(r.get("isError").is_none(), "{r}");
+    let doc = &r["structuredContent"];
+    assert!(doc.get("windows").is_none(), "{doc}");
+    assert!(!text(&r).contains("\"windows\":["), "{r}");
+    assert_eq!(
+        doc["projection"]["schema"],
+        "timegrapher.mcp.shape_compact/1"
+    );
+    assert!(doc["even"]["whole"].is_object(), "{doc}");
+    let r = c.call(
+        "beat_shape",
+        json!({ "recording": path(take), "windows": true }),
+    );
+    assert!(
+        r["structuredContent"]["windows"]
+            .as_array()
+            .is_some_and(|w| !w.is_empty()),
+        "{r}"
+    );
+    assert!(r["structuredContent"].get("projection").is_none(), "{r}");
+
+    let r = c.call("tick_tock_profile", json!({ "recording": path(take) }));
+    assert!(r.get("isError").is_none(), "{r}");
+    let doc = &r["structuredContent"];
+    assert!(doc["a"].get("median").is_none(), "{doc}");
+    assert!(doc["a"]["beats"].is_u64(), "{doc}");
+    assert_eq!(
+        doc["projection"]["schema"],
+        "timegrapher.mcp.profile_compact/1"
+    );
+    let curves = &r["_meta"]["timegrapher/charts"]["curves"];
+    assert!(
+        curves["a"]["median"]
+            .as_array()
+            .is_some_and(|m| !m.is_empty()),
+        "{r}"
+    );
+    assert!(curves["b"]["p90"].is_array(), "{r}");
+    let r = c.call(
+        "tick_tock_profile",
+        json!({ "recording": path(take), "curves": true }),
+    );
+    assert!(r["structuredContent"]["a"]["median"].is_array(), "{r}");
+    assert!(r["structuredContent"].get("projection").is_none(), "{r}");
+
+    let r = c.call("list_calibres", json!({}));
+    let doc = &r["structuredContent"];
+    let list = doc["calibres"].as_array().unwrap();
+    assert!(!list.is_empty() && list.len() <= 100, "{doc}");
+    assert!(list
+        .iter()
+        .all(|c| c.get("wheels").is_none() && c["bph"].is_u64()));
+    assert!(doc["calibres_listed"].as_u64().unwrap() >= list.len() as u64);
+    assert!(text(&r).len() < 40_000, "{} characters", text(&r).len());
+    let r = c.call("list_calibres", json!({ "name": "ETA 2824-2" }));
+    assert!(
+        r["structuredContent"]["calibres"][0]["wheels"].is_array(),
+        "{r}"
+    );
+    assert!(r["structuredContent"].get("projection").is_none(), "{r}");
 }
 
 /// `check_steadiness` gives a compact series document. Its `projection`
