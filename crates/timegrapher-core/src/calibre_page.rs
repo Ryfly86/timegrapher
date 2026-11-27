@@ -131,8 +131,9 @@ pub struct Page {
     /// "Also known as …", the row's other names.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub also_known_as: Option<String>,
-    /// Said in place of the lift angle when Timegrapher doesn't measure
-    /// the escapement yet (#1872).
+    /// Said of an escapement other than the Swiss lever: how a co-axial's
+    /// takes are read (beta, #2313), or that one is not measured yet
+    /// (#1872).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub escapement: Option<SpecPart>,
     /// Beat rate, lift angle and escape wheel in one line, saying which
@@ -341,7 +342,8 @@ pub fn sources_heading(confidence: &str) -> String {
     format!("{} · {}", HEADINGS.sources, title_case(confidence))
 }
 
-/// What is said of an escapement Timegrapher doesn't measure yet, with
+/// What is said of an escapement other than the Swiss lever (how a
+/// co-axial is read, #2313, or that one is not measured yet, #1872), with
 /// its source in the hover (#1872).
 pub fn escapement_part(x: &calibres::Escapement) -> SpecPart {
     SpecPart {

@@ -872,9 +872,8 @@ fn settle_beat_error(summary: &mut Summary, inconsistent: bool) {
         escapement.drop_beat_error(summary.overall.map(|f| f.beat_error_ms)),
     )
     .map(|(_, source)| source);
-    if let Some(caveat) = summary
-        .beat_error_source
-        .and_then(|s| s.caveat_why(inconsistent))
+    if let Some(caveat) =
+        escapement.beat_error_caveat(summary.beat_error_source, inconsistent, summary.watch_heard)
     {
         crate::measure::add(&mut summary.caveats, caveat);
     }

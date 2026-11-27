@@ -111,7 +111,7 @@ Two points that apply to all of them:
 
 `analyze` and each `session` reading's `measurement` carry `caveats[]`,
 each with a `code`; `long` and `series` carry one too, with only
-`sides_by_count`, `beat_error_as_size` and `clock_sources_disagree`. They are facts about the
+`sides_by_count`, `beat_error_as_size`, `clock_sources_disagree`, `coaxial_estimate` and `coaxial_beat_error`. They are facts about the
 recording. Empty means none applies. Read it before quoting any number,
 and say the ones that apply in plain words.
 
@@ -123,6 +123,8 @@ and say the ones that apply in plain words.
 | `clipped` | A share of beats clipped (`fraction`). | Over 1%: hold neither amplitude nor beat error to a tolerance; lower the level and record again. | "The microphone was too loud, so the amplitude may be off; the rate is fine." |
 | `beats_missing` | Under 95% of the expected beats found (`fraction`). | The beat rate, then the level and the clamp. | "I missed some beats; let's get a cleaner recording." |
 | `lift_unknown` | No calibre or lift angle given; the amplitude rests on the default. | Ask what the watch is. | "The amplitude depends on the movement; tell me what it is and I'll check it." |
+| `coaxial_estimate` | Read for a co-axial escapement (beta): the amplitude uses the Swiss lever's formula and hasn't been checked against a reference. Given only with an amplitude. | Quote the amplitude as an estimate; hold it to no lever tolerance. | "This is a co-axial movement, so the amplitude is an estimate for now." |
+| `coaxial_beat_error` | Read for a co-axial escapement (beta): the beat error is the unlock's alone, never the drop's. With `why` (`unlock_not_found` or `unlock_inconsistent`), there is none, and that is why. | Quote the unlock's beat error, or none; never work one out from the drop. | "On a co-axial I read the beat error from the unlock only." With `why`: "I couldn't read a beat error on this co-axial: the unlock wasn't found (or: wasn't steady enough to use)." |
 | `clock_unknown` | The sound card's clock error isn't known. | For a rate within a few s/d, see below. | "The rate includes the sound card's own clock error, which this recording can't measure." |
 | `clock_sources_disagree` | The USB lines correct the rates, and the clock log, good enough to correct them on its own, measures the card differently by more than its own scatter: `usb_ppm` and `log_ppm` (± `log_ppm_sd`), ppm fast by each. Never on `analyze`, which reads no clock log. | Quote the corrected rate as the USB lines give it; the two clocks are a fact to report, not a fault in the watch. | "Two ways of checking the sound card's clock disagree by about N ppm (N × 0.0864 s/d), so the rates could be off by that much." |
 | `breaks` | The take was paused or resumed (`count`). | Nothing to fix. | Only if asked. |

@@ -2781,7 +2781,16 @@ fn a_run_too_short_is_not_called_scattered() {
 /// peaking at 0.75 times its RMS, then `back` s of the watch again,
 /// listened to through the capture as the window hears it, stopped, and
 /// its Stop read in.
-fn stopped_short_return(base: &Path, (first, gap, back): (f64, f64, f64)) -> TimegrapherApp {
+fn stopped_short_return(base: &Path, spans: (f64, f64, f64)) -> TimegrapherApp {
+    stopped_short_return_as(base, spans, |_| {})
+}
+
+/// [`stopped_short_return`], the app set up by `prep` first.
+pub(super) fn stopped_short_return_as(
+    base: &Path,
+    (first, gap, back): (f64, f64, f64),
+    prep: impl FnOnce(&mut TimegrapherApp),
+) -> TimegrapherApp {
     let cfg = SynthConfig {
         bph: 28_800,
         duration_s: first + gap + back,
@@ -2802,20 +2811,20 @@ fn stopped_short_return(base: &Path, (first, gap, back): (f64, f64, f64)) -> Tim
             .wrapping_add(1_442_695_040_888_963_407);
         *s = 1.5 * rms * ((x >> 33) as f32 / (1u64 << 31) as f32 - 0.5);
     }
-    stopped_listened(base, &audio, None)
+    stopped_listened(base, &audio, prep)
 }
 
-/// `audio` at 48 kHz listened to through the capture at the beat rate
-/// `bph` (Auto with none) as the window hears it, stopped, and its Stop
-/// read in.
+/// `audio` at 48 kHz listened to through the capture, the app set up by
+/// `prep` first (its beat rate, say), as the window hears it, stopped,
+/// and its Stop read in.
 fn stopped_listened(
     base: &Path,
     audio: &timegrapher_core::audio::Audio,
-    bph: Option<u32>,
+    prep: impl FnOnce(&mut TimegrapherApp),
 ) -> TimegrapherApp {
     use timegrapher_core::capture::{Block, Event};
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
-    app.bench.take.bph = bph;
+    prep(&mut app);
     app.reset_session(48000, "short return".into());
     app.session.listen();
     let info = app.info("short return", 48000, 16);
@@ -2954,7 +2963,9 @@ fn an_off_standard_watch_stopped_on_auto_has_no_rate_in_s_per_day() {
     };
     let audio = generate(&cfg, |_| 280.0, |_| 0.0);
     let _ = std::fs::create_dir_all(base.join("set"));
-    let set = stopped_listened(&base.join("set"), &audio, Some(18_000));
+    let set = stopped_listened(&base.join("set"), &audio, |app| {
+        app.bench.take.bph = Some(18_000);
+    });
     let w = set.whole_take().expect("the whole take at 18,000");
     let rate =
         w.m.rate_s_per_day
@@ -2963,7 +2974,7 @@ fn an_off_standard_watch_stopped_on_auto_has_no_rate_in_s_per_day() {
     assert!(off_standard(&w.m.caveats).is_none(), "{:?}", w.m.caveats);
     let r = set.card_reading().expect("a reading");
     assert!(r.rate_s_per_day.is_some(), "{r:?}");
-    let mut app = stopped_listened(&base, &audio, None);
+    let mut app = stopped_listened(&base, &audio, |_| {});
     let w = app.whole_take().expect("the whole take");
     assert_eq!(w.m.rate_s_per_day, None, "{:?}", w.m.caveats);
     assert!(off_standard(&w.m.caveats).is_some(), "{:?}", w.m.caveats);
