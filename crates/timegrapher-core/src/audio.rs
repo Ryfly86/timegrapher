@@ -122,8 +122,156 @@ fn to_mono(interleaved: Vec<f32>, channels: usize) -> Vec<f32> {
         .collect()
 }
 
+/// A WAV file as [`wav_reader`] hands it to `hound`: the file itself, but
+/// with a stale data length (#2054) read as the length of the sound on disk.
+#[derive(Debug)]
+pub struct OnDisk<R> {
+    inner: R,
+    pos: u64,
+    /// Where the data chunk's length lies, and the length to read there.
+    patch: Option<(u64, [u8; 4])>,
+}
+
+impl<R: std::io::Read> std::io::Read for OnDisk<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let n = self.inner.read(buf)?;
+        if let Some((at, bytes)) = self.patch {
+            for (i, b) in bytes.iter().enumerate() {
+                let p = at + i as u64;
+                if (self.pos..self.pos + n as u64).contains(&p) {
+                    buf[(p - self.pos) as usize] = *b;
+                }
+            }
+        }
+        self.pos += n as u64;
+        Ok(n)
+    }
+}
+
+impl<R: std::io::Seek> std::io::Seek for OnDisk<R> {
+    fn seek(&mut self, to: std::io::SeekFrom) -> std::io::Result<u64> {
+        self.pos = self.inner.seek(to)?;
+        Ok(self.pos)
+    }
+}
+
+/// A WAV `hound` reads, every sound reader's way in ([`wav_reader`]).
+pub type WavFile<R = std::fs::File> = hound::WavReader<std::io::BufReader<OnDisk<R>>>;
+
+/// Open the WAV at `path` ([`wav_reader`]): read to the end of its
+/// sound when it is one of a take's own sound files ([`recorded`]).
+pub fn open_wav(path: &Path) -> Result<WavFile, AudioError> {
+    wav_reader(
+        std::fs::File::open(path).map_err(AudioError::Io)?,
+        recorded(path),
+    )
+}
+
+/// Whether `path` names a WAV as the recorder names a take's sound
+/// (`audio-001.wav`, ...): the only files whose header can lag their sound,
+/// since only the recorder writes a WAV while it is read (#2054).
+pub fn recorded(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|n| n.to_str())
+        .map(|n| n.to_ascii_lowercase())
+        .is_some_and(|n| n.starts_with("audio-") && n.ends_with(".wav"))
+}
+
+/// Read the WAV `file` from its start. When `own` (a take's own sound
+/// file, [`recorded`]), all of the sound it holds: a take whose program
+/// stopped (a crash, a kill, power lost) keeps sound past the length its
+/// header last gave, since each flush writes the header again only after
+/// the sound before it (#2054). When the data chunk runs to the end of
+/// the file and the file holds more than its header says, the sound is
+/// read to the end, in whole frames. Any other WAV reads as its header
+/// says, whatever follows its sound.
+pub fn wav_reader<R: std::io::Read + std::io::Seek>(
+    mut file: R,
+    own: bool,
+) -> Result<WavFile<R>, AudioError> {
+    use std::io::SeekFrom;
+    let patch = match own {
+        true => stale_data_length(&mut file).map_err(AudioError::Io)?,
+        false => None,
+    };
+    file.seek(SeekFrom::Start(0)).map_err(AudioError::Io)?;
+    let on_disk = OnDisk {
+        inner: file,
+        pos: 0,
+        patch: patch.map(|(at, len)| (at, len.to_le_bytes())),
+    };
+    hound::WavReader::new(std::io::BufReader::new(on_disk)).map_err(AudioError::Wav)
+}
+
+/// Where a WAV's data length lies and the length of the sound on disk,
+/// when the header gives less than that and nothing else follows the
+/// data. `None` for a file read as its header says: one whose header is
+/// right, a file cut short (read as before, up to where it ends), a
+/// chunk after the data (an ID3 or LIST tag), or anything this can't
+/// parse (left to `hound` to judge).
+fn stale_data_length<R: std::io::Read + std::io::Seek>(
+    f: &mut R,
+) -> std::io::Result<Option<(u64, u32)>> {
+    use std::io::SeekFrom;
+    let end = f.seek(SeekFrom::End(0))?;
+    f.seek(SeekFrom::Start(0))?;
+    let mut riff = [0u8; 12];
+    if f.read_exact(&mut riff).is_err() || &riff[..4] != b"RIFF" || &riff[8..] != b"WAVE" {
+        return Ok(None);
+    }
+    let mut at = 12u64;
+    let mut frame = None;
+    loop {
+        let mut head = [0u8; 8];
+        if at + 8 > end || f.read_exact(&mut head).is_err() {
+            return Ok(None);
+        }
+        let len = u64::from(u32::from_le_bytes([head[4], head[5], head[6], head[7]]));
+        if &head[..4] == b"fmt " {
+            let mut fmt = [0u8; 14];
+            if len < 14 || f.read_exact(&mut fmt).is_err() {
+                return Ok(None);
+            }
+            frame = Some(u64::from(u16::from_le_bytes([fmt[12], fmt[13]])));
+        } else if &head[..4] == b"data" {
+            let start = at + 8;
+            let on_disk = end - start;
+            let Some(frame) = frame.filter(|&b| b > 0) else {
+                return Ok(None);
+            };
+            // An odd length is followed by a pad byte, not sound.
+            let padded = len + (len & 1);
+            if padded >= on_disk || chunk_follows(f, start + padded, end)? {
+                return Ok(None);
+            }
+            let whole = (on_disk.min(u64::from(u32::MAX)) / frame) * frame;
+            return Ok((whole > len).then_some((at + 4, whole as u32)));
+        }
+        at += 8 + len + (len & 1);
+        f.seek(SeekFrom::Start(at))?;
+    }
+}
+
+/// Whether a chunk header (four printable characters and a length that
+/// fits in the file) starts at `at`: a tag after the data, not more sound.
+fn chunk_follows<R: std::io::Read + std::io::Seek>(
+    f: &mut R,
+    at: u64,
+    end: u64,
+) -> std::io::Result<bool> {
+    let mut head = [0u8; 8];
+    if at + 8 > end {
+        return Ok(false);
+    }
+    f.seek(std::io::SeekFrom::Start(at))?;
+    f.read_exact(&mut head)?;
+    let named = head[..4].iter().all(|&c| c.is_ascii_graphic() || c == b' ');
+    let len = u64::from(u32::from_le_bytes([head[4], head[5], head[6], head[7]]));
+    Ok(named && at + 8 + len <= end)
+}
+
 fn load_wav(path: &Path) -> Result<Audio, AudioError> {
-    let mut reader = hound::WavReader::open(path).map_err(AudioError::Wav)?;
+    let mut reader = open_wav(path)?;
     let spec = reader.spec();
     readable(
         spec.sample_rate,
@@ -190,7 +338,7 @@ pub fn info(path: &Path) -> Result<AudioInfo, AudioError> {
 fn info_of(path: &Path) -> Result<AudioInfo, AudioError> {
     match extension(path).as_str() {
         "wav" => {
-            let r = hound::WavReader::open(path).map_err(AudioError::Wav)?;
+            let r = open_wav(path)?;
             let spec = r.spec();
             readable(
                 spec.sample_rate,
@@ -263,7 +411,7 @@ fn stream_head_of(
     if frames > 0 {
         match extension(path).as_str() {
             "wav" => {
-                let mut reader = hound::WavReader::open(path).map_err(AudioError::Wav)?;
+                let mut reader = open_wav(path)?;
                 let spec = reader.spec();
                 let ch = spec.channels as usize;
                 let mut frame = Vec::with_capacity(ch);
