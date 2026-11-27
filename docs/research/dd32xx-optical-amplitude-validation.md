@@ -20,8 +20,8 @@ intervals: agreement with them is descriptive evidence, not a statistical test.
 ## Scope of the catalogue decision
 
 Only the two canonical rows `Dandong 3235` and `JH3235` change from **55° to 59°**.
-Their existing aliases cover DD/JH 3230, 3235, 3255, 3285 and 32xx, the corresponding
-and the Dandong/Jinghe names. There are no new aliases.
+Their existing aliases cover DD/JH 3230, 3235, 3255, 3285 and 32xx, and the corresponding
+Dandong/Jinghe names. There are no new aliases.
 The DD evidence is extrapolated to the other variants and to JH by maintainer
 decision; sharing a train does not itself prove a shared lift angle.
 
