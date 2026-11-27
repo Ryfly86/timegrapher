@@ -588,6 +588,11 @@ impl AmplitudeWindow {
         Some([Some(e / 1000.0), Some(o / 1000.0)])
     }
 
+    /// Whether both sides' edges were found, kept or culled.
+    pub fn found_both(&self) -> bool {
+        matches!(edges_found(self), [Some(_), Some(_)])
+    }
+
     /// Whether the window's two sides disagree ([`Extra::sides_disagree`]).
     pub fn sides_disagree(&self) -> bool {
         self.extra().sides_disagree
@@ -701,7 +706,8 @@ fn edges_found(w: &AmplitudeWindow) -> [Option<[f64; 2]>; 2] {
 /// the far fences alone screen them.
 ///
 /// A window whose two sides' unlock-to-drop times disagree against the
-/// escapement's reference over `wins` ([`sides_agree`],
+/// escapement's reference over `wins`, their ratio beyond
+/// [`SIDES_DISAGREE_RATIO`] of it either way ([`sides_agree`],
 /// [`crate::escapement::Escapement::sides_reference`]) has one side's edge
 /// on the wrong sound, and the times can't say which: it gives no unlock
 /// beat error, and both sides' amplitudes are left out
@@ -746,7 +752,8 @@ pub fn screen_unlock_beat_error(
         }
         let ok = [inside(0, e), inside(1, o)];
         n += ok.iter().filter(|&&k| !k).count();
-        if r0.is_some_and(|r0| !sides_agree(e[1] - e[0], o[1] - o[0], r0)) {
+        let share = share_of_ratio(SIDES_DISAGREE_RATIO);
+        if r0.is_some_and(|r0| !sides_agree(e[1] - e[0], o[1] - o[0], r0, share)) {
             withhold_sides(w);
             continue;
         }
@@ -810,21 +817,13 @@ fn put_back_sides(w: &mut AmplitudeWindow) {
 }
 
 /// `wins`, kept for either escapement, as read for `escapement` (#2313):
-/// on a co-axial, screened again ([`screen_unlock_beat_error`]); on a
-/// Swiss lever, with no unlock beat error in a window whose two sides are
-/// both culled, the one way the two reads differ. A log read for the same
+/// screened again ([`screen_unlock_beat_error`]) for it, so the two reads
+/// differ only as the screen does: a window with both sides culled gives
+/// no unlock beat error on a lever, and the sides are judged against the
+/// escapement's own reference (#1788). A log read for the same
 /// escapement is left as it was.
 pub fn kept_for(wins: &mut [AmplitudeWindow], escapement: crate::escapement::Escapement) {
-    if escapement.is_co_axial() {
-        screen_unlock_beat_error(wins, escapement);
-        return;
-    }
-    for w in wins.iter_mut() {
-        let [e, o] = w.culled();
-        if e.is_some() && o.is_some() {
-            w.beat_error_unlock_ms = None;
-        }
-    }
+    screen_unlock_beat_error(wins, escapement);
 }
 
 /// [`reject_side_outliers`] for the windows of `wins` whose middle is at
@@ -1119,7 +1118,7 @@ fn short_reach_s() -> f64 {
 fn sides_go_long(unlocks_s: [Option<f64>; 2]) -> bool {
     let beyond = |u: Option<f64>| u.filter(|at| *at < -short_reach_s());
     match (beyond(unlocks_s[0]), beyond(unlocks_s[1])) {
-        (Some(e), Some(o)) => sides_agree(e, o, 1.0),
+        (Some(e), Some(o)) => sides_agree(e, o, 1.0, SIDES_UNLOCK_AGREE_SHARE),
         _ => false,
     }
 }
@@ -1127,13 +1126,32 @@ fn sides_go_long(unlocks_s: [Option<f64>; 2]) -> bool {
 /// Whether a window's two sides, whose unlocks lie `e` and `o` from the
 /// drop (Tick, Tock), agree for a watch whose ratio of the two is `r0`
 /// ([`crate::escapement::Escapement::sides_reference`]): when `e` and
-/// `r0`·`o` lie within [`SIDES_UNLOCK_AGREE_SHARE`] of their mean of each
-/// other. Times only, so it holds at every lift. The one test for both
-/// the long templates ([`sides_go_long`], #1703) and the screen of a
-/// window's unlock beat error ([`screen_unlock_beat_error`], Norm's
-/// ruling on #1788).
-pub fn sides_agree(e: f64, o: f64, r0: f64) -> bool {
-    (e - r0 * o).abs() <= SIDES_UNLOCK_AGREE_SHARE * (e + r0 * o).abs() / 2.0
+/// `r0`·`o` lie within `share` of their mean of each other. Times only,
+/// so it holds at every lift. The one test for both the long templates
+/// ([`sides_go_long`], #1703, at [`SIDES_UNLOCK_AGREE_SHARE`]) and the
+/// screen of a window's unlock beat error ([`screen_unlock_beat_error`],
+/// at [`SIDES_DISAGREE_RATIO`] as a share, [`share_of_ratio`]).
+pub fn sides_agree(e: f64, o: f64, r0: f64, share: f64) -> bool {
+    (e - r0 * o).abs() <= share * (e + r0 * o).abs() / 2.0
+}
+
+/// How far apart a window's two sides' unlock-to-drop times may lie for
+/// its unlock beat error to stand ([`screen_unlock_beat_error`]), as the
+/// largest ratio of the longer to the shorter, against the escapement's
+/// own ratio (Norm's amended ruling on #1788, #2486): a healthy lever's
+/// two sides are not equal (the ratio's median 1.03 to 1.14 on the corpus
+/// takes Norm read, and a 90th percentile up to 1.30), while an unlock
+/// read on the wrong sound sits far out (about 1.6 on the #2318 clip, 0.55
+/// to 0.75 on `dd3235_DU_30min`). The log-midpoint of 1.30 and 1.57,
+/// rounded down, and frozen there. Wider than the long templates'
+/// [`SIDES_UNLOCK_AGREE_SHARE`], which chooses a template, not a cull.
+pub const SIDES_DISAGREE_RATIO: f64 = 1.4;
+
+/// A largest ratio `ratio` of two times as the share of their mean they
+/// may lie apart by, as [`sides_agree`] takes it: x and y with
+/// max(x/y, y/x) ≤ `ratio` are exactly those within this share.
+pub fn share_of_ratio(ratio: f64) -> f64 {
+    2.0 * (ratio - 1.0) / (ratio + 1.0)
 }
 
 /// The times of the good beats of one side (even or not) in `beats`.
@@ -1690,10 +1708,8 @@ mod tests {
         let osc = 0.25;
         let win = |i: usize| {
             let f = ((i * 7) % 40) as f64 / 40.0;
-            // The odd side reads higher: under 380° at 50°, over it in
-            // about half the windows by 58°. The sides within 15% of each
-            // other, as a lever's are ([`sides_agree`], #1788).
-            let (e, o) = (-(6.6 + 0.3 * f), -(5.8 + 0.5 * f));
+            // The odd side reads higher: near 380° at 50°, over it by 58°.
+            let (e, o) = (-(6.6 + 0.3 * f), -(5.45 + 0.5 * f));
             AmplitudeWindow {
                 start_s: 2.0 * i as f64,
                 end_s: 2.0 * i as f64 + 2.0,

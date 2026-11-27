@@ -525,7 +525,7 @@ fn a_co_axial_with_an_inconsistent_unlock_says_so() {
         };
         generate(&cfg, |_| 270.0, |_| 0.0)
     };
-    let (far, near) = (take(0.001), take(0.0));
+    let (far, near) = (take(0.0015), take(0.0));
     let fs = far.sample_rate as f64;
     // Spliced between beats, 6 s of every 10 from the far take.
     let samples: Vec<f32> = (0..far.samples.len())

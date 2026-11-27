@@ -639,9 +639,10 @@ pub struct WindowFigures {
     /// allows, so no unlock beat error is given ([`unlock_inconsistent`],
     /// #1439).
     pub unlock_inconsistent: bool,
-    /// No window gives an unlock beat error, and at least one was
-    /// withheld because its two sides disagree
-    /// ([`AmplitudeWindow::sides_disagree`], Norm's ruling on #1788).
+    /// No window gives an unlock beat error, and more than half of those
+    /// that found both sides' edges, kept or culled, were withheld because
+    /// their two sides disagree ([`AmplitudeWindow::sides_disagree`],
+    /// Norm's ruling on #2486): the majority names the cause.
     pub sides_disagree: bool,
 }
 
@@ -662,9 +663,17 @@ pub fn window_figures(wins: &[&AmplitudeWindow], turned: bool) -> WindowFigures 
             })
             .flatten(),
         unlock_inconsistent: inconsistent,
-        sides_disagree: wins.iter().all(|w| w.beat_error_unlock_ms.is_none())
-            && wins.iter().any(|w| w.sides_disagree()),
+        sides_disagree: sides_disagree_most(wins),
     }
+}
+
+/// Whether no window of `wins` gives an unlock beat error and more than
+/// half of those that found both sides' edges were withheld for their
+/// sides ([`WindowFigures::sides_disagree`]).
+fn sides_disagree_most(wins: &[&AmplitudeWindow]) -> bool {
+    let found = wins.iter().filter(|w| w.found_both()).count();
+    let withheld = wins.iter().filter(|w| w.sides_disagree()).count();
+    wins.iter().all(|w| w.beat_error_unlock_ms.is_none()) && 2 * withheld > found
 }
 
 /// Whether the unlock beat errors of `wins`, as the figure takes them

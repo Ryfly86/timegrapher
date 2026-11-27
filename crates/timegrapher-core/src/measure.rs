@@ -552,10 +552,11 @@ pub enum DropWhy {
     /// The unlock's beat errors disagree in sign more than their spread
     /// allows ([`crate::confidence::unlock_inconsistent`], #1439).
     UnlockInconsistent,
-    /// Every window that found both sides' unlocks was withheld because
-    /// the two sides' unlock-to-drop times disagree
-    /// ([`crate::amplitude::sides_agree`], Norm's ruling on #1788): one
-    /// side's edge is on the wrong sound.
+    /// No window gives an unlock beat error, and most windows that found
+    /// both sides' unlocks were withheld because the two sides'
+    /// unlock-to-drop times disagree ([`crate::amplitude::sides_agree`],
+    /// Norm's rulings on #1788 and #2486): one side's edge is on the wrong
+    /// sound.
     SidesDisagree,
 }
 
@@ -608,9 +609,8 @@ impl DropWhy {
                  the beat error is measured from the drop."
             }
             Self::SidesDisagree => {
-                "Tick's and Tock's unlock-to-drop times disagree in every window, so one \
-                 side's unlock was read on the wrong sound; the beat error is measured from \
-                 the drop."
+                "Tick's and Tock's unlock-to-drop times disagree, so one side's unlock was \
+                 read on the wrong sound; the beat error is measured from the drop."
             }
         }
     }
@@ -1334,8 +1334,8 @@ fn coaxial_beat_error_long(why: Option<DropWhy>) -> String {
              spread allows, so none is given."
         ),
         Some(DropWhy::SidesDisagree) => format!(
-            "{lead_none}, and Tick's and Tock's unlock-to-drop times disagree in every \
-             window, so none is given."
+            "{lead_none}, and Tick's and Tock's unlock-to-drop times disagree, so one \
+             side's unlock was read on the wrong sound and none is given."
         ),
     }
 }

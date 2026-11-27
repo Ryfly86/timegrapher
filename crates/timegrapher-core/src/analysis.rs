@@ -1061,9 +1061,8 @@ mod tests {
         assert_eq!(summary.amplitude_deg, m.amplitude_deg);
         assert_eq!(summary.beat_error_unlock_ms, m.beat_error_unlock_ms);
     }
-    /// A take whose unlock reads −0.4 ms in three windows of five and the
-    /// watch's +0.6 ms in the rest (#1439), its sides within 15% of each
-    /// other so no window is withheld for them (#1788): `analyze`, as session does,
+    /// A take whose unlock reads −0.9 ms in three windows of five and the
+    /// watch's +0.6 ms in the rest (#1439): `analyze`, as session does,
     /// gives the drop's beat error and says the unlock was inconsistent,
     /// not that it was not found (Trevor's mutant on #1458).
     #[test]
@@ -1079,7 +1078,7 @@ mod tests {
             };
             generate(&cfg, |_| 270.0, |_| 0.0)
         };
-        let (far, near) = (take(0.001), take(0.0));
+        let (far, near) = (take(0.0015), take(0.0));
         let fs = far.sample_rate as f64;
         // Spliced between beats, 6 s of every 10 from the far take.
         let samples = (0..far.samples.len())

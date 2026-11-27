@@ -132,12 +132,14 @@ The choice and all measured figures are unchanged.
 A drop-derived reading carries `{"code":"beat_error_from_drop"}` in
 `caveats[]`, with `"why":"unlock_inconsistent"` added when the unlock was
 found but its 2 s windows disagree on its sign, so it is not used (#1439),
-or `"why":"sides_disagree"` when every 2 s window that found both sides'
-unlocks was withheld because Tick's and Tock's unlock-to-drop times
-disagree, one side's unlock read on the wrong sound (#1788);
+or `"why":"sides_disagree"` when no 2 s window gives an unlock beat error
+and most windows that found both sides' unlocks were withheld because
+Tick's and Tock's unlock-to-drop times disagree, one side's unlock read on
+the wrong sound (#1788);
 with no `why`, the unlock was not found. A window whose two sides disagree
-(on a Swiss lever, more than 15% of their mean apart; on a co-axial, more
-than that from the watch's own Tick-to-Tock ratio over 30 or more windows)
+(the longer more than 1.4 times the shorter on a Swiss lever; on a
+co-axial, more than 1.4 times off the watch's own Tick-to-Tock ratio over
+30 or more windows)
 gives no unlock beat error and no amplitude, Tick's or Tock's: it counts as
 not used in `reading_windows`. Library readings and Power Reserve hours now carry the core
 measurement's caveats as well as its source. Older saved versions of those
