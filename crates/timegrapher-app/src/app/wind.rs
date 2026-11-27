@@ -154,9 +154,6 @@ impl TimegrapherApp {
     /// it; so does a watch or take other than the Start's. Called once per
     /// take, before its recording is let go.
     pub(super) fn take_thrown_away(&mut self) {
-        let Some(before) = self.bench.take.wind.before_test.take() else {
-            return;
-        };
         let kept = self.session.saved_to().is_some()
             || self.bench.keeping.analysis_kept_to.is_some()
             || self
@@ -164,6 +161,14 @@ impl TimegrapherApp {
                 .recorder
                 .as_ref()
                 .is_some_and(|r| timegrapher_core::checkpoint::exists(r.dir()));
+        // A test begun on this take: thrown away, its Bench goes back too
+        // (#2340); kept, it stays as the test left it.
+        if self.bench.test.guided.is_some() || self.bench.test.reserve.is_some() {
+            self.bench_back(kept);
+        }
+        let Some(before) = self.bench.take.wind.before_test.take() else {
+            return;
+        };
         if kept || before.take != self.recording_dir() {
             return;
         }
