@@ -43,7 +43,10 @@ def validate_analysis(document):
     if settings.get("bph") != 28800 or settings.get("lift_deg") != 52:
         raise SmokeError("Analysis did not retain explicit BPH/lift settings")
     values = {
-        "rate_s_per_day": document.get("overall", {}).get("rate_s_per_day"),
+        # The rate as read, on the card's clock (analyze/3): the CLI run
+        # below gives --card-ppm=0 and the MCP call none, and the headline
+        # rate, corrected at that zero, can differ in its last bits.
+        "rate_s_per_day": document.get("rate_card_s_per_day"),
         "amplitude_deg": document.get("amplitude_deg"),
         "beat_error_unlock_ms": document.get("beat_error_unlock_ms"),
     }
