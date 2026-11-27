@@ -35,6 +35,14 @@ test("a recording with no regular beat says the server's sentence", () => {
   assert.ok(markup.includes(`<b>${NO_BEAT_TITLE}</b>${said}</div>`), markup);
 });
 
+test("a recording with no regular beat and no rate set names no beat rate", () => {
+  const markup = context.recordingView({ watch_heard: false, bph: null, lift_deg: 55, duration_s: 120, jitter_us: 3491 }, null, null, said);
+  assert.ok(!markup.includes("beats per hour"), markup);
+  assert.ok(markup.includes("120 · lift angle 55°"), markup);
+  const set = context.recordingView({ watch_heard: false, bph: 21600, lift_deg: 55, duration_s: 120 }, null, null, said);
+  assert.ok(set.includes("120 · 21600 beats per hour · lift angle 55°"), set);
+});
+
 test("a take's check with no regular beat says the server's sentence", () => {
   const markup = context.recordView({ position: "DU", seconds: 60, check: { watch_heard: false, bph: 28800, timing_scatter_ms: 8.6 } }, null, said);
   assert.ok(markup.includes(`<b>${NO_BEAT_TITLE}</b>${said}</div>`), markup);

@@ -2,7 +2,7 @@
 //! envelope, so an agent can tell what it is reading and where it came from.
 //!
 //! The `schema` field names the kind of document and its version
-//! (`timegrapher.analyze/2`). Within a version, fields are only ever added;
+//! (`timegrapher.analyze/3`). Within a version, fields are only ever added;
 //! a change that would break a reader bumps the version. See
 //! `docs/reference/agent-interface.md`.
 
@@ -23,13 +23,14 @@ pub const SCHEMA_VERSION: u32 = 1;
 /// and `session/3` made a state of wind not given its own (`wind_h` null)
 /// instead of full wind's;
 /// `analyze/2`, `doctor/2` and `regress-holdout/2` dropped their grades,
-/// verdicts, named faults and advice.
+/// verdicts, named faults and advice, and `analyze/3` is core's
+/// ([`timegrapher_core::analyze_doc::VERSION`]).
 pub fn schema_version(kind: &str) -> u32 {
     match kind {
         "record" => 2,
         "series" => 4,
         "session" => 3,
-        "analyze" => 2,
+        "analyze" => timegrapher_core::analyze_doc::VERSION,
         "doctor" => 2,
         "regress-holdout" => 2,
         _ => SCHEMA_VERSION,

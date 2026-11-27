@@ -111,7 +111,7 @@ Rate         No rate in s/d: over the first 10 s after Auto locked on to the bea
 ## For Scripts and Agents
 
 - `--json` prints exactly one JSON document, starting with `schema`
-  (such as `timegrapher.analyze/2`), the software's version and the
+  (such as `timegrapher.analyze/3`), the software's version and the
   input it read. Within a schema version, fields are only added.
 - **Exit codes:** 0 when it worked, 1 for an error (the message goes to
   the error stream), 3 from `regress` when a take moved beyond its
