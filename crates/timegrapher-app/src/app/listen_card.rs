@@ -6,7 +6,8 @@ use super::*;
 /// two rows of buttons, points (Hugh on #1745).
 pub(super) const POSITION_TEN_GAP: f32 = 3.0;
 /// Added to Listen's hover over a recording opened (#2108).
-const CLOSES_OPENED_HINT: &str = " Over a recording opened, asks first, as it closes it.";
+const CLOSES_OPENED_HINT: &str =
+    " Over a recording opened, it asks first, since listening closes the recording.";
 /// The size of the 10 card's position name, points.
 pub(super) const POSITION_NAME_TEN_PT: f32 = 15.0;
 
