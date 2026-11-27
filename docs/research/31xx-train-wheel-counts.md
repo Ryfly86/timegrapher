@@ -27,7 +27,7 @@ running period, not the winding-arbor period or the power reserve.
 ## Applicability
 
 The project reports that these counts and periods apply to **all genuine Rolex
-31xx and Dandong/DD/VS and VR clones of that family**, explicitly including
+31xx and Dandong (DD) and VR clones of that family**, explicitly including
 **3130, 3135, 3186 and 3187**. An initial reference to 3120 was corrected
 to 3130. The photographs document one component set; coverage of the
 other manufacturers and variants is contributor-reported applicability,
@@ -36,8 +36,8 @@ not an independent photographic measurement of each variant.
 The catalogue updates the existing Rolex 3135 family (3130, 3135, 3155,
 3175, 3185, 3186, with 3187 added), the separate Rolex 3131 entry, and
 VR3135 (VR3130, VR3186, with VR3187 added). It adds **Dandong 3135** with
-DD, VS and Dandong aliases for 3130, 3135, 3186 and 3187. Family aliases
-are explicitly qualified: `Rolex 31xx`, `Dandong 31xx`, `DD31xx`, `VS31xx`
+DD and Dandong aliases for 3130, 3135, 3186 and 3187. Family aliases
+are explicitly qualified: `Rolex 31xx`, `Dandong 31xx`, `DD31xx`
 and `VR31xx`.
 
 **SH31xx is excluded.** Its existing database entry is unchanged; these
@@ -45,7 +45,7 @@ photos do not establish its train counts or underlying construction.
 No 32xx or 413x entries receive these counts. Matching tooth counts do
 not establish component interchangeability, tooth form or lift-angle
 equivalence. Existing Rolex and VR lift settings remain. No lift angle
-is inferred for the new DD/VS entry from these photos.
+is inferred for the new Dandong entry from these photos.
 
 ## Derivation and the 36-minute second wheel
 
@@ -103,7 +103,7 @@ shipped values.
 
 The separate Rolex 3131 row receives the train under the contributor's
 all-Rolex-31xx coverage. Its existing 52° lift setting is retained. The new
-DD/VS row deliberately leaves lift angle unspecified; it can be supplied
+Dandong row deliberately leaves lift angle unspecified; it can be supplied
 from separate escapement evidence. (Supplied 2026-11-25 by #2299: this
 project's bench report that DD31xx pallet forks can be swapped for genuine
 ones gives the DD31xx rows the genuine 3135's 52°.)

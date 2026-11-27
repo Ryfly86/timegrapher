@@ -21,7 +21,7 @@ source.
 The [2026-11-03 DD3285 optical study](../../../docs/research/dd32xx-optical-amplitude-validation.md)
 supports a maintainer-selected **59°** default, replacing 55° in `Dandong 3235`
 and `JH3235`. The DD/JH 3230, 3255 and 3285 rows and the 32xx aliases
-inherit it, including `VS3235` under the Dandong row. Four blind video/audio takes
+inherit it. Four blind video/audio takes
 measured one DD3285; effective matching settings were roughly 58–59°. Applying
 59° to other DD variants and the JH family is an explicit extrapolation, not
 separate measurements or a definitive physical lift-angle determination.
@@ -315,12 +315,12 @@ for all 4130 variants. It is not inferred from tooth counts.
 [31xx train counts](../../../docs/research/31xx-train-wheel-counts.md) contain nine
 numbered figures and five originals from the VR31xx photo set, contributed
 by this project on 2026-10-19. The project reports applicability to genuine Rolex,
-DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; SH31xx is excluded.
+Dandong and VR31xx, including 3130, 3135, 3186 and 3187; SH31xx is excluded.
 The train is barrel 100, second 81/12, third 96/12, fourth 120/18, escape
 20/10. The derived periods are 18000, **2160**, 320, 60 and 5 seconds.
 The second wheel occupies the established `centre wheel` slot at 36 minutes;
 the cannon pinion is a separate one-hour entry. This corrects the prior
-one-hour second-wheel assumption. The new Dandong 3135 entry has DD/VS
+one-hour second-wheel assumption. The new Dandong 3135 entry has DD and Dandong
 aliases and left lift angle unspecified. Existing Rolex 3131, Rolex
 3135 and VR3135 lift settings remain; SH3135 is unchanged.
 
@@ -354,7 +354,7 @@ beat rate and layout, plus these:
   The 2892-A2 and 7750 still have no escape count. The Seiko/Miyota
   research contribution below supplies illustrated counts for its explicitly
   covered variants, with the manufacturer-part mappings recorded separately.
-- **Barrels.** Rolex, DD/VS and VR31xx: 5 h from the photographed 100:12
+- **Barrels.** Rolex, Dandong and VR31xx: 5 h from the photographed 100:12
   barrel-to-second mesh and 2160 s second wheel, agreeing with the earlier
   Rolex 3135 value from SJX's 5:1 barrel to minute ratio.
   Rolex, Dandong and Jinghe 32xx: 25,200 s (7 h), from the photographed
@@ -363,7 +363,7 @@ beat rate and layout, plus these:
   Rolex, Dandong and SH4130: 7 h from the photographed 105:15 ratio and
   contributor applicability; Rolex's 4130 technical manual independently
   publishes the seven-hour drum period. This is distinct from power reserve.
-- **Clones.** The 31xx contribution covers DD/VS and VR, excluding SH31xx.
+- **Clones.** The 31xx contribution covers Dandong and VR, excluding SH31xx.
   The 32xx contribution explicitly covers Dandong and Jinghe
   and excludes VR32xx and SH32xx. The 4130 contribution covers DD4130 and
   SH4130; the project separately confirms that both share the genuine 52° lift
@@ -530,5 +530,4 @@ Original Third/Fourth/Fifth filenames map to centre/third/fourth roles.
 The genuine AP3120 and Miyota-based replicas receive no transferred counts.
 The existing 53° lift setting is retained. This project identifies Jinghe as
 the SA3120 manufacturer; it is listed under Shanghai Jinghe as a "clone
-of" the Audemars Piguet 3120 (#2304), with APS/ZF retained as marketed
-aliases.
+of" the Audemars Piguet 3120 (#2304).

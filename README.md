@@ -166,7 +166,7 @@ Dandong and Jinghe 32xx train are in
 The [4130 evidence](docs/research/4130-train-wheel-counts.md) covers the Rolex, Dandong
 and SH4130 train and chronograph drive, with directly counted and inferred
 teeth distinguished.
-The [31xx evidence](docs/research/31xx-train-wheel-counts.md) covers Rolex, DD/VS and
+The [31xx evidence](docs/research/31xx-train-wheel-counts.md) covers Rolex, Dandong (DD) and
 VR31xx, excluding SH31xx, and distinguishes the 36-minute second wheel from
 the one-hour cannon pinion.
 
