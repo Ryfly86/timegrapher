@@ -1486,12 +1486,12 @@ impl TimegrapherApp {
             timegrapher_core::recorder::utc(std::time::SystemTime::now()),
             "measure",
         );
-        let saved = clockstore::ClockStore::load().and_then(|mut s| {
+        let saved = clockstore::ClockStore::update(|s| {
             s.set(d.clone());
-            s.save()
+            Ok(())
         });
         match saved {
-            Ok(p) => {
+            Ok(((), _, p)) => {
                 self.info_msg(format!(
                     "Kept this input's clock, {}, in {}",
                     timegrapher_core::clock::ppm_words(d.ppm, d.ppm_sd),

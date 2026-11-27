@@ -2068,7 +2068,11 @@ folder can't be moved while another copy has it open. The Watches view adds watc
     - **The details.** The calibre selected, in a card level with the
       table: its name alone (every fact in the row stays in the row; other
       names it goes by under it), then for a custom calibre its name,
-      maker, beat rate and lift angle, then the **Wheels** group, a row
+      maker, beat rate, lift angle and escapement (Swiss lever, co-axial,
+      pin lever or detent; Swiss lever until another is picked, #2387);
+      the name and maker are kept on Return or clicking away, Escape puts
+      them back, and a name the list already has stays as it was, saying
+      so under the box (#2481); then the **Wheels** group, a row
       for each wheel's time for one turn, a caption under the group saying
       so:
       - The six every lever movement has (balance, escape, fourth, third

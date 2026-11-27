@@ -20,6 +20,7 @@ fn a_take_is_read_with_its_calibres_settings() {
             bph: Some(21600),
             lift_angle_deg: Some(49.0),
             escape_teeth: Some(21),
+            escapement: None,
             wheels: Vec::new(),
             notes: None,
         });

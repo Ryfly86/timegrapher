@@ -18,9 +18,10 @@ import artifact_smoke as smoke
 
 
 def document():
-    return {"schema": "timegrapher.analyze/2", "watch_heard": True,
+    return {"schema": "timegrapher.analyze/3", "watch_heard": True,
             "input": {"settings": {"bph": 28800, "lift_deg": 52}},
-            "overall": {"rate_s_per_day": 6.01}, "amplitude_deg": 279.5,
+            "overall": {"rate_s_per_day": 6.01}, "rate_card_s_per_day": 6.01,
+            "amplitude_deg": 279.5,
             "beat_error_unlock_ms": 0.4}
 
 
@@ -99,7 +100,7 @@ class ArtifactSmokeTests(unittest.TestCase):
             for bad in [None, True, "6", float("nan"), float("inf")]:
                 doc = document()
                 if quantity == "rate_s_per_day":
-                    doc["overall"][quantity] = bad
+                    doc["rate_card_s_per_day"] = bad
                 else:
                     doc[quantity] = bad
                 with self.subTest(quantity=quantity, bad=bad):
@@ -111,7 +112,7 @@ class ArtifactSmokeTests(unittest.TestCase):
             with self.assertRaises(smoke.SmokeError):
                 smoke.validate_analysis(doc)
         doc = document()
-        doc["overall"]["rate_s_per_day"] = 7
+        doc["rate_card_s_per_day"] = 7
         with self.assertRaises(smoke.SmokeError):
             smoke.validate_analysis(doc)
 

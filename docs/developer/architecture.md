@@ -52,7 +52,7 @@ Every layer but the last is in core.
 - **May** cache a core result, keyed on the take's revision.
 - **May not** compare a reading with a number.
 - **May not** pick a clock, cut a window, call a break or pick a sample.
-- **May not** write a take file or the `timegrapher.analyze/2` document.
+- **May not** write a take file or the `timegrapher.analyze/3` document.
 - **May not** word a fact, or type a core number into text.
 - **May not** keep a figure core could read again.
 

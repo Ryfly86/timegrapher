@@ -1811,6 +1811,7 @@ fn a_session_kept_as_its_analysis_opens_as_the_sound_does() {
             bph: Some(28800),
             lift_angle_deg: None,
             escape_teeth: Some(21),
+            escapement: None,
             wheels: Vec::new(),
             notes: None,
         });
@@ -2528,6 +2529,7 @@ fn keep_analysis_only_keeps_subfolders_and_the_calibres_settings() {
             aliases: Vec::new(),
             bph: Some(28800),
             lift_angle_deg: Some(59.0),
+            escapement: None,
             escape_teeth: Some(20),
             wheels: Vec::new(),
             notes: None,
