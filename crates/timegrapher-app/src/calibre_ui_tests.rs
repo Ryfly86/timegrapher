@@ -1130,3 +1130,36 @@ fn typing_for_one_custom_calibre_never_renames_another() {
     t.frame(&mut c, &b, vec![]);
     assert!(note(&b).is_none());
 }
+
+/// The note on a name refused goes when the Name box is typed in again,
+/// and on its own when Escape is pressed (Trevor 82 on #2482).
+#[test]
+fn the_refused_name_note_goes_on_retyping_or_on_escape_alone() {
+    let mut c = Calibres::in_memory();
+    let name = c.new_custom("");
+    let t = Typing::new();
+    let taken = custom_field_id("custom name taken", "manager", &name);
+    let noted = |t: &Typing| t.ctx.data(|d| d.get_temp::<String>(taken)).is_some();
+    let refuse = |c: &mut Calibres| {
+        t.type_into(c, &name, "custom name", "Omega 8500");
+        assert!(t.enter(c, &name).renamed.is_none());
+        t.frame(c, &name, vec![]);
+        assert!(noted(&t), "refused");
+    };
+    refuse(&mut c);
+    t.type_into(&mut c, &name, "custom name", "B");
+    assert!(!noted(&t), "typing again takes the note back");
+    t.frame(
+        &mut c,
+        &name,
+        Typing::key(egui::Key::Escape, egui::Modifiers::NONE),
+    );
+    refuse(&mut c);
+    t.frame(
+        &mut c,
+        &name,
+        Typing::key(egui::Key::Escape, egui::Modifiers::NONE),
+    );
+    t.frame(&mut c, &name, vec![]);
+    assert!(!noted(&t), "Escape alone takes the note back");
+}
