@@ -22,6 +22,10 @@ pub const STALE_ADD_S: u64 = 3600;
 /// The start of the hidden folder a take is put together in ([`staging`]).
 pub(super) const ADDING: &str = ".adding-";
 
+/// The folder inside a staging folder the take is put together in
+/// ([`begin_staging`]).
+pub(super) const STAGED_TAKE: &str = "take";
+
 /// A take planned to be added ([`Library::plan_add`]).
 #[derive(Debug, Clone)]
 pub struct AddPlan {
@@ -34,6 +38,9 @@ pub struct AddPlan {
     /// when false).
     pub keep_original: bool,
     takes: PathBuf,
+    /// The name it is filed under ([`take_folder_name`]): `to`, or the
+    /// next free one where another program took `to` meanwhile.
+    base: String,
     to: PathBuf,
     staged: PathBuf,
     /// Where it went already, moved on the same disk with no copy.
@@ -159,7 +166,9 @@ impl Library {
         } else {
             fs::create_dir_all(&takes).map_err(|e| format!("{}: {e}", takes.display()))?;
         }
-        let to = unused_dir(&takes, &file_name(from));
+        // A visible name, whatever the original's (#2402).
+        let base = take_folder_name(&file_name(from));
+        let to = unused_dir(&takes, &base);
         let moved = (!keep_original && fs::rename(from, &to).is_ok()).then(|| to.clone());
         let bytes = if moved.is_some() {
             0
@@ -177,6 +186,7 @@ impl Library {
             bytes,
             keep_original,
             takes,
+            base,
             to,
             staged,
             moved,
@@ -210,8 +220,12 @@ impl Library {
 
     /// Clear the folders left from adding a take that never finished: any
     /// `.adding-…` folder in a watch's takes untouched for
-    /// [`STALE_ADD_S`]. Only a copy is ever put together there, so nothing
-    /// is lost; a copy still under way is left alone. Only with the lock.
+    /// [`STALE_ADD_S`] that is not itself a take folder. Only a copy is
+    /// ever put together there, inside it ([`begin_staging`]), so nothing
+    /// is lost; a copy still under way is left alone. A take folder of that
+    /// name (one an earlier version filed under its original's name, or
+    /// put together before [`STAGED_TAKE`]) is kept: it may be the only
+    /// copy (#2402). Only with the lock.
     pub(super) fn clear_stale_adds(&self) {
         if self.lock.is_none() {
             return;
@@ -228,7 +242,8 @@ impl Library {
             for e in fs::read_dir(&takes).into_iter().flatten().flatten() {
                 let name = e.file_name();
                 let ours = name.to_string_lossy().starts_with(ADDING);
-                if ours && e.file_type().is_ok_and(|t| t.is_dir()) && stale(&e.path()) {
+                let dir = e.file_type().is_ok_and(|t| t.is_dir());
+                if ours && dir && !is_take_folder(&e.path()) && stale(&e.path()) {
                     let _ = fs::remove_dir_all(e.path());
                 }
             }
@@ -254,14 +269,9 @@ pub fn copy_add(
         progress,
         cancel,
     };
-    let copied = copy_tree_with(&plan.from, &plan.staged, &[], &mut c).and_then(|_| {
-        move_in(
-            &plan.staged,
-            &plan.takes,
-            &file_name(&plan.from),
-            plan.to.clone(),
-        )
-    });
+    let copied = begin_staging(&plan.staged)
+        .and_then(|inner| copy_tree_with(&plan.from, &inner, &[], &mut c))
+        .and_then(|_| move_in(&plan.staged, &plan.takes, &plan.base, plan.to.clone()));
     if copied.is_err() {
         let _ = fs::remove_dir_all(&plan.staged);
     }
