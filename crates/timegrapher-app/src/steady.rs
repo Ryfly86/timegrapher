@@ -284,7 +284,9 @@ fn log_masked_at(live: &LiveAnalyzer, masked: &[(f64, f64)], bph: Option<u32>) -
         duration_s: live.duration_s(),
         bph: bph?,
         lift_deg: live.config().analysis.amplitude.lift_deg,
-        escapement: Default::default(),
+        // Read for the escapement live reads for (#2313): a co-axial's
+        // whole-take results give no drop beat error (Norm on #2319).
+        escapement: live.config().analysis.amplitude.escapement,
         beats: live.beats().to_vec(),
         amplitude_windows: live.amplitude_windows().to_vec(),
         clipped_beats: live.clipped_beats().to_vec(),

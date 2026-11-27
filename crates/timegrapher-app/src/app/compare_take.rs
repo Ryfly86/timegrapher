@@ -107,6 +107,7 @@ pub(super) fn table_of_take(
         bph: analysis.bph,
         lift_deg: analysis.amplitude.lift_deg,
         lift_known: analysis.lift_known,
+        escapement: analysis.amplitude.escapement,
         average_s: AVERAGES[0],
         masked: o.masked.clone(),
         changes: stretches.iter().map(|s| s.0).collect(),

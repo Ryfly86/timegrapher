@@ -228,6 +228,19 @@ impl LiveAnalyzer {
         self.as_file = AsFile::default();
     }
 
+    /// Whether a read as a file is in flight, and whether one has
+    /// landed, for the tests.
+    #[cfg(test)]
+    pub(super) fn read_state(&self) -> (bool, bool) {
+        (self.as_file.job.is_some(), self.as_file.view.is_some())
+    }
+
+    /// Whether the read in flight has finished, for the tests.
+    #[cfg(test)]
+    pub(super) fn read_finished(&self) -> bool {
+        self.as_file.job.as_ref().is_none_or(|j| j.0.is_finished())
+    }
+
     /// A setting changed: the newest read as a file given it too.
     pub(super) fn in_view(&mut self, f: impl FnOnce(&mut LiveAnalyzer)) {
         self.as_file.fresh = std::sync::OnceLock::new();

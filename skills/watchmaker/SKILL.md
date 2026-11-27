@@ -213,6 +213,11 @@ Work through them in this order. The reasons are in
      drop. Example: "Beat error 0.7 ms, read from the drop because the
      unlock wasn't found (or: wasn't steady enough to use); a drop figure
      can differ from an unlock one."
+   - On a co-axial (`escapement` `co-axial`, beta): the source is
+     `"unlock"` or `null`, never `"drop"`; the caveat
+     `coaxial_beat_error` says so, and its `why` says why there is none.
+     Example: "Beat error 0.4 ms (from the unlock; on a co-axial I don't
+     use the drop)."
    - `null`: no beat error was read. Say so and don't quote one, or work
      one out from other fields. Example: "No beat error could be read
      from this take."
