@@ -277,27 +277,24 @@ impl TimegrapherApp {
         }
     }
 
-    /// A watch picked in the Watches view's list. Over a Quick Listen
-    /// still listening, its unsaved sound is asked about first (as the
-    /// Watch line asks), then the listening stops and the watch is picked;
-    /// over a watch's take still listening, it is refused.
+    /// A watch picked in the Watches view's list, or just added there.
+    /// Over a Quick Listen still listening it does what the Watch line
+    /// does: the Quick Listen is kept in the watch and listening goes on,
+    /// with no question, since no sound is lost (#2107). Over a watch's
+    /// take still listening, another is refused; its own shows its page.
     pub(super) fn list_pick(&mut self, id: String) {
+        if self.running() && self.bench.recording.quick_listen {
+            return self.line_pick(Some(id), false);
+        }
+        if self.running() && self.watches_view.watch_open.as_deref() == Some(id.as_str()) {
+            self.watches_view.list_for = None;
+            return;
+        }
         let again = id.clone();
         if self.behind_save(move |a| a.list_pick(again)) {
             return;
         }
-        match list_pick_route(
-            self.running(),
-            self.bench.recording.quick_listen && !self.saving_busy(),
-            self.line_pick_asks(),
-        ) {
-            ListPick::Pick => self.pick_watch(&id),
-            ListPick::Ask => self.confirm = Some(Confirm::PickWatch(Some(id))),
-            ListPick::StopThenPick => {
-                self.pause();
-                self.line_pick(Some(id), true);
-            }
-        }
+        self.pick_watch(&id);
     }
 
     /// The picked watch's photos, as a strip.
