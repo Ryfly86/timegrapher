@@ -406,7 +406,7 @@ fn hour_area(ui: &mut egui::Ui, hours: &[power_reserve::Hour], so_far: bool, sho
         let high = column.height().max(hour_steps::read_h(charts.len()));
         let at = ui
             .scope_builder(egui::UiBuilder::new().max_rect(column), |ui| {
-                egui::ScrollArea::vertical()
+                crate::theme::scroll(egui::ScrollArea::vertical())
                     .id_salt("reserve charts scroll")
                     .auto_shrink([false, false])
                     .max_height(column.height())
@@ -481,7 +481,7 @@ fn run_scroll(ui: &egui::Ui, rect: egui::Rect) -> egui::ScrollArea {
         d.insert_temp(id, pass);
         last
     });
-    let area = egui::ScrollArea::both()
+    let area = crate::theme::scroll(egui::ScrollArea::both())
         .id_salt(id)
         .auto_shrink([false, false])
         .min_scrolled_height(0.0)

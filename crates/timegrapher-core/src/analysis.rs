@@ -197,6 +197,20 @@ impl Summary {
         self.caveats
             .retain(|c| *c != crate::measure::Caveat::ClockUnknown);
     }
+
+    /// The beat error this reading leads with, signed, ms, and where it
+    /// is from: the one [`settle_beat_error`] chose (`beat_error_source`),
+    /// read back, never chosen again, so every reader of a summary (the
+    /// doctor's quick look among them, #2095) gives the same one.
+    pub fn headline_beat_error(&self) -> Option<(f64, crate::session::BeatErrorSource)> {
+        use crate::session::BeatErrorSource;
+        let source = self.beat_error_source?;
+        let value = match source {
+            BeatErrorSource::Unlock => self.beat_error_unlock_ms,
+            BeatErrorSource::Drop => self.overall.map(|f| f.beat_error_ms),
+        }?;
+        Some((value, source))
+    }
 }
 
 /// How much of the recording is clipped: the samples, and the beats with a
@@ -547,9 +561,38 @@ fn take_shape(
     fits: &Fits,
     bph: u32,
 ) -> crate::shape::Measures {
-    let beat_s = crate::timing::beat_period_s(fits.overall.as_ref(), bph);
-    let r = crate::shape::analyze(env, fs, beats, beat_s, &Default::default());
+    let r = beats_shape(env, fs, beats, fits.overall.as_ref(), bph);
     crate::shape::Measures::of(&r, &fits.clear)
+}
+
+/// The shape of `beats` in `env` at `fs`, measured on the beat period of
+/// their fit `overall` (or 3600/`bph` with none).
+fn beats_shape(
+    env: &[f32],
+    fs: f64,
+    beats: &[Beat],
+    overall: Option<&TimingFit>,
+    bph: u32,
+) -> crate::shape::ShapeReport {
+    let beat_s = crate::timing::beat_period_s(overall, bph);
+    crate::shape::analyze(env, fs, beats, beat_s, &Default::default())
+}
+
+/// The shape of the beats [`analyze`] read from `audio` with `cfg` (`a`):
+/// on `cfg`'s envelope, on
+/// `a`'s beats, whose sides are named as its beat error names them
+/// ([`beats::SideCheck`]), and on their fitted period. The one reading
+/// behind `analyze`'s shape and `timegrapher shape`, so both give each
+/// side the same sounds (#2104).
+pub fn shape_report(
+    audio: &Audio,
+    cfg: &AnalysisConfig,
+    a: &Analysis,
+) -> crate::shape::ShapeReport {
+    let fs = audio.sample_rate as f64;
+    let env = envelope(&audio.samples, fs, &cfg.envelope);
+    let s = &a.summary;
+    beats_shape(&env, fs, &a.beats, s.overall.as_ref(), s.bph)
 }
 
 /// Whether a watch is heard in `beats` at `bph`, listened to from
@@ -1040,5 +1083,33 @@ mod tests {
         let still = periods(0);
         assert!((still[0] - 10.0).abs() < 0.1, "{still:?}");
         assert_eq!(periods((0.01 * fs) as usize), still);
+    }
+
+    /// The headline beat error reads back the source chosen: from the
+    /// drop, the whole-recording fit's, never the unlock's figure.
+    #[test]
+    fn the_headline_beat_error_reads_back_the_source_chosen() {
+        use crate::session::BeatErrorSource;
+        let a = generate(
+            &SynthConfig {
+                duration_s: 30.0,
+                beat_error_ms: 0.6,
+                ..Default::default()
+            },
+            |_| 270.0,
+            |_| 0.0,
+        );
+        let mut s = analyze(&a, &AnalysisConfig::default()).summary;
+        let drop = s.overall.unwrap().beat_error_ms;
+        let unlock = s.beat_error_unlock_ms.unwrap();
+        assert_eq!(
+            s.headline_beat_error(),
+            Some((unlock, BeatErrorSource::Unlock))
+        );
+        s.beat_error_source = Some(BeatErrorSource::Drop);
+        s.beat_error_unlock_ms = Some(9.0);
+        assert_eq!(s.headline_beat_error(), Some((drop, BeatErrorSource::Drop)));
+        s.beat_error_source = None;
+        assert_eq!(s.headline_beat_error(), None);
     }
 }

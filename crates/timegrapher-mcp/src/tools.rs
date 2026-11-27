@@ -347,7 +347,9 @@ pub const TOOLS: &[ToolSpec] = &[
         name: "check_recording",
         title: "Check a Recording",
         description: "A recording's sound: level, clipping, automatic gain, noise and \
-            whether ticks are heard. Reads the file \
+            whether ticks are heard. Its rate and beat error are analyze_recording's \
+            (the beat error from the unlock or the drop, as `beat_error_source` says), \
+            and none where no regular beat is found. Reads the file \
             only: it never opens the microphone and changes nothing.",
         command: &["doctor"],
         params: &[
