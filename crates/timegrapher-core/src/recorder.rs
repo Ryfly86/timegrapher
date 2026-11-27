@@ -44,7 +44,7 @@ mod saved_flac;
 mod session_file_tests;
 mod settle;
 use closed_hour::{open_closed_hour, open_in_place};
-pub use recorded::{recorded_setup, RecordedSetup};
+pub use recorded::{recorded_setup, saved_ranges, Moved, RecordedSetup, SavedRange, MOVED_TO};
 use released::HeldWhole;
 pub use saved_flac::{holding_wav, keep_saved_as_flac, keep_saved_as_flac_unless};
 use settle::{held_open, settled};
@@ -118,6 +118,8 @@ pub struct Note {
 struct SessionFile<'a> {
     #[serde(flatten)]
     info: &'a SessionInfo,
+    /// The position it started in; `position` is the latest (#2397).
+    first_position: &'a str,
     started_utc: &'a str,
     ended_utc: Option<String>,
     duration_s: f64,
@@ -655,6 +657,7 @@ impl Recorder {
             .collect();
         let f = SessionFile {
             info: &self.info,
+            first_position: &self.first_position,
             started_utc: &self.started_utc,
             ended_utc: ended,
             duration_s: self.duration_s(),
