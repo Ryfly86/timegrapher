@@ -157,6 +157,89 @@ fn a_take_saved_twice_across_a_move_keeps_everything() {
     let _ = std::fs::remove_dir_all(&base);
 }
 
+/// Sound never saved that was moved as it recorded opens with its
+/// positions: the stretches, settling and position its saved copy opens
+/// with (#2397). Before, the whole take was one position, the last it
+/// was moved to.
+#[test]
+fn a_recovered_take_opens_with_the_positions_it_was_moved_through() {
+    let base = std::env::temp_dir().join(format!("tg-app-recovered-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.bench.take.bph = Some(28800);
+    app.reset_session(48000, "test".into());
+    app.session.set_settle_s(SETTLE_S);
+    app.session.listen();
+    let audio = generate(
+        &SynthConfig {
+            duration_s: 90.0,
+            ..Default::default()
+        },
+        |_| 280.0,
+        |_| 0.0,
+    );
+    let third = audio.samples.len() / 3;
+    let began = std::time::SystemTime::now();
+    let info = app.info("test", 48000, 16);
+    app.session.recorder = Some(Recorder::start(&base.join("kept"), info).unwrap());
+    for (i, to) in [Some(Position::DialDown), Some(Position::CrownUp), None]
+        .into_iter()
+        .enumerate()
+    {
+        let block = timegrapher_core::capture::Block {
+            samples: audio.samples[i * third..(i + 1) * third].to_vec(),
+            at: began + std::time::Duration::from_secs(30 * (i as u64 + 1)),
+        };
+        app.session
+            .recorder
+            .as_mut()
+            .unwrap()
+            .write(&block)
+            .unwrap();
+        for samples in block.samples.chunks(960) {
+            app.bench.recording.live.as_mut().unwrap().push(samples);
+        }
+        if let Some(p) = to {
+            app.change_position(p);
+        }
+    }
+    let kept = app.session.recorder.as_ref().unwrap().dir().to_path_buf();
+    app.session.recorder.as_mut().unwrap().flush().unwrap();
+    app.save_into(&base.join("saved"));
+    app.wait_for_save();
+    let saved = app
+        .session
+        .saved_to()
+        .map(Path::to_path_buf)
+        .expect("saved");
+    let open = |path: &Path| {
+        let mut again = TimegrapherApp::with_devices(Vec::new(), None);
+        again.session.set_settle_s(SETTLE_S);
+        again.start_batch(path);
+        let t = Instant::now();
+        while again.bench.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
+            again.poll();
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        assert!(again.bench.recording.live.is_some(), "{}", path.display());
+        again
+    };
+    let from_copy = open(&saved);
+    let recovered = open(&kept);
+    let moved = [
+        (0.0, Position::DialUp),
+        (30.0, Position::DialDown),
+        (60.0, Position::CrownUp),
+    ];
+    assert_eq!(from_copy.session.stretches(), moved);
+    assert_eq!(recovered.session.stretches(), moved);
+    assert_eq!(recovered.session.settles(), from_copy.session.settles());
+    assert_eq!(recovered.bench.take.position, from_copy.bench.take.position);
+    assert_eq!(recovered.bench.take.position, Position::CrownUp);
+    drop(app);
+    let _ = std::fs::remove_dir_all(&base);
+}
+
 /// A Positions Test begun with the watch already dial up: the strip
 /// marks Dial Up from the start, with the time before the test named,
 /// though the watch never moved.

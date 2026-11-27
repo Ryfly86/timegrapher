@@ -1267,6 +1267,8 @@ fn a_recovered_take_opens_at_the_position_last_heard() {
         on_auto: true,
         calibre: None,
         escapement: None,
+        first_position: None,
+        moves: Vec::new(),
     };
     let opened = |r: RecordedSetup, name: &str| {
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
@@ -1313,6 +1315,8 @@ fn a_recovered_calibre_opens_under_its_name_now_with_its_lift_known() {
         on_auto: true,
         calibre: Some(c.former_names[0].clone()),
         escapement: None,
+        first_position: None,
+        moves: Vec::new(),
     };
     app.put_recorded(r, &std::env::temp_dir().join("run"));
     assert_eq!(app.bench.take.calibre, c.calibre);
