@@ -1192,3 +1192,101 @@ fn a_recording_reached_through_a_link_into_the_watches_is_not_offered_to_them() 
     assert!(app.open_ask_for(&outside).is_some());
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// Sound never saved opens with the lift angle, beat rate and position
+/// its session.json was heard with, not the defaults: a watch heard at
+/// 55° reads its own amplitude, not 13° less at 52° (#2376).
+#[test]
+fn unsaved_sound_opens_with_the_watch_it_was_heard_with() {
+    let base = std::env::temp_dir().join(format!("tg-app-recovered-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let cfg = SynthConfig {
+        duration_s: 60.0,
+        lift_deg: 55.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.bench.take.lift_deg = 55.0;
+    app.bench.take.bph = Some(cfg.bph);
+    app.bench.take.position = Position::CrownLeft;
+    let mut r = Recorder::start(&base, app.info("", audio.sample_rate, 16)).unwrap();
+    r.write(&timegrapher_core::capture::Block {
+        samples: audio.samples.clone(),
+        at: std::time::SystemTime::now(),
+    })
+    .unwrap();
+    r.flush().unwrap();
+    let dir = r.dir().to_path_buf();
+    // The app stopped without saving it: no session.toml, only the
+    // recorder's own session.json.
+    drop(r);
+    drop(app);
+    assert!(!dir.join(MANIFEST).exists());
+
+    let mut next = TimegrapherApp::with_devices(Vec::new(), None);
+    next.open_recording(&dir, true);
+    let t = Instant::now();
+    while next.bench.recording.batch.is_some() && t.elapsed().as_secs() < 120 {
+        next.poll();
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    assert_eq!(next.bench.take.lift_deg, 55.0);
+    assert!(next.lift_known());
+    assert_eq!(next.bench.take.bph, Some(cfg.bph));
+    assert_eq!(next.bench.take.position, Position::CrownLeft);
+    // It opens as a saved take does, with no note of its own.
+    assert_eq!(next.bench.keeping.open_note, None);
+    assert_eq!(
+        next.message.as_ref().map(|m| m.0.as_str()),
+        Some("Analysed the whole recording. Drag the strip to look back.")
+    );
+    let amp = next
+        .whole_take()
+        .and_then(|w| w.m.amplitude_deg)
+        .expect("an amplitude");
+    assert!(
+        (amp - 280.0).abs() < 5.0,
+        "{amp}° read for 280° heard at 55°"
+    );
+    drop(next);
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// A recovered take opens at the position its session.json was last
+/// heard in, over the folder name's start position; with none written,
+/// the name's, else Dial Up; a lift that couldn't stand, 52° (#2376).
+#[test]
+fn a_recovered_take_opens_at_the_position_last_heard() {
+    use timegrapher_core::recorder::RecordedSetup;
+    let recorded = |position: Option<&str>| RecordedSetup {
+        watch: String::new(),
+        position: position.map(str::to_string),
+        lift_deg: Some(55.0),
+        bph: None,
+    };
+    let opened = |r: RecordedSetup, name: &str| {
+        let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+        app.put_recorded(r, &std::env::temp_dir().join(name));
+        app
+    };
+    // Started Dial Up (the folder's name), moved to Crown Left.
+    let app = opened(recorded(Some("CL")), "2026-11-26_10-00-00_DU");
+    assert_eq!(app.bench.take.position, Position::CrownLeft);
+    // None written, or one that isn't a position: the name's.
+    for written in [None, Some("sideways")] {
+        let app = opened(recorded(written), "2026-11-26_10-00-00_DD");
+        assert_eq!(app.bench.take.position, Position::DialDown, "{written:?}");
+    }
+    let app = opened(recorded(None), "run");
+    assert_eq!(app.bench.take.position, WatchSetup::default().position);
+    let app = opened(
+        RecordedSetup {
+            lift_deg: None,
+            ..recorded(None)
+        },
+        "run",
+    );
+    assert_eq!(app.bench.take.lift_deg, DEFAULT_LIFT_DEG);
+    assert_eq!(app.bench.keeping.open_note, None);
+}

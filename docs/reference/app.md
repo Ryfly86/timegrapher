@@ -2264,7 +2264,7 @@ shutdown) with more than 5 s of unsaved sound other than a Quick Listen
 take's, or is stopped by a crash,
 the sound stays there, and the next start says so in the status bar,
 **Unsaved Take Found…**, which opens the message with when it started (in this computer's time), its length and
-size, and **Open** (analysed here, and offered again next time),
+size, and **Open** (analysed here with the lift angle, beat rate and position it was heard with, from its `session.json`, as No Watch with Calibre Not Set, and offered again next time, #2376),
 **Move To…** (the recording's folder moved into one you pick, to open
 with Open Folder…), **Delete…** (asking first) and **Later**. When the
 sound was from a take recording into its own folder as it went, that take

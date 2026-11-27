@@ -1651,10 +1651,14 @@ impl TimegrapherApp {
 
     /// A recording with no session file starts from the defaults, never
     /// the last take's watch, with its position from the file's name when
-    /// it carries one (reverso_DU_…), and a note saying so.
+    /// it carries one (reverso_DU_…), and a note saying so. Sound that
+    /// was never saved starts from the watch it was heard with (#2376).
     fn fresh_setup(&mut self, path: &Path, files: &[PathBuf]) {
         self.bench.take.opened_masks = Some(Vec::new());
         self.keep_mic_setup();
+        if let Some(r) = timegrapher_core::recorder::recorded_setup(path) {
+            return self.put_recorded(r, path);
+        }
         self.set_watch_setup(WatchSetup::default());
         let from_name =
             position_in_name(path).or_else(|| files.first().and_then(|f| position_in_name(f)));
