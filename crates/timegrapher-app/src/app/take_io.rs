@@ -116,6 +116,10 @@ impl TimegrapherApp {
     /// session or a take read afresh.
     fn let_sound_and_test_go(&mut self) {
         self.bench.results.sound_history.clear();
+        // The Positions Test table of the take before, and any still being
+        // read of it: gone with its sound, so no pane waits on it (#2329).
+        *self.bench.results.free_job.borrow_mut() = None;
+        *self.bench.results.free_table.borrow_mut() = None;
         self.bench.keeping.no_sound = None;
         self.bench.keeping.analysis_kept_to = None;
         self.bench.test.guided = None;

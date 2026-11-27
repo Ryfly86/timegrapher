@@ -1697,9 +1697,54 @@ fn wheel_of(
         .filter(|(_, off)| off.abs() <= 100.0 * NEAREST_WHEEL_REACH);
     let wheel = wheels
         .iter()
-        .find(|w| (period - w.period_s).abs() <= resolution.max(0.01 * w.period_s))
+        .find(|w| (period - w.period_s).abs() <= match_reach_s(w.period_s, resolution))
         .map(|w| w.name.clone());
     (wheel, nearest)
+}
+
+/// How far, in seconds, a period may be from a wheel's turn and still be
+/// that wheel: the search's `resolution_s` or 1% of the turn, whichever is
+/// wider. The one match rule [`wheel_of`] and [`wheel_note`] use.
+pub fn match_reach_s(wheel_period_s: f64, resolution_s: f64) -> f64 {
+    resolution_s.max(0.01 * wheel_period_s)
+}
+
+/// The wheel a component matches, or the nearest one and how far off,
+/// with the match rule for that wheel stated as the wider of its two
+/// parts ([`match_reach_s`]), so it never reads "±0.0 s" (Norm on #2100,
+/// #2342 item 11). `wheels` are the turns searched, to look up the one
+/// named; empty when the component names none.
+pub fn wheel_note(c: &Component, wheels: &[Wheel]) -> String {
+    use crate::figure_text::{fixed_text, signed_text};
+    let rule = |name: &str| {
+        let turn = wheels
+            .iter()
+            .find(|w| w.name == name)
+            .map_or(c.period_s, |w| w.period_s);
+        if match_reach_s(turn, c.resolution_s) == c.resolution_s {
+            format!(
+                "the search's resolution, ±{} s",
+                fixed_text(c.resolution_s, 2)
+            )
+        } else {
+            "1% of its turn".to_string()
+        }
+    };
+    let pct = |off: f64| format!("{}%", signed_text(off, 1));
+    match (&c.wheel, &c.nearest_wheel) {
+        (Some(w), Some((n, off))) if n == w => format!(
+            "matches the {w} ({} off; a match is within {})",
+            pct(*off),
+            rule(w)
+        ),
+        (Some(w), _) => format!("matches the {w} (a match is within {})", rule(w)),
+        (None, Some((w, off))) => format!(
+            "no wheel listed within {}; nearest is the {w}, {} off",
+            rule(w),
+            pct(*off)
+        ),
+        (None, None) => String::new(),
+    }
 }
 
 impl Search {
