@@ -282,7 +282,7 @@ sound first, as the Watch line does, then stops the listening and picks
 the watch; while a watch's take is listening, picking another is
 refused until it stops. Its toolbar has, left to right, **New Watch…**
 (a watch and a plus), a search (a loupe; in the name, calibre, notes and
-fields), **Sort** by Name, Last Take or Size, and **List Shows**. In a narrow window, Sort and List Shows fold
+fields), **Sort** by Name, Last Take or Size, and **List Shows** (only while a watch has a field added: otherwise the calibre is its one choice). In a narrow window, Sort and List Shows fold
 into the "…" menu first; New Watch… and the search always stay
 in the row. The Watches folder's location, and Show in Finder (Explorer on
 Windows, File Manager on Linux) for it, are in Settings. Clicking **Unsorted Takes** goes back to Quick Listen: no
@@ -1377,8 +1377,7 @@ than 48 to a point along the strip, every nth tick and its tock are
 drawn, as the rest would only lie under them.
 
 **Still Paper**, the switch after Direction (a sheet with a trace that
-runs off its right edge and carries on from the left, lit while on). Off,
-the paper slides along under the pen, the newest beats at its edge. On,
+runs off its right edge and carries on from the left, lit while on). Off, the paper slides along under the pen, the newest beats at its edge. While the app listens and no beat comes, the paper moves on all the same, as a printing timegrapher's does, and the strip says the cards' wait. Stopped, it ends where the cards' readings do: the watch's last beat, or the end of the sound when no watch was heard. On,
 the paper stays put and the pen
 sweeps along it, back to the start every Length, as a scope draws: a time
 lies (t mod Length) / Length of the way along, laps starting at take time
@@ -1393,8 +1392,7 @@ paper is still, with nothing to fit; zooming changes the Length about the
 pen. The choice is kept between runs.
 
 **Fit**, the switch beside Length (arrows out to two edges, lit while
-on), shows the whole session so far along the strip, up to the take's
-end: its newest beat or its newest reading, whichever is later, the same
+on), shows the whole session so far along the strip, up to the take's end: its newest beat or reading, or, while no beat comes, the sound heard, the same
 end the charts and Readings Over Time have (its last 80 hours when it is
 longer):
 
@@ -1412,9 +1410,9 @@ longer):
 
 On the strip, the mouse wheel or a trackpad swipe either way (with Shift
 too) moves along the session (live or not), as dragging along the
-time axis does, and back at the newest beat it is live again. Cmd on the
+time axis does, and back at the newest edge it is live again. Cmd on the
 Mac, or Ctrl elsewhere, and the wheel (or a pinch) changes the length, out
-to no more than the take: live, the newest beat stays at the edge; looking
+to no more than the take: live, the newest edge stays where it is; looking
 back, the time under the pointer stays where it is; Alt (Option on a Mac) and the wheel changes the width. Dragging across slides the trace, and a double
 click returns to the newest beats and centres them. **Auto-Centre** (a
 pushpin on a dashed line, lit while on) keeps
@@ -1678,12 +1676,15 @@ of each phase's readings, for a phase with at least four; the median shape
 as a line; and a note giving the line's swing, highest less lowest, beside
 the boxes' median height), **Autocorrelation** (with the ±1.96/√n band
 dashed, the repeat marked and the Ljung–Box p-value), **Allan Deviation**
-(log-log, against the dashed line independent readings follow, labelled
+(log-log, against the dashed line independent readings follow, named
 where it ends, with the averaging time of least scatter labelled; times on
 fewer differences than core's `ALLAN_JUDGED_DIFFERENCES` (8) hollow, their
-line faint, noted once "hollow: too few differences to judge" on a
-plate beside the first, as the repeat's note is, clear of the trace and
-the other two labels),
+line faint, noted once "hollow: too few differences to judge" beside the
+first. Each of the three sits on a plate in the nearest place that neither
+line crosses, clear of the others, joined to its point by a short leader
+that crosses no line; the dashed line's name stands by the line's end, or
+further back along it where the end has no room; where no place is clear,
+and for the hollow note on a short plot, it is its point's hover),
 **CUSUM** (with the ±1.36 lines dashed and the largest excursion
 labelled) and **FFT** (the plain amplitude spectrum of each series, like
 Witschi's: the size of the sine wave at each period, log-log, in the

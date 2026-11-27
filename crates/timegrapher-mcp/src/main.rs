@@ -164,6 +164,7 @@ async fn call(
     let mut doc = doc;
     let series_charts =
         (tool.name == "check_steadiness").then(|| views::take_series_charts(&mut doc));
+    let profile_charts = compact(tool, args, &mut doc);
     let mut result = json!({
         "content": text_blocks(&doc, tool, &out.stderr),
         "structuredContent": doc,
@@ -176,7 +177,7 @@ async fn call(
             return Ok(tool_error(e.to_string()));
         }
     }
-    if let Some(charts) = series_charts {
+    if let Some(charts) = series_charts.or(profile_charts) {
         result["_meta"] = json!({ views::META_KEY: charts });
     }
     view_meta(&doc, &mut result);
@@ -184,6 +185,24 @@ async fn call(
         takes::remember(k, &result);
     }
     complete(result)
+}
+
+/// The compact documents of the tools whose CLI document runs to hundreds
+/// of kB (#2097): `beat_shape` without its windows unless asked for,
+/// `tick_tock_profile` with its curves for the view unless asked for
+/// (returned, for the result's `_meta`), and `list_calibres`' rows for a list.
+fn compact(tool: &tools::ToolSpec, args: &Map<String, Value>, doc: &mut Value) -> Option<Value> {
+    match tool.name {
+        "beat_shape" if args.get(tools::WINDOWS) != Some(&Value::Bool(true)) => {
+            views::shape_compact(doc);
+        }
+        "list_calibres" => views::calibres_compact(doc),
+        "tick_tock_profile" if args.get(tools::CURVES) != Some(&Value::Bool(true)) => {
+            return views::profile_charts(doc);
+        }
+        _ => {}
+    }
+    None
 }
 
 /// Run the command `line`, writing a recording to `destination`'s folder,

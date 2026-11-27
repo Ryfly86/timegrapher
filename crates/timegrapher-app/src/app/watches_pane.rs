@@ -18,7 +18,7 @@ impl TimegrapherApp {
         }
         self.watches_view.watches_wide = wide;
         let scroll = |ui: &mut egui::Ui, id: &str, add: &mut dyn FnMut(&mut egui::Ui)| {
-            egui::ScrollArea::vertical()
+            crate::theme::scroll(egui::ScrollArea::vertical())
                 .id_salt(id)
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
@@ -513,11 +513,17 @@ impl TimegrapherApp {
         }
     }
 
+    /// Whether a recording opened from disk is on show: the one test of
+    /// it (#2391).
+    pub(super) fn opened_recording(&self) -> bool {
+        self.bench.recording.input == Input::File && !self.bench.keeping.opened_path.is_empty()
+    }
+
     /// The recording opened, a lone file or a take, when the library can
     /// take it: outside the library by core's one import-path guard
     /// ([`library::not_already_in`], links followed).
     pub(super) fn addable_take(&self) -> Option<PathBuf> {
-        if self.bench.recording.input != Input::File || self.bench.keeping.opened_path.is_empty() {
+        if !self.opened_recording() {
             return None;
         }
         let p = PathBuf::from(&self.bench.keeping.opened_path);
@@ -1222,6 +1228,11 @@ impl TimegrapherApp {
             }
             _ => Vec::new(),
         };
+        // With no field added to any watch, Calibre is the only choice:
+        // no drop-down of one (#2342). The choice is kept for when one is.
+        if labels.is_empty() {
+            return;
+        }
         // A field no watch has any more shows as Calibre, the choice kept
         // for when one has it again.
         let mut shows = self.list_shows().map(str::to_string);

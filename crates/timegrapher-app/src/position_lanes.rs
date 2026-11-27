@@ -153,7 +153,7 @@ pub fn beside<R>(
         let high = column.height().max(read_h(&refs));
         let at = ui
             .scope_builder(egui::UiBuilder::new().max_rect(column), |ui| {
-                egui::ScrollArea::vertical()
+                crate::theme::scroll(egui::ScrollArea::vertical())
                     .id_salt("positions charts scroll")
                     .auto_shrink([false, false])
                     .max_height(column.height())
