@@ -664,7 +664,9 @@ function rateBasis(corrected, from) {
 function recordingView(doc, extra, limits, noBeat, pm) {
   pm = pm || {};
   const name = fileName(doc);
-  const head = `<h1>Recording</h1><p class="sub">${esc(name)}${name ? " · " : ""}${timeLabel(doc.duration_s)} · ${esc(doc.bph)} beats per hour · lift angle ${esc(doc.lift_deg)}°</p>`;
+  // No beat rate where none was heard or set (analyze/3, #2378).
+  const bph = Number.isFinite(doc.bph) ? ` · ${esc(doc.bph)} beats per hour` : "";
+  const head = `<h1>Recording</h1><p class="sub">${esc(name)}${name ? " · " : ""}${timeLabel(doc.duration_s)}${bph} · lift angle ${esc(doc.lift_deg)}°</p>`;
   const takeReadings = doc.take && Array.isArray(doc.take.readings) && doc.take.readings.length ? doc.take.readings : null;
   if (takeReadings) {
     // The profile is the first reading's stretch with a shape (views.rs
