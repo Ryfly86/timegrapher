@@ -1,100 +1,100 @@
-amplitude_deg
-amplitude_even_deg
-amplitude_even_se_deg
-amplitude_odd_deg
-amplitude_odd_se_deg
-amplitude_periods
-amplitude_periods[].period_s
-amplitude_periods[].power
-amplitude_periods[].prominence
-amplitude_periods[].wheel
-amplitude_se_deg
-beat_error_source
-beat_error_unlock_ms
-beats_found
-beats_found_fraction
-bph
-bph_measured
-bph_measured_se
-bph_set
-caveats
-caveats[].code
-clipping
-clipping.beat_fraction
-clipping.beats
-clipping.peak_dbfs
-clipping.samples
-confidence
-confidence.amplitude
-confidence.amplitude.se
-confidence.beat_error
-confidence.beat_error.se
-confidence.rate
-confidence.rate.se
-doubts
-doubts.beats_missing
-doubts.clipped
-doubts.clock_unknown
-doubts.lift_unknown
-duration_s
-input
-input.files
-input.files[].path
-input.settings
-input.settings.bph
-input.settings.calibre
-input.settings.escape_teeth
-input.settings.highpass_hz
-input.settings.lift_deg
-input.settings.notch_hz
-jitter_us
-lift_deg
-overall
-overall.beat_error_ms
-overall.beats_used
-overall.jitter_us
-overall.period_s
-overall.rate_s_per_day
-rate_card_s_per_day
-rate_corrected_s_per_day
-rate_p05
-rate_p95
-rate_s_per_day
-sample_rate
-schema
-shape
-shape.beat_error_first_quarter_ms
-shape.beat_error_last_quarter_ms
-shape.beat_error_quarter_windows
-shape.even
-shape.even.i12_ms
-shape.even.i13_ms
-shape.even.ratio13
-shape.even.share_with_sound_1
-shape.even.share_with_sound_2
-shape.even.tail_ratio
-shape.even.windows_measured
-shape.odd
-shape.odd.i12_ms
-shape.odd.i13_ms
-shape.odd.ratio13
-shape.odd.share_with_sound_1
-shape.odd.share_with_sound_2
-shape.odd.tail_ratio
-shape.odd.windows_measured
-software
-software.arch
-software.build_date
-software.git_dirty
-software.git_hash
-software.name
-software.os
-software.version
-timing_periods
-timing_periods[].period_s
-timing_periods[].power
-timing_periods[].prominence
-timing_periods[].wheel
-timing_scatter_fraction
-usb_clock
-watch_heard
+amplitude_deg number
+amplitude_even_deg number
+amplitude_even_se_deg number
+amplitude_odd_deg number
+amplitude_odd_se_deg number
+amplitude_periods array
+amplitude_periods[].period_s number
+amplitude_periods[].power number
+amplitude_periods[].prominence number
+amplitude_periods[].wheel null
+amplitude_se_deg number
+beat_error_source string
+beat_error_unlock_ms number
+beats_found number
+beats_found_fraction number
+bph number
+bph_measured number
+bph_measured_se null
+bph_set null
+caveats array
+caveats[].code string
+clipping object
+clipping.beat_fraction number
+clipping.beats number
+clipping.peak_dbfs number
+clipping.samples number
+confidence object
+confidence.amplitude object
+confidence.amplitude.se number
+confidence.beat_error object
+confidence.beat_error.se number
+confidence.rate object
+confidence.rate.se null
+doubts object
+doubts.beats_missing bool
+doubts.clipped bool
+doubts.clock_unknown bool
+doubts.lift_unknown bool
+duration_s number
+input object
+input.files array
+input.files[].path string
+input.settings object
+input.settings.bph null
+input.settings.calibre null
+input.settings.escape_teeth number
+input.settings.highpass_hz number
+input.settings.lift_deg number
+input.settings.notch_hz array
+jitter_us number
+lift_deg number
+overall object
+overall.beat_error_ms number
+overall.beats_used number
+overall.jitter_us number
+overall.period_s number
+overall.rate_s_per_day number
+rate_card_s_per_day number
+rate_corrected_s_per_day null
+rate_p05 number
+rate_p95 number
+rate_s_per_day number
+sample_rate number
+schema string
+shape object
+shape.beat_error_first_quarter_ms number
+shape.beat_error_last_quarter_ms number
+shape.beat_error_quarter_windows number
+shape.even object
+shape.even.i12_ms number
+shape.even.i13_ms number
+shape.even.ratio13 number
+shape.even.share_with_sound_1 number
+shape.even.share_with_sound_2 number
+shape.even.tail_ratio number
+shape.even.windows_measured number
+shape.odd object
+shape.odd.i12_ms number
+shape.odd.i13_ms number
+shape.odd.ratio13 number
+shape.odd.share_with_sound_1 number
+shape.odd.share_with_sound_2 number
+shape.odd.tail_ratio number
+shape.odd.windows_measured number
+software object
+software.arch string
+software.build_date string
+software.git_dirty bool
+software.git_hash string
+software.name string
+software.os string
+software.version string
+timing_periods array
+timing_periods[].period_s number
+timing_periods[].power number
+timing_periods[].prominence number
+timing_periods[].wheel null
+timing_scatter_fraction number
+usb_clock null
+watch_heard bool
