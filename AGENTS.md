@@ -21,12 +21,7 @@ The full guides are in the repository, and they win over this summary:
   `CONTRIBUTING.md` says under "Picking up an issue". Add an `Assisted-by: <tool>`
   line to the PR body, naming the tool only, with no model or version. For a bug fix,
   add the origin line too: "Introduced by #N", "Latent" or "Design gap".
-  The rest of this file applies to you in full, apart from the `for Astra` rule below.
-- **Issues labelled `for Astra` are yours to pick up** if you are the project's own Codex agent. Work only on open issues
-  with that label. Skip one that already has an open PR that names it (`Closes #N`
-  or `Part of #N`), and skip one whose newest comment says to wait. The label is
-  added only once an issue has a scope comment and no collision with other work;
-  never add or remove it yourself.
+  The rest of this file applies to you in full.
 - **You work from a GitHub issue.** Read the whole issue, including every comment,
   before you start. The newest comment wins over the issue body; the scope comment
   from the maintainer's team sets the files and tests for the task.
