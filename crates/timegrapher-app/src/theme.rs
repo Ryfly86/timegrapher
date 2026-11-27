@@ -346,6 +346,20 @@ fn style(style: &mut egui::Style, dark: bool) {
     s.icon_width_inner = 9.0;
 }
 
+/// Every scroll area in the app, built from `area`: scrolled by the
+/// wheel or its bar, never by dragging its contents. egui's drag-to-scroll
+/// is for touch screens: a fast click, the pointer jumping to a button,
+/// read as a flick and coasted the area on, carrying the button from
+/// under the pointer (#2113, #2146). egui keeps this per area, not in the
+/// style, so every `ScrollArea` is made through here (a test holds every
+/// one to it).
+pub fn scroll(area: egui::ScrollArea) -> egui::ScrollArea {
+    area.scroll_source(egui::scroll_area::ScrollSource {
+        drag: false,
+        ..egui::scroll_area::ScrollSource::ALL
+    })
+}
+
 /// Install the fonts and both themes' styles.
 pub fn install(ctx: &egui::Context) {
     ctx.set_fonts(fonts());
@@ -537,7 +551,7 @@ pub fn help_on(
             // edge.
             ui.spacing_mut().scroll = egui::style::ScrollStyle::solid();
             let room = if up { above } else { below } - 24.0;
-            let mut scroll = egui::ScrollArea::vertical().max_height(room.max(80.0));
+            let mut scroll = self::scroll(egui::ScrollArea::vertical()).max_height(room.max(80.0));
             // Each time it opens, from its title.
             if !open {
                 scroll = scroll.vertical_scroll_offset(0.0);
@@ -2827,7 +2841,7 @@ pub fn info_scroll(ui: &mut Ui, id: egui::Id, max_h: f32, body: impl FnOnce(&mut
         d.insert_temp(id, pass);
         last
     });
-    let mut area = egui::ScrollArea::vertical()
+    let mut area = scroll(egui::ScrollArea::vertical())
         .id_salt(id)
         .max_height(max_h)
         .auto_shrink([false, true])

@@ -926,6 +926,36 @@ fn period_of(r: &longterm::SeriesReport, unit: &'static str) -> Option<Period> {
     })
 }
 
+/// Fewest readings the search for structure (correlation, cycles, level
+/// changes, trend) runs on; under it the headline says it needs more.
+pub const STRUCTURE_MIN_READINGS: usize = 30;
+
+/// Shortest stretch, in seconds, the readings' grid must cover (gaps
+/// counted) for the search for structure, whatever the readings'
+/// length (Norm on #2342 kept both rules). It binds only for readings
+/// under 4 s, as 30 readings of 10 s already cover 300 s.
+pub const STRUCTURE_MIN_SPAN_S: f64 = 120.0;
+
+/// The headline while there are too few readings to search: what there
+/// is, then only what is still missing, "at least 30 readings" or
+/// "readings covering at least 2 min", gaps counted in the span (#2342:
+/// "needs 30 readings over 120 s" read as 30 readings of 10 s inside
+/// 120 s). Says "too few" always, which the MCP summary keys on.
+fn too_few_headline(kind: SeriesKind, n: usize, step: f64, span: f64) -> String {
+    let span_text = crate::figure_text::duration_text(STRUCTURE_MIN_SPAN_S);
+    let needs = match (n < STRUCTURE_MIN_READINGS, span < STRUCTURE_MIN_SPAN_S) {
+        (true, false) => format!("at least {STRUCTURE_MIN_READINGS} readings"),
+        (false, _) => format!("readings covering at least {span_text}"),
+        (true, true) => {
+            format!("at least {STRUCTURE_MIN_READINGS} readings, covering at least {span_text}")
+        }
+    };
+    format!(
+        "{n} {step:.0} s {} readings over {span:.0} s: too few to search for structure, which needs {needs}.",
+        kind.name()
+    )
+}
+
 /// Fewest pairs of readings a lag of the autocorrelation is read from for
 /// the Ljung–Box test or a repeat to count it: below this its correlation
 /// strays by over a third under independent readings.
@@ -1118,14 +1148,8 @@ pub fn check_series(
         cycle: None,
         unlock_hopping: false,
     };
-    if n < 30 || g.span() < 120.0 {
-        out.headline = format!(
-            "{} {:.0} s {} readings over {:.0} s: too few to search for structure (needs 30 readings over 120 s).",
-            n,
-            g.step,
-            kind.name(),
-            g.span()
-        );
+    if n < STRUCTURE_MIN_READINGS || g.span() < STRUCTURE_MIN_SPAN_S {
+        out.headline = too_few_headline(kind, n, g.step, g.span());
         out.summary = format!("{n} readings, too few to search");
         out.set_screen_text();
         return out;
