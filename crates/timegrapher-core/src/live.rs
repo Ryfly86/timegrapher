@@ -356,9 +356,13 @@ impl LiveReading {
             whole_take: true,
             ..self
         };
-        // The lock's verdict is this reading's; whole's rate is read in it.
-        r.caveats
-            .retain(|c| !matches!(c, Caveat::OffStandardRate(_)));
+        // A whole judged off every standard rate already (the app's whole
+        // take, #2253) has no rate to read again: its caveat is the
+        // verdict, kept as it is (Trevor on #2316). Else the lock's verdict
+        // is this reading's, and whole's rate is read in it.
+        if measure::off_standard(&whole.caveats).is_some() {
+            return r;
+        }
         if off {
             r.read_off_standard();
         }
@@ -433,6 +437,11 @@ pub struct LiveAnalyzer {
     /// silence lets a guessed rate go, so readings back in the log still
     /// fit.
     logged_bph: Option<u32>,
+    /// Whether an imported beat log's lock was judged off every standard
+    /// rate on Auto, as a take's reading judges it
+    /// ([`crate::analysis::lock_off_standard`], #2327): the verdict of
+    /// its beats, which no lock of this engine's holds.
+    log_off_standard: bool,
     /// Known jumps in an imported beat log. Replacing position/settling
     /// boundaries must not erase these intrinsic discontinuities.
     intrinsic_breaks: Vec<f64>,
@@ -529,6 +538,7 @@ impl LiveAnalyzer {
             quiet_passes: 0,
             candidates: VecDeque::new(),
             logged_bph: None,
+            log_off_standard: false,
             intrinsic_breaks: Vec::new(),
             by_count: Vec::new(),
             breaks: Vec::new(),
@@ -542,6 +552,7 @@ impl LiveAnalyzer {
     /// so a file can be looked at on the same screen as a live watch.
     pub fn from_log(log: BeatLog, cfg: LiveConfig) -> Self {
         let mut a = LiveAnalyzer::new(log.sample_rate, cfg);
+        a.log_off_standard = crate::analysis::lock_off_standard(a.cfg.analysis.bph, &log);
         a.cfg.analysis.amplitude.lift_deg = log.lift_deg;
         a.cfg.analysis.amplitude.escapement = log.escapement;
         a.total = (log.duration_s * a.fs).round() as u64;

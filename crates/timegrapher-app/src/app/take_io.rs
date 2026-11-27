@@ -1379,7 +1379,10 @@ impl TimegrapherApp {
     /// calibre (a custom one is added to the custom calibres from its wheels),
     /// the lift angle and beat rate. Returns the positions it lists through
     /// the recording, oldest first, and the settling before each: a gap
-    /// between one position's end and the next one's start.
+    /// between one position's end and the next one's start. An open of a
+    /// take puts it in place with [`Self::apply_take_manifest`]; the tests
+    /// ask it here.
+    #[cfg(test)]
     pub(super) fn apply_manifest(
         &mut self,
         m: &Manifest,
@@ -1387,6 +1390,30 @@ impl TimegrapherApp {
         duration_s: Option<f64>,
     ) -> (Stretches, Vec<(f64, f64)>) {
         self.apply_manifest_placed(m, entries, duration_s, None)
+    }
+
+    /// [`Self::apply_manifest_placed`] for the take opened at `path`, the
+    /// one way every open of a take puts its session file in place (a
+    /// folder of sound files, one file, a take kept as its analysis):
+    /// then on Auto where it was recorded on Auto, as every reader of the
+    /// take reads it (core's `set_rate::read_as_recorded`, Peter on
+    /// #2357). Its session file's beat rate was then Auto's guess, and its
+    /// calibre's not the one chosen. Nothing is given at open, so
+    /// core's `set_rate::recorded_on_auto` alone decides here.
+    fn apply_take_manifest(
+        &mut self,
+        path: &Path,
+        m: &Manifest,
+        entries: &[RecordingEntry],
+        duration_s: Option<f64>,
+        layout: Option<&[EntryWindow]>,
+    ) -> (Stretches, Vec<(f64, f64)>) {
+        let out = self.apply_manifest_placed(m, entries, duration_s, layout);
+        let dir = timegrapher_core::take_path::folder(path);
+        if dir.is_some_and(timegrapher_core::set_rate::recorded_on_auto) {
+            self.put_bph(None);
+        }
+        out
     }
 
     /// [`Self::apply_manifest`] for a take opened from a folder of several
@@ -1564,7 +1591,7 @@ impl TimegrapherApp {
                         self.bench.keeping.open_note = None;
                         let layout = folder_layout(path, &m, &entries);
                         let windows = layout.as_ref().map(|l| l.1.as_slice());
-                        self.apply_manifest_placed(&m, &entries, None, windows)
+                        self.apply_take_manifest(path, &m, &entries, None, windows)
                     }
                     None => {
                         self.fresh_setup(path, &files);
@@ -1740,7 +1767,7 @@ impl TimegrapherApp {
                 let layout = folder_layout(path, &m, &entries);
                 let length = length.filter(|_| files.len() == 1);
                 let windows = layout.as_ref().map(|l| l.1.as_slice());
-                let out = self.apply_manifest_placed(&m, &entries, length, windows);
+                let out = self.apply_take_manifest(path, &m, &entries, length, windows);
                 self.watch_fills_in(path, &m);
                 out
             }
@@ -1892,7 +1919,8 @@ impl TimegrapherApp {
         self.keep_mic_setup();
         self.set_watch_setup(WatchSetup::default());
         self.bench.keeping.open_note = parts;
-        let (stretches, settles) = self.apply_manifest(&m, &entries, Some(header.duration_s));
+        let (stretches, settles) =
+            self.apply_take_manifest(path, &m, &entries, Some(header.duration_s), None);
         self.watch_fills_in(path, &m);
         let label = kept_label(path, &name);
         // Its beats, its own clock log with its USB lines' figure as

@@ -192,7 +192,11 @@ A sound file inside a take, one its folder's `session.toml` lists, is read
 with the take's settings by `analyze`, `profile`, `shape`, `long` and
 `series`, as the app opens it: a flag, then the session file's beat rate and
 lift angle, then its calibre's, then the default (`take::stream_settings`,
-the file found by `take_path::take_of`). A session file that can't be read
+the file found by `take_path::take_of`). A take recorded on Auto (its
+`session.json` writes `bph` null, and no watch it was moved into set a
+rate) is read on Auto: the session file's and the calibre's beat rate give
+way, and only a flag sets one (`set_rate::read_as_recorded`; see
+[sessions.md](sessions.md)). A session file that can't be read
 leaves `analyze`, `profile` and `shape` on the file's own settings.
 
 Direct `analyze`, `long` and `series` read the same custom names, aliases and

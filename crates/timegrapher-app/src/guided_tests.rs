@@ -1726,6 +1726,47 @@ fn a_click_on_the_banner_never_scrolls_the_pane() {
     }
 }
 
+/// A Positions Test of a watch beating 17,570 bph on Auto (#2253): its
+/// lock is off every standard rate, so no position reads a rate in s/d
+/// and each names the caveat `off_standard_rate`, as `session` reads the
+/// saved take's positions; set to 18,000, each reads its rate.
+#[test]
+fn an_off_standard_watch_on_auto_reads_no_position_rate() {
+    use timegrapher_core::measure::off_standard;
+    let each = SETTLE_S + MEASURE_S;
+    let cfg = SynthConfig {
+        bph: 17_570,
+        duration_s: each * 6.0 + 1.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let stream = timegrapher_core::stream::StreamConfig::default();
+    let log = timegrapher_core::stream::analyze_samples(&audio.samples, 48_000, &stream);
+    for bph_set in [None, Some(18_000)] {
+        let mut t = Test::new();
+        t.bph_set = bph_set;
+        t.tick(0.0);
+        for i in 1..=6 {
+            t.tick(each * i as f64);
+            t.advance(each * i as f64);
+        }
+        t.finish(&log, None, &[]);
+        let readings = t.readings.as_ref().expect("readings");
+        assert_eq!(readings.len(), 6);
+        for r in readings {
+            let m = &r.measurement;
+            let off = off_standard(&m.caveats).is_some();
+            assert_eq!(
+                m.rate_s_per_day.is_none(),
+                bph_set.is_none(),
+                "{bph_set:?}: {m:?}"
+            );
+            assert_eq!(off, bph_set.is_none(), "{bph_set:?}: {:?}", m.caveats);
+            assert!(m.amplitude_deg.is_some(), "{m:?}");
+        }
+    }
+}
+
 /// Every scroll area in the app is made through `theme::scroll`, the one
 /// place that turns egui's drag-to-scroll off, and none sets its own
 /// scroll source (#2146: #2113's fix had reached the Positions Test pane
