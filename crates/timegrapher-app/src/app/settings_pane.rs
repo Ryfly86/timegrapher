@@ -668,9 +668,13 @@ impl TimegrapherApp {
                 "Keep Awake",
                 match &awake {
                     Some((w, _)) => theme::Caption::Alert(theme::Alert::Warning, w),
-                    None => theme::Caption::Text(
+                    None if self.keep_awake => theme::Caption::Text(
                         "While listening, the computer doesn't sleep on its own. The screen \
                          can still lock.",
+                    ),
+                    None => theme::Caption::Text(
+                        "Off: the computer can sleep while listening, except in a Power \
+                         Reserve Test.",
                     ),
                 },
                 hint,

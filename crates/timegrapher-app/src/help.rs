@@ -869,9 +869,10 @@ pub fn power_reserve(card: &str) -> Vec<String> {
      stopped and came back."
             .to_string(),
         "## While It Runs".to_string(),
-        "- The computer is kept awake whatever Keep Awake is set to, the sound is kept, and \
-     the position can't change."
+        "- The computer is kept awake whatever Keep Awake is set to. If the system refuses, \
+     Settings > General says so under Keep Awake."
             .to_string(),
+        "- The sound is kept, and the position can't change.".to_string(),
         "- Stop Test… on the Listen card asks, then ends the test, keeping the run so far."
             .to_string(),
         "- A closed lid or Sleep from a menu still stops the computer.".to_string(),

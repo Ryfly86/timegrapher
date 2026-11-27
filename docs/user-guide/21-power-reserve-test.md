@@ -39,8 +39,7 @@ View menu.
    ([Kleinlein, _Rules and Practice for Adjusting Watches_, 1920](https://archive.org/details/rulespracticefor00klei), p. 14).
 2. **New Test**, then **Start Test** on the Listen card. A new session
    starts in that position.
-3. Leave it. While the test runs, the computer is kept awake, whatever
-   Keep Awake is set to, and the position can't change. The pane shows
+3. Leave it. While the test runs, the computer is kept awake whatever Keep Awake is set to (if the system refuses, Settings > General says so under Keep Awake), and the position can't change. The pane shows
    the run time from the first beat heard, how the beats stand, and the
    stops on the way, with the hours so far.
 4. The test ends by itself when the watch stops. **Stop Test…** on the

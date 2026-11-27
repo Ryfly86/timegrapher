@@ -621,13 +621,23 @@ the watchmaker skill, each with its source.
 | `measurement_short` | 25 s measured | under 40 s measured after settling (D40e's "≥40 s measurement time", about p. 34) |
 | `cycle_wheel` | Regular rate change once per turn of the fourth wheel | a periodic change named (1% false-alarm level, held across the recording's tests) matches a wheel's turn |
 | `cycle_wheel_fraction` | Regular rate change at 1/3 of the fourth wheel's turn | as above, not tied to a wheel, and the turn is 2 to 6 times the period: n turns' frequency within one resolution (1 / the span) of the change's, the test `long` marks a harmonic by, and no other wheel or n fits so |
-| `cycle_other` | Regular amplitude change not tied to a listed wheel | as above, no wheel; the nearest is named |
+| `cycle_other` | Regular amplitude change not tied to a listed wheel | as above, no wheel; the nearest wheel is named when the period is within 10% of its turn |
 | `shape_unlock_loud` | Unlocking as loud as the drop on Tick | the level of sound 1 to sound 3 is 1 or more |
 | `shape_extra_sounds` | Extra sounds around the beat on Tock | sounds before the unlock or after the drop |
 | `clocks_differ` | Readings on different clocks | some readings are corrected for the sound card's clock and some are not, so the differences between them include the card's own error; about the session, not one recording |
 
 Every reading's table row also carries its unlock share and clipped
 share, whether or not they are listed here.
+
+A cycle's evidence names its size by quantity, one place finer than its
+figure: "timing swing 0.103 ms peak to peak" for a rate cycle shorter
+than 30 s, which a 10 s rate reading is too coarse to follow (said once
+under the findings), "rate swing 3.04 s/d peak to peak" for a longer one,
+and "7.8 deg peak to peak" for amplitude. An amplitude cycle also gives
+its share of the variation. A rate cycle gives none: it is found in the
+beat timing, which wanders as a walk, so a share of it says nothing about
+the line (a real escape wheel line reads 0%). The report's table shows
+"–" for it (Norm on #2100).
 
 Changes at whole fractions of a wheel's turn (20 s and 10 s beside a 60 s
 cycle) come from a short, sharp change once per turn; they are listed with

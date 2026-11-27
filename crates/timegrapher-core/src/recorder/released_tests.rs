@@ -21,6 +21,15 @@ fn fixture(name: &str) -> (Recorder, PathBuf) {
     (r, base)
 }
 
+/// Let the recorder go, then remove the test's folder. Letting it go
+/// waits for the hours still being kept as FLAC on their own threads
+/// ([`Recorder`]'s `Drop`), which write into the folder: removed first,
+/// the removal races them and can fail with "Directory not empty" (#2454).
+fn clean_up(r: Recorder, base: &Path) {
+    drop(r);
+    fs::remove_dir_all(base).unwrap();
+}
+
 /// Unless asked, a recording keeps every hour, saved or not.
 #[test]
 fn a_recording_keeps_its_hours_unless_asked() {
@@ -98,7 +107,7 @@ fn a_closed_hour_its_copy_holds_whole_is_kept_there_alone() {
         session["segments"],
         serde_json::json!(["audio-001.flac", "audio-002.flac"])
     );
-    fs::remove_dir_all(&base).unwrap();
+    clean_up(r, &base);
 }
 
 /// While listening, an hour closed and saved goes from the recording
@@ -124,7 +133,7 @@ fn an_hour_closed_while_listening_goes_once_its_copy_holds_it() {
     assert_eq!(sound_in(r.dir()), ["audio-002.wav"]);
     assert_eq!(r.segment_paths()[0], take.join("audio-001.flac"));
     assert_eq!(r.segment_paths()[1], r.dir().join("audio-002.wav"));
-    fs::remove_dir_all(&base).unwrap();
+    clean_up(r, &base);
 }
 
 /// A copy moved (filed under a watch) is where the hours it holds alone
@@ -145,7 +154,7 @@ fn hours_kept_in_the_copy_alone_follow_it_and_are_missed_when_it_goes() {
     assert!(r.hours_reachable());
     fs::remove_dir_all(&to).unwrap();
     assert!(!r.hours_reachable());
-    fs::remove_dir_all(&base).unwrap();
+    clean_up(r, &base);
 }
 
 /// An hour whose copy isn't the same, byte for byte, by the time it would
@@ -177,7 +186,7 @@ fn an_hour_its_copy_does_not_hold_whole_stays() {
     tidy_all(&mut r);
     assert_eq!(sound_in(r.dir()), ["audio-001.flac"]);
     assert_eq!(r.segment_paths(), [r.dir().join("audio-001.flac")]);
-    fs::remove_dir_all(&base).unwrap();
+    clean_up(r, &base);
 }
 
 /// The byte check: the same bytes at the same length only.
@@ -239,7 +248,7 @@ fn nothing_goes_before_the_copys_folder_is_synced() {
     r.note_saved(&copy);
     tidy_all(&mut r);
     assert_eq!(sound_in(r.dir()), Vec::<String>::new());
-    fs::remove_dir_all(&base).unwrap();
+    clean_up(r, &base);
 }
 
 /// A save whose copy of the hour differs at the moment of its check.
@@ -280,7 +289,7 @@ fn a_copy_differing_byte_for_byte_when_checked_is_not_held_whole() {
     assert!(copy.held_whole.is_empty());
     tidy_all(&mut r);
     assert_eq!(sound_in(r.dir()), ["audio-001.flac"]);
-    fs::remove_dir_all(&base).unwrap();
+    clean_up(r, &base);
 }
 
 /// The same for an hour still a WAV here, held as FLAC in the copy: a
@@ -312,7 +321,7 @@ fn a_copy_differing_sample_for_sample_when_checked_is_not_held_whole() {
     assert!(copy.held_whole.is_empty());
     tidy_all(&mut r);
     assert_eq!(sound_in(r.dir()), ["audio-001.wav"]);
-    fs::remove_dir_all(&base).unwrap();
+    clean_up(r, &base);
 }
 
 /// Trevor's mutant on #2046: the hour still being written never goes, even
@@ -334,7 +343,7 @@ fn the_hour_being_written_never_goes() {
     assert_eq!(sound_in(r.dir()), ["audio-001.wav"]);
     assert_eq!(r.segment_paths(), [r.dir().join("audio-001.wav")]);
     append_second(&mut r, 3);
-    fs::remove_dir_all(&base).unwrap();
+    clean_up(r, &base);
 }
 
 /// #2052: whether the copy saved last still holds its sound, by stat
@@ -391,7 +400,7 @@ fn the_copy_saved_last_is_there_until_its_sound_goes() {
     // The take deleted outside the app: not there.
     fs::remove_dir_all(&moved).unwrap();
     assert!(gone(&mut r), "the take deleted");
-    fs::remove_dir_all(&base).unwrap();
+    clean_up(r, &base);
 }
 
 /// #2052: a closed hour the copy holds but the recording keeps too (no
@@ -407,7 +416,7 @@ fn a_closed_hour_kept_in_both_places_is_looked_for_in_the_copy() {
     assert!(!gone(&mut r));
     fs::remove_file(take.join("audio-001.flac")).unwrap();
     assert!(gone(&mut r), "the copy's hour gone");
-    fs::remove_dir_all(&base).unwrap();
+    clean_up(r, &base);
 }
 
 /// Whether the copy saved last is gone, looked at now.
@@ -443,7 +452,7 @@ fn an_hour_held_alone_follows_a_save_into_another_folder() {
     fs::remove_dir_all(&other).unwrap();
     assert!(gone(&mut r), "the copy saved last deleted");
     assert!(!r.hours_reachable());
-    fs::remove_dir_all(&base).unwrap();
+    clean_up(r, &base);
 }
 
 /// Felix on #2060: an hour kept in the first take alone, saved into
@@ -481,5 +490,5 @@ fn an_hour_held_alone_follows_a_save_elsewhere_only_once_checked_there() {
     fs::remove_dir_all(&first).unwrap();
     assert!(!r.hours_reachable());
     assert!(gone(&mut r), "its hour gone with the first take");
-    fs::remove_dir_all(&base).unwrap();
+    clean_up(r, &base);
 }

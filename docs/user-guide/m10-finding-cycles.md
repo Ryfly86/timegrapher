@@ -71,7 +71,7 @@ and its cycle is what Cycle folds (chapter 12).
    ```
 
    At 60 s in a 2-hour take that is 0.5 s. Otherwise the nearest wheel and
-   how far off it is are given.
+   how far off it is are given, when the period is within 10% of its turn.
 
 ## Why This Way
 
