@@ -38,6 +38,16 @@ pub fn run(file: &Path, o: &Options) -> Result<(), String> {
             crate::output::input(&[file.to_path_buf()], settings),
             &r,
         )?;
+    } else if s.shape.is_none() {
+        // No shape where `analyze` reads none: it says why, in its words,
+        // and prints no table (#2371).
+        for line in [crate::no_watch_line(s), crate::regularity_line(s)]
+            .into_iter()
+            .flatten()
+            .take(1)
+        {
+            println!("{line}");
+        }
     } else {
         print_report(&r, s);
     }
