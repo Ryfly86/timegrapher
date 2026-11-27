@@ -69,7 +69,7 @@ impl TimegrapherApp {
     /// take's Complication Test when next shown. Other views read from
     /// the same beats, so they agree (#1645).
     pub(super) fn reread_guided(&mut self) {
-        if let Some(log) = self.bench.recording.live.as_ref().and_then(steady::log_of) {
+        if let Some(log) = self.guided_log() {
             let clock = self.reading_clock(log.duration_s);
             if let Some(test) = self.bench.test.guided.as_mut() {
                 test.lift_deg = Some(self.bench.take.lift_deg);
