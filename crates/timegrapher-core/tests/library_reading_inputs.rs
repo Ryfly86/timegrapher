@@ -131,5 +131,33 @@ fn a_reading_follows_what_it_is_read_from() {
     let e = library::reading(&tail).unwrap_err();
     assert!(e.contains("settle_s"), "{e}");
 
+    // #2410: a surface keeping the readings asks again when the library
+    // is read again or a setting a reading reads beside its take changes:
+    // the clock corrections, the user's calibres. Nothing changed, it
+    // stays.
+    let mut lib = library::Library::create(&root.join("library")).unwrap();
+    let was = lib.readings_revision();
+    assert_eq!(lib.readings_revision(), was, "nothing changed");
+    let clocks = timegrapher_core::clockstore::path().unwrap();
+    let calibres = timegrapher_core::calibre_store::default_path().unwrap();
+    assert!(!clocks.exists() && !calibres.exists());
+    let changed = |lib: &library::Library, was: &mut library::ReadingsRevision, what: &str| {
+        let now = lib.readings_revision();
+        assert_ne!(&now, was, "{what}");
+        *was = now;
+    };
+    let mut was = was;
+    fs::write(&clocks, "{}").unwrap();
+    changed(&lib, &mut was, "a clock correction stored");
+    fs::write(&clocks, "{ }").unwrap();
+    changed(&lib, &mut was, "a clock correction changed");
+    fs::write(&calibres, "{}").unwrap();
+    changed(&lib, &mut was, "a calibre of the user's added");
+    lib.scan();
+    changed(&lib, &mut was, "the library read again");
+    // Another library opened afresh is told from the one before.
+    let other = library::Library::open(&root.join("library")).unwrap();
+    assert_ne!(other.readings_revision(), was, "a library opened afresh");
+
     let _ = fs::remove_dir_all(&root);
 }

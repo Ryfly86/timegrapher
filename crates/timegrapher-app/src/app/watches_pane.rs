@@ -1342,10 +1342,17 @@ impl TimegrapherApp {
     pub(super) fn want_take_readings(&mut self, e: &library::WatchEntry, ctx: &egui::Context) {
         self.watches_view.take_readings.poll();
         let writing = self.take_writing();
+        // Each is asked again when the library is read again or a setting
+        // its reading reads changes, so an edit that keeps a take's size
+        // (lift 55 to 52) shows its new reading (#2410).
+        let at = match &self.library {
+            Ok(Some(l)) => l.readings_revision(),
+            _ => Default::default(),
+        };
         for t in &e.takes {
             let dir = e.take_dir(t);
             if watches::TakeReadings::read_for(t, &dir) && writing.as_ref() != Some(&dir) {
-                self.watches_view.take_readings.want(&dir, t.bytes, ctx);
+                self.watches_view.take_readings.want(&dir, &at, ctx);
             }
         }
     }

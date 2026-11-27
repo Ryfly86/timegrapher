@@ -1306,3 +1306,72 @@ fn a_take_is_recording_only_while_its_microphone_runs() {
     app.session.discard_recording();
     let _ = std::fs::remove_dir_all(base);
 }
+
+/// A take's session file edited at the same size while the window stays
+/// open (lift 55 to 52, as Astra's run on #2410 did): the Watches list
+/// is read again when the window comes back to the front, and the take's
+/// row shows the reading core gives for it now, not the one before.
+#[test]
+fn an_edit_that_keeps_a_takes_size_shows_its_new_reading() {
+    let base = std::env::temp_dir().join(format!("tg-app-same-size-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let root = base.join("Timegrapher Data");
+    let mut lib = library::Library::create(&root).unwrap();
+    let dir = lib.add(&library::Watch::new("Pepsi")).unwrap();
+    let id = lib.watches[0].watch.id.clone();
+    drop(lib);
+    let take = dir.join(library::TAKES).join("2026-11-27 14.00 Dial Up");
+    std::fs::create_dir_all(&take).unwrap();
+    let manifest = |lift: u32| {
+        format!("bph = 28800\nlift = {lift}\n\n[[recording]]\nfile = \".\"\nposition = \"DU\"\n")
+    };
+    std::fs::write(take.join(MANIFEST), manifest(55)).unwrap();
+    let audio = generate(
+        &SynthConfig {
+            duration_s: 30.0,
+            ..Default::default()
+        },
+        |_| 270.0,
+        |_| 0.0,
+    );
+    timegrapher_core::audio::write_wav(&take.join("take_part01-001.wav"), &audio).unwrap();
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.use_library(Some(root.clone()));
+    app.pick_watch(&id);
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    let pane = |app: &mut TimegrapherApp, events: Vec<egui::Event>| {
+        let input = egui::RawInput {
+            events,
+            ..Default::default()
+        };
+        let _ = ctx.run(input, |ctx| {
+            app.reread_library_on_focus(ctx);
+            egui::CentralPanel::default().show(ctx, |ui| app.watch_pane(ui));
+        });
+    };
+    pane(&mut app, Vec::new());
+    app.watches_view.take_readings.wait();
+    let before = app.watches_view.take_readings.reading(&take).cloned();
+    assert_eq!(before.as_ref(), library::reading(&take).ok().as_ref());
+    let bytes = library::folder_bytes(&take);
+    std::fs::write(take.join(MANIFEST), manifest(52)).unwrap();
+    assert_eq!(
+        library::folder_bytes(&take),
+        bytes,
+        "the edit keeps its size"
+    );
+    let now = library::reading(&take).unwrap();
+    assert_ne!(
+        Some(&now),
+        before.as_ref(),
+        "a lift of 52 reads another amplitude"
+    );
+    // The window back to the front reads the library again, and the take
+    // with it.
+    pane(&mut app, vec![egui::Event::WindowFocused(true)]);
+    app.watches_view.take_readings.wait();
+    assert_eq!(app.watches_view.take_readings.reading(&take), Some(&now));
+    drop(app);
+    let _ = std::fs::remove_dir_all(&base);
+}

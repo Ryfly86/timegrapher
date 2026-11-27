@@ -1299,6 +1299,25 @@ pub struct Library {
     /// Opened with [`Library::open_to_add`] without the lock: takes may
     /// be added, nothing else changed.
     adding: bool,
+    /// This scan's number among every [`Library::scan`] in this process
+    /// ([`SCANS`]).
+    scanned: u64,
+}
+
+/// How many times [`Library::scan`] has run in this process, in any
+/// library: a library opened afresh is told from the one before it.
+static SCANS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// When the takes' kept readings are to be looked at again
+/// ([`Library::readings_revision`]): a new [`Library::scan`], or a change
+/// to a settings file a reading reads beside its take. A surface that
+/// keeps the readings asks each again ([`kept_reading`], which checks a
+/// reading in full) when this changes, and drops a reading asked for at
+/// an earlier one (#2410).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ReadingsRevision {
+    scan: u64,
+    settings: Vec<Option<(u64, u128)>>,
 }
 
 /// A take's fingerprint for the cache: the bytes and newest change of
@@ -1397,6 +1416,7 @@ impl Library {
             read_only,
             lock,
             adding: false,
+            scanned: 0,
         };
         lib.clear_stale_adds();
         lib.scan();
@@ -1429,6 +1449,7 @@ impl Library {
 
     /// Read the folders again.
     pub fn scan(&mut self) {
+        self.scanned = SCANS.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
         let cache_path = self.root.join(CACHE_FILE);
         let old: Cache = fs::read(&cache_path)
             .ok()
@@ -1510,6 +1531,30 @@ impl Library {
         // Newest first: by when each started, then by name.
         takes.sort_by(|a, b| (&b.started_utc, &b.name).cmp(&(&a.started_utc, &a.name)));
         takes
+    }
+
+    /// What the takes' kept readings were last looked at against
+    /// ([`ReadingsRevision`]): this scan, and the size and last change of
+    /// each settings file a reading reads outside its take, the clock
+    /// corrections ([`crate::clockstore::path`]) and the user's calibres
+    /// ([`crate::calibre_store::default_path`]). Quick: it reads neither
+    /// file, so a surface can ask it each time it draws. A change these
+    /// miss, as one to a take's own files, comes with a scan.
+    pub fn readings_revision(&self) -> ReadingsRevision {
+        let settings = [
+            crate::clockstore::path(),
+            crate::calibre_store::default_path(),
+        ]
+        .into_iter()
+        .map(|p| {
+            let m = fs::metadata(p?).ok()?;
+            Some((m.len(), modified_ns(&m)))
+        })
+        .collect();
+        ReadingsRevision {
+            scan: self.scanned,
+            settings,
+        }
     }
 
     /// Every take's bytes, Unsorted's too.
