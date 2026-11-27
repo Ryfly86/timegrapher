@@ -1575,3 +1575,27 @@ fn the_length_field_holds_eighty_hours_whole() {
         text.right()
     );
 }
+
+/// Charts keeps room for every chart turned on, not one alone: in the
+/// starting layout at 1920 x 1080, as Peter's screen, Beat Error had no
+/// room beside Rate and Amplitude while the strip had plenty to spare
+/// (#2342 item 1). The strip keeps its least.
+#[test]
+fn charts_has_room_for_all_three_at_1920_by_1080() {
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    let mut app = ticking(30.0);
+    app.reveal_pane(Pane::Charts);
+    app.bench.panes_view.chart_series = [true; 3];
+    let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(1920.0, 1080.0));
+    for _ in 0..6 {
+        let input = egui::RawInput {
+            screen_rect: Some(screen),
+            ..Default::default()
+        };
+        let _ = ctx.run(input, |ctx| app.panels(ctx));
+    }
+    assert_eq!(app.bench.panes_view.charts_drawn, [true; 3]);
+    let need = app.bench.panes_view.pane_need[&Pane::Strip];
+    assert!(row_h(&app, Pane::Strip) + 1.0 >= need);
+}

@@ -7,6 +7,19 @@ pub(super) const SETTLE_S: f64 = 10.0;
 
 use timegrapher_core::synth::{generate, SynthConfig};
 
+/// `seconds` of digital silence heard and stopped, its charts' readings
+/// read: no watch, as the cards say "No Beats Heard".
+pub(super) fn silent(seconds: usize) -> TimegrapherApp {
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "silence".into());
+    let live = app.bench.recording.live.as_mut().expect("live");
+    for _ in 0..seconds * 50 {
+        live.push(&[0.0_f32; 960]);
+    }
+    app.bench.results.trend = live.trend(app.bench.take.average_s);
+    app
+}
+
 pub(super) fn synthetic(seconds: f64, rate: f64) -> TimegrapherApp {
     synthetic_varying(seconds, rate, |_| 0.0)
 }

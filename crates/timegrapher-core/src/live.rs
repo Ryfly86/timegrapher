@@ -2451,7 +2451,7 @@ mod numbering;
 pub use numbering::NumberingSeen;
 mod rebuild;
 mod unheard;
-pub use unheard::{in_spans, unheard_spans};
+pub use unheard::{heard_seconds, in_spans, unheard_spans};
 
 #[cfg(test)]
 mod jump_tests;
