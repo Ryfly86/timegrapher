@@ -12,10 +12,9 @@ name: CI
 #
 # A draft pull request runs none of that: each push to a draft runs one
 # quick Linux job, `quick (ubuntu-24.04)` (fmt, clippy and the core crate's
-# tests). None of the eight required checks passes there: mcp-renderer and
-# the two test summaries report "skipped", and the five matrix checks
-# (Windows's halves, regress) are never made, so GitHub shows them as
-# expected. GitHub never merges a draft, so that lets no merge through. The
+# tests). None of the eight required checks passes there: mcp-renderer
+# reports "skipped", and the other seven are matrix jobs, which GitHub
+# never makes when skipped, so it shows them as expected. GitHub never merges a draft, so that lets no merge through. The
 # whole suite runs when the pull request is marked ready for review, and on
 # each push while it is ready (#2444). Turning a ready pull request back
 # into a draft starts no run: a run there would put "skipped" over the
@@ -209,11 +208,19 @@ jobs:
   # and the PR's next run waited for it in the same concurrency group for
   # 7 to 40 minutes (#2455). Main stopped that on 25 Nov (6bedbea).
   # On a draft it is skipped with its halves (the comment at the top): run,
-  # it would fail on their "skipped".
+  # it would fail on their "skipped". It is a one-entry matrix so that a
+  # skipped run of it is never named `test (ubuntu-24.04)`: GitHub names a
+  # skipped matrix job by its unexpanded name. Once the PR is ready, this
+  # check is only made when both halves end, about 30 minutes in, and until
+  # then a draft run's "skipped" under the required name would read as
+  # passing.
   test-linux-result:
-    name: test (ubuntu-24.04)
+    name: test (${{ matrix.os }})
     needs: test-linux
     if: ${{ !cancelled() && (github.event_name != 'pull_request' || !github.event.pull_request.draft) }}
+    strategy:
+      matrix:
+        os: [ubuntu-24.04]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -245,10 +252,14 @@ jobs:
 
   # The required check `test (macos-latest)`, as test-linux-result is
   # Linux's, and runs when that does: it passes only when both halves did.
+  # A one-entry matrix for the same reason as test-linux-result.
   test-macos-result:
-    name: test (macos-latest)
+    name: test (${{ matrix.os }})
     needs: test-macos
     if: ${{ !cancelled() && (github.event_name != 'pull_request' || !github.event.pull_request.draft) }}
+    strategy:
+      matrix:
+        os: [macos-latest]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

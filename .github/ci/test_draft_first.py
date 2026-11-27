@@ -44,6 +44,17 @@ class DraftRule(unittest.TestCase):
             self.assertTrue(rule == "*full-suite" or OFF_DRAFT in rule or "&full-suite" in rule,
                             f"{name}: {rule}")
 
+    def test_jobs_made_after_others_are_matrix_jobs(self):
+        # A job with `needs:` is made only when what it needs ends. If it
+        # were skipped under its own name on the draft run, that "skipped"
+        # would stand for it, and read as passing, until then. A skipped
+        # matrix job takes its unexpanded name instead.
+        for name, text in jobs().items():
+            if re.search(r"(?m)^    needs: ", text):
+                job_name = re.search(r"(?m)^    name: (.*)$", text).group(1)
+                self.assertIn("${{ matrix.", job_name, name)
+                self.assertRegex(text, r"(?m)^    strategy:\n      matrix:\n", name)
+
     def test_quick_runs_only_on_a_draft_and_is_no_required_check(self):
         text = jobs()["quick"]
         # Exactly: `!draft` here would run it beside the full suite.
