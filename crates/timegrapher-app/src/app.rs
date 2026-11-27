@@ -2654,12 +2654,10 @@ fn stacked(
         .zip(shown)
         .filter_map(|(k, on)| on.then_some(k))
         .collect();
-    let (gap, note) = (6.0, STACKED_NOTE_H);
-    // Each gap also takes the layout's spacing either side of it, so the
-    // last plot's axis isn't cut by the pane's foot.
-    let step_gap = gap + 2.0 * ui.spacing().item_spacing.y;
+    let (gap, note) = (charts::STACKED_GAP, STACKED_NOTE_H);
+    let step_gap = charts::step_gap(ui);
     let room = ui.available_height();
-    let fits = |n: usize| n as f32 * least + (n as f32 - 1.0) * step_gap + note;
+    let fits = |n: usize| charts::stacked_h(ui, n, least) + note;
     let mut n = kinds.len();
     while n > 1 && fits(n) > room {
         n -= 1;

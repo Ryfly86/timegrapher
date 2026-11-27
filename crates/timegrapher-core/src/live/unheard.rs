@@ -50,6 +50,35 @@ pub fn in_spans(spans: &[(f64, f64)], t: f64) -> bool {
     spans.iter().any(|&(a, b)| t >= a && t <= b)
 }
 
+/// How long a watch was heard in the stretches `spans` (start, end; the
+/// last may run on) up to `end_s`, seconds: their length outside every
+/// stretch [`unheard_spans`] gives for `trend`. With no reading at all
+/// none of it is known to hold a watch, so none (#2183: silence is not
+/// beats).
+pub fn heard_seconds(
+    trend: &[TrendReading],
+    average_s: f64,
+    spans: &[(f64, f64)],
+    end_s: f64,
+) -> f64 {
+    if trend.is_empty() {
+        return 0.0;
+    }
+    let unheard = unheard_spans(trend, average_s, end_s);
+    let overlap = |a: f64, b: f64| -> f64 {
+        unheard
+            .iter()
+            .map(|&(u, v)| (b.min(v) - a.max(u)).max(0.0))
+            .sum()
+    };
+    spans
+        .iter()
+        .map(|&(a, b)| (a.max(0.0), b.min(end_s)))
+        .filter(|(a, b)| b > a)
+        .map(|(a, b)| (b - a) - overlap(a, b))
+        .sum()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -102,5 +131,23 @@ mod tests {
         assert!(unheard_spans(&[], 10.0, 25.0).is_empty());
         let none = [at(10.0, false), at(20.0, false)];
         assert_eq!(unheard_spans(&none, 10.0, 25.0), vec![(0.0, 25.0)]);
+    }
+
+    /// Silence is not beats (#2183): a take none of whose readings hears
+    /// a watch has none heard, however long; one heard from its second
+    /// reading on counts from that reading's look back; only the part of
+    /// a stretch outside the unheard counts; no reading, nothing known.
+    #[test]
+    fn heard_seconds_count_the_watch_not_the_sound() {
+        let none = [at(10.0, false), at(19.0, false)];
+        assert_eq!(heard_seconds(&none, 10.0, &[(0.0, 19.0)], 19.0), 0.0);
+        let late = [at(10.0, false), at(20.0, true), at(30.0, true)];
+        assert_eq!(heard_seconds(&late, 10.0, &[(0.0, 35.0)], 35.0), 25.0);
+        // Two stretches, one in the unheard opening.
+        let spans = [(0.0, 8.0), (15.0, 35.0)];
+        assert_eq!(heard_seconds(&late, 10.0, &spans, 35.0), 20.0);
+        // The last stretch runs on: cut at the end.
+        assert_eq!(heard_seconds(&late, 10.0, &[(12.0, 99.0)], 35.0), 23.0);
+        assert_eq!(heard_seconds(&[], 10.0, &[(0.0, 35.0)], 35.0), 0.0);
     }
 }

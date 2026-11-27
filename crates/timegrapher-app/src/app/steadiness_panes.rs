@@ -234,7 +234,10 @@ impl TimegrapherApp {
             Some(u) if self.running() => dur - u >= steady::RERUN_S,
             Some(u) => dur - u > 1.0,
         };
-        if self.bench.results.steady_job.is_none() && due && dur >= steady::MIN_S {
+        // 5 minutes of beats, not of sound: silence or the stand's noise
+        // alone never starts them (#2451).
+        let enough = dur >= steady::MIN_S && self.heard_in_position() >= steady::MIN_S;
+        if self.bench.results.steady_job.is_none() && due && enough {
             let log = self.bench.recording.live.as_ref().and_then(steady::log_of);
             if let Some((log, breaks)) = log.map(|l| self.steady_log(l, &runs, clock.as_ref())) {
                 let wheels = self.calibre_wheels();
@@ -318,7 +321,7 @@ impl TimegrapherApp {
     }
 
     pub(super) fn isochronism_pane(&mut self, ui: &mut egui::Ui) {
-        let dur = self.update_steady(ui.ctx());
+        self.update_steady(ui.ctx());
         let pal = theme::pal(ui);
         self.steady_working(ui);
         match self.isochronism_shown() {
@@ -329,7 +332,7 @@ impl TimegrapherApp {
             None if self.bench.results.steady_job.is_some() => {}
             None => {
                 ui.label(
-                    RichText::new(self.steady_wait(dur))
+                    RichText::new(self.steady_wait())
                         .small()
                         .color(pal.text_secondary),
                 );
@@ -337,18 +340,43 @@ impl TimegrapherApp {
         }
     }
 
+    /// How long a watch was heard in the position the watch is in now,
+    /// seconds: what "5 minutes of beats" counts, for the tests' start
+    /// and their wait alike (Vernon on #2449).
+    fn heard_in_position(&self) -> f64 {
+        self.bench.recording.live.as_ref().map_or(0.0, |l| {
+            timegrapher_core::live::heard_seconds(
+                &self.bench.results.trend,
+                self.bench.take.average_s,
+                &self.current_runs().read,
+                l.duration_s(),
+            )
+        })
+    }
+
     /// What the steadiness tests wait for, in the terms of what is being
     /// done: a Positions Test never stays long enough in one position.
-    fn steady_wait(&self, dur: f64) -> String {
+    /// "So far" is the beats heard in the position, never the silence or
+    /// the stand's noise around them (#2183).
+    pub(super) fn steady_wait(&self) -> String {
         if self.bench.test.guided.is_some() {
-            "Needs 5 minutes of beats in one position, longer than a Positions Test \
-             stays in each. Record one position for 5 minutes or more to see it."
-                .to_string()
-        } else {
+            return "Needs 5 minutes of beats in one position, longer than a Positions Test \
+                    stays in each. Record one position for 5 minutes or more to see it."
+                .to_string();
+        }
+        let heard = self.heard_in_position();
+        // The cards read a watch the readings at this Average Over don't
+        // cover whole yet (Walter on #2449): no count, rather than "none".
+        if heard <= 0.0 && self.cards_unheard().is_none() {
+            return "Needs 5 minutes of beats in one position.".to_string();
+        }
+        if heard > 0.0 {
             format!(
-                "Needs 5 minutes of beats in one position; {} so far.",
-                length_text(dur)
+                "Needs 5 minutes of beats in one position; {} heard so far.",
+                length_text(heard)
             )
+        } else {
+            "Needs 5 minutes of beats in one position; none heard so far.".to_string()
         }
     }
 
@@ -358,7 +386,7 @@ impl TimegrapherApp {
         if matches!(view, steady::View::Stft | steady::View::Wavelet) {
             self.bench.results.bg.shown_pass[1] = pass;
         }
-        let dur = self.update_steady(ui.ctx());
+        self.update_steady(ui.ctx());
         let upto = self.bench.results.steady.as_ref().map(|s| s.1.upto_s);
         let working = self.bench.results.steady_job.is_some();
         let joined = !self.session.stretches().is_empty();
@@ -371,7 +399,7 @@ impl TimegrapherApp {
         let status = match upto {
             Some(u) => format!("Tested over {} of {of}beats", length_text(u)),
             None if working => String::new(),
-            None => self.steady_wait(dur),
+            None => self.steady_wait(),
         };
         steady::draw(
             ui,
