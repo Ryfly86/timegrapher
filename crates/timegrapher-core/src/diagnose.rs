@@ -294,8 +294,8 @@ pub fn check(audio: &Audio, cfg: &DiagnoseConfig) -> SignalCheck {
     }
     let suggested = suggested_gain(peak, silent, clipping, too_quiet);
     let beat_error = read.headline_beat_error();
-    // `analyze` hears a watch but gives no figures yet: under 10 s with
-    // the beat sound not judged (#2014); said in `analyze`'s words.
+    // `analyze` gives no verdict and no figures yet: under 10 s of sound
+    // (#2014, #2333); said in `analyze`'s words.
     let not_assessed = not_assessed(read.watch_heard, beat_error.is_some(), duration_s);
 
     SignalCheck {
@@ -640,15 +640,25 @@ mod tests {
         );
     }
 
-    /// 5 s of noise, the live doctor's default on an empty stand: no watch
-    /// heard, so no not-assessed fact under the no-regular-beat condition
-    /// (Vernon on #2363).
+    /// 5 s of noise, the live doctor's default on an empty stand: under
+    /// 10 s there is no verdict either way (Norm on #2333), so no figures,
+    /// no "No regular beat" condition, and the not-assessed fact says the
+    /// 10 s it needs; never both (Vernon on #2363).
     #[test]
-    fn five_seconds_of_noise_is_not_awaiting_a_verdict() {
+    fn five_seconds_of_noise_awaits_a_verdict() {
         let c = check(&white_noise(5), &DiagnoseConfig::default());
-        assert!(!c.watch_heard);
-        assert_eq!(c.not_assessed, None);
         assert_eq!((c.rate_s_per_day, c.beat_error_ms), (None, None));
+        assert_eq!(
+            c.not_assessed.as_deref(),
+            Some(crate::measure::not_assessed_text(5.0).as_str())
+        );
+        assert!(
+            !c.issues
+                .iter()
+                .any(|i| i.title.starts_with("No regular beat")),
+            "{:?}",
+            c.issues
+        );
     }
 
     /// `seconds` of seeded white noise at 48 kHz, about −41 dBFS RMS.

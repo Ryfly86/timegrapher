@@ -230,9 +230,8 @@ pub struct LiveReading {
     /// Where the reading waits for its verdict
     /// ([`measure::awaiting_verdict`]: under [`measure::SHORT_SPAN_S`] of
     /// sound since the start or the latest break, masked seconds left
-    /// out, and the beats' sound can't be judged), so it gives no figures
-    /// yet: what that
-    /// sound is counted since ([`measure::LISTENING_TITLE`], #2014). None
+    /// out, Norm on #2333), so it gives no figures yet: what that sound
+    /// is counted since ([`measure::LISTENING_TITLE`], #2014). None
     /// otherwise.
     pub listening: Option<measure::HeardSince>,
     /// Whether this is the take's whole reading, given at its end by
@@ -1529,11 +1528,11 @@ impl LiveAnalyzer {
         Cuts::new(None, &breaks, &self.masked)
     }
 
-    /// Under 10 s of sound, a watch is heard only where the beats' sound
-    /// shows one; where it can't be judged (`waiting`) there is no
-    /// verdict and no figures, and the reading says what the sound is
-    /// counted since: an empty stand's first seconds read over 100,000
-    /// s/d when the timing's "watch" stood (#2014).
+    /// Under 10 s of sound (`waiting`) there is no verdict and no
+    /// figures, and the reading says what the sound is counted since: an
+    /// empty stand's first seconds read over 100,000 s/d when the
+    /// timing's "watch" stood (#2014), and a stopped take a rate from
+    /// about ten beats (#2333).
     fn listening_at(&self, waiting: bool, end_s: f64) -> Option<measure::HeardSince> {
         waiting.then(|| self.heard_since_kind(end_s))
     }
@@ -1996,7 +1995,7 @@ impl LiveAnalyzer {
             }
             _ => None,
         };
-        let no_watch = match bph {
+        let reason = match bph {
             // Its runs from the latest break, counted from its look back:
             // a run the look back cuts is no short run (Norm on #2311).
             Some(b) => measure::no_watch_reason_of(
@@ -2018,12 +2017,13 @@ impl LiveAnalyzer {
                     .then_some(NoWatchReason::Scatter)
             }
         };
+        let (no_watch, awaiting) = measure::verdict_heard(self.heard_cuts().heard_s(end_s), reason);
         Verdict {
             jitter_us,
             timing_scatter_fraction,
             arriving: self.arriving(&scatter, heard_since, end_s),
             no_watch,
-            awaiting: measure::awaiting_verdict(self.heard_cuts().heard_s(end_s), beat_sound),
+            awaiting,
             assessed,
             beat_sound,
         }
@@ -2221,8 +2221,8 @@ struct Verdict {
     /// not yet read ([`LiveAnalyzer::arriving`]): no figures, found where
     /// regular.
     arriving: Option<f64>,
-    /// No verdict yet: regularity not judged and the beats' sound can't
-    /// be ([`measure::awaiting_verdict`]). No figures then (#2014).
+    /// No verdict yet: under 10 s of sound heard
+    /// ([`measure::awaiting_verdict`]). No figures then (#2014, #2333).
     awaiting: bool,
     /// Whether the scatter was judged: a whole window or more heard.
     assessed: bool,

@@ -5,9 +5,11 @@ use timegrapher_core::diagnose::{check, DiagnoseConfig, IssueCode};
 use timegrapher_core::synth::{generate, SynthConfig};
 use timegrapher_core::{analysis, measure};
 
+/// A clean watch over 12 s: past the 10 s a reading needs, under which
+/// there is no verdict and no figures (#2333).
 fn watch(snr_db: f64) -> Audio {
     let cfg = SynthConfig {
-        duration_s: 6.0,
+        duration_s: 12.0,
         snr_db,
         ..Default::default()
     };

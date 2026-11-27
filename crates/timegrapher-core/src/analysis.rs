@@ -542,7 +542,7 @@ struct Heard {
     jitter_us: Option<f64>,
     /// Why no watch is heard; none when one is.
     no_watch: Option<NoWatchReason>,
-    /// No verdict yet: under 10 s, and the beats' sound can't be judged
+    /// No verdict yet: under 10 s of sound
     /// ([`crate::measure::awaiting_verdict`]). No figures then.
     awaiting: bool,
     /// The sound heard after any lead of noise.
@@ -612,16 +612,20 @@ fn hear(
     let listened_s = audio.duration() - from_s;
     let jitter_us = crate::session::scatter_jitter_us(&fits.rate_windows);
     let assessed = crate::measure::regularity_assessed(listened_s, fits.holds_window);
-    Heard {
-        jitter_us,
-        // Its beats are the whole take's, every run counted.
-        no_watch: crate::measure::no_watch_reason_of(
+    // Its beats are the whole take's, every run counted.
+    let (no_watch, awaiting) = crate::measure::verdict_heard(
+        audio.duration(),
+        crate::measure::no_watch_reason_of(
             jitter_us,
             bph,
             (assessed, beat_sound),
             (beats, f64::NEG_INFINITY),
         ),
-        awaiting: crate::measure::awaiting_verdict(audio.duration(), beat_sound),
+    );
+    Heard {
+        jitter_us,
+        no_watch,
+        awaiting,
         listened_s,
         expected: crate::beats::expected_beats(listened_s, bph),
         clipping: Clipping::measure(&audio.samples, fs, beats),
