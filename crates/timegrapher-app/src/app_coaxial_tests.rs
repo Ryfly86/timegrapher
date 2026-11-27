@@ -221,3 +221,48 @@ fn a_stopped_co_axial_card_reads_its_own_span_as_a_co_axial() {
     assert!(read > 0, "a card read as its own span's saved read");
     let _ = std::fs::remove_dir_all(base);
 }
+
+/// Sound never saved keeps its calibre and escapement in its
+/// session.json as it is heard, a calibre picked mid-take included, and
+/// opens with them: a co-axial's read for a co-axial (#2396).
+#[test]
+fn unsaved_sound_opens_with_the_calibre_it_was_heard_with() {
+    use timegrapher_core::recorder::{recorded_setup, Recorder};
+    let scratch = std::env::temp_dir().join(format!("tg-coax-unsaved-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&scratch);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    let r = Recorder::start(&scratch, app.info("test", 8000, 16)).unwrap();
+    let dir = r.dir().to_path_buf();
+    assert_eq!(recorded_setup(&dir).unwrap().calibre, None);
+    app.session.recorder = Some(r);
+    // One that changes neither lift nor beat rate is written too.
+    app.set_calibre("Bench Calibre".into());
+    let heard = recorded_setup(&dir).unwrap().calibre;
+    assert_eq!(heard.as_deref(), Some("Bench Calibre"));
+    app.set_calibre("ETA 2824-2".into());
+    app.set_calibre("Omega 3861".into());
+    let heard = recorded_setup(&dir).unwrap();
+    assert_eq!(heard.calibre.as_deref(), Some("Omega 3861"));
+    assert_eq!(heard.escapement, None);
+    let mut opened = TimegrapherApp::with_devices(Vec::new(), None);
+    opened.put_recorded(heard, &dir);
+    assert_eq!(opened.bench.take.calibre, "Omega 3861");
+    assert_eq!(opened.escapement(), CoAxial);
+    assert_eq!(opened.bench.take.lift_deg, app.bench.take.lift_deg);
+    assert_eq!(opened.lift_known(), app.lift_known());
+    // The take's own escapement, set by the file it came from, goes too.
+    let m = Manifest {
+        calibre: Some("ETA 2824-2".into()),
+        escapement: Some(CoAxial),
+        ..Default::default()
+    };
+    app.apply_manifest_placed(&m, &[], None, None);
+    app.note_settings();
+    let heard = recorded_setup(&dir).unwrap();
+    assert_eq!(heard.escapement, Some(CoAxial));
+    let mut opened = TimegrapherApp::with_devices(Vec::new(), None);
+    opened.put_recorded(heard, &dir);
+    assert_eq!(opened.escapement(), CoAxial);
+    drop(app);
+    let _ = std::fs::remove_dir_all(&scratch);
+}

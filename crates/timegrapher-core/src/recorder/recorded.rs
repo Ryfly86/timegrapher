@@ -3,6 +3,7 @@
 //! saved has instead of a `session.toml` (#2376).
 
 use super::*;
+use crate::escapement::Escapement;
 use crate::input_domain;
 use serde::Deserialize;
 
@@ -24,6 +25,12 @@ pub struct RecordedSetup {
     /// `bph` never says Auto), and no watch it was moved into set a beat
     /// rate since ([`crate::set_rate::WATCH_RATE_KEY`]).
     pub on_auto: bool,
+    /// The calibre it was heard with; `None` for none, or a file older
+    /// than #2396, which wrote none.
+    pub calibre: Option<String>,
+    /// The take's own escapement, as [`SessionInfo::escapement`] wrote it;
+    /// `None` for none, or a value Timegrapher doesn't read for.
+    pub escapement: Option<Escapement>,
 }
 
 #[derive(Deserialize)]
@@ -38,6 +45,12 @@ struct Written {
     /// [`crate::set_rate::WATCH_RATE_KEY`]; only `true` marks it.
     #[serde(default)]
     bph_from_watch: serde_json::Value,
+    /// Kept loose, so a value that can't stand is left out on its own
+    /// rather than refusing the rest of the file.
+    #[serde(default)]
+    calibre: serde_json::Value,
+    #[serde(default)]
+    escapement: serde_json::Value,
 }
 
 /// A key that is there, null or not.
@@ -60,6 +73,12 @@ pub fn recorded_setup(dir: &Path) -> Option<RecordedSetup> {
         lift_deg: input_domain::lift_deg(lift).ok(),
         bph: w.bph.flatten().and_then(|b| input_domain::bph(b).ok()),
         on_auto: w.bph == Some(None) && !marked,
+        calibre: w
+            .calibre
+            .as_str()
+            .filter(|c| !c.trim().is_empty())
+            .map(String::from),
+        escapement: serde_json::from_value(w.escapement).ok().flatten(),
     })
 }
 
@@ -87,6 +106,8 @@ mod tests {
             sample_rate: 8000,
             bits: 16,
             software: "test".into(),
+            calibre: "Omega 8500".into(),
+            escapement: Some(Escapement::SwissLever),
         };
         let r = Recorder::start(&parent, info).unwrap();
         let got = recorded_setup(r.dir()).unwrap();
@@ -98,6 +119,8 @@ mod tests {
                 lift_deg: Some(55.0),
                 bph: Some(28800),
                 on_auto: false,
+                calibre: Some("Omega 8500".into()),
+                escapement: Some(Escapement::SwissLever),
             }
         );
         drop(r);
@@ -147,6 +170,36 @@ mod tests {
         assert_eq!(recorded_setup(&d), None);
         fs::remove_file(d.join(take::RECORD)).unwrap();
         assert_eq!(recorded_setup(&d), None);
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    /// A calibre or escapement that can't stand is left out on its own,
+    /// the rest read as written; a file older than #2396 has neither
+    /// (#2396).
+    #[test]
+    fn a_calibre_or_escapement_that_cant_stand_is_left_out_alone() {
+        let d = dir("calibre");
+        let read = |s: &str| {
+            fs::write(d.join(take::RECORD), s).unwrap();
+            let r = recorded_setup(&d).unwrap();
+            (r.calibre, r.escapement, r.position)
+        };
+        let both =
+            r#"{"position":"DU","lift_deg":52.0,"calibre":"Omega 3861","escapement":"co-axial"}"#;
+        let co_axial = Some(Escapement::CoAxial);
+        assert_eq!(
+            read(both),
+            (Some("Omega 3861".into()), co_axial, Some("DU".into()))
+        );
+        let older = r#"{"position":"DU","lift_deg":52.0}"#;
+        assert_eq!(read(older), (None, None, Some("DU".into())));
+        for bad in [
+            r#""calibre":5,"escapement":"detent""#,
+            r#""calibre":"  ","escapement":1"#,
+        ] {
+            let s = format!(r#"{{"position":"DU","lift_deg":52.0,{bad}}}"#);
+            assert_eq!(read(&s), (None, None, Some("DU".into())), "{s}");
+        }
         let _ = fs::remove_dir_all(&d);
     }
 }

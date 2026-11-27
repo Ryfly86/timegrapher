@@ -557,6 +557,8 @@ fn capture(o: &Options, pos: Position, set: &Settings) -> Result<Captured, Strin
         sample_rate,
         bits,
         software: format!("timegrapher {}", env!("CARGO_PKG_VERSION")),
+        calibre: set.calibre.clone().unwrap_or_default(),
+        escapement: None,
     };
     let start = |i: SessionInfo| {
         Recorder::start(o.dir(), i).map_err(|e| format!("{}: {e}", o.dir().display()))

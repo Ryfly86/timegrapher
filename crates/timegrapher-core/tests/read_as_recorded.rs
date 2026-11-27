@@ -147,6 +147,8 @@ fn a_recorders_own_file_says_whether_it_was_on_auto() {
             sample_rate: 8_000,
             bits: 16,
             software: "test".into(),
+            calibre: String::new(),
+            escapement: None,
         };
         let r = Recorder::start(&parent, info).unwrap();
         assert_eq!(recorded_on_auto(r.dir()), auto, "{bph:?}");
@@ -238,6 +240,8 @@ fn a_recorders_own_file_takes_the_watch_mark() {
         sample_rate: 8_000,
         bits: 16,
         software: "test".into(),
+        calibre: String::new(),
+        escapement: None,
     };
     let r = Recorder::start(&parent, info).unwrap();
     assert!(recorded_on_auto(r.dir()));

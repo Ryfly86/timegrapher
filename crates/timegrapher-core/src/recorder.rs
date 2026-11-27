@@ -96,6 +96,14 @@ pub struct SessionInfo {
     pub bits: u16,
     /// Program and version that made the recording.
     pub software: String,
+    /// The calibre picked, empty when none (left out of the file then), so
+    /// sound that is never saved opens with it (#2396).
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub calibre: String,
+    /// The take's own escapement, as `session.toml`'s `escapement` key
+    /// sets it, outranking its calibre's; None (left out) for none.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub escapement: Option<crate::escapement::Escapement>,
 }
 
 /// Something that happened during the recording, at a time in the audio.
@@ -585,12 +593,15 @@ impl Recorder {
         self.write_session(None, None)
     }
 
-    /// Update the settings saved with the recording (a new position or lift angle).
+    /// Update the settings saved with the recording (a new position, lift
+    /// angle or calibre).
     pub fn set_info(&mut self, info: SessionInfo) -> io::Result<()> {
         self.info.position = info.position;
         self.info.lift_deg = info.lift_deg;
         self.info.bph = info.bph;
         self.info.watch = info.watch;
+        self.info.calibre = info.calibre;
+        self.info.escapement = info.escapement;
         self.write_session(None, None)
     }
 
@@ -1556,6 +1567,8 @@ mod tests {
             sample_rate: 8000,
             bits: 24,
             software: "test".into(),
+            calibre: String::new(),
+            escapement: None,
         };
         let mut r = Recorder::start(&parent, info).unwrap();
         let samples = vec![0.0, 0.5, -0.5, 1.0, -1.0, 1.4e-5, -2.0e-5, 0.123_456];
@@ -1594,6 +1607,8 @@ mod tests {
             sample_rate: 8000,
             bits: 16,
             software: "test".into(),
+            calibre: String::new(),
+            escapement: None,
         };
         let r = Recorder::start(&parent, info()).unwrap();
         let dir = r.dir().to_path_buf();
@@ -1633,6 +1648,8 @@ mod tests {
             sample_rate: 8000,
             bits: 16,
             software: "test".into(),
+            calibre: String::new(),
+            escapement: None,
         };
         let block = |at| Block {
             samples: vec![0.25; 8000],
@@ -1681,6 +1698,8 @@ mod tests {
             sample_rate: 8000,
             bits: 16,
             software: "test".into(),
+            calibre: String::new(),
+            escapement: None,
         };
         let mut r = Recorder::start(&parent, info).unwrap();
         let t0 = SystemTime::now();
@@ -1733,6 +1752,8 @@ mod tests {
             sample_rate: 8000,
             bits: 16,
             software: "test".into(),
+            calibre: String::new(),
+            escapement: None,
         };
         let mut r = Recorder::start(&base.join("live"), info).unwrap();
         append_second(&mut r, 1);
@@ -2306,47 +2327,6 @@ mod tests {
         fs::remove_dir_all(base).unwrap();
     }
 
-    /// A copy is named after the start time, the watch and the calibre as
-    /// they are when it is saved, with no position however the watch
-    /// moved, and is saved again in the same place.
-    #[test]
-    fn a_copy_is_named_after_the_watch_and_calibre() {
-        let base = std::env::temp_dir().join(format!("tg-moved-{}", std::process::id()));
-        let info = SessionInfo {
-            watch: "Test Watch".into(),
-            position: "DU".into(),
-            lift_deg: 52.0,
-            bph: Some(28800),
-            device: "test".into(),
-            sample_rate: 8000,
-            bits: 16,
-            software: "test".into(),
-        };
-        let mut r = Recorder::start(&base.join("tmp"), info).unwrap();
-        let block = Block {
-            samples: vec![0.1; 8000],
-            at: SystemTime::now(),
-        };
-        r.write(&block).unwrap();
-        r.note("position DD").unwrap();
-        let mut info = r.info().clone();
-        info.watch = "Sea Dweller".into();
-        info.position = "DD".into();
-        r.set_info(info).unwrap();
-        let first = r
-            .save_copy(&base.join("saved"), "ETA 2824-2", None)
-            .unwrap();
-        let name = first.file_name().unwrap().to_str().unwrap().to_string();
-        assert!(name.ends_with("_Sea_Dweller_ETA_2824-2"), "{name}");
-        assert_eq!(name.len(), "2026-10-08T21-04-05".len() + 23, "{name}");
-        r.note("position CL").unwrap();
-        assert_eq!(
-            r.save_copy(&base.join("saved"), "Other", None).unwrap(),
-            first
-        );
-        std::fs::remove_dir_all(&base).ok();
-    }
-
     #[test]
     fn a_take_of_a_few_seconds_has_a_clock_log_to_fit() {
         // Takes far shorter than the 10 s between clock lines, in blocks of
@@ -2364,6 +2344,8 @@ mod tests {
                 sample_rate: 8000,
                 bits: 16,
                 software: "test".into(),
+                calibre: String::new(),
+                escapement: None,
             };
             let mut r = Recorder::start(&base.join("tmp"), info).unwrap();
             let t0 = SystemTime::now();
@@ -2421,6 +2403,8 @@ mod tests {
             sample_rate: 8000,
             bits: 16,
             software: "test".into(),
+            calibre: String::new(),
+            escapement: None,
         };
         let mut r = Recorder::start(&base.join("tmp"), info).unwrap();
         let t0 = SystemTime::now();

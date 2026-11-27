@@ -20,6 +20,8 @@ fn a_session_write_that_fails_leaves_no_half_file_and_keeps_the_note() {
         sample_rate: 8000,
         bits: 16,
         software: "test".into(),
+        calibre: String::new(),
+        escapement: None,
     };
     let mut r = Recorder::start(&parent, info).unwrap();
     let record = r.dir().join(take::RECORD);
@@ -82,4 +84,47 @@ fn save_again_writes_through_no_link_in_the_copy() {
     );
     drop(r);
     let _ = fs::remove_dir_all(&base);
+}
+
+/// A copy is named after the start time, the watch and the calibre as
+/// they are when it is saved, with no position however the watch
+/// moved, and is saved again in the same place.
+#[test]
+fn a_copy_is_named_after_the_watch_and_calibre() {
+    let base = std::env::temp_dir().join(format!("tg-moved-{}", std::process::id()));
+    let info = SessionInfo {
+        watch: "Test Watch".into(),
+        position: "DU".into(),
+        lift_deg: 52.0,
+        bph: Some(28800),
+        device: "test".into(),
+        sample_rate: 8000,
+        bits: 16,
+        software: "test".into(),
+        calibre: String::new(),
+        escapement: None,
+    };
+    let mut r = Recorder::start(&base.join("tmp"), info).unwrap();
+    let block = Block {
+        samples: vec![0.1; 8000],
+        at: SystemTime::now(),
+    };
+    r.write(&block).unwrap();
+    r.note("position DD").unwrap();
+    let mut info = r.info().clone();
+    info.watch = "Sea Dweller".into();
+    info.position = "DD".into();
+    r.set_info(info).unwrap();
+    let first = r
+        .save_copy(&base.join("saved"), "ETA 2824-2", None)
+        .unwrap();
+    let name = first.file_name().unwrap().to_str().unwrap().to_string();
+    assert!(name.ends_with("_Sea_Dweller_ETA_2824-2"), "{name}");
+    assert_eq!(name.len(), "2026-10-08T21-04-05".len() + 23, "{name}");
+    r.note("position CL").unwrap();
+    assert_eq!(
+        r.save_copy(&base.join("saved"), "Other", None).unwrap(),
+        first
+    );
+    std::fs::remove_dir_all(&base).ok();
 }

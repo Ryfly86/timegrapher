@@ -630,6 +630,8 @@ fn record_and_reopen_glitching(
         sample_rate: 8000,
         bits: 16,
         software: "test".into(),
+        calibre: String::new(),
+        escapement: None,
     };
     let mut rec = Recorder::start(&base, info).unwrap();
     let mut watch = breaks::GapWatch::new(8000);

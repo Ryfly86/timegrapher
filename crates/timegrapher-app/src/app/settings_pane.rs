@@ -919,16 +919,8 @@ impl TimegrapherApp {
         if self.session.recording_fault().is_some() {
             return;
         }
-        let info = SessionInfo {
-            watch: self.bench.take.watch.clone(),
-            position: self.bench.take.position.code().into(),
-            lift_deg: self.bench.take.lift_deg,
-            bph: self.bench.take.bph,
-            device: String::new(),
-            sample_rate: 0,
-            bits: 0,
-            software: String::new(),
-        };
+        // The watch settings only; `set_info` keeps the device's.
+        let info = self.info("", 0, 0);
         // Kept in memory and written next time if this write fails; the
         // last good session.json stays as it was (#1639).
         let written = self.session.recorder.as_mut().map(|r| r.set_info(info));
