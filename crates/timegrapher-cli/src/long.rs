@@ -1038,7 +1038,12 @@ fn print_summary(r: &LongReport, wheels: &[Wheel], clock_note: Option<&str>) {
         opt(r.amplitude_p95, 0),
         lift_of(r)
     );
-    // A rate line gives no share (Norm on #2100): "–", said why once.
+    print_cycles(r, wheels);
+}
+
+/// The periodic changes in rate and amplitude, one line each. A rate line
+/// gives no share (Norm on #2100): "–", and why is said once.
+fn print_cycles(r: &LongReport, wheels: &[Wheel]) {
     let line = |c: &Component, size: String, share: Option<f64>| {
         let share = share.map_or("–".into(), |p| format!("{}%", fixed_text(p, 0)));
         println!(
