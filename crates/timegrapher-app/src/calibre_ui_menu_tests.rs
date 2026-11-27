@@ -720,3 +720,150 @@ fn an_escapement_not_measured_shows_its_tag_not_its_lift() {
         format!("Omega 8500  ·  {}", calibres::Escapement::TAG)
     );
 }
+
+/// Astra's shakedown, #2377: in Edit Watch, one Escape in a drop-down or
+/// menu closes only that, never the dialog and the edits typed into it,
+/// and Return there never saves it. A second Escape, with nothing open,
+/// is Cancel.
+#[test]
+fn keys_in_an_edit_watch_menu_stay_in_the_menu() {
+    use timegrapher_core::library::{Field, FieldKind, Watch};
+    let mut c = Calibres::in_memory();
+    let ctx = egui::Context::default();
+    crate::theme::install(&ctx);
+    let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1920.0, 1080.0));
+    let input = |events| egui::RawInput {
+        screen_rect: Some(screen),
+        events,
+        ..Default::default()
+    };
+    // (the button that opens it, words seen only while it is open)
+    let menus = [
+        ("Text", "Money"),
+        ("Auto", "18000 bph"),
+        ("Add Field", "Your Own…"),
+        ("Not Set", "Search every calibre"),
+    ];
+    for (button, inside) in menus {
+        let mut watch = Watch::new("Scratch");
+        watch.notes = Some("Timing".into());
+        watch.fields.push(Field {
+            label: "Reference".into(),
+            kind: FieldKind::Text,
+            value: "R1".into(),
+        });
+        let mut f = crate::watches::Form {
+            watch,
+            new: false,
+            error: None,
+        };
+        let mut run = |events: Vec<egui::Event>| {
+            let mut act = None;
+            let out = ctx.run(input(events), |ctx| {
+                egui::CentralPanel::default().show(ctx, |_ui| {});
+                act = crate::watches::form(ctx, &mut f, &mut c);
+                crate::theme::popups_above_dialogs(ctx);
+            });
+            let kept = (f.watch.notes.clone(), f.watch.fields.len());
+            (act, out, kept)
+        };
+        run(vec![]);
+        let (_, out, _) = run(vec![]);
+        let at = drawn_at(&out, button).unwrap_or_else(|| panic!("the {button} button"));
+        run(click(at.center()));
+        run(vec![]);
+        let (_, out, _) = run(vec![]);
+        assert!(drawn_at(&out, inside).is_some(), "{button}: menu open");
+        // Hugh's HOLD: Return with the menu open never saves the dialog.
+        let (act, _, _) = run(key(egui::Key::Enter));
+        assert!(act.is_none(), "{button}: Return saved the dialog");
+        let (act, out, (notes, _)) = run(vec![]);
+        assert!(act.is_none(), "{button}: the dialog saved after Return");
+        assert!(
+            drawn_at(&out, "Edit Watch").is_some(),
+            "{button}: Return shut it"
+        );
+        assert_eq!(notes.as_deref(), Some("Timing"), "{button}");
+        // The Calibre search takes Return itself and closes: open it again.
+        if drawn_at(&out, inside).is_none() {
+            run(click(at.center()));
+            run(vec![]);
+            let (_, out, _) = run(vec![]);
+            assert!(drawn_at(&out, inside).is_some(), "{button}: open again");
+        }
+        let (act, _, _) = run(key(egui::Key::Escape));
+        assert!(act.is_none(), "{button}: Escape closed the dialog");
+        let (act, out, (notes, fields)) = run(vec![]);
+        assert!(act.is_none(), "{button}: the dialog closed after");
+        assert!(
+            drawn_at(&out, inside).is_none(),
+            "{button}: menu still open"
+        );
+        assert!(
+            drawn_at(&out, "Edit Watch").is_some(),
+            "{button}: dialog gone"
+        );
+        assert_eq!(notes.as_deref(), Some("Timing"), "{button}");
+        assert_eq!(fields, 1, "{button}");
+        // Nothing open now: Escape is Cancel.
+        let (act, _, _) = run(key(egui::Key::Escape));
+        assert!(
+            matches!(act, Some(crate::watches::FormAction::Cancel)),
+            "{button}: the second Escape didn't cancel"
+        );
+        for _ in 0..2 {
+            let _ = ctx.run(input(vec![]), |ctx| {
+                egui::CentralPanel::default().show(ctx, |_ui| {});
+            });
+        }
+    }
+}
+
+/// Trevor's HOLD on #2392: a dialog that went away with a menu open
+/// leaves that behind, and the first Escape the next time it is shown
+/// is still Cancel. The record counts only from the pass before.
+#[test]
+fn a_reshown_dialog_takes_its_first_escape() {
+    use timegrapher_core::library::Watch;
+    let mut c = Calibres::in_memory();
+    let ctx = egui::Context::default();
+    crate::theme::install(&ctx);
+    let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1920.0, 1080.0));
+    let mut f = crate::watches::Form {
+        watch: Watch::new("Scratch"),
+        new: false,
+        error: None,
+    };
+    let mut run = |show: bool, events: Vec<egui::Event>| {
+        let mut act = None;
+        let input = egui::RawInput {
+            screen_rect: Some(screen),
+            events,
+            ..Default::default()
+        };
+        let out = ctx.run(input, |ctx| {
+            egui::CentralPanel::default().show(ctx, |_ui| {});
+            if show {
+                act = crate::watches::form(ctx, &mut f, &mut c);
+            }
+            crate::theme::popups_above_dialogs(ctx);
+        });
+        (act, out)
+    };
+    run(true, vec![]);
+    let (_, out) = run(true, vec![]);
+    let at = drawn_at(&out, "Auto").expect("the Beat Rate drop-down");
+    run(true, click(at.center()));
+    run(true, vec![]);
+    let (_, out) = run(true, vec![]);
+    assert!(drawn_at(&out, "18000 bph").is_some(), "the drop-down open");
+    // The dialog goes away with its drop-down open, and is shown later.
+    for _ in 0..5 {
+        run(false, vec![]);
+    }
+    let (act, _) = run(true, key(egui::Key::Escape));
+    assert!(
+        matches!(act, Some(crate::watches::FormAction::Cancel)),
+        "the first Escape on a reshown dialog: {act:?}"
+    );
+}
