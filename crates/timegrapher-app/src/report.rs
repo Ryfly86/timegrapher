@@ -1048,7 +1048,7 @@ fn analyze_like_the_cli(flac: &[u8], bph: Option<u32>, lift_deg: f64) -> Result<
 fn excerpt_document(summary: &Summary, cfg: &AnalysisConfig) -> Result<Value, String> {
     use timegrapher_core::analyze_doc;
     let mut doc = json!({
-        "schema": "timegrapher.analyze/2",
+        "schema": format!("timegrapher.analyze/{}", analyze_doc::VERSION),
         "software": software(),
         "input": {
             "files": [{ "path": "audio/excerpt.flac" }],
@@ -1208,13 +1208,36 @@ mod tests {
 
     fn assert_clock_document(ppm: Option<f64>, fitted: bool) {
         let summary = clock_summary(ppm, fitted);
-        let raw = serde_json::to_value(&summary).unwrap();
+        // Where no watch is heard, analyze/3 counts no beats of a watch
+        // (#2378), as core's `Summary::count_no_watch` gives them; that rule
+        // is tested in core, and the excerpt carries it.
+        let mut counted = summary.clone();
+        counted.count_no_watch();
+        let raw = serde_json::to_value(&counted).unwrap();
         let doc = excerpt_document(&summary, &excerpt_analysis_config(Some(28800), 52.0)).unwrap();
+        // Every summary field passes unchanged but the rate, which
+        // analyze/3 gives as the headline rate, corrected at the
+        // document's clock where it has one (#2105); the card's rate is
+        // `rate_card_s_per_day`.
+        let headline = |r: &Value| match (ppm, r.as_f64()) {
+            (Some(ppm), Some(r)) => json!(timegrapher_core::clockstore::correct_rate(r, ppm)),
+            _ => r.clone(),
+        };
         for (key, value) in raw.as_object().unwrap() {
-            assert_eq!(
-                &doc[key], value,
-                "summary field {key} must remain unchanged"
-            );
+            let want = match key.as_str() {
+                "rate_s_per_day" => headline(value),
+                "overall" if value.is_object() => {
+                    let mut o = value.clone();
+                    o["rate_s_per_day"] = headline(&value["rate_s_per_day"]);
+                    o
+                }
+                _ => value.clone(),
+            };
+            assert_eq!(doc[key], want, "summary field {key}");
+        }
+        assert_eq!(doc["rate_card_s_per_day"], raw["rate_s_per_day"]);
+        if ppm.is_some() && fitted {
+            assert_eq!(doc["rate_s_per_day"], doc["clock"]["rate_s_per_day"]);
         }
         match ppm {
             Some(ppm) => {

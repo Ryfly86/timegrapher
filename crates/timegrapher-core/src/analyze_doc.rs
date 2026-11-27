@@ -1,11 +1,18 @@
-//! The body of `analyze --json` (`timegrapher.analyze/2`), worded once
+//! The body of `analyze --json` (`timegrapher.analyze/3`), worded once
 //! for every surface that writes one: the command line, and the app's
 //! bug report, whose excerpt `report --replay` analyses again and
 //! compares. Each surface wraps it in its own envelope (schema, software,
-//! input files).
+//! input files) and names its version, [`VERSION`].
 
 use crate::analysis::{AnalysisConfig, Summary};
 use serde_json::{json, Value};
+
+/// The version of the `analyze` document: `analyze/2` dropped the
+/// grades, verdicts, named faults and advice; `analyze/3` gives the
+/// headline rate, the one the text leads with, as `rate_s_per_day`
+/// (#2105, [`body`]), and counts no beats of a watch where none is heard
+/// (#2378, [`crate::measure::watch_beats`]).
+pub const VERSION: u32 = 3;
 
 /// The settings `analyze` read at, as its document's `input.settings`
 /// gives them; `calibre` is the calibre named, if one was. The escapement
@@ -25,10 +32,17 @@ pub fn settings(cfg: &AnalysisConfig, calibre: Option<&str>) -> Value {
     s
 }
 
-/// The document's body: the summary, its rates on the sound card's clock
-/// (what tg reads and the regression check compares), with the clock's
-/// correction beside them when one is known (`ppm` fast, and where it came
-/// from in words), and the beat rate heard ([`measured`]). Off every
+/// The document's body: the summary, with its headline rate, the one the
+/// text leads with (#2105): corrected onto true time at the document's
+/// correction when it has one (`ppm` fast, and where it came from in
+/// words, `clock`), else on the sound card's clock. `rate_s_per_day` and
+/// `overall.rate_s_per_day` are on that clock; `rate_card_s_per_day`
+/// keeps the rate on the card's clock, as tg reads it and the regression
+/// check compares it, and the spread `rate_p05`/`rate_p95` stays on the
+/// card's clock, as the views label it. The beat rate
+/// heard ([`measured`]) is on the headline rate's clock too. Where no
+/// watch is heard, no beats of a watch are counted
+/// ([`crate::measure::watch_beats`], Norm on #2378). Off every
 /// standard rate on Auto (the verdict `analyze` made on the card's
 /// clock, never made again here; its figures re-read at that correction
 /// by [`Summary::read_off_standard`]), no rate in s/d is given: the fit's
@@ -51,15 +65,39 @@ pub fn body(summary: &Summary, clock: Option<(f64, &str)>) -> Result<Value, Stri
         _ => summary,
     };
     let off = crate::measure::off_standard(&summary.caveats).is_some();
+    let counted;
+    let summary = if summary.watch_heard {
+        summary
+    } else {
+        let mut s = summary.clone();
+        s.count_no_watch();
+        counted = s;
+        &counted
+    };
     let mut body = serde_json::to_value(summary).map_err(|e| e.to_string())?;
     body["overall"] = summary.escapement.overall_json(summary.overall.as_ref());
+    let (_, bph) = crate::measure::watch_beats(
+        summary.watch_heard,
+        summary.beats_found,
+        summary.bph,
+        summary.bph_set,
+    );
+    body["bph"] = json!(bph);
     if let Some(m) = measured(summary, ppm) {
         m.write_into(&mut body);
     }
-    if off {
-        if let Some(o) = body["overall"].as_object_mut() {
-            o.insert("rate_s_per_day".into(), Value::Null);
-        }
+    // The headline rate, on the document's clock (#2105).
+    let headline =
+        |r: Option<f64>| json!(r.map(|r| ppm.map_or(r, |p| crate::clockstore::correct_rate(r, p))));
+    body["rate_card_s_per_day"] = json!(summary.rate_s_per_day);
+    body["rate_s_per_day"] = headline(summary.rate_s_per_day);
+    if let Some(o) = body["overall"].as_object_mut() {
+        let rate = summary
+            .overall
+            .as_ref()
+            .filter(|_| !off)
+            .map(|f| f.rate_s_per_day);
+        o.insert("rate_s_per_day".into(), headline(rate));
     }
     if let Some((ppm, from)) = clock {
         body["clock"] = crate::clockstore::correction_json(
@@ -193,7 +231,45 @@ mod tests {
         assert_eq!(on_true, m50.bph);
     }
 
-    /// No regular beat, no reading: no beat rate heard either.
+    /// The headline rate is the one the text leads with (#2105): with a
+    /// correction, `rate_s_per_day`, `overall.rate_s_per_day` and
+    /// `clock.rate_s_per_day` are the rate corrected at it, and
+    /// `rate_card_s_per_day` is the card's; with none, all are the card's.
+    #[test]
+    fn the_headline_rate_is_on_the_documents_clock() {
+        let audio = generate(
+            &SynthConfig {
+                duration_s: 30.0,
+                rate_s_per_day: 6.0,
+                ..Default::default()
+            },
+            |_| 280.0,
+            |_| 0.0,
+        );
+        let a = analyze(&audio, &AnalysisConfig::default());
+        let card = a.summary.rate_s_per_day.unwrap();
+        let plain = body(&a.summary, None).unwrap();
+        assert_eq!(plain["rate_s_per_day"], card);
+        assert_eq!(plain["overall"]["rate_s_per_day"], card);
+        assert_eq!(plain["rate_card_s_per_day"], card);
+        let doc = body(&a.summary, Some((-20.0, "typed in"))).unwrap();
+        let corrected = crate::clockstore::correct_rate(card, -20.0);
+        assert!(
+            (corrected - card + 1.728).abs() < 1e-3,
+            "{corrected} {card}"
+        );
+        assert_eq!(doc["rate_s_per_day"], corrected);
+        assert_eq!(doc["overall"]["rate_s_per_day"], corrected);
+        assert_eq!(doc["clock"]["rate_s_per_day"], corrected);
+        assert_eq!(doc["rate_card_s_per_day"], card);
+        // The spread stays on the card's clock, as the views label it.
+        assert_eq!(doc["rate_p05"], plain["rate_p05"]);
+    }
+
+    /// No regular beat, no reading: no beat rate heard either, and no
+    /// beats of a watch found (Norm on #2378): `beats_found` and its share
+    /// 0, `beats_missing` with its caveat, no `bph` or share of one with
+    /// no rate set; with one set, `bph` is it and the share stays.
     #[test]
     fn noise_gives_no_beat_rate_heard() {
         let audio = generate(
@@ -207,8 +283,41 @@ mod tests {
         );
         let a = analyze(&audio, &AnalysisConfig::default());
         assert!(!a.summary.watch_heard);
+        assert!(a.summary.beats_found > 0, "the peaks the noise gives");
         let doc = body(&a.summary, None).unwrap();
         assert!(doc.get("bph_measured").is_none());
         assert!(doc.get("bph_measured_se").is_none());
+        assert_eq!(doc["beats_found"], 0);
+        assert_eq!(doc["beats_found_fraction"], 0.0);
+        assert!(doc["bph"].is_null());
+        assert!(doc.get("bph_heard").is_none());
+        assert!(doc["timing_scatter_fraction"].is_null());
+        assert_eq!(doc["jitter_us"], json!(a.summary.jitter_us));
+        assert_eq!(doc["doubts"]["beats_missing"], true);
+        let codes: Vec<&Value> = doc["caveats"].as_array().unwrap().iter().collect();
+        assert!(codes.iter().any(|c| c["code"] == "no_watch"));
+        let missing = codes.iter().find(|c| c["code"] == "beats_missing").unwrap();
+        assert_eq!(missing["fraction"], 0.0);
+        let set = analyze(
+            &audio,
+            &AnalysisConfig {
+                bph: Some(28_800),
+                ..Default::default()
+            },
+        );
+        assert!(!set.summary.watch_heard);
+        let doc = body(&set.summary, None).unwrap();
+        assert_eq!(doc["bph"], 28_800);
+        assert_eq!(doc["beats_found"], 0);
+        assert!(doc.get("bph_heard").is_none());
+        assert_eq!(
+            doc["timing_scatter_fraction"],
+            json!(set.summary.timing_scatter_fraction)
+        );
+        assert!(!doc["caveats"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|c| c["code"] == "set_rate_disagrees"));
     }
 }

@@ -514,7 +514,7 @@ fn analyze_gives_the_clis_document(c: &mut Client, take: &Path) {
     );
     assert!(r.get("isError").is_none(), "{r}");
     let doc = &r["structuredContent"];
-    assert_eq!(doc["schema"], "timegrapher.analyze/2");
+    assert_eq!(doc["schema"], "timegrapher.analyze/3");
     assert_eq!(doc["watch_heard"], true);
     let rate = doc["overall"]["rate_s_per_day"].as_f64().unwrap();
     assert!((rate - 6.0).abs() < 1.0, "rate {rate}");

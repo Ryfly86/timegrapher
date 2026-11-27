@@ -1804,32 +1804,8 @@ impl Calibres {
         };
         let before = self.user.custom[i].clone();
         let c = &mut self.user.custom[i];
-        theme::row(
-            ui,
-            "Name",
-            Some("What the calibre is called in the menu"),
-            |ui| {
-                ui.add(
-                    egui::TextEdit::singleline(&mut c.name)
-                        .id_salt(("custom name", place))
-                        .desired_width(f32::INFINITY),
-                );
-            },
-        );
-        let mut maker = c.maker.clone().unwrap_or_default();
-        theme::row(
-            ui,
-            "Maker",
-            Some("Who made the movement, to search by"),
-            |ui| {
-                ui.add(
-                    egui::TextEdit::singleline(&mut maker)
-                        .id_salt(("custom maker", place))
-                        .desired_width(f32::INFINITY),
-                );
-            },
-        );
-        c.maker = (!maker.trim().is_empty()).then(|| maker.trim().to_string());
+        let typed_name = name_and_maker_rows(ui, c, place);
+        let taken_id = custom_field_id("custom name taken", place, name);
         theme::row(
             ui,
             "Beat Rate",
@@ -1873,7 +1849,8 @@ impl Calibres {
                 ui.label("°");
             },
         );
-        let renamed = c.name.trim().to_string();
+        escapement_row(ui, c, place);
+        let renamed = typed_name.map_or_else(|| before.name.clone(), |t| t.trim().to_string());
         if renamed != before.name {
             // A name another calibre has, or none, isn't taken.
             let free = !renamed.is_empty()
@@ -1882,9 +1859,14 @@ impl Calibres {
                     .is_none_or(|e| e.is_custom() && e.name() == self.user.custom[i].name);
             if free {
                 self.user.custom[i].name = renamed.clone();
+                ui.data_mut(|d| d.remove::<String>(taken_id));
                 change.renamed = Some(renamed);
             } else {
                 self.user.custom[i].name = before.name.clone();
+                if !renamed.is_empty() {
+                    ui.data_mut(|d| d.insert_temp(taken_id, renamed));
+                    ui.ctx().request_repaint();
+                }
             }
         }
         if change.deleted || self.user.custom.get(i) != Some(&before) {
@@ -1918,6 +1900,30 @@ const LIFT: fields::Format = fields::Format {
     },
     parse: fields::parse_number,
 };
+
+/// A custom calibre's escapement, picked (#2387): a co-axial is read as
+/// the table's co-axial rows are (#2313); a pin lever or detent says it
+/// isn't measured yet (#1872).
+fn escapement_row(ui: &mut egui::Ui, c: &mut CustomCalibre, place: &str) {
+    theme::row(
+        ui,
+        "Escapement",
+        Some("The escapement the maker gives; Swiss lever unless it says otherwise"),
+        |ui| {
+            let mut kind = c.escapement.as_ref().map(|x| x.kind.clone());
+            egui::ComboBox::from_id_salt(("custom escapement", place))
+                .selected_text(calibres::escapement_name(kind.as_deref()))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut kind, None, calibres::escapement_name(None));
+                    for k in calibres::ESCAPEMENTS {
+                        let name = calibres::escapement_name(Some(k));
+                        ui.selectable_value(&mut kind, Some(k.to_string()), name);
+                    }
+                });
+            c.escapement = kind.as_deref().and_then(calibres::Escapement::added_by_you);
+        },
+    );
+}
 
 /// The balance's period, the time for one full swing and back: two beats.
 fn balance_period(bph: u32) -> f64 {
@@ -1962,6 +1968,7 @@ pub(crate) fn custom<'a>(
         bph: None,
         lift_angle_deg: None,
         escape_teeth: None,
+        escapement: None,
         wheels: wheels
             .into_iter()
             .filter(|(n, p)| !n.trim().is_empty() && *p > 0.0)
@@ -2698,6 +2705,83 @@ fn period_shown(ui: &egui::Ui, value: Option<f64>, tip: &str) -> (String, String
         (shown, true) => (shown, format!("{tip}\n\nIn full: {} s", (PERIOD.show)(v))),
         (shown, false) => (shown, tip.to_owned()),
     }
+}
+
+/// A custom calibre's Name and Maker rows. Both are kept on Enter or
+/// clicking away, not on each key: a name half typed may be another
+/// calibre's, and a space typed last is trimmed (#2481). The maker is
+/// kept here; the name typed is returned, for the caller to check.
+fn name_and_maker_rows(ui: &mut egui::Ui, c: &mut CustomCalibre, place: &str) -> Option<String> {
+    let typed_name = theme::row(
+        ui,
+        "Name",
+        Some("What the calibre is called in the menu"),
+        |ui| kept_text(ui, custom_field_id("custom name", place, &c.name), &c.name),
+    );
+    let taken_id = custom_field_id("custom name taken", place, &c.name);
+    // Typing again, or Escape, takes back the note on a name refused.
+    let name_id = custom_field_id("custom name", place, &c.name);
+    if ui.memory(|m| m.has_focus(name_id)) || ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+        ui.data_mut(|d| d.remove::<String>(taken_id));
+    }
+    if let Some(t) = ui.data(|d| d.get_temp::<String>(taken_id)) {
+        let pal = theme::pal(ui);
+        ui.label(
+            RichText::new(taken_words(&t))
+                .small()
+                .color(pal.text_secondary),
+        );
+    }
+    let maker = theme::row(
+        ui,
+        "Maker",
+        Some("Who made the movement, to search by"),
+        |ui| {
+            kept_text(
+                ui,
+                custom_field_id("custom maker", place, &c.name),
+                c.maker.as_deref().unwrap_or_default(),
+            )
+        },
+    );
+    if let Some(m) = maker {
+        c.maker = (!m.trim().is_empty()).then(|| m.trim().to_string());
+    }
+    typed_name
+}
+
+/// Why a custom calibre couldn't take the name `name` typed for it.
+fn taken_words(name: &str) -> String {
+    format!("\"{name}\" is in the list already: pick it there, or type another name.")
+}
+
+/// The id of the custom calibre `calibre`'s text field `what` in
+/// `place`: what is typed for one calibre stays with it when another is
+/// selected.
+fn custom_field_id(what: &str, place: &str, calibre: &str) -> egui::Id {
+    egui::Id::new((what, place, calibre))
+}
+
+/// A text box showing `shown`, typed into a copy of its own: Enter or
+/// clicking away gives what was typed when it differs, Escape puts it
+/// back, and nothing is given while typing.
+fn kept_text(ui: &mut egui::Ui, id: egui::Id, shown: &str) -> Option<String> {
+    let buf = id.with("text");
+    let mut text = ui
+        .data_mut(|d| d.get_temp::<String>(buf))
+        .unwrap_or_else(|| shown.to_owned());
+    let resp = ui.add(
+        egui::TextEdit::singleline(&mut text)
+            .id(id)
+            .desired_width(f32::INFINITY),
+    );
+    if resp.has_focus() {
+        ui.data_mut(|d| d.insert_temp(buf, text));
+        return None;
+    }
+    ui.data_mut(|d| d.remove::<String>(buf));
+    let undone = ui.input(|i| i.key_pressed(egui::Key::Escape));
+    (resp.lost_focus() && !undone && text != shown).then_some(text)
 }
 
 /// A box that may be blank, showing `shown`. Enter or clicking away reads

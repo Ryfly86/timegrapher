@@ -20,6 +20,7 @@ fn a_take_is_read_with_its_calibres_settings() {
             bph: Some(21600),
             lift_angle_deg: Some(49.0),
             escape_teeth: Some(21),
+            escapement: None,
             wheels: Vec::new(),
             notes: None,
         });
@@ -1267,6 +1268,8 @@ fn a_recovered_take_opens_at_the_position_last_heard() {
         on_auto: true,
         calibre: None,
         escapement: None,
+        first_position: None,
+        moves: Vec::new(),
     };
     let opened = |r: RecordedSetup, name: &str| {
         let mut app = TimegrapherApp::with_devices(Vec::new(), None);
@@ -1294,6 +1297,39 @@ fn a_recovered_take_opens_at_the_position_last_heard() {
     assert_eq!(app.bench.keeping.open_note, None);
 }
 
+/// A recovered take whose session.json is older than #2397 names no first
+/// position: its positions start in the folder name's (the recorder names
+/// the folder after the position it started in), and with none there the
+/// take is read whole, as before (#2397).
+#[test]
+fn a_recovered_take_with_no_first_position_starts_in_its_folders() {
+    let base = std::env::temp_dir().join(format!("tg-recovered-name-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let notes = r#"[{"audio_s":30.0,"utc":"","text":"position DD"},
+        {"audio_s":90.0,"utc":"","text":"position CU"}]"#;
+    let file = format!(r#"{{"position":"CU","lift_deg":52.0,"notes":{notes}}}"#);
+    let app = TimegrapherApp::with_devices(Vec::new(), None);
+    let settle = app.session.settle_len();
+    let opened = |name: &str| {
+        let dir = base.join(name);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(timegrapher_core::take::RECORD), &file).unwrap();
+        app.recorded_positions(&dir, Some(200.0))
+    };
+    let (stretches, settles) = opened("2026-11-26_10-00-00_CL");
+    assert_eq!(
+        stretches,
+        [
+            (0.0, Position::CrownLeft),
+            (30.0, Position::DialDown),
+            (90.0, Position::CrownUp)
+        ]
+    );
+    assert_eq!(settles, [(30.0, 30.0 + settle), (90.0, 90.0 + settle)]);
+    assert_eq!(opened("run"), Default::default());
+    let _ = std::fs::remove_dir_all(&base);
+}
+
 /// A recovered take's calibre opens under the table's name for it now,
 /// and its lift, the calibre's, is known, not assumed, even at 52°
 /// (Vernon 73 on #2468).
@@ -1313,6 +1349,8 @@ fn a_recovered_calibre_opens_under_its_name_now_with_its_lift_known() {
         on_auto: true,
         calibre: Some(c.former_names[0].clone()),
         escapement: None,
+        first_position: None,
+        moves: Vec::new(),
     };
     app.put_recorded(r, &std::env::temp_dir().join("run"));
     assert_eq!(app.bench.take.calibre, c.calibre);

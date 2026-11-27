@@ -51,7 +51,7 @@ then the command's own fields alongside them:
 
 ```json
 {
-  "schema": "timegrapher.analyze/2",
+  "schema": "timegrapher.analyze/3",
   "software": { "name": "timegrapher", "version": "0.1.0", "os": "linux", "arch": "x86_64" },
   "input": {
     "files": [ { "path": "dialup.wav", "recording": { "...": "from dialup.wav.json if present" } } ],
@@ -259,21 +259,22 @@ JSON body:
 | Field | Meaning |
 | --- | --- |
 | `duration_s`, `sample_rate` | The recording |
-| `bph` | Beat rate used |
-| `beats_found` | Ticks found; compare with `duration_s × bph / 3600` |
+| `bph` | Beat rate used; null where `watch_heard` is false and no rate was set (`analyze/3`) |
+| `beats_found` | Ticks found; compare with `duration_s × bph / 3600`. 0 where `watch_heard` is false (`analyze/3`): no beats of a watch were found, so `beats_found_fraction` is 0 and `beats_missing` is set |
 | `watch_heard` | False when no regular beat is found; show none of the other numbers. With the `no_watch` reason `scatter` or `no_beat_sound`, the beats are no steadier than noise (an empty stand, a stopped watch): say no watch was heard. With `too_short`, the beats were regular but no run lasted 10 s: say so, and ask for a longer recording |
 | `caveats[]` | What limits how far the readings can be trusted, each with a `code`: `no_watch` (`reason`: `scatter`, `no_beat_sound`, or `too_short`, the beats came in regular runs, but none that began after a pause, a cut or the recording's start lasted the 10 s a reading needs), `set_rate_disagrees` (`heard`), `short_span` (`span_s`), `clipped` (`fraction`), `beats_missing` (`fraction`), `lift_unknown`, `coaxial_estimate`, `coaxial_beat_error` (`why`, when there is no beat error), `clock_unknown`, `breaks` (`count`), `sides_by_count` (`count`), `beat_error_as_size`; a `session` reading's measurement can also carry `masked` (`seconds`) and `clock_sources_disagree` (`usb_ppm`, `log_ppm`, `log_ppm_sd`), which `long` and `series` carry too. Empty when nothing does; what each means and what to do is in [findings.md](findings.md#what-limits-the-readings-caveats) |
 | `beats_found_fraction`, `timing_scatter_fraction` | Beats found over the beats the length holds; the median timing scatter as a share of the beat (0.02 or more: no regular beat) |
 | `confidence` | `rate`, `amplitude`, `beat_error`, each `se`: one standard error in the reading's unit. Null when no regular beat is found, and each also null until the recording holds 30 of its values: about 300 s of beats for the rate (every other 10 s window), so a recording of a minute or two has no rate ±, and about 60 s for the amplitude and beat error (2 s windows) |
 | `shape` | The Tick (`even`) and the Tock (`odd`), each `windows_measured`, `share_with_sound_1`, `share_with_sound_2`, `i12_ms`, `i13_ms`, `ratio13`, `tail_ratio`; and `beat_error_first_quarter_ms`, `beat_error_last_quarter_ms`, `beat_error_quarter_windows`. Read with [tick-shape.md](tick-shape.md#rules-for-possible-faults). Null when no regular beat is found |
-| `overall.rate_s_per_day` | Rate over the whole file, + gains. **Uncalibrated**: the sound card's clock error (1–4 s/d typical) is included |
+| `rate_s_per_day`, `overall.rate_s_per_day` | Rate over the whole file, + gains: the headline rate the text leads with (`analyze/3`). Corrected for the sound card's clock where the document has a `clock` block (the same figure as `clock.rate_s_per_day`); with none, **uncalibrated**: the sound card's clock error (1–4 s/d typical) is included |
+| `rate_card_s_per_day` | The same rate on the sound card's clock, as tg reads it (`analyze/2` called this `rate_s_per_day`) |
 | `beat_error_unlock_ms` | Signed, measured from the unlock; null when the unlock wasn't found or wasn't consistent (then the drop is chosen) |
 | `beat_error_source` | `unlock`, `drop` or null: which figure is the beat error to quote (report its absolute value), with the caveat `beat_error_from_drop` (and its `why`) when the drop; null, no beat error was read. See SKILL.md item 4 |
 | `overall.beat_error_ms` | Signed beat error from the fit, measured from the drop (positive: even beats late); differs from the unlock figure when Tick and Tock take different times from unlock to drop. Across a break (in a `session` reading, also across a masked stretch) where the sign turns over, both beat errors are given as positive sizes, and the caveat `beat_error_as_size` says so: name no side from the sign then. The beat error to quote when `beat_error_source` is `drop` |
 | `overall.period_s` | Fitted beat period |
 | `overall.jitter_us`, `jitter_us` | Scatter of single beats, microseconds (overall, and the median within 10 s windows) |
 | `overall.beats_used` | Beats in the fit |
-| `rate_p05`, `rate_p95` | 5th and 95th percentile of the rate in 10 s windows: how much the trace wanders. On the sound card's clock, like `rate_s_per_day`; correct them with `usb_clock` unless it is `withheld`, as `rate_corrected_s_per_day` is corrected, before setting them beside it |
+| `rate_p05`, `rate_p95` | 5th and 95th percentile of the rate in 10 s windows: how much the trace wanders. On the sound card's clock, like `rate_card_s_per_day`; correct them with the `clock` block's `ppm`, as `rate_s_per_day` is corrected, before setting them beside it |
 | `amplitude_deg` | Median amplitude, degrees |
 | `amplitude_even_deg`, `amplitude_odd_deg` | Per side (the two pallet stones) |
 | `lift_deg` | Lift angle used |

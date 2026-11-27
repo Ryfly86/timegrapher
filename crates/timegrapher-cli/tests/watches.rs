@@ -408,6 +408,83 @@ fn a_kept_reading_follows_a_changed_user_calibre() {
     let _ = std::fs::remove_dir_all(config_dir());
 }
 
+/// A take's kept reading is worked out again, each time by a new
+/// process, when its two sound files swap names, when the one its
+/// session file names is renamed away, and when its session file is
+/// edited to name the other at the same size and modified time: none of
+/// these changes how many files the take holds, their bytes or their
+/// newest change (#2409).
+#[test]
+fn a_kept_reading_follows_renamed_sound_and_an_equal_size_edit() {
+    use timegrapher_core::synth::{generate, SynthConfig};
+    let root = library("swap");
+    let lib = root.to_string_lossy().into_owned();
+    let dir = root.join(UNSORTED).join(TAKES).join("2026-10-22 09.15");
+    std::fs::remove_file(dir.join("take_part01-001.wav")).unwrap();
+    let wav = |name: &str, rate: f64| {
+        let cfg = SynthConfig {
+            duration_s: 40.0,
+            rate_s_per_day: rate,
+            ..Default::default()
+        };
+        let audio = generate(&cfg, |_| 270.0, |_| 0.0);
+        timegrapher_core::audio::write_wav(&dir.join(name), &audio).unwrap();
+    };
+    wav("one.wav", 5.0);
+    wav("two.wav", 35.0);
+    let manifest = dir.join("session.toml");
+    let names = |file: &str| {
+        std::fs::write(
+            &manifest,
+            format!("bph = 28800\n\n[[recording]]\nfile = \"{file}\"\nposition = \"DD\"\n"),
+        )
+        .unwrap();
+    };
+    names("one.wav");
+    let rate = || {
+        let out = run(&["watches", "show", "Unsorted", "--library", &lib, "--json"]);
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let doc: Value = serde_json::from_slice(&out.stdout).unwrap();
+        doc["takes"][0]["reading"]["rate_s_per_day"].as_f64()
+    };
+    let near = |r: Option<f64>, want: f64| r.is_some_and(|r| (r - want).abs() < 1.0);
+    assert!(near(rate(), 5.0), "{:?}", rate());
+    assert!(near(rate(), 5.0), "kept");
+
+    // The two files swap names.
+    std::fs::rename(dir.join("one.wav"), dir.join("swap.tmp")).unwrap();
+    std::fs::rename(dir.join("two.wav"), dir.join("one.wav")).unwrap();
+    std::fs::rename(dir.join("swap.tmp"), dir.join("two.wav")).unwrap();
+    let r = rate();
+    assert!(near(r, 35.0), "the old file's reading was kept: {r:?}");
+
+    // The named file renamed away: no reading, not the kept one.
+    std::fs::rename(dir.join("one.wav"), dir.join("gone.wav")).unwrap();
+    let r = rate();
+    assert_eq!(r, None, "a missing named file read as kept");
+    std::fs::rename(dir.join("gone.wav"), dir.join("one.wav")).unwrap();
+    assert!(near(rate(), 35.0));
+
+    // The session file names the other file: same size, same modified
+    // time.
+    let when = std::fs::metadata(&manifest).unwrap().modified().unwrap();
+    names("two.wav");
+    std::fs::File::options()
+        .write(true)
+        .open(&manifest)
+        .unwrap()
+        .set_modified(when)
+        .unwrap();
+    let r = rate();
+    assert!(near(r, 5.0), "an equal-size session file edit kept: {r:?}");
+    let _ = std::fs::remove_dir_all(&root);
+    let _ = std::fs::remove_dir_all(config_dir());
+}
+
 /// A watch's full wind and each take's hours since it, as the app saves
 /// them (#1745): the time as given, 24.0 for a take its session file gives
 /// 24 h, and null for a take whose wind was not given, never 0 (#1665).
