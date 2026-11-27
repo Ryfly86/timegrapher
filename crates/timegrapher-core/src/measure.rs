@@ -552,6 +552,11 @@ pub enum DropWhy {
     /// The unlock's beat errors disagree in sign more than their spread
     /// allows ([`crate::confidence::unlock_inconsistent`], #1439).
     UnlockInconsistent,
+    /// Every window that found both sides' unlocks was withheld because
+    /// the two sides' unlock-to-drop times disagree
+    /// ([`crate::amplitude::sides_agree`], Norm's ruling on #1788): one
+    /// side's edge is on the wrong sound.
+    SidesDisagree,
 }
 
 impl DropWhy {
@@ -566,6 +571,7 @@ impl DropWhy {
         match self {
             Self::UnlockNotFound => "unlock not found",
             Self::UnlockInconsistent => "the unlock's signs disagree beyond their spread",
+            Self::SidesDisagree => "Tick's and Tock's unlocks disagree",
         }
     }
 
@@ -600,6 +606,11 @@ impl DropWhy {
             Self::UnlockInconsistent => {
                 "The unlock's beat errors disagree in sign more than their spread allows; \
                  the beat error is measured from the drop."
+            }
+            Self::SidesDisagree => {
+                "Tick's and Tock's unlock-to-drop times disagree in every window, so one \
+                 side's unlock was read on the wrong sound; the beat error is measured from \
+                 the drop."
             }
         }
     }
@@ -1321,6 +1332,10 @@ fn coaxial_beat_error_long(why: Option<DropWhy>) -> String {
         Some(DropWhy::UnlockInconsistent) => format!(
             "{lead_none}, and the unlock's beat errors disagree in sign more than their \
              spread allows, so none is given."
+        ),
+        Some(DropWhy::SidesDisagree) => format!(
+            "{lead_none}, and Tick's and Tock's unlock-to-drop times disagree in every \
+             window, so none is given."
         ),
     }
 }
