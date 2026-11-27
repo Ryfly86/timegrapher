@@ -7,8 +7,11 @@ For a pull request CI checks out GitHub's merge commit, so BASE is HEAD^1
 (the base branch) and HEAD is HEAD: their diff is what merging would change.
 
 Everything but a pull request is a full run. A pull request is a light run
-only when every file it changes is Markdown that nothing compiles in and no
-test reads, edited or added in place: never a deletion or rename, never the
+only when every file it changes is edited or added in place (never a
+deletion or rename) and is either Markdown that nothing compiles in and no
+test reads, or a user-guide asset in LIGHT_ASSETS: a screenshot or drawing in
+docs/user-guide/images/, or a figure's description in guide-figures/figures/,
+which only guide-figures/make.py reads, by hand. The Markdown is never the
 watchmaker skill, packaging, core's calibre data folder
 (crates/timegrapher-core/data/, whose README a core test reads), or a
 document the MCP server compiles in
@@ -37,6 +40,14 @@ MCP_DOCS = {
 # Markdown here is compiled in (the skill), read by packaging's tests, or
 # read by core's calibre tests (data/README.md's confidence list, #2281).
 FULL_PREFIXES = ("skills/", "packaging/", "crates/timegrapher-core/data/")
+# Guide assets nothing compiles in and no Rust or JavaScript test reads
+# (folder, extensions). A screenshot is checked by the pages' render and link
+# check below; a figure's description by the offline test that it parses and
+# names a screenshot that exists (test_changes.py, GuideFigures).
+LIGHT_ASSETS = (
+    ("docs/user-guide/images/", (".png", ".jpg", ".svg")),
+    ("guide-figures/figures/", (".toml",)),
+)
 # Files and folders the downloads' pages are rendered from or link to
 # (packaging/docs_html.py): a change here re-runs the render and link check.
 PAGE_FILES = {"README.md", "LICENSE"}
@@ -48,11 +59,21 @@ def light(changes):
     if not changes:
         return False
     for status, path in changes:
-        if status not in {"M", "A"} or not path.endswith(".md"):
+        if status not in {"M", "A"}:
+            return False
+        if asset(path):
+            continue
+        if not path.endswith(".md"):
             return False
         if path in MCP_DOCS or path.startswith(FULL_PREFIXES):
             return False
     return True
+
+
+def asset(path):
+    """True for a guide asset in LIGHT_ASSETS: in its folder, not below it."""
+    return any(path.startswith(folder) and "/" not in path[len(folder):]
+               and path.endswith(ends) for folder, ends in LIGHT_ASSETS)
 
 
 def pages(changes):

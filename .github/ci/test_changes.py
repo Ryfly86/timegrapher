@@ -19,8 +19,40 @@ class Light(unittest.TestCase):
 
     def test_code_or_any_other_file_is_full(self):
         for path in ("crates/timegrapher-core/src/lib.rs", "Cargo.lock", "regress/baseline.json",
-                     ".github/workflows/ci.yml", "guide-figures/make.py", "docs/assets/x.png"):
+                     ".github/workflows/ci.yml", "guide-figures/make.py", "docs/assets/x.png",
+                     "guide-figures/data/quick-listen/clip.flac", "guide-figures/README.toml",
+                     "docs/user-guide/images/notes.json", "docs/user-guide/images/old/x.png",
+                     "docs/user-guide/x.png", "guide-figures/figures/x.py"):
             self.assertFalse(changes.light([("M", "docs/app.md"), ("M", path)]), path)
+
+    def test_a_fixture_two_other_crates_read_is_full(self):
+        # The app keeps marks_cases.json, but core's chart_scale.rs tests and
+        # the MCP renderer's marks_cases.test.cjs read it too: a rule that
+        # ran only the app's checks for an app file would miss them.
+        self.assertFalse(changes.light([("M", "crates/timegrapher-app/src/marks_cases.json")]))
+
+    def test_guide_screenshots_and_figure_descriptions_are_light(self):
+        # #2356: three guide pages, a screenshot and its figure description
+        # ran the whole suite (70 minutes, 182 runner-minutes).
+        pr_2356 = [("M", "docs/user-guide/08-charts-and-distributions.md"),
+                   ("M", "docs/user-guide/20-positions-test.md"),
+                   ("M", "docs/user-guide/22-watches-view.md"),
+                   ("M", "docs/user-guide/images/distributions.png"),
+                   ("M", "guide-figures/figures/distributions.toml")]
+        self.assertTrue(changes.light(pr_2356))
+        self.assertTrue(changes.light([("A", "docs/user-guide/images/new.jpg"),
+                                       ("A", "docs/user-guide/images/new.svg"),
+                                       ("A", "guide-figures/figures/new.toml")]))
+        # The screenshots are pages the downloads carry; the descriptions are not.
+        self.assertTrue(changes.pages(pr_2356[3:4]))
+        self.assertFalse(changes.pages(pr_2356[4:]))
+
+    def test_deleting_or_renaming_a_guide_asset_is_full(self):
+        # packaging/test_docs_html.py lists the guide's images, and a page
+        # may still show a deleted one.
+        self.assertFalse(changes.light([("D", "docs/user-guide/images/scope.png")]))
+        self.assertFalse(changes.light([("D", "guide-figures/figures/scope.toml"),
+                                        ("A", "guide-figures/figures/scope2.toml")]))
 
     def test_compiled_in_markdown_is_full(self):
         for path in sorted(changes.MCP_DOCS) + ["skills/watchmaker/SKILL.md",
@@ -61,6 +93,21 @@ class Pages(unittest.TestCase):
             for path in docs_html.outputs(platform):
                 if not path.startswith("packaging/"):
                     self.assertTrue(changes.pages([("M", path)]), path)
+
+
+class GuideFigures(unittest.TestCase):
+    """What a light run checks of a figure's description, which only
+    guide-figures/make.py reads, by hand."""
+
+    def test_each_figure_parses_and_names_a_screenshot_that_exists(self):
+        import tomllib
+        figures = sorted((ROOT / "guide-figures/figures").glob("*.toml"))
+        self.assertGreater(len(figures), 30)
+        for figure in figures:
+            with self.subTest(figure=figure.name):
+                with open(figure, "rb") as f:
+                    spec = tomllib.load(f)
+                self.assertTrue((ROOT / "docs/user-guide/images" / spec["output"]).is_file())
 
 
 class Tree(unittest.TestCase):
@@ -127,6 +174,24 @@ class Tree(unittest.TestCase):
         self.assertGreater(len(found), 15)
         for source, path in sorted(found - self.NOT_READ):
             self.assertFalse(changes.light([("M", path)]), f"{source} names {path}")
+
+    def test_no_code_or_test_names_a_guide_asset(self):
+        # Neither a folder in LIGHT_ASSETS nor a file in one, so a light run
+        # of a guide asset cannot skip a test that reads it. packaging's
+        # docs_html.py renders the screenshots, which the pages check covers;
+        # its test lists the images folder by pieces (GUIDE / "images"), not
+        # by this path.
+        folders = [folder for folder, _ in changes.LIGHT_ASSETS]
+        names = [path.name for folder in folders for path in (ROOT / folder).iterdir()]
+        self.assertGreater(len(names), 60)
+        for source in self.sources():
+            text = source.read_text(encoding="utf-8", errors="replace")
+            where = source.relative_to(ROOT).as_posix()
+            for folder in folders:
+                self.assertNotIn(folder.rstrip("/"), text, where)
+            for name in names:
+                self.assertIsNone(re.search(r"[\"'/]" + re.escape(name) + r"[\"']", text),
+                                  f"{where} names {name}")
 
     def test_the_not_read_list_is_current(self):
         self.assertLessEqual(self.NOT_READ, self.named_markdown())

@@ -942,3 +942,145 @@ fn time_of_day_says_when_the_takes_start_is_not_known() {
     app.session.discard_recording();
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// Sends `samples` to the app as a microphone does, in 20 ms blocks
+/// stamped from `from_ms`, and takes them all in.
+fn hear(
+    app: &mut TimegrapherApp,
+    tx: &std::sync::mpsc::Sender<Event>,
+    samples: &[f32],
+    from_ms: u64,
+) {
+    let blocks = samples.chunks(960).count();
+    for (k, b) in samples.chunks(960).enumerate() {
+        tx.send(Event::Audio(timegrapher_core::capture::Block {
+            samples: b.to_vec(),
+            at: std::time::UNIX_EPOCH + std::time::Duration::from_millis(from_ms + 20 * k as u64),
+        }))
+        .unwrap();
+    }
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(300);
+    let mut taken = 0;
+    while taken < blocks {
+        taken += app.poll_for(std::time::Duration::from_millis(500));
+        assert!(
+            std::time::Instant::now() < deadline,
+            "took {taken} of {blocks} blocks"
+        );
+    }
+}
+
+/// The watch taken off the stand mid take (#2125, #2335; Hugh, Walter and
+/// Vernon on #2373). While it beats, its newest beat is at the paper's
+/// edge, within a beat. Once the beats stop, the paper moves on with the
+/// sound the engine has finished with, and the strip says the cards'
+/// wait; looking back and coming forward again go by that edge, not the
+/// last beat. Once stopped, the strip ends where the cards' readings do,
+/// at the watch's last beat.
+#[test]
+fn the_strip_moves_on_when_the_stand_goes_silent() {
+    use timegrapher_core::synth::{generate, SynthConfig};
+    let base = std::env::temp_dir().join(format!("tg-strip-silent-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "silent".into());
+    let tx = super::tests::queued_capture(&mut app, &base);
+    let cfg = SynthConfig {
+        duration_s: 40.0,
+        rate_s_per_day: 5.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 270.0, |_| 0.0);
+    hear(&mut app, &tx, &audio.samples, 2000);
+    let live = |app: &TimegrapherApp| {
+        let l = app.bench.recording.live.as_ref().unwrap();
+        (l.settled_s(), l.duration_s())
+    };
+    let end = app.strip_end_s();
+    let beat = 3600.0 / 28800.0;
+    let last_beat = app.latest_s();
+    assert!(
+        end >= last_beat && end - last_beat < beat,
+        "beating, the newest beat at {last_beat} is at the edge {end}"
+    );
+    hear(&mut app, &tx, &vec![0.0; 48000 * 15], 42_000);
+    let later = app.strip_end_s();
+    let (settled, heard) = live(&app);
+    assert!(app.latest_s() < last_beat + 1.0, "no beat in the silence");
+    assert_eq!(later, settled, "the paper moved on to {later}");
+    assert!(later > last_beat + 10.0 && later <= heard, "{later}");
+    // Fit's end moves on with the paper, not only with new readings.
+    let trend = std::mem::take(&mut app.bench.results.trend);
+    let span = app.take_span().expect("a span").1;
+    assert_eq!(span, settled, "Fit's end moves on with the paper");
+    app.bench.results.trend = trend;
+    let wait = timegrapher_core::measure::Wait::NoBeats.title();
+    let note = app.strip_note_shown(false, &[], false, later);
+    assert_eq!(
+        note,
+        Some(format!("{wait}.")),
+        "the strip says the cards' wait"
+    );
+    assert!(!app.strip_looking_back(later), "at the edge, live");
+    // Back 3 s, still after the last beat: looking back, and saying so.
+    let back = StripInput {
+        time_shift_s: -3.0,
+        ..Default::default()
+    };
+    app.apply_strip_input(back, later);
+    assert_eq!(app.bench.panes_view.strip_end, Some(later - 3.0));
+    assert!(app.strip_looking_back(app.strip_end_s()));
+    // Zoomed in about a time after the last beat: still looking back.
+    let zoom = StripInput {
+        span_factor: 0.5,
+        zoom_at: Some(later - 4.0),
+        ..Default::default()
+    };
+    app.apply_strip_input(zoom, later - 3.0);
+    let at = app.bench.panes_view.strip_end.expect("still looking back");
+    assert!(at > last_beat && at < later, "{at}");
+    // Forward past the edge: live again.
+    let forward = StripInput {
+        time_shift_s: 10.0,
+        ..Default::default()
+    };
+    app.apply_strip_input(forward, app.strip_end_s());
+    assert_eq!(app.bench.panes_view.strip_end, None);
+    // Zoomed out live, the strip stops at the paper's newest moment.
+    app.bench.panes_view.strip_fit = false;
+    app.bench.panes_view.strip.set_span(10.0);
+    let out = StripInput {
+        span_factor: 100.0,
+        ..Default::default()
+    };
+    app.apply_strip_input(out, app.strip_end_s());
+    assert_eq!(app.bench.panes_view.strip.span_s, settled);
+    app.stop();
+    let cards = timegrapher_core::beats::last_watch_beat_s(
+        app.bench.recording.live.as_ref().unwrap().beats(),
+    );
+    assert_eq!(
+        Some(app.strip_end_s()),
+        cards,
+        "stopped, the strip ends where the cards read"
+    );
+    drop(tx);
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// Silence only, as a silent start before the stand is heard: stopped,
+/// the strip ends with the sound, as no watch's beat ends it (#2335).
+#[test]
+fn stopped_on_silence_the_strip_ends_with_the_sound() {
+    let base = std::env::temp_dir().join(format!("tg-strip-noise-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "noise".into());
+    let tx = super::tests::queued_capture(&mut app, &base);
+    hear(&mut app, &tx, &vec![0.0; 48000 * 15], 2000);
+    app.stop();
+    let heard = app.bench.recording.live.as_ref().unwrap().duration_s();
+    assert_eq!(app.strip_end_s(), heard);
+    drop(tx);
+    let _ = std::fs::remove_dir_all(base);
+}
