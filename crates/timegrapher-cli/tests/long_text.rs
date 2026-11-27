@@ -66,3 +66,105 @@ fn the_slice_range_reads_as_signed_rates() {
     assert!(!html.contains("chance of being noise"));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// A rate line in `long` gives no share of the variation, its size names
+/// its quantity at the difference place, the reasons are said once, and the
+/// wheel's match rule is said as its wider part (Norm on #2100; #2342
+/// item 11). Amplitude lines keep their share.
+#[test]
+fn rate_lines_give_no_share_and_name_their_swing() {
+    use timegrapher_core::session::{timing_swing_text, RATE_SHARE_NOTE, RATE_SHARE_WHY};
+    let dir = std::env::temp_dir().join(format!("tg-long-share-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let run = |args: &[&str]| {
+        let out = Command::new(env!("CARGO_BIN_EXE_timegrapher"))
+            .env("TIMEGRAPHER_CONFIG_DIR", &dir)
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "{args:?}: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        String::from_utf8_lossy(&out.stdout).into_owned()
+    };
+    // A fault every 20 s moves both the timing and the amplitude.
+    let wav = dir.join("watch.wav");
+    let wav = wav.to_str().unwrap();
+    run(&[
+        "synth",
+        wav,
+        "--duration",
+        "600",
+        "--snr",
+        "24",
+        "--fault-period",
+        "20",
+        "--fault-length",
+        "4",
+    ]);
+    let out = dir.join("long");
+    let text = run(&[
+        "long",
+        wav,
+        "--wheel",
+        "a wheel=20",
+        "--out",
+        out.to_str().unwrap(),
+    ]);
+    let (rate, amplitude) = text
+        .split_once("Periodic changes in amplitude:")
+        .expect("both searches");
+    let rate = rate
+        .split_once("Periodic changes in rate")
+        .expect("the rate search")
+        .1;
+    let rows = |part: &str| -> Vec<String> {
+        part.lines()
+            .filter(|l| l.contains(" s ±"))
+            .map(str::to_string)
+            .collect()
+    };
+    let rate_rows = rows(rate);
+    let amplitude_rows = rows(amplitude);
+    assert!(
+        !rate_rows.is_empty() && !amplitude_rows.is_empty(),
+        "{text}"
+    );
+    for row in &rate_rows {
+        assert!(
+            row.contains("timing swing ") && row.contains(" ms peak to peak"),
+            "{row}"
+        );
+        assert!(row.contains("explains    –"), "{row}");
+        assert!(!row.contains('%') || row.contains("% off"), "{row}");
+    }
+    assert!(
+        rate_rows[0].contains("a match is within the search's resolution, ±"),
+        "{}",
+        rate_rows[0]
+    );
+    assert!(
+        amplitude_rows[0].contains("explains 100%"),
+        "{}",
+        amplitude_rows[0]
+    );
+    assert!(
+        amplitude_rows[0].contains(" deg peak to peak"),
+        "{}",
+        amplitude_rows[0]
+    );
+    assert_eq!(text.matches(RATE_SHARE_NOTE).count(), 1, "{text}");
+    assert_eq!(text.matches(&timing_swing_text()).count(), 1, "{text}");
+    assert!(!text.contains(" or 1%"), "{text}");
+    // The report: only the amplitude cycle gives a share.
+    let html = std::fs::read_to_string(out.join("report.html")).unwrap();
+    let shares = html.matches("% of the detrended variation").count();
+    assert_eq!(shares, amplitude_rows.len(), "{html}");
+    assert!(html.contains(" ms peak to peak over each turn"));
+    assert_eq!(html.matches(RATE_SHARE_WHY).count(), 1);
+    assert_eq!(html.matches(&timing_swing_text()).count(), 1);
+    let _ = std::fs::remove_dir_all(&dir);
+}

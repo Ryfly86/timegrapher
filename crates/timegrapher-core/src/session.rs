@@ -1364,7 +1364,10 @@ pub fn fixed_clock(ppm: f64, duration_s: f64) -> Option<ClockFit> {
 mod session_cycles;
 #[cfg(test)]
 pub(crate) use session_cycles::wheel_fraction;
-pub use session_cycles::{cycles, timing_swing_note, timing_swing_text, Cycle, RATE_SHARE_NOTE};
+pub use session_cycles::{
+    cycles, size_text, size_words, timing_swing_note, timing_swing_text, Cycle, RATE_SHARE_NOTE,
+    RATE_SHARE_WHY,
+};
 use session_cycles::{folded_into, harmonic_parent};
 
 /// One pallet stone's beat shape, from `shape`.
