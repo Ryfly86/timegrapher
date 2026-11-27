@@ -1975,6 +1975,45 @@ fn a_take_added_from_a_dot_named_folder_is_listed_and_never_cleared() {
     assert_eq!(take_folder_name(".adding-reference"), "adding-reference");
 }
 
+/// A recording added under a name starting with a dot, the clearing's
+/// own ".adding-" among them, is filed under a visible name, listed, and
+/// survives the library's next opens once over an hour old (#2402).
+#[test]
+fn a_recording_added_under_a_dot_name_is_listed_and_never_cleared() {
+    let root = scratch("add-recording-dot");
+    let mut lib = Library::create(&root).unwrap();
+    lib.add(&Watch::new("Audit")).unwrap();
+    let id = lib.find("Audit").unwrap().watch.id.clone();
+    let outside = scratch("add-recording-dot-outside");
+    fs::create_dir_all(&outside).unwrap();
+    let file = outside.join("audit_DU.flac");
+    fs::write(&file, vec![0u8; 100]).unwrap();
+    let written = [
+        (
+            "session.toml",
+            "bph = 28800\n\n[[recording]]\nfile = \".\"\n".to_string(),
+        ),
+        (
+            "session.json",
+            "{\"started_utc\": \"2026-10-22T17:00:00Z\"}".to_string(),
+        ),
+    ];
+    let name = format!("{}x", add::ADDING);
+    let to = lib.add_recording(&file, &id, &name, &written).unwrap();
+    assert_eq!(file_name(&to), "adding-x");
+    assert_eq!(lib.find("Audit").unwrap().takes.len(), 1);
+    let then = std::time::SystemTime::now() - std::time::Duration::from_secs(STALE_ADD_S + 60);
+    all_last_changed(&to, then);
+    drop(lib);
+    drop(Library::open(&root).unwrap());
+    let lib = Library::open(&root).unwrap();
+    assert_eq!(fs::read(to.join("audit_DU.flac")).unwrap(), vec![0u8; 100]);
+    assert_eq!(lib.find("Audit").unwrap().takes.len(), 1);
+    drop(lib);
+    let _ = fs::remove_dir_all(&root);
+    let _ = fs::remove_dir_all(&outside);
+}
+
 /// A take an earlier version filed as ".adding-…" (it kept the
 /// original's name) holds its session file in the folder itself, unlike
 /// a staging folder: the clearing of stale adds keeps it, while a stale
