@@ -306,7 +306,9 @@ impl LiveReading {
     /// whole's to say, so the stopped take reads as `analyze` does, figures
     /// or no regular beat with its reason (Norm on #2257). Where `whole`
     /// hears no watch, so does any reading at its end, over any averaging
-    /// time, with the whole's reason (Walter 46 and Norm on #2311). Otherwise,
+    /// time, with the whole's reason (Walter 46 and Norm on #2311). One
+    /// still waiting for 10 s heard stays without figures, on the whole's
+    /// beats, span and caveats (#2333). Otherwise,
     /// with a shorter averaging time, or no watch heard nor being found,
     /// this reading stands; one still being found is then read as its own
     /// span's saved read gives it ([`Self::read_as_saved`]).
@@ -328,8 +330,20 @@ impl LiveReading {
             };
         }
         let shown = self.watch_heard || self.finding_beat;
-        if !holds || !shown || self.listening.is_some() {
+        if !holds || !shown {
             return self;
+        }
+        // Under 10 s heard the whole waits too: no figures, and the beats,
+        // span and caveats are the whole's, as its row gives them (#2333).
+        if self.listening.is_some() {
+            return Self {
+                jitter_us: whole.jitter_us,
+                beats_used: whole.beats_fitted,
+                span_s: whole.end_s - whole.start_s - whole.masked_s,
+                caveats: whole.caveats.clone(),
+                whole_take: true,
+                ..self
+            };
         }
         let off = measure::off_standard(&self.caveats).is_some();
         let c = whole.confidence;
