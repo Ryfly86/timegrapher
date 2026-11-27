@@ -509,18 +509,12 @@ fn beat_offset(
     Some(parabolic(&score, i) - lag as f64)
 }
 
-/// The shape of the beats found on `env`, and the beat period it was
-/// measured with: beats found at `bph`, their timing fitted, and the
-/// fitted period (or 3600/bph with no fit) used for the shape (#807). It
-/// takes the envelope as given, so a caller's own envelope settings and
-/// bph win.
-pub fn of_envelope(env: &[f32], fs: f64, bph: u32) -> (ShapeReport, f64) {
-    let (found, _) = crate::beats::detect(env, fs, bph);
-    let beat_s = crate::timing::beat_period_s(crate::timing::fit(&found, bph).as_ref(), bph);
-    (
-        analyze(env, fs, &found, beat_s, &ShapeConfig::default()),
-        beat_s,
-    )
+/// The shape of `beats` on `env` at `fs`, on their fitted period (or
+/// 3600/`bph` with no fit): beats found elsewhere, whose sides are already
+/// named, keep their names (#2369).
+pub fn of_beats(env: &[f32], fs: f64, beats: &[Beat], bph: u32) -> ShapeReport {
+    let beat_s = crate::timing::beat_period_s(crate::timing::fit(beats, bph).as_ref(), bph);
+    analyze(env, fs, beats, beat_s, &ShapeConfig::default())
 }
 
 /// Shape of both sides in windows and over the whole recording.

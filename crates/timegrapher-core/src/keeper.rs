@@ -332,7 +332,7 @@ impl SecondReading {
             .filter_map(|(i, s)| Some((i, (*s)?)))
             .zip(self.cuts)
             .filter_map(|((recording, (from_s, to_s)), (_, _, x))| {
-                let summary = measure_shape(&x, self.fs, log.bph, from_s)?;
+                let summary = measure_shape(&x, self.fs, &log.beats, log.bph, from_s)?;
                 Some(StoredShape {
                     recording,
                     from_s,
