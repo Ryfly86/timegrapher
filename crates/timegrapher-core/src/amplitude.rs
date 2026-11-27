@@ -1690,8 +1690,10 @@ mod tests {
         let osc = 0.25;
         let win = |i: usize| {
             let f = ((i * 7) % 40) as f64 / 40.0;
-            // The odd side reads higher: near 380° at 50°, over it by 58°.
-            let (e, o) = (-(6.6 + 0.3 * f), -(5.45 + 0.5 * f));
+            // The odd side reads higher: under 380° at 50°, over it in
+            // about half the windows by 58°. The sides within 15% of each
+            // other, as a lever's are ([`sides_agree`], #1788).
+            let (e, o) = (-(6.6 + 0.3 * f), -(5.8 + 0.5 * f));
             AmplitudeWindow {
                 start_s: 2.0 * i as f64,
                 end_s: 2.0 * i as f64 + 2.0,
