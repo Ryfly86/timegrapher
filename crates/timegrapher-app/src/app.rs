@@ -100,6 +100,7 @@ mod take_add;
 mod take_io;
 mod take_reads;
 mod take_settings;
+use take_settings::WatchSetup;
 mod test_body;
 mod test_read;
 mod watches_pane;
@@ -2591,30 +2592,6 @@ pub(crate) fn nearest_at(points: &[[f64; 2]], x: f64) -> Option<usize> {
     Some(near)
 }
 
-/// The Watch settings a take is read with.
-#[derive(Clone, Debug, PartialEq)]
-struct WatchSetup {
-    watch: String,
-    calibre: String,
-    lift_deg: f64,
-    lift_context: (f64, bool),
-    bph: Option<u32>,
-    position: Position,
-}
-
-impl Default for WatchSetup {
-    fn default() -> Self {
-        WatchSetup {
-            watch: String::new(),
-            calibre: String::new(),
-            lift_deg: DEFAULT_LIFT_DEG,
-            lift_context: (DEFAULT_LIFT_DEG, false),
-            bph: None,
-            position: Position::DialUp,
-        }
-    }
-}
-
 /// The position a recording's file or folder name carries, as a word of
 /// its own: `reverso_DU_01.flac` is dial up, `ym42_7H30.flac` is 7:30 up
 /// (the hour codes in capitals, so `2h` stays a duration).
@@ -2677,12 +2654,10 @@ fn stacked(
         .zip(shown)
         .filter_map(|(k, on)| on.then_some(k))
         .collect();
-    let (gap, note) = (6.0, STACKED_NOTE_H);
-    // Each gap also takes the layout's spacing either side of it, so the
-    // last plot's axis isn't cut by the pane's foot.
-    let step_gap = gap + 2.0 * ui.spacing().item_spacing.y;
+    let (gap, note) = (charts::STACKED_GAP, STACKED_NOTE_H);
+    let step_gap = charts::step_gap(ui);
     let room = ui.available_height();
-    let fits = |n: usize| n as f32 * least + (n as f32 - 1.0) * step_gap + note;
+    let fits = |n: usize| charts::stacked_h(ui, n, least) + note;
     let mut n = kinds.len();
     while n > 1 && fits(n) > room {
         n -= 1;
@@ -3231,6 +3206,7 @@ impl eframe::App for TimegrapherApp {
         if let Some(l) = &mut self.bench.recording.live {
             l.set_known(lift_known, clock_known);
         }
+        self.keep_escapement();
         // A file dropped on the window is opened, where the desktop passes
         // drops on (not yet on Wayland).
         let dropped: Vec<PathBuf> = ctx.input(|i| {
@@ -3473,6 +3449,10 @@ mod steady_tests;
 #[cfg(test)]
 #[path = "app_lift_tests.rs"]
 mod lift_tests;
+
+#[cfg(test)]
+#[path = "app_coaxial_tests.rs"]
+mod coaxial_tests;
 
 #[cfg(test)]
 #[path = "app_strip_tests.rs"]

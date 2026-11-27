@@ -1025,8 +1025,18 @@ fn run(c: Command) -> Result<(), String> {
     }
 }
 
-/// Analyze, shape and profile: the commands that read one recording.
-fn measure_command(c: Command) -> Result<(), String> {
+/// Analyze, shape and profile: the commands that read one recording. A
+/// take folder of one recording is read as that file from the start, so
+/// its session file's calibre, lift and beat rate, its `take` and its
+/// clock are found as for the file (#2092).
+fn measure_command(mut c: Command) -> Result<(), String> {
+    if let Command::Analyze { file, .. }
+    | Command::Shape { file, .. }
+    | Command::Profile { file, .. } = &mut c
+    {
+        *file = timegrapher_core::audio::recording(file)
+            .map_err(|e| format!("{}: {e}", file.display()))?;
+    }
     match c {
         Command::Analyze {
             file,
@@ -1768,21 +1778,30 @@ fn opt(v: Option<f64>, digits: usize) -> String {
 }
 
 /// Beat error from the unlock as the headline, with the drop's alongside;
-/// from the drop, why (`why`, core's reason: the unlock not found, or its
-/// signs disagreeing, #1439). `drop_ms` is none on a co-axial
-/// (`Escapement::drop_beat_error`, #2313): the unlock's alone, or "none",
-/// with no reason, as core records none for a co-axial's missing unlock.
+/// from the drop, why (core's reason in the reading's `caveats`: the
+/// unlock not found, or its signs disagreeing, #1439). `drop_ms` is none
+/// on a co-axial (`Escapement::drop_beat_error`, #2313): the unlock's
+/// alone, or "none" with the reason core gives for it
+/// (`DropWhy::coaxial_of`), and a bare "none" where it gives none.
 pub fn beat_error_text(
     unlock_ms: Option<f64>,
     drop_ms: Option<f64>,
-    why: timegrapher_core::measure::DropWhy,
+    caveats: &[timegrapher_core::measure::Caveat],
 ) -> String {
+    use timegrapher_core::measure::DropWhy;
     let be = |v: f64| fixed_text(v.abs(), base_digits::BEAT_ERROR);
     match (unlock_ms, drop_ms) {
         (Some(u), Some(d)) => format!("{} ms (from the unlock; {} ms from the drop)", be(u), be(d)),
         (Some(u), None) => format!("{} ms (from the unlock)", be(u)),
-        (None, Some(d)) => format!("{} ms from the drop ({})", be(d), why.words()),
-        (None, None) => "none".into(),
+        (None, Some(d)) => format!(
+            "{} ms from the drop ({})",
+            be(d),
+            DropWhy::of(caveats).words()
+        ),
+        (None, None) => match DropWhy::coaxial_of(caveats) {
+            Some(why) => format!("none ({})", why.words()),
+            None => "none".into(),
+        },
     }
 }
 
@@ -1956,11 +1975,7 @@ fn print_rate(s: &timegrapher_core::analysis::Summary, clock: Option<&(f64, Stri
             ),
             _ => println!(
                 "Beat error   {}",
-                beat_error_text(
-                    s.beat_error_unlock_ms,
-                    drop,
-                    timegrapher_core::measure::DropWhy::of(&s.caveats)
-                )
+                beat_error_text(s.beat_error_unlock_ms, drop, &s.caveats)
             ),
         }
     } else {
@@ -2389,19 +2404,36 @@ mod beat_error_wording {
         }];
         let why = DropWhy::of(&inconsistent);
         assert_eq!(why, DropWhy::UnlockInconsistent);
-        let text = beat_error_text(None, Some(0.45), why);
+        let text = beat_error_text(None, Some(0.45), &inconsistent);
         assert!(text.contains(DropWhy::UnlockInconsistent.words()), "{text}");
         assert!(!text.contains(DropWhy::UnlockNotFound.words()), "{text}");
-        let text = beat_error_text(None, Some(0.45), DropWhy::of(&[Caveat::FROM_DROP]));
+        let text = beat_error_text(None, Some(0.45), &[Caveat::FROM_DROP]);
         assert!(text.contains(DropWhy::UnlockNotFound.words()), "{text}");
     }
 
     #[test]
     fn a_co_axial_beat_error_gives_no_drop() {
-        let why = DropWhy::of(&[]);
-        let text = beat_error_text(Some(0.62), None, why);
+        let text = beat_error_text(Some(0.62), None, &[]);
         assert_eq!(text, "0.62 ms (from the unlock)");
-        assert_eq!(beat_error_text(None, None, why), "none");
+        assert_eq!(beat_error_text(None, None, &[]), "none");
+    }
+
+    /// A co-axial with no beat error says why, in core's words: the
+    /// unlock not found, or found with its signs disagreeing (Hugh's
+    /// option (a) on #2317).
+    #[test]
+    fn a_co_axial_with_no_beat_error_says_why() {
+        for why in [DropWhy::UnlockNotFound, DropWhy::UnlockInconsistent] {
+            let caveats = [Caveat::CoaxialBeatError { why: Some(why) }];
+            let text = beat_error_text(None, None, &caveats);
+            assert_eq!(text, format!("none ({})", why.words()));
+        }
+        let heard = [Caveat::CoaxialBeatError { why: None }];
+        assert_eq!(
+            beat_error_text(Some(0.62), None, &heard),
+            "0.62 ms (from the unlock)"
+        );
+        assert_eq!(beat_error_text(None, None, &heard), "none");
     }
 }
 

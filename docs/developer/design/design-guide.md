@@ -304,7 +304,7 @@ No control appears or disappears with the state of the pane. A control that does
 - **Buttons at the bottom right:**
   - The default (blue) is rightmost, with Cancel or Not Now to its left.
   - A destructive choice sits apart at the far left (section 8).
-  - Return presses the default, and Escape presses Cancel.
+  - Return presses the default, and Escape presses Cancel. While a menu or drop-down in the dialog is open, the keys are its: Escape closes only the menu, Return never reaches the dialog.
 - Notes about what happens afterwards are short bullets to the left of the buttons.
 
 ![Don't: today's microphone sheet](dont-sheet.png)

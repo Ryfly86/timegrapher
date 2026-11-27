@@ -4,8 +4,12 @@
 # otherwise fails the job before any test runs.
 # Usage: .github/ci/apt-install.sh <package>...
 set -u
+# Only the install decides: a third-party list the runner image carries
+# can fail `apt-get update` while Ubuntu's own indexes load
+# (packages.microsoft.com answered 403 on 27 Nov, #2464).
 for attempt in 1 2 3; do
-  if sudo apt-get update && sudo apt-get install -y "$@"; then
+  sudo apt-get update || echo "apt-get update reported an error; trying the install anyway"
+  if sudo apt-get install -y "$@"; then
     exit 0
   fi
   if [[ $attempt -lt 3 ]]; then

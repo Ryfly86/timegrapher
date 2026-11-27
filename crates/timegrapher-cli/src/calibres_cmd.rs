@@ -305,7 +305,8 @@ fn print_one(cat: &Catalog, e: Entry) {
     if e.is_custom() {
         println!("Added by you  (not in the shipped table)");
     }
-    // An escapement not measured yet, on its own line (#1872).
+    // An escapement other than the Swiss lever, on its own line: how a
+    // co-axial is read (#2313), or one not measured yet (#1872).
     if let Some(x) = e.escapement() {
         println!("{}", x.sentence());
     }

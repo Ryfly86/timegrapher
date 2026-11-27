@@ -376,3 +376,169 @@ fn a_panes_wheel_periods_switch_changes_that_pane_only() {
     assert!(s.marks.show_meshes && s.marks.show_meshes_set.is_empty());
     assert_eq!(s.marks.show_wheels_set, vec![(View::Fft, !fft)]);
 }
+
+/// The Steadiness panes' wait counts the beats heard, never the silence
+/// (#2183): readings that hear no watch say none is heard, however long
+/// the sound; a watch heard from part way counts from there.
+#[test]
+fn the_steadiness_wait_counts_beats_not_sound() {
+    let mut app = synthetic(40.0, 5.0);
+    let heard = app.steady_wait();
+    assert!(heard.ends_with(" heard so far."), "{heard}");
+    assert!(!heard.contains("none"), "{heard}");
+    assert!(!heard.contains("0:00"), "{heard}");
+    // No reading at this Average Over covers the watch whole yet while the
+    // cards read it (Walter on #2449): no count, rather than "none".
+    for p in &mut app.bench.results.trend {
+        p.heard = false;
+    }
+    assert_eq!(
+        app.steady_wait(),
+        "Needs 5 minutes of beats in one position."
+    );
+    // Silence: none heard.
+    assert_eq!(
+        super::tests::silent(19).steady_wait(),
+        "Needs 5 minutes of beats in one position; none heard so far."
+    );
+    // Heard from 20 s on: 10 s before that reading, to the end.
+    for p in &mut app.bench.results.trend {
+        p.heard = p.t >= 20.0;
+    }
+    let end = app.bench.recording.live.as_ref().unwrap().duration_s();
+    let from = app
+        .bench
+        .results
+        .trend
+        .iter()
+        .find(|p| p.heard)
+        .map(|p| p.t - app.bench.take.average_s)
+        .unwrap();
+    assert_eq!(
+        app.steady_wait(),
+        format!(
+            "Needs 5 minutes of beats in one position; {} heard so far.",
+            length_text(end - from)
+        )
+    );
+}
+
+/// At a long Average Over no reading covers a whole one of the watch for
+/// its first minute, and each says no watch is heard (`TrendReading::of`):
+/// the waits say what is missing, not that no watch is heard, while the
+/// cards read it (Walter and Vernon on #2449).
+#[test]
+fn a_watch_not_yet_a_whole_average_over_is_not_none_heard() {
+    let mut app = synthetic(40.0, 5.0);
+    app.bench.take.average_s = 60.0;
+    let trend = app.bench.recording.live.as_ref().unwrap().trend(60.0);
+    assert!(trend.iter().all(|p| !p.heard));
+    app.bench.results.trend = trend;
+    assert!(app.cards_unheard().is_none(), "the cards read the watch");
+    assert_eq!(
+        app.steady_wait(),
+        "Needs 5 minutes of beats in one position."
+    );
+    let line = app.charts_waiting().expect("no chart yet");
+    assert!(!line.contains("No watch heard"), "{line}");
+    assert_eq!(
+        line,
+        "No reading in this take covers a whole 1 min Average Over of the watch: a \
+         shorter Average Over charts it."
+    );
+}
+
+/// The beats heard in the position now, as the steadiness panes count them.
+fn heard_here(app: &TimegrapherApp) -> f64 {
+    timegrapher_core::live::heard_seconds(
+        &app.bench.results.trend,
+        app.bench.take.average_s,
+        &app.current_runs().read,
+        app.bench.recording.live.as_ref().unwrap().duration_s(),
+    )
+}
+
+/// The tests start on 5 minutes of beats heard, the wait's own count, not
+/// on 5 minutes of sound (Vernon on #2449, #2451): a locked watch with
+/// 330 s of sound whose first minute no reading hears waits; heard whole,
+/// it starts them. 320 s of silence never does.
+#[test]
+fn the_steadiness_tests_start_on_beats_heard_not_sound() {
+    let ctx = egui::Context::default();
+    let mut app = synthetic(330.0, 12.0);
+    app.bench.results.bg.shown_pass[0] = Some(ctx.cumulative_pass_nr());
+    for p in &mut app.bench.results.trend {
+        p.heard = p.t > 60.0;
+    }
+    assert!(heard_here(&app) < steady::MIN_S);
+    for _ in 0..3 {
+        app.update_steady(&ctx);
+    }
+    assert!(
+        app.bench.results.steady_job.is_none(),
+        "5 min of sound, under 5 min heard: no tests"
+    );
+    for p in &mut app.bench.results.trend {
+        p.heard = true;
+    }
+    assert!(heard_here(&app) >= steady::MIN_S);
+    app.update_steady(&ctx);
+    assert!(
+        app.bench.results.steady_job.is_some(),
+        "5 min heard: the tests start"
+    );
+    let mut app = super::tests::silent(320);
+    app.bench.results.bg.shown_pass[0] = Some(ctx.cumulative_pass_nr());
+    for _ in 0..3 {
+        app.update_steady(&ctx);
+    }
+    assert!(app.bench.results.steady_job.is_none());
+    assert!(app.bench.results.steady.is_none());
+    assert_eq!(
+        app.steady_wait(),
+        "Needs 5 minutes of beats in one position; none heard so far."
+    );
+}
+
+/// "So far" counts the position the watch is in now, not the whole take
+/// (Vernon on #2449): 40 s Dial Up, then Dial Down.
+#[test]
+fn the_steadiness_wait_counts_only_the_position_now() {
+    let mut app = synthetic(40.0, 0.0);
+    app.session.listen();
+    app.session.set_state(session::State::Paused {
+        since: std::time::Instant::now(),
+    });
+    let moved = app.bench.recording.live.as_ref().unwrap().duration_s();
+    app.set_position(Position::DialDown);
+    app.session.start_settle(moved);
+    let cfg = timegrapher_core::synth::SynthConfig {
+        duration_s: 40.0,
+        ..Default::default()
+    };
+    let audio = timegrapher_core::synth::generate(&cfg, |_| 280.0, |_| 0.0);
+    let live = app.bench.recording.live.as_mut().unwrap();
+    for b in audio.samples.chunks(960) {
+        live.push(b);
+    }
+    let end = live.duration_s();
+    app.bench.results.trend = live.trend(app.bench.take.average_s);
+    let count = |spans: &[(f64, f64)]| {
+        timegrapher_core::live::heard_seconds(
+            &app.bench.results.trend,
+            app.bench.take.average_s,
+            spans,
+            end,
+        )
+    };
+    let whole = count(&[(0.0, f64::INFINITY)]);
+    let here = count(&app.current_runs().read);
+    assert!(here > 0.0 && here < whole - 30.0, "{here} of {whole}");
+    assert_eq!(
+        app.steady_wait(),
+        format!(
+            "Needs 5 minutes of beats in one position; {} heard so far.",
+            length_text(here)
+        )
+    );
+}

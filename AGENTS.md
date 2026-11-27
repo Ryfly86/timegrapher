@@ -26,7 +26,7 @@ The full guides are in the repository, and they win over this summary:
   before you start. The newest comment wins over the issue body; the scope comment
   from the maintainer's team sets the files and tests for the task.
 - **One issue, one branch, one pull request.** Branch from current `main` as
-  `codex/<issue number>-<short-name>` (for example `codex/638-saved-gap-cuts`). Open the PR ready for review, not as a draft.
+  `codex/<issue number>-<short-name>` (for example `codex/638-saved-gap-cuts`). Open the PR as a draft, and mark it ready for review once the reviewers have posted CLEAR; that starts the full checks.
 - **Stay inside the files the issue or your brief names.** If you truly need another
   file, say which and why in the PR body under **Shared files**. Other agents are
   working on the repository at the same time, so an unexpected file can collide

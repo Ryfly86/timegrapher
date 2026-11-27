@@ -1273,7 +1273,9 @@ impl PendingSave {
 /// Written in place, not staged: the sound already in the copy stays put
 /// and a few seconds' more is added, where staging would copy the whole
 /// hour again every few seconds. Stopped part way, the copy's header still
-/// gives the length before, so it reads as it did.
+/// gives the length before; the copy is a take's own `audio-NNN.wav`, so
+/// it reads on through the sound copied so far, in whole frames
+/// ([`crate::audio::wav_reader`], #2054).
 fn grow_in_place(f: &PendingFile, from: u64, to: &Path) -> io::Result<bool> {
     let mut out = open_in_place(to)?;
     if out.metadata()?.len() != from {

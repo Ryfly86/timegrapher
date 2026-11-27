@@ -243,7 +243,20 @@ pub struct LiveReading {
     pub whole_take: bool,
 }
 
+/// Whether a stretch holds no beat at all: no beat rate found, or none
+/// of its `beats_used` beats in it (an opened recording of silence, a
+/// beat rate just set anew). The one rule for the app's cards and chip
+/// and a reading's own caveats (Vernon on #2319).
+pub fn no_beat(bph: Option<u32>, beats_used: usize) -> bool {
+    bph.is_none() || beats_used == 0
+}
+
 impl LiveReading {
+    /// Whether this reading's stretch holds no beat at all ([`no_beat`]).
+    pub fn no_beat(&self) -> bool {
+        no_beat(self.bph, self.beats_used)
+    }
+
     /// The beat rate heard over this reading (#2223): from its rate, on
     /// the clock it is shown on, read against `bph`, with the rate's ±.
     /// None with no rate or no beat rate.
@@ -959,6 +972,22 @@ impl LiveAnalyzer {
         self.in_held(|l| l.set_lift(lift_deg));
     }
 
+    /// Read for escapement `escapement` from now on (#2313): the windows
+    /// kept so far read again for it as a kept take's are
+    /// ([`amplitude::kept_for`]), so every reading, the ones before the
+    /// change too, is the new escapement's. Nothing moves when it is the
+    /// one already read for.
+    pub fn set_escapement(&mut self, escapement: crate::escapement::Escapement) {
+        if escapement == self.cfg.analysis.amplitude.escapement {
+            return;
+        }
+        amplitude::kept_for(&mut self.amp, escapement);
+        self.cfg.analysis.amplitude.escapement = escapement;
+        self.in_shadow(|l| l.set_escapement(escapement));
+        self.in_view(|l| l.set_escapement(escapement));
+        self.in_held(|l| l.set_escapement(escapement));
+    }
+
     /// Keep up to `n` beats from now on, the oldest dropped beyond them.
     pub fn set_max_beats(&mut self, n: usize) {
         self.cfg.max_beats = n;
@@ -1591,6 +1620,24 @@ impl LiveAnalyzer {
         escapement.drop_beat_error(fit.map(|f| f.beat_error_ms))
     }
 
+    /// Adds to `caveats` the one a reading's beat error from `source`
+    /// carries, with the unlock as `figures` found it, as the take's
+    /// escapement gives it
+    /// ([`crate::escapement::Escapement::beat_error_caveat`]).
+    fn say_beat_error(
+        &self,
+        caveats: &mut Vec<Caveat>,
+        source: Option<crate::session::BeatErrorSource>,
+        figures: &crate::session::WindowFigures,
+        shown: bool,
+    ) {
+        let escapement = self.cfg.analysis.amplitude.escapement;
+        let inconsistent = figures.unlock_inconsistent;
+        if let Some(caveat) = escapement.beat_error_caveat(source, inconsistent, shown) {
+            measure::add(caveats, caveat);
+        }
+    }
+
     /// [`Self::reading_at`] from this analyzer's own beats.
     fn own_reading_at(&self, end_s: f64, average_s: f64) -> LiveReading {
         let window_from = end_s - average_s;
@@ -1628,8 +1675,8 @@ impl LiveAnalyzer {
         let read = watch_heard && listening.is_none();
         let heard = |v: Option<f64>| v.filter(|_| read);
         // Figures that name a side wait until the sides are told apart.
-        let sided = self.sides_known_at(end_s);
-        let sided = |v: Option<f64>| heard(v).filter(|_| sided);
+        let sides_known = self.sides_known_at(end_s);
+        let sided = |v: Option<f64>| heard(v).filter(|_| sides_known);
         let clipped_fraction = st.clipped_fraction();
         let take = measure::TakeWindows {
             rate: take_rate,
@@ -1648,11 +1695,10 @@ impl LiveAnalyzer {
         let beat_error_source =
             crate::session::chosen_beat_error(beat_error_unlock_ms, beat_error_ms)
                 .map(|(_, source)| source);
-        if let Some(caveat) =
-            beat_error_source.and_then(|s| s.caveat_why(figures.unlock_inconsistent))
-        {
-            measure::add(&mut caveats, caveat);
-        }
+        // Said only with beats read: a reading with none, as just after
+        // the beat rate is set anew, waits for beats (Walter on #2319).
+        let shown = read && sides_known && !no_beat(bph, fit.map_or(0, |f| f.beats_used));
+        self.say_beat_error(&mut caveats, beat_error_source, &figures, shown);
         self.window_caveats(&mut caveats, masked_s);
         let whole = holes.whole(&self.beats, window_from, end_s, GAP_S);
         LiveReading {
@@ -2394,7 +2440,7 @@ mod numbering;
 pub use numbering::NumberingSeen;
 mod rebuild;
 mod unheard;
-pub use unheard::{in_spans, unheard_spans};
+pub use unheard::{heard_seconds, in_spans, unheard_spans};
 
 #[cfg(test)]
 mod jump_tests;
@@ -2403,6 +2449,8 @@ mod jump_tests;
 mod count_tests;
 #[cfg(test)]
 mod drop_why_tests;
+#[cfg(test)]
+mod escapement_tests;
 #[cfg(test)]
 mod sound_tests;
 

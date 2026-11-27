@@ -1328,10 +1328,11 @@ pub fn measure_reading(
             }
         }
     }
-    if let Some(caveat) = m
-        .beat_error_source
-        .and_then(|s| s.caveat_why(figures.unlock_inconsistent))
-    {
+    if let Some(caveat) = log.escapement.beat_error_caveat(
+        m.beat_error_source,
+        figures.unlock_inconsistent,
+        m.watch_heard && !awaiting,
+    ) {
         crate::measure::add(&mut m.caveats, caveat);
     }
     if let Some(caveat) = log.escapement.amplitude_caveat(m.amplitude_deg.is_some()) {
