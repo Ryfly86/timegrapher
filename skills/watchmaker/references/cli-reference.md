@@ -403,7 +403,8 @@ Component fields: `significance` is −log10 of the false-alarm chance (2 =
 1%, 65 = 1e-65); `harmonics` 1 for a smooth wave, up to 8 for a short
 sharp event; `explained` the fraction of the detrended variation;
 `peak_to_peak` in s/d (rate) or degrees (amplitude); `wheel` the matching
-wheel's name or null; `nearest_wheel` `[name, percent_off]`. How to read
+wheel's name or null; `nearest_wheel` `[name, percent_off]`, null past
+10% of the nearest wheel's turn. How to read
 it: [long-runs.md](long-runs.md).
 
 ## series
