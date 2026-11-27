@@ -172,7 +172,15 @@ impl Summary {
         self.shape = None;
     }
 
-    /// Count no beats of a watch where none is heard (Norm on #2378):
+    /// Whether a watch is heard: its verdict says so and is not still
+    /// waiting ([`Self::awaiting`]). A reading still waiting, under 10 s,
+    /// has heard none yet (#2333), however `watch_heard` reads.
+    pub fn heard_as_watch(&self) -> bool {
+        self.watch_heard && !self.awaiting
+    }
+
+    /// Count no beats of a watch where none is heard (Norm on #2378), or
+    /// none yet ([`Self::heard_as_watch`], #2333):
     /// the peaks found are noise, so `beats_found` and its share are 0
     /// ([`crate::measure::watch_beats`]), and `beats_missing` follows from
     /// that share by its one rule, with its caveat. No rate is heard in
@@ -183,7 +191,7 @@ impl Summary {
     /// (`analyze/3`, [`crate::analyze_doc::body`]); the verdict itself
     /// is made before, on the fraction at the rate tried (#857).
     pub fn count_no_watch(&mut self) {
-        if self.watch_heard {
+        if self.heard_as_watch() {
             return;
         }
         let (found, bph) =
