@@ -265,9 +265,7 @@ fn chunk_follows<R: std::io::Read + std::io::Seek>(
     }
     f.seek(std::io::SeekFrom::Start(at))?;
     f.read_exact(&mut head)?;
-    let named = head[..4]
-        .iter()
-        .all(|&c| c.is_ascii_alphanumeric() || c == b' ');
+    let named = head[..4].iter().all(|&c| c.is_ascii_graphic() || c == b' ');
     let len = u64::from(u32::from_le_bytes([head[4], head[5], head[6], head[7]]));
     Ok(named && at + 8 + len <= end)
 }

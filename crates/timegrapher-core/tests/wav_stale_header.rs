@@ -171,3 +171,92 @@ fn a_pad_byte_after_an_odd_length_is_not_read_as_sound() {
     assert_eq!(audio::info(&wav).unwrap().frames, Some(8001));
     assert_eq!(audio::load(&wav).unwrap().samples.len(), 8001);
 }
+
+/// The recorder's held hours (a save's copy of each closed hour) are read
+/// through `flac::encode_wav_file` and `same_samples_file`, by file and
+/// not by name: they read a killed hour to the end of its sound too, so a
+/// saved recovered take keeps its last seconds.
+#[test]
+fn a_held_killed_hour_is_kept_as_flac_whole() {
+    let d = dir("held");
+    // Not named as a take's sound: the held file is always the take's own.
+    let wav = d.join("held.wav");
+    killed(&wav, 1, 12_000, 6_000, &[]);
+    let held = File::open(&wav).unwrap();
+    let kept = d.join("held.flac");
+    assert_eq!(flac::encode_wav_file(&held, &kept).unwrap(), 18_000);
+    assert!(flac::same_samples_file(&held, &kept).unwrap());
+    assert_eq!(audio::load(&kept).unwrap().samples, mono(18_000, 1));
+}
+
+/// A quiet tail (a watch that stopped, an empty stand) is sound, not a
+/// chunk: zero bytes give no chunk name.
+#[test]
+fn a_quiet_tail_is_read_as_sound() {
+    let d = dir("quiet");
+    let wav = d.join("audio-001.wav");
+    killed(&wav, 1, 8000, 0, &vec![0u8; 2 * 4000]);
+    let mut want = mono(8000, 1);
+    want.resize(12_000, 0.0);
+    assert_eq!(audio::info(&wav).unwrap().frames, Some(12_000));
+    assert_eq!(audio::load(&wav).unwrap().samples, want);
+}
+
+/// Sound whose first bytes happen to be letters is still sound when the
+/// length they would give runs past the end of the file.
+#[test]
+fn letters_whose_length_runs_past_the_end_are_sound() {
+    let d = dir("letters");
+    let wav = d.join("audio-001.wav");
+    let mut tail = b"abcd".to_vec();
+    tail.extend_from_slice(&u32::MAX.to_le_bytes());
+    tail.resize(8 + 2 * 4000, 0);
+    killed(&wav, 1, 8000, 0, &tail);
+    assert_eq!(audio::info(&wav).unwrap().frames, Some(12_004));
+}
+
+/// A WAV made byte by byte: 16-bit mono at [`RATE`], `before` (whole
+/// chunks) between `fmt ` and `data`, a data length of `len`, then `data`.
+fn made(path: &Path, block_align: u16, before: &[u8], len: u32, data: &[u8]) {
+    let mut b = b"RIFF".to_vec();
+    b.extend_from_slice(&0u32.to_le_bytes());
+    b.extend_from_slice(b"WAVEfmt ");
+    b.extend_from_slice(&16u32.to_le_bytes());
+    b.extend_from_slice(&1u16.to_le_bytes());
+    b.extend_from_slice(&1u16.to_le_bytes());
+    b.extend_from_slice(&RATE.to_le_bytes());
+    b.extend_from_slice(&(RATE * 2).to_le_bytes());
+    b.extend_from_slice(&block_align.to_le_bytes());
+    b.extend_from_slice(&16u16.to_le_bytes());
+    b.extend_from_slice(before);
+    b.extend_from_slice(b"data");
+    b.extend_from_slice(&len.to_le_bytes());
+    b.extend_from_slice(data);
+    std::fs::write(path, b).unwrap();
+}
+
+/// A take's own file whose `fmt ` gives a block align of 0 is not read
+/// to the end (no frame size to round to): it reads, or is refused, as
+/// `hound` judges it, and never panics.
+#[test]
+fn a_block_align_of_zero_does_not_panic() {
+    let d = dir("align0");
+    let wav = d.join("audio-001.wav");
+    made(&wav, 0, &[], 2 * 100, &[0x10; 2 * 300]);
+    let read = std::panic::catch_unwind(|| audio::load(&wav).map(|a| a.samples.len()));
+    let read = read.expect("no panic");
+    assert!(!matches!(read, Ok(300)), "{read:?}");
+}
+
+/// A chunk name may hold any printable character, such as Adobe's XMP
+/// `_PMX`: that tag after a take's own sound is not read as sound.
+#[test]
+fn an_xmp_tag_after_the_sound_is_not_read_as_sound() {
+    let d = dir("xmp");
+    let wav = d.join("audio-001.wav");
+    let mut tag = b"_PMX".to_vec();
+    tag.extend_from_slice(&6u32.to_le_bytes());
+    tag.extend_from_slice(b"<x:x/>");
+    killed(&wav, 1, 8000, 0, &tag);
+    assert_eq!(audio::info(&wav).unwrap().frames, Some(8000));
+}
