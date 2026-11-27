@@ -46,31 +46,15 @@ impl Cycle {
         self.size_unit
     }
 
-    /// The size with its unit, written one place finer than its figure as
-    /// a difference within one take (math standards, section 11):
-    /// "10.93 s/d", "0.052 ms" or "7.8 deg".
+    /// The size with its unit ([`size_text`]): "10.93 s/d", "0.052 ms"
+    /// or "7.8 deg".
     pub fn size_text(&self) -> String {
-        use crate::figure_text::{base_digits, difference_digits, fixed_text};
-        let digits = difference_digits(match self.size_unit {
-            "ms" => base_digits::BEAT_ERROR,
-            "s/d" => base_digits::RATE,
-            _ => base_digits::AMPLITUDE,
-        });
-        format!("{} {}", fixed_text(self.size, digits), self.size_unit)
+        size_text(self.size, self.size_unit)
     }
 
-    /// The size named by its quantity, peak to peak: "timing swing 0.103 ms
-    /// peak to peak" below [`crate::longrun::TIMING_UNIT_BELOW_S`], "rate
-    /// swing 3.04 s/d peak to peak" above it, "7.8 deg peak to peak" for
-    /// amplitude: a rate cycle is sized in two quantities, never one in two
-    /// units (Norm on #2100).
+    /// The size named by its quantity, peak to peak ([`size_words`]).
     pub fn size_words(&self) -> String {
-        let quantity = match self.size_unit {
-            "ms" => "timing swing ",
-            "s/d" => "rate swing ",
-            _ => "",
-        };
-        format!("{quantity}{} peak to peak", self.size_text())
+        size_words(self.size, self.size_unit)
     }
 
     /// The share of the series' variation this cycle explains, in percent,
@@ -92,8 +76,48 @@ pub fn timing_swing_text() -> String {
     )
 }
 
-/// Said once under the cycles table: why a rate cycle has no share.
-pub const RATE_SHARE_NOTE: &str = "A rate cycle is found in the beat timing, which wanders as a walk, so a share of its variation says nothing about the cycle and none is given (–).";
+/// A cycle's size with its unit, written one place finer than its figure
+/// as a difference within one take (math standards, section 11):
+/// "10.93 s/d", "0.052 ms" or "7.8 deg". `unit` is "s/d", "ms" or "deg",
+/// as [`crate::longrun::RateComponent::size`] gives it.
+pub fn size_text(size: f64, unit: &str) -> String {
+    use crate::figure_text::{base_digits, difference_digits, fixed_text};
+    let digits = difference_digits(match unit {
+        "ms" => base_digits::BEAT_ERROR,
+        "s/d" => base_digits::RATE,
+        _ => base_digits::AMPLITUDE,
+    });
+    format!("{} {unit}", fixed_text(size, digits))
+}
+
+/// A cycle's size named by its quantity, peak to peak: "timing swing
+/// 0.103 ms peak to peak" below [`crate::longrun::TIMING_UNIT_BELOW_S`],
+/// "rate swing 3.04 s/d peak to peak" above it, "7.8 deg peak to peak"
+/// for amplitude: a rate cycle is sized in two quantities, never one in
+/// two units (Norm on #2100). Session, `long` and its report all write it.
+pub fn size_words(size: f64, unit: &str) -> String {
+    let quantity = match unit {
+        "ms" => "timing swing ",
+        "s/d" => "rate swing ",
+        _ => "",
+    };
+    format!("{quantity}{} peak to peak", size_text(size, unit))
+}
+
+/// Why a rate cycle has no share, without the table's dash.
+macro_rules! rate_share_why {
+    () => {
+        "A rate cycle is found in the beat timing, which wanders as a walk, so a share of its variation says nothing about the cycle and none is given"
+    };
+}
+
+/// Said once under the cycles table, and under `long`'s rate lines: why a
+/// rate cycle has no share.
+pub const RATE_SHARE_NOTE: &str = concat!(rate_share_why!(), " (–).");
+
+/// [`RATE_SHARE_NOTE`] where no dash stands in for the share (`long`'s
+/// HTML report).
+pub const RATE_SHARE_WHY: &str = concat!(rate_share_why!(), ".");
 
 /// [`timing_swing_text`] when a finding sizes a cycle as a timing swing.
 pub fn timing_swing_note(readings: &[Reading]) -> Option<String> {
@@ -102,6 +126,15 @@ pub fn timing_swing_note(readings: &[Reading]) -> Option<String> {
         .filter(|r| r.measurement.watch_heard)
         .flat_map(|r| r.cycles.iter().map(move |c| (r, c)))
         .any(|(r, c)| c.size_unit == "ms" && folded_into(r, c).is_none())
+        .then(timing_swing_text)
+}
+
+/// [`timing_swing_text`] when `long` sizes a rate cycle as a timing swing,
+/// for its text and its report alike.
+pub fn long_timing_swing_note(r: &LongReport) -> Option<String> {
+    r.rate_components
+        .iter()
+        .any(|c| c.size().1 == "ms")
         .then(timing_swing_text)
 }
 
