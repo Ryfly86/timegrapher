@@ -1908,9 +1908,9 @@ impl TimegrapherApp {
     }
 
     /// Whether to hold the computer awake now: listening to the
-    /// microphone, with Keep Awake on.
+    /// microphone, while the app asks to stay awake (`asks_awake`).
     pub(crate) fn wants_awake(&self) -> bool {
-        (self.keep_awake || self.reserve_running()) && self.running() && self.session.mic()
+        self.asks_awake() && self.running() && self.session.mic()
     }
 
     /// Seconds of sound heard so far in this session, for the log.
