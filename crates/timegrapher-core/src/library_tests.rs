@@ -1465,8 +1465,9 @@ fn two_adds_of_one_name_never_meet() {
     let (a, b) = (staging(&takes, &to), staging(&takes, &to));
     assert_ne!(a, b);
     for (s, who) in [(&a, "app"), (&b, "cli")] {
-        fs::create_dir_all(s).unwrap();
-        fs::write(s.join("session.toml"), who).unwrap();
+        let inner = begin_staging(s).unwrap();
+        fs::create_dir_all(&inner).unwrap();
+        fs::write(inner.join("session.toml"), who).unwrap();
     }
     let first = move_in(&a, &takes, "2026-11-12 10.00 Dial Up", to.clone()).unwrap();
     let second = move_in(&b, &takes, "2026-11-12 10.00 Dial Up", to.clone()).unwrap();
@@ -1480,6 +1481,8 @@ fn two_adds_of_one_name_never_meet() {
         fs::read_to_string(second.join("session.toml")).unwrap(),
         "cli"
     );
+    // Each staging folder goes once its take is in.
+    assert!(!a.exists() && !b.exists());
     let _ = fs::remove_dir_all(&takes);
 }
 
@@ -1917,6 +1920,106 @@ fn a_copy_left_part_way_is_cleared_when_stale() {
     let lib = Library::open(&root).unwrap();
     assert!(!old.exists());
     assert!(fresh.is_dir() && mine.is_dir());
+    drop(lib);
+    let _ = fs::remove_dir_all(&root);
+}
+
+/// Every file and folder in `dir`, and `dir`, last changed at `t`.
+fn all_last_changed(dir: &Path, t: std::time::SystemTime) {
+    for e in fs::read_dir(dir).unwrap().flatten() {
+        if e.file_type().unwrap().is_dir() {
+            all_last_changed(&e.path(), t);
+        } else {
+            last_changed(&e.path(), t);
+        }
+    }
+    last_changed(dir, t);
+}
+
+/// A take added from a folder whose name starts with a dot, the
+/// clearing's own ".adding-" among them, copied or moved, is filed under
+/// a visible name, listed, and survives the library's next opens once
+/// over an hour old: with a move, it is the only copy (#2402).
+#[test]
+fn a_take_added_from_a_dot_named_folder_is_listed_and_never_cleared() {
+    for (i, source) in [".adding-reference", ".reference"].iter().enumerate() {
+        for keep in [true, false] {
+            let root = scratch(&format!("add-dot-{i}-{keep}"));
+            let mut lib = Library::create(&root).unwrap();
+            lib.add(&Watch::new("Audit")).unwrap();
+            let id = lib.find("Audit").unwrap().watch.id.clone();
+            let outside = scratch(&format!("add-dot-outside-{i}-{keep}"));
+            let from = outside.join(source);
+            take(&from, &[("take.flac", "DU")], 1, "2026-10-22T17:00:00Z");
+            let (to, left) = lib.add_take(&from, &id, keep).unwrap();
+            assert_eq!(left, None);
+            let name = file_name(&to);
+            assert!(!name.starts_with('.'), "{source} filed as {name}");
+            assert_eq!(from.is_dir(), keep);
+            assert_eq!(lib.find("Audit").unwrap().takes.len(), 1, "{source}");
+            let then =
+                std::time::SystemTime::now() - std::time::Duration::from_secs(STALE_ADD_S + 60);
+            all_last_changed(&to, then);
+            drop(lib);
+            let lib = Library::open(&root).unwrap();
+            drop(lib);
+            let lib = Library::open(&root).unwrap();
+            assert_eq!(fs::read(to.join("take.flac")).unwrap(), vec![0u8; 1000]);
+            assert_eq!(lib.find("Audit").unwrap().takes.len(), 1, "{source}");
+            drop(lib);
+            let _ = fs::remove_dir_all(&root);
+            let _ = fs::remove_dir_all(&outside);
+        }
+    }
+    assert_eq!(take_folder_name("..."), "Take");
+    assert_eq!(take_folder_name(".adding-reference"), "adding-reference");
+}
+
+/// A take an earlier version filed as ".adding-…" (it kept the
+/// original's name) holds its session file in the folder itself, unlike
+/// a staging folder: the clearing of stale adds keeps it, while a stale
+/// staging folder, its copy inside, goes (#2402).
+#[test]
+fn a_hidden_take_from_an_earlier_version_is_kept_on_upgrade() {
+    let root = scratch("add-legacy");
+    let lib = Library::create(&root).unwrap();
+    drop(lib);
+    let mut lib = Library::open(&root).unwrap();
+    let takes = lib.add(&Watch::new("Audit")).unwrap().join(TAKES);
+    let filed = takes.join(format!("{}reference", add::ADDING));
+    take(&filed, &[("take.flac", "DU")], 1, "2026-10-22T17:00:00Z");
+    let staged = staging(&takes, &takes.join("Dial Up"));
+    let inner = begin_staging(&staged).unwrap();
+    take(&inner, &[("take.flac", "DU")], 1, "2026-10-22T17:00:00Z");
+    let then = std::time::SystemTime::now() - std::time::Duration::from_secs(STALE_ADD_S + 60);
+    all_last_changed(&filed, then);
+    all_last_changed(&staged, then);
+    drop(lib);
+    let lib = Library::open(&root).unwrap();
+    assert_eq!(fs::read(filed.join("take.flac")).unwrap(), vec![0u8; 1000]);
+    assert!(!staged.exists());
+    drop(lib);
+    let _ = fs::remove_dir_all(&root);
+}
+
+/// A watch named with a leading dot gets a visible folder and is listed;
+/// one an earlier version filed in a hidden folder is listed too (#2403).
+#[test]
+fn a_dot_named_watch_is_listed() {
+    let root = scratch("dot-watch");
+    let mut lib = Library::create(&root).unwrap();
+    let dir = lib.add(&Watch::new(".reference")).unwrap();
+    assert_eq!(file_name(&dir), "reference");
+    assert_eq!(lib.find(".reference").unwrap().watch.name, ".reference");
+    let old = root.join(".old");
+    fs::create_dir_all(old.join(TAKES)).unwrap();
+    Watch::new(".old").write(&old).unwrap();
+    lib.scan();
+    assert_eq!(lib.find(".old").unwrap().dir, old);
+    assert_eq!(lib.watches.len(), 2);
+    assert_eq!(folder_name(". .reference"), "reference");
+    assert_eq!(folder_name("..."), "Watch");
+    assert!(lib.add(&Watch::new(".Unsorted")).is_err());
     drop(lib);
     let _ = fs::remove_dir_all(&root);
 }
