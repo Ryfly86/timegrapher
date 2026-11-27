@@ -186,14 +186,15 @@ aside: the session's takes are read on Auto, `calibre_notes` says so, and
 A take recorded on Auto is read on Auto. Its `session.json` beside the
 session file says so (its `bph` is `null`), and the session file's `bph`
 is then the rate Auto guessed while recording, so it and the calibre's
-rate give way: `session`, `analyze` and `long` on the take, the app's
-File > Open, Keep Analysis Only and the Watches view read the beat rate
-heard, and `summary.json`'s `input.settings.bph` is `null`. `--bph`
-still sets the rate. A take with no `session.json`, or whose `bph` names
-a rate, reads as above. A take moved in the app into a watch that sets a
-beat rate takes that rate into its session file, and `session.json`
-gets `"bph_from_watch": true`, so the watch's rate stands; older builds
-ignore the key.
+rate give way: `session`, `analyze`, `shape`, `profile` and `long` on
+the take, the app's File > Open, Keep Analysis Only and the Watches view
+read the beat rate heard, and `summary.json`'s `input.settings.bph` is
+`null`. `--bph` still sets the rate. A take with no `session.json`, or
+whose `bph` names a rate, reads as above. A take moved in the app into a
+watch that sets a beat rate (one with its sound, not one kept as its
+analysis alone) takes that rate into its session file, and
+`session.json` gets `"bph_from_watch": true`, so the watch's rate
+stands; older builds ignore the key.
 
 `escapement = "co-axial"` (or `"swiss lever"`) says which escapement the
 take is read for, over the calibre's: a calibre the table marks co-axial
