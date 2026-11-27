@@ -670,6 +670,32 @@ fn a_dialogs_calibre_menu_opens_above_it_every_time() {
     }
 }
 
+/// The table's lift angle cell and the menu's line say how a calibre's
+/// escapement is read: a co-axial's lift angle as a lever's and "Co-axial
+/// (beta)" in the menu; one not read for, "Not supported yet" in both
+/// (#1872, #2313; Vernon on #2319).
+#[test]
+fn the_table_and_menu_say_how_an_escapement_is_read() {
+    let cal = Calibres::in_memory();
+    let coaxial = cal.find("Omega 3861").unwrap().escapement();
+    assert_eq!(lift_tag(coaxial), None);
+    assert_eq!(
+        menu_text("Omega 3861".into(), coaxial),
+        "Omega 3861 · Co-axial (beta)"
+    );
+    let detent = calibres::Escapement {
+        kind: "detent".into(),
+        source: String::new(),
+    };
+    assert_eq!(lift_tag(Some(&detent)), Some("Not supported yet"));
+    assert_eq!(
+        menu_text("Chronometer".into(), Some(&detent)),
+        "Chronometer · Not supported yet"
+    );
+    assert_eq!(lift_tag(None), None);
+    assert_eq!(menu_text("ETA 2824-2".into(), None), "ETA 2824-2");
+}
+
 /// A name that already states its lift inside a longer bracket says it
 /// once; a bracket elsewhere in a name keeps the lift (Trevor, #2352).
 #[test]
@@ -705,11 +731,12 @@ fn a_name_stating_its_lift_says_it_once() {
     }
 }
 
-/// A calibre whose escapement isn't measured yet shows its tag in place
-/// of its lift (#1872), as the Manage Calibres table does: an Omega 8500
-/// row gives 38° but the menu says only the tag.
+/// A co-axial, read for in beta (#2313), shows its lift and then its
+/// beta tag: an Omega 8500 row gives 38°. An escapement not read for
+/// keeps its tag in place of its lift (#1872), as the Manage Calibres
+/// table does ([`lift_tag`]; adopted from #2352 on #2319).
 #[test]
-fn an_escapement_not_measured_shows_its_tag_not_its_lift() {
+fn a_co_axial_shows_its_lift_and_its_beta_tag() {
     let c = calibres::all()
         .iter()
         .find(|c| c.calibre == "Omega 8500")
@@ -717,7 +744,17 @@ fn an_escapement_not_measured_shows_its_tag_not_its_lift() {
     assert!(c.escapement.is_some() && c.lift_angle_deg.is_some());
     assert_eq!(
         line_text(Entry::Table(c), c.calibre.clone()),
-        format!("Omega 8500  ·  {}", calibres::Escapement::TAG)
+        format!("Omega 8500 · 38° · {}", calibres::Escapement::COAXIAL_TAG)
+    );
+    // A table row lives as long as the table: one made here is leaked.
+    let detent: &'static mut _ = Box::leak(Box::new(c.clone()));
+    detent.escapement = Some(calibres::Escapement {
+        kind: "detent".into(),
+        source: String::new(),
+    });
+    assert_eq!(
+        line_text(Entry::Table(detent), detent.calibre.clone()),
+        format!("Omega 8500 · {}", calibres::Escapement::TAG)
     );
 }
 

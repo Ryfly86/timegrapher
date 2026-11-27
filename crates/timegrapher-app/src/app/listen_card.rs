@@ -1774,12 +1774,30 @@ impl TimegrapherApp {
     }
 
     /// The calibre's escapement when Timegrapher doesn't measure it yet
-    /// (#1872): the sentence, and with its source for the hover.
-    fn escapement_unsupported(&self) -> Option<(String, String)> {
+    /// (#1872): the sentence, and with its source for the hover. None for
+    /// a co-axial, read for in beta (#2313), whose lift angle is set as
+    /// a lever's is.
+    pub(super) fn escapement_unsupported(&self) -> Option<(String, String)> {
+        self.escapement_said()
+            .filter(|_| self.calibre_escapement_read_for().is_none())
+    }
+
+    /// What the calibre's escapement, when not a Swiss lever, says
+    /// (core's `calibres::Escapement::sentence`): the sentence, and with
+    /// its source for the hover.
+    fn escapement_said(&self) -> Option<(String, String)> {
         let x = self.cal.find(&self.bench.take.calibre)?.escapement()?;
         let sentence = x.sentence();
         let why = format!("{sentence}\n\nSource: {}", x.source);
         Some((sentence, why))
+    }
+
+    /// The escapement the calibre's row says Timegrapher reads it for.
+    fn calibre_escapement_read_for(&self) -> Option<timegrapher_core::escapement::Escapement> {
+        self.cal
+            .find(&self.bench.take.calibre)?
+            .escapement()?
+            .read_for()
     }
 
     /// One line for a watch's calibre and what it sets: the beat rate and
@@ -1815,7 +1833,7 @@ impl TimegrapherApp {
                 self.bench.take.calibre
             );
         }
-        if let Some((sentence, _)) = self.escapement_unsupported() {
+        if let Some((sentence, _)) = self.escapement_said() {
             hover = format!("{sentence}\n\n{hover}");
         }
         calibre_figure(ui, &line, pal.text).on_hover_text(hover);

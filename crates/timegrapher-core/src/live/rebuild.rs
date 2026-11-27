@@ -118,6 +118,12 @@ impl LiveAnalyzer {
         self.rebuild.done = true;
     }
 
+    /// Whether the first chunk is being read again now, for the tests.
+    #[cfg(test)]
+    pub(super) fn rereading(&self) -> bool {
+        self.rebuild.shadow.is_some()
+    }
+
     /// The same change made to the analyzer reading the sound again.
     pub(super) fn in_shadow(&mut self, f: impl FnOnce(&mut LiveAnalyzer)) {
         if let Some(sh) = &mut self.rebuild.shadow {

@@ -118,11 +118,35 @@ pub struct Escapement {
 pub const ESCAPEMENTS: [&str; 3] = ["co-axial", "pin lever", "detent"];
 
 impl Escapement {
-    /// The short tag beside the calibre's name where it is listed (#1872).
+    /// The short tag beside the calibre's name where it is listed, for an
+    /// escapement Timegrapher doesn't read for yet (#1872).
     pub const TAG: &'static str = "Not supported yet";
 
-    /// What the app says of it, in place of the lift angle (#1872).
+    /// The short tag for a co-axial, read for in beta (#2313).
+    pub const COAXIAL_TAG: &'static str = "Co-axial (beta)";
+
+    /// The escapement Timegrapher reads the calibre's takes for, where it
+    /// reads for this one: the co-axial (beta, #2313). None for a pin
+    /// lever or a detent, read as a Swiss lever's and said not supported.
+    pub fn read_for(&self) -> Option<crate::escapement::Escapement> {
+        crate::escapement::Escapement::of_kind(&self.kind)
+    }
+
+    /// The short tag beside the calibre's name where it is listed.
+    pub fn tag(&self) -> &'static str {
+        match self.read_for() {
+            Some(_) => Self::COAXIAL_TAG,
+            None => Self::TAG,
+        }
+    }
+
+    /// What the app says of it: for a co-axial, how its takes are read
+    /// (#2313); for one not read for, that it is not supported, in place
+    /// of the lift angle (#1872).
     pub fn sentence(&self) -> String {
+        if self.read_for().is_some() {
+            return COAXIAL_SENTENCE.to_string();
+        }
         let mut kind = self.kind.chars();
         let kind = match kind.next() {
             Some(first) => first.to_uppercase().chain(kind).collect::<String>(),
@@ -134,6 +158,12 @@ impl Escapement {
         )
     }
 }
+
+/// What a co-axial calibre says of how its takes are read (#2313): the
+/// beat error by [`crate::escapement::Escapement::drop_beat_error`], the
+/// amplitude by [`crate::measure::Caveat::CoaxialEstimate`].
+pub const COAXIAL_SENTENCE: &str = "Co-axial escapement (beta): the beat error is the \
+     unlock's alone, and the amplitude is an estimate, not yet checked against a reference.";
 
 /// When a calibre was made.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1571,11 +1601,20 @@ mod tests {
         }
         assert!(find("ETA 2824-2").unwrap().escapement.is_none());
         let e = find("Omega 2500").unwrap().escapement.clone().unwrap();
+        // Read for in beta since #2313: the co-axial's own sentence and tag.
+        assert_eq!(e.sentence(), COAXIAL_SENTENCE);
+        assert_eq!(e.tag(), Escapement::COAXIAL_TAG);
+        // An escapement not read for keeps #1872's words.
+        let detent = Escapement {
+            kind: "detent".into(),
+            source: String::new(),
+        };
         assert_eq!(
-            e.sentence(),
-            "Co-axial escapement: not supported yet. Timegrapher measures Swiss lever \
+            detent.sentence(),
+            "Detent escapement: not supported yet. Timegrapher measures Swiss lever \
              escapements only."
         );
+        assert_eq!(detent.tag(), Escapement::TAG);
     }
 
     /// The metadata fields (#1861) keep their rules: every sentence,

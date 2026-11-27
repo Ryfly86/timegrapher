@@ -618,7 +618,7 @@ fn facts(body: &mut String, r: &LongReport, clock_note: Option<&str>) {
             .map_or("-".into(), |f| esc(&crate::beat_error_text(
                 r.beat_error_unlock_ms,
                 r.escapement.drop_beat_error(Some(f.beat_error_ms)),
-                timegrapher_core::measure::DropWhy::of(&r.caveats)
+                &r.caveats
             ))),
         o(r.amplitude_deg, 0),
         o(r.amplitude_p05, 0),

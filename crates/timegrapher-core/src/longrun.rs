@@ -340,6 +340,12 @@ fn analyse_read(
     let amps: Vec<f64> = slices.iter().filter_map(|s| s.amplitude_deg).collect();
     let listened = duration - holes.breaks().iter().map(|b| b.gap_s).sum::<f64>();
     let expected = crate::beats::expected_beats(listened, log.bph);
+    let beat_error_unlock_ms = timing::median_signed(uv.into_iter(), turned);
+    // A co-axial's beat error is the unlock's alone, or none, said (#2313).
+    let unlock = beat_error_unlock_ms.map(|_| crate::session::BeatErrorSource::Unlock);
+    let coaxial = log
+        .escapement
+        .beat_error_caveat(unlock, false, overall.is_some());
     LongReport {
         duration_s: duration,
         sample_rate: log.sample_rate,
@@ -358,9 +364,10 @@ fn analyse_read(
             .chain(read_on.and_then(ClockFit::sources_disagree).map(Into::into))
             .chain((unseen > 0).then_some(crate::measure::Caveat::PausesUnseen { count: unseen }))
             .chain(log.escapement.amplitude_caveat(!av.is_empty()))
+            .chain(coaxial)
             .collect(),
         overall,
-        beat_error_unlock_ms: timing::median_signed(uv.into_iter(), turned),
+        beat_error_unlock_ms,
         escapement: log.escapement,
         rate_p05: percentile(&rates, 0.05),
         rate_p95: percentile(&rates, 0.95),
