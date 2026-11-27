@@ -522,7 +522,8 @@ fn the_steadiness_wait_counts_only_the_position_now() {
         live.push(b);
     }
     let end = live.duration_s();
-    app.bench.results.trend = live.trend(app.bench.take.average_s);
+    // Read again on the move, as the window does.
+    app.rebuild_trend();
     let count = |spans: &[(f64, f64)]| {
         timegrapher_core::live::heard_seconds(
             &app.bench.results.trend,
@@ -722,5 +723,98 @@ fn silence_after_an_answer_reads_nothing_again_a_new_average_over_does() {
     assert!(
         app.bench.results.steady.is_none(),
         "the answer read at the old Average Over is kept"
+    );
+}
+
+/// A new Average Over drops the answer, a run under way and an isochronism
+/// read alone, and starts none on the readings still at the old one: what
+/// is heard rests on them. Once they are read again a run starts, and it
+/// counts what is heard at the new Average Over (Vernon on #2477).
+#[test]
+fn a_new_average_over_waits_for_its_own_readings() {
+    let ctx = egui::Context::default();
+    let bph = timegrapher_core::synth::SynthConfig::default().bph;
+    let mut app = heard_in_pieces_at(Some(bph), &[(false, 180.0), (true, 330.0)]);
+    tested(&mut app, &ctx);
+    // A run under way, and an isochronism read alone, at this one.
+    app.bench.results.steady = None;
+    app.bench.results.bg.shown_pass[0] = Some(ctx.cumulative_pass_nr());
+    app.update_steady(&ctx);
+    assert!(app.bench.results.steady_job.is_some(), "no run started");
+    app.bench.results.bg.isochronism = Some((
+        app.bench.take.rev,
+        steady::IsochronismAlone {
+            isochronism: None,
+            walk: None,
+            upto_s: 1.0,
+            heard_s: 1.0,
+        },
+    ));
+    app.bench.take.average_s *= 2.0;
+    app.bench.results.bg.shown_pass[0] = Some(ctx.cumulative_pass_nr());
+    app.update_steady(&ctx);
+    assert!(
+        app.bench.results.steady_job.is_none(),
+        "a run on old readings"
+    );
+    assert!(app.bench.results.steady.is_none());
+    assert!(app.bench.results.bg.isochronism.is_none());
+    assert_eq!(
+        app.steady_wait(),
+        "Needs 5 minutes of beats in one position."
+    );
+    // The readings at the new Average Over.
+    app.refresh_trend();
+    assert!(app.trend_current());
+    let over = tested(&mut app, &ctx);
+    assert_eq!(over, app.heard_in_position());
+}
+
+/// The isochronism read alone, with only an Isochronism pane asking,
+/// counts the beats heard, and the next read steps on them (#2451).
+#[test]
+fn the_isochronism_alone_counts_beats_heard() {
+    let ctx = egui::Context::default();
+    let mut app = heard_in_pieces(&[(false, 180.0), (true, 330.0)]);
+    let start = std::time::Instant::now();
+    while app.bench.results.bg.isochronism.is_none() {
+        assert!(
+            start.elapsed() < std::time::Duration::from_secs(300),
+            "never read"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        app.update_steady(&ctx);
+    }
+    assert!(app.bench.results.steady.is_none());
+    let heard = app.heard_in_position();
+    let alone = &app.bench.results.bg.isochronism.as_ref().unwrap().1;
+    assert_eq!(alone.heard_s, heard);
+    assert!(alone.upto_s > heard + 60.0, "{}", alone.upto_s);
+    assert_eq!(app.steady_upto(steady::Need::Isochronism), Some(heard));
+}
+
+/// With a position marked, the watch, 2 minutes of silence and the watch
+/// again are joined as two heard stretches: no silence time in the joined
+/// log, and a cut at the join (Vernon on #2477).
+#[test]
+fn a_position_joins_only_its_heard_stretches() {
+    use timegrapher_core::joined::JOIN_S;
+    let mut app = heard_in_pieces(&[(true, 200.0), (false, 120.0), (true, 200.0)]);
+    let now = app.bench.take.position;
+    app.session.load(&[(0.0, now)], &[]);
+    assert!(!app.session.stretches().is_empty());
+    let runs = app.heard_runs();
+    assert_eq!(runs.read.len(), 2, "{:?}", runs.read);
+    let lens: Vec<f64> = runs.read.iter().map(|(a, b)| b - a).collect();
+    let (log, breaks) = app.steady_read(&runs, None).unwrap();
+    assert!(
+        (log.duration_s - (lens[0] + lens[1] + JOIN_S)).abs() < 1e-6,
+        "{} {lens:?}",
+        log.duration_s
+    );
+    let join = lens[0] + JOIN_S;
+    assert!(
+        breaks.iter().any(|b| (b.audio_s - join).abs() < 1e-6),
+        "no cut at the join {join}: {breaks:?}"
     );
 }

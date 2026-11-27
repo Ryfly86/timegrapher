@@ -135,7 +135,7 @@ impl TimegrapherApp {
 
     /// The seconds of beats heard the answers so far for `need` read:
     /// none when nothing read answers it.
-    fn steady_upto(&self, need: steady::Need) -> Option<f64> {
+    pub(super) fn steady_upto(&self, need: steady::Need) -> Option<f64> {
         let tests = self.bench.results.steady.as_ref().map(|s| &s.1);
         let tests = tests.filter(|s| need < steady::Need::Maps || s.maps.is_some());
         let alone = self
@@ -218,7 +218,7 @@ impl TimegrapherApp {
         // only more of them reads them again, so silence or the stand's
         // noise never does (#2451).
         let runs = self.heard_runs();
-        let heard = self.heard_in_position();
+        let heard: f64 = runs.read.iter().map(|(a, b)| b - a).sum();
         let clock = Self::rate_clock(&self.bench.take.take_clock).cloned();
         let joined = !self.session.stretches().is_empty();
         let need = self.steady_need(ctx.cumulative_pass_nr());
@@ -227,7 +227,10 @@ impl TimegrapherApp {
             Some(u) if self.running() => heard - u >= steady::RERUN_S,
             Some(u) => heard - u > 1.0,
         };
-        if self.bench.results.steady_job.is_none() && due && heard >= steady::MIN_S {
+        // What is heard rests on readings at the Average Over and take
+        // now: none starts on readings not yet read again (Vernon on #2477).
+        let fresh = self.trend_current();
+        if self.bench.results.steady_job.is_none() && fresh && due && heard >= steady::MIN_S {
             if let Some((log, breaks)) = self.steady_read(&runs, clock.as_ref()) {
                 let wheels = self.calibre_wheels();
                 let meshes = self.calibre_meshes();
@@ -397,7 +400,9 @@ impl TimegrapherApp {
         let heard = self.heard_in_position();
         // The cards read a watch the readings at this Average Over don't
         // cover whole yet (Walter on #2449): no count, rather than "none".
-        if heard <= 0.0 && self.cards_unheard().is_none() {
+        // Nor while the readings are still being read again after a
+        // change: their count is at the old footing (Vernon on #2477).
+        if !self.trend_current() || (heard <= 0.0 && self.cards_unheard().is_none()) {
             return "Needs 5 minutes of beats in one position.".to_string();
         }
         if heard > 0.0 {
