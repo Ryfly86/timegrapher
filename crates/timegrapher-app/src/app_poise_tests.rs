@@ -88,6 +88,38 @@ fn a_test_let_go_puts_the_card_back_as_it_was() {
     assert_eq!(card_after("kept"), (Position::CrownDown, true));
 }
 
+/// A Power Reserve Test set up, the card then moved for it, begun and
+/// thrown away: the card goes back to where it was before New Test, as
+/// for the guided tests (Trevor 77 on #2471).
+#[test]
+fn a_thrown_away_power_reserve_test_puts_the_card_back() {
+    let (mut app, base) = save_failure_fixture("reserve-card-thrown");
+    app.new_session();
+    app.set_position(Position::DialUp);
+    app.bench.test.ten_positions = false;
+    app.new_take(NewTake::PowerReserve, false);
+    assert_eq!(app.ready_test(), Some(NewTake::PowerReserve));
+    // Run in Crown Left at 10, set on the card before Start Test.
+    app.bench.test.ten_positions = true;
+    app.set_position(Position::CrownLeft);
+    app.bench.test.test_ready = None;
+    app.reset_session(48000, "test".into());
+    app.session.listen();
+    app.session.recorder =
+        Some(Recorder::start(&base.join("live2"), app.info("test", 48000, 16)).unwrap());
+    super::tests::append_save_test_second(&mut app, 1);
+    app.begin_reserve();
+    assert!(app.bench.test.reserve.is_some() && app.bench.test.guided.is_none());
+    assert_eq!(app.bench.take.position, Position::CrownLeft);
+    app.new_session();
+    assert_eq!(
+        (app.bench.take.position, app.bench.test.ten_positions),
+        (Position::DialUp, false)
+    );
+    app.session.discard_recording();
+    let _ = std::fs::remove_dir_all(base);
+}
+
 /// The test turns the watch 45° at a time, the same way round, through
 /// the eight upright stops, and names them by the hour at the top.
 #[test]
