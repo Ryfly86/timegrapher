@@ -1873,6 +1873,7 @@ impl Calibres {
                 ui.label("°");
             },
         );
+        escapement_row(ui, c, place);
         let renamed = c.name.trim().to_string();
         if renamed != before.name {
             // A name another calibre has, or none, isn't taken.
@@ -1919,6 +1920,30 @@ const LIFT: fields::Format = fields::Format {
     parse: fields::parse_number,
 };
 
+/// A custom calibre's escapement, picked (#2387): a co-axial is read as
+/// the table's co-axial rows are (#2313); a pin lever or detent says it
+/// isn't measured yet (#1872).
+fn escapement_row(ui: &mut egui::Ui, c: &mut CustomCalibre, place: &str) {
+    theme::row(
+        ui,
+        "Escapement",
+        Some("The escapement the maker gives; Swiss lever unless it says otherwise"),
+        |ui| {
+            let mut kind = c.escapement.as_ref().map(|x| x.kind.clone());
+            egui::ComboBox::from_id_salt(("custom escapement", place))
+                .selected_text(calibres::escapement_name(kind.as_deref()))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut kind, None, calibres::escapement_name(None));
+                    for k in calibres::ESCAPEMENTS {
+                        let name = calibres::escapement_name(Some(k));
+                        ui.selectable_value(&mut kind, Some(k.to_string()), name);
+                    }
+                });
+            c.escapement = kind.as_deref().and_then(calibres::Escapement::added_by_you);
+        },
+    );
+}
+
 /// The balance's period, the time for one full swing and back: two beats.
 fn balance_period(bph: u32) -> f64 {
     train::balance_period_s(bph)
@@ -1962,6 +1987,7 @@ pub(crate) fn custom<'a>(
         bph: None,
         lift_angle_deg: None,
         escape_teeth: None,
+        escapement: None,
         wheels: wheels
             .into_iter()
             .filter(|(n, p)| !n.trim().is_empty() && *p > 0.0)
