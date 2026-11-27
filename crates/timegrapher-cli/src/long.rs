@@ -481,6 +481,9 @@ fn read_take(
     let set = take::stream_settings(&m, resolved_train.calibre.as_ref(), given);
     let mut cfg = cfg.clone();
     cfg.analysis.bph = set.analysis.bph;
+    cfg.analysis.bph_from = set.analysis.bph_from;
+    // A take recorded on Auto is read on Auto, as `session` reads it.
+    timegrapher_core::set_rate::read_as_recorded(&base, &mut cfg.analysis);
     cfg.analysis.amplitude.lift_deg = set.analysis.amplitude.lift_deg;
     cfg.analysis.lift_known = set.analysis.lift_known;
     cfg.analysis.escape_teeth = set.analysis.escape_teeth;
@@ -1042,7 +1045,7 @@ fn print_summary(r: &LongReport, clock_note: Option<&str>) {
             crate::beat_error_text(
                 r.beat_error_unlock_ms,
                 r.escapement.drop_beat_error(Some(f.beat_error_ms)),
-                timegrapher_core::measure::DropWhy::of(&r.caveats)
+                &r.caveats
             )
         );
     }

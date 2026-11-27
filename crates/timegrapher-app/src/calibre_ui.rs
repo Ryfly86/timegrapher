@@ -1735,8 +1735,9 @@ impl Calibres {
                 ui.label(RichText::new(aka).small().color(pal.text_tertiary));
             }
         }
-        // Its escapement, when Timegrapher doesn't measure it yet, with
-        // where that comes from in the hover (#1872).
+        // Its escapement, when not a Swiss lever: how a co-axial is read
+        // (#2313), or that it isn't measured yet (#1872), with where that
+        // comes from in the hover.
         if let Some(x) = e.escapement() {
             ui.add_space(6.0);
             let said = calibre_page::escapement_part(x);
@@ -1973,17 +1974,26 @@ pub(crate) fn custom<'a>(
     }
 }
 
+/// The tag shown in place of a calibre's lift angle in the table, for an
+/// escapement Timegrapher doesn't read for yet (#1872); none for a
+/// co-axial, whose lift angle is shown as a lever's (#2313).
+fn lift_tag(x: Option<&calibres::Escapement>) -> Option<&'static str> {
+    x.filter(|x| x.read_for().is_none())
+        .map(|_| calibres::Escapement::TAG)
+}
+
 /// A beat rate or lift angle in `cell`, right-aligned so the digits line
 /// up; a dim dash where the list gives nothing.
 fn number_cell(ui: &egui::Ui, e: Entry<'_>, col: Col, cell: egui::Rect) {
     let pal = theme::pal(ui);
     // A calibre whose escapement isn't measured yet: the muted tag in
-    // place of its lift angle, which still sorts the column (#1872).
-    if col == Col::LiftAngle && e.escapement().is_some() {
+    // place of its lift angle, which still sorts the column (#1872). A
+    // co-axial's lift angle shows as a lever's: it is read for (#2313).
+    if let Some(tag) = lift_tag(e.escapement()).filter(|_| col == Col::LiftAngle) {
         ui.painter().with_clip_rect(cell).text(
             egui::pos2(cell.right() - NUMBER_PAD, cell.center().y),
             egui::Align2::RIGHT_CENTER,
-            calibres::Escapement::TAG,
+            tag,
             egui::FontId::proportional(TAG_SIZE),
             pal.text_tertiary,
         );
@@ -2444,14 +2454,18 @@ fn menu_line(ui: &mut egui::Ui, e: Entry<'_>, text: String, current: &str, picke
 
 /// A calibre's words in the menu: `text`, then its lift angle where the
 /// list gives one, since rows sharing a number can differ by several
-/// degrees (#2339). A calibre whose escapement isn't measured yet can
-/// still be picked, its tag in place of the lift (#1872). A name that
-/// already states its lift, "Rolex 3235 (53°)" or "Citizen 20 (21,600
-/// bph, 52°)", says it once.
+/// degrees (#2339). A calibre whose escapement isn't read for yet can
+/// still be picked, its tag in place of the lift (#1872, [`lift_tag`]); a
+/// co-axial, read for in beta, shows its lift and then its tag (#2313,
+/// [`menu_text`]). A name that already states its lift, "Rolex 3235
+/// (53°)" or "Citizen 20 (21,600 bph, 52°)", says it once.
 fn line_text(e: Entry<'_>, text: String) -> String {
-    match (e.escapement(), e.lift_angle_deg()) {
-        (Some(_), _) => format!("{text}  ·  {}", calibres::Escapement::TAG),
-        (None, Some(l)) => {
+    let x = e.escapement();
+    if let Some(tag) = lift_tag(x) {
+        return format!("{text} · {tag}");
+    }
+    let text = match e.lift_angle_deg() {
+        Some(l) => {
             let lift = calibre_page::lift_angle_text(l);
             if names_its_lift(e.name(), &lift) {
                 text
@@ -2459,8 +2473,9 @@ fn line_text(e: Entry<'_>, text: String) -> String {
                 format!("{text} · {lift}")
             }
         }
-        (None, None) => text,
-    }
+        None => text,
+    };
+    menu_text(text, x)
 }
 
 /// Whether `name` ends in a bracket that states `lift` as one of its
@@ -2470,6 +2485,15 @@ fn names_its_lift(name: &str, lift: &str) -> bool {
     name.strip_suffix(')')
         .and_then(|n| n.rsplit_once('('))
         .is_some_and(|(_, inside)| inside.split(", ").any(|part| part == lift))
+}
+
+/// A calibre's menu line `text`, its escapement's tag beside it where it
+/// has one ([`calibres::Escapement::tag`]).
+fn menu_text(text: String, x: Option<&calibres::Escapement>) -> String {
+    match x {
+        Some(x) => format!("{text} · {}", x.tag()),
+        None => text,
+    }
 }
 
 /// Every calibre the app knows, by any of its names or its maker, without

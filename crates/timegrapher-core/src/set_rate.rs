@@ -77,6 +77,96 @@ pub fn session_set_aside_text(calibre: Option<&Calibre>, bph: Option<u32>) -> Op
     Some(format!("{why}, so the session's takes are read on Auto"))
 }
 
+/// The top-level key in a take's `session.json` that says a watch the
+/// take was moved into set its beat rate in `session.toml` (#1283), so
+/// that rate stands although the take was recorded on Auto (Peter,
+/// 26 Nov 2026, on #2357). Older builds ignore it.
+pub const WATCH_RATE_KEY: &str = "bph_from_watch";
+
+/// Whether the take in `dir` is read on Auto as it was recorded: the
+/// recorder's `session.json` names no beat rate set by hand (its `bph`,
+/// from [`crate::recorder::SessionInfo`], is null), and no watch it was
+/// moved into set one since ([`WATCH_RATE_KEY`]). A take with no
+/// `session.json`, one that can't be read, or one the recorder did not
+/// write (no `lift_deg`) is not, nor is one with no `bph` key: only a
+/// `bph` written null says Auto. Moves onto `recorder::recorded_setup`
+/// (#2393), with a flag for a `bph` written null, once that reader is on
+/// main, so the file is read in one place.
+pub fn recorded_on_auto(dir: &std::path::Path) -> bool {
+    use serde_json::Value;
+    let json = crate::breaks::read_session(&dir.join(crate::take::RECORD));
+    let auto = |v: &Value| {
+        let watch = v.get(WATCH_RATE_KEY) == Some(&Value::Bool(true));
+        v.get("lift_deg").is_some() && v.get("bph") == Some(&Value::Null) && !watch
+    };
+    matches!(json, Ok(Some(v)) if auto(&v))
+}
+
+/// Mark the take in `dir` as one whose beat rate a watch set
+/// ([`WATCH_RATE_KEY`]): written into its `session.json` as the first
+/// key, the rest of the file as it was. A take with no `session.json`, or
+/// one already marked, is left as it is; one that isn't a JSON object is
+/// refused. Whether it was marked now.
+pub fn mark_watch_rate(dir: &std::path::Path) -> Result<bool, String> {
+    use serde_json::Value;
+    let file = dir.join(crate::take::RECORD);
+    let text = match crate::recorder::read_settled(&file) {
+        Ok(t) => t,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(e) => return Err(format!("{}: {e}", file.display())),
+    };
+    let bad = || {
+        format!(
+            "{} is not a session file this build can read",
+            file.display()
+        )
+    };
+    let v: Value = serde_json::from_str(&text).map_err(|_| bad())?;
+    let o = v.as_object().ok_or_else(bad)?;
+    if o.get(WATCH_RATE_KEY) == Some(&Value::Bool(true)) {
+        return Ok(false);
+    }
+    let key = format!("\"{WATCH_RATE_KEY}\": true");
+    let open = text.find('{').ok_or_else(bad)?;
+    let (head, rest) = text.split_at(open + 1);
+    let marked = if o.contains_key(WATCH_RATE_KEY) {
+        let mut o = o.clone();
+        o.insert(WATCH_RATE_KEY.into(), Value::Bool(true));
+        serde_json::to_string_pretty(&o).map_err(|e| e.to_string())?
+    } else if o.is_empty() {
+        format!("{{{key}}}\n")
+    } else {
+        format!("{head}\n  {key},{rest}")
+    };
+    crate::library::write_atomic(&file, marked.as_bytes())?;
+    Ok(true)
+}
+
+/// The take in `dir` read as it was recorded (Peter, 26 Nov 2026, on
+/// #2357): where `a`'s beat rate is the session file's or the calibre's,
+/// not given for this reading, and the take was recorded on Auto
+/// ([`recorded_on_auto`]), on Auto. Its session file's `bph` was then the
+/// rate Auto guessed, never one set, and the calibre's rate was not the
+/// one chosen. A rate given for the reading stands. The one rule for
+/// every reader of a take's entries ([`crate::take::open_entry`]) and
+/// for what a reading says it was read at.
+pub fn read_as_recorded(dir: &std::path::Path, a: &mut AnalysisConfig) {
+    let kept = matches!(a.bph_from, Some(BphFrom::Session | BphFrom::Calibre));
+    if kept && recorded_on_auto(dir) {
+        (a.bph, a.bph_from) = (None, None);
+    }
+}
+
+/// [`read_as_recorded`] for an entry's settings `s`.
+pub fn as_recorded(
+    dir: &std::path::Path,
+    s: &crate::take::EntrySettings,
+) -> crate::take::EntrySettings {
+    let mut stream = s.stream.clone();
+    read_as_recorded(dir, &mut stream.analysis);
+    crate::take::EntrySettings { stream, ..*s }
+}
+
 /// Set `a`'s beat rate and where it came from: `given` for this reading,
 /// else what the session file `kept`, else the calibre's
 /// ([`calibre_rate`]); none means it is heard.

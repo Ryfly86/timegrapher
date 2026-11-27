@@ -11,16 +11,24 @@ use serde_json::{json, Value};
 use std::path::Path;
 use timegrapher_core::library::{self, Library, Reading, Take, WatchEntry, UNSORTED};
 
-/// The library at `library`, or at `~/Timegrapher Data`, read: an error
-/// naming the folder when there is none there.
-fn open(library: Option<&Path>) -> Result<Library, String> {
+/// The library's folder: `library`, or `~/Timegrapher Data`, absolute so
+/// every folder in the document can be passed on as it is.
+fn root(library: Option<&Path>) -> Result<std::path::PathBuf, String> {
     let root = library
         .map(Path::to_path_buf)
         .or_else(library::default_location)
         .ok_or("there is no home folder: give the library with --library")?;
-    // Absolute, so every folder in the document can be passed on as it is.
-    let root = std::path::absolute(&root).unwrap_or(root);
-    if !Library::is_library(&root) {
+    Ok(std::path::absolute(&root).unwrap_or(root))
+}
+
+/// The library at `library`, or at `~/Timegrapher Data`, read: an error
+/// naming the folder when there is none there.
+fn open(library: Option<&Path>) -> Result<Library, String> {
+    read(&root(library)?)
+}
+
+fn read(root: &Path) -> Result<Library, String> {
+    if !Library::is_library(root) {
         return Err(format!(
             "{} is not a Timegrapher library (it has no {}); the app makes one with its \
              first watch, and --library names one elsewhere",
@@ -28,7 +36,7 @@ fn open(library: Option<&Path>) -> Result<Library, String> {
             library::LIBRARY_FILE
         ));
     }
-    Library::read(&root)
+    Library::read(root)
 }
 
 fn warn_unreadable(lib: &Library) {
@@ -40,8 +48,17 @@ fn warn_unreadable(lib: &Library) {
 /// `watches list`: one line or entry per watch, and how many takes wait in
 /// Unsorted. A watch is kept or deleted: one an older app marked archived
 /// is listed like any other, and `all` is accepted and changes nothing.
+///
+/// With no `--library`, a home folder the app has made no library in yet
+/// lists no watches, as the app's Watches view says "No watches yet"
+/// (#2342 item 10); a folder `--library` names that holds none is an
+/// error, as it is likely a slip.
 pub fn list(library: Option<&Path>, all: bool, json: bool) -> Result<(), String> {
-    let lib = open(library)?;
+    let root = root(library)?;
+    if library.is_none() && !Library::is_library(&root) {
+        return list_none(&root, all, json);
+    }
+    let lib = read(&root)?;
     let watches: Vec<&WatchEntry> = lib.watches.iter().collect();
     if json {
         let input = json!({ "library": lib.root.display().to_string(), "all": all });
@@ -94,6 +111,29 @@ pub fn list(library: Option<&Path>, all: bool, json: bool) -> Result<(), String>
         println!("  {}: {}", e.watch.name, parts.join(", "));
     }
     warn_unreadable(&lib);
+    Ok(())
+}
+
+/// `watches list` where the app has made no library yet: the document of
+/// an empty library, or a line saying where the app will make it.
+fn list_none(root: &Path, all: bool, json: bool) -> Result<(), String> {
+    if json {
+        let input = json!({ "library": root.display().to_string(), "all": all });
+        let body = json!({
+            "library": root.display().to_string(),
+            "bytes": 0,
+            "watches": [],
+            "unsorted": 0,
+            "unreadable": [],
+            "caveats": [],
+        });
+        return output::print("watches", input, &body);
+    }
+    println!(
+        "{}: no watches yet; the app makes its library here with the first watch, \
+         and --library names one elsewhere",
+        root.display()
+    );
     Ok(())
 }
 
@@ -227,7 +267,8 @@ fn print_watch(e: &WatchEntry, readings: &[Option<Reading>]) {
     print_takes(e, readings);
 }
 
-/// The takes, newest first, each on a line.
+/// The takes, newest first, each on a line with its folder under it, to
+/// pass to `session`, `long`, `series` or `watches move-take` (#2101).
 fn print_takes(e: &WatchEntry, readings: &[Option<Reading>]) {
     println!(
         "  {}, {}:",
@@ -237,6 +278,7 @@ fn print_takes(e: &WatchEntry, readings: &[Option<Reading>]) {
     for (t, reading) in e.takes.iter().zip(readings) {
         let test = library::take_test(&e.take_dir(t));
         println!("    {}: {}", t.name, take_line(t, test, reading.as_ref()));
+        println!("      Folder: {}", e.take_dir(t).display());
     }
 }
 

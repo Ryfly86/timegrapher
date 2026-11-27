@@ -267,6 +267,15 @@ pub fn positions_table(
         stretches,
         min_s,
     );
+    PositionsTable {
+        indices: indices_of(&rows),
+        rows,
+    }
+}
+
+/// The values over `rows`' positions read, as [`positions_table`] gives
+/// them.
+fn indices_of(rows: &[PositionRow]) -> StateIndices {
     let figures: Vec<SourcedFigures> = rows
         .iter()
         .filter_map(|r| {
@@ -280,10 +289,32 @@ pub fn positions_table(
             ))
         })
         .collect();
-    PositionsTable {
-        indices: sourced_indices(None, &figures),
-        rows,
+    sourced_indices(None, &figures)
+}
+
+impl PositionsTable {
+    /// The table of `log`'s positions judged as `session` judges each
+    /// position of the take ([`Measurement::judge_lock`]): on Auto, in a
+    /// lock off every standard rate, every row read off and the values
+    /// over the positions read again from them, so none is in s/d (#2253).
+    pub fn judge_lock(&mut self, bph_set: Option<u32>, log: &BeatLog) {
+        if judge_rows_lock(&mut self.rows, bph_set, log) {
+            self.indices = indices_of(&self.rows);
+        }
     }
+}
+
+/// Each of `rows`, positions of `log`'s beats, judged as
+/// [`Measurement::judge_lock`] judges a reading, the verdict taken once;
+/// true where they were read off.
+pub fn judge_rows_lock(rows: &mut [PositionRow], bph_set: Option<u32>, log: &BeatLog) -> bool {
+    let off = crate::analysis::lock_off_standard(bph_set, log);
+    if off {
+        for m in rows.iter_mut().filter_map(|r| r.measurement.as_mut()) {
+            m.read_off_standard(log.bph);
+        }
+    }
+    off
 }
 
 /// A take and how it is read: its beats, its clock, its breaks and its

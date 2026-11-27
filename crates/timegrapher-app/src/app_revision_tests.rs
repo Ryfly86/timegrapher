@@ -515,7 +515,9 @@ type Change = (&'static str, Box<dyn Fn(&mut TimegrapherApp)>);
 )]
 fn every_pane_follows_the_lift_the_clock_and_the_masks() {
     let ctx = egui::Context::default();
-    let mut app = synthetic(320.0, 12.0);
+    // Long enough that 5 minutes of beats are still heard once the mask
+    // takes its minute out: the steadiness tests wait for that (#2451).
+    let mut app = synthetic(380.0, 12.0);
     // Read as a take opened, on its own clock.
     app.put_take_breaks(Some(Vec::new()), None);
     let names = ["whole take", "charts", "Positions table", "steadiness"];

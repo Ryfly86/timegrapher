@@ -35,6 +35,7 @@ impl TimegrapherApp {
             bph: self.bench.take.bph,
             lift_deg: self.bench.take.lift_deg,
             lift_known: self.lift_known(),
+            escapement: self.escapement(),
             average_s: self.bench.take.average_s,
             masked: self.bench.take.masked.clone(),
             changes: stretches.iter().map(|s| s.0).collect(),
@@ -1326,6 +1327,7 @@ impl TimegrapherApp {
             bph: self.bench.take.bph.or_else(|| self.guided_bph()),
             lift: Some(self.bench.take.lift_deg),
             lift_known: Some(self.lift_known()),
+            escapement: self.bench.take.escapement_set,
             ..Default::default()
         };
         if let Some(w) = self.cal.custom_wheels(&self.bench.take.calibre) {
@@ -1377,7 +1379,10 @@ impl TimegrapherApp {
     /// calibre (a custom one is added to the custom calibres from its wheels),
     /// the lift angle and beat rate. Returns the positions it lists through
     /// the recording, oldest first, and the settling before each: a gap
-    /// between one position's end and the next one's start.
+    /// between one position's end and the next one's start. An open of a
+    /// take puts it in place with [`Self::apply_take_manifest`]; the tests
+    /// ask it here.
+    #[cfg(test)]
     pub(super) fn apply_manifest(
         &mut self,
         m: &Manifest,
@@ -1385,6 +1390,30 @@ impl TimegrapherApp {
         duration_s: Option<f64>,
     ) -> (Stretches, Vec<(f64, f64)>) {
         self.apply_manifest_placed(m, entries, duration_s, None)
+    }
+
+    /// [`Self::apply_manifest_placed`] for the take opened at `path`, the
+    /// one way every open of a take puts its session file in place (a
+    /// folder of sound files, one file, a take kept as its analysis):
+    /// then on Auto where it was recorded on Auto, as every reader of the
+    /// take reads it (core's `set_rate::read_as_recorded`, Peter on
+    /// #2357). Its session file's beat rate was then Auto's guess, and its
+    /// calibre's not the one chosen. Nothing is given at open, so
+    /// core's `set_rate::recorded_on_auto` alone decides here.
+    fn apply_take_manifest(
+        &mut self,
+        path: &Path,
+        m: &Manifest,
+        entries: &[RecordingEntry],
+        duration_s: Option<f64>,
+        layout: Option<&[EntryWindow]>,
+    ) -> (Stretches, Vec<(f64, f64)>) {
+        let out = self.apply_manifest_placed(m, entries, duration_s, layout);
+        let dir = timegrapher_core::take_path::folder(path);
+        if dir.is_some_and(timegrapher_core::set_rate::recorded_on_auto) {
+            self.put_bph(None);
+        }
+        out
     }
 
     /// [`Self::apply_manifest`] for a take opened from a folder of several
@@ -1408,6 +1437,8 @@ impl TimegrapherApp {
             self.cal.adopt(c, &wheels);
             self.set_calibre(c.clone());
         }
+        // The file's own escapement, outranking the calibre's (#2313).
+        self.bench.take.escapement_set = m.escapement;
         if m.lift.is_some() {
             // The lift by core's one rule, as `session` reads it (#2232):
             // a supplied lift stands, an assumed one gives way to the
@@ -1560,7 +1591,7 @@ impl TimegrapherApp {
                         self.bench.keeping.open_note = None;
                         let layout = folder_layout(path, &m, &entries);
                         let windows = layout.as_ref().map(|l| l.1.as_slice());
-                        self.apply_manifest_placed(&m, &entries, None, windows)
+                        self.apply_take_manifest(path, &m, &entries, None, windows)
                     }
                     None => {
                         self.fresh_setup(path, &files);
@@ -1647,6 +1678,7 @@ impl TimegrapherApp {
         WatchSetup {
             watch: self.bench.take.watch.clone(),
             calibre: self.bench.take.calibre.clone(),
+            escapement_set: self.bench.take.escapement_set,
             lift_deg: self.bench.take.lift_deg,
             lift_context: self.bench.take.lift_context,
             bph: self.bench.take.bph,
@@ -1660,6 +1692,7 @@ impl TimegrapherApp {
         self.bench.take.watch = s.watch;
         let outer = std::mem::replace(&mut self.bench.recording.opening, true);
         self.set_calibre(s.calibre);
+        self.bench.take.escapement_set = s.escapement_set;
         self.bench.recording.opening = outer;
         self.put_lift(s.lift_deg);
         self.bench.take.lift_context = s.lift_context;
@@ -1730,7 +1763,7 @@ impl TimegrapherApp {
                 let layout = folder_layout(path, &m, &entries);
                 let length = length.filter(|_| files.len() == 1);
                 let windows = layout.as_ref().map(|l| l.1.as_slice());
-                let out = self.apply_manifest_placed(&m, &entries, length, windows);
+                let out = self.apply_take_manifest(path, &m, &entries, length, windows);
                 self.watch_fills_in(path, &m);
                 out
             }
@@ -1882,7 +1915,8 @@ impl TimegrapherApp {
         self.keep_mic_setup();
         self.set_watch_setup(WatchSetup::default());
         self.bench.keeping.open_note = parts;
-        let (stretches, settles) = self.apply_manifest(&m, &entries, Some(header.duration_s));
+        let (stretches, settles) =
+            self.apply_take_manifest(path, &m, &entries, Some(header.duration_s), None);
         self.watch_fills_in(path, &m);
         let label = kept_label(path, &name);
         // Its beats, its own clock log with its USB lines' figure as
@@ -2636,6 +2670,8 @@ pub(super) struct OpenInputs {
     pub(super) bph: Option<u32>,
     pub(super) lift_deg: f64,
     pub(super) lift_known: bool,
+    /// The escapement read for (#2313).
+    pub(super) escapement: timegrapher_core::escapement::Escapement,
     pub(super) average_s: f64,
     pub(super) masked: Vec<(f64, f64)>,
     /// Where each position began, and the settling before each one's
@@ -2650,6 +2686,7 @@ fn config_for(i: &OpenInputs) -> LiveConfig {
     c.analysis.bph = i.bph;
     c.analysis.amplitude.lift_deg = i.lift_deg;
     c.analysis.lift_known = i.lift_known;
+    c.analysis.amplitude.escapement = i.escapement;
     c.profile_s = profile_span_s(i.average_s);
     // Every beat of as long as the strip can show, a power reserve
     // run's limit, rather than the engine's day: a take listened to

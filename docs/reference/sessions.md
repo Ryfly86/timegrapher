@@ -183,6 +183,19 @@ aside: the session's takes are read on Auto, `calibre_notes` says so, and
 `session --init` writes the same note as a comment in place of the `bph` line (see
 `--bph` in [agent-interface.md](agent-interface.md)).
 
+A take recorded on Auto is read on Auto. Its `session.json` beside the
+session file says so (its `bph` is `null`), and the session file's `bph`
+is then the rate Auto guessed while recording, so it and the calibre's
+rate give way: `session`, `analyze`, `shape`, `profile` and `long` on
+the take, the app's File > Open, Keep Analysis Only and the Watches view
+read the beat rate heard, and `summary.json`'s `input.settings.bph` is
+`null`. `--bph` still sets the rate. A take with no `session.json`, or
+whose `bph` names a rate, reads as above. A take moved in the app into a
+watch that sets a beat rate (one with its sound, not one kept as its
+analysis alone) takes that rate into its session file, and
+`session.json` gets `"bph_from_watch": true`, so the watch's rate
+stands; older builds ignore the key.
+
 `escapement = "co-axial"` (or `"swiss lever"`) says which escapement the
 take is read for, over the calibre's: a calibre the table marks co-axial
 (the Omega 2500D, 3861, 8500, 8501 and 8900) is read as one without it.
@@ -190,7 +203,10 @@ Co-axial reading is in beta (#2313): the beat error is the unlock's or
 none, never the drop's (on a co-axial the two sides' last sounds are
 different events), the unlock's is found whatever the lift angle, and the
 amplitude, read with the Swiss lever's formula, carries the
-`coaxial_estimate` caveat.
+`coaxial_estimate` caveat. Each reading carries `coaxial_beat_error`, with
+`why` when it has no beat error. The app reads a take, and listens live,
+for the escapement this key or the calibre gives, and saves the key back
+with a take that had it.
 
 Paths are relative to the session file. Any recording-level `settle_s` or
 `measure_s` overrides the session's. `shape = false` or `cycles = false`

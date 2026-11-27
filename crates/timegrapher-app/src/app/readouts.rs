@@ -79,10 +79,10 @@ pub(super) fn beat_error_card_wait(
     card_wait(unheard, r, be.is_some(), false).or(sides.filter(|_| be.is_none()))
 }
 
-/// Whether a reading's stretch holds no beat at all: no beat rate found,
-/// or none of its beats in the stretch (an opened recording of silence).
+/// Whether a reading's stretch holds no beat at all, by core's one rule
+/// ([`LiveReading::no_beat`]).
 pub(super) fn no_beat(r: &LiveReading) -> bool {
-    r.bph.is_none() || r.beats_used == 0
+    r.no_beat()
 }
 
 /// A wait's short words and its hover sentence, as core gives them.
@@ -442,8 +442,10 @@ pub(crate) fn trend_chip(
 }
 
 /// What a card's limits chip says, the first form that `fits` (Hugh,
-/// #1808): the first limit's words and how many more, then how many
-/// limits, then nothing, a bare warning chip. Every card's the same way.
+/// #1808): the first limit's words and how many more, then its shorter
+/// words where core gives some (`measure::shorter_words`, Hugh on #2319),
+/// then how many limits, then nothing, a bare warning chip. Every card's
+/// the same way.
 pub(crate) fn limits_chip_words(
     limits: &[(String, String)],
     fits: impl Fn(&str) -> bool,
@@ -458,8 +460,17 @@ pub(crate) fn limits_chip_words(
         1 => "1 limit".to_string(),
         _ => format!("{n} limits"),
     };
-    [named, count]
+    // The first limit's shorter words, where core gives it some.
+    let shorter = limits
+        .first()
+        .and_then(|l| timegrapher_core::measure::shorter_words(&l.0))
+        .map(|w| match n {
+            0 | 1 => chip_words(w),
+            _ => format!("{} +{}", chip_words(w), n - 1),
+        });
+    [Some(named), shorter, Some(count)]
         .into_iter()
+        .flatten()
         .find(|w| fits(w))
         .unwrap_or_default()
 }
@@ -878,7 +889,11 @@ impl TimegrapherApp {
         }
         // In the unit's place: what the reading waits on, as every card
         // says it, or why it is the position before.
-        let status = c.wait(rate.is_some(), false).or_else(|| {
+        // A lock off every standard rate gives no rate however many beats
+        // come: its chip says why, so the card waits for nothing (#2357).
+        let off =
+            c.r.is_some_and(|r| measure::off_standard(&r.caveats).is_some());
+        let status = c.wait(rate.is_some(), off).or_else(|| {
             self.stopped_in_settle().map(|at| {
                 (
                     "Before the Move".to_string(),

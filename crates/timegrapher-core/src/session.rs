@@ -478,6 +478,19 @@ impl Measurement {
         crate::measure::off_standard_withheld(o, self.confidence.as_mut(), &mut self.caveats);
     }
 
+    /// This reading of `log`'s beats, judged as every reading of a take's
+    /// beats is judged (#2253, #2327): on Auto (`bph_set` none), where
+    /// the log's lock is off every standard rate
+    /// ([`crate::analysis::lock_off_standard`]), read off at the log's
+    /// rate ([`Self::read_off_standard`]). The one judge-and-read for a
+    /// saved take's reading, the app's whole take and its Positions Test
+    /// rows.
+    pub fn judge_lock(&mut self, bph_set: Option<u32>, log: &BeatLog) {
+        if crate::analysis::lock_off_standard(bph_set, log) {
+            self.read_off_standard(log.bph);
+        }
+    }
+
     /// The lift angle was a default, not the calibre's: the caveat is
     /// named, as `analyze` names it. [`measure`] takes the lift angle as
     /// known.
@@ -1328,10 +1341,11 @@ pub fn measure_reading(
             }
         }
     }
-    if let Some(caveat) = m
-        .beat_error_source
-        .and_then(|s| s.caveat_why(figures.unlock_inconsistent))
-    {
+    if let Some(caveat) = log.escapement.beat_error_caveat(
+        m.beat_error_source,
+        figures.unlock_inconsistent,
+        m.watch_heard && !awaiting,
+    ) {
         crate::measure::add(&mut m.caveats, caveat);
     }
     if let Some(caveat) = log.escapement.amplitude_caveat(m.amplitude_deg.is_some()) {
@@ -1594,9 +1608,10 @@ fn state(wind_h: Option<f64>, readings: &[&Reading], over: &[Position]) -> State
 #[path = "session_aggregates.rs"]
 mod session_aggregates;
 pub use session_aggregates::{
-    comparison, group_mean, has_mean, position_rows, positions_table, sourced_indices,
-    sourced_indices_over, Comparison, LiftGap, PositionGroup, PositionRow, PositionsTable,
-    SourcedFigures, TakeRead, IE_NAME, IM_NAME, MEAN_LEAST_POSITIONS, POSITION_MIN_S,
+    comparison, group_mean, has_mean, judge_rows_lock, position_rows, positions_table,
+    sourced_indices, sourced_indices_over, Comparison, LiftGap, PositionGroup, PositionRow,
+    PositionsTable, SourcedFigures, TakeRead, IE_NAME, IM_NAME, MEAN_LEAST_POSITIONS,
+    POSITION_MIN_S,
 };
 
 fn largest(v: impl Iterator<Item = f64>) -> Option<f64> {

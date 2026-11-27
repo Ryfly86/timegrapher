@@ -78,7 +78,12 @@ pub fn resolve_for(
     }
     .resolve_for_take(&m)?;
     let given = timegrapher_core::take::Given { bph, lift_deg };
-    let set = timegrapher_core::take::stream_settings(&m, train.calibre.as_ref(), given).analysis;
+    let mut set =
+        timegrapher_core::take::stream_settings(&m, train.calibre.as_ref(), given).analysis;
+    // A take recorded on Auto is read on Auto, as `session` reads it.
+    if let Some(dir) = timegrapher_core::take_path::folder(file) {
+        timegrapher_core::set_rate::read_as_recorded(dir, &mut set);
+    }
     Ok(Resolved {
         bph: set.bph,
         bph_from: set.bph_from,
@@ -305,7 +310,8 @@ fn print_one(cat: &Catalog, e: Entry) {
     if e.is_custom() {
         println!("Added by you  (not in the shipped table)");
     }
-    // An escapement not measured yet, on its own line (#1872).
+    // An escapement other than the Swiss lever, on its own line: how a
+    // co-axial is read (#2313), or one not measured yet (#1872).
     if let Some(x) = e.escapement() {
         println!("{}", x.sentence());
     }
