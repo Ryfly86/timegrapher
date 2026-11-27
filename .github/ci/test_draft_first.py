@@ -2,8 +2,12 @@
 only the quick job, and every other job runs only off a draft. Reads the
 workflow as text (no YAML library on every runner); no network or git."""
 
+import os
 import pathlib
 import re
+import shutil
+import subprocess
+import tempfile
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -80,6 +84,58 @@ class DraftRule(unittest.TestCase):
         gate = (ROOT / ".github/scripts/release_ci_gate.py").read_text(encoding="utf-8")
         self.assertNotIn(f'"{name}"', gate)
         self.assertFalse(name.startswith(("test (", "regress (", "mcp-renderer")), name)
+
+
+def mode_script():
+    """The `run: |` text of mode's "Draft or ready" step, unindented."""
+    text = jobs()["mode"]
+    block = text.split("        run: |\n", 1)[1]
+    lines = []
+    for line in block.split("\n"):
+        if line and not line.startswith("          "):
+            break
+        lines.append(line[10:])
+    return "\n".join(lines)
+
+
+# (event, event draft, event head, what `gh api` prints or None if it fails,
+#  expected output line)
+MODE_CASES = [
+    ("push", "", "", "false abc", "full=true quick=false"),
+    ("workflow_dispatch", "", "", "true abc", "full=true quick=false"),
+    # #2368: the ready_for_review event still named the old head.
+    ("pull_request", "false", "old", "false new", "full=false quick=false"),
+    # #2368: the push's synchronize event still said draft.
+    ("pull_request", "true", "new", "false new", "full=true quick=false"),
+    ("pull_request", "true", "abc", "true abc", "full=false quick=true"),
+    ("pull_request", "true", "abc", None, "full=false quick=true"),
+    ("pull_request", "false", "abc", None, "full=true quick=false"),
+    # Marked ready, then back to draft before the run started.
+    ("pull_request", "false", "abc", "true abc", "full=false quick=true"),
+]
+
+
+@unittest.skipIf(os.name == "nt" or not shutil.which("bash"), "needs bash")
+class ModeDecides(unittest.TestCase):
+    """Runs mode's own script from ci.yml with a fake `gh` on PATH."""
+
+    def run_mode(self, event, draft, head, live):
+        with tempfile.TemporaryDirectory() as tmp:
+            gh = pathlib.Path(tmp, "gh")
+            gh.write_text("#!/bin/sh\n" + ("exit 1\n" if live is None else f"echo '{live}'\n"))
+            gh.chmod(0o755)
+            out = pathlib.Path(tmp, "out")
+            env = dict(os.environ, PATH=f"{tmp}{os.pathsep}{os.environ['PATH']}",
+                       GITHUB_OUTPUT=str(out), EVENT=event, EVENT_DRAFT=draft,
+                       EVENT_HEAD=head, PR_URL="repos/o/r/pulls/1", GH_TOKEN="x")
+            subprocess.run(["bash", "-c", mode_script()], env=env, check=True,
+                           capture_output=True, text=True)
+            return " ".join(out.read_text().split())
+
+    def test_the_eight_cases(self):
+        for event, draft, head, live, want in MODE_CASES:
+            with self.subTest(event=event, draft=draft, head=head, live=live):
+                self.assertEqual(self.run_mode(event, draft, head, live), want)
 
 
 if __name__ == "__main__":
