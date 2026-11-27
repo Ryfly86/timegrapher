@@ -29,6 +29,14 @@ name: CI
 # head's real results, which read as passing once it is ready again. Its
 # next push cancels any full run still going. A pull request opened ready,
 # as outside contributors' are, runs the whole suite on every push.
+#
+# Whether a run is a draft's is read live, by the first job, `mode`, not
+# from the event: an event can carry the pull request as it was a few
+# seconds before. Marking a PR ready 3 s after a push (#2368, 27 Nov) gave a
+# ready_for_review event still naming the old head, which this run's
+# concurrency then cancelled, and a synchronize event for the new head that
+# still said draft, so the new head ran only `quick` and no required check
+# ever reported.
 on:
   push:
     branches: [main]
@@ -48,6 +56,47 @@ concurrency:
   cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
+  # Draft or ready, read live (the comment at the top). Off a pull request
+  # everything runs. A run whose event names an older head than the pull
+  # request has now runs nothing: a push made that head, and its own run
+  # (which cancels this one) tests it. If the API can't be reached, the
+  # event decides, as before.
+  mode:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      full: ${{ steps.mode.outputs.full }}
+      quick: ${{ steps.mode.outputs.quick }}
+    steps:
+      - name: Draft or ready
+        id: mode
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          PR_URL: repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}
+          EVENT_DRAFT: ${{ github.event.pull_request.draft }}
+          EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          full=true quick=false
+          if [ "$EVENT" = pull_request ]; then
+            draft="$EVENT_DRAFT" head="$EVENT_HEAD"
+            if live="$(gh api "$PR_URL" --jq '"\(.draft) \(.head.sha)"')"; then
+              read -r draft head <<< "$live"
+            else
+              echo "Could not read the PR live; using the event's draft state."
+            fi
+            echo "event: draft=$EVENT_DRAFT head=$EVENT_HEAD; now: draft=$draft head=$head"
+            if [ "$head" != "$EVENT_HEAD" ]; then
+              echo "The PR has a newer head; its own run tests it."
+              full=false
+            elif [ "$draft" = true ]; then
+              full=false quick=true
+            fi
+          fi
+          echo "full=$full quick=$quick"
+          echo "full=$full" >> "$GITHUB_OUTPUT"
+          echo "quick=$quick" >> "$GITHUB_OUTPUT"
+
   test:
     name: test (${{ matrix.os }}${{ matrix.part && format(' {0}', matrix.part) || '' }})
     strategy:
@@ -73,7 +122,8 @@ jobs:
             part: 2/2
     # Every job below but `quick` runs only off a draft (the comment at the
     # top), and this anchor names the rule for all of them.
-    if: &full-suite ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
+    needs: mode
+    if: &full-suite ${{ needs.mode.outputs.full == 'true' }}
     runs-on: ${{ matrix.os }}
     # Time limits count from when a runner starts the job, not the queue, and
     # sit above the slowest recent run so a hung job fails within the hour
@@ -210,6 +260,7 @@ jobs:
       matrix:
         os: [ubuntu-24.04]
         part: [1/2, 2/2]
+    needs: mode
     if: *full-suite
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
@@ -235,7 +286,7 @@ jobs:
   test-linux-result:
     name: test (${{ matrix.os }})
     needs: test-linux
-    if: ${{ !cancelled() && (github.event_name != 'pull_request' || !github.event.pull_request.draft) }}
+    if: ${{ !cancelled() && needs.test-linux.result != 'skipped' }}
     strategy:
       matrix:
         os: [ubuntu-24.04]
@@ -262,6 +313,7 @@ jobs:
       matrix:
         os: [macos-latest]
         part: [1/2, 2/2]
+    needs: mode
     if: *full-suite
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
@@ -274,7 +326,7 @@ jobs:
   test-macos-result:
     name: test (${{ matrix.os }})
     needs: test-macos
-    if: ${{ !cancelled() && (github.event_name != 'pull_request' || !github.event.pull_request.draft) }}
+    if: ${{ !cancelled() && needs.test-macos.result != 'skipped' }}
     strategy:
       matrix:
         os: [macos-latest]
@@ -288,7 +340,14 @@ jobs:
           echo "macOS tests, both halves: $RESULT"
           test "$RESULT" = success
 
+  # A one-entry matrix, as the test summaries are: made after `mode`, it
+  # must not be skipped under its required name on a draft.
   mcp-renderer:
+    name: ${{ matrix.job }}
+    strategy:
+      matrix:
+        job: [mcp-renderer]
+    needs: mode
     if: *full-suite
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -334,7 +393,8 @@ jobs:
   # repository's caches sit near GitHub's 10 GB limit.
   quick:
     name: quick (ubuntu-24.04)
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft }}
+    needs: mode
+    if: ${{ needs.mode.outputs.quick == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -398,6 +458,7 @@ jobs:
       fail-fast: false
       matrix:
         check: [engine, app, mcp]
+    needs: mode
     if: *full-suite
     runs-on: ubuntu-24.04
     # Above the longest step's own limit plus about 6 minutes of setup,
