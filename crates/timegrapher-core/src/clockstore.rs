@@ -124,6 +124,8 @@ fn user_path() -> Result<PathBuf, String> {
 /// is left in place, empty, and the system lets go of the lock when the
 /// holder ends, however it ends. A reader takes no lock: the store is
 /// replaced whole, so it reads the store before a change or after it.
+/// Two writers share the lock only when they see the same temporary
+/// folder (`TMPDIR` on Unix), as the session lock does.
 fn lock(p: &Path) -> Result<fs::File, String> {
     use sha2::{Digest, Sha256};
     let dir = match p.parent().filter(|d| !d.as_os_str().is_empty()) {
