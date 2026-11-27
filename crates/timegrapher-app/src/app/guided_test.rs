@@ -58,6 +58,10 @@ pub(super) struct GuidedTest {
     /// A test set up on a clear Bench, waiting for Start Test on the
     /// Listen card: the Positions Test or the Power Reserve Test.
     pub(super) test_ready: Option<NewTake>,
+    /// The Current Position card as it was before New Test set a test up
+    /// on the Bench: Cancel Test, or the test's take thrown away, puts it
+    /// back, so the Bench is left as it was (#2340).
+    pub(super) bench_before: Option<BenchBefore>,
     /// Stop Test… pressed on the Listen card, its question open.
     pub(super) stop_test_ask: bool,
     /// The Current Position card offers ten positions, the four 45°
@@ -71,6 +75,14 @@ pub(super) struct GuidedTest {
     /// answered, and for the Positions Test whether just after winding
     /// (`None`) or the 24 hour half.
     pub(super) guided_after_ask: Option<(guided::Kind, Option<guided::FullWind>)>,
+}
+
+/// The Current Position card before a test was set up on it: its
+/// position and its 6 | 10 switch.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct BenchBefore {
+    pub(super) position: Position,
+    pub(super) ten: bool,
 }
 
 impl Default for GuidedTest {
@@ -95,6 +107,7 @@ impl Default for GuidedTest {
             guided_earlier_for: None,
             guided_after: false,
             test_ready: None,
+            bench_before: None,
             stop_test_ask: false,
             ten_positions: false,
             guided_measure_s: guided::MEASURE_S,
