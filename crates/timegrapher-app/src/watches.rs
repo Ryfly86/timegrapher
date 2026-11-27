@@ -492,7 +492,7 @@ pub fn photo_strip(
 ) -> Option<PhotoAction> {
     let mut act = None;
     let pal = theme::pal(ui);
-    egui::ScrollArea::horizontal()
+    crate::theme::scroll(egui::ScrollArea::horizontal())
         .id_salt("photo strip")
         .show(ui, |ui| {
             ui.horizontal(|ui| {
@@ -2010,7 +2010,7 @@ pub fn form(ctx: &egui::Context, f: &mut Form, cal: &mut Calibres) -> Option<For
                 .font(theme::semibold(15.0)),
         );
         ui.add_space(6.0);
-        egui::ScrollArea::vertical()
+        crate::theme::scroll(egui::ScrollArea::vertical())
             .max_height(420.0)
             .show(ui, |ui| {
                 ui.push_id("watch form fields", |ui| fields(ui, &mut f.watch, cal))

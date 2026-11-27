@@ -3,6 +3,7 @@
 use timegrapher_core::audio::Audio;
 use timegrapher_core::diagnose::{check, DiagnoseConfig, IssueCode};
 use timegrapher_core::synth::{generate, SynthConfig};
+use timegrapher_core::{analysis, measure};
 
 fn watch(snr_db: f64) -> Audio {
     let cfg = SynthConfig {
@@ -166,13 +167,14 @@ fn the_check_keeps_the_beats_every_reading_keeps() {
 /// A watch whose beats are found, half or more of them, but whose ticks
 /// barely stand over the noise is named `no_ticks` for its faint signal,
 /// the test that fired, and the title says so, not its timing scatter
-/// (#772).
+/// (#772). At 10 dB `analyze` still hears the watch, so faint is the only
+/// test that fires; at 0 dB it hears none and names that instead (#2091).
 #[test]
 fn a_faint_watch_is_named_for_its_signal_not_its_timing() {
     let a = generate(
         &SynthConfig {
             duration_s: 30.0,
-            snr_db: 0.0,
+            snr_db: 10.0,
             ..Default::default()
         },
         |_| 270.0,
@@ -181,6 +183,7 @@ fn a_faint_watch_is_named_for_its_signal_not_its_timing() {
     let c = check(&a, &DiagnoseConfig::default());
     let x = c.signal_x.expect("a signal figure");
     assert!(x < 3.0, "signal {x}");
+    assert!(c.watch_heard, "{c:?}");
     assert!(c.beats_found * 2 >= c.beats_expected, "{c:?}");
     let i = c
         .issues
@@ -199,9 +202,10 @@ fn a_faint_watch_is_named_for_its_signal_not_its_timing() {
 }
 
 /// A watch timed over the start of the take and then nearly lost, so under
-/// half the beats expected are found though they time, is named for its
-/// few beats, whether its signal stands over the noise or is faint too:
-/// the beat count is the test that fired first (#772).
+/// half the beats expected are found, is no regular beat as `analyze`
+/// finds it, in its words, whether its signal stands over the noise or is
+/// faint too, and no readings are given: the doctor has no beat-count test
+/// of its own (Norm on #2091; #772 named the count before).
 #[test]
 fn a_watch_with_few_beats_is_named_for_them_faint_or_not() {
     for (keep_s, faint) in [(10.0, false), (4.0, true)] {
@@ -223,6 +227,9 @@ fn a_watch_with_few_beats_is_named_for_them_faint_or_not() {
         assert!(c.beats_found * 2 < c.beats_expected, "{keep_s} s: {c:?}");
         let x = c.signal_x.expect("a signal figure");
         assert_eq!(x < 3.0, faint, "{keep_s} s: signal {x}");
+        let s = analysis::analyze(&a, &analysis::AnalysisConfig::default()).summary;
+        assert!(!s.watch_heard, "{keep_s} s");
+        let reason = measure::no_watch_reason_in(&s.caveats).unwrap_or_default();
         let i = c
             .issues
             .iter()
@@ -230,10 +237,12 @@ fn a_watch_with_few_beats_is_named_for_them_faint_or_not() {
             .expect("no_ticks");
         assert_eq!(
             i.title,
-            format!(
-                "No regular beat found (only {} of about {} beats)",
-                c.beats_found, c.beats_expected
-            ),
+            measure::no_watch_text(reason, s.jitter_us, s.bph_set),
+            "{keep_s} s"
+        );
+        assert_eq!(
+            (c.rate_s_per_day, c.beat_error_ms),
+            (None, None),
             "{keep_s} s"
         );
     }
@@ -259,14 +268,13 @@ fn digital_silence_gives_no_signal_figure() {
     }
     let c = check(&a, &DiagnoseConfig::default());
     assert_eq!(c.signal_x, None, "{c:?}");
-    let i = c
-        .issues
-        .iter()
-        .find(|i| i.code == IssueCode::NoTicks)
-        .expect("no_ticks");
+    // The 12 s of watch are heard, as `analyze` hears them (#2091): with no
+    // signal figure the ticks are not called faint (#784), so no
+    // `no_ticks`, and the watch's readings are given.
+    assert!(c.watch_heard, "{c:?}");
+    assert!(!c.has(IssueCode::NoTicks), "{:?}", c.issues);
     assert!(
-        i.evidence.ends_with("beats found, no signal figure"),
-        "{}",
-        i.evidence
+        c.rate_s_per_day.is_some() && c.beat_error_ms.is_some(),
+        "{c:?}"
     );
 }
