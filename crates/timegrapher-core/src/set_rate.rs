@@ -88,18 +88,11 @@ pub const WATCH_RATE_KEY: &str = "bph_from_watch";
 /// from [`crate::recorder::SessionInfo`], is null), and no watch it was
 /// moved into set one since ([`WATCH_RATE_KEY`]). A take with no
 /// `session.json`, one that can't be read, or one the recorder did not
-/// write (no `lift_deg`) is not, nor is one with no `bph` key: only a
-/// `bph` written null says Auto. Moves onto `recorder::recorded_setup`
-/// (#2393), with a flag for a `bph` written null, once that reader is on
-/// main, so the file is read in one place.
+/// write (no lift angle) is not, nor is one with no `bph` key: only a
+/// `bph` written null says Auto. Read by
+/// [`crate::recorder::recorded_setup`], the file's one reader.
 pub fn recorded_on_auto(dir: &std::path::Path) -> bool {
-    use serde_json::Value;
-    let json = crate::breaks::read_session(&dir.join(crate::take::RECORD));
-    let auto = |v: &Value| {
-        let watch = v.get(WATCH_RATE_KEY) == Some(&Value::Bool(true));
-        v.get("lift_deg").is_some() && v.get("bph") == Some(&Value::Null) && !watch
-    };
-    matches!(json, Ok(Some(v)) if auto(&v))
+    crate::recorder::recorded_setup(dir).is_some_and(|r| r.on_auto)
 }
 
 /// Mark the take in `dir` as one whose beat rate a watch set
