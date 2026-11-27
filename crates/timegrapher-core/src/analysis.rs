@@ -132,16 +132,6 @@ pub struct Summary {
 }
 
 impl Summary {
-    /// The seconds of sound listened to: the recording less any lead of
-    /// noise left out before the watch ([`crate::measure::Caveat::LeadLeftOut`]).
-    pub fn listened_s(&self) -> f64 {
-        let lead = self.caveats.iter().find_map(|c| match c {
-            crate::measure::Caveat::LeadLeftOut { seconds } => Some(*seconds),
-            _ => None,
-        });
-        self.duration_s - lead.unwrap_or(0.0)
-    }
-
     /// Clear every reading, as when no regular beat is found: they would
     /// describe noise. What says so (`watch_heard`, `jitter_us`,
     /// `timing_scatter_fraction`, `beats_found`) and what describes the recording and the sound card
@@ -419,7 +409,11 @@ pub fn reads_better(again: &Summary, first: &Summary) -> bool {
 /// the beats its span after any lead holds at its rate, counting the
 /// beats at both ends as the kept ones are counted.
 fn kept_of(s: &Summary) -> Option<(f64, f64)> {
-    let span = s.listened_s();
+    let lead = s.caveats.iter().find_map(|c| match c {
+        crate::measure::Caveat::LeadLeftOut { seconds } => Some(*seconds),
+        _ => None,
+    });
+    let span = s.duration_s - lead.unwrap_or(0.0);
     let held = crate::beats::expected_beats(span, s.bph) + 1.0;
     s.overall
         .filter(|_| span > 0.0)

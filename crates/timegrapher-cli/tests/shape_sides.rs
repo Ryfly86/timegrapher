@@ -192,3 +192,27 @@ fn shape_measures_nothing_on_noise() {
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Half a second of a watch: too little for any verdict, so `analyze`
+/// reads no shape and says "Beat regularity not assessed". `shape` says
+/// exactly that line, on the same seconds, and prints no table (#2371).
+#[test]
+fn shape_on_a_moment_of_sound_says_what_analyze_says() {
+    let dir = scratch("moment");
+    let config = dir.join("config");
+    let wav = dir.join("moment.wav");
+    let w = wav.to_str().unwrap();
+    run(&config, &["synth", w, "--duration", "0.5"]);
+    let a = json(&config, &["analyze", w, "--json"]);
+    assert!(a["shape"].is_null(), "{a}");
+    let analyze = run(&config, &["analyze", w]);
+    let said = analyze
+        .lines()
+        .find(|l| l.starts_with("Beat regularity not assessed"))
+        .unwrap_or_else(|| panic!("{analyze}"));
+    let text = run(&config, &["shape", w]);
+    assert_eq!(text.trim_end(), said, "{text}");
+    let s = json(&config, &["shape", w, "--json"]);
+    assert_eq!(s["windows"], Value::Array(vec![]), "{s}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
