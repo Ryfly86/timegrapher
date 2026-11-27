@@ -1930,4 +1930,106 @@ mod tests {
             assert!(!refused(url), "{url}");
         }
     }
+
+    /// Three replica factory abbreviations stay in the table only as
+    /// `family` search names, so a user who types one still finds the
+    /// row; every other row text, the READMEs and the research pages
+    /// never use them (#2361). They are held as SHA-256 hashes so the
+    /// names never appear in plain text.
+    mod factory_name {
+        use sha2::{Digest, Sha256};
+
+        const BANNED: [&str; 3] = [
+            "8db1a2e199a2464612e8cca8094efd9375149b55674e03e7763f957bde5ea3ac",
+            "00432ba4f046fa5364d0c7a370fc721cb52acc4acfb3027df2193a2137a35618",
+            "d78b39badc314015ca402b1b3be5cba662e7b6f2b654092ea8fe1c57a9a15250",
+        ];
+        /// Whether a text holds a banned name as a whole run of capital
+        /// letters (digits, spaces and marks around it count as breaks,
+        /// so the calibre number after it does not hide it).
+        pub(super) fn named(s: &str) -> bool {
+            s.split(|c: char| !c.is_ascii_alphabetic())
+                .filter(|w| !w.is_empty() && w.chars().all(|c| c.is_ascii_uppercase()))
+                .any(|w| {
+                    let hex: String = Sha256::digest(w.as_bytes())
+                        .iter()
+                        .map(|b| format!("{b:02x}"))
+                        .collect();
+                    BANNED.contains(&hex.as_str())
+                })
+        }
+        /// Every string in a value, leaving out `family` search names.
+        pub(super) fn prose<'a>(v: &'a serde_json::Value, out: &mut Vec<&'a str>) {
+            match v {
+                serde_json::Value::String(s) => out.push(s),
+                serde_json::Value::Array(a) => a.iter().for_each(|x| prose(x, out)),
+                serde_json::Value::Object(o) => o
+                    .iter()
+                    .filter(|(k, _)| k.as_str() != "family")
+                    .for_each(|(_, x)| prose(x, out)),
+                _ => {}
+            }
+        }
+    }
+
+    #[test]
+    fn factory_names_stay_only_as_search_names() {
+        use factory_name::{named, prose};
+        let mut hits = Vec::new();
+        for text in [DATA, MAKERS] {
+            let rows: serde_json::Value = serde_json::from_str(text).unwrap();
+            let mut out = Vec::new();
+            prose(&rows, &mut out);
+            hits.extend(out.into_iter().filter(|s| named(s)).map(str::to_owned));
+        }
+        let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+        let mut pages = vec![
+            format!("{root}/README.md"),
+            format!("{root}/crates/timegrapher-core/data/README.md"),
+        ];
+        for entry in std::fs::read_dir(format!("{root}/docs/research")).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().is_some_and(|e| e == "md" || e == "json") {
+                pages.push(path.display().to_string());
+            }
+        }
+        for page in pages {
+            let text = std::fs::read_to_string(&page).unwrap();
+            for (n, line) in text.lines().enumerate() {
+                if named(line) {
+                    hits.push(format!("{page}:{}", n + 1));
+                }
+            }
+        }
+        assert!(hits.is_empty(), "{} texts: {hits:?}", hits.len());
+    }
+
+    /// The check finds the names where the table keeps them as search
+    /// names (so the hashes are the real ones), and spares the movement
+    /// makers' prefixes and ordinary words.
+    #[test]
+    fn the_factory_name_check_bites_and_spares_movement_makers() {
+        use factory_name::named;
+        let rows: Vec<serde_json::Value> = serde_json::from_str(DATA).unwrap();
+        let kept: Vec<&str> = rows
+            .iter()
+            .flat_map(|r| r["family"].as_array().into_iter().flatten())
+            .filter_map(serde_json::Value::as_str)
+            .filter(|s| named(s))
+            .collect();
+        assert_eq!(kept.len(), 12, "{kept:?}");
+        for s in [
+            "Dandong (DD) 3135",
+            "DD3235",
+            "VR31xx",
+            "SH4131",
+            "JH3235",
+            "SA3120",
+            "Benrus EW",
+            "a clean take at 28,800 bph",
+            "https://forum.example/threads/ab-and-cd.1/",
+        ] {
+            assert!(!named(s), "{s}");
+        }
+    }
 }

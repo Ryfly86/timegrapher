@@ -9,8 +9,7 @@ with the barrel.** The resulting barrel drum period is **eight hours**.
 These counts extend the existing **SA3120** record, manufactured by
 **Jinghe**, as confirmed by this project on 2026-10-21. The catalogue files it
 under the maker **Shanghai Jinghe**, as a "clone of" the Audemars Piguet 3120
-(#2304). APS / ZF remain
-marketed aliases rather than movement-manufacturer attributions. No counts are transferred to genuine AP3120 or to older
+(#2304). No counts are transferred to genuine AP3120 or to older
 28,800 bph Miyota 9015-based AP replicas. The existing 53° lift setting
 remains sourced to the catalogue's forum guide, not to these photographs.
 

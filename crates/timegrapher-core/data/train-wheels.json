@@ -1025,35 +1025,35 @@
         "name": "escape wheel",
         "period_s": 5,
         "teeth": 20,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 10
       },
       {
         "name": "fourth wheel",
         "period_s": 60,
         "teeth": 120,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 18
       },
       {
         "name": "third wheel",
         "period_s": 320,
         "teeth": 96,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 12
       },
       {
         "name": "centre wheel",
         "period_s": 2160,
         "teeth": 81,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
         "pinion": 12
       },
       {
         "name": "barrel",
         "period_s": 18000,
         "teeth": 100,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx"
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx"
       },
       {
         "name": "cannon pinion",
@@ -1076,12 +1076,12 @@
       "https://gleave.london/seconds-wheel-fourth-wheel-rolex-3135-360-generic/",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 3135, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 3135, 52°)",
-      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
+      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/Dandong/VR applicability, 2026-10-19)",
       "https://giacatwatch.com/wp-content/uploads/2024/03/CALIBER-3135-3155-3175-3185-TECHNICAL-INFORMATION-1.pdf (Rolex technical information: 3135 at 28,800 bph and 52° lift)",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: its sister movements now have their own rows)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date. Its sister movements on the same train have their own rows (#1822). Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135.",
+    "notes": "Date. Its sister movements on the same train have their own rows (#1822). Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, Dandong and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135.",
     "summary": [
       {
         "text": "The date changes instantaneously, and the self-winding works in both directions.",
@@ -1131,35 +1131,35 @@
         "name": "escape wheel",
         "period_s": 5,
         "teeth": 20,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 10
       },
       {
         "name": "fourth wheel",
         "period_s": 60,
         "teeth": 120,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 18
       },
       {
         "name": "third wheel",
         "period_s": 320,
         "teeth": 96,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 12
       },
       {
         "name": "centre wheel",
         "period_s": 2160,
         "teeth": 81,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
         "pinion": 12
       },
       {
         "name": "barrel",
         "period_s": 18000,
         "teeth": 100,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx"
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx"
       },
       {
         "name": "cannon pinion",
@@ -1185,12 +1185,12 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 3130, 52°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 3135, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 3135, 52°)",
-      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
+      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/Dandong/VR applicability, 2026-10-19)",
       "https://giacatwatch.com/wp-content/uploads/2024/03/CALIBER-3135-3155-3175-3185-TECHNICAL-INFORMATION-1.pdf (Rolex technical information: 3135 at 28,800 bph and 52° lift)",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Time only (hours, minutes, centre seconds), no date. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135.",
+    "notes": "Time only (hours, minutes, centre seconds), no date. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, Dandong and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135.",
     "related": [
       {
         "calibre": "Rolex 3135",
@@ -1225,35 +1225,35 @@
         "name": "escape wheel",
         "period_s": 5,
         "teeth": 20,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 10
       },
       {
         "name": "fourth wheel",
         "period_s": 60,
         "teeth": 120,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 18
       },
       {
         "name": "third wheel",
         "period_s": 320,
         "teeth": 96,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 12
       },
       {
         "name": "centre wheel",
         "period_s": 2160,
         "teeth": 81,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
         "pinion": 12
       },
       {
         "name": "barrel",
         "period_s": 18000,
         "teeth": 100,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx"
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx"
       },
       {
         "name": "cannon pinion",
@@ -1277,11 +1277,11 @@
       "https://gleave.london/seconds-wheel-fourth-wheel-rolex-3135-360-generic/",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 3135, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 3135, 52°)",
-      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
+      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/Dandong/VR applicability, 2026-10-19)",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Day and date. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135.",
+    "notes": "Day and date. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, Dandong and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135.",
     "related": [
       {
         "calibre": "Rolex 3135",
@@ -1322,35 +1322,35 @@
         "name": "escape wheel",
         "period_s": 5,
         "teeth": 20,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 10
       },
       {
         "name": "fourth wheel",
         "period_s": 60,
         "teeth": 120,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 18
       },
       {
         "name": "third wheel",
         "period_s": 320,
         "teeth": 96,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 12
       },
       {
         "name": "centre wheel",
         "period_s": 2160,
         "teeth": 81,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
         "pinion": 12
       },
       {
         "name": "barrel",
         "period_s": 18000,
         "teeth": 100,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx"
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx"
       },
       {
         "name": "cannon pinion",
@@ -1377,11 +1377,11 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 3135, 52°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 3175, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 3175, 52°)",
-      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
+      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/Dandong/VR applicability, 2026-10-19)",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date and a 24-hour hand set with the hour hand. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135.",
+    "notes": "Date and a 24-hour hand set with the hour hand. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, Dandong and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135.",
     "summary": [
       {
         "text": "It carries a 12-hour and a 24-hour hand in the centre.",
@@ -1411,35 +1411,35 @@
         "name": "escape wheel",
         "period_s": 5,
         "teeth": 20,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 10
       },
       {
         "name": "fourth wheel",
         "period_s": 60,
         "teeth": 120,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 18
       },
       {
         "name": "third wheel",
         "period_s": 320,
         "teeth": 96,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 12
       },
       {
         "name": "centre wheel",
         "period_s": 2160,
         "teeth": 81,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
         "pinion": 12
       },
       {
         "name": "barrel",
         "period_s": 18000,
         "teeth": 100,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx"
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx"
       },
       {
         "name": "cannon pinion",
@@ -1466,11 +1466,11 @@
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 3135, 52°)",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 3185, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 3185, 52°)",
-      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
+      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/Dandong/VR applicability, 2026-10-19)",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date and a 24-hour hand, with the 12-hour hand set in one-hour steps. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135.",
+    "notes": "Date and a 24-hour hand, with the 12-hour hand set in one-hour steps. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, Dandong and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135.",
     "related": [
       {
         "calibre": "Rolex 3135",
@@ -1506,35 +1506,35 @@
         "name": "escape wheel",
         "period_s": 5,
         "teeth": 20,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 10
       },
       {
         "name": "fourth wheel",
         "period_s": 60,
         "teeth": 120,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 18
       },
       {
         "name": "third wheel",
         "period_s": 320,
         "teeth": 96,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 12
       },
       {
         "name": "centre wheel",
         "period_s": 2160,
         "teeth": 81,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
         "pinion": 12
       },
       {
         "name": "barrel",
         "period_s": 18000,
         "teeth": 100,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx"
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx"
       },
       {
         "name": "cannon pinion",
@@ -1558,12 +1558,12 @@
       "https://gleave.london/seconds-wheel-fourth-wheel-rolex-3135-360-generic/",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 3135, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 3135, 52°)",
-      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
+      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/Dandong/VR applicability, 2026-10-19)",
       "https://giacatwatch.com/wp-content/uploads/2024/03/CALIBER-3135-3155-3175-3185-TECHNICAL-INFORMATION-1.pdf (Rolex technical information: 3135 at 28,800 bph and 52° lift)",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date and a 24-hour hand, with an independently set hour hand. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135."
+    "notes": "Date and a 24-hour hand, with an independently set hour hand. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, Dandong and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135."
   },
   {
     "calibre": "Rolex 3187",
@@ -1581,35 +1581,35 @@
         "name": "escape wheel",
         "period_s": 5,
         "teeth": 20,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 10
       },
       {
         "name": "fourth wheel",
         "period_s": 60,
         "teeth": 120,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 18
       },
       {
         "name": "third wheel",
         "period_s": 320,
         "teeth": 96,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 12
       },
       {
         "name": "centre wheel",
         "period_s": 2160,
         "teeth": 81,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
         "pinion": 12
       },
       {
         "name": "barrel",
         "period_s": 18000,
         "teeth": 100,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx"
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx"
       },
       {
         "name": "cannon pinion",
@@ -1633,12 +1633,12 @@
       "https://gleave.london/seconds-wheel-fourth-wheel-rolex-3135-360-generic/",
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 3135, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 3135, 52°)",
-      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
+      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/Dandong/VR applicability, 2026-10-19)",
       "https://giacatwatch.com/wp-content/uploads/2024/03/CALIBER-3135-3155-3175-3185-TECHNICAL-INFORMATION-1.pdf (Rolex technical information: 3135 at 28,800 bph and 52° lift)",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date and an independently set 24-hour hand. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135.",
+    "notes": "Date and an independently set 24-hour hand. Shares the going train, escapement, beat rate and lift setting of Rolex 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, Dandong and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135.",
     "summary": [
       {
         "text": "Its second time zone has an hour hand that can be set on its own.",
@@ -1680,35 +1680,35 @@
         "name": "escape wheel",
         "period_s": 5,
         "teeth": 20,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 10
       },
       {
         "name": "fourth wheel",
         "period_s": 60,
         "teeth": 120,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 18
       },
       {
         "name": "third wheel",
         "period_s": 320,
         "teeth": 96,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 12
       },
       {
         "name": "centre wheel",
         "period_s": 2160,
         "teeth": 81,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
         "pinion": 12
       },
       {
         "name": "barrel",
         "period_s": 18000,
         "teeth": 100,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx"
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx"
       },
       {
         "name": "cannon pinion",
@@ -1722,12 +1722,12 @@
       }
     ],
     "sources": [
-      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
+      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/Dandong/VR applicability, 2026-10-19)",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: its sister movements now have their own rows)",
       "https://github.com/peterhudson/timegrapher/issues/2299 (this project's bench report, 2026-11-25) (\"The lift angle on the DD is the same as the genuine calibre: 52 degrees. This applies to all the DD31xx calibres.\")"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date (the 3135's layout). Its sister movements on the same train have their own rows (#1822). Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts alone do not establish lift-angle equivalence. The 52° lift angle is the genuine 3135's, from this project's bench report of 2026-11-25 (#2299), which also says DD31xx and VR31xx pallet forks can be swapped for genuine ones. It is not a maker figure."
+    "notes": "Date (the 3135's layout). Its sister movements on the same train have their own rows (#1822). Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, Dandong and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts alone do not establish lift-angle equivalence. The 52° lift angle is the genuine 3135's, from this project's bench report of 2026-11-25 (#2299), which also says DD31xx and VR31xx pallet forks can be swapped for genuine ones. It is not a maker figure."
   },
   {
     "calibre": "Dandong 3130",
@@ -1746,35 +1746,35 @@
         "name": "escape wheel",
         "period_s": 5,
         "teeth": 20,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 10
       },
       {
         "name": "fourth wheel",
         "period_s": 60,
         "teeth": 120,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 18
       },
       {
         "name": "third wheel",
         "period_s": 320,
         "teeth": 96,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 12
       },
       {
         "name": "centre wheel",
         "period_s": 2160,
         "teeth": 81,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
         "pinion": 12
       },
       {
         "name": "barrel",
         "period_s": 18000,
         "teeth": 100,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx"
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx"
       },
       {
         "name": "cannon pinion",
@@ -1788,17 +1788,17 @@
       }
     ],
     "sources": [
-      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
+      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/Dandong/VR applicability, 2026-10-19)",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)",
       "https://github.com/peterhudson/timegrapher/issues/2299 (this project's bench report, 2026-11-25) (\"The lift angle on the DD is the same as the genuine calibre: 52 degrees. This applies to all the DD31xx calibres.\")"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Time only, no date (the 3130's layout). Shares the going train, escapement, beat rate and lift setting of Dandong 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts alone do not establish lift-angle equivalence. The 52° lift angle is the genuine 3135's, from this project's bench report of 2026-11-25 (#2299), which also says DD31xx and VR31xx pallet forks can be swapped for genuine ones. It is not a maker figure.",
+    "notes": "Time only, no date (the 3130's layout). Shares the going train, escapement, beat rate and lift setting of Dandong 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, Dandong and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts alone do not establish lift-angle equivalence. The 52° lift angle is the genuine 3135's, from this project's bench report of 2026-11-25 (#2299), which also says DD31xx and VR31xx pallet forks can be swapped for genuine ones. It is not a maker figure.",
     "related": [
       {
         "calibre": "Dandong 3135",
         "relation": "same base as",
-        "source": "https://github.com/peterhudson/timegrapher/issues/1822 (the project’s issue splitting the sister movements into rows) (\"`Dandong 3135`: DD/VS/Dandong 3130, 3186 and 3187.\")"
+        "source": "https://github.com/peterhudson/timegrapher/issues/1822 (the project’s issue splitting the sister movements into rows) (\"`Dandong 3135`: DD/[…]/Dandong 3130, 3186 and 3187.\")"
       }
     ]
   },
@@ -1819,35 +1819,35 @@
         "name": "escape wheel",
         "period_s": 5,
         "teeth": 20,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 10
       },
       {
         "name": "fourth wheel",
         "period_s": 60,
         "teeth": 120,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 18
       },
       {
         "name": "third wheel",
         "period_s": 320,
         "teeth": 96,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 12
       },
       {
         "name": "centre wheel",
         "period_s": 2160,
         "teeth": 81,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
         "pinion": 12
       },
       {
         "name": "barrel",
         "period_s": 18000,
         "teeth": 100,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx"
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx"
       },
       {
         "name": "cannon pinion",
@@ -1861,17 +1861,17 @@
       }
     ],
     "sources": [
-      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
+      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/Dandong/VR applicability, 2026-10-19)",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)",
       "https://github.com/peterhudson/timegrapher/issues/2299 (this project's bench report, 2026-11-25) (\"The lift angle on the DD is the same as the genuine calibre: 52 degrees. This applies to all the DD31xx calibres.\")"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date and an independently set 24-hour hand (the 3186's layout). Shares the going train, escapement, beat rate and lift setting of Dandong 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts alone do not establish lift-angle equivalence. The 52° lift angle is the genuine 3135's, from this project's bench report of 2026-11-25 (#2299), which also says DD31xx and VR31xx pallet forks can be swapped for genuine ones. It is not a maker figure.",
+    "notes": "Date and an independently set 24-hour hand (the 3186's layout). Shares the going train, escapement, beat rate and lift setting of Dandong 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, Dandong and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts alone do not establish lift-angle equivalence. The 52° lift angle is the genuine 3135's, from this project's bench report of 2026-11-25 (#2299), which also says DD31xx and VR31xx pallet forks can be swapped for genuine ones. It is not a maker figure.",
     "related": [
       {
         "calibre": "Dandong 3135",
         "relation": "same base as",
-        "source": "https://github.com/peterhudson/timegrapher/issues/1822 (the project’s issue splitting the sister movements into rows) (\"`Dandong 3135`: DD/VS/Dandong 3130, 3186 and 3187.\")"
+        "source": "https://github.com/peterhudson/timegrapher/issues/1822 (the project’s issue splitting the sister movements into rows) (\"`Dandong 3135`: DD/[…]/Dandong 3130, 3186 and 3187.\")"
       }
     ]
   },
@@ -1892,35 +1892,35 @@
         "name": "escape wheel",
         "period_s": 5,
         "teeth": 20,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 10
       },
       {
         "name": "fourth wheel",
         "period_s": 60,
         "teeth": 120,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 18
       },
       {
         "name": "third wheel",
         "period_s": 320,
         "teeth": 96,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 12
       },
       {
         "name": "centre wheel",
         "period_s": 2160,
         "teeth": 81,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
         "pinion": 12
       },
       {
         "name": "barrel",
         "period_s": 18000,
         "teeth": 100,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx"
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx"
       },
       {
         "name": "cannon pinion",
@@ -1934,17 +1934,17 @@
       }
     ],
     "sources": [
-      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
+      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/Dandong/VR applicability, 2026-10-19)",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)",
       "https://github.com/peterhudson/timegrapher/issues/2299 (this project's bench report, 2026-11-25) (\"The lift angle on the DD is the same as the genuine calibre: 52 degrees. This applies to all the DD31xx calibres.\")"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date and an independently set 24-hour hand (the 3187's layout). Shares the going train, escapement, beat rate and lift setting of Dandong 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts alone do not establish lift-angle equivalence. The 52° lift angle is the genuine 3135's, from this project's bench report of 2026-11-25 (#2299), which also says DD31xx and VR31xx pallet forks can be swapped for genuine ones. It is not a maker figure.",
+    "notes": "Date and an independently set 24-hour hand (the 3187's layout). Shares the going train, escapement, beat rate and lift setting of Dandong 3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, Dandong and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts alone do not establish lift-angle equivalence. The 52° lift angle is the genuine 3135's, from this project's bench report of 2026-11-25 (#2299), which also says DD31xx and VR31xx pallet forks can be swapped for genuine ones. It is not a maker figure.",
     "related": [
       {
         "calibre": "Dandong 3135",
         "relation": "same base as",
-        "source": "https://github.com/peterhudson/timegrapher/issues/1822 (the project’s issue splitting the sister movements into rows) (\"`Dandong 3135`: DD/VS/Dandong 3130, 3186 and 3187.\")"
+        "source": "https://github.com/peterhudson/timegrapher/issues/1822 (the project’s issue splitting the sister movements into rows) (\"`Dandong 3135`: DD/[…]/Dandong 3130, 3186 and 3187.\")"
       }
     ]
   },
@@ -1964,35 +1964,35 @@
         "name": "escape wheel",
         "period_s": 5,
         "teeth": 20,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 10
       },
       {
         "name": "fourth wheel",
         "period_s": 60,
         "teeth": 120,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 18
       },
       {
         "name": "third wheel",
         "period_s": 320,
         "teeth": 96,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 12
       },
       {
         "name": "centre wheel",
         "period_s": 2160,
         "teeth": 81,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
         "pinion": 12
       },
       {
         "name": "barrel",
         "period_s": 18000,
         "teeth": 100,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx"
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx"
       },
       {
         "name": "cannon pinion",
@@ -2008,13 +2008,13 @@
     "sources": [
       "https://forum.replica-watch.info/threads/comprehensive-guide-to-clone-movements-found-in-rolex-reps.10936248/ (a true clone, part compatible with genuine parts; no shock setting on the escape wheel)",
       "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)",
-      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
+      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/Dandong/VR applicability, 2026-10-19)",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: its sister movements now have their own rows)",
       "https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350 (an RWI forum post, quoted in the notes, 2026-11-16)",
       "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (made by Shanghai Jinghe)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date (the 3135's layout). Its sister movements on the same train have their own rows (#1822). Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix; the movement is made by Shanghai Jinghe (#2304). Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it. A post on RWI (https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350), quoted on 2026-11-16: \"The JH6001-1 is almost certainly what we call the VR3135\". It identifies the movement only; no figure in this row comes from it.",
+    "notes": "Date (the 3135's layout). Its sister movements on the same train have their own rows (#1822). Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, Dandong and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix; the movement is made by Shanghai Jinghe (#2304). Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it. A post on RWI (https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350), quoted on 2026-11-16: \"The JH6001-1 is almost certainly what we call the VR3135\". It identifies the movement only; no figure in this row comes from it.",
     "related": [
       {
         "calibre": "Rolex 3135",
@@ -2037,35 +2037,35 @@
         "name": "escape wheel",
         "period_s": 5,
         "teeth": 20,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 10
       },
       {
         "name": "fourth wheel",
         "period_s": 60,
         "teeth": 120,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 18
       },
       {
         "name": "third wheel",
         "period_s": 320,
         "teeth": 96,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 12
       },
       {
         "name": "centre wheel",
         "period_s": 2160,
         "teeth": 81,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
         "pinion": 12
       },
       {
         "name": "barrel",
         "period_s": 18000,
         "teeth": 100,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx"
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx"
       },
       {
         "name": "cannon pinion",
@@ -2081,13 +2081,13 @@
     "sources": [
       "https://forum.replica-watch.info/threads/comprehensive-guide-to-clone-movements-found-in-rolex-reps.10936248/ (a true clone, part compatible with genuine parts; no shock setting on the escape wheel)",
       "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)",
-      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
+      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/Dandong/VR applicability, 2026-10-19)",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)",
       "https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350 (an RWI forum post, quoted in the notes, 2026-11-16)",
       "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (made by Shanghai Jinghe)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Time only, no date (the 3130's layout). Shares the going train, escapement, beat rate and lift setting of VR3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix; the movement is made by Shanghai Jinghe (#2304). Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it. A post on RWI (https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350), quoted on 2026-11-16: \"The JH6000-1 is almost certainly what we call the VR3130\". It identifies the movement only; no figure in this row comes from it.",
+    "notes": "Time only, no date (the 3130's layout). Shares the going train, escapement, beat rate and lift setting of VR3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, Dandong and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix; the movement is made by Shanghai Jinghe (#2304). Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it. A post on RWI (https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350), quoted on 2026-11-16: \"The JH6000-1 is almost certainly what we call the VR3130\". It identifies the movement only; no figure in this row comes from it.",
     "related": [
       {
         "calibre": "Rolex 3130",
@@ -2115,35 +2115,35 @@
         "name": "escape wheel",
         "period_s": 5,
         "teeth": 20,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 10
       },
       {
         "name": "fourth wheel",
         "period_s": 60,
         "teeth": 120,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 18
       },
       {
         "name": "third wheel",
         "period_s": 320,
         "teeth": 96,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 12
       },
       {
         "name": "centre wheel",
         "period_s": 2160,
         "teeth": 81,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
         "pinion": 12
       },
       {
         "name": "barrel",
         "period_s": 18000,
         "teeth": 100,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx"
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx"
       },
       {
         "name": "cannon pinion",
@@ -2159,12 +2159,12 @@
     "sources": [
       "https://forum.replica-watch.info/threads/comprehensive-guide-to-clone-movements-found-in-rolex-reps.10936248/ (a true clone, part compatible with genuine parts; no shock setting on the escape wheel)",
       "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)",
-      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
+      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/Dandong/VR applicability, 2026-10-19)",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)",
       "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (made by Shanghai Jinghe)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date and an independently set 24-hour hand (the 3186's layout). Shares the going train, escapement, beat rate and lift setting of VR3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix; the movement is made by Shanghai Jinghe (#2304). Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it.",
+    "notes": "Date and an independently set 24-hour hand (the 3186's layout). Shares the going train, escapement, beat rate and lift setting of VR3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, Dandong and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix; the movement is made by Shanghai Jinghe (#2304). Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it.",
     "related": [
       {
         "calibre": "Rolex 3186",
@@ -2192,35 +2192,35 @@
         "name": "escape wheel",
         "period_s": 5,
         "teeth": 20,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 10
       },
       {
         "name": "fourth wheel",
         "period_s": 60,
         "teeth": 120,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 18
       },
       {
         "name": "third wheel",
         "period_s": 320,
         "teeth": 96,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 12
       },
       {
         "name": "centre wheel",
         "period_s": 2160,
         "teeth": 81,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
         "pinion": 12
       },
       {
         "name": "barrel",
         "period_s": 18000,
         "teeth": 100,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx"
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx"
       },
       {
         "name": "cannon pinion",
@@ -2236,13 +2236,13 @@
     "sources": [
       "https://forum.replica-watch.info/threads/comprehensive-guide-to-clone-movements-found-in-rolex-reps.10936248/ (a true clone, part compatible with genuine parts; no shock setting on the escape wheel)",
       "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)",
-      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
+      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/Dandong/VR applicability, 2026-10-19)",
       "https://github.com/peterhudson/timegrapher/issues/1822 (2026-11-15: a separate movement on the same going train, split from its sister row's aliases)",
       "https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350 (an RWI forum post, quoted in the notes, 2026-11-16)",
       "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (made by Shanghai Jinghe)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Date and an independently set 24-hour hand (the 3187's layout). Shares the going train, escapement, beat rate and lift setting of VR3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix; the movement is made by Shanghai Jinghe (#2304). Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it. A post on RWI (https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350), quoted on 2026-11-16: \"The JH6002-1 is almost certainly what we call the VR3187\". It identifies the movement only; no figure in this row comes from it.",
+    "notes": "Date and an independently set 24-hour hand (the 3187's layout). Shares the going train, escapement, beat rate and lift setting of VR3135, from which it was split on 2026-11-15 (#1822); only the motion works differ. Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, Dandong and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. VR is a trade prefix; the movement is made by Shanghai Jinghe (#2304). Existing 52° lift setting retained from the cited forum guide; these photos do not independently verify it. A post on RWI (https://forum.replica-watch.info/threads/new-3235-free-sprung-from-sh-jh.11032029/#post-12474350), quoted on 2026-11-16: \"The JH6002-1 is almost certainly what we call the VR3187\". It identifies the movement only; no figure in this row comes from it.",
     "related": [
       {
         "calibre": "Rolex 3187",
@@ -3641,7 +3641,7 @@
       "https://forum.replica-watch.info/threads/a-comprehensive-info-on-the-vs4131-aka-dd4131.10997243/ (a T-shaped pallet fork as in Asian 7750s; no skeletonised escape wheel and no shock setting for it)"
     ],
     "confidence": "derived from the beat rate",
-    "notes": "A clone of the 4131 except for the escapement, which has a T-shaped pallet fork as in Asian 7750s, not the Chronergy one. Lift 52°, as the Rolex 31xx, whose pallet fork geometry it resembles, is a bench setting, not a published figure. The escape wheel is not the genuine one and is left out. The T-shaped pallet fork rests only on the Dandong (VS) factory's write-up on its own DD4131. That it is a clone of the 4131 except for the escapement rests only on one author's forum guide to clone movements."
+    "notes": "A clone of the 4131 except for the escapement, which has a T-shaped pallet fork as in Asian 7750s, not the Chronergy one. Lift 52°, as the Rolex 31xx, whose pallet fork geometry it resembles, is a bench setting, not a published figure. The escape wheel is not the genuine one and is left out. The T-shaped pallet fork rests only on a watch factory's write-up on its own DD4131. That it is a clone of the 4131 except for the escapement rests only on one author's forum guide to clone movements."
   },
   {
     "calibre": "Audemars Piguet 3120",
@@ -3897,14 +3897,14 @@
       }
     ],
     "sources": [
-      "This project, 2026-10-21: identifies Jinghe as the manufacturer of SA3120; APS and ZF retained as marketed movement aliases",
+      "This project, 2026-10-21: identifies Jinghe as the manufacturer of SA3120",
       "docs/research/ap3120-clone-train-wheel-counts.md — this project's six AP3120 clone microscope photographs, 21600 bph, hand periods and physically checked pinionless intermediate wheel, 2026-10-21",
       "https://forum.replica-watch.info/threads/aps-15400-super-clone-3120mvt.10248933/page-10 ('This movement is 21600bph')",
       "https://forum.replica-watch.info/threads/zf-new-release-15400-with-cal-3120.10367719/page-2 ('21600 vph')",
       "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)"
     ],
     "confidence": "derived from tooth counts",
-    "notes": "Photographed AP3120 clone train: barrel 104, simple intermediate 40 with no pinion, offset centre 80/13, third 75/10, fourth 81/10, escape 20/9, minutes-drive pinion 13. Contributor physically confirms the intermediate rim meshes directly with the barrel; its two pivots carry no pinion. It drives both the centre and minutes pinions. The one-hour cannon and one-minute fourth/centre-seconds periods agree with the counted train at 21600 bph. Original Third/Fourth/Fifth filenames map to centre/third/fourth roles. SA3120 is made by Jinghe, confirmed by this project on 2026-10-21. APS/ZF names are retained as marketed aliases, not movement manufacturers. Genuine AP3120 and older 28800 bph Miyota 9015-based replicas are outside this contribution. Existing 53° lift setting is retained from the forum guide; photographs do not establish lift angle.",
+    "notes": "Photographed AP3120 clone train: barrel 104, simple intermediate 40 with no pinion, offset centre 80/13, third 75/10, fourth 81/10, escape 20/9, minutes-drive pinion 13. Contributor physically confirms the intermediate rim meshes directly with the barrel; its two pivots carry no pinion. It drives both the centre and minutes pinions. The one-hour cannon and one-minute fourth/centre-seconds periods agree with the counted train at 21600 bph. Original Third/Fourth/Fifth filenames map to centre/third/fourth roles. SA3120 is made by Jinghe, confirmed by this project on 2026-10-21. Genuine AP3120 and older 28800 bph Miyota 9015-based replicas are outside this contribution. Existing 53° lift setting is retained from the forum guide; photographs do not establish lift angle.",
     "escape_teeth": 20,
     "related": [
       {
@@ -3944,7 +3944,7 @@
       }
     ],
     "sources": [
-      "https://forum.replica-watch.info/threads/apsf-and-zf-royal-oak-15500-w-4302-clone-caliber.10917856/page-16 (a ZF V3 timegrapher reading at 28,800, lift 52°)",
+      "https://forum.replica-watch.info/threads/apsf-and-zf-royal-oak-15500-w-4302-clone-caliber.10917856/page-16 (a forum timegrapher reading at 28,800, lift 52°)",
       "https://forum.replica-watch.info/threads/guide-how-to-understand-the-timegrapher-video-during-qc.11019462/ (lift angles used for clone and genuine calibres)",
       "https://github.com/peterhudson/timegrapher/issues/2304 (this project's issue on Jinghe's clone calibres, 2026-11-25) (made by Shanghai Jinghe)"
     ],
@@ -73692,35 +73692,35 @@
         "name": "escape wheel",
         "period_s": 5,
         "teeth": 20,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 10
       },
       {
         "name": "fourth wheel",
         "period_s": 60,
         "teeth": 120,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 18
       },
       {
         "name": "third wheel",
         "period_s": 320,
         "teeth": 96,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx",
         "pinion": 12
       },
       {
         "name": "centre wheel",
         "period_s": 2160,
         "teeth": 81,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx; this slot is the second wheel (36 minutes), not the one-hour cannon pinion",
         "pinion": 12
       },
       {
         "name": "barrel",
         "period_s": 18000,
         "teeth": 100,
-        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, DD/VS and VR31xx"
+        "basis": "derived from photographed VR31xx tooth counts and 28,800 bph; contributor reports the same train for Rolex, Dandong and VR31xx"
       },
       {
         "name": "cannon pinion",
@@ -73736,13 +73736,13 @@
     "sources": [
       "https://watchguy.co.uk/cgi-bin/lift_angles (Rolex 3131, 52°)",
       "https://watchmakingtools.com/watchmaking-resources/watch-movement-lift-angles/ (Rolex 3131, 52°)",
-      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/DD/VS/VR applicability, 2026-10-19)",
+      "https://github.com/peterhudson/timegrapher/blob/main/docs/research/31xx-train-wheel-counts.md (this project, VR31xx microscope photos and Rolex/Dandong/VR applicability, 2026-10-19)",
       "https://giacatwatch.com/wp-content/uploads/2024/03/CALIBER-3135-3155-3175-3185-TECHNICAL-INFORMATION-1.pdf (Rolex technical information: 3135 at 28,800 bph and 52° lift)"
     ],
     "confidence": "derived from tooth counts",
     "bph": 28800,
     "escape_teeth": 20,
-    "notes": "Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, DD/VS and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135."
+    "notes": "Train counts from this project's VR31xx photo set of 2026-10-19: barrel 100, second 81/12, third 96/12, fourth 120/18, escape 20/10. The project reports applicability to all genuine Rolex, Dandong and VR31xx, including 3130, 3135, 3186 and 3187; this is contributor-reported coverage, not separate photographs of every variant. The centre-wheel slot represents the second wheel: 2160 s (36 minutes), distinct from the 3600 s cannon pinion. Third wheel 320 s; barrel 18000 s (5 h), independent of power reserve. SH31xx and all 32xx trains are excluded. Matching counts do not establish lift-angle equivalence or parts interchangeability. Existing 52° lift setting retained; the Rolex technical manual publishes 52° for 3135."
   },
   {
     "calibre": "Rolex 3235 (53°)",
