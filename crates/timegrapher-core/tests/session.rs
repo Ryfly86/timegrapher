@@ -1242,7 +1242,7 @@ fn rate_cycles_name_their_quantity_and_give_no_share() {
     r.cycles = vec![escape, amp, slow];
     assert_eq!(
         session::timing_swing_note(std::slice::from_ref(&r)),
-        Some(session::TIMING_SWING_NOTE)
+        Some(session::timing_swing_text())
     );
     let rep = evaluate(&[r]);
     let of = |code: &str| -> Vec<&str> {
@@ -1277,9 +1277,7 @@ fn rate_cycles_name_their_quantity_and_give_no_share() {
         "{}",
         other[0]
     );
-    // The note's 30 s is core's rule.
-    let below = timegrapher_core::longrun::TIMING_UNIT_BELOW_S;
-    assert!(session::TIMING_SWING_NOTE.contains(&format!("shorter than {below:.0} s")));
+    assert!(session::timing_swing_text().contains("shorter than 30 s"));
 }
 
 /// With no cycle sized in ms, the reason for ms is not said.

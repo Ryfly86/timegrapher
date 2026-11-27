@@ -85,19 +85,24 @@ impl Cycle {
 
 /// Said once beside the findings or the cycles table when a cycle is sized
 /// as a timing swing ([`Cycle::size_words`]), so no line has to say it.
-pub const TIMING_SWING_NOTE: &str = "A rate cycle shorter than 30 s is sized as a timing swing in ms: a 10 s rate reading is too coarse to follow it.";
+pub fn timing_swing_text() -> String {
+    format!(
+        "A rate cycle shorter than {} s is sized as a timing swing in ms: a 10 s rate reading is too coarse to follow it.",
+        crate::longrun::TIMING_UNIT_BELOW_S
+    )
+}
 
 /// Said once under the cycles table: why a rate cycle has no share.
 pub const RATE_SHARE_NOTE: &str = "A rate cycle is found in the beat timing, which wanders as a walk, so a share of its variation says nothing about the cycle and none is given (–).";
 
-/// [`TIMING_SWING_NOTE`] when a finding sizes a cycle as a timing swing.
-pub fn timing_swing_note(readings: &[Reading]) -> Option<&'static str> {
+/// [`timing_swing_text`] when a finding sizes a cycle as a timing swing.
+pub fn timing_swing_note(readings: &[Reading]) -> Option<String> {
     readings
         .iter()
         .filter(|r| r.measurement.watch_heard)
         .flat_map(|r| r.cycles.iter().map(move |c| (r, c)))
         .any(|(r, c)| c.size_unit == "ms" && folded_into(r, c).is_none())
-        .then_some(TIMING_SWING_NOTE)
+        .then(timing_swing_text)
 }
 
 /// The cycle of `r` a cycle core marks as a harmonic of is reported with,

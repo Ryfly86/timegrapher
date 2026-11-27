@@ -1351,7 +1351,7 @@ mod session_cycles;
 use session_cycles::folded_into;
 #[cfg(test)]
 pub(crate) use session_cycles::wheel_fraction;
-pub use session_cycles::{cycles, timing_swing_note, Cycle, RATE_SHARE_NOTE, TIMING_SWING_NOTE};
+pub use session_cycles::{cycles, timing_swing_note, timing_swing_text, Cycle, RATE_SHARE_NOTE};
 
 /// One pallet stone's beat shape, from `shape`.
 ///

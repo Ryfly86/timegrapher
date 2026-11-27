@@ -541,6 +541,8 @@ fn cycles_table(sn: &Session) -> String {
         return s;
     }
     s.push_str(r#"<table class="data"><thead><tr><th>Position</th><th>In</th><th class="num">Period s</th><th class="num">Size p-p</th><th class="num">Share</th><th class="num">False alarm</th><th>Wheel</th><th>Recording</th></tr></thead><tbody>"#);
+    let has_rate = rows.iter().any(|(_, c)| c.series == "rate");
+    let has_ms = rows.iter().any(|(_, c)| c.size_unit == "ms");
     for (r, c) in rows {
         let wheel = match (&c.harmonic_of, &c.wheel, &c.nearest_wheel) {
             (Some(h), _, _) => format!(
@@ -575,12 +577,13 @@ fn cycles_table(sn: &Session) -> String {
         );
     }
     s.push_str(r#"</tbody></table>"#);
+    // Each note once, and only for the rows the table shows (Norm on #2433).
     let notes = [
-        Some(timegrapher_core::session::RATE_SHARE_NOTE),
-        timegrapher_core::session::timing_swing_note(&sn.readings),
+        has_rate.then(|| timegrapher_core::session::RATE_SHARE_NOTE.to_string()),
+        has_ms.then(timegrapher_core::session::timing_swing_text),
     ];
     for n in notes.into_iter().flatten() {
-        let _ = write!(s, r#"<p class="note">{}</p>"#, esc(n));
+        let _ = write!(s, r#"<p class="note">{}</p>"#, esc(&n));
     }
     s.push_str(r#"<p class="note">For the full picture of a cycle (its shape and a raster of every turn), run <code>timegrapher long</code> on that recording.</p>"#);
     s
@@ -742,7 +745,7 @@ fn findings_list(sn: &Session) -> String {
         body.push_str("</ul>");
         // Why a cycle is sized in ms, once, not on every line (Norm on #2100).
         if let Some(note) = timegrapher_core::session::timing_swing_note(&sn.readings) {
-            let _ = write!(body, r#"<p class="note">{}</p>"#, esc(note));
+            let _ = write!(body, r#"<p class="note">{}</p>"#, esc(&note));
         }
     }
     body
@@ -1171,7 +1174,7 @@ mod tests {
         );
         assert!(html.contains(&esc(session::RATE_SHARE_NOTE)), "{html}");
         assert_eq!(
-            html.matches(&esc(session::TIMING_SWING_NOTE)).count(),
+            html.matches(&esc(&session::timing_swing_text())).count(),
             2,
             "{html}"
         );
