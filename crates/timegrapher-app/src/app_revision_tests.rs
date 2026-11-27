@@ -326,7 +326,9 @@ fn a_takes_usb_lines_set_its_rate() {
 fn steadiness_now(app: &mut TimegrapherApp, ctx: &egui::Context) -> String {
     let start = Instant::now();
     loop {
-        // As a Steadiness pane shown asks for them.
+        // As the window reads the readings again, then a Steadiness pane
+        // shown asks for them.
+        app.refresh_trend();
         app.bench.results.bg.shown_pass[0] = Some(ctx.cumulative_pass_nr());
         app.update_steady(ctx);
         if let Some((rev, s)) = &app.bench.results.steady {
