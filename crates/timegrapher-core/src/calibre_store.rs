@@ -88,6 +88,11 @@ pub struct CustomCalibre {
     pub lift_angle_deg: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub escape_teeth: Option<u32>,
+    /// Its escapement when not a Swiss lever, as the user picked it
+    /// ([`calibres::Escapement::added_by_you`], #2387); absent for a
+    /// Swiss lever, as on a table row.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub escapement: Option<calibres::Escapement>,
     #[serde(default)]
     pub wheels: Vec<CustomWheel>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -298,12 +303,17 @@ impl<'a> Entry<'a> {
         matches!(self, Entry::Custom(_))
     }
 
-    /// Its escapement when Timegrapher does not measure it yet (#1872); a
-    /// custom calibre is taken as a Swiss lever.
+    /// Its escapement when not a Swiss lever: a table row's, from its
+    /// source (#1872), or the one the user picked for a custom calibre
+    /// (#2387). A custom calibre naming none of [`calibres::ESCAPEMENTS`]
+    /// (edited by hand) is taken as a Swiss lever.
     pub fn escapement(&self) -> Option<&'a calibres::Escapement> {
         match self {
             Entry::Table(c) => c.escapement.as_ref(),
-            Entry::Custom(_) => None,
+            Entry::Custom(c) => c
+                .escapement
+                .as_ref()
+                .filter(|x| calibres::ESCAPEMENTS.contains(&x.kind.as_str())),
         }
     }
 }
@@ -615,6 +625,7 @@ mod tests {
             bph: Some(21600),
             lift_angle_deg: Some(50.0),
             escape_teeth: None,
+            escapement: None,
             wheels: vec![CustomWheel {
                 name: "fourth wheel".into(),
                 period_s: 60.0,
@@ -874,5 +885,56 @@ mod tests {
         assert!(cat
             .contribution_url(cat.find("4130").unwrap(), "0.1.0")
             .is_none());
+    }
+
+    /// A custom calibre keeps the escapement the user picked, is read for
+    /// it as a table row is, and a contribution carries it (#2387). One
+    /// saved before the field, or set to a Swiss lever, is a lever; a kind
+    /// not listed (edited by hand) is too.
+    #[test]
+    fn a_custom_calibres_escapement_is_kept_read_for_and_contributed() {
+        use crate::escapement::Escapement as Read;
+        let mut u = store();
+        let mut c = u.custom[0].clone();
+        assert_eq!(c.escapement, None);
+        let lever = Catalog::new(&u).find("My Movement").unwrap();
+        assert!(lever.escapement().is_none());
+        let sent = Catalog::new(&u).contribution(lever, "t").unwrap();
+        assert!(sent["custom"].get("escapement").is_none(), "{sent}");
+        c.escapement = calibres::Escapement::added_by_you("co-axial");
+        u.put_custom(c.clone());
+        let cat = Catalog::new(&u);
+        let e = cat.find("My Movement").unwrap();
+        let x = e.escapement().unwrap();
+        assert_eq!(x.read_for(), Some(Read::CoAxial));
+        assert_eq!(x.source, calibres::Escapement::BY_YOU);
+        assert_eq!(x.sentence(), calibres::COAXIAL_SENTENCE);
+        let read = crate::take::calibre_named("My Movement", &u).unwrap();
+        assert_eq!(read.escapement, Some(Read::CoAxial));
+        let sent = cat.contribution(e, "t").unwrap();
+        assert_eq!(sent["custom"]["escapement"]["kind"], "co-axial");
+        // Saved and read back, it is kept.
+        let dir = std::env::temp_dir().join(format!("tg-2387-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("calibres.json");
+        u.save(&path).unwrap();
+        let back = UserCalibres::load(&path).unwrap();
+        assert_eq!(back.custom[0].escapement, c.escapement);
+        let _ = std::fs::remove_dir_all(&dir);
+        // A detent is named, not read for; a Swiss lever or a kind not
+        // listed is no escapement at all.
+        let detent = calibres::Escapement::added_by_you("detent").unwrap();
+        assert_eq!(detent.read_for(), None);
+        assert!(calibres::Escapement::added_by_you("Swiss lever").is_none());
+        c.escapement = Some(calibres::Escapement {
+            kind: "tourbillon".into(),
+            source: "hand".into(),
+        });
+        u.put_custom(c);
+        let cat = Catalog::new(&u);
+        assert!(cat.find("My Movement").unwrap().escapement().is_none());
+        assert_eq!(calibres::escapement_name(None), "Swiss lever");
+        assert_eq!(calibres::escapement_name(Some("co-axial")), "Co-axial");
     }
 }

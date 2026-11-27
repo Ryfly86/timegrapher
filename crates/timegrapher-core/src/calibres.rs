@@ -125,6 +125,19 @@ impl Escapement {
     /// The short tag for a co-axial, read for in beta (#2313).
     pub const COAXIAL_TAG: &'static str = "Co-axial (beta)";
 
+    /// Where a custom calibre's escapement comes from: the user (#2387).
+    pub const BY_YOU: &'static str = "Added by you";
+
+    /// A custom calibre's escapement as the user picked it from
+    /// [`ESCAPEMENTS`] (#2387); `None` for a Swiss lever or a kind not
+    /// listed.
+    pub fn added_by_you(kind: &str) -> Option<Self> {
+        ESCAPEMENTS.contains(&kind).then(|| Self {
+            kind: kind.to_string(),
+            source: Self::BY_YOU.to_string(),
+        })
+    }
+
     /// The escapement Timegrapher reads the calibre's takes for, where it
     /// reads for this one: the co-axial (beta, #2313). None for a pin
     /// lever or a detent, read as a Swiss lever's and said not supported.
@@ -147,15 +160,22 @@ impl Escapement {
         if self.read_for().is_some() {
             return COAXIAL_SENTENCE.to_string();
         }
-        let mut kind = self.kind.chars();
-        let kind = match kind.next() {
-            Some(first) => first.to_uppercase().chain(kind).collect::<String>(),
-            None => String::new(),
-        };
+        let kind = escapement_name(Some(&self.kind));
         format!(
             "{kind} escapement: not supported yet. Timegrapher measures Swiss lever \
              escapements only."
         )
+    }
+}
+
+/// An escapement's name where one is picked or named (#2387): `None` is
+/// the Swiss lever; a kind from [`ESCAPEMENTS`] as it is written, first
+/// letter in capitals ("Co-axial").
+pub fn escapement_name(kind: Option<&str>) -> String {
+    let mut kind = kind.unwrap_or("Swiss lever").chars();
+    match kind.next() {
+        Some(first) => first.to_uppercase().chain(kind).collect(),
+        None => String::new(),
     }
 }
 

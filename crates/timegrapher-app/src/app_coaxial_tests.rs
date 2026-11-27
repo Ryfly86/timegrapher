@@ -266,3 +266,19 @@ fn unsaved_sound_opens_with_the_calibre_it_was_heard_with() {
     drop(app);
     let _ = std::fs::remove_dir_all(&scratch);
 }
+
+/// A custom calibre the user set to co-axial is listened to as one, as a
+/// table row is (#2387); set back to a Swiss lever, as a lever.
+#[test]
+fn a_custom_co_axial_calibre_is_listened_to_as_one() {
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    let mut c = crate::calibre_ui::custom("Bench CA", []);
+    c.bph = Some(21600);
+    c.escapement = timegrapher_core::calibres::Escapement::added_by_you("co-axial");
+    app.cal.user.custom.push(c);
+    app.set_calibre("Bench CA".into());
+    assert_eq!(app.escapement(), CoAxial);
+    assert_eq!(app.live_config().analysis.amplitude.escapement, CoAxial);
+    app.cal.user.custom[0].escapement = None;
+    assert_eq!(app.escapement(), SwissLever);
+}

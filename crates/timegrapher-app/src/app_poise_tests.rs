@@ -3,7 +3,7 @@
 //! Positions Test's pane, and drawn with core's fit.
 
 use super::poise_pane::PoiseView;
-use super::tests::{queued_capture, synthetic_varying, themed};
+use super::tests::{queued_capture, save_failure_fixture, synthetic_varying, themed};
 use super::*;
 use timegrapher_core::synth::{generate, SynthConfig};
 
@@ -34,6 +34,90 @@ fn a_dynamic_poise_test_is_set_up_at_9h_with_the_card_at_10() {
     );
     assert!(app.bench.test.guided.is_none() && !app.running());
     assert_eq!(NewTake::Poise.name(), "Dynamic Poise Test");
+}
+
+/// Cancel Test, or a test's take thrown away, leaves the Bench as it was
+/// before New Test: the card back on its position, with its 6 or 10
+/// (Shane, #2340). A test whose take is kept leaves the card as the test
+/// left it, at 10.
+#[test]
+fn a_test_let_go_puts_the_card_back_as_it_was() {
+    // Set up, then Cancel Test: from Crown Left, and from Dial Up at 6.
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.set_position(Position::CrownLeft);
+    app.new_take(NewTake::Positions, false);
+    assert_eq!(app.bench.take.position, Position::DialUp, "where it begins");
+    // A second test set up over the first keeps the card from before both.
+    app.new_take(NewTake::Poise, false);
+    assert_eq!(app.bench.take.position, Position::CrownDown);
+    app.leave_ready_test();
+    assert_eq!(app.bench.take.position, Position::CrownLeft);
+    assert!(!app.bench.test.ten_positions);
+    // Shane's sequence: Dial Up at 6, a Dynamic Poise Test begun, ended,
+    // then thrown away from the Keep question; and the same kept.
+    let card_after = |how: &str| {
+        let (mut app, base) = save_failure_fixture(&format!("poise-card-{how}"));
+        app.new_session();
+        app.set_position(Position::DialUp);
+        app.bench.test.ten_positions = false;
+        app.new_take(NewTake::Poise, false);
+        assert!(app.bench.test.ten_positions);
+        // Start Test: listening begins first, then the test.
+        app.bench.test.test_ready = None;
+        app.reset_session(48000, "test".into());
+        app.session.listen();
+        app.session.recorder =
+            Some(Recorder::start(&base.join("live2"), app.info("test", 48000, 16)).unwrap());
+        super::tests::append_save_test_second(&mut app, 1);
+        app.bench.test.guided = Some(guided::Test::poise());
+        assert_eq!(app.bench.take.position, Position::CrownDown);
+        if how == "kept" {
+            app.save_into(&base.join("saved"));
+            app.wait_for_save();
+            assert!(app.session.saved_to().is_some(), "{:?}", app.message);
+        }
+        // Throw Away on the Keep question.
+        app.bench.test.test_keep = None;
+        app.new_session();
+        let card = (app.bench.take.position, app.bench.test.ten_positions);
+        app.session.discard_recording();
+        let _ = std::fs::remove_dir_all(base);
+        card
+    };
+    assert_eq!(card_after("thrown"), (Position::DialUp, false));
+    assert_eq!(card_after("kept"), (Position::CrownDown, true));
+}
+
+/// A Power Reserve Test set up, the card then moved for it, begun and
+/// thrown away: the card goes back to where it was before New Test, as
+/// for the guided tests (Trevor 77 on #2471).
+#[test]
+fn a_thrown_away_power_reserve_test_puts_the_card_back() {
+    let (mut app, base) = save_failure_fixture("reserve-card-thrown");
+    app.new_session();
+    app.set_position(Position::DialUp);
+    app.bench.test.ten_positions = false;
+    app.new_take(NewTake::PowerReserve, false);
+    assert_eq!(app.ready_test(), Some(NewTake::PowerReserve));
+    // Run in Crown Left at 10, set on the card before Start Test.
+    app.bench.test.ten_positions = true;
+    app.set_position(Position::CrownLeft);
+    app.bench.test.test_ready = None;
+    app.reset_session(48000, "test".into());
+    app.session.listen();
+    app.session.recorder =
+        Some(Recorder::start(&base.join("live2"), app.info("test", 48000, 16)).unwrap());
+    super::tests::append_save_test_second(&mut app, 1);
+    app.begin_reserve();
+    assert!(app.bench.test.reserve.is_some() && app.bench.test.guided.is_none());
+    assert_eq!(app.bench.take.position, Position::CrownLeft);
+    app.new_session();
+    assert_eq!(
+        (app.bench.take.position, app.bench.test.ten_positions),
+        (Position::DialUp, false)
+    );
+    app.session.discard_recording();
+    let _ = std::fs::remove_dir_all(base);
 }
 
 /// The test turns the watch 45° at a time, the same way round, through

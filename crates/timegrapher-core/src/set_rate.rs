@@ -246,6 +246,7 @@ mod tests {
             bph: Some(10_800),
             lift_angle_deg: None,
             escape_teeth: None,
+            escapement: None,
             wheels: Vec::new(),
             notes: None,
         });

@@ -314,6 +314,74 @@ fn a_period_within_one_percent_is_the_wheels() {
     );
 }
 
+/// A component at `period` with `resolution`, tied to wheels as
+/// [`wheel_of`] ties it.
+fn component_at(period: f64, resolution: f64, wheels: &[Wheel]) -> Component {
+    let (wheel, nearest_wheel) = wheel_of(wheels, period, resolution);
+    Component {
+        period_s: period,
+        resolution_s: resolution,
+        significance: 10.0,
+        beyond_simulated: false,
+        harmonics: 1,
+        explained: 0.0,
+        peak_to_peak: 0.0,
+        wheel,
+        nearest_wheel,
+        shape: Vec::new(),
+        fold: Fold {
+            period_s: period,
+            profile: Vec::new(),
+            counts: Vec::new(),
+            raster: Vec::new(),
+            t0: 0.0,
+        },
+        harmonic_of: None,
+    }
+}
+
+/// The match rule is said as the wider of its two parts for the wheel
+/// named, never "±0.0 s or 1%" (#2342 item 11, Norm on #2100), and it is
+/// the rule [`wheel_of`] applies: a period just inside the wider part
+/// matches, one just past it does not.
+#[test]
+fn the_match_rule_is_said_as_its_wider_part() {
+    let escape = vec![Wheel {
+        name: "escape wheel".into(),
+        period_s: 7.5,
+    }];
+    // 1% of 7.5 s is 0.075 s, wider than a 0.02 s resolution.
+    let note = wheel_note(&component_at(7.55, 0.02, &escape), &escape);
+    assert_eq!(
+        note,
+        "matches the escape wheel (+0.7% off; a match is within 1% of its turn)"
+    );
+    let note = wheel_note(&component_at(7.6, 0.02, &escape), &escape);
+    assert_eq!(
+        note,
+        "no wheel listed within 1% of its turn; nearest is the escape wheel, +1.3% off"
+    );
+    // A 2 s resolution is wider than 1% of 60 s.
+    let note = wheel_note(&component_at(61.5, 2.0, &wheels()), &wheels());
+    assert_eq!(
+        note,
+        "matches the fourth wheel (+2.5% off; a match is within the search's resolution, ±2.00 s)"
+    );
+    let note = wheel_note(&component_at(62.5, 2.0, &wheels()), &wheels());
+    assert!(
+        note.starts_with("no wheel listed within the search's resolution, ±2.00 s; nearest"),
+        "{note}"
+    );
+    assert!(!note.contains(" or 1%"), "{note}");
+    // No wheel within reach: nothing said.
+    assert_eq!(
+        wheel_note(&component_at(22.4, 0.5, &wheels()), &wheels()),
+        ""
+    );
+    assert_eq!(match_reach_s(7.5, 0.02), 0.075);
+    assert_eq!(match_reach_s(60.0, 2.0), 2.0);
+}
+
 /// The caveat that a cycle may be noise is given from ρ 0.7, not below.
 #[test]
 fn a_cycle_may_be_noise_from_rho_0_7() {

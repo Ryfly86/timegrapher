@@ -703,7 +703,8 @@ nothing (sound not saved is asked about first, and a Quick Listen still
 listening stops once asked): the pane shows, the Position card reads Dial
 Up, where the test begins, and the status bar says "Positions Test ·
 … · Ready" (the Listen card says Ready beside Start Test). **Start Test** on the Listen card then starts it;
-**Cancel Test**, in New Test's place, leaves the Bench as it was. For a
+**Cancel Test**, in New Test's place, leaves the Bench as it was, the
+Position card back where it was; so does Throw Away on the test's take. For a
 watch, **Wind** picks **Full Wind** (just after winding) or **24 Hours
 After**, set against a full-wind test picked each time in **Compare
 With**: it lists the watch's own full-wind tests from 12 to 36 hours ago,
@@ -902,7 +903,8 @@ eight upright stops, 45° apart, from 9H at the top: 9H, 7H30, 6H, 4H30,
 **New Test** in its toolbar, or **Dynamic Poise Test** under New Take in
 the Watches view, sets it up at 9H and turns the Current Position card to
 10, where it stays until switched back; Start Test on the Listen card
-starts it. The toolbar has **View** first (**Plot**, **Dial**, or
+starts it. Cancel Test, or the test's take thrown away, puts the card
+back to the position and the 6 or 10 it had before New Test. The toolbar has **View** first (**Plot**, **Dial**, or
 both lit to show them side by side, kept between runs), then Settle and Each Position, the Positions Test's own,
 then **Copy** and Export…, with **Info** at the right. The banner works as
 the Positions Test's, naming each stop by the hour at the top ("Done:
@@ -2066,7 +2068,9 @@ folder can't be moved while another copy has it open. The Watches view adds watc
     - **The details.** The calibre selected, in a card level with the
       table: its name alone (every fact in the row stays in the row; other
       names it goes by under it), then for a custom calibre its name,
-      maker, beat rate and lift angle, then the **Wheels** group, a row
+      maker, beat rate, lift angle and escapement (Swiss lever, co-axial,
+      pin lever or detent; Swiss lever until another is picked, #2387),
+      then the **Wheels** group, a row
       for each wheel's time for one turn, a caption under the group saying
       so:
       - The six every lever movement has (balance, escape, fourth, third
