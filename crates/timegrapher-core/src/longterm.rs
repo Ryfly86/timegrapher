@@ -1693,7 +1693,8 @@ fn wheel_of(
                 .abs()
                 .total_cmp(&(period / b.period_s - 1.0).abs())
         })
-        .map(|w| (w.name.clone(), (period / w.period_s - 1.0) * 100.0));
+        .map(|w| (w.name.clone(), (period / w.period_s - 1.0) * 100.0))
+        .filter(|(_, off)| off.abs() <= 100.0 * NEAREST_WHEEL_REACH);
     let wheel = wheels
         .iter()
         .find(|w| (period - w.period_s).abs() <= resolution.max(0.01 * w.period_s))
@@ -1805,6 +1806,14 @@ fn rate_at(before: Option<f64>, here: f64, after: Option<f64>, dt: f64) -> f64 {
 /// power fills the band as 1/f², so a share of it is no measure of a
 /// line (a 5 s escape wheel line of 0.5 s/d explains 0.006% of 2 h).
 pub const MIN_RATE_SWING_S_PER_DAY: f64 = 0.05;
+
+/// How far off a listed wheel's turn, as a fraction of it, a cycle may be
+/// for that wheel to be named as its nearest ([`wheel_of`]). Adjacent
+/// wheels in a train differ in period 6x or more, so past 10% the nearest
+/// wheel is one the line is not ("nearest is the fourth wheel, -62.7% off",
+/// #2342 item 11); inside it, but outside the match, it points at a slip
+/// in the train table (Norm on #2100).
+pub const NEAREST_WHEEL_REACH: f64 = 0.10;
 
 /// The rate swing (s/d) of a timing cycle's `shape` over `period_s`.
 pub fn rate_swing(shape: &[f64], period_s: f64) -> f64 {

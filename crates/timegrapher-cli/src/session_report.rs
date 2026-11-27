@@ -541,6 +541,8 @@ fn cycles_table(sn: &Session) -> String {
         return s;
     }
     s.push_str(r#"<table class="data"><thead><tr><th>Position</th><th>In</th><th class="num">Period s</th><th class="num">Size p-p</th><th class="num">Share</th><th class="num">False alarm</th><th>Wheel</th><th>Recording</th></tr></thead><tbody>"#);
+    let has_rate = rows.iter().any(|(_, c)| c.series == "rate");
+    let has_ms = rows.iter().any(|(_, c)| c.size_unit == "ms");
     for (r, c) in rows {
         let wheel = match (&c.harmonic_of, &c.wheel, &c.nearest_wheel) {
             (Some(h), _, _) => format!(
@@ -554,14 +556,17 @@ fn cycles_table(sn: &Session) -> String {
             }
             _ => String::new(),
         };
+        let share = c
+            .share_percent()
+            .map_or("–".to_string(), |p| format!("{}%", fixed_text(p, 0)));
         let _ = write!(
             s,
-            r#"<tr><th>{}</th><td>{}</td><td class="num">{}</td><td class="num">{}</td><td class="num">{}%</td><td class="num">{}</td><td>{}</td><td class="file">{}</td></tr>"#,
+            r#"<tr><th>{}</th><td>{}</td><td class="num">{}</td><td class="num">{}</td><td class="num">{}</td><td class="num">{}</td><td>{}</td><td class="file">{}</td></tr>"#,
             r.position.display_label(),
             c.series,
             fixed_text(c.period_s, 2),
             c.size_text(),
-            fixed_text(c.explained * 100.0, 0),
+            share,
             timegrapher_core::longterm::false_alarm_text(
                 c.significance,
                 c.beyond_simulated,
@@ -571,7 +576,16 @@ fn cycles_table(sn: &Session) -> String {
             esc(&r.label)
         );
     }
-    s.push_str(r#"</tbody></table><p class="note">For the full picture of a cycle (its shape and a raster of every turn), run <code>timegrapher long</code> on that recording.</p>"#);
+    s.push_str(r#"</tbody></table>"#);
+    // Each note once, and only for the rows the table shows (Norm on #2433).
+    let notes = [
+        has_rate.then(|| timegrapher_core::session::RATE_SHARE_NOTE.to_string()),
+        has_ms.then(timegrapher_core::session::timing_swing_text),
+    ];
+    for n in notes.into_iter().flatten() {
+        let _ = write!(s, r#"<p class="note">{}</p>"#, esc(&n));
+    }
+    s.push_str(r#"<p class="note">For the full picture of a cycle (its shape and a raster of every turn), run <code>timegrapher long</code> on that recording.</p>"#);
     s
 }
 
@@ -729,6 +743,10 @@ fn findings_list(sn: &Session) -> String {
             );
         }
         body.push_str("</ul>");
+        // Why a cycle is sized in ms, once, not on every line (Norm on #2100).
+        if let Some(note) = timegrapher_core::session::timing_swing_note(&sn.readings) {
+            let _ = write!(body, r#"<p class="note">{}</p>"#, esc(&note));
+        }
     }
     body
 }
@@ -1114,6 +1132,76 @@ mod tests {
         assert!(html.contains("<td>fourth wheel</td>"), "{html}");
         assert!(
             html.contains("<td>harmonic of the 60.19 s cycle (1/2 of its period)</td>"),
+            "{html}"
+        );
+    }
+
+    /// A rate cycle's Share is a dash, an amplitude cycle's a percent, and
+    /// the table says why once; a timing swing's ms is explained once
+    /// under the table and under the findings (#2100, Norm on #2100).
+    #[test]
+    fn the_cycles_table_gives_no_rate_share() {
+        let cycle = |series: &'static str, size_unit: &'static str| session::Cycle {
+            series,
+            period_s: 5.0,
+            size: 0.1034,
+            size_unit,
+            significance: 8.0,
+            beyond_simulated: false,
+            explained: 0.3,
+            wheel: Some("escape wheel".into()),
+            nearest_wheel: None,
+            fraction_of: None,
+            harmonic_of: None,
+        };
+        let mut r = reading(None, Position::CH);
+        r.cycles = vec![cycle("rate", "ms"), cycle("amplitude", "deg")];
+        let html = render(vec![r]);
+        let rows: Vec<&str> = html
+            .split("<tr><th>")
+            .filter(|row| row.contains("<td>escape wheel</td>"))
+            .collect();
+        assert_eq!(rows.len(), 2, "{html}");
+        assert!(
+            rows[0].contains(r#"<td class="num">0.103 ms</td><td class="num">–</td>"#),
+            "{}",
+            rows[0]
+        );
+        assert!(
+            rows[1].contains(r#"<td class="num">0.1 deg</td><td class="num">30%</td>"#),
+            "{}",
+            rows[1]
+        );
+        assert!(html.contains(&esc(session::RATE_SHARE_NOTE)), "{html}");
+        assert_eq!(
+            html.matches(&esc(&session::timing_swing_text())).count(),
+            2,
+            "{html}"
+        );
+    }
+
+    /// A table with only amplitude rows says neither note (Vernon on #2433).
+    #[test]
+    fn an_amplitude_only_table_says_no_rate_notes() {
+        let mut r = reading(None, Position::CH);
+        r.cycles = vec![session::Cycle {
+            series: "amplitude",
+            period_s: 60.1,
+            size: 7.8,
+            size_unit: "deg",
+            significance: 8.0,
+            beyond_simulated: false,
+            explained: 0.3,
+            wheel: Some("fourth wheel".into()),
+            nearest_wheel: None,
+            fraction_of: None,
+            harmonic_of: None,
+        }];
+        let html = render(vec![r]);
+        assert!(html.contains(r#"<td class="num">30%</td>"#), "{html}");
+        assert!(!html.contains(&esc(session::RATE_SHARE_NOTE)), "{html}");
+        assert!(
+            !html.contains(&esc(&session::timing_swing_text())),
             "{html}"
         );
     }

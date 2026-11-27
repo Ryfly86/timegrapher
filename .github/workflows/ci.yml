@@ -145,7 +145,15 @@ jobs:
         # On a pull request, macOS and Windows leave out the heaviest
         # pure-maths tests, which Linux runs (.config/nextest.toml, #1755).
         # Pushes to main run every test on all three.
-        run: cargo nextest run --locked --release --no-fail-fast ${{ matrix.part && format('--partition count:{0}', matrix.part) || '' }} ${{ github.event_name == 'pull_request' && runner.os != 'Linux' && '--profile pr-off-linux' || '' }}
+        # The halves are nextest's slice partition: the whole list of tests,
+        # in order, taken alternately. count shares out each test program on
+        # its own, so every program with one test or an odd number put its
+        # extra test in 1/2: on #2344's run (45883121136) Linux's 1/2 had
+        # 4,737 test-seconds to 2/2's 2,665, and Linux's 1/2 ran its tests
+        # longer than 2/2 in 92 of 111 green full runs of 25-26 Nov. Sliced,
+        # that run's tests share out 4,084 to 3,318 on Linux and 2,909 to
+        # 2,800 on Windows (#2441).
+        run: cargo nextest run --locked --release --no-fail-fast ${{ matrix.part && format('--partition slice:{0}', matrix.part) || '' }} ${{ github.event_name == 'pull_request' && runner.os != 'Linux' && '--profile pr-off-linux' || '' }}
       - name: Doc tests
         if: matrix.part != '2/2' && steps.changes.outputs.full != 'false'
         run: cargo test --locked --release --doc

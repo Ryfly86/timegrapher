@@ -1215,6 +1215,100 @@ fn cycle(period_s: f64, wheel: Option<&str>) -> Cycle {
     }
 }
 
+/// A rate cycle, found in the beat timing, is given no share of the
+/// variation (a real escape wheel line read "0% of the variation", #2100);
+/// an amplitude cycle keeps its share. Each rate line names its quantity,
+/// written one place finer than its figure, and the reason for ms is said
+/// once (Norm on #2100).
+#[test]
+fn rate_cycles_name_their_quantity_and_give_no_share() {
+    let mut r = reading(Position::CH, 2.0, 3.0, 280.0, 0.3);
+    let amp = Cycle {
+        series: "amplitude",
+        size: 7.83,
+        size_unit: "deg",
+        ..cycle(60.1, Some("fourth wheel"))
+    };
+    let escape = Cycle {
+        size: 0.1034,
+        size_unit: "ms",
+        ..cycle(5.0, Some("escape wheel"))
+    };
+    let slow = Cycle {
+        size: 3.041,
+        nearest_wheel: Some(("fourth wheel".into(), 8.0)),
+        ..cycle(64.9, None)
+    };
+    r.cycles = vec![escape, amp, slow];
+    assert_eq!(
+        session::timing_swing_note(std::slice::from_ref(&r)),
+        Some(session::timing_swing_text())
+    );
+    let rep = evaluate(&[r]);
+    let of = |code: &str| -> Vec<&str> {
+        rep.findings
+            .iter()
+            .filter(|f| f.code == code)
+            .map(|f| f.evidence.as_str())
+            .collect()
+    };
+    let wheel = of("cycle_wheel");
+    assert_eq!(wheel.len(), 2, "{wheel:?}");
+    let rate = wheel.iter().find(|e| e.starts_with("rate")).unwrap();
+    assert!(
+        rate.contains("(timing swing 0.103 ms peak to peak)"),
+        "{rate}"
+    );
+    assert!(!rate.contains("of the variation"), "{rate}");
+    let amp = wheel.iter().find(|e| e.starts_with("amplitude")).unwrap();
+    assert!(
+        amp.contains("(7.8 deg peak to peak, 30% of the variation)"),
+        "{amp}"
+    );
+    let other = of("cycle_other");
+    assert_eq!(other.len(), 1, "{other:?}");
+    assert!(
+        other[0].contains("(rate swing 3.04 s/d peak to peak)"),
+        "{}",
+        other[0]
+    );
+    assert!(
+        other[0].contains("; nearest is the fourth wheel, +8.0% off"),
+        "{}",
+        other[0]
+    );
+    assert!(session::timing_swing_text().contains("shorter than 30 s"));
+}
+
+/// With no cycle sized in ms in a finding, the reason for ms is not said:
+/// not for none, not for one in a reading with no watch heard (it gives no
+/// cycle finding), and not for an ms harmonic folded into its longer cycle.
+#[test]
+fn no_timing_swing_no_note() {
+    let mut r = reading(Position::CH, 2.0, 3.0, 280.0, 0.3);
+    r.cycles = vec![cycle(60.19, Some("fourth wheel"))];
+    assert_eq!(session::timing_swing_note(std::slice::from_ref(&r)), None);
+    let ms = |period_s: f64| Cycle {
+        size: 0.1,
+        size_unit: "ms",
+        explained: 0.1,
+        ..cycle(period_s, None)
+    };
+    let mut unheard = reading(Position::CH, 2.0, 3.0, 280.0, 0.3);
+    unheard.measurement.watch_heard = false;
+    unheard.cycles = vec![ms(5.0)];
+    assert_eq!(session::timing_swing_note(&[unheard]), None);
+    let mut folded = r.clone();
+    folded.cycles.push(Cycle {
+        harmonic_of: Some(Harmonic {
+            period_s: 60.19,
+            n: 4,
+        }),
+        ..ms(15.05)
+    });
+    assert_eq!(session::timing_swing_note(&[folded]), None);
+}
+
 /// A cycle tied to a wheel is reported with the wheel, a cycle core marks
 /// as a harmonic of it is folded into it, and a cycle tied to no wheel is
 /// reported on its own.
