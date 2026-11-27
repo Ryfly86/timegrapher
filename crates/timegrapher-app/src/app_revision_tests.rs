@@ -424,6 +424,7 @@ fn the_isochronism_pane_shows_the_newer_answer() {
                 isochronism: None,
                 walk: Some(IsochronismWalk::default()),
                 upto_s: alone_upto,
+                heard_s: alone_upto,
             },
         ));
         let (_, walk) = app.isochronism_shown().expect("an answer");
