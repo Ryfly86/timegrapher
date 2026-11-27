@@ -964,3 +964,124 @@ fn the_lift_column_fits_the_not_supported_tag() {
         assert!((sum(widened) - sum(plain)).abs() < 1e-3, "{w}");
     }
 }
+
+/// Typing into a custom calibre's Name or Maker, one key a frame, as
+/// a person types: each key's frame, then Enter.
+struct Typing {
+    ctx: egui::Context,
+}
+
+impl Typing {
+    fn new() -> Self {
+        let ctx = egui::Context::default();
+        theme::install(&ctx);
+        Typing { ctx }
+    }
+
+    fn frame(&self, c: &mut Calibres, name: &str, events: Vec<egui::Event>) -> Change {
+        let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(600.0, 900.0));
+        let mut change = Change::default();
+        let _ = self.ctx.run(
+            egui::RawInput {
+                screen_rect: Some(screen),
+                events,
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    change = c.custom_editor(ui, name, "manager");
+                });
+            },
+        );
+        change
+    }
+
+    fn key(key: egui::Key, modifiers: egui::Modifiers) -> Vec<egui::Event> {
+        [true, false]
+            .map(|pressed| egui::Event::Key {
+                key,
+                physical_key: None,
+                pressed,
+                repeat: false,
+                modifiers,
+            })
+            .into()
+    }
+
+    /// Focus the field `what`, select all of it, then type `text` a
+    /// character a frame: returns every name the calibre had meanwhile.
+    fn type_into(&self, c: &mut Calibres, name: &str, what: &str, text: &str) -> Vec<String> {
+        self.frame(c, name, vec![]);
+        self.ctx
+            .memory_mut(|m| m.request_focus(custom_field_id(what, "manager")));
+        self.frame(c, name, vec![]);
+        self.frame(c, name, Self::key(egui::Key::A, egui::Modifiers::COMMAND));
+        let mut seen = Vec::new();
+        for ch in text.chars() {
+            let change = self.frame(c, name, vec![egui::Event::Text(ch.to_string())]);
+            assert!(change.renamed.is_none(), "renamed while typing {ch:?}");
+            seen.extend(c.user.custom.iter().map(|k| k.name.clone()));
+        }
+        seen
+    }
+
+    fn enter(&self, c: &mut Calibres, name: &str) -> Change {
+        self.frame(c, name, Self::key(egui::Key::Enter, egui::Modifiers::NONE))
+    }
+}
+
+/// A custom calibre's name is kept whole, spaces and all, on Enter, and
+/// nothing is renamed or saved while it is typed: a space typed was
+/// kept untrimmed while the editor looked for the trimmed name, and the
+/// Name box went (#2481).
+#[test]
+fn a_custom_calibres_name_is_kept_on_enter_not_on_each_key() {
+    let mut c = Calibres::in_memory();
+    let name = c.new_custom("");
+    let t = Typing::new();
+    let seen = t.type_into(&mut c, &name, "custom name", "Bench 8500 co-axial");
+    assert!(seen.iter().all(|n| *n == name), "{seen:?}");
+    let change = t.enter(&mut c, &name);
+    assert_eq!(change.renamed.as_deref(), Some("Bench 8500 co-axial"));
+    assert_eq!(c.user.custom[0].name, "Bench 8500 co-axial");
+}
+
+/// A name the list already has goes back to the calibre's own on Enter,
+/// saying why under the box; Escape puts back what was typed (#2481).
+#[test]
+fn a_taken_name_or_escape_leaves_the_custom_name_as_it_was() {
+    let mut c = Calibres::in_memory();
+    let name = c.new_custom("");
+    let t = Typing::new();
+    t.type_into(&mut c, &name, "custom name", "Omega 8500");
+    assert!(t.enter(&mut c, &name).renamed.is_none());
+    assert_eq!(c.user.custom[0].name, name);
+    let taken = custom_field_id("custom name taken", "manager");
+    let said = t.ctx.data(|d| d.get_temp::<String>(taken));
+    assert_eq!(said.as_deref(), Some("Omega 8500"));
+    assert!(taken_words("Omega 8500").contains("in the list already"));
+    t.type_into(&mut c, &name, "custom name", "Bench 9");
+    t.frame(
+        &mut c,
+        &name,
+        Typing::key(egui::Key::Escape, egui::Modifiers::NONE),
+    );
+    assert_eq!(c.user.custom[0].name, name);
+    // A name kept clears the note.
+    t.type_into(&mut c, &name, "custom name", "Bench 9");
+    assert!(t.enter(&mut c, &name).renamed.is_some());
+    assert!(t.ctx.data(|d| d.get_temp::<String>(taken)).is_none());
+}
+
+/// A maker with a space in it types in order: the space isn't trimmed
+/// away before the next word (#2481).
+#[test]
+fn a_custom_makers_space_is_kept_while_typing() {
+    let mut c = Calibres::in_memory();
+    let name = c.new_custom("");
+    let t = Typing::new();
+    t.type_into(&mut c, &name, "custom maker", "La Joux ");
+    assert_eq!(c.user.custom[0].maker, None, "nothing kept while typing");
+    t.enter(&mut c, &name);
+    assert_eq!(c.user.custom[0].maker.as_deref(), Some("La Joux"));
+}
