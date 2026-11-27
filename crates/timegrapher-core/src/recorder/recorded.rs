@@ -20,6 +20,10 @@ pub struct RecordedSetup {
     /// The beat rate set by hand; `None` when it was guessed (Auto) or is
     /// outside [`input_domain::BPH_RANGE`].
     pub bph: Option<u32>,
+    /// Recorded on Auto, and read so: its `bph` written null (a missing
+    /// `bph` never says Auto), and no watch it was moved into set a beat
+    /// rate since ([`crate::set_rate::WATCH_RATE_KEY`]).
+    pub on_auto: bool,
 }
 
 #[derive(Deserialize)]
@@ -28,21 +32,34 @@ struct Written {
     watch: String,
     position: Option<String>,
     lift_deg: Option<f64>,
-    bph: Option<u64>,
+    /// `None` when there is no `bph` key, `Some(None)` when it is null.
+    #[serde(default, deserialize_with = "written")]
+    bph: Option<Option<u64>>,
+    /// [`crate::set_rate::WATCH_RATE_KEY`]; only `true` marks it.
+    #[serde(default)]
+    bph_from_watch: serde_json::Value,
+}
+
+/// A key that is there, null or not.
+fn written<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Option<u64>>, D::Error> {
+    Option::<u64>::deserialize(d).map(Some)
 }
 
 /// What the `session.json` in `dir` says of the watch, or `None` when
 /// there is none, it can't be read, or it holds no lift angle (so is not
-/// one the recorder wrote).
+/// one the recorder wrote). The one reader of the recorder's info in a
+/// take's `session.json`.
 pub fn recorded_setup(dir: &Path) -> Option<RecordedSetup> {
     let text = read_settled(&dir.join(take::RECORD)).ok()?;
     let w: Written = serde_json::from_str(&text).ok()?;
     let lift = w.lift_deg?;
+    let marked = w.bph_from_watch == serde_json::Value::Bool(true);
     Some(RecordedSetup {
         watch: w.watch,
         position: w.position.filter(|p| !p.trim().is_empty()),
         lift_deg: input_domain::lift_deg(lift).ok(),
-        bph: w.bph.and_then(|b| input_domain::bph(b).ok()),
+        bph: w.bph.flatten().and_then(|b| input_domain::bph(b).ok()),
+        on_auto: w.bph == Some(None) && !marked,
     })
 }
 
@@ -80,10 +97,36 @@ mod tests {
                 position: Some("CL".into()),
                 lift_deg: Some(55.0),
                 bph: Some(28800),
+                on_auto: false,
             }
         );
         drop(r);
         let _ = fs::remove_dir_all(&parent);
+    }
+
+    /// Only a `bph` written null says Auto, and a watch's mark
+    /// ([`crate::set_rate::WATCH_RATE_KEY`] `true`) undoes it (#2465).
+    #[test]
+    fn only_a_bph_written_null_and_unmarked_is_on_auto() {
+        let d = dir("on-auto");
+        let on_auto = |s: &str| {
+            fs::write(d.join(take::RECORD), s).unwrap();
+            recorded_setup(&d).map(|r| r.on_auto)
+        };
+        assert_eq!(on_auto(r#"{"lift_deg":52.0,"bph":null}"#), Some(true));
+        assert_eq!(on_auto(r#"{"lift_deg":52.0}"#), Some(false));
+        assert_eq!(on_auto(r#"{"lift_deg":52.0,"bph":18000}"#), Some(false));
+        assert_eq!(on_auto(r#"{"lift_deg":52.0,"bph":5}"#), Some(false));
+        // The serde field is named for the key mark_watch_rate writes.
+        let key = crate::set_rate::WATCH_RATE_KEY;
+        let marked = format!(r#"{{"{key}":true,"lift_deg":52.0,"bph":null}}"#);
+        assert_eq!(on_auto(&marked), Some(false));
+        for not_marked in ["false", "null", "1", "\"true\""] {
+            let s = format!(r#"{{"{key}":{not_marked},"lift_deg":52.0,"bph":null}}"#);
+            assert_eq!(on_auto(&s), Some(true), "{s}");
+        }
+        assert_eq!(on_auto(r#"{"bph":null}"#), None);
+        let _ = fs::remove_dir_all(&d);
     }
 
     /// A guessed beat rate is written `null` and reads as Auto; a value
