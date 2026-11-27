@@ -2781,9 +2781,19 @@ fn a_run_too_short_is_not_called_scattered() {
 /// peaking at 0.75 times its RMS, then `back` s of the watch again,
 /// listened to through the capture as the window hears it, stopped, and
 /// its Stop read in.
-fn stopped_short_return(base: &Path, (first, gap, back): (f64, f64, f64)) -> TimegrapherApp {
+fn stopped_short_return(base: &Path, spans: (f64, f64, f64)) -> TimegrapherApp {
+    stopped_short_return_as(base, spans, |_| {})
+}
+
+/// [`stopped_short_return`], the app set up by `prep` first.
+pub(super) fn stopped_short_return_as(
+    base: &Path,
+    (first, gap, back): (f64, f64, f64),
+    prep: impl FnOnce(&mut TimegrapherApp),
+) -> TimegrapherApp {
     use timegrapher_core::capture::{Block, Event};
     let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    prep(&mut app);
     app.reset_session(48000, "short return".into());
     app.session.listen();
     let info = app.info("short return", 48000, 16);

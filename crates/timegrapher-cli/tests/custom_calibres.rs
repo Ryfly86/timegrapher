@@ -101,10 +101,11 @@ fn catalogue_errors_precede_audio_but_no_calibre_keeps_default_path() {
     }
 }
 
-/// A calibre whose escapement Timegrapher doesn't measure yet says so on
-/// its own line, in core's words (#1872).
+/// A calibre whose escapement is not a Swiss lever says so on its own
+/// line, in core's words (#1872): for a co-axial, how its takes are read
+/// (beta, #2313).
 #[test]
-fn a_co_axial_calibre_says_it_is_not_supported_yet() {
+fn a_co_axial_calibre_says_how_it_is_read() {
     let fixture = Fixture::new();
     let out = fixture.run(&["calibres", "Omega 2500"]);
     assert!(
@@ -118,6 +119,8 @@ fn a_co_axial_calibre_says_it_is_not_supported_yet() {
         .unwrap()
         .sentence();
     assert!(text.lines().any(|l| l == sentence), "{text}");
+    assert_eq!(sentence, timegrapher_core::calibres::COAXIAL_SENTENCE);
+    assert!(!text.contains("not supported yet"), "{text}");
     let other = fixture.run(&["calibres", "ETA 2824-2"]);
     assert!(!String::from_utf8_lossy(&other.stdout).contains("not supported yet"));
 }

@@ -80,6 +80,32 @@ impl Escapement {
         v
     }
 
+    /// The caveat a reading's beat error carries, where it carries one:
+    /// on a Swiss lever, why it is the drop's where it is
+    /// ([`crate::session::BeatErrorSource::caveat_why`]); on a co-axial
+    /// whose readings are given (`read`), that it is the unlock's alone,
+    /// or why there is none (`inconsistent`: the unlock found, its signs
+    /// disagreeing, #1439; else not found). The one rule for every
+    /// reading (Hugh's option (a) on #2317).
+    pub fn beat_error_caveat(
+        self,
+        source: Option<crate::session::BeatErrorSource>,
+        inconsistent: bool,
+        read: bool,
+    ) -> Option<crate::measure::Caveat> {
+        use crate::measure::{Caveat, DropWhy};
+        use crate::session::BeatErrorSource;
+        if self.is_swiss_lever() {
+            return source.and_then(|s| s.caveat_why(inconsistent));
+        }
+        let why = (source != Some(BeatErrorSource::Unlock)).then_some(if inconsistent {
+            DropWhy::UnlockInconsistent
+        } else {
+            DropWhy::UnlockNotFound
+        });
+        read.then_some(Caveat::CoaxialBeatError { why })
+    }
+
     /// The caveat a reading with an amplitude carries: on a co-axial, that
     /// it is an estimate (beta).
     pub fn amplitude_caveat(self, amplitude_shown: bool) -> Option<crate::measure::Caveat> {
@@ -118,6 +144,40 @@ mod tests {
     fn a_co_axial_gives_no_drop_beat_error() {
         assert_eq!(Escapement::SwissLever.drop_beat_error(Some(0.4)), Some(0.4));
         assert_eq!(Escapement::CoAxial.drop_beat_error(Some(0.4)), None);
+    }
+
+    #[test]
+    fn a_co_axial_beat_error_says_where_it_comes_from() {
+        use crate::measure::{Caveat, DropWhy};
+        use crate::session::BeatErrorSource::{Drop, Unlock};
+        let c = Escapement::CoAxial;
+        let said = |why| Some(Caveat::CoaxialBeatError { why });
+        assert_eq!(c.beat_error_caveat(Some(Unlock), false, true), said(None));
+        assert_eq!(c.beat_error_caveat(Some(Unlock), true, true), said(None));
+        assert_eq!(
+            c.beat_error_caveat(None, false, true),
+            said(Some(DropWhy::UnlockNotFound))
+        );
+        assert_eq!(
+            c.beat_error_caveat(None, true, true),
+            said(Some(DropWhy::UnlockInconsistent))
+        );
+        // No readings given: nothing said of the beat error.
+        assert_eq!(c.beat_error_caveat(None, false, false), None);
+        // A lever's is #1439's, unchanged.
+        let l = Escapement::SwissLever;
+        assert_eq!(l.beat_error_caveat(Some(Unlock), true, true), None);
+        assert_eq!(l.beat_error_caveat(None, false, true), None);
+        assert_eq!(
+            l.beat_error_caveat(Some(Drop), true, true),
+            Some(Caveat::BeatErrorFromDrop {
+                why: DropWhy::UnlockInconsistent
+            })
+        );
+        assert_eq!(
+            l.beat_error_caveat(Some(Drop), false, false),
+            Some(Caveat::FROM_DROP)
+        );
     }
 
     #[test]
