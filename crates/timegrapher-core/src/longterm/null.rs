@@ -13,7 +13,7 @@
 //!   that shape, and below the running median's corner the walk leaves a
 //!   hump that read false cycles at 2 to 10 times the stated rate. The mix
 //!   is indexed by the crossover frequency (where the walk's power meets
-//!   the white floor) times the detrend's window: [`timing_mix`]. Real
+//!   the white floor) times the detrend's window: [`TimingFit::mix`]. Real
 //!   balance wheels also wander as flicker of the rate (1/f, a timing
 //!   power ∝ f⁻³ that is steeper than the walk's f⁻²; #1219), so timing
 //!   is walk plus flicker plus white, with a second axis: where the
@@ -80,7 +80,8 @@ fn is_zero(v: &f64) -> bool {
 /// The table's f·w axis: 0.01 times 2^(k/4), k from 0 to 68.
 pub const X_POINTS: usize = 69;
 
-pub fn x_at(k: usize) -> f64 {
+#[cfg(test)]
+pub(crate) fn x_at(k: usize) -> f64 {
     0.01 * 2f64.powf(k as f64 / 4.0)
 }
 
@@ -112,7 +113,7 @@ pub struct Cell {
     pub shape: Vec<Option<f64>>,
     /// Timing only: the 99th percentile over the null's draws of how far
     /// a take's band powers sit from its fitted walk plus white
-    /// ([`timing_fit`]'s misfit). A take past it is not that model.
+    /// ([`timing_fit_culled`]'s misfit). A take past it is not that model.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub misfit_p99: Option<f64>,
 }
@@ -414,20 +415,13 @@ pub fn levelling_in(
     Some(blend(&a, &b, t))
 }
 
-/// Timing's mix from its power spectrum `power` (bin j at j·df, on a
-/// `step_s` grid): the crossover f_c where a random walk's power a/(4
-/// sin²(πfΔ)) meets the white floor b, times `scale` (the detrend's
-/// window, or the span under the quadratic). Fitted to the median power
-/// in quarter-octave bands from `from` up, so that a real line, which
-/// lifts a few bins, does not move it; least squares relative to the
-/// model, twice. 0 for white noise; [`WALK_MIX`] when no floor shows
-/// (the walk reaches past the Nyquist frequency, or the floor fits at or
-/// under nothing).
-pub fn timing_mix(power: &[f64], df: f64, step_s: f64, from: usize, scale: f64) -> f64 {
+/// `timing_fit`'s mix alone.
+#[cfg(test)]
+pub(crate) fn timing_mix(power: &[f64], df: f64, step_s: f64, from: usize, scale: f64) -> f64 {
     timing_fit(power, df, step_s, from, scale).mix
 }
 
-/// [`timing_mix`] and how well the model fits.
+/// Timing's mix ([`timing_fit_culled`]) and how well the model fits.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TimingFit {
     /// The crossover where the red terms (flicker and walk) meet the
@@ -445,10 +439,15 @@ pub struct TimingFit {
     pub misfit: f64,
 }
 
-/// [`timing_mix`], with the misfit of the walk plus white it fitted:
-/// with no walk, of the white floor alone; with no floor, of the walk
-/// alone.
-pub fn timing_fit(power: &[f64], df: f64, step_s: f64, from: usize, scale: f64) -> TimingFit {
+/// [`timing_fit_culled`] with nothing culled.
+#[cfg(test)]
+pub(crate) fn timing_fit(
+    power: &[f64],
+    df: f64,
+    step_s: f64,
+    from: usize,
+    scale: f64,
+) -> TimingFit {
     timing_fit_culled(power, df, step_s, from, scale, &Cull::default())
 }
 
@@ -462,7 +461,19 @@ pub struct Cull<'a> {
     pub half: f64,
 }
 
-/// [`timing_fit`] with the lines of cycles taken out culled, each a
+/// Timing's mix from its power spectrum `power` (bin j at j·df, on a
+/// `step_s` grid): the crossover f_c where a random walk's power a/(4
+/// sin²(πfΔ)) meets the white floor b, times `scale` (the detrend's
+/// window, or the span under the quadratic). Fitted to the median power
+/// in quarter-octave bands from `from` up, so that a real line, which
+/// lifts a few bins, does not move it; least squares relative to the
+/// model, twice. 0 for white noise; [`WALK_MIX`] when no floor shows
+/// (the walk reaches past the Nyquist frequency, or the floor fits at or
+/// under nothing). With it, the misfit of the walk plus white it fitted:
+/// with no walk, of the white floor alone; with no floor, of the walk
+/// alone.
+///
+/// The lines of cycles taken out are culled first, each a
 /// frequency in Hz. Taking a line out disturbs the bins at and beside it,
 /// which left in read as misfit. A band holding a bin within `half` bins
 /// of a line in `removed` (the harmonics the search kept) is left out

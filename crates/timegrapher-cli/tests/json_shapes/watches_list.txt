@@ -1,27 +1,27 @@
-bytes
-caveats
-input
-input.all
-input.library
-library
-schema
-software
-software.arch
-software.build_date
-software.git_dirty
-software.git_hash
-software.name
-software.os
-software.version
-unreadable
-unsorted
-watches
-watches[].archived
-watches[].bph
-watches[].bytes
-watches[].calibre
-watches[].id
-watches[].lift_deg
-watches[].name
-watches[].newest_started_utc
-watches[].takes
+bytes number
+caveats array
+input object
+input.all bool
+input.library string
+library string
+schema string
+software object
+software.arch string
+software.build_date string
+software.git_dirty bool
+software.git_hash string
+software.name string
+software.os string
+software.version string
+unreadable array
+unsorted number
+watches array
+watches[].archived bool
+watches[].bph number
+watches[].bytes number
+watches[].calibre string
+watches[].id string
+watches[].lift_deg null
+watches[].name string
+watches[].newest_started_utc string
+watches[].takes number

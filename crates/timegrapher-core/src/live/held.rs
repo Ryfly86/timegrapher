@@ -80,7 +80,8 @@ impl LiveAnalyzer {
 
     /// Whether a reading from before a beat rate change is held, ready to
     /// come back.
-    pub fn holds_reading(&self) -> bool {
+    #[cfg(test)]
+    pub(crate) fn holds_reading(&self) -> bool {
         self.held.0.is_some()
     }
 }

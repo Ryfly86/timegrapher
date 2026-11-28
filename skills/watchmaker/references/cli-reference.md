@@ -186,7 +186,7 @@ timegrapher record --watch NAME [--library DIR] --position P [...]
 
 Records one position for `--seconds`, then stops; it listens only while
 it runs. Each run makes a take folder in FOLDER as the desktop app saves
-one (`audio-001.wav`, `clock.csv`, `session.json`, `session.toml`),
+one (`audio-001.flac`, `clock.csv`, `session.json`, `session.toml`),
 checks it, and adds every take to `FOLDER/session.toml` (written on the
 first take with the watch, calibre, bph and lift) with
 its position and `--wind-h`, and a comment line for no regular beat or
@@ -480,8 +480,10 @@ timegrapher report [RECORDING...] [--at S] [--span S] [--no-audio]
 timegrapher report --replay BUNDLE [--json]
 ```
 
-Writes `timegrapher-report-<utc>.zip` for an issue. It never opens the
-microphone and sends nothing anywhere. The zip holds:
+Writes `timegrapher-report-<utc>Z.zip` (or `...Z-2.zip` and on when the
+name is taken; never over a file) for an issue. It never opens the
+microphone, sends nothing anywhere, and only reads the recording: its
+own files go to a scratch folder. The zip holds:
 - `manifest.json` (`timegrapher.report/1`: software with git hash, OS,
   `kind`, `note`, the commands run, every file's SHA-256, the `consent`
   flags, what was `redacted` and what was `left_out`);

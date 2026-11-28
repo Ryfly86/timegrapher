@@ -651,7 +651,8 @@ enum Command {
         #[arg(long)]
         smoke: bool,
         /// Read only the corpus's holdout takes: judged against tg,
-        /// printed as counts only, never failing.
+        /// printed as counts only. The counts never fail it; an unreadable
+        /// reading or a declared holdout take with no session file does.
         #[arg(long)]
         holdout: bool,
         /// With --holdout, print every reading's numbers too (milestone

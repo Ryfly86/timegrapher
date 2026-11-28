@@ -215,5 +215,6 @@ A long function is where a second rule hides: of the 23 longest app functions on
 | File length | The G11 count script lists files over 3,000 lines, which may not grow | CI |
 | Copy-paste | jscpd's product block count against a checked-in number | CI |
 | Unused dependencies, licences | `cargo machete`; `cargo deny` licence and bans checks | CI |
-| Coverage, mutation testing, advisories, dead public items, open marks | Trends against the baseline | Hygiene audit |
+| Dead code | The compiler on each platform; for core's public items, `.github/ci/dead_pub.py`, whose list of today's dead items may only shrink | CI |
+| Coverage, mutation testing, advisories, open marks | Trends against the baseline | Hygiene audit |
 | A split moves code only and adds no copies | Code-path review, screenshots, JSON comparison | Review |

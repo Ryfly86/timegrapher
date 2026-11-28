@@ -145,6 +145,47 @@ pub fn write_zip(path: &Path, entries: &[(String, Vec<u8>)]) -> Result<(), Strin
     crate::library::write_atomic(path, &out.into_inner())
 }
 
+/// [`write_zip`] under a name in `dir` nobody else holds: `{stem}.zip`, or
+/// `{stem}-2.zip`, `{stem}-3.zip` and on when that is taken. The name is
+/// reserved with a file created new before the ZIP is written, so two
+/// writers at once never get the same one, and an existing file is never
+/// replaced (#2416). The path written, or an error with nothing left behind.
+pub fn write_zip_new(
+    dir: &Path,
+    stem: &str,
+    entries: &[(String, Vec<u8>)],
+) -> Result<std::path::PathBuf, String> {
+    const TRIES: u32 = 1000;
+    for n in 1..=TRIES {
+        let name = if n == 1 {
+            format!("{stem}.zip")
+        } else {
+            format!("{stem}-{n}.zip")
+        };
+        let path = dir.join(name);
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+        {
+            Ok(held) => {
+                drop(held);
+                return write_zip(&path, entries)
+                    .map(|()| path.clone())
+                    .inspect_err(|_| {
+                        let _ = std::fs::remove_file(&path);
+                    });
+            }
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(format!("{}: {e}", path.display())),
+        }
+    }
+    Err(format!(
+        "{}: {TRIES} files named {stem} already",
+        dir.display()
+    ))
+}
+
 /// The file entries of a ZIP file, stored or deflated, in order. Folder
 /// entries are left out. A damaged entry (a bad CRC, a truncated file) is
 /// an error.
@@ -215,6 +256,73 @@ mod tests {
             sha256_hex(&long),
             "41edece42d63e8d9bf515a9ba6932e1c20cbc9f5a5d134645adb5db1b9737ea3"
         );
+    }
+
+    /// Each writer gets a name of its own and an existing file is never
+    /// replaced (#2416).
+    #[test]
+    fn zip_new_never_replaces_and_never_shares_a_name() {
+        let dir = std::env::temp_dir().join(format!("tg-zip-new-names-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("r.zip"), b"someone else's").unwrap();
+        let paths: Vec<_> = std::thread::scope(|s| {
+            let runs: Vec<_> = (0..8u8)
+                .map(|i| {
+                    let dir = &dir;
+                    s.spawn(move || {
+                        let entries = vec![("n".to_string(), vec![i])];
+                        (write_zip_new(dir, "r", &entries).unwrap(), i)
+                    })
+                })
+                .collect();
+            runs.into_iter().map(|r| r.join().unwrap()).collect()
+        });
+        assert_eq!(std::fs::read(dir.join("r.zip")).unwrap(), b"someone else's");
+        let mut names: Vec<_> = paths.iter().map(|(p, _)| p.clone()).collect();
+        names.sort();
+        names.dedup();
+        assert_eq!(names.len(), 8, "{names:?}");
+        for (p, i) in &paths {
+            assert_eq!(read_zip(p).unwrap(), vec![("n".to_string(), vec![*i])]);
+        }
+        let held = std::fs::read_dir(&dir).unwrap().count();
+        assert_eq!(held, 9, "only the zips and the file already there");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// The first zip in an empty folder takes the bare name (#2416).
+    #[test]
+    fn zip_new_first_name_has_no_suffix() {
+        let dir = std::env::temp_dir().join(format!("tg-zip-new-first-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = write_zip_new(&dir, "r", &sample()).unwrap();
+        assert_eq!(p, dir.join("r.zip"));
+        let p = write_zip_new(&dir, "r", &sample()).unwrap();
+        assert_eq!(p, dir.join("r-2.zip"));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A write that fails leaves nothing behind, its reserved name
+    /// included. The name fits but the atomic writer's temporary file
+    /// beside it is too long for the file system (#2416).
+    #[cfg(unix)]
+    #[test]
+    fn zip_new_failed_write_leaves_nothing() {
+        let dir = std::env::temp_dir().join(format!("tg-zip-new-fail-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let stem = "s".repeat(251);
+        let e = write_zip_new(&dir, &stem, &sample());
+        assert!(e.is_err(), "{e:?}");
+        let left: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .flatten()
+            .map(|e| e.path())
+            .collect();
+        assert!(left.is_empty(), "{left:?}");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

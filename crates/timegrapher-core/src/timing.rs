@@ -493,7 +493,8 @@ impl MeasuredRate {
     /// bph: the heard rate at its place less the set rate, so a difference
     /// of figures keeps their place (Norm on #2223, point 4). Only against
     /// a set rate: Auto's guess is not a target.
-    pub fn offset_from(&self, set: u32) -> f64 {
+    #[cfg(test)]
+    pub(crate) fn offset_from(&self, set: u32) -> f64 {
         self.whole() - f64::from(set)
     }
 

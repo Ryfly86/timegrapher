@@ -1,24 +1,24 @@
-bits_per_sample
-bytes
-channels
-duration_s
-from_s
-input
-input.files
-input.files[].path
-input.settings
-input.settings.from_s
-input.settings.to_s
-out
-sample_rate
-schema
-sha256
-software
-software.arch
-software.build_date
-software.git_dirty
-software.git_hash
-software.name
-software.os
-software.version
-to_s
+bits_per_sample number
+bytes number
+channels number
+duration_s number
+from_s number
+input object
+input.files array
+input.files[].path string
+input.settings object
+input.settings.from_s number
+input.settings.to_s number
+out string
+sample_rate number
+schema string
+sha256 string
+software object
+software.arch string
+software.build_date string
+software.git_dirty bool
+software.git_hash string
+software.name string
+software.os string
+software.version string
+to_s number

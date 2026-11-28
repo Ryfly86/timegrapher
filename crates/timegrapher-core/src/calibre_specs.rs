@@ -205,6 +205,7 @@ pub fn made_part(c: &Calibre) -> Option<SpecPart> {
 
 /// `s` as a positive number written with at most `places` decimals, or
 /// `None` when it isn't one ("4.60" passes at 2 places, "4.605" doesn't).
+#[cfg(test)]
 fn stated_number(s: &str, places: usize) -> Option<f64> {
     let (whole, frac) = s.split_once('.').unwrap_or((s, ""));
     let digits = |p: &str| p.chars().all(|ch| ch.is_ascii_digit());
@@ -218,8 +219,10 @@ fn stated_number(s: &str, places: usize) -> Option<f64> {
 }
 
 /// Decimals a stated millimetre figure may carry (Norm, #2266).
+#[cfg(test)]
 const MM_PLACES: usize = 2;
 /// Decimals a stated power reserve, in hours, may carry.
+#[cfg(test)]
 const HOUR_PLACES: usize = 1;
 
 /// Why the row's spec fields break the rules, or `None` when they keep
@@ -227,7 +230,8 @@ const HOUR_PLACES: usize = 1;
 /// states mm or lignes (never an empty lignes), diameter and height mm
 /// carry at most two decimals and hours at most one, a power reserve is
 /// one figure or a range, and functions come from [`FUNCTIONS`].
-pub fn spec_fault(c: &Calibre) -> Option<String> {
+#[cfg(test)]
+pub(crate) fn spec_fault(c: &Calibre) -> Option<String> {
     if let Some(y) = &c.years {
         if y.current && (y.to.is_some() || y.from.is_none()) {
             return Some("years says still made but gives no start or gives an end".into());
