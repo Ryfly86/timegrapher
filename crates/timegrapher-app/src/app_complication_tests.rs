@@ -781,11 +781,21 @@ fn stop_test_names_the_stretches_kept() {
         kept_so_far(&c(3), ""),
         "The 3 stretches measured so far (Off, On, Off) are kept."
     );
-    for t in [guided::Test::new(), guided::Test::poise()] {
-        let kind = t.kind;
-        let t = measured(t, 2);
+    let fresh: [fn() -> guided::Test; 2] = [guided::Test::new, guided::Test::poise];
+    for fresh in fresh {
+        let kind = fresh().kind;
         assert_eq!(
-            kept_so_far(&t, " in YM"),
+            kept_so_far(&measured(fresh(), 0), " in YM"),
+            "The take so far is kept in YM, with no position measured yet.",
+            "{kind:?}"
+        );
+        assert_eq!(
+            kept_so_far(&measured(fresh(), 1), " in YM"),
+            "The 1 position measured so far is kept in YM.",
+            "{kind:?}"
+        );
+        assert_eq!(
+            kept_so_far(&measured(fresh(), 2), " in YM"),
             "The 2 positions measured so far are kept in YM.",
             "{kind:?}"
         );
