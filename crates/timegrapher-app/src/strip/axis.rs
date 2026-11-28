@@ -402,11 +402,28 @@ mod drawn {
     fn clock_texts(
         horizontal: bool,
         size: Vec2,
-        (span_s, end): (f64, f64),
+        span_end: (f64, f64),
         take_end: f64,
         cursor_t: Option<f64>,
     ) -> (Vec<(String, Rect)>, Rect) {
-        let wall = timegrapher_core::time_of_day::WallClock::new(1_795_185_137.5, &[]);
+        clock_texts_from(
+            1_795_185_137.5,
+            horizontal,
+            size,
+            span_end,
+            (take_end, cursor_t),
+        )
+    }
+
+    /// [`clock_texts`] for a take begun at Unix second `start`.
+    fn clock_texts_from(
+        start: f64,
+        horizontal: bool,
+        size: Vec2,
+        (span_s, end): (f64, f64),
+        (take_end, cursor_t): (f64, Option<f64>),
+    ) -> (Vec<(String, Rect)>, Rect) {
+        let wall = timegrapher_core::time_of_day::WallClock::new(start, &[]);
         let extras = Extras {
             wall: Some(&wall),
             cursor_t,
@@ -591,5 +608,29 @@ mod drawn {
             let named: Vec<_> = texts.iter().filter(|t| names_day(&t.0)).collect();
             assert_eq!(named.len(), 1, "{horizontal}: {texts:?}");
         }
+    }
+
+    /// Standing down at a 6 h step on a take inside one day, the label
+    /// naming its day ("Wed 14:32", wider than 52 pt holds) is drawn
+    /// whole, 4 pt clear of the strip's edge: the column keeps the measure
+    /// of the labels on show as its floor, not only the take's day labels
+    /// (Hugh and Trevor on #2556). The take begins on Wednesday 18 Nov
+    /// 2026 at 14:32:17.5 UTC; the strip shows two days back from 10 min
+    /// into it, so only the line at 0 is drawn.
+    #[test]
+    fn the_down_column_fits_a_six_hour_label_on_a_one_day_take() {
+        let size = Vec2::new(800.0, 400.0);
+        let wed = 1_795_185_137.5 - 2.0 * 86_400.0;
+        let (texts, outer) =
+            clock_texts_from(wed, false, size, (2.0 * 86_400.0, 600.0), (600.0, None));
+        let named: Vec<_> = texts
+            .iter()
+            .filter(|t| t.0.len() == 9 && t.0.as_bytes()[3] == b' ')
+            .collect();
+        assert_eq!(named.len(), 1, "{texts:?}");
+        assert!(
+            named[0].1.left() >= outer.left() + 3.9,
+            "{named:?} by {outer:?}"
+        );
     }
 }
