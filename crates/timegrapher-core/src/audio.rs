@@ -404,8 +404,26 @@ fn info_of(path: &Path) -> Result<AudioInfo, AudioError> {
 /// Decode a WAV or FLAC file block by block, calling `f` with mono samples
 /// in blocks of `block` frames (the last may be shorter). Memory stays
 /// bounded, so recordings of hours or days can be read.
-pub fn stream(path: &Path, block: usize, f: impl FnMut(&[f32])) -> Result<AudioInfo, AudioError> {
-    stream_head(path, usize::MAX, block, f)
+pub fn stream(
+    path: &Path,
+    block: usize,
+    mut f: impl FnMut(&[f32]),
+) -> Result<AudioInfo, AudioError> {
+    stream_while(path, block, |b| {
+        f(b);
+        true
+    })
+}
+
+/// [`stream`] until `f` returns false: decoding stops there, within the
+/// block just passed on, so the rest of the file is neither read nor
+/// passed on (a replay stopped, #2414).
+pub fn stream_while(
+    path: &Path,
+    block: usize,
+    mut f: impl FnMut(&[f32]) -> bool,
+) -> Result<AudioInfo, AudioError> {
+    kept(path, |p| stream_head_of(p, usize::MAX, block, &mut f))
 }
 
 /// [`stream`] for the first `frames` frames only: decoding stops there,
@@ -418,19 +436,26 @@ pub fn stream_head(
 ) -> Result<AudioInfo, AudioError> {
     // A file is only found missing on opening it, before any frame is
     // passed on, so reading the FLAC instead passes each frame once.
-    kept(path, |p| stream_head_of(p, frames, block, &mut f))
+    kept(path, |p| {
+        stream_head_of(p, frames, block, &mut |b: &[f32]| {
+            f(b);
+            true
+        })
+    })
 }
 
+/// Decode the first `frames` frames of `path` in blocks of `block`,
+/// passing each to `f` until it returns false.
 fn stream_head_of(
     path: &Path,
     frames: usize,
     block: usize,
-    f: &mut impl FnMut(&[f32]),
+    f: &mut impl FnMut(&[f32]) -> bool,
 ) -> Result<AudioInfo, AudioError> {
     let block = block.max(1);
     let mut buf: Vec<f32> = Vec::with_capacity(block);
     let mut left = frames;
-    // Pass one frame on; false once `frames` have been.
+    // Pass one frame on; false once `frames` have been, or `f` said stop.
     let mut push = |v: f32, buf: &mut Vec<f32>| {
         if left == 0 {
             return false;
@@ -438,8 +463,12 @@ fn stream_head_of(
         left -= 1;
         buf.push(v);
         if buf.len() == block {
-            f(buf);
+            let more = f(buf);
             buf.clear();
+            if !more {
+                left = 0;
+                return false;
+            }
         }
         left > 0
     };
