@@ -563,8 +563,14 @@ fn heard_in_pieces_at(bph: Option<u32>, pieces: &[(bool, f64)]) -> TimegrapherAp
 }
 
 /// Push `pieces` (as [`heard_in_pieces`]) onto `app`'s session.
+///
+/// A reading is asked for at each pass only while the charts' run of
+/// readings is current, where it is kept. Otherwise the run is read again
+/// once at the end, which replaces the readings of each pass: asked for,
+/// each read everything heard again as a file (#2442).
 fn push_pieces(app: &mut TimegrapherApp, pieces: &[(bool, f64)]) {
     use timegrapher_core::synth::{generate, SynthConfig};
+    let each_pass = app.trend_current();
     for &(watch, seconds) in pieces {
         let samples = if watch {
             let cfg = SynthConfig {
@@ -581,13 +587,14 @@ fn push_pieces(app: &mut TimegrapherApp, pieces: &[(bool, f64)]) {
         };
         let live = app.bench.recording.live.as_mut().unwrap();
         for b in samples.chunks(960) {
-            if live.push(b) {
+            if live.push(b) && each_pass {
                 let r = live.reading(app.bench.take.average_s);
                 app.bench.results.trend.push(TrendPoint::of(r.time_s, &r));
             }
         }
     }
     app.poll();
+    assert!(each_pass || !app.trend_current(), "read again below");
     app.refresh_trend();
 }
 

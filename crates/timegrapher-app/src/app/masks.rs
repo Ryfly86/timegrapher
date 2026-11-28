@@ -71,9 +71,11 @@ impl TimegrapherApp {
     pub(super) fn reread_guided(&mut self) {
         if let Some(log) = self.guided_log() {
             let clock = self.reading_clock(log.duration_s);
+            let live = self.bench.recording.live.as_ref();
+            let settled = live.map_or(f64::INFINITY, |l| l.settled_s());
             if let Some(test) = self.bench.test.guided.as_mut() {
                 test.lift_deg = Some(self.bench.take.lift_deg);
-                test.reread(&log, clock.as_ref(), &self.bench.take.masked);
+                test.reread(&log, clock.as_ref(), &self.bench.take.masked, settled);
             }
         }
         if let Some(t) = self.bench.test.complication_saved.as_mut() {
