@@ -81,9 +81,10 @@ pub struct Test {
     /// failed (the disk full, say): the take, and when the write last
     /// failed, tried again a minute later (#1380).
     pub unwritten: Option<(PathBuf, std::time::Instant)>,
-    /// The beat rate it last ran at, kept once an automatic rate lets go
-    /// in the silence after the watch stops, so its hours are still read
-    /// at it (#1394).
+    /// The beat rate it reads at: the first the session locked at (or the
+    /// rate given), held for the whole run, so its stop and hours are read
+    /// at it after an automatic rate lets go (#1394) or relocks on noise
+    /// (#2496).
     pub bph: Option<u32>,
     /// Its take's hours since full wind at its start, fixed when it
     /// began: a stop found later lets the watch's wind go, never the

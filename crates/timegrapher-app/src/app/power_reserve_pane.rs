@@ -391,16 +391,15 @@ impl TimegrapherApp {
         }
     }
 
-    /// The beat rate the running test reads its beats at: the session's
-    /// while locked, kept in the test, else the rate it last ran at
-    /// ([`reserve::Test::bph`]).
+    /// The beat rate the running test reads its beats at: the first the
+    /// session locked at (or the rate given), held in the test for the
+    /// whole run ([`power_reserve::hold_bph`], #2496), so neither a lock
+    /// let go after the watch stops (#1394) nor a relock on noise
+    /// changes it.
     fn reserve_bph(&mut self) -> Option<u32> {
         let now = self.bench.recording.live.as_ref().and_then(|l| l.bph());
         let t = self.bench.test.reserve.as_mut()?;
-        if now.is_some() {
-            t.bph = now;
-        }
-        t.bph
+        power_reserve::hold_bph(&mut t.bph, now)
     }
 
     /// The run's hours from its first beat at audio second `first` to
@@ -414,7 +413,7 @@ impl TimegrapherApp {
             .recording
             .live
             .as_ref()
-            .and_then(|l| steady::log_of_at(l, l.bph().or(bph)))
+            .and_then(|l| steady::log_of_at(l, bph.or(l.bph())))
         else {
             return Vec::new();
         };
