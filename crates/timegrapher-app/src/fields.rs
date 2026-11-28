@@ -26,6 +26,15 @@ pub fn parse_number(s: &str) -> Option<f64> {
     v.is_finite().then_some(v)
 }
 
+/// [`parse_number`] for a box where 0 means none: an emptied box reads
+/// as 0, so Return on it clears the value just as typing 0 does (#2516).
+pub fn parse_number_or_none(s: &str) -> Option<f64> {
+    if s.trim().is_empty() {
+        return Some(0.0);
+    }
+    parse_number(s)
+}
+
 /// Seconds shown as "30 s", "5 min", "2 h" or "1:30:00".
 pub fn duration(v: f64) -> String {
     timegrapher_core::figure_text::duration_text(v)
@@ -84,20 +93,33 @@ pub fn entry(
     fmt: &Format,
     width: f32,
 ) -> bool {
-    entry_framed(ui, id_salt, value, range, fmt, width, true)
+    let id = ui.make_persistent_id(id_salt);
+    entry_framed(ui, id, value, range, fmt, width, true)
+}
+
+/// [`entry`] with its widget id given, for a box a caller (or a test)
+/// must find again.
+pub fn entry_at(
+    ui: &mut egui::Ui,
+    id: egui::Id,
+    value: &mut f64,
+    range: std::ops::RangeInclusive<f64>,
+    fmt: &Format,
+    width: f32,
+) -> bool {
+    entry_framed(ui, id, value, range, fmt, width, true)
 }
 
 /// [`entry`], with or without its own frame.
 fn entry_framed(
     ui: &mut egui::Ui,
-    id_salt: &str,
+    id: egui::Id,
     value: &mut f64,
     range: std::ops::RangeInclusive<f64>,
     fmt: &Format,
     width: f32,
     frame: bool,
 ) -> bool {
-    let id = ui.make_persistent_id(id_salt);
     let buf = id.with("text");
     let mut text = ui
         .data_mut(|d| d.get_temp::<String>(buf))
@@ -215,7 +237,10 @@ pub fn combo(
     }
     let mut typed = *value;
     let w = child.available_width();
-    let mut changed = entry_framed(&mut child, id_salt, &mut typed, range, fmt, w, false);
+    let mut changed = {
+        let id = child.make_persistent_id(id_salt);
+        entry_framed(&mut child, id, &mut typed, range, fmt, w, false)
+    };
     let mut picked = None;
     egui::Popup::menu(&arrow_resp)
         .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
