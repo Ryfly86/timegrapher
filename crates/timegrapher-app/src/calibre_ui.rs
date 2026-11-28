@@ -71,9 +71,9 @@ pub struct Calibres {
     funnel_listed: std::cell::RefCell<Option<(Col, String, Vec<String>)>>,
     /// The values the funnel open offers, kept the same way.
     funnel_offered: std::cell::RefCell<Option<(Col, Vec<String>)>>,
-    /// The row open for a wheel the slots don't list: its name and period
-    /// as typed so far.
-    adding: Option<(String, String)>,
+    /// The row open for a wheel the slots don't list, on the calibre it
+    /// was started on.
+    adding: Option<Adding>,
     /// Why the user's calibres couldn't be read or written, if so.
     pub problem: Option<String>,
     /// The beat rate the Calibre menu knew when it asked for Manage
@@ -166,6 +166,17 @@ const CALIBRE_MIN_W: f32 = 40.0;
 
 /// The not-supported tag's text size in the table (#1872).
 const TAG_SIZE: f32 = 11.0;
+
+/// A wheel being added to a calibre that the slots don't list: the
+/// calibre it was started on, and its name and period as typed so far.
+/// It shows, and adds, only on that calibre: another one selected shows
+/// Add a Wheel… of its own (#2380).
+#[derive(Debug, Clone, Default)]
+struct Adding {
+    calibre: String,
+    wheel: String,
+    period: String,
+}
 
 /// The least width the selected calibre's details need beside the table, in
 /// their card: room for a wheel's row with Add and Cancel.
@@ -718,26 +729,32 @@ impl Calibres {
             Entry::Table(c) => Some(c),
             Entry::Custom(_) => None,
         };
+        let shown: Vec<_> = slots
+            .iter()
+            .map(|s| {
+                let worked = train.arbors.iter().find(|a| a.name == s.name);
+                (slot_shown(e, s, worked), worked)
+            })
+            .collect();
         let mut edits: Vec<(String, Option<f64>)> = Vec::new();
         let adding = &mut self.adding;
         theme::group(ui, "Wheels", None, |g| {
-            for s in &slots {
-                let worked = train.arbors.iter().find(|a| a.name == s.name);
-                let tip = slot_tip(s, worked);
+            for ((s, tip, typed), worked) in &shown {
+                let (typed, worked) = (*typed, *worked);
                 let id = format!("calibre-{place}-{name}-{}", s.name);
                 let teeth = worked.and_then(|w| w.caption());
                 let caption = match (&teeth, s.origin) {
                     (Some(t), _) => theme::Caption::Text(t),
-                    (None, Origin::User) => theme::Caption::Text("Custom"),
+                    (None, Origin::User) if typed => theme::Caption::Text("Custom"),
                     _ => theme::Caption::None,
                 };
-                g.row(&title_case(&s.name), caption, &tip, |ui| {
-                    slot_period(ui, s, &id, &tip, &mut edits);
+                g.row(&title_case(&s.name), caption, tip, |ui| {
+                    slot_period(ui, s, typed, &id, tip, &mut edits);
                 });
             }
             // Another wheel by name, such as an intermediate wheel: a row
             // of its own, kept once it has both.
-            g.whole(|ui| add_wheel_row(ui, adding, place, &mut edits));
+            g.whole(|ui| add_wheel_row(ui, adding, name, place, &mut edits));
         });
         ui.add_space(-8.0);
         ui.add(
@@ -2087,6 +2104,28 @@ fn sort_mark(painter: &egui::Painter, c: egui::Pos2, reversed: bool, ink: egui::
     painter.add(egui::Shape::convex_polygon(pts, ink, egui::Stroke::NONE));
 }
 
+/// The wheel `s` of the calibre `e` as its row shows it, its hover, and
+/// whether its period was typed in (a Clear and a Custom caption). A
+/// custom calibre's balance that its beat rate gives is worked out, not
+/// typed in, and shows that period even where none is kept (#2381).
+fn slot_shown(e: Entry, s: &Slot, worked: Option<&train::Worked>) -> (Slot, String, bool) {
+    let rate = match e {
+        Entry::Custom(c) if s.name == "balance" => c.balance_from_rate().zip(c.bph),
+        _ => None,
+    };
+    match rate {
+        Some((p, bph)) => (
+            Slot {
+                period_s: Some(p),
+                ..s.clone()
+            },
+            format!("From the beat rate, {bph} bph"),
+            false,
+        ),
+        None => (s.clone(), slot_tip(s, worked), true),
+    }
+}
+
 /// Where a wheel's period comes from, for its hover; `worked` is the
 /// wheel worked out from its teeth, where the train counts it.
 fn slot_tip(s: &Slot, worked: Option<&train::Worked>) -> String {
@@ -2293,16 +2332,18 @@ fn count_field(
     )
 }
 
-/// A wheel's period box, with Clear on one typed in; what changed goes
-/// in `edits`, `None` for back to the list's.
+/// A wheel's period box, with Clear on one typed in (`typed`); what
+/// changed goes in `edits`, `None` for back to the list's.
 fn slot_period(
     ui: &mut egui::Ui,
     s: &Slot,
+    typed: bool,
     id: &str,
     tip: &str,
     edits: &mut Vec<(String, Option<f64>)>,
 ) {
-    if s.origin == Origin::User
+    if typed
+        && s.origin == Origin::User
         && ui
             .small_button("Clear")
             .on_hover_text(if s.shipped_period_s.is_some() {
@@ -2321,15 +2362,18 @@ fn slot_period(
 }
 
 /// Another wheel by name, such as an intermediate wheel: a row of its
-/// own, kept once it has both.
+/// own, kept once it has both. The row open on another calibre than
+/// `calibre` isn't shown here (#2380).
 fn add_wheel_row(
     ui: &mut egui::Ui,
-    adding: &mut Option<(String, String)>,
+    adding: &mut Option<Adding>,
+    calibre: &str,
     place: &str,
     edits: &mut Vec<(String, Option<f64>)>,
 ) {
     let pal = theme::pal(ui);
-    let Some((wheel, period)) = adding.as_mut() else {
+    let Some(Adding { wheel, period, .. }) = adding.as_mut().filter(|a| a.calibre == calibre)
+    else {
         if ui
             .add(
                 egui::Label::new(RichText::new("Add a Wheel…").color(pal.accent))
@@ -2341,7 +2385,10 @@ fn add_wheel_row(
             )
             .clicked()
         {
-            *adding = Some((String::new(), String::new()));
+            *adding = Some(Adding {
+                calibre: calibre.into(),
+                ..Default::default()
+            });
         }
         return;
     };

@@ -99,6 +99,20 @@ pub struct CustomCalibre {
     pub notes: Option<String>,
 }
 
+impl CustomCalibre {
+    /// The balance's period its beat rate gives (two beats a swing,
+    /// [`crate::train::balance_period_s`]), while the balance it keeps is
+    /// that period or it keeps none: worked out, not typed in (#2381).
+    /// `None` without a beat rate, or with a balance typed that the rate
+    /// doesn't give.
+    pub fn balance_from_rate(&self) -> Option<f64> {
+        let p = crate::train::balance_period_s(self.bph.filter(|&b| b > 0)?);
+        let kept = self.wheels.iter().find(|w| w.name == "balance");
+        kept.is_none_or(|w| (w.period_s - p).abs() < 1e-9)
+            .then_some(p)
+    }
+}
+
 /// One wheel of a custom calibre.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CustomWheel {
@@ -194,10 +208,24 @@ impl UserCalibres {
         });
     }
 
-    /// Forget the period the user gave `wheel` on a calibre.
+    /// Forget the period the user gave `wheel` on a calibre. A custom
+    /// calibre's balance goes back to the period its beat rate gives,
+    /// where it has one: it is never unknown while the rate is known
+    /// (#2381).
     pub fn clear_wheel(&mut self, calibre: &str, wheel: &str) {
         if let Some(c) = self.custom.iter_mut().find(|c| c.name == calibre) {
             c.wheels.retain(|w| w.name != wheel);
+            if wheel == "balance" {
+                if let Some(period_s) = c.balance_from_rate() {
+                    c.wheels.insert(
+                        0,
+                        CustomWheel {
+                            name: wheel.into(),
+                            period_s,
+                        },
+                    );
+                }
+            }
         }
         self.wheels
             .retain(|w| !(w.calibre == calibre && w.name == wheel));
@@ -936,5 +964,39 @@ mod tests {
         assert!(cat.find("My Movement").unwrap().escapement().is_none());
         assert_eq!(calibres::escapement_name(None), "Swiss lever");
         assert_eq!(calibres::escapement_name(Some("co-axial")), "Co-axial");
+    }
+
+    /// A custom calibre's balance the beat rate gives is from the rate,
+    /// kept or not; one typed that the rate doesn't give is not, and
+    /// cleared it goes back to the rate's (#2381).
+    #[test]
+    fn a_custom_balance_follows_its_beat_rate_until_typed() {
+        let mut u = store();
+        let third = crate::train::balance_period_s(21600);
+        let c = |u: &UserCalibres| u.custom[0].clone();
+        assert_eq!(c(&u).balance_from_rate(), Some(third));
+        u.set_wheel("My Movement", "balance", third, None);
+        assert_eq!(c(&u).balance_from_rate(), Some(third));
+        u.set_wheel("My Movement", "balance", 0.4, None);
+        assert_eq!(c(&u).balance_from_rate(), None);
+        u.clear_wheel("My Movement", "balance");
+        assert_eq!(c(&u).balance_from_rate(), Some(third));
+        let kept: Vec<_> = c(&u)
+            .wheels
+            .iter()
+            .map(|w| (w.name.clone(), w.period_s))
+            .collect();
+        assert_eq!(
+            kept,
+            [
+                ("balance".to_string(), third),
+                ("fourth wheel".to_string(), 60.0)
+            ]
+        );
+        // Without a beat rate there is nothing to work it out from.
+        u.custom[0].bph = None;
+        assert_eq!(c(&u).balance_from_rate(), None);
+        u.clear_wheel("My Movement", "balance");
+        assert!(c(&u).wheels.iter().all(|w| w.name != "balance"));
     }
 }
