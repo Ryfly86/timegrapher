@@ -1,6 +1,7 @@
 //! `analyze` never writes its CSVs over a file of the take it reads: the
-//! session file, record or clock log beside the recording, another of the
-//! take's recordings, or the FLAC read for a WAV kept as one (#2372).
+//! session file, record, clock log or test marks beside the recording, the
+//! recording's sidecar, the kept analysis, another of the take's
+//! recordings, or the FLAC read for a WAV kept as one (#2372).
 use std::{
     path::{Path, PathBuf},
     process::Command,
@@ -74,6 +75,18 @@ fn an_output_naming_a_file_of_the_take_is_refused_and_the_file_kept() {
     .unwrap();
     std::fs::write(take.join("session.json"), "{}\n").unwrap();
     std::fs::write(take.join("clock.csv"), "audio_s,ntp_s\n").unwrap();
+    // The user's test marks, the recording's sidecar and the kept analysis:
+    // none can be told from a CSV once written over.
+    for name in [
+        "positions-test.json",
+        "poise-test.json",
+        "test-marks.json",
+        "take_part01-001.wav.json",
+    ] {
+        std::fs::write(take.join(name), "{}\n").unwrap();
+    }
+    std::fs::create_dir_all(take.join("analysis")).unwrap();
+    std::fs::write(take.join("analysis").join("analysis.json"), "{}\n").unwrap();
     for (name, says) in [
         ("session.toml", "take's session.toml"),
         ("session.json", "take's session.json"),
@@ -81,6 +94,11 @@ fn an_output_naming_a_file_of_the_take_is_refused_and_the_file_kept() {
         // Not there yet, but read as the take's clock log once written.
         ("clock.log", "take's clock.log"),
         ("take_part01-002.wav", "recording of the take"),
+        ("positions-test.json", "take's positions-test.json"),
+        ("poise-test.json", "take's poise-test.json"),
+        ("test-marks.json", "take's test-marks.json"),
+        ("take_part01-001.wav.json", "recording's sidecar"),
+        ("analysis/analysis.json", "in the take's analysis folder"),
     ] {
         refused(&wav, &take.join(name), says);
     }
