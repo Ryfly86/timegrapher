@@ -291,6 +291,40 @@ mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
+    /// The first zip in an empty folder takes the bare name (#2416).
+    #[test]
+    fn zip_new_first_name_has_no_suffix() {
+        let dir = std::env::temp_dir().join(format!("tg-zip-new-first-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = write_zip_new(&dir, "r", &sample()).unwrap();
+        assert_eq!(p, dir.join("r.zip"));
+        let p = write_zip_new(&dir, "r", &sample()).unwrap();
+        assert_eq!(p, dir.join("r-2.zip"));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A write that fails leaves nothing behind, its reserved name
+    /// included. The name fits but the atomic writer's temporary file
+    /// beside it is too long for the file system (#2416).
+    #[cfg(unix)]
+    #[test]
+    fn zip_new_failed_write_leaves_nothing() {
+        let dir = std::env::temp_dir().join(format!("tg-zip-new-fail-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let stem = "s".repeat(251);
+        let e = write_zip_new(&dir, &stem, &sample());
+        assert!(e.is_err(), "{e:?}");
+        let left: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .flatten()
+            .map(|e| e.path())
+            .collect();
+        assert!(left.is_empty(), "{left:?}");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
     #[test]
     fn zip_round_trip() {
         let p = temp("round");
