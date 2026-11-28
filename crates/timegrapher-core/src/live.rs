@@ -1672,8 +1672,7 @@ impl LiveAnalyzer {
         shown: bool,
     ) {
         let escapement = self.cfg.analysis.amplitude.escapement;
-        let inconsistent = figures.unlock_inconsistent;
-        if let Some(caveat) = escapement.beat_error_caveat(source, inconsistent, shown) {
+        if let Some(caveat) = escapement.beat_error_caveat(source, figures.drop_why(), shown) {
             measure::add(caveats, caveat);
         }
     }
