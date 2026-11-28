@@ -375,7 +375,8 @@ pub fn check_grids(
     use crate::steadiness::{rate_grid, rate_windows, window_grids};
     let rate = rate_grid(&rate_windows(log, clock, &long.breaks, rate_s), rate_s);
     let [amplitude, beat_error] = window_grids(log, clock, &long.breaks);
-    [rate, amplitude, beat_error]
+    // As the tests read them: the long-run report's verdict (#2404, #2355).
+    long.judged_grids([rate, amplitude, beat_error])
 }
 
 /// Where a series' fold period came from.
@@ -1799,7 +1800,7 @@ mod tests {
         // the clock, so the clock is named but not put on again.
         let spans = [(0.0, log.duration_s)];
         let (joined, breaks) = crate::joined::join(&log, &spans, &[], Some(&fit));
-        let jlong = longrun::analyse_on_clock(&joined, Some(&fit), &breaks, &lc);
+        let jlong = longrun::read_take(&joined, Some(&fit), &breaks, true, Some(joined.bph), &lc);
         let jreport = steadiness::check(&joined, None, &jlong, &lc, &check);
         let stretch = views(&joined, None, &jreport, &jlong, &lc, check.rate_reading_s);
         let (a, b) = (median(&whole), median(&stretch));

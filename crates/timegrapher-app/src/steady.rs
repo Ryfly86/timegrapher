@@ -283,7 +283,9 @@ pub fn log_of_at(live: &LiveAnalyzer, bph: Option<u32>) -> Option<BeatLog> {
 
 fn log_masked_at(live: &LiveAnalyzer, masked: &[(f64, f64)], bph: Option<u32>) -> Option<BeatLog> {
     let mut log = BeatLog {
-        lock_template_kept: false,
+        // As the file it was read from has it, so the whole take's
+        // reading carries core's caveat as session's does (#2536).
+        lock_template_kept: live.lock_template_kept(),
         sample_rate: live.sample_rate(),
         duration_s: live.duration_s(),
         bph: bph?,
@@ -438,7 +440,12 @@ pub fn compute_with(
     let grids = match clock {
         // On the take's own clock, as the tests read it.
         Some(_) => steady_views::check_grids(log, clock, &long, cfg.rate_reading_s),
-        None => steady_views::grids_with_breaks(log, cfg.rate_reading_s, breaks),
+        // As the tests read them: the long-run report's verdict (#2404, #2355).
+        None => long.judged_grids(steady_views::grids_with_breaks(
+            log,
+            cfg.rate_reading_s,
+            breaks,
+        )),
     };
     let searches = steady_views::searches(&grids, clock, &long, &lc);
     let mut fold_from = [FoldFrom::Own, FoldFrom::Own, FoldFrom::Own];

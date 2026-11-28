@@ -1333,7 +1333,9 @@ fn a_poise_test_reads_the_same_live_as_reopened() {
     app.session.recorder =
         Some(Recorder::start(&base.join("live"), app.info("test", 48000, 16)).unwrap());
     let cfg = SynthConfig {
-        duration_s: 8.0 * (settle + measure) + 1.0,
+        // A second more for each stop: one is read on the pass after its
+        // end, once its beats are final (#2510).
+        duration_s: 8.0 * (settle + measure + 1.0) + 1.0,
         snr_db: 30.0,
         rate_s_per_day: 9.0,
         seed: 1720,
@@ -1451,7 +1453,9 @@ fn guided_test_saved(
     app.session.recorder =
         Some(Recorder::start(&base.join("live"), app.info("test", 48000, 16)).unwrap());
     let cfg = SynthConfig {
-        duration_s: 8.0 * (settle + measure + turn) + 1.0,
+        // A second more for each stop: one is read on the pass after its
+        // end, once its beats are final (#2510).
+        duration_s: 8.0 * (settle + measure + turn + 1.0) + 1.0,
         snr_db: 30.0,
         rate_s_per_day: 9.0,
         seed: 1958,

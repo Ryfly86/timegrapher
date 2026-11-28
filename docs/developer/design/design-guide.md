@@ -220,6 +220,7 @@ Masks are hatched (section 11), so a masked stretch can't be taken for a faint o
   - **Choice** (two to five fixed options, such as Direction: Down or Across): a segmented control. More than five: a pop-up.
     - The selected part is a lighter, raised grey with white text, as in Bench | Watches. The others are flat, with grey text. A choice never uses the default blue. The one exception is the map picker, whose parts are quantities: its selected icon is also lit in that quantity's colour.
   - **Value with presets** (Width, Length, Lift): one field with its ▾ inside, so you can type or pick.
+  - **Typed field** (a number or a name): Return, Tab or clicking away keeps what was typed; Escape puts back what it had and keeps nothing.
   - **Setting** (stays on or off, in Settings and sheets): a switch on the same row as its label, with the switch at the right.
   - **Inline action** (adds a row to a list or group): accent words with no frame, as the group's last row: "Add a Wheel…", "Add Field ▾".
 - **Icons:**

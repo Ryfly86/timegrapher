@@ -2809,7 +2809,8 @@ fn kept_text(ui: &mut egui::Ui, id: egui::Id, shown: &str) -> Option<String> {
 
 /// A box that may be blank, showing `shown`. Enter or clicking away reads
 /// it with `parse`: `Some(Some(v))` for a new value, `Some(None)` when
-/// emptied, `None` when nothing changed or it doesn't read.
+/// emptied, `None` when nothing changed, it doesn't read, or Escape put
+/// it back (#2518).
 #[allow(clippy::too_many_arguments)]
 fn blank_field<T>(
     ui: &mut egui::Ui,
@@ -2835,7 +2836,8 @@ fn blank_field<T>(
         .on_hover_text(tip);
     let mut out = None;
     if resp.lost_focus() {
-        if text.trim() != shown {
+        let undone = ui.input(|i| i.key_pressed(egui::Key::Escape));
+        if !undone && text.trim() != shown {
             out = if text.trim().is_empty() {
                 Some(None)
             } else {

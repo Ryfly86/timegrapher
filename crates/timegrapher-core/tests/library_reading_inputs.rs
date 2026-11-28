@@ -131,5 +131,56 @@ fn a_reading_follows_what_it_is_read_from() {
     let e = library::reading(&tail).unwrap_err();
     assert!(e.contains("settle_s"), "{e}");
 
+    readings_revision_follows_settings_and_scans(&root);
+
     let _ = fs::remove_dir_all(&root);
+}
+
+/// #2410: a surface keeping the readings asks again when the library is
+/// read again or a setting a reading reads beside its take changes: the
+/// clock corrections, the user's calibres. Nothing changed, it stays.
+/// Called from the one test, as it needs `TIMEGRAPHER_CONFIG_DIR`.
+fn readings_revision_follows_settings_and_scans(root: &Path) {
+    let mut lib = library::Library::create(&root.join("library")).unwrap();
+    let was = lib.readings_revision();
+    assert_eq!(lib.readings_revision(), was, "nothing changed");
+    let clocks = timegrapher_core::clockstore::path().unwrap();
+    let calibres = timegrapher_core::calibre_store::default_path().unwrap();
+    assert!(!clocks.exists() && !calibres.exists());
+    let changed = |lib: &library::Library, was: &mut library::ReadingsRevision, what: &str| {
+        let now = lib.readings_revision();
+        assert_ne!(&now, was, "{what}");
+        *was = now;
+    };
+    let mut was = was;
+    fs::write(&clocks, "{}").unwrap();
+    changed(&lib, &mut was, "a clock correction stored");
+    fs::write(&clocks, "{ }").unwrap();
+    changed(&lib, &mut was, "a clock correction changed");
+    // At the same size (a correction of 1.23 ppm made 1.32): told by its
+    // last change.
+    let later = |p: &Path| {
+        let f = fs::OpenOptions::new().write(true).open(p).unwrap();
+        let t = f.metadata().unwrap().modified().unwrap();
+        f.set_modified(t + std::time::Duration::from_secs(10))
+            .unwrap();
+    };
+    fs::write(&clocks, "{\"ppm\":1.23}").unwrap();
+    changed(&lib, &mut was, "a clock correction of 1.23 ppm");
+    fs::write(&clocks, "{\"ppm\":1.32}").unwrap();
+    later(&clocks);
+    changed(&lib, &mut was, "the same size, changed later");
+    fs::write(&calibres, "{}").unwrap();
+    changed(&lib, &mut was, "a calibre of the user's added");
+    lib.scan();
+    changed(&lib, &mut was, "the library read again");
+    // Two libraries each opened afresh, each read once, are told apart:
+    // the scans are counted across the process, not library by library.
+    let one = library::Library::open(&root.join("library")).unwrap();
+    let two = library::Library::open(&root.join("library")).unwrap();
+    assert_ne!(
+        one.readings_revision(),
+        two.readings_revision(),
+        "a library opened afresh"
+    );
 }
