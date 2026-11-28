@@ -1001,6 +1001,7 @@ pub fn for_take(
     lc: &crate::longterm::LongConfig,
 ) -> Vec<TimeFrequency> {
     let [_, be] = crate::steadiness::window_grids(log, clock, &long.breaks);
+    let be = long.judged(crate::steadiness::SeriesKind::BeatError, be);
     let be = crate::steadiness::level_by_piece(&be, clock, &long.breaks, lc);
     let inputs = [
         (&long.timing.detrended, "rate", "ms", 1000.0),
@@ -1035,8 +1036,10 @@ pub fn coherences_for_take(
     long: &crate::longrun::LongReport,
     reading_s: f64,
 ) -> Vec<Coherence> {
-    let [rate, amp, _] = crate::steadiness::reading_grids(log, clock, &long.breaks, reading_s).0;
-    let [tick, tock] = crate::steadiness::side_grids(log, clock, &long.breaks);
+    let [rate, amp, _] =
+        long.judged_grids(crate::steadiness::reading_grids(log, clock, &long.breaks, reading_s).0);
+    let [tick, tock] = crate::steadiness::side_grids(log, clock, &long.breaks)
+        .map(|g| long.judged(crate::steadiness::SeriesKind::Amplitude, g));
     [
         coherence(&rate, &amp, "rate", "amplitude"),
         coherence(&tick, &tock, "tick_amplitude", "tock_amplitude"),
@@ -1055,6 +1058,7 @@ pub fn kurtograms_for_take(
     lc: &crate::longterm::LongConfig,
 ) -> Vec<Kurtogram> {
     let [_, be] = crate::steadiness::window_grids(log, clock, &long.breaks);
+    let be = long.judged(crate::steadiness::SeriesKind::BeatError, be);
     let be = crate::steadiness::level_by_piece(&be, clock, &long.breaks, lc);
     [
         (&long.timing.detrended, "rate"),
