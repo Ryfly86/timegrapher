@@ -1,6 +1,177 @@
 //! The dock: the panes' tiles, their tab rows and the tab rows' arrows.
 
 use super::*;
+use egui_tiles::{Container, Tile};
+
+impl TimegrapherApp {
+    /// The panes' tiles, drawn, each tab row kept to panes (#2213).
+    pub(super) fn dock_ui(&mut self, ui: &mut egui::Ui) {
+        let mut panes =
+            std::mem::replace(&mut self.bench.panes_view.panes, Tree::empty("panes-swap"));
+        repair_tabs(&mut panes);
+        mend_tabs(&mut panes, None);
+        let need = self.bench.panes_view.pane_need.clone();
+        keep_room(
+            &mut panes.tiles,
+            |p| need.get(&p).copied(),
+            &self.bench.panes_view.panes_dragged,
+        );
+        let before = shares_of(&panes.tiles);
+        // The tile a drop in this frame lets go of: egui_tiles still names
+        // it until the frame ends.
+        let dragged = panes.dragged_id(ui.ctx());
+        panes.ui(
+            &mut PaneBehavior {
+                app: self,
+                row: None,
+            },
+            ui,
+        );
+        // Shares changed while drawn were dragged by hand: they stand.
+        for (id, s) in shares_of(&panes.tiles) {
+            if before.get(&id).is_some_and(|b| *b != s) {
+                self.bench.panes_view.panes_dragged.insert(id);
+            }
+        }
+        mend_tabs(&mut panes, dragged);
+        self.bench.panes_view.panes = panes;
+    }
+}
+
+/// A tab row holding a row of panes, or tabs of its own, mended to the
+/// place the drop's preview showed (#2213). egui_tiles splits the pane a
+/// tab is dropped on in place: in a tab row that also holds hidden panes
+/// the split stays a tab of that row, titled "Vertical", "Horizontal" or
+/// "Tabs", and only one of it and the row's other tabs shows at a time.
+pub(super) fn mend_tabs(tree: &mut Tree<Pane>, dropped: Option<TileId>) {
+    // One at a time, as each mend can leave the next to find; never
+    // more than there are tiles.
+    for _ in 0..tree.tiles.len() {
+        let found = tree.tiles.iter().find_map(|(&id, tile)| match tile {
+            Tile::Container(Container::Tabs(tabs)) => tabs
+                .children
+                .iter()
+                .position(|&c| tree.tiles.get_container(c).is_some())
+                .map(|i| (id, i)),
+            _ => None,
+        });
+        let Some((row, at)) = found else {
+            return;
+        };
+        if !mend_row(tree, row, at, dropped) {
+            return;
+        }
+    }
+}
+
+/// Mend the tab row `row`'s tab `at`, a container: whether it could.
+fn mend_row(tree: &mut Tree<Pane>, row: TileId, at: usize, dropped: Option<TileId>) -> bool {
+    let tiles = &tree.tiles;
+    let Some(Tile::Container(Container::Tabs(tabs))) = tiles.get(row) else {
+        return false;
+    };
+    let inner = tabs.children[at];
+    let others_shown = tabs
+        .children
+        .iter()
+        .any(|&c| c != inner && tiles.is_visible(c));
+    let parent = tiles.parent_of(row);
+    match tiles.get(inner).cloned() {
+        // Tabs dropped into tabs: theirs join the row in their place.
+        Some(Tile::Container(Container::Tabs(t))) => {
+            tree.tiles.remove(inner);
+            if let Some(Tile::Container(Container::Tabs(tabs))) = tree.tiles.get_mut(row) {
+                tabs.children.splice(at..=at, t.children.iter().copied());
+                let picked = dropped.filter(|d| t.children.contains(d)).or(t.active);
+                if tabs.active == Some(inner) || picked.is_some() {
+                    tabs.active = picked.or_else(|| t.children.first().copied());
+                }
+            }
+            true
+        }
+        Some(Tile::Container(Container::Linear(line))) => {
+            let into = dropped.filter(|d| line.children.contains(d));
+            let pane = match into {
+                Some(d) if line.children.len() == 2 => line.children.iter().find(|&&c| c != d),
+                _ if !others_shown => line.children.first(),
+                _ => None,
+            }
+            .copied();
+            let Some(pane) = pane else {
+                // The row wrapped round a line of panes, as dropped on
+                // the whole layout: the line keeps its place, and what
+                // else the row holds follows it, as a drop past its end.
+                if let Some(Tile::Container(Container::Tabs(tabs))) = tree.tiles.get_mut(row) {
+                    tabs.children.remove(at);
+                    if tabs.active == Some(inner) {
+                        tabs.active = dropped
+                            .filter(|d| tabs.children.contains(d))
+                            .or_else(|| tabs.children.first().copied());
+                    }
+                }
+                put_in_place(tree, parent, row, inner);
+                let empty = tree.tiles.get_container(row).is_none_or(|c| c.is_empty());
+                if empty {
+                    tree.tiles.remove(row);
+                } else if let Some(Tile::Container(Container::Linear(line))) =
+                    tree.tiles.get_mut(inner)
+                {
+                    line.add_child(row);
+                }
+                return true;
+            };
+            // A drop beside a pane of the row: the split takes the row's
+            // place, and the row the pane's place in the split, its
+            // hidden panes still beside the pane.
+            if let Some(Tile::Container(Container::Tabs(tabs))) = tree.tiles.get_mut(row) {
+                tabs.children[at] = pane;
+                if tabs.active == Some(inner) {
+                    tabs.active = Some(pane);
+                }
+            }
+            put_in_place(tree, parent, row, inner);
+            if let Some(Tile::Container(Container::Linear(line))) = tree.tiles.get_mut(inner) {
+                for c in &mut line.children {
+                    if *c == pane {
+                        *c = row;
+                    }
+                }
+                line.shares.replace_with(pane, row);
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+/// `new` in `old`'s place in `parent`, or as the root.
+fn put_in_place(tree: &mut Tree<Pane>, parent: Option<TileId>, old: TileId, new: TileId) {
+    let Some(parent) = parent else {
+        tree.root = Some(new);
+        return;
+    };
+    match tree.tiles.get_mut(parent) {
+        Some(Tile::Container(Container::Linear(line))) => {
+            for c in &mut line.children {
+                if *c == old {
+                    *c = new;
+                }
+            }
+            line.shares.replace_with(old, new);
+        }
+        Some(Tile::Container(Container::Tabs(tabs))) => {
+            for c in &mut tabs.children {
+                if *c == old {
+                    *c = new;
+                }
+            }
+            if tabs.active == Some(old) {
+                tabs.active = Some(new);
+            }
+        }
+        _ => {}
+    }
+}
 
 pub(super) struct PaneBehavior<'a> {
     pub(super) app: &'a mut TimegrapherApp,

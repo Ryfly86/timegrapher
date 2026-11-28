@@ -1599,3 +1599,162 @@ fn charts_has_room_for_all_three_at_1920_by_1080() {
     let need = app.bench.panes_view.pane_need[&Pane::Strip];
     assert!(row_h(&app, Pane::Strip) + 1.0 >= need);
 }
+
+/// The panes' tiles as a line: each container its kind and its shown
+/// children, each pane its title.
+fn layout_text(tree: &Tree<Pane>, id: TileId) -> String {
+    let t = &tree.tiles;
+    match t.get(id) {
+        Some(egui_tiles::Tile::Pane(p)) => p.title().to_string(),
+        Some(egui_tiles::Tile::Container(c)) => {
+            let shown: Vec<String> = c
+                .children()
+                .filter(|&&k| t.is_visible(k))
+                .map(|&k| layout_text(tree, k))
+                .collect();
+            format!("{:?}[{}]", c.kind(), shown.join(", "))
+        }
+        None => "?".into(),
+    }
+}
+
+/// Whether a tab row holds anything but panes: such a tab is titled by
+/// its kind, "Vertical", "Horizontal" or "Tabs".
+fn a_tab_holds_a_container(tree: &Tree<Pane>) -> bool {
+    let t = &tree.tiles;
+    t.iter().any(|(_, tile)| match tile {
+        egui_tiles::Tile::Container(egui_tiles::Container::Tabs(tabs)) => {
+            tabs.children.iter().any(|&c| t.get_container(c).is_some())
+        }
+        _ => false,
+    })
+}
+
+/// A tab dropped on the lower half of the Tick Tock Profile, whose tab
+/// row also holds the Scope and the hidden panes, lands under the profile
+/// as the preview shows, never as a tab titled "Vertical" beside the
+/// Scope (#2213). Before, egui_tiles split the profile inside its tab
+/// row, which the hidden panes kept from folding away.
+#[test]
+fn a_tab_dropped_under_a_pane_lands_as_its_own_row() {
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    let mut app = TimegrapherApp::with_devices(mac_devices(), None);
+    app.reset_session(48000, "syn".into());
+    let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(1920.0, 1080.0));
+    let mut time = 0.0;
+    let mut pass = |app: &mut TimegrapherApp, events: Vec<egui::Event>| {
+        time += 1.0 / 60.0;
+        let input = egui::RawInput {
+            screen_rect: Some(screen),
+            time: Some(time),
+            events,
+            ..Default::default()
+        };
+        let _ = ctx.run(input, |ctx| app.panels(ctx));
+    };
+    let button = |pressed, pos| egui::Event::PointerButton {
+        pos,
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers: Default::default(),
+    };
+    for _ in 0..2 {
+        pass(&mut app, Vec::new());
+    }
+    // A pane's tab pressed, moved to `to` in six steps and let go.
+    let mut drag = |app: &mut TimegrapherApp, pane: Pane, to: egui::Pos2| {
+        for _ in 0..4 {
+            pass(app, Vec::new());
+        }
+        let id = app.bench.panes_view.panes.tiles.find_pane(&pane).unwrap();
+        let tab: egui::Rect = ctx
+            .data(|d| d.get_temp(egui::Id::new(("tab rect", id))))
+            .unwrap();
+        let from = tab.center();
+        pass(
+            app,
+            vec![egui::Event::PointerMoved(from), button(true, from)],
+        );
+        for k in 1..=6 {
+            let at = from.lerp(to, k as f32 / 6.0);
+            pass(app, vec![egui::Event::PointerMoved(at)]);
+        }
+        pass(app, vec![button(false, to)]);
+        for _ in 0..3 {
+            pass(app, Vec::new());
+        }
+    };
+    let tree = |app: &TimegrapherApp| app.bench.panes_view.panes.clone();
+    let area = |app: &TimegrapherApp| {
+        let t = tree(app);
+        t.tiles.rect(t.root().unwrap()).unwrap()
+    };
+    // Distributions beside the strip, then the Positions Test opened as a
+    // tab behind the profile.
+    set_pane_visible(
+        &mut app.bench.panes_view.panes.tiles,
+        Pane::Distributions,
+        true,
+    );
+    let a = area(&app);
+    drag(
+        &mut app,
+        Pane::Distributions,
+        egui::pos2(a.right() - 5.0, a.top() + 150.0),
+    );
+    set_pane_visible(
+        &mut app.bench.panes_view.panes.tiles,
+        Pane::PositionsTest,
+        true,
+    );
+    let row_of = |t: &Tree<Pane>, p: Pane| t.tiles.parent_of(t.tiles.find_pane(&p).unwrap());
+    let profile_row = row_of(&tree(&app), Pane::Sound);
+    // 45 pt above the bottom edge is nearer the profile's lower half than
+    // the drop zone past the last row.
+    let a = area(&app);
+    drag(
+        &mut app,
+        Pane::PositionsTest,
+        egui::pos2(a.center().x, a.bottom() - 45.0),
+    );
+    let t = tree(&app);
+    let text = layout_text(&t, t.root().unwrap());
+    assert!(!a_tab_holds_a_container(&t), "{text}");
+    assert_eq!(
+        text,
+        "Vertical[Horizontal[Tabs[Paper Strip], Tabs[Distributions]], \
+         Tabs[Tick Tock Profile, Scope], Tabs[Positions Test]]",
+    );
+    assert_eq!(
+        row_of(&t, Pane::Sound),
+        profile_row,
+        "the profile keeps its tab row, the hidden panes still in it"
+    );
+    assert!(layout_is_whole(&t));
+}
+
+/// A tab row wrapped round a whole line of panes, as a drop on the whole
+/// layout leaves it, is mended to the line with the dropped pane past its
+/// end; tabs inside tabs join the row (#2213).
+#[test]
+fn a_tab_row_round_a_line_of_panes_is_mended() {
+    let mut tiles = Tiles::default();
+    let strip = tiles.insert_pane(Pane::Strip);
+    let strip = tiles.insert_tab_tile(vec![strip]);
+    let sound = tiles.insert_pane(Pane::Sound);
+    let scope = tiles.insert_pane(Pane::Scope);
+    let inner = tiles.insert_tab_tile(vec![sound, scope]);
+    let profile = tiles.insert_tab_tile(vec![inner]);
+    let line = tiles.insert_vertical_tile(vec![strip, profile]);
+    let positions = tiles.insert_pane(Pane::PositionsTest);
+    let root = tiles.insert_tab_tile(vec![line, positions]);
+    let mut tree = Tree::new("panes", root, tiles);
+    mend_tabs(&mut tree, Some(positions));
+    assert!(!a_tab_holds_a_container(&tree));
+    assert_eq!(tree.root(), Some(line));
+    assert_eq!(
+        layout_text(&tree, line),
+        "Vertical[Tabs[Paper Strip], Tabs[Tick Tock Profile, Scope], Tabs[Positions Test]]"
+    );
+}
