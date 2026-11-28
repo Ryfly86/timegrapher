@@ -8,6 +8,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 use serde_json::{Map, Value};
+use timegrapher_core::session::Position;
 
 static MIC_BUSY: AtomicBool = AtomicBool::new(false);
 
@@ -45,7 +46,9 @@ pub enum Target {
     Watch(Option<PathBuf>, String),
 }
 
-/// A take ID, where the take goes, and the exact position.
+/// A take ID, where the take goes, and the position as core reads it
+/// (Witschi's code, so DU and CH are one position; text core cannot read
+/// stays as given).
 pub type Key = (String, Target, String);
 
 static TAKES: Mutex<Option<HashMap<Key, Value>>> = Mutex::new(None);
@@ -56,7 +59,7 @@ pub fn key(args: &Map<String, Value>, target: &Target) -> Option<Key> {
     Some((
         text(crate::tools::TAKE_ID)?,
         target.clone(),
-        text("position")?,
+        text("position").map(|raw| Position::parse(&raw).map_or(raw, |p| p.code().to_string()))?,
     ))
 }
 
@@ -367,6 +370,10 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("nothing was recorded again"));
+        // Another name for the same position is the same take (#2418).
+        for alias in ["CH", "du", "dial up", "Dial-Up"] {
+            assert_eq!(key(&args("t-1", alias)), Some(k.clone()), "{alias}");
+        }
         // The same name in another position is another take.
         assert!(recorded(&key(&args("t-1", "DD")).unwrap()).is_none());
         let no_id = json!({"folder": "/w", "position": "DU"});
