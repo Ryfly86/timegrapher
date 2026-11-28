@@ -1131,7 +1131,12 @@ Steadiness and Isochronism tabs say so, with how much of the watch has
 been heard so far, never the silence or the stand's noise ("none heard so
 far" while no reading hears a watch, and no count while no reading yet
 covers a whole Average Over of it), and the tests start once that count
-reaches 5 minutes; during a Positions Test they say
+reaches 5 minutes. They read only the stretches a watch was heard in:
+each stretch no reading hears one in is left out and cut at both ends,
+as a mask is, "Tested over" counts the beats heard, and they run again
+only once another minute of beats is heard, so silence after an answer
+reads nothing again. What counts as heard rests on the Average Over, so
+a new Average Over reads them again. During a Positions Test they say
 that the test never stays that long in one position. Steadiness scrolls
 with a bar always showing when the pane is too short for every row.
 

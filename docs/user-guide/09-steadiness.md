@@ -65,11 +65,13 @@ The words in the Info panel can be selected and copied.
   position the watch is in now. When the take has several stretches in
   that position, they are joined end to end, and each join is a cut
   (M6).
-- **Settled and unmasked.** Settling time and masked stretches are left
-  out, as for the readings.
-- **5 minutes at least.** The tests need 5 minutes of beats. While
-  listening, they run again each time another minute has come in; an
-  opened take is read once, in the background.
+- **Settled, unmasked and heard.** Settling time and masked stretches are
+  left out, as for the readings, and so is any stretch where no reading
+  hears a watch (silence, or the stand's noise): each is a cut.
+- **5 minutes at least.** The tests need 5 minutes of beats heard, and
+  "Tested over" counts only those. While listening, they run again each
+  time another minute of beats has been heard; an opened take is read
+  once, in the background.
 - **The same reading length for all three.** The rate is read in 10 s
   readings. The amplitude and the beat error are measured in 2 s windows;
   the windows inside each rate reading make one reading, their median.

@@ -238,6 +238,10 @@ pub struct Steadiness {
     pub maps: Option<Vec<timegrapher_core::timefreq::TimeFrequency>>,
     /// Seconds of the session the tests covered.
     pub upto_s: f64,
+    /// Seconds of beats heard in what the tests read: "Tested over" and
+    /// when they are read again count these, not the sound (Norm on
+    /// #2451). The whole log unless the run says otherwise.
+    pub heard_s: f64,
 }
 
 /// The breaks a reading of `log` is cut at: those the take lists
@@ -352,6 +356,8 @@ pub struct IsochronismAlone {
     pub walk: Option<timegrapher_core::walk::IsochronismWalk>,
     /// Seconds of the session it covered.
     pub upto_s: f64,
+    /// Seconds of beats heard in what it read, as [`Steadiness::heard_s`].
+    pub heard_s: f64,
 }
 
 /// What a run read, for what was [`Need`]ed.
@@ -382,6 +388,7 @@ pub fn compute_for(
         isochronism,
         walk,
         upto_s: log.duration_s,
+        heard_s: log.duration_s,
     })
 }
 
@@ -453,6 +460,7 @@ pub fn compute_with(
         meshes: Vec::new(),
         maps,
         upto_s: log.duration_s,
+        heard_s: log.duration_s,
     }
 }
 
