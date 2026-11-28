@@ -146,25 +146,15 @@ impl TimegrapherApp {
                 ),
             )
         } else {
-            // Each position measured, read or not: what Stop Test keeps.
-            let n = self
-                .bench
-                .test
-                .guided
-                .as_ref()
-                .map_or(0, |t| t.stretches().len());
-            let what = match n {
-                0 => "The take so far is kept, with no position measured yet".to_string(),
-                1 => "The 1 position measured so far is kept".to_string(),
-                n => format!("The {n} positions measured so far are kept"),
-            };
-            let name = self
-                .bench
-                .test
-                .guided
-                .as_ref()
-                .map_or("Positions Test", |t| t.kind.name());
-            (format!("Stop the {name}?"), format!("{what}{kept}."))
+            let test = self.bench.test.guided.as_ref();
+            let name = test.map_or("Positions Test", |t| t.kind.name());
+            (
+                format!("Stop the {name}?"),
+                test.map_or_else(
+                    || format!("The take so far is kept{kept}."),
+                    |t| kept_so_far(t, &kept),
+                ),
+            )
         };
         let mut choice = None;
         theme::sheet(egui::Id::new("stop test")).show(ctx, |ui| {
@@ -850,4 +840,33 @@ impl TimegrapherApp {
 pub(super) fn recorded_hint(each: &str) -> String {
     let what = each.strip_prefix("Each ").unwrap_or(each).to_lowercase();
     format!("How long each {what} was recorded in this take.")
+}
+
+/// What Stop Test keeps of the guided test `t`, kept in `kept` (" in" a
+/// watch, or nothing): each position measured, read or not; the
+/// Complication Test's stretches by name, and that a stop before its
+/// last Off leaves no On less Off (#2384).
+pub(super) fn kept_so_far(t: &guided::Test, kept: &str) -> String {
+    let n = t.stretches().len();
+    if t.kind != guided::Kind::Complication {
+        return match n {
+            0 => format!("The take so far is kept{kept}, with no position measured yet."),
+            1 => format!("The 1 position measured so far is kept{kept}."),
+            n => format!("The {n} positions measured so far are kept{kept}."),
+        };
+    }
+    let names: Vec<&str> = (0..n).map(|i| t.step_code(i)).collect();
+    let names = names.join(", ");
+    let what = match n {
+        0 => format!("The take so far is kept{kept}, with no stretch measured yet."),
+        1 => format!("The 1 stretch measured so far ({names}) is kept{kept}."),
+        n => format!("The {n} stretches measured so far ({names}) are kept{kept}."),
+    };
+    match n < timegrapher_core::complication::ORDER.len() {
+        true => format!(
+            "{what} {} is worked out only once the last Off is measured.",
+            timegrapher_core::complication::DIFFERENCE_NAME
+        ),
+        false => what,
+    }
 }

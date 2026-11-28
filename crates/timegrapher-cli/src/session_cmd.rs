@@ -1127,6 +1127,7 @@ fn write_out(s: &Session, o: &Options, base: &Path) -> Result<(), String> {
     for r in &s.text_reports {
         w(r.file, &r.text)?;
     }
+    remove_stale_text_reports(&out, &s.text_reports)?;
     if o.json {
         println!("{json}");
     } else {
@@ -1139,6 +1140,26 @@ fn write_out(s: &Session, o: &Options, base: &Path) -> Result<(), String> {
         println!(
             "             One page in English: open it in any web browser, or attach it to an email to send it."
         );
+    }
+    Ok(())
+}
+
+/// The plain-text reports `session` writes that this run did not, taken
+/// out of `out`, so the folder never holds a report `summary.json` doesn't
+/// list (#2417). Every other file in it is kept.
+fn remove_stale_text_reports(out: &Path, written: &[TextReport]) -> Result<(), String> {
+    use timegrapher_core::text_report::{POISE_FILE, POSITIONS_FILE};
+    for name in [POSITIONS_FILE, POISE_FILE] {
+        if written.iter().any(|r| r.file == name) {
+            continue;
+        }
+        let p = out.join(name);
+        match fs::remove_file(&p) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
+                return Err(format!("{}: {e}", p.display()))
+            }
+            _ => {}
+        }
     }
     Ok(())
 }
