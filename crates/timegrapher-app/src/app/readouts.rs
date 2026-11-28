@@ -90,11 +90,6 @@ fn wait_words(w: measure::Wait) -> (String, String) {
     (w.title(), w.text())
 }
 
-/// The Listen card where the reading cards keep their full width beside
-/// it: wide enough for its Wind box's second form, "Wind: full 2.0 h
-/// ago" or "Wind: 2.0 h at start", or its third, "Wind 2.0 h" (Hugh on
-/// #1915). The third measures 219 pt with "10 s" beside it at three figures of hours, and
-/// about 226 at four; with the card's padding, 260 holds it to 999.9 h.
 /// The status bar's signal fact: "signal —" before there is a figure, and
 /// the figure through core's one formatter, rounded down to 0.1×, so it
 /// reads as `doctor` reads it and under 3.0× exactly when the ticks are
@@ -107,6 +102,11 @@ pub(super) fn signal_label(signal: Option<f32>) -> String {
     format!("signal {s}")
 }
 
+/// The Listen card where the reading cards keep their full width beside
+/// it: wide enough for its Wind box's second form, "Wind: full 2.0 h
+/// ago" or "Wind: 2.0 h at start", or its third, "Wind 2.0 h" (Hugh on
+/// #1915). The third measures 219 pt with "10 s" beside it at three figures of hours, and
+/// about 226 at four; with the card's padding, 260 holds it to 999.9 h.
 pub(super) const LISTEN_WIDE_W: f32 = 350.0;
 pub(super) const LISTEN_HOURS_W: f32 = 260.0;
 
