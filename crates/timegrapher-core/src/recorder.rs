@@ -35,6 +35,9 @@ mod claim;
 mod closed_hour;
 #[cfg(test)]
 mod no_sound_tests;
+mod on_disk;
+#[cfg(test)]
+mod on_disk_tests;
 mod recorded;
 mod released;
 #[cfg(test)]
@@ -44,6 +47,7 @@ mod saved_flac;
 mod session_file_tests;
 mod settle;
 use closed_hour::{open_closed_hour, open_in_place};
+pub use on_disk::{mend_stopped, sound_on_disk_s};
 pub use recorded::{recorded_setup, saved_ranges, Moved, RecordedSetup, SavedRange, MOVED_TO};
 use released::HeldWhole;
 pub use saved_flac::{holding_wav, keep_saved_as_flac, keep_saved_as_flac_unless};
@@ -553,8 +557,12 @@ impl Recorder {
                 w.flush().map_err(io_err)?;
             }
             self.last_clock = Some(b.at);
-            if self.reap(false) {
-                self.write_session(None, None)?;
+            // session.json follows the sound as its header does, so a stop
+            // leaves its length and hours (#2412); only a rename must land.
+            let renamed = self.reap(false);
+            let written = self.write_session(None, None);
+            if renamed {
+                written?;
             }
             self.release_due();
         }
@@ -2735,8 +2743,12 @@ mod tests {
         let session = || -> serde_json::Value {
             serde_json::from_str(&fs::read_to_string(dir.join("session.json")).unwrap()).unwrap()
         };
-        // Nothing was renamed, so nothing in session.json was either.
-        assert_eq!(session()["segments"], serde_json::json!(["audio-001.wav"]));
+        // Nothing was renamed, so session.json still names the WAV, with
+        // the hour since, as each clock line writes it (#2412).
+        assert_eq!(
+            session()["segments"],
+            serde_json::json!(["audio-001.wav", "audio-002.wav"])
+        );
         assert_eq!(r.segments, ["audio-001.wav", "audio-002.wav"]);
         assert_eq!(r.breaks()[0].segment, "audio-002.wav");
         // A save still holds the hour, as FLAC of the same samples, and
