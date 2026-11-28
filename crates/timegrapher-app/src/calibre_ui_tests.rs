@@ -1370,3 +1370,69 @@ fn an_emptied_beat_rate_or_lift_box_clears_it_as_0_does() {
         assert!(kept_balance(&c).is_empty(), "{cleared:?}");
     }
 }
+
+/// Escape in a custom calibre's Beat Rate box puts the rate back, and in
+/// a wheel's count box (the blank box the period box shares) puts its
+/// value back, where it cleared or kept what was typed; Return still
+/// keeps it (#2518).
+#[test]
+fn escape_in_a_number_box_puts_back_what_it_had() {
+    for typed in ["0", "21600"] {
+        let mut c = Calibres::in_memory();
+        let name = c.new_custom("Bench 28");
+        let t = Typing::new();
+        t.type_into(&mut c, &name, "custom bph", "28800");
+        t.enter(&mut c, &name);
+        assert_eq!(c.user.custom[0].bph, Some(28800));
+        t.type_into(&mut c, &name, "custom bph", typed);
+        t.frame(
+            &mut c,
+            &name,
+            Typing::key(egui::Key::Escape, egui::Modifiers::NONE),
+        );
+        assert_eq!(c.user.custom[0].bph, Some(28800), "{typed:?}");
+        assert_eq!(kept_balance(&c), [0.25], "{typed:?}");
+    }
+    // The blank boxes: a wheel's teeth and period.
+    let ctx = egui::Context::default();
+    let id = std::cell::Cell::new(None);
+    let frame = |events: Vec<egui::Event>| {
+        let mut out = None;
+        let _ = ctx.run(
+            egui::RawInput {
+                events,
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    id.set(Some(ui.make_persistent_id("teeth")));
+                    out = blank_field(ui, "teeth", "80".into(), "Teeth", "Teeth", 46.0, |t| {
+                        match train::parse_count(t) {
+                            Ok((Some(v), None)) => Some(v),
+                            _ => None,
+                        }
+                    });
+                });
+            },
+        );
+        out
+    };
+    for (typed, ended, out) in [
+        ("", egui::Key::Escape, None),
+        ("75", egui::Key::Escape, None),
+        ("75", egui::Key::Enter, Some(Some(75))),
+        ("", egui::Key::Enter, Some(None)),
+    ] {
+        frame(vec![]);
+        ctx.memory_mut(|m| m.request_focus(id.get().unwrap()));
+        frame(vec![]);
+        frame(Typing::key(egui::Key::A, egui::Modifiers::COMMAND));
+        if typed.is_empty() {
+            frame(Typing::key(egui::Key::Backspace, egui::Modifiers::NONE));
+        } else {
+            frame(vec![egui::Event::Text(typed.into())]);
+        }
+        let got = frame(Typing::key(ended, egui::Modifiers::NONE));
+        assert_eq!(got, out, "{typed:?} then {ended:?}");
+    }
+}
