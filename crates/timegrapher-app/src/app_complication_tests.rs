@@ -132,6 +132,175 @@ fn a_complication_test_finds_the_drop_with_it_on() {
     let _ = std::fs::remove_dir_all(&base);
 }
 
+/// A Complication Test heard pass by pass, as the window hears a watch,
+/// on a synthetic take whose rate wanders: its stretches `each` seconds
+/// after `settle`, Off then On, and Stop Test pressed `stop_s` seconds in.
+/// Each row's rate the first time it is read, each as it stands just
+/// before Stop, each after, and when live's template built again took
+/// over (#2510). With `mask_on_end`, the take's masks change on the first
+/// pass after the Off's stretch ends while its beats are not yet final
+/// there, and [`Heard::unread_on_mask`] says whether the Off was still
+/// unread just after.
+fn heard_then_stopped(settle: f64, each: f64, stop_s: f64, mask_on_end: bool) -> Heard {
+    use timegrapher_core::synth::{generate, SynthConfig};
+    let base = std::env::temp_dir().join(format!(
+        "tg-app-complication-heard-{stop_s}-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.reset_session(48000, "syn".into());
+    let cfg = SynthConfig {
+        duration_s: stop_s + 1.0,
+        rate_s_per_day: 4.0,
+        snr_db: 25.0,
+        ..Default::default()
+    };
+    let wander = |t: f64| 6.0 * (t / 7.0).sin() + 4.0 * (t / 3.1).cos();
+    let audio = generate(&cfg, |_| 280.0, wander);
+    app.session.listen();
+    let tx = queued_capture(&mut app, &base);
+    let test = guided::Test::complication(app.bench.take.position).timed(settle, each);
+    app.bench.test.guided = Some(test);
+    let ctx = egui::Context::default();
+    let rates = |t: &guided::Test| -> Vec<Option<f64>> {
+        let r = t.readings_so_far().iter();
+        r.map(|r| r.measurement.rate_s_per_day).collect()
+    };
+    let (mut first, mut read_at) = (Vec::new(), Vec::new());
+    let mut unread_on_mask = None;
+    // A pass every half second, as the window's; every block while a
+    // mask is still to change on the Off's end.
+    for (k, b) in audio.samples.chunks(960).enumerate() {
+        let live = app.bench.recording.live.as_mut().unwrap();
+        live.push(b);
+        let (now, settled) = (live.duration_s(), live.settled_s());
+        if now >= stop_s {
+            break;
+        }
+        let masking = mask_on_end && unread_on_mask.is_none();
+        if k % 25 != 24 && !masking {
+            continue;
+        }
+        app.guided_tick(&ctx);
+        // The Off measured, not yet read.
+        let t = app.bench.test.guided.as_ref().unwrap();
+        let waiting = t.needs_reading() && t.readings_so_far().is_empty();
+        let off_end = t
+            .measured(now)
+            .first()
+            .map(|&(_, to)| to)
+            .filter(|_| waiting);
+        if masking && off_end.is_some_and(|to| now >= to && settled < to) {
+            app.set_masked(vec![(1.0, 2.0)]);
+            let t = app.bench.test.guided.as_ref().unwrap();
+            unread_on_mask = Some(t.readings_so_far().is_empty());
+        }
+        let t = app.bench.test.guided.as_mut().unwrap();
+        let so_far = rates(t);
+        if so_far.len() > first.len() {
+            first.push(so_far[first.len()]);
+            read_at.push(now);
+        }
+        // Turned on as soon as the Off is read.
+        if t.step == 0 && t.tick(now) == guided::Phase::Turn && !t.needs_reading() {
+            t.advance(now);
+        }
+    }
+    let before = rates(app.bench.test.guided.as_ref().unwrap());
+    let switch = app
+        .bench
+        .recording
+        .live
+        .as_ref()
+        .unwrap()
+        .template_switch_s();
+    app.stop_test();
+    let after = rates(app.bench.test.guided.as_ref().unwrap());
+    drop(tx);
+    let _ = std::fs::remove_dir_all(&base);
+    Heard {
+        first,
+        read_at,
+        before,
+        after,
+        switch,
+        unread_on_mask,
+    }
+}
+
+struct Heard {
+    first: Vec<Option<f64>>,
+    read_at: Vec<f64>,
+    before: Vec<Option<f64>>,
+    after: Vec<Option<f64>>,
+    switch: Option<f64>,
+    unread_on_mask: Option<bool>,
+}
+
+/// Rates the same to far below their shown 0.1 s/d.
+fn same(a: &[Option<f64>], b: &[Option<f64>]) -> bool {
+    a.len() == b.len()
+        && a.iter().zip(b).all(|(a, b)| match (a, b) {
+            (Some(a), Some(b)) => (a - b).abs() < 1e-6,
+            (a, b) => a == b,
+        })
+}
+
+/// Each row is read once its beats are final to its stretch's end, not
+/// as soon as the stretch is heard: Stop reads it to the same figure
+/// (#2510, where On went from +3.8 to +3.7 s/d at Stop).
+#[test]
+fn a_row_read_as_heard_reads_the_same_at_stop() {
+    let h = heard_then_stopped(5.0, 15.0, 46.0, false);
+    assert_eq!(h.switch, None, "stopped before the template is built again");
+    assert_eq!(h.first.len(), 2, "Off and On read");
+    assert!(
+        same(&h.first, &h.before),
+        "{:?} then {:?}",
+        h.first,
+        h.before
+    );
+    assert!(
+        same(&h.before, &h.after),
+        "{:?} then {:?}",
+        h.before,
+        h.after
+    );
+}
+
+/// A row read before live's template built again took over is read again
+/// on the beats it times, so Stop changes nothing then either (#2510).
+#[test]
+fn rows_read_before_the_template_is_built_again_are_read_again() {
+    let h = heard_then_stopped(5.0, 15.0, 70.0, false);
+    let switch = h.switch.expect("the template built again");
+    assert!(
+        h.read_at.iter().all(|&t| t < switch),
+        "{:?} {switch}",
+        h.read_at
+    );
+    assert!(!same(&h.first, &h.before), "the switch moved a row");
+    assert!(
+        same(&h.before, &h.after),
+        "{:?} then {:?}",
+        h.before,
+        h.after
+    );
+}
+
+/// A mask changed just after a stretch ends, before its beats are final
+/// there, leaves its row to be read once they are, as a pass does: the
+/// row then reads as Stop reads it (#2510).
+#[test]
+fn a_mask_changed_as_a_stretch_ends_waits_for_its_beats() {
+    let h = heard_then_stopped(5.0, 15.0, 46.0, true);
+    assert_eq!(h.unread_on_mask, Some(true), "read on unfinished beats");
+    assert_eq!(h.first.len(), 2, "Off and On read");
+    assert!(same(&h.first, &h.after), "{:?} then {:?}", h.first, h.after);
+}
+
 /// The pane after a run: the table's On less Off row, the three plots'
 /// titles with core's findings, amplitude first, and the track naming the
 /// stretches. The titles are the names' last showing, after the table's
