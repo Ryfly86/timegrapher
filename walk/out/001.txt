@@ -1,0 +1,6 @@
+app: head running
+took 1.3 s
+$ echo relay-check && whoami
+relay-check 
+runneradmin
+
