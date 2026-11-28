@@ -340,7 +340,8 @@ pub fn for_take(
     lc: &crate::longterm::LongConfig,
     reading_s: f64,
 ) -> Vec<GappySpectrum> {
-    let grids = crate::steadiness::reading_grids(log, clock, &long.breaks, reading_s).0;
+    let grids =
+        long.judged_grids(crate::steadiness::reading_grids(log, clock, &long.breaks, reading_s).0);
     let names = [("rate", "s/d"), ("amplitude", "deg"), ("beat_error", "ms")];
     grids
         .iter()

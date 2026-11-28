@@ -35,8 +35,9 @@ impl Recorder {
 
     /// Where a save into `parent` writes: the copy saved there before
     /// (Save Again), or the folder made for it there and not yet written;
-    /// else a new folder, named as the copy saved elsewhere or by its
-    /// start, watch and `calibre`, with ` 2` and on where that is taken.
+    /// else a new folder, named as the copy saved elsewhere (less any
+    /// ` 2` it was given there) or by its start, watch and `calibre`,
+    /// with ` 2` and on where that is taken.
     /// A save into another folder never writes into a take already there
     /// (#2401). Refused where the copy would be, or hold, the live
     /// recording. Returns its folder as the caller spelled `parent`, and
@@ -64,9 +65,13 @@ impl Recorder {
         if let Some(name) = self.kept_in(&canonical) {
             return Ok((separate(&name)?, false));
         }
+        // Named as the copy saved elsewhere, without the number that copy
+        // was given where its name was taken: a new copy where the name
+        // is free reads by its start alone (#2439).
         let base = self
             .saved_name
-            .clone()
+            .as_deref()
+            .map(unnumbered)
             .unwrap_or_else(|| self.copy_name(calibre));
         separate(&base)?;
         let free = crate::library::unused_dir(parent, &base.to_string_lossy());
@@ -120,6 +125,28 @@ impl Recorder {
             .ok_or_else(|| io::Error::other("a take folder with no name"))?;
         self.claimed = Some(canonical.join(&name));
         Ok(name)
+    }
+}
+
+/// `name` less the ` 2`, ` 3`… a take's folder is given where its name
+/// is taken ([`crate::library::make_unused_dir`]). A take's own name never
+/// ends so: it is its start minute (`2026-11-26 05.30`, with
+/// ` Power Reserve` for that test) or [`Recorder::copy_name`], which
+/// holds no space.
+fn unnumbered(name: &OsStr) -> OsString {
+    let Some(text) = name.to_str() else {
+        return name.to_owned();
+    };
+    match text.rsplit_once(' ') {
+        Some((base, n))
+            if !base.is_empty()
+                && n.bytes().all(|b| b.is_ascii_digit())
+                && n.parse::<u64>().is_ok_and(|n| n >= 2)
+                && !n.starts_with('0') =>
+        {
+            base.into()
+        }
+        _ => name.to_owned(),
     }
 }
 
@@ -181,6 +208,10 @@ mod tests {
         assert_eq!(a.save_copy(&b_takes, "", None).unwrap(), into_b);
         // Saved again there, it goes on into its own folder.
         assert_eq!(a.save_copy(&b_takes, "", None).unwrap(), into_b);
+        // Into another empty folder after that: by its start minute
+        // alone, not as the copy saved last (#2439).
+        let e_takes = base.join("E").join("takes");
+        assert_eq!(a.save_copy(&e_takes, "", None).unwrap(), e_takes.join(name));
         assert_eq!(a.claim_first_copy(&b_takes, name).unwrap(), into_b);
         // Named for yet another watch, it is given a folder there.
         assert_eq!(
@@ -192,6 +223,58 @@ mod tests {
         drop((a, b));
         let _ = fs::remove_dir_all(base);
         let _ = fs::remove_dir_all(other);
+    }
+
+    /// A take given a number where its start minute was taken (two
+    /// benches) reads by its start minute alone in a folder where that is
+    /// free, and is numbered again only where it is not (#2439).
+    #[test]
+    fn a_numbered_take_saved_elsewhere_drops_its_number_where_free() {
+        let (mut a, base) = save_fixture("save-as-number-a");
+        let (mut b, other) = save_fixture("save-as-number-b");
+        let name = "2026-11-26 05.30";
+        let takes = base.join("A").join("takes");
+        b.claim_first_copy(&takes, name).unwrap();
+        a.claim_first_copy(&takes, name).unwrap();
+        assert_eq!(
+            a.save_copy(&takes, "", None).unwrap(),
+            takes.join(format!("{name} 2"))
+        );
+        let free = base.join("B").join("takes");
+        assert_eq!(a.save_copy(&free, "", None).unwrap(), free.join(name));
+        let taken = base.join("C").join("takes");
+        fs::create_dir_all(taken.join(name)).unwrap();
+        assert_eq!(
+            a.save_copy(&taken, "", None).unwrap(),
+            taken.join(format!("{name} 2"))
+        );
+        drop((a, b));
+        let _ = fs::remove_dir_all(base);
+        let _ = fs::remove_dir_all(other);
+    }
+
+    /// Only the number a taken name is given comes off; a name that ends
+    /// otherwise is kept whole (#2439).
+    #[test]
+    fn only_the_number_given_for_a_taken_name_comes_off() {
+        let off = |s: &str| super::unnumbered(std::ffi::OsStr::new(s));
+        assert_eq!(off("2026-11-26 05.30 2"), "2026-11-26 05.30");
+        assert_eq!(off("2026-11-26 05.30 12"), "2026-11-26 05.30");
+        assert_eq!(
+            off("2026-11-26 05.30 Power Reserve 3"),
+            "2026-11-26 05.30 Power Reserve"
+        );
+        for kept in [
+            "2026-11-26 05.30",
+            "2026-11-26 05.30 Power Reserve",
+            "2026-11-26T05-30-00_Save_test",
+            "2026-11-26 05.30 1",
+            "2026-11-26 05.30 02",
+            "2026-11-26 05.30 +2",
+            " 2",
+        ] {
+            assert_eq!(off(kept), kept);
+        }
     }
 
     /// A new copy's folder made by another save between choosing its name

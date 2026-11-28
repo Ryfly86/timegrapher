@@ -343,10 +343,8 @@ impl TimegrapherApp {
             ui.add_space(8.0);
             (done, later) = setup_sheet_buttons(ui);
         });
-        // Return presses Done, the default; Esc presses Not Now.
-        if ctx.input(|i| i.key_pressed(egui::Key::Enter)) && ctx.memory(|m| m.focused().is_none()) {
-            done = true;
-        }
+        // Esc presses Not Now; Modal::should_close leaves it to an open
+        // drop-down first.
         if modal.should_close() {
             later = true;
         }
@@ -1116,6 +1114,9 @@ fn setup_sheet_buttons(ui: &mut egui::Ui) -> (bool, bool) {
                      Settings > Microphone.",
                 )
                 .clicked();
+            // Return presses Done, the default, unless the microphone
+            // drop-down was open: then the key is its (#2399).
+            done |= theme::dialog_keys(ui, &[DialogButton::new(Role::Default, "", "")]).is_some();
             // What follows, in what is left at the left.
             ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
                 ui.spacing_mut().item_spacing.y = 2.0;

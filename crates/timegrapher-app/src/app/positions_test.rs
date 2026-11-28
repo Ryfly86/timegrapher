@@ -189,7 +189,10 @@ impl TimegrapherApp {
             return;
         };
         let phase = test.tick(now);
-        if test.needs_reading() {
+        let live = self.bench.recording.live.as_ref();
+        let settled = live.map_or(0.0, |l| l.settled_s());
+        let switch = live.and_then(|l| l.template_switch_s());
+        if test.needs_reading() || test.read_after(switch) {
             if let Some(log) = self.guided_log() {
                 let clock = self.reading_clock(log.duration_s);
                 if let Some(test) = self.bench.test.guided.as_mut() {
@@ -200,7 +203,8 @@ impl TimegrapherApp {
                         .as_ref()
                         .and_then(|l| l.config().analysis.bph);
                     test.lift_deg = Some(self.bench.take.lift_deg);
-                    test.read_new(&log, clock.as_ref(), &self.bench.take.masked);
+                    let masked = &self.bench.take.masked;
+                    test.read_on(&log, clock.as_ref(), masked, settled, switch);
                 }
             }
         }

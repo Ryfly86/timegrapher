@@ -58,6 +58,41 @@ pub(super) fn series_readings(
     }
 }
 
+impl SeriesReadings {
+    /// The readings the long-run report's verdict leaves (#2355, #2404),
+    /// each grid [`LongReport::judge`]d: none of the rate where it gives
+    /// no rate in s/d, and none at all where the take's whole reading
+    /// finds no regular beat. The rate's windows go with its grid (the
+    /// rate's two-state samples), and the beat error's source with its
+    /// grid. The amplitude's pairing noise is kept: only the rate's
+    /// readings read it.
+    pub(super) fn judged(mut self, long: &LongReport) -> Self {
+        long.judge(SeriesKind::Rate, &mut self.rate_grid);
+        for g in [
+            &mut self.amp_grid,
+            &mut self.amp_readings,
+            &mut self.amp_paired,
+        ] {
+            long.judge(SeriesKind::Amplitude, g);
+        }
+        for g in [&mut self.be_grid, &mut self.be_readings] {
+            long.judge(SeriesKind::BeatError, g);
+        }
+        if long.withholds(SeriesKind::Rate) {
+            self.wins.clear();
+        }
+        if long.withholds(SeriesKind::BeatError) {
+            self.selected_be = crate::session::BeatErrorSelection {
+                beat_error_source: None,
+                beat_error_sources: Default::default(),
+                values: Vec::new(),
+                counted: self.selected_be.counted,
+            };
+        }
+        self
+    }
+}
+
 /// The isochronism curve and its walk over time, from the readings `s`.
 pub(super) fn isochronism_of(
     s: &SeriesReadings,

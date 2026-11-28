@@ -36,7 +36,7 @@ fn a_takes_hover_names_the_engine_that_read_it() {
         watch_heard: true,
     };
     let hover = |state: TakeReading| {
-        let readings = TakeReadings::known([(dir.clone(), 0, state)]);
+        let readings = TakeReadings::known([(dir.clone(), state)]);
         let cx = TakesContext {
             others: &[],
             writable: true,
@@ -92,7 +92,7 @@ fn a_takes_hover_names_the_position_its_figures_are_of() {
     };
     let dir = PathBuf::from("watch/test");
     let hover = |t: &Take| {
-        let readings = TakeReadings::known([(dir.clone(), 0, TakeReading::Read(Ok(read.clone())))]);
+        let readings = TakeReadings::known([(dir.clone(), TakeReading::Read(Ok(read.clone())))]);
         let cx = TakesContext {
             others: &[],
             writable: true,
@@ -137,7 +137,7 @@ fn a_takes_hover_names_the_position_its_figures_are_of() {
         "{h}"
     );
     // A Positions Test's figures are its mean, said apart.
-    let readings = TakeReadings::known([(dir.clone(), 0, TakeReading::Read(Ok(read.clone())))]);
+    let readings = TakeReadings::known([(dir.clone(), TakeReading::Read(Ok(read.clone())))]);
     let cx = TakesContext {
         others: &[],
         writable: true,
@@ -377,7 +377,7 @@ fn a_take_still_being_recorded_shows_no_first_write_figures() {
         rate_s_per_day: Some(5.4),
         ..Default::default()
     };
-    let readings = TakeReadings::known([(dir.clone(), 1_200_000, TakeReading::Read(Ok(read)))]);
+    let readings = TakeReadings::known([(dir.clone(), TakeReading::Read(Ok(read)))]);
     let cx = |writing| TakesContext {
         others: &[],
         writable: true,

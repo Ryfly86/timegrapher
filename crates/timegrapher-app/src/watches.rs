@@ -9,9 +9,7 @@ use crate::photos::{Thumb, Thumbs};
 use crate::theme::{self, DialogButton, Role};
 use eframe::egui::{self, RichText, Sense, Vec2};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc;
 use timegrapher_core::figure_text::true_minus;
 use timegrapher_core::library::{length_text, size_text, Reading, TakeTest};
 use timegrapher_core::library::{Field, FieldKind, FromCalibre, Library, Take, Watch, WatchEntry};
@@ -619,157 +617,7 @@ impl TakesContext<'_> {
     }
 }
 
-/// Where the Watches list is with a take's own reading (core
-/// `library::reading`).
-#[derive(Debug, Clone, PartialEq)]
-pub enum TakeReading {
-    /// Being worked out.
-    Reading,
-    /// Worked out, or why it couldn't be.
-    Read(Result<Reading, String>),
-}
-
-/// The takes' own readings the Watches list shows, each worked out once
-/// by core's `library::reading`, as `timegrapher watches` gives them. They
-/// are worked out one take at a time on a thread of their own, as the
-/// first read of a long take reads its whole sound (about a minute for
-/// 9 h); a reading already kept comes back at once.
-#[derive(Default)]
-pub struct TakeReadings {
-    /// Each take asked for, by its folder, with its size when asked: a
-    /// take that changes size (kept as its analysis alone) is read again.
-    known: HashMap<PathBuf, (u64, TakeReading)>,
-    work: Option<(mpsc::Sender<PathBuf>, mpsc::Receiver<ReadDone>)>,
-    /// The take being read now, whose sound is open: it can't be moved,
-    /// renamed or deleted until it is done (Windows refuses to).
-    now: std::sync::Arc<std::sync::Mutex<Option<PathBuf>>>,
-}
-
-/// A take's folder with its reading, or why it couldn't be worked out.
-type ReadDone = (PathBuf, Result<Reading, String>);
-
-impl TakeReadings {
-    /// Ask for the reading of the take in `dir`, of `bytes`, unless it is
-    /// already asked for at that size; `ctx` is drawn again as each comes
-    /// in.
-    pub fn want(&mut self, dir: &Path, bytes: u64, ctx: &egui::Context) {
-        if self.known.get(dir).is_some_and(|(b, _)| *b == bytes) {
-            return;
-        }
-        let (tx, _) = self.work.get_or_insert_with(|| {
-            let (tx, jobs) = mpsc::channel::<PathBuf>();
-            let (done, rx) = mpsc::channel();
-            // A take whose reading is kept is answered on a thread of its
-            // own, at once, not left blank behind a take still being read.
-            let (to_read, reads) = mpsc::channel::<PathBuf>();
-            let (kept_done, kept_ctx) = (done.clone(), ctx.clone());
-            std::thread::spawn(move || {
-                for dir in jobs {
-                    let sent = match timegrapher_core::library::kept_reading(&dir) {
-                        Some(r) => kept_done.send((dir, Ok(r))).is_ok(),
-                        None => to_read.send(dir).is_ok(),
-                    };
-                    if !sent {
-                        break;
-                    }
-                    kept_ctx.request_repaint();
-                }
-            });
-            let ctx = ctx.clone();
-            let now = self.now.clone();
-            std::thread::spawn(move || {
-                for dir in reads {
-                    *now.lock().unwrap() = Some(dir.clone());
-                    let r = timegrapher_core::library::reading(&dir);
-                    *now.lock().unwrap() = None;
-                    if done.send((dir, r)).is_err() {
-                        break;
-                    }
-                    ctx.request_repaint();
-                }
-            });
-            (tx, rx)
-        });
-        if tx.send(dir.to_path_buf()).is_ok() {
-            // A take read before keeps its figures on show until it is read
-            // again (at once, when what the reading reads hasn't changed).
-            let was = self.known.remove(dir).map(|(_, r)| r);
-            let now = match was {
-                Some(r @ TakeReading::Read(Ok(_))) => r,
-                _ => TakeReading::Reading,
-            };
-            self.known.insert(dir.to_path_buf(), (bytes, now));
-        } else {
-            // The thread has gone: a new one next time.
-            self.work = None;
-        }
-    }
-
-    /// Take in the readings worked out since last time.
-    pub fn poll(&mut self) {
-        let Some((_, rx)) = &self.work else { return };
-        for (dir, r) in rx.try_iter() {
-            if let Some((_, s)) = self.known.get_mut(&dir) {
-                *s = TakeReading::Read(r);
-            }
-        }
-    }
-
-    /// Where the reading of the take in `dir` is, if it was asked for.
-    pub fn of(&self, dir: &Path) -> Option<&TakeReading> {
-        self.known.get(dir).map(|(_, r)| r)
-    }
-
-    /// The reading of the take in `dir`, once worked out.
-    pub fn reading(&self, dir: &Path) -> Option<&Reading> {
-        match self.of(dir) {
-            Some(TakeReading::Read(Ok(r))) => Some(r),
-            _ => None,
-        }
-    }
-
-    /// Whether the take in `dir`, or one inside it, is being read now.
-    pub fn being_read(&self, dir: &Path) -> bool {
-        self.now
-            .lock()
-            .unwrap()
-            .as_deref()
-            .is_some_and(|p| p.starts_with(dir))
-    }
-
-    /// Say the take in `dir` is being read now, or none.
-    #[cfg(test)]
-    pub fn set_now(&self, dir: Option<PathBuf>) {
-        *self.now.lock().unwrap() = dir;
-    }
-
-    /// Wait until every reading asked for is in.
-    #[cfg(test)]
-    pub fn wait(&mut self) {
-        for _ in 0..1200 {
-            self.poll();
-            if !self.known.values().any(|(_, r)| *r == TakeReading::Reading) {
-                return;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(25));
-        }
-        panic!("the takes' readings never came in");
-    }
-
-    /// Whether the take's figures come from its own reading: not a test's,
-    /// whose figures are its Mean row or hour by hour.
-    pub fn read_for(t: &Take, dir: &Path) -> bool {
-        t.power_reserve.is_none() && timegrapher_core::library::take_test(dir).is_none()
-    }
-
-    #[cfg(test)]
-    pub fn known(takes: impl IntoIterator<Item = (PathBuf, u64, TakeReading)>) -> TakeReadings {
-        TakeReadings {
-            known: takes.into_iter().map(|(d, b, r)| (d, (b, r))).collect(),
-            ..Default::default()
-        }
-    }
-}
+pub use crate::take_readings::{TakeReading, TakeReadings};
 
 /// What a take measured and is, in a line: core's facts for it with its
 /// own reading ([`Take::facts_read`]), as `timegrapher watches` lists them.
@@ -2608,13 +2456,11 @@ mod tests {
             ],
             photos: Vec::new(),
         };
-        let readings = TakeReadings::known(e.takes.iter().map(|t| {
-            (
-                e.take_dir(t),
-                t.bytes,
-                TakeReading::Read(Ok(reading.clone())),
-            )
-        }));
+        let readings = TakeReadings::known(
+            e.takes
+                .iter()
+                .map(|t| (e.take_dir(t), TakeReading::Read(Ok(reading.clone())))),
+        );
         let cx = TakesContext {
             others: &[],
             writable: true,
@@ -2709,89 +2555,6 @@ mod tests {
                 .all(|t| t.1.right() < position),
             "{texts:?}"
         );
-    }
-
-    /// A take's reading is worked out on its own thread: asked for, it is
-    /// being read, then read, or why not; asked again at the same size it
-    /// isn't read again, and at another size it is.
-    #[test]
-    fn a_takes_reading_is_worked_out_on_its_own_thread() {
-        let dir = std::env::temp_dir().join(format!("tg-app-no-take-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        let ctx = egui::Context::default();
-        let mut x = TakeReadings::default();
-        assert_eq!(x.of(&dir), None);
-        x.want(&dir, 1, &ctx);
-        assert_eq!(x.of(&dir), Some(&TakeReading::Reading));
-        let read = |x: &mut TakeReadings| {
-            for _ in 0..500 {
-                x.poll();
-                if let Some(TakeReading::Read(r)) = x.of(&dir) {
-                    return r.clone();
-                }
-                std::thread::sleep(std::time::Duration::from_millis(10));
-            }
-            panic!("never read");
-        };
-        // No take there: why not, in core's words.
-        let why = read(&mut x).unwrap_err();
-        assert!(why.contains("session.toml"), "{why}");
-        assert_eq!(x.reading(&dir), None);
-        x.want(&dir, 1, &ctx);
-        assert!(matches!(x.of(&dir), Some(TakeReading::Read(Err(_)))));
-        x.want(&dir, 2, &ctx);
-        assert_eq!(x.of(&dir), Some(&TakeReading::Reading));
-        read(&mut x).unwrap_err();
-    }
-
-    /// A take whose reading is kept comes back while another take is still
-    /// being read, not after it.
-    #[test]
-    fn a_kept_reading_comes_back_while_another_take_is_read() {
-        use timegrapher_core::synth::{generate, SynthConfig};
-        let base = std::env::temp_dir().join(format!("tg-app-kept-first-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&base);
-        let kept = base.join("kept");
-        std::fs::create_dir_all(&kept).unwrap();
-        std::fs::write(
-            kept.join(timegrapher_core::take::MANIFEST),
-            "bph = 28800\n\n[[recording]]\nfile = \".\"\nposition = \"DU\"\n",
-        )
-        .unwrap();
-        let audio = generate(
-            &SynthConfig {
-                duration_s: 20.0,
-                ..Default::default()
-            },
-            |_| 270.0,
-            |_| 0.0,
-        );
-        timegrapher_core::audio::write_wav(&kept.join("audio-001.wav"), &audio).unwrap();
-        let want = timegrapher_core::library::reading(&kept).unwrap();
-        let ctx = egui::Context::default();
-        let mut x = TakeReadings::default();
-        // Hold the reading thread at the start of its first take.
-        let held = x.now.clone();
-        let guard = held.lock().unwrap();
-        let slow = base.join("slow");
-        x.want(&slow, 1, &ctx);
-        // Kept again just before it is asked for, in case another test's
-        // reading rewrote the readings file meanwhile.
-        assert_eq!(timegrapher_core::library::reading(&kept).unwrap(), want);
-        x.want(&kept, 1, &ctx);
-        for _ in 0..500 {
-            x.poll();
-            if x.reading(&kept).is_some() {
-                break;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(10));
-        }
-        assert_eq!(x.reading(&kept), Some(&want));
-        assert_eq!(x.of(&slow), Some(&TakeReading::Reading));
-        drop(guard);
-        x.wait();
-        assert!(matches!(x.of(&slow), Some(TakeReading::Read(Err(_)))));
-        let _ = std::fs::remove_dir_all(&base);
     }
 
     /// A Positions Test's take names its kind in the table's Position

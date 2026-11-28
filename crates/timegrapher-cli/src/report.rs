@@ -589,9 +589,16 @@ fn rate_text(rate_s_per_day: f64) -> String {
     )
 }
 
-pub fn html(title: &str, r: &LongReport, wheels: &[Wheel], clock_note: Option<&str>) -> String {
+/// `no_rate`: what the report says in its rate's place where it gives
+/// no rate in s/d ([`LongReport::no_rate_text`]).
+pub fn html(
+    title: &str,
+    r: &LongReport,
+    wheels: &[Wheel],
+    (clock_note, no_rate): (Option<&str>, Option<&str>),
+) -> String {
     let mut body = String::new();
-    facts(&mut body, r, clock_note);
+    facts(&mut body, r, clock_note, no_rate);
     body.push_str("<h2>Over the run</h2>");
     body.push_str(&over_time(r));
 
@@ -602,10 +609,19 @@ pub fn html(title: &str, r: &LongReport, wheels: &[Wheel], clock_note: Option<&s
 
 /// The table of the run's facts: the recording, clock, rate, beat error,
 /// amplitude and their caveats.
-fn facts(body: &mut String, r: &LongReport, clock_note: Option<&str>) {
-    let rate = r.overall.map_or("not enough clean beats".into(), |f| {
-        rate_text(f.rate_s_per_day)
-    });
+fn facts(body: &mut String, r: &LongReport, clock_note: Option<&str>, no_rate: Option<&str>) {
+    let rate = match (r.overall, no_rate) {
+        (_, Some(line)) => esc(line),
+        (o, None) => format!(
+            "{} over the run; {} slices from {} to {} s/d (5th to 95th percentile)",
+            o.map_or("not enough clean beats".into(), |f| rate_text(
+                f.rate_s_per_day
+            )),
+            slice_name(r.slice_s),
+            crate::session_cmd::signed(r.rate_p05, 1),
+            crate::session_cmd::signed(r.rate_p95, 1),
+        ),
+    };
     let clock = match (&r.clock, clock_note) {
         (Some(c), Some(note)) => format!(
             "corrected: {}; a steady error {note}",
@@ -629,7 +645,7 @@ fn facts(body: &mut String, r: &LongReport, clock_note: Option<&str>) {
         r#"<table class="facts">
 <tr><th>Recording</th><td>{} at {} Hz, {} bph, {} beats ({}% clean)</td></tr>
 <tr><th>Clock</th><td>{}</td></tr>
-<tr><th>Rate</th><td>{rate} over the run; {} slices from {} to {} s/d (5th to 95th percentile)</td></tr>
+<tr><th>Rate</th><td>{rate}</td></tr>
 <tr><th>Beat error</th><td>{}</td></tr>
 <tr><th>Amplitude</th><td>{} deg median; slices from {} to {} deg ({})</td></tr>
 {}</table>"#,
@@ -639,9 +655,6 @@ fn facts(body: &mut String, r: &LongReport, clock_note: Option<&str>) {
         r.beats_found,
         fixed_text(r.clean_fraction * 100.0, 1),
         esc(&clock),
-        slice_name(r.slice_s),
-        crate::session_cmd::signed(r.rate_p05, 1),
-        crate::session_cmd::signed(r.rate_p95, 1),
         r.overall
             .map_or("-".into(), |f| esc(&crate::beat_error_text(
                 r.beat_error_unlock_ms,
@@ -886,7 +899,7 @@ mod tests {
         let lc = timegrapher_core::longterm::LongConfig::default();
         let r = timegrapher_core::longrun::analyse(&log, None, &lc);
         let (label, line) = crate::long::caveat_lines(&r.caveats)[0].clone();
-        let page = html("take", &r, &[], None);
+        let page = html("take", &r, &[], (None, None));
         assert!(
             page.contains(&format!("<tr><th>{label}</th><td>{}</td></tr>", esc(&line))),
             "{label}: {line}"
@@ -931,7 +944,7 @@ mod tests {
         assert!(clock.ppm > 0.0, "{}", clock.ppm);
         let lc = timegrapher_core::longterm::LongConfig::default();
         let mut r = timegrapher_core::longrun::analyse(&log, Some(&clock), &lc);
-        let page = html("take", &r, &[], None);
+        let page = html("take", &r, &[], (None, None));
         assert!(
             page.contains("ppm fast against NTP time, so uncorrected rates read"),
             "clock row"
@@ -944,7 +957,7 @@ mod tests {
         assert!(page.contains("(lift angle 52°)"), "lift");
         r.caveats
             .push(timegrapher_core::measure::Caveat::LiftUnknown);
-        let page = html("take", &r, &[], None);
+        let page = html("take", &r, &[], (None, None));
         assert!(
             page.contains("(lift angle 52°, the default)"),
             "assumed lift"

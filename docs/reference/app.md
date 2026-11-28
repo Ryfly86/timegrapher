@@ -805,7 +805,11 @@ under 10 s of beats, a beat error given as a size because its sign
 differs either side of a cut, or Tick and Tock named by the beat count
 across a break rather than by their sound. After the sixth, **Finish**
 reads the six together and stops listening, as Stop does. The figures are `session`'s for the same
-stretches. **Save as
+stretches. A position's row is read once live's beats are final to the end
+of its stretch (core `LiveAnalyzer::settled_s`), and every row read so far
+is read again once live's template built again from the first chunk takes
+over (`LiveAnalyzer::template_switch_s`), so Stop and the test's own end
+give the figures the rows already show (#2510). **Save as
 CSV…** saves the watch's name, its calibre, beat rate and lift angle,
 when the test began and its settling and measuring times, then the
 table, the averages, the largest differences and those lines, as a CSV file a
@@ -2083,8 +2087,8 @@ folder can't be moved while another copy has it open. The Watches view adds watc
       names it goes by under it), then for a custom calibre its name,
       maker, beat rate, lift angle and escapement (Swiss lever, co-axial,
       pin lever or detent; Swiss lever until another is picked, #2387);
-      the name and maker are kept on Return or clicking away, Escape puts
-      them back, and a name the list already has stays as it was, saying
+      each box is kept on Return or clicking away and Escape puts it back
+      (#2518), and a name the list already has stays as it was, saying
       so under the box (#2481); then the **Wheels** group, a row
       for each wheel's time for one turn, a caption under the group saying
       so:
