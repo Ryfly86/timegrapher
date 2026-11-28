@@ -1345,7 +1345,7 @@ fn the_beat_rate_box_moves_the_balance_with_it() {
 /// does, and the balance from the rate goes with the rate (#2516).
 #[test]
 fn an_emptied_beat_rate_or_lift_box_clears_it_as_0_does() {
-    for cleared in ["", "0"] {
+    for cleared in ["", "0", " "] {
         let mut c = Calibres::in_memory();
         let name = c.new_custom("Bench 28");
         let t = Typing::new();
@@ -1357,7 +1357,7 @@ fn an_emptied_beat_rate_or_lift_box_clears_it_as_0_does() {
         assert_eq!(c.user.custom[0].lift_angle_deg, Some(52.0));
         assert_eq!(kept_balance(&c), [0.25]);
         for what in ["custom bph", "custom lift"] {
-            // All selected, then "0" typed over it or Backspace.
+            // All selected, then "0" or a space typed over it, or Backspace.
             t.type_into(&mut c, &name, what, cleared);
             if cleared.is_empty() {
                 let back = Typing::key(egui::Key::Backspace, egui::Modifiers::NONE);
