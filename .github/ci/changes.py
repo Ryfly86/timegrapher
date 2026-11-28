@@ -81,6 +81,8 @@ LIGHT_CI = {
     ".github/ci/reverts.py", ".github/ci/test_reverts.py",
     ".github/ci/literal_ratchet.py", ".github/ci/test_literal_ratchet.py",
     ".github/ci/literal_baseline.json",
+    ".github/ci/dead_pub.py", ".github/ci/test_dead_pub.py",
+    ".github/ci/dead_pub_baseline.json",
     ".github/workflows/ci-watchdog.yml", ".github/workflows/holdout.yml",
 }
 LIGHT_CI_FOLDERS = (".github/watchdog/", ".github/scripts/")

@@ -1,11 +1,13 @@
-//! The shape of each command's `--json` document: every field's path, as
-//! an agent reading it relies on. A field renamed or removed fails here;
-//! a field added does too, until its path is added to the command's file
-//! in `tests/json_shapes/` (run with `UPDATE_JSON_SHAPES=1` to write them).
+//! The shape of each command's `--json` document: every field's path and
+//! type, as an agent reading it relies on. A field renamed or removed
+//! fails here, and so does one whose type changes (a number that becomes a
+//! string); a field added does too, until its path is added to the
+//! command's file in `tests/json_shapes/` (run with `UPDATE_JSON_SHAPES=1`
+//! to write them).
 //! docs/reference/agent-interface.md promises additive JSON, so a path leaving a
 //! file is a change for that page and the schema version, not a refresh.
 use serde_json::Value;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use timegrapher_core::synth::{generate, SynthConfig};
@@ -34,9 +36,24 @@ fn json(config: &Path, args: &[&str]) -> Value {
         .unwrap_or_else(|e| panic!("{args:?}: {e}\n{}", String::from_utf8_lossy(&out.stdout)))
 }
 
-/// Every field's path in `v`: `a.b`, with `[]` for an array's elements
-/// (the fields of all of them).
-fn paths(v: &Value, at: &str, out: &mut BTreeSet<String>) {
+/// A field's paths mapped to the types its values take.
+type Shape = BTreeMap<String, BTreeSet<&'static str>>;
+
+/// `v`'s JSON type, as a shape file names it.
+fn type_of(v: &Value) -> &'static str {
+    match v {
+        Value::Null => "null",
+        Value::Bool(_) => "bool",
+        Value::Number(_) => "number",
+        Value::String(_) => "string",
+        Value::Array(_) => "array",
+        Value::Object(_) => "object",
+    }
+}
+
+/// Every field's path in `v`, `a.b` with `[]` for an array's elements (the
+/// fields of all of them), and the types of its values.
+fn paths(v: &Value, at: &str, out: &mut Shape) {
     match v {
         Value::Object(m) => {
             for (k, x) in m {
@@ -45,7 +62,7 @@ fn paths(v: &Value, at: &str, out: &mut BTreeSet<String>) {
                 } else {
                     format!("{at}.{k}")
                 };
-                out.insert(p.clone());
+                out.entry(p.clone()).or_default().insert(type_of(x));
                 paths(x, &p, out);
             }
         }
@@ -58,29 +75,106 @@ fn paths(v: &Value, at: &str, out: &mut BTreeSet<String>) {
     }
 }
 
-/// `doc`'s paths against the command's file, or written to it with
-/// `UPDATE_JSON_SHAPES=1`.
+/// A shape file's line for a path: the path, a space, and its value types
+/// other than null joined by `|`, or `null` when every value was null.
+fn line(path: &str, types: &BTreeSet<&str>) -> String {
+    let named: Vec<&str> = types.iter().copied().filter(|&t| t != "null").collect();
+    let types = if named.is_empty() {
+        "null".to_string()
+    } else {
+        named.join("|")
+    };
+    format!("{path} {types}")
+}
+
+/// What differs between a shape file's text and a document's shape:
+/// paths gone, paths new, and paths whose type changed. A path the file
+/// gives as `null` takes any type, and a value null in the document matches
+/// any type the file gives, since a field without a value is not a field
+/// of another type.
+fn differences(text: &str, got: &Shape) -> (Vec<String>, Vec<String>, Vec<String>) {
+    let want: BTreeMap<&str, &str> = text
+        .lines()
+        .map(|l| {
+            l.rsplit_once(' ')
+                .unwrap_or_else(|| panic!("{l:?}: no type (run with UPDATE_JSON_SHAPES=1)"))
+        })
+        .collect();
+    let gone = want
+        .keys()
+        .filter(|p| !got.contains_key(**p))
+        .map(|p| p.to_string())
+        .collect();
+    let new = got
+        .iter()
+        .filter(|(p, _)| !want.contains_key(p.as_str()))
+        .map(|(p, t)| line(p, t))
+        .collect();
+    let changed = got
+        .iter()
+        .filter_map(|(p, t)| {
+            let was = *want.get(p.as_str())?;
+            let now = line(p, t);
+            let now = now.rsplit_once(' ').unwrap().1;
+            (was != "null" && now != "null" && was != now)
+                .then(|| format!("{p}: {was} is now {now}"))
+        })
+        .collect();
+    (gone, new, changed)
+}
+
+/// `doc`'s paths and types against the command's file, or written to it
+/// with `UPDATE_JSON_SHAPES=1`.
 fn check(command: &str, doc: &Value) {
-    let mut got = BTreeSet::new();
+    let mut got = Shape::new();
     paths(doc, "", &mut got);
     let file = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/json_shapes")
         .join(format!("{command}.txt"));
     if std::env::var_os("UPDATE_JSON_SHAPES").is_some() {
         std::fs::create_dir_all(file.parent().unwrap()).unwrap();
-        let text: String = got.iter().map(|p| format!("{p}\n")).collect();
+        let text: String = got.iter().map(|(p, t)| line(p, t) + "\n").collect();
         std::fs::write(&file, text).unwrap();
         return;
     }
     let text = std::fs::read_to_string(&file)
         .unwrap_or_else(|e| panic!("{}: {e} (run with UPDATE_JSON_SHAPES=1)", file.display()));
-    let want: BTreeSet<String> = text.lines().map(str::to_string).collect();
-    let gone: Vec<&String> = want.difference(&got).collect();
-    let new: Vec<&String> = got.difference(&want).collect();
+    let (gone, new, changed) = differences(&text, &got);
     assert!(
-        gone.is_empty() && new.is_empty(),
-        "`{command} --json` changed shape.\nGone (renamed or removed; a breaking change): {gone:#?}\nNew (add with UPDATE_JSON_SHAPES=1): {new:#?}"
+        gone.is_empty() && new.is_empty() && changed.is_empty(),
+        "`{command} --json` changed shape.\nGone (renamed or removed; a breaking change): {gone:#?}\nType changed (a breaking change): {changed:#?}\nNew (add with UPDATE_JSON_SHAPES=1): {new:#?}"
     );
+}
+
+fn shape(doc: &Value) -> Shape {
+    let mut got = Shape::new();
+    paths(doc, "", &mut got);
+    got
+}
+
+/// A number that becomes a string, or an object an array, fails the
+/// check; a null on either side matches any type; an added or removed
+/// path is named as before.
+#[test]
+fn a_field_that_changes_type_fails() {
+    let file = "a number\nb object\nb.c string\nd null\ne number\n";
+    let ok = serde_json::json!({"a": 1, "b": {"c": "x"}, "d": [1], "e": null});
+    assert_eq!(differences(file, &shape(&ok)), (vec![], vec![], vec![]));
+    let retyped = serde_json::json!({"a": "1", "b": [{"c": "x"}], "d": 2, "e": 3});
+    let (_, _, changed) = differences(file, &shape(&retyped));
+    assert_eq!(
+        changed,
+        ["a: number is now string", "b: object is now array"]
+    );
+    let moved = serde_json::json!({"a": 1, "b": {"c": "x"}, "d": 1, "f": true});
+    let (gone, new, changed) = differences(file, &shape(&moved));
+    assert_eq!(gone, ["e"]);
+    assert_eq!(new, ["f bool"]);
+    assert!(changed.is_empty());
+    // An array's elements that mix null with numbers read as numbers.
+    let mixed = serde_json::json!({"x": [{"y": null}, {"y": 2}]});
+    let lines: Vec<String> = shape(&mixed).iter().map(|(p, t)| line(p, t)).collect();
+    assert_eq!(lines, ["x array", "x[].y number"]);
 }
 
 /// A minute of a watch at 28,800 bph, 6 s/d fast, with a beat error.
@@ -426,10 +520,8 @@ fn series_views_keep_their_fields() {
         &["series", wav.to_str().unwrap(), "--views", "--json"],
     );
     check("series_views", &doc);
-    let mut fields = BTreeSet::new();
-    paths(&doc, "", &mut fields);
     assert!(
-        fields.iter().any(|f| f.ends_with("fold.at_cycle")),
+        shape(&doc).keys().any(|f| f.ends_with("fold.at_cycle")),
         "no fold drawn"
     );
     let _ = std::fs::remove_dir_all(&dir);

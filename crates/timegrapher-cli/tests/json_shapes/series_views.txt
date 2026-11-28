@@ -1,335 +1,335 @@
-beat_error_source
-beat_error_sources
-beat_error_sources.drop
-beat_error_sources.unlock
-bph
-caveats
-caveats[].code
-clock
-config
-config.acf_alone
-config.alpha
-config.change_block_s
-config.change_min_segment_s
-config.level_alpha
-config.ljung_box_lags
-config.max_lag_s
-config.max_points
-config.min_correlation
-config.min_explained
-config.outlier_sigma
-config.periodic_min_explained
-config.rate_reading_s
-config.stretch_s
-config.trend_alpha
-config.wind_h
-distributions
-distributions.overall
-distributions.overall[].above
-distributions.overall[].below
-distributions.overall[].bin_width
-distributions.overall[].counts
-distributions.overall[].edges
-distributions.overall[].median
-distributions.overall[].n
-distributions.overall[].normal_line
-distributions.overall[].normal_line.centre
-distributions.overall[].normal_line.spread
-distributions.overall[].p10
-distributions.overall[].p90
-distributions.overall[].peaks
-distributions.overall[].points
-distributions.overall[].quantiles
-distributions.overall[].screen_summary
-distributions.overall[].series
-distributions.overall[].step_s
-distributions.overall[].summary
-distributions.overall[].unit
-distributions.overall[].values
-distributions.stretch_s
-distributions.stretches
-duration_s
-findings
-findings[].code
-findings[].evidence
-findings[].series
-findings[].title
-input
-input.files
-input.files[].path
-input.settings
-input.settings.bph
-input.settings.calibre
-input.settings.clock_log
-input.settings.escape_teeth
-input.settings.highpass_hz
-input.settings.lift_deg
-input.settings.masked
-input.settings.mesh_marks
-input.settings.named_meshes
-input.settings.named_wheels
-input.settings.notch_hz
-input.settings.reading_s
-input.settings.reference_lines
-input.settings.reference_lines[].label
-input.settings.reference_lines[].period_s
-input.settings.stretch_s
-input.settings.stretches
-input.settings.take
-input.settings.wheel_marks
-input.settings.wheels
-input.settings.wind_h
-isochronism
-isochronism.amplitude_from_deg
-isochronism.amplitude_to_deg
-isochronism.bin_deg
-isochronism.bins
-isochronism.bins[].amplitude_deg
-isochronism.bins[].from_h
-isochronism.bins[].from_wind_h
-isochronism.bins[].rate_q25
-isochronism.bins[].rate_q75
-isochronism.bins[].rate_s_per_day
-isochronism.bins[].readings
-isochronism.bins[].to_h
-isochronism.bins[].to_wind_h
-isochronism.headline
-isochronism.rate_change_s_per_day
-isochronism.reliability
-isochronism.s_per_day_per_deg
-isochronism.s_per_day_per_deg_se
-isochronism.step_s
-period_span
-rate_amplitude
-rate_amplitude.effective_readings
-rate_amplitude.headline
-rate_amplitude.p_value
-rate_amplitude.r
-rate_amplitude.readings
-rate_amplitude.reliability
-rate_amplitude.s_per_day_per_deg
-rate_amplitude.s_per_day_per_deg_se
-rate_amplitude.step_s
-rate_amplitude.take_r
-rate_amplitude.take_s_per_day_per_deg
-schema
-series
-series[].allan
-series[].allan.best_deviation
-series[].allan.best_tau_s
-series[].allan.deviation
-series[].allan.hollow_note
-series[].allan.judged
-series[].allan.max_excess
-series[].allan.pairs
-series[].allan.slope_short
-series[].allan.tau_s
-series[].allan.white
-series[].autocorrelation
-series[].autocorrelation.band
-series[].autocorrelation.band_by_lag
-series[].autocorrelation.lag_s
-series[].autocorrelation.ljung_box_lags
-series[].autocorrelation.ljung_box_q
-series[].autocorrelation.max_short_lag_r
-series[].autocorrelation.memory_s
-series[].autocorrelation.p_value
-series[].autocorrelation.r
-series[].autocorrelation.repeat_lag_s
-series[].autocorrelation.repeat_r
-series[].beat_error_source
-series[].beat_error_sources
-series[].beat_error_sources.drop
-series[].beat_error_sources.unlock
-series[].caveats
-series[].caveats[].code
-series[].caveats[].rho
-series[].caveats[].span_s
-series[].changes
-series[].changes.block_s
-series[].changes.block_sigma
-series[].changes.explained
-series[].changes.long_run_sigma
-series[].changes.named
-series[].changes.note
-series[].changes.p_value
-series[].changes.segments
-series[].changes.segments[].end_s
-series[].changes.segments[].mean
-series[].changes.segments[].start_s
-series[].cusum
-series[].cusum.at
-series[].cusum.at_s
-series[].cusum.band
-series[].cusum.max
-series[].cusum.p_value
-series[].cusum.s
-series[].cusum.shift
-series[].cusum.t_s
-series[].cycle
-series[].cycle.explained
-series[].cycle.inner_explained
-series[].cycle.inner_period_s
-series[].cycle.peak_to_peak
-series[].cycle.period_s
-series[].cycle.source
-series[].cycle.turns
-series[].cycle.wheel
-series[].cycle_off_search_s
-series[].headline
-series[].long_run_sd
-series[].median
-series[].null
-series[].null.calibrated
-series[].null.flicker
-series[].null.misfit
-series[].null.misfit_limit
-series[].null.mix
-series[].null.model
-series[].outliers
-series[].period
-series[].period.beyond_simulated
-series[].period.explained
-series[].period.harmonic_of
-series[].period.other_harmonic_of
-series[].period.other_periods_s
-series[].period.peak_to_peak
-series[].period.period_s
-series[].period.significance
-series[].period.size
-series[].period.size_unit
-series[].period.timing_peak_to_peak_ms
-series[].period.wheel
-series[].readings
-series[].repeat_mark
-series[].screen_cycle_size
-series[].screen_headline
-series[].screen_stats
-series[].screen_summary
-series[].sd
-series[].series
-series[].short_term_sd
-series[].step_s
-series[].summary
-series[].trend
-series[].trend.curve_explained
-series[].trend.end
-series[].trend.explained
-series[].trend.named
-series[].trend.note
-series[].trend.p_value
-series[].trend.per_hour
-series[].trend.significant
-series[].trend.start
-series[].trend.turn
-series[].two_state
-series[].two_state.beat_error_drop_ms
-series[].two_state.beat_error_unlock_ms
-series[].two_state.block_s
-series[].two_state.blocks
-series[].two_state.delta_bic
-series[].two_state.dwell_high_s
-series[].two_state.dwell_low_s
-series[].two_state.high
-series[].two_state.low
-series[].two_state.low_share
-series[].two_state.one_sided
-series[].two_state.period_s
-series[].two_state.regularity
-series[].two_state.separation
-series[].two_state.spread
-series[].two_state.switch_every_s
-series[].two_state.switches
-series[].two_state.tick_change
-series[].two_state.tick_edge_split_alone
-series[].two_state.tick_split_alone
-series[].two_state.tick_unlock_ms
-series[].two_state.tock_change
-series[].two_state.tock_edge_split_alone
-series[].two_state.tock_split_alone
-series[].two_state.tock_unlock_ms
-series[].two_state.two_levels
-series[].two_state.unlock_jump
-series[].unit
-series[].unlock_hopping
-series[].views
-series[].views.beat_error_source
-series[].views.beat_error_sources
-series[].views.beat_error_sources.drop
-series[].views.beat_error_sources.unlock
-series[].views.caveats
-series[].views.caveats[].code
-series[].views.caveats[].rho
-series[].views.caveats[].span_s
-series[].views.fold
-series[].views.fold.at_cycle
-series[].views.fold.columns
-series[].views.fold.cycles
-series[].views.fold.from
-series[].views.fold.middle_half
-series[].views.fold.period_s
-series[].views.fold.profile
-series[].views.fold.raster
-series[].views.fold.sine_size
-series[].views.fold.swing
-series[].views.fold.wheel
-series[].views.fold.y_range
-series[].views.readings
-series[].views.readings.banded
-series[].views.readings.chunk_s
-series[].views.readings.counts
-series[].views.readings.hi
-series[].views.readings.key
-series[].views.readings.lo
-series[].views.readings.n
-series[].views.readings.step_s
-series[].views.readings.t_s
-series[].views.readings.values
-series[].views.readings.y_range
-series[].views.search
-series[].views.search.period_s
-series[].views.search.score
-series[].views.search.threshold
-series[].views.series
-software
-software.arch
-software.build_date
-software.git_dirty
-software.git_hash
-software.name
-software.os
-software.version
-spectra
-spectra[].amplitude
-spectra[].method
-spectra[].period_s
-spectra[].reading_swing
-spectra[].reading_swing.period_s
-spectra[].reading_swing.reading_s
-spectra[].reading_swing.swing_s_per_day
-spectra[].series
-spectra[].step_s
-spectra[].support
-spectra[].support.description
-spectra[].support.finite_bins
-spectra[].support.total_bins
-spectra[].unit
-spectra[].welch
-spectra[].welch.amplitude
-spectra[].welch.period_s
-spectra[].welch.segment_s
-spectra[].welch.segments
-walk
-walk.bin_s
-walk.points
-walk.points[].amp_slots
-walk.points[].amp_windows
-walk.points[].amplitude_deg
-walk.points[].rate_s_per_day
-walk.points[].rate_slots
-walk.points[].readings
-walk.points[].t_s
-walk.points[].thin
-walk.points[].wind_h
-wheel_lines
-wind_down
+beat_error_source string
+beat_error_sources object
+beat_error_sources.drop number
+beat_error_sources.unlock number
+bph number
+caveats array
+caveats[].code string
+clock null
+config object
+config.acf_alone bool
+config.alpha number
+config.change_block_s number
+config.change_min_segment_s number
+config.level_alpha number
+config.ljung_box_lags number
+config.max_lag_s number
+config.max_points number
+config.min_correlation number
+config.min_explained number
+config.outlier_sigma number
+config.periodic_min_explained number
+config.rate_reading_s number
+config.stretch_s number
+config.trend_alpha number
+config.wind_h null
+distributions object
+distributions.overall array
+distributions.overall[].above number
+distributions.overall[].below number
+distributions.overall[].bin_width number
+distributions.overall[].counts array
+distributions.overall[].edges array
+distributions.overall[].median number
+distributions.overall[].n number
+distributions.overall[].normal_line object
+distributions.overall[].normal_line.centre number
+distributions.overall[].normal_line.spread number
+distributions.overall[].p10 number
+distributions.overall[].p90 number
+distributions.overall[].peaks array
+distributions.overall[].points array
+distributions.overall[].quantiles array
+distributions.overall[].screen_summary string
+distributions.overall[].series string
+distributions.overall[].step_s number
+distributions.overall[].summary string
+distributions.overall[].unit string
+distributions.overall[].values string
+distributions.stretch_s number
+distributions.stretches array
+duration_s number
+findings array
+findings[].code string
+findings[].evidence string
+findings[].series string
+findings[].title string
+input object
+input.files array
+input.files[].path string
+input.settings object
+input.settings.bph null
+input.settings.calibre null
+input.settings.clock_log null
+input.settings.escape_teeth null
+input.settings.highpass_hz number
+input.settings.lift_deg number
+input.settings.masked array
+input.settings.mesh_marks array
+input.settings.named_meshes array
+input.settings.named_wheels array
+input.settings.notch_hz array
+input.settings.reading_s number
+input.settings.reference_lines array
+input.settings.reference_lines[].label string
+input.settings.reference_lines[].period_s number
+input.settings.stretch_s number
+input.settings.stretches null
+input.settings.take null
+input.settings.wheel_marks array
+input.settings.wheels array
+input.settings.wind_h null
+isochronism object
+isochronism.amplitude_from_deg number
+isochronism.amplitude_to_deg number
+isochronism.bin_deg number
+isochronism.bins array
+isochronism.bins[].amplitude_deg number
+isochronism.bins[].from_h number
+isochronism.bins[].from_wind_h null
+isochronism.bins[].rate_q25 number
+isochronism.bins[].rate_q75 number
+isochronism.bins[].rate_s_per_day number
+isochronism.bins[].readings number
+isochronism.bins[].to_h number
+isochronism.bins[].to_wind_h null
+isochronism.headline string
+isochronism.rate_change_s_per_day number
+isochronism.reliability number
+isochronism.s_per_day_per_deg number
+isochronism.s_per_day_per_deg_se number
+isochronism.step_s number
+period_span array
+rate_amplitude object
+rate_amplitude.effective_readings number
+rate_amplitude.headline string
+rate_amplitude.p_value number
+rate_amplitude.r number
+rate_amplitude.readings number
+rate_amplitude.reliability number
+rate_amplitude.s_per_day_per_deg number
+rate_amplitude.s_per_day_per_deg_se number
+rate_amplitude.step_s number
+rate_amplitude.take_r number
+rate_amplitude.take_s_per_day_per_deg number
+schema string
+series array
+series[].allan object
+series[].allan.best_deviation number
+series[].allan.best_tau_s number
+series[].allan.deviation array
+series[].allan.hollow_note string
+series[].allan.judged array
+series[].allan.max_excess number
+series[].allan.pairs array
+series[].allan.slope_short number
+series[].allan.tau_s array
+series[].allan.white array
+series[].autocorrelation object
+series[].autocorrelation.band number
+series[].autocorrelation.band_by_lag array
+series[].autocorrelation.lag_s array
+series[].autocorrelation.ljung_box_lags number
+series[].autocorrelation.ljung_box_q number
+series[].autocorrelation.max_short_lag_r number
+series[].autocorrelation.memory_s number
+series[].autocorrelation.p_value number
+series[].autocorrelation.r array
+series[].autocorrelation.repeat_lag_s number
+series[].autocorrelation.repeat_r number
+series[].beat_error_source string
+series[].beat_error_sources object
+series[].beat_error_sources.drop number
+series[].beat_error_sources.unlock number
+series[].caveats array
+series[].caveats[].code string
+series[].caveats[].rho number
+series[].caveats[].span_s number
+series[].changes object
+series[].changes.block_s number
+series[].changes.block_sigma number
+series[].changes.explained number
+series[].changes.long_run_sigma number
+series[].changes.named bool
+series[].changes.note string
+series[].changes.p_value number
+series[].changes.segments array
+series[].changes.segments[].end_s number
+series[].changes.segments[].mean number
+series[].changes.segments[].start_s number
+series[].cusum object
+series[].cusum.at number
+series[].cusum.at_s number
+series[].cusum.band number
+series[].cusum.max number
+series[].cusum.p_value number
+series[].cusum.s array
+series[].cusum.shift bool
+series[].cusum.t_s array
+series[].cycle object
+series[].cycle.explained number
+series[].cycle.inner_explained null
+series[].cycle.inner_period_s null
+series[].cycle.peak_to_peak number
+series[].cycle.period_s number
+series[].cycle.source string
+series[].cycle.turns null
+series[].cycle.wheel null
+series[].cycle_off_search_s null
+series[].headline string
+series[].long_run_sd number
+series[].median number
+series[].null object
+series[].null.calibrated bool
+series[].null.flicker number
+series[].null.misfit number
+series[].null.misfit_limit number
+series[].null.mix number
+series[].null.model string
+series[].outliers number
+series[].period object
+series[].period.beyond_simulated bool
+series[].period.explained number
+series[].period.harmonic_of null
+series[].period.other_harmonic_of array
+series[].period.other_periods_s array
+series[].period.peak_to_peak number
+series[].period.period_s number
+series[].period.significance number
+series[].period.size number
+series[].period.size_unit string
+series[].period.timing_peak_to_peak_ms number
+series[].period.wheel null
+series[].readings number
+series[].repeat_mark array
+series[].screen_cycle_size string
+series[].screen_headline string
+series[].screen_stats string
+series[].screen_summary string
+series[].sd number
+series[].series string
+series[].short_term_sd number
+series[].step_s number
+series[].summary string
+series[].trend object
+series[].trend.curve_explained number
+series[].trend.end number
+series[].trend.explained number
+series[].trend.named bool
+series[].trend.note string
+series[].trend.p_value number
+series[].trend.per_hour number
+series[].trend.significant bool
+series[].trend.start number
+series[].trend.turn array
+series[].two_state object
+series[].two_state.beat_error_drop_ms array
+series[].two_state.beat_error_unlock_ms array
+series[].two_state.block_s number
+series[].two_state.blocks number
+series[].two_state.delta_bic number
+series[].two_state.dwell_high_s number
+series[].two_state.dwell_low_s number
+series[].two_state.high number
+series[].two_state.low number
+series[].two_state.low_share number
+series[].two_state.one_sided bool
+series[].two_state.period_s number
+series[].two_state.regularity number
+series[].two_state.separation number
+series[].two_state.spread bool
+series[].two_state.switch_every_s number
+series[].two_state.switches number
+series[].two_state.tick_change number
+series[].two_state.tick_edge_split_alone bool
+series[].two_state.tick_split_alone bool
+series[].two_state.tick_unlock_ms array
+series[].two_state.tock_change number
+series[].two_state.tock_edge_split_alone bool
+series[].two_state.tock_split_alone bool
+series[].two_state.tock_unlock_ms array
+series[].two_state.two_levels bool
+series[].two_state.unlock_jump bool
+series[].unit string
+series[].unlock_hopping bool
+series[].views object
+series[].views.beat_error_source string
+series[].views.beat_error_sources object
+series[].views.beat_error_sources.drop number
+series[].views.beat_error_sources.unlock number
+series[].views.caveats array
+series[].views.caveats[].code string
+series[].views.caveats[].rho number
+series[].views.caveats[].span_s number
+series[].views.fold object
+series[].views.fold.at_cycle bool
+series[].views.fold.columns array
+series[].views.fold.cycles number
+series[].views.fold.from string
+series[].views.fold.middle_half number
+series[].views.fold.period_s number
+series[].views.fold.profile array
+series[].views.fold.raster array
+series[].views.fold.sine_size null
+series[].views.fold.swing number
+series[].views.fold.wheel null
+series[].views.fold.y_range array
+series[].views.readings object
+series[].views.readings.banded bool
+series[].views.readings.chunk_s number
+series[].views.readings.counts array
+series[].views.readings.hi array
+series[].views.readings.key string
+series[].views.readings.lo array
+series[].views.readings.n number
+series[].views.readings.step_s number
+series[].views.readings.t_s array
+series[].views.readings.values array
+series[].views.readings.y_range array
+series[].views.search object
+series[].views.search.period_s array
+series[].views.search.score array
+series[].views.search.threshold number
+series[].views.series string
+software object
+software.arch string
+software.build_date string
+software.git_dirty bool
+software.git_hash string
+software.name string
+software.os string
+software.version string
+spectra array
+spectra[].amplitude array
+spectra[].method string
+spectra[].period_s array
+spectra[].reading_swing object
+spectra[].reading_swing.period_s array
+spectra[].reading_swing.reading_s number
+spectra[].reading_swing.swing_s_per_day array
+spectra[].series string
+spectra[].step_s number
+spectra[].support object
+spectra[].support.description string
+spectra[].support.finite_bins number
+spectra[].support.total_bins number
+spectra[].unit string
+spectra[].welch object
+spectra[].welch.amplitude array
+spectra[].welch.period_s array
+spectra[].welch.segment_s number
+spectra[].welch.segments number
+walk object
+walk.bin_s number
+walk.points array
+walk.points[].amp_slots number
+walk.points[].amp_windows number
+walk.points[].amplitude_deg number
+walk.points[].rate_s_per_day number
+walk.points[].rate_slots number
+walk.points[].readings number
+walk.points[].t_s number
+walk.points[].thin bool
+walk.points[].wind_h null
+wheel_lines array
+wind_down null
