@@ -1837,9 +1837,8 @@ impl Calibres {
                     &BPH,
                     70.0,
                 ) {
-                    let was = c.bph;
-                    c.bph = (b > 0.0).then_some(b.round() as u32);
-                    follow_balance(c, was);
+                    // The balance follows it unless typed (core).
+                    c.set_bph((b > 0.0).then_some(b.round() as u32));
                 }
                 ui.label("bph");
             },
@@ -1940,36 +1939,6 @@ fn escapement_row(ui: &mut egui::Ui, c: &mut CustomCalibre, place: &str) {
             c.escapement = kind.as_deref().and_then(calibres::Escapement::added_by_you);
         },
     );
-}
-
-/// The balance's period, the time for one full swing and back: two beats.
-fn balance_period(bph: u32) -> f64 {
-    train::balance_period_s(bph)
-}
-
-/// After a custom calibre's beat rate changed from `was`: the balance's
-/// period follows it, unless one was typed that the old rate didn't give.
-fn follow_balance(c: &mut CustomCalibre, was: Option<u32>) {
-    let at = c.wheels.iter().position(|w| w.name == "balance");
-    let derived = |p: f64| was.is_some_and(|b| (balance_period(b) - p).abs() < 1e-9);
-    let free = at.is_none_or(|i| derived(c.wheels[i].period_s));
-    if !free {
-        return;
-    }
-    match (c.bph, at) {
-        (Some(b), Some(i)) => c.wheels[i].period_s = balance_period(b),
-        (Some(b), None) => c.wheels.insert(
-            0,
-            CustomWheel {
-                name: "balance".into(),
-                period_s: balance_period(b),
-            },
-        ),
-        (None, Some(i)) => {
-            c.wheels.remove(i);
-        }
-        (None, None) => {}
-    }
 }
 
 /// A custom calibre from wheel names and periods, names tidied and
@@ -2119,7 +2088,7 @@ fn slot_shown(
         _ => None,
     };
     let rate = balance.and_then(|c| c.balance_from_rate().zip(c.bph));
-    let clear = if balance.is_some_and(|c| c.bph.is_some_and(|b| b > 0)) {
+    let clear = if balance.is_some_and(|c| c.rate_balance_s().is_some()) {
         "Go back to the beat rate's period"
     } else if s.shipped_period_s.is_some() {
         "Go back to the list's period"

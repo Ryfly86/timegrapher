@@ -507,23 +507,18 @@ fn a_custom_balance_period_follows_its_beat_rate() {
             .find(|w| w.name == "balance")
             .map(|w| w.period_s)
     };
-    k.bph = Some(18000);
-    follow_balance(&mut k, None);
+    k.set_bph(Some(18000));
     assert_eq!(balance(&k), Some(0.4));
-    k.bph = Some(28800);
-    follow_balance(&mut k, Some(18000));
+    k.set_bph(Some(28800));
     assert_eq!(balance(&k), Some(0.25));
     // A period typed by hand stays when the beat rate changes.
     k.wheels[0].period_s = 0.3;
-    k.bph = Some(21600);
-    follow_balance(&mut k, Some(28800));
+    k.set_bph(Some(21600));
     assert_eq!(balance(&k), Some(0.3));
     // No beat rate, no derived balance.
     let mut k = custom("Bench", []);
-    k.bph = Some(36000);
-    follow_balance(&mut k, None);
-    k.bph = None;
-    follow_balance(&mut k, Some(36000));
+    k.set_bph(Some(36000));
+    k.set_bph(None);
     assert_eq!(balance(&k), None);
 }
 
@@ -1228,16 +1223,16 @@ fn a_half_typed_wheel_stays_with_its_calibre() {
 #[test]
 fn a_balance_from_the_beat_rate_says_so() {
     let mut k = custom("Bench", []);
-    k.bph = Some(28800);
-    follow_balance(&mut k, None);
-    let row = |k: &CustomCalibre| {
+    k.set_bph(Some(28800));
+    let row_of = |k: &CustomCalibre, wheel: &str| {
         let user = UserCalibres::default();
         let e = Entry::Custom(k);
         let slots = Catalog::new(&user).slots(e);
-        let s = slots.iter().find(|s| s.name == "balance").unwrap();
+        let s = slots.iter().find(|s| s.name == wheel).unwrap();
         let (s, tip, clear) = slot_shown(e, s, None);
         (s.period_s, tip, clear)
     };
+    let row = |k: &CustomCalibre| row_of(k, "balance");
     assert_eq!(
         row(&k),
         (
@@ -1246,8 +1241,7 @@ fn a_balance_from_the_beat_rate_says_so() {
             None
         )
     );
-    k.bph = Some(21600);
-    follow_balance(&mut k, Some(28800));
+    k.set_bph(Some(21600));
     let (p, tip, clear) = row(&k);
     assert_eq!((p, clear), (Some(train::balance_period_s(21600)), None));
     assert_eq!(tip, "From the beat rate, 21600 bph");
@@ -1270,13 +1264,43 @@ fn a_balance_from_the_beat_rate_says_so() {
     // Without a beat rate, Clear forgets the period typed in.
     k.bph = None;
     assert_eq!(row(&k).2, Some("Forget the period typed in"));
-    // Drawn: the balance's row has no Clear.
+    // Another wheel of a calibre with a beat rate keeps its own period,
+    // hover and Clear.
+    let mut k = custom("Bench", [("fourth wheel", 60.0)]);
+    k.set_bph(Some(28800));
+    assert_eq!(
+        row_of(&k, "fourth wheel"),
+        (
+            Some(60.0),
+            "Custom, typed in".to_string(),
+            Some("Forget the period typed in")
+        )
+    );
+    // A beat rate of 0 (a file edited by hand) is none: nothing worked out.
+    k.bph = Some(0);
+    k.wheels.retain(|w| w.name != "balance");
+    assert_eq!(
+        row(&k),
+        (
+            None,
+            "Nobody has given this wheel's period yet: type it if you know it".to_string(),
+            Some("Forget the period typed in")
+        )
+    );
+    // Drawn: the balance's row has no Clear and no Custom caption; typed,
+    // it has both.
     let mut c = Calibres::in_memory();
     let mut k = custom("Bench", []);
-    k.bph = Some(28800);
-    follow_balance(&mut k, None);
+    k.set_bph(Some(28800));
     c.user.put_custom(k);
+    // The table's Maker column says "Custom" for the calibre itself.
+    let customs = |seen: &[String]| seen.iter().filter(|t| *t == "Custom").count();
     let seen = drawn_with(&mut c, "Bench");
     assert!(seen.iter().any(|t| t == "0.25"), "{seen:?}");
     assert!(!seen.iter().any(|t| t == "Clear"), "{seen:?}");
+    let from_rate = customs(&seen);
+    c.user.set_wheel("Bench", "balance", 0.3, None);
+    let seen = drawn_with(&mut c, "Bench");
+    assert!(seen.iter().any(|t| t == "Clear"), "{seen:?}");
+    assert_eq!(customs(&seen), from_rate + 1, "{seen:?}");
 }

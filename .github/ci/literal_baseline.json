@@ -125,7 +125,7 @@
     },
     "crates/timegrapher-app/src/calibre_ui.rs": {
      "bounds": 5,
-     "comparisons": 1,
+     "comparisons": 0,
      "constants": 4,
      "defaults": 0
     },
@@ -282,7 +282,7 @@
    },
    "total": {
     "bounds": 99,
-    "comparisons": 87,
+    "comparisons": 86,
     "constants": 62,
     "defaults": 2
    }

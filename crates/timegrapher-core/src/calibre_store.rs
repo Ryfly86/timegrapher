@@ -100,16 +100,51 @@ pub struct CustomCalibre {
 }
 
 impl CustomCalibre {
-    /// The balance's period its beat rate gives (two beats a swing,
-    /// [`crate::train::balance_period_s`]), while the balance it keeps is
+    /// The balance's period its beat rate gives, two beats a swing
+    /// ([`crate::train::balance_period_s`]), whatever balance it keeps.
+    /// `None` without a beat rate (none, or 0).
+    pub fn rate_balance_s(&self) -> Option<f64> {
+        self.bph
+            .filter(|&b| b > 0)
+            .map(crate::train::balance_period_s)
+    }
+
+    /// [`CustomCalibre::rate_balance_s`] while the balance it keeps is
     /// that period or it keeps none: worked out, not typed in (#2381).
     /// `None` without a beat rate, or with a balance typed that the rate
     /// doesn't give.
     pub fn balance_from_rate(&self) -> Option<f64> {
-        let p = crate::train::balance_period_s(self.bph.filter(|&b| b > 0)?);
+        let p = self.rate_balance_s()?;
         let kept = self.wheels.iter().find(|w| w.name == "balance");
         kept.is_none_or(|w| (w.period_s - p).abs() < 1e-9)
             .then_some(p)
+    }
+
+    /// Set its beat rate. The balance follows it while it was worked out
+    /// from the old rate or none was kept: the new rate's period, first
+    /// among the wheels, or none without a rate. A balance typed that the
+    /// old rate didn't give stays.
+    pub fn set_bph(&mut self, bph: Option<u32>) {
+        let at = self.wheels.iter().position(|w| w.name == "balance");
+        let free = at.is_none() || self.balance_from_rate().is_some();
+        self.bph = bph;
+        if !free {
+            return;
+        }
+        match (self.rate_balance_s(), at) {
+            (Some(p), Some(i)) => self.wheels[i].period_s = p,
+            (Some(p), None) => self.wheels.insert(
+                0,
+                CustomWheel {
+                    name: "balance".into(),
+                    period_s: p,
+                },
+            ),
+            (None, Some(i)) => {
+                self.wheels.remove(i);
+            }
+            (None, None) => {}
+        }
     }
 }
 
@@ -216,7 +251,7 @@ impl UserCalibres {
         if let Some(c) = self.custom.iter_mut().find(|c| c.name == calibre) {
             c.wheels.retain(|w| w.name != wheel);
             if wheel == "balance" {
-                if let Some(period_s) = c.balance_from_rate() {
+                if let Some(period_s) = c.rate_balance_s() {
                     c.wheels.insert(
                         0,
                         CustomWheel {
@@ -993,10 +1028,55 @@ mod tests {
                 ("fourth wheel".to_string(), 60.0)
             ]
         );
+        // Clearing another wheel forgets it alone: the one balance stays,
+        // at the rate's, and nothing is put in its place.
+        u.set_wheel("My Movement", "third wheel", 300.0, None);
+        u.clear_wheel("My Movement", "third wheel");
+        let after: Vec<_> = c(&u)
+            .wheels
+            .iter()
+            .map(|w| (w.name.clone(), w.period_s))
+            .collect();
+        assert_eq!(after, kept);
+        // A beat rate of 0 (a file edited by hand) is none.
+        u.custom[0].bph = Some(0);
+        assert_eq!(c(&u).rate_balance_s(), None);
+        assert_eq!(c(&u).balance_from_rate(), None);
+        u.clear_wheel("My Movement", "balance");
+        assert!(c(&u).wheels.iter().all(|w| w.name != "balance"));
         // Without a beat rate there is nothing to work it out from.
         u.custom[0].bph = None;
         assert_eq!(c(&u).balance_from_rate(), None);
         u.clear_wheel("My Movement", "balance");
         assert!(c(&u).wheels.iter().all(|w| w.name != "balance"));
+    }
+
+    /// The balance follows a new beat rate while it was the old rate's or
+    /// none was kept, first among the wheels; one typed stays; no rate,
+    /// no balance (#2381).
+    #[test]
+    fn a_custom_balance_follows_set_bph_until_typed() {
+        let mut k = store().custom[0].clone();
+        k.bph = None;
+        let balance = |k: &CustomCalibre| {
+            k.wheels
+                .iter()
+                .filter(|w| w.name == "balance")
+                .map(|w| w.period_s)
+                .collect::<Vec<_>>()
+        };
+        k.set_bph(Some(18000));
+        assert_eq!(balance(&k), [0.4]);
+        assert_eq!(k.wheels[0].name, "balance");
+        k.set_bph(Some(28800));
+        assert_eq!(balance(&k), [0.25]);
+        k.set_bph(Some(0));
+        assert!(balance(&k).is_empty());
+        k.set_bph(Some(28800));
+        k.wheels[0].period_s = 0.3;
+        k.set_bph(Some(21600));
+        assert_eq!(balance(&k), [0.3]);
+        k.set_bph(None);
+        assert_eq!(balance(&k), [0.3]);
     }
 }
