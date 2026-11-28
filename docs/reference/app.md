@@ -961,8 +961,8 @@ chronograph off, then on, then off again. **New Test** in its toolbar, or
 **Complication Test** under New Take in the Watches view, sets it up
 without moving the card; Start Test on the Listen card starts it. Stop
 Test… asks with the stretches kept by name ("The 2 stretches measured so
-far (Off, On) are kept."), adding, before the last Off, that On is
-compared with Off only once it is measured. The
+far (Off, On) are kept."), adding, before the last Off, "On less Off is
+worked out only once the last Off is measured." The
 toolbar has New Test, then Settle and **Each Stretch**, the same two
 values every guided test shares (a change in one pane changes all), then
 **Copy** and Export…, with **Info** at the right. The banner names each

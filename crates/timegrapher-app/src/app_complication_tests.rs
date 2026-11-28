@@ -764,7 +764,7 @@ fn stop_test_names_the_stretches_kept() {
         t
     };
     let c = |n| measured(guided::Test::complication(Position::DialUp), n);
-    let last = " On is compared with Off only once the last Off is measured.";
+    let last = " On less Off is worked out only once the last Off is measured.";
     assert_eq!(
         kept_so_far(&c(0), ""),
         format!("The take so far is kept, with no stretch measured yet.{last}")

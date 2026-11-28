@@ -841,7 +841,7 @@ pub(super) fn recorded_hint(each: &str) -> String {
 /// What Stop Test keeps of the guided test `t`, kept in `kept` (" in" a
 /// watch, or nothing): each position measured, read or not; the
 /// Complication Test's stretches by name, and that a stop before its
-/// last Off leaves nothing to compare (#2384).
+/// last Off leaves no On less Off (#2384).
 pub(super) fn kept_so_far(t: &guided::Test, kept: &str) -> String {
     let n = t.stretches().len();
     if t.kind != guided::Kind::Complication {
@@ -859,7 +859,10 @@ pub(super) fn kept_so_far(t: &guided::Test, kept: &str) -> String {
         n => format!("The {n} stretches measured so far ({names}) are kept{kept}."),
     };
     match n < timegrapher_core::complication::ORDER.len() {
-        true => format!("{what} On is compared with Off only once the last Off is measured."),
+        true => format!(
+            "{what} {} is worked out only once the last Off is measured.",
+            timegrapher_core::complication::DIFFERENCE_NAME
+        ),
         false => what,
     }
 }
