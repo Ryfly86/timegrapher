@@ -23,6 +23,11 @@ pub(super) struct Results {
     /// in the background that will replace it.
     pub(super) steady: Option<(Revision, Steadiness)>,
     pub(super) steady_job: Option<SteadyJob>,
+    /// The Average Over the steadiness answers and the run under way were
+    /// read at: which stretches hear no watch, so what the tests leave
+    /// out, rests on it, so they are read again when it changes (Norm on
+    /// #2451). None until the panes first look.
+    pub(super) steady_average_s: Option<f64>,
     /// The step the steadiness run under way is on, and when it started.
     pub(super) steady_work: (
         std::sync::Arc<std::sync::atomic::AtomicU8>,
@@ -66,6 +71,7 @@ impl Default for Results {
             scope_job: None,
             steady: None,
             steady_job: None,
+            steady_average_s: None,
             steady_work: (Default::default(), std::time::Instant::now()),
             trend: Vec::new(),
             trend_key: TrendKey::default(),

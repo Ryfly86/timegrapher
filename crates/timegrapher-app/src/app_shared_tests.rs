@@ -16,7 +16,7 @@ pub(super) fn silent(seconds: usize) -> TimegrapherApp {
     for _ in 0..seconds * 50 {
         live.push(&[0.0_f32; 960]);
     }
-    app.bench.results.trend = live.trend(app.bench.take.average_s);
+    app.refresh_trend();
     app
 }
 
