@@ -218,7 +218,8 @@ already made then comes back, marked as such, instead of a second
 recording. The server remembers takes only while it runs.
 
 For `record_position`, retry identity uses the resolved physical destination,
-`take_id` and position; with no folder, the library as given (resolved the
+`take_id` and the position as core reads it (DU and CH are one
+position); with no folder, the library as given (resolved the
 same way) and the watch's name in any case, without spaces at either end,
 stand in for the destination. Existing directory aliases (including symbolic links,
 `~`, `.` and `..`) share an identity; missing destination components are retained

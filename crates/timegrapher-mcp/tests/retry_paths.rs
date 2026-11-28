@@ -198,6 +198,25 @@ fn aliases_retry_after_destination_creation_but_distinct_takes_still_record() {
 }
 
 #[test]
+fn another_name_for_the_same_position_is_a_retry() {
+    // #2418: DU then CH with one take_id recorded two Dial Up takes.
+    let (root, cli) = fixture("position-names");
+    let folder = root.0.join("watch");
+    let folder = folder.to_str().unwrap();
+    let mut client = Client::start(&cli, &root.0.join("config"), &root.0);
+    assert_eq!(invocation(&record(&mut client, folder, "t1", "DU")), 1);
+    for alias in ["CH", "CH"] {
+        let result = record(&mut client, folder, "t1", alias);
+        assert_eq!(invocation(&result), 1, "{alias}");
+        assert!(result["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("nothing was recorded again"));
+    }
+    assert_eq!(invocation(&record(&mut client, folder, "t1", "CB")), 2);
+}
+
+#[test]
 fn invalid_destination_returns_tool_error_without_spawning_or_creating_output() {
     use std::os::unix::fs::symlink;
     let (root, cli) = fixture("errors");

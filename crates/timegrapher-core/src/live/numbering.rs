@@ -45,7 +45,7 @@ impl Numbering {
     }
 
     /// The beats of a reading of the sound again took over from these
-    /// (#1327), moved by `shift` ([`LiveAnalyzer::template_shift`]): the
+    /// (#1327), moved by `shift` (`LiveAnalyzer::template_shift`): the
     /// run goes on with the move added. Beats that could not be paired
     /// start a new run.
     pub(super) fn taken_over(self, shift: Option<(f64, i64)>) -> Numbering {

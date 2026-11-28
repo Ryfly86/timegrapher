@@ -536,11 +536,12 @@ pub const TEMPLATE_TRIM: f64 = 0.25;
 
 /// Trimmed mean (see [`TEMPLATE_TRIM`]) of the windows from `PRE_S` before
 /// to `POST_S` after each time, or None when no window fits.
-pub fn trimmed_template(env: &[f32], fs: f64, times: &[f64]) -> Option<Vec<f32>> {
+#[cfg(test)]
+pub(crate) fn trimmed_template(env: &[f32], fs: f64, times: &[f64]) -> Option<Vec<f32>> {
     trimmed_template_from(env, fs, times, PRE_S)
 }
 
-/// [`trimmed_template`] from `pre_s` before each time.
+/// `trimmed_template` from `pre_s` before each time.
 pub fn trimmed_template_from(env: &[f32], fs: f64, times: &[f64], pre_s: f64) -> Option<Vec<f32>> {
     window_stat(env, fs, times, pre_s, POST_S, |c| {
         crate::dsp::trimmed_mean_f32(c, TEMPLATE_TRIM)
@@ -714,15 +715,10 @@ fn drop_offset(template: &[f32], fs: f64, origin: usize) -> Option<f64> {
     Some((parabolic(&t, drop) - origin as f64) / fs)
 }
 
-/// Find every beat by correlating with a given template. Long recordings
-/// are processed in chunks with one template throughout, so the beat's
-/// reference point cannot shift from one chunk to the next.
-pub fn detect_with_template(env: &[f32], fs: f64, bph: u32, template: &[f32]) -> Vec<Beat> {
-    detect_after(env, fs, bph, template, None).0
-}
-
-/// [`detect_with_template`] on sound that starts `off` seconds into the
-/// take ([`detect_after_at`]).
+/// Find every beat by correlating with a given template, on sound that
+/// starts `off` seconds into the take ([`detect_after_at`]). Long
+/// recordings are processed in chunks with one template throughout, so the
+/// beat's reference point cannot shift from one chunk to the next.
 pub fn detect_with_template_at(
     env: &[f32],
     fs: f64,
@@ -733,7 +729,7 @@ pub fn detect_with_template_at(
     detect_after_at(env, fs, bph, template, None, off).0
 }
 
-/// [`detect_with_template`] on sound that follows sound already tracked,
+/// [`detect_with_template_at`] on sound that follows sound already tracked,
 /// whose typical beat matched the template at `level`: returns the beats
 /// and the level to carry on to the sound after. A stretch heard as
 /// silence then gives no beats, rather than the noise's peaks (#609).

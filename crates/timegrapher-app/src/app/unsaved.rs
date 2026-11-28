@@ -13,6 +13,9 @@ pub(super) struct KeptSound {
     pub(super) dir: PathBuf,
     /// "2026-10-21 14.32", from its session.json, in this computer's time.
     pub(super) started: Option<String>,
+    /// How long its sound is, read from the sound on disk (#2431); for a
+    /// test kept in parts, as far as its parts reach. None when it can't
+    /// be read, never a length short of it.
     pub(super) duration_s: Option<f64>,
     pub(super) bytes: u64,
     /// The take it was recording into as it went, which holds all of it
@@ -273,10 +276,12 @@ pub(super) fn kept_sounds(scratch: &Path) -> Vec<KeptSound> {
             let partial = !parts && hours_missing(about.as_ref(), &names);
             // Of a test kept in parts, as far as its parts reach; none
             // for one with hours missing, whose session file counts them.
+            // Of sound, the sound on disk, its session file brought up to
+            // it, never what that file last said (#2412, #2431).
             let duration_s = match (parts, partial) {
                 (true, _) => checkpoint::length_s(&dir).ok(),
                 (false, true) => None,
-                (false, false) => about.as_ref().and_then(|a| a["duration_s"].as_f64()),
+                (false, false) => mended_length(&dir),
             };
             let streamed_to = take_io::streamed_to(&dir);
             Some(KeptSound {
@@ -292,6 +297,21 @@ pub(super) fn kept_sounds(scratch: &Path) -> Vec<KeptSound> {
         .collect();
     v.sort_by(|a, b| a.dir.cmp(&b.dir));
     v
+}
+
+/// The length of the sound left in `dir`, read from the sound, with its
+/// `session.json` brought up to it so Open and a keep read the same
+/// ([`timegrapher_core::recorder::mend_stopped`]). A session file that
+/// can't be written leaves the length still read from the sound; none
+/// when the sound can't be read.
+fn mended_length(dir: &Path) -> Option<f64> {
+    timegrapher_core::recorder::mend_stopped(dir).unwrap_or_else(|e| {
+        applog::warn(&format!(
+            "couldn't bring {}'s session file up to its sound: {e}",
+            dir.display()
+        ));
+        timegrapher_core::recorder::sound_on_disk_s(dir)
+    })
 }
 
 /// Whether a sound file the session file `about` lists is in none of
@@ -378,4 +398,68 @@ pub(super) fn copy_tree(from: &Path, to: &Path) -> std::io::Result<()> {
         w.sync_all()?;
     }
     timegrapher_core::recorder::sync_folder(to)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use timegrapher_core::recorder::SessionInfo;
+
+    /// Sound left by an app that stopped while its `session.json` said less
+    /// than the sound (#2431: "0:17 long" for 1:32): the notice gives the
+    /// sound on disk, and the session file says so too, for Open and a
+    /// keep (#2412).
+    #[test]
+    fn the_unsaved_notice_gives_the_length_on_disk() {
+        let base = std::env::temp_dir().join(format!("tg-app-ondisk-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let info = SessionInfo {
+            watch: String::new(),
+            position: "DU".into(),
+            lift_deg: 52.0,
+            bph: None,
+            device: "test".into(),
+            sample_rate: 8000,
+            bits: 16,
+            software: "test".into(),
+            calibre: String::new(),
+            escapement: None,
+        };
+        let mut r = Recorder::start(&base, info).unwrap();
+        let start = std::time::SystemTime::now();
+        for s in 0..92 {
+            r.write(&timegrapher_core::capture::Block {
+                samples: vec![0.1; 8000],
+                at: start + Duration::from_secs(s),
+            })
+            .unwrap();
+        }
+        let dir = r.dir().to_path_buf();
+        drop(r);
+        // As the file stood seconds into the take.
+        let record = dir.join("session.json");
+        let mut about: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&record).unwrap()).unwrap();
+        about["duration_s"] = serde_json::json!(17.0);
+        std::fs::write(&record, about.to_string()).unwrap();
+
+        let kept = kept_sounds(&base);
+        assert_eq!(kept.len(), 1, "{kept:?}");
+        assert_eq!(kept[0].duration_s, Some(92.0), "{kept:?}");
+        assert!(
+            kept[0].notice().contains(", 1:32 long,"),
+            "{}",
+            kept[0].notice()
+        );
+        let mended: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&record).unwrap()).unwrap();
+        assert_eq!(mended["duration_s"].as_f64(), Some(92.0));
+
+        // Sound that can't be read gives no length, not the file's.
+        std::fs::write(dir.join("audio-001.wav"), b"RIFF").unwrap();
+        let kept = kept_sounds(&base);
+        assert_eq!(kept[0].duration_s, None, "{kept:?}");
+        assert!(!kept[0].notice().contains(" long"), "{}", kept[0].notice());
+        let _ = std::fs::remove_dir_all(&base);
+    }
 }
