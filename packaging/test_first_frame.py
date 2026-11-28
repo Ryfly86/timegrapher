@@ -87,7 +87,10 @@ class Runs(unittest.TestCase):
         self.assertEqual(self.check("time.sleep(60)\n", timeout=2), 1)
 
     def test_an_app_that_exits_before_drawing_fails(self):
-        self.assertEqual(self.check("sys.exit(3)\n"), 1)
+        # At once, from the exit, not at the timeout.
+        start = time.monotonic()
+        self.assertEqual(self.check("sys.exit(3)\n", timeout=30), 1)
+        self.assertLess(time.monotonic() - start, 20)
 
     def test_an_app_that_exits_after_drawing_fails(self):
         self.assertEqual(self.check(BOTH + "sys.exit(0)\n"), 1)

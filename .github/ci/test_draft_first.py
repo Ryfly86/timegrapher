@@ -156,6 +156,44 @@ class ReleaseTokens(unittest.TestCase):
         self.assertNotRegex(text, r"(packaging|\.github)/")
 
 
+def step_script(job, marker):
+    """The `run: |` text after `marker` in release.yml's `job`, unindented."""
+    block = jobs(RELEASE)[job].split(marker, 1)[1]
+    block = block.split("        run: |\n", 1)[1]
+    lines = []
+    for line in block.split("\n"):
+        if line and not line.startswith("          "):
+            break
+        lines.append(line[10:])
+    return "\n".join(lines)
+
+
+@unittest.skipIf(os.name == "nt" or not shutil.which("bash"), "needs bash")
+class VersionForADraft(unittest.TestCase):
+    """version picks a draft's number from the drafts job's list (#2426)."""
+
+    def pick(self, used):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = pathlib.Path(tmp, "out")
+            env = dict(os.environ, GITHUB_OUTPUT=str(out), GITHUB_STEP_SUMMARY=str(pathlib.Path(tmp, "sum")),
+                       RUNNER_TEMP=tmp, GITHUB_REF_TYPE="branch", GITHUB_REF="refs/heads/main",
+                       RELEASE_REQUESTED="true", USED=used)
+            done = subprocess.run(["bash", "-e", "-c", step_script("version", "      - id: pick\n")],
+                                  env=env, cwd=ROOT, capture_output=True, text=True)
+            return done.returncode, out.read_text().strip() if out.exists() else ""
+
+    def test_an_empty_list_stops_the_run(self):
+        for used in ("", " ", "   "):
+            code, out = self.pick(used)
+            self.assertNotEqual(code, 0, repr(used))
+            self.assertEqual(out, "")
+
+    def test_the_list_gives_the_next_number(self):
+        code, out = self.pick("v0.1.0 v0.1.1 ")
+        self.assertEqual(code, 0)
+        self.assertRegex(out, r"^version=\d+\.\d+\.\d+$")
+
+
 def tag_script():
     """The `run: |` text of release.yml's "Tag already released" step."""
     block = jobs(RELEASE)["mode"].split("      - name: Tag already released\n", 1)[1]

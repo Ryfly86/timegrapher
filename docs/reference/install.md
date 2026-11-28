@@ -221,9 +221,9 @@ place.
 
 Each platform's packaged desktop app then opens the 80-second Quick Listen
 take (`guide-figures/data/quick-listen/`) with a settings folder of its own
-and must draw its window within 90 seconds and keep running for 20 more while
-it reads the take, with no error in its log and no crash record
-(`packaging/first_frame.py`). Linux draws on Xvfb with software OpenGL. A
+and within 90 seconds must draw its window and log that it analysed the
+whole take, then keep running for 5 more seconds, with no error in its log
+and no crash record (`packaging/first_frame.py`). Linux draws on Xvfb with software OpenGL. A
 screenshot of each is kept with the run for 7 days.
 
 The documentation pages come from the Release workflow's `docs` job:
