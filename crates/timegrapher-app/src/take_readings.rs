@@ -3,7 +3,7 @@
 //! library's [`ReadingsRevision`] changes (#2410).
 
 use eframe::egui;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use timegrapher_core::library::{Reading, ReadingsRevision, Take};
@@ -30,6 +30,10 @@ pub struct TakeReadings {
     /// again, a clock correction or calibre changed) it is asked again,
     /// and core says whether what its reading reads has changed.
     known: HashMap<PathBuf, (ReadingsRevision, TakeReading)>,
+    /// The takes asked for whose answer to the last ask hasn't come in:
+    /// one asked again keeps its old figures on show meanwhile, so it
+    /// isn't told by its [`TakeReading`] alone.
+    pending: HashSet<PathBuf>,
     work: Option<(mpsc::Sender<Job>, mpsc::Receiver<ReadDone>)>,
     /// The take being read now, whose sound is open: it can't be moved,
     /// renamed or deleted until it is done (Windows refuses to).
@@ -94,6 +98,7 @@ impl TakeReadings {
                 _ => TakeReading::Reading,
             };
             self.known.insert(dir.to_path_buf(), (at.clone(), now));
+            self.pending.insert(dir.to_path_buf());
         } else {
             // The thread has gone: a new one next time.
             self.work = None;
@@ -117,6 +122,7 @@ impl TakeReadings {
         if let Some((asked, s)) = self.known.get_mut(dir) {
             if asked == at {
                 *s = TakeReading::Read(r);
+                self.pending.remove(dir);
             }
         }
     }
@@ -149,12 +155,13 @@ impl TakeReadings {
         *self.now.lock().unwrap() = dir;
     }
 
-    /// Wait until every reading asked for is in.
+    /// Wait until the answer to every ask is in, a take asked again
+    /// included.
     #[cfg(test)]
     pub fn wait(&mut self) {
         for _ in 0..1200 {
             self.poll();
-            if !self.known.values().any(|(_, r)| *r == TakeReading::Reading) {
+            if self.pending.is_empty() {
                 return;
             }
             std::thread::sleep(std::time::Duration::from_millis(25));
