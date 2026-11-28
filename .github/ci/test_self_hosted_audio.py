@@ -48,7 +48,7 @@ class Audio(unittest.TestCase):
         write(self.takes / "b/1.flac", "b1")
         self.assertEqual(audio.keep(self.store, self.takes), 2)
         self.assertEqual(
-            sorted(str(p) for p in audio.flacs(self.store)), ["a/1.flac", "b/1.flac"])
+            sorted(p.as_posix() for p in audio.flacs(self.store)), ["a/1.flac", "b/1.flac"])
         self.assertFalse((self.store / "a/take.json").exists())
         self.assertFalse(self.store.with_name("store.new").exists())
         self.assertFalse(self.store.with_name("store.old").exists())

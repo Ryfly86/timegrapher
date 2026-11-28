@@ -6,6 +6,7 @@ there. A fake `gh` stands in for the API; no network."""
 import os
 import pathlib
 import re
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -25,6 +26,7 @@ def jobs():
     return dict(zip(parts[1::2], parts[2::2]))
 
 
+@unittest.skipIf(os.name == "nt" or not shutil.which("bash"), "needs bash")
 class Script(unittest.TestCase):
     def run_script(self, gh_output="2", gh_status=0, **env):
         with tempfile.TemporaryDirectory() as tmp:

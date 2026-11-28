@@ -5,6 +5,7 @@ from its own branches get past it. No network."""
 import json
 import os
 import pathlib
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -13,6 +14,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 HOOK = ROOT / ".github/self-hosted/job-started.sh"
 INSTALL = (ROOT / ".github/self-hosted/tg-runner.sh").read_text(encoding="utf-8")
 REPO = "peterhudson/timegrapher"
+
+# The hook runs on Linux only (the workstation); /usr/bin/python3 and bash.
+NEEDS_BASH = unittest.skipIf(os.name == "nt" or not shutil.which("bash"), "needs bash")
 
 
 def pr(head_repo):
@@ -30,11 +34,13 @@ class Hook(unittest.TestCase):
                    "GITHUB_EVENT_PATH": str(path)}
             return subprocess.run(["bash", str(HOOK)], env=env, capture_output=True).returncode
 
+    @NEEDS_BASH
     def test_our_own_code_gets_through(self):
         self.assertEqual(self.run_hook("push", {}), 0)
         self.assertEqual(self.run_hook("workflow_dispatch", {}, ref="refs/heads/some-branch"), 0)
         self.assertEqual(self.run_hook("pull_request", pr(REPO), ref="refs/pull/1/merge"), 0)
 
+    @NEEDS_BASH
     def test_everything_else_fails_the_job(self):
         cases = {
             "a fork's pull request": ("pull_request", pr("someone/timegrapher"), {}),
