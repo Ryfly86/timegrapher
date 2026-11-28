@@ -60,6 +60,36 @@ impl WallClock {
     pub fn label_fine(&self, t: f64, end: f64) -> String {
         fine_on(self, t, end, &Local)
     }
+
+    /// On a take `end` seconds long so far that falls on more than one
+    /// day, a label naming each of its days as a line under six hours
+    /// apart would ("Fri 14:32:18", "Sat 14:32:18"): a week's at most, and
+    /// the take's last second; none on a take inside one day. So a strip can make
+    /// room for the widest wherever it looks (Hugh on #2174).
+    pub fn day_labels(&self, end: f64) -> Vec<String> {
+        day_labels_in(self, end, &Local)
+    }
+}
+
+/// [`WallClock::day_labels`] in `tz`.
+fn day_labels_in<Tz: TimeZone>(w: &WallClock, end: f64, tz: &Tz) -> Vec<String>
+where
+    Tz::Offset: std::fmt::Display,
+{
+    if !spans_in(w, end, tz) {
+        return Vec::new();
+    }
+    let last = w.unix_at(end.max(0.0));
+    // A day on from any second is the next day's, DST or not; a week of
+    // them names every weekday.
+    let mut labels: Vec<String> = (0..7)
+        .map(|k| w.start_unix + k as f64 * 86_400.0)
+        .take_while(|&u| u <= last)
+        .chain(std::iter::once(last))
+        .filter_map(|u| local_in(u, tz).map(|d| d.format(WITH_DAY).to_string()))
+        .collect();
+    labels.dedup();
+    labels
 }
 
 /// `unix` in `tz`, rounded to the second.
@@ -298,5 +328,22 @@ mod tests {
                 "01:54:27"
             ]
         );
+    }
+
+    /// A take past midnight lists a day-naming label for each of its days,
+    /// its last second included, a week's at most; one inside a day, none.
+    #[test]
+    fn a_take_of_days_lists_a_label_for_each_day() {
+        let w = WallClock::new(LATE_THU, &[]);
+        assert_eq!(
+            day_labels_in(&w, 3600.0, &utc()),
+            ["Thu 23:34:27", "Fri 00:34:27"]
+        );
+        assert_eq!(
+            day_labels_in(&w, 2.0 * 86_400.0, &utc()),
+            ["Thu 23:34:27", "Fri 23:34:27", "Sat 23:34:27"]
+        );
+        assert_eq!(day_labels_in(&w, 30.0 * 86_400.0, &utc()).len(), 8);
+        assert!(day_labels_in(&WallClock::new(START, &[]), 3600.0, &utc()).is_empty());
     }
 }

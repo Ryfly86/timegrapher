@@ -84,8 +84,10 @@ pub(super) fn time_gap(horizontal: bool) -> f64 {
 }
 
 /// Down, the label column as wide as the widest time of day on show
-/// needs, "Fri 00:04:27" too, so none is cut (Hugh on #2174), points; on
-/// the strip `g` of a take `take_end` seconds long so far.
+/// needs, "Fri 00:04:27" too, so none is cut, and on a take past midnight
+/// as wide as a label naming any of its days, so it holds one width
+/// wherever the strip looks (Hugh on #2174), points; on the strip `g` of a
+/// take `take_end` seconds long so far.
 pub(super) fn clock_column(
     painter: &egui::Painter,
     font: &FontId,
@@ -96,8 +98,9 @@ pub(super) fn clock_column(
     let tstep = time_step(g.span, time_gap(false), g.r.height() as f64);
     time_lines(g.end, g.oldest(), tstep)
         .into_iter()
-        .map(|t| {
-            let label = w.label(t, tstep, take_end);
+        .map(|t| w.label(t, tstep, take_end))
+        .chain(w.day_labels(take_end))
+        .map(|label| {
             painter
                 .layout_no_wrap(label, font.clone(), Color32::WHITE)
                 .size()
@@ -540,5 +543,43 @@ mod drawn {
     /// "Fri 14:42:17.50": the cursor's time of day naming its day.
     fn names_day_fine(t: &str) -> bool {
         t.len() == 15 && names_day(&t[..12])
+    }
+
+    /// Standing down on a take past midnight, the plot's left edge is the
+    /// same wherever the strip looks: at the take's first 10 min, around
+    /// its first midnight on this computer's clock, and a few hours after
+    /// it with no day named on show (Hugh on #2174).
+    #[test]
+    fn the_down_column_holds_one_width_over_a_take_of_days() {
+        use chrono::{Local, TimeZone};
+        let start = Local.timestamp_opt(1_795_185_137, 0).unwrap();
+        let next = start
+            .date_naive()
+            .succ_opt()
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap();
+        let midnight = Local.from_local_datetime(&next).earliest().unwrap();
+        let t_mid = (midnight.timestamp() - start.timestamp()) as f64 + 0.5;
+        let size = Vec2::new(800.0, 400.0);
+        let edge = |span_end: (f64, f64)| {
+            let (texts, _) = clock_texts(false, size, span_end, 108_000.0, None);
+            let clock: Vec<_> = texts
+                .iter()
+                .filter(|t| t.0.matches(':').count() == 2)
+                .collect();
+            assert!(!clock.is_empty(), "{texts:?}");
+            let named = clock.iter().any(|t| names_day(&t.0));
+            let right = clock.iter().map(|t| t.1.right()).fold(0.0_f32, f32::max);
+            (right, named)
+        };
+        let (first, named) = edge((1200.0, 600.0));
+        assert!(named);
+        let (around, named) = edge((1200.0, t_mid + 300.0));
+        assert!(named);
+        let (after, named) = edge((600.0, t_mid + 3.0 * 3600.0));
+        assert!(!named);
+        assert!((first - around).abs() < 0.01, "{first} {around}");
+        assert!((first - after).abs() < 0.01, "{first} {after}");
     }
 }
