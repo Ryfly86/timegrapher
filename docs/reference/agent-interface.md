@@ -392,7 +392,7 @@ reads it, on the take's clock log, and writes the run to the session
 folder's `power-reserve.json` (see [app.md](app.md), Power Reserve: the
 start, position, `ending` (`stopped`, `by_hand` for a recording that ended
 while the watch still ran, `limit`, `stop_not_confirmed` for a stop the
-live check heard that the saved reading doesn't show (its last beat less
+live check found that the saved reading doesn't show (its last beat less
 than 10 minutes before the end, core `power_reserve::confirmed`), or
 `recording_failed` or `input_failed`, each of the last three "at least" as
 long as heard), the first and last beats heard,

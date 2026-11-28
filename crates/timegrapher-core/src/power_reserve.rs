@@ -75,7 +75,7 @@ pub enum Ending {
     /// while the watch still ran: the run is at least as long as heard,
     /// never a stop of the watch (#1882).
     InputFailed,
-    /// The live check heard a stop that the test's saved sound doesn't
+    /// The live check found a stop that the test's saved sound doesn't
     /// show ([`confirmed`], #2502): the run is at least as long as heard,
     /// never a stop of the watch.
     StopNotConfirmed,

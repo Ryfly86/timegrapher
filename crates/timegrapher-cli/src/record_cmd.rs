@@ -1330,13 +1330,17 @@ fn print_report(r: &Report) {
         }
     }
     if let Some(p) = &r.power_reserve {
-        println!(
-            "Power reserve {}. {}.",
-            power_reserve::run_text(p.run_s),
-            p.ending_text()
-        );
+        println!("{}", reserve_line(p));
     }
     println!("Added to     {}", r.session_file);
+}
+
+/// The report's line for a Power Reserve Test's run: its run in core's
+/// words ([`power_reserve::run_words`]), "at least" for a run that ended
+/// while the watch still ran, then how it ended.
+fn reserve_line(p: &power_reserve::Results) -> String {
+    let run = power_reserve::run_words(p.run_s, p.ending, p.source);
+    format!("Power reserve {run}. {}.", p.ending_text())
 }
 
 /// What `record` says as it starts: the position, the input, the folder,
@@ -2438,6 +2442,18 @@ mod tests {
         assert_eq!(r.ending.short(), "Ended early");
         let v = serde_json::to_value(r.ending).unwrap();
         assert_eq!(v, "stop_not_confirmed");
+        // The report's line reads the run "at least" (Hugh 51).
+        let mut two_min = r.clone();
+        two_min.run_s = 120.0;
+        assert_eq!(
+            reserve_line(&two_min),
+            "Power reserve at least 2 min 00 s. Ended early while the watch still ran."
+        );
+        two_min.ending = Ending::ByHand;
+        assert_eq!(
+            reserve_line(&two_min),
+            "Power reserve 2 min 00 s. Stopped by hand while the watch still ran."
+        );
         // Every other ending is written as the live check gave it.
         for e in [Ending::ByHand, Ending::Limit] {
             assert_eq!(results_for(&dir, e).ending, e);

@@ -1091,7 +1091,7 @@ gives the same run in `power_reserve`, with `source` `long_take`.
 
 `power-reserve.json` (`schema` `power-reserve/1`) holds `started_utc`,
 `position`, `sound_kept`, `ending` (`stopped`, `by_hand`, `limit`,
-`stop_not_confirmed` (a stop the live check heard that the run written
+`stop_not_confirmed` (a stop the live check found that the saved reading
 doesn't show, core `power_reserve::confirmed`), or `recording_failed` or
 `input_failed`, each of the last three "at least" as long as heard),
 `first_beat_s` and `last_beat_s` (audio seconds of the take), `run_s`
