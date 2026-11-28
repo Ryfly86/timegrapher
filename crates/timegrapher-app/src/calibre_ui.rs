@@ -739,17 +739,17 @@ impl Calibres {
         let mut edits: Vec<(String, Option<f64>)> = Vec::new();
         let adding = &mut self.adding;
         theme::group(ui, "Wheels", None, |g| {
-            for ((s, tip, typed), worked) in &shown {
-                let (typed, worked) = (*typed, *worked);
+            for ((s, tip, clear), worked) in &shown {
+                let (clear, worked) = (*clear, *worked);
                 let id = format!("calibre-{place}-{name}-{}", s.name);
                 let teeth = worked.and_then(|w| w.caption());
                 let caption = match (&teeth, s.origin) {
                     (Some(t), _) => theme::Caption::Text(t),
-                    (None, Origin::User) if typed => theme::Caption::Text("Custom"),
+                    (None, Origin::User) if clear.is_some() => theme::Caption::Text("Custom"),
                     _ => theme::Caption::None,
                 };
                 g.row(&title_case(&s.name), caption, tip, |ui| {
-                    slot_period(ui, s, typed, &id, tip, &mut edits);
+                    slot_period(ui, s, clear, &id, tip, &mut edits);
                 });
             }
             // Another wheel by name, such as an intermediate wheel: a row
@@ -2105,13 +2105,26 @@ fn sort_mark(painter: &egui::Painter, c: egui::Pos2, reversed: bool, ink: egui::
 }
 
 /// The wheel `s` of the calibre `e` as its row shows it, its hover, and
-/// whether its period was typed in (a Clear and a Custom caption). A
-/// custom calibre's balance that its beat rate gives is worked out, not
-/// typed in, and shows that period even where none is kept (#2381).
-fn slot_shown(e: Entry, s: &Slot, worked: Option<&train::Worked>) -> (Slot, String, bool) {
-    let rate = match e {
-        Entry::Custom(c) if s.name == "balance" => c.balance_from_rate().zip(c.bph),
+/// Clear's hover where its period was typed in (Clear and a Custom
+/// caption show only then). A custom calibre's balance that its beat
+/// rate gives is worked out, not typed in, and shows that period even
+/// where none is kept; one typed goes back to it on Clear (#2381).
+fn slot_shown(
+    e: Entry,
+    s: &Slot,
+    worked: Option<&train::Worked>,
+) -> (Slot, String, Option<&'static str>) {
+    let balance = match e {
+        Entry::Custom(c) if s.name == "balance" => Some(c),
         _ => None,
+    };
+    let rate = balance.and_then(|c| c.balance_from_rate().zip(c.bph));
+    let clear = if balance.is_some_and(|c| c.bph.is_some_and(|b| b > 0)) {
+        "Go back to the beat rate's period"
+    } else if s.shipped_period_s.is_some() {
+        "Go back to the list's period"
+    } else {
+        "Forget the period typed in"
     };
     match rate {
         Some((p, bph)) => (
@@ -2120,9 +2133,9 @@ fn slot_shown(e: Entry, s: &Slot, worked: Option<&train::Worked>) -> (Slot, Stri
                 ..s.clone()
             },
             format!("From the beat rate, {bph} bph"),
-            false,
+            None,
         ),
-        None => (s.clone(), slot_tip(s, worked), true),
+        None => (s.clone(), slot_tip(s, worked), Some(clear)),
     }
 }
 
@@ -2332,28 +2345,20 @@ fn count_field(
     )
 }
 
-/// A wheel's period box, with Clear on one typed in (`typed`); what
-/// changed goes in `edits`, `None` for back to the list's.
+/// A wheel's period box, with Clear on one typed in, `clear` its hover;
+/// what changed goes in `edits`, `None` for back to the list's.
 fn slot_period(
     ui: &mut egui::Ui,
     s: &Slot,
-    typed: bool,
+    clear: Option<&str>,
     id: &str,
     tip: &str,
     edits: &mut Vec<(String, Option<f64>)>,
 ) {
-    if typed
-        && s.origin == Origin::User
-        && ui
-            .small_button("Clear")
-            .on_hover_text(if s.shipped_period_s.is_some() {
-                "Go back to the list's period"
-            } else {
-                "Forget the period typed in"
-            })
-            .clicked()
-    {
-        edits.push((s.name.clone(), None));
+    if let Some(hover) = clear.filter(|_| s.origin == Origin::User) {
+        if ui.small_button("Clear").on_hover_text(hover).clicked() {
+            edits.push((s.name.clone(), None));
+        }
     }
     if let Some(v) = period_field(ui, id, s.period_s, tip) {
         edits.push((s.name.clone(), v));

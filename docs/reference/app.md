@@ -2098,8 +2098,8 @@ folder can't be moved while another copy has it open. The Watches view adds watc
         again when the first is selected (#2380).
       - A custom calibre's balance that its beat rate gives says "From
         the beat rate, 28800 bph" in its hint, with no "Custom" caption
-        and no **Clear**. A balance typed that the rate doesn't give is
-        "Custom", and **Clear** puts the rate's period back (#2381).
+        and no **Clear**. A balance period typed in that the rate doesn't
+        give is "Custom", and **Clear** puts the rate's period back (#2381).
       - **Teeth and Leaves**, under the Wheels group and closed until its
         title is clicked: a row for each of the escape, fourth, third and
         centre wheels and the barrel, with a **Teeth** box for the wheel's

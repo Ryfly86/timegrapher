@@ -100,9 +100,9 @@ over and send; nothing is sent from the app. A custom calibre also has
 obscure movement is assumed. Its Name, Maker, Beat Rate, Lift Angle and
 Escapement can be changed in its details; the lift angle is kept between
 10° and 90°. Typing its beat rate fills in the balance's
-period, two beats: 7200 ÷ bph seconds, 0.25 s at 28,800 bph. Its hint
+period, two beats: 7200 ÷ bph seconds, 0.25 s at 28,800 bph. Its hover
 says it comes from the beat rate. Type another period if you know the
-balance differs; **Clear** puts the beat rate's back.
+balance differs; **Clear** puts the beat rate's period back.
 **Escapement** is Swiss lever unless you pick another: a co-axial is read
 as the list's co-axial calibres are (beta), and a pin lever or detent is
 marked not supported yet. **Share with the Project…** sends it too.

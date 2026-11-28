@@ -1235,31 +1235,41 @@ fn a_balance_from_the_beat_rate_says_so() {
         let e = Entry::Custom(k);
         let slots = Catalog::new(&user).slots(e);
         let s = slots.iter().find(|s| s.name == "balance").unwrap();
-        let (s, tip, typed) = slot_shown(e, s, None);
-        (s.period_s, tip, typed)
+        let (s, tip, clear) = slot_shown(e, s, None);
+        (s.period_s, tip, clear)
     };
     assert_eq!(
         row(&k),
         (
             Some(0.25),
             "From the beat rate, 28800 bph".to_string(),
-            false
+            None
         )
     );
     k.bph = Some(21600);
     follow_balance(&mut k, Some(28800));
-    let (p, tip, typed) = row(&k);
-    assert_eq!((p, typed), (Some(train::balance_period_s(21600)), false));
+    let (p, tip, clear) = row(&k);
+    assert_eq!((p, clear), (Some(train::balance_period_s(21600)), None));
     assert_eq!(tip, "From the beat rate, 21600 bph");
     // None kept (a file from before): still the rate's, never Not Known.
     k.wheels.clear();
     assert_eq!(row(&k).0, Some(train::balance_period_s(21600)));
-    // Typed by hand: the user's, with its Clear.
+    // Typed by hand: the user's, with a Clear that goes back to the rate's.
     k.wheels.push(CustomWheel {
         name: "balance".into(),
         period_s: 0.3,
     });
-    assert_eq!(row(&k), (Some(0.3), "Custom, typed in".to_string(), true));
+    assert_eq!(
+        row(&k),
+        (
+            Some(0.3),
+            "Custom, typed in".to_string(),
+            Some("Go back to the beat rate's period")
+        )
+    );
+    // Without a beat rate, Clear forgets the period typed in.
+    k.bph = None;
+    assert_eq!(row(&k).2, Some("Forget the period typed in"));
     // Drawn: the balance's row has no Clear.
     let mut c = Calibres::in_memory();
     let mut k = custom("Bench", []);
