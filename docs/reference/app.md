@@ -2081,8 +2081,8 @@ folder can't be moved while another copy has it open. The Watches view adds watc
       names it goes by under it), then for a custom calibre its name,
       maker, beat rate, lift angle and escapement (Swiss lever, co-axial,
       pin lever or detent; Swiss lever until another is picked, #2387);
-      the name and maker are kept on Return or clicking away, Escape puts
-      them back, and a name the list already has stays as it was, saying
+      each box is kept on Return or clicking away and Escape puts it back
+      (#2518), and a name the list already has stays as it was, saying
       so under the box (#2481); then the **Wheels** group, a row
       for each wheel's time for one turn, a caption under the group saying
       so:
