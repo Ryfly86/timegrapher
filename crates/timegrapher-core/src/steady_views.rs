@@ -1800,7 +1800,7 @@ mod tests {
         // the clock, so the clock is named but not put on again.
         let spans = [(0.0, log.duration_s)];
         let (joined, breaks) = crate::joined::join(&log, &spans, &[], Some(&fit));
-        let jlong = longrun::analyse_on_clock(&joined, Some(&fit), &breaks, &lc);
+        let jlong = longrun::read_take(&joined, Some(&fit), &breaks, true, Some(joined.bph), &lc);
         let jreport = steadiness::check(&joined, None, &jlong, &lc, &check);
         let stretch = views(&joined, None, &jreport, &jlong, &lc, check.rate_reading_s);
         let (a, b) = (median(&whole), median(&stretch));

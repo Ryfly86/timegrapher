@@ -159,18 +159,6 @@ pub fn analyse_with_breaks(
     analyse_read(log, clock, clock, breaks, cfg)
 }
 
-/// [`analyse_with_breaks`] of a log whose times were put on the take's
-/// `clock` already ([`crate::joined::join`]): the report gives that clock
-/// as the one it was read on, without putting the times on it again.
-pub fn analyse_on_clock(
-    log: &BeatLog,
-    clock: Option<&ClockFit>,
-    breaks: &[Break],
-    cfg: &LongConfig,
-) -> LongReport {
-    analyse_read(log, None, clock, breaks, cfg)
-}
-
 /// [`analyse_with_breaks`], its times put on `map` and its report saying
 /// it was read on `read_on`. Where the take's whole reading finds no
 /// regular beat ([`whole_reading`]), the report gives no figures
@@ -192,8 +180,9 @@ fn analyse_read(
 }
 
 /// A take's long-run report as `long` and `series` read it (#2355,
-/// #2404): [`analyse_with_breaks`], or [`analyse_on_clock`] for a log
-/// whose times were put on `clock` already (`on_clock`), its lock then
+/// #2404): [`analyse_with_breaks`], or for a log whose times were put on
+/// `clock` already (`on_clock`, [`crate::joined::join`]) that clock named
+/// but not put on again, its lock then
 /// judged with the beat rate set, `bph_set` (none on Auto), as the
 /// take's whole reading judges it ([`LongReport::judge_lock`]).
 pub fn read_take(
