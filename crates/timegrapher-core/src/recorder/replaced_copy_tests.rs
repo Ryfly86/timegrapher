@@ -24,6 +24,15 @@ fn replace_with_sound(dir: &Path, sound: &[u8]) {
     fs::write(dir.join("session.json"), other_session).unwrap();
 }
 
+/// The refusal a save into `dir`, replaced since, gives.
+fn refusal(dir: &Path) -> String {
+    format!(
+        "{} has changed since this take was saved there, so nothing was saved \
+         into it; the next save makes a new copy beside it",
+        dir.display()
+    )
+}
+
 fn files(dir: &Path) -> BTreeMap<OsString, Vec<u8>> {
     fs::read_dir(dir)
         .unwrap()
@@ -129,7 +138,7 @@ fn a_copy_replaced_while_saving_is_not_written_into() {
         replace_with_sound(&first, &vec![0x55; len as usize]);
         let before = files(&first);
         let refused = pending.write().unwrap_err().to_string();
-        assert!(refused.contains("now holds another take"), "{refused}");
+        assert_eq!(refused, refusal(&first));
         assert_eq!(files(&first), before);
         let again = r.save_copy(&takes, "", None).unwrap();
         assert_ne!(again, first);
@@ -158,7 +167,7 @@ fn a_copy_replaced_after_staging_is_not_written_into() {
     });
     assert!(replaced);
     let refused = result.unwrap_err().to_string();
-    assert!(refused.contains("now holds another take"), "{refused}");
+    assert_eq!(refused, refusal(&first));
     assert_eq!(
         fs::read(first.join("audio-001.wav")).unwrap(),
         b"other take"

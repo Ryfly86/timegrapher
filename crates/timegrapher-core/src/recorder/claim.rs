@@ -157,8 +157,8 @@ impl SaveInto {
         match self {
             SaveInto::Again(started) if !still_this_take(dir, started) => {
                 Err(io::Error::other(format!(
-                    "{} now holds another take, so nothing was saved into it; \
-                     saving again makes a new copy beside it",
+                    "{} has changed since this take was saved there, so nothing \
+                     was saved into it; the next save makes a new copy beside it",
                     dir.display()
                 )))
             }
