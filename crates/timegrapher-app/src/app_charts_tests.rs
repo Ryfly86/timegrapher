@@ -839,6 +839,12 @@ fn readings_over_time_charts_share_one_gutter() {
 /// Readings Over Time each, under the strip (Walter and Trevor on #1256).
 #[test]
 fn time_panes_under_the_strip_put_a_late_time_at_one_place() {
+    // The tests last read the take a minute short of its end, as while
+    // listening they read again only every so often: Readings Over Time
+    // still ends where the strip does, at the take's end. That shorter
+    // take is the same for each pane, so it is heard once (#2442).
+    let short = synthetic(310.0, 20.0);
+    let log = steady::log_of(short.bench.recording.live.as_ref().unwrap()).unwrap();
     for pane in [Pane::Charts, Pane::SteadyReadings] {
         let mut app = synthetic(370.0, 20.0);
         app.bench.panes_view.strip.horizontal = true;
@@ -873,11 +879,6 @@ fn time_panes_under_the_strip_put_a_late_time_at_one_place() {
             };
             ctx.run(input, |ctx| app.panels(ctx))
         };
-        // The tests last read the take a minute short of its end, as while
-        // listening they read again only every so often: Readings Over
-        // Time still ends where the strip does, at the take's end.
-        let short = synthetic(310.0, 20.0);
-        let log = steady::log_of(short.bench.recording.live.as_ref().unwrap()).unwrap();
         app.bench.results.steady = Some((app.bench.take.rev, steady::compute(&log, None)));
         let mut out = pass(&mut app);
         for _ in 0..3 {

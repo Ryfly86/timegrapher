@@ -162,9 +162,9 @@ a personal computer.
    They become the draft's text; without them the draft lists the pull
    requests merged since the last release.
 3. Wait for **CI** on the exact main commit to pass, then start the build,
-   either way. Release main's newest commit: a merge to main cancels CI
-   still running on the commit before it, and the build stops without a
-   green CI run on its exact commit.
+   either way. Release main's newest commit: when merges land close
+   together, CI skips the ones queued in between, and the build stops
+   without a green CI run on its exact commit.
    - On GitHub: **Actions**, **Release**, **Run workflow**, branch `main`,
      tick **Draft a release**, **Run workflow**.
    - Or from a clone: `git fetch origin && git tag v0.1.0 origin/main && git push origin v0.1.0`
@@ -174,6 +174,8 @@ a personal computer.
    the download for your platform, edit the notes if needed, and click
    **Publish release**. Until then nobody sees it and the app's update check
    does not offer it.
+   Publishing makes the tag, and the run that tag starts builds nothing:
+   a published release already holds it.
 
 Before any tag or **Draft a release** build, the release workflow checks the
 newest CI run for that exact commit from this repository's main push or manual
@@ -192,8 +194,14 @@ partial rerun. Every push to main runs CI in full, Markdown-only commits
 included. Do not tag an untested branch or substitute
 PR-head results for the candidate's main CI.
 
+Only a **Draft a release** run on main gets a token that can write before
+the release itself: the job listing the used version numbers, which checks
+out nothing. Every other job up to the release, and every pull-request run,
+reads only.
+
 Pull-request packaging and manual runs without **Draft a release** remain
-nonpublishing checks and explicitly report **gate not required**. Manual runs on
+nonpublishing checks and explicitly report **gate not required**. Pull-request
+packaging runs only once the pull request is marked ready, not on a draft. Manual runs on
 a tag also remain nonpublishing with either checkbox value; manual drafting
 requires main.
 If CI job names or the required equivalence step change, update the centralized
@@ -210,6 +218,13 @@ level is not one folder (hidden entries aside), a disk image without its
 Applications shortcut, or a download whose documentation pages link to a file
 it lacks. Existing help/version, signature and archive checks remain in
 place.
+
+Each platform's packaged desktop app then opens the 80-second Quick Listen
+take (`guide-figures/data/quick-listen/`) with a settings folder of its own
+and within 90 seconds must draw its window and log that it analysed the
+whole take, then keep running for 5 more seconds, with no error in its log
+and no crash record (`packaging/first_frame.py`). Linux draws on Xvfb with software OpenGL. A
+screenshot of each is kept with the run for 7 days.
 
 The documentation pages come from the Release workflow's `docs` job:
 `packaging/docs_html.py` renders the User Guide (`docs/user-guide/`), three

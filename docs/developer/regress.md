@@ -79,7 +79,11 @@ judged against tg alone.
   names, file names or numbers, and `--fetch` does not name what it
   downloads.
 - The run exits 0 whatever the counts say: a holdout result never blocks a
-  change. Only a reading that cannot be measured fails it.
+  change. Only a reading that cannot be measured fails it, or a holdout take
+  `corpus.json` declares (within `--take`) that has no session file: the
+  run counts it as missing and fails, naming it only with `--reveal`.
+- It never reads the baseline, so a broken `regress/baseline.json` cannot
+  fail it, and it names the corpus checkout's git commit (`corpus_revision`).
 - `--reveal` also prints every reading's numbers, for the announced
   milestone run whose results go in each take's README. Run it locally,
   never in CI. `--json` prints the same as a `timegrapher.regress-holdout/2`

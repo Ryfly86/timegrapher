@@ -1,70 +1,70 @@
-calibres
-calibres[].assets
-calibres[].assets[].kind
-calibres[].assets[].path
-calibres[].bph
-calibres[].calibre
-calibres[].common
-calibres[].confidence
-calibres[].diameter
-calibres[].diameter.lignes
-calibres[].diameter.mm
-calibres[].diameter.source
-calibres[].escape_teeth
-calibres[].family
-calibres[].functions
-calibres[].functions.source
-calibres[].functions.value
-calibres[].height_mm
-calibres[].height_mm.source
-calibres[].height_mm.value
-calibres[].jewels
-calibres[].jewels.source
-calibres[].jewels.value
-calibres[].lift_angle_deg
-calibres[].maker
-calibres[].notes
-calibres[].power_reserve_h
-calibres[].power_reserve_h.approx
-calibres[].power_reserve_h.from
-calibres[].power_reserve_h.source
-calibres[].power_reserve_h.to
-calibres[].power_reserve_h.value
-calibres[].related
-calibres[].related[].calibre
-calibres[].related[].relation
-calibres[].related[].source
-calibres[].seconds
-calibres[].sources
-calibres[].summary
-calibres[].summary[].source
-calibres[].summary[].text
-calibres[].wheels
-calibres[].wheels[].basis
-calibres[].wheels[].name
-calibres[].wheels[].period_s
-calibres[].wheels[].pinion
-calibres[].wheels[].teeth
-calibres[].years
-calibres[].years.approx
-calibres[].years.from
-calibres[].years.source
-calibres[].years.to
-custom
-input
-input.files
-input.settings
-input.settings.name
-input.settings.search
-input.settings.user_calibres
-listed
-schema
-software
-software.arch
-software.build_date
-software.git_dirty
-software.git_hash
-software.name
-software.os
-software.version
-table_size
+calibres array
+calibres[].assets array
+calibres[].assets[].kind string
+calibres[].assets[].path string
+calibres[].bph number
+calibres[].calibre string
+calibres[].common bool
+calibres[].confidence string
+calibres[].diameter object
+calibres[].diameter.lignes string
+calibres[].diameter.mm string
+calibres[].diameter.source string
+calibres[].escape_teeth number
+calibres[].family array
+calibres[].functions object
+calibres[].functions.source string
+calibres[].functions.value array
+calibres[].height_mm object
+calibres[].height_mm.source string
+calibres[].height_mm.value string
+calibres[].jewels object
+calibres[].jewels.source string
+calibres[].jewels.value number
+calibres[].lift_angle_deg number
+calibres[].maker string
+calibres[].notes string
+calibres[].power_reserve_h object
+calibres[].power_reserve_h.approx bool
+calibres[].power_reserve_h.from string
+calibres[].power_reserve_h.source string
+calibres[].power_reserve_h.to string
+calibres[].power_reserve_h.value string
+calibres[].related array
+calibres[].related[].calibre string
+calibres[].related[].relation string
+calibres[].related[].source string
+calibres[].seconds string
+calibres[].sources array
+calibres[].summary array
+calibres[].summary[].source string
+calibres[].summary[].text string
+calibres[].wheels array
+calibres[].wheels[].basis string
+calibres[].wheels[].name string
+calibres[].wheels[].period_s number
+calibres[].wheels[].pinion number
+calibres[].wheels[].teeth number
+calibres[].years object
+calibres[].years.approx bool
+calibres[].years.from number
+calibres[].years.source string
+calibres[].years.to number
+custom array
+input object
+input.files array
+input.settings object
+input.settings.name null
+input.settings.search null
+input.settings.user_calibres string
+listed string
+schema string
+software object
+software.arch string
+software.build_date string
+software.git_dirty bool
+software.git_hash string
+software.name string
+software.os string
+software.version string
+table_size number

@@ -35,6 +35,9 @@ mod claim;
 mod closed_hour;
 #[cfg(test)]
 mod no_sound_tests;
+mod on_disk;
+#[cfg(test)]
+mod on_disk_tests;
 mod recorded;
 mod released;
 #[cfg(test)]
@@ -44,7 +47,8 @@ mod saved_flac;
 mod session_file_tests;
 mod settle;
 use closed_hour::{open_closed_hour, open_in_place};
-pub use recorded::{recorded_setup, RecordedSetup};
+pub use on_disk::{mend_stopped, sound_on_disk_s};
+pub use recorded::{recorded_setup, saved_ranges, Moved, RecordedSetup, SavedRange, MOVED_TO};
 use released::HeldWhole;
 pub use saved_flac::{holding_wav, keep_saved_as_flac, keep_saved_as_flac_unless};
 use settle::{held_open, settled};
@@ -118,6 +122,8 @@ pub struct Note {
 struct SessionFile<'a> {
     #[serde(flatten)]
     info: &'a SessionInfo,
+    /// The position it started in; `position` is the latest (#2397).
+    first_position: &'a str,
     started_utc: &'a str,
     ended_utc: Option<String>,
     duration_s: f64,
@@ -173,8 +179,24 @@ const CLOCK_EVERY_S: f64 = 10.0;
 /// after it drops a stray one). Few enough that a log still reaches
 /// [`crate::clock::MIN_POINTS`] entries, where it may correct a rate,
 /// only after about a minute.
-const CLOCK_EARLY_S: f64 = 3.0;
+pub const CLOCK_EARLY_S: f64 = 3.0;
 const CLOCK_EARLY_EVERY_S: f64 = 1.0;
+
+/// A clock log's fit, `fit`, for a take `duration_s` long. A take too
+/// short for its log to hold the entries a fit needs, one Stopped within
+/// [`CLOCK_EARLY_S`] (two lines a second apart, #2334), is read on the
+/// sound card's clock, as a take with no log is: its short log is no
+/// fault, and none is returned. Over a longer take, a log too short to
+/// fit is, said in the error's words.
+pub fn fit_unless_short(
+    fit: Result<crate::clock::ClockFit, crate::clock::ClockError>,
+    duration_s: f64,
+) -> Result<Option<crate::clock::ClockFit>, String> {
+    match fit {
+        Err(crate::clock::ClockError::TooFewPoints(_)) if duration_s <= CLOCK_EARLY_S => Ok(None),
+        fit => fit.map(Some).map_err(|e| e.to_string()),
+    }
+}
 
 /// Whether the clock log takes a line for a block that arrived at `at`,
 /// with `audio_s` of the take written by its end, when the last line on
@@ -535,8 +557,12 @@ impl Recorder {
                 w.flush().map_err(io_err)?;
             }
             self.last_clock = Some(b.at);
-            if self.reap(false) {
-                self.write_session(None, None)?;
+            // session.json follows the sound as its header does, so a stop
+            // leaves its length and hours (#2412); only a rename must land.
+            let renamed = self.reap(false);
+            let written = self.write_session(None, None);
+            if renamed {
+                written?;
             }
             self.release_due();
         }
@@ -639,6 +665,7 @@ impl Recorder {
             .collect();
         let f = SessionFile {
             info: &self.info,
+            first_position: &self.first_position,
             started_utc: &self.started_utc,
             ended_utc: ended,
             duration_s: self.duration_s(),
@@ -2716,8 +2743,12 @@ mod tests {
         let session = || -> serde_json::Value {
             serde_json::from_str(&fs::read_to_string(dir.join("session.json")).unwrap()).unwrap()
         };
-        // Nothing was renamed, so nothing in session.json was either.
-        assert_eq!(session()["segments"], serde_json::json!(["audio-001.wav"]));
+        // Nothing was renamed, so session.json still names the WAV, with
+        // the hour since, as each clock line writes it (#2412).
+        assert_eq!(
+            session()["segments"],
+            serde_json::json!(["audio-001.wav", "audio-002.wav"])
+        );
         assert_eq!(r.segments, ["audio-001.wav", "audio-002.wav"]);
         assert_eq!(r.breaks()[0].segment, "audio-002.wav");
         // A save still holds the hour, as FLAC of the same samples, and

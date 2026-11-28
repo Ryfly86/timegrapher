@@ -225,7 +225,8 @@ fn second_by_second(path: Vec<f64>) -> Track {
 /// correlated `rho^(1/10)` with the last, so readings 10 s apart
 /// correlate at about `rho` (an Ornstein–Uhlenbeck path). Each size is
 /// about three times the readings' own scatter from beat-to-beat spread.
-pub fn steady_red(duration_s: f64, rho: f64, seed: u64) -> Scenario {
+#[cfg(test)]
+pub(crate) fn steady_red(duration_s: f64, rho: f64, seed: u64) -> Scenario {
     let phi = rho.powf(0.1);
     let ar = |v: f64, sd: f64, salt: u64| -> Track {
         let mut rng = Rng::new(seed ^ salt);

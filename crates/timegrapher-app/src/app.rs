@@ -106,7 +106,8 @@ mod test_read;
 mod watches_pane;
 mod wind;
 
-use dock::PaneBehavior;
+#[cfg(test)]
+use dock::{mend_tabs, put_in_place};
 use pane_export::PaneExport;
 use pane_room::keep_room;
 use readouts::day_of;
@@ -277,27 +278,6 @@ struct OpenNeed {
     started: bool,
 }
 
-/// What a watch picked in the Watches view's list does.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ListPick {
-    /// Shows it, refused while a watch's take listens.
-    Pick,
-    /// Asks about the unsaved sound, then stops and picks it.
-    Ask,
-    /// Stops listening, with nothing to ask about, and picks it.
-    StopThenPick,
-}
-
-/// The way a watch picked in the list goes: `running`, whether a Quick
-/// Listen is what listens, and whether its sound would be asked about.
-fn list_pick_route(running: bool, quick: bool, asks: bool) -> ListPick {
-    match (running && quick, asks) {
-        (false, _) => ListPick::Pick,
-        (true, true) => ListPick::Ask,
-        (true, false) => ListPick::StopThenPick,
-    }
-}
-
 /// Set Up the Microphone's width, and its status line's height: two
 /// lines, whatever it says.
 const SHEET_W: f32 = 440.0;
@@ -370,6 +350,10 @@ enum Confirm {
     Microphone,
     /// Quick Listen: a new session on the microphone, with no watch.
     QuickListen,
+    /// Listen pressed over a recording opened, with nothing unsaved: it
+    /// closes first (#2108). With a watch picked (`true`), a take of it;
+    /// else a Quick Listen.
+    CloseToListen(bool),
     /// Open a recording, analysed whole.
     Open {
         path: PathBuf,
@@ -2478,30 +2462,7 @@ impl TimegrapherApp {
         }
         self.bench.panes_view.charts_to_live_now =
             std::mem::take(&mut self.bench.panes_view.charts_to_live);
-        let mut panes =
-            std::mem::replace(&mut self.bench.panes_view.panes, Tree::empty("panes-swap"));
-        repair_tabs(&mut panes);
-        let need = self.bench.panes_view.pane_need.clone();
-        keep_room(
-            &mut panes.tiles,
-            |p| need.get(&p).copied(),
-            &self.bench.panes_view.panes_dragged,
-        );
-        let before = shares_of(&panes.tiles);
-        panes.ui(
-            &mut PaneBehavior {
-                app: self,
-                row: None,
-            },
-            ui,
-        );
-        // Shares changed while drawn were dragged by hand: they stand.
-        for (id, s) in shares_of(&panes.tiles) {
-            if before.get(&id).is_some_and(|b| *b != s) {
-                self.bench.panes_view.panes_dragged.insert(id);
-            }
-        }
-        self.bench.panes_view.panes = panes;
+        self.dock_ui(ui);
     }
 
     /// Whether `pane`'s plot would be under [`SHORT_PLOT_H`] tall here

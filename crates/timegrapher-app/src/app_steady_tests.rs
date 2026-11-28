@@ -522,7 +522,8 @@ fn the_steadiness_wait_counts_only_the_position_now() {
         live.push(b);
     }
     let end = live.duration_s();
-    app.bench.results.trend = live.trend(app.bench.take.average_s);
+    // Read again on the move, as the window does.
+    app.rebuild_trend();
     let count = |spans: &[(f64, f64)]| {
         timegrapher_core::live::heard_seconds(
             &app.bench.results.trend,
@@ -540,5 +541,287 @@ fn the_steadiness_wait_counts_only_the_position_now() {
             "Needs 5 minutes of beats in one position; {} heard so far.",
             length_text(here)
         )
+    );
+}
+
+/// A session heard here of `pieces` one after another, each silence
+/// (`false`) or the synthetic watch (`true`) for its seconds, the trend
+/// read as it goes, then stopped. Each watch piece is the same watch, so
+/// its beats are the same however much silence comes before.
+fn heard_in_pieces(pieces: &[(bool, f64)]) -> TimegrapherApp {
+    heard_in_pieces_at(None, pieces)
+}
+
+/// [`heard_in_pieces`] with the beat rate set to `bph`, or on Auto with
+/// none: on Auto, silence at the end lets the rate go (#1394).
+fn heard_in_pieces_at(bph: Option<u32>, pieces: &[(bool, f64)]) -> TimegrapherApp {
+    let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+    app.bench.take.bph = bph;
+    app.reset_session(48000, "pieces".into());
+    push_pieces(&mut app, pieces);
+    app
+}
+
+/// Push `pieces` (as [`heard_in_pieces`]) onto `app`'s session.
+///
+/// A reading is asked for at each pass only while the charts' run of
+/// readings is current, where it is kept. Otherwise the run is read again
+/// once at the end, which replaces the readings of each pass: asked for,
+/// each read everything heard again as a file (#2442).
+fn push_pieces(app: &mut TimegrapherApp, pieces: &[(bool, f64)]) {
+    use timegrapher_core::synth::{generate, SynthConfig};
+    let each_pass = app.trend_current();
+    for &(watch, seconds) in pieces {
+        let samples = if watch {
+            let cfg = SynthConfig {
+                duration_s: seconds,
+                rate_s_per_day: 12.0,
+                ..Default::default()
+            };
+            // Read about 280.3°, clear of a rounding edge, so a beat
+            // or two the engine takes to find the watch again after
+            // silence does not move the figure shown.
+            generate(&cfg, |_| 280.8, |_| 0.0).samples
+        } else {
+            vec![0.0_f32; (seconds * 48000.0) as usize]
+        };
+        let live = app.bench.recording.live.as_mut().unwrap();
+        for b in samples.chunks(960) {
+            if live.push(b) && each_pass {
+                let r = live.reading(app.bench.take.average_s);
+                app.bench.results.trend.push(TrendPoint::of(r.time_s, &r));
+            }
+        }
+    }
+    app.poll();
+    assert!(each_pass || !app.trend_current(), "read again below");
+    app.refresh_trend();
+}
+
+/// The steadiness tests' answer once it comes, as a Steadiness pane shown
+/// asks for it.
+fn tested(app: &mut TimegrapherApp, ctx: &egui::Context) -> f64 {
+    let start = std::time::Instant::now();
+    loop {
+        app.bench.results.bg.shown_pass[0] = Some(ctx.cumulative_pass_nr());
+        app.update_steady(ctx);
+        if let Some((_, s)) = &app.bench.results.steady {
+            return s.heard_s;
+        }
+        assert!(
+            start.elapsed() < std::time::Duration::from_secs(300),
+            "the steadiness tests never came"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
+/// Each series' figures as the panes write them: the readings it was
+/// tested on, its median, SD and reading-to-reading ±, at their shown
+/// figures (the first parts of its statistics line).
+fn figures(app: &TimegrapherApp) -> Vec<String> {
+    let s = &app.bench.results.steady.as_ref().unwrap().1;
+    s.report
+        .series
+        .iter()
+        .map(|c| {
+            let line = c.stats_line();
+            line.split(" · ").take(4).collect::<Vec<_>>().join(" · ")
+        })
+        .collect()
+}
+
+/// 3 minutes of silence, then the watch (Norm on #2451): the tests start
+/// on 5 minutes of the watch heard, not of sound; "Tested over" counts the
+/// watch heard, never the silence; and their figures are those of the
+/// same watch heard alone.
+#[test]
+fn three_minutes_of_silence_then_the_watch_is_tested_on_the_watch() {
+    let ctx = egui::Context::default();
+    let mut app = heard_in_pieces(&[(false, 180.0), (true, 250.0)]);
+    for _ in 0..3 {
+        app.bench.results.bg.shown_pass[0] = Some(ctx.cumulative_pass_nr());
+        app.update_steady(&ctx);
+    }
+    assert!(
+        app.bench.results.steady_job.is_none(),
+        "7:10 of sound, under 5 min heard: no tests"
+    );
+    let mut app = heard_in_pieces(&[(false, 180.0), (true, 330.0)]);
+    let heard = app.heard_in_position();
+    assert!((steady::MIN_S..=330.0).contains(&heard), "{heard}");
+    let over = tested(&mut app, &ctx);
+    assert_eq!(over, heard);
+    assert_eq!(
+        app.steady_status(),
+        format!("Tested over {} of beats", length_text(heard))
+    );
+    let mut alone = heard_in_pieces(&[(true, 330.0)]);
+    tested(&mut alone, &ctx);
+    assert_eq!(figures(&app), figures(&alone));
+}
+
+/// The watch, 2 minutes of silence, the watch (Norm on #2451): the silence
+/// is a cut at both ends in what the tests read, no beat or window of it
+/// is read, and "Tested over" counts only the watch.
+#[test]
+fn silence_between_two_stretches_of_the_watch_is_a_cut() {
+    let ctx = egui::Context::default();
+    let mut app = heard_in_pieces(&[(true, 200.0), (false, 120.0), (true, 200.0)]);
+    let runs = app.heard_runs();
+    assert_eq!(runs.read.len(), 2, "{:?}", runs.read);
+    // Heard to the last reading that heard the watch, and from the look
+    // back of the first that hears it again.
+    let (gap_a, gap_b) = (runs.read[0].1, runs.read[1].0);
+    let reach = app.bench.take.average_s;
+    assert!((200.0..=200.0 + reach).contains(&gap_a), "{gap_a}");
+    assert!((320.0 - reach..=320.0 + reach).contains(&gap_b), "{gap_b}");
+    let (log, breaks) = app.steady_read(&runs, None).unwrap();
+    assert!(!log.beats.iter().any(|b| b.time > gap_a && b.time < gap_b));
+    assert!(log
+        .amplitude_windows
+        .iter()
+        .all(|w| w.end_s <= gap_a || w.start_s >= gap_b));
+    for at in [gap_a, gap_b] {
+        assert!(
+            breaks.iter().any(|b| (b.audio_s - at).abs() < 1e-9),
+            "no cut at {at}: {breaks:?}"
+        );
+    }
+    let over = tested(&mut app, &ctx);
+    let heard: f64 = runs.read.iter().map(|(a, b)| b - a).sum();
+    assert_eq!(over, heard);
+    assert!(over < 400.0, "{over}");
+    let report = &app.bench.results.steady.as_ref().unwrap().1.report;
+    for at in [gap_a, gap_b] {
+        assert!(
+            report.breaks.iter().any(|b| (b.audio_s - at).abs() < 1e-9),
+            "the report has no cut at {at}: {:?}",
+            report.breaks
+        );
+    }
+}
+
+/// Silence after an answer reads nothing again: the tests step on beats
+/// heard, not sound (Norm on #2451). The reading just after the watch
+/// stops still hears it over its look back, so a little silence may read
+/// them once more; after that, more silence reads nothing. A new Average
+/// Over reads them again, since what is left out as unheard rests on it.
+#[test]
+fn silence_after_an_answer_reads_nothing_again_a_new_average_over_does() {
+    let ctx = egui::Context::default();
+    let bph = timegrapher_core::synth::SynthConfig::default().bph;
+    let mut app = heard_in_pieces_at(Some(bph), &[(true, 330.0), (false, 30.0)]);
+    let over = tested(&mut app, &ctx);
+    assert!(over < 330.0 + app.bench.take.average_s, "{over}");
+    push_pieces(&mut app, &[(false, 90.0)]);
+    assert_eq!(app.heard_in_position(), over);
+    for _ in 0..3 {
+        app.bench.results.bg.shown_pass[0] = Some(ctx.cumulative_pass_nr());
+        app.update_steady(&ctx);
+    }
+    assert!(app.bench.results.steady_job.is_none(), "silence read again");
+    assert_eq!(
+        app.bench.results.steady.as_ref().map(|s| s.1.heard_s),
+        Some(over)
+    );
+    app.bench.take.average_s *= 2.0;
+    app.update_steady(&ctx);
+    assert!(
+        app.bench.results.steady.is_none(),
+        "the answer read at the old Average Over is kept"
+    );
+}
+
+/// A new Average Over drops the answer, a run under way and an isochronism
+/// read alone, and starts none on the readings still at the old one: what
+/// is heard rests on them. Once they are read again a run starts, and it
+/// counts what is heard at the new Average Over (Vernon on #2477).
+#[test]
+fn a_new_average_over_waits_for_its_own_readings() {
+    let ctx = egui::Context::default();
+    let bph = timegrapher_core::synth::SynthConfig::default().bph;
+    let mut app = heard_in_pieces_at(Some(bph), &[(false, 180.0), (true, 330.0)]);
+    tested(&mut app, &ctx);
+    // A run under way, and an isochronism read alone, at this one.
+    app.bench.results.steady = None;
+    app.bench.results.bg.shown_pass[0] = Some(ctx.cumulative_pass_nr());
+    app.update_steady(&ctx);
+    assert!(app.bench.results.steady_job.is_some(), "no run started");
+    app.bench.results.bg.isochronism = Some((
+        app.bench.take.rev,
+        steady::IsochronismAlone {
+            isochronism: None,
+            walk: None,
+            upto_s: 1.0,
+            heard_s: 1.0,
+        },
+    ));
+    app.bench.take.average_s *= 2.0;
+    app.bench.results.bg.shown_pass[0] = Some(ctx.cumulative_pass_nr());
+    app.update_steady(&ctx);
+    assert!(
+        app.bench.results.steady_job.is_none(),
+        "a run on old readings"
+    );
+    assert!(app.bench.results.steady.is_none());
+    assert!(app.bench.results.bg.isochronism.is_none());
+    assert_eq!(
+        app.steady_wait(),
+        "Needs 5 minutes of beats in one position."
+    );
+    // The readings at the new Average Over.
+    app.refresh_trend();
+    assert!(app.trend_current());
+    let over = tested(&mut app, &ctx);
+    assert_eq!(over, app.heard_in_position());
+}
+
+/// The isochronism read alone, with only an Isochronism pane asking,
+/// counts the beats heard, and the next read steps on them (#2451).
+#[test]
+fn the_isochronism_alone_counts_beats_heard() {
+    let ctx = egui::Context::default();
+    let mut app = heard_in_pieces(&[(false, 180.0), (true, 330.0)]);
+    let start = std::time::Instant::now();
+    while app.bench.results.bg.isochronism.is_none() {
+        assert!(
+            start.elapsed() < std::time::Duration::from_secs(300),
+            "never read"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        app.update_steady(&ctx);
+    }
+    assert!(app.bench.results.steady.is_none());
+    let heard = app.heard_in_position();
+    let alone = &app.bench.results.bg.isochronism.as_ref().unwrap().1;
+    assert_eq!(alone.heard_s, heard);
+    assert!(alone.upto_s > heard + 60.0, "{}", alone.upto_s);
+    assert_eq!(app.steady_upto(steady::Need::Isochronism), Some(heard));
+}
+
+/// With a position marked, the watch, 2 minutes of silence and the watch
+/// again are joined as two heard stretches: no silence time in the joined
+/// log, and a cut at the join (Vernon on #2477).
+#[test]
+fn a_position_joins_only_its_heard_stretches() {
+    use timegrapher_core::joined::JOIN_S;
+    let mut app = heard_in_pieces(&[(true, 200.0), (false, 120.0), (true, 200.0)]);
+    let now = app.bench.take.position;
+    app.session.load(&[(0.0, now)], &[]);
+    assert!(!app.session.stretches().is_empty());
+    let runs = app.heard_runs();
+    assert_eq!(runs.read.len(), 2, "{:?}", runs.read);
+    let lens: Vec<f64> = runs.read.iter().map(|(a, b)| b - a).collect();
+    let (log, breaks) = app.steady_read(&runs, None).unwrap();
+    assert!(
+        (log.duration_s - (lens[0] + lens[1] + JOIN_S)).abs() < 1e-6,
+        "{} {lens:?}",
+        log.duration_s
+    );
+    let join = lens[0] + JOIN_S;
+    assert!(
+        breaks.iter().any(|b| (b.audio_s - join).abs() < 1e-6),
+        "no cut at the join {join}: {breaks:?}"
     );
 }

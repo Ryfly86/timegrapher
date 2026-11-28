@@ -1178,56 +1178,30 @@ impl Session {
             return Vec::new();
         };
         let settles = settles_in(events);
-        let mut stretches = vec![(0.0, 0.0, r.first_position().to_string())];
-        for e in events {
-            if let Event::Position {
+        let moves = events.iter().filter_map(|e| match e {
+            Event::Position {
                 at_s,
                 audio_s: Some(a),
                 pos,
-            } = e
-            {
-                let code = pos.code().to_string();
-                if stretches.last().is_some_and(|s| s.1 >= *a) {
-                    stretches.pop();
-                }
-                if stretches.last().is_none_or(|s| s.2 != code) {
-                    stretches.push((*at_s, *a, code));
-                }
-            }
-        }
-        let one = stretches.len() == 1;
-        (0..stretches.len())
-            .map(|i| {
-                let (at, audio, code) = &stretches[i];
-                let next = stretches.get(i + 1);
-                let end = next.map(|s| s.1);
-                let start = if i == 0 {
-                    // An opening stretch that is the watch being handled
-                    // reads nothing: it starts where it ends (core
-                    // `take::reads_nothing`), as a later one never settled.
-                    // One of several, as a next stretch follows it.
-                    let handled = next.is_some_and(|n| {
-                        timegrapher_core::take::handled(true, n.0 - at, self.settle_len())
-                    });
-                    if handled {
-                        end.unwrap_or(*audio)
-                    } else {
-                        *audio
-                    }
-                } else {
-                    let until = next.map_or(f64::INFINITY, |s| s.0);
-                    // The settling that began this position may start at
-                    // Resume, or finish during a pause. Map its real end.
-                    let settled = settles
-                        .iter()
-                        .find(|s| s.0 >= *at && s.0 < until)
-                        .map_or(*at, |s| s.1);
-                    self.audio_of(settled).expect("recorder present")
-                }
-                .min(end.unwrap_or(r.duration_s()));
-                ((!one).then_some(start), end, code.clone())
-            })
-            .collect()
+            } => Some((*at_s, *a, pos.code().to_string())),
+            _ => None,
+        });
+        // The settling that began a position may start at Resume, or
+        // finish during a pause: its real end, in the sound's seconds.
+        let settled = |at: f64, until: f64| {
+            let to = settles
+                .iter()
+                .find(|s| s.0 >= at && s.0 < until)
+                .map_or(at, |s| s.1);
+            self.audio_of(to).expect("recorder present")
+        };
+        timegrapher_core::recorder::saved_ranges(
+            r.first_position().to_string(),
+            moves,
+            self.settle_len(),
+            r.duration_s(),
+            settled,
+        )
     }
 }
 

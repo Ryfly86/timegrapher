@@ -743,3 +743,79 @@ fn new_take_rows_keep_every_name_and_caption_whole() {
         });
     });
 }
+
+/// Stop Test… names what it keeps as the test names it: the Complication
+/// Test's stretches by name, with no comparison until the last Off is
+/// measured; the Positions Test and Dynamic Poise keep "positions"
+/// (#2384).
+#[test]
+fn stop_test_names_the_stretches_kept() {
+    use super::positions_test::kept_so_far;
+    // A test led through its first `n` steps, each measured.
+    let measured = |mut t: guided::Test, n: usize| {
+        let mut now = 0.0;
+        t = t.timed(1.0, 2.0);
+        t.tick(now);
+        for i in 0..n {
+            now += 3.0;
+            assert_eq!(t.tick(now), guided::Phase::Turn, "step {i}");
+            let _ = t.advance(now);
+        }
+        t
+    };
+    let c = |n| measured(guided::Test::complication(Position::DialUp), n);
+    let last = " On less Off is worked out only once the last Off is measured.";
+    assert_eq!(
+        kept_so_far(&c(0), ""),
+        format!("The take so far is kept, with no stretch measured yet.{last}")
+    );
+    assert_eq!(
+        kept_so_far(&c(1), " in YM"),
+        format!("The 1 stretch measured so far (Off) is kept in YM.{last}")
+    );
+    assert_eq!(
+        kept_so_far(&c(2), " in YM"),
+        format!("The 2 stretches measured so far (Off, On) are kept in YM.{last}")
+    );
+    assert_eq!(
+        kept_so_far(&c(3), ""),
+        "The 3 stretches measured so far (Off, On, Off) are kept."
+    );
+    let fresh: [fn() -> guided::Test; 2] = [guided::Test::new, guided::Test::poise];
+    for fresh in fresh {
+        let kind = fresh().kind;
+        assert_eq!(
+            kept_so_far(&measured(fresh(), 0), " in YM"),
+            "The take so far is kept in YM, with no position measured yet.",
+            "{kind:?}"
+        );
+        assert_eq!(
+            kept_so_far(&measured(fresh(), 1), " in YM"),
+            "The 1 position measured so far is kept in YM.",
+            "{kind:?}"
+        );
+        assert_eq!(
+            kept_so_far(&measured(fresh(), 2), " in YM"),
+            "The 2 positions measured so far are kept in YM.",
+            "{kind:?}"
+        );
+    }
+}
+
+/// New Test in any of the four test panes shows the readings, where the
+/// Listen card's Start Test is, when View has them hidden (#2383).
+#[test]
+fn new_test_shows_the_start_test_it_names() {
+    for kind in [
+        NewTake::Positions,
+        NewTake::Poise,
+        NewTake::Complication,
+        NewTake::PowerReserve,
+    ] {
+        let mut app = TimegrapherApp::with_devices(Vec::new(), None);
+        app.bench.panes_view.show_readings = false;
+        app.new_take(kind, false);
+        assert_eq!(app.ready_test(), Some(kind));
+        assert!(app.bench.panes_view.show_readings, "{kind:?}");
+    }
+}
