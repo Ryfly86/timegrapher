@@ -96,9 +96,10 @@ pub(super) fn clock_column(
     take_end: f64,
 ) -> f32 {
     let tstep = time_step(g.span, time_gap(false), g.r.height() as f64);
-    time_lines(g.end, g.oldest(), tstep)
+    let oldest = g.oldest();
+    time_lines(g.end, oldest, tstep)
         .into_iter()
-        .map(|t| w.label(t, tstep, take_end))
+        .map(|t| w.label(t, tstep, (oldest, take_end)))
         .chain(w.day_labels(take_end))
         .map(|label| {
             painter
@@ -581,5 +582,27 @@ mod drawn {
         assert!(!named);
         assert!((first - around).abs() < 0.01, "{first} {around}");
         assert!((first - after).abs() < 0.01, "{first} {after}");
+    }
+
+    /// Fitted to a take past midnight, the strip starts exactly at its
+    /// second 0 and draws no line there, so its first line drawn names the
+    /// day, across and down (Walter on #2556).
+    #[test]
+    fn a_fitted_take_of_days_names_the_day_on_its_first_line() {
+        for horizontal in [false, true] {
+            let (texts, _) = clock_texts(
+                horizontal,
+                Vec2::new(800.0, 400.0),
+                (600.0, 600.0),
+                108_000.0,
+                None,
+            );
+            assert!(
+                !texts.iter().any(|t| t.0 == "0:00"),
+                "{horizontal}: {texts:?}"
+            );
+            let named: Vec<_> = texts.iter().filter(|t| names_day(&t.0)).collect();
+            assert_eq!(named.len(), 1, "{horizontal}: {texts:?}");
+        }
     }
 }

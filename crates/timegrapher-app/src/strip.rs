@@ -1602,7 +1602,7 @@ impl Frame<'_> {
                 painter.text(
                     under,
                     under_align,
-                    w.label(t, tstep, self.take_end),
+                    w.label(t, tstep, (self.oldest, self.take_end)),
                     self.font.clone(),
                     text,
                 );

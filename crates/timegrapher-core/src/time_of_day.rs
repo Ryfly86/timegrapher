@@ -44,13 +44,14 @@ impl WallClock {
     }
 
     /// The time of day at the take's second `t`, for a line on a time
-    /// axis whose lines are `step` seconds apart, on a take `end` seconds
-    /// long so far: "14:35:20", or "Thu 06:00" six hours or more apart.
-    /// Closer, the first line of each new day names it too ("Fri
-    /// 00:04:27"), and so does the take's first line when the take falls
-    /// on more than one day ([`begins_day_in`], Hugh on #2174).
-    pub fn label(&self, t: f64, step: f64, end: f64) -> String {
-        label_on(self, t, step, end, &Local)
+    /// axis whose lines are `step` seconds apart and drawn after its
+    /// second `from`, on a take `end` seconds long so far: "14:35:20", or
+    /// "Thu 06:00" six hours or more apart. Closer, the first line of each
+    /// new day names it too ("Fri 00:04:27"), and so does the take's first
+    /// line drawn, the axis reaching its start, when the take falls on
+    /// more than one day ([`begins_day_in`], Hugh on #2174).
+    pub fn label(&self, t: f64, step: f64, (from, end): (f64, f64)) -> String {
+        label_on(self, t, step, (from, end), &Local)
     }
 
     /// The time of day at the take's second `t`, to the hundredth of a
@@ -110,25 +111,35 @@ fn spans_in<Tz: TimeZone>(w: &WallClock, end: f64, tz: &Tz) -> bool {
 }
 
 /// Whether the line at the take's second `t`, on lines `step` seconds
-/// apart, is the first of a new day in `tz`: the line before it fell on
-/// another day; or, the take's first line, when the take, `end` seconds
+/// apart drawn after second `from`, is the first of a new day in `tz`:
+/// the line before it fell on another day; or, the take's first line
+/// drawn with the axis reaching its start, when the take, `end` seconds
 /// long so far, falls on more than one day.
-fn begins_day_in<Tz: TimeZone>(w: &WallClock, t: f64, step: f64, end: f64, tz: &Tz) -> bool {
-    // Lines fall on whole steps from the take's second 0, so only its
-    // first is under half a step in.
-    if t < step / 2.0 {
+fn begins_day_in<Tz: TimeZone>(
+    w: &WallClock,
+    t: f64,
+    step: f64,
+    (from, end): (f64, f64),
+    tz: &Tz,
+) -> bool {
+    // The take's first line drawn: the axis reaches back to its second 0
+    // and the line a step before isn't drawn, being before the take or
+    // not after `from`. Lines fall on whole steps from second 0, so at an
+    // axis starting on 0 it is the line a step in (Walter on #2556).
+    let (eps, before) = (step * 1e-9, t - step);
+    if from <= eps && (before < -eps || before <= from + eps) {
         return spans_in(w, end, tz);
     }
     day_in(w.unix_at(t), tz) != day_in(w.unix_at(t - step), tz)
 }
 
 /// [`WallClock::label`] in `tz`.
-fn label_on<Tz: TimeZone>(w: &WallClock, t: f64, step: f64, end: f64, tz: &Tz) -> String
+fn label_on<Tz: TimeZone>(w: &WallClock, t: f64, step: f64, span: (f64, f64), tz: &Tz) -> String
 where
     Tz::Offset: std::fmt::Display,
 {
     let unix = w.unix_at(t);
-    if step >= DAY_LABEL_STEP_S || !begins_day_in(w, t, step, end, tz) {
+    if step >= DAY_LABEL_STEP_S || !begins_day_in(w, t, step, span, tz) {
         return label_in(unix, step, tz);
     }
     local_in(unix, tz).map_or_else(String::new, |d| d.format(WITH_DAY).to_string())
@@ -238,11 +249,12 @@ mod tests {
     /// 2026-11-19 23:34:27 UTC, a Thursday: 25 min 33 s before Friday.
     const LATE_THU: f64 = 1_795_131_267.0;
 
-    /// The labels of lines `step` apart over a take `end` seconds long.
+    /// The labels of lines `step` apart over a take `end` seconds long, on
+    /// an axis reaching back before its start, so the line at 0 is drawn.
     fn labels(w: &WallClock, step: f64, end: f64, tz: &FixedOffset) -> Vec<String> {
         let n = (end / step).floor() as usize;
         (0..=n)
-            .map(|k| label_on(w, k as f64 * step, step, end, tz))
+            .map(|k| label_on(w, k as f64 * step, step, (-step / 2.0, end), tz))
             .collect()
     }
 
@@ -269,7 +281,10 @@ mod tests {
         let w = WallClock::new(LATE_THU - 3.0 * 3600.0, &[]);
         assert_eq!(labels(&w, 600.0, 3600.0, &east)[3], "Fri 00:04:27");
         // Six hours apart and more, every label names its day, as before.
-        assert_eq!(label_on(&w, 0.0, 21_600.0, 3600.0, &east), "Thu 23:34");
+        assert_eq!(
+            label_on(&w, 0.0, 21_600.0, (-1.0, 3600.0), &east),
+            "Thu 23:34"
+        );
     }
 
     /// A take inside one day names no day on any label at any step under
@@ -345,5 +360,28 @@ mod tests {
         );
         assert_eq!(day_labels_in(&w, 30.0 * 86_400.0, &utc()).len(), 8);
         assert!(day_labels_in(&WallClock::new(START, &[]), 3600.0, &utc()).is_empty());
+    }
+
+    /// On an axis that starts exactly at the take's second 0 (the take
+    /// fitted, or dragged to its start), the line at 0 isn't drawn, so the
+    /// first line drawn names the day on a take past midnight; further
+    /// on, with the start out of view, the first line on show doesn't
+    /// (Walter on #2556).
+    #[test]
+    fn the_first_line_drawn_at_the_takes_start_names_its_day() {
+        let w = WallClock::new(LATE_THU, &[]);
+        let at = |t: f64, from: f64| label_on(&w, t, 600.0, (from, 3600.0), &utc());
+        assert_eq!(at(600.0, 0.0), "Thu 23:44:27");
+        assert_eq!(at(1200.0, 0.0), "23:54:27");
+        assert_eq!(at(0.0, -300.0), "Thu 23:34:27");
+        assert_eq!(at(600.0, -300.0), "23:44:27");
+        assert_eq!(at(0.0, -900.0), "Thu 23:34:27");
+        assert_eq!(at(1200.0, 700.0), "23:54:27");
+        // Inside one day, the first line drawn stays plain.
+        let w = WallClock::new(START, &[]);
+        assert_eq!(
+            label_on(&w, 600.0, 600.0, (0.0, 3600.0), &utc()),
+            "14:42:18"
+        );
     }
 }
