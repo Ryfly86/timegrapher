@@ -805,7 +805,11 @@ under 10 s of beats, a beat error given as a size because its sign
 differs either side of a cut, or Tick and Tock named by the beat count
 across a break rather than by their sound. After the sixth, **Finish**
 reads the six together and stops listening, as Stop does. The figures are `session`'s for the same
-stretches. **Save as
+stretches. A position's row is read once live's beats are final to the end
+of its stretch (core `LiveAnalyzer::settled_s`), and every row read so far
+is read again once live's template built again from the first chunk takes
+over (`LiveAnalyzer::template_switch_s`), so Stop and the test's own end
+give the figures the rows already show (#2510). **Save as
 CSV…** saves the watch's name, its calibre, beat rate and lift angle,
 when the test began and its settling and measuring times, then the
 table, the averages, the largest differences and those lines, as a CSV file a
