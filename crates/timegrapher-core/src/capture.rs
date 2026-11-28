@@ -302,42 +302,8 @@ pub fn replay_files(paths: &[PathBuf], label: String) -> Result<Capture, String>
     let stop2 = stop.clone();
     let speed = Arc::new(AtomicU32::new(1.0f32.to_bits()));
     let speed2 = speed.clone();
-    let several = paths.len() > 1;
     let paths = paths.to_vec();
-    std::thread::spawn(move || {
-        let start = Instant::now();
-        // When the sound sent so far is due, at the speed each block went
-        // out at.
-        let mut due = Duration::ZERO;
-        for p in &paths {
-            let r = audio::stream(p, (fs / 50).max(1) as usize, |b| {
-                if stop2.load(Ordering::Relaxed) {
-                    return;
-                }
-                let x = f32::from_bits(speed2.load(Ordering::Relaxed)) as f64;
-                due += Duration::from_secs_f64(b.len() as f64 / fs as f64 / x);
-                let _ = tx.send(Event::Audio(Block {
-                    samples: b.to_vec(),
-                    at: SystemTime::now(),
-                }));
-                if let Some(wait) = due.checked_sub(start.elapsed()) {
-                    std::thread::sleep(wait);
-                }
-            });
-            if let Err(e) = r {
-                let _ = tx.send(Event::Error(if several {
-                    format!("{}: {e}", p.display())
-                } else {
-                    e.to_string()
-                }));
-                return;
-            }
-            if stop2.load(Ordering::Relaxed) {
-                break;
-            }
-        }
-        let _ = tx.send(Event::End);
-    });
+    std::thread::spawn(move || replay(&paths, fs, &tx, &stop2, &speed2));
     Ok(Capture {
         rx,
         sample_rate: fs,
@@ -349,6 +315,61 @@ pub fn replay_files(paths: &[PathBuf], label: String) -> Result<Capture, String>
         #[cfg(feature = "capture")]
         _stream: None,
     })
+}
+
+/// Send the sound of `paths` to `tx` at its own speed times `speed`, then
+/// [`Event::End`]; or an [`Event::Error`] naming the file that could not
+/// be read. Reading stops within the block in hand once `stop` is set or
+/// nothing takes the blocks any more (the [`Capture`] dropped), so a
+/// stopped replay does not read on to the end of its file (#2414).
+/// Returns how many blocks were read.
+fn replay(
+    paths: &[PathBuf],
+    fs: u32,
+    tx: &SyncSender<Event>,
+    stop: &AtomicBool,
+    speed: &AtomicU32,
+) -> usize {
+    let several = paths.len() > 1;
+    let start = Instant::now();
+    // When the sound sent so far is due, at the speed each block went
+    // out at.
+    let mut due = Duration::ZERO;
+    let mut read = 0;
+    for p in paths {
+        let r = audio::stream_while(p, (fs / 50).max(1) as usize, |b| {
+            read += 1;
+            if stop.load(Ordering::Relaxed) {
+                return false;
+            }
+            let x = f32::from_bits(speed.load(Ordering::Relaxed)) as f64;
+            due += Duration::from_secs_f64(b.len() as f64 / fs as f64 / x);
+            let block = Block {
+                samples: b.to_vec(),
+                at: SystemTime::now(),
+            };
+            if tx.send(Event::Audio(block)).is_err() {
+                return false;
+            }
+            if let Some(wait) = due.checked_sub(start.elapsed()) {
+                std::thread::sleep(wait);
+            }
+            !stop.load(Ordering::Relaxed)
+        });
+        if let Err(e) = r {
+            let _ = tx.send(Event::Error(if several {
+                format!("{}: {e}", p.display())
+            } else {
+                e.to_string()
+            }));
+            return read;
+        }
+        if stop.load(Ordering::Relaxed) {
+            break;
+        }
+    }
+    let _ = tx.send(Event::End);
+    read
 }
 
 /// A range of formats a device offers.
@@ -1297,6 +1318,62 @@ mod tests {
         assert_eq!(samples, 16_000);
         assert!(took < 1.0, "2 s at 8x took {took:.2} s");
         assert!(took > 0.15, "2 s at 8x took only {took:.2} s");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A replay stopped after its first block reads a block or two more,
+    /// not the rest of the file, whether it is a WAV or a FLAC: when the
+    /// capture is dropped, and when it is told to stop with its queue
+    /// still taken (#2414).
+    #[test]
+    fn a_stopped_replay_stops_reading() {
+        let dir = std::env::temp_dir().join(format!("tg-replay-stop-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        // A minute at 8 kHz is 3000 blocks of 20 ms.
+        let wav = dir.join("minute.wav");
+        let audio = audio::Audio {
+            samples: (0..480_000)
+                .map(|i| ((i % 80) as f32 / 80.0) - 0.5)
+                .collect(),
+            sample_rate: 8000,
+        };
+        audio::write_wav(&wav, &audio).unwrap();
+        let flac = dir.join("minute.flac");
+        crate::flac::encode_wav(&wav, &flac).unwrap();
+        let speed = AtomicU32::new(100.0f32.to_bits());
+        for f in [&wav, &flac] {
+            let paths = [f.clone()];
+            // Dropped: the queue (of one block here) is no longer taken.
+            let stop = AtomicBool::new(false);
+            let (tx, rx) = sync_channel(1);
+            let read = std::thread::scope(|s| {
+                let job = s.spawn(|| replay(&paths, 8000, &tx, &stop, &speed));
+                assert!(matches!(rx.recv().unwrap(), Event::Audio(_)));
+                stop.store(true, Ordering::Relaxed);
+                drop(rx);
+                job.join().unwrap()
+            });
+            assert!(read <= 4, "{}: {read} blocks read", f.display());
+            // Told to stop, the queue still taken: it ends there.
+            let stop = AtomicBool::new(false);
+            let (tx, rx) = sync_channel(1);
+            let (read, after) = std::thread::scope(|s| {
+                let job = s.spawn(|| replay(&paths, 8000, &tx, &stop, &speed));
+                assert!(matches!(rx.recv().unwrap(), Event::Audio(_)));
+                stop.store(true, Ordering::Relaxed);
+                let mut after = 0;
+                while let Ok(e) = rx.recv() {
+                    match e {
+                        Event::Audio(_) => after += 1,
+                        Event::End => break,
+                        _ => panic!("only sound and its end"),
+                    }
+                }
+                (job.join().unwrap(), after)
+            });
+            assert!(read <= 4, "{}: {read} blocks read", f.display());
+            assert!(after <= 2, "{}: {after} blocks after the stop", f.display());
+        }
         let _ = std::fs::remove_dir_all(&dir);
     }
 
