@@ -89,13 +89,16 @@ jobs:
       # The runner for the heavy Linux jobs (test-linux, quick, regress):
       # Peter's workstation when the code is ours and one of its runners is
       # online, else GitHub's (.github/ci/linux_runner.sh, agents#48). A
-      # fork's pull request always runs on GitHub's runners: its code never
-      # reaches the workstation. The jobs' names, and so the required
-      # checks, are the same on either.
+      # fork's pull request runs on GitHub's runners. A fork could still
+      # name the workstation in its own copy of this file, so the runners'
+      # job-started hook (.github/self-hosted/job-started.sh) refuses its
+      # jobs there too. The jobs' names, and so the required checks, are
+      # the same on either.
       - name: Linux runner
         id: runner
         env:
-          GH_TOKEN: ${{ secrets.RUNNER_STATUS_TOKEN }}
+          # The token only for our own code (the same test as TRUSTED).
+          GH_TOKEN: ${{ (github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.head.repo.fork && github.event.pull_request.user.login != 'dependabot[bot]')) && secrets.RUNNER_STATUS_TOKEN || '' }}
           TRUSTED: ${{ github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.head.repo.fork && github.event.pull_request.user.login != 'dependabot[bot]') }}
           SWITCH: ${{ vars.SELF_HOSTED_LINUX }}
           REPO: ${{ github.repository }}

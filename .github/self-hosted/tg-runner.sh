@@ -23,6 +23,10 @@
 #       Remove the runners (TOKEN from the same page, "Remove") and the
 #       account.
 #
+# If the machine drops off after a run's mode job picked it, that run's
+# Linux jobs wait (up to GitHub's 24 h). Fix: "Re-run all jobs" on the
+# run's page (not "Re-run failed jobs"), and mode then picks GitHub.
+#
 # pause and resume run as you, not root: they use sudo for the services and
 # your own `gh` login (if any) for the repository switch SELF_HOSTED_LINUX
 # and the re-runs. Without gh they still stop and start the runners; ci.yml
@@ -33,6 +37,7 @@ REPO=peterhudson/timegrapher
 USER_NAME=tgrunner
 HOME_DIR=/home/$USER_NAME
 CONF=/etc/tg-runner.conf
+HOOK=/usr/local/lib/tg-runner/job-started.sh
 LABEL=tg-linux
 # Packages the Linux jobs need beyond what a runner brings (ci.yml's apt
 # steps skip themselves when these are present).
@@ -105,8 +110,9 @@ cmd_pause() {
       sleep 10; waited=$((waited + 10))
     done
   fi
+  # Disabled as well as stopped, so a reboot keeps them paused.
   # shellcheck disable=SC2046
-  sudo systemctl stop $(units)
+  sudo systemctl disable --now $(units)
   say "runners stopped"
   rerun_cut_off
   say "paused. Resume with: tg-runner resume"
@@ -114,7 +120,7 @@ cmd_pause() {
 
 cmd_resume() {
   # shellcheck disable=SC2046
-  sudo systemctl start $(units)
+  sudo systemctl enable --now $(units)
   switch on
   say "runners started"
 }
@@ -156,6 +162,13 @@ cmd_install() {
     say "note: /home/peter is readable by other accounts; the runner services are kept out of it anyway (InaccessiblePaths)"
   fi
 
+  say "== job-started hook (refuses forks' and other repositories' jobs)"
+  install -d -o root -g root -m 755 "$(dirname "$HOOK")"
+  install -o root -g root -m 755 "$(dirname "$0")/job-started.sh" "$HOOK"
+
+  say "== disk: $(df -h --output=avail,target "$HOME_DIR" | tail -1 | awk '{print $1" free on "$2}')"
+  say "   about 70 GB per runner at most (60 GB build folder, 7 GB audio); jobs stop if free space falls under 100 GB"
+
   say "== runner"
   tarball="$(runner_tarball)"
   for i in $(seq 1 "$n"); do
@@ -167,24 +180,26 @@ cmd_install() {
     (cd "$dir" && sudo -u "$USER_NAME" ./config.sh --unattended --replace \
       --url "https://github.com/$REPO" --token "$token" \
       --name "$LABEL-$i" --labels "$LABEL" --work _work)
-    # Each job's environment: its own build folder and corpus audio
-    # (.github/ci/self_hosted_prep.sh), and a share of the cores.
-    cat >> "$dir/.env" <<EOF
-TG_CACHE=$HOME_DIR/cache/$i
-CARGO_BUILD_JOBS=$threads
-NEXTEST_TEST_THREADS=$threads
-EOF
-    chown "$USER_NAME:" "$dir/.env"
     (cd "$dir" && ./svc.sh install "$USER_NAME")
-    # Peter's own work comes first, and the jobs cannot reach his files.
+    # Root-owned, so the runner account cannot change it: the job-started
+    # hook that refuses anything but our own code (job-started.sh), each
+    # job's build folder and corpus audio (.github/ci/self_hosted_prep.sh)
+    # and share of the cores; Peter's work first, and none of his files,
+    # media or temporary files in reach.
     mkdir -p "/etc/systemd/system/$(unit "$i").d"
     cat > "/etc/systemd/system/$(unit "$i").d/tg-runner.conf" <<EOF
 [Service]
+Environment=ACTIONS_RUNNER_HOOK_JOB_STARTED=$HOOK
+Environment=TG_RUNNER_REPO=$REPO
+Environment=TG_CACHE=$HOME_DIR/cache/$i
+Environment=CARGO_BUILD_JOBS=$threads
+Environment=NEXTEST_TEST_THREADS=$threads
 Nice=10
 CPUWeight=20
 IOWeight=20
 MemoryMax=16G
-InaccessiblePaths=-/home/peter
+InaccessiblePaths=-/home/peter -/media -/mnt -/run/media
+PrivateTmp=yes
 NoNewPrivileges=yes
 EOF
   done
@@ -192,6 +207,8 @@ EOF
   printf 'COUNT=%s\n' "$n" > "$CONF"
   install -m 755 "$0" /usr/local/bin/tg-runner
   systemctl daemon-reload
+  # shellcheck disable=SC2046
+  systemctl enable $(units)
   # shellcheck disable=SC2046
   systemctl restart $(units)
   say "== done: $n runners, $threads threads each. Check: tg-runner status"
@@ -211,6 +228,7 @@ cmd_uninstall() {
   systemctl daemon-reload
   userdel -r "$USER_NAME" 2>/dev/null || true
   rm -f "$CONF" /usr/local/bin/tg-runner
+  rm -rf "$(dirname "$HOOK")"
   say "removed"
 }
 
@@ -220,5 +238,5 @@ case "${1:-}" in
   resume) cmd_resume ;;
   status) cmd_status ;;
   uninstall) shift; cmd_uninstall "$@" ;;
-  *) sed -n '2,29p' "$0"; exit 2 ;;
+  *) sed -n '2,/^set -euo/p' "$0" | sed '$d'; exit 2 ;;
 esac
