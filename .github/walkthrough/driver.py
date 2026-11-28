@@ -3,12 +3,14 @@ branch and answers each with a screenshot.
 
   driver.py CHANNEL_DIR HEAD_EXE [BASE_EXE]
 
-Commands are JSON files the agent pushes to walk/cmd/ on the channel branch;
-each answer is walk/out/<name>.png plus <name>.txt, pushed back to the same
-branch. Command files already on the branch when the session starts are
-skipped. The step list is in .github/walkthrough/README.md.
+Commands are JSON files the agent pushes to walk/cmd/ on the channel branch,
+read here without credentials (the repository is public). Each answer,
+<name>.png plus <name>.txt, is uploaded as an artifact of the run; the relay
+job (relay.py), on another runner, pushes it to walk/out/ on the channel
+branch. No token that can push is on this machine (#2426). Command files
+already on the branch when the session starts are skipped. The step list is
+in .github/walkthrough/README.md.
 """
-import base64
 import json
 import os
 import subprocess
@@ -17,27 +19,29 @@ import time
 
 import pyautogui
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from answers import ANSWER_PREFIX, upload  # noqa: E402
+
 pyautogui.FAILSAFE = False
 CHANNEL, EXES = sys.argv[1], {"head": sys.argv[2]}
 if len(sys.argv) > 3:
     EXES["base"] = sys.argv[3]
 BRANCH = os.environ["WALK_CHANNEL"]
-TOKEN = os.environ.pop("WALK_TOKEN")
-# The app never sees the token: it gets a copy of the environment without it.
+# The run's artifact credentials, for the answers; the app never sees them:
+# it gets a copy of the environment without them.
+ARTIFACTS = (os.environ.pop("WALK_RUNTIME_TOKEN"), os.environ.pop("WALK_RESULTS_URL"))
 APP_ENV = dict(os.environ)
-BASIC = base64.b64encode(("x-access-token:" + TOKEN).encode()).decode()
-AUTH = ["-c", "http.extraheader=AUTHORIZATION: basic " + BASIC]
-# No hooks: nothing in the channel clone runs while the token is in use.
+# No hooks: nothing in the channel clone runs.
 NO_HOOKS = ["-c", "core.hooksPath=" + os.devnull]
 CMD = os.path.join(CHANNEL, "walk", "cmd")
-OUT = os.path.join(CHANNEL, "walk", "out")
+OUT = os.path.abspath("walk-out")
 LOGS = os.path.abspath("walk-logs")
 os.makedirs(LOGS, exist_ok=True)
 
 
-def git(*args, auth=False):
-    pre = ["git", "-C", CHANNEL] + NO_HOOKS + (AUTH if auth else [])
-    return subprocess.run(pre + list(args), capture_output=True, text=True)
+def git(*args):
+    return subprocess.run(["git", "-C", CHANNEL] + NO_HOOKS + list(args),
+                          capture_output=True, text=True)
 
 
 class App:
@@ -105,22 +109,19 @@ def run(step, app, notes):
 
 def answer(name, notes, app, t0):
     os.makedirs(OUT, exist_ok=True)
-    pyautogui.screenshot(os.path.join(OUT, name + ".png"))
+    png = os.path.join(OUT, name + ".png")
+    pyautogui.screenshot(png)
     text = "\n".join([app.state(), "took %.1f s" % (time.time() - t0)] + notes)
-    open(os.path.join(OUT, name + ".txt"), "w", encoding="utf-8").write(text + "\n")
-    git("add", "walk/out")
-    git("commit", "-qm", "walkthrough answer " + name)
+    files = [(name + ".png", open(png, "rb").read()), (name + ".txt", (text + "\n").encode())]
     for _ in range(5):
-        git("pull", "-q", "--rebase", "origin", BRANCH, auth=True)
-        if git("push", "-q", "origin", "HEAD:" + BRANCH, auth=True).returncode == 0:
-            return
-        time.sleep(2)
-    print("could not push", name, flush=True)
+        try:
+            return upload(ANSWER_PREFIX + name, files, *ARTIFACTS)
+        except Exception as e:  # tried again; the session goes on
+            print("could not upload", name, e, flush=True)
+            time.sleep(2)
 
 
 def main():
-    git("config", "user.name", "windows-walkthrough")
-    git("config", "user.email", "windows-walkthrough@users.noreply.github.com")
     done = set(os.listdir(CMD)) if os.path.isdir(CMD) else set()
     deadline = time.time() + 60 * int(os.environ.get("WALK_MINUTES", "120"))
     app = App()
@@ -129,7 +130,7 @@ def main():
     answer("ready-" + os.environ.get("GITHUB_RUN_ID", "local"), [], app, time.time())
     going = True
     while going and time.time() < deadline:
-        git("pull", "-q", "--rebase", "origin", BRANCH, auth=True)
+        git("pull", "-q", "--ff-only", "origin", BRANCH)
         new = sorted(f for f in (os.listdir(CMD) if os.path.isdir(CMD) else [])
                      if f.endswith(".json") and f not in done)
         for f in new:
