@@ -17,8 +17,9 @@ if [ "$used" -gt "$max" ]; then
   rm -rf "$cache/target"
   mkdir -p "$cache/target"
 fi
-# A floor of free disk (TG_MIN_FREE_GB, default 100): the workstation's
-# disk also holds Peter's takes. Below it, this runner's build folder goes
+# A floor of free disk (TG_MIN_FREE_GB: 100 here, and tg-runner.sh install
+# sets 100 GB plus 40 per runner, as this is checked only at the start):
+# the workstation's disk also holds Peter's takes. Below it, this runner's build folder goes
 # first; if that is not enough, the job fails rather than fill the disk.
 floor="${TG_MIN_FREE_GB:-100}"
 free_gb() { df --output=avail -BG "$cache" | tail -1 | tr -dc '0-9'; }

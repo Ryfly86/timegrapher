@@ -23,7 +23,7 @@ case "${GITHUB_EVENT_NAME:-}" in
   workflow_dispatch) ;;
   pull_request)
     # "<head repo> <author>"; a deleted fork has no head repo.
-    read -r head author <<< "$(python3 -I -c '
+    read -r head author <<< "$(/usr/bin/python3 -I -c '
 import json, sys
 pr = json.load(open(sys.argv[1])).get("pull_request") or {}
 repo = (pr.get("head") or {}).get("repo") or {}

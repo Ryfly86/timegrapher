@@ -59,6 +59,10 @@ class Hook(unittest.TestCase):
         self.assertIn("\nEnvironment=ACTIONS_RUNNER_HOOK_JOB_STARTED=$HOOK\n", INSTALL)
         self.assertNotIn(">> \"$dir/.env\"", INSTALL)
 
+    def test_install_leaves_disk_for_every_runner_building_at_once(self):
+        self.assertIn("local floor=$(( 100 + 40 * n ))", INSTALL)
+        self.assertIn("\nEnvironment=TG_MIN_FREE_GB=$floor\n", INSTALL)
+
 
 if __name__ == "__main__":
     unittest.main()

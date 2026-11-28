@@ -150,6 +150,9 @@ cmd_install() {
   [ -n "$token" ] || die "give the registration token from Settings > Actions > Runners > New self-hosted runner"
   case "$n" in ''|*[!0-9]*) die "COUNT must be a number";; esac
   local threads=$(( $(nproc) / n )); [ "$threads" -ge 1 ] || threads=1
+  # A job checks free disk only when it starts, so the floor leaves room
+  # for every runner to build from cold at once (about 40 GB each).
+  local floor=$(( 100 + 40 * n ))
 
   say "== packages"
   apt-get update
@@ -166,8 +169,12 @@ cmd_install() {
   install -d -o root -g root -m 755 "$(dirname "$HOOK")"
   install -o root -g root -m 755 "$(dirname "$0")/job-started.sh" "$HOOK"
 
-  say "== disk: $(df -h --output=avail,target "$HOME_DIR" | tail -1 | awk '{print $1" free on "$2}')"
-  say "   about 70 GB per runner at most (60 GB build folder, 7 GB audio); jobs stop if free space falls under 100 GB"
+  local free; free="$(df --output=avail -BG "$(dirname "$HOME_DIR")" | tail -1 | tr -dc '0-9')"
+  say "== disk: ${free} GB free on the disk that holds $HOME_DIR"
+  say "   up to about 70 GB per runner (60 GB build folder, 7 GB audio); a job starts only with ${floor} GB free (100 GB plus 40 GB per runner)"
+  if [ "$free" -lt "$floor" ]; then
+    say "   warning: under ${floor} GB free now, so jobs here would refuse to start; use fewer runners or free some space"
+  fi
 
   say "== runner"
   tarball="$(runner_tarball)"
@@ -194,6 +201,7 @@ Environment=TG_RUNNER_REPO=$REPO
 Environment=TG_CACHE=$HOME_DIR/cache/$i
 Environment=CARGO_BUILD_JOBS=$threads
 Environment=NEXTEST_TEST_THREADS=$threads
+Environment=TG_MIN_FREE_GB=$floor
 Nice=10
 CPUWeight=20
 IOWeight=20
