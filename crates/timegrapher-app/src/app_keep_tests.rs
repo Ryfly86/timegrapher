@@ -234,9 +234,12 @@ fn a_takes_row_shows_its_own_reading_from_core() {
     let report = take.join(timegrapher_core::take::REPORT_DIR);
     std::fs::create_dir_all(&report).unwrap();
     std::fs::write(report.join("summary.json"), "{}").unwrap();
-    app.watches_view
-        .take_readings
-        .want(&take, t.bytes + 2, &ctx);
+    let Ok(Some(l)) = &mut app.library else {
+        panic!("no library")
+    };
+    l.scan();
+    let at = l.readings_revision();
+    app.watches_view.take_readings.want(&take, &at, &ctx);
     assert_eq!(app.watches_view.take_readings.reading(&take), Some(&want));
     app.watches_view.take_readings.wait();
     assert_eq!(app.watches_view.take_readings.reading(&take), Some(&want));
