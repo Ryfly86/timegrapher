@@ -1,50 +1,50 @@
-arbors
-arbors[].clash
-arbors[].counted_s
-arbors[].from
-arbors[].from.arbor
-arbors[].from.kind
-arbors[].leaves
-arbors[].name
-arbors[].needs
-arbors[].needs.arbor
-arbors[].needs.count
-arbors[].step
-arbors[].step.arbor
-arbors[].step.bph
-arbors[].step.kind
-arbors[].step.leaves
-arbors[].step.outward
-arbors[].step.period_s
-arbors[].step.teeth
-arbors[].teeth
-arbors[].typed_s
-bph
-bph_from_counts
-input
-input.files
-input.settings
-input.settings.bph
-input.settings.calibre
-input.settings.counts
-input.settings.counts[].arbor
-input.settings.counts[].leaves
-input.settings.counts[].teeth
-input.settings.periods
-input.settings.periods[].arbor
-input.settings.periods[].period_s
-meshes
-meshes[].leaves
-meshes[].period_s
-meshes[].pinion
-meshes[].teeth
-meshes[].wheel
-schema
-software
-software.arch
-software.build_date
-software.git_dirty
-software.git_hash
-software.name
-software.os
-software.version
+arbors array
+arbors[].clash null
+arbors[].counted_s number
+arbors[].from object
+arbors[].from.arbor string
+arbors[].from.kind string
+arbors[].leaves number
+arbors[].name string
+arbors[].needs object
+arbors[].needs.arbor string
+arbors[].needs.count string
+arbors[].step object
+arbors[].step.arbor string
+arbors[].step.bph number
+arbors[].step.kind string
+arbors[].step.leaves number
+arbors[].step.outward bool
+arbors[].step.period_s number
+arbors[].step.teeth number
+arbors[].teeth number
+arbors[].typed_s number
+bph number
+bph_from_counts null
+input object
+input.files array
+input.settings object
+input.settings.bph number
+input.settings.calibre null
+input.settings.counts array
+input.settings.counts[].arbor string
+input.settings.counts[].leaves number
+input.settings.counts[].teeth number
+input.settings.periods array
+input.settings.periods[].arbor string
+input.settings.periods[].period_s number
+meshes array
+meshes[].leaves number
+meshes[].period_s number
+meshes[].pinion string
+meshes[].teeth number
+meshes[].wheel string
+schema string
+software object
+software.arch string
+software.build_date string
+software.git_dirty bool
+software.git_hash string
+software.name string
+software.os string
+software.version string

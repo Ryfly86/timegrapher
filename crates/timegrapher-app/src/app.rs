@@ -277,27 +277,6 @@ struct OpenNeed {
     started: bool,
 }
 
-/// What a watch picked in the Watches view's list does.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ListPick {
-    /// Shows it, refused while a watch's take listens.
-    Pick,
-    /// Asks about the unsaved sound, then stops and picks it.
-    Ask,
-    /// Stops listening, with nothing to ask about, and picks it.
-    StopThenPick,
-}
-
-/// The way a watch picked in the list goes: `running`, whether a Quick
-/// Listen is what listens, and whether its sound would be asked about.
-fn list_pick_route(running: bool, quick: bool, asks: bool) -> ListPick {
-    match (running && quick, asks) {
-        (false, _) => ListPick::Pick,
-        (true, true) => ListPick::Ask,
-        (true, false) => ListPick::StopThenPick,
-    }
-}
-
 /// Set Up the Microphone's width, and its status line's height: two
 /// lines, whatever it says.
 const SHEET_W: f32 = 440.0;
@@ -370,6 +349,10 @@ enum Confirm {
     Microphone,
     /// Quick Listen: a new session on the microphone, with no watch.
     QuickListen,
+    /// Listen pressed over a recording opened, with nothing unsaved: it
+    /// closes first (#2108). With a watch picked (`true`), a take of it;
+    /// else a Quick Listen.
+    CloseToListen(bool),
     /// Open a recording, analysed whole.
     Open {
         path: PathBuf,

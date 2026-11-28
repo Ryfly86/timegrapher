@@ -19,7 +19,12 @@ drives live: clicks, keys, typing, and a screenshot after every batch.
 
 1. Use your own branch as the channel and check it out locally. Never use a PR
    branch: the session pushes `walk/` files to the channel.
-2. Start the `Windows walkthrough` workflow by hand (workflow_dispatch). Inputs:
+   Merge main into it first, every time: the workflow runs from the channel,
+   so a channel behind main runs an older walk that may still hold a write
+   token beside the app.
+2. Start the `Windows walkthrough` workflow by hand (workflow_dispatch), run
+   from the channel branch ("Use workflow from", or the dispatch's `ref`), not
+   main: a run from anywhere else stops at once. Inputs:
    - `ref`: the PR head's branch name.
    - `base_ref`: optional, the PR base's branch name (usually `main`).
    - `channel`: your branch.
@@ -78,7 +83,15 @@ cache in `%LOCALAPPDATA%`, and the library in `%USERPROFILE%\Timegrapher Data`.
   stops the run.
 - They are built in a separate job with read-only permission, and the builds
   are passed to the walk job as an artifact.
-- The walk job holds a write token for the channel push. The app under test
-  runs on that machine: the loop starts it without the token and runs git
-  without hooks, but code in the app could still reach the token. So walk
-  only branches you would merge into this repository.
+- The walk job, where the app under test runs, can't push: its token reads
+  only (#2426). It uploads each answer as an artifact of the run, with the
+  run's artifact credentials, which the app is started without. Code in
+  the app could still reach those credentials on that machine; they can add
+  artifacts and caches for the channel branch, which is why the run must
+  come from it, not change the repository.
+- The relay job, on another runner, holds the token that can push. It runs
+  only `.github/walkthrough/relay.py` from the workflow's own commit, never
+  the app, and git there runs without hooks. It downloads each answer and
+  pushes it to `walk/out/` on the channel, so answers arrive a few seconds
+  later than before.
+- Still walk only branches you would merge into this repository.

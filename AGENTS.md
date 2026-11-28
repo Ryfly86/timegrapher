@@ -71,7 +71,7 @@ and measures rate, amplitude and beat error. It is a Rust workspace:
 6. **The JSON contract is additive.** New fields are fine. Removing or changing a
    field needs a new schema version and is not something to do inside an issue fix.
    The CLI's JSON shape tests (`crates/timegrapher-cli/tests/json_shapes/`) record
-   every field; update them only for a field you add, and say so.
+   every field and its type; update them only for a field you add, and say so.
 7. **Conventions:** Tick and Tock in all user-facing text (JSON keeps `a`/`b`).
    Positions are DU, DD, CU, CD, CL, CR. Beat error is signed in JSON, and its size
    is shown in text. Rates are in s/d. A "±" takes a space after a value

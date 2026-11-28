@@ -371,7 +371,11 @@ fn a_period_box_shows_its_whole_value() {
     c.user
         .set_wheel("ETA 2824-2", "fourth wheel", 9_999_999.999, None);
     c.selected = Some("ETA 2824-2".into());
-    c.adding = Some(("moon wheel".into(), "21114.027".into()));
+    c.adding = Some(Adding {
+        calibre: "ETA 2824-2".into(),
+        wheel: "moon wheel".into(),
+        period: "21114.027".into(),
+    });
     let ctx = egui::Context::default();
     theme::install(&ctx);
     let input = egui::RawInput {
@@ -503,23 +507,18 @@ fn a_custom_balance_period_follows_its_beat_rate() {
             .find(|w| w.name == "balance")
             .map(|w| w.period_s)
     };
-    k.bph = Some(18000);
-    follow_balance(&mut k, None);
+    k.set_bph(Some(18000));
     assert_eq!(balance(&k), Some(0.4));
-    k.bph = Some(28800);
-    follow_balance(&mut k, Some(18000));
+    k.set_bph(Some(28800));
     assert_eq!(balance(&k), Some(0.25));
     // A period typed by hand stays when the beat rate changes.
     k.wheels[0].period_s = 0.3;
-    k.bph = Some(21600);
-    follow_balance(&mut k, Some(28800));
+    k.set_bph(Some(21600));
     assert_eq!(balance(&k), Some(0.3));
     // No beat rate, no derived balance.
     let mut k = custom("Bench", []);
-    k.bph = Some(36000);
-    follow_balance(&mut k, None);
-    k.bph = None;
-    follow_balance(&mut k, Some(36000));
+    k.set_bph(Some(36000));
+    k.set_bph(None);
     assert_eq!(balance(&k), None);
 }
 
@@ -962,5 +961,412 @@ fn the_lift_column_fits_the_not_supported_tag() {
         assert_eq!(widened[4], plain[4]);
         let sum = |c: [f32; 5]| c.iter().sum::<f32>();
         assert!((sum(widened) - sum(plain)).abs() < 1e-3, "{w}");
+    }
+}
+
+/// Typing into a custom calibre's Name or Maker, one key a frame, as
+/// a person types: each key's frame, then Enter.
+struct Typing {
+    ctx: egui::Context,
+}
+
+impl Typing {
+    fn new() -> Self {
+        let ctx = egui::Context::default();
+        theme::install(&ctx);
+        Typing { ctx }
+    }
+
+    fn frame(&self, c: &mut Calibres, name: &str, events: Vec<egui::Event>) -> Change {
+        let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(600.0, 900.0));
+        let mut change = Change::default();
+        let _ = self.ctx.run(
+            egui::RawInput {
+                screen_rect: Some(screen),
+                events,
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    change = c.custom_editor(ui, name, "manager");
+                });
+            },
+        );
+        change
+    }
+
+    fn key(key: egui::Key, modifiers: egui::Modifiers) -> Vec<egui::Event> {
+        [true, false]
+            .map(|pressed| egui::Event::Key {
+                key,
+                physical_key: None,
+                pressed,
+                repeat: false,
+                modifiers,
+            })
+            .into()
+    }
+
+    /// Focus the field `what`, select all of it, then type `text` a
+    /// character a frame: returns every name the calibre had meanwhile.
+    fn type_into(&self, c: &mut Calibres, name: &str, what: &str, text: &str) -> Vec<String> {
+        self.frame(c, name, vec![]);
+        self.ctx
+            .memory_mut(|m| m.request_focus(custom_field_id(what, "manager", name)));
+        self.frame(c, name, vec![]);
+        self.frame(c, name, Self::key(egui::Key::A, egui::Modifiers::COMMAND));
+        let mut seen = Vec::new();
+        for ch in text.chars() {
+            let change = self.frame(c, name, vec![egui::Event::Text(ch.to_string())]);
+            assert!(change.renamed.is_none(), "renamed while typing {ch:?}");
+            seen.extend(c.user.custom.iter().map(|k| k.name.clone()));
+        }
+        seen
+    }
+
+    fn enter(&self, c: &mut Calibres, name: &str) -> Change {
+        self.frame(c, name, Self::key(egui::Key::Enter, egui::Modifiers::NONE))
+    }
+}
+
+/// A custom calibre's name is kept whole, spaces and all, on Enter, and
+/// nothing is renamed or saved while it is typed: a space typed was
+/// kept untrimmed while the editor looked for the trimmed name, and the
+/// Name box went (#2481).
+#[test]
+fn a_custom_calibres_name_is_kept_on_enter_not_on_each_key() {
+    let mut c = Calibres::in_memory();
+    let name = c.new_custom("");
+    let t = Typing::new();
+    let seen = t.type_into(&mut c, &name, "custom name", "Bench 8500 co-axial");
+    assert!(seen.iter().all(|n| *n == name), "{seen:?}");
+    let change = t.enter(&mut c, &name);
+    assert_eq!(change.renamed.as_deref(), Some("Bench 8500 co-axial"));
+    assert_eq!(c.user.custom[0].name, "Bench 8500 co-axial");
+}
+
+/// A name the list already has goes back to the calibre's own on Enter,
+/// saying why under the box; Escape puts back what was typed (#2481).
+#[test]
+fn a_taken_name_or_escape_leaves_the_custom_name_as_it_was() {
+    let mut c = Calibres::in_memory();
+    let name = c.new_custom("");
+    let t = Typing::new();
+    t.type_into(&mut c, &name, "custom name", "Omega 8500");
+    assert!(t.enter(&mut c, &name).renamed.is_none());
+    assert_eq!(c.user.custom[0].name, name);
+    let taken = custom_field_id("custom name taken", "manager", &name);
+    let said = t.ctx.data(|d| d.get_temp::<String>(taken));
+    assert_eq!(said.as_deref(), Some("Omega 8500"));
+    assert!(taken_words("Omega 8500").contains("in the list already"));
+    t.type_into(&mut c, &name, "custom name", "Bench 9");
+    t.frame(
+        &mut c,
+        &name,
+        Typing::key(egui::Key::Escape, egui::Modifiers::NONE),
+    );
+    assert_eq!(c.user.custom[0].name, name);
+    t.frame(&mut c, &name, vec![]);
+    assert!(
+        t.ctx.data(|d| d.get_temp::<String>(taken)).is_none(),
+        "typing again, then Escape, takes back the note"
+    );
+    // A name kept clears the note.
+    t.type_into(&mut c, &name, "custom name", "Bench 9");
+    assert!(t.enter(&mut c, &name).renamed.is_some());
+    assert!(t.ctx.data(|d| d.get_temp::<String>(taken)).is_none());
+}
+
+/// A maker with a space in it types in order: the space isn't trimmed
+/// away before the next word (#2481).
+#[test]
+fn a_custom_makers_space_is_kept_while_typing() {
+    let mut c = Calibres::in_memory();
+    let name = c.new_custom("");
+    let t = Typing::new();
+    t.type_into(&mut c, &name, "custom maker", "La Joux ");
+    assert_eq!(c.user.custom[0].maker, None, "nothing kept while typing");
+    t.enter(&mut c, &name);
+    assert_eq!(c.user.custom[0].maker.as_deref(), Some("La Joux"));
+}
+
+/// A name is kept trimmed: a space typed last is dropped on Return,
+/// and one typed between words stays (#2481, the space that lost the
+/// Name box on main).
+#[test]
+fn a_custom_name_is_kept_trimmed() {
+    let mut c = Calibres::in_memory();
+    let name = c.new_custom("");
+    let t = Typing::new();
+    t.type_into(&mut c, &name, "custom name", "Bench 9 ");
+    assert_eq!(t.enter(&mut c, &name).renamed.as_deref(), Some("Bench 9"));
+    assert_eq!(c.user.custom[0].name, "Bench 9");
+}
+
+/// What is typed for one custom calibre, and the note on a name
+/// refused, stay with that calibre when another is selected before
+/// Return (Trevor 82 on #2482).
+#[test]
+fn typing_for_one_custom_calibre_never_renames_another() {
+    let mut c = Calibres::in_memory();
+    let a = c.new_custom("Bench A");
+    let b = c.new_custom("Bench B");
+    let t = Typing::new();
+    t.type_into(&mut c, &a, "custom name", "Bench C");
+    // B selected before Return: A's box goes, and Return is B's.
+    t.frame(&mut c, &b, vec![]);
+    assert!(t.enter(&mut c, &b).renamed.is_none());
+    let names: Vec<_> = c.user.custom.iter().map(|k| k.name.as_str()).collect();
+    assert_eq!(names, ["Bench A", "Bench B"]);
+    // A refused name's note is A's alone.
+    t.type_into(&mut c, &a, "custom name", "Omega 8500");
+    assert!(t.enter(&mut c, &a).renamed.is_none());
+    let note = |n: &str| {
+        t.ctx
+            .data(|d| d.get_temp::<String>(custom_field_id("custom name taken", "manager", n)))
+    };
+    assert!(note(&a).is_some());
+    t.frame(&mut c, &b, vec![]);
+    assert!(note(&b).is_none());
+}
+
+/// The note on a name refused goes when the Name box is typed in again,
+/// and on its own when Escape is pressed (Trevor 82 on #2482).
+#[test]
+fn the_refused_name_note_goes_on_retyping_or_on_escape_alone() {
+    let mut c = Calibres::in_memory();
+    let name = c.new_custom("");
+    let t = Typing::new();
+    let taken = custom_field_id("custom name taken", "manager", &name);
+    let noted = |t: &Typing| t.ctx.data(|d| d.get_temp::<String>(taken)).is_some();
+    let refuse = |c: &mut Calibres| {
+        t.type_into(c, &name, "custom name", "Omega 8500");
+        assert!(t.enter(c, &name).renamed.is_none());
+        t.frame(c, &name, vec![]);
+        assert!(noted(&t), "refused");
+    };
+    refuse(&mut c);
+    t.type_into(&mut c, &name, "custom name", "B");
+    assert!(!noted(&t), "typing again takes the note back");
+    t.frame(
+        &mut c,
+        &name,
+        Typing::key(egui::Key::Escape, egui::Modifiers::NONE),
+    );
+    refuse(&mut c);
+    t.frame(
+        &mut c,
+        &name,
+        Typing::key(egui::Key::Escape, egui::Modifiers::NONE),
+    );
+    t.frame(&mut c, &name, vec![]);
+    assert!(!noted(&t), "Escape alone takes the note back");
+}
+
+/// The texts Manage Calibres draws with `name` selected, at 1440 wide.
+fn drawn_with(c: &mut Calibres, name: &str) -> Vec<String> {
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    c.selected = Some(name.into());
+    let input = egui::RawInput {
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            Vec2::new(1440.0, 2000.0),
+        )),
+        ..Default::default()
+    };
+    let mut out = None;
+    for _ in 0..2 {
+        out = Some(ctx.run(input.clone(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                c.contents(ui, "", "test");
+            });
+        }));
+    }
+    out.unwrap()
+        .shapes
+        .iter()
+        .filter_map(|s| match &s.shape {
+            egui::Shape::Text(t) => Some(t.galley.text().to_string()),
+            _ => None,
+        })
+        .collect()
+}
+
+/// A wheel half typed in Add a Wheel… stays with the calibre it was
+/// started on: another calibre selected shows Add a Wheel… of its own and
+/// none of it, and the first shows it again when selected (#2380).
+#[test]
+fn a_half_typed_wheel_stays_with_its_calibre() {
+    let mut c = Calibres::in_memory();
+    c.adding = Some(Adding {
+        calibre: "Rolex 3235".into(),
+        wheel: "Intermediate".into(),
+        period: "90".into(),
+    });
+    let before = Catalog::new(&c.user).slots(c.find("ETA 2824-2").unwrap());
+    let other = drawn_with(&mut c, "ETA 2824-2");
+    assert!(other.iter().any(|t| t == "Add a Wheel…"), "{other:?}");
+    assert!(!other.iter().any(|t| t == "Intermediate"), "{other:?}");
+    assert_eq!(
+        Catalog::new(&c.user).slots(c.find("ETA 2824-2").unwrap()),
+        before
+    );
+    let own = drawn_with(&mut c, "Rolex 3235");
+    assert!(own.iter().any(|t| t == "Intermediate"), "{own:?}");
+    assert!(!own.iter().any(|t| t == "Add a Wheel…"), "{own:?}");
+}
+
+/// A custom calibre's balance its beat rate gives says so, with no Clear
+/// and no Custom caption, and shows the rate's period even where none is
+/// kept; one typed that the rate doesn't give is the user's (#2381).
+#[test]
+fn a_balance_from_the_beat_rate_says_so() {
+    let mut k = custom("Bench", []);
+    k.set_bph(Some(28800));
+    let row_of = |k: &CustomCalibre, wheel: &str| {
+        let user = UserCalibres::default();
+        let e = Entry::Custom(k);
+        let slots = Catalog::new(&user).slots(e);
+        let s = slots.iter().find(|s| s.name == wheel).unwrap();
+        let (s, tip, clear) = slot_shown(e, s, None);
+        (s.period_s, tip, clear)
+    };
+    let row = |k: &CustomCalibre| row_of(k, "balance");
+    assert_eq!(
+        row(&k),
+        (
+            Some(0.25),
+            "From the beat rate, 28800 bph".to_string(),
+            None
+        )
+    );
+    k.set_bph(Some(21600));
+    let (p, tip, clear) = row(&k);
+    assert_eq!((p, clear), (Some(train::balance_period_s(21600)), None));
+    assert_eq!(tip, "From the beat rate, 21600 bph");
+    // None kept (a file from before): still the rate's, never Not Known.
+    k.wheels.clear();
+    assert_eq!(row(&k).0, Some(train::balance_period_s(21600)));
+    // Typed by hand: the user's, with a Clear that goes back to the rate's.
+    k.wheels.push(CustomWheel {
+        name: "balance".into(),
+        period_s: 0.3,
+    });
+    assert_eq!(
+        row(&k),
+        (
+            Some(0.3),
+            "Custom, typed in".to_string(),
+            Some("Go back to the beat rate's period")
+        )
+    );
+    // Without a beat rate, Clear forgets the period typed in.
+    k.bph = None;
+    assert_eq!(row(&k).2, Some("Forget the period typed in"));
+    // Another wheel of a calibre with a beat rate keeps its own period,
+    // hover and Clear.
+    let mut k = custom("Bench", [("fourth wheel", 60.0)]);
+    k.set_bph(Some(28800));
+    assert_eq!(
+        row_of(&k, "fourth wheel"),
+        (
+            Some(60.0),
+            "Custom, typed in".to_string(),
+            Some("Forget the period typed in")
+        )
+    );
+    // A beat rate of 0 (a file edited by hand) is none: nothing worked out.
+    k.bph = Some(0);
+    k.wheels.retain(|w| w.name != "balance");
+    assert_eq!(
+        row(&k),
+        (
+            None,
+            "Nobody has given this wheel's period yet: type it if you know it".to_string(),
+            Some("Forget the period typed in")
+        )
+    );
+    // Drawn: the balance's row has no Clear and no Custom caption; typed,
+    // it has both.
+    let mut c = Calibres::in_memory();
+    let mut k = custom("Bench", []);
+    k.set_bph(Some(28800));
+    c.user.put_custom(k);
+    // The table's Maker column says "Custom" for the calibre itself.
+    let customs = |seen: &[String]| seen.iter().filter(|t| *t == "Custom").count();
+    let seen = drawn_with(&mut c, "Bench");
+    assert!(seen.iter().any(|t| t == "0.25"), "{seen:?}");
+    assert!(!seen.iter().any(|t| t == "Clear"), "{seen:?}");
+    let from_rate = customs(&seen);
+    c.user.set_wheel("Bench", "balance", 0.3, None);
+    let seen = drawn_with(&mut c, "Bench");
+    assert!(seen.iter().any(|t| t == "Clear"), "{seen:?}");
+    assert_eq!(customs(&seen), from_rate + 1, "{seen:?}");
+}
+
+/// The balance periods a custom calibre keeps.
+fn kept_balance(c: &Calibres) -> Vec<f64> {
+    c.user.custom[0]
+        .wheels
+        .iter()
+        .filter(|w| w.name == "balance")
+        .map(|w| w.period_s)
+        .collect()
+}
+
+/// A beat rate typed into the drawn Beat Rate box goes through core's
+/// `CustomCalibre::set_bph`: the balance follows the rate, and a balance
+/// typed that the rate doesn't give stays (#2515).
+#[test]
+fn the_beat_rate_box_moves_the_balance_with_it() {
+    let mut c = Calibres::in_memory();
+    let name = c.new_custom("Bench 28");
+    let t = Typing::new();
+    t.type_into(&mut c, &name, "custom bph", "28800");
+    t.enter(&mut c, &name);
+    assert_eq!(c.user.custom[0].bph, Some(28800));
+    assert_eq!(kept_balance(&c), [0.25]);
+    t.type_into(&mut c, &name, "custom bph", "21600");
+    t.enter(&mut c, &name);
+    assert_eq!(c.user.custom[0].bph, Some(21600));
+    let p = kept_balance(&c);
+    assert_eq!(p.len(), 1);
+    assert!((p[0] - 1.0 / 3.0).abs() < 1e-9, "{p:?}");
+    // A balance typed stays when the rate changes.
+    c.user.custom[0].wheels[0].period_s = 0.3;
+    t.type_into(&mut c, &name, "custom bph", "18000");
+    t.enter(&mut c, &name);
+    assert_eq!(c.user.custom[0].bph, Some(18000));
+    assert_eq!(kept_balance(&c), [0.3]);
+}
+
+/// Return on an emptied Beat Rate or Lift Angle box clears it just as 0
+/// does, and the balance from the rate goes with the rate (#2516).
+#[test]
+fn an_emptied_beat_rate_or_lift_box_clears_it_as_0_does() {
+    for cleared in ["", "0", " "] {
+        let mut c = Calibres::in_memory();
+        let name = c.new_custom("Bench 28");
+        let t = Typing::new();
+        for (what, text) in [("custom bph", "28800"), ("custom lift", "52")] {
+            t.type_into(&mut c, &name, what, text);
+            t.enter(&mut c, &name);
+        }
+        assert_eq!(c.user.custom[0].bph, Some(28800));
+        assert_eq!(c.user.custom[0].lift_angle_deg, Some(52.0));
+        assert_eq!(kept_balance(&c), [0.25]);
+        for what in ["custom bph", "custom lift"] {
+            // All selected, then "0" or a space typed over it, or Backspace.
+            t.type_into(&mut c, &name, what, cleared);
+            if cleared.is_empty() {
+                let back = Typing::key(egui::Key::Backspace, egui::Modifiers::NONE);
+                t.frame(&mut c, &name, back);
+            }
+            t.enter(&mut c, &name);
+        }
+        assert_eq!(c.user.custom[0].bph, None, "{cleared:?}");
+        assert_eq!(c.user.custom[0].lift_angle_deg, None, "{cleared:?}");
+        assert!(kept_balance(&c).is_empty(), "{cleared:?}");
     }
 }

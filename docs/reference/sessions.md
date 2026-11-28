@@ -20,7 +20,10 @@ read or no 45° stop was, and `poise-report.txt` when a 45° stop was
 (the eight upright stops' table, then the Dynamic Poise fit in words).
 Each reports the least wound state of wind's readings; with two states
 the Positions Test report sets them against the fullest, with Im and
-Ie. The JSON gives both whole in `text_reports`. The summary
+Ie. The JSON gives both whole in `text_reports`. Into a folder an
+earlier run wrote (`--out`), a text report this run does not write is
+taken out, so the folder holds only the reports `summary.json` lists;
+every other file in it is kept (#2417). The summary
 ends with the report's full path. `report.html` is one page in English:
 open it in any web browser, or attach it to an email to send it.
 

@@ -1,299 +1,299 @@
-bph
-calibre
-input
-input.files
-input.files[].path
-input.settings
-input.settings.analysis_only
-input.settings.bph
-input.settings.calibre
-input.settings.calibre_notes
-input.settings.cycles
-input.settings.lift_deg
-input.settings.settle_s
-input.settings.shape
-left_out
-left_out[].file
-left_out[].position
-left_out[].start_s
-left_out[].why
-lift_deg
-notes
-owner
-readings
-readings[].bph
-readings[].bph_measured
-readings[].bph_measured_se
-readings[].bph_set
-readings[].bph_set_from
-readings[].cycles
-readings[].cycles[].beyond_simulated
-readings[].cycles[].explained
-readings[].cycles[].fraction_of
-readings[].cycles[].harmonic_of
-readings[].cycles[].nearest_wheel
-readings[].cycles[].period_s
-readings[].cycles[].series
-readings[].cycles[].significance
-readings[].cycles[].size
-readings[].cycles[].size_unit
-readings[].cycles[].wheel
-readings[].date
-readings[].duration_s
-readings[].label
-readings[].measurement
-readings[].measurement.amplitude_deg
-readings[].measurement.amplitude_even_deg
-readings[].measurement.amplitude_odd_deg
-readings[].measurement.amplitude_p05
-readings[].measurement.amplitude_p95
-readings[].measurement.amplitude_states
-readings[].measurement.amplitude_states.beat_error_drop_ms
-readings[].measurement.amplitude_states.beat_error_unlock_ms
-readings[].measurement.amplitude_states.block_s
-readings[].measurement.amplitude_states.blocks
-readings[].measurement.amplitude_states.delta_bic
-readings[].measurement.amplitude_states.dwell_high_s
-readings[].measurement.amplitude_states.dwell_low_s
-readings[].measurement.amplitude_states.high
-readings[].measurement.amplitude_states.low
-readings[].measurement.amplitude_states.low_share
-readings[].measurement.amplitude_states.one_sided
-readings[].measurement.amplitude_states.period_s
-readings[].measurement.amplitude_states.regularity
-readings[].measurement.amplitude_states.separation
-readings[].measurement.amplitude_states.spread
-readings[].measurement.amplitude_states.switch_every_s
-readings[].measurement.amplitude_states.switches
-readings[].measurement.amplitude_states.tick_change
-readings[].measurement.amplitude_states.tick_edge_split_alone
-readings[].measurement.amplitude_states.tick_split_alone
-readings[].measurement.amplitude_states.tick_unlock_ms
-readings[].measurement.amplitude_states.tock_change
-readings[].measurement.amplitude_states.tock_edge_split_alone
-readings[].measurement.amplitude_states.tock_split_alone
-readings[].measurement.amplitude_states.tock_unlock_ms
-readings[].measurement.amplitude_states.two_levels
-readings[].measurement.amplitude_states.unlock_jump
-readings[].measurement.amplitude_windows
-readings[].measurement.beat_error_ms
-readings[].measurement.beat_error_source
-readings[].measurement.beat_error_unlock_ms
-readings[].measurement.beats
-readings[].measurement.calibrated
-readings[].measurement.caveats
-readings[].measurement.caveats[].code
-readings[].measurement.clean_fraction
-readings[].measurement.clipped_beats
-readings[].measurement.clipped_fraction
-readings[].measurement.confidence
-readings[].measurement.confidence.amplitude
-readings[].measurement.confidence.amplitude.se
-readings[].measurement.confidence.beat_error
-readings[].measurement.confidence.beat_error.se
-readings[].measurement.confidence.rate
-readings[].measurement.confidence.rate.se
-readings[].measurement.coverage
-readings[].measurement.coverage.amplitude
-readings[].measurement.coverage.amplitude.windows_in_span
-readings[].measurement.coverage.amplitude.windows_used
-readings[].measurement.coverage.beat_error
-readings[].measurement.coverage.beat_error.windows_in_span
-readings[].measurement.coverage.beat_error.windows_used
-readings[].measurement.coverage.rate
-readings[].measurement.coverage.rate.windows_in_span
-readings[].measurement.coverage.rate.windows_used
-readings[].measurement.end_s
-readings[].measurement.jitter_us
-readings[].measurement.rate_p05
-readings[].measurement.rate_p95
-readings[].measurement.rate_s_per_day
-readings[].measurement.rate_states
-readings[].measurement.rate_states.beat_error_drop_ms
-readings[].measurement.rate_states.beat_error_unlock_ms
-readings[].measurement.rate_states.block_s
-readings[].measurement.rate_states.blocks
-readings[].measurement.rate_states.delta_bic
-readings[].measurement.rate_states.dwell_high_s
-readings[].measurement.rate_states.dwell_low_s
-readings[].measurement.rate_states.high
-readings[].measurement.rate_states.low
-readings[].measurement.rate_states.low_share
-readings[].measurement.rate_states.one_sided
-readings[].measurement.rate_states.period_s
-readings[].measurement.rate_states.regularity
-readings[].measurement.rate_states.separation
-readings[].measurement.rate_states.spread
-readings[].measurement.rate_states.switch_every_s
-readings[].measurement.rate_states.switches
-readings[].measurement.rate_states.tick_change
-readings[].measurement.rate_states.tick_edge_split_alone
-readings[].measurement.rate_states.tick_split_alone
-readings[].measurement.rate_states.tick_unlock_ms
-readings[].measurement.rate_states.tock_change
-readings[].measurement.rate_states.tock_edge_split_alone
-readings[].measurement.rate_states.tock_split_alone
-readings[].measurement.rate_states.tock_unlock_ms
-readings[].measurement.rate_states.two_levels
-readings[].measurement.rate_states.unlock_jump
-readings[].measurement.rate_window_median_s_per_day
-readings[].measurement.start_s
-readings[].measurement.unlock_coverage
-readings[].measurement.watch_heard
-readings[].notes
-readings[].position
-readings[].reference
-readings[].shape
-readings[].shape.even
-readings[].shape.even.extra_post
-readings[].shape.even.extra_pre
-readings[].shape.even.i12_ms
-readings[].shape.even.i13_ms
-readings[].shape.even.noise_ratio
-readings[].shape.even.ratio13
-readings[].shape.even.ratio23
-readings[].shape.even.sound1_found
-readings[].shape.from_s
-readings[].shape.measured_s
-readings[].shape.odd
-readings[].shape.odd.extra_post
-readings[].shape.odd.extra_pre
-readings[].shape.odd.i12_ms
-readings[].shape.odd.i13_ms
-readings[].shape.odd.noise_ratio
-readings[].shape.odd.ratio13
-readings[].shape.odd.ratio23
-readings[].shape.odd.sound1_found
-readings[].wind_h
-report
-report.findings
-report.findings[].code
-report.findings[].evidence
-report.findings[].recording
-report.findings[].title
-report.ie
-report.im
-report.im_all
-report.isochronism
-report.position_lines
-report.position_lines[].amplitude
-report.position_lines[].amplitude.averages
-report.position_lines[].amplitude.averages[].figure
-report.position_lines[].amplitude.averages[].hover
-report.position_lines[].amplitude.averages[].name
-report.position_lines[].amplitude.averages[].of
-report.position_lines[].amplitude.averages[].text
-report.position_lines[].amplitude.averages[].value
-report.position_lines[].amplitude.axis
-report.position_lines[].amplitude.extent
-report.position_lines[].amplitude.key
-report.position_lines[].amplitude.lanes
-report.position_lines[].amplitude.lanes[].figure
-report.position_lines[].amplitude.lanes[].figures
-report.position_lines[].amplitude.lanes[].full_wind
-report.position_lines[].amplitude.lanes[].full_wind_text
-report.position_lines[].amplitude.lanes[].group
-report.position_lines[].amplitude.lanes[].hover
-report.position_lines[].amplitude.lanes[].name
-report.position_lines[].amplitude.lanes[].position
-report.position_lines[].amplitude.lanes[].text
-report.position_lines[].amplitude.lanes[].value
-report.position_lines[].amplitude.series
-report.position_lines[].amplitude.title
-report.position_lines[].amplitude.unit
-report.position_lines[].beat_error
-report.position_lines[].beat_error.averages
-report.position_lines[].beat_error.averages[].figure
-report.position_lines[].beat_error.averages[].hover
-report.position_lines[].beat_error.averages[].name
-report.position_lines[].beat_error.averages[].of
-report.position_lines[].beat_error.averages[].text
-report.position_lines[].beat_error.averages[].value
-report.position_lines[].beat_error.axis
-report.position_lines[].beat_error.extent
-report.position_lines[].beat_error.key
-report.position_lines[].beat_error.lanes
-report.position_lines[].beat_error.lanes[].figure
-report.position_lines[].beat_error.lanes[].figures
-report.position_lines[].beat_error.lanes[].full_wind
-report.position_lines[].beat_error.lanes[].full_wind_text
-report.position_lines[].beat_error.lanes[].group
-report.position_lines[].beat_error.lanes[].hover
-report.position_lines[].beat_error.lanes[].name
-report.position_lines[].beat_error.lanes[].position
-report.position_lines[].beat_error.lanes[].text
-report.position_lines[].beat_error.lanes[].value
-report.position_lines[].beat_error.series
-report.position_lines[].beat_error.title
-report.position_lines[].beat_error.unit
-report.position_lines[].name
-report.position_lines[].rate
-report.position_lines[].rate.averages
-report.position_lines[].rate.averages[].figure
-report.position_lines[].rate.averages[].hover
-report.position_lines[].rate.averages[].name
-report.position_lines[].rate.averages[].of
-report.position_lines[].rate.averages[].text
-report.position_lines[].rate.averages[].value
-report.position_lines[].rate.axis
-report.position_lines[].rate.extent
-report.position_lines[].rate.key
-report.position_lines[].rate.lanes
-report.position_lines[].rate.lanes[].figure
-report.position_lines[].rate.lanes[].figures
-report.position_lines[].rate.lanes[].full_wind
-report.position_lines[].rate.lanes[].full_wind_text
-report.position_lines[].rate.lanes[].group
-report.position_lines[].rate.lanes[].hover
-report.position_lines[].rate.lanes[].name
-report.position_lines[].rate.lanes[].position
-report.position_lines[].rate.lanes[].text
-report.position_lines[].rate.lanes[].value
-report.position_lines[].rate.series
-report.position_lines[].rate.title
-report.position_lines[].rate.unit
-report.position_lines[].wind_h
-report.states
-report.states[].amplitude_mean
-report.states[].beat_error_mean
-report.states[].beat_error_source
-report.states[].beat_error_sources
-report.states[].beat_error_sources.drop
-report.states[].beat_error_sources.unlock
-report.states[].caveats
-report.states[].d_amplitude
-report.states[].d_beat_error
-report.states[].d_rate
-report.states[].dh_rate
-report.states[].di
-report.states[].dv_rate
-report.states[].dvh_amplitude
-report.states[].dvh_rate
-report.states[].positions
-report.states[].positions[].amplitude_deg
-report.states[].positions[].beat_error_ms
-report.states[].positions[].beat_error_source
-report.states[].positions[].beat_error_sources
-report.states[].positions[].beat_error_sources.drop
-report.states[].positions[].beat_error_sources.unlock
-report.states[].positions[].caveats
-report.states[].positions[].position
-report.states[].positions[].rate_s_per_day
-report.states[].positions[].readings
-report.states[].wind_h
-report.states[].x
-report.states[].xh
-report.states[].xv
-schema
-software
-software.arch
-software.build_date
-software.git_dirty
-software.git_hash
-software.name
-software.os
-software.version
-text_reports
-text_reports[].file
-text_reports[].text
-watch
+bph number
+calibre null
+input object
+input.files array
+input.files[].path string
+input.settings object
+input.settings.analysis_only null
+input.settings.bph number
+input.settings.calibre null
+input.settings.calibre_notes array
+input.settings.cycles bool
+input.settings.lift_deg number
+input.settings.settle_s null
+input.settings.shape bool
+left_out array
+left_out[].file string
+left_out[].position string
+left_out[].start_s number
+left_out[].why string
+lift_deg number
+notes null
+owner null
+readings array
+readings[].bph number
+readings[].bph_measured number
+readings[].bph_measured_se null
+readings[].bph_set number
+readings[].bph_set_from string
+readings[].cycles array
+readings[].cycles[].beyond_simulated bool
+readings[].cycles[].explained number
+readings[].cycles[].fraction_of null
+readings[].cycles[].harmonic_of null
+readings[].cycles[].nearest_wheel null
+readings[].cycles[].period_s number
+readings[].cycles[].series string
+readings[].cycles[].significance number
+readings[].cycles[].size number
+readings[].cycles[].size_unit string
+readings[].cycles[].wheel null
+readings[].date null
+readings[].duration_s number
+readings[].label string
+readings[].measurement object
+readings[].measurement.amplitude_deg number
+readings[].measurement.amplitude_even_deg number
+readings[].measurement.amplitude_odd_deg number
+readings[].measurement.amplitude_p05 number
+readings[].measurement.amplitude_p95 number
+readings[].measurement.amplitude_states object
+readings[].measurement.amplitude_states.beat_error_drop_ms null
+readings[].measurement.amplitude_states.beat_error_unlock_ms null
+readings[].measurement.amplitude_states.block_s number
+readings[].measurement.amplitude_states.blocks number
+readings[].measurement.amplitude_states.delta_bic number
+readings[].measurement.amplitude_states.dwell_high_s number
+readings[].measurement.amplitude_states.dwell_low_s number
+readings[].measurement.amplitude_states.high number
+readings[].measurement.amplitude_states.low number
+readings[].measurement.amplitude_states.low_share number
+readings[].measurement.amplitude_states.one_sided bool
+readings[].measurement.amplitude_states.period_s null
+readings[].measurement.amplitude_states.regularity number
+readings[].measurement.amplitude_states.separation number
+readings[].measurement.amplitude_states.spread bool
+readings[].measurement.amplitude_states.switch_every_s number
+readings[].measurement.amplitude_states.switches number
+readings[].measurement.amplitude_states.tick_change null
+readings[].measurement.amplitude_states.tick_edge_split_alone null
+readings[].measurement.amplitude_states.tick_split_alone null
+readings[].measurement.amplitude_states.tick_unlock_ms null
+readings[].measurement.amplitude_states.tock_change null
+readings[].measurement.amplitude_states.tock_edge_split_alone null
+readings[].measurement.amplitude_states.tock_split_alone null
+readings[].measurement.amplitude_states.tock_unlock_ms null
+readings[].measurement.amplitude_states.two_levels bool
+readings[].measurement.amplitude_states.unlock_jump bool
+readings[].measurement.amplitude_windows number
+readings[].measurement.beat_error_ms number
+readings[].measurement.beat_error_source string
+readings[].measurement.beat_error_unlock_ms number
+readings[].measurement.beats number
+readings[].measurement.calibrated bool
+readings[].measurement.caveats array
+readings[].measurement.caveats[].code string
+readings[].measurement.clean_fraction number
+readings[].measurement.clipped_beats number
+readings[].measurement.clipped_fraction number
+readings[].measurement.confidence object
+readings[].measurement.confidence.amplitude object
+readings[].measurement.confidence.amplitude.se number
+readings[].measurement.confidence.beat_error object
+readings[].measurement.confidence.beat_error.se number
+readings[].measurement.confidence.rate object
+readings[].measurement.confidence.rate.se null
+readings[].measurement.coverage object
+readings[].measurement.coverage.amplitude object
+readings[].measurement.coverage.amplitude.windows_in_span number
+readings[].measurement.coverage.amplitude.windows_used number
+readings[].measurement.coverage.beat_error object
+readings[].measurement.coverage.beat_error.windows_in_span number
+readings[].measurement.coverage.beat_error.windows_used number
+readings[].measurement.coverage.rate object
+readings[].measurement.coverage.rate.windows_in_span number
+readings[].measurement.coverage.rate.windows_used number
+readings[].measurement.end_s number
+readings[].measurement.jitter_us number
+readings[].measurement.rate_p05 number
+readings[].measurement.rate_p95 number
+readings[].measurement.rate_s_per_day number
+readings[].measurement.rate_states object
+readings[].measurement.rate_states.beat_error_drop_ms null
+readings[].measurement.rate_states.beat_error_unlock_ms null
+readings[].measurement.rate_states.block_s number
+readings[].measurement.rate_states.blocks number
+readings[].measurement.rate_states.delta_bic number
+readings[].measurement.rate_states.dwell_high_s number
+readings[].measurement.rate_states.dwell_low_s number
+readings[].measurement.rate_states.high number
+readings[].measurement.rate_states.low number
+readings[].measurement.rate_states.low_share number
+readings[].measurement.rate_states.one_sided bool
+readings[].measurement.rate_states.period_s null
+readings[].measurement.rate_states.regularity number
+readings[].measurement.rate_states.separation number
+readings[].measurement.rate_states.spread bool
+readings[].measurement.rate_states.switch_every_s number
+readings[].measurement.rate_states.switches number
+readings[].measurement.rate_states.tick_change null
+readings[].measurement.rate_states.tick_edge_split_alone null
+readings[].measurement.rate_states.tick_split_alone null
+readings[].measurement.rate_states.tick_unlock_ms null
+readings[].measurement.rate_states.tock_change null
+readings[].measurement.rate_states.tock_edge_split_alone null
+readings[].measurement.rate_states.tock_split_alone null
+readings[].measurement.rate_states.tock_unlock_ms null
+readings[].measurement.rate_states.two_levels bool
+readings[].measurement.rate_states.unlock_jump bool
+readings[].measurement.rate_window_median_s_per_day number
+readings[].measurement.start_s number
+readings[].measurement.unlock_coverage number
+readings[].measurement.watch_heard bool
+readings[].notes null
+readings[].position string
+readings[].reference null
+readings[].shape object
+readings[].shape.even object
+readings[].shape.even.extra_post array
+readings[].shape.even.extra_pre array
+readings[].shape.even.i12_ms number
+readings[].shape.even.i13_ms number
+readings[].shape.even.noise_ratio number
+readings[].shape.even.ratio13 number
+readings[].shape.even.ratio23 number
+readings[].shape.even.sound1_found number
+readings[].shape.from_s number
+readings[].shape.measured_s number
+readings[].shape.odd object
+readings[].shape.odd.extra_post array
+readings[].shape.odd.extra_pre array
+readings[].shape.odd.i12_ms number
+readings[].shape.odd.i13_ms number
+readings[].shape.odd.noise_ratio number
+readings[].shape.odd.ratio13 number
+readings[].shape.odd.ratio23 number
+readings[].shape.odd.sound1_found number
+readings[].wind_h null
+report object
+report.findings array
+report.findings[].code string
+report.findings[].evidence string
+report.findings[].recording number
+report.findings[].title string
+report.ie null
+report.im null
+report.im_all null
+report.isochronism array
+report.position_lines array
+report.position_lines[].amplitude object
+report.position_lines[].amplitude.averages array
+report.position_lines[].amplitude.averages[].figure string
+report.position_lines[].amplitude.averages[].hover string
+report.position_lines[].amplitude.averages[].name string
+report.position_lines[].amplitude.averages[].of string
+report.position_lines[].amplitude.averages[].text string
+report.position_lines[].amplitude.averages[].value number
+report.position_lines[].amplitude.axis array
+report.position_lines[].amplitude.extent array
+report.position_lines[].amplitude.key null
+report.position_lines[].amplitude.lanes array
+report.position_lines[].amplitude.lanes[].figure string
+report.position_lines[].amplitude.lanes[].figures string
+report.position_lines[].amplitude.lanes[].full_wind null
+report.position_lines[].amplitude.lanes[].full_wind_text null
+report.position_lines[].amplitude.lanes[].group string
+report.position_lines[].amplitude.lanes[].hover string
+report.position_lines[].amplitude.lanes[].name string
+report.position_lines[].amplitude.lanes[].position string
+report.position_lines[].amplitude.lanes[].text string
+report.position_lines[].amplitude.lanes[].value number
+report.position_lines[].amplitude.series string
+report.position_lines[].amplitude.title string
+report.position_lines[].amplitude.unit string
+report.position_lines[].beat_error object
+report.position_lines[].beat_error.averages array
+report.position_lines[].beat_error.averages[].figure string
+report.position_lines[].beat_error.averages[].hover string
+report.position_lines[].beat_error.averages[].name string
+report.position_lines[].beat_error.averages[].of string
+report.position_lines[].beat_error.averages[].text string
+report.position_lines[].beat_error.averages[].value number
+report.position_lines[].beat_error.axis array
+report.position_lines[].beat_error.extent array
+report.position_lines[].beat_error.key null
+report.position_lines[].beat_error.lanes array
+report.position_lines[].beat_error.lanes[].figure string
+report.position_lines[].beat_error.lanes[].figures string
+report.position_lines[].beat_error.lanes[].full_wind null
+report.position_lines[].beat_error.lanes[].full_wind_text null
+report.position_lines[].beat_error.lanes[].group string
+report.position_lines[].beat_error.lanes[].hover string
+report.position_lines[].beat_error.lanes[].name string
+report.position_lines[].beat_error.lanes[].position string
+report.position_lines[].beat_error.lanes[].text string
+report.position_lines[].beat_error.lanes[].value number
+report.position_lines[].beat_error.series string
+report.position_lines[].beat_error.title string
+report.position_lines[].beat_error.unit string
+report.position_lines[].name string
+report.position_lines[].rate object
+report.position_lines[].rate.averages array
+report.position_lines[].rate.averages[].figure string
+report.position_lines[].rate.averages[].hover string
+report.position_lines[].rate.averages[].name string
+report.position_lines[].rate.averages[].of string
+report.position_lines[].rate.averages[].text string
+report.position_lines[].rate.averages[].value number
+report.position_lines[].rate.axis array
+report.position_lines[].rate.extent array
+report.position_lines[].rate.key null
+report.position_lines[].rate.lanes array
+report.position_lines[].rate.lanes[].figure string
+report.position_lines[].rate.lanes[].figures string
+report.position_lines[].rate.lanes[].full_wind null
+report.position_lines[].rate.lanes[].full_wind_text null
+report.position_lines[].rate.lanes[].group string
+report.position_lines[].rate.lanes[].hover string
+report.position_lines[].rate.lanes[].name string
+report.position_lines[].rate.lanes[].position string
+report.position_lines[].rate.lanes[].text string
+report.position_lines[].rate.lanes[].value number
+report.position_lines[].rate.series string
+report.position_lines[].rate.title string
+report.position_lines[].rate.unit string
+report.position_lines[].wind_h null
+report.states array
+report.states[].amplitude_mean number
+report.states[].beat_error_mean number
+report.states[].beat_error_source string
+report.states[].beat_error_sources object
+report.states[].beat_error_sources.drop number
+report.states[].beat_error_sources.unlock number
+report.states[].caveats array
+report.states[].d_amplitude number
+report.states[].d_beat_error number
+report.states[].d_rate number
+report.states[].dh_rate null
+report.states[].di null
+report.states[].dv_rate null
+report.states[].dvh_amplitude number
+report.states[].dvh_rate number
+report.states[].positions array
+report.states[].positions[].amplitude_deg number
+report.states[].positions[].beat_error_ms number
+report.states[].positions[].beat_error_source string
+report.states[].positions[].beat_error_sources object
+report.states[].positions[].beat_error_sources.drop number
+report.states[].positions[].beat_error_sources.unlock number
+report.states[].positions[].caveats array
+report.states[].positions[].position string
+report.states[].positions[].rate_s_per_day number
+report.states[].positions[].readings number
+report.states[].wind_h null
+report.states[].x number
+report.states[].xh number
+report.states[].xv number
+schema string
+software object
+software.arch string
+software.build_date string
+software.git_dirty bool
+software.git_hash string
+software.name string
+software.os string
+software.version string
+text_reports array
+text_reports[].file string
+text_reports[].text string
+watch null

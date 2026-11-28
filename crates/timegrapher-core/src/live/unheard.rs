@@ -50,32 +50,54 @@ pub fn in_spans(spans: &[(f64, f64)], t: f64) -> bool {
     spans.iter().any(|&(a, b)| t >= a && t <= b)
 }
 
+/// The parts of the stretches `spans` (start, end; the last may run on)
+/// up to `end_s` that a watch was heard in, in time order: each stretch
+/// less every stretch [`unheard_spans`] gives for `trend`. With no reading
+/// at all none of it is known to hold a watch, so none (#2183: silence is
+/// not beats). The one set of heard stretches a position's steadiness
+/// tests start on, read and count (Norm on #2451).
+pub fn heard_spans(
+    trend: &[TrendReading],
+    average_s: f64,
+    spans: &[(f64, f64)],
+    end_s: f64,
+) -> Vec<(f64, f64)> {
+    if trend.is_empty() {
+        return Vec::new();
+    }
+    let unheard = unheard_spans(trend, average_s, end_s);
+    let mut out = Vec::new();
+    for (a, b) in spans
+        .iter()
+        .map(|&(a, b)| (a.max(0.0), b.min(end_s)))
+        .filter(|(a, b)| b > a)
+    {
+        let mut from = a;
+        for &(u, v) in unheard.iter().filter(|&&(u, v)| v > a && u < b) {
+            if u > from {
+                out.push((from, u));
+            }
+            from = from.max(v);
+        }
+        if from < b {
+            out.push((from, b));
+        }
+    }
+    out
+}
+
 /// How long a watch was heard in the stretches `spans` (start, end; the
-/// last may run on) up to `end_s`, seconds: their length outside every
-/// stretch [`unheard_spans`] gives for `trend`. With no reading at all
-/// none of it is known to hold a watch, so none (#2183: silence is not
-/// beats).
+/// last may run on) up to `end_s`, seconds: the length of their
+/// [`heard_spans`].
 pub fn heard_seconds(
     trend: &[TrendReading],
     average_s: f64,
     spans: &[(f64, f64)],
     end_s: f64,
 ) -> f64 {
-    if trend.is_empty() {
-        return 0.0;
-    }
-    let unheard = unheard_spans(trend, average_s, end_s);
-    let overlap = |a: f64, b: f64| -> f64 {
-        unheard
-            .iter()
-            .map(|&(u, v)| (b.min(v) - a.max(u)).max(0.0))
-            .sum()
-    };
-    spans
+    heard_spans(trend, average_s, spans, end_s)
         .iter()
-        .map(|&(a, b)| (a.max(0.0), b.min(end_s)))
-        .filter(|(a, b)| b > a)
-        .map(|(a, b)| (b - a) - overlap(a, b))
+        .map(|(a, b)| b - a)
         .sum()
 }
 
@@ -149,5 +171,27 @@ mod tests {
         // The last stretch runs on: cut at the end.
         assert_eq!(heard_seconds(&late, 10.0, &[(12.0, 99.0)], 35.0), 23.0);
         assert_eq!(heard_seconds(&[], 10.0, &[(0.0, 35.0)], 35.0), 0.0);
+    }
+
+    /// The heard stretches themselves (Norm on #2451): an unheard stretch
+    /// inside a span splits it, one over its start or end trims it, and
+    /// a span wholly unheard leaves nothing; no reading, none.
+    #[test]
+    fn heard_spans_leave_the_unheard_out() {
+        // Unheard 0..20 (before the first heard reading's look back) and
+        // 60..100 (after the reading at 60, until the look back of 110).
+        let heard = |k: i32| !(1..=2).contains(&k) && !(7..=10).contains(&k);
+        let trend: Vec<_> = (1..=15).map(|k| at(k as f64 * 10.0, heard(k))).collect();
+        assert_eq!(
+            unheard_spans(&trend, 10.0, 150.0),
+            vec![(0.0, 20.0), (60.0, 100.0)]
+        );
+        let spans = [(5.0, 15.0), (10.0, 130.0), (140.0, 999.0)];
+        assert_eq!(
+            heard_spans(&trend, 10.0, &spans, 150.0),
+            vec![(20.0, 60.0), (100.0, 130.0), (140.0, 150.0)]
+        );
+        assert_eq!(heard_seconds(&trend, 10.0, &spans, 150.0), 80.0);
+        assert!(heard_spans(&[], 10.0, &spans, 150.0).is_empty());
     }
 }

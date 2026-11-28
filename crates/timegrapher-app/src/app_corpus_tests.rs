@@ -89,23 +89,60 @@ fn session_readings(cli: &Path, dir: &Path) -> Vec<serde_json::Value> {
         .unwrap_or_default()
 }
 
+/// A folder in the system's temp folder for one command-line run's
+/// `--out`: named by `stem`, this process and a count kept for the whole
+/// process, so no two calls share one even when two tests on two threads
+/// run the same take at once (#2489). Removed when dropped; it removes
+/// only its own folder.
+struct RunFolder(PathBuf);
+
+impl RunFolder {
+    fn new(stem: &str) -> Self {
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let path =
+            std::env::temp_dir().join(format!("tg-app-corpus-{stem}-{}-{n}", std::process::id()));
+        // Left by an earlier process given this process's id.
+        let _ = std::fs::remove_dir_all(&path);
+        Self(path)
+    }
+}
+
+impl Drop for RunFolder {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+/// Two runs for the same take get two folders, so one test's cleanup
+/// cannot remove the other's output (#2489).
+#[test]
+fn two_session_runs_for_one_take_get_two_folders() {
+    let a = RunFolder::new("same_take");
+    let b = RunFolder::new("same_take");
+    assert_ne!(a.0, b.0);
+    std::fs::create_dir_all(&a.0).unwrap();
+    std::fs::create_dir_all(&b.0).unwrap();
+    let kept = b.0.clone();
+    drop(b);
+    assert!(a.0.is_dir(), "dropping one run's folder removed another's");
+    assert!(!kept.exists(), "a run's folder outlives its run");
+}
+
 /// `timegrapher session --json` for the take.
 fn session_json(cli: &Path, dir: &Path) -> serde_json::Value {
-    let out = std::env::temp_dir().join(format!(
-        "tg-app-corpus-{}-{}",
-        dir.file_name().unwrap().to_string_lossy(),
-        std::process::id()
-    ));
-    let _ = std::fs::remove_dir_all(&out);
+    let out = RunFolder::new(&dir.file_name().unwrap().to_string_lossy());
+    let t = Instant::now();
     let run = std::process::Command::new(cli)
         .arg("session")
         .arg(dir)
         .arg("--json")
         .arg("--out")
-        .arg(&out)
+        .arg(&out.0)
         .output()
         .expect("the command line runs");
-    let _ = std::fs::remove_dir_all(&out);
+    eprintln!("TIME session {dir:?}: {:.1} s", t.elapsed().as_secs_f64());
+    drop(out);
     assert!(
         run.status.success(),
         "session {dir:?}: {}",
@@ -207,7 +244,9 @@ fn compare(root: &Path, cli: &Path, known: &[(&str, &str)]) -> Vec<String> {
     let found = timegrapher_core::cores::on_every_core(&named, |((id, reading), name)| {
         let label = label(reading);
         let name = name.clone();
+        let t = Instant::now();
         let app = opened(&root.join("takes").join(id).join(label));
+        eprintln!("TIME open {name}: {:.1} s", t.elapsed().as_secs_f64());
         let found = differences(&name, &app.whole_take(), reading);
         match known.iter().find(|(k, _)| *k == name) {
             Some((_, why)) if !found.is_empty() => {
@@ -467,12 +506,14 @@ fn split_entries_clock_folder_missing_metadata() {
 
 /// `timegrapher series --json` for the take.
 fn series_json(cli: &Path, dir: &Path) -> serde_json::Value {
+    let t = Instant::now();
     let run = std::process::Command::new(cli)
         .arg("series")
         .arg(dir)
         .arg("--json")
         .output()
         .expect("the command line runs");
+    eprintln!("TIME series {dir:?}: {:.1} s", t.elapsed().as_secs_f64());
     assert!(
         run.status.success(),
         "series {dir:?}: {}",
@@ -525,7 +566,12 @@ fn figures_apart(ours: Option<&serde_json::Value>, theirs: Option<&serde_json::V
 fn pane_differences(id: &str, root: &Path, cli: &Path) -> (Vec<(String, String)>, bool, f64) {
     use timegrapher_core::distribution as dist;
     let dir = root.join("takes").join(id);
+    let whole = Instant::now();
     let mut app = opened(&dir);
+    eprintln!(
+        "TIME open {id} whole: {:.1} s",
+        whole.elapsed().as_secs_f64()
+    );
     app.update_dist_readings(None);
     let series = series_json(cli, &dir);
     let mut out = Vec::new();
@@ -582,6 +628,7 @@ fn pane_differences(id: &str, root: &Path, cli: &Path) -> (Vec<(String, String)>
         .live
         .as_ref()
         .map_or(0.0, |l| l.duration_s());
+    eprintln!("TIME panes {id}: {:.1} s", whole.elapsed().as_secs_f64());
     (out, run, length)
 }
 
@@ -834,8 +881,23 @@ fn row_against_cards(name: &str, dir: &Path, paused: bool) -> Vec<String> {
             card.beat_error_unlock_error_ms,
         ),
     ];
+    // Under 10 s heard neither has a figure nor a ±, and the cards wait
+    // (Norm's ruling A on #2333); the beats, span and caveats below still
+    // agree.
+    let awaiting = x.end_s - x.start_s < timegrapher_core::measure::SHORT_SPAN_S;
+    if awaiting && card.listening.is_none() {
+        wrong.push(format!("{name}: under 10 s heard, the cards don't wait"));
+    }
     for (what, row, card) in pairs {
         eprintln!("{name}: {what} {row:?} in the row, {card:?} on the cards");
+        if awaiting {
+            if row.is_some() || card.is_some() {
+                wrong.push(format!(
+                    "{name}: under 10 s heard, {what} {row:?} in the row, {card:?} on the cards"
+                ));
+            }
+            continue;
+        }
         if row.is_none() && what.ends_with('±') {
             continue;
         }

@@ -74,11 +74,15 @@ class GateTests(unittest.TestCase):
         # independent GitHub expression evaluator. Review helper + controls if
         # publication semantics change; a tag dispatch must never bypass it.
         self.assertEqual(" ".join(predicate[1].split()),
-                         "(github.event_name == 'push' && github.ref_type == 'tag') || "
+                         "!cancelled() && needs.version.result == 'success' && "
+                         "needs.build.result == 'success' && "
+                         "((github.event_name == 'push' && github.ref_type == 'tag') || "
                          "(github.event_name == 'workflow_dispatch' && inputs.release && "
-                         "github.ref == 'refs/heads/main')")
-        # Every build waits for the gate, whatever else it needs.
-        self.assertRegex(text, r"(?m)^  build:\n    needs: (ci-gate|\[([\w-]+, )*ci-gate(, [\w-]+)*\])\n")
+                         "github.ref == 'refs/heads/main'))")
+        # Every build waits for the gate, whatever else it needs, and runs
+        # only when the gate passed.
+        self.assertRegex(text, r"(?m)^  build:\n    needs: (ci-gate|\[([\w-]+, )*ci-gate(, [\w-]+)*\])\n"
+                               r"    if: \$\{\{ !cancelled\(\) && needs\.ci-gate\.result == 'success' && ")
 
     def test_equivalence_job_is_the_last_required_job(self):
         # successful_jobs() and the step tests below put the step on jobs[-1].
