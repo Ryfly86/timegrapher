@@ -570,8 +570,10 @@ impl LiveAnalyzer {
         a.cfg.analysis.amplitude.escapement = log.escapement;
         a.total = (log.duration_s * a.fs).round() as u64;
         a.settled_to = log.duration_s;
-        a.bph = Some(log.bph);
-        a.logged_bph = Some(log.bph);
+        // A log of sound with no beat found carries 0 for its rate: no
+        // beats means no rate, and 0 bph is not one (#2181).
+        a.bph = (log.bph > 0).then_some(log.bph);
+        a.logged_bph = a.bph;
         // The clean beats' sound the log kept, each with its side: the
         // verdict's sample, and the profiles' recent span.
         let mut kept = log.snippets.into_iter().peekable();
