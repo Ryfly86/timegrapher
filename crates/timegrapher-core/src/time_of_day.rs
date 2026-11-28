@@ -80,17 +80,43 @@ where
     if !spans_in(w, end, tz) {
         return Vec::new();
     }
-    let last = w.unix_at(end.max(0.0));
-    // A day on from any second is the next day's, DST or not; a week of
-    // them names every weekday.
-    let mut labels: Vec<String> = (0..7)
-        .map(|k| w.start_unix + k as f64 * 86_400.0)
-        .take_while(|&u| u <= last)
-        .chain(std::iter::once(last))
-        .filter_map(|u| local_in(u, tz).map(|d| d.format(WITH_DAY).to_string()))
+    let (first, last) = (w.unix_at(0.0), w.unix_at(end.max(0.0)));
+    // The take's first second, the midnight of each day after it (a
+    // week's at most, as a week names every weekday), and its last.
+    let days = local_in(first, tz).map(|d| d.date_naive()).into_iter();
+    let days = days.flat_map(|d| d.iter_days().skip(1).take(6));
+    let mut labels: Vec<String> = std::iter::once(local_in(first, tz))
+        .chain(days.map(|d| {
+            let midnight = d.and_hms_opt(0, 0, 0)?;
+            tz.from_local_datetime(&midnight).earliest()
+        }))
+        .flatten()
+        .filter(|d| d.timestamp() as f64 <= last)
+        .chain(local_in(last, tz))
+        .map(|d| d.format(WITH_DAY).to_string())
         .collect();
     labels.dedup();
     labels
+}
+
+/// The times of the labelled lines on a time axis, `step` apart, from
+/// the newest at or before `end` back to the oldest drawn
+/// ([`line_drawn`]).
+pub fn time_lines(end: f64, oldest: f64, step: f64) -> Vec<f64> {
+    let mut t = (end / step).floor() * step;
+    let mut lines = Vec::new();
+    while line_drawn(t, oldest) {
+        lines.push(t);
+        t -= step;
+    }
+    lines
+}
+
+/// Whether a time axis whose oldest end is at the take's second
+/// `oldest` draws the line at second `t`: after that end, and none
+/// before the session started.
+fn line_drawn(t: f64, oldest: f64) -> bool {
+    t > oldest && t >= -1e-9
 }
 
 /// `unix` in `tz`, rounded to the second.
@@ -122,12 +148,13 @@ fn begins_day_in<Tz: TimeZone>(
     (from, end): (f64, f64),
     tz: &Tz,
 ) -> bool {
-    // The take's first line drawn: the axis reaches back to its second 0
-    // and the line a step before isn't drawn, being before the take or
-    // not after `from`. Lines fall on whole steps from second 0, so at an
-    // axis starting on 0 it is the line a step in (Walter on #2556).
-    let (eps, before) = (step * 1e-9, t - step);
-    if from <= eps && (before < -eps || before <= from + eps) {
+    // The take's first line drawn: the line a step before isn't drawn
+    // ([`line_drawn`], the one rule `time_lines` keeps), and that line is
+    // second 0 or before, as on a strip fitted to the take, where the
+    // line at 0 isn't drawn (Walter and Trevor on #2556). Lines fall on
+    // whole steps from second 0, so half a step tells line 0 from line 1.
+    let before = t - step;
+    if !line_drawn(before, from) && before < step / 2.0 {
         return spans_in(w, end, tz);
     }
     day_in(w.unix_at(t), tz) != day_in(w.unix_at(t - step), tz)
@@ -352,11 +379,16 @@ mod tests {
         let w = WallClock::new(LATE_THU, &[]);
         assert_eq!(
             day_labels_in(&w, 3600.0, &utc()),
-            ["Thu 23:34:27", "Fri 00:34:27"]
+            ["Thu 23:34:27", "Fri 00:00:00", "Fri 00:34:27"]
         );
         assert_eq!(
             day_labels_in(&w, 2.0 * 86_400.0, &utc()),
-            ["Thu 23:34:27", "Fri 23:34:27", "Sat 23:34:27"]
+            [
+                "Thu 23:34:27",
+                "Fri 00:00:00",
+                "Sat 00:00:00",
+                "Sat 23:34:27"
+            ]
         );
         assert_eq!(day_labels_in(&w, 30.0 * 86_400.0, &utc()).len(), 8);
         assert!(day_labels_in(&WallClock::new(START, &[]), 3600.0, &utc()).is_empty());
@@ -383,5 +415,22 @@ mod tests {
             label_on(&w, 600.0, 600.0, (0.0, 3600.0), &utc()),
             "14:42:18"
         );
+    }
+
+    /// With the strip's oldest end a hair below 0, the line at 0 is drawn
+    /// and names the day, and the line after it doesn't: one day name, as
+    /// at exactly 0, where only the line a step in names it (Trevor on
+    /// #2556).
+    #[test]
+    fn one_line_names_the_day_wherever_the_axis_starts_near_zero() {
+        let w = WallClock::new(LATE_THU, &[]);
+        for from in [0.0, -1e-10, -1e-6, -300.0, 1e-10, 300.0] {
+            let named: Vec<String> = time_lines(1800.0, from, 600.0)
+                .into_iter()
+                .map(|t| label_on(&w, t, 600.0, (from, 3600.0), &utc()))
+                .filter(|l| l.starts_with("Thu"))
+                .collect();
+            assert_eq!(named.len(), 1, "from {from}: {named:?}");
+        }
     }
 }

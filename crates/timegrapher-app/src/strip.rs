@@ -13,7 +13,7 @@
 
 use crate::strength::{self, Zero};
 pub use axis::fmt_time_fine;
-use axis::{axis_ms, clock_column, label_every, time_gap, time_lines, time_step, CLOCK_COLUMN};
+use axis::{axis_ms, clock_column, label_every, time_gap, time_step, CLOCK_COLUMN};
 use eframe::egui::{self, Align2, Color32, FontId, Pos2, Rect, Sense, Stroke, Vec2};
 use sweep::{Geom, Sweep};
 use timegrapher_core::beats::Beat;
@@ -21,6 +21,7 @@ use timegrapher_core::breaks::Break;
 use timegrapher_core::chart_scale::{axis_number, round_step, steady_ends};
 use timegrapher_core::clock::ClockFit;
 use timegrapher_core::library::length_text;
+use timegrapher_core::time_of_day::time_lines;
 pub use timegrapher_core::timing::Anchor;
 
 mod axis;

@@ -2,7 +2,7 @@
 
 use eframe::egui::{self, Color32, FontId};
 use timegrapher_core::chart_scale::{axis_tick, round_step};
-use timegrapher_core::time_of_day::WallClock;
+use timegrapher_core::time_of_day::{time_lines, WallClock};
 
 /// Which grid lines across the strip, `step` ms and `step_px` points
 /// apart, carry a label: every `n`th, the fewest skipped that leaves
@@ -49,19 +49,6 @@ pub(super) fn time_step(span: f64, gap: f64, along_px: f64) -> f64 {
         .filter(|&s| s >= 1.0)
         .find(|&s| s >= want)
         .unwrap_or(172800.0)
-}
-
-/// The times of the labelled lines, `step` apart, from the newest at or
-/// before `end` back to just after `oldest`, and none before the session
-/// started.
-pub(super) fn time_lines(end: f64, oldest: f64, step: f64) -> Vec<f64> {
-    let mut t = (end / step).floor() * step;
-    let mut lines = Vec::new();
-    while t > oldest && t >= -1e-9 {
-        lines.push(t);
-        t -= step;
-    }
-    lines
 }
 
 /// Down, with Time of Day, the label column's least width, points: room
