@@ -1430,3 +1430,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "longrun_verdict_tests.rs"]
+mod verdict_tests;
