@@ -1854,3 +1854,51 @@ fn no_reading_caption_is_cut_at_800_early_in_a_take() {
         }
     }
 }
+
+/// A short Listen that hears nothing, stopped (#2181): the beat rate
+/// reads "Auto", never "Auto 0", while it listens and once the take
+/// stopped is read whole. The input sends digital silence, as one the
+/// app may not use yet does. No beats means no rate, and 0 bph is not a
+/// beat rate.
+#[test]
+fn a_silent_listen_stopped_reads_auto_not_auto_0() {
+    use super::tests::{queued_capture, save_failure_fixture};
+    let (mut app, base) = save_failure_fixture("silent-listen");
+    let tx = queued_capture(&mut app, &base);
+    // 5 s after the fixture's first second, as Shane's 4 to 6 s.
+    for k in 0..250_u64 {
+        tx.send(Event::Audio(timegrapher_core::capture::Block {
+            samples: vec![0.0; 960],
+            at: std::time::UNIX_EPOCH + Duration::from_millis(2000 + 20 * k),
+        }))
+        .unwrap();
+    }
+    while app.poll_for(Duration::from_secs(60)) > 0 {}
+    let ctx = themed();
+    let auto = |app: &mut TimegrapherApp, when: &str| {
+        assert_eq!(app.bph_heard(), None, "{when}");
+        assert_eq!(app.watch_facts().1, "Auto", "{when}");
+        let texts = window_texts(app, &ctx, 1610.0);
+        assert!(texts.iter().any(|t| t == "Auto"), "{when}: {texts:?}");
+        assert!(
+            !texts.iter().any(|t| t.starts_with("Auto ") || t == "0 bph"),
+            "{when}: {texts:?}"
+        );
+    };
+    auto(&mut app, "listening");
+    app.stop_listening();
+    let t = Instant::now();
+    while app.stop_read_waits().is_some() {
+        app.poll_stop_read();
+        assert!(t.elapsed().as_secs() < 60, "the Stop read");
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    app.poll_stop_read();
+    assert!(
+        app.stopped_take().is_some(),
+        "the take stopped is read whole"
+    );
+    auto(&mut app, "stopped");
+    drop(tx);
+    let _ = std::fs::remove_dir_all(&base);
+}
