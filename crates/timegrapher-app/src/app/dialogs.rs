@@ -25,6 +25,9 @@ impl TimegrapherApp {
             self.confirm = None;
             return self.confirmed(what, ctx);
         }
+        if let Confirm::CloseToListen(watch) = what {
+            return self.close_to_listen_dialog(ctx, watch);
+        }
         let mut choice = None;
         let metadata = self.metadata_unsaved();
         let masks = self.marks_unsaved();
@@ -48,7 +51,8 @@ impl TimegrapherApp {
                         | Confirm::PickWatch(_)
                         | Confirm::Open { .. }
                         | Confirm::Microphone
-                        | Confirm::QuickListen,
+                        | Confirm::QuickListen
+                        | Confirm::CloseToListen(_),
                     ) => "Don't Save",
                     (None, Confirm::Quit) => "Quit Without Saving",
                 };
@@ -107,6 +111,7 @@ impl TimegrapherApp {
         match what {
             Confirm::PickWatch(_) | Confirm::ReserveStart => self.line_pick_asks(),
             Confirm::NewTake(kind) => self.new_take_asks(*kind),
+            Confirm::CloseToListen(_) => self.listen_closes_opened(),
             _ => self.needs_save_confirmation(),
         }
     }
@@ -128,6 +133,57 @@ impl TimegrapherApp {
         } else {
             format!("This session's {unsaved} of sound hasn't been saved and will be thrown away.")
         }
+    }
+
+    /// Listen over a recording opened with nothing unsaved: it closes,
+    /// unchanged, once Close and Listen is pressed (#2108). `watch`: a
+    /// take of the watch picked follows, else a Quick Listen.
+    fn close_to_listen_dialog(&mut self, ctx: &egui::Context, watch: bool) {
+        let mut choice = None;
+        let text = self.close_to_listen_text(watch);
+        theme::sheet(egui::Id::new("confirm")).show(ctx, |ui| {
+            ui.set_width(360.0);
+            ui.label(
+                RichText::new(confirm_title(&Confirm::CloseToListen(watch)))
+                    .font(theme::semibold(15.0)),
+            );
+            ui.add_space(4.0);
+            ui.label(text);
+            ui.add_space(8.0);
+            choice = theme::dialog_buttons(
+                ui,
+                &[
+                    DialogButton::new(Role::Default, "Close and Listen", ""),
+                    DialogButton::new(Role::Cancel, "Cancel", ""),
+                ],
+            );
+        });
+        match choice {
+            Some(0) => {
+                self.confirm = None;
+                self.confirmed(Confirm::CloseToListen(watch), ctx);
+            }
+            Some(_) => self.confirm = None,
+            None => {}
+        }
+    }
+
+    /// What the question before Listen closes a recording opened says.
+    pub(super) fn close_to_listen_text(&self, watch: bool) -> String {
+        let name = self.take_on_show().map_or_else(
+            || "The recording".into(),
+            |p| {
+                p.file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned()
+            },
+        );
+        let next = match self.open_watch().filter(|_| watch) {
+            Some(w) => format!("a new take of {}", w.watch.name),
+            None => "a Quick Listen".into(),
+        };
+        format!("“{name}” closes unchanged, and {next} starts on the microphone.")
     }
 
     /// The question before throwing away unsaved sound, while a save is
@@ -169,13 +225,16 @@ impl TimegrapherApp {
             Confirm::NewTake(kind) => self.new_take(kind, true),
             Confirm::ReserveStart => self.start_reserve_asked(true),
             Confirm::PickWatch(id) => {
-                // Asked over a Quick Listen still listening: it stops now.
+                // Not asked while listening since #2107; were it, it stops.
                 self.pause();
                 self.line_pick(id, true)
             }
             Confirm::Open { path, no_watch } => self.open_recording_as(&path, false, no_watch),
             Confirm::Microphone => self.listen_after_ask(),
             Confirm::QuickListen => self.quick_listen(true),
+            // Not asked: what else Listen asks about still is.
+            Confirm::CloseToListen(true) => self.new_take(NewTake::Listen, false),
+            Confirm::CloseToListen(false) => self.quick_listen(false),
             Confirm::Quit => {
                 self.may_close = true;
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
@@ -1008,6 +1067,7 @@ pub(super) fn confirm_title(what: &Confirm) -> &'static str {
         Confirm::Quit => "Quit without saving?",
         Confirm::Open { .. } => "Open the recording without saving?",
         Confirm::Microphone | Confirm::QuickListen => "Start listening without saving?",
+        Confirm::CloseToListen(_) => "Close the recording and listen?",
     }
 }
 
