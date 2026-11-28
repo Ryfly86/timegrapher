@@ -267,12 +267,14 @@ pub fn median_of(v: impl Iterator<Item = f64>) -> Option<f64> {
 /// middle values, so it scatters less than the odd count either side);
 /// π/2, the large-k limit, beyond. 1 for k of 1 or 2, where the median
 /// is the mean (#656).
-pub const MEDIAN_VARIANCE_FACTOR: [f64; 10] = [
+#[cfg(test)]
+pub(crate) const MEDIAN_VARIANCE_FACTOR: [f64; 10] = [
     1.0, 1.0, 1.3460, 1.1928, 1.4342, 1.2885, 1.4731, 1.3454, 1.4949, 1.3833,
 ];
 
 /// [`MEDIAN_VARIANCE_FACTOR`] for `k` values (1 for none).
-pub fn median_variance_factor(k: usize) -> f64 {
+#[cfg(test)]
+pub(crate) fn median_variance_factor(k: usize) -> f64 {
     match k {
         0 => 1.0,
         1..=10 => MEDIAN_VARIANCE_FACTOR[k - 1],

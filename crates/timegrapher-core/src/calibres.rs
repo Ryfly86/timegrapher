@@ -232,7 +232,8 @@ pub struct Asset {
 }
 
 /// The kinds `Asset::kind` may take.
-pub const ASSET_KINDS: [&str; 6] = [
+#[cfg(test)]
+pub(crate) const ASSET_KINDS: [&str; 6] = [
     "spec sheet",
     "drawing",
     "manual",

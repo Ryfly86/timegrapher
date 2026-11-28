@@ -302,7 +302,8 @@ pub fn also_known_as(c: &Calibre) -> Option<String> {
 }
 
 /// Every value a row's `confidence` may take (`data/README.md`).
-pub const CONFIDENCES: [&str; 9] = [
+#[cfg(test)]
+pub(crate) const CONFIDENCES: [&str; 9] = [
     "published list",
     "maker's page",
     "dealer's page",
