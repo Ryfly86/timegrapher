@@ -1,53 +1,53 @@
-archived
-bph
-bytes
-calibre
-caveats
-fields
-folder
-full_wind
-id
-input
-input.library
-input.name
-library
-lift_deg
-name
-notes
-photos
-schema
-software
-software.arch
-software.build_date
-software.git_dirty
-software.git_hash
-software.name
-software.os
-software.version
-takes
-takes[].at_end
-takes[].at_end.amplitude_deg
-takes[].at_end.beat_error_ms
-takes[].at_end.rate_s_per_day
-takes[].audio
-takes[].bytes
-takes[].duration_s
-takes[].incomplete
-takes[].name
-takes[].named_start
-takes[].path
-takes[].positions
-takes[].reading
-takes[].reading.amplitude_deg
-takes[].reading.beat_error_ms
-takes[].reading.beat_error_source
-takes[].reading.calibrated
-takes[].reading.caveats
-takes[].reading.caveats[].code
-takes[].reading.position
-takes[].reading.rate_s_per_day
-takes[].reading.watch_heard
-takes[].started_utc
-takes[].wind_h
-unreadable
-unsorted
+archived bool
+bph number
+bytes number
+calibre string
+caveats array
+fields array
+folder string
+full_wind null
+id string
+input object
+input.library string
+input.name string
+library string
+lift_deg null
+name string
+notes null
+photos number
+schema string
+software object
+software.arch string
+software.build_date string
+software.git_dirty bool
+software.git_hash string
+software.name string
+software.os string
+software.version string
+takes array
+takes[].at_end object
+takes[].at_end.amplitude_deg number
+takes[].at_end.beat_error_ms number
+takes[].at_end.rate_s_per_day number
+takes[].audio bool
+takes[].bytes number
+takes[].duration_s number
+takes[].incomplete bool
+takes[].name string
+takes[].named_start null
+takes[].path string
+takes[].positions array
+takes[].reading object
+takes[].reading.amplitude_deg number
+takes[].reading.beat_error_ms number
+takes[].reading.beat_error_source string
+takes[].reading.calibrated bool
+takes[].reading.caveats array
+takes[].reading.caveats[].code string
+takes[].reading.position string
+takes[].reading.rate_s_per_day number
+takes[].reading.watch_heard bool
+takes[].started_utc string
+takes[].wind_h null
+unreadable array
+unsorted bool
