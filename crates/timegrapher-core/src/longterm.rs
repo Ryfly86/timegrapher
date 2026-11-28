@@ -425,8 +425,7 @@ fn level(power: &[f64], a: usize, b: usize, keep: &dyn Fn(usize) -> bool) -> f64
     median(&mut w) / std::f64::consts::LN_2
 }
 
-/// What [`detrend`] takes out of `g`: one rule for it and for
-/// [`detrend_fit_terms`].
+/// What [`detrend`] takes out of `g`.
 enum SlowOut {
     /// Too few readings: nothing.
     Nothing,
@@ -441,17 +440,6 @@ fn slow_out(g: &Grid, window_s: f64) -> SlowOut {
         return SlowOut::Nothing;
     }
     detrend_window(g, window_s).map_or(SlowOut::Quadratic, SlowOut::Median)
-}
-
-/// The terms of the polynomial [`detrend`] takes out of `g`: 3 (a
-/// quadratic) on a run under 20 minutes, 0 with too few readings to take
-/// any out, `None` where it takes a running median instead.
-pub fn detrend_fit_terms(g: &Grid, window_s: f64) -> Option<usize> {
-    match slow_out(g, window_s) {
-        SlowOut::Nothing => Some(0),
-        SlowOut::Quadratic => Some(3),
-        SlowOut::Median(_) => None,
-    }
 }
 
 /// The running median's window [`detrend`] uses on `g`, in whole steps (at
@@ -920,15 +908,11 @@ impl Fold {
     }
 }
 
-/// A folded profile kept to its first `harmonics` Fourier harmonics, which
-/// takes most of the noise out of a profile averaged over few cycles.
-pub fn smooth_shape(profile: &[f64], harmonics: usize) -> Vec<f64> {
-    sized_shape(profile, harmonics, &|_, _| true)
-}
-
-/// [`smooth_shape`], keeping beyond the fundamental only the harmonics
+/// A folded profile kept to its first `harmonics` Fourier harmonics,
+/// keeping beyond the fundamental only the harmonics
 /// `keep(h, power)` passes, `power` the sum of the squares of harmonic
 /// `h`'s two coefficients.
+#[cfg(test)]
 fn sized_shape(profile: &[f64], harmonics: usize, keep: &dyn Fn(usize, f64) -> bool) -> Vec<f64> {
     let n = profile.len();
     let fin: Vec<(usize, f64)> = profile

@@ -286,17 +286,19 @@ pub fn effective_readings(n: f64, rho: f64) -> f64 {
 /// Lag-one correlation of values in time order, less their least-squares
 /// line, so a steady drift is not counted as memory. `None` with fewer
 /// than three values or no scatter about the line.
-pub fn lag_one(values: &[f64]) -> Option<f64> {
+#[cfg(test)]
+pub(crate) fn lag_one(values: &[f64]) -> Option<f64> {
     pooled_lag_one([values])
 }
 
-/// [`lag_one`] over several stretches of one series in time order (the
+/// `lag_one` over several stretches of one series in time order (the
 /// runs between gaps), read as one: each stretch less its own
 /// least-squares line, the products of neighbours within each stretch
 /// and the squares summed over all of them, each sum over its count of
 /// terms, as [`crate::steadiness::acf`] takes a lag. Stretches of fewer
 /// than three values are passed over.
-pub fn pooled_lag_one<'a>(stretches: impl IntoIterator<Item = &'a [f64]>) -> Option<f64> {
+#[cfg(test)]
+pub(crate) fn pooled_lag_one<'a>(stretches: impl IntoIterator<Item = &'a [f64]>) -> Option<f64> {
     pooled_lag_one_levels(&own_levels(stretches))
 }
 
@@ -305,7 +307,7 @@ fn own_levels<'a>(stretches: impl IntoIterator<Item = &'a [f64]>) -> Vec<Level> 
     stretches.into_iter().map(|s| vec![s.to_vec()]).collect()
 }
 
-/// [`pooled_lag_one`] over levels ([`Level`]): each level less its own
+/// `pooled_lag_one` over levels ([`Level`]): each level less its own
 /// least-squares line, fitted over all its runs together in time order, so
 /// a missing window inside a level (a hole) leaves its line and its
 /// variation as they were; the products of neighbours are taken within
@@ -344,7 +346,7 @@ fn pooled_lag_one_levels(levels: &[Level]) -> Option<f64> {
 /// reaches it about 21% of the time (seeded, 20,000 series).
 pub const MAX_RHO: f64 = 0.99;
 
-/// The lag-one correlation every ± allows for (#1544): [`pooled_lag_one`]
+/// The lag-one correlation every ± allows for (#1544): `pooled_lag_one`
 /// plus its bias downwards with each stretch's line taken out,
 /// 2(1 + 3ρ)/n (Marriott and Pope 1954, as [`long_run_rho`] adds it), n
 /// the stretches' mean length, held to 0 ..= [`MAX_RHO`]. Read from 30
@@ -408,7 +410,7 @@ pub fn long_run_sd(values: &[f64], short_sd: f64, slow: Slow) -> f64 {
 /// The lag-one correlation [`long_run_sd`] allows for: that of the finite
 /// values less `slow`, read only from neighbours that are both finite so
 /// that a gap never joins readings that were not next to each other (as
-/// [`pooled_lag_one`] reads it), plus 2(1 + 3ρ)/n for its bias downwards
+/// `pooled_lag_one` reads it), plus 2(1 + 3ρ)/n for its bias downwards
 /// with two parameters taken out (Marriott and Pope 1954), n one more than
 /// the neighbouring pairs read (the values' count when none is missing),
 /// held to 0 ..= [`MAX_RHO`]. [`Slow::ChosenStep`] adds [`STEP_CHOICE_BIAS`]/n
@@ -461,7 +463,7 @@ pub const STEP_CHOICE_BIAS: f64 = 3.3;
 
 /// How far a lag-one correlation `r` read from `n` values less their line
 /// falls short of the true one (Marriott and Pope 1954): 2(1 + 3r)/n. At
-/// r = 0 it is the size of [`fit_lag_bias`] for a two-term fit at lag one,
+/// r = 0 it is the size of `fit_lag_bias` for a two-term fit at lag one,
 /// to first order in 1/n.
 fn line_lag_one_bias(r: f64, n: f64) -> f64 {
     2.0 * (1.0 + 3.0 * r) / n
@@ -479,7 +481,8 @@ fn line_lag_one_bias(r: f64, n: f64) -> f64 {
 /// its pairs (to first order, the ratio's expectation). 0 at lag 0, and
 /// at a lag with no pairs. Subtracting it leaves a white series reading
 /// about 0 at every lag however much of its slow change was taken out.
-pub fn fit_lag_bias(present: &[bool], params: usize, max_lag: usize) -> Vec<f64> {
+#[cfg(test)]
+pub(crate) fn fit_lag_bias(present: &[bool], params: usize, max_lag: usize) -> Vec<f64> {
     let at: Vec<usize> = (0..present.len()).filter(|&i| present[i]).collect();
     let (n, len) = (at.len(), present.len());
     let mut out = vec![0.0; max_lag + 1];
@@ -557,7 +560,7 @@ pub const MIN_VALUES: usize = 3;
 /// Estimated standard error of a median from values in time order, in their
 /// own units. The scatter comes from successive differences, so a linear
 /// drift cancels exactly: s = 1.4826 MAD(differences) / sqrt(2). With the
-/// values' lag-one correlation ρ ([`lag_one`], negative taken as 0), the
+/// values' lag-one correlation ρ (`lag_one`, negative taken as 0), the
 /// differences understate the spread by sqrt(1 − ρ) and the values are worth
 /// [`effective_readings`] independent ones, so
 /// SE = 1.2533 × s / sqrt(1 − ρ) / sqrt(n_eff). With ρ = 0 this is
@@ -571,7 +574,7 @@ pub fn standard_error(values: &[f64]) -> Option<f64> {
 /// [`standard_error`] of one series read in stretches, the runs between
 /// its gaps, in time order (#639): the differences are taken within each
 /// stretch only, never across a gap, and the lag-one correlation is
-/// pooled over the stretches ([`pooled_lag_one`]); `n` counts every
+/// pooled over the stretches (`pooled_lag_one`); `n` counts every
 /// value. With one stretch it is [`standard_error`]. None with fewer than
 /// [`MIN_VALUES`] values, no difference within a stretch, or a ± of 0
 /// ([`shown`]).

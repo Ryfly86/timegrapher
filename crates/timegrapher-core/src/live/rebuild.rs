@@ -58,7 +58,8 @@ impl LiveAnalyzer {
     /// seconds (the new template's reference point against the old one's)
     /// and beats in the count, so a view anchored on the old beats can stay
     /// where it was.
-    pub fn template_shift(&self) -> Option<(f64, i64)> {
+    #[cfg(test)]
+    pub(crate) fn template_shift(&self) -> Option<(f64, i64)> {
         self.rebuild.shift
     }
 

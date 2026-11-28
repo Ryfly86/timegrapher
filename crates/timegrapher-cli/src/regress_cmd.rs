@@ -659,6 +659,22 @@ pub fn run(o: &Options) -> Result<bool, String> {
         None => o.root.clone(),
     };
     let root = &root_buf;
+    // Holdout takes are read by --holdout and nothing else.
+    let sessions: Vec<String> = find_sessions(root)?
+        .into_iter()
+        .filter(|s| selected_session(s, &o.takes, &holdout_ids, o.holdout))
+        .collect();
+    // A holdout run is judged against tg alone, so it never reads the
+    // baseline: a broken development baseline cannot fail it (#2421).
+    if o.holdout {
+        let declared: Vec<&str> = holdout_ids
+            .iter()
+            .map(String::as_str)
+            .filter(|id| o.takes.is_empty() || o.takes.iter().any(|t| id.contains(t.as_str())))
+            .collect();
+        let corpus_revision = crate::corpus::revision(&o.root);
+        return holdout(root, &sessions, &declared, corpus_revision, o);
+    }
     let old: Option<Baseline> = match fs::read_to_string(&bpath) {
         Ok(text) => {
             let b: Baseline =
@@ -672,8 +688,6 @@ pub fn run(o: &Options) -> Result<bool, String> {
             }
             Some(b)
         }
-        // Holdout takes are judged against tg alone.
-        Err(_) if o.holdout => None,
         // Only an absent baseline may be created. Other read errors must not
         // discard required or unselected entries from an existing baseline.
         Err(e) if o.write_baseline && e.kind() == std::io::ErrorKind::NotFound => None,
@@ -686,14 +700,6 @@ pub fn run(o: &Options) -> Result<bool, String> {
             return Err(format!("{}: {e}{hint}", bpath.display()));
         }
     };
-    // Holdout takes are read by --holdout and nothing else.
-    let sessions: Vec<String> = find_sessions(root)?
-        .into_iter()
-        .filter(|s| selected_session(s, &o.takes, &holdout_ids, o.holdout))
-        .collect();
-    if o.holdout {
-        return holdout(root, &sessions, o);
-    }
     if sessions.is_empty() && !o.smoke {
         return Err(format!(
             "{}: no {MANIFEST} found in it or its folders",
@@ -939,7 +945,15 @@ impl Tally {
 /// What `regress --holdout` reports. `readings` stays empty unless --reveal.
 #[derive(Debug, Clone, Serialize)]
 pub struct HoldoutOutcome {
+    /// The corpus checkout's git commit, if it is a git checkout.
+    pub corpus_revision: Option<String>,
     pub takes: usize,
+    /// Holdout takes `corpus.json` declares (within `--take`) that have no
+    /// session file to measure: each one fails the run (#2421).
+    pub missing: usize,
+    /// Their ids, kept from the printout unless --reveal.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub missing_takes: Vec<String>,
     pub readings_measured: usize,
     /// Readings that could not be measured: the only failure.
     pub unreadable: usize,
@@ -953,8 +967,24 @@ pub struct HoldoutOutcome {
 
 /// `regress --holdout`: measure the holdout takes, judge them against tg
 /// with [`HOLDOUT_MARGINS`], and print the counts. Exits 0 whatever the
-/// result; only an unreadable reading fails.
-fn holdout(root: &Path, sessions: &[String], o: &Options) -> Result<bool, String> {
+/// counts say; only an unreadable reading, or a declared holdout take with
+/// no session file, fails.
+fn holdout(
+    root: &Path,
+    sessions: &[String],
+    declared: &[&str],
+    corpus_revision: Option<String>,
+    o: &Options,
+) -> Result<bool, String> {
+    let measured_ids: std::collections::BTreeSet<&str> = sessions
+        .iter()
+        .map(|s| s.split('/').next().unwrap_or(s))
+        .collect();
+    let missing_takes: Vec<String> = declared
+        .iter()
+        .filter(|id| !measured_ids.contains(*id))
+        .map(|id| id.to_string())
+        .collect();
     let jobs = o.jobs.unwrap_or_else(|| {
         std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get)
     });
@@ -997,7 +1027,10 @@ fn holdout(root: &Path, sessions: &[String], o: &Options) -> Result<bool, String
         }
     }
     let outcome = HoldoutOutcome {
+        corpus_revision,
         takes: sessions.len(),
+        missing: missing_takes.len(),
+        missing_takes: if o.reveal { missing_takes } else { Vec::new() },
         readings_measured: readings.len(),
         unreadable,
         margins: mg,
@@ -1011,12 +1044,34 @@ fn holdout(root: &Path, sessions: &[String], o: &Options) -> Result<bool, String
     } else {
         print_holdout(&outcome);
     }
-    Ok(unreadable == 0)
+    Ok(unreadable == 0 && outcome.missing == 0)
 }
 
 fn print_holdout(o: &HoldoutOutcome) {
+    match &o.corpus_revision {
+        Some(r) => println!("Corpus at {r}."),
+        None => println!("Corpus revision unknown (not a git checkout)."),
+    }
+    if o.missing > 0 {
+        println!(
+            "{} declared holdout {} no session file, so the run fails{}.",
+            o.missing,
+            if o.missing == 1 {
+                "take has"
+            } else {
+                "takes have"
+            },
+            if o.missing_takes.is_empty() {
+                String::new()
+            } else {
+                format!(": {}", o.missing_takes.join(", "))
+            }
+        );
+    }
     if o.takes == 0 {
-        println!("No holdout takes in this corpus.");
+        if o.missing == 0 {
+            println!("No holdout takes in this corpus.");
+        }
         return;
     }
     if !o.readings.is_empty() {
