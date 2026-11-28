@@ -76,15 +76,10 @@ fn off_every_standard_on_auto_the_header_gives_the_rate_heard() {
     let take = take(&dir.0, 17_570, "null");
     let text = run(&["session", &take]);
     let line = watch_line(&text);
-    // 17,570 bph synthesised, heard on the card's clock at about that.
-    assert!(line.contains("Auto, 1757"), "{line}");
-    assert!(line.contains(" bph heard, lift angle"), "{line}");
-    assert!(!line.contains("17280"), "{line}");
-    let row = movement_row(&text);
-    assert!(
-        row.starts_with("Auto, 1757") && row.contains(" bph heard, "),
-        "{row}"
-    );
+    // 17,570 bph synthesised at 0 s/d, heard at 17570 to its place.
+    let want = "Auto, 17570 bph heard, lift angle 52°, the default";
+    assert_eq!(line, format!("Watch        {want}"));
+    assert_eq!(movement_row(&text), want);
 }
 
 #[test]
