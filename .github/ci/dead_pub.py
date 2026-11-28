@@ -17,17 +17,21 @@ is used when its name appears in code (strings included: format captures and
 serde's `skip_serializing_if` name functions) outside test code, other than
 where it is defined. Test code is the crates' tests/ folders, anything after
 a `#[cfg(test)]` attribute, and modules declared under one. Comments never
-count. A method named like another item (`new`, `len`) always counts as
-used, so the list can miss an item but never names a used one.
+count. An item whose name is used for anything else, a local included,
+counts as used (`let noted` hides a method `noted`), so the list can miss
+an item but never names a used one.
 
 The list must equal the baseline (dead_pub_baseline.json), as the literal
 ratchet's counts must: a PR that leaves a new dead item fails, and a PR that
-removes or starts calling one drops it from the baseline in the same PR.
+removes or starts calling one drops it from the baseline in the same PR. The
+baseline may only shrink: an entry the base commit's baseline (HEAD^1, as CI
+checks out a PR's merge commit) lacks fails too.
 Offline, standard library only, a few seconds.
 """
 
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -44,7 +48,7 @@ TOKEN = re.compile(r"""
   | (?P<char>b?'(?:\\.|[^'\\])')
   | (?P<life>'[A-Za-z_][A-Za-z0-9_]*)
   | (?P<word>[A-Za-z_][A-Za-z0-9_]*)
-  | (?P<punct>[{}()\[\];#=!])
+  | (?P<punct>->|=>|::|[{}()\[\];#=!,:<>])
 """, re.X | re.S)
 IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
@@ -108,28 +112,55 @@ def is_test_cfg(toks, start, end):
     return words[:2] == ["cfg", "test"] or words[:3] == ["cfg", "all", "test"]
 
 
+ITEM_WORDS = {"fn", "mod", "impl", "struct", "enum", "trait", "type", "const", "static",
+              "union", "use", "extern", "macro_rules", "async", "unsafe"}
+OPEN, CLOSE = "([{", ")]}"
+
+
 def item_end(toks, i):
-    """Index after the item starting at toks[i]: its braces, or its `;`."""
+    """Index after what a `#[cfg(test)]` at toks[i] covers.
+
+    An item (`fn`, `mod`, `impl`, ...) ends at its braces or its `;`. A
+    `let` ends at its `;`. A field, in a struct or a struct literal, ends at
+    its `,`, and its type's `<...>` are brackets. Anything else (a match arm,
+    an expression, a tuple field) ends at a `,` or `;`, or at its braces.
+    Nothing runs past the `}`, `)` or `]` that closes what it is in."""
+    j = i
+    if j < len(toks) and toks[j][1] == "pub":
+        j += 1
+        if j < len(toks) and toks[j][1] == "(":
+            j = item_close(toks, j) or j
+    first = toks[j][1] if j < len(toks) else ""
+    field = j + 1 < len(toks) and toks[j][0] == "word" and toks[j + 1][1] == ":"
+    item = first in ITEM_WORDS and not field
     depth = 0
-    for j in range(i, len(toks)):
-        mark = toks[j][1]
-        if mark in "([":
+    for k in range(i, len(toks)):
+        mark = toks[k][1]
+        if mark in OPEN or (field and mark == "<"):
             depth += 1
-        elif mark in ")]":
+        elif mark in CLOSE or (field and mark == ">"):
+            if depth == 0:
+                return k
             depth -= 1
-        elif mark == ";" and depth == 0:
-            return j + 1
-        elif mark == "{" and depth == 0:
-            braces = 0
-            for k in range(j, len(toks)):
-                if toks[k][1] == "{":
-                    braces += 1
-                elif toks[k][1] == "}":
-                    braces -= 1
-                    if braces == 0:
-                        return k + 1
-            return len(toks)
+            if mark == "}" and depth == 0 and first != "let" and not field:
+                # The item's braces, or a braced arm or expression.
+                return k + 1
+        elif depth == 0 and (mark == ";" or (mark == "," and not item and first != "let")):
+            return k + 1
     return len(toks)
+
+
+def item_close(toks, j):
+    """Index after the bracket group opening at toks[j], or None."""
+    depth = 0
+    for k in range(j, len(toks)):
+        if toks[k][1] in OPEN:
+            depth += 1
+        elif toks[k][1] in CLOSE:
+            depth -= 1
+            if depth == 0:
+                return k + 1
+    return None
 
 
 def split_tests(toks):
@@ -233,30 +264,56 @@ def scan(root=ROOT):
     return sorted(set(found))
 
 
-def main(argv):
+def base_baseline(root=ROOT):
+    """The baseline at HEAD^1, the base a PR merges into (CI checks out the
+    merge commit with its parent), or None when git, that commit or that
+    file isn't there."""
+    rel = BASELINE.relative_to(ROOT).as_posix()
+    try:
+        done = subprocess.run(["git", "show", f"HEAD^1:{rel}"], cwd=root,
+                              capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if done.returncode != 0:
+        return None
+    return json.loads(done.stdout)
+
+
+def check(found, baseline, base):
+    """The errors: items not in the baseline, baseline items no longer
+    found, and baseline items the base's baseline lacks."""
+    rel = BASELINE.relative_to(ROOT).as_posix()
+    errors = [f"{f} is public and nothing outside tests uses it: remove it, "
+              "or make it pub(crate) if only core needs it" for f in found if f not in baseline]
+    errors += [f"{g} is no longer dead (removed or now used): drop it from {rel} "
+               "(dead_pub.py update)" for g in baseline if g not in found]
+    if base is not None:
+        errors += [f"{g} is in {rel} but not in the base's: the list may only shrink, "
+                   "so remove the item instead" for g in baseline if g not in base]
+    return errors
+
+
+def main(argv, root=ROOT, baseline_path=BASELINE, base=None):
     mode = argv[1] if len(argv) > 1 else "check"
-    found = scan()
+    found = scan(root)
     if mode == "list":
         print("\n".join(found))
         return 0
     if mode == "update":
-        BASELINE.write_text(json.dumps(found, indent=1) + "\n", encoding="utf-8")
+        baseline_path.write_text(json.dumps(found, indent=1) + "\n", encoding="utf-8")
         print(f"baseline: {len(found)} items")
         return 0
     if mode != "check":
         print(__doc__, file=sys.stderr)
         return 2
-    baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
-    new = [f for f in found if f not in baseline]
-    gone = [b for b in baseline if b not in found]
-    for f in new:
-        print(f"::error::{f} is public and nothing outside tests uses it: remove it, "
-              "or make it pub(crate) if only core needs it")
-    for g in gone:
-        print(f"::error::{g} is no longer dead (removed or now used): drop it from "
-              f"{BASELINE.relative_to(ROOT).as_posix()} (dead_pub.py update)")
+    baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+    if base is None and root == ROOT:
+        base = base_baseline(root)
+    errors = check(found, baseline, base)
+    for e in errors:
+        print(f"::error::{e}")
     print(f"{len(found)} dead public items in core; baseline {len(baseline)}")
-    return 1 if new or gone else 0
+    return 1 if errors else 0
 
 
 if __name__ == "__main__":
