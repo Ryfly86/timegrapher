@@ -133,9 +133,9 @@ impl TimegrapherApp {
         }
     }
 
-    /// The seconds of the session read so far for `need`: none when
-    /// nothing read answers it.
-    fn steady_upto(&self, need: steady::Need) -> Option<f64> {
+    /// The seconds of beats heard the answers so far for `need` read:
+    /// none when nothing read answers it.
+    pub(super) fn steady_upto(&self, need: steady::Need) -> Option<f64> {
         let tests = self.bench.results.steady.as_ref().map(|s| &s.1);
         let tests = tests.filter(|s| need < steady::Need::Maps || s.maps.is_some());
         let alone = self
@@ -144,10 +144,10 @@ impl TimegrapherApp {
             .bg
             .isochronism
             .as_ref()
-            .map(|i| i.1.upto_s);
+            .map(|i| i.1.heard_s);
         let alone = alone.filter(|_| need == steady::Need::Isochronism);
         tests
-            .map(|s| s.upto_s)
+            .map(|s| s.heard_s)
             .into_iter()
             .chain(alone)
             .reduce(f64::max)
@@ -172,37 +172,33 @@ impl TimegrapherApp {
         Some((r.isochronism.as_ref(), r.walk.as_ref()))
     }
 
-    pub(super) fn update_steady(&mut self, ctx: &egui::Context) -> f64 {
-        // What was read before the take's settings, clock, breaks or masks
-        // last changed is read again.
-        if self
-            .bench
-            .results
-            .steady_job
-            .as_ref()
-            .is_some_and(|j| j.rev != self.bench.take.rev)
-        {
-            self.bench.results.steady_job = None;
+    /// Drop the steadiness answers and the run under way read before the
+    /// take's settings, clock, breaks or masks last changed, or at another
+    /// Average Over: what the tests leave out as unheard rests on it (Norm
+    /// on #2451).
+    fn drop_stale_steady(&mut self) {
+        let rev = self.bench.take.rev;
+        let average = self.bench.take.average_s;
+        let results = &mut self.bench.results;
+        if results.steady_average_s.is_some_and(|a| a != average) {
+            results.steady_job = None;
+            results.steady = None;
+            results.bg.isochronism = None;
         }
-        if self
-            .bench
-            .results
-            .steady
-            .as_ref()
-            .is_some_and(|s| s.0 != self.bench.take.rev)
-        {
-            self.bench.results.steady = None;
+        results.steady_average_s = Some(average);
+        if results.steady_job.as_ref().is_some_and(|j| j.rev != rev) {
+            results.steady_job = None;
         }
-        if self
-            .bench
-            .results
-            .bg
-            .isochronism
-            .as_ref()
-            .is_some_and(|s| s.0 != self.bench.take.rev)
-        {
-            self.bench.results.bg.isochronism = None;
+        if results.steady.as_ref().is_some_and(|s| s.0 != rev) {
+            results.steady = None;
         }
+        if results.bg.isochronism.as_ref().is_some_and(|s| s.0 != rev) {
+            results.bg.isochronism = None;
+        }
+    }
+
+    pub(super) fn update_steady(&mut self, ctx: &egui::Context) {
+        self.drop_stale_steady();
         if let Some(results::SteadyJob { rev, rx }) = &self.bench.results.steady_job {
             match rx.try_recv() {
                 Ok(steady::Answer::Tests(s)) => {
@@ -217,29 +213,25 @@ impl TimegrapherApp {
                 Err(TryRecvError::Empty) => {}
             }
         }
-        // Only the beats in the position the watch is in now, joined.
-        let runs = self.current_runs();
+        // Only the beats heard in the position the watch is in now,
+        // joined: 5 minutes of them, not of sound, starts the tests, and
+        // only more of them reads them again, so silence or the stand's
+        // noise never does (#2451).
+        let runs = self.heard_runs();
+        let heard: f64 = runs.read.iter().map(|(a, b)| b - a).sum();
         let clock = Self::rate_clock(&self.bench.take.take_clock).cloned();
         let joined = !self.session.stretches().is_empty();
-        let dur = self.bench.recording.live.as_ref().map_or(0.0, |l| {
-            steady::joined_duration(
-                &runs.read,
-                l.duration_s(),
-                clock.as_ref().filter(|_| joined),
-            )
-        });
         let need = self.steady_need(ctx.cumulative_pass_nr());
         let due = match self.steady_upto(need) {
             None => true,
-            Some(u) if self.running() => dur - u >= steady::RERUN_S,
-            Some(u) => dur - u > 1.0,
+            Some(u) if self.running() => heard - u >= steady::RERUN_S,
+            Some(u) => heard - u > 1.0,
         };
-        // 5 minutes of beats, not of sound: silence or the stand's noise
-        // alone never starts them (#2451).
-        let enough = dur >= steady::MIN_S && self.heard_in_position() >= steady::MIN_S;
-        if self.bench.results.steady_job.is_none() && due && enough {
-            let log = self.bench.recording.live.as_ref().and_then(steady::log_of);
-            if let Some((log, breaks)) = log.map(|l| self.steady_log(l, &runs, clock.as_ref())) {
+        // What is heard rests on readings at the Average Over and take
+        // now: none starts on readings not yet read again (Vernon on #2477).
+        let fresh = self.trend_current();
+        if self.bench.results.steady_job.is_none() && fresh && due && heard >= steady::MIN_S {
+            if let Some((log, breaks)) = self.steady_read(&runs, clock.as_ref()) {
                 let wheels = self.calibre_wheels();
                 let meshes = self.calibre_meshes();
                 let clock = clock.filter(|_| !joined); // A joined log is on it.
@@ -250,8 +242,12 @@ impl TimegrapherApp {
                 std::thread::spawn(move || {
                     let mut a =
                         steady::compute_for(need, &log, &breaks, wheels, clock.as_ref(), &stage);
-                    if let steady::Answer::Tests(s) = &mut a {
-                        s.meshes = meshes;
+                    match &mut a {
+                        steady::Answer::Tests(s) => {
+                            s.meshes = meshes;
+                            s.heard_s = heard;
+                        }
+                        steady::Answer::Isochronism(i) => i.heard_s = heard,
                     }
                     let _ = tx.send(a);
                     ctx.request_repaint();
@@ -262,7 +258,50 @@ impl TimegrapherApp {
                 });
             }
         }
-        dur
+    }
+
+    /// The runs in the position the watch is in now as the steadiness
+    /// tests read them: only where a watch was heard
+    /// ([`timegrapher_core::live::heard_spans`]), each unheard stretch a
+    /// cut, as a hole in a run is (Norm on #2451). Their length is what
+    /// "5 minutes of beats" and "Tested over" count, with the wait.
+    pub(super) fn heard_runs(&self) -> timegrapher_core::take_context::Stretches<Position> {
+        let mut runs = self.current_runs();
+        let end = self
+            .bench
+            .recording
+            .live
+            .as_ref()
+            .map_or(0.0, |l| l.duration_s());
+        runs.read = timegrapher_core::live::heard_spans(
+            &self.bench.results.trend,
+            self.bench.take.average_s,
+            &runs.read,
+            end,
+        );
+        runs.at = vec![self.bench.take.position; runs.read.len()];
+        runs
+    }
+
+    /// What the steadiness tests read of the session, and the cuts they
+    /// stop at ([`Self::steady_log`] of the position's heard `runs`): each
+    /// stretch no reading hears a watch in left out and cut at both ends,
+    /// as a mask is, so nothing bridges it, on the take's own time or
+    /// joined (Norm on #2451).
+    pub(super) fn steady_read(
+        &self,
+        runs: &timegrapher_core::take_context::Stretches<Position>,
+        clock: Option<&timegrapher_core::clock::ClockFit>,
+    ) -> Option<(BeatLog, Vec<timegrapher_core::breaks::Break>)> {
+        let live = self.bench.recording.live.as_ref()?;
+        let unheard = timegrapher_core::live::unheard_spans(
+            &self.bench.results.trend,
+            self.bench.take.average_s,
+            live.duration_s(),
+        );
+        let masked = timegrapher_core::session::with_holes(live.masked(), &unheard);
+        let log = steady::log_masked(live, &masked)?;
+        Some(self.steady_log(log, runs, clock))
     }
 
     /// What the steadiness tests read of `log`, and the cuts they stop at:
@@ -342,16 +381,10 @@ impl TimegrapherApp {
 
     /// How long a watch was heard in the position the watch is in now,
     /// seconds: what "5 minutes of beats" counts, for the tests' start
-    /// and their wait alike (Vernon on #2449).
-    fn heard_in_position(&self) -> f64 {
-        self.bench.recording.live.as_ref().map_or(0.0, |l| {
-            timegrapher_core::live::heard_seconds(
-                &self.bench.results.trend,
-                self.bench.take.average_s,
-                &self.current_runs().read,
-                l.duration_s(),
-            )
-        })
+    /// and their wait alike (Vernon on #2449): the length of
+    /// [`Self::heard_runs`].
+    pub(super) fn heard_in_position(&self) -> f64 {
+        self.heard_runs().read.iter().map(|(a, b)| b - a).sum()
     }
 
     /// What the steadiness tests wait for, in the terms of what is being
@@ -367,7 +400,9 @@ impl TimegrapherApp {
         let heard = self.heard_in_position();
         // The cards read a watch the readings at this Average Over don't
         // cover whole yet (Walter on #2449): no count, rather than "none".
-        if heard <= 0.0 && self.cards_unheard().is_none() {
+        // Nor while the readings are still being read again after a
+        // change: their count is at the old footing (Vernon on #2477).
+        if !self.trend_current() || (heard <= 0.0 && self.cards_unheard().is_none()) {
             return "Needs 5 minutes of beats in one position.".to_string();
         }
         if heard > 0.0 {
@@ -387,20 +422,8 @@ impl TimegrapherApp {
             self.bench.results.bg.shown_pass[1] = pass;
         }
         self.update_steady(ui.ctx());
-        let upto = self.bench.results.steady.as_ref().map(|s| s.1.upto_s);
-        let working = self.bench.results.steady_job.is_some();
-        let joined = !self.session.stretches().is_empty();
-        let of = if !joined {
-            String::new()
-        } else {
-            format!("{} ", self.bench.take.position.name())
-        };
         self.steady_working(ui);
-        let status = match upto {
-            Some(u) => format!("Tested over {} of {of}beats", length_text(u)),
-            None if working => String::new(),
-            None => self.steady_wait(),
-        };
+        let status = self.steady_status();
         steady::draw(
             ui,
             self.bench.results.steady.as_ref().map(|s| &s.1),
@@ -409,6 +432,22 @@ impl TimegrapherApp {
             &self.series_shown(view),
             self.steady_opts(view),
         );
+    }
+
+    /// A Steadiness pane's status line: what its answer was tested over,
+    /// in beats heard, not sound (#2451); nothing while the first run is
+    /// under way; else what the tests wait for.
+    pub(super) fn steady_status(&self) -> String {
+        let of = if self.session.stretches().is_empty() {
+            String::new()
+        } else {
+            format!("{} ", self.bench.take.position.name())
+        };
+        match self.bench.results.steady.as_ref().map(|s| s.1.heard_s) {
+            Some(u) => format!("Tested over {} of {of}beats", length_text(u)),
+            None if self.bench.results.steady_job.is_some() => String::new(),
+            None => self.steady_wait(),
+        }
     }
 
     /// How a steadiness pane draws `view`. On the take's own clock its

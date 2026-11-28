@@ -5,6 +5,9 @@ use super::*;
 /// The gap between the 10 card's rows: its title, name and wind, and its
 /// two rows of buttons, points (Hugh on #1745).
 pub(super) const POSITION_TEN_GAP: f32 = 3.0;
+/// Added to Listen's hover over a recording opened (#2108).
+pub(super) const CLOSES_OPENED_HINT: &str =
+    " Over a recording opened, it asks first, since listening closes the recording.";
 /// The size of the 10 card's position name, points.
 pub(super) const POSITION_NAME_TEN_PT: f32 = 15.0;
 
@@ -620,14 +623,8 @@ impl TimegrapherApp {
         } else {
             // With a watch picked, a take of it; else Quick Listen.
             let watch = self.open_watch().map(|e| e.watch.name.clone());
-            let mut hint = match &watch {
-                Some(name) => format!(
-                    "Listen to {name}: a new take, saved into it as it goes. For a Quick \
-                     Listen with no watch, pick No Watch (Quick Listen) on the Calibre \
-                     card's title."
-                ),
-                None => QUICK_LISTEN_HINT.to_string(),
-            };
+            let mut hint = self.listen_hint(watch.as_deref());
+            let closes = self.listen_closes_opened();
             if let Some(h) = length_hint {
                 hint += h;
             }
@@ -658,7 +655,11 @@ impl TimegrapherApp {
                 .clicked()
                 && armed
             {
-                if watch.is_some() {
+                if closes {
+                    // A ▶ beside a recording opened reads as playing it:
+                    // closing it is asked about first (#2108).
+                    self.confirm = Some(Confirm::CloseToListen(watch.is_some()));
+                } else if watch.is_some() {
                     self.new_take(NewTake::Listen, false);
                 } else {
                     // Asks only about what isn't Quick Listen's: changed
@@ -1621,6 +1622,30 @@ impl TimegrapherApp {
     /// set for 24 Hours After, no Positions Test under way.
     pub(super) fn compare_with_shown(&self) -> bool {
         self.bench.test.guided_after && self.open_watch().is_some() && !self.guided_running()
+    }
+
+    /// Listen's hover: a take of the watch picked (`watch`) or a Quick
+    /// Listen, and over a recording opened that it asks first (#2108).
+    pub(super) fn listen_hint(&self, watch: Option<&str>) -> String {
+        let mut hint = match watch {
+            Some(name) => format!(
+                "Listen to {name}: a new take, saved into it as it goes. For a Quick \
+                 Listen with no watch, pick No Watch (Quick Listen) on the Calibre \
+                 card's title."
+            ),
+            None => QUICK_LISTEN_HINT.to_string(),
+        };
+        if self.listen_closes_opened() {
+            hint += CLOSES_OPENED_HINT;
+        }
+        hint
+    }
+
+    /// Whether Listen closes a recording opened, with nothing unsaved in
+    /// it, and so asks first (#2108). With changes unsaved, the question
+    /// about throwing them away is asked instead.
+    pub(super) fn listen_closes_opened(&self) -> bool {
+        self.take_on_show().is_some() && !self.needs_save_confirmation()
     }
 
     /// Whether a new take of `kind` asks first: a take of a watch, or a

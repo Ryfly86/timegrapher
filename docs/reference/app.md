@@ -214,7 +214,9 @@ microphone without picking or adding a watch first, for a watch handed
 over the counter: it clears the take's name, shows **Unsorted Takes** in the
 Watches view and starts a new session. It asks first only about what
 isn't Quick Listen's: changed masks on a recording opened, or a watch's
-unsaved details. One icon starts and stops it; there
+unsaved details. Over a recording opened with nothing unsaved, Listen
+(a watch's take or a Quick Listen) asks **Close the recording and
+listen?**, since it closes it (#2108). One icon starts and stops it; there
 is no pause, and listening again starts a new take. Its take is not kept
 until it is saved. While it is still listening, **Keep in a Watch** in
 the Save menu, or a watch on the Watch line, makes it that watch's take
@@ -277,9 +279,10 @@ they use once it is 1 MB or more; a "—" while the Bench records a take
 into it, as that take's row has, until it stops, and its hover says so (#2034). The row picked is marked. While a search is typed, a line under the
 list says how many it shows of how many, "1 of 4 watches", and what it
 found in each row's name and the line under it is in the accent blue.
-Picking a watch while a Quick Listen is listening asks about its unsaved
-sound first, as the Watch line does, then stops the listening and picks
-the watch; while a watch's take is listening, picking another is
+Picking a watch while a Quick Listen is listening, or adding one with
+New Watch…, does what the Watch line does: the Quick Listen is kept in
+the watch, listening goes on, and the watch's page shows, with no
+question (#2107); while a watch's take is listening, picking another is
 refused until it stops. Its toolbar has, left to right, **New Watch…**
 (a watch and a plus), a search (a loupe; in the name, calibre, notes and
 fields), **Sort** by Name, Last Take or Size, and **List Shows** (only while a watch has a field added: otherwise the calibre is its one choice). In a narrow window, Sort and List Shows fold
@@ -1128,7 +1131,12 @@ Steadiness and Isochronism tabs say so, with how much of the watch has
 been heard so far, never the silence or the stand's noise ("none heard so
 far" while no reading hears a watch, and no count while no reading yet
 covers a whole Average Over of it), and the tests start once that count
-reaches 5 minutes; during a Positions Test they say
+reaches 5 minutes. They read only the stretches a watch was heard in:
+each stretch no reading hears one in is left out and cut at both ends,
+as a mask is, "Tested over" counts the beats heard, and they run again
+only once another minute of beats is heard, so silence after an answer
+reads nothing again. What counts as heard rests on the Average Over, so
+a new Average Over reads them again. During a Positions Test they say
 that the test never stays that long in one position. Steadiness scrolls
 with a bar always showing when the pane is too short for every row.
 
