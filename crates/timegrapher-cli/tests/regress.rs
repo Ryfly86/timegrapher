@@ -248,3 +248,116 @@ fn selected_write_captures_actual_context_and_preserves_other_entry_origins() {
         );
     }
 }
+
+// #2421: a holdout take declared in corpus.json with no session file fails
+// the run; it is not passed off as "No holdout takes".
+#[test]
+fn a_declared_holdout_take_with_no_session_file_fails_the_holdout_run() {
+    let f = Fixture::new("holdout-missing", json!({}));
+    std::fs::create_dir_all(f.0.join("takes/sealed")).unwrap();
+    std::fs::write(
+        f.0.join("corpus.json"),
+        serde_json::to_vec(&json!({"takes":[{
+            "id":"sealed", "tier":"holdout", "release":"unused", "files":[],
+        }]}))
+        .unwrap(),
+    )
+    .unwrap();
+    let out = f.command().arg("--holdout").output().unwrap();
+    assert_eq!(out.status.code(), Some(3), "{out:?}");
+    let doc: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(doc["takes"], 0);
+    assert_eq!(doc["missing"], 1);
+    // Counts only: the take is named only with --reveal.
+    assert!(doc.get("missing_takes").is_none(), "{doc}");
+    let out = f
+        .command()
+        .args(["--holdout", "--reveal"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(3), "{out:?}");
+    let doc: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(doc["missing_takes"], json!(["sealed"]));
+
+    // The printout says so instead of "No holdout takes in this corpus."
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_timegrapher"));
+    let out = cmd
+        .arg("regress")
+        .arg(&f.0)
+        .args(["--holdout", "--quiet"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(3), "{out:?}");
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        text.contains("1 declared holdout take has no session file"),
+        "{text}"
+    );
+    assert!(!text.contains("No holdout takes"), "{text}");
+
+    // --take leaves it out of this run, so it is not missing from it.
+    let out = f
+        .command()
+        .args(["--holdout", "--take", "other"])
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "{out:?}");
+    let doc: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(doc["missing"], 0);
+}
+
+// #2421: the holdout run never reads the development baseline, so a
+// malformed one cannot fail it.
+#[test]
+fn a_malformed_development_baseline_does_not_fail_the_holdout_run() {
+    let f = Fixture::new("holdout-baseline", json!({}));
+    std::fs::create_dir_all(f.0.join("takes")).unwrap();
+    std::fs::write(f.0.join("corpus.json"), "{\"takes\": []}").unwrap();
+    let baseline = f.0.join("baseline.json");
+    std::fs::write(&baseline, "{ not json").unwrap();
+    let out = f.command().arg("--holdout").output().unwrap();
+    assert!(out.status.success(), "{out:?}");
+    assert_eq!(std::fs::read(&baseline).unwrap(), b"{ not json");
+    // A wrong layout is not read either.
+    std::fs::write(
+        &baseline,
+        "{\"schema\":\"other/9\",\"software\":{},\"takes\":{}}",
+    )
+    .unwrap();
+    let out = f.command().arg("--holdout").output().unwrap();
+    assert!(out.status.success(), "{out:?}");
+    // The development run still refuses it.
+    let out = f.command().arg("--smoke").output().unwrap();
+    assert!(!out.status.success(), "{out:?}");
+}
+
+// #2421: the holdout output names the corpus commit it read.
+#[test]
+fn the_holdout_run_names_the_corpus_revision() {
+    let f = Fixture::new("holdout-revision", json!({}));
+    std::fs::create_dir_all(f.0.join("takes")).unwrap();
+    std::fs::write(f.0.join("corpus.json"), "{\"takes\": []}").unwrap();
+    let doc = |f: &Fixture| -> Value {
+        let out = f.command().arg("--holdout").output().unwrap();
+        assert!(out.status.success(), "{out:?}");
+        serde_json::from_slice(&out.stdout).unwrap()
+    };
+    assert_eq!(doc(&f)["corpus_revision"], Value::Null);
+    let git = |args: &[&str]| {
+        let out = Command::new("git")
+            .arg("-C")
+            .arg(&f.0)
+            .args(["-c", "user.name=t", "-c", "user.email=t@example.invalid"])
+            .args(["-c", "commit.gpgsign=false"])
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "{out:?}");
+        String::from_utf8(out.stdout).unwrap().trim().to_string()
+    };
+    git(&["init", "-q"]);
+    git(&["add", "corpus.json"]);
+    git(&["commit", "-q", "-m", "corpus"]);
+    let head = git(&["rev-parse", "HEAD"]);
+    assert_eq!(doc(&f)["corpus_revision"], json!(head));
+}
