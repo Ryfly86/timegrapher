@@ -2170,7 +2170,9 @@ folder can't be moved while another copy has it open. The Watches view adds watc
     often obscure or vintage, so nothing is assumed. Typing its beat rate
     fills in the balance's period, two beats (7200 ÷ bph seconds: 0.25 s
     at 28,800 bph), and a new beat rate changes it, unless a period typed
-    by hand is there.
+    by hand is there. Emptying the Beat Rate or Lift Angle box, or typing
+    0, clears it; the balance worked out from the rate goes with it, and
+    a period typed by hand stays.
   - **What isn't kept.** The pick itself, like the lift angle, is about
     the watch on the stand and isn't kept. Not Set names cycles after the
     wheels most calibres at the beat rate share.
