@@ -137,6 +137,20 @@ class Workflow(unittest.TestCase):
         # Its scripts come from the workflow's own commit, not the channel.
         self.assertIn("sparse-checkout: .github/walkthrough\n", relay)
 
+    def test_git_never_runs_hooks_where_it_can_push(self):
+        # The channel's content is the agent's; a hook in it must not run
+        # beside the push token.
+        relay = (ROOT / ".github/walkthrough/relay.py").read_text(encoding="utf-8")
+        self.assertIn('NO_HOOKS = ["-c", "core.hooksPath=" + os.devnull]\n', relay)
+        git = relay.split("def git(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn('["git", "-C", CHANNEL] + NO_HOOKS + AUTH', git)
+        self.assertEqual(relay.count("subprocess.run([\"git\""), 1)
+
+    def test_the_docs_say_to_merge_main_into_the_channel(self):
+        readme = (ROOT / ".github/walkthrough/README.md").read_text(encoding="utf-8")
+        self.assertIn("Merge main into it first, every time", readme)
+        self.assertIn("with\n# main merged into the channel first", WORKFLOW)
+
     def test_a_run_must_come_from_the_channel_branch(self):
         build = jobs()["build"]
         self.assertIn("        if: github.ref != format('refs/heads/{0}', inputs.channel) "

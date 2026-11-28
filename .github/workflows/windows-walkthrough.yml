@@ -14,6 +14,10 @@ name: Windows walkthrough
 # uploads each answer as an artifact of this run. The relay job, on another
 # runner that never runs the app, holds the token that can push and pushes
 # each answer to the channel (#2426; .github/walkthrough/answers.py).
+#
+# Run it from the channel branch (the guard below stops any other run), with
+# main merged into the channel first: this file is read from the channel, so
+# a channel behind main runs an older walk.
 on:
   workflow_dispatch:
     inputs:

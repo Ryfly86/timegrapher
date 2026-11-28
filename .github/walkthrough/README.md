@@ -19,6 +19,9 @@ drives live: clicks, keys, typing, and a screenshot after every batch.
 
 1. Use your own branch as the channel and check it out locally. Never use a PR
    branch: the session pushes `walk/` files to the channel.
+   Merge main into it first, every time: the workflow runs from the channel,
+   so a channel behind main runs an older walk that may still hold a write
+   token beside the app.
 2. Start the `Windows walkthrough` workflow by hand (workflow_dispatch), run
    from the channel branch ("Use workflow from", or the dispatch's `ref`), not
    main: a run from anywhere else stops at once. Inputs:
