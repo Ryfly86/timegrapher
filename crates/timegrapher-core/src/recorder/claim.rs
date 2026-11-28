@@ -70,8 +70,9 @@ impl Recorder {
             let dest = separate(&name)?;
             // Save Again writes there only while it is still this take's
             // copy: a take put in its place gets a new copy beside it
-            // (#2437).
-            if still_this_take(&dest, &self.started_utc) {
+            // (#2437). A copy that is gone is made again as a new one, so
+            // a folder put there meanwhile is never written into (#2401).
+            if dest.exists() && still_this_take(&dest, &self.started_utc) {
                 return Ok((dest, SaveInto::Again(self.started_utc.clone())));
             }
         }

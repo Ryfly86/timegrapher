@@ -167,3 +167,39 @@ fn a_copy_replaced_after_staging_is_not_written_into() {
     drop(r);
     let _ = fs::remove_dir_all(base);
 }
+
+/// Something other than a folder put at the copy's name (a plain file):
+/// Save Again makes a new copy beside it and leaves the file as it was.
+#[test]
+fn a_file_put_in_place_of_the_copy_is_left_alone() {
+    let (mut r, base) = save_fixture("replaced-copy-file");
+    let takes = base.join("takes");
+    let first = r.save_copy(&takes, "", None).unwrap();
+    fs::remove_dir_all(&first).unwrap();
+    fs::write(&first, b"not a take").unwrap();
+    let again = r.save_copy(&takes, "", None).unwrap();
+    assert_ne!(again, first);
+    assert!(again.join("audio-001.wav").is_file());
+    assert_eq!(fs::read(&first).unwrap(), b"not a take");
+    drop(r);
+    let _ = fs::remove_dir_all(base);
+}
+
+/// The copy deleted, with nothing put back, between the start of Save
+/// Again and its write: the save makes it again in place.
+#[test]
+fn a_copy_deleted_while_saving_is_made_again_in_place() {
+    let (mut r, base) = save_fixture("replaced-copy-deleted");
+    let takes = base.join("takes");
+    let first = r.save_copy(&takes, "", None).unwrap();
+    append_second(&mut r, 2);
+    let pending = r.begin_save(&takes, "", None, &[]).unwrap();
+    assert_eq!(pending.dest(), first);
+    fs::remove_dir_all(&first).unwrap();
+    let copy = pending.write().unwrap();
+    assert_eq!(copy.dir, first);
+    assert!(first.join("audio-001.wav").is_file());
+    assert!(first.join("session.json").is_file());
+    drop(r);
+    let _ = fs::remove_dir_all(base);
+}
