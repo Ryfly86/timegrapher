@@ -152,3 +152,62 @@ fn recovery_gives_no_short_length_and_leaves_a_live_take_alone() {
     assert_eq!(fs::read(dir.join(take::RECORD)).unwrap(), before);
     let _ = fs::remove_dir_all(&parent);
 }
+
+/// Stopped while paused, after its hour was kept as FLAC but before
+/// `session.json` was written again, so it names the WAV that is gone:
+/// recovery reads the FLAC for it and lists that hour once.
+#[test]
+fn a_take_stopped_after_its_hour_was_kept_as_flac_lists_it_once() {
+    let parent = parent("paused-flac");
+    let mut r = Recorder::start(&parent, info(8000)).unwrap();
+    for s in 1..=30 {
+        r.write(&block(8000, 1, s)).unwrap();
+    }
+    r.pause().unwrap();
+    let dir = r.dir().to_path_buf();
+    // The hour is kept as FLAC on its own thread; not yet taken in.
+    let t = std::time::Instant::now();
+    while dir.join("audio-001.wav").exists() && t.elapsed().as_secs() < 60 {
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(dir.join("audio-001.flac").is_file());
+    let dir = killed(r);
+    assert_eq!(
+        record(&dir)["segments"],
+        serde_json::json!(["audio-001.wav"])
+    );
+    assert_eq!(sound_on_disk_s(&dir), Some(30.0));
+    assert_eq!(mend_stopped(&dir).unwrap(), Some(30.0));
+    let mended = record(&dir);
+    assert_eq!(mended["duration_s"].as_f64(), Some(30.0));
+    assert_eq!(mended["segments"], serde_json::json!(["audio-001.wav"]));
+    let _ = fs::remove_dir_all(&parent);
+}
+
+/// A clock line whose `session.json` can't be written goes on recording
+/// the sound; the next one that can, writes it.
+#[test]
+fn a_failed_session_write_at_a_clock_line_keeps_recording() {
+    let parent = parent("write-fails");
+    let mut r = Recorder::start(&parent, info(8000)).unwrap();
+    for s in 1..=10 {
+        r.write(&block(8000, 1, s)).unwrap();
+    }
+    let record_path = r.dir().join(take::RECORD);
+    // A folder in session.json's place: the move into place fails.
+    fs::remove_file(&record_path).unwrap();
+    fs::create_dir_all(record_path.join("held")).unwrap();
+    for s in 11..=40 {
+        r.write(&block(8000, 1, s)).unwrap();
+    }
+    assert!(record_path.join("held").is_dir());
+    fs::remove_dir_all(&record_path).unwrap();
+    for s in 41..=50 {
+        r.write(&block(8000, 1, s)).unwrap();
+    }
+    let dir = killed(r);
+    let said_s = record(&dir)["duration_s"].as_f64().unwrap();
+    assert!(said_s >= 50.0 - CLOCK_EVERY_S, "{said_s}");
+    assert!(sound_on_disk_s(&dir).unwrap() >= said_s);
+    let _ = fs::remove_dir_all(&parent);
+}
