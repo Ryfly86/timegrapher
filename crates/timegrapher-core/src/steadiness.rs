@@ -2164,7 +2164,7 @@ pub fn check(
     let holes = Cuts::new(clock, &long.breaks, &[]);
     let map = |t: f64| holes.true_time(t);
     let r = cfg.rate_reading_s;
-    let x = readings::series_readings(log, clock, &long.breaks, r);
+    let x = readings::series_readings(log, clock, &long.breaks, r).judged(long);
     let rate_amplitude = cross_correlation(&x.rate_grid, &x.amp_paired, &x.amp_noise, cfg);
     let (isochronism, walk) = readings::isochronism_of(&x, cfg);
     let readings::SeriesReadings {
@@ -2187,7 +2187,11 @@ pub fn check(
         })
         .collect();
     let aw = &log.amplitude_windows;
-    let wind_down = wind_down_sourced(&rate_grid, &amp_readings, log, clock, &long.breaks, cfg);
+    // The wind-down compares the rate at the start and the end with the
+    // amplitude and beat error: none where the rate is withheld (#2404).
+    let wind_down = (!long.withholds(SeriesKind::Rate))
+        .then(|| wind_down_sourced(&rate_grid, &amp_readings, log, clock, &long.breaks, cfg))
+        .flatten();
     let distributions = {
         use distribution::{Input, AMPLITUDE, BEAT_ERROR, RATE};
         let grids = [&rate_grid, &amp_grid];
@@ -2215,9 +2219,12 @@ pub fn check(
             distribution::distributions(&[], 0.0, 0.0, 0.0)
         }
     };
+    // No regular beat over the take: no amplitude readings (#2355).
+    let heard = long.no_watch().is_none();
     let amp_samples: Vec<twostate::Sample> = holes
         .amplitude_windows(aw)
         .into_iter()
+        .filter(|_| heard)
         .filter_map(|w| {
             Some(twostate::Sample {
                 start_s: map(w.start_s),
@@ -2274,7 +2281,11 @@ pub fn check(
     .into_iter()
     .filter_map(|(g, name, unit, scale)| {
         crate::spectrum::amplitude_spectrum(g, name, unit, scale, cfg.max_points)
-            .map(|s| s.with_reading_swing(cfg.rate_reading_s))
+            // The swing in s/d only where the rate is given (#2404).
+            .map(|s| match long.withholds(SeriesKind::Rate) {
+                true => s,
+                false => s.with_reading_swing(cfg.rate_reading_s),
+            })
     })
     .collect();
 
