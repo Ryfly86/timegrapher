@@ -262,3 +262,72 @@ fn a_session_with_no_wind_given_reports_its_readings() {
         "{line}"
     );
 }
+
+/// `session` on `dir` with this session file, writing to `out`.
+fn session_out(dir: &Path, out: &Path, toml: &str) -> Value {
+    std::fs::write(dir.join("session.toml"), toml).unwrap();
+    let o = Command::new(env!("CARGO_BIN_EXE_timegrapher"))
+        .args(["session", dir.to_str().unwrap(), "--json", "--out"])
+        .arg(out)
+        .env("TIMEGRAPHER_CONFIG_DIR", dir.join("config"))
+        .output()
+        .unwrap();
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    serde_json::from_slice(&o.stdout).unwrap()
+}
+
+/// `session --out` into a folder an earlier session wrote takes out the
+/// text report this run did not write, and keeps every other file, so the
+/// folder never holds a report its summary.json doesn't list (#2417).
+/// Both ways round: poise then positions, and positions then poise.
+#[test]
+fn a_second_session_into_one_folder_leaves_no_stale_report() {
+    let dir = scratch("stale");
+    let head = "bph = 28800\nlift = 52\n\n";
+    watch_wav(&dir.join("7h30.wav"), 2.0, 250.0, 41);
+    watch_wav(&dir.join("DU.wav"), 3.0, 270.0, 42);
+    watch_wav(&dir.join("DD.wav"), 1.0, 270.0, 43);
+    let poise = format!("{head}{}", entry("7h30.wav", "7H30", 0.0));
+    let positions = format!(
+        "{head}{}{}",
+        entry("DU.wav", "DU", 0.0),
+        entry("DD.wav", "DD", 0.0)
+    );
+    for (name, first, second, gone, kept) in [
+        (
+            "poise-first",
+            &poise,
+            &positions,
+            "poise-report.txt",
+            "positions-report.txt",
+        ),
+        (
+            "positions-first",
+            &positions,
+            &poise,
+            "positions-report.txt",
+            "poise-report.txt",
+        ),
+    ] {
+        let out = dir.join(name);
+        session_out(&dir, &out, first);
+        assert!(
+            out.join(gone).exists(),
+            "{name}: the first run wrote no {gone}"
+        );
+        std::fs::write(out.join("notes.txt"), "mine").unwrap();
+        let doc = session_out(&dir, &out, second);
+        assert!(report(&doc, gone).is_none(), "{name}");
+        assert!(report(&doc, kept).is_some(), "{name}");
+        assert!(
+            !out.join(gone).exists(),
+            "{name}: the first session's {gone} is still there"
+        );
+        assert!(out.join(kept).exists(), "{name}");
+        assert_eq!(
+            std::fs::read_to_string(out.join("notes.txt")).unwrap(),
+            "mine",
+            "{name}"
+        );
+    }
+}
