@@ -7,6 +7,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import dead_pub  # noqa: E402
@@ -37,11 +38,14 @@ pub struct Keeper {
     pub a: u32,
     #[cfg(test)]
     pub(crate) in_step: bool,
+    pub after: AfterATestField,
     #[cfg(test)]
     map: std::collections::HashMap<u8, OnlyInATestFieldType>,
 }
 
 pub struct AfterAField;
+pub struct AfterATestField;
+pub fn after_a_test_literal_field() -> u32 { 1 }
 pub struct OnlyInATestFieldType;
 pub struct Shape { pub width: u32 }
 pub struct Used { pub width: u32 }
@@ -56,6 +60,7 @@ struct S {
 fn product() -> String {
     let _ = Used { height: 2, #[cfg(test)] width: in_a_test_field_value() };
     let _ = after_a_test_field_value();
+    let _ = Used { #[cfg(test)] width: in_a_test_field_value(), height: after_a_test_literal_field() };
     format!("{named_in_a_format}")
 }
 
@@ -182,6 +187,19 @@ class Check(unittest.TestCase):
         code, out = self.run_check(lambda f: f, lambda f: f[1:])
         self.assertEqual(code, 1)
         self.assertIn("may only shrink", out)
+
+
+class AgainstTheBase(unittest.TestCase):
+    def test_the_repository_check_reads_the_base(self):
+        # A grown baseline fails the check CI runs, not only check().
+        baseline = json.loads(dead_pub.BASELINE.read_text(encoding="utf-8"))
+        with mock.patch.object(dead_pub, "base_baseline", return_value=baseline[1:]), \
+                contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(dead_pub.main(["dead_pub.py", "check"]), 1)
+        self.assertIn("may only shrink", out.getvalue())
+        with mock.patch.object(dead_pub, "base_baseline", return_value=baseline), \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(dead_pub.main(["dead_pub.py", "check"]), 0)
 
 
 class Tokens(unittest.TestCase):
