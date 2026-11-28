@@ -371,7 +371,11 @@ fn a_period_box_shows_its_whole_value() {
     c.user
         .set_wheel("ETA 2824-2", "fourth wheel", 9_999_999.999, None);
     c.selected = Some("ETA 2824-2".into());
-    c.adding = Some(("moon wheel".into(), "21114.027".into()));
+    c.adding = Some(Adding {
+        calibre: "ETA 2824-2".into(),
+        wheel: "moon wheel".into(),
+        period: "21114.027".into(),
+    });
     let ctx = egui::Context::default();
     theme::install(&ctx);
     let input = egui::RawInput {
@@ -503,23 +507,18 @@ fn a_custom_balance_period_follows_its_beat_rate() {
             .find(|w| w.name == "balance")
             .map(|w| w.period_s)
     };
-    k.bph = Some(18000);
-    follow_balance(&mut k, None);
+    k.set_bph(Some(18000));
     assert_eq!(balance(&k), Some(0.4));
-    k.bph = Some(28800);
-    follow_balance(&mut k, Some(18000));
+    k.set_bph(Some(28800));
     assert_eq!(balance(&k), Some(0.25));
     // A period typed by hand stays when the beat rate changes.
     k.wheels[0].period_s = 0.3;
-    k.bph = Some(21600);
-    follow_balance(&mut k, Some(28800));
+    k.set_bph(Some(21600));
     assert_eq!(balance(&k), Some(0.3));
     // No beat rate, no derived balance.
     let mut k = custom("Bench", []);
-    k.bph = Some(36000);
-    follow_balance(&mut k, None);
-    k.bph = None;
-    follow_balance(&mut k, Some(36000));
+    k.set_bph(Some(36000));
+    k.set_bph(None);
     assert_eq!(balance(&k), None);
 }
 
@@ -1162,4 +1161,146 @@ fn the_refused_name_note_goes_on_retyping_or_on_escape_alone() {
     );
     t.frame(&mut c, &name, vec![]);
     assert!(!noted(&t), "Escape alone takes the note back");
+}
+
+/// The texts Manage Calibres draws with `name` selected, at 1440 wide.
+fn drawn_with(c: &mut Calibres, name: &str) -> Vec<String> {
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    c.selected = Some(name.into());
+    let input = egui::RawInput {
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            Vec2::new(1440.0, 2000.0),
+        )),
+        ..Default::default()
+    };
+    let mut out = None;
+    for _ in 0..2 {
+        out = Some(ctx.run(input.clone(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                c.contents(ui, "", "test");
+            });
+        }));
+    }
+    out.unwrap()
+        .shapes
+        .iter()
+        .filter_map(|s| match &s.shape {
+            egui::Shape::Text(t) => Some(t.galley.text().to_string()),
+            _ => None,
+        })
+        .collect()
+}
+
+/// A wheel half typed in Add a Wheel… stays with the calibre it was
+/// started on: another calibre selected shows Add a Wheel… of its own and
+/// none of it, and the first shows it again when selected (#2380).
+#[test]
+fn a_half_typed_wheel_stays_with_its_calibre() {
+    let mut c = Calibres::in_memory();
+    c.adding = Some(Adding {
+        calibre: "Rolex 3235".into(),
+        wheel: "Intermediate".into(),
+        period: "90".into(),
+    });
+    let before = Catalog::new(&c.user).slots(c.find("ETA 2824-2").unwrap());
+    let other = drawn_with(&mut c, "ETA 2824-2");
+    assert!(other.iter().any(|t| t == "Add a Wheel…"), "{other:?}");
+    assert!(!other.iter().any(|t| t == "Intermediate"), "{other:?}");
+    assert_eq!(
+        Catalog::new(&c.user).slots(c.find("ETA 2824-2").unwrap()),
+        before
+    );
+    let own = drawn_with(&mut c, "Rolex 3235");
+    assert!(own.iter().any(|t| t == "Intermediate"), "{own:?}");
+    assert!(!own.iter().any(|t| t == "Add a Wheel…"), "{own:?}");
+}
+
+/// A custom calibre's balance its beat rate gives says so, with no Clear
+/// and no Custom caption, and shows the rate's period even where none is
+/// kept; one typed that the rate doesn't give is the user's (#2381).
+#[test]
+fn a_balance_from_the_beat_rate_says_so() {
+    let mut k = custom("Bench", []);
+    k.set_bph(Some(28800));
+    let row_of = |k: &CustomCalibre, wheel: &str| {
+        let user = UserCalibres::default();
+        let e = Entry::Custom(k);
+        let slots = Catalog::new(&user).slots(e);
+        let s = slots.iter().find(|s| s.name == wheel).unwrap();
+        let (s, tip, clear) = slot_shown(e, s, None);
+        (s.period_s, tip, clear)
+    };
+    let row = |k: &CustomCalibre| row_of(k, "balance");
+    assert_eq!(
+        row(&k),
+        (
+            Some(0.25),
+            "From the beat rate, 28800 bph".to_string(),
+            None
+        )
+    );
+    k.set_bph(Some(21600));
+    let (p, tip, clear) = row(&k);
+    assert_eq!((p, clear), (Some(train::balance_period_s(21600)), None));
+    assert_eq!(tip, "From the beat rate, 21600 bph");
+    // None kept (a file from before): still the rate's, never Not Known.
+    k.wheels.clear();
+    assert_eq!(row(&k).0, Some(train::balance_period_s(21600)));
+    // Typed by hand: the user's, with a Clear that goes back to the rate's.
+    k.wheels.push(CustomWheel {
+        name: "balance".into(),
+        period_s: 0.3,
+    });
+    assert_eq!(
+        row(&k),
+        (
+            Some(0.3),
+            "Custom, typed in".to_string(),
+            Some("Go back to the beat rate's period")
+        )
+    );
+    // Without a beat rate, Clear forgets the period typed in.
+    k.bph = None;
+    assert_eq!(row(&k).2, Some("Forget the period typed in"));
+    // Another wheel of a calibre with a beat rate keeps its own period,
+    // hover and Clear.
+    let mut k = custom("Bench", [("fourth wheel", 60.0)]);
+    k.set_bph(Some(28800));
+    assert_eq!(
+        row_of(&k, "fourth wheel"),
+        (
+            Some(60.0),
+            "Custom, typed in".to_string(),
+            Some("Forget the period typed in")
+        )
+    );
+    // A beat rate of 0 (a file edited by hand) is none: nothing worked out.
+    k.bph = Some(0);
+    k.wheels.retain(|w| w.name != "balance");
+    assert_eq!(
+        row(&k),
+        (
+            None,
+            "Nobody has given this wheel's period yet: type it if you know it".to_string(),
+            Some("Forget the period typed in")
+        )
+    );
+    // Drawn: the balance's row has no Clear and no Custom caption; typed,
+    // it has both.
+    let mut c = Calibres::in_memory();
+    let mut k = custom("Bench", []);
+    k.set_bph(Some(28800));
+    c.user.put_custom(k);
+    // The table's Maker column says "Custom" for the calibre itself.
+    let customs = |seen: &[String]| seen.iter().filter(|t| *t == "Custom").count();
+    let seen = drawn_with(&mut c, "Bench");
+    assert!(seen.iter().any(|t| t == "0.25"), "{seen:?}");
+    assert!(!seen.iter().any(|t| t == "Clear"), "{seen:?}");
+    let from_rate = customs(&seen);
+    c.user.set_wheel("Bench", "balance", 0.3, None);
+    let seen = drawn_with(&mut c, "Bench");
+    assert!(seen.iter().any(|t| t == "Clear"), "{seen:?}");
+    assert_eq!(customs(&seen), from_rate + 1, "{seen:?}");
 }
