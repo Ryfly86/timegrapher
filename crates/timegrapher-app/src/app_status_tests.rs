@@ -300,3 +300,31 @@ fn the_signal_reads_as_doctor_reads_it() {
         );
     }
 }
+
+/// The bar paints [`signal_label`](super::readouts::signal_label) while
+/// listening: the figure to 0.1× as `doctor` reads it, never the whole
+/// × it once rounded to on its own (#2358, Trevor 108).
+#[test]
+fn the_status_bar_paints_the_signal_to_a_tenth() {
+    use super::readouts::signal_label;
+    let ctx = themed();
+    let base = std::env::temp_dir().join(format!("tg-signal-tenth-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = synthetic(15.0, 0.0);
+    let _tx = queued_capture(&mut app, &base);
+    assert!(app.running());
+    let s = app.signal().expect("a signal figure");
+    let out = ctx.run(super::tests::screen(), |ctx| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.horizontal(|ui| app.status_facts(ui));
+        });
+    });
+    let text = super::tests::painted_text(&out);
+    let line = text
+        .lines()
+        .find(|l| l.starts_with("signal "))
+        .unwrap_or_else(|| panic!("no signal fact: {text}"));
+    assert_eq!(line, signal_label(Some(s)), "{text}");
+    assert_ne!(line, format!("signal {s:.0}×"), "{text}");
+    let _ = std::fs::remove_dir_all(&base);
+}
