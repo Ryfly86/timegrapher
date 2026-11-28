@@ -13,6 +13,15 @@ timegrapher report --replay timegrapher-report-20261010T213559Z.zip
 It never opens the microphone. A microphone check goes in only as the
 recording and sidecar that `doctor --save` already wrote.
 
+It only reads the recording: what it makes on the way (the excerpt, and
+`long`'s tables and report for a folder) goes to a scratch folder of its
+own, removed when it is done, so the recording's folder is left as it was
+and a read-only one works (#2415). The zip goes in `--out` (default: the
+current folder) as `timegrapher-report-<utc>Z.zip`; when that name is
+taken, by another report made the same second, say, it is
+`timegrapher-report-<utc>Z-2.zip` and on. A file already there is never
+replaced (#2416).
+
 ## What the zip holds
 
 | File | What |

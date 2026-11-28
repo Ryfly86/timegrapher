@@ -262,3 +262,47 @@ fn a_session_with_no_wind_given_reports_its_readings() {
         "{line}"
     );
 }
+
+/// `session --out` into a folder an earlier session wrote takes out the
+/// text report this run did not write, and keeps every other file, so the
+/// folder never holds a report its summary.json doesn't list (#2417).
+#[test]
+fn a_second_session_into_one_folder_leaves_no_stale_report() {
+    let dir = scratch("stale");
+    let out = dir.join("out");
+    let run = |toml: &str| {
+        std::fs::write(dir.join("session.toml"), toml).unwrap();
+        let o = Command::new(env!("CARGO_BIN_EXE_timegrapher"))
+            .args(["session", dir.to_str().unwrap(), "--json", "--out"])
+            .arg(&out)
+            .env("TIMEGRAPHER_CONFIG_DIR", dir.join("config"))
+            .output()
+            .unwrap();
+        assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+        serde_json::from_slice::<Value>(&o.stdout).unwrap()
+    };
+    let head = "bph = 28800\nlift = 52\n\n";
+    watch_wav(&dir.join("7h30.wav"), 2.0, 250.0, 41);
+    run(&format!("{head}{}", entry("7h30.wav", "7H30", 0.0)));
+    assert!(out.join("poise-report.txt").exists());
+    std::fs::write(out.join("notes.txt"), "mine").unwrap();
+
+    watch_wav(&dir.join("DU.wav"), 3.0, 270.0, 42);
+    watch_wav(&dir.join("DD.wav"), 1.0, 270.0, 43);
+    let doc = run(&format!(
+        "{head}{}{}",
+        entry("DU.wav", "DU", 0.0),
+        entry("DD.wav", "DD", 0.0)
+    ));
+    assert!(report(&doc, "poise-report.txt").is_none());
+    assert!(report(&doc, "positions-report.txt").is_some());
+    assert!(
+        !out.join("poise-report.txt").exists(),
+        "the first session's poise report is still there"
+    );
+    assert!(out.join("positions-report.txt").exists());
+    assert_eq!(
+        std::fs::read_to_string(out.join("notes.txt")).unwrap(),
+        "mine"
+    );
+}

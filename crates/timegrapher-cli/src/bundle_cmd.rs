@@ -6,7 +6,7 @@
 //! Nothing here opens the sound input: a microphone check goes in only as
 //! the recording and sidecar `doctor --save` already wrote.
 
-use crate::archive::{read_folder, read_zip, sha256_hex, write_zip};
+use crate::archive::{read_folder, read_zip, sha256_hex, write_zip_new};
 use crate::output;
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -129,7 +129,7 @@ pub fn run(o: &Options) -> Result<(), String> {
             // No sound to cut: the take's analysis is all there is of it.
             let name = name_of(take);
             parts.left_out.push(analysis_take::REPORT_NO_SOUND.into());
-            whole_into(o, true, take, &name, &mut red, &mut parts)?;
+            whole_into(o, true, take, &name, &work, &mut red, &mut parts)?;
             recording = json!({
                 "name": red.apply(&name),
                 "files": 0,
@@ -142,7 +142,7 @@ pub fn run(o: &Options) -> Result<(), String> {
             let source = if folder { &o.recording[0] } else { first };
             let source_name = name_of(source);
             let excerpt_info = excerpt_into(o, &files, &source_name, &work, &mut red, &mut parts)?;
-            whole_into(o, folder, source, &source_name, &mut red, &mut parts)?;
+            whole_into(o, folder, source, &source_name, &work, &mut red, &mut parts)?;
             recording = json!({
                 "name": red.apply(&source_name),
                 "files": files.len(),
@@ -245,12 +245,15 @@ fn excerpt_into(
 }
 
 /// The analysis of the whole recording, run beside it so its paths are
-/// relative, and a folder's clock log.
+/// relative, and a folder's clock log. `long`'s tables and report go to
+/// `work`, the report's scratch folder: the recording's folder is only
+/// read, never written (#2415).
 fn whole_into(
     o: &Options,
     folder: bool,
     source: &Path,
     source_name: &str,
+    work: &Path,
     red: &mut Redactor,
     parts: &mut Parts,
 ) -> Result<(), String> {
@@ -280,7 +283,13 @@ fn whole_into(
     } else {
         args.extend(settings_args(o));
         eprintln!("analysing the whole recording");
-        let v = run_self(&args, &dir)?;
+        let mut run = args.clone();
+        if folder {
+            // Recorded without it: the folder is this run's alone.
+            let long = std::path::absolute(work.join("long")).map_err(|e| e.to_string())?;
+            run.extend(["--out".into(), long.display().to_string()]);
+        }
+        let v = run_self(&run, &dir)?;
         let out = if folder {
             "results/long-whole.json"
         } else {
@@ -458,8 +467,8 @@ fn write_report(
     all.extend(entries);
     let dir = o.out.clone().unwrap_or_else(|| PathBuf::from("."));
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-    let zip = dir.join(format!("timegrapher-report-{stamp}Z.zip"));
-    write_zip(&zip, &all)?;
+    // A name of its own, even beside a report made the same second (#2416).
+    let zip = write_zip_new(&dir, &format!("timegrapher-report-{stamp}Z"), &all)?;
     let bytes = std::fs::metadata(&zip).map(|m| m.len()).unwrap_or(0);
     if o.json {
         println!("{manifest}");
@@ -854,6 +863,7 @@ mod replay_tests {
 #[cfg(all(test, unix))]
 mod zip_symlink_tests {
     use super::*;
+    use crate::archive::write_zip;
 
     #[test]
     fn bundle_zip_symlink_opens() {
