@@ -120,6 +120,26 @@ pub fn holdout_ids(c: &Corpus) -> std::collections::BTreeSet<&str> {
         .collect()
 }
 
+/// The git commit a corpus checkout is at, so a holdout result names the
+/// takes it read (#2421). None when `root` is not the top of a git
+/// checkout (a folder inside some other repository names no corpus commit).
+pub fn revision(root: &Path) -> Option<String> {
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["rev-parse", "--show-toplevel", "--verify", "HEAD"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let text = String::from_utf8(out.stdout).ok()?;
+    let mut lines = text.lines();
+    let top = Path::new(lines.next()?).canonicalize().ok()?;
+    let sha = lines.next()?.trim();
+    (top == root.canonicalize().ok()? && !sha.is_empty()).then(|| sha.to_string())
+}
+
 /// A digest actually verified by this invocation's existing fetch pass.
 #[derive(Debug, Clone)]
 pub struct VerifiedFile {
