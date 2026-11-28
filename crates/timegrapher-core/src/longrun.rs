@@ -697,6 +697,61 @@ mod tests {
         assert!(st.series[0].readings > 0);
     }
 
+    /// A named wheel's rate line off every standard rate on Auto (Norm 33
+    /// on #2487): 4,000 s at 17,570 bph, its rate swinging 30 s/d every
+    /// 40 s, with a 40 s wheel named. Set at 17,570 the line and the
+    /// rate's spectrum give their sizes in s/d; on Auto neither does, the
+    /// line keeping its timing in ms.
+    #[test]
+    fn a_wheels_rate_line_gives_no_s_per_day_off_every_standard_rate() {
+        let cfg = crate::synth::SynthConfig {
+            duration_s: 4000.0,
+            bph: 17570,
+            rate_s_per_day: 5.0,
+            ..Default::default()
+        };
+        let swing = |t: f64| 30.0 * (t * std::f64::consts::TAU / 40.0).sin();
+        let lc = LongConfig {
+            wheels: vec![crate::periodicity::Wheel {
+                name: "test wheel".into(),
+                period_s: 40.0,
+            }],
+            ..Default::default()
+        };
+        let check = crate::steadiness::Config::default();
+        for bph_set in [Some(17570), None] {
+            let log = read_log_of(&cfg, bph_set, &|_| 270.0, &swing);
+            let r = read_take(&log, None, &[], false, bph_set, &lc);
+            assert_eq!(r.rate_withheld(), bph_set.is_none());
+            let lines = crate::wheel_lines::lines_for_take(&log, None, &r, &lc, false);
+            let rate = lines
+                .iter()
+                .find(|l| l.series == "rate")
+                .expect("the rate line");
+            assert!(!rate.bins.is_empty());
+            let st = crate::steadiness::check(&log, None, &r, &lc, &check);
+            let spectrum = st
+                .spectra
+                .iter()
+                .find(|s| s.series == "rate")
+                .expect("its spectrum");
+            if bph_set.is_some() {
+                assert!(rate
+                    .bins
+                    .iter()
+                    .all(|b| b.size_s_per_day.is_some() && b.se_s_per_day.is_some()));
+                assert!(spectrum.reading_swing.is_some());
+            } else {
+                assert!(rate
+                    .bins
+                    .iter()
+                    .all(|b| b.size_s_per_day.is_none() && b.se_s_per_day.is_none()));
+                assert!(rate.bins.iter().all(|b| b.size > 0.0));
+                assert!(spectrum.reading_swing.is_none());
+            }
+        }
+    }
+
     /// No regular beat (#2355): noise alone (45 s, every sound of the watch
     /// at gain 0), and a watch whose beats scatter far past 2% of a beat
     /// (17,570 bph, each beat's rate moved by up to 3000 s/d, its

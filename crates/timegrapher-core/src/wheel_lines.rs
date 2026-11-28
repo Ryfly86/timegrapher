@@ -75,6 +75,20 @@ pub struct LineBin {
     pub se_s_per_day: Option<f64>,
 }
 
+impl WheelLine {
+    /// The line as `long`'s verdict leaves it: a rate line gives no size
+    /// in s/d where the report gives no rate in s/d
+    /// ([`crate::longrun::LongReport::withholds`]), its timing in ms kept.
+    pub fn judged(mut self, long: &crate::longrun::LongReport) -> Self {
+        if self.series == "rate" && long.withholds(crate::steadiness::SeriesKind::Rate) {
+            for b in &mut self.bins {
+                (b.size_s_per_day, b.se_s_per_day) = (None, None);
+            }
+        }
+        self
+    }
+}
+
 /// One wheel's line in one series.
 #[derive(Debug, Clone, Serialize)]
 pub struct WheelLine {
@@ -474,7 +488,8 @@ pub fn lines_for_take(
     let be = crate::steadiness::level_by_piece(&be, clock, &long.breaks, lc);
     let mut out = Vec::new();
     for w in followed(&lc.wheels, lc.detrend_s) {
-        out.extend(line(&timing, amp, w, "rate", "ms", keep_windows));
+        // In ms only where the report gives no rate in s/d (#2404).
+        out.extend(line(&timing, amp, w, "rate", "ms", keep_windows).map(|l| l.judged(long)));
         out.extend(line(
             &long.amplitude.detrended,
             amp,
