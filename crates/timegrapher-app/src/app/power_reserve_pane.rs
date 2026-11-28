@@ -405,7 +405,12 @@ impl TimegrapherApp {
     /// `to`, from hour `from_hour` on ([`power_reserve::hours_from`]), as
     /// `timegrapher session` reads each stretch, on the session's clock,
     /// breaks and masks.
-    fn reserve_hours(&self, first: f64, to: f64, from_hour: u32) -> Vec<power_reserve::Hour> {
+    pub(super) fn reserve_hours(
+        &self,
+        first: f64,
+        to: f64,
+        from_hour: u32,
+    ) -> Vec<power_reserve::Hour> {
         let bph = self.bench.test.reserve.as_ref().and_then(|t| t.bph);
         let Some(log) = self
             .bench

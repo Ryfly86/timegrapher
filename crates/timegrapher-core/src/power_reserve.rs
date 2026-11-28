@@ -1337,6 +1337,17 @@ mod tests {
         );
     }
 
+    /// A lock at half the watch's rate hears the watch to the same last
+    /// beat (a 28,800 watch read at 14,400 still makes runs): a tie keeps
+    /// the rate held, so the hours aren't read at half the rate (Trevor 101
+    /// on #2527).
+    #[test]
+    fn a_tie_keeps_the_rate_held() {
+        let b = beats(0.0, 700.0, 0.125, 1.0);
+        let locks = [(Some(28_800), 400.0), (Some(14_400), 699.0)];
+        assert_eq!(held_through(&b, &locks), [Some(28_800); 2]);
+    }
+
     /// After a real stop Auto lets go (#1394): the rate stays held and the
     /// test still ends as stopped.
     #[test]

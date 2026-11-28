@@ -1213,6 +1213,29 @@ pub fn results_text(r: &Results, watch: &str, sep: char) -> String {
 mod tests {
     use super::*;
 
+    /// A test holds the rate under which the watch was heard last
+    /// (`power_reserve::TestRate`): a first lock on noise gives way to the
+    /// watch, and a later lock on noise or no lock doesn't move it (#2496,
+    /// #1617, #1394; Trevor 101 on #2527).
+    #[test]
+    fn a_test_holds_the_rate_the_watch_is_heard_at() {
+        // 32 s of clicks under a 72,000 lock, then the watch at 28,800.
+        let mut b = beats(0.0, 32.0, 0.05);
+        b.extend(beats(32.0, 732.0, 0.125));
+        let mut t = Test::new(Position::DialUp, true, String::new(), 0.0);
+        let steps = [
+            (Some(72_000), 30.0, 72_000),
+            (Some(28_800), 40.0, 28_800),
+            (None, 400.0, 28_800),
+            (Some(72_000), 731.0, 28_800),
+        ];
+        for (lock, at, want) in steps {
+            let upto = &b[..b.partition_point(|x| x.time <= at)];
+            assert_eq!(t.hold_bph(upto, lock), Some(want), "at {at} s");
+            assert_eq!(t.bph, Some(want), "at {at} s");
+        }
+    }
+
     fn beats(from: f64, to: f64, step: f64) -> Vec<Beat> {
         let n = ((to - from) / step).round() as i64;
         (0..n)
