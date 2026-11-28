@@ -246,18 +246,49 @@ pub fn beat_s(bph: Option<u32>) -> f64 {
     3600.0 / f64::from(bph.unwrap_or(UNHEARD_BPH).max(1))
 }
 
-/// The beat rate a Power Reserve Test reads its beats at, once `now` is
-/// the rate locked at this moment: the rate it `held` (the rate given, or
-/// the first it locked at), else `now`, which it holds from then on. A
-/// movement's beat rate doesn't change while it runs down (Norm, #1397),
-/// so a later lock at another rate (Auto relocking on noise, #2496) never
-/// changes it: read at that rate, the watch's own beats would no longer
-/// make runs, and an old run would end the test as stopped.
-pub fn hold_bph(held: &mut Option<u32>, now: Option<u32>) -> Option<u32> {
-    if held.is_none() {
-        *held = now;
+/// How a Power Reserve Test picks the one beat rate it reads its beats
+/// at (#2496): a movement's rate doesn't change while it runs down (Norm,
+/// #1397), but Auto's lock can be on noise, at the start (handling, #1617)
+/// or later (a relock, #2496). Read at a wrong rate, the watch's own beats
+/// make no runs and an old run ends the test as stopped. So the test keeps
+/// the rate under which the watch was heard last: the rate given, else
+/// the first lock, moved to a new lock only when the beats read at it have
+/// a later latest run than at the rate held (a tie keeps the held rate).
+/// With no lock (Auto let go after a stop, #1394) the held rate stays.
+/// It reads the beats at both rates as they come in, each only once
+/// (#1892).
+#[derive(Debug, Clone, Default)]
+pub struct TestRate {
+    /// The beats read at the rate held.
+    at_held: Hearing,
+    /// The beats read at the lock of the moment, when it differs.
+    at_lock: Hearing,
+}
+
+impl TestRate {
+    /// The rate `held` (the test's rate, `None` before it has one) after
+    /// the beats heard so far in `beats` (in time order), with Auto
+    /// locked at `lock` now; and the beats heard at that rate.
+    pub fn hold(
+        &mut self,
+        held: &mut Option<u32>,
+        lock: Option<u32>,
+        beats: &[Beat],
+    ) -> (Option<u32>, Heard) {
+        if held.is_none() {
+            *held = lock;
+        }
+        let at_held = self.at_held.update(beats, beat_s(*held));
+        if let Some(l) = lock.filter(|&l| Some(l) != *held) {
+            let at_lock = self.at_lock.update(beats, beat_s(Some(l)));
+            if at_lock.last_s > at_held.last_s {
+                *held = Some(l);
+                std::mem::swap(&mut self.at_held, &mut self.at_lock);
+                return (*held, at_lock);
+            }
+        }
+        (*held, at_held)
     }
-    *held
 }
 
 /// The beats heard in `beats` (in time order) at `beat_s` seconds a beat.
@@ -1248,36 +1279,74 @@ mod tests {
         assert_eq!(v, "input_failed");
     }
 
-    /// A test holds the first rate it locked at (or the rate given) for
-    /// the whole run, so a relock at 72,000 on noise late in the run
-    /// doesn't read the watch's beats as no runs and an old run at that
-    /// rate as the last one heard: the stop #2496 reported.
+    /// The rate a test holds at each check, with Auto locked at each
+    /// `(lock, at)` in turn: never stopped while the watch runs, and the
+    /// rate held after each.
+    fn held_through(b: &[Beat], locks: &[(Option<u32>, f64)]) -> Vec<Option<u32>> {
+        let (mut rate, mut held) = (TestRate::default(), None);
+        locks
+            .iter()
+            .map(|&(lock, at)| {
+                let upto = &b[..b.partition_point(|x| x.time <= at)];
+                let (bph, h) = rate.hold(&mut held, lock, upto);
+                assert!(!h.stopped(at), "stopped at {at} s");
+                assert_eq!(h.last_s, upto.last().map(|x| x.time), "at {at} s");
+                bph
+            })
+            .collect()
+    }
+
+    /// A relock on noise late in the run doesn't move the test off the
+    /// rate the watch is heard at, so the watch's beats still make runs
+    /// and an old run at the noise's rate never ends it as stopped: the
+    /// stop #2496 reported.
     #[test]
     fn a_relock_on_noise_does_not_stop_the_test() {
         // 2 s of clicks heard under a 72,000 lock, then the watch at
         // 28,800 for 700 s.
         let mut b = beats(0.0, 2.0, 0.05, 1.0);
         b.extend(beats(10.0, 710.0, 0.125, 1.0));
-        let now = 712.0;
         // Read at 72,000, only the clicks make a run: stopped at once.
-        assert!(heard(&b, beat_s(Some(72_000))).stopped(now));
-        let mut hearing = Hearing::default();
-        let mut held = None;
-        for (lock, at) in [(Some(28_800), 400.0), (None, 600.0), (Some(72_000), 712.0)] {
-            let upto = &b[..b.partition_point(|x| x.time <= at)];
-            let bph = hold_bph(&mut held, lock);
-            let h = hearing.update(upto, beat_s(bph));
-            assert!(!h.stopped(at), "stopped at {at} s");
-            assert_eq!(h.last_s, upto.last().map(|x| x.time));
-            assert_eq!(bph, Some(28_800));
-        }
+        assert!(heard(&b, beat_s(Some(72_000))).stopped(712.0));
+        let locks = [(Some(28_800), 400.0), (None, 600.0), (Some(72_000), 712.0)];
+        assert_eq!(held_through(&b, &locks), vec![Some(28_800); 3]);
         // A rate given holds from the start.
-        let mut given = Some(21_600);
-        assert_eq!(hold_bph(&mut given, Some(72_000)), Some(21_600));
-        // Before any lock, nothing is held yet.
-        let mut none = None;
-        assert_eq!(hold_bph(&mut none, None), None);
-        assert_eq!(hold_bph(&mut none, Some(18_000)), Some(18_000));
+        let mut given = Some(28_800);
+        let (bph, _) = TestRate::default().hold(&mut given, Some(72_000), &b);
+        assert_eq!(bph, Some(28_800));
+    }
+
+    /// A first lock on noise (handling the watch, #1617) gives way once
+    /// the watch is heard at another rate, so the test isn't read at the
+    /// noise's rate for the rest of the run (Norm 37 on #2527).
+    #[test]
+    fn a_first_lock_on_noise_gives_way_to_the_watch() {
+        // 32 s of clicks under a 72,000 lock, then the watch at 28,800.
+        let mut b = beats(0.0, 32.0, 0.05, 1.0);
+        b.extend(beats(32.0, 732.0, 0.125, 1.0));
+        let locks = [
+            (Some(72_000), 30.0),
+            (Some(28_800), 40.0),
+            (Some(28_800), 400.0),
+            (Some(72_000), 731.0),
+        ];
+        let held = held_through(&b, &locks);
+        assert_eq!(
+            held,
+            [Some(72_000), Some(28_800), Some(28_800), Some(28_800)]
+        );
+    }
+
+    /// After a real stop Auto lets go (#1394): the rate stays held and the
+    /// test still ends as stopped.
+    #[test]
+    fn a_real_stop_still_stops_with_the_rate_let_go() {
+        let b = beats(0.0, 100.0, 0.125, 1.0);
+        let (mut rate, mut held) = (TestRate::default(), None);
+        rate.hold(&mut held, Some(28_800), &b);
+        let (bph, h) = rate.hold(&mut held, None, &b);
+        assert_eq!(bph, Some(28_800));
+        assert!(h.stopped(100.0 + STOP_AFTER_S));
     }
 
     fn beats(from: f64, to: f64, step: f64, quality: f32) -> Vec<Beat> {

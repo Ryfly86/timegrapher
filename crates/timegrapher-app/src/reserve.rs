@@ -65,6 +65,8 @@ pub struct Test {
     pub heard: Heard,
     /// Reads the beats since it began, each only once (#1892).
     hearing: power_reserve::Hearing,
+    /// Picks the one rate it reads at ([`Test::bph`], #2496).
+    rate: power_reserve::TestRate,
     /// The session's audio seconds when last looked at.
     pub now_s: f64,
     /// How it ended, once it has.
@@ -81,10 +83,10 @@ pub struct Test {
     /// failed (the disk full, say): the take, and when the write last
     /// failed, tried again a minute later (#1380).
     pub unwritten: Option<(PathBuf, std::time::Instant)>,
-    /// The beat rate it reads at: the first the session locked at (or the
-    /// rate given), held for the whole run, so its stop and hours are read
-    /// at it after an automatic rate lets go (#1394) or relocks on noise
-    /// (#2496).
+    /// The beat rate it reads at, as [`power_reserve::TestRate::hold`]
+    /// holds it from the session's locks ([`Test::hold_bph`]): its stop
+    /// and hours are read at it after an automatic rate lets go (#1394)
+    /// or locks on noise (#1617, #2496).
     pub bph: Option<u32>,
     /// Its take's hours since full wind at its start, fixed when it
     /// began: a stop found later lets the watch's wind go, never the
@@ -101,6 +103,7 @@ impl Test {
             began_s,
             heard: power_reserve::heard(&[], 1.0),
             hearing: power_reserve::Hearing::default(),
+            rate: power_reserve::TestRate::default(),
             now_s: began_s,
             ending: None,
             results: None,
@@ -130,6 +133,13 @@ impl Test {
         let ending = self.heard.ending(now_s, self.began_s)?;
         self.ending = Some(ending);
         Some(ending)
+    }
+
+    /// The rate it reads at ([`Test::bph`]), with the session's `beats`
+    /// heard so far and its lock now `lock`.
+    pub fn hold_bph(&mut self, beats: &[Beat], lock: Option<u32>) -> Option<u32> {
+        let from = beats.partition_point(|b| b.time < self.began_s);
+        self.rate.hold(&mut self.bph, lock, &beats[from..]).0
     }
 
     /// End it by hand.
