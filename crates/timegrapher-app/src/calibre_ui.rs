@@ -1829,15 +1829,16 @@ impl Calibres {
             Some("Beats per hour, as the maker gives it"),
             |ui| {
                 let mut b = c.bph.map_or(0.0, f64::from);
-                if fields::entry(
+                if fields::entry_at(
                     ui,
-                    &format!("custom-bph-{place}-{i}"),
+                    custom_field_id("custom bph", place, name),
                     &mut b,
                     0.0..=72000.0,
                     &BPH,
                     70.0,
                 ) {
-                    // The balance follows it unless typed (core).
+                    // 0 or an emptied box clears it (#2516); the balance
+                    // follows it unless typed (core).
                     c.set_bph((b > 0.0).then_some(b.round() as u32));
                 }
                 ui.label("bph");
@@ -1849,11 +1850,12 @@ impl Calibres {
             Some("The lift angle the maker gives, used for the amplitude when picked"),
             |ui| {
                 let mut l = c.lift_angle_deg.unwrap_or(0.0);
-                if fields::entry(
+                if fields::entry_at(
                     ui,
-                    &format!("custom-lift-{place}-{i}"),
+                    custom_field_id("custom lift", place, name),
                     &mut l,
-                    // 0 leaves it unset; any other lift is held to the range.
+                    // 0 or an emptied box leaves it unset; any other lift
+                    // is held to the range.
                     0.0..=*LIFT_RANGE_DEG.end(),
                     &LIFT,
                     50.0,
@@ -1904,7 +1906,7 @@ const BPH: fields::Format = fields::Format {
             String::new()
         }
     },
-    parse: fields::parse_number,
+    parse: fields::parse_number_or_none,
 };
 const LIFT: fields::Format = fields::Format {
     show: |v| {
@@ -1914,7 +1916,7 @@ const LIFT: fields::Format = fields::Format {
             String::new()
         }
     },
-    parse: fields::parse_number,
+    parse: fields::parse_number_or_none,
 };
 
 /// A custom calibre's escapement, picked (#2387): a co-axial is read as
