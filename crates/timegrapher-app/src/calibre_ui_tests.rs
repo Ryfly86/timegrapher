@@ -1304,3 +1304,69 @@ fn a_balance_from_the_beat_rate_says_so() {
     assert!(seen.iter().any(|t| t == "Clear"), "{seen:?}");
     assert_eq!(customs(&seen), from_rate + 1, "{seen:?}");
 }
+
+/// The balance periods a custom calibre keeps.
+fn kept_balance(c: &Calibres) -> Vec<f64> {
+    c.user.custom[0]
+        .wheels
+        .iter()
+        .filter(|w| w.name == "balance")
+        .map(|w| w.period_s)
+        .collect()
+}
+
+/// A beat rate typed into the drawn Beat Rate box goes through core's
+/// `CustomCalibre::set_bph`: the balance follows the rate, and a balance
+/// typed that the rate doesn't give stays (#2515).
+#[test]
+fn the_beat_rate_box_moves_the_balance_with_it() {
+    let mut c = Calibres::in_memory();
+    let name = c.new_custom("Bench 28");
+    let t = Typing::new();
+    t.type_into(&mut c, &name, "custom bph", "28800");
+    t.enter(&mut c, &name);
+    assert_eq!(c.user.custom[0].bph, Some(28800));
+    assert_eq!(kept_balance(&c), [0.25]);
+    t.type_into(&mut c, &name, "custom bph", "21600");
+    t.enter(&mut c, &name);
+    assert_eq!(c.user.custom[0].bph, Some(21600));
+    let p = kept_balance(&c);
+    assert_eq!(p.len(), 1);
+    assert!((p[0] - 1.0 / 3.0).abs() < 1e-9, "{p:?}");
+    // A balance typed stays when the rate changes.
+    c.user.custom[0].wheels[0].period_s = 0.3;
+    t.type_into(&mut c, &name, "custom bph", "18000");
+    t.enter(&mut c, &name);
+    assert_eq!(c.user.custom[0].bph, Some(18000));
+    assert_eq!(kept_balance(&c), [0.3]);
+}
+
+/// Return on an emptied Beat Rate or Lift Angle box clears it just as 0
+/// does, and the balance from the rate goes with the rate (#2516).
+#[test]
+fn an_emptied_beat_rate_or_lift_box_clears_it_as_0_does() {
+    for cleared in ["", "0", " "] {
+        let mut c = Calibres::in_memory();
+        let name = c.new_custom("Bench 28");
+        let t = Typing::new();
+        for (what, text) in [("custom bph", "28800"), ("custom lift", "52")] {
+            t.type_into(&mut c, &name, what, text);
+            t.enter(&mut c, &name);
+        }
+        assert_eq!(c.user.custom[0].bph, Some(28800));
+        assert_eq!(c.user.custom[0].lift_angle_deg, Some(52.0));
+        assert_eq!(kept_balance(&c), [0.25]);
+        for what in ["custom bph", "custom lift"] {
+            // All selected, then "0" or a space typed over it, or Backspace.
+            t.type_into(&mut c, &name, what, cleared);
+            if cleared.is_empty() {
+                let back = Typing::key(egui::Key::Backspace, egui::Modifiers::NONE);
+                t.frame(&mut c, &name, back);
+            }
+            t.enter(&mut c, &name);
+        }
+        assert_eq!(c.user.custom[0].bph, None, "{cleared:?}");
+        assert_eq!(c.user.custom[0].lift_angle_deg, None, "{cleared:?}");
+        assert!(kept_balance(&c).is_empty(), "{cleared:?}");
+    }
+}
