@@ -168,3 +168,62 @@ fn the_sides_name_the_reason_only_when_most_windows_were_withheld_for_them() {
     assert_eq!(why_of(10), DropWhy::SidesDisagree);
     assert_eq!(why_of(0), DropWhy::UnlockNotFound);
 }
+
+/// From 30 windows a co-axial has a reference of its own (#1576's
+/// minimum, inclusive), so its misread windows are withheld (Trevor 85).
+#[test]
+fn a_co_axial_with_30_windows_is_judged_on_its_sides() {
+    let mut w = coaxial(30, 10..12);
+    screen_unlock_beat_error(&mut w, Escapement::CoAxial);
+    for (i, w) in w.iter().enumerate() {
+        assert_eq!(w.sides_disagree(), (10..12).contains(&i), "{i}");
+    }
+}
+
+/// A co-axial's reference is the median ratio, which misreads short of
+/// half the windows don't move: 22 healthy windows at 1.5 and 18 misread
+/// at 4.5 have a mean of 2.85, against which the healthy ones would sit
+/// 1.9 off and be withheld; against the median they keep their unlock
+/// beat error (Trevor 85).
+#[test]
+fn a_co_axial_is_judged_against_the_median_ratio() {
+    let mut w: Vec<AmplitudeWindow> = (0..40)
+        .map(|i| win(i, if i % 2 == 0 && i < 36 { 27.0 } else { 9.0 }, 6.0, 280.0))
+        .collect();
+    let misread = |i: usize| i % 2 == 0 && i < 36;
+    assert_eq!((0..40).filter(|&i| misread(i)).count(), 18);
+    screen_unlock_beat_error(&mut w, Escapement::CoAxial);
+    for (i, w) in w.iter().enumerate() {
+        assert_eq!(w.sides_disagree(), misread(i), "{i}");
+        assert_eq!(w.beat_error_unlock_ms.is_some(), !misread(i), "{i}");
+    }
+}
+
+/// A side whose edges were culled still counts as found for the majority
+/// that names the reason (Norm 32: "kept or culled"): of 10 windows with
+/// both sides found, 4 with a side culled, 5 withheld for their sides is
+/// not more than half, so the unlock was not found (Trevor 85).
+#[test]
+fn culled_sides_count_towards_the_majority_that_names_the_reason() {
+    let mut w: Vec<AmplitudeWindow> = (0..10).map(|i| win(i, 7.0, 7.0, 280.0)).collect();
+    for (i, w) in w.iter_mut().enumerate() {
+        w.beat_error_unlock_ms = None;
+        if i < 5 {
+            w.edit_extra(|x| x.sides_disagree = true);
+        }
+        if i >= 6 {
+            let e = [
+                w.even_unlock_ms.take().unwrap(),
+                w.even_drop_ms.take().unwrap(),
+            ];
+            w.even_deg = None;
+            w.set_culled([Some(e), None]);
+        }
+    }
+    assert!(w.iter().all(|w| w.found_both()));
+    let refs: Vec<&AmplitudeWindow> = w.iter().collect();
+    assert_eq!(
+        crate::session::window_figures(&refs, false).drop_why(),
+        crate::measure::DropWhy::UnlockNotFound
+    );
+}
