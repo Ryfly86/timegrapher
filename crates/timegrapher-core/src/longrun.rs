@@ -7,7 +7,7 @@ use crate::clean::Cuts;
 use crate::clock::ClockFit;
 use crate::dsp::median;
 use crate::dsp::percentile;
-use crate::longterm::{self, grid_median, Component, LongConfig, SeriesReport};
+use crate::longterm::{self, grid_median, Component, Grid, LongConfig, SeriesReport};
 use crate::stream::BeatLog;
 use crate::timing::{self, TimingFit};
 use serde::Serialize;
@@ -448,9 +448,10 @@ impl LongReport {
     /// rate ([`crate::analysis::lock_off_standard`]), no rate in s/d is
     /// given ([`Self::read_off_standard`]), and the caveat
     /// `off_standard_rate` is the whole reading's, read on `map`. The
-    /// verdict is the lock's, never made again here.
+    /// verdict is the lock's, never made again here. A run with no
+    /// regular beat takes none: its whole reading has no rate to read off.
     pub fn judge_lock(&mut self, bph_set: Option<u32>, log: &BeatLog, map: Option<&ClockFit>) {
-        if self.no_watch().is_some() || !crate::analysis::lock_off_standard(bph_set, log) {
+        if !crate::analysis::lock_off_standard(bph_set, log) {
             return;
         }
         let mut whole = whole_reading(log, map, &self.breaks);
@@ -536,6 +537,46 @@ impl LongReport {
             .and_then(|o| crate::measure::Caveat::OffStandardRate(o).long(None))
     }
 
+    /// Whether the report gives none of `kind`'s readings: the rate's
+    /// where it gives no rate in s/d ([`Self::rate_withheld`]), and every
+    /// series' where no regular beat was heard ([`Self::no_watch`]). The
+    /// one rule for every grid of the take's series read beside the
+    /// report ([`Self::judged`]).
+    pub fn withholds(&self, kind: crate::steadiness::SeriesKind) -> bool {
+        use crate::steadiness::SeriesKind;
+        match kind {
+            SeriesKind::Rate => self.rate_withheld(),
+            SeriesKind::Amplitude | SeriesKind::BeatError => self.no_watch().is_some(),
+        }
+    }
+
+    /// A grid of `kind`'s readings as the report's verdict leaves it
+    /// ([`Self::withholds`]): its readings left out where they are
+    /// withheld, its tiling kept, so every test and view laid on it reads
+    /// too few.
+    pub fn judge(&self, kind: crate::steadiness::SeriesKind, g: &mut Grid) {
+        if self.withholds(kind) {
+            g.y.fill(f64::NAN);
+        }
+    }
+
+    /// [`Self::judge`], of a grid given and returned.
+    pub fn judged(&self, kind: crate::steadiness::SeriesKind, mut g: Grid) -> Grid {
+        self.judge(kind, &mut g);
+        g
+    }
+
+    /// The rate's, the amplitude's and the beat error's grids, in that
+    /// order, each [`Self::judged`].
+    pub fn judged_grids(&self, [rate, amp, be]: [Grid; 3]) -> [Grid; 3] {
+        use crate::steadiness::SeriesKind;
+        [
+            self.judged(SeriesKind::Rate, rate),
+            self.judged(SeriesKind::Amplitude, amp),
+            self.judged(SeriesKind::BeatError, be),
+        ]
+    }
+
     /// The run's rate in s/d, the overall fit's: none where it is
     /// withheld ([`Self::rate_withheld`]).
     pub fn rate_s_per_day(&self) -> Option<f64> {
@@ -568,9 +609,15 @@ mod tests {
     use super::*;
 
     /// A synthetic take's beat log, read on Auto (`bph` none) or at a set
-    /// rate, as `long` reads a sound file.
-    fn read_log(cfg: &crate::synth::SynthConfig, bph: Option<u32>) -> BeatLog {
-        let a = crate::synth::generate(cfg, |_| 270.0, |_| 0.0);
+    /// rate, as `long` reads a sound file: at amplitude `amp(t)`, its rate
+    /// moved by `rate(t)` s/d.
+    fn read_log_of(
+        cfg: &crate::synth::SynthConfig,
+        bph: Option<u32>,
+        amp: &dyn Fn(f64) -> f64,
+        rate: &dyn Fn(f64) -> f64,
+    ) -> BeatLog {
+        let a = crate::synth::generate(cfg, amp, rate);
         crate::stream::analyze_samples(
             &a.samples,
             a.sample_rate,
@@ -584,7 +631,8 @@ mod tests {
         )
     }
 
-    /// The audit's probe (#2404): 17,570 bph at +5 s/d. On Auto its lock
+    /// The audit's probe (#2404): 17,570 bph at +5 s/d, its rate swinging
+    /// 50 s/d every 15 s, so the run has a rate cycle. On Auto its lock
     /// is off every standard rate, so the long-run report gives no rate in
     /// s/d anywhere (overall, slices, spread, rate cycles, `series`' rate
     /// readings), and says why with the take's whole reading's own
@@ -593,13 +641,17 @@ mod tests {
     #[test]
     fn a_lock_off_every_standard_rate_gives_no_rate_and_a_set_one_reads() {
         let cfg = crate::synth::SynthConfig {
-            duration_s: 80.0,
+            duration_s: 120.0,
             bph: 17570,
             rate_s_per_day: 5.0,
             ..Default::default()
         };
+        let swing = |t: f64| 50.0 * (t * std::f64::consts::TAU / 15.0).sin();
         let lc = LongConfig::default();
-        let log = read_log(&cfg, None);
+        let log = read_log_of(&cfg, None, &|_| 270.0, &swing);
+        // Before the verdict, the figures each blanked field would give.
+        let figures = analyse_figures(&log, None, None, &[], &lc);
+        assert!(!figures.rate_components.is_empty());
         let r = read_take(&log, None, &[], false, None, &lc);
         assert!(
             r.rate_withheld() && r.no_watch().is_none(),
@@ -634,7 +686,7 @@ mod tests {
         assert!(st.distributions.overall.iter().all(|d| d.series != "rate"));
 
         // Set at 17,570: the rate reads, and no caveat says otherwise.
-        let log = read_log(&cfg, Some(17570));
+        let log = read_log_of(&cfg, Some(17570), &|_| 270.0, &swing);
         let r = read_take(&log, None, &[], false, Some(17570), &lc);
         assert!(!r.rate_withheld(), "{:?}", r.caveats);
         let rate = r.rate_s_per_day().expect("a rate");
@@ -645,65 +697,162 @@ mod tests {
         assert!(st.series[0].readings > 0);
     }
 
-    /// Noise alone (#2355): 45 s with every sound of the watch at gain 0.
-    /// The take's whole reading finds no regular beat, as `session` and
-    /// `analyze` find, so the long-run report gives no figures (no fit,
-    /// slice, median, spread or cycle), no caveat that hangs on one, and
-    /// `no_watch` with the take's reason; `series` reads nothing either.
+    /// No regular beat (#2355): noise alone (45 s, every sound of the watch
+    /// at gain 0), and a watch whose beats scatter far past 2% of a beat
+    /// (17,570 bph, each beat's rate moved by up to 3000 s/d, its
+    /// amplitude swinging 20° every 20 s), read for a Swiss lever and for
+    /// a co-axial. Each take's whole reading finds no regular beat, as
+    /// `session` and `analyze` find, so the long-run report gives no
+    /// figures (no fit, slice, median, spread, grid or cycle), no caveat
+    /// that hangs on one, no off-standard verdict, and `no_watch` with
+    /// the take's reason; `series` reads nothing either. The scattered
+    /// watch gives each of those figures before the verdict.
     #[test]
-    fn noise_alone_gives_no_figures_and_no_regular_beat() {
-        let mut cfg = crate::synth::SynthConfig {
+    fn no_regular_beat_gives_no_figures() {
+        use crate::escapement::Escapement;
+        let mut silent = crate::synth::SynthConfig {
             duration_s: 45.0,
             ..Default::default()
         };
-        for s in &mut cfg.sounds {
+        for s in &mut silent.sounds {
             s.gain = 0.0;
         }
+        let scattered = crate::synth::SynthConfig {
+            duration_s: 120.0,
+            bph: 17570,
+            rate_s_per_day: 5.0,
+            ..Default::default()
+        };
+        // A rate from -3000 to +3000 s/d, new every millisecond of the take.
+        let jump = |t: f64| {
+            let x = ((t * 1000.0).floor() as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15) >> 11;
+            3000.0 * ((x as f64 / (1u64 << 53) as f64) * 2.0 - 1.0)
+        };
+        let swing = |t: f64| 270.0 + 20.0 * (t * std::f64::consts::TAU / 20.0).sin();
+        let read = |cfg: &crate::synth::SynthConfig, e: Escapement, take: bool| {
+            let a = if take {
+                crate::synth::generate(cfg, swing, jump)
+            } else {
+                crate::synth::generate(cfg, |_| 270.0, |_| 0.0)
+            };
+            let mut sc = crate::stream::StreamConfig::default();
+            sc.analysis.amplitude.escapement = e;
+            crate::stream::analyze_samples(&a.samples, a.sample_rate, &sc)
+        };
         let lc = LongConfig::default();
-        let log = read_log(&cfg, None);
-        assert!(
-            !log.beats.is_empty(),
-            "the beat finder reads the noise as beats"
-        );
-        let whole = crate::session::measure(&log, None, 0.0, log.duration_s);
-        assert!(!whole.watch_heard);
-        for r in [
-            analyse(&log, None, &lc),
-            read_take(&log, None, &[], false, None, &lc),
+        for (log, figures) in [
+            (read(&silent, Escapement::SwissLever, false), false),
+            (read(&scattered, Escapement::SwissLever, true), true),
+            (read(&scattered, Escapement::CoAxial, true), true),
         ] {
-            assert_eq!(
-                r.no_watch(),
-                crate::measure::no_watch_reason_in(&whole.caveats)
-            );
-            assert!(r.no_watch().is_some() && r.rate_withheld());
-            assert!(r.overall.is_none() && r.drop_beat_error_ms().is_none());
-            assert_eq!(r.beat_error_unlock_ms, None);
-            assert_eq!(
-                (r.amplitude_deg, r.rate_p05, r.rate_p95),
-                (None, None, None)
-            );
-            assert_eq!((r.amplitude_p05, r.amplitude_p95), (None, None));
-            assert!(r.slices.iter().all(|s| s.rate_s_per_day.is_none()
-                && s.beat_error_ms.is_none()
-                && s.beat_error_unlock_ms.is_none()
-                && s.amplitude_deg.is_none()));
-            assert!(r.rate_components.is_empty());
-            assert!(r.timing.components.is_empty() && r.amplitude.components.is_empty());
-            assert!(!r.caveats.contains(&crate::measure::Caveat::BeatErrorAsSize));
-            let text = r.no_rate_text(None).expect("the sentence");
-            assert!(
-                text.starts_with("No regular beat found")
-                    && text.ends_with(crate::session::NO_READINGS),
-                "{text}"
-            );
-            let st = crate::steadiness::check(&log, None, &r, &lc, &Default::default());
-            assert!(st.series.iter().all(|s| s.readings == 0), "{:?}", st.series);
-            assert!(st.beat_error_source.is_none());
-            assert!(!st
+            assert!(!log.beats.is_empty(), "the beat finder reads beats");
+            let whole = crate::session::measure(&log, None, 0.0, log.duration_s);
+            assert!(!whole.watch_heard);
+            let before = analyse_figures(&log, None, None, &[], &lc);
+            if figures {
+                figures_before_the_verdict(&before, &log);
+            }
+            for r in [
+                analyse(&log, None, &lc),
+                read_take(&log, None, &[], false, None, &lc),
+            ] {
+                no_figures(&r, &log, &whole, &lc);
+            }
+        }
+    }
+
+    /// What a take with no regular beat, `log`, gives before the verdict
+    /// blanks it: each figure [`no_figures`] checks is blanked.
+    fn figures_before_the_verdict(before: &LongReport, log: &BeatLog) {
+        use crate::measure::Caveat;
+        let live = |s: &SeriesReport| s.grid.y.iter().any(|v| v.is_finite());
+        assert!(before.overall.is_some() && before.beat_error_unlock_ms.is_some());
+        assert!(before.amplitude_deg.is_some() && before.amplitude_p05.is_some());
+        assert!(before.amplitude_p95.is_some());
+        assert!(before.slices.iter().any(|s| s.amplitude_deg.is_some()));
+        assert!(before
+            .slices
+            .iter()
+            .any(|s| s.beat_error_unlock_ms.is_some()));
+        assert!(live(&before.timing) && live(&before.amplitude));
+        assert!(!before.amplitude.components.is_empty());
+        assert!(crate::analysis::lock_off_standard(None, log));
+        if log.escapement.is_co_axial() {
+            assert!(before.caveats.contains(&Caveat::CoaxialEstimate));
+            assert!(before
                 .caveats
                 .iter()
-                .any(|c| matches!(c, crate::measure::Caveat::BeatErrorFromDrop { .. })));
+                .any(|c| matches!(c, Caveat::CoaxialBeatError { .. })));
         }
+    }
+
+    /// A report of `log`, whose whole reading `whole` finds no regular
+    /// beat, with no figures, and `series` reading none (`steadiness::check` read
+    /// with `lc`).
+    fn no_figures(
+        r: &LongReport,
+        log: &BeatLog,
+        whole: &crate::session::Measurement,
+        lc: &LongConfig,
+    ) {
+        use crate::measure::Caveat;
+        assert_eq!(
+            r.no_watch(),
+            crate::measure::no_watch_reason_in(&whole.caveats)
+        );
+        assert!(r.no_watch().is_some() && r.rate_withheld());
+        assert_eq!(crate::measure::off_standard(&r.caveats), None);
+        assert!(r.overall.is_none() && r.drop_beat_error_ms().is_none());
+        assert_eq!(r.beat_error_unlock_ms, None);
+        assert_eq!(
+            (r.amplitude_deg, r.rate_p05, r.rate_p95),
+            (None, None, None)
+        );
+        assert_eq!((r.amplitude_p05, r.amplitude_p95), (None, None));
+        assert!(r.slices.iter().all(|s| s.rate_s_per_day.is_none()
+            && s.beat_error_ms.is_none()
+            && s.beat_error_unlock_ms.is_none()
+            && s.amplitude_deg.is_none()));
+        assert!(r.rate_components.is_empty());
+        assert!(r.timing.components.is_empty() && r.amplitude.components.is_empty());
+        for g in [
+            &r.timing.grid,
+            &r.timing.detrended,
+            &r.amplitude.grid,
+            &r.amplitude.detrended,
+        ] {
+            assert!(g.y.iter().all(|v| v.is_nan()));
+        }
+        assert!(!r.caveats.iter().any(|c| matches!(
+            c,
+            Caveat::BeatErrorAsSize | Caveat::CoaxialEstimate | Caveat::CoaxialBeatError { .. }
+        )));
+        let text = r.no_rate_text(None).expect("the sentence");
+        assert!(
+            text.starts_with("No regular beat found")
+                && text.ends_with(crate::session::NO_READINGS),
+            "{text}"
+        );
+        let st = crate::steadiness::check(log, None, r, lc, &Default::default());
+        assert!(st.series.iter().all(|s| s.readings == 0), "{:?}", st.series);
+        // No two-state samples either: none of the rate's windows,
+        // nor of the amplitude's.
+        for s in &st.series[..2] {
+            assert_eq!(
+                s.two_state.as_ref().map_or(0, |t| t.blocks),
+                0,
+                "{:?}",
+                s.series
+            );
+        }
+        assert!(st.beat_error_source.is_none() && st.wind_down.is_none());
+        assert!(!st
+            .caveats
+            .iter()
+            .any(|c| matches!(c, Caveat::BeatErrorFromDrop { .. })));
+        // Every grid read beside the report takes its verdict.
+        let grids = crate::steady_views::check_grids(log, None, r, 10.0);
+        assert!(grids.iter().all(|g| g.y.iter().all(|v| v.is_nan())));
     }
 
     #[test]

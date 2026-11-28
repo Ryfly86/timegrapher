@@ -470,6 +470,7 @@ pub fn lines_for_take(
     let amp = &long.amplitude.grid;
     let timing = scaled(&level_timing(long, lc), 1000.0);
     let [_, be] = crate::steadiness::window_grids(log, clock, &long.breaks);
+    let be = long.judged(crate::steadiness::SeriesKind::BeatError, be);
     let be = crate::steadiness::level_by_piece(&be, clock, &long.breaks, lc);
     let mut out = Vec::new();
     for w in followed(&lc.wheels, lc.detrend_s) {

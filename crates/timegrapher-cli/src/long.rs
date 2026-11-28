@@ -781,7 +781,7 @@ fn write_tables(
     )?;
     io(
         out.join("amplitude.csv"),
-        write_amplitude(&out.join("amplitude.csv"), log, &cuts),
+        write_amplitude(&out.join("amplitude.csv"), log, &cuts, rep),
     )?;
     io(
         out.join("slices.csv"),
@@ -1135,17 +1135,21 @@ fn write_beats(
     w.flush()
 }
 
+/// The amplitude windows' figures, none where the report gives no
+/// amplitude (no regular beat heard, `LongReport::withholds`).
 fn write_amplitude(
     p: &Path,
     log: &BeatLog,
     cuts: &timegrapher_core::clean::Cuts,
+    rep: &LongReport,
 ) -> std::io::Result<()> {
+    let heard = !rep.withholds(timegrapher_core::steadiness::SeriesKind::Amplitude);
     let mut w = BufWriter::new(File::create(p)?);
     writeln!(
         w,
         "start_s,end_s,true_start_s,even_deg,odd_deg,beat_error_ms,beat_error_unlock_ms"
     )?;
-    for a in &log.amplitude_windows {
+    for a in log.amplitude_windows.iter().filter(|_| heard) {
         writeln!(
             w,
             "{:.3},{:.3},{:.3},{},{},{},{}",

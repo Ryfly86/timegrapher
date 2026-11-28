@@ -2187,7 +2187,11 @@ pub fn check(
         })
         .collect();
     let aw = &log.amplitude_windows;
-    let wind_down = wind_down_sourced(&rate_grid, &amp_readings, log, clock, &long.breaks, cfg);
+    // The wind-down compares the rate at the start and the end with the
+    // amplitude and beat error: none where the rate is withheld (#2404).
+    let wind_down = (!long.withholds(SeriesKind::Rate))
+        .then(|| wind_down_sourced(&rate_grid, &amp_readings, log, clock, &long.breaks, cfg))
+        .flatten();
     let distributions = {
         use distribution::{Input, AMPLITUDE, BEAT_ERROR, RATE};
         let grids = [&rate_grid, &amp_grid];

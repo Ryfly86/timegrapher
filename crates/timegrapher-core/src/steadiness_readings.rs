@@ -59,29 +59,29 @@ pub(super) fn series_readings(
 }
 
 impl SeriesReadings {
-    /// The readings the long-run report's verdict leaves (#2355, #2404):
-    /// none of the rate where it gives no rate in s/d
-    /// ([`LongReport::rate_withheld`]), and none at all where the take's
-    /// whole reading finds no regular beat ([`LongReport::no_watch`]).
-    /// Each grid keeps its tiling, its readings left out, so every test
-    /// and view laid on them reads too few.
+    /// The readings the long-run report's verdict leaves (#2355, #2404),
+    /// each grid [`LongReport::judge`]d: none of the rate where it gives
+    /// no rate in s/d, and none at all where the take's whole reading
+    /// finds no regular beat. The rate's windows go with its grid (the
+    /// rate's two-state samples), and the beat error's source with its
+    /// grid. The amplitude's pairing noise is kept: only the rate's
+    /// readings read it.
     pub(super) fn judged(mut self, long: &LongReport) -> Self {
-        let blank = |g: &mut Grid| g.y.fill(f64::NAN);
-        if long.rate_withheld() {
-            self.wins.clear();
-            blank(&mut self.rate_grid);
+        long.judge(SeriesKind::Rate, &mut self.rate_grid);
+        for g in [
+            &mut self.amp_grid,
+            &mut self.amp_readings,
+            &mut self.amp_paired,
+        ] {
+            long.judge(SeriesKind::Amplitude, g);
         }
-        if long.no_watch().is_some() {
-            for g in [
-                &mut self.amp_grid,
-                &mut self.be_grid,
-                &mut self.amp_readings,
-                &mut self.be_readings,
-                &mut self.amp_paired,
-            ] {
-                blank(g);
-            }
-            self.amp_noise.clear();
+        for g in [&mut self.be_grid, &mut self.be_readings] {
+            long.judge(SeriesKind::BeatError, g);
+        }
+        if long.withholds(SeriesKind::Rate) {
+            self.wins.clear();
+        }
+        if long.withholds(SeriesKind::BeatError) {
             self.selected_be = crate::session::BeatErrorSelection {
                 beat_error_source: None,
                 beat_error_sources: Default::default(),
