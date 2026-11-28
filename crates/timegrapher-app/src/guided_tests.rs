@@ -346,7 +346,7 @@ fn a_masked_bump_inside_a_position_is_left_out() {
     let masked = [(bump.0 - 1.0, bump.1 + 1.0)];
     live.set_masked(&masked);
     let log = crate::steady::log_of(&live).expect("beat rate");
-    t.reread(&log, None, &masked);
+    t.reread(&log, None, &masked, f64::INFINITY);
     let m = first(&t);
     let rate = m.rate_s_per_day.unwrap();
     assert!((rate - 3.0).abs() < 1.0, "rate {rate}");
@@ -446,7 +446,7 @@ fn six_positions_read_their_own_rates() {
         assert_eq!(t.tick(each * i as f64), Phase::Turn);
         // Each position is read as soon as it is measured.
         assert!(t.needs_reading());
-        t.read_new(&log, None, &[]);
+        t.read_new(&log, None, &[], live.settled_s());
         assert_eq!(t.readings_so_far().len(), i);
         t.advance(each * i as f64);
     }
@@ -1832,4 +1832,28 @@ fn the_one_place_turns_drag_to_scroll_off() {
         assert!(ours.contains("scroll_bar: true"), "{ours}");
         assert!(ours.contains("mouse_wheel: true"), "{ours}");
     }
+}
+
+/// A switch of live's template rereads the rows once, not on every pass
+/// after it (#2510).
+#[test]
+fn a_template_switch_rereads_the_rows_once() {
+    let cfg = SynthConfig {
+        duration_s: 14.0,
+        ..Default::default()
+    };
+    let audio = generate(&cfg, |_| 280.0, |_| 0.0);
+    let mut live = LiveAnalyzer::new(48000, LiveConfig::default());
+    for b in audio.samples.chunks(4800) {
+        live.push(b);
+    }
+    let log = crate::steady::log_of(&live).expect("beat rate");
+    let mut t = Test::new().timed(1.0, 10.0);
+    t.tick(0.0);
+    assert_eq!(t.tick(11.0), Phase::Turn);
+    assert!(!t.read_after(None), "no switch yet");
+    assert!(t.read_after(Some(5.0)), "a switch since");
+    t.read_on(&log, None, &[], live.settled_s(), Some(5.0));
+    assert_eq!(t.readings_so_far().len(), 1);
+    assert!(!t.read_after(Some(5.0)), "read after it once");
 }

@@ -13,6 +13,7 @@ mod complication_grid;
 pub(crate) use complication_grid::complication_hover_ids;
 use complication_grid::{complication_grid, complication_text};
 mod free_grid;
+mod heard;
 use crate::app::Position;
 use crate::theme;
 use eframe::egui::{self, RichText, Vec2};
@@ -344,6 +345,11 @@ pub struct Test {
     pub full: Option<(FullWind, f64)>,
     /// Its figures read again from its sound as saved, as it ends (#1958).
     pub saved_read: SavedRead,
+    /// When live's template built again took over (core's
+    /// `LiveAnalyzer::template_switch_s`) as the positions so far were
+    /// read: the beats are timed again then, so a switch since reads them
+    /// again ([`Self::read_on`], #2510).
+    read_after_switch: Option<f64>,
 }
 
 /// Where a finished test's figures come from (#1958): the take's sound as
@@ -398,6 +404,7 @@ impl Test {
             began_unix: unix_now(),
             full: None,
             saved_read: SavedRead::NotRead,
+            read_after_switch: None,
         }
     }
 
@@ -617,19 +624,6 @@ impl Test {
         self.done.len() < self.spans.len()
     }
 
-    /// Read each position measured since the last call, so the pane's
-    /// table fills in as the test goes.
-    pub fn read_new(&mut self, log: &BeatLog, clock: Option<&ClockFit>, masked: &[(f64, f64)]) {
-        while self.done.len() < self.spans.len() {
-            let i = self.done.len();
-            let (_, from, to) = self.spans[i];
-            match self.reading(i, from, to, log, clock, masked) {
-                Some(r) => self.done.push(r),
-                None => break,
-            }
-        }
-    }
-
     /// The readings so far: each position measured, in order.
     pub fn readings_so_far(&self) -> &[Reading] {
         self.readings.as_deref().unwrap_or(&self.done)
@@ -809,9 +803,15 @@ impl Test {
 
     /// Read every position measured so far again, as when the stretches
     /// masked change; a finished test is finished again.
-    pub fn reread(&mut self, log: &BeatLog, clock: Option<&ClockFit>, masked: &[(f64, f64)]) {
+    pub fn reread(
+        &mut self,
+        log: &BeatLog,
+        clock: Option<&ClockFit>,
+        masked: &[(f64, f64)],
+        settled_s: f64,
+    ) {
         self.done.clear();
-        self.read_new(log, clock, masked);
+        self.read_new(log, clock, masked, settled_s);
         if self.readings.is_some() {
             self.finish(log, clock, masked);
             // Read again from its sound once the take is saved with them.

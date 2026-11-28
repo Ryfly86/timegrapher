@@ -186,7 +186,7 @@ timegrapher record --watch NAME [--library DIR] --position P [...]
 
 Records one position for `--seconds`, then stops; it listens only while
 it runs. Each run makes a take folder in FOLDER as the desktop app saves
-one (`audio-001.wav`, `clock.csv`, `session.json`, `session.toml`),
+one (`audio-001.flac`, `clock.csv`, `session.json`, `session.toml`),
 checks it, and adds every take to `FOLDER/session.toml` (written on the
 first take with the watch, calibre, bph and lift) with
 its position and `--wind-h`, and a comment line for no regular beat or
@@ -235,7 +235,7 @@ the microphone.
 ```
 timegrapher analyze FILE [--bph N] [--lift DEG] [--notch HZ,HZ,...]
                     [--highpass HZ] [--escape-teeth N]
-                    [--beats CSV] [--windows CSV] [--json]
+                    [--beats CSV] [--windows CSV] [--trend CSV] [--json]
 ```
 
 FILE is a WAV or FLAC file, or a take folder holding one, read as that
@@ -253,6 +253,11 @@ way.
 | `--escape-teeth` | the calibre's, or 15 | Escape wheel teeth. With no calibre, the escape wheel is named only when this is given |
 | `--beats` | | CSV, one row per beat: `index,time_s,quality,residual_us` |
 | `--windows` | | CSV of rate (10 s windows) and amplitude (2 s windows): `kind,start_s,end_s,rate_s_per_day,beat_error_ms,beat_error_unlock_ms,amplitude_even_deg,amplitude_odd_deg,unlock_even_ms,unlock_odd_ms,drop_even_ms,drop_odd_ms` (the last four: where the unlock and the drop fall on each side) |
+
+`--beats`, `--windows` and `--trend` exit 1, before anything is read or
+written, when they name the recording read, a file of its take (its
+session file, record, clock log, test marks, sidecar, analysis or another
+recording), or each other.
 
 JSON body:
 

@@ -106,7 +106,8 @@ mod test_read;
 mod watches_pane;
 mod wind;
 
-use dock::PaneBehavior;
+#[cfg(test)]
+use dock::{mend_tabs, put_in_place};
 use pane_export::PaneExport;
 use pane_room::keep_room;
 use readouts::day_of;
@@ -2461,30 +2462,7 @@ impl TimegrapherApp {
         }
         self.bench.panes_view.charts_to_live_now =
             std::mem::take(&mut self.bench.panes_view.charts_to_live);
-        let mut panes =
-            std::mem::replace(&mut self.bench.panes_view.panes, Tree::empty("panes-swap"));
-        repair_tabs(&mut panes);
-        let need = self.bench.panes_view.pane_need.clone();
-        keep_room(
-            &mut panes.tiles,
-            |p| need.get(&p).copied(),
-            &self.bench.panes_view.panes_dragged,
-        );
-        let before = shares_of(&panes.tiles);
-        panes.ui(
-            &mut PaneBehavior {
-                app: self,
-                row: None,
-            },
-            ui,
-        );
-        // Shares changed while drawn were dragged by hand: they stand.
-        for (id, s) in shares_of(&panes.tiles) {
-            if before.get(&id).is_some_and(|b| *b != s) {
-                self.bench.panes_view.panes_dragged.insert(id);
-            }
-        }
-        self.bench.panes_view.panes = panes;
+        self.dock_ui(ui);
     }
 
     /// Whether `pane`'s plot would be under [`SHORT_PLOT_H`] tall here

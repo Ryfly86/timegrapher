@@ -84,7 +84,8 @@ pub fn parse_duration(s: &str) -> Option<f64> {
 
 /// A text box for `value`. While it has focus the typed text is kept as is;
 /// Enter or clicking away reads it, clamps it to `range` and returns true if
-/// the value changed. Text that doesn't read as a number is dropped.
+/// the value changed; Escape drops it and puts the value back (#2518).
+/// Text that doesn't read as a number is dropped.
 pub fn entry(
     ui: &mut egui::Ui,
     id_salt: &str,
@@ -132,7 +133,9 @@ fn entry_framed(
     );
     let mut changed = false;
     if resp.lost_focus() {
-        if let Some(v) = (fmt.parse)(&text) {
+        // Escape takes the focus too, but undoes what was typed.
+        let undone = ui.input(|i| i.key_pressed(egui::Key::Escape));
+        if let Some(v) = (fmt.parse)(&text).filter(|_| !undone) {
             let v = v.clamp(*range.start(), *range.end());
             if v != *value {
                 *value = v;
@@ -272,6 +275,78 @@ pub fn combo(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn key(key: egui::Key) -> Vec<egui::Event> {
+        [true, false]
+            .map(|pressed| egui::Event::Key {
+                key,
+                physical_key: None,
+                pressed,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            })
+            .into()
+    }
+
+    /// Escape in a typed number box puts back the value it had and
+    /// commits nothing, an emptied box included; Return commits (#2518).
+    #[test]
+    fn escape_puts_a_typed_number_back_and_return_keeps_it() {
+        const F: Format = Format {
+            show: plain,
+            parse: parse_number_or_none,
+        };
+        let ctx = egui::Context::default();
+        let id = egui::Id::new("escape box");
+        let mut value = 28800.0;
+        let frame = |value: &mut f64, events: Vec<egui::Event>| {
+            let mut changed = false;
+            let _ = ctx.run(
+                egui::RawInput {
+                    events,
+                    ..Default::default()
+                },
+                |ctx| {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        changed = entry_at(ui, id, value, 0.0..=72000.0, &F, 70.0);
+                    });
+                },
+            );
+            changed
+        };
+        let select_all = || {
+            let mut e = key(egui::Key::A);
+            for k in &mut e {
+                if let egui::Event::Key { modifiers, .. } = k {
+                    *modifiers = egui::Modifiers::COMMAND;
+                }
+            }
+            e
+        };
+        for typed in ["0", "21600", ""] {
+            frame(&mut value, vec![]);
+            ctx.memory_mut(|m| m.request_focus(id));
+            frame(&mut value, vec![]);
+            frame(&mut value, select_all());
+            if typed.is_empty() {
+                frame(&mut value, key(egui::Key::Backspace));
+            } else {
+                frame(&mut value, vec![egui::Event::Text(typed.into())]);
+            }
+            assert!(!frame(&mut value, key(egui::Key::Escape)), "{typed:?}");
+            assert_eq!(value, 28800.0, "{typed:?}");
+            assert!(!ctx.memory(|m| m.has_focus(id)), "{typed:?}");
+            let kept = ctx.data_mut(|d| d.get_temp::<String>(id.with("text")));
+            assert!(kept.is_none(), "{typed:?}: the typed text is dropped");
+        }
+        frame(&mut value, vec![]);
+        ctx.memory_mut(|m| m.request_focus(id));
+        frame(&mut value, vec![]);
+        frame(&mut value, select_all());
+        frame(&mut value, vec![egui::Event::Text("21600".into())]);
+        assert!(frame(&mut value, key(egui::Key::Enter)));
+        assert_eq!(value, 21600.0);
+    }
 
     #[test]
     fn reads_numbers_and_durations() {
