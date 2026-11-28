@@ -105,6 +105,91 @@ fn the_sheets_status_line_holds_a_failure_without_moving_the_buttons() {
     assert!(app.setup_sheet, "still open");
 }
 
+/// #2399: in Set Up the Microphone, Return with the microphone
+/// drop-down open belongs to the drop-down and never presses Done
+/// behind it. With nothing open, Return is Done.
+#[test]
+fn return_in_the_sheets_microphone_menu_stays_in_the_menu() {
+    let ctx = themed();
+    let mut app = TimegrapherApp::with_devices(
+        vec![InputDevice {
+            id: "coreaudio:desk".into(),
+            name: "Desk Microphone".into(),
+            manufacturer: None,
+            is_default: false,
+            default_config: None,
+            supported: Vec::new(),
+        }],
+        None,
+    );
+    app.setup_sheet = true;
+    // Already tried, and Done's listen fails at once: a test never
+    // opens an input.
+    app.setup_tried = true;
+    app.bench.recording.devices_listed = true;
+    app.bench.recording.device = Some("no such input".into());
+    let drawn = |out: &egui::FullOutput, words: &str| {
+        painted_at(out)
+            .into_iter()
+            .find(|(t, _)| t == words)
+            .map(|(_, at)| at)
+    };
+    let run = |app: &mut TimegrapherApp, events: Vec<egui::Event>| {
+        let input = egui::RawInput { events, ..screen() };
+        ctx.run(input, |ctx| {
+            app.setup_sheet_dialog(ctx);
+            theme::popups_above_dialogs(ctx);
+        })
+    };
+    let key = |k| {
+        let e = |pressed| egui::Event::Key {
+            key: k,
+            physical_key: None,
+            pressed,
+            repeat: false,
+            modifiers: Default::default(),
+        };
+        vec![e(true), e(false)]
+    };
+    for _ in 0..3 {
+        run(&mut app, vec![]);
+    }
+    let out = run(&mut app, vec![]);
+    let at = drawn(&out, "Choose a Microphone").expect("the microphone menu") + Vec2::new(4.0, 6.0);
+    let press = |pressed| egui::Event::PointerButton {
+        pos: at,
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers: Default::default(),
+    };
+    run(&mut app, vec![egui::Event::PointerMoved(at)]);
+    run(&mut app, vec![press(true)]);
+    run(&mut app, vec![press(false)]);
+    run(&mut app, vec![]);
+    let out = run(&mut app, vec![]);
+    assert!(
+        drawn(&out, "Desk Microphone").is_some(),
+        "menu open: {:?}",
+        painted_at(&out)
+    );
+    run(&mut app, key(egui::Key::Enter));
+    run(&mut app, vec![]);
+    assert!(app.setup_sheet, "Return in the menu shut the sheet");
+    assert!(!app.mic_set_up, "Return in the menu pressed Done");
+    // Escape closes only the menu; then Return, with nothing open, is Done.
+    run(&mut app, key(egui::Key::Escape));
+    let out = run(&mut app, vec![]);
+    assert!(app.setup_sheet, "Escape in the menu shut the sheet");
+    assert!(drawn(&out, "Desk Microphone").is_none(), "menu still open");
+    run(&mut app, vec![]);
+    run(&mut app, key(egui::Key::Enter));
+    assert!(
+        !app.setup_sheet && app.mic_set_up,
+        "Return with nothing open is Done"
+    );
+    assert!(!app.running(), "the sheet opened an input");
+}
+
 /// A message about a setting takes its row's caption: Keep Awake's
 /// fault replaces "While listening…", and the rows below it stay put.
 #[test]
