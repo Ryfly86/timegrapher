@@ -95,6 +95,18 @@ fn wait_words(w: measure::Wait) -> (String, String) {
 /// ago" or "Wind: 2.0 h at start", or its third, "Wind 2.0 h" (Hugh on
 /// #1915). The third measures 219 pt with "10 s" beside it at three figures of hours, and
 /// about 226 at four; with the card's padding, 260 holds it to 999.9 h.
+/// The status bar's signal fact: "signal —" before there is a figure, and
+/// the figure through core's one formatter, rounded down to 0.1×, so it
+/// reads as `doctor` reads it and under 3.0× exactly when the ticks are
+/// faint (#2358, Norm on #2091).
+pub(super) fn signal_label(signal: Option<f32>) -> String {
+    let s = signal.map_or_else(
+        || "—".to_string(),
+        |s| timegrapher_core::diagnose::signal_text(f64::from(s)),
+    );
+    format!("signal {s}")
+}
+
 pub(super) const LISTEN_WIDE_W: f32 = 350.0;
 pub(super) const LISTEN_HOURS_W: f32 = 260.0;
 
@@ -1884,11 +1896,8 @@ impl TimegrapherApp {
             // Always in its place while listening, so what follows it
             // never moves on its own: "signal —" before there is one
             // (#2007).
-            let s = self
-                .signal()
-                .map_or_else(|| "—".to_string(), |s| format!("{s:.0}×"));
             ui.label(
-                RichText::new(format!("signal {s}"))
+                RichText::new(signal_label(self.signal()))
                     .small()
                     .color(pal.text_secondary),
             )
