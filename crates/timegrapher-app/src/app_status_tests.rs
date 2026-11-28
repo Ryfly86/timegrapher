@@ -279,3 +279,52 @@ fn usb_lines_and_a_good_log_apart_say_so_in_the_status_bar() {
     app.put_take_clock(Some(rated(-24.0)), None);
     assert_eq!(app.clock_disagreement(), None, "4 ppm apart");
 }
+
+/// The status bar's signal reads through core's one formatter, as
+/// `doctor` does: rounded down to 0.1×, so 2.96 reads 2.9×, never 3×,
+/// and a figure under the faint line never reads at it (#2358).
+#[test]
+fn the_signal_reads_as_doctor_reads_it() {
+    use super::readouts::signal_label;
+    use timegrapher_core::diagnose::signal_text;
+    assert_eq!(signal_label(None), "signal —");
+    assert_eq!(signal_label(Some(2.96)), "signal 2.9×");
+    assert_eq!(signal_label(Some(2.3)), "signal 2.3×");
+    assert_eq!(signal_label(Some(17.87)), "signal 17.8×");
+    // The largest f32 under the faint line reads under it too.
+    assert_eq!(signal_label(Some(2.999_999_8)), "signal 2.9×");
+    for s in [0.5_f32, 2.96, 3.0, 12.34] {
+        assert_eq!(
+            signal_label(Some(s)),
+            format!("signal {}", signal_text(f64::from(s)))
+        );
+    }
+}
+
+/// The bar paints [`signal_label`](super::readouts::signal_label) while
+/// listening: the figure to 0.1× as `doctor` reads it, never the whole
+/// × it once rounded to on its own (#2358, Trevor 108).
+#[test]
+fn the_status_bar_paints_the_signal_to_a_tenth() {
+    use super::readouts::signal_label;
+    let ctx = themed();
+    let base = std::env::temp_dir().join(format!("tg-signal-tenth-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let mut app = synthetic(15.0, 0.0);
+    let _tx = queued_capture(&mut app, &base);
+    assert!(app.running());
+    let s = app.signal().expect("a signal figure");
+    let out = ctx.run(super::tests::screen(), |ctx| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.horizontal(|ui| app.status_facts(ui));
+        });
+    });
+    let text = super::tests::painted_text(&out);
+    let line = text
+        .lines()
+        .find(|l| l.starts_with("signal "))
+        .unwrap_or_else(|| panic!("no signal fact: {text}"));
+    assert_eq!(line, signal_label(Some(s)), "{text}");
+    assert_ne!(line, format!("signal {s:.0}×"), "{text}");
+    let _ = std::fs::remove_dir_all(&base);
+}
