@@ -73,10 +73,8 @@ pub fn run(o: Options) -> Result<(), String> {
     lc.wheels.extend(take_wheels);
     lc.wheels.extend(extra);
     let clock = applied_clock.as_ref().map(|c| &c.fit);
-    let mut long = match stretches {
-        Some(_) => longrun::analyse_on_clock(&log, clock, &breaks, &lc),
-        None => longrun::analyse_with_breaks(&log, clock, &breaks, &lc),
-    };
+    let (on_clock, bph_set) = (stretches.is_some(), stream_cfg.analysis.bph);
+    let mut long = longrun::read_take(&log, clock, &breaks, on_clock, bph_set, &lc);
     crate::long::add_caveats(
         &mut long.caveats,
         &stream_cfg,
@@ -134,7 +132,7 @@ pub fn run(o: Options) -> Result<(), String> {
         }
         crate::output::print("series", crate::output::input(&files, settings), &doc)
     } else {
-        print_text(&rep, clock.is_some_and(|c| c.corrects()));
+        print_text(&rep, clock, long.no_rate_text(bph_set));
         Ok(())
     }
 }
@@ -255,7 +253,11 @@ fn walk_line(w: &timegrapher_core::walk::IsochronismWalk) -> String {
     )
 }
 
-fn print_text(r: &Report, calibrated: bool) {
+/// `no_rate`: what the take's long-run report says in its rate's place
+/// where it gives no rate in s/d (`LongReport::no_rate_text`), said under
+/// the recording, as `long` says it.
+fn print_text(r: &Report, clock: Option<&ClockFit>, no_rate: Option<String>) {
+    let calibrated = clock.is_some_and(ClockFit::corrects);
     println!(
         "Recording    {} at {} bph{}",
         crate::long::duration(r.duration_s),
@@ -266,6 +268,9 @@ fn print_text(r: &Report, calibrated: bool) {
             ""
         }
     );
+    if let Some(line) = no_rate {
+        println!("{line}");
+    }
     for (label, line) in crate::long::caveat_lines(&r.caveats) {
         println!("{label:<13}{line}");
     }
