@@ -1459,6 +1459,9 @@ impl TimegrapherApp {
         self.bench.test.test_ready = Some(kind);
         self.message = None;
         self.watches_view.view = View::Bench;
+        // Start Test is on the Listen card, in the readings: shown, so the
+        // test set up can be started without the View menu (#2383).
+        self.bench.panes_view.show_readings = true;
         if kind == NewTake::Positions {
             // Where the test begins.
             self.set_position(guided::ORDER[0]);
