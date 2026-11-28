@@ -295,6 +295,41 @@ fn a_declared_holdout_take_with_no_session_file_fails_the_holdout_run() {
     );
     assert!(!text.contains("No holdout takes"), "{text}");
 
+    // A declared take with a session file is not missing: only the one
+    // without counts (the ids match on the take folder, not the path).
+    std::fs::create_dir_all(f.0.join("takes/present")).unwrap();
+    std::fs::write(
+        f.0.join("takes/present/session.toml"),
+        "[[recording]]\nfile = \"missing.flac\"\nposition = \"DU\"\n",
+    )
+    .unwrap();
+    std::fs::write(
+        f.0.join("corpus.json"),
+        serde_json::to_vec(&json!({"takes":[
+            {"id":"sealed", "tier":"holdout", "release":"unused", "files":[]},
+            {"id":"present", "tier":"holdout", "release":"unused", "files":[]},
+        ]}))
+        .unwrap(),
+    )
+    .unwrap();
+    let out = f
+        .command()
+        .args(["--holdout", "--reveal"])
+        .output()
+        .unwrap();
+    let doc: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(doc["takes"], 1, "{doc}");
+    assert_eq!(doc["missing"], 1, "{doc}");
+    assert_eq!(doc["missing_takes"], json!(["sealed"]));
+    let out = f
+        .command()
+        .args(["--holdout", "--take", "present"])
+        .output()
+        .unwrap();
+    let doc: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(doc["takes"], 1, "{doc}");
+    assert_eq!(doc["missing"], 0, "{doc}");
+
     // --take leaves it out of this run, so it is not missing from it.
     let out = f
         .command()
@@ -360,4 +395,20 @@ fn the_holdout_run_names_the_corpus_revision() {
     git(&["commit", "-q", "-m", "corpus"]);
     let head = git(&["rev-parse", "HEAD"]);
     assert_eq!(doc(&f)["corpus_revision"], json!(head));
+
+    // A corpus in a subfolder of some other repository names no commit.
+    let sub = f.0.join("sub");
+    std::fs::create_dir_all(sub.join("takes")).unwrap();
+    std::fs::write(sub.join("corpus.json"), "{\"takes\": []}").unwrap();
+    git(&["add", "sub/corpus.json"]);
+    git(&["commit", "-q", "-m", "nested"]);
+    let out = Command::new(env!("CARGO_BIN_EXE_timegrapher"))
+        .arg("regress")
+        .arg(&sub)
+        .args(["--holdout", "--json", "--quiet"])
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "{out:?}");
+    let nested: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(nested["corpus_revision"], Value::Null, "{nested}");
 }

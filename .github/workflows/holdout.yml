@@ -3,7 +3,8 @@ name: Holdout milestone
 # The corpus's holdout takes, read only at an announced milestone (see
 # "The holdout seal" in the corpus README and docs/developer/regress.md). Never runs
 # on pull requests or pushes, and prints counts only: no take names, file
-# names or numbers. A holdout result never fails the run.
+# names or numbers. The counts never fail the run; it exits 3 only when a
+# reading cannot be measured or a declared holdout take has no session file.
 on:
   workflow_dispatch:
 
