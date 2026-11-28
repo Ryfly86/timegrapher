@@ -42,7 +42,11 @@ impl Recorder {
     /// (#2401). Refused where the copy would be, or hold, the live
     /// recording. Returns its folder as the caller spelled `parent`, and
     /// whether it is a new one.
-    pub(super) fn copy_dest(&self, parent: &Path, calibre: &str) -> io::Result<(PathBuf, bool)> {
+    pub(super) fn copy_dest(
+        &self,
+        parent: &Path,
+        calibre: &str,
+    ) -> io::Result<(PathBuf, SaveInto)> {
         // Resolve identities only for these checks. Keep the caller's
         // spelling for filesystem work and paths returned or shown to them.
         let canonical = fs::canonicalize(parent)?;
@@ -67,8 +71,8 @@ impl Recorder {
             // Save Again writes there only while it is still this take's
             // copy: a take put in its place gets a new copy beside it
             // (#2437).
-            if self.still_this_take(&dest) {
-                return Ok((dest, false));
+            if still_this_take(&dest, &self.started_utc) {
+                return Ok((dest, SaveInto::Again(self.started_utc.clone())));
             }
         }
         // Named as the copy saved elsewhere, without the number that copy
@@ -82,26 +86,7 @@ impl Recorder {
         separate(&base)?;
         let free = crate::library::unused_dir(parent, &base.to_string_lossy());
         let name = free.file_name().map_or(base, ToOwned::to_owned);
-        Ok((separate(&name)?, true))
-    }
-
-    /// Whether `dir`, a folder this recording was saved into or given,
-    /// still holds this take or nothing: gone (the save makes it again),
-    /// empty, or with a `session.json` that names this take's start.
-    /// Anything else there (another take copied in after this copy was
-    /// deleted, or a `session.json` that can't be read) is not written
-    /// into (#2437).
-    fn still_this_take(&self, dir: &Path) -> bool {
-        match fs::read_dir(dir).map(|mut e| e.next().is_none()) {
-            Err(e) if e.kind() == io::ErrorKind::NotFound => return true,
-            Err(_) => return false,
-            Ok(true) => return true,
-            Ok(false) => {}
-        }
-        fs::read(dir.join(crate::take::RECORD))
-            .ok()
-            .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok())
-            .is_some_and(|v| v["started_utc"].as_str() == Some(self.started_utc()))
+        Ok((separate(&name)?, SaveInto::New))
     }
 
     /// Note `dir` as a copy saved: the one Save Again saves into, and the
@@ -151,6 +136,58 @@ impl Recorder {
         self.claimed = Some(canonical.join(&name));
         Ok(name)
     }
+}
+
+/// Where a save writes, for [`super::PendingSave::write`] to check again
+/// as it writes: the copy may be deleted and another take put in its
+/// place after the save began (#2437).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) enum SaveInto {
+    /// A new copy: its folder must not be there yet (#2401).
+    New,
+    /// The copy saved before, of the take that started at this time: it
+    /// is written into only while it still holds that take.
+    Again(String),
+}
+
+impl SaveInto {
+    /// Refuse to write into `dir` once it holds another take.
+    pub(super) fn check(&self, dir: &Path) -> io::Result<()> {
+        match self {
+            SaveInto::Again(started) if !still_this_take(dir, started) => {
+                Err(io::Error::other(format!(
+                    "{} now holds another take, so nothing was saved into it; \
+                     saving again makes a new copy beside it",
+                    dir.display()
+                )))
+            }
+            _ => Ok(()),
+        }
+    }
+
+    /// This, once [`SaveInto::check`] passes.
+    pub(super) fn checked(&self, dir: &Path) -> io::Result<Self> {
+        self.check(dir).map(|()| self.clone())
+    }
+}
+
+/// Whether `dir`, a folder a recording that started at `started` was
+/// saved into or given, still holds that take or nothing: gone (the save
+/// makes it again), empty, or with a `session.json` that names that
+/// start. Anything else there (another take copied in after the copy was
+/// deleted, or a `session.json` that can't be read) is not written into
+/// (#2437).
+fn still_this_take(dir: &Path, started: &str) -> bool {
+    match fs::read_dir(dir).map(|mut e| e.next().is_none()) {
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return true,
+        Err(_) => return false,
+        Ok(true) => return true,
+        Ok(false) => {}
+    }
+    fs::read(dir.join(crate::take::RECORD))
+        .ok()
+        .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok())
+        .is_some_and(|v| v["started_utc"].as_str() == Some(started))
 }
 
 /// `name` less the ` 2`, ` 3`… a take's folder is given where its name

@@ -3,10 +3,26 @@
 //! (#2437).
 
 use super::super::tests::{append_second, save_fixture};
+use super::super::SaveStep;
 use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::fs;
 use std::path::Path;
+
+/// Put another take in place of the copy at `dir`: its own sound and a
+/// `session.json` naming another start.
+fn replace_with_other_take(dir: &Path) {
+    replace_with_sound(dir, b"other take");
+}
+
+/// [`replace_with_other_take`] with `sound` as its `audio-001.wav`.
+fn replace_with_sound(dir: &Path, sound: &[u8]) {
+    fs::remove_dir_all(dir).unwrap();
+    fs::create_dir(dir).unwrap();
+    fs::write(dir.join("audio-001.wav"), sound).unwrap();
+    let other_session = br#"{"started_utc": "2026-11-26T05:30:40Z"}"#;
+    fs::write(dir.join("session.json"), other_session).unwrap();
+}
 
 fn files(dir: &Path) -> BTreeMap<OsString, Vec<u8>> {
     fs::read_dir(dir)
@@ -28,11 +44,7 @@ fn save_again_never_writes_into_a_take_put_in_place_of_its_copy() {
     let name = "2026-11-26 05.30";
     let first = r.claim_first_copy(&takes, name).unwrap();
     assert_eq!(r.save_copy(&takes, "", None).unwrap(), first);
-    fs::remove_dir_all(&first).unwrap();
-    fs::create_dir(&first).unwrap();
-    fs::write(first.join("audio-001.wav"), b"other take").unwrap();
-    let other_session = br#"{"started_utc": "2026-11-26T05:30:40Z"}"#;
-    fs::write(first.join("session.json"), other_session).unwrap();
+    replace_with_other_take(&first);
     let before = files(&first);
     append_second(&mut r, 2);
     let again = r.save_copy(&takes, "", None).unwrap();
@@ -90,6 +102,68 @@ fn save_again_still_writes_into_its_own_copy() {
     assert_eq!(r.save_copy(&takes, "", None).unwrap(), first);
     assert!(first.join("audio-001.wav").is_file());
     assert_eq!(fs::read_dir(&takes).unwrap().count(), 1);
+    drop(r);
+    let _ = fs::remove_dir_all(base);
+}
+
+/// The copy replaced after a save began, while it is copied on another
+/// thread (Save Again, or a streamed save, which grows the open hour in
+/// place where it is as long as the copy saved before: the other take's
+/// sound is made that long here): the write is refused, says so, and
+/// leaves the other take as it was. The next save makes a new copy
+/// beside it.
+#[test]
+fn a_copy_replaced_while_saving_is_not_written_into() {
+    for streamed in [false, true] {
+        let (mut r, base) = save_fixture(&format!("replaced-copy-race-{streamed}"));
+        let takes = base.join("takes");
+        let first = r.save_copy(&takes, "", None).unwrap();
+        append_second(&mut r, 2);
+        let pending = match streamed {
+            false => r.begin_save(&takes, "", None, &[]),
+            true => r.begin_stream_save(&takes, "", None, &[]),
+        }
+        .unwrap();
+        assert_eq!(pending.dest(), first);
+        let len = fs::metadata(first.join("audio-001.wav")).unwrap().len();
+        replace_with_sound(&first, &vec![0x55; len as usize]);
+        let before = files(&first);
+        let refused = pending.write().unwrap_err().to_string();
+        assert!(refused.contains("now holds another take"), "{refused}");
+        assert_eq!(files(&first), before);
+        let again = r.save_copy(&takes, "", None).unwrap();
+        assert_ne!(again, first);
+        assert_eq!(files(&first), before);
+        drop(r);
+        let _ = fs::remove_dir_all(base);
+    }
+}
+
+/// The copy replaced after its files are staged, just before they are put
+/// in place: the save is refused there too, with the other take as it was.
+#[test]
+fn a_copy_replaced_after_staging_is_not_written_into() {
+    let (mut r, base) = save_fixture("replaced-copy-staged");
+    let takes = base.join("takes");
+    let first = r.save_copy(&takes, "", None).unwrap();
+    append_second(&mut r, 2);
+    let pending = r.begin_save(&takes, "", None, &[]).unwrap();
+    let mut replaced = false;
+    let result = pending.write_using(|step, _| {
+        if matches!(step, SaveStep::Stage) && !replaced {
+            replaced = true;
+            replace_with_other_take(&first);
+        }
+        Ok(())
+    });
+    assert!(replaced);
+    let refused = result.unwrap_err().to_string();
+    assert!(refused.contains("now holds another take"), "{refused}");
+    assert_eq!(
+        fs::read(first.join("audio-001.wav")).unwrap(),
+        b"other take"
+    );
+    assert_eq!(fs::read_dir(&first).unwrap().count(), 2);
     drop(r);
     let _ = fs::remove_dir_all(base);
 }
