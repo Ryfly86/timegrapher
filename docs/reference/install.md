@@ -174,6 +174,8 @@ a personal computer.
    the download for your platform, edit the notes if needed, and click
    **Publish release**. Until then nobody sees it and the app's update check
    does not offer it.
+   Publishing makes the tag, and the run that tag starts builds nothing:
+   a published release already holds it.
 
 Before any tag or **Draft a release** build, the release workflow checks the
 newest CI run for that exact commit from this repository's main push or manual
@@ -192,8 +194,14 @@ partial rerun. Every push to main runs CI in full, Markdown-only commits
 included. Do not tag an untested branch or substitute
 PR-head results for the candidate's main CI.
 
+Only a **Draft a release** run on main gets a token that can write before
+the release itself: the job listing the used version numbers, which checks
+out nothing. Every other job up to the release, and every pull-request run,
+reads only.
+
 Pull-request packaging and manual runs without **Draft a release** remain
-nonpublishing checks and explicitly report **gate not required**. Manual runs on
+nonpublishing checks and explicitly report **gate not required**. Pull-request
+packaging runs only once the pull request is marked ready, not on a draft. Manual runs on
 a tag also remain nonpublishing with either checkbox value; manual drafting
 requires main.
 If CI job names or the required equivalence step change, update the centralized
@@ -210,6 +218,13 @@ level is not one folder (hidden entries aside), a disk image without its
 Applications shortcut, or a download whose documentation pages link to a file
 it lacks. Existing help/version, signature and archive checks remain in
 place.
+
+Each platform's packaged desktop app then opens the 80-second Quick Listen
+take (`guide-figures/data/quick-listen/`) with a settings folder of its own
+and must draw its window within 90 seconds and keep running for 20 more while
+it reads the take, with no error in its log and no crash record
+(`packaging/first_frame.py`). Linux draws on Xvfb with software OpenGL. A
+screenshot of each is kept with the run for 7 days.
 
 The documentation pages come from the Release workflow's `docs` job:
 `packaging/docs_html.py` renders the User Guide (`docs/user-guide/`), three
