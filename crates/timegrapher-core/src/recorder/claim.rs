@@ -63,7 +63,13 @@ impl Recorder {
             Ok(dest)
         };
         if let Some(name) = self.kept_in(&canonical) {
-            return Ok((separate(&name)?, false));
+            let dest = separate(&name)?;
+            // Save Again writes there only while it is still this take's
+            // copy: a take put in its place gets a new copy beside it
+            // (#2437).
+            if self.still_this_take(&dest) {
+                return Ok((dest, false));
+            }
         }
         // Named as the copy saved elsewhere, without the number that copy
         // was given where its name was taken: a new copy where the name
@@ -77,6 +83,25 @@ impl Recorder {
         let free = crate::library::unused_dir(parent, &base.to_string_lossy());
         let name = free.file_name().map_or(base, ToOwned::to_owned);
         Ok((separate(&name)?, true))
+    }
+
+    /// Whether `dir`, a folder this recording was saved into or given,
+    /// still holds this take or nothing: gone (the save makes it again),
+    /// empty, or with a `session.json` that names this take's start.
+    /// Anything else there (another take copied in after this copy was
+    /// deleted, or a `session.json` that can't be read) is not written
+    /// into (#2437).
+    fn still_this_take(&self, dir: &Path) -> bool {
+        match fs::read_dir(dir).map(|mut e| e.next().is_none()) {
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return true,
+            Err(_) => return false,
+            Ok(true) => return true,
+            Ok(false) => {}
+        }
+        fs::read(dir.join(crate::take::RECORD))
+            .ok()
+            .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok())
+            .is_some_and(|v| v["started_utc"].as_str() == Some(self.started_utc()))
     }
 
     /// Note `dir` as a copy saved: the one Save Again saves into, and the
@@ -149,6 +174,10 @@ fn unnumbered(name: &OsStr) -> OsString {
         _ => name.to_owned(),
     }
 }
+
+#[cfg(test)]
+#[path = "replaced_copy_tests.rs"]
+mod replaced_copy_tests;
 
 #[cfg(test)]
 mod tests {
