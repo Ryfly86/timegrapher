@@ -1866,8 +1866,9 @@ take with none) and its state
 (Not Started, Listening, Stopped, Opening or Opened), such as "Quick
 Listen · No watch · Listening", "New Take · Pepsi · Not Started" or
 "w.wav · No watch picked · Opened". Then, while listening, the input;
-the signal, "signal 12×" ("signal —" before there is one; it stays
-through a settle, as it is the sound's own, #2007), how far the typical
+the signal, "signal 12.4×" ("signal —" before there is one; it stays
+through a settle, as it is the sound's own, #2007; rounded down to 0.1×,
+as `doctor` shows it, #2358), how far the typical
 beat's peak stands above the typical level between beats (noise alone
 reads about 2×, and below 4× no beats are logged). It measures
 loudness, not the shape of the tick, so hum, knocks or a holder that
