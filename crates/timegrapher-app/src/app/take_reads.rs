@@ -170,7 +170,7 @@ impl TimegrapherApp {
         // A take just listened to is read to its last reading with a
         // watch heard: once the charts are read on what is masked now.
         let opened = self.bench.take.take_breaks.is_some() || self.stopped_take().is_some();
-        if !opened && self.bench.results.trend_key != self.trend_now() {
+        if !opened && !self.trend_current() {
             return None;
         }
         let key = match self.whole_read()? {

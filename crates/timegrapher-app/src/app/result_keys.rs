@@ -150,4 +150,11 @@ impl TimegrapherApp {
             average: self.bench.take.average_s.to_bits(),
         }
     }
+
+    /// Whether the run of readings on show rests on what is current
+    /// ([`Self::trend_now`]): until it is read again after a change, what
+    /// it says is heard is at the old footing (Vernon on #2477).
+    pub(super) fn trend_current(&self) -> bool {
+        self.bench.results.trend_key == self.trend_now()
+    }
 }
