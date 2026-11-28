@@ -5,6 +5,7 @@
 //! microphone names as long as macOS gives them, which the Linux and
 //! Windows test machines don't have.
 
+use super::tests::painted_text;
 use super::*;
 use timegrapher_core::synth::{generate, SynthConfig};
 
@@ -1757,4 +1758,199 @@ fn a_tab_row_round_a_line_of_panes_is_mended() {
         layout_text(&tree, line),
         "Vertical[Tabs[Paper Strip], Tabs[Tick Tock Profile, Scope], Tabs[Positions Test]]"
     );
+}
+
+/// A tab row's tabs and the one it shows.
+fn row_tabs(tree: &Tree<Pane>, row: TileId) -> (Vec<TileId>, Option<TileId>) {
+    match tree.tiles.get(row) {
+        Some(egui_tiles::Tile::Container(egui_tiles::Container::Tabs(t))) => {
+            (t.children.clone(), t.active)
+        }
+        _ => panic!("{row:?} is not a tab row"),
+    }
+}
+
+/// A line's children and their shares.
+fn line_of(tree: &Tree<Pane>, line: TileId) -> (Vec<TileId>, Vec<f32>) {
+    match tree.tiles.get(line) {
+        Some(egui_tiles::Tile::Container(egui_tiles::Container::Linear(l))) => (
+            l.children.clone(),
+            l.children.iter().map(|&c| l.shares[c]).collect(),
+        ),
+        _ => panic!("{line:?} is not a line"),
+    }
+}
+
+/// Tabs inside a tab row join it in their place. With no drop, the row
+/// keeps the tab it showed, or shows the inner tabs' own if they were
+/// shown; a drop among them shows the tab dropped (Trevor on #2535).
+#[test]
+fn tabs_inside_tabs_join_the_row_in_their_place() {
+    let build = |shown_inner: bool| {
+        let mut tiles = Tiles::default();
+        let sound = tiles.insert_pane(Pane::Sound);
+        let scope = tiles.insert_pane(Pane::Scope);
+        let inner = tiles.insert_tab_tile(vec![sound, scope]);
+        if let Some(egui_tiles::Tile::Container(egui_tiles::Container::Tabs(t))) =
+            tiles.get_mut(inner)
+        {
+            t.active = Some(scope);
+        }
+        let strip = tiles.insert_pane(Pane::Strip);
+        let row = tiles.insert_tab_tile(vec![inner, strip]);
+        if let Some(egui_tiles::Tile::Container(egui_tiles::Container::Tabs(t))) =
+            tiles.get_mut(row)
+        {
+            t.active = Some(if shown_inner { inner } else { strip });
+        }
+        (Tree::new("panes", row, tiles), row, [sound, scope, strip])
+    };
+    // A saved layout, the Paper Strip shown: it stays shown.
+    let (mut tree, row, [sound, scope, strip]) = build(false);
+    mend_tabs(&mut tree, None);
+    assert_eq!(
+        row_tabs(&tree, row),
+        (vec![sound, scope, strip], Some(strip))
+    );
+    // The inner tabs shown: their own shown tab, the Scope.
+    let (mut tree, row, [sound, scope, strip]) = build(true);
+    mend_tabs(&mut tree, None);
+    assert_eq!(
+        row_tabs(&tree, row),
+        (vec![sound, scope, strip], Some(scope))
+    );
+    // A drop among them: the tab dropped.
+    let (mut tree, row, [sound, scope, strip]) = build(false);
+    mend_tabs(&mut tree, Some(sound));
+    assert_eq!(
+        row_tabs(&tree, row),
+        (vec![sound, scope, strip], Some(sound))
+    );
+}
+
+/// A split of a pane in a tab row takes the row's place and keeps its
+/// height, and the row takes the pane's place in the split and keeps the
+/// pane's share, showing the pane (Trevor on #2535).
+#[test]
+fn a_split_in_a_tab_row_keeps_each_share() {
+    let mut tiles = Tiles::default();
+    let strip = tiles.insert_pane(Pane::Strip);
+    let strip = tiles.insert_tab_tile(vec![strip]);
+    let sound = tiles.insert_pane(Pane::Sound);
+    let positions = tiles.insert_pane(Pane::PositionsTest);
+    let mut split = Linear::new(LinearDir::Vertical, vec![sound, positions]);
+    split.shares.set_share(sound, 3.0);
+    let split = tiles.insert_container(split);
+    let scope = tiles.insert_pane(Pane::Scope);
+    let row = tiles.insert_tab_tile(vec![split, scope]);
+    let mut root = Linear::new(LinearDir::Vertical, vec![strip, row]);
+    root.shares.set_share(row, 2.0);
+    let root = tiles.insert_container(root);
+    let mut tree = Tree::new("panes", root, tiles);
+    mend_tabs(&mut tree, Some(positions));
+    assert!(!a_tab_holds_a_container(&tree));
+    assert_eq!(line_of(&tree, root), (vec![strip, split], vec![1.0, 2.0]));
+    assert_eq!(
+        line_of(&tree, split),
+        (vec![row, positions], vec![3.0, 1.0])
+    );
+    assert_eq!(row_tabs(&tree, row), (vec![sound, scope], Some(sound)));
+}
+
+/// A row wrapped round a line shows the tab dropped; an emptied row goes;
+/// and a hidden tab beside the line is no reason to wrap (Trevor on
+/// #2535).
+#[test]
+fn a_wrapped_line_shows_the_drop_and_leaves_no_empty_row() {
+    // The drop shown, not the row's first other tab.
+    let mut tiles = Tiles::default();
+    let strip = tiles.insert_pane(Pane::Strip);
+    let sound = tiles.insert_pane(Pane::Sound);
+    let line = tiles.insert_vertical_tile(vec![strip, sound]);
+    let charts = tiles.insert_pane(Pane::Charts);
+    let positions = tiles.insert_pane(Pane::PositionsTest);
+    let row = tiles.insert_tab_tile(vec![line, charts, positions]);
+    let mut tree = Tree::new("panes", row, tiles);
+    mend_tabs(&mut tree, Some(positions));
+    assert_eq!(tree.root(), Some(line));
+    assert_eq!(line_of(&tree, line).0, vec![strip, sound, row]);
+    assert_eq!(
+        row_tabs(&tree, row),
+        (vec![charts, positions], Some(positions))
+    );
+    // A row holding only an empty line: the line takes its place, the
+    // row goes.
+    let mut tiles = Tiles::default();
+    let line = tiles.insert_container(Linear::new(LinearDir::Vertical, Vec::new()));
+    let row = tiles.insert_tab_tile(vec![line]);
+    let mut tree = Tree::new("panes", row, tiles);
+    mend_tabs(&mut tree, None);
+    assert_eq!(tree.root(), Some(line));
+    assert!(tree.tiles.get(row).is_none());
+    // The only other tab hidden: the line's first pane takes the line's
+    // place in the row, as a split.
+    let mut tiles = Tiles::default();
+    let sound = tiles.insert_pane(Pane::Sound);
+    let scope = tiles.insert_pane(Pane::Scope);
+    let line = tiles.insert_vertical_tile(vec![sound, scope]);
+    let positions = tiles.insert_pane(Pane::PositionsTest);
+    let row = tiles.insert_tab_tile(vec![line, positions]);
+    let mut tree = Tree::new("panes", row, tiles);
+    tree.tiles.set_visible(positions, false);
+    mend_tabs(&mut tree, None);
+    assert_eq!(tree.root(), Some(line));
+    assert_eq!(line_of(&tree, line).0, vec![row, scope]);
+    assert_eq!(row_tabs(&tree, row), (vec![sound, positions], Some(sound)));
+}
+
+/// A mended tile put in a tab row's place there is shown if the row was.
+#[test]
+fn a_tile_put_in_a_shown_tabs_place_is_shown() {
+    let mut tiles = Tiles::default();
+    let strip = tiles.insert_pane(Pane::Strip);
+    let sound = tiles.insert_pane(Pane::Sound);
+    let parent = tiles.insert_tab_tile(vec![strip, sound]);
+    let scope = tiles.insert_pane(Pane::Scope);
+    let mut tree = Tree::new("panes", parent, tiles);
+    put_in_place(&mut tree, Some(parent), strip, scope);
+    assert_eq!(row_tabs(&tree, parent), (vec![scope, sound], Some(scope)));
+}
+
+/// A saved layout whose tab row holds a split is drawn mended from its
+/// first frame: no tab titled "Vertical" (#2213).
+#[test]
+fn a_saved_split_in_a_tab_row_is_never_drawn_as_a_tab() {
+    let ctx = egui::Context::default();
+    theme::install(&ctx);
+    let mut app = TimegrapherApp::with_devices(mac_devices(), None);
+    app.reset_session(48000, "syn".into());
+    set_pane_visible(&mut app.bench.panes_view.panes.tiles, Pane::Charts, true);
+    let tiles = &mut app.bench.panes_view.panes.tiles;
+    let sound = tiles.find_pane(&Pane::Sound).unwrap();
+    let charts = tiles.find_pane(&Pane::Charts).unwrap();
+    let row = tiles.parent_of(sound).unwrap();
+    let split = tiles.insert_vertical_tile(vec![sound, charts]);
+    if let Some(egui_tiles::Tile::Container(egui_tiles::Container::Tabs(t))) = tiles.get_mut(row) {
+        t.children.retain(|&c| c != charts);
+        for c in &mut t.children {
+            if *c == sound {
+                *c = split;
+            }
+        }
+        t.active = Some(split);
+    }
+    assert!(a_tab_holds_a_container(&app.bench.panes_view.panes));
+    let input = egui::RawInput {
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            Vec2::new(1920.0, 1080.0),
+        )),
+        time: Some(0.1),
+        ..Default::default()
+    };
+    let out = ctx.run(input, |ctx| app.panels(ctx));
+    let text = painted_text(&out);
+    assert!(!text.lines().any(|l| l == "Vertical"), "{text}");
+    assert!(text.lines().any(|l| l == "Charts"), "{text}");
+    assert!(!a_tab_holds_a_container(&app.bench.panes_view.panes));
 }

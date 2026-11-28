@@ -77,14 +77,18 @@ fn mend_row(tree: &mut Tree<Pane>, row: TileId, at: usize, dropped: Option<TileI
         .any(|&c| c != inner && tiles.is_visible(c));
     let parent = tiles.parent_of(row);
     match tiles.get(inner).cloned() {
-        // Tabs dropped into tabs: theirs join the row in their place.
+        // Tabs dropped into tabs: theirs join the row in their place. The
+        // row shows the tab dropped, or the one the inner tabs showed if
+        // they were shown, and otherwise keeps the tab it showed.
         Some(Tile::Container(Container::Tabs(t))) => {
             tree.tiles.remove(inner);
             if let Some(Tile::Container(Container::Tabs(tabs))) = tree.tiles.get_mut(row) {
                 tabs.children.splice(at..=at, t.children.iter().copied());
-                let picked = dropped.filter(|d| t.children.contains(d)).or(t.active);
-                if tabs.active == Some(inner) || picked.is_some() {
-                    tabs.active = picked.or_else(|| t.children.first().copied());
+                let into = dropped.filter(|d| t.children.contains(d));
+                if into.is_some() {
+                    tabs.active = into;
+                } else if tabs.active == Some(inner) {
+                    tabs.active = t.active.or_else(|| t.children.first().copied());
                 }
             }
             true
@@ -145,7 +149,12 @@ fn mend_row(tree: &mut Tree<Pane>, row: TileId, at: usize, dropped: Option<TileI
 }
 
 /// `new` in `old`'s place in `parent`, or as the root.
-fn put_in_place(tree: &mut Tree<Pane>, parent: Option<TileId>, old: TileId, new: TileId) {
+pub(super) fn put_in_place(
+    tree: &mut Tree<Pane>,
+    parent: Option<TileId>,
+    old: TileId,
+    new: TileId,
+) {
     let Some(parent) = parent else {
         tree.root = Some(new);
         return;

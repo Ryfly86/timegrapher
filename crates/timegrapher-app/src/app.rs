@@ -107,7 +107,7 @@ mod watches_pane;
 mod wind;
 
 #[cfg(test)]
-use dock::mend_tabs;
+use dock::{mend_tabs, put_in_place};
 use pane_export::PaneExport;
 use pane_room::keep_room;
 use readouts::day_of;
