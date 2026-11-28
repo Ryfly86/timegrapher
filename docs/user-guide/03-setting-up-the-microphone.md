@@ -208,7 +208,7 @@ mark automatic gain leaves (below).
 
 ## The Signal Figure
 
-The status bar shows **signal**, for example **signal 15×**, while
+The status bar shows **signal**, for example **signal 15.2×**, while
 listening.
 
 - **What it is:** how far a typical tick's peak stands above the typical
