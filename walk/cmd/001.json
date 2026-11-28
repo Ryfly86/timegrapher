@@ -1,0 +1,1 @@
+[["shell", "echo relay-check && whoami"], ["wait", 1]]
