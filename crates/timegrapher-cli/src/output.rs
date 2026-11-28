@@ -265,11 +265,20 @@ mod files_apart_tests {
     fn an_output_may_not_be_a_file_of_the_take() {
         let dir = std::env::temp_dir().join(format!("tg-apart-take-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
+        // Canonical, so a folder not yet made sits under the same path as
+        // the take's (macOS's temporary folder is reached through a link).
+        let dir = dir.canonicalize().unwrap();
         let wav = dir.join("take_part01-001.wav");
         std::fs::write(&wav, b"RIFF").unwrap();
         std::fs::write(dir.join("take_part01-002.wav"), b"RIFF").unwrap();
         std::fs::write(dir.join("session.toml"), b"").unwrap();
-        for sub in ["analysis", "analysis.partial", "session_report"] {
+        for sub in [
+            "analysis",
+            "analysis/sub",
+            "analysis.partial",
+            "session_report",
+            "elsewhere",
+        ] {
             std::fs::create_dir_all(dir.join(sub)).unwrap();
         }
         for (name, says) in [
@@ -291,6 +300,9 @@ mod files_apart_tests {
             // A WAV left beside its FLAC, which the take's list leaves out.
             ("take_part03-001.wav", "recording of the take"),
             ("analysis/analysis.json", "in the take's analysis folder"),
+            // Two folders down, and in the folder named in another case.
+            ("analysis/sub/x.csv", "in the take's analysis folder"),
+            ("ANALYSIS/x.csv", "in the take's analysis folder"),
             (
                 "analysis.partial/partial.json",
                 "in the take's analysis.partial folder",
@@ -304,6 +316,21 @@ mod files_apart_tests {
             assert!(e.contains("--windows") && e.contains(says), "{name}: {e}");
         }
         assert!(files_apart(&wav, &[("--beats", &dir.join("beats.csv"))]).is_ok());
+        // A take file's name in a folder that is not the take's is written.
+        for name in ["session.toml", "take_part01-001.wav.json", "x.wav"] {
+            let other = dir.join("elsewhere").join(name);
+            assert!(files_apart(&wav, &[("--beats", &other)]).is_ok(), "{name}");
+        }
+        // Two outputs whose names differ only in case are one file.
+        let e = files_apart(
+            &wav,
+            &[
+                ("--beats", &dir.join("a.csv")),
+                ("--windows", &dir.join("A.csv")),
+            ],
+        )
+        .unwrap_err();
+        assert!(e.contains("--windows and --beats both name"), "{e}");
         // The WAV kept as FLAC: the FLAC is what is read.
         let gone = dir.join("take_part02-001.wav");
         let flac = dir.join("take_part02-001.flac");
@@ -312,6 +339,13 @@ mod files_apart_tests {
         assert!(e.contains("recording being read"), "{e}");
         let e =
             files_apart(&gone, &[("--beats", &dir.join("take_part02-001.wav.json"))]).unwrap_err();
+        assert!(e.contains("recording's sidecar"), "{e}");
+        // The sidecar of the FLAC actually read, named by the WAV's name.
+        let e = files_apart(
+            &gone,
+            &[("--beats", &dir.join("take_part02-001.flac.json"))],
+        )
+        .unwrap_err();
         assert!(e.contains("recording's sidecar"), "{e}");
         std::fs::remove_dir_all(&dir).unwrap();
     }
