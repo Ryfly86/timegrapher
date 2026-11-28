@@ -83,6 +83,7 @@ jobs:
         id: head
         env:
           GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
           set -euo pipefail
           # Prints the body of a GET, or nothing for a verified 404. Any other
@@ -96,7 +97,7 @@ jobs:
             fi
             code="$(printf '%s\n' "$resp" | head -n1 | awk '{print $2}')"
             [ "$code" = 404 ] && return 0
-            echo "::error::GET $1 failed (HTTP ${code:-no response}); not taking that as absent."
+            echo "::error::GET $1 failed (HTTP ${code:-no response}); not taking that as absent." >&2
             return 1
           }
           ref="$(get "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}")"
@@ -123,7 +124,11 @@ jobs:
               echo "publish=true" >> "$GITHUB_OUTPUT"
               echo "calibre-data holds ${published:-nothing}; this commit is $status of it." ;;
             *)
-              echo "::error::calibre-data holds $published, which is $status of $GITHUB_SHA (not on its line); move it by hand."
+              if [ "$DRY_RUN" = true ]; then
+                echo "::error::calibre-data holds $published, which is $status of $GITHUB_SHA; merge main into ${GITHUB_REF_NAME} and run the dry run again."
+              else
+                echo "::error::calibre-data holds $published, which is $status of $GITHUB_SHA (not on its line); move it by hand."
+              fi
               exit 1 ;;
           esac
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
