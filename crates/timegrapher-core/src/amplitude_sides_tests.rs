@@ -188,9 +188,20 @@ fn a_co_axial_with_30_windows_is_judged_on_its_sides() {
 #[test]
 fn a_co_axial_is_judged_against_the_median_ratio() {
     let mut w: Vec<AmplitudeWindow> = (0..40)
-        .map(|i| win(i, if i % 2 == 0 && i < 36 { 27.0 } else { 9.0 }, 6.0, 280.0))
+        .map(|i| {
+            win(
+                i,
+                if i.is_multiple_of(2) && i < 36 {
+                    27.0
+                } else {
+                    9.0
+                },
+                6.0,
+                280.0,
+            )
+        })
         .collect();
-    let misread = |i: usize| i % 2 == 0 && i < 36;
+    let misread = |i: usize| i.is_multiple_of(2) && i < 36;
     assert_eq!((0..40).filter(|&i| misread(i)).count(), 18);
     screen_unlock_beat_error(&mut w, Escapement::CoAxial);
     for (i, w) in w.iter().enumerate() {
