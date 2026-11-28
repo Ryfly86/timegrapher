@@ -46,14 +46,17 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
-# A newer push to a PR cancels that PR's run still in progress, and a newer
-# merge to main cancels main's push run still in progress, so runners go to the
-# newest commit only. A run started by hand (workflow_dispatch) is never
-# cancelled. The Release gate needs a green run on the exact commit it builds,
-# which is main's newest commit when a release starts (docs/reference/install.md).
+# A newer push to a PR cancels that PR's run still in progress, so runners go
+# to the PR's newest head only. Main's push run is never cancelled: it
+# finishes, the newest merge waits behind it, and GitHub drops any older run
+# still waiting in the group (#2528; cancelling it left 7 of 8 main runs
+# unfinished). A run started by hand (workflow_dispatch) has a group of its own
+# and is never cancelled. The Release gate needs a green run on the exact
+# commit it builds, which is main's newest commit when a release starts
+# (docs/reference/install.md).
 concurrency:
   group: ci-${{ github.event.pull_request.number || (github.event_name == 'push' && 'main') || github.run_id }}
-  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Draft or ready, read live (the comment at the top and
