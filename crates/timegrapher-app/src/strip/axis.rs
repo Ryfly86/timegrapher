@@ -1,6 +1,8 @@
 //! The labels on the strip's ms axis, across the time.
 
+use eframe::egui::{self, Color32, FontId};
 use timegrapher_core::chart_scale::{axis_tick, round_step};
+use timegrapher_core::time_of_day::WallClock;
 
 /// Which grid lines across the strip, `step` ms and `step_px` points
 /// apart, carry a label: every `n`th, the fewest skipped that leaves
@@ -60,6 +62,61 @@ pub(super) fn time_lines(end: f64, oldest: f64, step: f64) -> Vec<f64> {
         t -= step;
     }
     lines
+}
+
+/// Down, with Time of Day, the label column's least width, points: room
+/// for "14:35:20".
+pub(super) const CLOCK_COLUMN: f32 = 52.0;
+
+/// The room the label column keeps beside its widest label, points: 4 to
+/// the strip's edge and 4 to the column's.
+const CLOCK_PAD: f32 = 8.0;
+
+/// The least room between two labelled time lines, points: lying
+/// across, a label's width ("10:00:00"); down, its height with space
+/// each side.
+pub(super) fn time_gap(horizontal: bool) -> f64 {
+    if horizontal {
+        90.0
+    } else {
+        40.0
+    }
+}
+
+/// Down, the label column as wide as the widest time of day on show
+/// needs, "Fri 00:04:27" too, so none is cut (Hugh on #2174), points; on
+/// the strip `g` of a take `take_end` seconds long so far.
+pub(super) fn clock_column(
+    painter: &egui::Painter,
+    font: &FontId,
+    w: &WallClock,
+    g: &super::Geom,
+    take_end: f64,
+) -> f32 {
+    let tstep = time_step(g.span, time_gap(false), g.r.height() as f64);
+    time_lines(g.end, g.oldest(), tstep)
+        .into_iter()
+        .map(|t| {
+            let label = w.label(t, tstep, take_end);
+            painter
+                .layout_no_wrap(label, font.clone(), Color32::WHITE)
+                .size()
+                .x
+        })
+        .fold(0.0_f32, f32::max)
+        + CLOCK_PAD
+}
+
+/// A time to the hundredth of a second, such as "1:23.45", for the
+/// cursor's label.
+pub fn fmt_time_fine(t: f64) -> String {
+    let cs = (t.max(0.0) * 100.0).round() as u64;
+    let (s, frac) = (cs / 100, cs % 100);
+    if s >= 3600 {
+        format!("{}:{:02}:{:02}.{frac:02}", s / 3600, s / 60 % 60, s % 60)
+    } else {
+        format!("{}:{:02}.{frac:02}", s / 60, s % 60)
+    }
 }
 
 #[cfg(test)]
@@ -337,5 +394,151 @@ mod drawn {
             assert!((a.1.center().x - b.1.center().x).abs() < 1.0, "{a:?} {b:?}");
             assert!(b.1.top() >= a.1.bottom() - 1.0, "{a:?} {b:?}");
         }
+    }
+
+    /// Whether a drawn text is a time of day naming its day: "Fri
+    /// 00:04:27".
+    fn names_day(t: &str) -> bool {
+        let b = t.as_bytes();
+        t.len() == 12 && b[..3].iter().all(u8::is_ascii_alphabetic) && b[3] == b' '
+    }
+
+    /// Every text drawn, and where, on a strip `size` points, lying across
+    /// or down, with Time of Day on over a take begun 2026-11-20 14:32:17.5
+    /// UTC whose last beat is at `take_end`; the strip shows `span`
+    /// seconds to `end`, the cursor at `cursor_t`. With the strip's outer
+    /// rect.
+    fn clock_texts(
+        horizontal: bool,
+        size: Vec2,
+        (span_s, end): (f64, f64),
+        take_end: f64,
+        cursor_t: Option<f64>,
+    ) -> (Vec<(String, Rect)>, Rect) {
+        let wall = timegrapher_core::time_of_day::WallClock::new(1_795_185_137.5, &[]);
+        let extras = Extras {
+            wall: Some(&wall),
+            cursor_t,
+            ..Default::default()
+        };
+        let view = StripView {
+            half_width_ms: 20.0,
+            span_s,
+            horizontal,
+            still: false,
+            clock: true,
+        };
+        let beats = [Beat {
+            index: 0,
+            time: take_end,
+            quality: 1.0,
+        }];
+        let anchor = Some(Anchor {
+            index: 0,
+            time: take_end,
+        });
+        let ctx = egui::Context::default();
+        let mut outer = Rect::NOTHING;
+        let out = ctx.run(
+            egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(Pos2::ZERO, size + Vec2::splat(40.0))),
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    outer = Rect::from_min_size(ui.max_rect().min, size);
+                    draw_strip(ui, &beats, 0.125, anchor, end, &view, &extras, size);
+                });
+            },
+        );
+        let texts = out
+            .shapes
+            .iter()
+            .filter_map(|c| match &c.shape {
+                egui::Shape::Text(t) => Some((
+                    t.galley.text().to_string(),
+                    t.galley.rect.translate(t.pos.to_vec2()),
+                )),
+                _ => None,
+            })
+            .collect();
+        (texts, outer)
+    }
+
+    /// On a take falling on more than one day, its first label names the
+    /// day, at a step under six hours too, and the label is drawn whole
+    /// inside the strip, standing down (the column widened for it) or
+    /// lying across, at 1000 and 800 pt (Hugh on #2174). The strip shows
+    /// the take's first 10 min, its last beat 30 h in.
+    #[test]
+    fn a_label_naming_its_day_is_drawn_whole() {
+        for horizontal in [false, true] {
+            for width in [1000.0, 800.0] {
+                let size = Vec2::new(width, 400.0);
+                let (texts, outer) =
+                    clock_texts(horizontal, size, (1200.0, 600.0), 108_000.0, None);
+                let named: Vec<_> = texts.iter().filter(|t| names_day(&t.0)).collect();
+                assert_eq!(named.len(), 1, "{horizontal} at {width}: {texts:?}");
+                let at = named[0].1;
+                assert!(
+                    at.left() >= outer.left() && at.right() <= outer.right(),
+                    "{horizontal} at {width}: {named:?} cut by {outer:?}"
+                );
+            }
+        }
+    }
+
+    /// Standing down, the label column widens only for a label that needs
+    /// it: on a take inside one day the plain times sit where they did,
+    /// 4 pt from a 52 pt column's edge; one naming its day pushes the
+    /// strip right.
+    #[test]
+    fn the_down_column_widens_only_for_a_day() {
+        let size = Vec2::new(800.0, 400.0);
+        let right_edge = |take_end: f64| {
+            let (texts, outer) = clock_texts(false, size, (1200.0, 600.0), take_end, None);
+            let clock = texts
+                .iter()
+                .filter(|t| t.0.len() >= 8 && t.0.matches(':').count() == 2)
+                .map(|t| t.1.right() - outer.left())
+                .fold(0.0_f32, f32::max);
+            assert!(clock > 0.0, "{texts:?}");
+            clock
+        };
+        assert!((right_edge(600.0) - 48.0).abs() < 0.5);
+        assert!(right_edge(108_000.0) > 52.0);
+    }
+
+    /// The cursor's time of day names the day only on a take falling on
+    /// more than one day.
+    #[test]
+    fn the_cursor_names_the_day_on_a_take_of_days() {
+        let size = Vec2::new(800.0, 400.0);
+        let cursor = |take_end: f64| {
+            let (texts, _) = clock_texts(true, size, (1200.0, 600.0), take_end, Some(300.0));
+            texts
+                .into_iter()
+                .map(|t| t.0)
+                .find(|t| t.starts_with("5:00.00"))
+                .unwrap_or_default()
+        };
+        let one_day = cursor(600.0);
+        let two_days = cursor(108_000.0);
+        assert!(
+            one_day
+                .split("  ")
+                .nth(1)
+                .is_some_and(|c| !names_day_fine(c)),
+            "{one_day}"
+        );
+        assert!(
+            two_days.split("  ").nth(1).is_some_and(names_day_fine),
+            "{two_days}"
+        );
+    }
+
+    /// "Fri 14:42:17.50": the cursor's time of day naming its day.
+    fn names_day_fine(t: &str) -> bool {
+        t.len() == 15 && names_day(&t[..12])
     }
 }
