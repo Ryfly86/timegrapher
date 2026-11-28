@@ -1,242 +1,242 @@
-amplitude_deg
-amplitude_even_deg
-amplitude_even_se_deg
-amplitude_odd_deg
-amplitude_odd_se_deg
-amplitude_periods
-amplitude_periods[].period_s
-amplitude_periods[].power
-amplitude_periods[].prominence
-amplitude_periods[].wheel
-amplitude_se_deg
-beat_error_source
-beat_error_unlock_ms
-beats_found
-beats_found_fraction
-bph
-bph_measured
-bph_measured_se
-bph_set
-bph_set_from
-caveats
-caveats[].code
-clipping
-clipping.beat_fraction
-clipping.beats
-clipping.peak_dbfs
-clipping.samples
-confidence
-confidence.amplitude
-confidence.amplitude.se
-confidence.beat_error
-confidence.beat_error.se
-confidence.rate
-confidence.rate.se
-doubts
-doubts.beats_missing
-doubts.clipped
-doubts.clock_unknown
-doubts.lift_unknown
-duration_s
-input
-input.files
-input.files[].path
-input.settings
-input.settings.bph
-input.settings.calibre
-input.settings.escape_teeth
-input.settings.highpass_hz
-input.settings.lift_deg
-input.settings.notch_hz
-jitter_us
-lift_deg
-overall
-overall.beat_error_ms
-overall.beats_used
-overall.jitter_us
-overall.period_s
-overall.rate_s_per_day
-rate_card_s_per_day
-rate_corrected_s_per_day
-rate_p05
-rate_p95
-rate_s_per_day
-sample_rate
-schema
-shape
-shape.beat_error_first_quarter_ms
-shape.beat_error_last_quarter_ms
-shape.beat_error_quarter_windows
-shape.even
-shape.even.i12_ms
-shape.even.i13_ms
-shape.even.ratio13
-shape.even.share_with_sound_1
-shape.even.share_with_sound_2
-shape.even.tail_ratio
-shape.even.windows_measured
-shape.odd
-shape.odd.i12_ms
-shape.odd.i13_ms
-shape.odd.ratio13
-shape.odd.share_with_sound_1
-shape.odd.share_with_sound_2
-shape.odd.tail_ratio
-shape.odd.windows_measured
-software
-software.arch
-software.build_date
-software.git_dirty
-software.git_hash
-software.name
-software.os
-software.version
-take
-take.left_out
-take.left_out[].file
-take.left_out[].position
-take.left_out[].start_s
-take.left_out[].why
-take.readings
-take.readings[].bph
-take.readings[].bph_measured
-take.readings[].bph_measured_se
-take.readings[].bph_set
-take.readings[].bph_set_from
-take.readings[].cycles
-take.readings[].date
-take.readings[].duration_s
-take.readings[].label
-take.readings[].measurement
-take.readings[].measurement.amplitude_deg
-take.readings[].measurement.amplitude_even_deg
-take.readings[].measurement.amplitude_odd_deg
-take.readings[].measurement.amplitude_p05
-take.readings[].measurement.amplitude_p95
-take.readings[].measurement.amplitude_states
-take.readings[].measurement.amplitude_states.beat_error_drop_ms
-take.readings[].measurement.amplitude_states.beat_error_unlock_ms
-take.readings[].measurement.amplitude_states.block_s
-take.readings[].measurement.amplitude_states.blocks
-take.readings[].measurement.amplitude_states.delta_bic
-take.readings[].measurement.amplitude_states.dwell_high_s
-take.readings[].measurement.amplitude_states.dwell_low_s
-take.readings[].measurement.amplitude_states.high
-take.readings[].measurement.amplitude_states.low
-take.readings[].measurement.amplitude_states.low_share
-take.readings[].measurement.amplitude_states.one_sided
-take.readings[].measurement.amplitude_states.period_s
-take.readings[].measurement.amplitude_states.regularity
-take.readings[].measurement.amplitude_states.separation
-take.readings[].measurement.amplitude_states.spread
-take.readings[].measurement.amplitude_states.switch_every_s
-take.readings[].measurement.amplitude_states.switches
-take.readings[].measurement.amplitude_states.tick_change
-take.readings[].measurement.amplitude_states.tick_edge_split_alone
-take.readings[].measurement.amplitude_states.tick_split_alone
-take.readings[].measurement.amplitude_states.tick_unlock_ms
-take.readings[].measurement.amplitude_states.tock_change
-take.readings[].measurement.amplitude_states.tock_edge_split_alone
-take.readings[].measurement.amplitude_states.tock_split_alone
-take.readings[].measurement.amplitude_states.tock_unlock_ms
-take.readings[].measurement.amplitude_states.two_levels
-take.readings[].measurement.amplitude_states.unlock_jump
-take.readings[].measurement.amplitude_windows
-take.readings[].measurement.beat_error_ms
-take.readings[].measurement.beat_error_source
-take.readings[].measurement.beat_error_unlock_ms
-take.readings[].measurement.beats
-take.readings[].measurement.calibrated
-take.readings[].measurement.caveats
-take.readings[].measurement.caveats[].code
-take.readings[].measurement.clean_fraction
-take.readings[].measurement.clipped_beats
-take.readings[].measurement.clipped_fraction
-take.readings[].measurement.confidence
-take.readings[].measurement.confidence.amplitude
-take.readings[].measurement.confidence.amplitude.se
-take.readings[].measurement.confidence.beat_error
-take.readings[].measurement.confidence.beat_error.se
-take.readings[].measurement.confidence.rate
-take.readings[].measurement.confidence.rate.se
-take.readings[].measurement.coverage
-take.readings[].measurement.coverage.amplitude
-take.readings[].measurement.coverage.amplitude.windows_in_span
-take.readings[].measurement.coverage.amplitude.windows_used
-take.readings[].measurement.coverage.beat_error
-take.readings[].measurement.coverage.beat_error.windows_in_span
-take.readings[].measurement.coverage.beat_error.windows_used
-take.readings[].measurement.coverage.rate
-take.readings[].measurement.coverage.rate.windows_in_span
-take.readings[].measurement.coverage.rate.windows_used
-take.readings[].measurement.end_s
-take.readings[].measurement.jitter_us
-take.readings[].measurement.rate_p05
-take.readings[].measurement.rate_p95
-take.readings[].measurement.rate_s_per_day
-take.readings[].measurement.rate_states
-take.readings[].measurement.rate_states.beat_error_drop_ms
-take.readings[].measurement.rate_states.beat_error_unlock_ms
-take.readings[].measurement.rate_states.block_s
-take.readings[].measurement.rate_states.blocks
-take.readings[].measurement.rate_states.delta_bic
-take.readings[].measurement.rate_states.dwell_high_s
-take.readings[].measurement.rate_states.dwell_low_s
-take.readings[].measurement.rate_states.high
-take.readings[].measurement.rate_states.low
-take.readings[].measurement.rate_states.low_share
-take.readings[].measurement.rate_states.one_sided
-take.readings[].measurement.rate_states.period_s
-take.readings[].measurement.rate_states.regularity
-take.readings[].measurement.rate_states.separation
-take.readings[].measurement.rate_states.spread
-take.readings[].measurement.rate_states.switch_every_s
-take.readings[].measurement.rate_states.switches
-take.readings[].measurement.rate_states.tick_change
-take.readings[].measurement.rate_states.tick_edge_split_alone
-take.readings[].measurement.rate_states.tick_split_alone
-take.readings[].measurement.rate_states.tick_unlock_ms
-take.readings[].measurement.rate_states.tock_change
-take.readings[].measurement.rate_states.tock_edge_split_alone
-take.readings[].measurement.rate_states.tock_split_alone
-take.readings[].measurement.rate_states.tock_unlock_ms
-take.readings[].measurement.rate_states.two_levels
-take.readings[].measurement.rate_states.unlock_jump
-take.readings[].measurement.rate_window_median_s_per_day
-take.readings[].measurement.start_s
-take.readings[].measurement.unlock_coverage
-take.readings[].measurement.watch_heard
-take.readings[].notes
-take.readings[].position
-take.readings[].reference
-take.readings[].shape
-take.readings[].shape.even
-take.readings[].shape.even.extra_post
-take.readings[].shape.even.extra_pre
-take.readings[].shape.even.i12_ms
-take.readings[].shape.even.i13_ms
-take.readings[].shape.even.noise_ratio
-take.readings[].shape.even.ratio13
-take.readings[].shape.even.ratio23
-take.readings[].shape.even.sound1_found
-take.readings[].shape.from_s
-take.readings[].shape.measured_s
-take.readings[].shape.odd
-take.readings[].shape.odd.extra_post
-take.readings[].shape.odd.extra_pre
-take.readings[].shape.odd.i12_ms
-take.readings[].shape.odd.i13_ms
-take.readings[].shape.odd.noise_ratio
-take.readings[].shape.odd.ratio13
-take.readings[].shape.odd.ratio23
-take.readings[].shape.odd.sound1_found
-take.readings[].wind_h
-take.session_file
-timing_periods
-timing_periods[].period_s
-timing_periods[].power
-timing_periods[].prominence
-timing_periods[].wheel
-timing_scatter_fraction
-usb_clock
-watch_heard
+amplitude_deg number
+amplitude_even_deg number
+amplitude_even_se_deg number
+amplitude_odd_deg number
+amplitude_odd_se_deg number
+amplitude_periods array
+amplitude_periods[].period_s number
+amplitude_periods[].power number
+amplitude_periods[].prominence number
+amplitude_periods[].wheel null
+amplitude_se_deg number
+beat_error_source string
+beat_error_unlock_ms number
+beats_found number
+beats_found_fraction number
+bph number
+bph_measured number
+bph_measured_se null
+bph_set number
+bph_set_from string
+caveats array
+caveats[].code string
+clipping object
+clipping.beat_fraction number
+clipping.beats number
+clipping.peak_dbfs number
+clipping.samples number
+confidence object
+confidence.amplitude object
+confidence.amplitude.se number
+confidence.beat_error object
+confidence.beat_error.se number
+confidence.rate object
+confidence.rate.se null
+doubts object
+doubts.beats_missing bool
+doubts.clipped bool
+doubts.clock_unknown bool
+doubts.lift_unknown bool
+duration_s number
+input object
+input.files array
+input.files[].path string
+input.settings object
+input.settings.bph number
+input.settings.calibre null
+input.settings.escape_teeth number
+input.settings.highpass_hz number
+input.settings.lift_deg number
+input.settings.notch_hz array
+jitter_us number
+lift_deg number
+overall object
+overall.beat_error_ms number
+overall.beats_used number
+overall.jitter_us number
+overall.period_s number
+overall.rate_s_per_day number
+rate_card_s_per_day number
+rate_corrected_s_per_day null
+rate_p05 number
+rate_p95 number
+rate_s_per_day number
+sample_rate number
+schema string
+shape object
+shape.beat_error_first_quarter_ms number
+shape.beat_error_last_quarter_ms number
+shape.beat_error_quarter_windows number
+shape.even object
+shape.even.i12_ms number
+shape.even.i13_ms number
+shape.even.ratio13 number
+shape.even.share_with_sound_1 number
+shape.even.share_with_sound_2 number
+shape.even.tail_ratio number
+shape.even.windows_measured number
+shape.odd object
+shape.odd.i12_ms number
+shape.odd.i13_ms number
+shape.odd.ratio13 number
+shape.odd.share_with_sound_1 number
+shape.odd.share_with_sound_2 number
+shape.odd.tail_ratio number
+shape.odd.windows_measured number
+software object
+software.arch string
+software.build_date string
+software.git_dirty bool
+software.git_hash string
+software.name string
+software.os string
+software.version string
+take object
+take.left_out array
+take.left_out[].file string
+take.left_out[].position string
+take.left_out[].start_s number
+take.left_out[].why string
+take.readings array
+take.readings[].bph number
+take.readings[].bph_measured number
+take.readings[].bph_measured_se null
+take.readings[].bph_set number
+take.readings[].bph_set_from string
+take.readings[].cycles array
+take.readings[].date null
+take.readings[].duration_s number
+take.readings[].label string
+take.readings[].measurement object
+take.readings[].measurement.amplitude_deg number
+take.readings[].measurement.amplitude_even_deg number
+take.readings[].measurement.amplitude_odd_deg number
+take.readings[].measurement.amplitude_p05 number
+take.readings[].measurement.amplitude_p95 number
+take.readings[].measurement.amplitude_states object
+take.readings[].measurement.amplitude_states.beat_error_drop_ms null
+take.readings[].measurement.amplitude_states.beat_error_unlock_ms null
+take.readings[].measurement.amplitude_states.block_s number
+take.readings[].measurement.amplitude_states.blocks number
+take.readings[].measurement.amplitude_states.delta_bic number
+take.readings[].measurement.amplitude_states.dwell_high_s number
+take.readings[].measurement.amplitude_states.dwell_low_s number
+take.readings[].measurement.amplitude_states.high number
+take.readings[].measurement.amplitude_states.low number
+take.readings[].measurement.amplitude_states.low_share number
+take.readings[].measurement.amplitude_states.one_sided bool
+take.readings[].measurement.amplitude_states.period_s null
+take.readings[].measurement.amplitude_states.regularity number
+take.readings[].measurement.amplitude_states.separation number
+take.readings[].measurement.amplitude_states.spread bool
+take.readings[].measurement.amplitude_states.switch_every_s number
+take.readings[].measurement.amplitude_states.switches number
+take.readings[].measurement.amplitude_states.tick_change null
+take.readings[].measurement.amplitude_states.tick_edge_split_alone null
+take.readings[].measurement.amplitude_states.tick_split_alone null
+take.readings[].measurement.amplitude_states.tick_unlock_ms null
+take.readings[].measurement.amplitude_states.tock_change null
+take.readings[].measurement.amplitude_states.tock_edge_split_alone null
+take.readings[].measurement.amplitude_states.tock_split_alone null
+take.readings[].measurement.amplitude_states.tock_unlock_ms null
+take.readings[].measurement.amplitude_states.two_levels bool
+take.readings[].measurement.amplitude_states.unlock_jump bool
+take.readings[].measurement.amplitude_windows number
+take.readings[].measurement.beat_error_ms number
+take.readings[].measurement.beat_error_source string
+take.readings[].measurement.beat_error_unlock_ms number
+take.readings[].measurement.beats number
+take.readings[].measurement.calibrated bool
+take.readings[].measurement.caveats array
+take.readings[].measurement.caveats[].code string
+take.readings[].measurement.clean_fraction number
+take.readings[].measurement.clipped_beats number
+take.readings[].measurement.clipped_fraction number
+take.readings[].measurement.confidence object
+take.readings[].measurement.confidence.amplitude object
+take.readings[].measurement.confidence.amplitude.se number
+take.readings[].measurement.confidence.beat_error object
+take.readings[].measurement.confidence.beat_error.se number
+take.readings[].measurement.confidence.rate object
+take.readings[].measurement.confidence.rate.se null
+take.readings[].measurement.coverage object
+take.readings[].measurement.coverage.amplitude object
+take.readings[].measurement.coverage.amplitude.windows_in_span number
+take.readings[].measurement.coverage.amplitude.windows_used number
+take.readings[].measurement.coverage.beat_error object
+take.readings[].measurement.coverage.beat_error.windows_in_span number
+take.readings[].measurement.coverage.beat_error.windows_used number
+take.readings[].measurement.coverage.rate object
+take.readings[].measurement.coverage.rate.windows_in_span number
+take.readings[].measurement.coverage.rate.windows_used number
+take.readings[].measurement.end_s number
+take.readings[].measurement.jitter_us number
+take.readings[].measurement.rate_p05 number
+take.readings[].measurement.rate_p95 number
+take.readings[].measurement.rate_s_per_day number
+take.readings[].measurement.rate_states object
+take.readings[].measurement.rate_states.beat_error_drop_ms null
+take.readings[].measurement.rate_states.beat_error_unlock_ms null
+take.readings[].measurement.rate_states.block_s number
+take.readings[].measurement.rate_states.blocks number
+take.readings[].measurement.rate_states.delta_bic number
+take.readings[].measurement.rate_states.dwell_high_s number
+take.readings[].measurement.rate_states.dwell_low_s number
+take.readings[].measurement.rate_states.high number
+take.readings[].measurement.rate_states.low number
+take.readings[].measurement.rate_states.low_share number
+take.readings[].measurement.rate_states.one_sided bool
+take.readings[].measurement.rate_states.period_s null
+take.readings[].measurement.rate_states.regularity number
+take.readings[].measurement.rate_states.separation number
+take.readings[].measurement.rate_states.spread bool
+take.readings[].measurement.rate_states.switch_every_s number
+take.readings[].measurement.rate_states.switches number
+take.readings[].measurement.rate_states.tick_change null
+take.readings[].measurement.rate_states.tick_edge_split_alone null
+take.readings[].measurement.rate_states.tick_split_alone null
+take.readings[].measurement.rate_states.tick_unlock_ms null
+take.readings[].measurement.rate_states.tock_change null
+take.readings[].measurement.rate_states.tock_edge_split_alone null
+take.readings[].measurement.rate_states.tock_split_alone null
+take.readings[].measurement.rate_states.tock_unlock_ms null
+take.readings[].measurement.rate_states.two_levels bool
+take.readings[].measurement.rate_states.unlock_jump bool
+take.readings[].measurement.rate_window_median_s_per_day number
+take.readings[].measurement.start_s number
+take.readings[].measurement.unlock_coverage number
+take.readings[].measurement.watch_heard bool
+take.readings[].notes null
+take.readings[].position string
+take.readings[].reference null
+take.readings[].shape object
+take.readings[].shape.even object
+take.readings[].shape.even.extra_post array
+take.readings[].shape.even.extra_pre array
+take.readings[].shape.even.i12_ms number
+take.readings[].shape.even.i13_ms number
+take.readings[].shape.even.noise_ratio number
+take.readings[].shape.even.ratio13 number
+take.readings[].shape.even.ratio23 number
+take.readings[].shape.even.sound1_found number
+take.readings[].shape.from_s number
+take.readings[].shape.measured_s number
+take.readings[].shape.odd object
+take.readings[].shape.odd.extra_post array
+take.readings[].shape.odd.extra_pre array
+take.readings[].shape.odd.i12_ms number
+take.readings[].shape.odd.i13_ms number
+take.readings[].shape.odd.noise_ratio number
+take.readings[].shape.odd.ratio13 number
+take.readings[].shape.odd.ratio23 number
+take.readings[].shape.odd.sound1_found number
+take.readings[].wind_h null
+take.session_file string
+timing_periods array
+timing_periods[].period_s number
+timing_periods[].power number
+timing_periods[].prominence number
+timing_periods[].wheel null
+timing_scatter_fraction number
+usb_clock null
+watch_heard bool
