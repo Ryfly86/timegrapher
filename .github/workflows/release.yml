@@ -53,7 +53,11 @@ env:
 
 jobs:
   # Draft or ready, read live (the comment at the top). Off a pull request
-  # full is always true, so tag and Actions-tab runs build as before.
+  # full is true, so Actions-tab runs build as before, and so do tag runs,
+  # except for a tag a published release already holds: publishing a draft
+  # made from the Actions tab makes its tag, and that tag's run would build
+  # all four platforms again and make a second draft (#2206). Only GitHub's
+  # "not found" counts as no release; any other answer stops the run.
   mode:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -62,7 +66,7 @@ jobs:
       # Reading the pull request's draft state.
       pull-requests: read
     outputs:
-      full: ${{ steps.mode.outputs.full }}
+      full: ${{ steps.mode.outputs.full == 'true' && steps.tag.outputs.published != 'true' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -78,6 +82,51 @@ jobs:
           EVENT_DRAFT: ${{ github.event.pull_request.draft }}
           EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
         run: bash .github/ci/pr_mode.sh
+      - name: Tag already released
+        id: tag
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if draft="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq .draft 2> "$RUNNER_TEMP/err")"; then
+            [ "$draft" = false ] && published=true || published=false
+          elif grep -q "HTTP 404" "$RUNNER_TEMP/err"; then
+            published=false
+          else
+            cat "$RUNNER_TEMP/err" >&2
+            exit 1
+          fi
+          echo "published=$published" | tee -a "$GITHUB_OUTPUT"
+          if [ "$published" = true ]; then
+            echo "A published release already holds $TAG: nothing to build." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # The used version numbers, for a draft: every release's tag (drafts
+  # included, which are listed only to a token that can write) and every
+  # tag. Only a run that can draft a release has this job, so a pull
+  # request's run never holds a write token (#2426); it checks out nothing,
+  # so no file of the branch runs beside the token.
+  drafts:
+    if: github.event_name == 'workflow_dispatch' && inputs.release && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      used: ${{ steps.list.outputs.used }}
+    steps:
+      - id: list
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          # A failed listing must stop the run, not drop names.
+          set -o pipefail
+          used="$RUNNER_TEMP/used-versions"
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq '.[].tag_name' > "$used"
+          git ls-remote --tags "$REPO_URL" | sed -e 's#.*refs/tags/##' -e 's#\^{}$##' >> "$used"
+          echo "used=$(sort -u "$used" | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
 
   ci-gate:
     needs: mode
@@ -102,14 +151,15 @@ jobs:
   # release (drafts included) or tag uses for that X.Y, never less than the
   # base, so a draft can be made at any time without a version bump; X or Y
   # is raised by hand in Cargo.toml. A tag build takes the tag's version.
+  # It runs with a read-only token; a draft's used numbers come from the
+  # drafts job. `!cancelled()`: drafts is skipped on every other run.
   version:
-    needs: mode
-    if: *build
+    needs: [mode, drafts]
+    if: ${{ !cancelled() && needs.mode.outputs.full == 'true' && needs.drafts.result != 'failure' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
-      # Draft releases are listed only to a token that can write.
-      contents: write
+      contents: read
     outputs:
       version: ${{ steps.pick.outputs.version }}
     steps:
@@ -118,17 +168,17 @@ jobs:
           persist-credentials: false
       - id: pick
         env:
-          GH_TOKEN: ${{ github.token }}
           RELEASE_REQUESTED: ${{ toJSON(inputs.release || false) }}
+          USED: ${{ needs.drafts.outputs.used }}
         run: |
           if [ "${GITHUB_REF_TYPE}" = tag ]; then
             version="$(packaging/version.sh "${GITHUB_REF_NAME}")"
           elif [ "${RELEASE_REQUESTED}" = true ] && [ "${GITHUB_REF}" = refs/heads/main ]; then
-            # A failed listing must stop the run, not drop names.
-            set -o pipefail
+            # Releases have been made, so an empty list means the drafts
+            # job gave none.
+            [ -n "${USED// /}" ] || { echo "no used versions from the drafts job" >&2; exit 1; }
             used="$RUNNER_TEMP/used-versions"
-            gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq '.[].tag_name' > "$used"
-            git ls-remote --tags origin | sed -e 's#.*refs/tags/##' -e 's#\^{}$##' >> "$used"
+            tr ' ' '\n' <<< "$USED" | sed '/^$/d' > "$used"
             version="$(python3 packaging/release_version.py next "$used")"
           else
             version="$(packaging/version.sh)"
@@ -164,8 +214,11 @@ jobs:
           path: docs-html
           if-no-files-found: error
 
+  # Every need is named: drafts, skipped on most runs, sits behind
+  # version, and a skipped job anywhere upstream would skip this one.
   build:
     needs: [ci-gate, version, docs]
+    if: ${{ !cancelled() && needs.ci-gate.result == 'success' && needs.version.result == 'success' && needs.docs.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
@@ -348,6 +401,37 @@ jobs:
           python packaging/windows_imports.py mcpb/server
           python packaging/artifact_smoke.py mcpb/server --label windows-mcpb
 
+      # The packaged app opens the 80 s Quick Listen take and draws it: a
+      # crash, a window that never draws, a logged error or a crash record
+      # fails here, which `--help` above can't catch (#2430). A screenshot
+      # of the screen is kept for a person to look at. Linux draws on Xvfb
+      # with Mesa's software OpenGL; macOS and Windows runners have a desktop.
+      - name: First frame
+        env:
+          TAKE: guide-figures/data/quick-listen/take_part01-001.flac
+          SHOT: first-frame-${{ matrix.name }}.png
+        run: |
+          case "$RUNNER_OS" in
+            Linux)
+              .github/ci/apt-install.sh xvfb imagemagick libgl1-mesa-dri libxkbcommon-x11-0
+              # The unzip copy keeps the AppImage executable (above).
+              app=(unzip-check/*/Timegrapher.AppImage)
+              APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a -s "-screen 0 1920x1080x24" \
+                python3 packaging/first_frame.py "$SHOT" "$TAKE" "${app[0]}" ;;
+            macOS)
+              python3 packaging/first_frame.py "$SHOT" "$TAKE" "$PKG/Timegrapher.app/Contents/MacOS/timegrapher-app" ;;
+            Windows)
+              python packaging/first_frame.py "$SHOT" "$TAKE" "$PKG/Timegrapher.exe" ;;
+          esac
+      - name: Keep the first frame
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: first-frame-${{ matrix.name }}
+          path: first-frame-${{ matrix.name }}.png
+          retention-days: 7
+          if-no-files-found: warn
+
       # Uploaded as the file itself, so a download from the run's page is
       # the same file the release gets, not a zip around it.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -367,10 +451,12 @@ jobs:
           archive: false
           if-no-files-found: error
 
+  # Named results, as for build: drafts is skipped on tag runs.
   release:
     if: >-
-      (github.event_name == 'push' && github.ref_type == 'tag') ||
-      (github.event_name == 'workflow_dispatch' && inputs.release && github.ref == 'refs/heads/main')
+      !cancelled() && needs.version.result == 'success' && needs.build.result == 'success' &&
+      ((github.event_name == 'push' && github.ref_type == 'tag') ||
+      (github.event_name == 'workflow_dispatch' && inputs.release && github.ref == 'refs/heads/main'))
     needs: [version, build]
     runs-on: ubuntu-24.04
     permissions:

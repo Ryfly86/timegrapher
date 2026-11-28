@@ -106,14 +106,19 @@ class ReleaseDraftRule(unittest.TestCase):
     def test_every_build_job_waits_for_mode(self):
         found = jobs(RELEASE)
         self.assertEqual(job_if(found["ci-gate"]), f"&build {FULL}")
-        for name in ("ci-gate", "version", "docs"):
+        self.assertEqual(job_if(found["docs"]), "*build")
+        for name in ("ci-gate", "docs"):
             self.assertRegex(found[name], r"(?m)^    needs: mode$", name)
-            if name != "ci-gate":
-                self.assertEqual(job_if(found[name]), "*build", name)
-        # build and release need those three (or build), so a draft skips
-        # them too; neither may run on its own.
+        self.assertRegex(found["version"], r"(?m)^    needs: \[mode, drafts\]$")
+        self.assertEqual(job_if(found["version"]),
+                         "${{ !cancelled() && needs.mode.outputs.full == 'true' "
+                         "&& needs.drafts.result != 'failure' }}")
+        # build and release need those (or build), and name each result, so
+        # a draft skips them too and neither runs on its own.
         self.assertRegex(found["build"], r"(?m)^    needs: \[ci-gate, version, docs\]$")
-        self.assertIsNone(job_if(found["build"]))
+        self.assertEqual(job_if(found["build"]),
+                         "${{ !cancelled() && needs.ci-gate.result == 'success' && "
+                         "needs.version.result == 'success' && needs.docs.result == 'success' }}")
         self.assertRegex(found["release"], r"(?m)^    needs: \[version, build\]$")
 
     def test_the_shared_mode_script_starts_a_run(self):
@@ -127,6 +132,110 @@ class ReleaseDraftRule(unittest.TestCase):
         # never cancelled: two drafts must never pick the same version.
         self.assertIn("\nconcurrency:\n  group: release-${{ github.event_name == 'pull_request' && github.ref || 'main' }}\n"
                       "  cancel-in-progress: ${{ github.event_name == 'pull_request' }}\n", RELEASE)
+
+
+class ReleaseTokens(unittest.TestCase):
+    """Only the runs that can draft a release get a write token (#2426)."""
+
+    RELEASE_CAPABLE = ("github.event_name == 'workflow_dispatch' && inputs.release "
+                       "&& github.ref == 'refs/heads/main'")
+
+    def test_only_drafts_and_release_can_write(self):
+        found = jobs(RELEASE)
+        writers = {n for n, text in found.items() if "contents: write" in text}
+        self.assertEqual(writers, {"drafts", "release"})
+        self.assertIn("\npermissions:\n  contents: read\n", RELEASE)
+        self.assertEqual(job_if(found["drafts"]), self.RELEASE_CAPABLE)
+        # release's own `if` is pinned by test_release_ci_gate.py.
+        self.assertIn(self.RELEASE_CAPABLE, found["release"])
+
+    def test_drafts_runs_no_file_of_the_branch(self):
+        text = jobs(RELEASE)["drafts"]
+        self.assertNotIn("uses:", text)
+        self.assertNotIn("needs:", text)
+        self.assertNotRegex(text, r"(packaging|\.github)/")
+
+
+def step_script(job, marker):
+    """The `run: |` text after `marker` in release.yml's `job`, unindented."""
+    block = jobs(RELEASE)[job].split(marker, 1)[1]
+    block = block.split("        run: |\n", 1)[1]
+    lines = []
+    for line in block.split("\n"):
+        if line and not line.startswith("          "):
+            break
+        lines.append(line[10:])
+    return "\n".join(lines)
+
+
+@unittest.skipIf(os.name == "nt" or not shutil.which("bash"), "needs bash")
+class VersionForADraft(unittest.TestCase):
+    """version picks a draft's number from the drafts job's list (#2426)."""
+
+    def pick(self, used):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = pathlib.Path(tmp, "out")
+            env = dict(os.environ, GITHUB_OUTPUT=str(out), GITHUB_STEP_SUMMARY=str(pathlib.Path(tmp, "sum")),
+                       RUNNER_TEMP=tmp, GITHUB_REF_TYPE="branch", GITHUB_REF="refs/heads/main",
+                       RELEASE_REQUESTED="true", USED=used)
+            done = subprocess.run(["bash", "-e", "-c", step_script("version", "      - id: pick\n")],
+                                  env=env, cwd=ROOT, capture_output=True, text=True)
+            return done.returncode, out.read_text().strip() if out.exists() else ""
+
+    def test_an_empty_list_stops_the_run(self):
+        for used in ("", " ", "   "):
+            code, out = self.pick(used)
+            self.assertNotEqual(code, 0, repr(used))
+            self.assertEqual(out, "")
+
+    def test_the_list_gives_the_next_number(self):
+        code, out = self.pick("v0.1.0 v0.1.1 ")
+        self.assertEqual(code, 0)
+        self.assertRegex(out, r"^version=\d+\.\d+\.\d+$")
+
+
+def tag_script():
+    """The `run: |` text of release.yml's "Tag already released" step."""
+    block = jobs(RELEASE)["mode"].split("      - name: Tag already released\n", 1)[1]
+    block = block.split("        run: |\n", 1)[1]
+    lines = []
+    for line in block.split("\n"):
+        if line and not line.startswith("          "):
+            break
+        lines.append(line[10:])
+    return "\n".join(lines)
+
+
+@unittest.skipIf(os.name == "nt" or not shutil.which("bash"), "needs bash")
+class TagAlreadyReleased(unittest.TestCase):
+    """A tag a published release holds builds nothing (#2206)."""
+
+    def run_step(self, gh_body):
+        with tempfile.TemporaryDirectory() as tmp:
+            gh = pathlib.Path(tmp, "gh")
+            gh.write_text("#!/bin/sh\n" + gh_body)
+            gh.chmod(0o755)
+            out = pathlib.Path(tmp, "out")
+            env = dict(os.environ, PATH=f"{tmp}{os.pathsep}{os.environ['PATH']}",
+                       GITHUB_OUTPUT=str(out), GITHUB_STEP_SUMMARY=str(pathlib.Path(tmp, "sum")),
+                       RUNNER_TEMP=tmp, GITHUB_REPOSITORY="o/r", TAG="v1.1.0", GH_TOKEN="x")
+            done = subprocess.run(["bash", "-e", "-c", tag_script()], env=env,
+                                  capture_output=True, text=True)
+            return done.returncode, out.read_text().strip() if out.exists() else ""
+
+    def test_the_four_answers(self):
+        self.assertEqual(self.run_step("echo false\n"), (0, "published=true"))
+        self.assertEqual(self.run_step("echo true\n"), (0, "published=false"))
+        self.assertEqual(self.run_step("echo 'gh: Not Found (HTTP 404)' >&2; exit 1\n"),
+                         (0, "published=false"))
+        code, out = self.run_step("echo 'gh: Server Error (HTTP 502)' >&2; exit 1\n")
+        self.assertNotEqual(code, 0)
+        self.assertEqual(out, "")
+
+    def test_mode_says_full_only_without_a_published_release(self):
+        self.assertIn("      full: ${{ steps.mode.outputs.full == 'true' && "
+                      "steps.tag.outputs.published != 'true' }}\n", jobs(RELEASE)["mode"])
+        self.assertIn("        if: github.ref_type == 'tag'\n", jobs(RELEASE)["mode"])
 
 
 class TestTimes(unittest.TestCase):
