@@ -993,8 +993,8 @@ fn live(
                 f.push(&b.samples);
             }
             got += take;
-            if stop.as_mut().and_then(|s| s.push(&b.samples)).is_some() {
-                eprintln!("{}", power_reserve::Ending::Stopped.text());
+            if let Some(e) = stop.as_mut().and_then(|s| s.push(&b.samples)) {
+                eprintln!("{}", e.text());
                 break 'listen;
             }
             let s = got as f64 / fs_hz as f64;
