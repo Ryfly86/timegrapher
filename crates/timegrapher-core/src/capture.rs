@@ -1323,8 +1323,8 @@ mod tests {
 
     /// A replay stopped after its first block reads a block or two more,
     /// not the rest of the file, whether it is a WAV or a FLAC: when the
-    /// capture is dropped, and when it is told to stop with its queue
-    /// still taken (#2414).
+    /// capture is dropped, when nothing takes its blocks any more, and
+    /// when it is told to stop with its queue still taken (#2414).
     #[test]
     fn a_stopped_replay_stops_reading() {
         let dir = std::env::temp_dir().join(format!("tg-replay-stop-{}", std::process::id()));
@@ -1354,6 +1354,17 @@ mod tests {
                 job.join().unwrap()
             });
             assert!(read <= 4, "{}: {read} blocks read", f.display());
+            // Nothing takes the blocks any more, stop never set: the
+            // failed send alone ends it.
+            let stop = AtomicBool::new(false);
+            let (tx, rx) = sync_channel(1);
+            let read = std::thread::scope(|s| {
+                let job = s.spawn(|| replay(&paths, 8000, &tx, &stop, &speed));
+                assert!(matches!(rx.recv().unwrap(), Event::Audio(_)));
+                drop(rx);
+                job.join().unwrap()
+            });
+            assert!(read <= 4, "{}: {read} blocks read, stop unset", f.display());
             // Told to stop, the queue still taken: it ends there.
             let stop = AtomicBool::new(false);
             let (tx, rx) = sync_channel(1);

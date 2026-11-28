@@ -287,13 +287,20 @@ mod tests {
         assert_eq!(v["later"]["segments"][0], "audio-001.wav");
         assert_eq!(v["segments"][1], "audio-002.wav");
         // An escaped name is still the same name.
-        let escaped = r#"{"segments": ["audio-001.wav"], "watch": "audio-001.wav"}"#;
+        let escaped = r#"{"segments": ["audio\u002d001.wav"], "watch": "audio-001.wav"}"#;
         assert_eq!(
             renamed_segment(escaped, "audio-001.wav", "audio-001.flac").unwrap(),
             r#"{"segments": ["audio-001.flac"], "watch": "audio-001.wav"}"#
         );
         // Not a record: nothing is guessed at.
-        for bad in ["", "[]", r#"{"segments": ["a"]"#, r#"{"a": 1} x"#] {
+        for bad in [
+            "",
+            "[]",
+            r#"{"segments": ["a"]"#,
+            r#"{"a": 1} x"#,
+            r#"{"a": }"#,
+            r#"{"a": 1 "b": 2}"#,
+        ] {
             assert_eq!(renamed_segment(bad, "a", "b"), None, "{bad}");
         }
     }
