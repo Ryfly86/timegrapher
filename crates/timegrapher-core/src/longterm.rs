@@ -1185,11 +1185,12 @@ pub fn analyse(g: &Grid, cfg: &LongConfig) -> SeriesReport {
 
 /// The period search over the beats' timing: random walk plus white noise
 /// is its null.
-pub fn analyse_timing(g: &Grid, cfg: &LongConfig) -> SeriesReport {
+#[cfg(test)]
+pub(crate) fn analyse_timing(g: &Grid, cfg: &LongConfig) -> SeriesReport {
     analyse_timing_pieces(g, &[], cfg)
 }
 
-/// [`analyse_timing`] of a take whose timing starts again from its own fit
+/// `analyse_timing` of a take whose timing starts again from its own fit
 /// at each of `starts` (grid indices): each piece is detrended on its own
 /// ([`detrend_pieces`]).
 pub fn analyse_timing_pieces(g: &Grid, starts: &[usize], cfg: &LongConfig) -> SeriesReport {

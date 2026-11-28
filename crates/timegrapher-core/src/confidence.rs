@@ -560,7 +560,8 @@ pub const MIN_VALUES: usize = 3;
 /// Estimated standard error of a median from values in time order, in their
 /// own units. The scatter comes from successive differences, so a linear
 /// drift cancels exactly: s = 1.4826 MAD(differences) / sqrt(2). With the
-/// values' lag-one correlation ρ (`lag_one`, negative taken as 0), the
+/// values' lag-one correlation ρ ([`corrected_lag_one`]: less their
+/// line, its bias added back, held to 0 ..= [`MAX_RHO`]), the
 /// differences understate the spread by sqrt(1 − ρ) and the values are worth
 /// [`effective_readings`] independent ones, so
 /// SE = 1.2533 × s / sqrt(1 − ρ) / sqrt(n_eff). With ρ = 0 this is
@@ -574,7 +575,7 @@ pub fn standard_error(values: &[f64]) -> Option<f64> {
 /// [`standard_error`] of one series read in stretches, the runs between
 /// its gaps, in time order (#639): the differences are taken within each
 /// stretch only, never across a gap, and the lag-one correlation is
-/// pooled over the stretches (`pooled_lag_one`); `n` counts every
+/// pooled over the stretches ([`corrected_lag_one`]); `n` counts every
 /// value. With one stretch it is [`standard_error`]. None with fewer than
 /// [`MIN_VALUES`] values, no difference within a stretch, or a ± of 0
 /// ([`shown`]).
